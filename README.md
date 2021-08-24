@@ -8,7 +8,7 @@ See [Google Drive](https://drive.google.com/drive/u/0/folders/1p_yIOJ1WLu-lqz-BV
 ### Components
 
 There are 3 separated, tighly-coupled components contained within this repository:
-- **Frontend**: [PatternFly](https://www.patternfly.org/)/React based based on PatternFly React Seed
+- **Frontend**: [PatternFly](https://www.patternfly.org/)/React-based UI, based on PatternFly React Seed
 - **Backend**: Simple Go module for listening for REST requests
 - **Cluster Agent**: A Kubernetes controller/operator that lives on the cluster and handles cluster operations.
     - Based on operator-sdk v1.11

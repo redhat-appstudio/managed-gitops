@@ -17,7 +17,9 @@ There are 3 separated, tighly-coupled components contained within this repositor
 ### Development Environment
 
 This repository contains scripts which may be used to setup/run the development environment:
-- **`create-dev-env.sh`**: Start up Postgresql in a docker container, with the database initialized
+- **`create-dev-env.sh`**: Start up PostgreSQL in a docker container, with the database initialized. 
+    - Also starts `pg-admin`, a web-based tool for viewing and administering PostgreSQL database.
+    - See `create-dev-env.sh` for login/password and connection info.
 - **`(delete/stop)-dev-env.sh`**: Stop or delete the database.
 - **`db-schema.sql`**: The database schema used by the components
 - **`psql.sh`**: Allows you to interact with the DB from the command line. Requires `psql` CLI util to be installed on your local machine (for example, by installing PostgreSQL)

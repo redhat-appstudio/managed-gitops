@@ -1,4 +1,4 @@
-module github.com/jgwest/argocdaas-backend
+module github.com/jgwest/managed-gitops/backend
 
 go 1.14
 

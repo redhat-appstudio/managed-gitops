@@ -9,28 +9,13 @@ import (
 )
 
 // function to connect to Postgres
-func Connect2db() *pg.DB {
+func ConnectToDatabase() *pg.DB {
 	fmt.Println("Connection Initiated")
 	opts := &pg.Options{
-		Network:               "",
-		Addr:                  "localhost:5432",
-		User:                  "postgres",
-		Password:              "gitops",
-		Database:              "managed-gitops-postgres",
-		ApplicationName:       "",
-		DialTimeout:           0,
-		ReadTimeout:           0,
-		WriteTimeout:          0,
-		MaxRetries:            0,
-		RetryStatementTimeout: false,
-		MinRetryBackoff:       0,
-		MaxRetryBackoff:       0,
-		PoolSize:              0,
-		MinIdleConns:          0,
-		MaxConnAge:            0,
-		PoolTimeout:           0,
-		IdleTimeout:           0,
-		IdleCheckFrequency:    0,
+		Addr:     "localhost:5432",
+		User:     "postgres",
+		Password: "gitops",
+		Database: "managed-gitops-postgres",
 	}
 
 	var db *pg.DB = pg.Connect(opts)

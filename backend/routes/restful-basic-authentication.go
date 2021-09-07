@@ -39,5 +39,8 @@ func main() {
 
 func secret(req *restful.Request, resp *restful.Response) {
 
-	io.WriteString(resp, "42")
+	_, err := io.WriteString(resp, "42")
+	if err != nil {
+		log.Fatal(err)
+	}
 }

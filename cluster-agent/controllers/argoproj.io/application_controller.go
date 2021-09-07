@@ -14,49 +14,52 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package argoprojio
 
 import (
 	"context"
 
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-
-	managedgitopsv1alpha1 "github.com/jgwest/managed-gitops/cluster-agent/api/v1alpha1"
 )
 
-// OperationReconciler reconciles a Operation object
-type OperationReconciler struct {
+// ApplicationReconciler reconciles a Application object
+type ApplicationReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=managed-gitops.redhat.com,resources=operations,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=managed-gitops.redhat.com,resources=operations/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=managed-gitops.redhat.com,resources=operations/finalizers,verbs=update
-
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
-// the Operation object against the actual cluster state, and then
+// the Application object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.9.2/pkg/reconcile
-func (r *OperationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	contextLog := log.FromContext(ctx)
 
-	// your logic here
+	app := appv1.Application{}
+
+	if err := r.Get(ctx, req.NamespacedName, &app); err != nil {
+		contextLog.Error(err, "Unable to find Application: "+app.Name)
+		return ctrl.Result{}, err
+	}
+
+	contextLog.Info("Application event seen in reconciler: " + app.Name)
 
 	return ctrl.Result{}, nil
+
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *OperationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&managedgitopsv1alpha1.Operation{}).
+		For(&appv1.Application{}).
 		Complete(r)
 }

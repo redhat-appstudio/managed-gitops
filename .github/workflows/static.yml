@@ -1,0 +1,79 @@
+name: static checks
+on:
+  push:
+    branches:
+      - "*"
+  pull_request:
+    branches:
+      - "*"
+
+jobs:
+  gofmt:
+    name: Ensure that code is gofmt-ed
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: "Ensure 'backend' is 'go fmt'-ed - run 'make fmt' to fix"
+      uses: grandcolline/golang-github-actions@v1.1.0
+      with:
+        run: fmt
+        directory: backend
+        comment: false
+    - name: "Ensure 'cluster-agent' is 'go fmt'-ed - run 'make fmt to fix"
+      uses: grandcolline/golang-github-actions@v1.1.0
+      with:
+        run: fmt
+        directory: cluster-agent
+        comment: false
+
+  gosec:
+    name: Ensure that code passes gosec
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: Setup Golang
+      uses: actions/setup-go@v2
+      with:
+        go-version: '1.16.4'
+    - name: "Install gosec"
+      run: |
+        go get -u github.com/securego/gosec/v2/cmd/gosec
+    - name: "Ensure 'backend' passes 'go-sec' - run 'make gosec' to identify issues"
+      run: |
+        cd $GITHUB_WORKSPACE/backend
+        make gosec
+    - name: "Ensure 'cluster-agent' passes 'go-sec' - run 'make gosec' to identify issues"
+      run: |
+        cd $GITHUB_WORKSPACE/cluster-agent
+        make gosec
+
+  check-go:
+    name: Ensure Go modules synchronicity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Setup Golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16.4'
+
+      - name: "Backend: Download all Go modules"
+        run: |
+          cd $GITHUB_WORKSPACE/backend
+          go mod download
+      - name: "Backend: Check for tidyness of go.mod and go.sum: run `go mod tidy` to fix"
+        run: |
+          cd $GITHUB_WORKSPACE/backend
+          go mod tidy
+          git diff --exit-code -- .
+
+      - name: "Cluster-agent: Download all Go modules"
+        run: |
+          cd $GITHUB_WORKSPACE/cluster-agent
+          go mod download
+      - name: "Cluster-agent: Check for tidyness of go.mod and go.sum: run `go mod tidy` to fix"
+        run: |
+          cd $GITHUB_WORKSPACE/cluster-agent
+          go mod tidy
+          git diff --exit-code -- .

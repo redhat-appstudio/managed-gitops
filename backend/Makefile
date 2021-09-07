@@ -7,6 +7,11 @@ build: fmt vet
 test: fmt vet
 	go test -race -count=1 -coverprofile=coverage.out `go list ./...`
 
+.PHONY: gosec
+gosec: 
+	# Run this command, to install gosec, if not installed:
+	# go get -u github.com/securego/gosec/v2/cmd/gosec
+	gosec ./...
 
 .PHONY: lint
 lint:

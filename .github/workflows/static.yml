@@ -27,7 +27,7 @@ jobs:
         comment: false
 
   gosec:
-    name: Ensure that code passes gosec
+    name: Ensure that code passes gosec and golint
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
@@ -46,6 +46,10 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/cluster-agent
         make gosec
+    - name: "Ensure 'backend' passes 'go-lint' - run 'make lint' to identify issues"
+      run: |
+        cd $GITHUB_WORKSPACE/backend
+        make lint
 
   check-go:
     name: Ensure Go modules synchronicity

@@ -6,7 +6,7 @@ import "time"
 type GitopsEngineCluster struct {
 
 	//lint:ignore U1000 used by go-pg
-	tableName struct{} `pg:"gitopsenginecluster"`
+	tableName struct{} `pg:"gitopsenginecluster"` //nolint
 
 	Gitopsenginecluster_infcluster_id string `pg:"gitopsenginecluster_infcluster_id,pk"`
 
@@ -21,7 +21,7 @@ type GitopsEngineCluster struct {
 type GitopsEngineInstance struct {
 
 	//lint:ignore U1000 used by go-pg
-	tableName struct{} `pg:"gitopsengineinstance"`
+	tableName struct{} `pg:"gitopsengineinstance"` //nolint
 
 	Gitopsengineinstance_id string `pg:"gitopsengineinstance_id,pk"`
 	SeqID                   int64  `pg:"seq_id"`
@@ -39,7 +39,7 @@ type GitopsEngineInstance struct {
 // ManagedEnvironment is an environment (namespace(s) on a user's cluster) that they want to deploy applications to, using Argo CD
 type ManagedEnvironment struct {
 	//lint:ignore U1000 used by go-pg
-	tableName struct{} `pg:"managedenvironment"`
+	tableName struct{} `pg:"managedenvironment"` //nolint
 
 	Managedenvironment_id string `pg:"managedenvironment_id,pk"`
 	SeqID                 int64  `pg:"seq_id"`
@@ -55,7 +55,7 @@ type ManagedEnvironment struct {
 type ClusterCredentials struct {
 
 	//lint:ignore U1000 used by go-pg
-	tableName struct{} `pg:"clustercredentials"`
+	tableName struct{} `pg:"clustercredentials"` //nolint
 
 	// -- Primary key for the credentials (UID)
 	Clustercredentials_cred_id string `pg:"clustercredentials_cred_id,pk"`
@@ -84,7 +84,7 @@ type ClusterCredentials struct {
 type ClusterUser struct {
 
 	//lint:ignore U1000 used by go-pg
-	tableName struct{} `pg:"clusteruser"`
+	tableName struct{} `pg:"clusteruser"` //nolint
 
 	Cluster_user_id string `pg:"cluster_user_id,pk"`
 	User_name       string `pg:"user_name"`
@@ -94,7 +94,7 @@ type ClusterUser struct {
 type ClusterAccess struct {
 
 	//lint:ignore U1000 used by go-pg
-	tableName struct{} `pg:"clusteraccess"`
+	tableName struct{} `pg:"clusteraccess"` //nolint
 
 	// -- Describes whose cluster this is (UID)
 	Clusteraccess_user_id string `pg:"clusteraccess_user_id,pk"`
@@ -120,7 +120,7 @@ type ClusterAccess struct {
 type Operation struct {
 
 	//lint:ignore U1000 used by go-pg
-	tableName struct{} `pg:"operation"`
+	tableName struct{} `pg:"operation"` //nolint
 
 	// -- UID
 	Operation_id string `pg:"operation_id,pk"`
@@ -172,7 +172,7 @@ type Operation struct {
 type Application struct {
 
 	//lint:ignore U1000 used by go-pg
-	tableName struct{} `pg:"application"`
+	tableName struct{} `pg:"application"` //nolint
 
 	Application_id string `pg:"application_id,pk"`
 
@@ -201,7 +201,7 @@ type Application struct {
 type ApplicationState struct {
 
 	//lint:ignore U1000 used by go-pg
-	tableName struct{} `pg:"applicationstate"`
+	tableName struct{} `pg:"applicationstate"` //nolint
 
 	// -- Also a foreign key to Applicaiton.application_id
 	Applicationstate_application_id string `pg:"applicationstate_application_id,pk"`

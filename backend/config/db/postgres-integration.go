@@ -1,4 +1,4 @@
-package config
+package db
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ func ConnectToDatabase() *pg.DB {
 		Addr:     "localhost:5432",
 		User:     "postgres",
 		Password: "gitops",
-		Database: "managed-gitops-postgres",
+		Database: "postgres",
 	}
 
 	var db *pg.DB = pg.Connect(opts)

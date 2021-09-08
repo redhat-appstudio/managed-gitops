@@ -27,7 +27,7 @@ jobs:
         comment: false
 
   gosec:
-    name: Ensure that code passes gosec
+    name: Ensure that code passes gosec and golint
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
@@ -46,6 +46,11 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/cluster-agent
         make gosec
+    - name: "Ensure 'backend' passes 'go-lint' - run 'make lint' to identify issues"
+      run: |
+        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.40.1
+        cd $GITHUB_WORKSPACE/backend
+        make lint
 
   check-go:
     name: Ensure Go modules synchronicity
@@ -77,3 +82,25 @@ jobs:
           cd $GITHUB_WORKSPACE/cluster-agent
           go mod tidy
           git diff --exit-code -- .
+
+
+  test-go:
+    name: Run unit tests for Go packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Setup Golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16.4'
+      - name: "Start PostgreSQL"
+        run: |
+          cd $GITHUB_WORKSPACE
+          ./create-dev-env.sh
+
+      - name: "Run backend tests"
+        run: |
+          cd $GITHUB_WORKSPACE/backend
+          make test
+      

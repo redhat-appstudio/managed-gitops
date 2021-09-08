@@ -80,8 +80,9 @@ CREATE TABLE ClusterCredentials (
 	serviceaccount_bearer_token VARCHAR (128),
 
 	-- State 2) The namespace of the ServiceAccount
-	serviceaccount_ns VARCHAR (128)
+	serviceaccount_ns VARCHAR (128),
 
+	seq_id serial
 );
 
 
@@ -119,6 +120,8 @@ CREATE TABLE ClusterAccess (
 	-- CONSTRAINT fk_cluster_access_target_inf_cluster   FOREIGN KEY(cluster_access_target_inf_cluster)  REFERENCES InfrastructureCluster(inf_cluster_id),
 	-- CONSTRAINT fk_cluster_access_user_id   FOREIGN KEY(cluster_access_user_id)  REFERENCES ClusterUser(user_id),
 	
+	seq_id serial,
+	
 	PRIMARY KEY(clusteraccess_user_id, clusteraccess_managed_environment_id, clusteraccess_gitops_engine_instance_id)
 );
 
@@ -132,7 +135,7 @@ CREATE TABLE Operation (
 	-- UID
 	operation_id  VARCHAR (48) PRIMARY KEY,
 
-	seqid serial,
+	seq_id serial,
 
 	-- TODO: Make gitops_manager_instance_id an FK
 	-- Specifies which Argo CD instance is this operation against
@@ -178,7 +181,7 @@ CREATE TABLE Operation (
 CREATE TABLE Application (
 	application_id VARCHAR ( 48 ) NOT NULL UNIQUE PRIMARY KEY,
 
-	seqid serial,
+	seq_id serial,
 
 	-- Name of the Application CR within the namespace
 	name VARCHAR ( 256 ) NOT NULL,
@@ -206,7 +209,7 @@ CREATE TABLE Application (
 -- (Redis may be better suited for this in the future)
 CREATE TABLE ApplicationState (
 
-	-- Also a foreign key to Applicaiton.application_id
+	-- Also a foreign key to Application.application_id
 	applicationstate_application_id  VARCHAR ( 48 ) PRIMARY KEY,
 	-- TODO: applicationstate_application_id should be an FK
 	-- CONSTRAINT fk_app_id  PRIMARY KEY  FOREIGN KEY(app_id)  REFERENCES Application(appl_id),

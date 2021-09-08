@@ -13,7 +13,7 @@ import (
 // GET http://localhost:8080/secret
 // and use admin,admin for the credentials
 
-func main() {
+func StartRoutes() {
 	ws := new(restful.WebService)
 	// ws.Consumes(restful.MIME_JSON, restful.MIME_XML)
 	// ws.Produces(restful.MIME_JSON, restful.MIME_XML)
@@ -37,6 +37,7 @@ func main() {
 // 	chain.ProcessFilter(req, resp)
 // }
 
+//nolint
 func secret(req *restful.Request, resp *restful.Response) {
 
 	_, err := io.WriteString(resp, "42")

@@ -2,12 +2,12 @@ package main
 
 import (
 	// "log"
-	config "github.com/jgwest/managed-gitops/backend/config"
+	db "github.com/jgwest/managed-gitops/backend/config/db"
 )
 
 func main() {
 	// Connect DB
-	config.ConnectToDatabase()
+	db.ConnectToDatabase()
 
 	// Init Router
 	//	router := gin.Default()

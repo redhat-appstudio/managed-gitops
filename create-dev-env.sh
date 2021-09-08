@@ -2,6 +2,9 @@
 
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
+# Map the docker data directory into a temporary directory
+POSTGRES_DATA_DIR=`mktemp -d -t postgres-XXXXXXXXXX`
+
 echo "* Starting postgresql"
 
 # Add this server to pgadmin using:
@@ -9,7 +12,16 @@ echo "* Starting postgresql"
 # - port: 5432
 # - username: postgres
 # - password: gitops
-docker run --name managed-gitops-postgres -v /tmp/datadir:/var/lib/postgresql/data  -e POSTGRES_PASSWORD=gitops	-p 5432:5432  -d postgres:13
+docker run --name managed-gitops-postgres \
+	-v $POSTGRES_DATA_DIR:/var/lib/postgresql/data \
+	-e POSTGRES_PASSWORD=gitops	\
+	-p 5432:5432 \
+	-d \
+	postgres:13 \
+	-c log_statement='all' \
+	-c log_min_duration_statement=0
+	
+# -c options are from https://pg.uptrace.dev/faq/#how-to-view-queries-this-library-generates	
 
 echo
 

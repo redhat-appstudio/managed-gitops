@@ -1,3 +1,13 @@
+package routes
+
+import (
+	"bytes"
+	"net/http"
+	"testing"
+
+	restful "github.com/emicklei/go-restful/v3"
+)
+
 func TestServer(t *testing.T) {
 	serverURL := "http://localhost:8090"
 	go func() {

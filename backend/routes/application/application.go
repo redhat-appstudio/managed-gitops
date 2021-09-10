@@ -48,7 +48,11 @@ func (a ApplicationResource) recentApplication(request *restful.Request, respons
 	for _, each := range a.applications {
 		list = append(list, each)
 	}
-	response.WriteEntity(list)
+
+	err := response.WriteEntity(list)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 // GET info of operations depening upon the id
@@ -57,9 +61,15 @@ func (a ApplicationResource) findApplication(request *restful.Request, response 
 	app := a.applications[id]
 	if len(app.Id) == 0 {
 		response.AddHeader("Content-Type", "text/plain")
-		response.WriteErrorString(http.StatusNotFound, "Application not found!")
+		err := response.WriteErrorString(http.StatusNotFound, "Application not found!")
+		if err != nil {
+			log.Fatal(err)
+		}
 	} else {
-		response.WriteEntity(app)
+		err := response.WriteEntity(app)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

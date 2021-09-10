@@ -42,24 +42,21 @@ func (o OperationResource) Register(container *restful.Container) {
 	container.Add(ws)
 }
 
-// GET info of all the operations
-func (o OperationResource) findAllOperations(request *restful.Request, response *restful.Response) {
-	list := []Operation{}
-	for _, each := range o.operations {
-		list = append(list, each)
-	}
-	response.WriteEntity(list)
-}
-
 // GET info of operations depening upon the id
 func (o OperationResource) findOperation(request *restful.Request, response *restful.Response) {
 	id := request.PathParameter("operation-id")
 	opr := o.operations[id]
 	if len(opr.Id) == 0 {
 		response.AddHeader("Content-Type", "text/plain")
-		response.WriteErrorString(http.StatusNotFound, "Operation not found!")
+		err := response.WriteErrorString(http.StatusNotFound, "Operation not found!")
+		if err != nil {
+			log.Fatal(err)
+		}
 	} else {
-		response.WriteEntity(opr)
+		err := response.WriteEntity(opr)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -69,10 +66,16 @@ func (o *OperationResource) addOperation(request *restful.Request, response *res
 	err := request.ReadEntity(&opr)
 	if err == nil {
 		o.operations[opr.Id] = *opr
-		response.WriteEntity(opr)
+		err := response.WriteEntity(opr)
+		if err != nil {
+			log.Fatal(err)
+		}
 	} else {
 		response.AddHeader("Content-Type", "text/plain")
-		response.WriteErrorString(http.StatusInternalServerError, err.Error())
+		err := response.WriteErrorString(http.StatusInternalServerError, err.Error())
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 

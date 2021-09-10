@@ -18,9 +18,9 @@ func TestServer(t *testing.T) {
 	}
 
 	// GET should give a 405
-	resp, err := http.Get(serverURL + "/operations/")
+	resp, err := http.Get(serverURL + "/api/v1/operation/")
 	if err != nil {
-		t.Errorf("unexpected error in GET /operations/: %v", err)
+		t.Errorf("unexpected error in GET /api/v1/operation/: %v", err)
 	}
 	if resp.StatusCode != http.StatusMethodNotAllowed {
 		t.Errorf("unexpected response: %v, expected: %v", resp.StatusCode, http.StatusOK)
@@ -28,7 +28,7 @@ func TestServer(t *testing.T) {
 
 	// Send a POST request.
 	var jsonStr = []byte(`{"id":"1","name":"operation1"}`)
-	req, err := http.NewRequest("POST", serverURL+"/operations/", bytes.NewBuffer(jsonStr))
+	req, err := http.NewRequest("POST", serverURL+"/api/v1/operation/", bytes.NewBuffer(jsonStr))
 	req.Header.Set("Content-Type", restful.MIME_JSON)
 
 	client := &http.Client{}
@@ -41,9 +41,9 @@ func TestServer(t *testing.T) {
 	}
 
 	// Test that GET works.
-	resp, err = http.Get(serverURL + "/operations/1")
+	resp, err = http.Get(serverURL + "/api/v1/operation/1")
 	if err != nil {
-		t.Errorf("unexpected error in GET /operations/1: %v", err)
+		t.Errorf("unexpected error in GET /api/v1/operation/1: %v", err)
 	}
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("unexpected response: %v, expected: %v", resp.StatusCode, http.StatusOK)

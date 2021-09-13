@@ -34,8 +34,8 @@ func (o OperationResource) Register(container *restful.Container) {
 	ws := new(restful.WebService)
 	ws.
 		Path("/api/v1/operation").
-		Consumes(restful.MIME_XML, restful.MIME_JSON).
-		Produces(restful.MIME_JSON, restful.MIME_XML)
+		Consumes(restful.MIME_JSON).
+		Produces(restful.MIME_JSON)
 
 	ws.Route(ws.GET("/{operation-id}").To(o.findOperation))
 	ws.Route(ws.POST("").To(o.addOperation))

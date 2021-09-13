@@ -34,8 +34,8 @@ func (a ApplicationResource) Register(container *restful.Container) {
 	ws := new(restful.WebService)
 	ws.
 		Path("/api/v1/application").
-		Consumes(restful.MIME_XML, restful.MIME_JSON).
-		Produces(restful.MIME_JSON, restful.MIME_XML)
+		Consumes(restful.MIME_JSON).
+		Produces(restful.MIME_JSON)
 
 	ws.Route(ws.GET("/{application-id}").To(a.findApplication))
 	ws.Route(ws.GET("").To(a.recentApplication))

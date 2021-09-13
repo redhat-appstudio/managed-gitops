@@ -29,6 +29,9 @@ func TestServer(t *testing.T) {
 	// Send a POST request.
 	var jsonStr = []byte(`{"id":"1","name":"operation1"}`)
 	req, err := http.NewRequest("POST", serverURL+"/api/v1/operation/", bytes.NewBuffer(jsonStr))
+	if err != nil {
+		t.Errorf("An error occurred!!!!!!! %v", err)
+	}
 	req.Header.Set("Content-Type", restful.MIME_JSON)
 
 	client := &http.Client{}

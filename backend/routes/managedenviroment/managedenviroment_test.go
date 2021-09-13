@@ -8,7 +8,7 @@ import (
 func TestServer(t *testing.T) {
 	serverURL := "http://localhost:8090"
 	go func() {
-		RunRestfulCurlyRouterServer()
+		RouteInit()
 	}()
 	if err := waitForServerUp(serverURL); err != nil {
 		t.Errorf("%v", err)

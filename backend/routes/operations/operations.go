@@ -22,11 +22,12 @@ GET: Retrieve the given operation
 // Creating a REST layer as OperationResource to have all the operation
 
 type Operation struct {
-	Id, Name string
+	Id   string `json:"id"`
+	Name string `json:"name"`
 }
 
 type OperationResource struct {
-	operations map[string]Operation
+	Operations map[string]Operation `json:"operations"`
 }
 
 // Creating a webservice for operation endpoints
@@ -45,7 +46,7 @@ func (o OperationResource) Register(container *restful.Container) {
 // GET info of operations depening upon the id
 func (o OperationResource) findOperation(request *restful.Request, response *restful.Response) {
 	id := request.PathParameter("operation-id")
-	opr := o.operations[id]
+	opr := o.Operations[id]
 	if len(opr.Id) == 0 {
 		response.AddHeader("Content-Type", "text/plain")
 		err := response.WriteErrorString(http.StatusNotFound, "Operation not found!")
@@ -65,7 +66,7 @@ func (o *OperationResource) addOperation(request *restful.Request, response *res
 	opr := new(Operation)
 	err := request.ReadEntity(&opr)
 	if err == nil {
-		o.operations[opr.Id] = *opr
+		o.Operations[opr.Id] = *opr
 		err := response.WriteEntity(opr)
 		if err != nil {
 			log.Fatal(err)

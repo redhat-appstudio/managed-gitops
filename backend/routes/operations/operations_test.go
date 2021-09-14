@@ -44,7 +44,7 @@ func TestServer(t *testing.T) {
 	}
 
 	// Test that GET works.
-	resp, err = http.Get(serverURL + "/api/v1/operation/1")
+	resp, err = http.Get(serverURL + "/api/v1/operation/2")
 	if err != nil {
 		t.Errorf("unexpected error in GET /api/v1/operation/1: %v", err)
 	}

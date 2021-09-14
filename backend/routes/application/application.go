@@ -22,11 +22,12 @@ import (
 // Creating a REST layer for application - ApplicationResource
 
 type Application struct {
-	Id, Name string
+	Id   string `json:"id"`
+	Name string `json:"name"`
 }
 
 type ApplicationResource struct {
-	applications map[string]Application
+	Applications map[string]Application `json:"applications"`
 }
 
 // Creating a webservice for application endpoints
@@ -45,7 +46,7 @@ func (a ApplicationResource) Register(container *restful.Container) {
 // GET Retrieve a list of applications with the most recently updated statuses
 func (a ApplicationResource) recentApplication(request *restful.Request, response *restful.Response) {
 	list := []Application{}
-	for _, each := range a.applications {
+	for _, each := range a.Applications {
 		list = append(list, each)
 	}
 
@@ -55,10 +56,10 @@ func (a ApplicationResource) recentApplication(request *restful.Request, respons
 	}
 }
 
-// GET info of operations depening upon the id
+// GET info of applications depening upon the id
 func (a ApplicationResource) findApplication(request *restful.Request, response *restful.Response) {
 	id := request.PathParameter("application-id")
-	app := a.applications[id]
+	app := a.Applications[id]
 	if len(app.Id) == 0 {
 		response.AddHeader("Content-Type", "text/plain")
 		err := response.WriteErrorString(http.StatusNotFound, "Application not found!")

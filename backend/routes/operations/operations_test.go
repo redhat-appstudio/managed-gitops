@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	restful "github.com/emicklei/go-restful/v3"
-	util "github.com/jgwest/managed-gitops/backend/util"
+	util "github.com/redhat-appstudio/managed-gitops/backend/util"
 )
 
 func TestServer(t *testing.T) {
@@ -29,6 +29,7 @@ func TestServer(t *testing.T) {
 	}
 
 	// Send a POST request.
+	// Json string -> unmarshal that -> put in a variable and then test it!
 	var jsonStr = []byte(`{"id":"1","name":"operation1"}`)
 	req, err := http.NewRequest("POST", serverURL+"/api/v1/operation/", bytes.NewBuffer(jsonStr))
 	if err != nil {

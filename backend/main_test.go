@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	util "github.com/jgwest/managed-gitops/backend/util"
+	util "github.com/redhat-appstudio/managed-gitops/backend/util"
 )
 
 func TestServer(t *testing.T) {

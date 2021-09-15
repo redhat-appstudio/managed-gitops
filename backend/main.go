@@ -5,10 +5,10 @@ import (
 	"net/http"
 
 	restful "github.com/emicklei/go-restful/v3"
-	db "github.com/jgwest/managed-gitops/backend/config/db"
-	application "github.com/jgwest/managed-gitops/backend/routes/application"
-	managedenviroment "github.com/jgwest/managed-gitops/backend/routes/managedenviroment"
-	operations "github.com/jgwest/managed-gitops/backend/routes/operations"
+	db "github.com/redhat-appstudio/managed-gitops/backend/config/db"
+	application "github.com/redhat-appstudio/managed-gitops/backend/routes/application"
+	managedenviroment "github.com/redhat-appstudio/managed-gitops/backend/routes/managedenviroment"
+	operations "github.com/redhat-appstudio/managed-gitops/backend/routes/operations"
 )
 
 func RouteInit() {

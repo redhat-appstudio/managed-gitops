@@ -1,4 +1,4 @@
-module github.com/jgwest/managed-gitops/backend
+module github.com/redhat-appstudio/managed-gitops/backend
 
 go 1.14
 

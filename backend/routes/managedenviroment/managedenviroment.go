@@ -1,10 +1,8 @@
 package routes
 
 import (
-	"errors"
 	"log"
 	"net/http"
-	"time"
 
 	restful "github.com/emicklei/go-restful/v3"
 )
@@ -57,15 +55,15 @@ func RouteInit() {
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON)
 
-	ws.Route(ws.GET("").To(handleListManagedEnvironments).
+	ws.Route(ws.GET("").To(HandleListManagedEnvironments).
 		Returns(200, "OK", "List of Managed Clusters").
 		Returns(404, "Error Occured, Not Found", nil))
 
-	ws.Route(ws.POST("").To(handlePostManagedEnvironment).
+	ws.Route(ws.POST("").To(HandlePostManagedEnvironment).
 		Returns(200, "OK", "URL for the WebUI").
 		Returns(404, "Error Occured, Not Found", nil))
 
-	ws.Route(ws.GET("/{managedenv-id}").To(handleGetASpecificManagementEnvironment))
+	ws.Route(ws.GET("/{managedenv-id}").To(HandleGetASpecificManagementEnvironment))
 	//	ws.Route(ws.DELETE("/{managedenv-id}").To(m.deleteManagedEnviroment))
 	restful.Add(ws)
 
@@ -78,7 +76,7 @@ func RouteInit() {
 // Handle the GET to /api/v1/managedenvironment
 // This is used by the 'List Managed Application Environments' UI and/or CLI
 
-func handleListManagedEnvironments(request *restful.Request, response *restful.Response) {
+func HandleListManagedEnvironments(request *restful.Request, response *restful.Response) {
 
 	ret := ManagedEnvironmentListResponse{
 		Entries: []ManagedEnvironmentListEntry{
@@ -100,7 +98,7 @@ func handleListManagedEnvironments(request *restful.Request, response *restful.R
 }
 
 // handle the POST to /api/v1/managedenvironment
-func handlePostManagedEnvironment(request *restful.Request, response *restful.Response) {
+func HandlePostManagedEnvironment(request *restful.Request, response *restful.Response) {
 	// We would store the 'request' object from the user in the database,
 	// then return the UUID of the operation.
 	// But for now, just leave it blank.
@@ -109,7 +107,7 @@ func handlePostManagedEnvironment(request *restful.Request, response *restful.Re
 }
 
 // handle the GET to /api/v1/managedenvironment/{id}
-func handleGetASpecificManagementEnvironment(request *restful.Request, response *restful.Response) {
+func HandleGetASpecificManagementEnvironment(request *restful.Request, response *restful.Response) {
 	//	id  := request.PathParameter("managedenv-id")
 	// ret := ManagedEnvironmentSingleEntry{
 	// 	// Normally we would read data from the database, and then insert it into this
@@ -141,14 +139,4 @@ func handleGetASpecificManagementEnvironment(request *restful.Request, response 
 	// }
 	// (...)
 	// return ret
-}
-
-func waitForServerUp(serverURL string) error {
-	for start := time.Now(); time.Since(start) < time.Minute; time.Sleep(5 * time.Second) {
-		_, err := http.Get(serverURL + "/")
-		if err == nil {
-			return nil
-		}
-	}
-	return errors.New("Server Timed Out!")
 }

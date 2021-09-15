@@ -6,14 +6,16 @@ import (
 	"testing"
 
 	restful "github.com/emicklei/go-restful/v3"
+	util "github.com/jgwest/managed-gitops/backend/util"
 )
 
 func TestServer(t *testing.T) {
 	serverURL := "http://localhost:8090"
+
 	go func() {
 		RunRestfulCurlyRouterServer()
 	}()
-	if err := waitForServerUp(serverURL); err != nil {
+	if err := util.WaitForServerUp(serverURL); err != nil {
 		t.Errorf("%v", err)
 	}
 
@@ -44,11 +46,20 @@ func TestServer(t *testing.T) {
 	}
 
 	// Test that GET works.
-	resp, err = http.Get(serverURL + "/api/v1/operation/2")
+	resp, err = http.Get(serverURL + "/api/v1/operation/1")
 	if err != nil {
 		t.Errorf("unexpected error in GET /api/v1/operation/1: %v", err)
 	}
 	if resp.StatusCode != http.StatusOK {
+		t.Errorf("unexpected response: %v, expected: %v", resp.StatusCode, http.StatusOK)
+	}
+
+	// Test that GET should not work while requesting a non existing id.
+	resp, err = http.Get(serverURL + "/api/v1/operation/2")
+	if err != nil {
+		t.Errorf("unexpected error in GET /api/v1/operation/2: %v", err)
+	}
+	if resp.StatusCode == http.StatusOK {
 		t.Errorf("unexpected response: %v, expected: %v", resp.StatusCode, http.StatusOK)
 	}
 }

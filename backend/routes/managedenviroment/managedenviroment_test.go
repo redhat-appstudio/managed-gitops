@@ -3,6 +3,8 @@ package routes
 import (
 	"net/http"
 	"testing"
+
+	util "github.com/jgwest/managed-gitops/backend/util"
 )
 
 func TestServer(t *testing.T) {
@@ -10,7 +12,7 @@ func TestServer(t *testing.T) {
 	go func() {
 		RouteInit()
 	}()
-	if err := waitForServerUp(serverURL); err != nil {
+	if err := util.WaitForServerUp(serverURL); err != nil {
 		t.Errorf("%v", err)
 	}
 

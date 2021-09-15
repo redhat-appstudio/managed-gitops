@@ -1,10 +1,8 @@
 package routes
 
 import (
-	"errors"
 	"log"
 	"net/http"
-	"time"
 
 	restful "github.com/emicklei/go-restful/v3"
 )
@@ -82,6 +80,7 @@ func (o *OperationResource) addOperation(request *restful.Request, response *res
 
 // Add function to start up the server, running against dedicated port
 // Usage of CurlyRouter is done because of the efficiency while using wildcards and expressions
+// Not used in the main function, just here for the unit testing
 func RunRestfulCurlyRouterServer() {
 	wsContainer := restful.NewContainer()
 	wsContainer.Router(restful.CurlyRouter{})
@@ -91,14 +90,4 @@ func RunRestfulCurlyRouterServer() {
 	log.Print("The server is up, and listening to port 8090 on your host.")
 	server := &http.Server{Addr: ":8090", Handler: wsContainer}
 	log.Fatal(server.ListenAndServe())
-}
-
-func waitForServerUp(serverURL string) error {
-	for start := time.Now(); time.Since(start) < time.Minute; time.Sleep(5 * time.Second) {
-		_, err := http.Get(serverURL + "/")
-		if err == nil {
-			return nil
-		}
-	}
-	return errors.New("Server Timed Out!")
 }

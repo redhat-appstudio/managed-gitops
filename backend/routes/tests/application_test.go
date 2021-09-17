@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"log"
 	"net/http"
 	"testing"
 
@@ -13,7 +14,10 @@ func TestApplication(t *testing.T) {
 
 	server := routes.RouteInit()
 	go func() {
-		server.ListenAndServe()
+		err := server.ListenAndServe()
+		if err != http.ErrServerClosed {
+			log.Println("Error on ListenAndServe:", err)
+		}
 	}()
 	defer server.Close()
 

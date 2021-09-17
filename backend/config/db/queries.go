@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/emicklei/go-restful/v3/log"
 	"github.com/go-pg/pg/v10"
 	"github.com/google/uuid"
 )
@@ -125,7 +126,10 @@ func (dbq *PostgreSQLDatabaseQueries) CloseDatabase() {
 		//
 		// It is rare to Close a DB, as the DB handle is meant to be
 		// long-lived and shared between many goroutines.
-		dbq.dbConnection.Close()
+		err := dbq.dbConnection.Close()
+		if err != nil {
+			log.Printf("Error occurred on CloseDatabase(): %v", err)
+		}
 	}
 }
 

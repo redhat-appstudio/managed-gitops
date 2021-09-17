@@ -1,22 +1,29 @@
-package routes
+package tests
 
 import (
 	"bytes"
 	"net/http"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	restful "github.com/emicklei/go-restful/v3"
+	"github.com/redhat-appstudio/managed-gitops/backend/routes"
 	util "github.com/redhat-appstudio/managed-gitops/backend/util"
 )
 
 func TestServer(t *testing.T) {
 	serverURL := "http://localhost:8090"
 
+	server := routes.RouteInit()
 	go func() {
-		RunRestfulCurlyRouterServer()
+		server.ListenAndServe()
 	}()
+	defer server.Close()
+
 	if err := util.WaitForServerUp(serverURL); err != nil {
-		t.Errorf("%v", err)
+		assert.Error(t, err)
+		return
 	}
 
 	// GET should give a 405

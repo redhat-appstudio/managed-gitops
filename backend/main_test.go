@@ -4,14 +4,18 @@ import (
 	"net/http"
 	"testing"
 
-	util "github.com/redhat-appstudio/managed-gitops/backend/util"
+	"github.com/redhat-appstudio/managed-gitops/backend/routes"
+	"github.com/redhat-appstudio/managed-gitops/backend/util"
 )
 
 func TestServer(t *testing.T) {
 	serverURL := "http://localhost:8090"
+
+	server := routes.RouteInit()
 	go func() {
-		RouteInit()
+		server.ListenAndServe()
 	}()
+
 	if err := util.WaitForServerUp(serverURL); err != nil {
 		t.Errorf("%v", err)
 	}

@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/argoproj/argo-cd/v2 v2.1.2
+	k8s.io/apimachinery v0.21.0
 	k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible
 )
 

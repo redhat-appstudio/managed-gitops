@@ -2,13 +2,13 @@ package db
 
 import "time"
 
-/** GitopsEngineCluster is used to track clusters that host Argo CD instances */
+// GitopsEngineCluster is used to track clusters that host Argo CD instances
 type GitopsEngineCluster struct {
 
 	//lint:ignore U1000 used by go-pg
 	tableName struct{} `pg:"gitopsenginecluster"` //nolint
 
-	Gitopsenginecluster_infcluster_id string `pg:"gitopsenginecluster_infcluster_id,pk"`
+	Gitopsenginecluster_id string `pg:"gitopsenginecluster_id,pk"`
 
 	SeqID int64 `pg:"seq_id"`
 
@@ -21,7 +21,7 @@ type GitopsEngineCluster struct {
 type GitopsEngineInstance struct {
 
 	//lint:ignore U1000 used by go-pg
-	tableName struct{} `pg:"gitopsengineinstance"` //nolint
+	tableName struct{} `pg:"gitopsengineinstance,alias:gei"` //nolint
 
 	Gitopsengineinstance_id string `pg:"gitopsengineinstance_id,pk"`
 	SeqID                   int64  `pg:"seq_id"`
@@ -32,14 +32,14 @@ type GitopsEngineInstance struct {
 	Namespace_uid  string `pg:"namespace_uid"`
 
 	// -- Reference to the Argo CD cluster containing the instance
-	// -- Foreign key to: GitopsEngineCluster.gitopsenginecluster_infcluster_id
-	Infcluster_id string `pg:"infcluster_id"`
+	// -- Foreign key to: GitopsEngineCluster.gitopsenginecluster_id
+	EngineCluster_id string `pg:"enginecluster_id"`
 }
 
 // ManagedEnvironment is an environment (namespace(s) on a user's cluster) that they want to deploy applications to, using Argo CD
 type ManagedEnvironment struct {
 	//lint:ignore U1000 used by go-pg
-	tableName struct{} `pg:"managedenvironment"` //nolint
+	tableName struct{} `pg:"managedenvironment,alias:me"` //nolint
 
 	Managedenvironment_id string `pg:"managedenvironment_id,pk"`
 	SeqID                 int64  `pg:"seq_id"`
@@ -52,6 +52,22 @@ type ManagedEnvironment struct {
 	Clustercredentials_id string `pg:"clustercredentials_id"`
 }
 
+// ClusterCredentials contains the credentials required to access a K8s cluster.
+// The credentials may be in one of two forms:
+// 1) Kubeconfig state: Kubeconfig file, plus a reference to a specific context within the
+//     - This is the same content as can be found in your local '~/.kube/config' file
+//     - This is what the user would initially provide via the Service/Web UI/CLI
+//     - There may be (likely is) a better way of doing this, but this works for now.
+// 2) ServiceAccount state: A bearer token for a service account on the target cluster
+//     - Same mechanism Argo CD users for accessing remote clusters
+//
+// You can tell which state the credentials are in, based on whether 'serviceaccount_bearer_token' is null.
+//
+// It is the job of the cluster agent to convert state 1 (kubeconfig) into a service account
+// bearer token on the target cluster (state 2).
+//     - This is the same operation as the `argocd cluster add` command, and is the same
+//       technique used by Argo CD to interface with remove clusters.
+//     - See https://github.com/argoproj/argo-cd/blob/a894d4b128c724129752bac9971c903ab6c650ba/cmd/argocd/commands/cluster.go#L116
 type ClusterCredentials struct {
 
 	//lint:ignore U1000 used by go-pg
@@ -86,9 +102,9 @@ type ClusterUser struct {
 	//lint:ignore U1000 used by go-pg
 	tableName struct{} `pg:"clusteruser"` //nolint
 
-	Cluster_user_id string `pg:"cluster_user_id,pk"`
-	User_name       string `pg:"user_name"`
-	SeqID           int64  `pg:"seq_id"`
+	Clusteruser_id string `pg:"clusteruser_id,pk"`
+	User_name      string `pg:"user_name"`
+	SeqID          int64  `pg:"seq_id"`
 }
 
 type ClusterAccess struct {
@@ -106,9 +122,6 @@ type ClusterAccess struct {
 	// clusteraccess_gitops_engine_instance_id VARCHAR (48) UNIQUE,
 	Clusteraccess_gitops_engine_instance_id string `pg:"clusteraccess_gitops_engine_instance_id,pk"`
 
-	// -- TODO: Make these foreign keys
-	// -- TODO: Add an index on user_id+managed_cluster, and userid+gitops_manager_instance_Id
-
 	// -- CONSTRAINT fk_cluster_access_target_inf_cluster   FOREIGN KEY(cluster_access_target_inf_cluster)  REFERENCES InfrastructureCluster(inf_cluster_id),
 	// -- CONSTRAINT fk_cluster_access_user_id   FOREIGN KEY(cluster_access_user_id)  REFERENCES ClusterUser(user_id),
 
@@ -117,17 +130,25 @@ type ClusterAccess struct {
 	SeqID int64 `pg:"seq_id"`
 }
 
+type OperationState string
+
+const (
+	OperationState_Waiting     = "Waiting"
+	OperationState_In_Progress = "In_Progress"
+	OperationState_Completed   = "Completed"
+	OperationState_Failed      = "Failed"
+)
+
 type Operation struct {
 
 	//lint:ignore U1000 used by go-pg
-	tableName struct{} `pg:"operation"` //nolint
+	tableName struct{} `pg:"operation,alias:op"` //nolint
 
 	// -- UID
 	Operation_id string `pg:"operation_id,pk"`
 
 	SeqID int64 `pg:"seq_id"`
 
-	// -- TODO: Make gitops_manager_instance_id an FK
 	// -- Specifies which Argo CD instance is this operation against
 	// -- Foreign key to: GitopsEngineInstance.gitopsengineinstance_id
 	Instance_id string `pg:"instance_id"`
@@ -136,6 +157,9 @@ type Operation struct {
 
 	// -- UID of the resource that was updated
 	Resource_id string `pg:"resource_id"`
+
+	// -- The user that initiated the operation.
+	Operation_owner_user_id string `pg:"operation_owner_user_id"`
 
 	// -- Resource type of the the resoutce that was updated.
 	// -- This value lets the operation know which table contains the resource.
@@ -160,7 +184,6 @@ type Operation struct {
 	// -- * In_Progress
 	// -- * Completed
 	// -- * Failed
-	// -- TODO: Better way to do this?
 	// state VARCHAR ( 30 ) NOT NULL,
 	State string `pg:"state"`
 
@@ -193,7 +216,6 @@ type Application struct {
 
 	// -- Which managed environment it is targetting
 	// managed_environment_id VARCHAR(48) UNIQUE NOT NULL
-	// -- TODO: This should be indexed
 	// -- CONSTRAINT fk_target_inf_cluster   FOREIGN KEY(target_inf_cluster)  REFERENCES InfrastructureCluster(inf_cluster_id),
 	Managed_environment_id string `pg:"managed_environment_id"`
 }
@@ -205,7 +227,6 @@ type ApplicationState struct {
 
 	// -- Also a foreign key to Applicaiton.application_id
 	Applicationstate_application_id string `pg:"applicationstate_application_id,pk"`
-	// -- TODO: applicationstate_application_id should be an FK
 	// -- CONSTRAINT fk_app_id  PRIMARY KEY  FOREIGN KEY(app_id)  REFERENCES Application(appl_id),
 
 	// -- Possible values:

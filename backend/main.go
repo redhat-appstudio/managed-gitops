@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	restful "github.com/emicklei/go-restful/v3"
-	db "github.com/redhat-appstudio/managed-gitops/backend/config/db"
 	application "github.com/redhat-appstudio/managed-gitops/backend/routes/application"
 	managedenviroment "github.com/redhat-appstudio/managed-gitops/backend/routes/managedenviroment"
 	operations "github.com/redhat-appstudio/managed-gitops/backend/routes/operations"
@@ -49,7 +48,7 @@ func RouteInit() {
 
 func main() {
 	// Connect DB
-	db.ConnectToDatabase()
+	// db.ConnectToDatabase()
 	RouteInit()
 	// Intializing the server for routing endpoints
 

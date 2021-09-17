@@ -2,14 +2,13 @@ package db
 
 import (
 	"fmt"
-	"log"
-	"os"
 
+	"github.com/go-pg/pg/extra/pgdebug"
 	"github.com/go-pg/pg/v10"
 )
 
 // function to connect to Postgres
-func ConnectToDatabase() *pg.DB {
+func connectToDatabase(verbose bool) (*pg.DB, error) {
 	fmt.Println("Connection Initiated")
 	opts := &pg.Options{
 		Addr:     "localhost:5432",
@@ -21,9 +20,15 @@ func ConnectToDatabase() *pg.DB {
 	var db *pg.DB = pg.Connect(opts)
 
 	if db == nil {
-		log.Printf("Failed to connect")
-		os.Exit(100)
+		return nil, fmt.Errorf("unable to connect to database: %s %s %s ", opts.Addr, opts.User, opts.Database)
 	}
-	log.Printf("Connected to db")
-	return db
+
+	if verbose {
+		db.AddQueryHook(pgdebug.DebugHook{
+			// Print all queries.
+			Verbose: true,
+		})
+	}
+
+	return db, nil
 }

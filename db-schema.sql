@@ -2,7 +2,7 @@
 -- A cluster that hosts Argo CD instances
 -- Note: I use the term GitOpsEngine to refer to Argo CD, so as not to marry us to Argo CD at the database level.
 CREATE TABLE GitopsEngineCluster (
-	gitopsenginecluster_infcluster_id  VARCHAR (48) UNIQUE PRIMARY KEY,
+	gitopsenginecluster_id  VARCHAR (48) UNIQUE PRIMARY KEY,
 	
 	seq_id serial, 
 
@@ -24,10 +24,9 @@ CREATE TABLE GitopsEngineInstance (
 	namespace_uid VARCHAR (48) UNIQUE NOT NULL,
 
 	-- Reference to the Argo CD cluster containing the instance
-	-- Foreign key to: GitopsEngineCluster.gitopsenginecluster_infcluster_id	
-	infcluster_id VARCHAR(48) UNIQUE NOT NULL
-	-- TODO: Add an index, FK on infcluster_id
-
+	-- Foreign key to: GitopsEngineCluster.gitopsenginecluster_id
+	enginecluster_id VARCHAR(48) UNIQUE NOT NULL
+	
 );
 
 
@@ -91,11 +90,10 @@ CREATE TABLE ClusterCredentials (
 --
 -- Note: This is basically placeholder: a real implementation would need to be way more complex.
 CREATE TABLE ClusterUser (
-	cluster_user_id VARCHAR (48) PRIMARY KEY,
+	clusteruser_id VARCHAR (48) PRIMARY KEY,
 	user_name VARCHAR (256) NOT NULL,	
 	seq_id serial
 );
-
 
 
 
@@ -106,12 +104,15 @@ CREATE TABLE ClusterUser (
 CREATE TABLE ClusterAccess (
 
 	-- Describes whose cluster this is (UID)
+	-- Foreign key to: ClustserUser.clusteruser_id
 	clusteraccess_user_id VARCHAR (48) UNIQUE,
 
 	-- Describes which managed environment the user has access to (UID)
+	-- Foreign key to: ManagedEnvironment.managedenvironment_id
 	clusteraccess_managed_environment_id VARCHAR (48) UNIQUE,
 
 	-- Which Argo CD instance is managing the cluster?
+	-- Foreign key to: GitopsEngineInstance.gitopsengineinstance_id
 	clusteraccess_gitops_engine_instance_id VARCHAR (48) UNIQUE,
 
 	-- TODO: Make these foreign keys
@@ -147,7 +148,12 @@ CREATE TABLE Operation (
 	-- UID of the resource that was updated
 	resource_id VARCHAR(48) NOT NULL,
 
-	-- Resource type of the the resoutce that was updated. 
+	-- The user that initiated the operation.
+	-- Foreign key to: ClusterUser.clusteruser_id
+	operation_owner_user_id VARCHAR(48) NOT NULL,	
+	-- TODO: Add foreign key
+
+	-- Resource type of the resource that was updated. 
 	-- This value lets the operation know which table contains the resource.
 	-- 
 	-- possible values:
@@ -199,7 +205,9 @@ CREATE TABLE Application (
 	-- TODO: Make gitopsengine_instance_inst_id an FK
 
 	-- Which managed environment it is targetting
+	-- Foreign key to: ManagedEnvironment.managedenvironment_id
 	managed_environment_id VARCHAR(48) UNIQUE NOT NULL
+	
 	-- TODO: This should be indexed
 	-- CONSTRAINT fk_target_inf_cluster   FOREIGN KEY(target_inf_cluster)  REFERENCES InfrastructureCluster(inf_cluster_id),
 	
@@ -257,10 +265,41 @@ Schema Design Guidelines:
 		- UUIDs are not vulnerable to increment by one attacks
 		- Allows the contents of two RDBMS databases to be easily merged (no need to fix all the seqids)
 		- Give flexibility over underlying database store (Other RDBMS-es, other DB technologies)
+		- Prevents accidental erasure of table rows (collisions between uuids is much less likely than between integers)
 
 - Name case:
     - For tables: CamelCase
     - For fields: lowercase_snake_case
+
+-------------------------------------------------------------------------------
+
+Foreign key relationships between tables, as of this writing:
+(Tables entries must be deleted in this order, from top to bottom, and created in reverse order)
+
+ApplicationState ->  Application
+
+Operation -> ClusterUser
+Operation -> GitopsEngineInstance
+
+Application -> ManagedEnviroment
+Application ->  GitopsEngineInstance
+
+ClusterAccess -> ManagedEnvironment
+ClusterAccess -> GitopsEngineInstance
+
+GitopsEngineInstance -> GitopsEngineCluster
+
+GitopsEngineCluster -> ClusterCredentials
+ManagedEnvironment -> ClusterCredentials
+
+
+ClusterCredentials -> .
+
+ClusterUser -> .
+
+
+
+
 
 -------------------------------------------------------------------------------
 

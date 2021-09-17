@@ -21,7 +21,9 @@ GET: Retrieve the current status of the given managed environment
 DELETE: Stop managing an environment with Argo CD, and remove it from the product database.
 */
 
+// These are the fields that the List Managed Environments query should return (eg GET /api/v1/managedenviroment)
 type ManagedEnvironmentListEntry struct {
+	ID               string `json:"id"`
 	Name             string `json:"name"`
 	URL              string `json:"url"`
 	ConnectionStatus string `json:"connectionStatus"`
@@ -31,7 +33,9 @@ type ManagedEnvironmentListResponse struct {
 	Entries []ManagedEnvironmentListEntry `json:"entries"`
 }
 
-type ManagedEnvironmentSingleEntry struct {
+// This is what should be returned when the user asks for information on a specific ManagedEnvironment
+type ManagedEnvironmentGetSingleEntry struct {
+	ID                string `json:"id"`
 	Name              string `json:"name"`
 	URL               string `json:"url"`
 	KubeConfig        string `json:"config"`
@@ -39,7 +43,9 @@ type ManagedEnvironmentSingleEntry struct {
 	ConnectionStatus  string `json:"connectionStatus"`
 }
 
+// This is what the user should give us as the body of a POST request
 type ManagedEnvironmentPostEntry struct {
+	ID                string `json:"id"`
 	Name              string `json:"name"`
 	URL               string `json:"url"`
 	KubeConfig        string `json:"config"`

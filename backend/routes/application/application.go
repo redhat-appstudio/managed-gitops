@@ -7,7 +7,7 @@ GET: Retrieve a list of applications with the most recently updated statuses (or
 /api/v1/application/(id)
 GET: Retrieve details on a particular application
 
-ToDos (in future): Write Operations (POST, PUT, DELETE)
+TODO: Write Operations (POST, PUT, DELETE)
 */
 
 import (
@@ -18,6 +18,26 @@ import (
 )
 
 // Creating a REST layer for application - ApplicationResource
+
+type ApplicationListEntry struct {
+	Id          string `json:"id"`
+	Name        string `json:"name"`
+	Source      string `json:"source"`
+	Destination string `json:"destination"`
+	Health      string `json:"health"`
+	SyncStatus  string `json:"syncStatus"`
+}
+
+type ApplicationEntry struct {
+	Id                  string `json:"id"`
+	Name                string `json:"name"`
+	SyncPolicyAutomatic bool   `json:"syncPolicyAutomatic"`
+	GitRepositoryURL    string `json:"gitRepositoryURL"`
+	GitRevision         string `json:"gitRevision"`
+	GitPath             string `json:"gitPath"`
+	DestinationCluster  string `json:"destinationCluster"`
+	Namespace           string `json:"namespace"`
+}
 
 type Application struct {
 	Id   string `json:"id"`
@@ -43,9 +63,13 @@ func (a ApplicationResource) Register(container *restful.Container) {
 
 // GET Retrieve a list of applications with the most recently updated statuses
 func (a ApplicationResource) recentApplication(request *restful.Request, response *restful.Response) {
-	list := []Application{}
+	list := []ApplicationListEntry{}
+
 	for _, each := range a.Applications {
-		list = append(list, each)
+		list = append(list, ApplicationListEntry{
+			Id:   each.Id,
+			Name: each.Name,
+		})
 	}
 
 	err := response.WriteEntity(list)
@@ -65,7 +89,9 @@ func (a ApplicationResource) findApplication(request *restful.Request, response 
 			log.Fatal(err)
 		}
 	} else {
-		err := response.WriteEntity(app)
+		err := response.WriteEntity(ApplicationEntry{
+			Name: app.Name,
+		})
 		if err != nil {
 			log.Fatal(err)
 		}

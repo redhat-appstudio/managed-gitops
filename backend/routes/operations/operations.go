@@ -20,8 +20,12 @@ GET: Retrieve the given operation
 // Creating a REST layer as OperationResource to have all the operation
 
 type Operation struct {
-	Id   string `json:"id"`
-	Name string `json:"name"`
+	Id                 string `json:"id"`
+	ResourceType       string `json:"resourceType"`
+	CreatedOn          string `json:"createdOn"`
+	LastStatusUpdate   string `json:"lastStateUpdate"`
+	State              string `json:"state"`
+	HumanReadableState string `json:"humanReadableState"`
 }
 
 type OperationResource struct {

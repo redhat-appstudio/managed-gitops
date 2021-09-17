@@ -71,17 +71,3 @@ func (a ApplicationResource) findApplication(request *restful.Request, response 
 		}
 	}
 }
-
-// Add function to start up the server, running against dedicated port
-// Usage of CurlyRouter is done because of the efficiency while using wildcards and expressions
-// Not used in the main function, just here for the unit testing
-func RunRestfulCurlyRouterServer() {
-	wsContainer := restful.NewContainer()
-	wsContainer.Router(restful.CurlyRouter{})
-	a := ApplicationResource{map[string]Application{}}
-	a.Register(wsContainer)
-
-	log.Print("The server is up, and listening to port 8090 on your host.")
-	server := &http.Server{Addr: ":8090", Handler: wsContainer}
-	log.Fatal(server.ListenAndServe())
-}

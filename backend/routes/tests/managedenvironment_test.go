@@ -1,19 +1,27 @@
-package routes
+package tests
 
 import (
 	"net/http"
 	"testing"
 
-	util "github.com/redhat-appstudio/managed-gitops/backend/util"
+	"github.com/redhat-appstudio/managed-gitops/backend/routes"
+	"github.com/redhat-appstudio/managed-gitops/backend/util"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestServer(t *testing.T) {
+func TestManagedEnvironment(t *testing.T) {
 	serverURL := "http://localhost:8090"
+
+	server := routes.RouteInit()
 	go func() {
-		RouteInit()
+		server.ListenAndServe()
 	}()
+
+	defer server.Close()
+
 	if err := util.WaitForServerUp(serverURL); err != nil {
-		t.Errorf("%v", err)
+		assert.Error(t, err)
+		return
 	}
 
 	// GET should successfully pass with 200

@@ -7,11 +7,11 @@ import (
 )
 
 func WaitForServerUp(serverURL string) error {
-	for start := time.Now(); time.Since(start) < time.Minute; time.Sleep(5 * time.Second) {
+	for start := time.Now(); time.Since(start) < time.Minute; time.Sleep(1 * time.Second) {
 		_, err := http.Get(serverURL + "/")
 		if err == nil {
 			return nil
 		}
 	}
-	return errors.New("Server Timed Out!")
+	return errors.New("server Timed Out!")
 }

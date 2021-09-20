@@ -9,6 +9,9 @@ import { NotFound } from '@app/NotFound/NotFound';
 import { useDocumentTitle } from '@app/utils/useDocumentTitle';
 import { LastLocationProvider, useLastLocation } from 'react-router-last-location';
 import { GitRepository } from './GitRepository/Dashboard';
+import { AddManagedCluster } from './AddManagedCluster/AddManagedCluster';
+// import { ListManagedCluster } from './ListManagedCluster/ListManagedCluster'
+
 
 let routeFocusTimer: number;
 export interface IAppRoute {
@@ -44,7 +47,21 @@ const routes: AppRouteConfig[] = [
     label: 'Git Repository',
     path: '/git',
     title: 'PatternFly Seed | Git Repo UI',
+  },  
+  {
+    component: AddManagedCluster,
+    exact: true,
+    label: 'Add Managed Cluster',
+    path: '/addmanagedcluster',
+    title: 'PatternFly Seed | Add Managed Cluster UI',
   },
+  // {
+  //   component: ListManagedCluster,
+  //   exact: true,
+  //   label: 'List Managed Clusters',
+  //   path: '/listmanagedcluster',
+  //   title: 'PatternFly Seed | List Managed Clusters UI',
+  // },
   {
     component: Support,
     exact: true,

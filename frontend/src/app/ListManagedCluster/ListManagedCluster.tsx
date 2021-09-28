@@ -381,9 +381,7 @@ class SimpleForm extends React.Component<{}, any> {
           </React.Fragment>
         )}
         {loading && (
-          <center>
-            <Title size="3xl">Please wait while loading data</Title>
-          </center>
+            <Title size="3xl" headingLevel={'h1'}>Please wait while loading data</Title>
         )}
       </React.Fragment>
     );

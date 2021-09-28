@@ -10,7 +10,7 @@ import { useDocumentTitle } from '@app/utils/useDocumentTitle';
 import { LastLocationProvider, useLastLocation } from 'react-router-last-location';
 import { GitRepository } from './GitRepository/Dashboard';
 import { AddManagedCluster } from './AddManagedCluster/AddManagedCluster';
-// import { ListManagedCluster } from './ListManagedCluster/ListManagedCluster'
+import { ListManagedCluster } from './ListManagedCluster/ListManagedCluster'
 
 
 let routeFocusTimer: number;
@@ -55,13 +55,13 @@ const routes: AppRouteConfig[] = [
     path: '/addmanagedcluster',
     title: 'PatternFly Seed | Add Managed Cluster UI',
   },
-  // {
-  //   component: ListManagedCluster,
-  //   exact: true,
-  //   label: 'List Managed Clusters',
-  //   path: '/listmanagedcluster',
-  //   title: 'PatternFly Seed | List Managed Clusters UI',
-  // },
+  {
+    component: ListManagedCluster,
+    exact: true,
+    label: 'List Managed Cluster',
+    path: '/listmanagedcluster',
+    title: 'PatternFly Seed | List Managed Clusters UI',
+  },
   {
     component: Support,
     exact: true,

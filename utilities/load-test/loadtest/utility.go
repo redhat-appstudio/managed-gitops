@@ -1,17 +1,21 @@
 package loadtest
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 )
 
 var (
@@ -87,6 +91,61 @@ func Kubectl_apply(namespace string, URL string) {
 		log.Fatal(err_run)
 	}
 	fmt.Println(string(out), "Command Run Successful!")
+}
+
+func PodRestartcount(namespace string) [][]string {
+	var allrestartInfo [][]string
+
+	out, err := exec.Command("kubectl", "get", "pods", "-n", namespace).Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	res := string(out)
+
+	for index, i := range strings.Split(res, "\n") {
+		var restartInfo []string
+
+		if index != 0 && index < len(strings.Split(res, "\n"))-1 {
+			restartInfo = append(restartInfo, strings.Fields(i)[0], strings.Fields(i)[3])
+			allrestartInfo = append(allrestartInfo, restartInfo)
+		}
+	}
+
+	return allrestartInfo
+}
+
+func Get_pod_info(kubeconfig string, master string, namespace string, podName string) {
+	config, err := clientcmd.BuildConfigFromFlags(master, kubeconfig)
+	if err != nil {
+		panic(err)
+	}
+
+	mc, err := metrics.NewForConfig(config)
+	if err != nil {
+		panic(err)
+	}
+
+	if podName != "" {
+		// To get memory info of the specific pod passed as an argument
+		podMetrics, err := mc.MetricsV1beta1().PodMetricses(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(podMetrics.ObjectMeta.Name, podMetrics.Containers[0].Usage["memory"].ToUnstructured())
+		fmt.Println("----------------------")
+	} else {
+		podMetrics, err := mc.MetricsV1beta1().PodMetricses(namespace).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			panic(err)
+		}
+		for _, elements := range podMetrics.Items {
+			// to just get pod name without hash appended replace elements.ObjectMeta.Name with elements.Containers[0].Name
+			fmt.Println(elements.ObjectMeta.Name, elements.Containers[0].Usage["memory"].ToUnstructured())
+		}
+		fmt.Println("----------------------")
+	}
+
 }
 
 // func CheckError(err error) {

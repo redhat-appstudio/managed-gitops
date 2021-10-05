@@ -93,8 +93,8 @@ func Kubectl_apply(namespace string, URL string) {
 	fmt.Println(string(out), "Command Run Successful!")
 }
 
-func PodRestartcount(namespace string) [][]string {
-	var allrestartInfo [][]string
+func PodRestartcount(namespace string) map[string]string {
+	var allrestartInfo = make(map[string]string)
 
 	out, err := exec.Command("kubectl", "get", "pods", "-n", namespace).Output()
 	if err != nil {
@@ -104,11 +104,8 @@ func PodRestartcount(namespace string) [][]string {
 	res := string(out)
 
 	for index, i := range strings.Split(res, "\n") {
-		var restartInfo []string
-
 		if index != 0 && index < len(strings.Split(res, "\n"))-1 {
-			restartInfo = append(restartInfo, strings.Fields(i)[0], strings.Fields(i)[3])
-			allrestartInfo = append(allrestartInfo, restartInfo)
+			allrestartInfo[strings.Fields(i)[0]] = strings.Fields(i)[3]
 		}
 	}
 
@@ -132,8 +129,7 @@ func Get_pod_info(kubeconfig string, master string, namespace string, podName st
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println(podMetrics.ObjectMeta.Name, podMetrics.Containers[0].Usage["memory"].ToUnstructured())
-		fmt.Println("----------------------")
+		fmt.Println(podMetrics.ObjectMeta.Name, podMetrics.Containers[0].Name, podMetrics.Containers[0].Usage["memory"].ToUnstructured())
 	} else {
 		podMetrics, err := mc.MetricsV1beta1().PodMetricses(namespace).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
@@ -141,9 +137,8 @@ func Get_pod_info(kubeconfig string, master string, namespace string, podName st
 		}
 		for _, elements := range podMetrics.Items {
 			// to just get pod name without hash appended replace elements.ObjectMeta.Name with elements.Containers[0].Name
-			fmt.Println(elements.ObjectMeta.Name, elements.Containers[0].Usage["memory"].ToUnstructured())
+			fmt.Println(elements.ObjectMeta.Name, elements.Containers[0].Name, elements.Containers[0].Usage["memory"].ToUnstructured())
 		}
-		fmt.Println("----------------------")
 	}
 
 }

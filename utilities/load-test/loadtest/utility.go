@@ -6,8 +6,10 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
+	"text/tabwriter"
 
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -68,6 +70,7 @@ type E2EFixtureK8sClient struct {
 	AppClientset     appclientset.Interface
 }
 
+// Kubectl_apply is basically a go utility that performs kubetcl apply -n namespace -f  *yaml
 func Kubectl_apply(namespace string, URL string) {
 	prg := "kubectl apply -n %s -f %s"
 	// namespace := "argocd"
@@ -93,6 +96,7 @@ func Kubectl_apply(namespace string, URL string) {
 	fmt.Println(string(out), "Command Run Successful!")
 }
 
+// The PodRestartcount is used to return the count of the pods (Basically, RESTART count from kubectl get pods)
 func PodRestartcount(namespace string) map[string]string {
 	var allrestartInfo = make(map[string]string)
 
@@ -112,7 +116,9 @@ func PodRestartcount(namespace string) map[string]string {
 	return allrestartInfo
 }
 
-func Get_pod_info(kubeconfig string, master string, namespace string, podName string) {
+// The Get_pod_info tells us the memory usage of the pod along with container name
+func Get_pod_info(kubeconfig string, master string, namespace string, podName string) map[string]interface{} {
+	podResource := make(map[string]interface{})
 	config, err := clientcmd.BuildConfigFromFlags(master, kubeconfig)
 	if err != nil {
 		panic(err)
@@ -129,22 +135,41 @@ func Get_pod_info(kubeconfig string, master string, namespace string, podName st
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println(podMetrics.ObjectMeta.Name, podMetrics.Containers[0].Name, podMetrics.Containers[0].Usage["memory"].ToUnstructured())
+		podResource[(podMetrics.ObjectMeta.Name + "\t" + podMetrics.Containers[0].Name)] = podMetrics.Containers[0].Usage["memory"].ToUnstructured()
+
 	} else {
 		podMetrics, err := mc.MetricsV1beta1().PodMetricses(namespace).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			panic(err)
 		}
 		for _, elements := range podMetrics.Items {
-			// to just get pod name without hash appended replace elements.ObjectMeta.Name with elements.Containers[0].Name
-			fmt.Println(elements.ObjectMeta.Name, elements.Containers[0].Name, elements.Containers[0].Usage["memory"].ToUnstructured())
+			podResource[(elements.ObjectMeta.Name + "\t" + elements.Containers[0].Name)] = elements.Containers[0].Usage["memory"].ToUnstructured()
 		}
 	}
-
+	return podResource
 }
 
-// func CheckError(err error) {
-// 	if err != nil {
-// 		debug.PrintStack()
-// 	}
-// }
+// The PodInfoParse is used to properly parse over pod memory info and print in it pretty tabular format for better view
+func PodInfoParse(podInfo map[string]interface{}) {
+	w := new(tabwriter.Writer)
+
+	// Format in tab-separated columns with a tab stop of 8.
+	w.Init(os.Stdout, 0, 8, 0, '\t', 0)
+	fmt.Fprintln(w, "Pod Name\tContainer Name\tMemory Usage (in Ki)")
+	for key, value := range podInfo {
+		int_value, _ := strconv.Atoi((strings.Split(fmt.Sprint(value), "Ki")[0]))
+		fmt.Fprintln(w, key, "\t", int_value)
+	}
+	w.Flush()
+}
+
+// The PodMemoryDiff function is used to tell the memory of pod difference b/w before and after a process
+func PodMemoryDiff(podInfoOld map[string]interface{}, podInfoNew map[string]interface{}) map[string]interface{} {
+	PodMemory := make(map[string]interface{})
+	for podInfoName := range podInfoNew {
+		oldPodMemory, _ := strconv.Atoi((strings.Split(fmt.Sprint(podInfoOld[podInfoName]), "Ki")[0]))
+		newPodMemory, _ := strconv.Atoi((strings.Split(fmt.Sprint(podInfoNew[podInfoName]), "Ki")[0]))
+		PodMemory[podInfoName] = newPodMemory - oldPodMemory
+	}
+	return PodMemory
+}

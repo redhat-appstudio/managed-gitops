@@ -301,7 +301,7 @@ class SimpleForm extends React.Component<{}, any> {
             onToggle={this.onFilterToggle}
             onSelect={this.onStatusSelect}
             selections={filters.status}
-            isExpanded={isFilterDropdownOpen}
+            isOpen={isFilterDropdownOpen}
             placeholderText="Filter by status"
           >
             {statusMenuItems}

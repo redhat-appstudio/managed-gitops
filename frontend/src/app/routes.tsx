@@ -11,6 +11,7 @@ import { LastLocationProvider, useLastLocation } from 'react-router-last-locatio
 import { GitRepository } from './GitRepository/Dashboard';
 import { AddManagedCluster } from './AddManagedCluster/AddManagedCluster';
 import { ListManagedCluster } from './ListManagedCluster/ListManagedCluster'
+import { ListApplications } from './ListApplications/ListApplications'
 
 
 let routeFocusTimer: number;
@@ -61,6 +62,13 @@ const routes: AppRouteConfig[] = [
     label: 'List Managed Cluster',
     path: '/listmanagedcluster',
     title: 'PatternFly Seed | List Managed Clusters UI',
+  },
+  {
+    component: ListApplications,
+    exact: true,
+    label: 'List Applications',
+    path: '/listapplication',
+    title: 'PatternFly Seed | List Applications UI',
   },
   {
     component: Support,

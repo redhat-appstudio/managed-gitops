@@ -1,0 +1,5 @@
+values.yaml:
+  postgresqlDatabase: my-database
+  postgresqlUsername: my-user
+  postgresqlPassword: my-password
+

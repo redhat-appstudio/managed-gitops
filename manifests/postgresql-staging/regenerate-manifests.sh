@@ -4,5 +4,5 @@
 
 helm repo add bitnami https://charts.bitnami.com/bitnami
 
-helm template gitops-postgresql-staging bitnami/postgresql -f values.yaml > postgresql-staging.yaml
+helm template gitops-postgresql-staging bitnami/postgresql -f values.yaml -n gitops-postgresql > postgresql-staging.yaml
 

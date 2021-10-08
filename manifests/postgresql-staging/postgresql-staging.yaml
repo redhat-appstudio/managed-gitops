@@ -9,10 +9,10 @@ metadata:
     helm.sh/chart: postgresql-10.12.2
     app.kubernetes.io/instance: gitops-postgresql-staging
     app.kubernetes.io/managed-by: Helm
-  namespace: meow
+  namespace: gitops-postgresql
 type: Opaque
 data:
-  postgresql-password: "cnhOZmg3cm1NVQ=="
+  postgresql-password: "a2Q5NWNWWnNiQg=="
 ---
 # Source: postgresql/templates/svc-headless.yaml
 apiVersion: v1
@@ -29,7 +29,7 @@ metadata:
     # field is broken in some versions of Kubernetes:
     # https://github.com/kubernetes/kubernetes/issues/58662
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
-  namespace: meow
+  namespace: gitops-postgresql
 spec:
   type: ClusterIP
   clusterIP: None
@@ -56,7 +56,7 @@ metadata:
     app.kubernetes.io/instance: gitops-postgresql-staging
     app.kubernetes.io/managed-by: Helm
   annotations:
-  namespace: meow
+  namespace: gitops-postgresql
 spec:
   type: ClusterIP
   ports:
@@ -80,7 +80,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/component: primary
   annotations:
-  namespace: meow
+  namespace: gitops-postgresql
 spec:
   serviceName: gitops-postgresql-staging-headless
   replicas: 1
@@ -114,7 +114,7 @@ spec:
                     app.kubernetes.io/instance: gitops-postgresql-staging
                     app.kubernetes.io/component: primary
                 namespaces:
-                  - "meow"
+                  - "gitops-postgresql"
                 topologyKey: kubernetes.io/hostname
               weight: 1
         nodeAffinity:

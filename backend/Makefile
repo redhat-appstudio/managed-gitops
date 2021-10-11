@@ -1,3 +1,5 @@
+IMAGE_NAME?=gitops-backend
+IMAGE_TAG?=latest
 
 .PHONY: build
 build: fmt vet
@@ -27,3 +29,12 @@ fmt:
 .PHONY: vet
 vet:
 	go vet ./...
+
+# Run Dockerfile for automating the container build
+.PHONY: image
+image: test
+	docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+
+.PHONY: image-push
+image-push: image
+	docker push ${IMAGE_NAME}:${IMAGE_TAG}

@@ -73,6 +73,16 @@ jobs:
           go mod tidy
           git diff --exit-code -- .
 
+      - name: "Backend-shared: Download all Go modules"
+        run: |
+          cd $GITHUB_WORKSPACE/backend-shared
+          go mod download
+      - name: "Backend-shared: Check for tidyness of go.mod and go.sum: run `go mod tidy` to fix"
+        run: |
+          cd $GITHUB_WORKSPACE/backend-shared
+          go mod tidy
+          git diff --exit-code -- .
+
       - name: "Cluster-agent: Download all Go modules"
         run: |
           cd $GITHUB_WORKSPACE/cluster-agent

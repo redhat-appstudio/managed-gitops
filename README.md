@@ -7,8 +7,9 @@ For an introduction to the project, and project details, see [Google Drive](http
 
 ### Components
 
-There are 3 separated, tighly-coupled components contained within this repository:
+There are 4 separated, tighly-coupled components contained within this repository:
 - **Backend**: Simple Go module for listening for REST requests
+- **Backend Shared**: Simple Go module for sharing backend schema between operator and backend
 - **Cluster Agent**: A Kubernetes controller/operator that lives on the cluster and handles cluster operations.
     - Based on operator-sdk v1.11
 - **Frontend**: [PatternFly](https://www.patternfly.org/)/React-based UI, based on PatternFly React Seed

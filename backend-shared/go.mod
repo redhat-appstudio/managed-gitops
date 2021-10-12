@@ -7,5 +7,9 @@ require (
 	github.com/go-pg/pg/extra/pgdebug v0.2.0
 	github.com/go-pg/pg/v10 v10.10.6
 	github.com/google/uuid v1.3.0
+	github.com/securego/gosec/v2 v2.8.1 // indirect
 	github.com/stretchr/testify v1.7.0
+	golang.org/x/mod v0.5.1 // indirect
+	golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac // indirect
+	golang.org/x/tools v0.1.7 // indirect
 )

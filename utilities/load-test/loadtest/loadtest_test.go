@@ -10,6 +10,7 @@ import (
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 var (
@@ -59,11 +60,35 @@ func TestNGuestbook(t *testing.T) {
 			},
 		}
 
-		_, err_create := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).Create(context.TODO(), guestbookApp, v1.CreateOptions{})
-		if err_create != nil {
-			t.Errorf("error, %v", err_create)
+		_, err := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).Create(context.TODO(), guestbookApp, v1.CreateOptions{})
+		if err != nil {
+			t.Errorf("error, %v", err)
 			return
 		}
+	}
+
+	// wait.Poll will keep checking whether a (app variable).Status.Health.Status condition is met
+	err := wait.Poll(1*time.Second, 2*time.Minute, func() (bool, error) {
+
+		// list all Argo CD applications in the namespace
+		appList, err := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).List(context.TODO(), v1.ListOptions{})
+		if err != nil {
+			t.Errorf("error, %v", err)
+		}
+		// for each application, check if (app variable).Status.Health.Status
+		for _, app := range appList.Items {
+
+			// if status is empty, return false
+			if app.Status.Health.Status == "" {
+				return false, nil
+			}
+		}
+		return true, nil
+	})
+
+	if err != nil {
+		t.Errorf("Timeout Error, the application weren't ready within the defined timestamp, %v", err)
+		return
 	}
 
 	// Check if the Pod is getting refreshed or not
@@ -79,10 +104,6 @@ func TestNGuestbook(t *testing.T) {
 	t.Log("\n\nDifference in the Pod Memory Usage (in Ki)\n\n")
 	delta := PodMemoryDiff(memoryInit, memoryPost)
 	PodInfoParse(delta)
-
-	// less use of generic sleep statements in automated tests
-	duration := time.Duration(5) * time.Second
-	time.Sleep(duration)
 
 	// To delete a application from the given (ex: argocd) namespace
 	for i := 1; i < 101; i++ {
@@ -203,6 +224,30 @@ func TestHeavyApplication(t *testing.T) {
 		return
 	}
 
+	// wait.Poll will keep checking whether a (app variable).Status.Health.Status condition is met
+	err := wait.Poll(1*time.Second, 2*time.Minute, func() (bool, error) {
+
+		// list all Argo CD applications in the namespace
+		appList, err := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).List(context.TODO(), v1.ListOptions{})
+		if err != nil {
+			t.Errorf("error, %v", err)
+		}
+		// for each application, check if (app variable).Status.Health.Status
+		for _, app := range appList.Items {
+
+			// if status is empty, return false
+			if app.Status.Health.Status == "" {
+				return false, nil
+			}
+		}
+		return true, nil
+	})
+
+	if err != nil {
+		t.Errorf("Timeout Error, the application weren't ready within the defined timestamp, %v", err)
+		return
+	}
+
 	// Check if the Pod is getting refreshed or not
 	if reflect.DeepEqual(PodC, PodRestartCount(namespace)) != true {
 		t.Errorf("error, %v", "The Pods are getting refreshed!")
@@ -216,10 +261,6 @@ func TestHeavyApplication(t *testing.T) {
 	t.Log("\n\nDifference in the Pod Memory Usage (in Ki)\n\n")
 	delta := PodMemoryDiff(memoryInit, memoryPost)
 	PodInfoParse(delta)
-
-	// less use of generic sleep statements in automated tests
-	duration := time.Duration(10) * time.Second
-	time.Sleep(duration)
 
 	// To delete a application from the given (ex: argocd) namespace
 	err_Prometheus := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).Delete(context.TODO(), "prometheus-app", v1.DeleteOptions{})
@@ -317,6 +358,30 @@ func TestAllApplication(t *testing.T) {
 		}
 	}
 
+	// wait.Poll will keep checking whether a (app variable).Status.Health.Status condition is met
+	err := wait.Poll(1*time.Second, 2*time.Minute, func() (bool, error) {
+
+		// list all Argo CD applications in the namespace
+		appList, err := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).List(context.TODO(), v1.ListOptions{})
+		if err != nil {
+			t.Errorf("error, %v", err)
+		}
+		// for each application, check if (app variable).Status.Health.Status
+		for _, app := range appList.Items {
+
+			// if status is empty, return false
+			if app.Status.Health.Status == "" {
+				return false, nil
+			}
+		}
+		return true, nil
+	})
+
+	if err != nil {
+		t.Errorf("Timeout Error, the application weren't ready within the defined timestamp, %v", err)
+		return
+	}
+
 	// Check if the Pod is getting refreshed or not
 	if reflect.DeepEqual(PodC, PodRestartCount(namespace)) != true {
 		t.Errorf("error, %v", "The Pods are getting refreshed!")
@@ -330,10 +395,6 @@ func TestAllApplication(t *testing.T) {
 	t.Log("\n\nDifference in the Pod Memory Usage (in Ki)\n\n")
 	delta := PodMemoryDiff(memoryInit, memoryPost)
 	PodInfoParse(delta)
-
-	// less use of generic sleep statements in automated tests
-	duration := time.Duration(10) * time.Second
-	time.Sleep(duration)
 
 	// To delete a application from the given (ex: argocd) namespace
 	err_del := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).Delete(context.TODO(), "prometheus-app", v1.DeleteOptions{})

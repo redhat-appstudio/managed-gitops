@@ -6,8 +6,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"strconv"
-	"strings"
 	"sync"
 	"text/tabwriter"
 
@@ -99,20 +97,6 @@ func KubectlApply(namespace string, URL string) {
 
 // The PodRestartCount is used to return the count of the pods (Basically, RESTART count from kubectl get pods)
 func PodRestartCount(namespace string) int32 {
-	// var allrestartInfo = make(map[string]string)
-
-	// out, err := exec.Command("kubectl", "get", "pods", "-n", namespace).Output()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// res := string(out)
-
-	// for index, i := range strings.Split(res, "\n") {
-	// 	if index != 0 && index < len(strings.Split(res, "\n"))-1 {
-	// 		allrestartInfo[strings.Fields(i)[0]] = strings.Fields(i)[3]
-	// 	}
-	// }
 	podList, _ := GetE2EFixtureK8sClient().KubeClientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
 
 	totalRestartCount := int32(0)
@@ -126,8 +110,8 @@ func PodRestartCount(namespace string) int32 {
 }
 
 // The GetPodInfo tells us the memory usage of the pod along with container name
-func GetPodInfo(kubeconfig string, master string, namespace string, podName string) map[string]interface{} {
-	podResource := make(map[string]interface{})
+func GetPodInfo(kubeconfig string, master string, namespace string, podName string) map[string]int64 {
+	podResource := make(map[string]int64)
 	config, err := clientcmd.BuildConfigFromFlags(master, kubeconfig)
 	if err != nil {
 		panic(err)
@@ -144,7 +128,8 @@ func GetPodInfo(kubeconfig string, master string, namespace string, podName stri
 		if err != nil {
 			panic(err)
 		}
-		podResource[(podMetrics.ObjectMeta.Name + "\t" + podMetrics.Containers[0].Name)] = podMetrics.Containers[0].Usage["memory"].ToUnstructured()
+		podMemory := podMetrics.Containers[0].Usage["memory"]
+		podResource[(podMetrics.ObjectMeta.Name + "\t" + podMetrics.Containers[0].Name)] = podMemory.AsDec().UnscaledBig().Int64() / (1024 * 1024)
 
 	} else {
 		podMetrics, err := mc.MetricsV1beta1().PodMetricses(namespace).List(context.TODO(), metav1.ListOptions{})
@@ -152,33 +137,31 @@ func GetPodInfo(kubeconfig string, master string, namespace string, podName stri
 			panic(err)
 		}
 		for _, elements := range podMetrics.Items {
-			podResource[(elements.ObjectMeta.Name + "\t" + elements.Containers[0].Name)] = elements.Containers[0].Usage["memory"].ToUnstructured()
+			podMemory := elements.Containers[0].Usage["memory"]
+			podResource[(elements.ObjectMeta.Name + "\t" + elements.Containers[0].Name)] = podMemory.AsDec().UnscaledBig().Int64() / (1024 * 1024)
 		}
 	}
 	return podResource
 }
 
 // The PodInfoParse is used to properly parse over pod memory info and print in it pretty tabular format for better view
-func PodInfoParse(podInfo map[string]interface{}) {
+func PodInfoParse(podInfo map[string]int64) {
 	w := new(tabwriter.Writer)
 
 	// Format in tab-separated columns with a tab stop of 8.
 	w.Init(os.Stdout, 0, 8, 0, '\t', 0)
-	fmt.Fprintln(w, "Pod Name\tContainer Name\tMemory Usage (in Ki)")
+	fmt.Fprintln(w, "Pod Name\tContainer Name\tMemory Usage (in Mi)")
 	for key, value := range podInfo {
-		int_value, _ := strconv.Atoi((strings.Split(fmt.Sprint(value), "Ki")[0]))
-		fmt.Fprintln(w, key, "\t", int_value)
+		fmt.Fprintln(w, key, "\t", value)
 	}
 	w.Flush()
 }
 
 // The PodMemoryDiff function is used to tell the memory of pod difference b/w before and after a process
-func PodMemoryDiff(podInfoOld map[string]interface{}, podInfoNew map[string]interface{}) map[string]interface{} {
-	PodMemory := make(map[string]interface{})
+func PodMemoryDiff(podInfoOld map[string]int64, podInfoNew map[string]int64) map[string]int64 {
+	PodMemory := make(map[string]int64)
 	for podInfoName := range podInfoNew {
-		oldPodMemory, _ := strconv.Atoi((strings.Split(fmt.Sprint(podInfoOld[podInfoName]), "Ki")[0]))
-		newPodMemory, _ := strconv.Atoi((strings.Split(fmt.Sprint(podInfoNew[podInfoName]), "Ki")[0]))
-		PodMemory[podInfoName] = newPodMemory - oldPodMemory
+		PodMemory[podInfoName] = podInfoNew[podInfoName] - podInfoOld[podInfoName]
 	}
 	return PodMemory
 }

@@ -12,16 +12,14 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// type appResource struct{
-// 	AppInfo *appv1.Application
-// 	Count int
-// }
-
 var (
 	// Check for an API (For now it is asume that the kubeconfig og each user lies in ~/.kube/config)
+	// masterUrl ->  "master url address", within the kubeconfig, there is a server address that is referenced for masterUrl
+	// namespace -> predefined to be argocd with the assumpution that argocd is configured within same namespace
+	// podName -> If any specific pod details required replace "" with the podName
 	userLocal, _ = user.Current()
 	kubeconfig   = userLocal.HomeDir + "/.kube/config"
-	master       = ""
+	masterUrl    = ""
 	namespace    = "argocd"
 	podName      = ""
 )
@@ -31,7 +29,7 @@ func TestNGuestbook(t *testing.T) {
 	t.Log("Testing for 100 Guestbook applications\n")
 
 	t.Log("\n\nPods Memory Resource before creation:\n\n")
-	memoryInit := GetPodInfo(kubeconfig, master, namespace, podName)
+	memoryInit := GetPodInfo(kubeconfig, masterUrl, namespace, podName)
 	PodInfoParse(memoryInit)
 
 	// Get Pod Restart Count
@@ -75,7 +73,7 @@ func TestNGuestbook(t *testing.T) {
 	}
 
 	t.Log("\n\nPods Memory Resource after Creation:\n\n")
-	memoryPost := GetPodInfo(kubeconfig, master, namespace, podName)
+	memoryPost := GetPodInfo(kubeconfig, masterUrl, namespace, podName)
 	PodInfoParse(memoryPost)
 
 	t.Log("\n\nDifference in the Pod Memory Usage (in Ki)\n\n")
@@ -106,7 +104,7 @@ func TestHeavyApplication(t *testing.T) {
 
 	t.Log("\n\nPods Memory Resource before creation:\n\n")
 	// Intial Memory Information
-	memoryInit := GetPodInfo(kubeconfig, master, namespace, podName)
+	memoryInit := GetPodInfo(kubeconfig, masterUrl, namespace, podName)
 	PodInfoParse(memoryInit)
 
 	// Get Pod Restart Count
@@ -212,7 +210,7 @@ func TestHeavyApplication(t *testing.T) {
 	}
 
 	t.Log("\n\nPods Memory Resource after Creation:\n\n")
-	memoryPost := GetPodInfo(kubeconfig, master, namespace, podName)
+	memoryPost := GetPodInfo(kubeconfig, masterUrl, namespace, podName)
 	PodInfoParse(memoryPost)
 
 	t.Log("\n\nDifference in the Pod Memory Usage (in Ki)\n\n")
@@ -251,7 +249,7 @@ func TestAllApplication(t *testing.T) {
 
 	t.Log("\n\nPods Memory Resource before creation:\n\n")
 	// Intial Memory Information
-	memoryInit := GetPodInfo(kubeconfig, master, namespace, podName)
+	memoryInit := GetPodInfo(kubeconfig, masterUrl, namespace, podName)
 	PodInfoParse(memoryInit)
 
 	// Get Pod Restart Count
@@ -326,7 +324,7 @@ func TestAllApplication(t *testing.T) {
 	}
 
 	t.Log("\n\nPods Memory Resource after Creation:\n\n")
-	memoryPost := GetPodInfo(kubeconfig, master, namespace, podName)
+	memoryPost := GetPodInfo(kubeconfig, masterUrl, namespace, podName)
 	PodInfoParse(memoryPost)
 
 	t.Log("\n\nDifference in the Pod Memory Usage (in Ki)\n\n")

@@ -13,6 +13,7 @@ import (
 
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -70,8 +71,8 @@ type E2EFixtureK8sClient struct {
 	AppClientset     appclientset.Interface
 }
 
-// Kubectl_apply is basically a go utility that performs kubetcl apply -n namespace -f  *yaml
-func Kubectl_apply(namespace string, URL string) {
+// kubectlApply is basically a go utility that performs kubetcl apply -n namespace -f  *yaml
+func KubectlApply(namespace string, URL string) {
 	prg := "kubectl apply -n %s -f %s"
 	// namespace := "argocd"
 	// URL := "https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml"
@@ -96,28 +97,36 @@ func Kubectl_apply(namespace string, URL string) {
 	fmt.Println(string(out), "Command Run Successful!")
 }
 
-// The PodRestartcount is used to return the count of the pods (Basically, RESTART count from kubectl get pods)
-func PodRestartcount(namespace string) map[string]string {
-	var allrestartInfo = make(map[string]string)
+// The PodRestartCount is used to return the count of the pods (Basically, RESTART count from kubectl get pods)
+func PodRestartCount(namespace string) int32 {
+	// var allrestartInfo = make(map[string]string)
 
-	out, err := exec.Command("kubectl", "get", "pods", "-n", namespace).Output()
-	if err != nil {
-		log.Fatal(err)
-	}
+	// out, err := exec.Command("kubectl", "get", "pods", "-n", namespace).Output()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	res := string(out)
+	// res := string(out)
 
-	for index, i := range strings.Split(res, "\n") {
-		if index != 0 && index < len(strings.Split(res, "\n"))-1 {
-			allrestartInfo[strings.Fields(i)[0]] = strings.Fields(i)[3]
+	// for index, i := range strings.Split(res, "\n") {
+	// 	if index != 0 && index < len(strings.Split(res, "\n"))-1 {
+	// 		allrestartInfo[strings.Fields(i)[0]] = strings.Fields(i)[3]
+	// 	}
+	// }
+	podList, _ := GetE2EFixtureK8sClient().KubeClientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+
+	totalRestartCount := int32(0)
+	for _, podItem := range podList.Items {
+
+		for _, containerStatus := range podItem.Status.ContainerStatuses {
+			totalRestartCount += containerStatus.RestartCount
 		}
 	}
-
-	return allrestartInfo
+	return totalRestartCount
 }
 
-// The Get_pod_info tells us the memory usage of the pod along with container name
-func Get_pod_info(kubeconfig string, master string, namespace string, podName string) map[string]interface{} {
+// The GetPodInfo tells us the memory usage of the pod along with container name
+func GetPodInfo(kubeconfig string, master string, namespace string, podName string) map[string]interface{} {
 	podResource := make(map[string]interface{})
 	config, err := clientcmd.BuildConfigFromFlags(master, kubeconfig)
 	if err != nil {

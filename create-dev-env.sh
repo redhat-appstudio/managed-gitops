@@ -3,15 +3,15 @@
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
 # Create docker network if one doesn't exist yet
-if [ $(docker network ls --filter "name=gitops-net" -q |wc -l) == 0 ]; then
+if [ "$(docker network ls --filter 'name=gitops-net' -q |wc -l)" == 0 ]; then
     echo "* Creating docker network 'gitops-net'"
     docker network create gitops-net
-	echo 
+	echo
 fi
 
 
 # Map the docker data directory into a temporary directory
-POSTGRES_DATA_DIR=`mktemp -d -t postgres-XXXXXXXXXX`
+POSTGRES_DATA_DIR=$(mktemp -d -t postgres-XXXXXXXXXX)
 
 echo "* Starting postgresql"
 
@@ -21,7 +21,7 @@ echo "* Starting postgresql"
 # - username: postgres
 # - password: gitops
 docker run --name managed-gitops-postgres \
-	-v $POSTGRES_DATA_DIR:/var/lib/postgresql/data:Z \
+	-v "$POSTGRES_DATA_DIR":/var/lib/postgresql/data:Z \
 	-e POSTGRES_PASSWORD=gitops	\
 	-p 5432:5432 \
 	--network gitops-net \

@@ -12,7 +12,6 @@ RUN go mod download
 
 # Copy the go source
 COPY *.go ./
-COPY config/ config/
 COPY routes/ routes/
 COPY util/ util/
 

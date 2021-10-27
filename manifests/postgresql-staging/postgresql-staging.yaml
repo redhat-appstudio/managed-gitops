@@ -12,7 +12,7 @@ metadata:
   namespace: gitops-postgresql
 type: Opaque
 data:
-  postgresql-password: "N29DMGRxdHF6cw=="
+  postgresql-password: "POSTGRES_SECRET_ACCESS_KEY"
 ---
 # Source: postgresql/templates/svc-headless.yaml
 apiVersion: v1

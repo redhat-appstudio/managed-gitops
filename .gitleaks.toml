@@ -1,0 +1,7 @@
+[[rules]]
+  description = "example for postgres-staging"
+  file = '''postgresql-staging.yaml'''
+  path = '''./manifests/postgresql-staging'''
+  [rules.allowlist]
+    description = "Ignore example postgres credential"
+    files = ['''postgresql-staging.yaml''']

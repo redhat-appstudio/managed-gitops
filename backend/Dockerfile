@@ -16,8 +16,12 @@ COPY routes/ routes/
 COPY util/ util/
 
 # To compile/build the go applications
-RUN make build
-RUN ./dist/managed-gitops-backend
+RUN CGO_ENABLED=0 go build -a -o ./dist/managed-gitops-backend main.go
+
+# Use distroless as minimal base image to package the manager binary
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.4-210
+WORKDIR /
+COPY --from=builder /workspace/dist/managed-gitops-backend .
 
 # After container is configured, commands to run
 CMD [ "/gitops-backend" ]

@@ -8,6 +8,7 @@ import (
 
 // GET Request to retrive API Server metrics from the route endpoint
 func GetAPIServerMetrics(routeEndpoint string) string {
+	// #nosec G107
 	resp, err := http.Get(routeEndpoint)
 	if err != nil {
 		log.Fatalln(err)
@@ -23,6 +24,7 @@ func GetAPIServerMetrics(routeEndpoint string) string {
 
 // GET Request to retrive Repo Server metrics from the route endpoint
 func GetRepoServerMetrics(routeEndpoint string) string {
+	// #nosec G107
 	resp, err := http.Get(routeEndpoint)
 	if err != nil {
 		log.Fatalln(err)
@@ -38,6 +40,7 @@ func GetRepoServerMetrics(routeEndpoint string) string {
 
 // GET Request to retrive Application Controller metrics from the route endpoint
 func GetApplicationControllerMetrics(routeEndpoint string) string {
+	// #nosec G107
 	resp, err := http.Get(routeEndpoint)
 	if err != nil {
 		log.Fatalln(err)

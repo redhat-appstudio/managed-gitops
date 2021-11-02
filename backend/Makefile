@@ -1,4 +1,4 @@
-IMAGE_NAME?=gitops-backend
+IMAGE_NAME?=quay.io/redhat-appstudio/gitops-service
 IMAGE_TAG?=latest
 
 .PHONY: build

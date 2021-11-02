@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: managed-gitops
-        image: quay.io/samyakjain/managed-gitops:latest
+        image: quay.io/redhat-appstudio/gitops-service:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8090

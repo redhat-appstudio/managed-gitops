@@ -35,20 +35,12 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/cluster-agent/apis/managed-gitops/v1alpha1"
 	argoprojiocontrollers "github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/argoproj.io"
 	controllers "github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/managed-gitops"
-	utils "github.com/redhat-appstudio/managed-gitops/cluster-agent/utils"
 	//+kubebuilder:scaffold:imports
 )
 
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
-)
-
-const (
-	//For defining ArgoCD metric endpoints
-	AppControllerURL = "http://127.0.0.1:12345/metrics"
-	APIServerURL     = "http://127.0.0.1:12346/metrics"
-	RepoServerURL    = "http://127.0.0.1:12347/metrics"
 )
 
 func init() {
@@ -119,9 +111,4 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
-
-	//Retrieving ArgoCD metrics: Application Controller, API Server, Repo Server
-	utils.GetApplicationControllerMetrics(AppControllerURL)
-	utils.GetAPIServerMetrics(APIServerURL)
-	utils.GetRepoServerMetrics(RepoServerURL)
 }

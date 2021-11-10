@@ -4,7 +4,6 @@ go 1.16
 
 require (
 	github.com/argoproj/argo-cd/v2 v2.1.1
-	github.com/jgwest/managed-gitops/cluster-agent v0.0.0-20211027023712-42af25b249bf
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.13.0
 	k8s.io/apimachinery v0.21.2

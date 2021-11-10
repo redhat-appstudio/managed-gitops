@@ -30,7 +30,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	managedgitopsv1alpha1 "github.com/jgwest/managed-gitops/cluster-agent/apis/managed-gitops/v1alpha1"
+	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/cluster-agent/apis/managed-gitops/v1alpha1"
 	//+kubebuilder:scaffold:imports
 )
 

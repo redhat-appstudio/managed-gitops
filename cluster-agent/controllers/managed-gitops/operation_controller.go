@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	managedgitopsv1alpha1 "github.com/jgwest/managed-gitops/cluster-agent/apis/managed-gitops/v1alpha1"
+	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/cluster-agent/apis/managed-gitops/v1alpha1"
 )
 
 // OperationReconciler reconciles a Operation object

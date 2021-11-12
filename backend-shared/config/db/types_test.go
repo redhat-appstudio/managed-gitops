@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -175,6 +176,76 @@ func TestSelectOnAllTables(t *testing.T) {
 
 }
 
+func TestCreateApplication(t *testing.T) {
+	testSetup(t)
+	defer testTeardown(t)
+
+	dbq, err := NewUnsafePostgresDBQueries(true, true)
+	if !assert.NoError(t, err) {
+		return
+	}
+	defer dbq.CloseDatabase()
+
+	managedEnv, _, engineInstance, clusterAccess, err := createSampleData(t, dbq)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	application := &Application{
+		Application_id:          "test-my-application",
+		Name:                    "my-application",
+		Spec_field:              "{}",
+		Engine_instance_inst_id: engineInstance.Gitopsengineinstance_id,
+		Managed_environment_id:  managedEnv.Managedenvironment_id,
+	}
+
+	err = dbq.CreateApplication(application, clusterAccess.Clusteraccess_user_id)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	applicationRes, err := dbq.UnsafeGetApplicationById(application.Application_id)
+	if !assert.Equal(t, application.Application_id, applicationRes.Application_id) {
+		return
+	}
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	rowsAffected, err := dbq.DeleteApplicationById(application.Application_id)
+	if !assert.NoError(t, err) {
+		return
+	}
+	if !assert.Equal(t, rowsAffected, 1) {
+		return
+	}
+
+	applicationRes, err = dbq.UnsafeGetApplicationById(application.Application_id)
+	if !assert.Nil(t, applicationRes) {
+		return
+	}
+	if !assert.Error(t, err) {
+		return
+	}
+
+}
+
+func TestDeploymentToApplicationMapping(t *testing.T) {
+
+	testSetup(t)
+	defer testTeardown(t)
+
+	dbq, err := NewUnsafePostgresDBQueries(true, true)
+	if !assert.NoError(t, err) {
+		return
+	}
+	defer dbq.CloseDatabase()
+
+	res, err := dbq.GetDeploymentToApplicationMappingById("meow")
+	fmt.Println(res, err)
+
+}
+
 func TestGitopsEngineInstanceAndCluster(t *testing.T) {
 
 	testSetup(t)
@@ -186,25 +257,7 @@ func TestGitopsEngineInstanceAndCluster(t *testing.T) {
 	}
 	defer dbq.CloseDatabase()
 
-	managedEnvironment, engineCluster, engineInstance, clusterAccess := getSampleData()
-
-	// Test GitopsEngineCluster and GitOpsEngineInstance
-	err = dbq.CreateManagedEnvironment(&managedEnvironment)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateClusterAccess(&clusterAccess)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineInstance(&engineInstance)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineCluster(&engineCluster)
+	_, engineCluster, engineInstance, _, err := createSampleData(t, dbq)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -213,7 +266,7 @@ func TestGitopsEngineInstanceAndCluster(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	if !assert.Equal(t, &engineCluster, result) {
+	if !assert.Equal(t, engineCluster, result) {
 		return
 	}
 
@@ -235,6 +288,31 @@ func TestGitopsEngineInstanceAndCluster(t *testing.T) {
 	_, err = dbq.GetGitopsEngineClusterById(engineCluster.Gitopsenginecluster_id, testClusterUser.Clusteruser_id)
 	assert.Error(t, err)
 	assert.True(t, IsResultNotFoundError(err))
+}
+
+func createSampleData(t *testing.T, dbq AllDatabaseQueries) (*ManagedEnvironment, *GitopsEngineCluster, *GitopsEngineInstance, *ClusterAccess, error) {
+
+	var err error
+
+	managedEnvironment, engineCluster, engineInstance, clusterAccess := generateSampleData()
+
+	if err = dbq.CreateManagedEnvironment(&managedEnvironment); err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	if err = dbq.CreateClusterAccess(&clusterAccess); err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	if err = dbq.CreateGitopsEngineCluster(&engineCluster); err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	if err = dbq.CreateGitopsEngineInstance(&engineInstance); err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	return &managedEnvironment, &engineCluster, &engineInstance, &clusterAccess, nil
 
 }
 
@@ -248,24 +326,7 @@ func TestManagedEnvironment(t *testing.T) {
 	}
 	defer dbq.CloseDatabase()
 
-	managedEnvironment, engineCluster, engineInstance, clusterAccess := getSampleData()
-
-	err = dbq.CreateManagedEnvironment(&managedEnvironment)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateClusterAccess(&clusterAccess)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineCluster(&engineCluster)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineInstance(&engineInstance)
+	managedEnvironment, _, _, _, err := createSampleData(t, dbq)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -303,27 +364,12 @@ func TestOperation(t *testing.T) {
 	}
 	defer dbq.CloseDatabase()
 
-	managedEnvironment, _, engineInstance, clusterAccess := getSampleData()
-
-	// Test Operation
-	var operation *Operation
-
-	err = dbq.CreateManagedEnvironment(&managedEnvironment)
+	_, _, engineInstance, _, err := createSampleData(t, dbq)
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	err = dbq.CreateClusterAccess(&clusterAccess)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineInstance(&engineInstance)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	operation = &Operation{
+	operation := &Operation{
 		Instance_id:             engineInstance.Gitopsengineinstance_id,
 		Resource_id:             "fake resource id",
 		Resource_type:           "GitopsEngineInstance",
@@ -479,7 +525,7 @@ var testClusterUser = &ClusterUser{
 	User_name:      "test-user",
 }
 
-func getSampleData() (ManagedEnvironment, GitopsEngineCluster, GitopsEngineInstance, ClusterAccess) {
+func generateSampleData() (ManagedEnvironment, GitopsEngineCluster, GitopsEngineInstance, ClusterAccess) {
 
 	managedEnvironment := ManagedEnvironment{
 		Managedenvironment_id: "test-managed-environment",

@@ -20,12 +20,12 @@ CREATE TABLE GitopsEngineInstance (
 
 	-- An Argo CD cluster may host multiple Argo CD instances; these fields
 	-- indicate which namespace this specific instance lives in.
-	namespace_name VARCHAR (48) UNIQUE NOT NULL,
-	namespace_uid VARCHAR (48) UNIQUE NOT NULL,
+	namespace_name VARCHAR (48) NOT NULL,
+	namespace_uid VARCHAR (48) NOT NULL,
 
 	-- Reference to the Argo CD cluster containing the instance
 	-- Foreign key to: GitopsEngineCluster.gitopsenginecluster_id
-	enginecluster_id VARCHAR(48) UNIQUE NOT NULL
+	enginecluster_id VARCHAR(48) NOT NULL
 	
 );
 
@@ -37,7 +37,7 @@ CREATE TABLE ManagedEnvironment (
 	seq_id serial, 
 	
 	-- human readable name
-	name VARCHAR ( 256 ) UNIQUE NOT NULL,
+	name VARCHAR ( 256 ) NOT NULL,
 
 	-- pointer to credentials for the cluster
 	-- Foreign key to: ClusterCredentials.clustercredentials_cred_id
@@ -91,7 +91,7 @@ CREATE TABLE ClusterCredentials (
 -- Note: This is basically placeholder: a real implementation would need to be way more complex.
 CREATE TABLE ClusterUser (
 	clusteruser_id VARCHAR (48) PRIMARY KEY,
-	user_name VARCHAR (256) NOT NULL,	
+	user_name VARCHAR (256) NOT NULL UNIQUE,	
 	seq_id serial
 );
 
@@ -182,6 +182,18 @@ CREATE TABLE Operation (
 
 );
 
+-- Represents relationship from Deployment CR in the namespace, to Application table row 
+CREATE TABLE DeploymentToApplicationMapping (
+	
+	-- uid of our gitops deployment CR within the K8s namespace (or KCP control plane)
+	deploymenttoapplicationmapping_uid_id VARCHAR(48) UNIQUE NOT NULL PRIMARY KEY,
+
+	application_id VARCHAR ( 48 ) NOT NULL UNIQUE,
+
+	seq_id serial
+
+);
+
 
 -- Application represents an Argo CD Application CR within an Argo CD namespace.
 CREATE TABLE Application (
@@ -201,12 +213,12 @@ CREATE TABLE Application (
 
 	
 	-- Which Argo CD instance it's hosted on
-	engine_instance_inst_id VARCHAR(48) UNIQUE NOT NULL,
+	engine_instance_inst_id VARCHAR(48) NOT NULL,
 	-- TODO: Make gitopsengine_instance_inst_id an FK
 
 	-- Which managed environment it is targetting
 	-- Foreign key to: ManagedEnvironment.managedenvironment_id
-	managed_environment_id VARCHAR(48) UNIQUE NOT NULL
+	managed_environment_id VARCHAR(48) NOT NULL
 	
 	-- TODO: This should be indexed
 	-- CONSTRAINT fk_target_inf_cluster   FOREIGN KEY(target_inf_cluster)  REFERENCES InfrastructureCluster(inf_cluster_id),

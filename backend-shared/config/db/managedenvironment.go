@@ -59,23 +59,42 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllManagedEnvironments() ([]Mana
 	return managedEnvironments, nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) GetManagedEnvironmentById(id string, ownerId string) (*ManagedEnvironment, error) {
+func (dbq *PostgreSQLDatabaseQueries) GetManagedEnvironmentByClusterCredentials(clusterCredentialId string, ownerId string) ([]ManagedEnvironment, error) {
 
-	// find all managed environments a user has access to
-	// - select on clusteraccess by userid
-
-	if dbq.dbConnection == nil {
-		return nil, fmt.Errorf("database connection is nil")
-	}
-
-	if isEmpty(id) {
-		return nil, fmt.Errorf("invalid pk")
+	if err := validateGenericEntity(clusterCredentialId, dbq); err != nil {
+		return nil, err
 	}
 
 	var result []ManagedEnvironment
 
 	if err := dbq.dbConnection.Model(&result).
-		Where("me.managedenvironment_id = ?", id).
+		Where("me.clustercredentials_id = ?", clusterCredentialId).
+		Where("ca.clusteraccess_user_id = ?", ownerId).
+		Join("JOIN clusteraccess AS ca ON ca.clusteraccess_managed_environment_id = me.managedenvironment_id").
+		Select(); err != nil {
+
+		return nil, fmt.Errorf("error on retrieving ManagedEnvironment: %v", err)
+	}
+
+	if len(result) == 0 {
+		return nil, NewResultNotFoundError("error on retrieving GetManagedEnvironmentByClusterCredentials")
+	}
+
+	return result, nil
+
+}
+
+func (dbq *PostgreSQLDatabaseQueries) GetManagedEnvironmentById(managedEnvid string, ownerId string) (*ManagedEnvironment, error) {
+
+	// find all managed environments a user has access to
+	// - select on clusteraccess by userid
+	if err := validateGenericEntity(managedEnvid, dbq); err != nil {
+		return nil, err
+	}
+	var result []ManagedEnvironment
+
+	if err := dbq.dbConnection.Model(&result).
+		Where("me.managedenvironment_id = ?", managedEnvid).
 		Where("ca.clusteraccess_user_id = ?", ownerId).
 		Join("JOIN clusteraccess AS ca ON ca.clusteraccess_managed_environment_id = me.managedenvironment_id").
 		Select(); err != nil {

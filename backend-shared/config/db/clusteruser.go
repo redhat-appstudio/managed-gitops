@@ -81,24 +81,56 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterUser(obj *ClusterUser) error 
 	return nil
 }
 
+func (dbq *PostgreSQLDatabaseQueries) GetClusterUserByUsername(userName string) (*ClusterUser, error) {
+
+	// TODO: Add an index for this
+
+	if err := validateGenericEntity(userName, dbq); err != nil {
+		return nil, err
+	}
+
+	var result []ClusterUser
+
+	if err := dbq.dbConnection.Model(&result).
+		Where("cu.user_name = ?", userName).
+		Select(); err != nil {
+
+		return nil, fmt.Errorf("error on retrieving GetClusterUserByUsername: %v", err)
+	}
+
+	if len(result) >= 2 {
+		return nil, fmt.Errorf("multiple results returned from GetClusterUserByUsername")
+	}
+
+	if len(result) == 0 {
+		return nil, NewResultNotFoundError("no results found for GetClusterUserByUsername")
+	}
+
+	return &result[0], nil
+}
+
 func (dbq *PostgreSQLDatabaseQueries) GetClusterUserById(id string) (*ClusterUser, error) {
 
-	// find all managed environments a user has access to
-	// - select on clusteraccess by userid
-
-	if dbq.dbConnection == nil {
-		return nil, fmt.Errorf("database connection is nil")
+	if err := validateGenericEntity(id, dbq); err != nil {
+		return nil, err
 	}
 
-	if isEmpty(id) {
-		return nil, fmt.Errorf("invalid pk")
+	var result []ClusterUser
+
+	if err := dbq.dbConnection.Model(&result).
+		Where("cu.clusteruser_id = ?", id).
+		Select(); err != nil {
+
+		return nil, fmt.Errorf("error on retrieving GetClusterUserById: %v", err)
 	}
 
-	result := &ClusterUser{Clusteruser_id: id}
-
-	if err := dbq.dbConnection.Model(result).WherePK().Select(); err != nil {
-		return nil, fmt.Errorf("error on retrieving ManagedEnvironment: %v", err)
+	if len(result) >= 2 {
+		return nil, fmt.Errorf("multiple results returned from GetClusterUserById")
 	}
 
-	return result, nil
+	if len(result) == 0 {
+		return nil, NewResultNotFoundError("no results found for GetClusterUserById")
+	}
+
+	return &result[0], nil
 }

@@ -71,7 +71,7 @@ type ManagedEnvironment struct {
 type ClusterCredentials struct {
 
 	//lint:ignore U1000 used by go-pg
-	tableName struct{} `pg:"clustercredentials"` //nolint
+	tableName struct{} `pg:"clustercredentials,alias:cc"` //nolint
 
 	// -- Primary key for the credentials (UID)
 	Clustercredentials_cred_id string `pg:"clustercredentials_cred_id,pk"`
@@ -100,7 +100,7 @@ type ClusterCredentials struct {
 type ClusterUser struct {
 
 	//lint:ignore U1000 used by go-pg
-	tableName struct{} `pg:"clusteruser"` //nolint
+	tableName struct{} `pg:"clusteruser,alias:cu"` //nolint
 
 	Clusteruser_id string `pg:"clusteruser_id,pk"`
 	User_name      string `pg:"user_name"`
@@ -112,13 +112,13 @@ type ClusterAccess struct {
 	//lint:ignore U1000 used by go-pg
 	tableName struct{} `pg:"clusteraccess"` //nolint
 
-	// -- Describes whose cluster this is (UID)
+	// -- Describes whose managed environment this is (UID)
 	Clusteraccess_user_id string `pg:"clusteraccess_user_id,pk"`
 
 	// -- Describes which managed environment the user has access to (UID)
 	Clusteraccess_managed_environment_id string `pg:"clusteraccess_managed_environment_id,pk"`
 
-	// -- Which Argo CD instance is managing the cluster?
+	// -- Which Argo CD instance is managing the environment?
 	// clusteraccess_gitops_engine_instance_id VARCHAR (48) UNIQUE,
 	Clusteraccess_gitops_engine_instance_id string `pg:"clusteraccess_gitops_engine_instance_id,pk"`
 
@@ -247,4 +247,18 @@ type ApplicationState struct {
 	// -- human_readable_sync ( 512 ) NOT NULL,
 	// -- human_readable_state ( 512 ) NOT NULL,
 
+}
+
+type DeploymentToApplicationMapping struct {
+
+	//lint:ignore U1000 used by go-pg
+	tableName struct{} `pg:"deploymenttoapplicationmapping,alias:dta"` //nolint
+
+	// UID of deployment CR resource in K8s/KCP
+	Deploymenttoapplicationmapping_uid_id string `pg:"deploymenttoapplicationmapping_uid_id,pk"`
+
+	// -- Foreign key to: Application.Application_id
+	Application_id string `pg:"application_id"`
+
+	SeqID int64 `pg:"seq_id"`
 }

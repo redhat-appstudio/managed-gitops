@@ -1,10 +1,11 @@
 package db
 
 import (
+	"context"
 	"fmt"
 )
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterUsers() ([]ClusterUser, error) {
+func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterUsers(ctx context.Context) ([]ClusterUser, error) {
 	if dbq.dbConnection == nil {
 		return nil, fmt.Errorf("database connection is nil")
 	}
@@ -14,7 +15,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterUsers() ([]ClusterUser
 	}
 
 	var clusterUsers []ClusterUser
-	err := dbq.dbConnection.Model(&clusterUsers).Select()
+	err := dbq.dbConnection.Model(&clusterUsers).Context(ctx).Select()
 
 	if err != nil {
 		return nil, err
@@ -23,7 +24,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterUsers() ([]ClusterUser
 	return clusterUsers, nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) AdminDeleteClusterUserById(id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) AdminDeleteClusterUserById(ctx context.Context, id string) (int, error) {
 	if dbq.dbConnection == nil {
 		return 0, fmt.Errorf("database connection is nil")
 	}
@@ -36,6 +37,7 @@ func (dbq *PostgreSQLDatabaseQueries) AdminDeleteClusterUserById(id string) (int
 
 	deleteResult, err := dbq.dbConnection.Model(result).
 		Where("clusteruser_id = ?", id).
+		Context(ctx).
 		Delete()
 
 	if err != nil {
@@ -45,7 +47,7 @@ func (dbq *PostgreSQLDatabaseQueries) AdminDeleteClusterUserById(id string) (int
 	return deleteResult.RowsAffected(), nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) CreateClusterUser(obj *ClusterUser) error {
+func (dbq *PostgreSQLDatabaseQueries) CreateClusterUser(ctx context.Context, obj *ClusterUser) error {
 
 	if dbq.dbConnection == nil {
 		return fmt.Errorf("database connection is nil")
@@ -69,7 +71,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterUser(obj *ClusterUser) error 
 		return fmt.Errorf("user name should not be empty")
 	}
 
-	result, err := dbq.dbConnection.Model(obj).Insert()
+	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
 		return fmt.Errorf("error on inserting cluster user: %v", err)
 	}
@@ -81,11 +83,11 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterUser(obj *ClusterUser) error 
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) GetClusterUserByUsername(userName string) (*ClusterUser, error) {
+func (dbq *PostgreSQLDatabaseQueries) GetClusterUserByUsername(ctx context.Context, userName string) (*ClusterUser, error) {
 
 	// TODO: Add an index for this
 
-	if err := validateGenericEntity(userName, dbq); err != nil {
+	if err := validateQueryParams(userName, dbq); err != nil {
 		return nil, err
 	}
 
@@ -93,6 +95,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetClusterUserByUsername(userName string) 
 
 	if err := dbq.dbConnection.Model(&result).
 		Where("cu.user_name = ?", userName).
+		Context(ctx).
 		Select(); err != nil {
 
 		return nil, fmt.Errorf("error on retrieving GetClusterUserByUsername: %v", err)
@@ -109,9 +112,9 @@ func (dbq *PostgreSQLDatabaseQueries) GetClusterUserByUsername(userName string) 
 	return &result[0], nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) GetClusterUserById(id string) (*ClusterUser, error) {
+func (dbq *PostgreSQLDatabaseQueries) GetClusterUserById(ctx context.Context, id string) (*ClusterUser, error) {
 
-	if err := validateGenericEntity(id, dbq); err != nil {
+	if err := validateQueryParams(id, dbq); err != nil {
 		return nil, err
 	}
 
@@ -119,6 +122,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetClusterUserById(id string) (*ClusterUse
 
 	if err := dbq.dbConnection.Model(&result).
 		Where("cu.clusteruser_id = ?", id).
+		Context(ctx).
 		Select(); err != nil {
 
 		return nil, fmt.Errorf("error on retrieving GetClusterUserById: %v", err)

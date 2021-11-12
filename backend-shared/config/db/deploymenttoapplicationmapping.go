@@ -1,12 +1,15 @@
 package db
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 // TODO: Add context to all database query methods
 
-func (dbq *PostgreSQLDatabaseQueries) GetDeploymentToApplicationMappingById(id string) (*DeploymentToApplicationMapping, error) {
+func (dbq *PostgreSQLDatabaseQueries) GetDeploymentToApplicationMappingById(ctx context.Context, id string) (*DeploymentToApplicationMapping, error) {
 
-	if err := validateGenericEntity(id, dbq); err != nil {
+	if err := validateQueryParams(id, dbq); err != nil {
 		return nil, err
 	}
 
@@ -14,6 +17,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetDeploymentToApplicationMappingById(id s
 
 	if err := dbq.dbConnection.Model(&result).
 		Where("dta.deploymenttoapplicationmapping_uid_id = ?", id).
+		Context(ctx).
 		Select(); err != nil {
 
 		return nil, fmt.Errorf("error on retrieving GetDeploymentToApplicationMappingById: %v", err)
@@ -30,9 +34,9 @@ func (dbq *PostgreSQLDatabaseQueries) GetDeploymentToApplicationMappingById(id s
 	return &(result[0]), nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeDeleteDeploymentToApplicationMappingById(id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) UnsafeDeleteDeploymentToApplicationMappingById(ctx context.Context, id string) (int, error) {
 
-	if err := validateUnsafeGenericEntity(id, dbq); err != nil {
+	if err := validateUnsafeQueryParams(id, dbq); err != nil {
 		return 0, err
 	}
 
@@ -40,7 +44,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeDeleteDeploymentToApplicationMapping
 		Deploymenttoapplicationmapping_uid_id: id,
 	}
 
-	deleteResult, err := dbq.dbConnection.Model(entity).WherePK().Delete()
+	deleteResult, err := dbq.dbConnection.Model(entity).WherePK().Context(ctx).Delete()
 	if err != nil {
 		return 0, fmt.Errorf("error on deleting application: %v", err)
 	}
@@ -48,7 +52,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeDeleteDeploymentToApplicationMapping
 	return deleteResult.RowsAffected(), nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) CreateDeploymentToApplicationMapping(obj *DeploymentToApplicationMapping) error {
+func (dbq *PostgreSQLDatabaseQueries) CreateDeploymentToApplicationMapping(ctx context.Context, obj *DeploymentToApplicationMapping) error {
 
 	if dbq.allowTestUuids {
 		if isEmpty(obj.Deploymenttoapplicationmapping_uid_id) {
@@ -62,7 +66,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateDeploymentToApplicationMapping(obj *
 		obj.Deploymenttoapplicationmapping_uid_id = generateUuid()
 	}
 
-	if err := validateGenericEntity(obj.Deploymenttoapplicationmapping_uid_id, dbq); err != nil {
+	if err := validateQueryParams(obj.Deploymenttoapplicationmapping_uid_id, dbq); err != nil {
 		return err
 	}
 
@@ -70,7 +74,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateDeploymentToApplicationMapping(obj *
 		return fmt.Errorf("application id should not be empty")
 	}
 
-	result, err := dbq.dbConnection.Model(obj).Insert()
+	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
 		return fmt.Errorf("error on inserting DeploymentToApplicationMapping %v", err)
 	}

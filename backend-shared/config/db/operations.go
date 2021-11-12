@@ -1,12 +1,13 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"time"
 )
 
 // Unsafe: Should only be used in test code.
-func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllOperations() ([]Operation, error) {
+func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllOperations(ctx context.Context) ([]Operation, error) {
 	if dbq.dbConnection == nil {
 		return nil, fmt.Errorf("database connection is nil")
 	}
@@ -15,7 +16,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllOperations() ([]Operation, er
 	}
 
 	var operations []Operation
-	err := dbq.dbConnection.Model(&operations).Select()
+	err := dbq.dbConnection.Model(&operations).Context(ctx).Select()
 
 	if err != nil {
 		return nil, err
@@ -24,7 +25,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllOperations() ([]Operation, er
 	return operations, nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) CreateOperation(obj *Operation, ownerId string) error {
+func (dbq *PostgreSQLDatabaseQueries) CreateOperation(ctx context.Context, obj *Operation, ownerId string) error {
 
 	if dbq.dbConnection == nil {
 		return fmt.Errorf("database connection is nil")
@@ -67,7 +68,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateOperation(obj *Operation, ownerId st
 	}
 
 	// Verify the instance exists, and the user has access to it
-	gei, err := dbq.GetGitopsEngineInstanceById(obj.Instance_id, ownerId)
+	gei, err := dbq.GetGitopsEngineInstanceById(ctx, obj.Instance_id, ownerId)
 	if err != nil || gei == nil {
 		return fmt.Errorf("unable to retrieve operation's instance ID")
 	}
@@ -78,7 +79,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateOperation(obj *Operation, ownerId st
 	// Initial state is waiting
 	obj.State = OperationState_Waiting
 
-	result, err := dbq.dbConnection.Model(obj).Insert()
+	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
 		return fmt.Errorf("error on inserting operation: %v", err)
 	}
@@ -90,7 +91,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateOperation(obj *Operation, ownerId st
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) GetOperationById(id string, ownerId string) (*Operation, error) {
+func (dbq *PostgreSQLDatabaseQueries) GetOperationById(ctx context.Context, id string, ownerId string) (*Operation, error) {
 
 	if dbq.dbConnection == nil {
 		return nil, fmt.Errorf("database connection is nil")
@@ -111,6 +112,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetOperationById(id string, ownerId string
 	if err := dbq.dbConnection.Model(result).
 		Where("operation_id = ?", id).
 		Where("operation_owner_user_id = ?", ownerId).
+		Context(ctx).
 		Select(); err != nil {
 
 		return nil, fmt.Errorf("error on retrieving operation %v", err)
@@ -119,7 +121,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetOperationById(id string, ownerId string
 	return result, nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) DeleteOperationById(id string, ownerId string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteOperationById(ctx context.Context, id string, ownerId string) (int, error) {
 	if dbq.dbConnection == nil {
 		return 0, fmt.Errorf("database connection is nil")
 	}
@@ -138,6 +140,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteOperationById(id string, ownerId str
 
 	deleteResult, err := dbq.dbConnection.Model(result).WherePK().
 		Where("operation_owner_user_id = ?", ownerId).
+		Context(ctx).
 		Delete()
 	if err != nil {
 		return 0, fmt.Errorf("error on deleting operation: %v", err)

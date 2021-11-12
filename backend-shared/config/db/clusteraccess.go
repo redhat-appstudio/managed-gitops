@@ -1,10 +1,11 @@
 package db
 
 import (
+	"context"
 	"fmt"
 )
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterAccess() ([]ClusterAccess, error) {
+func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterAccess(ctx context.Context) ([]ClusterAccess, error) {
 
 	if !dbq.allowUnsafe {
 		return nil, fmt.Errorf("unsafe call to ListAllClusterAccess")
@@ -14,7 +15,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterAccess() ([]ClusterAcc
 		return nil, fmt.Errorf("database connection is nil")
 	}
 	var clusterAccess []ClusterAccess
-	err := dbq.dbConnection.Model(&clusterAccess).Select()
+	err := dbq.dbConnection.Model(&clusterAccess).Context(ctx).Select()
 
 	if err != nil {
 		return nil, err
@@ -23,9 +24,9 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterAccess() ([]ClusterAcc
 	return clusterAccess, nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) CreateClusterAccess(obj *ClusterAccess) error {
+func (dbq *PostgreSQLDatabaseQueries) CreateClusterAccess(ctx context.Context, obj *ClusterAccess) error {
 
-	if err := validateGenericEntity(obj.Clusteraccess_gitops_engine_instance_id, dbq); err != nil {
+	if err := validateQueryParams(obj.Clusteraccess_gitops_engine_instance_id, dbq); err != nil {
 		return err
 	}
 
@@ -37,7 +38,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterAccess(obj *ClusterAccess) er
 		return fmt.Errorf("primary key user_id should not be empty")
 	}
 
-	result, err := dbq.dbConnection.Model(obj).Insert()
+	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
 		return fmt.Errorf("error on inserting cluster access: %v", err)
 	}
@@ -49,7 +50,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterAccess(obj *ClusterAccess) er
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) DeleteClusterAccessById(userId string, managedEnvironmentId string, gitopsEngineInstanceId string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteClusterAccessById(ctx context.Context, userId string, managedEnvironmentId string, gitopsEngineInstanceId string) (int, error) {
 
 	if dbq.dbConnection == nil {
 		return 0, fmt.Errorf("database connection is nil")
@@ -73,6 +74,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteClusterAccessById(userId string, man
 		Where("clusteraccess_user_id = ?", userId).
 		Where("clusteraccess_managed_environment_id = ?", managedEnvironmentId).
 		Where("clusteraccess_gitops_engine_instance_id = ?", gitopsEngineInstanceId).
+		Context(ctx).
 		Delete()
 	if err != nil {
 		return 0, fmt.Errorf("error on deleting operation: %v", err)

@@ -1,10 +1,13 @@
 package db
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeGetApplicationById(id string) (*Application, error) {
+func (dbq *PostgreSQLDatabaseQueries) UnsafeGetApplicationById(ctx context.Context, id string) (*Application, error) {
 
-	if err := validateUnsafeGenericEntity(id, dbq); err != nil {
+	if err := validateUnsafeQueryParams(id, dbq); err != nil {
 		return nil, err
 	}
 
@@ -12,7 +15,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeGetApplicationById(id string) (*Appl
 		Application_id: id,
 	}
 
-	if err := dbq.dbConnection.Model(result).WherePK().Select(); err != nil {
+	if err := dbq.dbConnection.Model(result).WherePK().Context(ctx).Select(); err != nil {
 
 		return nil, fmt.Errorf("error on retrieving Applicatiion: %v", err)
 	}
@@ -20,7 +23,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeGetApplicationById(id string) (*Appl
 	return result, nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) CreateApplication(obj *Application, ownerId string) error {
+func (dbq *PostgreSQLDatabaseQueries) CreateApplication(ctx context.Context, obj *Application, ownerId string) error {
 
 	if dbq.allowTestUuids {
 		if isEmpty(obj.Application_id) {
@@ -58,12 +61,12 @@ func (dbq *PostgreSQLDatabaseQueries) CreateApplication(obj *Application, ownerI
 	}
 
 	// Verify the user can access the managed environment
-	managedEnv, err := dbq.GetManagedEnvironmentById(obj.Managed_environment_id, ownerId)
+	managedEnv, err := dbq.GetManagedEnvironmentById(ctx, obj.Managed_environment_id, ownerId)
 	if err != nil || managedEnv == nil {
 		return fmt.Errorf("on creating Application, unable to retrieve managed environment %s for user %s: %v", obj.Managed_environment_id, ownerId, err)
 	}
 
-	result, err := dbq.dbConnection.Model(obj).Insert()
+	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
 		return fmt.Errorf("error on inserting application: %v", err)
 	}
@@ -76,65 +79,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateApplication(obj *Application, ownerI
 
 }
 
-// func (dbq *PostgreSQLDatabaseQueries) UnsafeCreateApplication(obj *Application) error {
-
-// 	if dbq.allowTestUuids {
-// 		if isEmpty(obj.Application_id) {
-// 			obj.Application_id = generateUuid()
-// 		}
-// 	} else {
-// 		if !isEmpty(obj.Application_id) {
-// 			return fmt.Errorf("primary key should be empty")
-// 		}
-
-// 		obj.Application_id = generateUuid()
-// 	}
-
-// 	if err := validateUnsafeGenericEntityNoPK(dbq); err != nil {
-// 		return err
-// 	}
-
-// 	if dbq.dbConnection == nil {
-// 		return fmt.Errorf("database connection is nil")
-// 	}
-
-// 	if !dbq.allowUnsafe {
-// 		return fmt.Errorf("unsafe operation is not allowed in this context")
-// 	}
-
-// 	if isEmpty(obj.Engine_instance_inst_id) {
-// 		return fmt.Errorf("application's engine instance id field should not be empty")
-
-// 	}
-
-// 	if isEmpty(obj.Managed_environment_id) {
-// 		return fmt.Errorf("application's environment id field should not be empty")
-
-// 	}
-
-// 	if isEmpty(obj.Spec_field) {
-// 		return fmt.Errorf("application's spec field should not be empty")
-
-// 	}
-
-// 	if isEmpty(obj.Name) {
-// 		return fmt.Errorf("application's name field should not be empty")
-// 	}
-
-// 	result, err := dbq.dbConnection.Model(obj).Insert()
-// 	if err != nil {
-// 		return fmt.Errorf("error on inserting application %v", err)
-// 	}
-
-// 	if result.RowsAffected() != 1 {
-// 		return fmt.Errorf("unexpected number of rows affected: %d", result.RowsAffected())
-// 	}
-
-// 	return nil
-
-// }
-
-func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllApplications() ([]Application, error) {
+func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllApplications(ctx context.Context) ([]Application, error) {
 	if dbq.dbConnection == nil {
 		return nil, fmt.Errorf("database connection is nil")
 	}
@@ -144,7 +89,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllApplications() ([]Application
 	}
 
 	var applications []Application
-	err := dbq.dbConnection.Model(&applications).Select()
+	err := dbq.dbConnection.Model(&applications).Context(ctx).Select()
 
 	if err != nil {
 		return nil, err
@@ -153,9 +98,9 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllApplications() ([]Application
 	return applications, nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) DeleteApplicationById(id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteApplicationById(ctx context.Context, id string) (int, error) {
 
-	if err := validateUnsafeGenericEntity(id, dbq); err != nil {
+	if err := validateUnsafeQueryParams(id, dbq); err != nil {
 		return 0, err
 	}
 
@@ -163,7 +108,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteApplicationById(id string) (int, err
 		Application_id: id,
 	}
 
-	deleteResult, err := dbq.dbConnection.Model(result).WherePK().Delete()
+	deleteResult, err := dbq.dbConnection.Model(result).WherePK().Context(ctx).Delete()
 	if err != nil {
 		return 0, fmt.Errorf("error on deleting application: %v", err)
 	}

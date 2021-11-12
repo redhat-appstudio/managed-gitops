@@ -1,8 +1,11 @@
 package db
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllApplicationStates() ([]ApplicationState, error) {
+func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllApplicationStates(ctx context.Context) ([]ApplicationState, error) {
 	if dbq.dbConnection == nil {
 		return nil, fmt.Errorf("database connection is nil")
 	}
@@ -12,7 +15,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllApplicationStates() ([]Applic
 	}
 
 	var appStates []ApplicationState
-	err := dbq.dbConnection.Model(&appStates).Select()
+	err := dbq.dbConnection.Model(&appStates).Context(ctx).Select()
 
 	if err != nil {
 		return nil, err
@@ -21,7 +24,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllApplicationStates() ([]Applic
 	return appStates, nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) DeleteApplicationStateById(id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteApplicationStateById(ctx context.Context, id string) (int, error) {
 
 	if dbq.dbConnection == nil {
 		return 0, fmt.Errorf("database connection is nil")
@@ -39,7 +42,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteApplicationStateById(id string) (int
 		Applicationstate_application_id: id,
 	}
 
-	deleteResult, err := dbq.dbConnection.Model(result).WherePK().Delete()
+	deleteResult, err := dbq.dbConnection.Model(result).WherePK().Context(ctx).Delete()
 	if err != nil {
 		return 0, fmt.Errorf("error on deleting application state: %v", err)
 	}

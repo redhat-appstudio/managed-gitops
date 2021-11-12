@@ -5,8 +5,8 @@ import (
 	"runtime/debug"
 )
 
-// validateGenericEntity is common, simple validation logic shared by most entities
-func validateGenericEntity(entityId string, dbq *PostgreSQLDatabaseQueries) error {
+// validateQueryParams is common, simple validation logic shared by most entities
+func validateQueryParams(entityId string, dbq *PostgreSQLDatabaseQueries) error {
 	if dbq.dbConnection == nil {
 		return fmt.Errorf("database connection is nil")
 	}
@@ -19,10 +19,10 @@ func validateGenericEntity(entityId string, dbq *PostgreSQLDatabaseQueries) erro
 	return nil
 }
 
-// validateGenericEntity is common, simple validation logic shared by most entities
-func validateUnsafeGenericEntity(entityId string, dbq *PostgreSQLDatabaseQueries) error {
+// validateUnsafeQueryParams is common, simple validation logic shared by most entities
+func validateUnsafeQueryParams(entityId string, dbq *PostgreSQLDatabaseQueries) error {
 
-	if err := validateGenericEntity(entityId, dbq); err != nil {
+	if err := validateQueryParams(entityId, dbq); err != nil {
 		return err
 	}
 
@@ -34,7 +34,7 @@ func validateUnsafeGenericEntity(entityId string, dbq *PostgreSQLDatabaseQueries
 }
 
 // validateGenericEntity is common, simple validation logic shared by most entities
-func validateUnsafeGenericEntityNoPK(dbq *PostgreSQLDatabaseQueries) error {
+func validateUnsafeQueryParamsNoPK(dbq *PostgreSQLDatabaseQueries) error {
 
 	if dbq.dbConnection == nil {
 		return fmt.Errorf("database connection is nil")

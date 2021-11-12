@@ -1,10 +1,11 @@
 package db
 
 import (
+	"context"
 	"fmt"
 )
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterCredentials() ([]ClusterCredentials, error) {
+func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterCredentials(ctx context.Context) ([]ClusterCredentials, error) {
 	if dbq.dbConnection == nil {
 		return nil, fmt.Errorf("database connection is nil")
 	}
@@ -14,7 +15,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterCredentials() ([]Clust
 	}
 
 	var clusterCredentials []ClusterCredentials
-	err := dbq.dbConnection.Model(&clusterCredentials).Select()
+	err := dbq.dbConnection.Model(&clusterCredentials).Context(ctx).Select()
 
 	if err != nil {
 		return nil, err
@@ -23,7 +24,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterCredentials() ([]Clust
 	return clusterCredentials, nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) CreateClusterCredentials(obj *ClusterCredentials) error {
+func (dbq *PostgreSQLDatabaseQueries) CreateClusterCredentials(ctx context.Context, obj *ClusterCredentials) error {
 
 	if dbq.dbConnection == nil {
 		return fmt.Errorf("database connection is nil")
@@ -44,7 +45,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterCredentials(obj *ClusterCrede
 		obj.Clustercredentials_cred_id = generateUuid()
 	}
 
-	result, err := dbq.dbConnection.Model(obj).Insert()
+	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
 		return fmt.Errorf("error on inserting cluster credentials: %v", err)
 	}
@@ -56,7 +57,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterCredentials(obj *ClusterCrede
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeGetClusterCredentialsById(id string) (*ClusterCredentials, error) {
+func (dbq *PostgreSQLDatabaseQueries) UnsafeGetClusterCredentialsById(ctx context.Context, id string) (*ClusterCredentials, error) {
 
 	if dbq.dbConnection == nil {
 		return nil, fmt.Errorf("database connection is nil")
@@ -69,7 +70,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeGetClusterCredentialsById(id string)
 	result := &ClusterCredentials{
 		Clustercredentials_cred_id: id,
 	}
-	if err := dbq.dbConnection.Model(result).WherePK().Select(); err != nil {
+	if err := dbq.dbConnection.Model(result).WherePK().Context(ctx).Select(); err != nil {
 
 		return nil, fmt.Errorf("error on retrieving ClusterCredentials: %v", err)
 	}
@@ -77,16 +78,16 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeGetClusterCredentialsById(id string)
 	return result, nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) GetClusterCredentialsById(id string, ownerId string) (*ClusterCredentials, error) {
+func (dbq *PostgreSQLDatabaseQueries) GetClusterCredentialsById(ctx context.Context, id string, ownerId string) (*ClusterCredentials, error) {
 
-	if err := validateGenericEntity(id, dbq); err != nil {
+	if err := validateQueryParams(id, dbq); err != nil {
 		return nil, err
 	}
 
 	// A user should only be able to get cluster credentials if:
 	// - they have access to a gitops engine instance on that cluster.
 	// - they have access to a managed environment using those credentials
-	accessibleByUser, err := dbq.isAccessibleByUser(id, ownerId)
+	accessibleByUser, err := dbq.isAccessibleByUser(ctx, id, ownerId)
 	if err != nil {
 		return nil, err
 	}
@@ -104,6 +105,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetClusterCredentialsById(id string, owner
 	err = dbq.dbConnection.Model(&result).
 		// owner id from cluster access must match the provided parameter
 		Where("cc.clustercredentials_cred_id = ?", id).
+		Context(ctx).
 		Select()
 
 	if err != nil {
@@ -117,14 +119,13 @@ func (dbq *PostgreSQLDatabaseQueries) GetClusterCredentialsById(id string, owner
 	if len(result) == 0 {
 		return nil, NewResultNotFoundError("no results found for GetClusterCredentialsById")
 	}
-
 	return &(result[0]), nil
 
 }
 
-func (dbq *PostgreSQLDatabaseQueries) GetClusterCredentialsByHost(hostName string, ownerId string) ([]ClusterCredentials, error) {
+func (dbq *PostgreSQLDatabaseQueries) GetClusterCredentialsByHost(ctx context.Context, hostName string, ownerId string) ([]ClusterCredentials, error) {
 
-	if err := validateGenericEntity(hostName, dbq); err != nil {
+	if err := validateQueryParams(hostName, dbq); err != nil {
 		return nil, err
 	}
 
@@ -133,6 +134,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetClusterCredentialsByHost(hostName strin
 	err := dbq.dbConnection.Model(&credsWithHostnameResults).
 		// owner id from cluster access must match the provided parameter
 		Where("cc.host = ?", hostName).
+		Context(ctx).
 		Select()
 
 	if err != nil {
@@ -148,7 +150,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetClusterCredentialsByHost(hostName strin
 		// A user should only be able to get cluster credentials if:
 		// - they have access to a gitops engine instance on that cluster.
 		// - they have access to a managed environment using those credentials
-		accessibleByUser, err := dbq.isAccessibleByUser(credsWithHostName.Clustercredentials_cred_id, ownerId)
+		accessibleByUser, err := dbq.isAccessibleByUser(ctx, credsWithHostName.Clustercredentials_cred_id, ownerId)
 		if err != nil {
 			return nil, err
 		}
@@ -172,7 +174,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetClusterCredentialsByHost(hostName strin
 
 }
 
-func (dbq *PostgreSQLDatabaseQueries) isAccessibleByUser(clusterCredsId string, ownerId string) (bool, error) {
+func (dbq *PostgreSQLDatabaseQueries) isAccessibleByUser(ctx context.Context, clusterCredsId string, ownerId string) (bool, error) {
 
 	// A user should only be able to get cluster credentials if:
 	// - they have access to a gitops engine instance on that cluster.
@@ -181,14 +183,17 @@ func (dbq *PostgreSQLDatabaseQueries) isAccessibleByUser(clusterCredsId string, 
 
 	// Locate all managedEnvironments using this credential id
 	managedEnvironments := &[]ManagedEnvironment{}
-	if err := dbq.dbConnection.Model(managedEnvironments).Where("me.clustercredentials_id = ?", clusterCredsId).Select(); err != nil {
+	if err := dbq.dbConnection.Model(managedEnvironments).
+		Where("me.clustercredentials_id = ?", clusterCredsId).
+		Context(ctx).
+		Select(); err != nil {
 		return false, fmt.Errorf("unable to retrieve managedenvironments: %v", err)
 	}
 
 	// Determine if any of those manageEnvironments are accessible by the user
 
 	for _, managedEnvironment := range *managedEnvironments {
-		result, err := dbq.GetManagedEnvironmentById(managedEnvironment.Managedenvironment_id, ownerId)
+		result, err := dbq.GetManagedEnvironmentById(ctx, managedEnvironment.Managedenvironment_id, ownerId)
 		if err != nil {
 
 			if IsResultNotFoundError(err) {
@@ -212,7 +217,7 @@ func (dbq *PostgreSQLDatabaseQueries) isAccessibleByUser(clusterCredsId string, 
 
 		// Retrieve all GitopsEngineClusters that reference this credential
 		err := dbq.dbConnection.Model(&engineClustersUsingCredential).
-			Where("gitops_engine_cluster.clustercredentials_id = ?", clusterCredsId).Select()
+			Where("gitops_engine_cluster.clustercredentials_id = ?", clusterCredsId).Context(ctx).Select()
 		if err != nil {
 			return false, fmt.Errorf("unable to retrieve GitopsEngineClusters that reference credential: %v", err)
 		}
@@ -220,7 +225,7 @@ func (dbq *PostgreSQLDatabaseQueries) isAccessibleByUser(clusterCredsId string, 
 		// For each engine cluster using this credential, locate an instance that is accessible by the owner
 		for _, engineCluster := range engineClustersUsingCredential {
 
-			res, err := dbq.ListAllGitopsEngineInstancesByGitopsEngineCluster(engineCluster.Gitopsenginecluster_id, ownerId)
+			res, err := dbq.ListAllGitopsEngineInstancesByGitopsEngineCluster(ctx, engineCluster.Gitopsenginecluster_id, ownerId)
 			if err != nil {
 				return false, err
 			}
@@ -236,7 +241,7 @@ func (dbq *PostgreSQLDatabaseQueries) isAccessibleByUser(clusterCredsId string, 
 
 }
 
-func (dbq *PostgreSQLDatabaseQueries) AdminDeleteClusterCredentialsById(id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) AdminDeleteClusterCredentialsById(ctx context.Context, id string) (int, error) {
 
 	if dbq.dbConnection == nil {
 		return 0, fmt.Errorf("database connection is nil")
@@ -250,7 +255,7 @@ func (dbq *PostgreSQLDatabaseQueries) AdminDeleteClusterCredentialsById(id strin
 		Clustercredentials_cred_id: id,
 	}
 
-	deleteResult, err := dbq.dbConnection.Model(result).WherePK().Delete()
+	deleteResult, err := dbq.dbConnection.Model(result).WherePK().Context(ctx).Delete()
 	if err != nil {
 		return 0, fmt.Errorf("error on deleting operation: %v", err)
 	}

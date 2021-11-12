@@ -41,11 +41,56 @@ func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineClusterById(id string, owne
 	return result, nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) CreateGitopsEngineCluster(obj *GitopsEngineCluster) error {
+func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineClusterByCredentialId(credentialId string, ownerId string) ([]GitopsEngineCluster, error) {
 
-	if dbq.dbConnection == nil {
-		return fmt.Errorf("database connection is nil")
+	if err := validateGenericEntity(credentialId, dbq); err != nil {
+		return nil, err
 	}
+
+	if isEmpty(ownerId) {
+		return nil, fmt.Errorf("invalid owner in GetGitopsEngineClusterByCredentialId")
+	}
+
+	// Locate GitopsEngineClusters that reference the specified credentials
+	var gitopsEngineClustersWithCreds []GitopsEngineCluster
+	if err := dbq.dbConnection.Model(&gitopsEngineClustersWithCreds).
+		Where("gitops_engine_cluster.clustercredentials_id = ?", credentialId).
+		Select(); err != nil {
+		// TODO: Add an index for this function, if it's actually used for anything
+
+		return nil, fmt.Errorf("error on retrieving GetGitopsEngineClusterByCredentialId: %v", err)
+	}
+
+	if len(gitopsEngineClustersWithCreds) == 0 {
+		return nil, NewResultNotFoundError("no results found for GetGitopsEngineClusterByCredentialId")
+	}
+
+	// Next, filter the credentials based on whether the user has a managed environment that uses them
+	res := []GitopsEngineCluster{}
+	for _, gitopsEngineCluster := range gitopsEngineClustersWithCreds {
+
+		// Return engine instances that are owned by 'ownerid', and are running on cluster 'id'
+		engineInstances, err := dbq.ListAllGitopsEngineInstancesByGitopsEngineCluster(gitopsEngineCluster.Gitopsenginecluster_id, ownerId)
+		if err != nil {
+			continue
+		}
+
+		// For security reasons, there should be at least one gitops engine instance that is running on the cluster, that
+		// this user has access to.
+		// - If not, the user should not be able to retrieve the engine instance.
+		if len(engineInstances) > 0 {
+			res = append(res, gitopsEngineCluster)
+		}
+
+	}
+	if len(res) == 0 {
+		return nil, NewResultNotFoundError("no results found for GetGitopsEngineClusterByCredentialId")
+	}
+
+	return res, nil
+}
+
+func (dbq *PostgreSQLDatabaseQueries) CreateGitopsEngineCluster(obj *GitopsEngineCluster) error {
 
 	if dbq.allowTestUuids {
 		if isEmpty(obj.Gitopsenginecluster_id) {
@@ -57,6 +102,10 @@ func (dbq *PostgreSQLDatabaseQueries) CreateGitopsEngineCluster(obj *GitopsEngin
 		}
 
 		obj.Gitopsenginecluster_id = generateUuid()
+	}
+
+	if err := validateGenericEntity(obj.Gitopsenginecluster_id, dbq); err != nil {
+		return err
 	}
 
 	if isEmpty(obj.Clustercredentials_id) {

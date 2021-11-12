@@ -24,13 +24,9 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllGitopsEngineInstances() ([]Gi
 }
 
 func (dbq *PostgreSQLDatabaseQueries) ListAllGitopsEngineInstancesByGitopsEngineCluster(engineClusterId string, ownerId string) ([]GitopsEngineInstance, error) {
-	if dbq.dbConnection == nil {
-		return nil, fmt.Errorf("database connection is nil")
-	}
 
-	if isEmpty(engineClusterId) {
-		return nil, fmt.Errorf("engine instance id is nil")
-
+	if err := validateGenericEntity(engineClusterId, dbq); err != nil {
+		return nil, err
 	}
 
 	if isEmpty(ownerId) {
@@ -69,9 +65,9 @@ func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineInstanceById(id string, own
 		return nil, fmt.Errorf("invalid ownerId")
 	}
 
-	var result []GitopsEngineInstance
+	var res []GitopsEngineInstance
 
-	if err := dbq.dbConnection.Model(&result).
+	if err := dbq.dbConnection.Model(&res).
 		Where("gei.Gitopsengineinstance_id = ?", id).
 		Where("ca.clusteraccess_user_id = ?", ownerId).
 		Join("JOIN clusteraccess AS ca ON ca.clusteraccess_gitops_engine_instance_id = gei.gitopsengineinstance_id").
@@ -80,15 +76,15 @@ func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineInstanceById(id string, own
 		return nil, fmt.Errorf("error on retrieving GetGitopsEngineInstanceById: %v", err)
 	}
 
-	if len(result) >= 2 {
+	if len(res) >= 2 {
 		return nil, fmt.Errorf("multiple results returned from GetGitopsEngineInstanceById")
 	}
 
-	if len(result) == 0 {
-		return nil, NewResultNotFoundError("error on retrieving GetGitopsEngineInstanceById")
+	if len(res) == 0 {
+		return nil, NewResultNotFoundError("no results found for GetGitopsEngineInstanceById")
 	}
 
-	return &result[0], nil
+	return &res[0], nil
 }
 
 func (dbq *PostgreSQLDatabaseQueries) CreateGitopsEngineInstance(obj *GitopsEngineInstance) error {

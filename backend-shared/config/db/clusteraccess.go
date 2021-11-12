@@ -25,12 +25,8 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterAccess() ([]ClusterAcc
 
 func (dbq *PostgreSQLDatabaseQueries) CreateClusterAccess(obj *ClusterAccess) error {
 
-	if dbq.dbConnection == nil {
-		return fmt.Errorf("database connection is nil")
-	}
-
-	if isEmpty(obj.Clusteraccess_gitops_engine_instance_id) {
-		return fmt.Errorf("primary key engine id should not be empty")
+	if err := validateGenericEntity(obj.Clusteraccess_gitops_engine_instance_id, dbq); err != nil {
+		return err
 	}
 
 	if isEmpty(obj.Clusteraccess_managed_environment_id) {

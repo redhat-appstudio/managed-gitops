@@ -23,6 +23,7 @@ type UnsafeDatabaseQueries interface {
 	UnsafeListAllClusterAccess() ([]ClusterAccess, error)
 	UnsafeListAllClusterCredentials() ([]ClusterCredentials, error)
 	UnsafeListAllClusterUsers() ([]ClusterUser, error)
+	UnsafeGetApplicationById(id string) (*Application, error)
 	UnsafeListAllGitopsEngineClusters() ([]GitopsEngineCluster, error)
 	UnsafeListAllGitopsEngineInstances() ([]GitopsEngineInstance, error)
 	UnsafeListAllManagedEnvironments() ([]ManagedEnvironment, error)
@@ -39,9 +40,11 @@ type DatabaseQueries interface {
 	AdminDeleteClusterUserById(id string) (int, error)
 	AdminDeleteGitopsEngineClusterById(id string) (int, error)
 
+	CreateApplication(obj *Application, ownerId string) error
 	CreateClusterAccess(obj *ClusterAccess) error
 	CreateClusterCredentials(obj *ClusterCredentials) error
 	CreateClusterUser(obj *ClusterUser) error
+	CreateDeploymentToApplicationMapping(obj *DeploymentToApplicationMapping) error
 	CreateGitopsEngineCluster(obj *GitopsEngineCluster) error
 	CreateGitopsEngineInstance(obj *GitopsEngineInstance) error
 	CreateManagedEnvironment(obj *ManagedEnvironment) error
@@ -54,12 +57,20 @@ type DatabaseQueries interface {
 	DeleteGitopsEngineInstanceById(id string, ownerId string) (int, error)
 	DeleteManagedEnvironmentById(id string, ownerId string) (int, error)
 	DeleteOperationById(id string, ownerId string) (int, error)
+
 	GetClusterCredentialsById(id string, ownerId string) (*ClusterCredentials, error)
+	GetClusterCredentialsByHost(hostName string, ownerId string) ([]ClusterCredentials, error)
 	GetClusterUserById(id string) (*ClusterUser, error)
+	GetClusterUserByUsername(userName string) (*ClusterUser, error)
 	GetGitopsEngineClusterById(id string, ownerId string) (*GitopsEngineCluster, error)
+	GetGitopsEngineClusterByCredentialId(credentialId string, ownerId string) ([]GitopsEngineCluster, error)
+	GetManagedEnvironmentByClusterCredentials(clusterCredentialId string, ownerId string) ([]ManagedEnvironment, error)
 	GetGitopsEngineInstanceById(id string, ownerId string) (*GitopsEngineInstance, error)
 	GetManagedEnvironmentById(id string, ownerId string) (*ManagedEnvironment, error)
 	GetOperationById(id string, ownerId string) (*Operation, error)
+	GetDeploymentToApplicationMappingById(id string) (*DeploymentToApplicationMapping, error)
+
+	// TODO: Should this be Get*, or should some of the Get* be List* (Get implies it returns a single result.)
 	ListAllGitopsEngineInstancesByGitopsEngineCluster(engineClusterId string, ownerId string) ([]GitopsEngineInstance, error)
 
 	CloseDatabase()

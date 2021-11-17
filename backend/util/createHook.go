@@ -8,15 +8,6 @@ import (
 	"golang.org/x/oauth2"
 )
 
-var (
-	personalAccessToken = "PERSONAL TOKEN"
-	authorUsername      = "Author Github Username"
-	authorName          = "Author Name"
-	authorEmail         = "Author Email-ID"
-	repoURL             = "Repository URL"
-	hookURL             = "WebHook URL"
-)
-
 type TokenSource struct {
 	AccessToken string
 }
@@ -33,7 +24,7 @@ func CreateWebHook(personalAccessToken string, authorUsername string, authorName
 	tokenSource := &TokenSource{
 		AccessToken: personalAccessToken,
 	}
-	oauthClient := oauth2.NewClient(oauth2.NoContext, tokenSource)
+	oauthClient := oauth2.NewClient(context.TODO(), tokenSource)
 	client := github.NewClient(oauthClient)
 	user, _, err := client.Users.Get(context.Background(), authorUsername)
 	if err != nil {

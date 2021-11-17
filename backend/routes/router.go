@@ -6,8 +6,10 @@ import (
 
 	restful "github.com/emicklei/go-restful/v3"
 	application "github.com/redhat-appstudio/managed-gitops/backend/routes/application"
+
 	managedenvironment "github.com/redhat-appstudio/managed-gitops/backend/routes/managedenvironment"
 	operations "github.com/redhat-appstudio/managed-gitops/backend/routes/operations"
+	webhooks "github.com/redhat-appstudio/managed-gitops/backend/routes/webhooks"
 )
 
 func RouteInit() *http.Server {
@@ -38,8 +40,14 @@ func RouteInit() *http.Server {
 		Returns(404, "Error Occured, Not Found", nil))
 
 	ws.Route(ws.GET("/{managedenv-id}").To(managedenvironment.HandleGetASpecificManagementEnvironment))
-
 	wsContainer.Add(ws)
+
+	webhookR := new(restful.WebService)
+	webhookR.
+		Path("/api/v1/webhookevent").
+		Consumes(restful.MIME_JSON)
+	webhookR.Route(webhookR.POST("").To(webhooks.ParseWebhookInfo))
+	wsContainer.Add(webhookR)
 
 	log.Print("Main: the server is up, and listening to port 8090 on your host.")
 	server := &http.Server{Addr: ":8090", Handler: wsContainer}

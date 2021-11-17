@@ -19,7 +19,13 @@ func (t *TokenSource) Token() (*oauth2.Token, error) {
 	return token, nil
 }
 
-func CreateWebHook(personalAccessToken string, authorUsername string, authorName string, repoName string, hookURL string) {
+// Parameters:
+// 	personalAccessToken : This points to the personal access token (PAT) assigned from the GitHub with the repo access atleast
+// 	authorUsername 		: The author git username (a/c to the PAT)
+// 	authorName 			: The author full name registered (a/c to the PAT)
+// 	repoName 			: The repository name on which the hook will be defined
+// 	hookURL 			: This points to the payloadURL on which github will POST request
+func CreateWebHook(personalAccessToken string, authorUsername string, authorName string, repoName string, hookURL string) error {
 	// OAuth Authentication
 	tokenSource := &TokenSource{
 		AccessToken: personalAccessToken,
@@ -29,12 +35,13 @@ func CreateWebHook(personalAccessToken string, authorUsername string, authorName
 	user, _, err := client.Users.Get(context.Background(), authorUsername)
 	if err != nil {
 		fmt.Printf("client.Users.Get() faled with '%s'\n", err)
-		return
+		return err
 	}
 	fmt.Printf("Logged in via:\nUser Name: %s\nUser Email: %s\n", *user.Name, *user.Email)
 
 	// To create a Github WebHook
 	optsWebhook := &github.Hook{
+		// The webhook name in the parameter is by default set to "web"
 		Name: github.String("web"),
 		URL:  github.String(hookURL),
 		Config: map[string]interface{}{
@@ -44,8 +51,8 @@ func CreateWebHook(personalAccessToken string, authorUsername string, authorName
 	}
 	_, _, errHook := client.Repositories.CreateHook(context.Background(), authorUsername, repoName, optsWebhook)
 	if errHook != nil {
-		fmt.Println(errHook)
-		return
+		return errHook
 	}
 	fmt.Println("WebHook Created")
+	return nil
 }

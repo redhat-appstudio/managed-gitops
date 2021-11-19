@@ -1,18 +1,17 @@
-package tests
+package routes
 
 import (
 	"log"
 	"net/http"
 	"testing"
 
-	"github.com/redhat-appstudio/managed-gitops/backend/routes"
 	"github.com/redhat-appstudio/managed-gitops/backend/util"
 )
 
 func TestApplication(t *testing.T) {
 	serverURL := "http://localhost:8090"
 
-	server := routes.RouteInit()
+	server := RouteInit()
 	go func() {
 		err := server.ListenAndServe()
 		if err != http.ErrServerClosed {

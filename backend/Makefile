@@ -7,7 +7,7 @@ build: fmt vet
 
 .PHONY: test
 test: fmt vet
-	go test -v -race -count=1 -coverprofile=coverage.out `go list ./...`
+	go test -coverpkg=./... -v -race -count=1 -coverprofile=coverage.out `go list ./...`
 
 .PHONY: gosec
 gosec: 

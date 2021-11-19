@@ -2,7 +2,7 @@ name: static checks
 on:
   push:
     branches:
-      - "*"
+      - "main"
   pull_request:
     branches:
       - "*"
@@ -12,45 +12,45 @@ jobs:
     name: Ensure that code is gofmt-ed
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
-    - name: "Ensure 'backend' is 'go fmt'-ed - run 'make fmt' to fix"
-      uses: grandcolline/golang-github-actions@v1.1.0
-      with:
-        run: fmt
-        directory: backend
-        comment: false
-    - name: "Ensure 'cluster-agent' is 'go fmt'-ed - run 'make fmt to fix"
-      uses: grandcolline/golang-github-actions@v1.1.0
-      with:
-        run: fmt
-        directory: cluster-agent
-        comment: false
+      - uses: actions/checkout@master
+      - name: "Ensure 'backend' is 'go fmt'-ed - run 'make fmt' to fix"
+        uses: grandcolline/golang-github-actions@v1.1.0
+        with:
+          run: fmt
+          directory: backend
+          comment: false
+      - name: "Ensure 'cluster-agent' is 'go fmt'-ed - run 'make fmt to fix"
+        uses: grandcolline/golang-github-actions@v1.1.0
+        with:
+          run: fmt
+          directory: cluster-agent
+          comment: false
 
   gosec:
     name: Ensure that code passes gosec and golint
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
-    - name: Setup Golang
-      uses: actions/setup-go@v2
-      with:
-        go-version: '1.16.4'
-    - name: "Install gosec"
-      run: |
-        go get -u github.com/securego/gosec/v2/cmd/gosec
-    - name: "Ensure 'backend' passes 'go-sec' - run 'make gosec' to identify issues"
-      run: |
-        cd $GITHUB_WORKSPACE/backend
-        make gosec
-    - name: "Ensure 'cluster-agent' passes 'go-sec' - run 'make gosec' to identify issues"
-      run: |
-        cd $GITHUB_WORKSPACE/cluster-agent
-        make gosec
-    - name: "Ensure 'backend' passes 'go-lint' - run 'make lint' to identify issues"
-      run: |
-        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.40.1
-        cd $GITHUB_WORKSPACE/backend
-        make lint
+      - uses: actions/checkout@master
+      - name: Setup Golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: "1.16.4"
+      - name: "Install gosec"
+        run: |
+          go get -u github.com/securego/gosec/v2/cmd/gosec
+      - name: "Ensure 'backend' passes 'go-sec' - run 'make gosec' to identify issues"
+        run: |
+          cd $GITHUB_WORKSPACE/backend
+          make gosec
+      - name: "Ensure 'cluster-agent' passes 'go-sec' - run 'make gosec' to identify issues"
+        run: |
+          cd $GITHUB_WORKSPACE/cluster-agent
+          make gosec
+      - name: "Ensure 'backend' passes 'go-lint' - run 'make lint' to identify issues"
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.40.1
+          cd $GITHUB_WORKSPACE/backend
+          make lint
 
   check-go:
     name: Ensure Go modules synchronicity
@@ -61,7 +61,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v2
         with:
-          go-version: '1.16.4'
+          go-version: "1.16.4"
 
       - name: "Backend: Download all Go modules"
         run: |
@@ -93,7 +93,6 @@ jobs:
           go mod tidy
           git diff --exit-code -- .
 
-
   test-go:
     name: Run unit tests for Go packages
     runs-on: ubuntu-latest
@@ -103,7 +102,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v2
         with:
-          go-version: '1.16.4'
+          go-version: "1.16.4"
       - name: "Start PostgreSQL"
         run: |
           cd $GITHUB_WORKSPACE
@@ -113,4 +112,13 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/backend
           make test
-      
+      - name: "Run backend-shared tests"
+        run: |
+          cd $GITHUB_WORKSPACE/backend-shared
+          make test
+      - name: "Run cluster-agent tests"
+        run: |
+          cd $GITHUB_WORKSPACE/cluster-agent
+          make test
+      - name: "Send coverage results to codecov.io"
+        uses: codecov/codecov-action@v2.1.0

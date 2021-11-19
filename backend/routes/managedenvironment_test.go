@@ -1,11 +1,10 @@
-package tests
+package routes
 
 import (
 	"log"
 	"net/http"
 	"testing"
 
-	"github.com/redhat-appstudio/managed-gitops/backend/routes"
 	"github.com/redhat-appstudio/managed-gitops/backend/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -13,7 +12,7 @@ import (
 func TestManagedEnvironment(t *testing.T) {
 	serverURL := "http://localhost:8090"
 
-	server := routes.RouteInit()
+	server := RouteInit()
 	go func() {
 		err := server.ListenAndServe()
 		if err != http.ErrServerClosed {

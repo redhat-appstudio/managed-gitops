@@ -1,4 +1,4 @@
-package tests
+package routes
 
 import (
 	"bytes"
@@ -9,14 +9,13 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	restful "github.com/emicklei/go-restful/v3"
-	"github.com/redhat-appstudio/managed-gitops/backend/routes"
 	util "github.com/redhat-appstudio/managed-gitops/backend/util"
 )
 
 func TestServer(t *testing.T) {
 	serverURL := "http://localhost:8090"
 
-	server := routes.RouteInit()
+	server := RouteInit()
 	go func() {
 		err := server.ListenAndServe()
 		if err != http.ErrServerClosed {

@@ -18,17 +18,18 @@ import (
 type UnsafeDatabaseQueries interface {
 	UnsafeDeleteGitopsEngineInstanceById(ctx context.Context, id string) (int, error)
 	UnsafeDeleteManagedEnvironmentById(ctx context.Context, id string) (int, error)
-	UnsafeGetClusterCredentialsById(ctx context.Context, id string) (*ClusterCredentials, error)
-	UnsafeListAllApplications(ctx context.Context) ([]Application, error)
-	UnsafeListAllApplicationStates(ctx context.Context) ([]ApplicationState, error)
-	UnsafeListAllClusterAccess(ctx context.Context) ([]ClusterAccess, error)
-	UnsafeListAllClusterCredentials(ctx context.Context) ([]ClusterCredentials, error)
-	UnsafeListAllClusterUsers(ctx context.Context) ([]ClusterUser, error)
-	UnsafeGetApplicationById(ctx context.Context, id string) (*Application, error)
-	UnsafeListAllGitopsEngineClusters(ctx context.Context) ([]GitopsEngineCluster, error)
-	UnsafeListAllGitopsEngineInstances(ctx context.Context) ([]GitopsEngineInstance, error)
-	UnsafeListAllManagedEnvironments(ctx context.Context) ([]ManagedEnvironment, error)
-	UnsafeListAllOperations(ctx context.Context) ([]Operation, error)
+	UnsafeGetClusterCredentialsById(ctx context.Context, clusterCreds *ClusterCredentials) error
+	UnsafeListAllApplications(ctx context.Context, applications *[]Application) error
+	UnsafeListAllApplicationStates(ctx context.Context, applicationStates *[]ApplicationState) error
+	UnsafeListAllClusterAccess(ctx context.Context, clusterAccess *[]ClusterAccess) error
+	UnsafeListAllClusterCredentials(ctx context.Context, clusterCredentials *[]ClusterCredentials) error
+	UnsafeListAllClusterUsers(ctx context.Context, clusterUsers *[]ClusterUser) error
+	UnsafeGetApplicationById(ctx context.Context, application *Application) error
+	UnsafeListAllGitopsEngineInstances(ctx context.Context, gitopsEngineInstances *[]GitopsEngineInstance) error
+	UnsafeListAllManagedEnvironments(ctx context.Context, managedEnvironments *[]ManagedEnvironment) error
+	UnsafeListAllOperations(ctx context.Context, operations *[]Operation) error
+	UnsafeListAllGitopsEngineClusters(ctx context.Context, gitopsEngineClusters *[]GitopsEngineCluster) error
+	UnsafeDeleteApplicationById(ctx context.Context, id string) (int, error)
 }
 
 type AllDatabaseQueries interface {
@@ -52,27 +53,33 @@ type DatabaseQueries interface {
 	CreateOperation(ctx context.Context, obj *Operation, ownerId string) error
 
 	DeleteApplicationStateById(ctx context.Context, id string) (int, error)
-	DeleteApplicationById(ctx context.Context, id string) (int, error)
+	DeleteApplicationById(ctx context.Context, id string, ownerId string) (int, error)
 
 	DeleteClusterAccessById(ctx context.Context, userId string, managedEnvironmentId string, gitopsEngineInstanceId string) (int, error)
 	DeleteGitopsEngineInstanceById(ctx context.Context, id string, ownerId string) (int, error)
 	DeleteManagedEnvironmentById(ctx context.Context, id string, ownerId string) (int, error)
 	DeleteOperationById(ctx context.Context, id string, ownerId string) (int, error)
 
-	GetClusterCredentialsById(ctx context.Context, id string, ownerId string) (*ClusterCredentials, error)
-	GetClusterCredentialsByHost(ctx context.Context, hostName string, ownerId string) ([]ClusterCredentials, error)
-	GetClusterUserById(ctx context.Context, id string) (*ClusterUser, error)
-	GetClusterUserByUsername(ctx context.Context, userName string) (*ClusterUser, error)
-	GetGitopsEngineClusterById(ctx context.Context, id string, ownerId string) (*GitopsEngineCluster, error)
-	GetGitopsEngineClusterByCredentialId(ctx context.Context, credentialId string, ownerId string) ([]GitopsEngineCluster, error)
-	GetManagedEnvironmentByClusterCredentials(ctx context.Context, clusterCredentialId string, ownerId string) ([]ManagedEnvironment, error)
-	GetGitopsEngineInstanceById(ctx context.Context, id string, ownerId string) (*GitopsEngineInstance, error)
-	GetManagedEnvironmentById(ctx context.Context, id string, ownerId string) (*ManagedEnvironment, error)
-	GetOperationById(ctx context.Context, id string, ownerId string) (*Operation, error)
-	GetDeploymentToApplicationMappingById(ctx context.Context, id string) (*DeploymentToApplicationMapping, error)
+	// Get functions return a single result, or an error if no results were present;
+	// check the error with 'IsResultNotFoundError' to identify resource not found errors (vs other more serious errors).
+	GetApplicationById(ctx context.Context, application *Application, ownerId string) error
+	GetClusterCredentialsById(ctx context.Context, clusterCredentials *ClusterCredentials, ownerId string) error
+	GetClusterUserById(ctx context.Context, clusterUser *ClusterUser) error
+	GetClusterUserByUsername(ctx context.Context, clusterUser *ClusterUser) error
+	GetGitopsEngineClusterById(ctx context.Context, gitopsEngineCluster *GitopsEngineCluster, ownerId string) error
+	GetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance, ownerId string) error
+	GetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment, ownerId string) error
+	GetOperationById(ctx context.Context, operation *Operation, ownerId string) error
+	GetDeploymentToApplicationMappingByDeplId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping, ownerId string) error
+	GetClusterAccessByPrimaryKey(ctx context.Context, obj *ClusterAccess) error
 
-	// TODO: Should this be Get*, or should some of the Get* be List* (Get implies it returns a single result.)
-	ListAllGitopsEngineInstancesByGitopsEngineCluster(ctx context.Context, engineClusterId string, ownerId string) ([]GitopsEngineInstance, error)
+	GetDBResourceMappingForKubernetesResource(ctx context.Context, obj *KubernetesToDBResourceMapping) error
+
+	// List functions return zero or more results. If no results are found (and no errors occurred), an empty slice is set in the result parameter.
+	ListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx context.Context, engineClusterId string, ownerId string, gitopsEngineInstancesParam *[]GitopsEngineInstance) error
+	ListClusterCredentialsByHost(ctx context.Context, hostName string, clusterCredentials *[]ClusterCredentials, ownerId string) error
+	ListManagedEnvironmentForClusterCredentialsAndOwnerId(ctx context.Context, clusterCredentialId string, ownerId string, managedEnvironments *[]ManagedEnvironment) error
+	ListGitopsEngineClusterByCredentialId(ctx context.Context, credentialId string, engineClustersParam *[]GitopsEngineCluster, ownerId string) error
 
 	CloseDatabase()
 }

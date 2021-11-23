@@ -38,24 +38,27 @@ func (dbq *PostgreSQLDatabaseQueries) CreateManagedEnvironment(ctx context.Conte
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllManagedEnvironments(ctx context.Context) ([]ManagedEnvironment, error) {
+func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllManagedEnvironments(ctx context.Context, managedEnvironments *[]ManagedEnvironment) error {
 
 	if err := validateUnsafeQueryParamsNoPK(dbq); err != nil {
-		return nil, err
+		return err
 	}
 
-	var managedEnvironments []ManagedEnvironment
-	if err := dbq.dbConnection.Model(&managedEnvironments).Context(ctx).Select(); err != nil {
-		return nil, err
+	if err := dbq.dbConnection.Model(managedEnvironments).Context(ctx).Select(); err != nil {
+		return err
 	}
 
-	return managedEnvironments, nil
+	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) GetManagedEnvironmentByClusterCredentials(ctx context.Context, clusterCredentialId string, ownerId string) ([]ManagedEnvironment, error) {
+func (dbq *PostgreSQLDatabaseQueries) ListManagedEnvironmentForClusterCredentialsAndOwnerId(ctx context.Context, clusterCredentialId string, ownerId string, managedEnvironments *[]ManagedEnvironment) error {
 
 	if err := validateQueryParams(clusterCredentialId, dbq); err != nil {
-		return nil, err
+		return err
+	}
+
+	if isEmpty(ownerId) {
+		return fmt.Errorf("owner id for ListManagedEnvironmentByClusterCredentialsAndOwnerId is empty")
 	}
 
 	var result []ManagedEnvironment
@@ -67,43 +70,51 @@ func (dbq *PostgreSQLDatabaseQueries) GetManagedEnvironmentByClusterCredentials(
 		Context(ctx).
 		Select(); err != nil {
 
-		return nil, fmt.Errorf("error on retrieving ManagedEnvironment: %v", err)
+		return fmt.Errorf("error on retrieving ManagedEnvironment: %v", err)
 	}
 
-	if len(result) == 0 {
-		return nil, NewResultNotFoundError("error on retrieving GetManagedEnvironmentByClusterCredentials")
-	}
+	*managedEnvironments = result
 
-	return result, nil
-
+	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) GetManagedEnvironmentById(ctx context.Context, managedEnvid string, ownerId string) (*ManagedEnvironment, error) {
+func (dbq *PostgreSQLDatabaseQueries) GetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment, ownerId string) error {
 
-	if err := validateQueryParams(managedEnvid, dbq); err != nil {
-		return nil, err
+	if err := validateQueryParamsEntity(managedEnvironment, dbq); err != nil {
+		return err
 	}
-	var result []ManagedEnvironment
 
-	if err := dbq.dbConnection.Model(&result).
-		Where("me.managedenvironment_id = ?", managedEnvid).
+	if isEmpty(managedEnvironment.Managedenvironment_id) {
+		return fmt.Errorf("managedenvironment_id is empty in GetManagedEnvironmentById")
+	}
+
+	if isEmpty(ownerId) {
+		return fmt.Errorf("ownerId is empty in GetManagedEnvironmentById")
+	}
+
+	var dbResults []ManagedEnvironment
+
+	if err := dbq.dbConnection.Model(&dbResults).
+		Where("me.managedenvironment_id = ?", managedEnvironment.Managedenvironment_id).
 		Where("ca.clusteraccess_user_id = ?", ownerId).
 		Join("JOIN clusteraccess AS ca ON ca.clusteraccess_managed_environment_id = me.managedenvironment_id").
 		Context(ctx).
 		Select(); err != nil {
 
-		return nil, fmt.Errorf("error on retrieving ManagedEnvironment: %v", err)
+		return fmt.Errorf("error on retrieving ManagedEnvironment by id '%s': %v", managedEnvironment.Managedenvironment_id, err)
 	}
 
-	if len(result) >= 2 {
-		return nil, fmt.Errorf("multiple results returned from GetManagedEnvironmentById")
+	if len(dbResults) >= 2 {
+		return fmt.Errorf("multiple results returned from GetManagedEnvironmentById")
 	}
 
-	if len(result) == 0 {
-		return nil, NewResultNotFoundError("error on retrieving GetGitopsEngineInstanceById")
+	if len(dbResults) == 0 {
+		return NewResultNotFoundError("error on retrieving GetGitopsEngineInstanceById")
 	}
 
-	return &result[0], nil
+	*managedEnvironment = dbResults[0]
+
+	return nil
 }
 
 func (dbq *PostgreSQLDatabaseQueries) DeleteManagedEnvironmentById(ctx context.Context, id string, ownerId string) (int, error) {
@@ -116,16 +127,13 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteManagedEnvironmentById(ctx context.C
 		return 0, fmt.Errorf("owner id is empty")
 	}
 
-	existingValue, err := dbq.GetManagedEnvironmentById(ctx, id, ownerId)
-	if err != nil || existingValue == nil || existingValue.Managedenvironment_id != id {
+	existingValue := ManagedEnvironment{Managedenvironment_id: id}
+	err := dbq.GetManagedEnvironmentById(ctx, &existingValue, ownerId)
+	if err != nil || existingValue.Managedenvironment_id != id {
 		return 0, fmt.Errorf("unable to locate managed environment id, or access denied: %s", id)
 	}
 
-	result := &ManagedEnvironment{
-		Managedenvironment_id: id,
-	}
-
-	deleteResult, err := dbq.dbConnection.Model(result).WherePK().Context(ctx).Delete()
+	deleteResult, err := dbq.dbConnection.Model(&existingValue).WherePK().Context(ctx).Delete()
 	if err != nil {
 		return 0, fmt.Errorf("error on deleting operation: %v", err)
 	}

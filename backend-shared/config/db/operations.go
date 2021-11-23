@@ -7,28 +7,23 @@ import (
 )
 
 // Unsafe: Should only be used in test code.
-func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllOperations(ctx context.Context) ([]Operation, error) {
-	if dbq.dbConnection == nil {
-		return nil, fmt.Errorf("database connection is nil")
-	}
-	if !dbq.allowUnsafe {
-		return nil, fmt.Errorf("unsafe call to ListAllOperations")
+func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllOperations(ctx context.Context, operations *[]Operation) error {
+
+	if err := validateUnsafeQueryParamsNoPK(dbq); err != nil {
+		return err
 	}
 
-	var operations []Operation
-	err := dbq.dbConnection.Model(&operations).Context(ctx).Select()
-
-	if err != nil {
-		return nil, err
+	if err := dbq.dbConnection.Model(operations).Context(ctx).Select(); err != nil {
+		return err
 	}
 
-	return operations, nil
+	return nil
 }
 
 func (dbq *PostgreSQLDatabaseQueries) CreateOperation(ctx context.Context, obj *Operation, ownerId string) error {
 
-	if dbq.dbConnection == nil {
-		return fmt.Errorf("database connection is nil")
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
+		return err
 	}
 
 	if dbq.allowTestUuids {
@@ -68,9 +63,9 @@ func (dbq *PostgreSQLDatabaseQueries) CreateOperation(ctx context.Context, obj *
 	}
 
 	// Verify the instance exists, and the user has access to it
-	gei, err := dbq.GetGitopsEngineInstanceById(ctx, obj.Instance_id, ownerId)
-	if err != nil || gei == nil {
-		return fmt.Errorf("unable to retrieve operation's instance ID")
+	gei := GitopsEngineInstance{Gitopsengineinstance_id: obj.Instance_id}
+	if err := dbq.GetGitopsEngineInstanceById(ctx, &gei, ownerId); err != nil {
+		return fmt.Errorf("unable to retrieve operation's instance ID: '%v' %v", obj.Instance_id, err)
 	}
 
 	obj.Created_on = time.Now()
@@ -91,43 +86,49 @@ func (dbq *PostgreSQLDatabaseQueries) CreateOperation(ctx context.Context, obj *
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) GetOperationById(ctx context.Context, id string, ownerId string) (*Operation, error) {
+func (dbq *PostgreSQLDatabaseQueries) GetOperationById(ctx context.Context, operation *Operation, ownerId string) error {
 
-	if dbq.dbConnection == nil {
-		return nil, fmt.Errorf("database connection is nil")
+	if err := validateQueryParamsEntity(operation, dbq); err != nil {
+		return err
 	}
 
-	if isEmpty(id) {
-		return nil, fmt.Errorf("invalid pk")
+	if isEmpty(operation.Operation_id) {
+		return fmt.Errorf("invalid pk")
 	}
 
 	if isEmpty(ownerId) {
-		return nil, fmt.Errorf("owner id is empty")
+		return fmt.Errorf("owner id is empty")
 	}
 
-	result := &Operation{
-		Operation_id: id,
-	}
+	var dbResult []Operation
 
-	if err := dbq.dbConnection.Model(result).
-		Where("operation_id = ?", id).
+	if err := dbq.dbConnection.Model(&dbResult).
+		Where("operation_id = ?", operation.Operation_id).
 		Where("operation_owner_user_id = ?", ownerId).
 		Context(ctx).
 		Select(); err != nil {
 
-		return nil, fmt.Errorf("error on retrieving operation %v", err)
+		return fmt.Errorf("error on retrieving operation %v", err)
 	}
 
-	return result, nil
+	if len(dbResult) == 0 {
+		return NewResultNotFoundError(fmt.Sprintf("unable to locate operation '%v'", operation.Operation_id))
+	}
+
+	if len(dbResult) > 1 {
+		return fmt.Errorf("unexpected number of results in GetOperationById")
+	}
+
+	*operation = dbResult[0]
+
+	return nil
+
 }
 
 func (dbq *PostgreSQLDatabaseQueries) DeleteOperationById(ctx context.Context, id string, ownerId string) (int, error) {
-	if dbq.dbConnection == nil {
-		return 0, fmt.Errorf("database connection is nil")
-	}
 
-	if isEmpty(id) {
-		return 0, fmt.Errorf("primary key is empty")
+	if err := validateQueryParams(id, dbq); err != nil {
+		return 0, err
 	}
 
 	if isEmpty(ownerId) {

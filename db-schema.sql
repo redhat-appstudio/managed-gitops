@@ -188,11 +188,31 @@ CREATE TABLE DeploymentToApplicationMapping (
 	-- uid of our gitops deployment CR within the K8s namespace (or KCP control plane)
 	deploymenttoapplicationmapping_uid_id VARCHAR(48) UNIQUE NOT NULL PRIMARY KEY,
 
+	-- Foreign key to: Application.application_id
 	application_id VARCHAR ( 48 ) NOT NULL UNIQUE,
 
 	seq_id serial
 
 );
+
+-- Represents a generic relationship between Kubernetes CR <-> Database table
+-- Useful for tracking the lifecycle between the two.
+CREATE TABLE KubernetesToDBResourceMapping  (
+
+	kubernetes_resource_type VARCHAR(64) UNIQUE NOT NULL,
+
+	kubernetes_resource_uid  VARCHAR(64) UNIQUE NOT NULL,
+
+	db_relation_type  VARCHAR(64) UNIQUE NOT NULL,
+
+	db_relation_key  VARCHAR(64) UNIQUE NOT NULL,
+
+	seq_id serial,
+
+	PRIMARY KEY(kubernetes_resource_type, kubernetes_resource_uid, db_relation_type, db_relation_key)
+
+);
+
 
 
 -- Application represents an Argo CD Application CR within an Argo CD namespace.

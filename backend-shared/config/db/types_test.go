@@ -22,7 +22,8 @@ func testSetup(t *testing.T) {
 	}
 	defer dbq.CloseDatabase()
 
-	applicationStates, err := dbq.UnsafeListAllApplicationStates(ctx)
+	var applicationStates []ApplicationState
+	err = dbq.UnsafeListAllApplicationStates(ctx, &applicationStates)
 	assert.NoError(t, err)
 	for _, applicationState := range applicationStates {
 		if strings.HasPrefix(applicationState.Applicationstate_application_id, "test-") {
@@ -34,7 +35,8 @@ func testSetup(t *testing.T) {
 		}
 	}
 
-	operations, err := dbq.UnsafeListAllOperations(ctx)
+	var operations []Operation
+	err = dbq.UnsafeListAllOperations(ctx, &operations)
 	assert.NoError(t, err)
 	for _, operation := range operations {
 
@@ -45,17 +47,19 @@ func testSetup(t *testing.T) {
 		}
 	}
 
-	applications, err := dbq.UnsafeListAllApplications(ctx)
+	var applications []Application
+	err = dbq.UnsafeListAllApplications(ctx, &applications)
 	assert.NoError(t, err)
 	for _, application := range applications {
 		if strings.HasPrefix(application.Application_id, "test-") {
-			rowsAffected, err := dbq.DeleteApplicationById(ctx, application.Application_id)
+			rowsAffected, err := dbq.UnsafeDeleteApplicationById(ctx, application.Application_id)
 			assert.Equal(t, rowsAffected, 1)
 			assert.NoError(t, err)
 		}
 	}
 
-	clusterAccess, err := dbq.UnsafeListAllClusterAccess(ctx)
+	var clusterAccess []ClusterAccess
+	err = dbq.UnsafeListAllClusterAccess(ctx, &clusterAccess)
 	assert.NoError(t, err)
 	for _, clusterAccess := range clusterAccess {
 		if strings.HasPrefix(clusterAccess.Clusteraccess_managed_environment_id, "test-") {
@@ -69,7 +73,8 @@ func testSetup(t *testing.T) {
 		}
 	}
 
-	engineInstances, err := dbq.UnsafeListAllGitopsEngineInstances(ctx)
+	var engineInstances []GitopsEngineInstance
+	err = dbq.UnsafeListAllGitopsEngineInstances(ctx, &engineInstances)
 	assert.NoError(t, err)
 	for _, gitopsEngineInstance := range engineInstances {
 		if strings.HasPrefix(gitopsEngineInstance.Gitopsengineinstance_id, "test-") {
@@ -85,7 +90,8 @@ func testSetup(t *testing.T) {
 		}
 	}
 
-	engineClusters, err := dbq.UnsafeListAllGitopsEngineClusters(ctx)
+	var engineClusters []GitopsEngineCluster
+	err = dbq.UnsafeListAllGitopsEngineClusters(ctx, &engineClusters)
 	assert.NoError(t, err)
 	for _, engineCluster := range engineClusters {
 		if strings.HasPrefix(engineCluster.Gitopsenginecluster_id, "test-") {
@@ -97,7 +103,8 @@ func testSetup(t *testing.T) {
 		}
 	}
 
-	managedEnvironments, err := dbq.UnsafeListAllManagedEnvironments(ctx)
+	var managedEnvironments []ManagedEnvironment
+	err = dbq.UnsafeListAllManagedEnvironments(ctx, &managedEnvironments)
 	assert.NoError(t, err)
 	for _, managedEnvironment := range managedEnvironments {
 		if strings.HasPrefix(managedEnvironment.Managedenvironment_id, "test-") {
@@ -107,7 +114,8 @@ func testSetup(t *testing.T) {
 		}
 	}
 
-	clusterCredentials, err := dbq.UnsafeListAllClusterCredentials(ctx)
+	var clusterCredentials []ClusterCredentials
+	err = dbq.UnsafeListAllClusterCredentials(ctx, &clusterCredentials)
 	assert.NoError(t, err)
 	for _, clusterCredential := range clusterCredentials {
 		if strings.HasPrefix(clusterCredential.Clustercredentials_cred_id, "test-") {
@@ -119,9 +127,12 @@ func testSetup(t *testing.T) {
 		}
 	}
 
-	users, err := dbq.UnsafeListAllClusterUsers(ctx)
-	assert.NoError(t, err)
-	for _, user := range users {
+	var clusterUsers []ClusterUser
+	if err = dbq.UnsafeListAllClusterUsers(ctx, &clusterUsers); !assert.NoError(t, err) {
+		return
+	}
+
+	for _, user := range clusterUsers {
 		if strings.HasPrefix(user.Clusteruser_id, "test-") {
 			rowsAffected, err := dbq.AdminDeleteClusterUserById(ctx, (user.Clusteruser_id))
 			assert.Equal(t, rowsAffected, 1)
@@ -151,31 +162,40 @@ func TestSelectOnAllTables(t *testing.T) {
 	}
 	defer dbq.CloseDatabase()
 
-	_, err = dbq.UnsafeListAllApplicationStates(ctx)
+	var applicationStates []ApplicationState
+	err = dbq.UnsafeListAllApplicationStates(ctx, &applicationStates)
 	assert.NoError(t, err)
 
-	_, err = dbq.UnsafeListAllApplications(ctx)
+	var applications []Application
+	err = dbq.UnsafeListAllApplications(ctx, &applications)
 	assert.NoError(t, err)
 
-	_, err = dbq.UnsafeListAllClusterAccess(ctx)
+	var clusterAccess []ClusterAccess
+	err = dbq.UnsafeListAllClusterAccess(ctx, &clusterAccess)
 	assert.NoError(t, err)
 
-	_, err = dbq.UnsafeListAllClusterCredentials(ctx)
+	var clusterCredentials []ClusterCredentials
+	err = dbq.UnsafeListAllClusterCredentials(ctx, &clusterCredentials)
 	assert.NoError(t, err)
 
-	_, err = dbq.UnsafeListAllClusterUsers(ctx)
+	var clusterUsers []ClusterUser
+	err = dbq.UnsafeListAllClusterUsers(ctx, &clusterUsers)
 	assert.NoError(t, err)
 
-	_, err = dbq.UnsafeListAllGitopsEngineClusters(ctx)
+	var engineClusters []GitopsEngineCluster
+	err = dbq.UnsafeListAllGitopsEngineClusters(ctx, &engineClusters)
 	assert.NoError(t, err)
 
-	_, err = dbq.UnsafeListAllGitopsEngineInstances(ctx)
+	var engineInstances []GitopsEngineInstance
+	err = dbq.UnsafeListAllGitopsEngineInstances(ctx, &engineInstances)
 	assert.NoError(t, err)
 
-	_, err = dbq.UnsafeListAllManagedEnvironments(ctx)
+	var managedEnvironments []ManagedEnvironment
+	err = dbq.UnsafeListAllManagedEnvironments(ctx, &managedEnvironments)
 	assert.NoError(t, err)
 
-	_, err = dbq.UnsafeListAllOperations(ctx)
+	var operations []Operation
+	err = dbq.UnsafeListAllOperations(ctx, &operations)
 	assert.NoError(t, err)
 
 }
@@ -210,15 +230,17 @@ func TestCreateApplication(t *testing.T) {
 		return
 	}
 
-	applicationRes, err := dbq.UnsafeGetApplicationById(ctx, application.Application_id)
-	if !assert.Equal(t, application.Application_id, applicationRes.Application_id) {
-		return
-	}
+	retrievedApplication := Application{Application_id: application.Application_id}
+
+	err = dbq.UnsafeGetApplicationById(ctx, &retrievedApplication)
 	if !assert.NoError(t, err) {
 		return
 	}
+	if !assert.Equal(t, application.Application_id, retrievedApplication.Application_id) {
+		return
+	}
 
-	rowsAffected, err := dbq.DeleteApplicationById(ctx, application.Application_id)
+	rowsAffected, err := dbq.DeleteApplicationById(ctx, application.Application_id, clusterAccess.Clusteraccess_user_id)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -226,10 +248,8 @@ func TestCreateApplication(t *testing.T) {
 		return
 	}
 
-	applicationRes, err = dbq.UnsafeGetApplicationById(ctx, application.Application_id)
-	if !assert.Nil(t, applicationRes) {
-		return
-	}
+	retrievedApplication = Application{Application_id: application.Application_id}
+	err = dbq.UnsafeGetApplicationById(ctx, &retrievedApplication)
 	if !assert.Error(t, err) {
 		return
 	}
@@ -237,6 +257,8 @@ func TestCreateApplication(t *testing.T) {
 }
 
 func TestDeploymentToApplicationMapping(t *testing.T) {
+
+	// TODO: Finish filling this in
 
 	testSetup(t)
 	defer testTeardown(t)
@@ -248,8 +270,9 @@ func TestDeploymentToApplicationMapping(t *testing.T) {
 	}
 	defer dbq.CloseDatabase()
 
-	res, err := dbq.GetDeploymentToApplicationMappingById(ctx, "meow")
-	fmt.Println(res, err)
+	mapping := DeploymentToApplicationMapping{}
+	err = dbq.GetDeploymentToApplicationMappingByDeplId(ctx, &mapping, "")
+	fmt.Println(err, mapping)
 
 }
 
@@ -270,11 +293,11 @@ func TestGitopsEngineInstanceAndCluster(t *testing.T) {
 		return
 	}
 
-	result, err := dbq.GetGitopsEngineClusterById(ctx, engineCluster.Gitopsenginecluster_id, testClusterUser.Clusteruser_id)
-	if !assert.NoError(t, err) {
+	retrievedGitopsEngineCluster := GitopsEngineCluster{Gitopsenginecluster_id: engineCluster.Gitopsenginecluster_id}
+	if err = dbq.GetGitopsEngineClusterById(ctx, &retrievedGitopsEngineCluster, testClusterUser.Clusteruser_id); !assert.NoError(t, err) {
 		return
 	}
-	if !assert.Equal(t, engineCluster, result) {
+	if !assert.Equal(t, engineCluster, &retrievedGitopsEngineCluster) {
 		return
 	}
 
@@ -282,9 +305,9 @@ func TestGitopsEngineInstanceAndCluster(t *testing.T) {
 	assert.Equal(t, rowsAffected, 1)
 	assert.NoError(t, err)
 
-	// Get should return no found, after the delete
-	_, err = dbq.GetGitopsEngineInstanceById(ctx, engineCluster.Gitopsenginecluster_id, testClusterUser.Clusteruser_id)
-	if !assert.Error(t, err) {
+	// Get should return not found, after the delete
+	gitopsEngineInstance := GitopsEngineInstance{Gitopsengineinstance_id: engineCluster.Gitopsenginecluster_id}
+	if err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstance, testClusterUser.Clusteruser_id); !assert.Error(t, err) {
 		return
 	}
 	assert.True(t, IsResultNotFoundError(err))
@@ -293,7 +316,8 @@ func TestGitopsEngineInstanceAndCluster(t *testing.T) {
 	assert.Equal(t, rowsAffected, 1)
 	assert.NoError(t, err)
 
-	_, err = dbq.GetGitopsEngineClusterById(ctx, engineCluster.Gitopsenginecluster_id, testClusterUser.Clusteruser_id)
+	retrievedGitopsEngineCluster = GitopsEngineCluster{Gitopsenginecluster_id: engineCluster.Gitopsenginecluster_id}
+	err = dbq.GetGitopsEngineClusterById(ctx, &retrievedGitopsEngineCluster, testClusterUser.Clusteruser_id)
 	assert.Error(t, err)
 	assert.True(t, IsResultNotFoundError(err))
 }
@@ -342,13 +366,15 @@ func TestManagedEnvironment(t *testing.T) {
 		return
 	}
 
-	result, err := dbq.GetManagedEnvironmentById(ctx, managedEnvironment.Managedenvironment_id, testClusterUser.Clusteruser_id)
-	assert.NoError(t, err)
-	if err == nil {
-		assert.Equal(t, managedEnvironment.Name, result.Name)
+	result := ManagedEnvironment{Managedenvironment_id: managedEnvironment.Managedenvironment_id}
+	err = dbq.GetManagedEnvironmentById(ctx, &result, testClusterUser.Clusteruser_id)
+	if !assert.NoError(t, err) {
+		return
 	}
+	assert.Equal(t, managedEnvironment.Name, result.Name)
 
-	_, err = dbq.GetManagedEnvironmentById(ctx, managedEnvironment.Managedenvironment_id, "another-user")
+	result = ManagedEnvironment{Managedenvironment_id: managedEnvironment.Managedenvironment_id}
+	err = dbq.GetManagedEnvironmentById(ctx, &result, "another-user")
 	assert.NotNil(t, err) // deleting from another user should fail
 	assert.True(t, IsResultNotFoundError(err))
 
@@ -359,7 +385,8 @@ func TestManagedEnvironment(t *testing.T) {
 	assert.Equal(t, rowsAffected, 1)
 	assert.NoError(t, err)
 
-	_, err = dbq.GetManagedEnvironmentById(ctx, managedEnvironment.Managedenvironment_id, testClusterUser.Clusteruser_id)
+	result = ManagedEnvironment{Managedenvironment_id: managedEnvironment.Managedenvironment_id}
+	err = dbq.GetManagedEnvironmentById(ctx, &result, testClusterUser.Clusteruser_id)
 	assert.NotNil(t, err)
 	assert.True(t, IsResultNotFoundError(err))
 
@@ -396,11 +423,13 @@ func TestOperation(t *testing.T) {
 	err = dbq.CreateOperation(ctx, operation, operation.Operation_owner_user_id)
 	assert.NoError(t, err)
 
-	result, err := dbq.GetOperationById(ctx, operation.Operation_id, operation.Operation_owner_user_id)
+	result := Operation{Operation_id: operation.Operation_id}
+	err = dbq.GetOperationById(ctx, &result, operation.Operation_owner_user_id)
 	assert.NoError(t, err)
 	assert.Equal(t, result.Operation_id, operation.Operation_id)
 
-	_, err = dbq.GetOperationById(ctx, operation.Operation_id, "another-user")
+	result = Operation{Operation_id: operation.Operation_id}
+	err = dbq.GetOperationById(ctx, &result, "another-user")
 	if !assert.Error(t, err) {
 		return
 	}
@@ -433,7 +462,8 @@ func TestClusterUser(t *testing.T) {
 	err = dbq.CreateClusterUser(ctx, &clusterUser)
 	assert.NoError(t, err)
 
-	retrievedClusterUser, err := dbq.GetClusterUserById(ctx, clusterUser.Clusteruser_id)
+	retrievedClusterUser := ClusterUser{Clusteruser_id: clusterUser.Clusteruser_id}
+	err = dbq.GetClusterUserById(ctx, &retrievedClusterUser)
 	assert.NoError(t, err)
 	assert.Equal(t, clusterUser.User_name, retrievedClusterUser.User_name)
 
@@ -441,14 +471,14 @@ func TestClusterUser(t *testing.T) {
 	assert.Equal(t, rowsAffected, 1)
 	assert.NoError(t, err)
 
-	_, err = dbq.GetClusterUserById(ctx, clusterUser.Clusteruser_id)
-	if !assert.Error(t, err) {
+	retrievedClusterUser = ClusterUser{Clusteruser_id: clusterUser.Clusteruser_id}
+	if err = dbq.GetClusterUserById(ctx, &retrievedClusterUser); !assert.Error(t, err) {
 		return
 	}
 	assert.True(t, IsResultNotFoundError(err))
 
-	_, err = dbq.GetClusterUserById(ctx, "does-not-exist")
-	if !assert.Error(t, err) {
+	retrievedClusterUser = ClusterUser{Clusteruser_id: "does-not-exist"}
+	if err = dbq.GetClusterUserById(ctx, &retrievedClusterUser); !assert.Error(t, err) {
 		return
 	}
 	assert.True(t, IsResultNotFoundError(err))
@@ -504,7 +534,10 @@ func TestClusterCredentials(t *testing.T) {
 		}
 	}
 
-	retrievedClusterCredentials, err := dbq.UnsafeGetClusterCredentialsById(ctx, clusterCredentials.Clustercredentials_cred_id)
+	retrievedClusterCredentials := &ClusterCredentials{
+		Clustercredentials_cred_id: clusterCredentials.Clustercredentials_cred_id,
+	}
+	err = dbq.UnsafeGetClusterCredentialsById(ctx, retrievedClusterCredentials)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -512,7 +545,10 @@ func TestClusterCredentials(t *testing.T) {
 	assert.Equal(t, clusterCredentials.Kube_config, retrievedClusterCredentials.Kube_config)
 	assert.Equal(t, clusterCredentials.Kube_config_context, retrievedClusterCredentials.Kube_config_context)
 
-	retrievedClusterCredentials, err = dbq.GetClusterCredentialsById(ctx, clusterCredentials.Clustercredentials_cred_id, testClusterUser.Clusteruser_id)
+	retrievedClusterCredentials = &ClusterCredentials{
+		Clustercredentials_cred_id: clusterCredentials.Clustercredentials_cred_id,
+	}
+	err = dbq.GetClusterCredentialsById(ctx, retrievedClusterCredentials, testClusterUser.Clusteruser_id)
 	if !assert.NoError(t, err) ||
 		!assert.NotNil(t, retrievedClusterCredentials) {
 		return
@@ -526,7 +562,10 @@ func TestClusterCredentials(t *testing.T) {
 	assert.Equal(t, rowsAffected, 1)
 	assert.NoError(t, err)
 
-	_, err = dbq.UnsafeGetClusterCredentialsById(ctx, clusterCredentials.Clustercredentials_cred_id)
+	retrievedClusterCredentials = &ClusterCredentials{
+		Clustercredentials_cred_id: clusterCredentials.Clustercredentials_cred_id,
+	}
+	err = dbq.UnsafeGetClusterCredentialsById(ctx, retrievedClusterCredentials)
 	if !assert.Error(t, err) {
 		return
 	}

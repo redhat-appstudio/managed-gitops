@@ -5,36 +5,87 @@ import (
 	"fmt"
 )
 
-// TODO: Add context to all database query methods
+func (dbq *PostgreSQLDatabaseQueries) GetDeploymentToApplicationMappingByDeplId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping, ownerId string) error {
 
-func (dbq *PostgreSQLDatabaseQueries) GetDeploymentToApplicationMappingById(ctx context.Context, id string) (*DeploymentToApplicationMapping, error) {
-
-	if err := validateQueryParams(id, dbq); err != nil {
-		return nil, err
+	if err := validateQueryParamsEntity(deplToAppMappingParam, dbq); err != nil {
+		return err
 	}
 
-	var result []DeploymentToApplicationMapping
+	if isEmpty(deplToAppMappingParam.Deploymenttoapplicationmapping_uid_id) {
+		return fmt.Errorf("GetDeploymentToApplicationMappingByDeplId param is nil")
+	}
 
-	if err := dbq.dbConnection.Model(&result).
-		Where("dta.deploymenttoapplicationmapping_uid_id = ?", id).
+	if isEmpty(ownerId) {
+		return fmt.Errorf("ownerid is empty")
+	}
+
+	// Check that the user has access to retrieve the referenced Application
+	{
+		deplApplication := Application{Application_id: deplToAppMappingParam.Application_id}
+		if err := dbq.GetApplicationById(ctx, &deplApplication, ownerId); err != nil {
+
+			if IsResultNotFoundError(err) {
+				return NewResultNotFoundError(fmt.Sprintf("result not found for deployment mapping Application: %v", err))
+			}
+
+			return fmt.Errorf("unable to retrieve application of deployment mapping: %v", err)
+		}
+
+		// Application exists, and user can access it
+	}
+
+	var dbResults []DeploymentToApplicationMapping
+
+	if err := dbq.dbConnection.Model(&dbResults).
+		Where("dta.deploymenttoapplicationmapping_uid_id = ?", deplToAppMappingParam.Deploymenttoapplicationmapping_uid_id).
 		Context(ctx).
 		Select(); err != nil {
 
-		return nil, fmt.Errorf("error on retrieving GetDeploymentToApplicationMappingById: %v", err)
+		return fmt.Errorf("error on retrieving GetDeploymentToApplicationMappingById: %v", err)
 	}
 
-	if len(result) >= 2 {
-		return nil, fmt.Errorf("multiple results returned from GetDeploymentToApplicationMappingById")
+	if len(dbResults) >= 2 {
+		return fmt.Errorf("multiple results returned from GetDeploymentToApplicationMappingById")
 	}
 
-	if len(result) == 0 {
-		return nil, NewResultNotFoundError("error on retrieving GetDeploymentToApplicationMappingById")
+	if len(dbResults) == 0 {
+		return NewResultNotFoundError("GetDeploymentToApplicationMappingById")
 	}
 
-	return &(result[0]), nil
+	*deplToAppMappingParam = dbResults[0]
+
+	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeDeleteDeploymentToApplicationMappingById(ctx context.Context, id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteDeploymentToApplicationMappingByDeplId(ctx context.Context, id string, ownerId string) (int, error) {
+
+	if err := validateQueryParams(id, dbq); err != nil {
+		return 0, err
+	}
+
+	entity := &DeploymentToApplicationMapping{
+		Deploymenttoapplicationmapping_uid_id: id,
+	}
+
+	// Verify that the user can delete the mapping, by checking that they can access it.
+	if err := dbq.GetDeploymentToApplicationMappingByDeplId(ctx, entity, ownerId); err != nil {
+
+		if IsResultNotFoundError(err) {
+			return 0, nil
+		}
+
+		return 0, err
+	}
+
+	deleteResult, err := dbq.dbConnection.Model(entity).WherePK().Context(ctx).Delete()
+	if err != nil {
+		return 0, fmt.Errorf("error on deleting application: %v", err)
+	}
+
+	return deleteResult.RowsAffected(), nil
+}
+
+func (dbq *PostgreSQLDatabaseQueries) UnsafeDeleteDeploymentToApplicationMappingByDeplId(ctx context.Context, id string) (int, error) {
 
 	if err := validateUnsafeQueryParams(id, dbq); err != nil {
 		return 0, err
@@ -54,6 +105,10 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeDeleteDeploymentToApplicationMapping
 
 func (dbq *PostgreSQLDatabaseQueries) CreateDeploymentToApplicationMapping(ctx context.Context, obj *DeploymentToApplicationMapping) error {
 
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
+		return err
+	}
+
 	if dbq.allowTestUuids {
 		if isEmpty(obj.Deploymenttoapplicationmapping_uid_id) {
 			obj.Deploymenttoapplicationmapping_uid_id = generateUuid()
@@ -64,10 +119,6 @@ func (dbq *PostgreSQLDatabaseQueries) CreateDeploymentToApplicationMapping(ctx c
 		}
 
 		obj.Deploymenttoapplicationmapping_uid_id = generateUuid()
-	}
-
-	if err := validateQueryParams(obj.Deploymenttoapplicationmapping_uid_id, dbq); err != nil {
-		return err
 	}
 
 	if isEmpty(obj.Application_id) {

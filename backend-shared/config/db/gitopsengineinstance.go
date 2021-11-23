@@ -5,38 +5,32 @@ import (
 	"fmt"
 )
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllGitopsEngineInstances(ctx context.Context) ([]GitopsEngineInstance, error) {
-	if dbq.dbConnection == nil {
-		return nil, fmt.Errorf("database connection is nil")
+func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllGitopsEngineInstances(ctx context.Context, gitopsEngineInstances *[]GitopsEngineInstance) error {
+
+	if err := validateUnsafeQueryParamsNoPK(dbq); err != nil {
+		return err
 	}
 
-	if !dbq.allowUnsafe {
-		return nil, fmt.Errorf("unsafe call to ListAllGitopsEngineInstances")
+	if err := dbq.dbConnection.Model(gitopsEngineInstances).Context(ctx).Select(); err != nil {
+		return err
 	}
 
-	var gitopsEngineInstances []GitopsEngineInstance
-	err := dbq.dbConnection.Model(&gitopsEngineInstances).Context(ctx).Select()
-
-	if err != nil {
-		return nil, err
-	}
-
-	return gitopsEngineInstances, nil
+	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) ListAllGitopsEngineInstancesByGitopsEngineCluster(ctx context.Context, engineClusterId string, ownerId string) ([]GitopsEngineInstance, error) {
+func (dbq *PostgreSQLDatabaseQueries) ListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx context.Context, engineClusterId string, ownerId string, gitopsEngineInstancesParam *[]GitopsEngineInstance) error {
 
 	if err := validateQueryParams(engineClusterId, dbq); err != nil {
-		return nil, err
+		return err
 	}
 
 	if isEmpty(ownerId) {
-		return nil, fmt.Errorf("engine instance owner id is nil")
+		return fmt.Errorf("engine instance owner id is nil")
 	}
 
-	var gitopsEngineInstances []GitopsEngineInstance
+	var dbGitopsEngineInstances []GitopsEngineInstance
 
-	err := dbq.dbConnection.Model(&gitopsEngineInstances).
+	if err := dbq.dbConnection.Model(&dbGitopsEngineInstances).
 		// gitopsEngineId (of engine instance) must match the provided parameter
 		Where("gei.enginecluster_id = ?", engineClusterId).
 		// owner id from cluster access must match the provided parameter
@@ -44,56 +38,58 @@ func (dbq *PostgreSQLDatabaseQueries) ListAllGitopsEngineInstancesByGitopsEngine
 		// join on the PK of GitOpsEngineInstance
 		Join("JOIN ClusterAccess as ca ON ca.clusteraccess_gitops_engine_instance_id = gei.gitopsengineinstance_id").
 		Context(ctx).
-		Select()
-
-	if err != nil {
-		return nil, err
+		Select(); err != nil {
+		return err
 	}
 
-	return gitopsEngineInstances, nil
+	*gitopsEngineInstancesParam = dbGitopsEngineInstances
+
+	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineInstanceById(ctx context.Context, id string, ownerId string) (*GitopsEngineInstance, error) {
+func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance, ownerId string) error {
 
-	if dbq.dbConnection == nil {
-		return nil, fmt.Errorf("database connection is nil")
+	if err := validateQueryParamsEntity(engineInstanceParam, dbq); err != nil {
+		return err
 	}
 
-	if isEmpty(id) {
-		return nil, fmt.Errorf("invalid pk")
+	if isEmpty(engineInstanceParam.Gitopsengineinstance_id) {
+		return fmt.Errorf("invalid pk")
 	}
 
-	if isEmpty(id) {
-		return nil, fmt.Errorf("invalid ownerId")
+	if isEmpty(ownerId) {
+		return fmt.Errorf("invalid ownerId")
 	}
 
 	var res []GitopsEngineInstance
 
 	if err := dbq.dbConnection.Model(&res).
-		Where("gei.Gitopsengineinstance_id = ?", id).
+		Where("gei.Gitopsengineinstance_id = ?", engineInstanceParam.Gitopsengineinstance_id).
 		Where("ca.clusteraccess_user_id = ?", ownerId).
 		Join("JOIN clusteraccess AS ca ON ca.clusteraccess_gitops_engine_instance_id = gei.gitopsengineinstance_id").
 		Context(ctx).
 		Select(); err != nil {
 
-		return nil, fmt.Errorf("error on retrieving GetGitopsEngineInstanceById: %v", err)
+		return fmt.Errorf("error on retrieving GetGitopsEngineInstanceById: %v", err)
 	}
 
 	if len(res) >= 2 {
-		return nil, fmt.Errorf("multiple results returned from GetGitopsEngineInstanceById")
+		return fmt.Errorf("multiple results returned from GetGitopsEngineInstanceById")
 	}
 
 	if len(res) == 0 {
-		return nil, NewResultNotFoundError("no results found for GetGitopsEngineInstanceById")
+		return NewResultNotFoundError("no results found for GetGitopsEngineInstanceById")
 	}
 
-	return &res[0], nil
+	*engineInstanceParam = res[0]
+
+	return nil
 }
 
 func (dbq *PostgreSQLDatabaseQueries) CreateGitopsEngineInstance(ctx context.Context, obj *GitopsEngineInstance) error {
 
-	if dbq.dbConnection == nil {
-		return fmt.Errorf("database connection is nil")
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
+		return err
 	}
 
 	if dbq.allowTestUuids {
@@ -145,12 +141,9 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeDeleteGitopsEngineInstanceById(ctx c
 }
 
 func (dbq *PostgreSQLDatabaseQueries) internalDeleteGitopsEngineInstanceById(ctx context.Context, id string, ownerId string, allowUnsafe bool) (int, error) {
-	if dbq.dbConnection == nil {
-		return 0, fmt.Errorf("database connection is nil")
-	}
 
-	if isEmpty(id) {
-		return 0, fmt.Errorf("primary key is empty")
+	if err := validateQueryParams(id, dbq); err != nil {
+		return 0, err
 	}
 
 	if !allowUnsafe {
@@ -161,8 +154,9 @@ func (dbq *PostgreSQLDatabaseQueries) internalDeleteGitopsEngineInstanceById(ctx
 
 		// If we are able to retrieve the engine instance with the ownerId, then it is reasonable to
 		// assume the a valid purpose for deleting the value on behalf of the user.
-		existingValue, err := dbq.GetGitopsEngineInstanceById(ctx, id, ownerId)
-		if err != nil || existingValue == nil || existingValue.Gitopsengineinstance_id != id {
+		existingValue := GitopsEngineInstance{Gitopsengineinstance_id: id}
+		err := dbq.GetGitopsEngineInstanceById(ctx, &existingValue, ownerId)
+		if err != nil || existingValue.Gitopsengineinstance_id != id {
 			return 0, fmt.Errorf("unable to locate gitops engine instance id, or access denied: '%s', %v", id, err)
 		}
 	}

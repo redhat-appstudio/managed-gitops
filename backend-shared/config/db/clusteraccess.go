@@ -5,23 +5,60 @@ import (
 	"fmt"
 )
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterAccess(ctx context.Context) ([]ClusterAccess, error) {
+func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterAccess(ctx context.Context, clusterAccess *[]ClusterAccess) error {
 
-	if !dbq.allowUnsafe {
-		return nil, fmt.Errorf("unsafe call to ListAllClusterAccess")
+	if err := validateUnsafeQueryParamsNoPK(dbq); err != nil {
+		return err
 	}
 
-	if dbq.dbConnection == nil {
-		return nil, fmt.Errorf("database connection is nil")
+	if err := dbq.dbConnection.Model(clusterAccess).Context(ctx).Select(); err != nil {
+		return err
 	}
-	var clusterAccess []ClusterAccess
-	err := dbq.dbConnection.Model(&clusterAccess).Context(ctx).Select()
+
+	return nil
+}
+
+func (dbq *PostgreSQLDatabaseQueries) GetClusterAccessByPrimaryKey(ctx context.Context, obj *ClusterAccess) error {
+
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
+		return err
+	}
+
+	if isEmpty(obj.Clusteraccess_gitops_engine_instance_id) {
+		return fmt.Errorf("clusteraccess_gitops_engine_instance_id is nil in GetClusterAccessByPrimaryKey")
+	}
+
+	if isEmpty(obj.Clusteraccess_managed_environment_id) {
+		return fmt.Errorf("clusteraccess_managed_environment_id is nil in GetClusterAccessByPrimaryKey")
+	}
+
+	if isEmpty(obj.Clusteraccess_user_id) {
+		return fmt.Errorf("clusteraccess_user_id is nil in GetClusterAccessByPrimaryKey")
+	}
+
+	var dbResults []ClusterAccess
+
+	err := dbq.dbConnection.Model(&dbResults).
+		Where("clusteraccess_user_id = ?", obj.Clusteraccess_user_id).
+		Where("clusteraccess_managed_environment_id = ?", obj.Clusteraccess_managed_environment_id).
+		Where("clusteraccess_gitops_engine_instance_id = ?", obj.Clusteraccess_gitops_engine_instance_id).
+		Context(ctx).Select()
 
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("unable to retrieve ClusterAccess in GetClusterAccessByPrimaryKey: %v", err)
 	}
 
-	return clusterAccess, nil
+	if len(dbResults) == 0 {
+		return NewResultNotFoundError("No results for ClusterAccess")
+	}
+
+	if len(dbResults) != 1 {
+		return fmt.Errorf("unexpected number of results for GetClusterAccessByPrimaryKey")
+	}
+
+	*obj = dbResults[0]
+
+	return nil
 }
 
 func (dbq *PostgreSQLDatabaseQueries) CreateClusterAccess(ctx context.Context, obj *ClusterAccess) error {
@@ -52,12 +89,8 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterAccess(ctx context.Context, o
 
 func (dbq *PostgreSQLDatabaseQueries) DeleteClusterAccessById(ctx context.Context, userId string, managedEnvironmentId string, gitopsEngineInstanceId string) (int, error) {
 
-	if dbq.dbConnection == nil {
-		return 0, fmt.Errorf("database connection is nil")
-	}
-
-	if isEmpty(userId) {
-		return 0, fmt.Errorf("primary key is empty")
+	if err := validateQueryParams(userId, dbq); err != nil {
+		return 0, err
 	}
 
 	if isEmpty(managedEnvironmentId) {

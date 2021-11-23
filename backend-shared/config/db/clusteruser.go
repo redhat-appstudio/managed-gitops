@@ -5,32 +5,23 @@ import (
 	"fmt"
 )
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterUsers(ctx context.Context) ([]ClusterUser, error) {
-	if dbq.dbConnection == nil {
-		return nil, fmt.Errorf("database connection is nil")
+func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterUsers(ctx context.Context, clusterUsers *[]ClusterUser) error {
+
+	if err := validateUnsafeQueryParamsNoPK(dbq); err != nil {
+		return err
 	}
 
-	if !dbq.allowUnsafe {
-		return nil, fmt.Errorf("unsafe call to ListAllClusterUsers")
+	if err := dbq.dbConnection.Model(clusterUsers).Context(ctx).Select(); err != nil {
+		return err
 	}
 
-	var clusterUsers []ClusterUser
-	err := dbq.dbConnection.Model(&clusterUsers).Context(ctx).Select()
-
-	if err != nil {
-		return nil, err
-	}
-
-	return clusterUsers, nil
+	return nil
 }
 
 func (dbq *PostgreSQLDatabaseQueries) AdminDeleteClusterUserById(ctx context.Context, id string) (int, error) {
-	if dbq.dbConnection == nil {
-		return 0, fmt.Errorf("database connection is nil")
-	}
 
-	if isEmpty(id) {
-		return 0, fmt.Errorf("primary key is empty")
+	if err := validateQueryParams(id, dbq); err != nil {
+		return 0, err
 	}
 
 	result := &ClusterUser{}
@@ -83,58 +74,70 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterUser(ctx context.Context, obj
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) GetClusterUserByUsername(ctx context.Context, userName string) (*ClusterUser, error) {
+func (dbq *PostgreSQLDatabaseQueries) GetClusterUserByUsername(ctx context.Context, clusterUser *ClusterUser) error {
 
-	// TODO: Add an index for this
+	// TODO: Add an index for this, if anything actually calls it
 
-	if err := validateQueryParams(userName, dbq); err != nil {
-		return nil, err
+	if err := validateQueryParamsEntity(clusterUser, dbq); err != nil {
+		return err
 	}
 
-	var result []ClusterUser
+	if isEmpty(clusterUser.User_name) {
+		return fmt.Errorf("username is nil for GetClusterUserByUsername")
+	}
 
-	if err := dbq.dbConnection.Model(&result).
-		Where("cu.user_name = ?", userName).
+	var dbResults []ClusterUser
+
+	if err := dbq.dbConnection.Model(&dbResults).
+		Where("cu.user_name = ?", clusterUser.User_name).
 		Context(ctx).
 		Select(); err != nil {
 
-		return nil, fmt.Errorf("error on retrieving GetClusterUserByUsername: %v", err)
+		return fmt.Errorf("error on retrieving GetClusterUserByUsername: %v", err)
 	}
 
-	if len(result) >= 2 {
-		return nil, fmt.Errorf("multiple results returned from GetClusterUserByUsername")
+	if len(dbResults) >= 2 {
+		return fmt.Errorf("multiple results returned from GetClusterUserByUsername")
 	}
 
-	if len(result) == 0 {
-		return nil, NewResultNotFoundError("no results found for GetClusterUserByUsername")
+	if len(dbResults) == 0 {
+		return NewResultNotFoundError("no results found for GetClusterUserByUsername")
 	}
 
-	return &result[0], nil
+	*clusterUser = dbResults[0]
+
+	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) GetClusterUserById(ctx context.Context, id string) (*ClusterUser, error) {
+func (dbq *PostgreSQLDatabaseQueries) GetClusterUserById(ctx context.Context, clusterUser *ClusterUser) error {
 
-	if err := validateQueryParams(id, dbq); err != nil {
-		return nil, err
+	if err := validateQueryParamsEntity(clusterUser, dbq); err != nil {
+		return err
 	}
 
-	var result []ClusterUser
+	if isEmpty(clusterUser.Clusteruser_id) {
+		return fmt.Errorf("cluster user id is empty")
+	}
 
-	if err := dbq.dbConnection.Model(&result).
-		Where("cu.clusteruser_id = ?", id).
+	var dbResults []ClusterUser
+
+	if err := dbq.dbConnection.Model(&dbResults).
+		Where("cu.clusteruser_id = ?", clusterUser.Clusteruser_id).
 		Context(ctx).
 		Select(); err != nil {
 
-		return nil, fmt.Errorf("error on retrieving GetClusterUserById: %v", err)
+		return fmt.Errorf("error on retrieving GetClusterUserById: %v", err)
 	}
 
-	if len(result) >= 2 {
-		return nil, fmt.Errorf("multiple results returned from GetClusterUserById")
+	if len(dbResults) >= 2 {
+		return fmt.Errorf("multiple results returned from GetClusterUserById")
 	}
 
-	if len(result) == 0 {
-		return nil, NewResultNotFoundError("no results found for GetClusterUserById")
+	if len(dbResults) == 0 {
+		return NewResultNotFoundError("no results found for GetClusterUserById")
 	}
 
-	return &result[0], nil
+	*clusterUser = dbResults[0]
+
+	return nil
 }

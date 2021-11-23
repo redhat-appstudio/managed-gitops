@@ -5,93 +5,101 @@ import (
 	"fmt"
 )
 
-func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineClusterById(ctx context.Context, id string, ownerId string) (*GitopsEngineCluster, error) {
+func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineClusterById(ctx context.Context, gitopsEngineCluster *GitopsEngineCluster, ownerId string) error {
 
-	if dbq.dbConnection == nil {
-		return nil, fmt.Errorf("database connection is nil")
+	if err := validateQueryParamsEntity(gitopsEngineCluster, dbq); err != nil {
+		return err
 	}
 
-	if isEmpty(id) {
-		return nil, fmt.Errorf("invalid pk")
+	if isEmpty(gitopsEngineCluster.Gitopsenginecluster_id) {
+		return fmt.Errorf("invalid pk in GetGitopsEngineClusterById")
 	}
 
 	if isEmpty(ownerId) {
-		return nil, fmt.Errorf("invalid owner")
+		return fmt.Errorf("invalid owner in GetGitopsEngineClusterById")
 	}
 
 	// Return engine instances that are owned by 'ownerid', and are running on cluster 'id'
-	engineInstances, err := dbq.ListAllGitopsEngineInstancesByGitopsEngineCluster(ctx, id, ownerId)
-	if err != nil {
-		return nil, NewResultNotFoundError(fmt.Sprintf("unable to list engine instances for engine cluster '%s' %v", id, err))
+	var dbResultGitopsEngineInstances []GitopsEngineInstance
+	if err := dbq.ListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx, gitopsEngineCluster.Gitopsenginecluster_id, ownerId, &dbResultGitopsEngineInstances); err != nil {
+		return NewResultNotFoundError(
+			fmt.Sprintf("unable to list engine instances for engine cluster '%s' %v", gitopsEngineCluster.Gitopsenginecluster_id, err))
 	}
 
 	// For security reasons, there should be at least one gitops engine instance that is running on the cluster, that
 	// this user has access to.
 	// - If not, the user should not be able to retrieve the engine instance.
-	if len(engineInstances) == 0 {
-		return nil, NewResultNotFoundError(
+	if len(dbResultGitopsEngineInstances) == 0 {
+		return NewResultNotFoundError(
 			fmt.Sprintf("no gitops engine clusters were found that had an engine instance owned by '%s'", ownerId))
 	}
 
-	result := &GitopsEngineCluster{
-		Gitopsenginecluster_id: id,
+	var dbResultEngineClusters []GitopsEngineCluster
+	if err := dbq.dbConnection.Model(&dbResultEngineClusters).Where("gitopsenginecluster_id = ?", gitopsEngineCluster.Gitopsenginecluster_id).Context(ctx).Select(); err != nil {
+		return fmt.Errorf("error on retrieving GitopsEngineCluster '%s': %v", gitopsEngineCluster.Gitopsenginecluster_id, err)
 	}
 
-	if err := dbq.dbConnection.Model(result).WherePK().Context(ctx).Select(); err != nil {
-		return nil, fmt.Errorf("error on retrieving GitopsEngineCluster: %v", err)
+	if len(dbResultEngineClusters) == 0 {
+		return NewResultNotFoundError(
+			fmt.Sprintf("no engine clusters was found with id '%s'", gitopsEngineCluster.Gitopsenginecluster_id))
 	}
 
-	return result, nil
+	if len(dbResultEngineClusters) > 1 {
+		return fmt.Errorf("unexpected number of dbResultEngineClusters")
+	}
+
+	*gitopsEngineCluster = dbResultEngineClusters[0]
+
+	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineClusterByCredentialId(ctx context.Context, credentialId string, ownerId string) ([]GitopsEngineCluster, error) {
+func (dbq *PostgreSQLDatabaseQueries) ListGitopsEngineClusterByCredentialId(ctx context.Context, credentialId string, engineClustersParam *[]GitopsEngineCluster, ownerId string) error {
 
 	if err := validateQueryParams(credentialId, dbq); err != nil {
-		return nil, err
+		return err
 	}
 
 	if isEmpty(ownerId) {
-		return nil, fmt.Errorf("invalid owner in GetGitopsEngineClusterByCredentialId")
+		return fmt.Errorf("invalid owner in GetGitopsEngineClusterByCredentialId")
 	}
 
 	// Locate GitopsEngineClusters that reference the specified credentials
-	var gitopsEngineClustersWithCreds []GitopsEngineCluster
-	if err := dbq.dbConnection.Model(&gitopsEngineClustersWithCreds).
+	var dbGitopsEngineClustersWithCreds []GitopsEngineCluster
+	if err := dbq.dbConnection.Model(&dbGitopsEngineClustersWithCreds).
 		Where("gitops_engine_cluster.clustercredentials_id = ?", credentialId).
 		Context(ctx).
 		Select(); err != nil {
 		// TODO: Add an index for this function, if it's actually used for anything
 
-		return nil, fmt.Errorf("error on retrieving GetGitopsEngineClusterByCredentialId: %v", err)
+		return fmt.Errorf("error on retrieving GetGitopsEngineClusterByCredentialId: %v", err)
 	}
 
-	if len(gitopsEngineClustersWithCreds) == 0 {
-		return nil, NewResultNotFoundError("no results found for GetGitopsEngineClusterByCredentialId")
+	if len(dbGitopsEngineClustersWithCreds) == 0 {
+		*engineClustersParam = dbGitopsEngineClustersWithCreds
+		return nil
 	}
 
 	// Next, filter the credentials based on whether the user has a managed environment that uses them
-	res := []GitopsEngineCluster{}
-	for _, gitopsEngineCluster := range gitopsEngineClustersWithCreds {
+	var res []GitopsEngineCluster
+	for _, gitopsEngineCluster := range dbGitopsEngineClustersWithCreds {
 
 		// Return engine instances that are owned by 'ownerid', and are running on cluster 'id'
-		engineInstances, err := dbq.ListAllGitopsEngineInstancesByGitopsEngineCluster(ctx, gitopsEngineCluster.Gitopsenginecluster_id, ownerId)
-		if err != nil {
-			continue
+		var dbEngineInstances []GitopsEngineInstance
+		if err := dbq.ListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx, gitopsEngineCluster.Gitopsenginecluster_id, ownerId, &dbEngineInstances); err != nil {
+			return fmt.Errorf("unable to list engine instance for '%s', owner '%s', error: %v", gitopsEngineCluster.Gitopsenginecluster_id, ownerId, err)
 		}
 
 		// For security reasons, there should be at least one gitops engine instance that is running on the cluster, that
 		// this user has access to.
 		// - If not, the user should not be able to retrieve the engine instance.
-		if len(engineInstances) > 0 {
+		if len(dbEngineInstances) > 0 {
 			res = append(res, gitopsEngineCluster)
 		}
-
-	}
-	if len(res) == 0 {
-		return nil, NewResultNotFoundError("no results found for GetGitopsEngineClusterByCredentialId")
 	}
 
-	return res, nil
+	*engineClustersParam = res
+
+	return nil
 }
 
 func (dbq *PostgreSQLDatabaseQueries) CreateGitopsEngineCluster(ctx context.Context, obj *GitopsEngineCluster) error {
@@ -129,37 +137,24 @@ func (dbq *PostgreSQLDatabaseQueries) CreateGitopsEngineCluster(ctx context.Cont
 
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllGitopsEngineClusters(ctx context.Context) ([]GitopsEngineCluster, error) {
+func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllGitopsEngineClusters(ctx context.Context, gitopsEngineClusters *[]GitopsEngineCluster) error {
 
-	if dbq.dbConnection == nil {
-		return nil, fmt.Errorf("database connection is nil")
+	if err := validateUnsafeQueryParamsNoPK(dbq); err != nil {
+		return err
 	}
 
-	if !dbq.allowUnsafe {
-		return nil, fmt.Errorf("unsafe call to ListAllGitopsEngineClusters")
-	}
-
-	var gitopsEngineClusters []GitopsEngineCluster
-
-	err := dbq.dbConnection.Model(&gitopsEngineClusters).Context(ctx).Select()
+	err := dbq.dbConnection.Model(gitopsEngineClusters).Context(ctx).Select()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return gitopsEngineClusters, nil
+	return nil
 }
 
 func (dbq *PostgreSQLDatabaseQueries) AdminDeleteGitopsEngineClusterById(ctx context.Context, id string) (int, error) {
-	if dbq.dbConnection == nil {
-		return 0, fmt.Errorf("database connection is nil")
-	}
 
-	if !dbq.allowUnsafe {
-		return 0, fmt.Errorf("unsafe call to DeleteGitopsEngineClusterById")
-	}
-
-	if isEmpty(id) {
-		return 0, fmt.Errorf("primary key is empty")
+	if err := validateUnsafeQueryParams(id, dbq); err != nil {
+		return 0, err
 	}
 
 	result := &GitopsEngineCluster{

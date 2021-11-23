@@ -36,7 +36,7 @@ type GitopsEngineInstance struct {
 	EngineCluster_id string `pg:"enginecluster_id"`
 }
 
-// ManagedEnvironment is an environment (namespace(s) on a user's cluster) that they want to deploy applications to, using Argo CD
+// ManagedEnvironment is an environment (eg a user's cluster, or a subset of that cluster) that they want to deploy applications to, using Argo CD
 type ManagedEnvironment struct {
 	//lint:ignore U1000 used by go-pg
 	tableName struct{} `pg:"managedenvironment,alias:me"` //nolint
@@ -149,7 +149,7 @@ type Operation struct {
 
 	SeqID int64 `pg:"seq_id"`
 
-	// -- Specifies which Argo CD instance is this operation against
+	// -- Specifies which Argo CD instance this operation is targeting
 	// -- Foreign key to: GitopsEngineInstance.gitopsengineinstance_id
 	Instance_id string `pg:"instance_id"`
 
@@ -165,7 +165,7 @@ type Operation struct {
 	// -- This value lets the operation know which table contains the resource.
 	// --
 	// -- possible values:
-	// -- * ManagedEnvironment (specified when we want Argo CD to C/R/U/D a user's cluster credentials)
+	// -- # * ClusterAccess (specified when we want Argo CD to C/R/U/D a user's cluster credentials)
 	// -- * GitopsEngineInstance (specified to CRUD an Argo instance, for example to create a new namespace and put Argo CD in it, then signal when it's done)
 	// -- * Application (user creates a new Application via service/web UI)
 	Resource_type string `pg:"resource_type"`
@@ -259,6 +259,22 @@ type DeploymentToApplicationMapping struct {
 
 	// -- Foreign key to: Application.Application_id
 	Application_id string `pg:"application_id"`
+
+	SeqID int64 `pg:"seq_id"`
+}
+
+type KubernetesToDBResourceMapping struct {
+
+	//lint:ignore U1000 used by go-pg
+	tableName struct{} `pg:"kubernetestodbresourcemapping,alias:ktdbrm"` //nolint
+
+	KubernetesResourceType string `pg:"kubernetes_resource_type"`
+
+	KubernetesResourceUID string `pg:"kubernetes_resource_uid"`
+
+	DBRelationType string `pg:"db_relation_type"`
+
+	DBRelationKey string `pg:"db_relation_key"`
 
 	SeqID int64 `pg:"seq_id"`
 }

@@ -12,27 +12,14 @@ func (dbq *PostgreSQLDatabaseQueries) GetDeploymentToApplicationMappingByDeplId(
 	}
 
 	if isEmpty(deplToAppMappingParam.Deploymenttoapplicationmapping_uid_id) {
-		return fmt.Errorf("GetDeploymentToApplicationMappingByDeplId param is nil")
+		return fmt.Errorf("GetDeploymentToApplicationMappingByDeplId: param is nil")
 	}
 
 	if isEmpty(ownerId) {
 		return fmt.Errorf("ownerid is empty")
 	}
 
-	// Check that the user has access to retrieve the referenced Application
-	{
-		deplApplication := Application{Application_id: deplToAppMappingParam.Application_id}
-		if err := dbq.GetApplicationById(ctx, &deplApplication, ownerId); err != nil {
-
-			if IsResultNotFoundError(err) {
-				return NewResultNotFoundError(fmt.Sprintf("result not found for deployment mapping Application: %v", err))
-			}
-
-			return fmt.Errorf("unable to retrieve application of deployment mapping: %v", err)
-		}
-
-		// Application exists, and user can access it
-	}
+	// Application exists, and user can access it
 
 	var dbResults []DeploymentToApplicationMapping
 
@@ -50,6 +37,17 @@ func (dbq *PostgreSQLDatabaseQueries) GetDeploymentToApplicationMappingByDeplId(
 
 	if len(dbResults) == 0 {
 		return NewResultNotFoundError("GetDeploymentToApplicationMappingById")
+	}
+
+	// Check that the user has access to retrieve the referenced Application
+	deplApplication := Application{Application_id: dbResults[0].Application_id}
+	if err := dbq.GetApplicationById(ctx, &deplApplication, ownerId); err != nil {
+
+		if IsResultNotFoundError(err) {
+			return NewResultNotFoundError(fmt.Sprintf("unable to retrieve deployment mapping for Application: %v", err))
+		}
+
+		return fmt.Errorf("unable to retrieve application of deployment mapping: %v", err)
 	}
 
 	*deplToAppMappingParam = dbResults[0]

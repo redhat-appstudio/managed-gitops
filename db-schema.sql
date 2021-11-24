@@ -105,15 +105,15 @@ CREATE TABLE ClusterAccess (
 
 	-- Describes whose cluster this is (UID)
 	-- Foreign key to: ClustserUser.clusteruser_id
-	clusteraccess_user_id VARCHAR (48) UNIQUE,
+	clusteraccess_user_id VARCHAR (48),
 
 	-- Describes which managed environment the user has access to (UID)
 	-- Foreign key to: ManagedEnvironment.managedenvironment_id
-	clusteraccess_managed_environment_id VARCHAR (48) UNIQUE,
+	clusteraccess_managed_environment_id VARCHAR (48),
 
 	-- Which Argo CD instance is managing the cluster?
 	-- Foreign key to: GitopsEngineInstance.gitopsengineinstance_id
-	clusteraccess_gitops_engine_instance_id VARCHAR (48) UNIQUE,
+	clusteraccess_gitops_engine_instance_id VARCHAR (48),
 
 	-- TODO: Make these foreign keys
 	-- TODO: Add an index on user_id+managed_cluster, and userid+gitops_manager_instance_Id
@@ -138,7 +138,6 @@ CREATE TABLE Operation (
 
 	seq_id serial,
 
-	-- TODO: Make gitops_manager_instance_id an FK
 	-- Specifies which Argo CD instance is this operation against
 	-- Foreign key to: GitopsEngineInstance.gitopsengineinstance_id
 	instance_id VARCHAR(48) UNIQUE NOT NULL,
@@ -199,19 +198,24 @@ CREATE TABLE DeploymentToApplicationMapping (
 -- Useful for tracking the lifecycle between the two.
 CREATE TABLE KubernetesToDBResourceMapping  (
 
-	kubernetes_resource_type VARCHAR(64) UNIQUE NOT NULL,
+	kubernetes_resource_type VARCHAR(64) NOT NULL,
 
-	kubernetes_resource_uid  VARCHAR(64) UNIQUE NOT NULL,
+	kubernetes_resource_uid  VARCHAR(64) NOT NULL,
 
-	db_relation_type  VARCHAR(64) UNIQUE NOT NULL,
+	db_relation_type  VARCHAR(64) NOT NULL,
 
-	db_relation_key  VARCHAR(64) UNIQUE NOT NULL,
+	db_relation_key  VARCHAR(64) NOT NULL,
 
 	seq_id serial,
 
 	PRIMARY KEY(kubernetes_resource_type, kubernetes_resource_uid, db_relation_type, db_relation_key)
 
 );
+
+-- TODO: Add index for
+-- - kubernetes_resource_type VARCHAR(64) NOT NULL,
+-- - kubernetes_resource_uid  VARCHAR(64) NOT NULL,
+-- - db_relation_type  VARCHAR(64) NOT NULL,
 
 
 
@@ -305,10 +309,15 @@ Schema Design Guidelines:
 
 -------------------------------------------------------------------------------
 
+
 Foreign key relationships between tables, as of this writing:
 (Tables entries must be deleted in this order, from top to bottom, and created in reverse order)
 
+Miro Diagram: https://miro.com/app/board/o9J_lgiqJAs=/?moveToWidget=3458764513858646837&cot=14
+
 ApplicationState ->  Application
+
+DeploymentToApplicationMapping -> Application
 
 Operation -> ClusterUser
 Operation -> GitopsEngineInstance
@@ -316,6 +325,7 @@ Operation -> GitopsEngineInstance
 Application -> ManagedEnviroment
 Application ->  GitopsEngineInstance
 
+ClusterAccess -> ClusterUser
 ClusterAccess -> ManagedEnvironment
 ClusterAccess -> GitopsEngineInstance
 
@@ -329,8 +339,7 @@ ClusterCredentials -> .
 
 ClusterUser -> .
 
-
-
+KubernetesToDBResourceMapping -> .
 
 
 -------------------------------------------------------------------------------

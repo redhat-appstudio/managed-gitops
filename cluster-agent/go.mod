@@ -5,14 +5,17 @@ go 1.16
 require (
 	github.com/argoproj/argo-cd/v2 v2.1.1
 	github.com/onsi/ginkgo v1.16.4
-	github.com/onsi/gomega v1.13.0
-	k8s.io/apimachinery v0.21.2
+	github.com/onsi/gomega v1.15.0
+	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0
+	k8s.io/apimachinery v0.22.4
 	k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible
-	sigs.k8s.io/controller-runtime v0.9.2
+	sigs.k8s.io/controller-runtime v0.10.3
 
 )
 
 replace (
+	github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
+
 	k8s.io/api => k8s.io/api v0.21.0
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.21.0
 	k8s.io/apimachinery => k8s.io/apimachinery v0.21.0

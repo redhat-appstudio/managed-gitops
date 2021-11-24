@@ -2,7 +2,7 @@
 
 ## Overview
 
-For an introduction to the project, and project details, see [Google Drive](https://drive.google.com/drive/u/0/folders/1p_yIOJ1WLu-lqz-BVDn076l1K1pEOc1d).
+..For an introduction to the project, and project details, see [Google Drive](https://drive.google.com/drive/u/0/folders/1p_yIOJ1WLu-lqz-BVDn076l1K1pEOc1d).
 
 
 ### Components

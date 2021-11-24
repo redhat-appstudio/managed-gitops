@@ -54,18 +54,12 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeCreateApplicationState(ctx context.C
 		return err
 	}
 
-	if dbq.dbConnection == nil {
-		return fmt.Errorf("database connection is nil")
+	if err := isEmptyValues("UnsafeCreateApplicationState",
+		"Health", obj.Health,
+		"Sync_Status", obj.Sync_Status); err != nil {
+		return err
 	}
-	if !dbq.allowUnsafe {
-		return fmt.Errorf("unsafe operation is not allowed in this context")
-	}
-	if isEmpty(obj.Health) {
-		return fmt.Errorf("Application's initial health state should not be empty")
-	}
-	if isEmpty(obj.Sync_Status) {
-		return fmt.Errorf("Application's initial sync state should not be empty")
-	}
+
 	// inserting application object
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
@@ -79,9 +73,6 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeCreateApplicationState(ctx context.C
 }
 
 func (dbq *PostgreSQLDatabaseQueries) UnsafeUpdateApplicationState(ctx context.Context, obj *ApplicationState) error {
-	if dbq.dbConnection == nil {
-		return fmt.Errorf("database connection is nil")
-	}
 
 	if err := validateUnsafeQueryParamsNoPK(dbq); err != nil {
 		return err
@@ -95,6 +86,39 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeUpdateApplicationState(ctx context.C
 	if result.RowsAffected() != 1 {
 		return fmt.Errorf("unexpected number of rows affected: %d", result.RowsAffected())
 	}
+
+	return nil
+}
+
+func (dbq *PostgreSQLDatabaseQueries) UnsafeGetApplicationStateById(ctx context.Context, obj *ApplicationState) error {
+
+	if err := validateUnsafeQueryParamsEntity(obj, dbq); err != nil {
+		return err
+	}
+
+	if isEmpty(obj.Applicationstate_application_id) {
+		return fmt.Errorf("Applicationstate_application_id is nil")
+	}
+
+	var results []ApplicationState
+
+	if err := dbq.dbConnection.Model(&results).
+		Where("Applicationstate_application_id = ?", obj.Applicationstate_application_id).
+		Context(ctx).
+		Select(); err != nil {
+
+		return fmt.Errorf("error on retrieving ApplicationState row: %v", err)
+	}
+
+	if len(results) == 0 {
+		return NewResultNotFoundError(fmt.Sprintf("ApplicationState row '%s'", obj.Applicationstate_application_id))
+	}
+
+	if len(results) > 1 {
+		return fmt.Errorf("multiple results found on retrieving ApplicationState row: %v", obj.Applicationstate_application_id)
+	}
+
+	*obj = results[0]
 
 	return nil
 }

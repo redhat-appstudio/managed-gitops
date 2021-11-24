@@ -52,6 +52,7 @@ type UnsafeDatabaseQueries interface {
 	UnsafeUpdateApplication(ctx context.Context, obj *Application) error
 	UnsafeCreateApplicationState(ctx context.Context, obj *ApplicationState) error
 	UnsafeUpdateApplicationState(ctx context.Context, obj *ApplicationState) error
+	UnsafeGetApplicationStateById(ctx context.Context, obj *ApplicationState) error
 }
 
 type AllDatabaseQueries interface {

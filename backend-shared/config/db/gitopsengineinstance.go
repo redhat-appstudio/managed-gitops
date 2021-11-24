@@ -70,6 +70,8 @@ func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineInstanceById(ctx context.Co
 		Context(ctx).
 		Select(); err != nil {
 
+		// TODO: BUG - seems like this is returning an error, when it should be returning an empty res :|
+
 		return fmt.Errorf("error on retrieving GetGitopsEngineInstanceById: %v", err)
 	}
 

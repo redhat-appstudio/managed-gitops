@@ -59,19 +59,19 @@ func (dbq *PostgreSQLDatabaseQueries) CreateKubernetesResourceToDBResourceMappin
 	}
 
 	if isEmpty(obj.DBRelationKey) {
-		return fmt.Errorf("DBRelationKey field should not be empty")
+		return fmt.Errorf("DBRelationKey field should not be empty, on create")
 	}
 
 	if isEmpty(obj.DBRelationType) {
-		return fmt.Errorf("DBRelationType field should not be empty")
+		return fmt.Errorf("DBRelationType field should not be empty, on create")
 	}
 
 	if isEmpty(obj.KubernetesResourceType) {
-		return fmt.Errorf("KubernetesResourceType field should not be empty")
+		return fmt.Errorf("KubernetesResourceType field should not be empty, on create")
 	}
 
 	if isEmpty(obj.KubernetesResourceUID) {
-		return fmt.Errorf("KubernetesResourceUID field should not be empty")
+		return fmt.Errorf("KubernetesResourceUID field should not be empty, on create")
 	}
 
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()

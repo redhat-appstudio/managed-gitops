@@ -12,7 +12,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetApplicationById(ctx context.Context, ap
 	}
 
 	if isEmpty(application.Application_id) {
-		return fmt.Errorf("application_Id is nil")
+		return fmt.Errorf("application_Id is nil in GetApplicationById")
 	}
 
 	var applicationResult Application

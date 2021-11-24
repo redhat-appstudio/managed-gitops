@@ -32,9 +32,13 @@ make test
 
 Bootstrapped using the following commands:
 ```
-go mod init github.com/jgwest/managed-gitops/cluster-agent
+go mod init github.com/redhat-appstudio/managed-gitops/cluster-agent
 
 operator-sdk-v1.11 init --domain redhat.com
+
+# Next, edit the PROJECT file and add:
+# multigroup: true
+# to an empty line.
 
 operator-sdk-v1.11 create api --group managed-gitops --version v1alpha1 --kind Operation --resource --controller
 

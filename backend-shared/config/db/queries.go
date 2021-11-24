@@ -47,6 +47,11 @@ type UnsafeDatabaseQueries interface {
 	UnsafeListAllManagedEnvironments(ctx context.Context, managedEnvironments *[]ManagedEnvironment) error
 	UnsafeListAllOperations(ctx context.Context, operations *[]Operation) error
 	UnsafeListAllGitopsEngineClusters(ctx context.Context, gitopsEngineClusters *[]GitopsEngineCluster) error
+	UnsafeDeleteApplicationById(ctx context.Context, id string) (int, error)
+	UnsafeCreateApplication(ctx context.Context, obj *Application) error
+	UnsafeUpdateApplication(ctx context.Context, obj *Application) error
+	UnsafeCreateApplicationState(ctx context.Context, obj *ApplicationState) error
+	UnsafeUpdateApplicationState(ctx context.Context, obj *ApplicationState) error
 }
 
 type AllDatabaseQueries interface {

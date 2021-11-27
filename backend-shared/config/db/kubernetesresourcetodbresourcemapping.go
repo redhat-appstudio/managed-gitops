@@ -5,7 +5,27 @@ import (
 	"fmt"
 )
 
-// TODO: Add tests for these functions
+func (dbq *PostgreSQLDatabaseQueries) DeleteKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) (int, error) {
+
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
+		return 0, err
+	}
+
+	if err := isEmptyValues("DeleteKubernetesResourceToDBResourceMapping",
+		"KubernetesResourceType", obj.KubernetesResourceType,
+		"KubernetesResourceUID", obj.KubernetesResourceUID,
+		"DBRelationKey", obj.DBRelationKey,
+		"DBRelationType", obj.DBRelationType); err != nil {
+		return 0, err
+	}
+
+	deleteResult, err := dbq.dbConnection.Model(&obj).WherePK().Context(ctx).Delete()
+	if err != nil {
+		return 0, fmt.Errorf("error on deleting operation: %v", err)
+	}
+
+	return deleteResult.RowsAffected(), nil
+}
 
 func (dbq *PostgreSQLDatabaseQueries) GetDBResourceMappingForKubernetesResource(ctx context.Context, obj *KubernetesToDBResourceMapping) error {
 
@@ -13,16 +33,11 @@ func (dbq *PostgreSQLDatabaseQueries) GetDBResourceMappingForKubernetesResource(
 		return err
 	}
 
-	if isEmpty(obj.KubernetesResourceType) {
-		return fmt.Errorf("KubernetesResourceType field should not be empty")
-	}
-
-	if isEmpty(obj.KubernetesResourceUID) {
-		return fmt.Errorf("KubernetesResourceUID field should not be empty")
-	}
-
-	if isEmpty(obj.DBRelationType) {
-		return fmt.Errorf("DBRelationType field should not be empty")
+	if err := isEmptyValues("GetDBResourceMappingForKubernetesResource",
+		"KubernetesResourceType", obj.KubernetesResourceType,
+		"KubernetesResourceUID", obj.KubernetesResourceUID,
+		"DBRelationType", obj.DBRelationType); err != nil {
+		return err
 	}
 
 	var result []KubernetesToDBResourceMapping
@@ -52,26 +67,28 @@ func (dbq *PostgreSQLDatabaseQueries) GetDBResourceMappingForKubernetesResource(
 
 }
 
+// Supported mappings to/from K8s <=> database tables
+const (
+	// Support K8s Resource types:
+	K8sToDBMapping_Namespace = "Namespace"
+
+	// Supported DB tables:
+	K8sToDBMapping_GitopsEngineCluster  = "GitopsEngineCluster"
+	K8sToDBMapping_GitOpsEngineInstance = "GitOpsEngineInstance"
+)
+
 func (dbq *PostgreSQLDatabaseQueries) CreateKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) error {
 
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return err
 	}
 
-	if isEmpty(obj.DBRelationKey) {
-		return fmt.Errorf("DBRelationKey field should not be empty, on create")
-	}
-
-	if isEmpty(obj.DBRelationType) {
-		return fmt.Errorf("DBRelationType field should not be empty, on create")
-	}
-
-	if isEmpty(obj.KubernetesResourceType) {
-		return fmt.Errorf("KubernetesResourceType field should not be empty, on create")
-	}
-
-	if isEmpty(obj.KubernetesResourceUID) {
-		return fmt.Errorf("KubernetesResourceUID field should not be empty, on create")
+	if err := isEmptyValues("CreateKubernetesResourceToDBResourceMapping",
+		"DBRelationKey", obj.DBRelationKey,
+		"DBRelationType", obj.DBRelationType,
+		"KubernetesResourceType", obj.KubernetesResourceType,
+		"KubernetesResourceUID", obj.KubernetesResourceUID); err != nil {
+		return err
 	}
 
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()

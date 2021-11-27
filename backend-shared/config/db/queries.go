@@ -10,6 +10,8 @@ import (
 	"github.com/google/uuid"
 )
 
+// TODO: ENHANCEMENT - Add logging of database entity creation, so that we can track state changes.
+
 // A database query is 'unsafe' (in a security context), and therefore only useful for debug/tests,
 // if it queries the entire database rather than being scoped to a particular user, or the database
 // rows returned by the query are not user-scoped.
@@ -51,6 +53,7 @@ type DatabaseQueries interface {
 	CreateGitopsEngineInstance(ctx context.Context, obj *GitopsEngineInstance) error
 	CreateManagedEnvironment(ctx context.Context, obj *ManagedEnvironment) error
 	CreateOperation(ctx context.Context, obj *Operation, ownerId string) error
+	CreateKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) error
 
 	DeleteApplicationStateById(ctx context.Context, id string) (int, error)
 	DeleteApplicationById(ctx context.Context, id string, ownerId string) (int, error)
@@ -59,6 +62,7 @@ type DatabaseQueries interface {
 	DeleteGitopsEngineInstanceById(ctx context.Context, id string, ownerId string) (int, error)
 	DeleteManagedEnvironmentById(ctx context.Context, id string, ownerId string) (int, error)
 	DeleteOperationById(ctx context.Context, id string, ownerId string) (int, error)
+	DeleteKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) (int, error)
 
 	// Get functions return a single result, or an error if no results were present;
 	// check the error with 'IsResultNotFoundError' to identify resource not found errors (vs other more serious errors).
@@ -72,8 +76,14 @@ type DatabaseQueries interface {
 	GetOperationById(ctx context.Context, operation *Operation, ownerId string) error
 	GetDeploymentToApplicationMappingByDeplId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping, ownerId string) error
 	GetClusterAccessByPrimaryKey(ctx context.Context, obj *ClusterAccess) error
-
 	GetDBResourceMappingForKubernetesResource(ctx context.Context, obj *KubernetesToDBResourceMapping) error
+
+	// I'm still figuring out the difference between unchecked and unsafe: For now, they are very similar.
+	// - In the best case, both are useful and can co-exist.
+	// - In the worst case, the idea of unsafe is fundamentally flawed due to cycles in the table model. - jgwest
+
+	UncheckedGetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance) error
+	UncheckedGetGitopsEngineClusterById(ctx context.Context, gitopsEngineCluster *GitopsEngineCluster) error
 
 	// List functions return zero or more results. If no results are found (and no errors occurred), an empty slice is set in the result parameter.
 	ListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx context.Context, engineClusterId string, ownerId string, gitopsEngineInstancesParam *[]GitopsEngineInstance) error

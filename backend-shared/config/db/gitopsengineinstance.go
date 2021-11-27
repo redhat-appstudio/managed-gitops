@@ -47,6 +47,39 @@ func (dbq *PostgreSQLDatabaseQueries) ListAllGitopsEngineInstancesForGitopsEngin
 	return nil
 }
 
+func (dbq *PostgreSQLDatabaseQueries) UncheckedGetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance) error {
+
+	if err := validateQueryParamsEntity(engineInstanceParam, dbq); err != nil {
+		return err
+	}
+
+	if err := isEmptyValues("UncheckedGetGitopsEngineInstanceById", "Gitopsengineinstance_id", engineInstanceParam.Gitopsengineinstance_id); err != nil {
+		return err
+	}
+
+	var res []GitopsEngineInstance
+
+	if err := dbq.dbConnection.Model(&res).
+		Where("gei.Gitopsengineinstance_id = ?", engineInstanceParam.Gitopsengineinstance_id).
+		Context(ctx).
+		Select(); err != nil {
+
+		return fmt.Errorf("error on retrieving GetGitopsEngineInstanceById: %v", err)
+	}
+
+	if len(res) >= 2 {
+		return fmt.Errorf("multiple results returned from GetGitopsEngineInstanceById")
+	}
+
+	if len(res) == 0 {
+		return NewResultNotFoundError("no results found for GetGitopsEngineInstanceById")
+	}
+
+	*engineInstanceParam = res[0]
+
+	return nil
+}
+
 func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance, ownerId string) error {
 
 	if err := validateQueryParamsEntity(engineInstanceParam, dbq); err != nil {

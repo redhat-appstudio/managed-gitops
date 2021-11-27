@@ -5,6 +5,38 @@ import (
 	"fmt"
 )
 
+func (dbq *PostgreSQLDatabaseQueries) UncheckedGetGitopsEngineClusterById(ctx context.Context, gitopsEngineCluster *GitopsEngineCluster) error {
+
+	if err := validateQueryParamsEntity(gitopsEngineCluster, dbq); err != nil {
+		return err
+	}
+
+	if err := isEmptyValues("UncheckedGetGitopsEngineClusterById", "Gitopsenginecluster_id", gitopsEngineCluster.Gitopsenginecluster_id); err != nil {
+		return err
+	}
+
+	var dbResultEngineClusters []GitopsEngineCluster
+	if err := dbq.dbConnection.Model(&dbResultEngineClusters).
+		Where("gitopsenginecluster_id = ?", gitopsEngineCluster.Gitopsenginecluster_id).
+		Context(ctx).
+		Select(); err != nil {
+		return fmt.Errorf("error on retrieving GitopsEngineCluster '%s': %v", gitopsEngineCluster.Gitopsenginecluster_id, err)
+	}
+
+	if len(dbResultEngineClusters) == 0 {
+		return NewResultNotFoundError(
+			fmt.Sprintf("no engine clusters was found with id '%s'", gitopsEngineCluster.Gitopsenginecluster_id))
+	}
+
+	if len(dbResultEngineClusters) > 1 {
+		return fmt.Errorf("unexpected number of dbResultEngineClusters")
+	}
+
+	*gitopsEngineCluster = dbResultEngineClusters[0]
+
+	return nil
+}
+
 func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineClusterById(ctx context.Context, gitopsEngineCluster *GitopsEngineCluster, ownerId string) error {
 
 	if err := validateQueryParamsEntity(gitopsEngineCluster, dbq); err != nil {
@@ -35,7 +67,10 @@ func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineClusterById(ctx context.Con
 	}
 
 	var dbResultEngineClusters []GitopsEngineCluster
-	if err := dbq.dbConnection.Model(&dbResultEngineClusters).Where("gitopsenginecluster_id = ?", gitopsEngineCluster.Gitopsenginecluster_id).Context(ctx).Select(); err != nil {
+	if err := dbq.dbConnection.Model(&dbResultEngineClusters).
+		Where("gitopsenginecluster_id = ?", gitopsEngineCluster.Gitopsenginecluster_id).
+		Context(ctx).
+		Select(); err != nil {
 		return fmt.Errorf("error on retrieving GitopsEngineCluster '%s': %v", gitopsEngineCluster.Gitopsenginecluster_id, err)
 	}
 

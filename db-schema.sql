@@ -181,7 +181,9 @@ CREATE TABLE Operation (
 
 );
 
--- Represents relationship from Deployment CR in the namespace, to Application table row 
+-- Represents relationship from GitOpsDeployment CR in the namespace, to an Application table row 
+-- This means: if we see a change in a GitOpsDeployment CR, we can easily find the corresponding database entry
+-- Also: if we see a change to an Argo CD Application, we can easily find the corresponding GitOpsDeployment CR
 CREATE TABLE DeploymentToApplicationMapping (
 	
 	-- uid of our gitops deployment CR within the K8s namespace (or KCP control plane)
@@ -195,7 +197,19 @@ CREATE TABLE DeploymentToApplicationMapping (
 );
 
 -- Represents a generic relationship between Kubernetes CR <-> Database table
--- Useful for tracking the lifecycle between the two.
+-- The Kubernetes CR can be either in the workspace, or in/on a GitOpsEngine cluster namespace.
+--
+-- Example: when the cluster agent sees an Argo CD Application CR change within a namespace, it needs a way
+-- to know which GitOpsEngineInstance database entries corresponds to the Argo CD namespace.
+-- For this we would use:
+-- - kubernetes_resource_type: Namespace
+-- - kubernetes_resource_uid: (uid of namespace)
+-- - db_relation_type: GitOpsEngineInstance
+-- - db_relation_key: (primary key of gitops engine instance)
+--
+-- Later, we can query this table to determine 'argo cd instance namespace' <=> 'GitopsEngineInstance database row'
+--
+-- This is also useful for tracking the lifecycle between CRs <-> database table.
 CREATE TABLE KubernetesToDBResourceMapping  (
 
 	kubernetes_resource_type VARCHAR(64) NOT NULL,

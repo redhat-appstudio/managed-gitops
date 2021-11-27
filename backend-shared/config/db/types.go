@@ -249,6 +249,9 @@ type ApplicationState struct {
 
 }
 
+// -- Represents relationship from GitOpsDeployment CR in the namespace, to an Application table row
+// -- This means: if we see a change in a GitOpsDeployment CR, we can easily find the corresponding database entry
+// -- Also: if we see a change to an Argo CD Application, we can easily find the corresponding GitOpsDeployment CR
 type DeploymentToApplicationMapping struct {
 
 	//lint:ignore U1000 used by go-pg
@@ -263,6 +266,22 @@ type DeploymentToApplicationMapping struct {
 	SeqID int64 `pg:"seq_id"`
 }
 
+// -- Represents a generic relationship between Kubernetes CR <-> Database table
+// -- The Kubernetes CR can be either in the workspace, or in/on a GitOpsEngine cluster namespace.
+// --
+// -- Example: when the cluster agent sees an Argo CD Application CR change within a namespace, it needs a way
+// -- to know which GitOpsEngineInstance database entries corresponds to the Argo CD namespace.
+// -- For this we would use:
+// -- - kubernetes_resource_type: Namespace
+// -- - kubernetes_resource_uid: (uid of namespace)
+// -- - db_relation_type: GitOpsEngineInstance
+// -- - db_relation_key: (primary key of gitops engine instance)
+// --
+// -- Later, we can query this table to go from 'argo cd instance namespace' <= to => 'GitopsEngineInstance database row'
+// --
+// -- See DeploymentToApplicationMapping for another example of this.
+// --
+// -- This is also useful for tracking the lifecycle between CRs <-> database table.
 type KubernetesToDBResourceMapping struct {
 
 	//lint:ignore U1000 used by go-pg

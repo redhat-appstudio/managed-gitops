@@ -211,8 +211,7 @@ func TestCreateApplication(t *testing.T) {
 	defer dbq.CloseDatabase()
 
 	ctx := context.Background()
-
-	managedEnv, _, engineInstance, clusterAccess, err := createSampleData(t, dbq)
+	_, managedEnvironment, _, gitopsEngineInstance, clusterAccess, err := createSampleData(t, dbq)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -221,8 +220,8 @@ func TestCreateApplication(t *testing.T) {
 		Application_id:          "test-my-application",
 		Name:                    "my-application",
 		Spec_field:              "{}",
-		Engine_instance_inst_id: engineInstance.Gitopsengineinstance_id,
-		Managed_environment_id:  managedEnv.Managedenvironment_id,
+		Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 	}
 
 	err = dbq.CreateApplication(ctx, application, clusterAccess.Clusteraccess_user_id)
@@ -258,8 +257,6 @@ func TestCreateApplication(t *testing.T) {
 
 func TestDeploymentToApplicationMapping(t *testing.T) {
 
-	// TODO: Finish filling this in
-
 	testSetup(t)
 	defer testTeardown(t)
 	ctx := context.Background()
@@ -288,66 +285,38 @@ func TestGitopsEngineInstanceAndCluster(t *testing.T) {
 	defer dbq.CloseDatabase()
 	ctx := context.Background()
 
-	_, engineCluster, engineInstance, _, err := createSampleData(t, dbq)
+	_, _, gitopsEngineCluster, gitopsEngineInstance, _, err := createSampleData(t, dbq)
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	retrievedGitopsEngineCluster := GitopsEngineCluster{Gitopsenginecluster_id: engineCluster.Gitopsenginecluster_id}
-	if err = dbq.GetGitopsEngineClusterById(ctx, &retrievedGitopsEngineCluster, testClusterUser.Clusteruser_id); !assert.NoError(t, err) {
+	retrievedGitopsEngineCluster := &GitopsEngineCluster{Gitopsenginecluster_id: gitopsEngineCluster.Gitopsenginecluster_id}
+	if err = dbq.GetGitopsEngineClusterById(ctx, retrievedGitopsEngineCluster, testClusterUser.Clusteruser_id); !assert.NoError(t, err) {
 		return
 	}
-	if !assert.Equal(t, engineCluster, &retrievedGitopsEngineCluster) {
+	if !assert.Equal(t, &gitopsEngineCluster, &retrievedGitopsEngineCluster) {
 		return
 	}
 
-	rowsAffected, err := dbq.DeleteGitopsEngineInstanceById(ctx, engineInstance.Gitopsengineinstance_id, testClusterUser.Clusteruser_id)
+	rowsAffected, err := dbq.DeleteGitopsEngineInstanceById(ctx, gitopsEngineInstance.Gitopsengineinstance_id, testClusterUser.Clusteruser_id)
 	assert.Equal(t, rowsAffected, 1)
 	assert.NoError(t, err)
 
-	// Get should return not found, after the delete
-	gitopsEngineInstance := GitopsEngineInstance{Gitopsengineinstance_id: engineCluster.Gitopsenginecluster_id}
-	if err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstance, testClusterUser.Clusteruser_id); !assert.Error(t, err) {
+	// get should return not found, after the delete
+	gitopsEngineInstance = &GitopsEngineInstance{Gitopsengineinstance_id: gitopsEngineCluster.Gitopsenginecluster_id}
+	if err = dbq.GetGitopsEngineInstanceById(ctx, gitopsEngineInstance, testClusterUser.Clusteruser_id); !assert.Error(t, err) {
 		return
 	}
 	assert.True(t, IsResultNotFoundError(err))
 
-	rowsAffected, err = dbq.AdminDeleteGitopsEngineClusterById(ctx, engineCluster.Gitopsenginecluster_id)
+	rowsAffected, err = dbq.AdminDeleteGitopsEngineClusterById(ctx, gitopsEngineCluster.Gitopsenginecluster_id)
 	assert.Equal(t, rowsAffected, 1)
 	assert.NoError(t, err)
 
-	retrievedGitopsEngineCluster = GitopsEngineCluster{Gitopsenginecluster_id: engineCluster.Gitopsenginecluster_id}
-	err = dbq.GetGitopsEngineClusterById(ctx, &retrievedGitopsEngineCluster, testClusterUser.Clusteruser_id)
+	retrievedGitopsEngineCluster = &GitopsEngineCluster{Gitopsenginecluster_id: gitopsEngineCluster.Gitopsenginecluster_id}
+	err = dbq.GetGitopsEngineClusterById(ctx, retrievedGitopsEngineCluster, testClusterUser.Clusteruser_id)
 	assert.Error(t, err)
 	assert.True(t, IsResultNotFoundError(err))
-}
-
-func createSampleData(t *testing.T, dbq AllDatabaseQueries) (*ManagedEnvironment, *GitopsEngineCluster, *GitopsEngineInstance, *ClusterAccess, error) {
-
-	ctx := context.Background()
-
-	var err error
-
-	managedEnvironment, engineCluster, engineInstance, clusterAccess := generateSampleData()
-
-	if err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment); err != nil {
-		return nil, nil, nil, nil, err
-	}
-
-	if err = dbq.CreateClusterAccess(ctx, &clusterAccess); err != nil {
-		return nil, nil, nil, nil, err
-	}
-
-	if err = dbq.CreateGitopsEngineCluster(ctx, &engineCluster); err != nil {
-		return nil, nil, nil, nil, err
-	}
-
-	if err = dbq.CreateGitopsEngineInstance(ctx, &engineInstance); err != nil {
-		return nil, nil, nil, nil, err
-	}
-
-	return &managedEnvironment, &engineCluster, &engineInstance, &clusterAccess, nil
-
 }
 
 func TestManagedEnvironment(t *testing.T) {
@@ -361,7 +330,7 @@ func TestManagedEnvironment(t *testing.T) {
 	}
 	defer dbq.CloseDatabase()
 
-	managedEnvironment, _, _, _, err := createSampleData(t, dbq)
+	_, managedEnvironment, _, _, _, err := createSampleData(t, dbq)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -375,7 +344,8 @@ func TestManagedEnvironment(t *testing.T) {
 
 	result = ManagedEnvironment{Managedenvironment_id: managedEnvironment.Managedenvironment_id}
 	err = dbq.GetManagedEnvironmentById(ctx, &result, "another-user")
-	assert.NotNil(t, err) // deleting from another user should fail
+	assert.NotNil(t, err)
+	// deleting from another user should fail
 	assert.True(t, IsResultNotFoundError(err))
 
 	rowsAffected, _ := dbq.DeleteManagedEnvironmentById(ctx, managedEnvironment.Managedenvironment_id, "another-user")
@@ -401,16 +371,14 @@ func TestOperation(t *testing.T) {
 		return
 	}
 	defer dbq.CloseDatabase()
-
-	_, _, engineInstance, _, err := createSampleData(t, dbq)
+	ctx := context.Background()
+	_, _, _, gitopsEngineInstance, _, err := createSampleData(t, dbq)
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	ctx := context.Background()
-
 	operation := &Operation{
-		Instance_id:             engineInstance.Gitopsengineinstance_id,
+		Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
 		Resource_id:             "fake resource id",
 		Resource_type:           "GitopsEngineInstance",
 		State:                   OperationState_Waiting,
@@ -434,7 +402,6 @@ func TestOperation(t *testing.T) {
 		return
 	}
 	assert.True(t, IsResultNotFoundError(err))
-
 	rowsAffected, _ := dbq.DeleteOperationById(ctx, operation.Operation_id, "another-user")
 	assert.Equal(t, rowsAffected, 0)
 
@@ -508,10 +475,8 @@ func TestClusterCredentials(t *testing.T) {
 
 	err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
 	assert.NoError(t, err)
-
 	// Create managed environment, and cluster access, so the non-unsafe get works below
 	{
-
 		managedEnvironment := ManagedEnvironment{
 			Managedenvironment_id: "test-managed-env-914",
 			Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
@@ -522,10 +487,30 @@ func TestClusterCredentials(t *testing.T) {
 			return
 		}
 
+		gitopsEngineCluster := GitopsEngineCluster{
+			Gitopsenginecluster_id: "test-fake-cluster-914",
+			Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+		}
+		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
+		if !assert.NoError(t, err) {
+			return
+		}
+
+		gitopsEngineInstance := GitopsEngineInstance{
+			Gitopsengineinstance_id: "test-fake-engine-instance-id",
+			Namespace_name:          "test-fake-namespace",
+			Namespace_uid:           "test-fake-namespace-914",
+			EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+		}
+		err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
+		if !assert.NoError(t, err) {
+			return
+		}
+
 		clusterAccess := ClusterAccess{
 			Clusteraccess_user_id:                   testClusterUser.Clusteruser_id,
 			Clusteraccess_managed_environment_id:    managedEnvironment.Managedenvironment_id,
-			Clusteraccess_gitops_engine_instance_id: "fake-engine-instance-id",
+			Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
 		}
 
 		err = dbq.CreateClusterAccess(ctx, &clusterAccess)
@@ -541,6 +526,7 @@ func TestClusterCredentials(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
+
 	assert.Equal(t, clusterCredentials.Host, retrievedClusterCredentials.Host)
 	assert.Equal(t, clusterCredentials.Kube_config, retrievedClusterCredentials.Kube_config)
 	assert.Equal(t, clusterCredentials.Kube_config_context, retrievedClusterCredentials.Kube_config_context)
@@ -559,6 +545,7 @@ func TestClusterCredentials(t *testing.T) {
 	assert.Equal(t, clusterCredentials.Kube_config_context, retrievedClusterCredentials.Kube_config_context)
 
 	rowsAffected, err := dbq.AdminDeleteClusterCredentialsById(ctx, clusterCredentials.Clustercredentials_cred_id)
+	// add delete options for other tables table as well!
 	assert.Equal(t, rowsAffected, 1)
 	assert.NoError(t, err)
 
@@ -578,31 +565,70 @@ var testClusterUser = &ClusterUser{
 	User_name:      "test-user",
 }
 
-func generateSampleData() (ManagedEnvironment, GitopsEngineCluster, GitopsEngineInstance, ClusterAccess) {
+func createSampleData(t *testing.T, dbq AllDatabaseQueries) (*ClusterCredentials, *ManagedEnvironment, *GitopsEngineCluster, *GitopsEngineInstance, *ClusterAccess, error) {
+
+	ctx := context.Background()
+	var err error
+
+	clusterCredentials, managedEnvironment, engineCluster, engineInstance, clusterAccess := generateSampleData()
+
+	if err = dbq.CreateClusterCredentials(ctx, &clusterCredentials); err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	if err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment); err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	if err = dbq.CreateGitopsEngineCluster(ctx, &engineCluster); err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	if err = dbq.CreateGitopsEngineInstance(ctx, &engineInstance); err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	if err = dbq.CreateClusterAccess(ctx, &clusterAccess); err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	return &clusterCredentials, &managedEnvironment, &engineCluster, &engineInstance, &clusterAccess, nil
+
+}
+
+func generateSampleData() (ClusterCredentials, ManagedEnvironment, GitopsEngineCluster, GitopsEngineInstance, ClusterAccess) {
+	clusterCredentials := ClusterCredentials{
+		Clustercredentials_cred_id:  "test-cluster-creds-test",
+		Host:                        "host",
+		Kube_config:                 "kube-config",
+		Kube_config_context:         "kube-config-context",
+		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+		Serviceaccount_ns:           "Serviceaccount_ns",
+	}
 
 	managedEnvironment := ManagedEnvironment{
-		Managedenvironment_id: "test-managed-environment",
-		Name:                  "my managed environment",
-		Clustercredentials_id: "test-cluster-creds",
+		Managedenvironment_id: "test-managed-env-914",
+		Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+		Name:                  "my env",
 	}
 
-	engineCluster := GitopsEngineCluster{
-		Gitopsenginecluster_id: "test-engine-cluster-id",
-		Clustercredentials_id:  "test-fake-creds-id",
+	gitopsEngineCluster := GitopsEngineCluster{
+		Gitopsenginecluster_id: "test-fake-cluster-914",
+		Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
 	}
 
-	engineInstance := GitopsEngineInstance{
-		Gitopsengineinstance_id: "test-fake-engine-instance",
-		Namespace_name:          "my-namespace",
-		Namespace_uid:           "my-namespace-uid",
-		EngineCluster_id:        engineCluster.Gitopsenginecluster_id,
+	gitopsEngineInstance := GitopsEngineInstance{
+		Gitopsengineinstance_id: "test-fake-engine-instance-id",
+		Namespace_name:          "test-fake-namespace",
+		Namespace_uid:           "test-fake-namespace-914",
+		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 	}
 
 	clusterAccess := ClusterAccess{
 		Clusteraccess_user_id:                   testClusterUser.Clusteruser_id,
 		Clusteraccess_managed_environment_id:    managedEnvironment.Managedenvironment_id,
-		Clusteraccess_gitops_engine_instance_id: engineInstance.Gitopsengineinstance_id,
+		Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
 	}
 
-	return managedEnvironment, engineCluster, engineInstance, clusterAccess
+	return clusterCredentials, managedEnvironment, gitopsEngineCluster, gitopsEngineInstance, clusterAccess
 }

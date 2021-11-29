@@ -50,7 +50,7 @@ CREATE TABLE GitopsEngineCluster (
 	-- Foreign key to: ClusterCredentials.clustercredentials_cred_id
 	
 	clustercredentials_id VARCHAR (48) NOT NULL,
-	CONSTRAINT fk_cluster_credential FOREIGN KEY(clustercredentials_id) REFERENCES ClusterCredentials(clustercredentials_cred_id)
+	CONSTRAINT fk_cluster_credential FOREIGN KEY(clustercredentials_id) REFERENCES ClusterCredentials(clustercredentials_cred_id) ON DELETE CASCADE ON UPDATE CASCADE
 
 );
 
@@ -67,7 +67,7 @@ CREATE TABLE GitopsEngineInstance (
 	-- Reference to the Argo CD cluster containing the instance
 	-- Foreign key to: GitopsEngineCluster.gitopsenginecluster_id
 	enginecluster_id VARCHAR(48) NOT NULL,
-	CONSTRAINT fk_gitopsengine_cluster FOREIGN KEY (enginecluster_id) REFERENCES GitopsEngineCluster(gitopsenginecluster_id)
+	CONSTRAINT fk_gitopsengine_cluster FOREIGN KEY (enginecluster_id) REFERENCES GitopsEngineCluster(gitopsenginecluster_id) ON DELETE CASCADE ON UPDATE CASCADE
 	
 );
 
@@ -84,7 +84,7 @@ CREATE TABLE ManagedEnvironment (
 	-- pointer to credentials for the cluster
 	-- Foreign key to: ClusterCredentials.clustercredentials_cred_id
 	clustercredentials_id VARCHAR (48) NOT NULL,
-	CONSTRAINT fk_cluster_credential FOREIGN KEY (clustercredentials_id) REFERENCES ClusterCredentials(clustercredentials_cred_id)
+	CONSTRAINT fk_cluster_credential FOREIGN KEY (clustercredentials_id) REFERENCES ClusterCredentials(clustercredentials_cred_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 
@@ -110,21 +110,17 @@ CREATE TABLE ClusterAccess (
 	-- Describes whose cluster this is (UID)
 	-- Foreign key to: ClusterUser.clusteruser_id
 	clusteraccess_user_id VARCHAR (48),
-	CONSTRAINT fk_clusteruser_id FOREIGN KEY (clusteraccess_user_id) REFERENCES ClusterUser(clusteruser_id),
+	CONSTRAINT fk_clusteruser_id FOREIGN KEY (clusteraccess_user_id) REFERENCES ClusterUser(clusteruser_id) ON DELETE CASCADE ON UPDATE CASCADE,
 
 	-- Describes which managed environment the user has access to (UID)
 	-- Foreign key to: ManagedEnvironment.managedenvironment_id
 	clusteraccess_managed_environment_id VARCHAR (48),
-	CONSTRAINT fk_managedenvironment_id FOREIGN KEY (clusteraccess_managed_environment_id) REFERENCES ManagedEnvironment(managedenvironment_id),
+	CONSTRAINT fk_managedenvironment_id FOREIGN KEY (clusteraccess_managed_environment_id) REFERENCES ManagedEnvironment(managedenvironment_id) ON DELETE CASCADE ON UPDATE CASCADE,
 
 	-- Which Argo CD instance is managing the cluster?
 	-- Foreign key to: GitopsEngineInstance.gitopsengineinstance_id
 	clusteraccess_gitops_engine_instance_id VARCHAR (48),
-	CONSTRAINT fk_gitopsengineinstance_id FOREIGN KEY (clusteraccess_gitops_engine_instance_id) REFERENCES GitopsEngineInstance(gitopsengineinstance_id),
-
- 	-- TO ASK:
-	-- CONSTRAINT fk_cluster_access_target_inf_cluster   FOREIGN KEY(cluster_access_target_inf_cluster)  REFERENCES InfrastructureCluster(inf_cluster_id),
-	-- CONSTRAINT fk_cluster_access_user_id   FOREIGN KEY(cluster_access_user_id)  REFERENCES ClusterUser(user_id),
+	CONSTRAINT fk_gitopsengineinstance_id FOREIGN KEY (clusteraccess_gitops_engine_instance_id) REFERENCES GitopsEngineInstance(gitopsengineinstance_id) ON DELETE CASCADE ON UPDATE CASCADE,
 	
 	seq_id serial,
 	
@@ -149,9 +145,7 @@ CREATE TABLE Operation (
 	-- Specifies which Argo CD instance is this operation against
 	-- Foreign key to: GitopsEngineInstance.gitopsengineinstance_id
 	instance_id VARCHAR(48) UNIQUE NOT NULL,
-	CONSTRAINT fk_gitopsengineinstance_id FOREIGN KEY (instance_id) REFERENCES GitopsEngineInstance(gitopsengineinstance_id),
-
-	-- CONSTRAINT fk_target_inf_cluster   FOREIGN KEY(target_inf_cluster)  REFERENCES InfrastructureCluster(inf_cluster_id),
+	CONSTRAINT fk_gitopsengineinstance_id FOREIGN KEY (instance_id) REFERENCES GitopsEngineInstance(gitopsengineinstance_id) ON DELETE CASCADE ON UPDATE CASCADE,
 
 	-- UID of the resource that was updated
 	resource_id VARCHAR(48) NOT NULL,
@@ -159,7 +153,7 @@ CREATE TABLE Operation (
 	-- The user that initiated the operation.
 	-- Foreign key to: ClusterUser.clusteruser_id
 	operation_owner_user_id VARCHAR(48),
-	CONSTRAINT fk_clusteruser_id FOREIGN KEY (operation_owner_user_id) REFERENCES ClusterUser(clusteruser_id),
+	CONSTRAINT fk_clusteruser_id FOREIGN KEY (operation_owner_user_id) REFERENCES ClusterUser(clusteruser_id) ON DELETE CASCADE ON UPDATE CASCADE,
 
 	-- Resource type of the resource that was updated. 
 	-- This value lets the operation know which table contains the resource.
@@ -209,15 +203,12 @@ CREATE TABLE Application (
 	
 	-- Which Argo CD instance it's hosted on
 	engine_instance_inst_id VARCHAR(48) NOT NULL,
-	CONSTRAINT fk_gitopsengineinstance_id FOREIGN KEY (engine_instance_inst_id) REFERENCES GitopsEngineInstance(gitopsengineinstance_id),
+	CONSTRAINT fk_gitopsengineinstance_id FOREIGN KEY (engine_instance_inst_id) REFERENCES GitopsEngineInstance(gitopsengineinstance_id) ON DELETE CASCADE ON UPDATE CASCADE,
 
 	-- Which managed environment it is targetting
 	-- Foreign key to: ManagedEnvironment.managedenvironment_id
 	managed_environment_id VARCHAR(48) NOT NULL,
-	CONSTRAINT fk_managedenvironment_id FOREIGN KEY (managed_environment_id) REFERENCES ManagedEnvironment(managedenvironment_id)
-	
-	-- TODO: This should be indexed
-	-- CONSTRAINT fk_target_inf_cluster   FOREIGN KEY(target_inf_cluster)  REFERENCES InfrastructureCluster(inf_cluster_id),
+	CONSTRAINT fk_managedenvironment_id FOREIGN KEY (managed_environment_id) REFERENCES ManagedEnvironment(managedenvironment_id) ON DELETE CASCADE ON UPDATE CASCADE
 	
 );
 
@@ -227,7 +218,7 @@ CREATE TABLE ApplicationState (
 
 	-- Also a foreign key to Application.application_id
 	applicationstate_application_id  VARCHAR ( 48 ) PRIMARY KEY,
-	CONSTRAINT fk_app_id FOREIGN KEY (applicationstate_application_id) REFERENCES Application(application_id),
+	CONSTRAINT fk_app_id FOREIGN KEY (applicationstate_application_id) REFERENCES Application(application_id) ON DELETE CASCADE ON UPDATE CASCADE,
 
 	-- CONSTRAINT fk_app_id  PRIMARY KEY  FOREIGN KEY(app_id)  REFERENCES Application(appl_id),
 
@@ -261,7 +252,7 @@ CREATE TABLE DeploymentToApplicationMapping (
 
 	-- Foreign key to: Application.application_id
 	application_id VARCHAR ( 48 ) NOT NULL UNIQUE,
-	CONSTRAINT fk_app_id FOREIGN KEY (application_id) REFERENCES Application(application_id),
+	CONSTRAINT fk_app_id FOREIGN KEY (application_id) REFERENCES Application(application_id) ON DELETE CASCADE ON UPDATE CASCADE,
 
 	seq_id serial
 

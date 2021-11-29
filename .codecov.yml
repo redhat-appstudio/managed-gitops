@@ -1,0 +1,10 @@
+ignore:
+- "**/*_test.go"
+- "vendor/.*"
+
+github_checks:
+  annotations: false
+
+coverage:
+  status:
+    patch: off

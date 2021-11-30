@@ -76,7 +76,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterUser(ctx context.Context, obj
 
 func (dbq *PostgreSQLDatabaseQueries) GetClusterUserByUsername(ctx context.Context, clusterUser *ClusterUser) error {
 
-	// TODO: Add an index for this, if anything actually calls it
+	// TODO: PERF - Add an index for this, if anything actually calls it
 
 	if err := validateQueryParamsEntity(clusterUser, dbq); err != nil {
 		return err

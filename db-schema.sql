@@ -149,7 +149,7 @@ CREATE TABLE Operation (
 
 	-- The user that initiated the operation.
 	-- Foreign key to: ClusterUser.clusteruser_id
-	operation_owner_user_id VARCHAR(48) NOT NULL,	
+	operation_owner_user_id VARCHAR(48),
 	-- TODO: Add foreign key
 
 	-- Resource type of the resource that was updated. 

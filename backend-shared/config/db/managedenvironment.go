@@ -78,6 +78,39 @@ func (dbq *PostgreSQLDatabaseQueries) ListManagedEnvironmentForClusterCredential
 	return nil
 }
 
+func (dbq *PostgreSQLDatabaseQueries) UncheckedGetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment) error {
+
+	if err := validateQueryParamsEntity(managedEnvironment, dbq); err != nil {
+		return err
+	}
+
+	if isEmpty(managedEnvironment.Managedenvironment_id) {
+		return fmt.Errorf("managedenvironment_id is empty in GetManagedEnvironmentById")
+	}
+
+	var dbResults []ManagedEnvironment
+
+	if err := dbq.dbConnection.Model(&dbResults).
+		Where("me.managedenvironment_id = ?", managedEnvironment.Managedenvironment_id).
+		Context(ctx).
+		Select(); err != nil {
+
+		return fmt.Errorf("error on retrieving ManagedEnvironment by id '%s': %v", managedEnvironment.Managedenvironment_id, err)
+	}
+
+	if len(dbResults) >= 2 {
+		return fmt.Errorf("multiple results returned from GetManagedEnvironmentById")
+	}
+
+	if len(dbResults) == 0 {
+		return NewResultNotFoundError("error on retrieving GetGitopsEngineInstanceById")
+	}
+
+	*managedEnvironment = dbResults[0]
+
+	return nil
+}
+
 func (dbq *PostgreSQLDatabaseQueries) GetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment, ownerId string) error {
 
 	if err := validateQueryParamsEntity(managedEnvironment, dbq); err != nil {

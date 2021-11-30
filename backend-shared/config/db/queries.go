@@ -12,11 +12,31 @@ import (
 
 // TODO: ENHANCEMENT - Add logging of database entity creation, so that we can track state changes.
 
-// A database query is 'unsafe' (in a security context), and therefore only useful for debug/tests,
-// if it queries the entire database rather than being scoped to a particular user, or the database
-// rows returned by the query are not user-scoped.
+// Default vs Unchecked vs Unsafe functions:
 //
-// These should not be used, except by test code.
+// Default:
+// - Functions without a prefix take an ownerId string, which is a database reference to a clusterUser.
+// - This clusterUser is user to verify that the user should have access to the database resource.
+//
+// Unchecked:
+// - Functions with the 'Unchecked' prefix do not take an ownerId.
+// - They thus do not verify that the user is able to access the database resources they are requesting.
+//
+// Unsafe:
+// - Functions with the 'Unchecked' prefix should NEVER be used in production code; it should only be used in
+//   test code, or WIP code.
+// - If you use unsafe in a PR, and that code is outside of test code, it is very likely that you will be asked
+//   to remove it (e.g. switch to normal or unchecked).
+// - A database query is 'unsafe' (in a security context), and therefore only useful for debug/tests, if
+//   it queries the entire database rather than being scoped to a particular user.
+//
+// STRATEGY: You should use a 'Default' function _if possible_. But, in cases where there is no user, or
+//           during setup, you may need to use unchecked.
+// - If you 'Unchecked', be prepared to justify why you could not use a 'Default' function. (HOWEVER: I am
+//   still not sure how often default functions will be usefuol, so this will be an experiment/learning
+//   experience for all of us :) - jgw)
+// - 'Unsafe' should only be used in test code.
+
 type UnsafeDatabaseQueries interface {
 	UnsafeDeleteGitopsEngineInstanceById(ctx context.Context, id string) (int, error)
 	UnsafeDeleteManagedEnvironmentById(ctx context.Context, id string) (int, error)
@@ -40,6 +60,8 @@ type AllDatabaseQueries interface {
 }
 
 type DatabaseQueries interface {
+
+	// TODO: DEBT - rename these to unchecked
 	AdminDeleteClusterCredentialsById(ctx context.Context, id string) (int, error)
 	AdminDeleteClusterUserById(ctx context.Context, id string) (int, error)
 	AdminDeleteGitopsEngineClusterById(ctx context.Context, id string) (int, error)
@@ -78,12 +100,15 @@ type DatabaseQueries interface {
 	GetClusterAccessByPrimaryKey(ctx context.Context, obj *ClusterAccess) error
 	GetDBResourceMappingForKubernetesResource(ctx context.Context, obj *KubernetesToDBResourceMapping) error
 
+	// See definition of unchecked, above.
 	// I'm still figuring out the difference between unchecked and unsafe: For now, they are very similar.
 	// - In the best case, both are useful and can co-exist.
 	// - In the worst case, the idea of unsafe is fundamentally flawed due to cycles in the table model. - jgwest
-
+	UncheckedGetOperationById(ctx context.Context, operation *Operation) error
 	UncheckedGetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance) error
 	UncheckedGetGitopsEngineClusterById(ctx context.Context, gitopsEngineCluster *GitopsEngineCluster) error
+	UncheckedGetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment) error
+	UncheckedDeleteOperationById(ctx context.Context, id string) (int, error)
 
 	// List functions return zero or more results. If no results are found (and no errors occurred), an empty slice is set in the result parameter.
 	ListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx context.Context, engineClusterId string, ownerId string, gitopsEngineInstancesParam *[]GitopsEngineInstance) error

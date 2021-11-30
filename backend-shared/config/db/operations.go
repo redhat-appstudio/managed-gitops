@@ -86,6 +86,40 @@ func (dbq *PostgreSQLDatabaseQueries) CreateOperation(ctx context.Context, obj *
 	return nil
 }
 
+func (dbq *PostgreSQLDatabaseQueries) UncheckedGetOperationById(ctx context.Context, operation *Operation) error {
+
+	if err := validateQueryParamsEntity(operation, dbq); err != nil {
+		return err
+	}
+
+	if isEmpty(operation.Operation_id) {
+		return fmt.Errorf("invalid pk")
+	}
+
+	var dbResult []Operation
+
+	if err := dbq.dbConnection.Model(&dbResult).
+		Where("operation_id = ?", operation.Operation_id).
+		Context(ctx).
+		Select(); err != nil {
+
+		return fmt.Errorf("error on retrieving operation: %v", err)
+	}
+
+	if len(dbResult) == 0 {
+		return NewResultNotFoundError(fmt.Sprintf("unable to locate operation '%v'", operation.Operation_id))
+	}
+
+	if len(dbResult) > 1 {
+		return fmt.Errorf("unexpected number of results in GetOperationById")
+	}
+
+	*operation = dbResult[0]
+
+	return nil
+
+}
+
 func (dbq *PostgreSQLDatabaseQueries) GetOperationById(ctx context.Context, operation *Operation, ownerId string) error {
 
 	if err := validateQueryParamsEntity(operation, dbq); err != nil {
@@ -123,6 +157,26 @@ func (dbq *PostgreSQLDatabaseQueries) GetOperationById(ctx context.Context, oper
 
 	return nil
 
+}
+
+func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteOperationById(ctx context.Context, id string) (int, error) {
+
+	if err := validateQueryParams(id, dbq); err != nil {
+		return 0, err
+	}
+
+	result := &Operation{
+		Operation_id: id,
+	}
+
+	deleteResult, err := dbq.dbConnection.Model(result).WherePK().
+		Context(ctx).
+		Delete()
+	if err != nil {
+		return 0, fmt.Errorf("error on deleting operation: %v", err)
+	}
+
+	return deleteResult.RowsAffected(), nil
 }
 
 func (dbq *PostgreSQLDatabaseQueries) DeleteOperationById(ctx context.Context, id string, ownerId string) (int, error) {

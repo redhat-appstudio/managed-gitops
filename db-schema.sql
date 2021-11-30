@@ -293,9 +293,7 @@ CREATE TABLE KubernetesToDBResourceMapping  (
 -- - kubernetes_resource_uid  VARCHAR(64) NOT NULL,
 -- - db_relation_type  VARCHAR(64) NOT NULL,
 
-CREATE INDEX idx_resource_type ON KubernetesToDBResourceMapping(kubernetes_resource_type);
-CREATE INDEX idx_resource_uid ON KubernetesToDBResourceMapping(kubernetes_resource_uid);
-CREATE INDEX idx_db_relation_type ON KubernetesToDBResourceMapping(db_relation_type);
+CREATE INDEX idx_db_relation_uid ON KubernetesToDBResourceMapping(kubernetes_resource_type, kubernetes_resource_uid, db_relation_type);
 
 /*
 -------------------------------------------------------------------------------

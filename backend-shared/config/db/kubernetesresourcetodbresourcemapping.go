@@ -43,7 +43,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetDBResourceMappingForKubernetesResource(
 	var result []KubernetesToDBResourceMapping
 
 	if err := dbq.dbConnection.Model(&result).
-		// TODO: Performance: Add a DB index for this
+		// TODO: PERF - Add a DB index for this
 		Where("ktdbrm.kubernetes_resource_type = ?", obj.KubernetesResourceType).
 		Where("ktdbrm.kubernetes_resource_uid = ?", obj.KubernetesResourceUID).
 		Where("ktdbrm.db_relation_type = ?", obj.DBRelationType).
@@ -73,8 +73,9 @@ const (
 	K8sToDBMapping_Namespace = "Namespace"
 
 	// Supported DB tables:
+	K8sToDBMapping_ManagedEnvironment   = "ManagedEnvironment"
 	K8sToDBMapping_GitopsEngineCluster  = "GitopsEngineCluster"
-	K8sToDBMapping_GitOpsEngineInstance = "GitOpsEngineInstance"
+	K8sToDBMapping_GitopsEngineInstance = "GitopsEngineInstance"
 )
 
 func (dbq *PostgreSQLDatabaseQueries) CreateKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) error {

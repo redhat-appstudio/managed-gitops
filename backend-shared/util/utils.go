@@ -9,7 +9,83 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-// TODO: Add tests for all scenarios, for each of these.
+// TODO: GITOPS-1564 - Add tests for all scenarios, for each of these.
+// See https://issues.redhat.com/browse/GITOPS-1564
+
+func UncheckedGetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, namespace v1.Namespace, dbq db.DatabaseQueries, actionLog logr.Logger) (*db.ManagedEnvironment, error) {
+
+	namespaceUID := string(namespace.UID)
+
+	var err error
+
+	dbResourceMapping := &db.KubernetesToDBResourceMapping{
+		KubernetesResourceType: db.K8sToDBMapping_Namespace,
+		KubernetesResourceUID:  string(namespaceUID),
+		DBRelationType:         db.K8sToDBMapping_ManagedEnvironment}
+	err = dbq.GetDBResourceMappingForKubernetesResource(ctx, dbResourceMapping)
+
+	if err == nil {
+		// If there already exists a managed environment for this workspace, return it
+
+		managedEnvironment := db.ManagedEnvironment{Managedenvironment_id: string(namespaceUID)}
+		err = dbq.UncheckedGetManagedEnvironmentById(ctx, &managedEnvironment)
+
+		if err == nil {
+			// mapping exists, and so does the environment it points to
+			return &managedEnvironment, nil
+		}
+
+		if !db.IsResultNotFoundError(err) {
+			return nil, fmt.Errorf("unable to retrieve resource mapping: %v", err)
+		}
+
+		// Since the managed environment doesn't exist, delete the mapping; it will be recreated below.
+		if _, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, dbResourceMapping); err != nil {
+			return nil, fmt.Errorf("unable to delete K8s resource to DB mapping: %v", dbResourceMapping)
+		}
+
+	} else if !db.IsResultNotFoundError(err) {
+		return nil, fmt.Errorf("unable to retrieve resource mapping: %v", err)
+	}
+
+	// At this point in the function, both the managed environment and mapping doesn't exist
+
+	// Create cluster credentials for the managed env
+	// TODO: GITOPS-1564 - Cluster credentials placeholder values - we will need to create a service account on the target cluster, which we can store in the database.
+	// See https://issues.redhat.com/browse/GITOPS-1564
+
+	clusterCreds := db.ClusterCredentials{
+		Host:                        "host",
+		Kube_config:                 "kube_config",
+		Kube_config_context:         "kube_config_context",
+		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+		Serviceaccount_ns:           "serviceaccount_ns",
+	}
+	if err := dbq.CreateClusterCredentials(ctx, &clusterCreds); err != nil {
+		return nil, fmt.Errorf("unable to create cluster creds for managed env: %v", err)
+	}
+
+	managedEnvironment := db.ManagedEnvironment{
+		Name:                  "managed env for " + namespace.Name, // TODO: Placeholder name
+		Clustercredentials_id: clusterCreds.Clustercredentials_cred_id,
+	}
+	if err := dbq.CreateManagedEnvironment(ctx, &managedEnvironment); err != nil {
+		return nil, fmt.Errorf("unable to create managed env: %v", err)
+	}
+
+	dbResourceMapping = &db.KubernetesToDBResourceMapping{
+		KubernetesResourceType: db.K8sToDBMapping_Namespace,
+		KubernetesResourceUID:  string(namespaceUID),
+		DBRelationType:         db.K8sToDBMapping_GitopsEngineCluster,
+		DBRelationKey:          managedEnvironment.Managedenvironment_id,
+	}
+
+	if err := dbq.CreateKubernetesResourceToDBResourceMapping(ctx, dbResourceMapping); err != nil {
+		return nil, fmt.Errorf("unable to create KubernetesResourceToDBResourceMapping: %v", err)
+	}
+
+	return &managedEnvironment, nil
+}
 
 // UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID gets (or creates it if it doesn't exist) a GitOpsEngineInstance database entry that
 // corresponds to an GitOps engine instance running on the cluster.
@@ -28,7 +104,7 @@ func UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.
 	expectedDBResourceMapping := db.KubernetesToDBResourceMapping{
 		KubernetesResourceType: db.K8sToDBMapping_Namespace,
 		KubernetesResourceUID:  kubesystemNamespaceUID,
-		DBRelationType:         db.K8sToDBMapping_GitOpsEngineInstance,
+		DBRelationType:         db.K8sToDBMapping_GitopsEngineInstance,
 	}
 
 	var dbResourceMapping *db.KubernetesToDBResourceMapping

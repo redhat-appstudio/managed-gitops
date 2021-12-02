@@ -24,9 +24,10 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	database "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	util "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -64,6 +65,9 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		contextLog.Error(err, "Unable to find Application: "+app.Name)
 
 		// Todo: to decide what will be Application_id from Namespace Application CR perspective
+		// To propose: fetch the list of application from the database and store it in an array, similarly if there is a way to fetch all the application in namespace find that
+		// store that in an array, if the database.name dosen't exists in application namespace create an entry there! (But the follow up question being what if the Application Name is repicated,
+		// should we set Application Name entry in database to be UNIQUE?)
 		dbApplication := &database.Application{Application_id: string(app.UID)}
 
 		errGetApp := databaseQueries.UnsafeGetApplicationById(ctx, dbApplication)
@@ -101,25 +105,77 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 
 	}
-	// verify if the Application_id is similar to the app.UID
-	retrievedApplication := &database.Application{Application_id: string((app.UID))}
 
-	// Case 2: If Application CR dosen't exist in database, remove from the namespace as well
-	err = databaseQueries.UnsafeGetApplicationById(ctx, retrievedApplication)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			errDel := r.Delete(ctx, &app, &client.DeleteAllOfOptions{})
-			if errDel != nil {
-				return ctrl.Result{}, fmt.Errorf("error, %v ", errDel)
+	argocdNamespace := v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "argocd",
+		},
+	}
+	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&argocdNamespace), &argocdNamespace); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	managedEnv, err := util.UncheckedGetOrCreateManagedEnvironmentByNamespaceUID(ctx, argocdNamespace, databaseQueries, contextLog)
+
+	clusterCreds := database.ClusterCredentials{}
+	{
+		var clusterCredsList []database.ClusterCredentials
+		if err := databaseQueries.UnsafeListAllClusterCredentials(ctx, &clusterCredsList); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		if (clusterCreds == database.ClusterCredentials{}) {
+			clusterCreds := database.ClusterCredentials{
+				Host:                        "host",
+				Kube_config:                 "kube_config",
+				Kube_config_context:         "kube_config_context",
+				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+				Serviceaccount_ns:           "serviceaccount_ns",
 			}
+			if err := databaseQueries.CreateClusterCredentials(ctx, &clusterCreds); err != nil {
+				return ctrl.Result{}, fmt.Errorf("unable to create cluster creds for managed env: %v", err)
+			}
+		}
+	}
+	gitopsEngineNamespace := v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: argocdNamespace.Name,
+		},
+	}
+	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&gitopsEngineNamespace), &gitopsEngineNamespace); err != nil {
+		return ctrl.Result{}, err
+	}
+	kubesystemNamespaceUID := "UID"
 
+	gitopsEngineInstance, _, err := util.UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, gitopsEngineNamespace, kubesystemNamespaceUID, clusterCreds, databaseQueries, contextLog)
+
+	checkApp := database.Application{
+		Name:                    app.Name,
+		Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+		Managed_environment_id:  managedEnv.Managedenvironment_id,
+	}
+
+	var applications []database.Application
+	applications = append(applications, checkApp)
+	err = databaseQueries.UnsafeListAllApplications(ctx, &applications)
+	if err != nil { // if err is nil then shows the occurance of application cr in database
+		// no occurence of Application CR in database
+		// Case 2: If Application CR dosen't exist in database, remove from the namespace as well
+		if err != nil {
+			if errors.IsNotFound(err) {
+				errDel := r.Delete(ctx, &app, &client.DeleteAllOfOptions{})
+				if errDel != nil {
+					return ctrl.Result{}, fmt.Errorf("error, %v ", errDel)
+				}
+
+			}
 		}
 	}
 
 	// Case 3: If Application CR exists in database + namspace, compare!
 	specDetails, _ := json.Marshal(app.Spec)
-	if retrievedApplication.Spec_field != string(specDetails) {
-		newSpecErr := json.Unmarshal([]byte(retrievedApplication.Spec_field), &app.Spec)
+	if checkApp.Spec_field != string(specDetails) {
+		newSpecErr := json.Unmarshal([]byte(checkApp.Spec_field), &app.Spec)
 		if newSpecErr != nil {
 			return ctrl.Result{}, newSpecErr
 		}
@@ -223,7 +279,7 @@ func dbAppToApplicationCR(dbApp *database.Application) (*appv1.Application, erro
 
 	newApplicationEntry := &appv1.Application{
 		//  Todo: should come from gitopsengineinstance!
-		ObjectMeta: v1.ObjectMeta{Name: dbApp.Name, Namespace: "argocd"},
+		ObjectMeta: metav1.ObjectMeta{Name: dbApp.Name, Namespace: "argocd"},
 	}
 	// assigning spec
 	newSpecErr := json.Unmarshal([]byte(dbApp.Spec_field), &newApplicationEntry.Spec)

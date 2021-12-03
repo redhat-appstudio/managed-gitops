@@ -54,57 +54,75 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	contextLog := log.FromContext(ctx)
 
 	// creating databaseQueries object to fetch all the queries functionality
+	// TODO: DEBT - Convert Unsafe methods to default and unchecked
 	databaseQueries, err := database.NewUnsafePostgresDBQueries(true, false)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	// retrieve the application CR from the namespace and store the value in app object
+	// retrieve the application CR from the databases and store the value in app object
+	var allApplicationinDb *[]database.Application
+
+	// TODO: DEBT - Convert Unsafe methods to default and unchecked
+	errFetchAllApp := databaseQueries.UnsafeListAllApplications(ctx, allApplicationinDb)
+	if errFetchAllApp != nil {
+		return ctrl.Result{}, errFetchAllApp
+	}
+
 	app := appv1.Application{}
 	if err := r.Get(ctx, req.NamespacedName, &app); err != nil {
 		contextLog.Error(err, "Unable to find Application: "+app.Name)
 
-		// Todo: to decide what will be Application_id from Namespace Application CR perspective
-		// To propose: fetch the list of application from the database and store it in an array, similarly if there is a way to fetch all the application in namespace find that
-		// store that in an array, if the database.name dosen't exists in application namespace create an entry there! (But the follow up question being what if the Application Name is repicated,
-		// should we set Application Name entry in database to be UNIQUE?)
-		dbApplication := &database.Application{Application_id: string(app.UID)}
+		// This will check whether the app.Name exists in the fetched lists from Application databases
+		checkAppinDb, dbAppId := contains(*allApplicationinDb, app.Name)
+		if checkAppinDb {
+			// Todo: to decide what will be Application_id from Namespace Application CR perspective
+			// To propose: fetch the list of application from the database and store it in an array, similarly if there is a way to fetch all the application in namespace find that
+			// store that in an array, if the database.name dosen't exists in application namespace create an entry there! (But the follow up question being what if the Application Name is repicated,
+			// should we set Application Name entry in database to be UNIQUE?)
 
-		errGetApp := databaseQueries.UnsafeGetApplicationById(ctx, dbApplication)
-		// this proves that the the application CR is neither present in the namespace nor in the database
-		if errGetApp != nil {
-			return ctrl.Result{}, errGetApp
-		}
-
-		// Case 1: If nil, then Application CR is present in the database, hence create a new Application CR in the namespace
-		application, errConvert := dbAppToApplicationCR(dbApplication)
-		if errConvert != nil {
-			return ctrl.Result{}, errConvert
-		}
-		errAddToNamespace := r.Create(ctx, application, &client.CreateOptions{})
-		if errAddToNamespace != nil {
-			return ctrl.Result{}, errAddToNamespace
-		}
-
-		// Update the application state after application is pushed to Namespace
-		// if ApplicationState Row exists no change, else create!
-
-		dbApplicationState := &database.ApplicationState{Applicationstate_application_id: string(app.UID)}
-		errAppState := databaseQueries.UnsafeGetApplicationStateById(ctx, dbApplicationState)
-		if errAppState != nil {
-			dbApplicationState := &database.ApplicationState{
-				Applicationstate_application_id: dbApplication.Application_id,
-				Health:                          string(application.Status.Health.Status),
-				Sync_Status:                     string(application.Status.Sync.Status),
+			// Case 1: If nil, then Application CR is present in the database, hence create a new Application CR in the namespace
+			dbApplication := &database.Application{
+				Application_id: dbAppId,
+			}
+			// this proves that the application does exists, create in namespace
+			errGetApp := databaseQueries.UnsafeGetApplicationById(ctx, dbApplication)
+			if errGetApp != nil {
+				return ctrl.Result{}, errGetApp
 			}
 
-			errCreateApplicationState := databaseQueries.UnsafeCreateApplicationState(ctx, dbApplicationState)
-			if errCreateApplicationState != nil {
-				return ctrl.Result{}, errCreateApplicationState
+			application, errConvert := dbAppToApplicationCR(dbApplication)
+			if errConvert != nil {
+				return ctrl.Result{}, errConvert
+			}
+			errAddToNamespace := r.Create(ctx, application, &client.CreateOptions{})
+			if errAddToNamespace != nil {
+				return ctrl.Result{}, errAddToNamespace
+			}
+
+			// Update the application state after application is pushed to Namespace
+			// if ApplicationState Row exists no change, else create!
+
+			dbApplicationState := &database.ApplicationState{Applicationstate_application_id: string(app.UID)}
+			// TODO: DEBT - Convert Unsafe methods to default and unchecked
+			errAppState := databaseQueries.UnsafeGetApplicationStateById(ctx, dbApplicationState)
+			if errAppState != nil {
+				dbApplicationState := &database.ApplicationState{
+					Applicationstate_application_id: dbApplication.Application_id,
+					Health:                          string(application.Status.Health.Status),
+					Sync_Status:                     string(application.Status.Sync.Status),
+				}
+
+				errCreateApplicationState := databaseQueries.UnsafeCreateApplicationState(ctx, dbApplicationState)
+				if errCreateApplicationState != nil {
+					return ctrl.Result{}, errCreateApplicationState
+				}
 			}
 		}
-
+		return ctrl.Result{}, err
 	}
+
+	// Case 2: If Application CR dosen't exist in database, remove from the namespace as well
 
 	argocdNamespace := v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -114,12 +132,13 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&argocdNamespace), &argocdNamespace); err != nil {
 		return ctrl.Result{}, err
 	}
-
+	// TODO: DEBT - Convert Unsafe methods to default and unchecked
 	managedEnv, err := util.UncheckedGetOrCreateManagedEnvironmentByNamespaceUID(ctx, argocdNamespace, databaseQueries, contextLog)
 
 	clusterCreds := database.ClusterCredentials{}
 	{
 		var clusterCredsList []database.ClusterCredentials
+		// TODO: DEBT - Convert Unsafe methods to default and unchecked
 		if err := databaseQueries.UnsafeListAllClusterCredentials(ctx, &clusterCredsList); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -137,6 +156,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			}
 		}
 	}
+
 	gitopsEngineNamespace := v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: argocdNamespace.Name,
@@ -145,9 +165,17 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&gitopsEngineNamespace), &gitopsEngineNamespace); err != nil {
 		return ctrl.Result{}, err
 	}
-	kubesystemNamespaceUID := "UID"
 
-	gitopsEngineInstance, _, err := util.UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, gitopsEngineNamespace, kubesystemNamespaceUID, clusterCreds, databaseQueries, contextLog)
+	kubesystemNamespace := v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "kube-system",
+		},
+	}
+	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&kubesystemNamespace), &kubesystemNamespace); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	gitopsEngineInstance, _, err := util.UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, gitopsEngineNamespace, string(kubesystemNamespace.UID), clusterCreds, databaseQueries, contextLog)
 
 	checkApp := database.Application{
 		Name:                    app.Name,
@@ -157,6 +185,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	var applications []database.Application
 	applications = append(applications, checkApp)
+	// TODO: DEBT - Convert Unsafe methods to default and unchecked
 	err = databaseQueries.UnsafeListAllApplications(ctx, &applications)
 	if err != nil { // if err is nil then shows the occurance of application cr in database
 		// no occurence of Application CR in database
@@ -288,4 +317,13 @@ func dbAppToApplicationCR(dbApp *database.Application) (*appv1.Application, erro
 	}
 
 	return newApplicationEntry, nil
+}
+
+func contains(listAllApps []database.Application, str string) (bool, string) {
+	for _, dbApp := range listAllApps {
+		if dbApp.Name == str {
+			return true, dbApp.Application_id
+		}
+	}
+	return false, ""
 }

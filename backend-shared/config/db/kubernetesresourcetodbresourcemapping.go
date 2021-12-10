@@ -5,7 +5,18 @@ import (
 	"fmt"
 )
 
-func (dbq *PostgreSQLDatabaseQueries) DeleteKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) (int, error) {
+// Supported mappings to/from K8s <=> database tables
+const (
+	// Support K8s Resource types:
+	K8sToDBMapping_Namespace = "Namespace"
+
+	// Supported DB tables:
+	K8sToDBMapping_ManagedEnvironment   = "ManagedEnvironment"
+	K8sToDBMapping_GitopsEngineCluster  = "GitopsEngineCluster"
+	K8sToDBMapping_GitopsEngineInstance = "GitopsEngineInstance"
+)
+
+func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) (int, error) {
 
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return 0, err
@@ -66,17 +77,6 @@ func (dbq *PostgreSQLDatabaseQueries) GetDBResourceMappingForKubernetesResource(
 	return nil
 
 }
-
-// Supported mappings to/from K8s <=> database tables
-const (
-	// Support K8s Resource types:
-	K8sToDBMapping_Namespace = "Namespace"
-
-	// Supported DB tables:
-	K8sToDBMapping_ManagedEnvironment   = "ManagedEnvironment"
-	K8sToDBMapping_GitopsEngineCluster  = "GitopsEngineCluster"
-	K8sToDBMapping_GitopsEngineInstance = "GitopsEngineInstance"
-)
 
 func (dbq *PostgreSQLDatabaseQueries) CreateKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) error {
 

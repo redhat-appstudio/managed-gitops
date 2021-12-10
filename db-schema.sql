@@ -144,7 +144,7 @@ CREATE TABLE Operation (
 
 	-- Specifies which Argo CD instance is this operation against
 	-- Foreign key to: GitopsEngineInstance.gitopsengineinstance_id
-	instance_id VARCHAR(48) UNIQUE NOT NULL,
+	instance_id VARCHAR(48) NOT NULL,
 	CONSTRAINT fk_gitopsengineinstance_id FOREIGN KEY (instance_id) REFERENCES GitopsEngineInstance(gitopsengineinstance_id) ON DELETE CASCADE ON UPDATE CASCADE,
 
 	-- UID of the resource that was updated
@@ -249,6 +249,10 @@ CREATE TABLE DeploymentToApplicationMapping (
 	
 	-- uid of our gitops deployment CR within the K8s namespace (or KCP control plane)
 	deploymenttoapplicationmapping_uid_id VARCHAR(48) UNIQUE NOT NULL PRIMARY KEY,
+	
+	name VARCHAR ( 256 ),
+	namespace VARCHAR ( 96 ),
+	workspace_uid VARCHAR ( 48 ), 
 
 	-- Foreign key to: Application.application_id
 	application_id VARCHAR ( 48 ) NOT NULL UNIQUE,
@@ -289,6 +293,27 @@ CREATE TABLE KubernetesToDBResourceMapping  (
 );
 
 CREATE INDEX idx_db_relation_uid ON KubernetesToDBResourceMapping(kubernetes_resource_type, kubernetes_resource_uid, db_relation_type);
+
+
+CREATE TABLE APICRToDatabaseMapping  (
+
+	api_resource_type VARCHAR(64) NOT NULL,
+	api_resource_uid VARCHAR(64) NOT NULL,
+	
+	api_resource_name VARCHAR(256) NOT NULL,
+	api_resource_namespace VARCHAR(256) NOT NULL,
+	api_resource_workspace_uid VARCHAR(64) NOT NULL,
+	
+	db_relation_type VARCHAR(32) NOT NULL,
+	db_relation_key VARCHAR(64) NOT NULL,
+
+	seq_id serial,
+
+	PRIMARY KEY(api_resource_type, api_resource_uid, db_relation_type, db_relation_key)
+
+);
+
+-- TODO: PERF - Add index to APICRToDatabaseMapping to correspond to the access patterns we are using.
 
 /*
 -------------------------------------------------------------------------------

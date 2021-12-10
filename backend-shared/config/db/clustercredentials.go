@@ -54,7 +54,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterCredentials(ctx context.Conte
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeGetClusterCredentialsById(ctx context.Context, clusterCreds *ClusterCredentials) error {
+func (dbq *PostgreSQLDatabaseQueries) UncheckedGetClusterCredentialsById(ctx context.Context, clusterCreds *ClusterCredentials) error {
 
 	if err := validateUnsafeQueryParamsEntity(clusterCreds, dbq); err != nil {
 		return err
@@ -241,7 +241,7 @@ func (dbq *PostgreSQLDatabaseQueries) isAccessibleByUser(ctx context.Context, cl
 
 }
 
-func (dbq *PostgreSQLDatabaseQueries) AdminDeleteClusterCredentialsById(ctx context.Context, id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteClusterCredentialsById(ctx context.Context, id string) (int, error) {
 
 	if dbq.dbConnection == nil {
 		return 0, fmt.Errorf("database connection is nil")

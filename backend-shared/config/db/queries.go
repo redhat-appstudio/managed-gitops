@@ -40,18 +40,15 @@ import (
 type UnsafeDatabaseQueries interface {
 	UnsafeDeleteGitopsEngineInstanceById(ctx context.Context, id string) (int, error)
 	UnsafeDeleteManagedEnvironmentById(ctx context.Context, id string) (int, error)
-	UnsafeGetClusterCredentialsById(ctx context.Context, clusterCreds *ClusterCredentials) error
 	UnsafeListAllApplications(ctx context.Context, applications *[]Application) error
 	UnsafeListAllApplicationStates(ctx context.Context, applicationStates *[]ApplicationState) error
 	UnsafeListAllClusterAccess(ctx context.Context, clusterAccess *[]ClusterAccess) error
 	UnsafeListAllClusterCredentials(ctx context.Context, clusterCredentials *[]ClusterCredentials) error
 	UnsafeListAllClusterUsers(ctx context.Context, clusterUsers *[]ClusterUser) error
-	UnsafeGetApplicationById(ctx context.Context, application *Application) error
 	UnsafeListAllGitopsEngineInstances(ctx context.Context, gitopsEngineInstances *[]GitopsEngineInstance) error
 	UnsafeListAllManagedEnvironments(ctx context.Context, managedEnvironments *[]ManagedEnvironment) error
 	UnsafeListAllOperations(ctx context.Context, operations *[]Operation) error
 	UnsafeListAllGitopsEngineClusters(ctx context.Context, gitopsEngineClusters *[]GitopsEngineCluster) error
-	UnsafeDeleteApplicationById(ctx context.Context, id string) (int, error)
 }
 
 type AllDatabaseQueries interface {
@@ -60,12 +57,6 @@ type AllDatabaseQueries interface {
 }
 
 type DatabaseQueries interface {
-
-	// TODO: DEBT - rename these to unchecked
-	AdminDeleteClusterCredentialsById(ctx context.Context, id string) (int, error)
-	AdminDeleteClusterUserById(ctx context.Context, id string) (int, error)
-	AdminDeleteGitopsEngineClusterById(ctx context.Context, id string) (int, error)
-
 	CreateApplication(ctx context.Context, obj *Application, ownerId string) error
 	CreateClusterAccess(ctx context.Context, obj *ClusterAccess) error
 	CreateClusterCredentials(ctx context.Context, obj *ClusterCredentials) error
@@ -77,14 +68,14 @@ type DatabaseQueries interface {
 	CreateOperation(ctx context.Context, obj *Operation, ownerId string) error
 	CreateKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) error
 
-	DeleteApplicationStateById(ctx context.Context, id string) (int, error)
+	DeleteDeploymentToApplicationMappingByDeplId(ctx context.Context, id string, ownerId string) (int, error)
 	DeleteApplicationById(ctx context.Context, id string, ownerId string) (int, error)
 
+	// TODO: DEBT - I think this should still have an owner, even if it presumed that it is user id:
 	DeleteClusterAccessById(ctx context.Context, userId string, managedEnvironmentId string, gitopsEngineInstanceId string) (int, error)
 	DeleteGitopsEngineInstanceById(ctx context.Context, id string, ownerId string) (int, error)
 	DeleteManagedEnvironmentById(ctx context.Context, id string, ownerId string) (int, error)
 	DeleteOperationById(ctx context.Context, id string, ownerId string) (int, error)
-	DeleteKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) (int, error)
 
 	// Get functions return a single result, or an error if no results were present;
 	// check the error with 'IsResultNotFoundError' to identify resource not found errors (vs other more serious errors).
@@ -99,16 +90,34 @@ type DatabaseQueries interface {
 	GetDeploymentToApplicationMappingByDeplId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping, ownerId string) error
 	GetClusterAccessByPrimaryKey(ctx context.Context, obj *ClusterAccess) error
 	GetDBResourceMappingForKubernetesResource(ctx context.Context, obj *KubernetesToDBResourceMapping) error
+	GetDatabaseMappingForAPICR(ctx context.Context, obj *APICRToDatabaseMapping) error
 
 	// See definition of unchecked, above.
 	// I'm still figuring out the difference between unchecked and unsafe: For now, they are very similar.
 	// - In the best case, both are useful and can co-exist.
 	// - In the worst case, the idea of unsafe is fundamentally flawed due to cycles in the table model. - jgwest
+	UncheckedGetApplicationById(ctx context.Context, application *Application) error
 	UncheckedGetOperationById(ctx context.Context, operation *Operation) error
 	UncheckedGetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance) error
 	UncheckedGetGitopsEngineClusterById(ctx context.Context, gitopsEngineCluster *GitopsEngineCluster) error
 	UncheckedGetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment) error
+	UncheckedGetDeploymentToApplicationMappingByDeplId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping) error
+
+	UncheckedDeleteAPICRToDatabaseMapping(ctx context.Context, obj *APICRToDatabaseMapping) (int, error)
+	UncheckedDeleteDeploymentToApplicationMappingByDeplId(ctx context.Context, id string) (int, error)
 	UncheckedDeleteOperationById(ctx context.Context, id string) (int, error)
+	UncheckedDeleteApplicationById(ctx context.Context, id string) (int, error)
+	UncheckedDeleteKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) (int, error)
+	UncheckedDeleteApplicationStateById(ctx context.Context, id string) (int, error)
+	UncheckedDeleteClusterCredentialsById(ctx context.Context, id string) (int, error)
+	UncheckedDeleteClusterUserById(ctx context.Context, id string) (int, error)
+	UncheckedDeleteGitopsEngineClusterById(ctx context.Context, id string) (int, error)
+
+	UncheckedListAPICRToDatabaseMappingByAPINamespaceAndName(ctx context.Context, apiCRResourceType string, crName string, crNamespace string, crWorkspaceUID string, dbRelationType string, apiCRToDBMappingParam *[]APICRToDatabaseMapping) error
+	UncheckedListDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, workspaceUID string, deplToAppMappingParam *[]DeploymentToApplicationMapping) error
+	UncheckedUpdateApplication(ctx context.Context, obj *Application) error
+
+	UncheckedGetClusterCredentialsById(ctx context.Context, clusterCreds *ClusterCredentials) error
 
 	// List functions return zero or more results. If no results are found (and no errors occurred), an empty slice is set in the result parameter.
 	ListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx context.Context, engineClusterId string, ownerId string, gitopsEngineInstancesParam *[]GitopsEngineInstance) error
@@ -141,7 +150,7 @@ type PostgreSQLDatabaseQueries struct {
 }
 
 func NewProductionPostgresDBQueries(verbose bool) (DatabaseQueries, error) {
-	db, err := connectToDatabase(true)
+	db, err := connectToDatabase(verbose)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +166,7 @@ func NewProductionPostgresDBQueries(verbose bool) (DatabaseQueries, error) {
 }
 
 func NewUnsafePostgresDBQueries(verbose bool, allowTestUuids bool) (AllDatabaseQueries, error) {
-	db, err := connectToDatabase(true)
+	db, err := connectToDatabase(verbose)
 	if err != nil {
 		return nil, err
 	}
@@ -185,6 +194,15 @@ func (dbq *PostgreSQLDatabaseQueries) CloseDatabase() {
 			log.Printf("Error occurred on CloseDatabase(): %v", err)
 		}
 	}
+}
+
+// NewResultNotFoundError returns an error that will be matched by IsAccessDeniedError
+func NewAccessDeniedError(errString string) error {
+	return fmt.Errorf("%s: results found, but access denied", errString)
+}
+
+func IsAccessDeniedError(errorParam error) bool {
+	return strings.Contains(errorParam.Error(), "results found, but access denied")
 }
 
 // NewResultNotFoundError returns an error that will be matched by IsResultNotFoundError

@@ -18,9 +18,9 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllApplicationStates(ctx context
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) DeleteApplicationStateById(ctx context.Context, id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteApplicationStateById(ctx context.Context, id string) (int, error) {
 
-	if err := validateUnsafeQueryParams(id, dbq); err != nil {
+	if err := validateQueryParams(id, dbq); err != nil {
 		return 0, err
 	}
 

@@ -7,7 +7,7 @@ import (
 )
 
 // isEmptyValues returns an error if at least one of the parameters is nil or empty.
-// The returned error string indicates which parameter was empty, plus the calling location.
+// The returned error string indicates which parameter was empty, plus the calling function.
 //
 // This function can be used as a generic check of empty or nil values, in order to reduce
 // the amount of boilerplate code.

@@ -15,7 +15,7 @@ import (
 // be an algorithm that intelligently places applications -> instances, to ensure that
 // there are no Argo CD instances that are overloaded (have too many users).
 //
-// However, at the moment we are using a single shared Argo CD instnace in 'argocd', so we will
+// However, at the moment we are using a single shared Argo CD instance in 'argocd', so we will
 // just return that.
 //
 // This logic would be improved by https://issues.redhat.com/browse/GITOPS-1455 (and others)

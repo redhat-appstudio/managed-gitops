@@ -17,10 +17,10 @@ var (
 	_ client.Client = &ProxyClient{}
 )
 
-// ProxyClient is a simple utility function/struct that maybe used to write unit tests that mock the K8s go client.
-// ProxyClient wraps an existing client.Client, and calls a listener based on the result of the call.
-// This allows the test to verify custom conditions, or that particular calls were made.
-// (Yes there are other Go modules that do this, as well).
+// ProxyClient is a simple utility function/struct that may be used to write unit tests that mock the K8s client.
+// ProxyClient wraps an existing client.Client, and calls a custom listener based on the result of the call.
+// This allows tests to verify custom conditions, or that particular calls were made.
+// (Yes, there are other Go modules that do this, as well).
 type ProxyClient struct {
 	InnerClient client.Client
 	Informer    ProxyClientEventReceiver

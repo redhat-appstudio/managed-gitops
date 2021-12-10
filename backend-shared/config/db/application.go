@@ -45,7 +45,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetApplicationById(ctx context.Context, ap
 			Clusteraccess_gitops_engine_instance_id: applicationResult.Engine_instance_inst_id}); err != nil {
 
 		if IsResultNotFoundError(err) {
-			return NewResultNotFoundError(fmt.Sprintf("No cluster access exists for application '%s'", application.Application_id))
+			return NewAccessDeniedError(fmt.Sprintf("No cluster access exists for application '%s'", application.Application_id))
 		}
 		return err
 	}
@@ -55,9 +55,9 @@ func (dbq *PostgreSQLDatabaseQueries) GetApplicationById(ctx context.Context, ap
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeGetApplicationById(ctx context.Context, application *Application) error {
+func (dbq *PostgreSQLDatabaseQueries) UncheckedGetApplicationById(ctx context.Context, application *Application) error {
 
-	if err := validateUnsafeQueryParamsEntity(application, dbq); err != nil {
+	if err := validateQueryParamsEntity(application, dbq); err != nil {
 		return err
 	}
 
@@ -106,21 +106,12 @@ func (dbq *PostgreSQLDatabaseQueries) CreateApplication(ctx context.Context, obj
 		obj.Application_id = generateUuid()
 	}
 
-	if isEmpty(obj.Engine_instance_inst_id) {
-		return fmt.Errorf("application's engine instance id field should not be empty")
-	}
-
-	if isEmpty(obj.Managed_environment_id) {
-		return fmt.Errorf("application's environment id field should not be empty")
-	}
-
-	if isEmpty(obj.Spec_field) {
-		return fmt.Errorf("application's spec field should not be empty")
-
-	}
-
-	if isEmpty(obj.Name) {
-		return fmt.Errorf("application's name field should not be empty")
+	if err := isEmptyValues("CreateApplication",
+		"Engine_instance_inst_id", obj.Engine_instance_inst_id,
+		"Managed_environment_id", obj.Managed_environment_id,
+		"Spec_field", obj.Spec_field,
+		"Name", obj.Name); err != nil {
+		return err
 	}
 
 	// Verify the user can access the managed environment
@@ -183,9 +174,9 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteApplicationById(ctx context.Context,
 	return deleteResult.RowsAffected(), nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeDeleteApplicationById(ctx context.Context, id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteApplicationById(ctx context.Context, id string) (int, error) {
 
-	if err := validateUnsafeQueryParams(id, dbq); err != nil {
+	if err := validateQueryParams(id, dbq); err != nil {
 		return 0, err
 	}
 

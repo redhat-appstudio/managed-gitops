@@ -24,16 +24,11 @@ func (dbq *PostgreSQLDatabaseQueries) GetClusterAccessByPrimaryKey(ctx context.C
 		return err
 	}
 
-	if isEmpty(obj.Clusteraccess_gitops_engine_instance_id) {
-		return fmt.Errorf("clusteraccess_gitops_engine_instance_id is nil in GetClusterAccessByPrimaryKey")
-	}
-
-	if isEmpty(obj.Clusteraccess_managed_environment_id) {
-		return fmt.Errorf("clusteraccess_managed_environment_id is nil in GetClusterAccessByPrimaryKey")
-	}
-
-	if isEmpty(obj.Clusteraccess_user_id) {
-		return fmt.Errorf("clusteraccess_user_id is nil in GetClusterAccessByPrimaryKey")
+	if err := isEmptyValues("GetClusterAccessByPrimaryKey",
+		"Clusteraccess_gitops_engine_instance_id", obj.Clusteraccess_gitops_engine_instance_id,
+		"Clusteraccess_managed_environment_id", obj.Clusteraccess_managed_environment_id,
+		"Clusteraccess_user_id", obj.Clusteraccess_user_id); err != nil {
+		return err
 	}
 
 	var dbResults []ClusterAccess

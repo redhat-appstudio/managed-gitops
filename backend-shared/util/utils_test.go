@@ -14,8 +14,6 @@ func TestUncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(t *testi
 		return
 	}
 
-	// TODO: DEBT - FIX Me!
-
 	// clusterCredentials := db.ClusterCredentials{
 	// 	Clustercredentials_cred_id:  "test-creds",
 	// 	Host:                        "",
@@ -35,7 +33,7 @@ func TestUncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(t *testi
 	// kubesystemNamespaceUID := "fake-uid"
 
 	// engineInstance, engineCluster, err := UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(context.Background(), gitopsEngineNamespace,
-	// 	kubesystemNamespaceUID, clusterCredentials, dbq, logr.FromContext(context.Background()))
+	// 	kubesystemNamespaceUID, dbq, logr.FromContext(context.Background()))
 
 	// t.Logf("%v", engineInstance)
 	// t.Logf("%v", engineCluster)

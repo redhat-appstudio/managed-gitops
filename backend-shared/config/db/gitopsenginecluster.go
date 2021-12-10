@@ -186,7 +186,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllGitopsEngineClusters(ctx cont
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) AdminDeleteGitopsEngineClusterById(ctx context.Context, id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteGitopsEngineClusterById(ctx context.Context, id string) (int, error) {
 
 	if err := validateUnsafeQueryParams(id, dbq); err != nil {
 		return 0, err

@@ -18,7 +18,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterUsers(ctx context.Cont
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) AdminDeleteClusterUserById(ctx context.Context, id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteClusterUserById(ctx context.Context, id string) (int, error) {
 
 	if err := validateQueryParams(id, dbq); err != nil {
 		return 0, err

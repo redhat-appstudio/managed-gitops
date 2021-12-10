@@ -1,0 +1,141 @@
+package db
+
+import (
+	"context"
+	"fmt"
+)
+
+func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteAPICRToDatabaseMapping(ctx context.Context, obj *APICRToDatabaseMapping) (int, error) {
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
+		return 0, err
+	}
+
+	if err := isEmptyValues("UncheckedDeleteAPICRToDatabaseMapping",
+		"APIResourceType", obj.APIResourceType,
+		"APIResourceUID", obj.APIResourceUID,
+		"DBRelationKey", obj.DBRelationKey,
+		"DBRelationType", obj.DBRelationType,
+	); err != nil {
+		return 0, err
+	}
+
+	deleteResult, err := dbq.dbConnection.Model(obj).
+		Where("atdbm.api_resource_type = ?", obj.APIResourceType).
+		Where("atdbm.api_resource_uid = ?", obj.APIResourceUID).
+		Where("atdbm.db_relation_key = ?", obj.DBRelationKey).
+		Where("atdbm.db_relation_key = ?", obj.DBRelationType).
+		Context(ctx).Delete()
+	if err != nil {
+		return 0, fmt.Errorf("error on deleting APICRToDatabaseMapping: %v", err)
+	}
+
+	return deleteResult.RowsAffected(), nil
+
+}
+
+func (dbq *PostgreSQLDatabaseQueries) CreateAPICRToDatabaseMapping(ctx context.Context, obj *APICRToDatabaseMapping) error {
+
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
+		return err
+	}
+
+	if err := isEmptyValues("CreateAPICRToDatabaseMapping",
+		"APIResourceName", obj.APIResourceName,
+		"APIResourceNamespace", obj.APIResourceNamespace,
+		"APIResourceType", obj.APIResourceType,
+		"APIResourceUID", obj.APIResourceUID,
+		"DBRelationKey", obj.DBRelationKey,
+		"DBRelationType", obj.DBRelationType,
+	); err != nil {
+		return err
+	}
+
+	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
+	if err != nil {
+		return fmt.Errorf("error on inserting APICRToDatabaseMapping %v", err)
+	}
+
+	if result.RowsAffected() != 1 {
+		return fmt.Errorf("unexpected number of rows affected: %d", result.RowsAffected())
+	}
+
+	return nil
+
+}
+
+func (dbq *PostgreSQLDatabaseQueries) GetDatabaseMappingForAPICR(ctx context.Context, obj *APICRToDatabaseMapping) error {
+
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
+		return err
+	}
+
+	if err := isEmptyValues("GetDatabaseMappingForAPICR",
+		"APIResourceType", obj.APIResourceType,
+		"APIResourceUID", obj.APIResourceUID,
+		"DBRelationType", obj.DBRelationType); err != nil {
+		return err
+	}
+
+	var result []APICRToDatabaseMapping
+
+	if err := dbq.dbConnection.Model(&result).
+		// TODO: PERF - Add a DB index for this
+		Where("atdbm.api_resource_type = ?", obj.APIResourceType).
+		Where("atdbm.api_resource_uid = ?", obj.APIResourceUID).
+		Where("atdbm.api_resource_type.db_relation_type = ?", obj.DBRelationType).
+		Context(ctx).
+		Select(); err != nil {
+
+		return fmt.Errorf("error on retrieving database mapping for API CR: %v", err)
+	}
+
+	if len(result) == 0 {
+		return NewResultNotFoundError(fmt.Sprintf("unable to retrieve mapping for %s:%s", obj.APIResourceType, obj.APIResourceUID))
+	}
+
+	if len(result) > 1 {
+		return fmt.Errorf("unexpected number of results when retrieving mapping for %s:%s", obj.APIResourceType, obj.APIResourceUID)
+	}
+
+	*obj = result[0]
+
+	return nil
+
+}
+
+func (dbq *PostgreSQLDatabaseQueries) UncheckedListAPICRToDatabaseMappingByAPINamespaceAndName(ctx context.Context, apiCRResourceType string, crName string, crNamespace string, crWorkspaceUID string, dbRelationType string, apiCRToDBMappingParam *[]APICRToDatabaseMapping) error {
+
+	if err := validateQueryParamsEntity(apiCRToDBMappingParam, dbq); err != nil {
+		return err
+	}
+
+	if err := isEmptyValues("UncheckedListAPICRToDatabaseMappingByAPINamespaceAndName",
+		"apiCRResourceType", apiCRResourceType,
+		"crName", crName,
+		"crNamespace", crNamespace,
+		"crWorkspaceUID", crWorkspaceUID,
+		"dbRelationType", dbRelationType,
+	); err != nil {
+		return err
+	}
+
+	var dbResults []APICRToDatabaseMapping
+
+	// TODO: PERF - Add index for this
+
+	if err := dbq.dbConnection.Model(&dbResults).
+		Where("atdbm.api_resource_type = ?", apiCRResourceType).
+		Where("atdbm.api_resource_name = ?", crName).
+		Where("atdbm.api_resource_namespace = ?", crNamespace).
+		Where("atdbm.api_resource_workspace_uid = ?", crWorkspaceUID).
+		Where("atdbm.db_relation_type = ?", dbRelationType).
+		Context(ctx).
+		Select(); err != nil {
+
+		return fmt.Errorf("error on retrieving UncheckedListAPICRToDatabaseMappingByAPINamespaceAndName: %v", err)
+	}
+
+	*apiCRToDBMappingParam = dbResults
+
+	return nil
+}

@@ -294,7 +294,9 @@ CREATE TABLE KubernetesToDBResourceMapping  (
 
 CREATE INDEX idx_db_relation_uid ON KubernetesToDBResourceMapping(kubernetes_resource_type, kubernetes_resource_uid, db_relation_type);
 
-
+-- Maps API custom resources on the workspace (such as GitOpsDeploymentSyncRun), to a corresponding entry in the database.
+-- This allows us to quickly go from API CR <-to-> Database entry, and also to identify database entry even when the API CR has been
+-- deleted from the workspace.
 CREATE TABLE APICRToDatabaseMapping  (
 
 	api_resource_type VARCHAR(64) NOT NULL,

@@ -23,7 +23,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteAPICRToDatabaseMapping(ctx 
 		Where("atdbm.api_resource_type = ?", obj.APIResourceType).
 		Where("atdbm.api_resource_uid = ?", obj.APIResourceUID).
 		Where("atdbm.db_relation_key = ?", obj.DBRelationKey).
-		Where("atdbm.db_relation_key = ?", obj.DBRelationType).
+		Where("atdbm.db_relation_type = ?", obj.DBRelationType).
 		Context(ctx).Delete()
 	if err != nil {
 		return 0, fmt.Errorf("error on deleting APICRToDatabaseMapping: %v", err)
@@ -82,19 +82,19 @@ func (dbq *PostgreSQLDatabaseQueries) GetDatabaseMappingForAPICR(ctx context.Con
 		// TODO: PERF - Add a DB index for this
 		Where("atdbm.api_resource_type = ?", obj.APIResourceType).
 		Where("atdbm.api_resource_uid = ?", obj.APIResourceUID).
-		Where("atdbm.api_resource_type.db_relation_type = ?", obj.DBRelationType).
+		Where("atdbm.db_relation_type = ?", obj.DBRelationType).
 		Context(ctx).
 		Select(); err != nil {
 
-		return fmt.Errorf("error on retrieving database mapping for API CR: %v", err)
+		return fmt.Errorf("error on retrieving database mapping for APICRToDatabase: %v", err)
 	}
 
 	if len(result) == 0 {
-		return NewResultNotFoundError(fmt.Sprintf("unable to retrieve mapping for %s:%s", obj.APIResourceType, obj.APIResourceUID))
+		return NewResultNotFoundError(fmt.Sprintf("unable to retrieve APICRToDatabase mapping for %s:%s", obj.APIResourceType, obj.APIResourceUID))
 	}
 
 	if len(result) > 1 {
-		return fmt.Errorf("unexpected number of results when retrieving mapping for %s:%s", obj.APIResourceType, obj.APIResourceUID)
+		return fmt.Errorf("unexpected number of results when retrieving APICRToDatabase mapping for %s:%s", obj.APIResourceType, obj.APIResourceUID)
 	}
 
 	*obj = result[0]

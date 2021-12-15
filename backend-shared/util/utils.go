@@ -381,3 +381,37 @@ func CatchPanic(f func() error) (isPanic bool, err error) {
 
 	return isPanic, err
 }
+
+// DisposeResources delets of a list of database entries in reverse order.
+func DisposeResources(ctx context.Context, resources []db.DisposableResource, dbq db.DatabaseQueries, log logr.Logger) {
+
+	if len(resources) == 0 {
+		return
+	}
+
+	var err error
+
+	for idx := len(resources) - 1; idx >= 0; idx-- {
+
+		resource := resources[idx]
+		if resource == nil {
+			continue
+		}
+
+		log.V(LogLevel_Debug).Info(fmt.Sprintf("disposing of resource: %v", resource))
+
+		disposeErr := resource.Dispose(ctx, dbq)
+		if disposeErr != nil {
+			if err == nil {
+				err = disposeErr
+			} else {
+				// append the error to the existing error
+				err = fmt.Errorf("error: %v. error: %v", disposeErr, err)
+			}
+		}
+	}
+
+	if err != nil {
+		log.Error(err, "unable to delete old resources after operation")
+	}
+}

@@ -1,4 +1,6 @@
+bin/
 dist/
 coverage.out
 vendor/
+cover.out
 

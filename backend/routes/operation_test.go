@@ -1,3 +1,5 @@
+// +build !skiproutes
+
 package routes
 
 import (

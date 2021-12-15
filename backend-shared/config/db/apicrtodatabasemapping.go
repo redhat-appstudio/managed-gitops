@@ -139,3 +139,15 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedListAPICRToDatabaseMappingByAPINa
 
 	return nil
 }
+
+var _ DisposableResource = &APICRToDatabaseMapping{}
+
+func (dbMapping *APICRToDatabaseMapping) Dispose(ctx context.Context, dbq DatabaseQueries) error {
+
+	if err := isEmptyValues("APICRToDatabaseMappingDispose", "dbq", dbq); err != nil {
+		return err
+	}
+	_, err := dbq.UncheckedDeleteAPICRToDatabaseMapping(ctx, dbMapping)
+
+	return err
+}

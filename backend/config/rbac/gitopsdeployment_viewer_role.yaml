@@ -1,0 +1,20 @@
+# permissions for end users to view gitopsdeployments.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gitopsdeployment-viewer-role
+rules:
+- apiGroups:
+  - managed-gitops.redhat.com
+  resources:
+  - gitopsdeployments
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - managed-gitops.redhat.com
+  resources:
+  - gitopsdeployments/status
+  verbs:
+  - get

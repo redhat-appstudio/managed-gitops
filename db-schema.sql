@@ -147,7 +147,7 @@ CREATE TABLE Operation (
 	instance_id VARCHAR(48) NOT NULL,
 	CONSTRAINT fk_gitopsengineinstance_id FOREIGN KEY (instance_id) REFERENCES GitopsEngineInstance(gitopsengineinstance_id) ON DELETE CASCADE ON UPDATE CASCADE,
 
-	-- UID of the resource that was updated
+	-- ID of the database resource that was modified (usually a database table primary key)
 	resource_id VARCHAR(48) NOT NULL,
 
 	-- The user that initiated the operation.
@@ -155,13 +155,14 @@ CREATE TABLE Operation (
 	operation_owner_user_id VARCHAR(48),
 	CONSTRAINT fk_clusteruser_id FOREIGN KEY (operation_owner_user_id) REFERENCES ClusterUser(clusteruser_id) ON DELETE CASCADE ON UPDATE CASCADE,
 
-	-- Resource type of the resource that was updated. 
+	-- Resource type of the resource that was modified
 	-- This value lets the operation know which table contains the resource.
 	-- 
 	-- possible values:
 	-- * ManagedEnvironment (specified when we want Argo CD to C/R/U/D a user's cluster credentials)
 	-- * GitopsEngineInstance (specified to CRUD an Argo instance, for example to create a new namespace and put Argo CD in it, then signal when it's done)
 	-- * Application (user creates a new Application via service/web UI)
+	-- * SyncOperation (user wants a GitOps engine sync operation performed)
 	resource_type VARCHAR(32) NOT NULL,
 
 	-- When the operation was created. Used for garbage collection, as operations should be short lived.
@@ -314,8 +315,27 @@ CREATE TABLE APICRToDatabaseMapping  (
 	PRIMARY KEY(api_resource_type, api_resource_uid, db_relation_type, db_relation_key)
 
 );
-
 -- TODO: PERF - Add index to APICRToDatabaseMapping to correspond to the access patterns we are using.
+
+
+
+CREATE TABLE SyncOperation (
+
+	syncoperation_id  VARCHAR(48) NOT NULL PRIMARY KEY,
+
+	application_id VARCHAR(48) NOT NULL,
+	CONSTRAINT fk_so_app_id FOREIGN KEY (application_id) REFERENCES Application(application_id) ON DELETE CASCADE ON UPDATE CASCADE,
+
+	operation_id VARCHAR(48) NOT NULL,
+	-- CONSTRAINT fk_so_operation_id FOREIGN KEY (operation_id) REFERENCES Operation(operation_id) ON DELETE CASCADE ON UPDATE CASCADE
+
+	deployment_name VARCHAR(256) NOT NULL,
+
+	revision VARCHAR(256) NOT NULL,
+
+	seq_id serial
+
+);
 
 /*
 -------------------------------------------------------------------------------

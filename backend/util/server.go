@@ -13,5 +13,5 @@ func WaitForServerUp(serverURL string) error {
 			return nil
 		}
 	}
-	return errors.New("server Timed Out!")
+	return errors.New("server timed out")
 }

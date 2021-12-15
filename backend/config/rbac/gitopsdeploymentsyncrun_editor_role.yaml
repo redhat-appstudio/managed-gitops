@@ -1,0 +1,24 @@
+# permissions for end users to edit gitopsdeploymentsyncruns.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gitopsdeploymentsyncrun-editor-role
+rules:
+- apiGroups:
+  - managed-gitops.redhat.com
+  resources:
+  - gitopsdeploymentsyncruns
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - managed-gitops.redhat.com
+  resources:
+  - gitopsdeploymentsyncruns/status
+  verbs:
+  - get

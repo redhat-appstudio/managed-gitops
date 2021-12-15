@@ -1,0 +1,20 @@
+# permissions for end users to view gitopsdeploymentsyncruns.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gitopsdeploymentsyncrun-viewer-role
+rules:
+- apiGroups:
+  - managed-gitops.redhat.com
+  resources:
+  - gitopsdeploymentsyncruns
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - managed-gitops.redhat.com
+  resources:
+  - gitopsdeploymentsyncruns/status
+  verbs:
+  - get

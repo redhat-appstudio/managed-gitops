@@ -67,6 +67,7 @@ type DatabaseQueries interface {
 	CreateManagedEnvironment(ctx context.Context, obj *ManagedEnvironment) error
 	CreateOperation(ctx context.Context, obj *Operation, ownerId string) error
 	CreateKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) error
+	CreateAPICRToDatabaseMapping(ctx context.Context, obj *APICRToDatabaseMapping) error
 
 	DeleteDeploymentToApplicationMappingByDeplId(ctx context.Context, id string, ownerId string) (int, error)
 	DeleteApplicationById(ctx context.Context, id string, ownerId string) (int, error)
@@ -112,6 +113,7 @@ type DatabaseQueries interface {
 	UncheckedDeleteClusterCredentialsById(ctx context.Context, id string) (int, error)
 	UncheckedDeleteClusterUserById(ctx context.Context, id string) (int, error)
 	UncheckedDeleteGitopsEngineClusterById(ctx context.Context, id string) (int, error)
+	UncheckedDeleteSyncOperationById(ctx context.Context, id string) (int, error)
 
 	UncheckedListAPICRToDatabaseMappingByAPINamespaceAndName(ctx context.Context, apiCRResourceType string, crName string, crNamespace string, crWorkspaceUID string, dbRelationType string, apiCRToDBMappingParam *[]APICRToDatabaseMapping) error
 	UncheckedListDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, workspaceUID string, deplToAppMappingParam *[]DeploymentToApplicationMapping) error
@@ -119,11 +121,15 @@ type DatabaseQueries interface {
 
 	UncheckedGetClusterCredentialsById(ctx context.Context, clusterCreds *ClusterCredentials) error
 
+	UncheckedCreateSyncOperation(ctx context.Context, obj *SyncOperation) error
+	UncheckedGetSyncOperationById(ctx context.Context, syncOperation *SyncOperation) error
+
 	// List functions return zero or more results. If no results are found (and no errors occurred), an empty slice is set in the result parameter.
 	ListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx context.Context, engineClusterId string, ownerId string, gitopsEngineInstancesParam *[]GitopsEngineInstance) error
 	ListClusterCredentialsByHost(ctx context.Context, hostName string, clusterCredentials *[]ClusterCredentials, ownerId string) error
 	ListManagedEnvironmentForClusterCredentialsAndOwnerId(ctx context.Context, clusterCredentialId string, ownerId string, managedEnvironments *[]ManagedEnvironment) error
 	ListGitopsEngineClusterByCredentialId(ctx context.Context, credentialId string, engineClustersParam *[]GitopsEngineCluster, ownerId string) error
+	ListOperationsByResourceIdAndTypeAndOwnerId(ctx context.Context, resourceID string, resourceType string, operations *[]Operation, ownerId string) error
 
 	CloseDatabase()
 }

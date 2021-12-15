@@ -2,25 +2,31 @@
 FROM golang:1.16 as builder
 
 WORKDIR /workspace
-
 # Copy the Go Modules manifests
 COPY go.mod go.mod
 COPY go.sum go.sum
-
-# Download the go module artificats in the WORKDIR (similar to go mod download working locally)
+# cache deps before building and copying source so that we don't need to re-download as much
+# and so that source changes don't invalidate our downloaded layer
 RUN go mod download
 
 # Copy the go source
-COPY *.go ./
+COPY main.go main.go
 COPY routes/ routes/
 COPY util/ util/
+COPY api/ api/
+COPY controllers/ controllers/
 
-# To compile/build the go applications
-RUN CGO_ENABLED=0 go build -a -o ./dist/managed-gitops-backend main.go
+# Build
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager main.go
+
+# Use distroless as minimal base image to package the manager binary
+# Refer to https://github.com/GoogleContainerTools/distroless for more details
+# FROM gcr.io/distroless/static:nonroot
 
 FROM registry.access.redhat.com/ubi8/ubi-minimal:8.4-210
-WORKDIR /
-COPY --from=builder /workspace/dist/managed-gitops-backend .
 
-# After container is configured, commands to run
-CMD [ "/gitops-backend" ]
+WORKDIR /
+COPY --from=builder /workspace/manager .
+USER 65532:65532
+
+ENTRYPOINT ["/manager"]

@@ -203,3 +203,35 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteOperationById(ctx context.Context, i
 
 	return deleteResult.RowsAffected(), nil
 }
+
+func (dbq *PostgreSQLDatabaseQueries) ListOperationsByResourceIdAndTypeAndOwnerId(ctx context.Context, resourceID string, resourceType string, operations *[]Operation, ownerId string) error {
+
+	if err := validateQueryParamsEntity(operations, dbq); err != nil {
+		return err
+	}
+
+	if err := isEmptyValues("ListOperationsByResourceIdAndTypeAndOwnerId",
+		"ownerId", ownerId,
+		"resourceId", resourceID,
+		"resourceType", resourceType); err != nil {
+		return err
+	}
+
+	var dbResults []Operation
+
+	// TODO: PERF - Add index for this
+
+	if err := dbq.dbConnection.Model(&dbResults).
+		Where("op.resource_id = ?", resourceID).
+		Where("op.resource_type = ?", resourceType).
+		Where("op.operation_owner_user_id = ?", ownerId).
+		Context(ctx).
+		Select(); err != nil {
+
+		return fmt.Errorf("error on retrieving ListOperationsByResourceIdAndTypeAndOwnerId: %v", err)
+	}
+
+	*operations = dbResults
+
+	return nil
+}

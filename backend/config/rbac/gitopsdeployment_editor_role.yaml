@@ -1,0 +1,24 @@
+# permissions for end users to edit gitopsdeployments.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gitopsdeployment-editor-role
+rules:
+- apiGroups:
+  - managed-gitops.redhat.com
+  resources:
+  - gitopsdeployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - managed-gitops.redhat.com
+  resources:
+  - gitopsdeployments/status
+  verbs:
+  - get

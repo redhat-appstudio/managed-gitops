@@ -18,8 +18,11 @@ package argoprojio
 
 import (
 	"context"
+	"fmt"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -62,4 +65,81 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&appv1.Application{}).
 		Complete(r)
+}
+
+// getUniqueClusterID returns a unique UID that can be used to identify one individual cluster instance from another.
+//
+// Since I'm not aware of an exist K8s API that gives us a value like this, I am using the uid of kube-system, which is
+// unlikely to change under normal circumstances.
+func getUniqueClusterID(ctx context.Context, clientClient client.Client) (string, error) {
+
+	namespace := corev1.Namespace{}
+
+	if err := clientClient.Get(ctx, client.ObjectKey{Namespace: "kube-system", Name: "kube-system"}, &namespace); err != nil {
+		return "", err
+	}
+
+	return string(namespace.UID), nil
+}
+
+func getGitOpsEngineInstanceForThisCluster(ctx context.Context, gitopsEngineInstanceParam *db.GitopsEngineInstance, gitopsEngineNamespace corev1.Namespace, clientClient client.Client, ownerId string) error {
+
+	// create cluster user (does it seems strange that an argo cd instances needs a cluster user?)
+	// create cluster credentials
+	// create gitops engine cluster
+	// create gitops engine instance (this is fake data)
+
+	if gitopsEngineInstanceParam == nil {
+		return fmt.Errorf("nil pointer param")
+	}
+
+	dbQueries, err := db.NewProductionPostgresDBQueries(true)
+	if err != nil {
+		return err
+	}
+
+	// Get the ID that uniquely identifies the cluster we are running on
+	uniqueClusterID, err := getUniqueClusterID(ctx, clientClient)
+	if err != nil {
+		return err
+	}
+
+	// Get the GitOpsEngineCluster that corresponds to this namespace
+	kdb := db.KubernetesToDBResourceMapping{
+		KubernetesResourceType: "Namespace",
+		KubernetesResourceUID:  uniqueClusterID,
+		DBRelationType:         "GitOpsEngineCluster",
+	}
+	// TODO: Whose job is it to create this?
+	if err := dbQueries.GetDBResourceMappingForKubernetesResource(ctx, &kdb); err != nil {
+		return err
+	}
+
+	gitopsEngineCluster := db.GitopsEngineCluster{
+		Gitopsenginecluster_id: kdb.DBRelationKey,
+	}
+	if err := dbQueries.GetGitopsEngineClusterById(ctx, &gitopsEngineCluster, ownerId); err != nil {
+		return err
+	}
+
+	var gitopsEngineInstances []db.GitopsEngineInstance
+	if err := dbQueries.ListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx, gitopsEngineCluster.Gitopsenginecluster_id, ownerId, &gitopsEngineInstances); err != nil {
+		return err
+	}
+
+	if len(gitopsEngineInstances) == 0 {
+		return fmt.Errorf("no GitOpsEngineInstances were found for %v, owner of %v", gitopsEngineCluster.Gitopsenginecluster_id, ownerId)
+	}
+
+	for idx, gitopsEngineInstance := range gitopsEngineInstances {
+		if gitopsEngineInstance.Namespace_name == gitopsEngineNamespace.Name &&
+			gitopsEngineInstance.Namespace_uid == string(gitopsEngineNamespace.UID) {
+			// Match found: return it
+			*gitopsEngineInstanceParam = gitopsEngineInstances[idx]
+			return nil
+		}
+	}
+
+	return fmt.Errorf("GitOpsEngineInstances were found, but no matches for namespace %v, for %v, owner of %v",
+		gitopsEngineNamespace.UID, gitopsEngineCluster.Gitopsenginecluster_id, ownerId)
 }

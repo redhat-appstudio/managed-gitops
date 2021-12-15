@@ -1,0 +1,5 @@
+## Append samples you want in your CSV to this file as resources ##
+resources:
+- managed-gitops_v1alpha1_gitopsdeployment.yaml
+- managed-gitops_v1alpha1_gitopsdeploymentsyncrun.yaml
+#+kubebuilder:scaffold:manifestskustomizesamples

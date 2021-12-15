@@ -1,6 +1,9 @@
 package db
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // GitopsEngineCluster is used to track clusters that host Argo CD instances
 type GitopsEngineCluster struct {
@@ -199,8 +202,6 @@ type Application struct {
 
 	// TODO: Should applications have owners?
 
-	// -- resource_uid VARCHAR ( 48 ) NOT NULL UNIQUE,
-
 	// -- '.spec' field of the Application CR
 	// -- Note: Rather than converting individual JSON fields into SQL Table fields, we just pull the whole spec field.
 	// -- In the future, it might be beneficial to pull out SOME of the fields, to reduce CPU time spent on json parsing
@@ -210,8 +211,7 @@ type Application struct {
 	Engine_instance_inst_id string `pg:"engine_instance_inst_id"`
 
 	// -- Which managed environment it is targetting
-	// managed_environment_id VARCHAR(48) UNIQUE NOT NULL
-	// -- CONSTRAINT fk_target_inf_cluster   FOREIGN KEY(target_inf_cluster)  REFERENCES InfrastructureCluster(inf_cluster_id),
+	// -- Foreign key to ManagedEnvironment.Managedenvironment_id
 	Managed_environment_id string `pg:"managed_environment_id"`
 }
 
@@ -316,4 +316,25 @@ type KubernetesToDBResourceMapping struct {
 	DBRelationKey string `pg:"db_relation_key"`
 
 	SeqID int64 `pg:"seq_id"`
+}
+
+type SyncOperation struct {
+
+	//lint:ignore U1000 used by go-pg
+	tableName struct{} `pg:"syncoperation,alias:so"` //nolint
+
+	SyncOperation_id string `pg:"syncoperation_id,pk"`
+
+	Application_id string `pg:"application_id"`
+
+	Operation_id string `pg:"operation_id"`
+
+	DeploymentNameField string `pg:"deployment_name"`
+
+	Revision string `pg:"revision"`
+}
+
+// TODO: DEBT - NAO - Add comment.
+type DisposableResource interface {
+	Dispose(ctx context.Context, dbq DatabaseQueries) error
 }

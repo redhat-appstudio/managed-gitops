@@ -132,3 +132,29 @@ func validateQueryParamsNoPK(dbq *PostgreSQLDatabaseQueries) error {
 
 	return nil
 }
+
+func (o *Operation) ShortString() string {
+	res := ""
+	res += "operation-id: " + o.Operation_id + ", "
+	res += "instance-id: " + o.Instance_id + ", "
+	res += "owner: " + o.Operation_owner_user_id + ", "
+	res += "resource: " + o.Resource_id + ", "
+	res += "resource-type: " + o.Resource_type + ", "
+	return res
+}
+
+func (o *Operation) LongString() string {
+	res := ""
+	res += "instance-id: " + o.Instance_id + ", "
+	res += "operation-id: " + o.Operation_id + ", "
+	res += "owner: " + o.Operation_owner_user_id + ", "
+	res += "resource: " + o.Resource_id + ", "
+	res += "resource-type: " + o.Resource_type + ", "
+
+	res += "human-readable-state: " + o.Human_readable_state + ", "
+	res += "state: " + o.State + ", "
+	res += fmt.Sprintf("last-status-update: %v", o.Last_state_update) + ", "
+	res += fmt.Sprintf("created_on: %v", o.Last_state_update)
+
+	return res
+}

@@ -19,6 +19,7 @@ func (e *ExponentialBackoff) Reset() {
 	e.curr = &e.Min
 }
 
+/* #nosec */
 func (e *ExponentialBackoff) DelayOnFail(ctx context.Context) {
 
 	if e.curr == nil {

@@ -334,7 +334,7 @@ type SyncOperation struct {
 	Revision string `pg:"revision"`
 }
 
-// TODO: DEBT - NAO - Add comment.
+// TODO: DEBT - Add comment.
 type DisposableResource interface {
 	Dispose(ctx context.Context, dbq DatabaseQueries) error
 }

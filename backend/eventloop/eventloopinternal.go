@@ -1372,14 +1372,6 @@ spec:
 	return text
 }
 
-func stringOperation(obj *db.Operation) string {
-	if obj == nil {
-		return "(nil)"
-	}
-
-	return fmt.Sprintf("id: %s, resource: %s [%s], status-update: %v", obj.Operation_id, obj.Resource_type, obj.Resource_id, obj.Last_state_update)
-}
-
 // stringEventLoopEvent is a utility function for debug purposes.
 func stringEventLoopEvent(obj *eventLoopEvent) string {
 	if obj == nil {

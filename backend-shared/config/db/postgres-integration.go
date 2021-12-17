@@ -9,7 +9,6 @@ import (
 
 // function to connect to Postgres
 func connectToDatabase(verbose bool) (*pg.DB, error) {
-	fmt.Println("Connection Initiated")
 	opts := &pg.Options{
 		Addr:     "localhost:5432",
 		User:     "postgres",

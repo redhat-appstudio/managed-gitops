@@ -79,7 +79,7 @@ func testSetup(t *testing.T) {
 	for _, gitopsEngineInstance := range engineInstances {
 		if strings.HasPrefix(gitopsEngineInstance.Gitopsengineinstance_id, "test-") {
 
-			rowsAffected, err := dbq.UnsafeDeleteGitopsEngineInstanceById(ctx, gitopsEngineInstance.Gitopsengineinstance_id)
+			rowsAffected, err := dbq.UncheckedDeleteGitopsEngineInstanceById(ctx, gitopsEngineInstance.Gitopsengineinstance_id)
 
 			if !assert.NoError(t, err) {
 				return
@@ -108,7 +108,7 @@ func testSetup(t *testing.T) {
 	assert.NoError(t, err)
 	for _, managedEnvironment := range managedEnvironments {
 		if strings.HasPrefix(managedEnvironment.Managedenvironment_id, "test-") {
-			rowsAffected, err := dbq.UnsafeDeleteManagedEnvironmentById(ctx, managedEnvironment.Managedenvironment_id)
+			rowsAffected, err := dbq.UncheckedDeleteManagedEnvironmentById(ctx, managedEnvironment.Managedenvironment_id)
 			assert.Equal(t, rowsAffected, 1)
 			assert.NoError(t, err)
 		}
@@ -287,7 +287,7 @@ func TestGitopsEngineInstanceAndCluster(t *testing.T) {
 	defer dbq.CloseDatabase()
 	ctx := context.Background()
 
-	_, _, gitopsEngineCluster, gitopsEngineInstance, _, err := createSampleData(t, dbq)
+	_, _, gitopsEngineCluster, gitopsEngineInstance, clusterAccess, err := createSampleData(t, dbq)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -300,9 +300,13 @@ func TestGitopsEngineInstanceAndCluster(t *testing.T) {
 		return
 	}
 
-	rowsAffected, err := dbq.DeleteGitopsEngineInstanceById(ctx, gitopsEngineInstance.Gitopsengineinstance_id, testClusterUser.Clusteruser_id)
-	assert.Equal(t, rowsAffected, 1)
+	rowsAffected, err := dbq.DeleteClusterAccessById(ctx, clusterAccess.Clusteraccess_user_id, clusterAccess.Clusteraccess_managed_environment_id, clusterAccess.Clusteraccess_gitops_engine_instance_id)
 	assert.NoError(t, err)
+	assert.Equal(t, rowsAffected, 1)
+
+	rowsAffected, err = dbq.UncheckedDeleteGitopsEngineInstanceById(ctx, gitopsEngineInstance.Gitopsengineinstance_id)
+	assert.NoError(t, err)
+	assert.Equal(t, rowsAffected, 1)
 
 	// get should return not found, after the delete
 	gitopsEngineInstance = &GitopsEngineInstance{Gitopsengineinstance_id: gitopsEngineCluster.Gitopsenginecluster_id}
@@ -332,7 +336,7 @@ func TestManagedEnvironment(t *testing.T) {
 	}
 	defer dbq.CloseDatabase()
 
-	_, managedEnvironment, _, _, _, err := createSampleData(t, dbq)
+	_, managedEnvironment, _, _, clusterAccess, err := createSampleData(t, dbq)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -350,12 +354,13 @@ func TestManagedEnvironment(t *testing.T) {
 	// deleting from another user should fail
 	assert.True(t, IsResultNotFoundError(err))
 
-	rowsAffected, _ := dbq.DeleteManagedEnvironmentById(ctx, managedEnvironment.Managedenvironment_id, "another-user")
-	assert.Equal(t, rowsAffected, 0) // deleting from another user should not return any rows
-
-	rowsAffected, err = dbq.DeleteManagedEnvironmentById(ctx, managedEnvironment.Managedenvironment_id, testClusterUser.Clusteruser_id)
-	assert.Equal(t, rowsAffected, 1)
+	rowsAffected, err := dbq.DeleteClusterAccessById(ctx, clusterAccess.Clusteraccess_user_id, clusterAccess.Clusteraccess_managed_environment_id, clusterAccess.Clusteraccess_gitops_engine_instance_id)
 	assert.NoError(t, err)
+	assert.Equal(t, rowsAffected, 1)
+
+	rowsAffected, err = dbq.UncheckedDeleteManagedEnvironmentById(ctx, managedEnvironment.Managedenvironment_id)
+	assert.NoError(t, err)
+	assert.Equal(t, rowsAffected, 1)
 
 	result = ManagedEnvironment{Managedenvironment_id: managedEnvironment.Managedenvironment_id}
 	err = dbq.GetManagedEnvironmentById(ctx, &result, testClusterUser.Clusteruser_id)
@@ -477,9 +482,15 @@ func TestClusterCredentials(t *testing.T) {
 
 	err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
 	assert.NoError(t, err)
+
+	var gitopsEngineCluster GitopsEngineCluster
+	var gitopsEngineInstance GitopsEngineInstance
+	var clusterAccess ClusterAccess
+	var managedEnvironment ManagedEnvironment
+
 	// Create managed environment, and cluster access, so the non-unsafe get works below
 	{
-		managedEnvironment := ManagedEnvironment{
+		managedEnvironment = ManagedEnvironment{
 			Managedenvironment_id: "test-managed-env-914",
 			Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
 			Name:                  "my env",
@@ -489,7 +500,7 @@ func TestClusterCredentials(t *testing.T) {
 			return
 		}
 
-		gitopsEngineCluster := GitopsEngineCluster{
+		gitopsEngineCluster = GitopsEngineCluster{
 			Gitopsenginecluster_id: "test-fake-cluster-914",
 			Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
 		}
@@ -498,7 +509,7 @@ func TestClusterCredentials(t *testing.T) {
 			return
 		}
 
-		gitopsEngineInstance := GitopsEngineInstance{
+		gitopsEngineInstance = GitopsEngineInstance{
 			Gitopsengineinstance_id: "test-fake-engine-instance-id",
 			Namespace_name:          "test-fake-namespace",
 			Namespace_uid:           "test-fake-namespace-914",
@@ -509,7 +520,7 @@ func TestClusterCredentials(t *testing.T) {
 			return
 		}
 
-		clusterAccess := ClusterAccess{
+		clusterAccess = ClusterAccess{
 			Clusteraccess_user_id:                   testClusterUser.Clusteruser_id,
 			Clusteraccess_managed_environment_id:    managedEnvironment.Managedenvironment_id,
 			Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
@@ -546,11 +557,26 @@ func TestClusterCredentials(t *testing.T) {
 	assert.Equal(t, clusterCredentials.Kube_config, retrievedClusterCredentials.Kube_config)
 	assert.Equal(t, clusterCredentials.Kube_config_context, retrievedClusterCredentials.Kube_config_context)
 
-	rowsAffected, err := dbq.UncheckedDeleteClusterCredentialsById(ctx, clusterCredentials.Clustercredentials_cred_id)
-
-	// add delete options for other tables table as well!
-	assert.Equal(t, rowsAffected, 1)
+	rowsAffected, err := dbq.DeleteClusterAccessById(ctx, clusterAccess.Clusteraccess_user_id, clusterAccess.Clusteraccess_managed_environment_id, clusterAccess.Clusteraccess_gitops_engine_instance_id)
 	assert.NoError(t, err)
+	assert.Equal(t, rowsAffected, 1)
+
+	rowsAffected, err = dbq.UncheckedDeleteGitopsEngineInstanceById(ctx, gitopsEngineInstance.Gitopsengineinstance_id)
+	assert.NoError(t, err)
+	assert.Equal(t, rowsAffected, 1)
+
+	rowsAffected, err = dbq.UncheckedDeleteGitopsEngineClusterById(ctx, gitopsEngineCluster.Gitopsenginecluster_id)
+	assert.NoError(t, err)
+	assert.Equal(t, rowsAffected, 1)
+
+	rowsAffected, err = dbq.UncheckedDeleteManagedEnvironmentById(ctx, managedEnvironment.Managedenvironment_id)
+	assert.NoError(t, err)
+	assert.Equal(t, rowsAffected, 1)
+
+	rowsAffected, err = dbq.UncheckedDeleteClusterCredentialsById(ctx, clusterCredentials.Clustercredentials_cred_id)
+	// add delete options for other tables table as well!
+	assert.NoError(t, err)
+	assert.Equal(t, rowsAffected, 1)
 
 	retrievedClusterCredentials = &ClusterCredentials{
 		Clustercredentials_cred_id: clusterCredentials.Clustercredentials_cred_id,

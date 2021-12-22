@@ -335,7 +335,7 @@ func UncheckedGetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context
 
 }
 
-func UncheckedGetOrCreateDeploymentToApplicationMapping(ctx context.Context, createDeplToAppMapping *db.DeploymentToApplicationMapping, dbq db.DatabaseQueries, actionLog logr.Logger) error {
+func UncheckedGetOrCreateDeploymentToApplicationMapping(ctx context.Context, createDeplToAppMapping *db.DeploymentToApplicationMapping, dbq db.ApplicationScopedQueries, actionLog logr.Logger) error {
 
 	if err := dbq.UncheckedGetDeploymentToApplicationMappingByDeplId(ctx, createDeplToAppMapping); err != nil {
 		if !db.IsResultNotFoundError(err) {
@@ -401,6 +401,40 @@ func DisposeResources(ctx context.Context, resources []db.DisposableResource, db
 		log.V(LogLevel_Debug).Info(fmt.Sprintf("disposing of resource: %v", resource))
 
 		disposeErr := resource.Dispose(ctx, dbq)
+		if disposeErr != nil {
+			if err == nil {
+				err = disposeErr
+			} else {
+				// append the error to the existing error
+				err = fmt.Errorf("error: %v. error: %v", disposeErr, err)
+			}
+		}
+	}
+
+	if err != nil {
+		log.Error(err, "unable to delete old resources after operation")
+	}
+}
+
+// DisposeApplicationScopedResources delets of a list of database entries in reverse order.
+func DisposeApplicationScopedResources(ctx context.Context, resources []db.AppScopedDisposableResource, dbq db.ApplicationScopedQueries, log logr.Logger) {
+
+	if len(resources) == 0 {
+		return
+	}
+
+	var err error
+
+	for idx := len(resources) - 1; idx >= 0; idx-- {
+
+		resource := resources[idx]
+		if resource == nil {
+			continue
+		}
+
+		log.V(LogLevel_Debug).Info(fmt.Sprintf("disposing of resource: %v", resource))
+
+		disposeErr := resource.DisposeAppScoped(ctx, dbq)
 		if disposeErr != nil {
 			if err == nil {
 				err = disposeErr

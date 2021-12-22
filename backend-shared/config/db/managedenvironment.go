@@ -175,7 +175,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteManagedEnvironmentById(ctx context.C
 }
 
 // This method does NOT check whether the user has access
-func (dbq *PostgreSQLDatabaseQueries) UnsafeDeleteManagedEnvironmentById(ctx context.Context, id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteManagedEnvironmentById(ctx context.Context, id string) (int, error) {
 
 	if err := validateUnsafeQueryParams(id, dbq); err != nil {
 		return 0, err

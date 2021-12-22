@@ -169,7 +169,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteGitopsEngineInstanceById(ctx context
 
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeDeleteGitopsEngineInstanceById(ctx context.Context, id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteGitopsEngineInstanceById(ctx context.Context, id string) (int, error) {
 
 	return dbq.internalDeleteGitopsEngineInstanceById(ctx, id, "", true)
 

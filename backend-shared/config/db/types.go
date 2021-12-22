@@ -141,6 +141,11 @@ const (
 	OperationState_Failed      = "Failed"
 )
 
+const (
+	OperationResourceType_SyncOperation = "SyncOperation"
+	OperationResourceType_Application   = "Application"
+)
+
 type Operation struct {
 
 	//lint:ignore U1000 used by go-pg
@@ -268,6 +273,12 @@ type DeploymentToApplicationMapping struct {
 	SeqID int64 `pg:"seq_id"`
 }
 
+const (
+	APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun = "GitOpsDeploymentSyncRun"
+
+	APICRToDatabaseMapping_DBRelationType_SyncOperation = "SyncOperation"
+)
+
 type APICRToDatabaseMapping struct {
 
 	//lint:ignore U1000 used by go-pg
@@ -337,4 +348,8 @@ type SyncOperation struct {
 // TODO: DEBT - Add comment.
 type DisposableResource interface {
 	Dispose(ctx context.Context, dbq DatabaseQueries) error
+}
+
+type AppScopedDisposableResource interface {
+	DisposeAppScoped(ctx context.Context, dbq ApplicationScopedQueries) error
 }

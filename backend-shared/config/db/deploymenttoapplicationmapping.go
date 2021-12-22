@@ -77,6 +77,39 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedGetDeploymentToApplicationMapping
 	return nil
 }
 
+func (dbq *PostgreSQLDatabaseQueries) UncheckedGetDeploymentToApplicationMappingByApplicationId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping) error {
+
+	if err := validateQueryParamsEntity(deplToAppMappingParam, dbq); err != nil {
+		return err
+	}
+
+	if isEmpty(deplToAppMappingParam.Application_id) {
+		return fmt.Errorf("UncheckedGetDeploymentToApplicationMappingByApplicationId: param is nil")
+	}
+
+	var dbResults []DeploymentToApplicationMapping
+
+	if err := dbq.dbConnection.Model(&dbResults).
+		Where("dta.application_id = ?", deplToAppMappingParam.Application_id). // TODO: PERF - Index this
+		Context(ctx).
+		Select(); err != nil {
+
+		return fmt.Errorf("error on retrieving UncheckedGetDeploymentToApplicationMappingByApplicationId: %v", err)
+	}
+
+	if len(dbResults) > 1 {
+		return fmt.Errorf("multiple results returned from UncheckedGetDeploymentToApplicationMappingByApplicationId")
+	}
+
+	if len(dbResults) == 0 {
+		return NewResultNotFoundError("UncheckedGetDeploymentToApplicationMappingByApplicationId")
+	}
+
+	*deplToAppMappingParam = dbResults[0]
+
+	return nil
+}
+
 func (dbq *PostgreSQLDatabaseQueries) GetDeploymentToApplicationMappingByDeplId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping, ownerId string) error {
 
 	if err := validateQueryParamsEntity(deplToAppMappingParam, dbq); err != nil {

@@ -100,9 +100,9 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteSyncOperationById(ctx conte
 	return deleteResult.RowsAffected(), nil
 }
 
-var _ DisposableResource = &SyncOperation{}
+var _ AppScopedDisposableResource = &SyncOperation{}
 
-func (obj *SyncOperation) Dispose(ctx context.Context, dbq DatabaseQueries) error {
+func (obj *SyncOperation) DisposeAppScoped(ctx context.Context, dbq ApplicationScopedQueries) error {
 	if dbq == nil {
 		return fmt.Errorf("missing database interface in syncoperation dispose")
 	}

@@ -19,9 +19,15 @@ func (e *ExponentialBackoff) Reset() {
 	e.curr = &e.Min
 }
 
-/* #nosec */
-func (e *ExponentialBackoff) DelayOnFail(ctx context.Context) {
+// IncreaseAndReturnNewDuration does NOT sleep (unlike DelayOnFail), instead it just increases the exponential
+// back off duration and returns the result, allowing the calling function to use this value for sleeping/scheduling purpose.
+func (e *ExponentialBackoff) IncreaseAndReturnNewDuration() time.Duration {
+	e.increaseDueToFail()
+	return *e.curr
+}
 
+/* #nosec */
+func (e *ExponentialBackoff) increaseDueToFail() {
 	if e.curr == nil {
 		e.curr = &e.Min
 	} else {
@@ -42,6 +48,13 @@ func (e *ExponentialBackoff) DelayOnFail(ctx context.Context) {
 	if *e.curr > e.Max {
 		e.curr = &e.Max
 	}
+
+}
+
+func (e *ExponentialBackoff) DelayOnFail(ctx context.Context) {
+
+	e.increaseDueToFail()
+
 	select {
 	case <-ctx.Done():
 	case <-time.After(*e.curr):

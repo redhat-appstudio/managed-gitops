@@ -323,7 +323,7 @@ CREATE TABLE SyncOperation (
 
 	syncoperation_id  VARCHAR(48) NOT NULL PRIMARY KEY,
 
-	application_id VARCHAR(48) NOT NULL,
+	application_id VARCHAR(48),
 	CONSTRAINT fk_so_app_id FOREIGN KEY (application_id) REFERENCES Application(application_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 
 	operation_id VARCHAR(48) NOT NULL,

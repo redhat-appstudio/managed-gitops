@@ -100,6 +100,30 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteSyncOperationById(ctx conte
 	return deleteResult.RowsAffected(), nil
 }
 
+func (dbq *PostgreSQLDatabaseQueries) UpdateSyncOperationRemoveApplicationField(ctx context.Context, applicationId string) (int, error) {
+
+	if err := validateQueryParamsNoPK(dbq); err != nil {
+		return 0, err
+	}
+
+	if err := isEmptyValues("UpdateOperationRemoveApplicationField",
+		"applicationId", applicationId); err != nil {
+		return 0, err
+	}
+
+	operation := SyncOperation{
+		Application_id: applicationId,
+	}
+
+	res, err := dbq.dbConnection.Model(&operation).Set("application_id = ?", nil).Where("application_id = ?", applicationId).Update()
+
+	if err != nil {
+		return 0, err
+	}
+
+	return res.RowsAffected(), err
+}
+
 var _ AppScopedDisposableResource = &SyncOperation{}
 
 func (obj *SyncOperation) DisposeAppScoped(ctx context.Context, dbq ApplicationScopedQueries) error {

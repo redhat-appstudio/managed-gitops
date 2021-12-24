@@ -166,6 +166,8 @@ type ApplicationScopedQueries interface {
 	UncheckedGetDeploymentToApplicationMappingByDeplId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping) error
 	UncheckedListDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, workspaceUID string, deplToAppMappingParam *[]DeploymentToApplicationMapping) error
 	UncheckedDeleteDeploymentToApplicationMappingByDeplId(ctx context.Context, id string) (int, error)
+
+	UpdateSyncOperationRemoveApplicationField(ctx context.Context, applicationId string) (int, error)
 }
 
 type CloseableQueries interface {

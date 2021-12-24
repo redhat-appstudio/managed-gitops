@@ -395,7 +395,7 @@ func (a *workspaceEventLoopRunner_Action) workspaceEventLoopRunner_handleSyncRun
 
 		// createdResources is a list of database entries created in this function; if an error occurs, we delete them
 		// in reverse order.
-		var createdResources []db.DisposableResource
+		var createdResources []db.AppScopedDisposableResource
 
 		// Create sync operation
 		syncOperation := &db.SyncOperation{
@@ -424,7 +424,7 @@ func (a *workspaceEventLoopRunner_Action) workspaceEventLoopRunner_handleSyncRun
 			actionLog.Error(err, "unable to create api to db mapping in database")
 
 			// If we were unable to retrieve the client, delete the resources we created in the previous steps
-			sharedutil.DisposeResources(ctx, createdResources, dbQueries, actionLog)
+			sharedutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, actionLog)
 
 			return err
 		}
@@ -435,7 +435,7 @@ func (a *workspaceEventLoopRunner_Action) workspaceEventLoopRunner_handleSyncRun
 			actionLog.Error(err, "unable to retrieve gitopsengine instance from handleSyncRunModified")
 
 			// If we were unable to retrieve the client, delete the resources we created in the previous steps
-			sharedutil.DisposeResources(ctx, createdResources, dbQueries, actionLog)
+			sharedutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, actionLog)
 
 			// Return the original error
 			return err
@@ -452,7 +452,7 @@ func (a *workspaceEventLoopRunner_Action) workspaceEventLoopRunner_handleSyncRun
 			actionLog.Error(err, "could not create operation", "namespace", sharedutil.GitOpsEngineSingleInstanceNamespace)
 
 			// If we were unable to create the operation, delete the resources we created in the previous steps
-			sharedutil.DisposeResources(ctx, createdResources, dbQueries, actionLog)
+			sharedutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, actionLog)
 
 			return err
 		}
@@ -461,11 +461,11 @@ func (a *workspaceEventLoopRunner_Action) workspaceEventLoopRunner_handleSyncRun
 		actionLog.Info("STUB: Not waiting for create Sync Run operation to complete, in handleNewSyncRunModified")
 
 		if err := cleanupOperation(ctx, *dbOperation, *k8sOperation, sharedutil.GitOpsEngineSingleInstanceNamespace, dbQueries, operationClient, actionLog); err != nil {
-			sharedutil.DisposeResources(ctx, createdResources, dbQueries, actionLog)
+			sharedutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, actionLog)
 			return err
 		}
 
-		sharedutil.DisposeResources(ctx, createdResources, dbQueries, actionLog)
+		sharedutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, actionLog)
 		return nil
 	}
 

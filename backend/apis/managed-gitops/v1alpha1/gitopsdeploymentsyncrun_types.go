@@ -23,7 +23,7 @@ import (
 // GitOpsDeploymentSyncRunSpec defines the desired state of GitOpsDeploymentSyncRun
 type GitOpsDeploymentSyncRunSpec struct {
 	GitopsDeploymentName string `json:"gitopsDeploymentName"`
-	RevisionId           string `json:"revisionId,omitempty"`
+	RevisionID           string `json:"revisionID,omitempty"`
 }
 
 // GitOpsDeploymentSyncRunStatus defines the observed state of GitOpsDeploymentSyncRun

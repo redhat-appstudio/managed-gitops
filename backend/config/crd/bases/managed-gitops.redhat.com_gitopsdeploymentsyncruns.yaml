@@ -40,7 +40,7 @@ spec:
             properties:
               gitopsDeploymentName:
                 type: string
-              revisionId:
+              revisionID:
                 type: string
             required:
             - gitopsDeploymentName

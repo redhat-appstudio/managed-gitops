@@ -50,6 +50,10 @@ const (
 	taskRetryLoop_tick          taskRetryMessageType = "tick"
 )
 
+const (
+	minimumEventTick = time.Duration(time.Millisecond * 200)
+)
+
 type taskRetryLoopMessage struct {
 	msgType taskRetryMessageType
 	payload interface{}
@@ -80,7 +84,7 @@ func newTaskRetryLoop() (loop *taskRetryLoop) {
 
 	// Ensure the message queue logic runs at least every 200 msecs
 	go func() {
-		ticker := time.NewTicker(time.Millisecond * 200) // TODO: move to constant
+		ticker := time.NewTicker(minimumEventTick)
 		for {
 			<-ticker.C
 			res.inputChan <- taskRetryLoopMessage{

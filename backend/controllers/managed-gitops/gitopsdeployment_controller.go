@@ -33,9 +33,9 @@ import (
 // GitOpsDeploymentReconciler reconciles a GitOpsDeployment object
 type GitOpsDeploymentReconciler struct {
 	client.Client
-	WorkspaceName string // not used
-	Scheme        *runtime.Scheme
-	EventLoop     *eventloop.EventLoop
+	WorkspaceName       string // not used
+	Scheme              *runtime.Scheme
+	PreprocessEventLoop *eventloop.PreprocessEventLoop
 }
 
 //+kubebuilder:rbac:groups=managed-gitops.redhat.com,resources=gitopsdeployments,verbs=get;list;watch;create;update;patch;delete
@@ -56,7 +56,7 @@ func (r *GitOpsDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
-	r.EventLoop.EventReceived(req, managedgitopsv1alpha1.GitOpsDeploymentTypeName, r.Client, eventloop.DeploymentModified, string(namespace.UID))
+	r.PreprocessEventLoop.EventReceived(req, managedgitopsv1alpha1.GitOpsDeploymentTypeName, r.Client, eventloop.DeploymentModified, string(namespace.UID))
 
 	return ctrl.Result{}, nil
 }

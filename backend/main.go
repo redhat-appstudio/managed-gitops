@@ -98,20 +98,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	eventLoop := eventloop.NewEventLoop()
+	preprocessEventLoop := eventloop.NewPreprocessEventLoop()
 
 	if err = (&managedgitopscontrollers.GitOpsDeploymentReconciler{
-		EventLoop: eventLoop,
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
+		PreprocessEventLoop: preprocessEventLoop,
+		Client:              mgr.GetClient(),
+		Scheme:              mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "GitOpsDeployment")
 		os.Exit(1)
 	}
 	if err = (&managedgitopscontrollers.GitOpsDeploymentSyncRunReconciler{
-		EventLoop: eventLoop,
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
+		PreprocessEventLoop: preprocessEventLoop,
+		Client:              mgr.GetClient(),
+		Scheme:              mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "GitOpsDeploymentSyncRun")
 		os.Exit(1)
@@ -127,15 +127,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	// if err := createPrimaryGitOpsEngineInstance(mgr.GetClient(), setupLog); err != nil {
+	// 	setupLog.Error(err, "Unable to create primary GitOps engine instance")
+	// 	return
+	// }
+
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
-	}
-
-	if err := createPrimaryGitOpsEngineInstance(mgr.GetClient(), setupLog); err != nil {
-		setupLog.Error(err, "Unable to create primary GitOps engine instance")
-		return
 	}
 
 }

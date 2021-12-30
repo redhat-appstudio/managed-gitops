@@ -18,7 +18,6 @@ package managedgitops
 
 import (
 	"context"
-	"fmt"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,7 +35,8 @@ type GitOpsDeploymentSyncRunReconciler struct {
 	client.Client
 	Scheme        *runtime.Scheme
 	WorkspaceName string
-	EventLoop     *eventloop.EventLoop
+	// EventLoop           *eventloop.EventLoop
+	PreprocessEventLoop *eventloop.PreprocessEventLoop
 }
 
 // TODO: How to find orphaned resources: is there any better way than 'select * from APICRToDatabaseMapping'
@@ -59,15 +59,7 @@ func (r *GitOpsDeploymentSyncRunReconciler) Reconcile(ctx context.Context, req c
 		return ctrl.Result{}, err
 	}
 
-	syncRun := managedgitopsv1alpha1.GitOpsDeploymentSyncRun{}
-
-	if err := r.Client.Get(ctx, req.NamespacedName, &syncRun); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	fmt.Println(syncRun)
-
-	// r.EventLoop.EventReceived(req, managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName, r.Client, eventloop.SyncRunModified, string(namespace.UID))
+	r.PreprocessEventLoop.EventReceived(req, managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName, r.Client, eventloop.SyncRunModified, string(namespace.UID))
 
 	return ctrl.Result{}, nil
 }

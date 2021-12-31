@@ -67,7 +67,7 @@ func genericTestSetup(t *testing.T) (*runtime.Scheme, *v1.Namespace, *v1.Namespa
 
 }
 
-func TestWorkspaceEventLoopRunner_handleDeploymentModified(t *testing.T) {
+func TestApplicationEventLoopRunner_handleDeploymentModified(t *testing.T) {
 
 	ctx := context.Background()
 
@@ -94,7 +94,7 @@ func TestWorkspaceEventLoopRunner_handleDeploymentModified(t *testing.T) {
 	dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
 	assert.Nil(t, err)
 
-	a := workspaceEventLoopRunner_Action{
+	a := applicationEventLoopRunner_Action{
 		// When the code asks for a new k8s client, give it our fake client
 		getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 			return k8sClient, nil
@@ -209,7 +209,7 @@ func TestWorkspaceEventLoopRunner_handleDeploymentModified(t *testing.T) {
 
 }
 
-func TestWorkspaceEventLoopRunner_handleSyncRunModified(t *testing.T) {
+func TestApplicationEventLoopRunner_handleSyncRunModified(t *testing.T) {
 	ctx := context.Background()
 
 	scheme, argocdNamespace, kubesystemNamespace, workspace := genericTestSetup(t)
@@ -252,7 +252,7 @@ func TestWorkspaceEventLoopRunner_handleSyncRunModified(t *testing.T) {
 
 	sharedResourceLoop := newSharedResourceLoop()
 
-	a := workspaceEventLoopRunner_Action{
+	a := applicationEventLoopRunner_Action{
 		// When the code asks for a new k8s client, give it our fake client
 		getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 			return k8sClient, nil
@@ -267,7 +267,7 @@ func TestWorkspaceEventLoopRunner_handleSyncRunModified(t *testing.T) {
 	_, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 	assert.Nil(t, err)
 
-	a = workspaceEventLoopRunner_Action{
+	a = applicationEventLoopRunner_Action{
 		// When the code asks for a new k8s client, give it our fake client
 		getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 			return k8sClient, nil

@@ -66,7 +66,7 @@ func controllerEventLoopRouter(input chan eventLoopEvent) {
 			}
 			workspaceEntries[event.workspaceID] = workspaceEntryVal
 
-			startApplicationEventLoopRouter(workspaceEntryVal.workspaceEventLoopChannel, event.workspaceID)
+			startWorkspaceEventLoopRouter(workspaceEntryVal.workspaceEventLoopChannel, event.workspaceID)
 		}
 
 		// Send the event to the channel/go routine that handles all events for this workspace (non-blocking)

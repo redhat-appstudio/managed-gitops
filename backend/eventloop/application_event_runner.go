@@ -84,8 +84,7 @@ func applicationEventLoopRunner(inputChannel chan *eventLoopEvent, informWorkCom
 
 			_, err := sharedutil.CatchPanic(func() error {
 
-				// TODO: Rename all workspaceevent*?
-				action := workspaceEventLoopRunner_Action{
+				action := applicationEventLoopRunner_Action{
 					getK8sClientForGitOpsEngineInstance: actionGetK8sClientForGitOpsEngineInstance,
 					eventResourceName:                   newEvent.request.Name,
 					eventResourceNamespace:              newEvent.request.Namespace,
@@ -146,7 +145,7 @@ func applicationEventLoopRunner(inputChannel chan *eventLoopEvent, informWorkCom
 	log.Info("ApplicationEventLoopRunner goroutine terminated.", "signalledShutdown", signalledShutdown)
 }
 
-func (a *workspaceEventLoopRunner_Action) applicationEventRunner_handleSyncRunModified(ctx context.Context, dbQueries db.ApplicationScopedQueries) (bool, error) {
+func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRunModified(ctx context.Context, dbQueries db.ApplicationScopedQueries) (bool, error) {
 
 	log := a.log
 
@@ -456,7 +455,7 @@ func (a *workspaceEventLoopRunner_Action) applicationEventRunner_handleSyncRunMo
 
 }
 
-func (a *workspaceEventLoopRunner_Action) cleanupOldSyncDBEntry(ctx context.Context, apiCRToDB *db.APICRToDatabaseMapping,
+func (a *applicationEventLoopRunner_Action) cleanupOldSyncDBEntry(ctx context.Context, apiCRToDB *db.APICRToDatabaseMapping,
 	clusterUser db.ClusterUser, dbQueries db.ApplicationScopedQueries) error {
 
 	log := a.log
@@ -508,7 +507,7 @@ func (a *workspaceEventLoopRunner_Action) cleanupOldSyncDBEntry(ctx context.Cont
 	return nil
 }
 
-func (a *workspaceEventLoopRunner_Action) applicationEventRunner_handleDeploymentModified(ctx context.Context, dbQueries db.ApplicationScopedQueries) (bool, *db.Application, *db.GitopsEngineInstance, error) {
+func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploymentModified(ctx context.Context, dbQueries db.ApplicationScopedQueries) (bool, *db.Application, *db.GitopsEngineInstance, error) {
 
 	deplName := a.eventResourceName
 	deplNamespace := a.eventResourceNamespace
@@ -625,7 +624,7 @@ func (a *workspaceEventLoopRunner_Action) applicationEventRunner_handleDeploymen
 	return false, nil, nil, fmt.Errorf("SEVERE - All cases should be handled by above if statements")
 }
 
-func (a workspaceEventLoopRunner_Action) handleDeleteGitOpsDeplEvent(ctx context.Context, clusterUser *db.ClusterUser,
+func (a applicationEventLoopRunner_Action) handleDeleteGitOpsDeplEvent(ctx context.Context, clusterUser *db.ClusterUser,
 	operationNamespace string, deplToAppMappingList *[]db.DeploymentToApplicationMapping, dbQueries db.ApplicationScopedQueries) (bool, error) {
 
 	if deplToAppMappingList == nil || clusterUser == nil {
@@ -664,7 +663,7 @@ func (a workspaceEventLoopRunner_Action) handleDeleteGitOpsDeplEvent(ctx context
 	return signalShutdown, allErrors
 }
 
-func (a workspaceEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx context.Context, deplToAppMapping *db.DeploymentToApplicationMapping,
+func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx context.Context, deplToAppMapping *db.DeploymentToApplicationMapping,
 	clusterUser *db.ClusterUser, operationNamespace string, workspaceNamespace corev1.Namespace, dbQueries db.ApplicationScopedQueries) (bool, error) {
 
 	dbApplicationFound := true
@@ -781,7 +780,7 @@ func (a workspaceEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx conte
 
 }
 
-func (a workspaceEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx context.Context, deplToAppMapping *db.DeploymentToApplicationMapping,
+func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx context.Context, deplToAppMapping *db.DeploymentToApplicationMapping,
 	gitopsDeployment *managedgitopsv1alpha1.GitOpsDeployment, clusterUser *db.ClusterUser, operationNamespace string,
 	dbQueries db.ApplicationScopedQueries) (bool, *db.Application, *db.GitopsEngineInstance, error) {
 
@@ -916,7 +915,7 @@ func actionGetK8sClientForGitOpsEngineInstance(gitopsEngineInstance *db.GitopsEn
 
 }
 
-func (a workspaceEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.Context, gitopsDeployment *managedgitopsv1alpha1.GitOpsDeployment,
+func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.Context, gitopsDeployment *managedgitopsv1alpha1.GitOpsDeployment,
 	clusterUser *db.ClusterUser, operationNamespace string, dbQueries db.ApplicationScopedQueries) (bool, *db.Application, *db.GitopsEngineInstance, error) {
 
 	gitopsDeplNamespace := corev1.Namespace{}
@@ -996,9 +995,9 @@ func (a workspaceEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.Co
 	return false, &application, engineInstance, nil
 }
 
-// workspaceEventLoopRunner_Action is a short-lived struct containing data required to perform an action
+// applicationEventLoopRunner_Action is a short-lived struct containing data required to perform an action
 // on the database, and/or on gitops engine cluster.
-type workspaceEventLoopRunner_Action struct {
+type applicationEventLoopRunner_Action struct {
 
 	// logger to use
 	log logr.Logger
@@ -1019,10 +1018,6 @@ type workspaceEventLoopRunner_Action struct {
 
 	sharedResourceEventLoop *sharedResourceEventLoop
 }
-
-// func (a *workspaceEventLoopRunner_Action) shallowClone() workspaceEventLoopRunner_Action {
-// 	return *a
-// }
 
 // cleanupOperation cleans up the database entry and (optionally) the CR, once an operation has concluded.
 func cleanupOperation(ctx context.Context, dbOperation db.Operation, k8sOperation operation.Operation, operationNamespace string,
@@ -1149,6 +1144,8 @@ type argoCDSpecInput struct {
 	crName      string
 	crNamespace string
 
+	databaseID string
+
 	destinationNamespace string
 	destinationName      string
 
@@ -1177,6 +1174,7 @@ func createSpecField(fieldsParam argoCDSpecInput) string {
 		// MAKE SURE YOU SANITIZE ANY NEW FIELDS THAT ARE ADDED!!!!
 		crName:               sanitize(fieldsParam.crName),
 		crNamespace:          sanitize(fieldsParam.crNamespace),
+		databaseID:           sanitize(fieldsParam.databaseID),
 		destinationNamespace: sanitize(fieldsParam.destinationNamespace),
 		// MAKE SURE YOU SANITIZE ANY NEW FIELDS THAT ARE ADDED!!!!
 		destinationName:      sanitize(fieldsParam.destinationName),
@@ -1191,6 +1189,8 @@ kind: Application
 metadata:
   name: \"` + fields.crName + `\"
   namespace: \"` + fields.crNamespace + `\"
+  labels:
+    databaseId: \"` + fields.databaseID + `\"
 spec:
   destination:
     name: \"` + fields.destinationName + `\"

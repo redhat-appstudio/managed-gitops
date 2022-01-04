@@ -164,7 +164,9 @@ func workspaceEventLoopRouter(input chan applicationEventLoopMessage, workspaceI
 				} else {
 					// Copy the events to a new slice, and remove the events from the orphanedResourced map
 					requeueEvents := []applicationEventLoopMessage{}
-					for _, orphanedResourceEvent := range gitopsDeplMap {
+					for index := range gitopsDeplMap {
+
+						orphanedResourceEvent := gitopsDeplMap[index]
 
 						// Unorphan the resource
 						orphanedResourceEvent.associatedGitopsDeplUID = string(gitopsDeplCR.UID)

@@ -188,14 +188,15 @@ func internalSharedResourceEventLoop(inputChan chan sharedResourceLoopMessage) {
 	}
 
 	for {
-
 		msg := <-inputChan
 
-		sharedutil.CatchPanic(func() error {
+		_, err = sharedutil.CatchPanic(func() error {
 			processMessage(ctx, msg, dbQueries, log)
 			return nil
 		})
-
+		if err != nil {
+			log.Error(err, "unexpected error from processMessage in internalSharedResourceEventLoop")
+		}
 	}
 }
 

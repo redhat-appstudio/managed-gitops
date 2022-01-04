@@ -394,9 +394,8 @@ func emitEventForExistingResource(gitopsDeplUID string, newEvent eventLoopEvent,
 	// TODO: DEBT - create a concrete example of why this is needed.
 
 	// otherwise, report delete and create
-	newerEvent := eventLoopEvent{}
 
-	newerEvent = newEvent
+	newerEvent := newEvent
 	newerEvent.associatedGitopsDeplUID = string(resource.GetUID())
 
 	newEvent.associatedGitopsDeplUID = gitopsDeplUID

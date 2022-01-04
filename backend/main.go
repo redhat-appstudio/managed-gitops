@@ -151,6 +151,7 @@ func initializeRoutes() {
 
 }
 
+//nolint
 // createPrimaryGitOpsEngineInstance create placeholder values, for development purposes. This should not be used in production.
 func createPrimaryGitOpsEngineInstance(k8sclient client.Client, actionLog logr.Logger) error {
 

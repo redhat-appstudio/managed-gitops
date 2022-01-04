@@ -171,6 +171,7 @@ type ApplicationScopedQueries interface {
 
 	UncheckedGetApplicationStateById(ctx context.Context, obj *ApplicationState) error
 	UncheckedCreateApplicationState(ctx context.Context, obj *ApplicationState) error
+	UncheckedUpdateApplicationState(ctx context.Context, obj *ApplicationState) error
 }
 
 type CloseableQueries interface {

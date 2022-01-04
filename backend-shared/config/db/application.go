@@ -233,7 +233,12 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedUpdateApplication(ctx context.Con
 		return err
 	}
 
-	if err := isEmptyValues("UncheckedUpdateApplication", "Application_id", obj.Application_id); err != nil {
+	if err := isEmptyValues("UncheckedUpdateApplication",
+		"Application_id", obj.Application_id,
+		"Engine_instance_inst_id", obj.Engine_instance_inst_id,
+		"Managed_environment_id", obj.Managed_environment_id,
+		"Spec_field", obj.Spec_field,
+		"Name", obj.Name); err != nil {
 		return err
 	}
 

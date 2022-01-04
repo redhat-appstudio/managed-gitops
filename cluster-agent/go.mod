@@ -9,6 +9,7 @@ require (
 	github.com/onsi/gomega v1.15.0
 	github.com/redhat-appstudio/managed-gitops/backend v0.0.0-20211224154438-140af2770213
 	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0
+	github.com/go-logr/logr v0.4.0
 	k8s.io/api v0.22.4
 	k8s.io/apimachinery v0.22.4
 	k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible

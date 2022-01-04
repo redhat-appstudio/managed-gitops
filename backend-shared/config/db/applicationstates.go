@@ -49,7 +49,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedCreateApplicationState(ctx contex
 		return err
 	}
 
-	// Inserting application object
+	// Inserting ApplicationState object
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
 		return fmt.Errorf("error on inserting application %v", err)

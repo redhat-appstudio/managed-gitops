@@ -192,7 +192,11 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteApplicationById(ctx context
 	return deleteResult.RowsAffected(), nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeCreateApplication(ctx context.Context, obj *Application) error {
+func (dbq *PostgreSQLDatabaseQueries) UncheckedCreateApplication(ctx context.Context, obj *Application) error {
+
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
+		return err
+	}
 
 	if dbq.allowTestUuids {
 		if isEmpty(obj.Application_id) {
@@ -205,11 +209,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeCreateApplication(ctx context.Contex
 		obj.Application_id = generateUuid()
 	}
 
-	if err := validateUnsafeQueryParamsNoPK(dbq); err != nil {
-		return err
-	}
-
-	if err := isEmptyValues("UnsafeCreateApplication",
+	if err := isEmptyValues("UncheckedCreateApplication",
 		"Engine_instance_inst_id", obj.Engine_instance_inst_id,
 		"Managed_environment_id", obj.Managed_environment_id,
 		"Spec_field", obj.Spec_field,
@@ -227,13 +227,17 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeCreateApplication(ctx context.Contex
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeUpdateApplication(ctx context.Context, obj *Application) error {
+func (dbq *PostgreSQLDatabaseQueries) UncheckedUpdateApplication(ctx context.Context, obj *Application) error {
 
-	if err := validateUnsafeQueryParamsNoPK(dbq); err != nil {
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return err
 	}
 
-	result, err := dbq.dbConnection.Model(obj).Context(ctx).Update()
+	if err := isEmptyValues("UncheckedUpdateApplication", "Application_id", obj.Application_id); err != nil {
+		return err
+	}
+
+	result, err := dbq.dbConnection.Model(obj).WherePK().Context(ctx).Update()
 	if err != nil {
 		return fmt.Errorf("error on updating application %v", err)
 	}

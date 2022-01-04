@@ -188,29 +188,6 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteDeploymentToApplicationMappingByDepl
 	return deleteResult.RowsAffected(), nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedUpdateApplication(ctx context.Context, obj *Application) error {
-
-	if err := validateQueryParamsEntity(obj, dbq); err != nil {
-		return err
-	}
-
-	if err := isEmptyValues("UncheckedUpdateApplication", "Application_id", obj.Application_id); err != nil {
-		return err
-	}
-
-	result, err := dbq.dbConnection.Model(obj).WherePK().Context(ctx).Update()
-	if err != nil {
-		return fmt.Errorf("error on updating application %v", err)
-	}
-
-	if result.RowsAffected() != 1 {
-		return fmt.Errorf("unexpected number of rows affected: %d", result.RowsAffected())
-	}
-
-	return nil
-
-}
-
 func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteDeploymentToApplicationMappingByDeplId(ctx context.Context, id string) (int, error) {
 
 	if err := validateQueryParams(id, dbq); err != nil {

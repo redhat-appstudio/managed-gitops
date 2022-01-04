@@ -190,24 +190,38 @@ func (r *ApplicationReconciler) createApplicationCRFromDB(ctx context.Context,
 	// - If ApplicationState row exists no change, else create!
 
 	dbApplicationState := &db.ApplicationState{Applicationstate_application_id: string(dbAppId)}
-
 	if err := databaseQueries.UncheckedGetApplicationStateById(ctx, dbApplicationState); err != nil {
-
 		// We expect not found error here, any other error should return
 		if !apierr.IsNotFound(err) {
 			log.Error(err, "unexpected error in createApplicationCR")
 			return err
 		}
 
+		// If the ApplicationState doesn't exist, create it
 		dbApplicationState := &db.ApplicationState{
 			Applicationstate_application_id: dbApplication.Application_id,
 			Health:                          string(application.Status.Health.Status),
 			Sync_Status:                     string(application.Status.Sync.Status),
 		}
 
-		errCreateApplicationState := databaseQueries.UncheckedCreateApplicationState(ctx, dbApplicationState)
-		if errCreateApplicationState != nil {
-			return errCreateApplicationState
+		if err := databaseQueries.UncheckedCreateApplicationState(ctx, dbApplicationState); err != nil {
+			log.Error(err, "unable to create ApplicationState")
+			return err
+		}
+
+		return nil
+	}
+
+	// If the status in the database is different from what is in the Application CR, then update the database
+	if dbApplicationState.Health != string(application.Status.Health.Status) ||
+		dbApplicationState.Sync_Status != string(application.Status.Sync.Status) {
+
+		dbApplicationState.Health = string(application.Status.Health.Status)
+		dbApplicationState.Sync_Status = string(application.Status.Sync.Status)
+
+		if err := databaseQueries.UncheckedUpdateApplicationState(ctx, dbApplicationState); err != nil {
+			log.Error(err, "unable to update ApplicationState")
+			return err
 		}
 	}
 

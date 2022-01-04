@@ -25,12 +25,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/managed-gitops/eventloop"
 )
 
 // OperationReconciler reconciles a Operation object
 type OperationReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme              *runtime.Scheme
+	ControllerEventLoop *eventloop.ControllerEventLoop
 }
 
 //+kubebuilder:rbac:groups=managed-gitops.redhat.com,resources=operations,verbs=get;list;watch;create;update;patch;delete
@@ -49,14 +51,16 @@ type OperationReconciler struct {
 func (r *OperationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	contextLog := log.FromContext(ctx)
 
-	operation := managedgitopsv1alpha1.Operation{}
+	// operation := managedgitopsv1alpha1.Operation{}
 
-	if err := r.Get(ctx, req.NamespacedName, &operation); err != nil {
-		contextLog.Error(err, "Unable to find operation: "+operation.Name)
-		return ctrl.Result{}, err
-	}
+	// if err := r.Get(ctx, req.NamespacedName, &operation); err != nil {
+	// 	contextLog.Error(err, "Unable to find operation: "+operation.Name)
+	// 	return ctrl.Result{}, err
+	// }
 
-	contextLog.Info("Operation event seen in reconciler: " + operation.Name)
+	contextLog.Info("Operation event seen in reconciler: " + req.NamespacedName.String())
+
+	r.ControllerEventLoop.EventReceived(req, r.Client)
 
 	return ctrl.Result{}, nil
 }

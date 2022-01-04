@@ -225,9 +225,8 @@ type ApplicationState struct {
 	//lint:ignore U1000 used by go-pg
 	tableName struct{} `pg:"applicationstate"` //nolint
 
-	// -- Also a foreign key to Applicaiton.application_id
+	// -- Foreign key to Application.application_id
 	Applicationstate_application_id string `pg:"applicationstate_application_id,pk"`
-	// -- CONSTRAINT fk_app_id  PRIMARY KEY  FOREIGN KEY(app_id)  REFERENCES Application(appl_id),
 
 	// -- Possible values:
 	// -- * Healthy

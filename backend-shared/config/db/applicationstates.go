@@ -36,31 +36,20 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteApplicationStateById(ctx co
 	return deleteResult.RowsAffected(), nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeCreateApplicationState(ctx context.Context, obj *ApplicationState) error {
+func (dbq *PostgreSQLDatabaseQueries) UncheckedCreateApplicationState(ctx context.Context, obj *ApplicationState) error {
 
-	if dbq.allowTestUuids {
-		if isEmpty(obj.Applicationstate_application_id) {
-			obj.Applicationstate_application_id = generateUuid()
-		}
-	} else {
-		if !isEmpty(obj.Applicationstate_application_id) {
-			return fmt.Errorf("primary key should be empty")
-		}
-
-		obj.Applicationstate_application_id = generateUuid()
-	}
-
-	if err := validateUnsafeQueryParamsNoPK(dbq); err != nil {
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return err
 	}
 
-	if err := isEmptyValues("UnsafeCreateApplicationState",
+	if err := isEmptyValues("UncheckedCreateApplicationState",
+		"Applicationstate_application_id", obj.Applicationstate_application_id,
 		"Health", obj.Health,
 		"Sync_Status", obj.Sync_Status); err != nil {
 		return err
 	}
 
-	// inserting application object
+	// Inserting application object
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
 		return fmt.Errorf("error on inserting application %v", err)
@@ -72,9 +61,16 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeCreateApplicationState(ctx context.C
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeUpdateApplicationState(ctx context.Context, obj *ApplicationState) error {
+func (dbq *PostgreSQLDatabaseQueries) UncheckedUpdateApplicationState(ctx context.Context, obj *ApplicationState) error {
 
-	if err := validateUnsafeQueryParamsNoPK(dbq); err != nil {
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
+		return err
+	}
+
+	if err := isEmptyValues("UncheckedUpdateApplicationState",
+		"Applicationstate_application_id", obj.Applicationstate_application_id,
+		"Health", obj.Health,
+		"Sync_Status", obj.Sync_Status); err != nil {
 		return err
 	}
 
@@ -90,14 +86,14 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeUpdateApplicationState(ctx context.C
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeGetApplicationStateById(ctx context.Context, obj *ApplicationState) error {
+func (dbq *PostgreSQLDatabaseQueries) UncheckedGetApplicationStateById(ctx context.Context, obj *ApplicationState) error {
 
-	if err := validateUnsafeQueryParamsEntity(obj, dbq); err != nil {
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return err
 	}
 
 	if isEmpty(obj.Applicationstate_application_id) {
-		return fmt.Errorf("Applicationstate_application_id is nil")
+		return fmt.Errorf("applicationstate_application_id is nil")
 	}
 
 	var results []ApplicationState

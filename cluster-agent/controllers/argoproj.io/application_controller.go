@@ -228,6 +228,32 @@ func (r *ApplicationReconciler) createApplicationCRFromDB(ctx context.Context,
 	return nil
 }
 
+func convertDBAppToApplicationCR(dbApp *db.Application, gitopsEngineNamespace string) (*appv1.Application, error) {
+
+	newApplicationEntry := &appv1.Application{
+		ObjectMeta: metav1.ObjectMeta{Name: dbApp.Name, Namespace: gitopsEngineNamespace},
+	}
+	// assigning spec
+	newSpecErr := json.Unmarshal([]byte(dbApp.Spec_field), &newApplicationEntry.Spec)
+	if newSpecErr != nil {
+		return nil, newSpecErr
+	}
+
+	return newApplicationEntry, nil
+}
+
+func contains(listAllApps []db.Application, str string) (bool, *db.Application) {
+	for idx := range listAllApps {
+		dbApp := listAllApps[idx]
+		if dbApp.Name == str {
+			return true, &dbApp
+		}
+	}
+	return false, nil
+}
+
+// TODO: DEBT - Remove this commented out method when we decided that this mechanisms for getting the gitopsengine instance is no longer needed.
+//
 // func getGitOpsEngineInstanceForThisCluster(ctx context.Context,
 // 	gitopsEngineInstanceParam *db.GitopsEngineInstance,
 // 	gitopsEngineNamespace corev1.Namespace,
@@ -307,27 +333,3 @@ func (r *ApplicationReconciler) createApplicationCRFromDB(ctx context.Context,
 
 // 	return string(namespace.UID), nil
 // }
-
-func convertDBAppToApplicationCR(dbApp *db.Application, gitopsEngineNamespace string) (*appv1.Application, error) {
-
-	newApplicationEntry := &appv1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: dbApp.Name, Namespace: gitopsEngineNamespace},
-	}
-	// assigning spec
-	newSpecErr := json.Unmarshal([]byte(dbApp.Spec_field), &newApplicationEntry.Spec)
-	if newSpecErr != nil {
-		return nil, newSpecErr
-	}
-
-	return newApplicationEntry, nil
-}
-
-func contains(listAllApps []db.Application, str string) (bool, *db.Application) {
-	for idx := range listAllApps {
-		dbApp := listAllApps[idx]
-		if dbApp.Name == str {
-			return true, &dbApp
-		}
-	}
-	return false, nil
-}

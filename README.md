@@ -24,4 +24,4 @@ This repository contains scripts which may be used to setup/run the development 
 - **`(delete/stop)-dev-env.sh`**: Stop or delete the database.
 - **`db-schema.sql`**: The database schema used by the components
 - **`psql.sh`**: Allows you to interact with the DB from the command line. Requires `psql` CLI util to be installed on your local machine (for example, by installing PostgreSQL)
-
+    - Once inside psqli CLI, you may issue SQL statements, such as `select * from application;` (don't forget the semi-colon at the end, `;`!)

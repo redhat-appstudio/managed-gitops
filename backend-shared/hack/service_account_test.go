@@ -17,6 +17,7 @@ func TestCreateServiceAccount(t *testing.T) {
 	// TEST: Create Service Account
 	t.Log("Test to create a service account on remote cluster!\n")
 
+	// use of local context
 	var kubeconfig *string
 	if home := homedir.HomeDir(); home != "" {
 		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
@@ -37,57 +38,49 @@ func TestCreateServiceAccount(t *testing.T) {
 		panic(err.Error())
 	}
 
-	// use of local context
 	t.Run("New SA", func(t *testing.T) {
 		err := CreateServiceAccount(clientset, "argocd-manager", "kube-system")
 		assert.NoError(t, err)
 		rsa, err := clientset.CoreV1().ServiceAccounts("kube-system").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.NotNil(t, rsa)
+		errDelSA := clientset.CoreV1().ServiceAccounts("kube-system").Delete(context.Background(), "argocd-manager", metav1.DeleteOptions{})
+		assert.NoError(t, errDelSA)
 	})
 
 	t.Run("SA exists already", func(t *testing.T) {
+		// create first service account
 		err := CreateServiceAccount(clientset, "argocd-manager", "kube-system")
 		assert.NoError(t, err)
+		// try to create another service account within same namespace and similar defination, should give an error
+		errDup := CreateServiceAccount(clientset, "argocd-manager", "kube-system")
+		assert.Error(t, errDup)
 		rsa, err := clientset.CoreV1().ServiceAccounts("kube-system").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
 		assert.NoError(t, err)
 		assert.NotNil(t, rsa)
+		errDelSA := clientset.CoreV1().ServiceAccounts("kube-system").Delete(context.Background(), "argocd-manager", metav1.DeleteOptions{})
+		assert.NoError(t, errDelSA)
 	})
 
 	t.Run("Invalid name", func(t *testing.T) {
 		err := CreateServiceAccount(clientset, "", "kube-system")
-		assert.NoError(t, err)
+		// if error in service account name exists, the test should pass
+		assert.Error(t, err)
+		// to cross verify if "argocd-manager" still exists then GET
 		rsa, err := clientset.CoreV1().ServiceAccounts("kube-system").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
 		assert.Error(t, err)
-		assert.Nil(t, rsa)
+		assert.Nil(t, rsa.Secrets)
 	})
 
 	t.Run("Invalid namespace", func(t *testing.T) {
 		err := CreateServiceAccount(clientset, "argocd-manager", "invalid")
-		assert.NoError(t, err)
+		// if error in namespace exists, the test should pass
+		assert.Error(t, err)
+		// to cross verify if "argocd-manager" still exists in an "invalid" namespace then GET, which should fail
 		rsa, err := clientset.CoreV1().ServiceAccounts("invalid").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
-		assert.NoError(t, err)
-		assert.NotNil(t, rsa)
+		assert.Error(t, err)
+		assert.Nil(t, rsa.Secrets)
 	})
-
-	// wait.Poll will keep checking whether a (app variable).Status.Health.Status condition is met
-	// err = wait.Poll(1*time.Second, 2*time.Minute, func() (bool, error) {
-
-	// list all Argo CD applications in the namespace
-	// appList, err := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).List(context.TODO(), v1.ListOptions{})
-	// if err != nil {
-	// 	t.Errorf("error, %v", err)
-	// }
-	// // for each application, check if (app variable).Status.Health.Status
-	// for _, app := range appList.Items {
-
-	// 	// if status is empty, return false
-	// 	if app.Status.Health.Status == "" {
-	// 		return false, nil
-	// 	}
-	// }
-	// 	return true, nil
-	// })
 
 	// ns := &corev1.Namespace{
 	// 	ObjectMeta: metav1.ObjectMeta{
@@ -105,6 +98,5 @@ func TestCreateServiceAccount(t *testing.T) {
 	// 	},
 	// }
 	// To create a fake clientset, use fake.NewSimpleClientset(ns)
-
 	t.Log("\nService Account Creation Successful!\n")
 }

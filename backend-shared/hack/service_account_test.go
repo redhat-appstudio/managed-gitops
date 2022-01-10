@@ -82,21 +82,16 @@ func TestCreateServiceAccount(t *testing.T) {
 		assert.Nil(t, rsa.Secrets)
 	})
 
-	// ns := &corev1.Namespace{
-	// 	ObjectMeta: metav1.ObjectMeta{
-	// 		Name: "kube-system",
-	// 	},
-	// }
-	// sa := &corev1.ServiceAccount{
-	// 	TypeMeta: metav1.TypeMeta{
-	// 		APIVersion: "v1",
-	// 		Kind:       "ServiceAccount",
-	// 	},
-	// 	ObjectMeta: metav1.ObjectMeta{
-	// 		Name:      "argocd-manager",
-	// 		Namespace: "kube-system",
-	// 	},
-	// }
-	// To create a fake clientset, use fake.NewSimpleClientset(ns)
 	t.Log("\nService Account Creation Successful!\n")
+
+	t.Run("Test Bearer Token", func(t *testing.T) {
+		namespaces := []string{"argocd"}
+		token, err := InstallServiceAccount(clientset, "kube-system", namespaces)
+		assert.Error(t, err)
+		assert.NotNil(t, token)
+		clientObj := generateClientFromClusterServiceAccount("https://kubernetes.svc.default", token)
+		assert.NotNil(t, clientObj)
+		errDelSA := clientset.CoreV1().ServiceAccounts("kube-system").Delete(context.Background(), "argocd-manager", metav1.DeleteOptions{})
+		assert.NoError(t, errDelSA)
+	})
 }

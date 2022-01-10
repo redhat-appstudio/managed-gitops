@@ -52,14 +52,13 @@ func CreateServiceAccount(clientset kubernetes.Interface, serviceAccountName str
 		if !apierr.IsAlreadyExists(err) {
 			return fmt.Errorf("Failed to create service account %q in namespace %q: %v", serviceAccountName, namespace, err)
 		}
-		log.Fatalf("ServiceAccount %q already exists in namespace %q", serviceAccountName, namespace)
-		return nil
+		return fmt.Errorf("ServiceAccount %q already exists in namespace %q", serviceAccountName, namespace)
 	}
-	log.Fatalf("ServiceAccount %q created in namespace %q", serviceAccountName, namespace)
+	log.Printf("ServiceAccount %q created in namespace %q", serviceAccountName, namespace)
 	return nil
 }
 
-func installServiceAccount(clientset kubernetes.Interface, ns string, namespaces []string) (string, error) {
+func InstallServiceAccount(clientset kubernetes.Interface, ns string, namespaces []string) (string, error) {
 	// ArgoCDManagerServiceAccount = "argocd-manager", is the name of the service account for managing a cluster
 
 	err := CreateServiceAccount(clientset, "argocd-manager", ns)
@@ -158,13 +157,9 @@ func GetServiceAccountBearerToken(clientset kubernetes.Interface, ns string, sa 
 
 func generateClientFromClusterServiceAccount(hostname string, bearerToken string) client.Client {
 	config := &rest.Config{
-		Host: hostname,
-		// what is the best way to fetch the username and password - bearerToken is alternative to username
-		// Username:    "",
-		// Password:    "",
+		Host:        hostname,
 		BearerToken: bearerToken,
 	}
-	// what should go under clientOptions!
 	clientObj, err := client.New(config, client.Options{Scheme: scheme.Scheme})
 	if err != nil {
 		log.Fatal(err)

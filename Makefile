@@ -1,6 +1,7 @@
 
 MAKEFILE_ROOT=$(shell pwd)
-
+help: ## Display this help menu
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 # install: Ensure that the Argo CD namespace exists, that Argo CD is installed, and that CRDs we are using are applied to the current cluster
 install:
 	kubectl apply -f $(MAKEFILE_ROOT)/backend/config/crd/bases

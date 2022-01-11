@@ -1,0 +1,88 @@
+# https://github.com/dependabot
+# Configuration options for dependency updates
+# See: https://help.github.com/en/github/administering-a-repository/configuration-options-for-dependency-updates
+
+version: 2
+updates:
+
+  # Maintain dependencies for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      timezone: Europe/Berlin
+      time: "08:00"
+    assignees:
+      - "drpaneas"
+    # Allow up to 10 open pull requests for GitHub dependencies
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "🔼:"
+      prefix-development: "🔼"
+    labels:
+      - "🔼 dependencies"
+
+  # Maintain Go dependencies for backend repo
+  - package-ecosystem: "gomod"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      timezone: Europe/Berlin
+      time: "08:00"
+      assignees:
+        - "drpaneas"
+      open-pull-requests-limit: 10
+      commit-message:
+        prefix: "🔼:"
+      labels:
+        - "🔼 dependencies"
+
+  # Maintain Go dependencies for backend-shared repo
+  - package-ecosystem: "gomod"
+    directory: "/backend-shared"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      timezone: Europe/Berlin
+      time: "08:00"
+      assignees:
+        - "drpaneas"
+      open-pull-requests-limit: 10
+      commit-message:
+        prefix: "🔼:"
+      labels:
+        - "🔼 dependencies"
+
+  # Maintain Go dependencies for cluster-agent repo
+  - package-ecosystem: "gomod"
+    directory: "/cluster-agent"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      timezone: Europe/Berlin
+      time: "08:00"
+      assignees:
+        - "drpaneas"
+      open-pull-requests-limit: 10
+      commit-message:
+        prefix: "🔼:"
+      labels:
+        - "🔼 dependencies"
+
+  # Maintain Go dependencies for load-test repo
+  - package-ecosystem: "gomod"
+    directory: "/utilities/load-test/loadtest"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      timezone: Europe/Berlin
+      time: "08:00"
+      assignees:
+        - "drpaneas"
+      open-pull-requests-limit: 10
+      commit-message:
+        prefix: "🔼:"
+      labels:
+        - "🔼 dependencies"

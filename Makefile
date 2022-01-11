@@ -1,14 +1,15 @@
 
 MAKEFILE_ROOT=$(shell pwd)
 
-# install: Ensure that the Argo CD namespace exists, and that CRDs we are using are applied to the current cluster
+# install: Ensure that the Argo CD namespace exists, that Argo CD is installed, and that CRDs we are using are applied to the current cluster
 install:
-	kubectl create ns argocd || true
 	kubectl apply -f $(MAKEFILE_ROOT)/backend/config/crd/bases
 	kubectl apply -f $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_operations.yaml
+	kubectl create ns argocd || true
 	kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/release-2.2/manifests/crds/application-crd.yaml
 
 # start: start all the components
+# ensure goreman is installed, with 'go install github.com/mattn/goreman@latest'
 start:
 	~/go/bin/goreman start
 

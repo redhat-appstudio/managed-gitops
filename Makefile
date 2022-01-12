@@ -1,6 +1,10 @@
 
 MAKEFILE_ROOT=$(shell pwd)
 GOBIN=$(shell go env GOPATH)/bin
+TAG ?= latest
+BASE_IMAGE ?= gitops-service
+USERNAME ?= redhat-appstudio
+IMG ?= quay.io/${USERNAME}/${BASE_IMAGE}:${TAG}
 help: ## Display this help menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
@@ -21,6 +25,12 @@ build-backend: ## Build backend only
 
 build-cluster-agent: ## Build cluster-agent only
 	cd $(MAKEFILE_ROOT)/cluster-agent && make build
+
+docker-build: ## Build docker image -- note you can change the vars 'BASE_IMAGE=gitops-service' and 'TAG=v0.0.1'
+	docker build -t ${BASE_IMAGE}:${TAG} $(MAKEFILE_ROOT)
+
+docker-push: ## Push docker image - note: you have to change the USER var. Optionally change the BASE_IMAGE or TAG.
+	docker push ${IMG}
 
 test: test-backend test-backend-shared test-cluster-agent ## Run tests for all components
 
@@ -44,4 +54,3 @@ vendor: ## Clone locally the dependencies - off-line
 	cd $(MAKEFILE_ROOT)/backend-shared && go mod vendor
 	cd $(MAKEFILE_ROOT)/backend && go mod vendor
 	cd $(MAKEFILE_ROOT)/cluster-agent && go mod vendor
-

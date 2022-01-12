@@ -1,5 +1,6 @@
 
 MAKEFILE_ROOT=$(shell pwd)
+GOBIN=$(shell go env GOPATH)/bin
 help: ## Display this help menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
@@ -11,7 +12,7 @@ install-argo: ## Ensure that the Argo CD namespace exists, and that CRDs we are 
 	kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/release-2.2/manifests/crds/application-crd.yaml
 
 start: ## Start all the components, compile & run (ensure goreman is installed, with 'go install github.com/mattn/goreman@latest')
-	~/go/bin/goreman start
+	$(GOBIN)/goreman start
 
 build: build-backend build-cluster-agent ## Build all the components - note: you do not need to do this before running start
 

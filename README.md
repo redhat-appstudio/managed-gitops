@@ -21,6 +21,8 @@ To setup and run your development environment:
 - Ensure you are targetting a local Kubernetes cluster (I personally use [kubectx/kubens](https://github.com/ahmetb/kubectx) to manage Kubernetes context)
 - Run `make install` to ensure that the target cluster has the appropriate GitOps service CRs installed, and that Argo CD is installed in the 'argocd' namespae.
 - Run `create-dev-env.sh` to start Postgresql (see `make reset-db` if you want to reset this to a clean slate)
+- To start the GitOps service components, use `make start`. (Ensure you have [goreman](https://github.com/mattn/goreman) installed!)
+
 
 This repository contains scripts which may be used to setup/run the database environment:
 - **`create-dev-env.sh`**: Start up PostgreSQL in a docker container, with the database initialized. 

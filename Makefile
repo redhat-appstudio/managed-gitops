@@ -2,6 +2,7 @@
 MAKEFILE_ROOT=$(shell pwd)
 help: ## Display this help menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+
 # install: Ensure that the Argo CD namespace exists, that Argo CD is installed, and that CRDs we are using are applied to the current cluster
 install-argo: ## Ensure that the Argo CD namespace exists, and that CRDs we are using are applied to the current cluster
 	kubectl apply -f $(MAKEFILE_ROOT)/backend/config/crd/bases
@@ -9,9 +10,7 @@ install-argo: ## Ensure that the Argo CD namespace exists, and that CRDs we are 
 	kubectl create ns argocd || true
 	kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/release-2.2/manifests/crds/application-crd.yaml
 
-# start: start all the components
-# ensure goreman is installed, with 'go install github.com/mattn/goreman@latest'
-start:
+start: ## Start all the components, compile & run (ensure goreman is installed, with 'go install github.com/mattn/goreman@latest')
 	~/go/bin/goreman start
 
 build: build-backend build-cluster-agent ## Build all the components - note: you do not need to do this before running start
@@ -35,7 +34,6 @@ test-cluster-agent: ## Run test for cluster-agent only
 
 download-deps: ## Download goreman to ~/go/bin
 	go install github.com/mattn/goreman@latest
-
 
 reset-db: ## Erase the current database, and reset it scratch; useful during development if you want a clean slate.
 	$(MAKEFILE_ROOT)/delete-dev-env.sh

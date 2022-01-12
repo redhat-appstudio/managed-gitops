@@ -21,6 +21,7 @@ build-backend: ## Build backend only
 
 build-cluster-agent: ## Build cluster-agent only
 	cd $(MAKEFILE_ROOT)/cluster-agent && make build
+
 test: test-backend test-backend-shared test-cluster-agent ## Run tests for all components
 
 test-backend: ## Run tests for backend only

@@ -1,4 +1,4 @@
-domain: redhat.com
+ domain: redhat.com
 layout:
 - go.kubebuilder.io/v3
 multigroup: true
@@ -15,6 +15,6 @@ resources:
   domain: redhat.com
   group: managed-gitops
   kind: Operation
-  path: github.com/redhat-appstudio/managed-gitops/cluster-agent/apis/managed-gitops/v1alpha1
+  path: github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1
   version: v1alpha1
 version: "3"

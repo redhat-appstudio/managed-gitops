@@ -49,19 +49,29 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/backend
           make gosec
-        - name: "Ensure 'backend' passes 'go-lint' - run 'make lint' to identify issues"
+      - name: "Ensure 'backend' passes 'go-lint' - run 'make lint' to identify issues"
         run: |
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.40.1
           cd $GITHUB_WORKSPACE/backend
           make lint 
-        - name: "Ensure 'cluster-agent' passes 'go-sec' - run 'make gosec' to identify issues"
+      - name: "Ensure 'cluster-agent' passes 'go-sec' - run 'make gosec' to identify issues"
         run: |
           cd $GITHUB_WORKSPACE/cluster-agent
           make gosec
+      - name: "Ensure 'cluster-agent' passes 'go-lint' - run 'make lint' to identify issues"
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.40.1
+          cd $GITHUB_WORKSPACE/cluster-agent
+          make lint 
       - name: "Ensure 'backend-shared' passes 'go-sec' - run 'make gosec' to identify issues"
         run: |
           cd $GITHUB_WORKSPACE/backend-shared
           make gosec
+      - name: "Ensure 'backend-shared' passes 'go-lint' - run 'make lint' to identify issues"
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.40.1
+          cd $GITHUB_WORKSPACE/backend-shared
+          make lint 
 
   check-go:
     name: Ensure Go modules synchronicity

@@ -40,6 +40,33 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedListDeploymentToApplicationMappin
 	return nil
 }
 
+func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, workspaceUID string) (int, error) {
+
+	if err := validateQueryParamsNoPK(dbq); err != nil {
+		return 0, err
+	}
+
+	if err := isEmptyValues("UncheckedDeleteDeploymentToApplicationMappingByNamespaceAndName",
+		"deploymentName", deploymentName,
+		"deploymentNamespace", deploymentNamespace,
+		"workspaceUID", workspaceUID); err != nil {
+
+		return 0, err
+	}
+
+	entity := &DeploymentToApplicationMapping{}
+
+	deleteResult, err := dbq.dbConnection.Model(entity).
+		Where("dta.name = ?", deploymentName).
+		Where("data.namespace = ?", deploymentNamespace).
+		Where("data.workspace_uid = ?", workspaceUID).Context(ctx).Delete()
+	if err != nil {
+		return 0, fmt.Errorf("error on deleting application: %v", err)
+	}
+
+	return deleteResult.RowsAffected(), nil
+}
+
 func (dbq *PostgreSQLDatabaseQueries) UncheckedGetDeploymentToApplicationMappingByDeplId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping) error {
 
 	if err := validateQueryParamsEntity(deplToAppMappingParam, dbq); err != nil {

@@ -172,6 +172,9 @@ type ApplicationScopedQueries interface {
 	UncheckedGetApplicationStateById(ctx context.Context, obj *ApplicationState) error
 	UncheckedCreateApplicationState(ctx context.Context, obj *ApplicationState) error
 	UncheckedUpdateApplicationState(ctx context.Context, obj *ApplicationState) error
+
+	UncheckedUpdateOperation(ctx context.Context, obj *Operation) error
+	UncheckedDeleteDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, workspaceUID string) (int, error)
 }
 
 type CloseableQueries interface {

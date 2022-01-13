@@ -42,24 +42,14 @@ func (dbq *PostgreSQLDatabaseQueries) CreateOperation(ctx context.Context, obj *
 
 	// State
 
-	if isEmpty(obj.Operation_owner_user_id) {
-		return fmt.Errorf("operation 'operation_owner_user_id' field should not be empty")
-	}
-
-	if isEmpty(obj.Instance_id) {
-		return fmt.Errorf("operation 'Instance_id' field should not be empty")
-	}
-
-	if isEmpty(obj.Resource_id) {
-		return fmt.Errorf("operation 'Resource_id' field should not be empty")
-	}
-
-	if isEmpty(obj.Resource_type) {
-		return fmt.Errorf("operation'Resource_type' field should not be empty")
-	}
-
-	if ownerId != obj.Operation_owner_user_id {
-		return fmt.Errorf("operation owner user must match the user issuing the create request")
+	if err := isEmptyValues("CreateOperation",
+		"Instance_id", obj.Instance_id,
+		"Operation_id", obj.Operation_id,
+		"Operation_owner_user_id", obj.Operation_owner_user_id,
+		"Resource_id", obj.Resource_id,
+		"Resource_type", obj.Resource_type,
+		"State", obj.State); err != nil {
+		return err
 	}
 
 	// Verify the instance exists, and the user has access to it
@@ -84,6 +74,35 @@ func (dbq *PostgreSQLDatabaseQueries) CreateOperation(ctx context.Context, obj *
 	}
 
 	return nil
+}
+
+func (dbq *PostgreSQLDatabaseQueries) UncheckedUpdateOperation(ctx context.Context, obj *Operation) error {
+
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
+		return err
+	}
+
+	if err := isEmptyValues("UncheckedUpdateOperation",
+		"Instance_id", obj.Instance_id,
+		"Operation_id", obj.Operation_id,
+		"Operation_owner_user_id", obj.Operation_owner_user_id,
+		"Resource_id", obj.Resource_id,
+		"Resource_type", obj.Resource_type,
+		"State", obj.State); err != nil {
+		return err
+	}
+
+	result, err := dbq.dbConnection.Model(obj).WherePK().Context(ctx).Update()
+	if err != nil {
+		return fmt.Errorf("error on updating operation: %v, %v", err, obj.Operation_id)
+	}
+
+	if result.RowsAffected() != 1 {
+		return fmt.Errorf("unexpected number of rows affected: %d, %v", result.RowsAffected(), obj.Operation_id)
+	}
+
+	return nil
+
 }
 
 func (dbq *PostgreSQLDatabaseQueries) UncheckedGetOperationById(ctx context.Context, operation *Operation) error {

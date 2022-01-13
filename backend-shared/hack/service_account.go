@@ -24,7 +24,6 @@ const (
 )
 
 var (
-	hostname                          = "https://kubernetes.svc.default"
 	ArgoCDManagerNamespacePolicyRules = []rbacv1.PolicyRule{
 		{
 			APIGroups: []string{"*"},
@@ -34,27 +33,78 @@ var (
 	}
 )
 
-func CreateServiceAccount(clientset kubernetes.Interface, serviceAccountName string, namespace string) error {
+func restrictServiceAccount(clientset kubernetes.Interface, ns string, namespace string) error {
+	role := rbacv1.Role{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "Role",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: ArgoCDManagerClusterRole,
+		},
+		Rules: ArgoCDManagerNamespacePolicyRules,
+	}
+	_, err := clientset.RbacV1().Roles(namespace).Create(context.Background(), &role, metav1.CreateOptions{})
+	if err != nil {
+		if !apierr.IsAlreadyExists(err) {
+			_, err := clientset.RbacV1().Roles(namespace).Update(context.Background(), &role, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	}
 
+	roleBinding := rbacv1.RoleBinding{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "RoleBinding",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: ArgoCDManagerClusterRoleBinding,
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     ArgoCDManagerClusterRole,
+		},
+		Subjects: []rbacv1.Subject{{
+			Kind:      rbacv1.ServiceAccountKind,
+			Name:      ArgoCDManagerServiceAccount,
+			Namespace: ns,
+		}},
+	}
+	_, err = clientset.RbacV1().RoleBindings(namespace).Create(context.Background(), &roleBinding, metav1.CreateOptions{})
+	if err != nil {
+		if !apierr.IsAlreadyExists(err) {
+			_, err := clientset.RbacV1().RoleBindings(namespace).Update(context.Background(), &roleBinding, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func CreateServiceAccount(clientset kubernetes.Interface, serviceAccountName string, namespace string) error {
 	serviceAccount := corev1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "v1",
 			APIVersion: "ServiceAccount",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        serviceAccountName,
-			Namespace:   namespace,
-			ClusterName: "",
+			Name:      serviceAccountName,
+			Namespace: namespace,
 		},
 	}
 	_, err := clientset.CoreV1().ServiceAccounts(namespace).Create(context.Background(), &serviceAccount, metav1.CreateOptions{})
 	if err != nil {
 		if !apierr.IsAlreadyExists(err) {
-			return fmt.Errorf("Failed to create service account %q in namespace %q: %v", serviceAccountName, namespace, err)
+			return fmt.Errorf("failed to create service account %q in namespace %q: %v", serviceAccountName, namespace, err)
 		}
-		return fmt.Errorf("ServiceAccount %q already exists in namespace %q", serviceAccountName, namespace)
+		return fmt.Errorf("serviceAccount %q already exists in namespace %q", serviceAccountName, namespace)
 	}
-	log.Printf("ServiceAccount %q created in namespace %q", serviceAccountName, namespace)
+
+	log.Printf("serviceAccount %q created in namespace %q", serviceAccountName, namespace)
 	return nil
 }
 
@@ -65,56 +115,10 @@ func InstallServiceAccount(clientset kubernetes.Interface, ns string, namespaces
 	if err != nil {
 		return "", err
 	}
-	if len(namespaces) != 0 {
-		for _, namespace := range namespaces {
-			role := rbacv1.Role{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "rbac.authorization.k8s.io/v1",
-					Kind:       "Role",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: ArgoCDManagerClusterRole,
-				},
-				Rules: ArgoCDManagerNamespacePolicyRules,
-			}
-			_, err := clientset.RbacV1().Roles(namespace).Create(context.Background(), &role, metav1.CreateOptions{})
-			if err != nil {
-				if !apierr.IsAlreadyExists(err) {
-					_, err := clientset.RbacV1().Roles(namespace).Update(context.Background(), &role, metav1.UpdateOptions{})
-					if err != nil {
-						return "", err
-					}
-				}
-			}
-
-			roleBinding := rbacv1.RoleBinding{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "rbac.authorization.k8s.io/v1",
-					Kind:       "RoleBinding",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: ArgoCDManagerClusterRoleBinding,
-				},
-				RoleRef: rbacv1.RoleRef{
-					APIGroup: "rbac.authorization.k8s.io",
-					Kind:     "Role",
-					Name:     ArgoCDManagerClusterRole,
-				},
-				Subjects: []rbacv1.Subject{{
-					Kind:      rbacv1.ServiceAccountKind,
-					Name:      ArgoCDManagerServiceAccount,
-					Namespace: ns,
-				}},
-			}
-			_, err = clientset.RbacV1().RoleBindings(namespace).Create(context.Background(), &roleBinding, metav1.CreateOptions{})
-			if err != nil {
-				if !apierr.IsAlreadyExists(err) {
-					_, err := clientset.RbacV1().RoleBindings(namespace).Update(context.Background(), &roleBinding, metav1.UpdateOptions{})
-					if err != nil {
-						return "", err
-					}
-				}
-			}
+	for _, namespace := range namespaces {
+		err := restrictServiceAccount(clientset, ns, namespace)
+		if err != nil {
+			return "", nil
 		}
 	}
 	return GetServiceAccountBearerToken(clientset, ns, ArgoCDManagerServiceAccount)
@@ -137,7 +141,7 @@ func GetServiceAccountBearerToken(clientset kubernetes.Interface, ns string, sa 
 			var getErr error
 			secret, err = clientset.CoreV1().Secrets(ns).Get(context.Background(), oRef.Name, metav1.GetOptions{})
 			if err != nil {
-				return false, fmt.Errorf("Failed to retrieve secret %q: %v", oRef.Name, getErr)
+				return false, fmt.Errorf("failed to retrieve secret %q: %v", oRef.Name, getErr)
 			}
 			if secret.Type == corev1.SecretTypeServiceAccountToken {
 				return true, nil
@@ -146,25 +150,23 @@ func GetServiceAccountBearerToken(clientset kubernetes.Interface, ns string, sa 
 		return false, nil
 	})
 	if err != nil {
-		return "", fmt.Errorf("Failed to wait for service account secret: %v", err)
+		return "", fmt.Errorf("failed to wait for service account secret: %v", err)
 	}
 	token, ok := secret.Data["token"]
 	if !ok {
-		return "", fmt.Errorf("Secret %q for service account %q did not have a token", secret.Name, serviceAccount)
+		return "", fmt.Errorf("secret %q for service account %q did not have a token", secret.Name, serviceAccount)
 	}
 	return string(token), nil
 }
 
-func generateClientFromClusterServiceAccount(hostname string, bearerToken string) client.Client {
+func generateClientFromClusterServiceAccount(hostname string, bearerToken string) (client.Client, error) {
 	config := &rest.Config{
 		Host:        hostname,
 		BearerToken: bearerToken,
 	}
 	clientObj, err := client.New(config, client.Options{Scheme: scheme.Scheme})
 	if err != nil {
-		log.Fatal(err)
-		return nil
+		return nil, err
 	}
-
-	return clientObj
+	return clientObj, nil
 }

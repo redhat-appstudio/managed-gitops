@@ -10,7 +10,6 @@ import (
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend/util"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -88,7 +87,7 @@ func preprocessEventLoopRouter(input chan eventLoopEvent, nextStep *controllerEv
 			resourcesSeenMutex: &resourcesSeenMutex,
 		}
 
-		taskRetryLoop.addTaskIfNotPresent(mapKey, task, util.ExponentialBackoff{Factor: 2, Min: time.Millisecond * 200, Max: time.Second * 10, Jitter: true})
+		taskRetryLoop.addTaskIfNotPresent(mapKey, task, sharedutil.ExponentialBackoff{Factor: 2, Min: time.Millisecond * 200, Max: time.Second * 10, Jitter: true})
 
 	}
 }

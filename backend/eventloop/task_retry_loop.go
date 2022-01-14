@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-logr/logr"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
-	"github.com/redhat-appstudio/managed-gitops/backend/util"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -19,7 +18,7 @@ type retryableTask interface {
 	performTask(taskContext context.Context) (bool, error)
 }
 
-func (loop *taskRetryLoop) addTaskIfNotPresent(name string, task retryableTask, backoff util.ExponentialBackoff) {
+func (loop *taskRetryLoop) addTaskIfNotPresent(name string, task retryableTask, backoff sharedutil.ExponentialBackoff) {
 
 	loop.inputChan <- taskRetryLoopMessage{
 		msgType: taskRetryLoop_addTask,
@@ -61,7 +60,7 @@ type taskRetryLoopMessage struct {
 
 type taskRetryMessage_addTask struct {
 	name    string
-	backoff util.ExponentialBackoff
+	backoff sharedutil.ExponentialBackoff
 	task    retryableTask
 }
 type taskRetryMessage_removeTask struct {
@@ -101,14 +100,14 @@ func newTaskRetryLoop() (loop *taskRetryLoop) {
 type waitingTaskEntry struct {
 	name                   string
 	task                   retryableTask
-	backoff                util.ExponentialBackoff
+	backoff                sharedutil.ExponentialBackoff
 	nextScheduledRetryTime *time.Time
 }
 
 type internalTaskEntry struct {
 	name        string
 	task        retryableTask
-	backoff     util.ExponentialBackoff
+	backoff     sharedutil.ExponentialBackoff
 	taskContext context.Context
 	cancelFunc  context.CancelFunc
 }

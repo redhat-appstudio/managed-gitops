@@ -285,7 +285,7 @@ func contains(listAllApps []db.Application, str string) (bool, *db.Application) 
 // 		KubernetesResourceUID:  uniqueClusterID,
 // 		DBRelationType:         "GitOpsEngineCluster",
 // 	}
-// 	// TODO: Whose job is it to create this?
+//
 // 	if err := dbQueries.GetDBResourceMappingForKubernetesResource(ctx, &kdb); err != nil {
 // 		return err
 // 	}

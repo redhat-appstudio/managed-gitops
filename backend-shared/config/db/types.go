@@ -154,8 +154,6 @@ type Operation struct {
 	// -- UID
 	Operation_id string `pg:"operation_id,pk"`
 
-	SeqID int64 `pg:"seq_id"`
-
 	// -- Specifies which Argo CD instance this operation is targeting
 	// -- Foreign key to: GitopsEngineInstance.gitopsengineinstance_id
 	Instance_id string `pg:"instance_id"`
@@ -191,6 +189,8 @@ type Operation struct {
 
 	// -- If there is an error message from the operation, it is passed via this field.
 	Human_readable_state string `pg:"human_readable_state"`
+
+	SeqID int64 `pg:"seq_id"`
 }
 
 type Application struct {

@@ -89,7 +89,8 @@ func UncheckedGetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, w
 		KubernetesResourceType: db.K8sToDBMapping_Namespace,
 		KubernetesResourceUID:  string(workspaceNamespaceUID),
 		DBRelationType:         db.K8sToDBMapping_GitopsEngineCluster,
-		DBRelationKey:          managedEnvironment.Managedenvironment_id,
+		// TODO: This seems wrong: ?????
+		DBRelationKey: managedEnvironment.Managedenvironment_id,
 	}
 
 	if err := dbq.CreateKubernetesResourceToDBResourceMapping(ctx, dbResourceMapping); err != nil {
@@ -347,6 +348,16 @@ func UncheckedGetOrCreateDeploymentToApplicationMapping(ctx context.Context, cre
 	} else {
 		// Object was found
 		return nil
+	}
+
+	// Ensure that there isn't an old depltoappmapping hanging around with matching name/namespace, before we create a new one.
+	if _, err := dbq.UncheckedDeleteDeploymentToApplicationMappingByNamespaceAndName(ctx,
+		createDeplToAppMapping.DeploymentName,
+		createDeplToAppMapping.DeploymentNamespace,
+		createDeplToAppMapping.WorkspaceUID); err != nil {
+		actionLog.Error(err, "unable to delete old deployment to application mapping for name '"+
+			createDeplToAppMapping.DeploymentName+"', namespace '"+createDeplToAppMapping.DeploymentNamespace+"'")
+		return err
 	}
 
 	if err := dbq.CreateDeploymentToApplicationMapping(ctx, createDeplToAppMapping); err != nil {

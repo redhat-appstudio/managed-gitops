@@ -58,8 +58,8 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteDeploymentToApplicationMapp
 
 	deleteResult, err := dbq.dbConnection.Model(entity).
 		Where("dta.name = ?", deploymentName).
-		Where("data.namespace = ?", deploymentNamespace).
-		Where("data.workspace_uid = ?", workspaceUID).Context(ctx).Delete()
+		Where("dta.namespace = ?", deploymentNamespace).
+		Where("dta.workspace_uid = ?", workspaceUID).Context(ctx).Delete()
 	if err != nil {
 		return 0, fmt.Errorf("error on deleting application: %v", err)
 	}

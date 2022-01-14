@@ -11,7 +11,6 @@ import (
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend/util"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -69,7 +68,7 @@ func applicationEventLoopRunner(inputChannel chan *eventLoopEvent, informWorkCom
 		log.V(sharedutil.LogLevel_Debug).Info("applicationEventLoopRunner - event received", "event", stringEventLoopEvent(newEvent))
 
 		attempts := 1
-		backoff := util.ExponentialBackoff{Min: time.Duration(100 * time.Millisecond), Max: time.Duration(15 * time.Second), Factor: 2, Jitter: true}
+		backoff := sharedutil.ExponentialBackoff{Min: time.Duration(100 * time.Millisecond), Max: time.Duration(15 * time.Second), Factor: 2, Jitter: true}
 	inner_for:
 		for {
 
@@ -719,6 +718,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	}
 
 	if !dbApplicationFound {
+		log.Info("While cleaning up old gitopsdepl entries, db application wasn't found, id: " + deplToAppMapping.Application_id)
 		// If the Application CR no longer exists, then our work is done.
 		return true, nil
 	}
@@ -726,6 +726,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	// If the Application table entry still exists, finish the cleanup...
 
 	// Remove the Application from the database
+	log.Info("deleting database Application, id: " + deplToAppMapping.Application_id)
 	rowsDeleted, err = dbQueries.UncheckedDeleteApplicationById(ctx, deplToAppMapping.Application_id)
 	if err != nil {
 		// Log the error, but continue
@@ -760,14 +761,11 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		Resource_type: db.OperationResourceType_Application,
 	}
 
-	k8sOperation, dbOperation, err := uncheckedCreateOperation(ctx, false, dbOperationInput, clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, log)
+	k8sOperation, dbOperation, err := uncheckedCreateOperation(ctx, true, dbOperationInput, clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, log)
 	if err != nil {
 		log.Error(err, "unable to create operation", "operation", dbOperationInput.ShortString())
 		return false, err
 	}
-
-	// TODO: GITOPS-1467 - STUB - Skipping waiting on operation to complete 'handleDeleteGitOpsDeplEvent'
-	log.Info("STUB - Skipping waiting on operation to complete 'handleDeleteGitOpsDeplEvent'")
 
 	// TODO: GITOPS-1467 - Do something with the operation status
 
@@ -824,15 +822,21 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 
 	// TODO: DEBT - Sanity check that the application.name matches the expected value set in handleCreateGitOpsEvent
 
+	destinationNamespace := gitopsDeployment.Spec.Destination.Namespace
+	if destinationNamespace == "" {
+		destinationNamespace = a.eventResourceNamespace
+	}
+
 	specFieldInput := argoCDSpecInput{
 		crName:               application.Name,
 		crNamespace:          engineInstanceParam.Namespace_name,
-		destinationNamespace: gitopsDeployment.Spec.Destination.Namespace,
+		destinationNamespace: destinationNamespace,
 		// TODO: After GITOPS 1564 - Fill this in with cluster credentials
 		destinationName:      "in-cluster",
 		sourceRepoURL:        gitopsDeployment.Spec.Source.RepoURL,
 		sourcePath:           gitopsDeployment.Spec.Source.Path,
 		sourceTargetRevision: gitopsDeployment.Spec.Source.TargetRevision,
+		// databaseID:           application.Application_id,
 	}
 
 	specFieldResult := createSpecField(specFieldInput)
@@ -862,14 +866,11 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		Resource_type: db.OperationResourceType_Application,
 	}
 
-	k8sOperation, dbOperation, err := uncheckedCreateOperation(ctx, false, dbOperationInput, clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, log)
+	k8sOperation, dbOperation, err := uncheckedCreateOperation(ctx, true, dbOperationInput, clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, log)
 	if err != nil {
 		log.Error(err, "could not create operation", "operation", dbOperation.Operation_id, "namespace", operationNamespace)
 		return false, nil, nil, err
 	}
-
-	// TODO: GITOPS-1467 - STUB - Remove the 'false' in createOperation above, once cluster agent handling of operation is implemented.
-	log.Info("STUB: Not waiting for create Application operation to complete, in handleNewGitOpsDeplEvent")
 
 	// TODO: GITOPS-1467 - Do something with the operation status
 
@@ -932,10 +933,15 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 
 	appName := "gitopsdepl-" + string(gitopsDeployment.UID)
 
+	destinationNamespace := gitopsDeployment.Spec.Destination.Namespace
+	if destinationNamespace == "" {
+		destinationNamespace = a.eventResourceNamespace
+	}
+
 	specFieldInput := argoCDSpecInput{
 		crName:               appName,
 		crNamespace:          engineInstance.Namespace_name,
-		destinationNamespace: gitopsDeployment.Spec.Destination.Namespace,
+		destinationNamespace: destinationNamespace,
 		// TODO: After GITOPS 1564 - Fill this in with cluster credentials
 		destinationName:      "in-cluster",
 		sourceRepoURL:        gitopsDeployment.Spec.Source.RepoURL,
@@ -979,14 +985,11 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		return false, nil, nil, err
 	}
 
-	k8sOperation, dbOperation, err := uncheckedCreateOperation(ctx, false, dbOperationInput, clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, a.log)
+	k8sOperation, dbOperation, err := uncheckedCreateOperation(ctx, true, dbOperationInput, clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, a.log)
 	if err != nil {
 		a.log.Error(err, "could not create operation", "namespace", operationNamespace)
 		return false, nil, nil, err
 	}
-
-	// TODO: GITOPS-1467 - STUB - Remove the 'false' in createOperation above, once cluster agent handling of operation is implemented.
-	a.log.Info("STUB: Not waiting for create Application operation to complete, in handleNewGitOpsDeplEvent")
 
 	if err := cleanupOperation(ctx, *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, a.log); err != nil {
 		return false, nil, nil, err
@@ -1107,7 +1110,7 @@ func uncheckedCreateOperation(ctx context.Context, waitForOperation bool, dbOper
 
 func uncheckedWaitForOperationToComplete(ctx context.Context, dbOperation *db.Operation, dbQueries db.ApplicationScopedQueries, actionLog logr.Logger) error {
 
-	backoff := util.ExponentialBackoff{Factor: 2, Min: time.Duration(100 * time.Millisecond), Max: time.Duration(10 * time.Second), Jitter: true}
+	backoff := sharedutil.ExponentialBackoff{Factor: 2, Min: time.Duration(100 * time.Millisecond), Max: time.Duration(10 * time.Second), Jitter: true}
 
 	for {
 
@@ -1144,7 +1147,7 @@ type argoCDSpecInput struct {
 	crName      string
 	crNamespace string
 
-	databaseID string
+	// databaseID string
 
 	destinationNamespace string
 	destinationName      string
@@ -1174,7 +1177,6 @@ func createSpecField(fieldsParam argoCDSpecInput) string {
 		// MAKE SURE YOU SANITIZE ANY NEW FIELDS THAT ARE ADDED!!!!
 		crName:               sanitize(fieldsParam.crName),
 		crNamespace:          sanitize(fieldsParam.crNamespace),
-		databaseID:           sanitize(fieldsParam.databaseID),
 		destinationNamespace: sanitize(fieldsParam.destinationNamespace),
 		// MAKE SURE YOU SANITIZE ANY NEW FIELDS THAT ARE ADDED!!!!
 		destinationName:      sanitize(fieldsParam.destinationName),
@@ -1187,18 +1189,16 @@ func createSpecField(fieldsParam argoCDSpecInput) string {
 	text := `apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: \"` + fields.crName + `\"
-  namespace: \"` + fields.crNamespace + `\"
-  labels:
-    databaseId: \"` + fields.databaseID + `\"
+  name: "` + fields.crName + `"
+  namespace: "` + fields.crNamespace + `"
 spec:
   destination:
-    name: \"` + fields.destinationName + `\"
-    namespace: \"` + fields.destinationNamespace + `\"
+    name: "` + fields.destinationName + `"
+    namespace: "` + fields.destinationNamespace + `"
   project: default
   source:
-    path: ` + fields.sourcePath + `
-    repoURL: ` + fields.sourceRepoURL + `
+    path: "` + fields.sourcePath + `"
+    repoURL: "` + fields.sourceRepoURL + `"
     targetRevision: "` + fields.sourceTargetRevision + `"`
 
 	return text

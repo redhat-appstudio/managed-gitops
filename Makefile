@@ -54,3 +54,8 @@ vendor: ## Clone locally the dependencies - off-line
 	cd $(MAKEFILE_ROOT)/backend-shared && go mod vendor
 	cd $(MAKEFILE_ROOT)/backend && go mod vendor
 	cd $(MAKEFILE_ROOT)/cluster-agent && go mod vendor
+
+tidy: ## Tidy all components
+	cd $(MAKEFILE_ROOT)/backend-shared && go mod tidy
+	cd $(MAKEFILE_ROOT)/backend && go mod tidy 
+	cd $(MAKEFILE_ROOT)/cluster-agent && go mod tidy 

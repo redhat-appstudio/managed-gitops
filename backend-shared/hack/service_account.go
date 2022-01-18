@@ -12,8 +12,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/kubectl/pkg/scheme"
 	client "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -159,12 +159,12 @@ func GetServiceAccountBearerToken(clientset kubernetes.Interface, ns string, sa 
 	return string(token), nil
 }
 
-func generateClientFromClusterServiceAccount(hostname string, bearerToken string) (client.Client, error) {
-	config := &rest.Config{
-		Host:        hostname,
-		BearerToken: bearerToken,
-	}
-	clientObj, err := client.New(config, client.Options{Scheme: scheme.Scheme})
+func generateClientFromClusterServiceAccount(configParam *rest.Config, bearerToken string) (client.Client, error) {
+
+	newConfig := *configParam
+	newConfig.BearerToken = bearerToken
+
+	clientObj, err := client.New(&newConfig, client.Options{Scheme: scheme.Scheme})
 	if err != nil {
 		return nil, err
 	}

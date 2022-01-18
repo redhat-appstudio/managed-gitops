@@ -14,7 +14,11 @@ func TestCreateServiceAccount(t *testing.T) {
 	// TEST: Create Service Account
 	t.Log("Test to create a service account on remote cluster!\n")
 
-	config := ctrl.GetConfigOrDie()
+	config, err := ctrl.GetConfig()
+	if err != nil {
+		t.Skip("Skipping service account creation tests, because a K8s config could not be found.")
+		return
+	}
 
 	// create the clientset
 	clientset, err := kubernetes.NewForConfig(config)

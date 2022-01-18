@@ -2,35 +2,19 @@ package hack
 
 import (
 	"context"
-	"flag"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 func TestCreateServiceAccount(t *testing.T) {
 	// TEST: Create Service Account
 	t.Log("Test to create a service account on remote cluster!\n")
 
-	// use of local context
-	var kubeconfig *string
-	if home := homedir.HomeDir(); home != "" {
-		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-	} else {
-		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
-	}
-	flag.Parse()
-
-	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
-	if err != nil {
-		panic(err.Error())
-	}
+	config := ctrl.GetConfigOrDie()
 
 	// create the clientset
 	clientset, err := kubernetes.NewForConfig(config)
@@ -87,9 +71,9 @@ func TestCreateServiceAccount(t *testing.T) {
 	t.Run("Test Bearer Token", func(t *testing.T) {
 		namespaces := []string{"argocd"}
 		token, err := InstallServiceAccount(clientset, "kube-system", namespaces)
-		assert.Error(t, err)
+		assert.NoError(t, err)
 		assert.NotNil(t, token)
-		clientObj, err := generateClientFromClusterServiceAccount("https://kubernetes.svc.default", token)
+		clientObj, err := generateClientFromClusterServiceAccount(ctrl.GetConfigOrDie(), token)
 		assert.NoError(t, err)
 		assert.NotNil(t, clientObj)
 		errDelSA := clientset.CoreV1().ServiceAccounts("kube-system").Delete(context.Background(), "argocd-manager", metav1.DeleteOptions{})

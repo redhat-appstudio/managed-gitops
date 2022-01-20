@@ -413,3 +413,95 @@ func TestAllApplication(t *testing.T) {
 	}
 	t.Log("Prometheus, along with 20 guestbook applications are created, deployed and deleted successfully!")
 }
+
+func TestNResource(t *testing.T) {
+	// TEST 1: Deply 100 guestbook in different namespace
+	t.Log("Testing for 100 applications that uses lightweight non-Pod-based resources\n")
+
+	t.Log("\n\nPods Memory Resource before creation:\n\n")
+	memoryInit := GetPodInfo(kubeconfig, masterUrl, namespace, podName)
+	PodInfoParse(memoryInit)
+
+	// Get Pod Restart Count
+	PodC := PodRestartCount(namespace)
+
+	for i := 1; i < 101; i++ {
+		applicationTest := &appv1.Application{
+			TypeMeta: v1.TypeMeta{
+				Kind:       "Application",
+				APIVersion: "argoproj.io/v1alpha1",
+			},
+			ObjectMeta: v1.ObjectMeta{
+				Name:      "test-app-" + fmt.Sprintf("%d", i),
+				Namespace: "argocd",
+			},
+			Spec: appv1.ApplicationSpec{
+				Source: appv1.ApplicationSource{
+					Path:           "sample-app",
+					TargetRevision: "HEAD",
+					RepoURL:        "https://github.com/samyak-jn/gitops-service-sample-k8s-resources.git",
+				},
+				Destination: appv1.ApplicationDestination{
+					Namespace: "test-namespace" + fmt.Sprintf("%d", i),
+					Server:    "https://kubernetes.default.svc",
+				},
+				Project: "default",
+			},
+		}
+
+		_, err := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).Create(context.TODO(), applicationTest, v1.CreateOptions{})
+		if err != nil {
+			t.Errorf("error, %v", err)
+			return
+		}
+	}
+
+	// wait.Poll will keep checking whether a (app variable).Status.Health.Status condition is met
+	err := wait.Poll(1*time.Second, 2*time.Minute, func() (bool, error) {
+
+		// list all Argo CD applications in the namespace
+		appList, err := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).List(context.TODO(), v1.ListOptions{})
+		if err != nil {
+			t.Errorf("error, %v", err)
+		}
+		// for each application, check if (app variable).Status.Health.Status
+		for _, app := range appList.Items {
+
+			// if status is empty, return false
+			if app.Status.Health.Status == "" {
+				return false, nil
+			}
+		}
+		return true, nil
+	})
+
+	if err != nil {
+		t.Errorf("Timeout Error, the application weren't ready within the defined timestamp, %v", err)
+		return
+	}
+
+	// Check if the Pod is getting refreshed or not
+	if reflect.DeepEqual(PodC, PodRestartCount(namespace)) != true {
+		t.Errorf("error, %v", "The Pods are getting refreshed!")
+		return
+	}
+
+	t.Log("\n\nPods Memory Resource after Creation:\n\n")
+	memoryPost := GetPodInfo(kubeconfig, masterUrl, namespace, podName)
+	PodInfoParse(memoryPost)
+
+	t.Log("\n\nDifference in the Pod Memory Usage (in Ki)\n\n")
+	delta := PodMemoryDiff(memoryInit, memoryPost)
+	PodInfoParse(delta)
+
+	// To delete a application from the given (ex: argocd) namespace
+	for i := 1; i < 101; i++ {
+		err_del := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).Delete(context.TODO(), "test-app-"+fmt.Sprintf("%d", i), v1.DeleteOptions{})
+
+		if err_del != nil {
+			t.Errorf("error, %v", err_del)
+			return
+		}
+	}
+	t.Log("100 applications are created, deployed and deleted successfully!")
+}

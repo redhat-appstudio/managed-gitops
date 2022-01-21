@@ -37,8 +37,10 @@ spec:
             description: GitOpsDeploymentSpec defines the desired state of GitOpsDeployment
             properties:
               destination:
-                description: Destination is a reference to the target Kubernetes server
-                  and namespace
+                description: 'Destination is a reference to a target namespace/cluster
+                  to deploy to. This field may be empty: if it is empty, it is assumed
+                  that the destination is the same namespace as the GitOpsDeployment
+                  CR.'
                 properties:
                   namespace:
                     description: The namespace will only be set for namespace-scoped
@@ -67,6 +69,14 @@ spec:
                 - repoURL
                 type: object
               type:
+                description: "Two possible values: - Automated: whenever a new commit
+                  occurs in the GitOps repository, or the Argo CD Application is out
+                  of sync, Argo CD should be told to (re)synchronize. - Manual: Argo
+                  CD should never be told to resynchronize. Instead, synchronize operations
+                  will be triggered via GitOpsDeploymentSyncRun operations only. \n
+                  Note: This is somewhat of a placeholder for more advanced logic
+                  that can be implemented in the future. For an example of this type
+                  of logic, see the 'syncPolicy' field of Argo CD Application."
                 type: string
             required:
             - source
@@ -74,6 +84,65 @@ spec:
             type: object
           status:
             description: GitOpsDeploymentStatus defines the observed state of GitOpsDeployment
+            properties:
+              conditions:
+                items:
+                  description: GitOpsDeploymentCondition contains details about an
+                    applicationset condition, which is usally an error or warning
+                  properties:
+                    lastTransitionTime:
+                      description: LastTransitionTime is the time the condition was
+                        last observed
+                      format: date-time
+                      type: string
+                    message:
+                      description: Message contains human-readable message indicating
+                        details about condition
+                      type: string
+                    reason:
+                      description: Single word camelcase representing the reason for
+                        the status eg ErrorOccurred
+                      type: string
+                    status:
+                      description: True/False/Unknown
+                      type: string
+                    type:
+                      description: Type is an applicationset condition type
+                      type: string
+                  required:
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              health:
+                description: Health contains information about the application's current
+                  health status
+                properties:
+                  message:
+                    description: Message is a human-readable informational message
+                      describing the health status
+                    type: string
+                  status:
+                    description: Status holds the status code of the application or
+                      resource
+                    type: string
+                type: object
+              sync:
+                description: SyncStatus contains information about the currently observed
+                  live and desired states of an application
+                properties:
+                  revision:
+                    description: Revision contains information about the revision
+                      the comparison has been performed to
+                    type: string
+                  status:
+                    description: Status is the sync state of the comparison
+                    type: string
+                required:
+                - status
+                type: object
             type: object
         type: object
     served: true

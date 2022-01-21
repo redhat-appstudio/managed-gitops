@@ -7,6 +7,8 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -21,7 +23,7 @@ import (
 // This logic would be improved by https://issues.redhat.com/browse/GITOPS-1455 (and others)
 const GitOpsEngineSingleInstanceNamespace = "argocd"
 
-// TODO: GITOPS-1564 - Add tests for all scenarios, for each of these.
+// TODO: Post GITOPS-1564 - Add tests for all scenarios, for each of these.
 // See https://issues.redhat.com/browse/GITOPS-1564
 
 func UncheckedGetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, workspaceNamespace v1.Namespace, dbq db.DatabaseQueries, actionLog logr.Logger) (*db.ManagedEnvironment, error) {
@@ -89,7 +91,7 @@ func UncheckedGetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, w
 		KubernetesResourceType: db.K8sToDBMapping_Namespace,
 		KubernetesResourceUID:  string(workspaceNamespaceUID),
 		DBRelationType:         db.K8sToDBMapping_GitopsEngineCluster,
-		// TODO: This seems wrong: ?????
+		// TODO: BUG - This seems wrong: ?????
 		DBRelationKey: managedEnvironment.Managedenvironment_id,
 	}
 
@@ -217,12 +219,58 @@ func UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.
 
 }
 
+// GetGitopsEngineClusterByKubeSystemNamespaceUID returns nil (with no error) if the cluster could not be found.
+func GetGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context, kubesystemNamespaceUID string, dbq db.DatabaseQueries,
+	log logr.Logger) (*db.GitopsEngineCluster, error) {
+
+	var gitopsEngineCluster *db.GitopsEngineCluster
+
+	expectedDBResourceMapping := db.KubernetesToDBResourceMapping{
+		KubernetesResourceType: db.K8sToDBMapping_Namespace,
+		KubernetesResourceUID:  kubesystemNamespaceUID,
+		DBRelationType:         db.K8sToDBMapping_GitopsEngineCluster,
+	}
+
+	var dbResourceMapping *db.KubernetesToDBResourceMapping
+	{
+		var expectedDBResourceMappingCopy db.KubernetesToDBResourceMapping = expectedDBResourceMapping
+		dbResourceMapping = &expectedDBResourceMappingCopy
+	}
+
+	if err := dbq.GetDBResourceMappingForKubernetesResource(ctx, dbResourceMapping); err != nil {
+
+		if !db.IsResultNotFoundError(err) {
+			return nil, err
+		}
+		return nil, nil
+
+	} else {
+		// If there exists a db resource mapping for this cluster, see if we can get the GitOpsEngineCluster
+		gitopsEngineCluster = &db.GitopsEngineCluster{
+			Gitopsenginecluster_id: dbResourceMapping.DBRelationKey,
+		}
+
+		if err := dbq.UncheckedGetGitopsEngineClusterById(ctx, gitopsEngineCluster); err != nil {
+			if !db.IsResultNotFoundError(err) {
+				return nil, err
+			}
+
+			return nil, nil
+		} else {
+			// Success: both existed.
+			return gitopsEngineCluster, nil
+		}
+	}
+
+}
+
 // UncheckedGetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID gets (or creates it if it doesn't exist) a GitOpsEngineCluster
 // database entry that corresponds to an GitOps engine cluster.
 //
 // In order to determine which cluster we are on, we use the UID of the 'kube-system' namespace.
 func UncheckedGetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context, kubesystemNamespaceUID string, dbq db.DatabaseQueries, log logr.Logger) (*db.GitopsEngineCluster, error) {
 
+	// TODO:
 	// Can we create the cluster credentials here?
 	// - either we add cluster credentials to our k8sToDBMapping
 	// - or we just assume that cluster credentials don't exist if the k8sToDBMapping doesn't exist.
@@ -280,7 +328,7 @@ func UncheckedGetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context
 		// Scenario A) neither exists: create both
 
 		// Create cluster credentials for the managed env
-		// TODO: GITOPS-1564 - Cluster credentials placeholder values - we will need to create a service account on the target cluster, which we can store in the database.
+		// TODO: Post GITOPS-1564 - Cluster credentials placeholder values - we will need to create a service account on the target cluster, which we can store in the database.
 		// See https://issues.redhat.com/browse/GITOPS-1564
 		clusterCreds := db.ClusterCredentials{
 			Host:                        "host",
@@ -459,4 +507,16 @@ func DisposeApplicationScopedResources(ctx context.Context, resources []db.AppSc
 	if err != nil {
 		log.Error(err, "unable to delete old resources after operation")
 	}
+}
+
+func GetRESTConfig() (*rest.Config, error) {
+	res, err := ctrl.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	// Use non-standard rate limiting values
+	res.QPS = 10
+	res.Burst = 25
+	return res, nil
 }

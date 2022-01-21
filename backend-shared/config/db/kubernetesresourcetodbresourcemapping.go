@@ -54,7 +54,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetDBResourceMappingForKubernetesResource(
 	var result []KubernetesToDBResourceMapping
 
 	if err := dbq.dbConnection.Model(&result).
-		// TODO: PERF - Add a DB index for this
+		// TODO: GITOPS-1702 - PERF - Add a DB index for this
 		Where("ktdbrm.kubernetes_resource_type = ?", obj.KubernetesResourceType).
 		Where("ktdbrm.kubernetes_resource_uid = ?", obj.KubernetesResourceUID).
 		Where("ktdbrm.db_relation_type = ?", obj.DBRelationType).

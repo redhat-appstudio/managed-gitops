@@ -79,7 +79,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetDatabaseMappingForAPICR(ctx context.Con
 	var result []APICRToDatabaseMapping
 
 	if err := dbq.dbConnection.Model(&result).
-		// TODO: PERF - Add a DB index for this
+		// TODO: GITOPS-1702 - PERF - Add a DB index for this
 		Where("atdbm.api_resource_type = ?", obj.APIResourceType).
 		Where("atdbm.api_resource_uid = ?", obj.APIResourceUID).
 		Where("atdbm.db_relation_type = ?", obj.DBRelationType).
@@ -121,7 +121,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedListAPICRToDatabaseMappingByAPINa
 
 	var dbResults []APICRToDatabaseMapping
 
-	// TODO: PERF - Add index for this
+	// TODO: GITOPS-1702 - PERF - Add index for this
 
 	if err := dbq.dbConnection.Model(&dbResults).
 		Where("atdbm.api_resource_type = ?", apiCRResourceType).

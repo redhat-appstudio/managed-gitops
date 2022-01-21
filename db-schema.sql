@@ -315,7 +315,7 @@ CREATE TABLE APICRToDatabaseMapping  (
 	PRIMARY KEY(api_resource_type, api_resource_uid, db_relation_type, db_relation_key)
 
 );
--- TODO: PERF - Add index to APICRToDatabaseMapping to correspond to the access patterns we are using.
+-- TODO: GITOPS-1702 - PERF - Add index to APICRToDatabaseMapping to correspond to the access patterns we are using.
 
 
 

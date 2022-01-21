@@ -238,7 +238,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListOperationsByResourceIdAndTypeAndOwnerI
 
 	var dbResults []Operation
 
-	// TODO: PERF - Add index for this
+	// TODO: GITOPS-1702 - PERF - Add index for this
 
 	if err := dbq.dbConnection.Model(&dbResults).
 		Where("op.resource_id = ?", resourceID).

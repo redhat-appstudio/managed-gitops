@@ -104,7 +104,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListGitopsEngineClusterByCredentialId(ctx 
 		Where("gitops_engine_cluster.clustercredentials_id = ?", credentialId).
 		Context(ctx).
 		Select(); err != nil {
-		// TODO: PERF -  Add an index for this function, if it's actually used for anything
+		// TODO: GITOPS-1702 - PERF -  Add an index for this function, if it's actually used for anything
 
 		return fmt.Errorf("error on retrieving GetGitopsEngineClusterByCredentialId: %v", err)
 	}

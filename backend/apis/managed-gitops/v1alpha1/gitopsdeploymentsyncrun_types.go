@@ -28,8 +28,12 @@ type GitOpsDeploymentSyncRunSpec struct {
 
 // GitOpsDeploymentSyncRunStatus defines the observed state of GitOpsDeploymentSyncRun
 type GitOpsDeploymentSyncRunStatus struct {
-	SyncStatus   string `json:"syncStatus,omitempty"`
-	HealthStatus string `json:"health,omitempty"`
+	Conditions []GitOpsDeploymentSyncRunCondition `json:"conditions,omitempty"`
+
+	// TODO: What should be done about this:
+
+	// SyncStatus   string                      `json:"syncStatus,omitempty"`
+	// HealthStatus string                      `json:"health,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -43,6 +47,37 @@ type GitOpsDeploymentSyncRun struct {
 	Spec   GitOpsDeploymentSyncRunSpec   `json:"spec,omitempty"`
 	Status GitOpsDeploymentSyncRunStatus `json:"status,omitempty"`
 }
+
+// GitOpsDeploymentCondition contains details about an applicationset condition, which is usally an error or warning
+type GitOpsDeploymentSyncRunCondition struct {
+	// Type is an applicationset condition type
+	Type SyncRunConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
+
+	// Message contains human-readable message indicating details about condition
+	Message string `json:"message" protobuf:"bytes,2,opt,name=message"`
+
+	// LastTransitionTime is the time the condition was last observed
+	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
+
+	// True/False/Unknown
+	Status GitOpsConditionStatus `json:"status" protobuf:"bytes,4,opt,name=status"`
+
+	//Single word camelcase representing the reason for the status eg ErrorOccurred
+	Reason SyncRunReasonType `json:"reason" protobuf:"bytes,5,opt,name=reason"`
+}
+
+type SyncRunReasonType string
+
+const (
+	SyncRunReasonErrorOccurred GitOpsDeploymentReasonType = "ErrorOccurred"
+)
+
+// GitOpsDeploymentConditionType represents type of GitOpsDeployment condition.
+type SyncRunConditionType string
+
+const (
+	GitOpsDeploymentSyncRunConditionErrorOccurred SyncRunConditionType = "ErrorOccurred"
+)
 
 //+kubebuilder:object:root=true
 

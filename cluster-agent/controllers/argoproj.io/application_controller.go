@@ -281,7 +281,7 @@ func contains(listAllApps []db.Application, str string) (bool, *db.Application) 
 
 // 	// Get the GitOpsEngineCluster that corresponds to this namespace
 // 	kdb := db.KubernetesToDBResourceMapping{
-// 		KubernetesResourceType: "Namespace", // TODO: Convert these to constants
+// 		KubernetesResourceType: "Namespace",
 // 		KubernetesResourceUID:  uniqueClusterID,
 // 		DBRelationType:         "GitOpsEngineCluster",
 // 	}

@@ -57,6 +57,9 @@ func TestNGuestbook(t *testing.T) {
 					Server:    "https://kubernetes.default.svc",
 				},
 				Project: "default",
+				SyncPolicy: &appv1.SyncPolicy{
+					Automated: &appv1.SyncPolicyAutomated{},
+				},
 			},
 		}
 
@@ -153,6 +156,9 @@ func TestHeavyApplication(t *testing.T) {
 				Server:    "https://kubernetes.default.svc",
 			},
 			Project: "default",
+			SyncPolicy: &appv1.SyncPolicy{
+				Automated: &appv1.SyncPolicyAutomated{},
+			},
 		},
 	}
 
@@ -184,6 +190,9 @@ func TestHeavyApplication(t *testing.T) {
 				Server:    "https://kubernetes.default.svc",
 			},
 			Project: "default",
+			SyncPolicy: &appv1.SyncPolicy{
+				Automated: &appv1.SyncPolicyAutomated{},
+			},
 		},
 	}
 
@@ -215,6 +224,9 @@ func TestHeavyApplication(t *testing.T) {
 				Server:    "https://kubernetes.default.svc",
 			},
 			Project: "default",
+			SyncPolicy: &appv1.SyncPolicy{
+				Automated: &appv1.SyncPolicyAutomated{},
+			},
 		},
 	}
 
@@ -318,6 +330,9 @@ func TestAllApplication(t *testing.T) {
 				Server:    "https://kubernetes.default.svc",
 			},
 			Project: "default",
+			SyncPolicy: &appv1.SyncPolicy{
+				Automated: &appv1.SyncPolicyAutomated{},
+			},
 		},
 	}
 
@@ -348,6 +363,9 @@ func TestAllApplication(t *testing.T) {
 					Server:    "https://kubernetes.default.svc",
 				},
 				Project: "default",
+				SyncPolicy: &appv1.SyncPolicy{
+					Automated: &appv1.SyncPolicyAutomated{},
+				},
 			},
 		}
 
@@ -442,13 +460,16 @@ func TestNResource(t *testing.T) {
 					RepoURL:        "https://github.com/samyak-jn/gitops-service-sample-k8s-resources.git",
 				},
 				Destination: appv1.ApplicationDestination{
-					Namespace: "test-namespace" + fmt.Sprintf("%d", i),
+					Namespace: "test-namespace-" + fmt.Sprintf("%d", i),
 					Server:    "https://kubernetes.default.svc",
 				},
 				Project: "default",
+				SyncPolicy: &appv1.SyncPolicy{
+					Automated:   &appv1.SyncPolicyAutomated{},
+					SyncOptions: []string{"CreateNamespace=true"},
+				},
 			},
 		}
-
 		_, err := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).Create(context.TODO(), applicationTest, v1.CreateOptions{})
 		if err != nil {
 			t.Errorf("error, %v", err)
@@ -466,7 +487,6 @@ func TestNResource(t *testing.T) {
 		}
 		// for each application, check if (app variable).Status.Health.Status
 		for _, app := range appList.Items {
-
 			// if status is empty, return false
 			if app.Status.Health.Status == "" {
 				return false, nil
@@ -494,14 +514,18 @@ func TestNResource(t *testing.T) {
 	delta := PodMemoryDiff(memoryInit, memoryPost)
 	PodInfoParse(delta)
 
-	// To delete a application from the given (ex: argocd) namespace
-	for i := 1; i < 101; i++ {
-		err_del := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).Delete(context.TODO(), "test-app-"+fmt.Sprintf("%d", i), v1.DeleteOptions{})
-
-		if err_del != nil {
-			t.Errorf("error, %v", err_del)
-			return
+	cleanup := func() {
+		// To delete a application from the given (ex: argocd) namespace and delete the test-namespace created
+		for i := 1; i < 101; i++ {
+			err_del := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).Delete(context.TODO(), "test-app-"+fmt.Sprintf("%d", i), v1.DeleteOptions{})
+			if err_del != nil {
+				t.Errorf("error, %v", err_del)
+			}
+			_ = GetE2EFixtureK8sClient().KubeClientset.CoreV1().Namespaces().Delete(context.TODO(), "test-namespace-"+fmt.Sprintf("%d", i), v1.DeleteOptions{})
 		}
 	}
+
+	defer cleanup()
+
 	t.Log("100 applications are created, deployed and deleted successfully!")
 }

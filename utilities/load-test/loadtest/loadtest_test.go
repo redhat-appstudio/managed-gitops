@@ -433,7 +433,18 @@ func TestAllApplication(t *testing.T) {
 }
 
 func TestNResource(t *testing.T) {
-	// TEST 1: Deply 100 guestbook in different namespace
+	cleanup := func() {
+		// To delete a application from the given (ex: argocd) namespace and delete the test-namespace created
+		for i := 1; i < 101; i++ {
+			err_del := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).Delete(context.TODO(), "test-app-"+fmt.Sprintf("%d", i), v1.DeleteOptions{})
+			if err_del != nil {
+				t.Errorf("error, %v", err_del)
+			}
+			_ = GetE2EFixtureK8sClient().KubeClientset.CoreV1().Namespaces().Delete(context.TODO(), "test-namespace-"+fmt.Sprintf("%d", i), v1.DeleteOptions{})
+		}
+	}
+
+	// TEST: Deply 100 sample application in different namespace
 	t.Log("Testing for 100 applications that uses lightweight non-Pod-based resources\n")
 
 	t.Log("\n\nPods Memory Resource before creation:\n\n")
@@ -488,7 +499,7 @@ func TestNResource(t *testing.T) {
 		// for each application, check if (app variable).Status.Health.Status
 		for _, app := range appList.Items {
 			// if status is empty, return false
-			if app.Status.Health.Status == "" {
+			if app.Status.Sync.Status != "Synced" && app.Status.Health.Status != "Healthy" {
 				return false, nil
 			}
 		}
@@ -513,17 +524,6 @@ func TestNResource(t *testing.T) {
 	t.Log("\n\nDifference in the Pod Memory Usage (in Ki)\n\n")
 	delta := PodMemoryDiff(memoryInit, memoryPost)
 	PodInfoParse(delta)
-
-	cleanup := func() {
-		// To delete a application from the given (ex: argocd) namespace and delete the test-namespace created
-		for i := 1; i < 101; i++ {
-			err_del := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).Delete(context.TODO(), "test-app-"+fmt.Sprintf("%d", i), v1.DeleteOptions{})
-			if err_del != nil {
-				t.Errorf("error, %v", err_del)
-			}
-			_ = GetE2EFixtureK8sClient().KubeClientset.CoreV1().Namespaces().Delete(context.TODO(), "test-namespace-"+fmt.Sprintf("%d", i), v1.DeleteOptions{})
-		}
-	}
 
 	defer cleanup()
 

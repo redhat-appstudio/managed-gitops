@@ -1,3 +1,4 @@
+//go:build !skiproutes
 // +build !skiproutes
 
 package routes

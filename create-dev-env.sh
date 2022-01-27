@@ -29,6 +29,104 @@ wait-until() {
   done
 }
 
+# Installs 'db-schema.sql' into the PostgreSQL running in Kubernetes cluster
+if [ "$1" = "kube" ]; then
+  exit_if_binary_not_installed "kubectl" "psql"
+
+  # Get the secret
+  counter=0
+  until kubectl -n gitops get secrets | grep gitops-postgresql-staging
+  do
+    ((counter++))
+    sleep 1
+    if [ "$counter" -gt 5 ]; then
+      echo " --> Error: Cannot find gitops-postgresql-staging secret."
+      exit 1
+    fi
+  done
+  echo " * Postgres secret has been created."
+
+   # Wait until postgres pod is running
+  echo " * Wait until Postgres pod is running"
+  counter=0
+  until kubectl -n gitops get pods | grep postgres | grep '1/1' | grep 'Running' &> /dev/null
+  do
+    ((counter++))
+    sleep 1
+    if [ "$counter" -gt 20 ]; then
+      echo " --> Error: PostgreSQL pod cannot start. Quiting ..."
+      exit 1
+    fi
+  done
+  echo " * Postgres Pod is running."
+
+  # Checks if 5432 is occupied
+  if lsof -i:5432 | grep LISTEN; then
+    echo " --> Error: Your local port TCP 5432 is already in use. Quit port-forward."
+    exit 1
+  fi
+  echo " * Start port-fowarding PostgreSQL to localhost:5432 ..."
+
+
+  # Port forward the PostgreSQL service locally, so we can access it
+	kubectl port-forward --namespace gitops svc/gitops-postgresql-staging 5432:5432 &
+  KUBE_PID=$!
+
+  # Checks if 5432 is occupied
+  counter=0
+  until lsof -i:5432 | grep LISTEN
+  do
+    sleep 1
+    if [ "$counter" -gt 10 ]; then
+      echo ".. retry $counter ..."
+      echo " --> Error: Port-forwarding takes too long. Quiting ..."
+      if ! kill $KUBE_PID; then
+        echo " --> Error: Cannot kill the background port-forward, do it yourself."
+      fi
+      exit 1
+    fi
+  done
+  echo " * Port-Forwarding worked"
+
+  # Decode the password from the secret
+  POSTGRES_PASSWORD=$(kubectl get -n gitops secret gitops-postgresql-staging -o jsonpath="{.data.postgresql-password}" | base64 --decode)
+
+  # Import the schema
+	if psql postgresql://postgres:"${POSTGRES_PASSWORD}"@127.0.0.1:5432/postgres -q -f db-schema.sql; then
+    echo " * db-schema.sql has been imported into PostgreSQL (running in Kubernetes)"
+  else
+    echo " --> Error: Cannot import 'db-schema.sql' into PostgreSQL (running in Kubernetes)"
+    exit 1
+  fi
+
+  # Stop port-forwarding
+	if ! kill $KUBE_PID; then
+    echo " --> Error: Cannot kill the background port-forward, do it yourself."
+    exit 1
+  else
+    echo " * Port-forwarding has been successfully stopped"
+  fi
+
+  if lsof -i:5432 | grep LISTEN; then
+    echo " * Port forwarding is still active for some reason. Investigate further ..."
+  fi
+
+  # Exit now, do not continue with the rest of the bash script
+  echo
+  echo " ------------------------------------------------"
+  echo "| To access the database outside of the cluster  |"
+  echo " ------------------------------------------------"
+
+  echo "  - Run:            kubectl port-forward --namespace gitops svc/gitops-postgresql-staging 5432:5432 &"
+  echo "  - Credentials:    HOST=127.0.0.1:5432  USERNAME=postgres  PASSWORD=$POSTGRES_PASSWORD  DB=postgres"
+  echo "  - Access Example: psql postgresql://postgres:$POSTGRES_PASSWORD@127.0.0.1:5432/postgres -c \"select now()\""
+  echo
+  echo "  - To run Backend & ClusterAgent Operators locally: export DB_PASS=$POSTGRES_PASSWORD && goreman start"
+  echo " -------------------------------------------------"
+  echo
+  exit 0
+fi
+
 # Binary requirements
 exit_if_binary_not_installed "docker" "mktemp"
 

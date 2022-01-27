@@ -2,24 +2,48 @@ package db
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/go-pg/pg/extra/pgdebug"
 	"github.com/go-pg/pg/v10"
 )
 
-// function to connect to Postgres
+func isEnvExist(key string) bool {
+	if _, ok := os.LookupEnv(key); ok {
+		return true
+	}
+
+	return false
+}
+
+func checkConn(db *pg.DB) error {
+	var n int
+	_, err := db.QueryOne(pg.Scan(&n), "SELECT 1")
+	return err
+}
+
+// connectToDatabase connects to Postgres.
 func connectToDatabase(verbose bool) (*pg.DB, error) {
+	addr := "localhost"
+	if isEnvExist("DB_ADDR") {
+		addr = os.Getenv("DB_ADDR")
+	}
+
+	password := "gitops"
+	if isEnvExist("DB_PASS") {
+		password = os.Getenv("DB_PASS")
+	}
 	opts := &pg.Options{
-		Addr:     "localhost:5432",
+		Addr:     fmt.Sprintf("%s:5432", addr),
 		User:     "postgres",
-		Password: "gitops",
+		Password: password,
 		Database: "postgres",
 	}
 
-	var db *pg.DB = pg.Connect(opts)
+	db := pg.Connect(opts)
 
-	if db == nil {
-		return nil, fmt.Errorf("unable to connect to database: %s %s %s ", opts.Addr, opts.User, opts.Database)
+	if err := checkConn(db); err != nil {
+		return nil, fmt.Errorf("%v, unable to connect to database: Host:'%s' User:'%s' Pass:'%s' DB:'%s' ", err, opts.Addr, opts.User, opts.Password, opts.Database)
 	}
 
 	if verbose {

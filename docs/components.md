@@ -1,44 +1,25 @@
-# Managed GitOps Service Monorepo
+# Component Index
 
-<image width="45" align="left" src="https://user-images.githubusercontent.com/242652/138285004-b27d55b3-163b-4fe3-a8ff-6c34518044bd.png">
+There are 4 separated, tightly-coupled components:
 
-**This is currently a work in progress and is subject to changes. Do not use this in any production environment.**
+- [Backend]: responsible for receiving the latest user's intent and then informing both the database and the [Cluster-Agent] about it. It also includes a REST APIServer for webhooks, called [routes].
+- [Cluster-Agent]: responsible for keeping synchronised the [ArgoCD Application CR] and its relevant Application entry in the database.
+- [Backend Shared]: group of libraries shared among the rest of the components.
+The frontend code is merely a mock collection of react pages created using [PatternFly](https://www.patternfly.org/) which is using dummy data to portray a very basic idea of how UI might look like. The actual UI for the same will differ.
 
----
+For detailed step-by-step guide on how each component works, check the `README` file of each individual component.
 
-## Overview
+## Other interesting files
 
-This repo is the home for all the Managed GitOps Service components.
-It contains various tools and services that you can use to deploy, as well as the libraries you can use to develop the GitOps Service that will be integrated with RedHat AppStudio.
+- [Load Test]: _at the moment, this is just a bare-bone project for load testing_.
+- [Manifests]: Postgres installation & some files related with the GitOps service deployment (such CRDs).
+  - the [Operation CRD] is located elsewhere though, inside the [Backend Shared].
+- [db-schema]: the database schema used by the components
+- [psql.sh]: script that allows you to interact with the DB from the command line. Once inside the psql CLI, you may issue SQL statements, such as `select * from application;` (don't forget the semi-colon at the end, `;`!)
+- `(create/delete/stop)-dev-env.sh`: Create, or delete or stop the database containers.
 
----
-
-## Documentation
-
-### ⚡ Project Info
-
-* 👉 **[Component Index](./docs/components.md)** 👈 - directory structure of this repo
-* Roadmap - Planning ahead
-* [Design] - High-level architecture of the GitOps Managed Service and its components
-* [Google Drive] - Lot's of information for new people to the project
-
-### ⭐ For Users
-
-* [Install](./docs/install.md) - Install GitOps Managed Service to your Kubernetes cluster
-* [Run it](./docs/run.md) - How to run the service
-
-### 🔥 For Developers
-
-* [Building](./docs/building.md) - Instructions for building each component and the Docker image
-* [Development](./docs/development.md) - Instructions for developers who want to contribute
-* [Debugging](./docs/debug.md) - Common errors and pitfalls
-* [Manifests](./docs/manifests.md) - Information about CRDs, RBAC, deployments, etc
-
----
-
-## Contributions
-
-If you like to contribute to GitOps Managed Service, please be so kind to read our [Contribution Policy](./docs/CONTRIBUTING.md) first.
+**NOTE**: See also, the targets in `Makefile` for additional available operations.
+Plus, within each of the components there is a `Makefile`, which can be used for local development of that component.
 
 [Backend Shared]: https://github.com/redhat-appstudio/managed-gitops/tree/main/backend-shared
 [Backend]: https://github.com/redhat-appstudio/managed-gitops/tree/main/backend
@@ -59,4 +40,3 @@ If you like to contribute to GitOps Managed Service, please be so kind to read o
 [Operation CRD]: https://github.com/redhat-appstudio/managed-gitops/blob/main/backend-shared/config/crd/bases/managed-gitops.redhat.com_operations.yaml
 [routes]: https://github.com/redhat-appstudio/managed-gitops/tree/main/backend/routes
 [Design]: https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.s0hdo22ap5cp
-[Google Drive]: https://drive.google.com/drive/u/0/folders/1p_yIOJ1WLu-lqz-BVDn076l1K1pEOc1d

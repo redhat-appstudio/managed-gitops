@@ -71,6 +71,7 @@ func preprocessEventLoopRouter(input chan eventLoopEvent, nextStep *controllerEv
 		fmt.Println(err)
 		return
 		// TODO: GITOPS-1678 - DEBT - shouldn't return here
+		// It returns here in case of wrong credentials (authentication failure with database)
 	}
 
 	for {

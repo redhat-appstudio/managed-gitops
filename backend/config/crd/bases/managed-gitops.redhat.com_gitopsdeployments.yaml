@@ -73,10 +73,11 @@ spec:
                   occurs in the GitOps repository, or the Argo CD Application is out
                   of sync, Argo CD should be told to (re)synchronize. - Manual: Argo
                   CD should never be told to resynchronize. Instead, synchronize operations
-                  will be triggered via GitOpsDeploymentSyncRun operations only. \n
-                  Note: This is somewhat of a placeholder for more advanced logic
-                  that can be implemented in the future. For an example of this type
-                  of logic, see the 'syncPolicy' field of Argo CD Application."
+                  will be triggered via GitOpsDeploymentSyncRun operations only. -
+                  See `GitOpsDeploymentSpecType*` \n Note: This is somewhat of a placeholder
+                  for more advanced logic that can be implemented in the future. For
+                  an example of this type of logic, see the 'syncPolicy' field of
+                  Argo CD Application."
                 type: string
             required:
             - source

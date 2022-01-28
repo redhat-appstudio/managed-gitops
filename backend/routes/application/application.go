@@ -7,7 +7,6 @@ GET: Retrieve a list of applications with the most recently updated statuses (or
 /api/v1/application/(id)
 GET: Retrieve details on a particular application
 
-TODO: Write Operations (POST, PUT, DELETE)
 */
 
 import (

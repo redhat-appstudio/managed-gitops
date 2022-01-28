@@ -39,7 +39,7 @@ type GitOpsDeploymentSyncRunReconciler struct {
 	PreprocessEventLoop *eventloop.PreprocessEventLoop
 }
 
-// TODO: How to find orphaned resources: is there any better way than 'select * from APICRToDatabaseMapping'
+// TODO: GITOPS-1581 - How to find orphaned resources: is there any better way than 'select * from APICRToDatabaseMapping'
 
 //+kubebuilder:rbac:groups=managed-gitops.redhat.com,resources=gitopsdeploymentsyncruns,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=managed-gitops.redhat.com,resources=gitopsdeploymentsyncruns/status,verbs=get;update;patch

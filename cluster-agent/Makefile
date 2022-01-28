@@ -96,7 +96,8 @@ build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./main.go
+	go run ./main.go --zap-log-level debug
+# more on controller log level configuration: https://sdk.operatorframework.io/docs/building-operators/golang/references/logging/
 
 # docker-build: test ## Build docker image with the manager.
 # 	docker build -t ${IMG} .

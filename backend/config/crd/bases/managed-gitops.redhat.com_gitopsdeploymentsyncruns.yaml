@@ -49,10 +49,37 @@ spec:
             description: GitOpsDeploymentSyncRunStatus defines the observed state
               of GitOpsDeploymentSyncRun
             properties:
-              health:
-                type: string
-              syncStatus:
-                type: string
+              conditions:
+                items:
+                  description: GitOpsDeploymentCondition contains details about an
+                    applicationset condition, which is usally an error or warning
+                  properties:
+                    lastTransitionTime:
+                      description: LastTransitionTime is the time the condition was
+                        last observed
+                      format: date-time
+                      type: string
+                    message:
+                      description: Message contains human-readable message indicating
+                        details about condition
+                      type: string
+                    reason:
+                      description: Single word camelcase representing the reason for
+                        the status eg ErrorOccurred
+                      type: string
+                    status:
+                      description: True/False/Unknown
+                      type: string
+                    type:
+                      description: Type is an applicationset condition type
+                      type: string
+                  required:
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
             type: object
         type: object
     served: true

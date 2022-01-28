@@ -29,11 +29,6 @@ type GitOpsDeploymentSyncRunSpec struct {
 // GitOpsDeploymentSyncRunStatus defines the observed state of GitOpsDeploymentSyncRun
 type GitOpsDeploymentSyncRunStatus struct {
 	Conditions []GitOpsDeploymentSyncRunCondition `json:"conditions,omitempty"`
-
-	// TODO: What should be done about this:
-
-	// SyncStatus   string                      `json:"syncStatus,omitempty"`
-	// HealthStatus string                      `json:"health,omitempty"`
 }
 
 //+kubebuilder:object:root=true

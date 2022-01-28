@@ -32,6 +32,7 @@ type GitOpsDeploymentSpec struct {
 	// Two possible values:
 	// - Automated: whenever a new commit occurs in the GitOps repository, or the Argo CD Application is out of sync, Argo CD should be told to (re)synchronize.
 	// - Manual: Argo CD should never be told to resynchronize. Instead, synchronize operations will be triggered via GitOpsDeploymentSyncRun operations only.
+	// - See `GitOpsDeploymentSpecType*`
 	//
 	// Note: This is somewhat of a placeholder for more advanced logic that can be implemented in the future.
 	// For an example of this type of logic, see the 'syncPolicy' field of Argo CD Application.
@@ -56,6 +57,11 @@ type ApplicationDestination struct {
 	// The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
 	Namespace string `json:"namespace,omitempty"`
 }
+
+const (
+	GitOpsDeploymentSpecType_Automated = "automated"
+	GitOpsDeploymentSpecType_Manual    = "manual"
+)
 
 // GitOpsDeploymentStatus defines the observed state of GitOpsDeployment
 type GitOpsDeploymentStatus struct {

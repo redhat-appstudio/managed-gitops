@@ -128,17 +128,36 @@ func GetPodInfo(kubeconfig string, master string, namespace string, podName stri
 		if err != nil {
 			panic(err)
 		}
-		podMemory := podMetrics.Containers[0].Usage["memory"]
-		podResource[(podMetrics.ObjectMeta.Name + "\t" + podMetrics.Containers[0].Name)] = podMemory.AsDec().UnscaledBig().Int64() / (1024 * 1024)
-
+		var totalPodmemory int64 = 0
+		var containerList string
+		for index, container := range podMetrics.Containers {
+			containerMemory := container.Usage["memory"]
+			totalPodmemory += containerMemory.AsDec().UnscaledBig().Int64()
+			if index != 0 {
+				containerList += ", " + container.Name
+			} else {
+				containerList = container.Name
+			}
+		}
+		podResource[(podMetrics.ObjectMeta.Name + "\t" + podMetrics.Containers[0].Name)] = totalPodmemory / (1024 * 1024)
 	} else {
 		podMetrics, err := mc.MetricsV1beta1().PodMetricses(namespace).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			panic(err)
 		}
 		for _, elements := range podMetrics.Items {
-			podMemory := elements.Containers[0].Usage["memory"]
-			podResource[(elements.ObjectMeta.Name + "\t" + elements.Containers[0].Name)] = podMemory.AsDec().UnscaledBig().Int64() / (1024 * 1024)
+			var totalPodmemory int64 = 0
+			var containerList string
+			for index, container := range elements.Containers {
+				containerMemory := container.Usage["memory"]
+				totalPodmemory += containerMemory.AsDec().UnscaledBig().Int64()
+				if index != 0 {
+					containerList += ", " + container.Name
+				} else {
+					containerList = container.Name
+				}
+			}
+			podResource[(elements.ObjectMeta.Name + "\t" + containerList)] = totalPodmemory / (1024 * 1024)
 		}
 	}
 	return podResource
@@ -150,7 +169,7 @@ func PodInfoParse(podInfo map[string]int64) {
 
 	// Format in tab-separated columns with a tab stop of 8.
 	w.Init(os.Stdout, 0, 8, 0, '\t', 0)
-	fmt.Fprintln(w, "Pod Name\tContainer Name\tMemory Usage (in Mi)")
+	fmt.Fprintln(w, "Pod Name\tContainer Name(s)\tMemory Usage (in Mi)")
 	for key, value := range podInfo {
 		fmt.Fprintln(w, key, "\t", value)
 	}
@@ -159,9 +178,9 @@ func PodInfoParse(podInfo map[string]int64) {
 
 // The PodMemoryDiff function is used to tell the memory of pod difference b/w before and after a process
 func PodMemoryDiff(podInfoOld map[string]int64, podInfoNew map[string]int64) map[string]int64 {
-	PodMemory := make(map[string]int64)
+	podMemory := make(map[string]int64)
 	for podInfoName := range podInfoNew {
-		PodMemory[podInfoName] = podInfoNew[podInfoName] - podInfoOld[podInfoName]
+		podMemory[podInfoName] = podInfoNew[podInfoName] - podInfoOld[podInfoName]
 	}
-	return PodMemory
+	return podMemory
 }

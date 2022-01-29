@@ -5,6 +5,11 @@ import (
 	"time"
 )
 
+//
+// See the separate 'db-schema.sql' schema file, for descriptions of each of these tables
+// and the fields within them.
+//
+
 // GitopsEngineCluster is used to track clusters that host Argo CD instances
 type GitopsEngineCluster struct {
 
@@ -127,8 +132,6 @@ type ClusterAccess struct {
 	// -- Foreign key to: GitOpsEngineInstance.Gitopsengineinstance_id
 	Clusteraccess_gitops_engine_instance_id string `pg:"clusteraccess_gitops_engine_instance_id,pk"`
 
-	// PRIMARY KEY(clusteraccess_user_id, clusteraccess_managed_environment_id, clusteraccess_gitops_engine_instance_id)
-
 	SeqID int64 `pg:"seq_id"`
 }
 
@@ -205,8 +208,6 @@ type Application struct {
 	// -- Name of the Application CR within the namespace
 	Name string `pg:"name"`
 
-	// TODO: Should applications have owners?
-
 	// -- '.spec' field of the Application CR
 	// -- Note: Rather than converting individual JSON fields into SQL Table fields, we just pull the whole spec field.
 	// -- In the future, it might be beneficial to pull out SOME of the fields, to reduce CPU time spent on json parsing
@@ -240,6 +241,7 @@ type ApplicationState struct {
 	// -- Possible values:
 	// -- * Synced
 	// -- * OutOfSync
+	// -- * Unknown
 	Sync_Status string `pg:"sync_status"`
 
 	// -- human_readable_health ( 512 ) NOT NULL,

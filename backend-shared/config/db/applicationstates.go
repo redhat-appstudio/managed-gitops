@@ -74,7 +74,8 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedUpdateApplicationState(ctx contex
 		return err
 	}
 
-	result, err := dbq.dbConnection.Model(obj).Context(ctx).Update()
+	result, err := dbq.dbConnection.Model(obj).Context(ctx).
+		Where("Applicationstate_application_id = ?", obj.Applicationstate_application_id).Update()
 	if err != nil {
 		return fmt.Errorf("error on updating application %v", err)
 	}

@@ -123,7 +123,7 @@ Currently the project has a mixture of unit-tests and integration tests, meaning
 To do that, follow these steps:
 
 1. Have a local (or remote) Kubernetes cluster up and running (_e.g._ `kind create cluster`)
-2. Install **ArgoCD** (`argocd` namespace) and **GitOps service** (`gitops` namespace) CRD manifests: `make -n install-argo`
+2. Install **Argo CD** (`argocd` namespace), and install the **GitOps service** (`gitops` namespace) CRD manifests: `make -n install-argo`
 3. Start the local containers (PostgreSQL and its UI Dashboard): `./create-dev-env.sh`
 4. Start `goreman` that starts all the required processes in the same terminal: `make start`
 

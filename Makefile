@@ -8,11 +8,13 @@ IMG ?= quay.io/${USERNAME}/${BASE_IMAGE}:${TAG}
 help: ## Display this help menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-# install: Ensure that the Argo CD namespace exists, that Argo CD is installed, and that CRDs we are using are applied to the current cluster
-install-argo: ## Ensure that the Argo CD namespace exists, and that CRDs we are using are applied to the current cluster
+install-argo: install-k8s-deps ## Ensure that the Argo CD is installed into Argo CD namespace
+	kubectl create ns argocd || true
+	kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/release-2.2/manifests/install.yaml -n argocd
+
+install-k8s-deps: ## Ensure that the Argo CD namespace exists, and that CRDs we are using are applied to the current cluster
 	kubectl apply -f $(MAKEFILE_ROOT)/backend/config/crd/bases
 	kubectl apply -f $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_operations.yaml
-	kubectl create ns argocd || true
 	kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/release-2.2/manifests/crds/application-crd.yaml
 
 start: ## Start all the components, compile & run (ensure goreman is installed, with 'go install github.com/mattn/goreman@latest')

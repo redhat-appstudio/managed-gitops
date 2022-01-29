@@ -28,7 +28,7 @@ var (
 func TestNGuestbook(t *testing.T) {
 	// TEST 1: Deply 100 guestbook in different namespace
 	t.Log("Testing for 100 Guestbook applications\n")
-
+	numberOfAppsToCreate := 100
 	t.Log("\n\nPods Memory Resource before creation:\n\n")
 	memoryInit := GetPodInfo(kubeconfig, masterUrl, namespace, podName)
 	PodInfoParse(memoryInit)
@@ -36,7 +36,7 @@ func TestNGuestbook(t *testing.T) {
 	// Get Pod Restart Count
 	PodC := PodRestartCount(namespace)
 
-	for i := 1; i < 101; i++ {
+	for i := 1; i < numberOfAppsToCreate+1; i++ {
 		guestbookApp := &appv1.Application{
 			TypeMeta: v1.TypeMeta{
 				Kind:       "Application",
@@ -109,7 +109,7 @@ func TestNGuestbook(t *testing.T) {
 	PodInfoParse(delta)
 
 	// To delete a application from the given (ex: argocd) namespace
-	for i := 1; i < 101; i++ {
+	for i := 1; i < numberOfAppsToCreate+1; i++ {
 		err_del := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).Delete(context.TODO(), "guestbook-"+fmt.Sprintf("%d", i), v1.DeleteOptions{})
 
 		if err_del != nil {
@@ -299,7 +299,7 @@ func TestAllApplication(t *testing.T) {
 	//	TEST 3: Deply Prometheus (heavy application) + 20 Guestbook Application (small application)
 
 	t.Log("Testing for Prometheus + 20 Guestbook Application\n")
-
+	numberOfGuestbookAppsToCreate := 20
 	t.Log("\n\nPods Memory Resource before creation:\n\n")
 	// Intial Memory Information
 	memoryInit := GetPodInfo(kubeconfig, masterUrl, namespace, podName)
@@ -342,7 +342,7 @@ func TestAllApplication(t *testing.T) {
 		return
 	}
 
-	for i := 1; i < 21; i++ {
+	for i := 1; i < numberOfGuestbookAppsToCreate+1; i++ {
 		guestbookApp := &appv1.Application{
 			TypeMeta: v1.TypeMeta{
 				Kind:       "Application",
@@ -417,7 +417,7 @@ func TestAllApplication(t *testing.T) {
 	// To delete a application from the given (ex: argocd) namespace
 	err_del := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).Delete(context.TODO(), "prometheus-app", v1.DeleteOptions{})
 	// Deleting 10 guestbook applications
-	for i := 1; i < 21; i++ {
+	for i := 1; i < numberOfGuestbookAppsToCreate+1; i++ {
 		err_del := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).Delete(context.TODO(), "guestbook-"+fmt.Sprintf("%d", i), v1.DeleteOptions{})
 
 		if err_del != nil {
@@ -433,9 +433,11 @@ func TestAllApplication(t *testing.T) {
 }
 
 func TestNResource(t *testing.T) {
-	cleanup := func() {
+	numberOfAppsToCreate := 100
+
+	cleanup := func(numberOfAppsToCreate int) {
 		// To delete a application from the given (ex: argocd) namespace and delete the test-namespace created
-		for i := 1; i < 101; i++ {
+		for i := 1; i < numberOfAppsToCreate+1; i++ {
 			err_del := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).Delete(context.TODO(), "test-app-"+fmt.Sprintf("%d", i), v1.DeleteOptions{})
 			if err_del != nil {
 				t.Errorf("error, %v", err_del)
@@ -443,6 +445,7 @@ func TestNResource(t *testing.T) {
 			_ = GetE2EFixtureK8sClient().KubeClientset.CoreV1().Namespaces().Delete(context.TODO(), "test-namespace-"+fmt.Sprintf("%d", i), v1.DeleteOptions{})
 		}
 	}
+	defer cleanup(numberOfAppsToCreate)
 
 	// TEST: Deply 100 sample application in different namespace
 	t.Log("Testing for 100 applications that uses lightweight non-Pod-based resources\n")
@@ -454,7 +457,7 @@ func TestNResource(t *testing.T) {
 	// Get Pod Restart Count
 	PodC := PodRestartCount(namespace)
 
-	for i := 1; i < 101; i++ {
+	for i := 1; i < numberOfAppsToCreate+1; i++ {
 		applicationTest := &appv1.Application{
 			TypeMeta: v1.TypeMeta{
 				Kind:       "Application",
@@ -524,8 +527,6 @@ func TestNResource(t *testing.T) {
 	t.Log("\n\nDifference in the Pod Memory Usage (in Ki)\n\n")
 	delta := PodMemoryDiff(memoryInit, memoryPost)
 	PodInfoParse(delta)
-
-	defer cleanup()
 
 	t.Log("100 applications are created, deployed and deleted successfully!")
 }

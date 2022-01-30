@@ -182,3 +182,27 @@ func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
 
 	return res, nil
 }
+
+// NewEphemeralCleanTestFramework will clean a docker container,
+// and network. This is merely defined for testing purpose
+func NewEphemeralCleanTestFramework(dockerContainerID string, tempNetworkName string) error {
+
+	dockerCmd := "docker rm -f %s"
+	fmt.Println("\nRunning: ", fmt.Sprintf(dockerCmd, dockerContainerID))
+
+	// To get the output of the command
+	_, err := exec.Command("docker", "rm", "-f", dockerContainerID).Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	dockerNetworkcmd := "docker network rm %s"
+	fmt.Println("\nRunning: ", fmt.Sprintf(dockerNetworkcmd, tempNetworkName))
+
+	// To get the output of the command
+	_, err = exec.Command("docker", "network", "rm", tempNetworkName).Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return nil
+}

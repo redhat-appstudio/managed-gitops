@@ -2,6 +2,7 @@ package hack
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,6 +25,14 @@ func TestCreateServiceAccount(t *testing.T) {
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		panic(err.Error())
+	}
+
+	_, err = clientset.CoreV1().Namespaces().Get(context.TODO(), "kube-system", metav1.GetOptions{})
+	if err != nil {
+		if strings.Contains(err.Error(), "connect: no route to host") {
+			t.Skip("Skipping K8s test because there is no accessible K8s cluster")
+			return
+		}
 	}
 
 	t.Run("New SA", func(t *testing.T) {

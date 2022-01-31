@@ -32,7 +32,7 @@ func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
 	// To print which command is running
 	fmt.Println("\nRunning: ", s)
 
-	// To get the output of the command
+	// #nosec G204
 	dockerNetwork := exec.Command("docker", "network", "create", tempNetworkName)
 	dockerNetworkerr := dockerNetwork.Run()
 	if dockerNetworkerr != nil {
@@ -66,6 +66,7 @@ func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
 	var dockerContainerID []byte
 	var errDockerRun error
 	errWait := wait.Poll(5*time.Second, 2*time.Minute, func() (bool, error) {
+		// #nosec G204
 		dockerContainerID, errDockerRun = exec.Command("docker", "run", "--name", dockerName,
 			"-v", string(tempDatabaseDir)+":/var/lib/postgresql/data:Z",
 			"-e", "POSTGRES_PASSWORD=gitops",
@@ -84,6 +85,7 @@ func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
 			return false, errDockerRun
 		}
 		// check for container status
+		// #nosec G204
 		status, _ := exec.Command("docker", "container", "inspect", "-f", "{{.State.Status}}", string(dockerContainerID)).Output()
 		if string(status) == "running" {
 			return true, nil
@@ -102,6 +104,7 @@ func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
 	fmt.Println("\nRunning: ", s)
 	// To get the output of the command
 	errWait = wait.Poll(5*time.Second, 2*time.Minute, func() (bool, error) {
+		// #nosec G204
 		psqlcmd := exec.Command("psql", "-h", "localhost", "-d", tempDBName, "-U", "postgres", "-p", "6432", "-c", "select 1")
 		psqlcmd.Env = os.Environ()
 		psqlcmd.Env = append(psqlcmd.Env, "PGPASSWORD=gitops")

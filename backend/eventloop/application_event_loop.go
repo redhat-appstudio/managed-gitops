@@ -194,6 +194,7 @@ func applicationEventQueueLoop(input chan applicationEventLoopMessage, gitopsDep
 func startNewStatusUpdateTimer(ctx context.Context, input chan applicationEventLoopMessage, gitopsDeplID string, log logr.Logger) {
 
 	// Up to 1 second of jitter
+	// #nosec
 	jitter := time.Duration(int64(time.Millisecond) * int64(rand.Float64()*1000))
 
 	statusUpdateTimer := time.NewTimer(deploymentStatusTickRate + jitter)

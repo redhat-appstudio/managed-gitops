@@ -18,7 +18,6 @@ package argoprojio
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -28,7 +27,6 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -179,94 +177,4 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&appv1.Application{}).
 		Complete(r)
-}
-
-func (r *ApplicationReconciler) createApplicationCRFromDB(ctx context.Context,
-	dbAppId string,
-	gitopsEngineInstance *db.GitopsEngineInstance,
-	databaseQueries db.DatabaseQueries,
-	log logr.Logger) error {
-
-	dbApplication := &db.Application{
-		Application_id: dbAppId,
-	}
-	// // this proves that the application does exists, create in namespace
-	// errGetApp := databaseQueries.UncheckedGetApplicationById(ctx, dbApplication)
-	// if errGetApp != nil {
-	// 	return errGetApp
-	// }
-
-	application, err := convertDBAppToApplicationCR(dbApplication, gitopsEngineInstance.Namespace_name)
-	if err != nil {
-		return err
-	}
-
-	if err := r.Create(ctx, application, &client.CreateOptions{}); err != nil {
-		return err
-	}
-
-	// Update the application state after application is pushed to Namespace
-	// - If ApplicationState row exists no change, else create!
-
-	dbApplicationState := &db.ApplicationState{Applicationstate_application_id: string(dbAppId)}
-	if err := databaseQueries.UncheckedGetApplicationStateById(ctx, dbApplicationState); err != nil {
-		// We expect not found error here, any other error should return
-		if !apierr.IsNotFound(err) {
-			log.Error(err, "unexpected error in createApplicationCR")
-			return err
-		}
-
-		// If the ApplicationState doesn't exist, create it
-		dbApplicationState := &db.ApplicationState{
-			Applicationstate_application_id: dbApplication.Application_id,
-			Health:                          string(application.Status.Health.Status),
-			Sync_Status:                     string(application.Status.Sync.Status),
-		}
-
-		if err := databaseQueries.UncheckedCreateApplicationState(ctx, dbApplicationState); err != nil {
-			log.Error(err, "unable to create ApplicationState")
-			return err
-		}
-
-		return nil
-	}
-
-	// If the status in the database is different from what is in the Application CR, then update the database
-	if dbApplicationState.Health != string(application.Status.Health.Status) ||
-		dbApplicationState.Sync_Status != string(application.Status.Sync.Status) {
-
-		dbApplicationState.Health = string(application.Status.Health.Status)
-		dbApplicationState.Sync_Status = string(application.Status.Sync.Status)
-
-		if err := databaseQueries.UncheckedUpdateApplicationState(ctx, dbApplicationState); err != nil {
-			log.Error(err, "unable to update ApplicationState")
-			return err
-		}
-	}
-
-	return nil
-}
-
-func convertDBAppToApplicationCR(dbApp *db.Application, gitopsEngineNamespace string) (*appv1.Application, error) {
-
-	newApplicationEntry := &appv1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: dbApp.Name, Namespace: gitopsEngineNamespace},
-	}
-	// assigning spec
-	newSpecErr := json.Unmarshal([]byte(dbApp.Spec_field), &newApplicationEntry.Spec)
-	if newSpecErr != nil {
-		return nil, newSpecErr
-	}
-
-	return newApplicationEntry, nil
-}
-
-func contains(listAllApps []db.Application, str string) (bool, *db.Application) {
-	for idx := range listAllApps {
-		dbApp := listAllApps[idx]
-		if dbApp.Name == str {
-			return true, &dbApp
-		}
-	}
-	return false, nil
 }

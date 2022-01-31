@@ -352,7 +352,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			Resource_type: db.OperationResourceType_SyncOperation,
 		}
 
-		k8sOperation, dbOperation, err := uncheckedCreateOperation(ctx, false, dbOperationInput, clusterUser.Clusteruser_id,
+		k8sOperation, dbOperation, err := uncheckedCreateOperation(ctx, false && !a.testOnlySkipCreateOperation, dbOperationInput, clusterUser.Clusteruser_id,
 			sharedutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log)
 		if err != nil {
 			log.Error(err, "could not create operation", "namespace", sharedutil.GetGitOpsEngineSingleInstanceNamespace())
@@ -574,80 +574,6 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 
 	return nil
 
-}
-
-// applicationEventRunner_handleUpdateDeploymentStatusTick updates the status field of all the GitOpsDeploymentCRs in the workspace.
-func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateDeploymentStatusTickOld(ctx context.Context,
-	dbQueries db.ApplicationScopedQueries) error {
-
-	// 1) Retrieve pointers to all the GitOpsDeployments in the workspace (and their corresponding Applications)
-	deplToAppMappingList := []db.DeploymentToApplicationMapping{}
-	if err := dbQueries.UncheckedListDeploymentToApplicationMappingByWorkspaceUID(ctx, a.workspaceID, &deplToAppMappingList); err != nil {
-		a.log.Error(err, "unable to list applications in workspace, on tick")
-		return err
-	}
-
-	// TODO: GITOPS-1702 - PERF - In general, polling for all GitOpsDeployments in a workspace will scale poorly with large number of applications in the workspace. We should switch away from polling in the future.
-
-	// TODO: GITOPS-1702 - PERF - this could be a join between the DeplToAppMapping and ApplicationState tables
-
-	var errorList error
-
-	// 2) For each GitOpsDeployment in the workspace, find the corresponding ApplicationState, and update the CR based on that
-	for _, deplToAppMapping := range deplToAppMappingList {
-
-		appId := deplToAppMapping.Application_id
-
-		deployment := managedgitopsv1alpha1.GitOpsDeployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      deplToAppMapping.DeploymentName,
-				Namespace: deplToAppMapping.DeploymentNamespace,
-			},
-		}
-
-		// 3) Retrieve the GitOpsDeployment CR from the workspace, based on the name from the database
-		if err := a.workspaceClient.Get(ctx, client.ObjectKeyFromObject(&deployment), &deployment); err != nil {
-
-			if apierr.IsNotFound(err) {
-				a.log.Info("DeplToAppMapping references CR which no longer exists", "deplToAppMapping ID", deplToAppMapping.Deploymenttoapplicationmapping_uid_id)
-
-				// TODO: GITOPS-1581 - we can hook into this logic, as part of workspace reconciliation.
-
-			} else {
-				errorList = appendError(fmt.Sprintf("error on '%s': %v", deplToAppMapping.Deploymenttoapplicationmapping_uid_id, err), errorList)
-			}
-
-			continue
-		}
-
-		// 4) Retrieve the application state for the application pointed to be the depltoappmapping
-		applicationState := db.ApplicationState{Applicationstate_application_id: appId}
-		if err := dbQueries.UncheckedGetApplicationStateById(ctx, &applicationState); err != nil {
-
-			if db.IsResultNotFoundError(err) {
-				a.log.Info("ApplicationState not found for application, on deploymentStatusTick: " + applicationState.Applicationstate_application_id)
-			} else {
-				errorList = appendError(fmt.Sprintf("appstate error on '%s': %v", deplToAppMapping.Deploymenttoapplicationmapping_uid_id, err), errorList)
-			}
-			continue
-		}
-
-		// TODO: GITOPS-1636 - STUB - 5) update the health and status field of the GitOpsDepl CR
-		// NOTE: make sure to preserve the existing conditions fields that are in the status field of the CR, when updating the status!
-
-	}
-
-	return errorList
-
-}
-
-func appendError(msg string, errorList error) error {
-	if errorList == nil {
-		errorList = fmt.Errorf("%v", msg)
-	} else {
-		errorList = fmt.Errorf("%v. previous-error: %v", msg, errorList)
-	}
-	return errorList
 }
 
 func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploymentModified(ctx context.Context,
@@ -906,7 +832,8 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		Resource_type: db.OperationResourceType_Application,
 	}
 
-	k8sOperation, dbOperation, err := uncheckedCreateOperation(ctx, true, dbOperationInput, clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, log)
+	k8sOperation, dbOperation, err := uncheckedCreateOperation(ctx, true && !a.testOnlySkipCreateOperation, dbOperationInput,
+		clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, log)
 	if err != nil {
 		log.Error(err, "unable to create operation", "operation", dbOperationInput.ShortString())
 		return false, err
@@ -1015,7 +942,8 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		Resource_type: db.OperationResourceType_Application,
 	}
 
-	k8sOperation, dbOperation, err := uncheckedCreateOperation(ctx, true, dbOperationInput, clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, log)
+	k8sOperation, dbOperation, err := uncheckedCreateOperation(ctx, true && !a.testOnlySkipCreateOperation, dbOperationInput, clusterUser.Clusteruser_id,
+		operationNamespace, dbQueries, gitopsEngineClient, log)
 	if err != nil {
 		log.Error(err, "could not create operation", "operation", dbOperation.Operation_id, "namespace", operationNamespace)
 		return false, nil, nil, err
@@ -1141,7 +1069,8 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		return false, nil, nil, err
 	}
 
-	k8sOperation, dbOperation, err := uncheckedCreateOperation(ctx, true, dbOperationInput, clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, a.log)
+	k8sOperation, dbOperation, err := uncheckedCreateOperation(ctx, true && !a.testOnlySkipCreateOperation, dbOperationInput,
+		clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, a.log)
 	if err != nil {
 		a.log.Error(err, "could not create operation", "namespace", operationNamespace)
 		return false, nil, nil, err
@@ -1179,6 +1108,11 @@ type applicationEventLoopRunner_Action struct {
 	getK8sClientForGitOpsEngineInstance func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error)
 
 	sharedResourceEventLoop *sharedResourceEventLoop
+
+	// testOnlySkipCreateOperation: for unit testing purposes only, skip creation of an operation when
+	// processing the action. This allows us to unit test application event functions without needing to
+	// have a cluster-agent running alongside it.
+	testOnlySkipCreateOperation bool
 }
 
 // cleanupOperation cleans up the database entry and (optionally) the CR, once an operation has concluded.

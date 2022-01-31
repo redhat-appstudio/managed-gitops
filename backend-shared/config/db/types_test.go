@@ -385,15 +385,13 @@ func TestOperation(t *testing.T) {
 	}
 
 	operation := &Operation{
+		Operation_id:            "test-operation",
 		Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
 		Resource_id:             "fake resource id",
 		Resource_type:           "GitopsEngineInstance",
 		State:                   OperationState_Waiting,
 		Operation_owner_user_id: testClusterUser.Clusteruser_id,
 	}
-
-	err = dbq.CreateOperation(ctx, operation, "some-other-user")
-	assert.Error(t, err)
 
 	err = dbq.CreateOperation(ctx, operation, operation.Operation_owner_user_id)
 	assert.NoError(t, err)

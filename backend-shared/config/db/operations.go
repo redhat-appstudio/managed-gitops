@@ -52,7 +52,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateOperation(ctx context.Context, obj *
 		return err
 	}
 
-	// Verify the instance exists, and the user has access to it
+	// Verify the instance exists
 	gei := GitopsEngineInstance{Gitopsengineinstance_id: obj.Instance_id}
 	if err := dbq.UncheckedGetGitopsEngineInstanceById(ctx, &gei); err != nil {
 		return fmt.Errorf("unable to retrieve operation's gitops engine instance ID: '%v' %v", obj.Instance_id, err)

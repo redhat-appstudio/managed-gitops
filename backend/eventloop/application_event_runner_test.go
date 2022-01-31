@@ -99,12 +99,13 @@ func TestApplicationEventLoopRunner_handleDeploymentModified(t *testing.T) {
 		getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 			return k8sClient, nil
 		},
-		eventResourceName:       gitopsDepl.Name,
-		eventResourceNamespace:  gitopsDepl.Namespace,
-		workspaceClient:         k8sClient,
-		log:                     log.FromContext(context.Background()),
-		sharedResourceEventLoop: newSharedResourceLoop(),
-		workspaceID:             workspaceID,
+		eventResourceName:           gitopsDepl.Name,
+		eventResourceNamespace:      gitopsDepl.Namespace,
+		workspaceClient:             k8sClient,
+		log:                         log.FromContext(context.Background()),
+		sharedResourceEventLoop:     newSharedResourceLoop(),
+		workspaceID:                 workspaceID,
+		testOnlySkipCreateOperation: true,
 	}
 
 	// ------
@@ -258,12 +259,13 @@ func TestApplicationEventLoopRunner_handleSyncRunModified(t *testing.T) {
 		getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 			return k8sClient, nil
 		},
-		eventResourceName:       gitopsDepl.Name,
-		eventResourceNamespace:  gitopsDepl.Namespace,
-		workspaceClient:         k8sClient,
-		log:                     log.FromContext(context.Background()),
-		sharedResourceEventLoop: sharedResourceLoop,
-		workspaceID:             string(workspace.UID),
+		eventResourceName:           gitopsDepl.Name,
+		eventResourceNamespace:      gitopsDepl.Namespace,
+		workspaceClient:             k8sClient,
+		log:                         log.FromContext(context.Background()),
+		sharedResourceEventLoop:     sharedResourceLoop,
+		workspaceID:                 string(workspace.UID),
+		testOnlySkipCreateOperation: true,
 	}
 
 	_, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)

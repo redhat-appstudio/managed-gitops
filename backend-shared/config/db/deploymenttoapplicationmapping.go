@@ -5,7 +5,40 @@ import (
 	"fmt"
 )
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedListDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, workspaceUID string, deplToAppMappingParam *[]DeploymentToApplicationMapping) error {
+func (dbq *PostgreSQLDatabaseQueries) UncheckedListDeploymentToApplicationMappingByWorkspaceUID(ctx context.Context, workspaceUID string,
+	deplToAppMappingParam *[]DeploymentToApplicationMapping) error {
+
+	if err := validateQueryParamsEntity(deplToAppMappingParam, dbq); err != nil {
+		return err
+	}
+
+	if err := isEmptyValues("UncheckedListDeploymentToApplicationMappingByWorkspaceUID",
+		"WorkspaceUID", workspaceUID,
+	); err != nil {
+		return err
+	}
+
+	// Application exists, and user can access it
+
+	var dbResults []DeploymentToApplicationMapping
+
+	// TODO: GITOPS-1702 - PERF - Add index for this
+
+	if err := dbq.dbConnection.Model(&dbResults).
+		Where("dta.workspace_uid = ?", workspaceUID).
+		Context(ctx).
+		Select(); err != nil {
+
+		return fmt.Errorf("error on retrieving UncheckedListDeploymentToApplicationMappingByWorkspaceUID: %v", err)
+	}
+
+	*deplToAppMappingParam = dbResults
+
+	return nil
+}
+
+func (dbq *PostgreSQLDatabaseQueries) UncheckedListDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string,
+	deploymentNamespace string, workspaceUID string, deplToAppMappingParam *[]DeploymentToApplicationMapping) error {
 
 	if err := validateQueryParamsEntity(deplToAppMappingParam, dbq); err != nil {
 		return err
@@ -23,7 +56,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedListDeploymentToApplicationMappin
 
 	var dbResults []DeploymentToApplicationMapping
 
-	// TODO: PERF - Add index for this
+	// TODO: GITOPS-1702 - PERF - Add index for this
 
 	if err := dbq.dbConnection.Model(&dbResults).
 		Where("dta.name = ?", deploymentName).
@@ -117,7 +150,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedGetDeploymentToApplicationMapping
 	var dbResults []DeploymentToApplicationMapping
 
 	if err := dbq.dbConnection.Model(&dbResults).
-		Where("dta.application_id = ?", deplToAppMappingParam.Application_id). // TODO: PERF - Index this
+		Where("dta.application_id = ?", deplToAppMappingParam.Application_id). // TODO: GITOPS-1702 - PERF - Index this
 		Context(ctx).
 		Select(); err != nil {
 

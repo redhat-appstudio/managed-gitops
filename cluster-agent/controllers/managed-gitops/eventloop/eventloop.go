@@ -11,6 +11,7 @@ import (
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,62 +57,57 @@ func controllerEventLoopRouter(input chan controllerEventLoopEvent) {
 
 	log := log.FromContext(ctx)
 
-	// taskRetryLoop := newTaskRetryLoop()
+	taskRetryLoop := sharedutil.NewTaskRetryLoop("cluster-agent")
 
 	log.Info("controllerEventLoopRouter started")
 
 	for {
 		newEvent := <-input
 
-		// mapKey := newEvent.request.Name + "-" + newEvent.request.Namespace
+		mapKey := newEvent.request.Name + "-" + newEvent.request.Namespace
 
-		task := processEventTask{
+		// Call PerformTask below, when a request is received.
+		task := &processEventTask{
 			event: controllerEventLoopEvent{
 				request: newEvent.request,
 				client:  newEvent.client,
 			},
+			log: log,
 		}
+		taskRetryLoop.AddTaskIfNotPresent(mapKey, task, sharedutil.ExponentialBackoff{Factor: 2, Min: time.Millisecond * 200, Max: time.Second * 10, Jitter: true})
 
-		for {
-			// TODO: Convert this to using taskRetryLoop
-
-			retry, err := task.performTask(ctx)
-
-			if err != nil {
-				log.Error(err, err.Error())
-			}
-
-			if !retry {
-				break
-			} else {
-				time.Sleep(100 * time.Millisecond)
-			}
-		}
 	}
 
 }
 
 type processEventTask struct {
 	event controllerEventLoopEvent
+	log   logr.Logger
 }
 
-func (task *processEventTask) performTask(taskContext context.Context) (bool, error) {
+func (task *processEventTask) PerformTask(taskContext context.Context) (bool, error) {
 	dbQueries, err := db.NewProductionPostgresDBQueries(true)
 	if err != nil {
-		// TODO: Log me better
+		task.log.Error(err, "unable to instantiate database")
 		return true, err
 	}
 
-	dbOperation, retry, err := task.internalPerformTask(taskContext, dbQueries)
+	// Process the event
+	dbOperation, shouldRetry, err := task.internalPerformTask(taskContext, dbQueries)
 
 	if dbOperation != nil {
 
-		if retry {
+		// Don't update the status of operations that have previously completed.
+		if dbOperation.State == db.OperationState_Completed || dbOperation.State == db.OperationState_Failed {
+			return false, err
+		}
+
+		if shouldRetry {
 			// Not complete, still (re)trying.
 			dbOperation.State = db.OperationState_In_Progress
 		} else {
-			// Complete, but possibly due to a fatal error
 
+			// Complete, but possibly due to a fatal error
 			if err == nil {
 				dbOperation.State = db.OperationState_Completed
 			} else {
@@ -121,17 +117,17 @@ func (task *processEventTask) performTask(taskContext context.Context) (bool, er
 		dbOperation.Last_state_update = time.Now()
 
 		if err != nil {
-			// TODO: DEBT - SECURITY - At some point, we will likely want to sanitize the error value for users
+			// TODO: GITOPS-1717 - SECURITY - At some point, we will likely want to sanitize the error value for users
 			dbOperation.Human_readable_state = err.Error()
 		}
 
 		if err := dbQueries.UncheckedUpdateOperation(taskContext, dbOperation); err != nil {
-			// TODO: Log me better
+			task.log.Error(err, "unable to update operation state", "operation", dbOperation.Operation_id)
 			return true, err
 		}
 	}
 
-	return retry, err
+	return shouldRetry, err
 
 }
 
@@ -140,68 +136,86 @@ func (task *processEventTask) internalPerformTask(taskContext context.Context, d
 
 	eventClient := task.event.client
 
-	operation := &operation.Operation{
+	// 1) Retrieve an up-to-date copy of the Operation CR that we want to process.
+	operationCR := &operation.Operation{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      task.event.request.Name,
 			Namespace: task.event.request.Namespace,
 		},
 	}
-
-	if err := eventClient.Get(taskContext, client.ObjectKeyFromObject(operation), operation); err != nil {
-
+	if err := eventClient.Get(taskContext, client.ObjectKeyFromObject(operationCR), operationCR); err != nil {
 		if apierr.IsNotFound(err) {
-			log.Info("Operation CR doesn't exist: " + operation.Namespace + "/" + operation.Name)
 			// work is complete
+			log.V(sharedutil.LogLevel_Debug).Info("Received a request for an operation CR that doesn't exist: " + operationCR.Namespace + "/" + operationCR.Name)
 			return nil, false, nil
 
 		} else {
-			log.Error(err, err.Error())
 			// generic error
+			log.Error(err, err.Error())
 			return nil, true, err
 		}
 	}
 
+	// 2) Retrieve the database entry that corresponds to the Operation CR.
 	dbOperation := db.Operation{
-		Operation_id: operation.Spec.OperationID,
+		Operation_id: operationCR.Spec.OperationID,
 	}
 	if err := dbQueries.UncheckedGetOperationById(taskContext, &dbOperation); err != nil {
 
-		// TODO: Log me better
-
 		if db.IsResultNotFoundError(err) {
-			log.Info("DB operation doesn't exist: " + dbOperation.Operation_id)
-			// log as warning
-
 			// no corresponding db operation, so no work to do
+			log.V(sharedutil.LogLevel_Warn).Info("Received operation requested for operation DB entry that doesn't exist: " + dbOperation.Operation_id)
 			return nil, false, nil
 		} else {
 			// some other generic error
 			log.Error(err, "Unable to retrieve operation due to generic error: "+dbOperation.Operation_id)
 			return nil, true, err
 		}
-
 	}
 
+	// If the operation has already completed (we previously ran it), then just ignore it and return
+	if dbOperation.State == db.OperationState_Completed || dbOperation.State == db.OperationState_Failed {
+		return &dbOperation, false, nil
+	}
+
+	// 3) Find the Argo CD instance that is targeted by this operation.
 	dbGitopsEngineInstance := &db.GitopsEngineInstance{
 		Gitopsengineinstance_id: dbOperation.Instance_id,
 	}
 	if err := dbQueries.UncheckedGetGitopsEngineInstanceById(taskContext, dbGitopsEngineInstance); err != nil {
-		// TODO: Log me better
-		log.Error(err, err.Error())
 
 		if db.IsResultNotFoundError(err) {
 			// log as warning
+			log.Error(err, "Receive operation on gitops engine instance that doesn't exist: "+dbOperation.Operation_id)
 
 			// no corresponding db operation, so no work to do
 			return &dbOperation, false, nil
 		} else {
 			// some other generic error
+			log.Error(err, "Unexpected error on retrieving GitOpsEngineInstance in internalPerformTask")
 			return &dbOperation, true, err
 		}
 	}
 
-	// TODO: DEBT: ensure that the engine cluster corresponds to this cluster-agent
+	// Sanity test: find the gitops engine cluster, by kube-system, and ensure that the
+	// gitopsengineinstance matches the gitops engine cluster we are running on.
+	kubeSystemNamespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system", Namespace: "kube-system"}}
+	if err := eventClient.Get(taskContext, client.ObjectKeyFromObject(kubeSystemNamespace), kubeSystemNamespace); err != nil {
+		log.Error(err, "SEVERE: Unable to retrieve kube-system namespace")
+		return &dbOperation, true, fmt.Errorf("unable to retrieve kube-system namespace in internalPerformTask")
+	}
+	if thisCluster, err := sharedutil.GetGitopsEngineClusterByKubeSystemNamespaceUID(taskContext, string(kubeSystemNamespace.UID), dbQueries, log); err != nil {
+		log.Error(err, "Unable to retrieve GitOpsEngineCluster when processing Operation")
+		return &dbOperation, true, err
+	} else if thisCluster == nil {
+		log.Error(err, "GitOpsEngineCluster could not be found when processing Operation")
+		return &dbOperation, true, nil
+	} else if thisCluster.Gitopsenginecluster_id != dbGitopsEngineInstance.EngineCluster_id {
+		log.Error(nil, "SEVERE: The gitops engine cluster that the cluster-agent is running on did not match the operation's target argo cd instance id.")
+		return &dbOperation, true, nil
+	}
 
+	// 4) Find the namespace for the targeted Argo CD instance
 	argoCDNamespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      dbGitopsEngineInstance.Namespace_name,
@@ -209,32 +223,31 @@ func (task *processEventTask) internalPerformTask(taskContext context.Context, d
 		},
 	}
 	if err := eventClient.Get(taskContext, client.ObjectKeyFromObject(argoCDNamespace), argoCDNamespace); err != nil {
-
-		// TODO: Log me better
-		log.Error(err, err.Error())
-
 		if db.IsResultNotFoundError(err) {
-			// TODO: Log as severe
-			// TODO: include todo reference to multi argocd instance story
-
+			log.Error(err, "Argo CD namespace doesn't exist")
 			// no corresponding db operation, so no work to do
 			return &dbOperation, false, nil
 		} else {
+			log.Error(err, "unexpected error on retrieve Argo CD namespace")
 			// some other generic error
 			return &dbOperation, true, err
 		}
 	}
+	if string(argoCDNamespace.UID) != dbGitopsEngineInstance.Namespace_uid {
+		log.Error(nil, "SEVERE: Engine instance did not match Argo CD namespace uid, while processing operation")
+		return &dbOperation, false, nil
+	}
 
-	// TODO: Verify that the UID matches
+	// Finally, call the corresponding method for processing the particular type of Operation.
 
 	if dbOperation.Resource_type == db.OperationResourceType_Application {
-		res, err := processOperation_Application(taskContext, dbOperation, *operation, dbQueries, *argoCDNamespace, eventClient, log)
+		shouldRetry, err := processOperation_Application(taskContext, dbOperation, *operationCR, dbQueries, *argoCDNamespace, eventClient, log)
 
 		if err != nil {
 			log.Error(err, "error occurred on processing the application operation")
 		}
 
-		return &dbOperation, res, err
+		return &dbOperation, shouldRetry, err
 
 	} else {
 		log.Error(nil, "SEVERE: unrecognized resource type: "+dbOperation.Resource_type)
@@ -243,7 +256,9 @@ func (task *processEventTask) internalPerformTask(taskContext context.Context, d
 
 }
 
-func processOperation_Application(ctx context.Context, dbOperation db.Operation, crOperation operation.Operation, dbQueries db.DatabaseQueries, argoCDNamespace corev1.Namespace, eventClient client.Client, log logr.Logger) (bool, error) {
+// processOperation_Application handles an Operation that targets an Application. Returns true if the task should be retried (eg due to failure).
+func processOperation_Application(ctx context.Context, dbOperation db.Operation, crOperation operation.Operation, dbQueries db.DatabaseQueries,
+	argoCDNamespace corev1.Namespace, eventClient client.Client, log logr.Logger) (bool, error) {
 
 	// Sanity check
 	if dbOperation.Resource_id == "" {
@@ -284,7 +299,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 			var firstDeletionErr error
 			for _, item := range list.Items {
 				// Delete all Argo CD applications with the corresponding database label (but, there should be only one)
-				err := deleteArgoCDApplication(ctx, item, eventClient, log)
+				err := controllers.DeleteArgoCDApplication(ctx, item, eventClient, log)
 				if err != nil {
 					log.Error(err, "error on deleting Argo CD Application: %v", item.Name)
 
@@ -314,7 +329,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		},
 	}
 
-	// TODO: BUG - operations are being processed again when I restart the cluster agent
+	log = log.WithValues("app.Name", app.Name)
 
 	if err := eventClient.Get(ctx, client.ObjectKeyFromObject(app), app); err != nil {
 
@@ -331,17 +346,18 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 			app.ObjectMeta.Labels = map[string]string{"databaseID": dbApplication.Application_id}
 
 			if err := eventClient.Create(ctx, app, &client.CreateOptions{}); err != nil {
-				log.Error(err, err.Error()) // TODO: Log me
-				// This may or may not be salvageable depending on the error; we should figure out which
+				log.Error(err, "unable to create Argo CD Application CR: "+app.Name)
+				// This may or may not be salvageable depending on the error; ultimately we should figure out which
 				// error messages mean unsalvageable, and not wait for them.
 				return true, err
 			}
 
+			log.Info("Created Argo CD Application CR: " + app.Name)
+
 			return false, nil
 
 		} else {
-			// TODO: log generic error
-			log.Error(err, err.Error())
+			log.Error(err, "Unexpected error when attempting to retrieve Argo CD Application CR")
 			return false, err
 		}
 
@@ -366,6 +382,8 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		specDiff = "spec.destination fields differ"
 	} else if specFieldApp.Spec.Project != app.Spec.Project {
 		specDiff = "spec project fields differ"
+	} else if specFieldApp.Spec.SyncPolicy != app.Spec.SyncPolicy {
+		specDiff = "sync policy fields differ"
 	}
 
 	if specDiff != "" {
@@ -378,153 +396,11 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 			return false, err
 		}
 
+		log.Info("Updated Argo CD Application CR: " + app.Name + ", diff was: " + specDiff)
+
 	} else {
-		log.V(sharedutil.LogLevel_Debug).Info("no changes detected in application, so no update needed")
+		log.Info("no changes detected in application, so no update needed")
 	}
 
 	return false, nil
-}
-
-func deleteArgoCDApplication(ctx context.Context, appFromList appv1.Application, eventClient client.Client, log logr.Logger) error {
-
-	log = log.WithValues("name", appFromList.Name, "namespace", appFromList.Namespace, "uid", string(appFromList.UID))
-
-	log.Info("Attempting to delete Argo CD CR " + appFromList.Name)
-
-	app := &appv1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      appFromList.Name,
-			Namespace: appFromList.Namespace,
-		},
-	}
-
-	if err := eventClient.Get(ctx, client.ObjectKeyFromObject(app), app); err != nil {
-
-		if apierr.IsNotFound(err) {
-			// TODO: log as warn
-			log.Info("unable to locate application which previously existed: " + appFromList.Name)
-			return nil
-		}
-
-		log.Error(err, "unable to retrieve application which previously existed: "+appFromList.Name)
-		return err
-
-	}
-
-	if app.DeletionTimestamp == nil {
-
-		// Ensure finalizer is set
-		{
-			containsFinalizer := false
-			for _, finalizer := range app.Finalizers {
-				// TODO: add to constant
-				if finalizer == "resources-finalizer.argocd.argoproj.io" {
-					containsFinalizer = true
-					break
-				}
-			}
-
-			if !containsFinalizer {
-				// TODO: Add to constant (is there one from Argo CD we can use?)
-				app.Finalizers = append(app.Finalizers, "resources-finalizer.argocd.argoproj.io")
-
-				if err := eventClient.Update(ctx, app); err != nil {
-					log.Error(err, "unable to update application with finalizer: "+app.Name)
-					return err
-				}
-			}
-		}
-
-		// Tell K8s to start deleting the Application, which triggers Argo CD to delete children
-		policy := metav1.DeletePropagationForeground
-		if err := eventClient.Delete(ctx, app, &client.DeleteOptions{PropagationPolicy: &policy}); err != nil {
-			log.Error(err, "unable to delete application with finalizer: "+app.Name)
-			return err
-		}
-	}
-
-	backoff := sharedutil.ExponentialBackoff{
-		Factor: 2,
-		Min:    time.Millisecond * 200,
-		Max:    time.Second * 10,
-		Jitter: true,
-	}
-
-	// Wait for Argo CD to delete the application.
-	// We wait either (now+5 minutes), or (deletionTimestamp+5 minutes), whichever is soonest.
-	success := false
-	// expired := false
-	var expirationTime time.Time
-	if app.DeletionTimestamp == nil {
-		expirationTime = time.Now().Add(time.Minute * 5) // TODO: constant
-	} else {
-		expirationTime = app.DeletionTimestamp.Time.Add(time.Minute * 5) // TODO: constant
-	}
-	for {
-
-		if time.Now().After(expirationTime) {
-			log.Error(nil, "Argo CD application finalizer-based delete expired in deleteArgoCDApplication")
-			// expired = true
-			break
-		}
-
-		if err := eventClient.Get(ctx, client.ObjectKeyFromObject(app), app); err != nil {
-
-			if apierr.IsNotFound(err) {
-				// TODO: log me
-				success = true
-				// Success! The Application (and its resources) have been deleted.
-				break
-			} else {
-				log.Error(err, "unable to retrieve application being deleted: "+app.Name)
-			}
-
-		}
-
-		backoff.DelayOnFail(ctx)
-	}
-
-	// If the Argo CD was unable to delete the application properly, then just remove the finalizer and
-	// wait for it to go away (up to 2 minutes)
-	if !success {
-
-		// Add up to 2 minutes to wait for the deletion
-		expirationTime = expirationTime.Add(2 * time.Minute) // TODO: constant
-
-		for {
-
-			if time.Now().After(expirationTime) {
-				log.Error(nil, "Argo CD application non-finalizer-based delete expired in deleteArgoCDApplication")
-				success = false
-				break
-			}
-
-			if err := eventClient.Get(ctx, client.ObjectKeyFromObject(app), app); err != nil {
-
-				if apierr.IsNotFound(err) {
-					// Success! The Application (and its resources) have been deleted.
-					success = true
-					break
-				} else {
-					log.Error(err, "unable to retrieve Application in deleteArgoCDApplication")
-					return err
-				}
-			} else {
-				// Remove the finalizer
-				app.Finalizers = []string{}
-				if err := eventClient.Update(ctx, app); err != nil {
-					log.Error(err, "unable to remove finalizer from app: "+app.Name)
-					return err
-				}
-			}
-		}
-	}
-
-	if !success {
-		log.Info("Application was not successfully deleted: " + app.Name)
-	} else {
-		log.Info("Application was successfully deleted: " + app.Name)
-	}
-
-	return nil
 }

@@ -11,32 +11,27 @@ import (
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/backend/util/fauxargocd"
+	goyaml "gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // For more information on how events are distributed between goroutines by event loop, see:
 // https://miro.com/app/board/o9J_lgiqJAs=/?moveToWidget=3458764514216218600&cot=14
 
-const (
-	// requestTimeoutDuration is the default length of time a workspace event goroutine should process an event before
-	// giving up (cancelling the context)
-	requestTimeoutDuration = time.Minute * time.Duration(5)
-)
-
 func newApplicationEventLoopRunner(informWorkCompleteChan chan applicationEventLoopMessage, sharedResourceEventLoop *sharedResourceEventLoop,
-	gitopsDeplUID string, workspaceID string) chan *eventLoopEvent {
+	gitopsDeplUID string, workspaceID string, debugContext string) chan *eventLoopEvent {
 
 	inputChannel := make(chan *eventLoopEvent)
 
 	go func() {
-		applicationEventLoopRunner(inputChannel, informWorkCompleteChan, sharedResourceEventLoop, gitopsDeplUID, workspaceID)
+		applicationEventLoopRunner(inputChannel, informWorkCompleteChan, sharedResourceEventLoop, gitopsDeplUID, workspaceID, debugContext)
 	}()
 
 	return inputChannel
@@ -44,12 +39,12 @@ func newApplicationEventLoopRunner(informWorkCompleteChan chan applicationEventL
 }
 
 func applicationEventLoopRunner(inputChannel chan *eventLoopEvent, informWorkCompleteChan chan applicationEventLoopMessage,
-	sharedResourceEventLoop *sharedResourceEventLoop, gitopsDeplUID string, workspaceID string) {
+	sharedResourceEventLoop *sharedResourceEventLoop, gitopsDeplUID string, workspaceID string, debugContext string) {
 
 	outerContext := context.Background()
 	log := log.FromContext(outerContext)
 
-	log = log.WithValues("gitopsDeplUID", gitopsDeplUID, "workspaceID", workspaceID)
+	log = log.WithValues("gitopsDeplUID", gitopsDeplUID, "workspaceID", workspaceID, "debugContext", debugContext)
 
 	log.V(sharedutil.LogLevel_Debug).Info("applicationEventLoopRunner started")
 
@@ -59,7 +54,7 @@ func applicationEventLoopRunner(inputChannel chan *eventLoopEvent, informWorkCom
 		// Read from input channel: wait for an event on this application
 		newEvent := <-inputChannel
 
-		ctx, cancel := context.WithDeadline(outerContext, time.Now().Add(requestTimeoutDuration))
+		ctx, cancel := context.WithCancel(outerContext)
 
 		defer cancel()
 
@@ -90,6 +85,7 @@ func applicationEventLoopRunner(inputChannel chan *eventLoopEvent, informWorkCom
 					workspaceClient:                     newEvent.client,
 					sharedResourceEventLoop:             sharedResourceEventLoop,
 					log:                                 log,
+					workspaceID:                         workspaceID,
 				}
 
 				var err error
@@ -107,10 +103,17 @@ func applicationEventLoopRunner(inputChannel chan *eventLoopEvent, informWorkCom
 				}
 
 				if newEvent.eventType == DeploymentModified {
+					// Handle all GitOpsDeployment related events
 					signalledShutdown, _, _, err = action.applicationEventRunner_handleDeploymentModified(ctx, scopedDBQueries)
 
+					// TODO: GITOPS-1719 - Update the GitOpsDeployment CR's status conditions, based on err.
+
 				} else if newEvent.eventType == SyncRunModified {
+					// Handle all SyncRun related events
 					signalledShutdown, err = action.applicationEventRunner_handleSyncRunModified(ctx, scopedDBQueries)
+
+				} else if newEvent.eventType == UpdateDeploymentStatusTick {
+					err = action.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, newEvent.associatedGitopsDeplUID, scopedDBQueries)
 
 				} else {
 					log.Error(nil, "SEVERE: Unrecognized event type", "event type", newEvent.eventType)
@@ -248,8 +251,8 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 					// If the gitopsdepl doesn't exist, we really can't proceed any further
 
 					err := fmt.Errorf("unable to retrieve gitopsdeployment referenced in syncrun: %v", err)
-					// TODO: ENHANCHMENT - If the gitopsDepl isn't referenced, update the status of the GitOpsDeplomentSyncRun condition as an error and return
-					// TODO: ENHANCEMENT - implement status conditions on GitOpsDeploymentSyncRun
+					// TODO: GITOPS-1720 - ENHANCEMENT - If the gitopsDepl isn't referenced, update the status of the GitOpsDeplomentSyncRun condition as an error and return
+					// TODO: GITOPS-1720 - ENHANCEMENT - implement status conditions on GitOpsDeploymentSyncRun
 					log.Error(err, "handleSyncRunModified error")
 					return false, err
 
@@ -302,7 +305,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		// Create sync operation
 		syncOperation := &db.SyncOperation{
 			Application_id:      application.Application_id,
-			Operation_id:        "delme", // TODO: DEBT - This field can probably be removed from the database
+			Operation_id:        "delme", // TODO: GITOPS-1678 - DEBT - This field can probably be removed from the database
 			DeploymentNameField: syncRunCR.Spec.GitopsDeploymentName,
 			Revision:            syncRunCR.Spec.RevisionID,
 		}
@@ -350,9 +353,9 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		}
 
 		k8sOperation, dbOperation, err := uncheckedCreateOperation(ctx, false, dbOperationInput, clusterUser.Clusteruser_id,
-			sharedutil.GitOpsEngineSingleInstanceNamespace, dbQueries, operationClient, log)
+			sharedutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log)
 		if err != nil {
-			log.Error(err, "could not create operation", "namespace", sharedutil.GitOpsEngineSingleInstanceNamespace)
+			log.Error(err, "could not create operation", "namespace", sharedutil.GetGitOpsEngineSingleInstanceNamespace())
 
 			// If we were unable to create the operation, delete the resources we created in the previous steps
 			sharedutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log)
@@ -360,10 +363,10 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			return false, err
 		}
 
-		// TODO: GITOPS-1467 - STUB - Remove the 'false' in createOperation above, once cluster agent handling of operation is implemented.
+		// TODO: GITOPS-1466 - STUB - Remove the 'false' in createOperation above, once cluster agent handling of operation is implemented.
 		log.Info("STUB: Not waiting for create Sync Run operation to complete, in handleNewSyncRunModified")
 
-		if err := cleanupOperation(ctx, *dbOperation, *k8sOperation, sharedutil.GitOpsEngineSingleInstanceNamespace, dbQueries, operationClient, log); err != nil {
+		if err := cleanupOperation(ctx, *dbOperation, *k8sOperation, sharedutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log); err != nil {
 			return false, err
 		}
 
@@ -445,7 +448,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			return false, err
 		}
 
-		// TODO: DEBT - Include test case to check that the various goroutines are terminated when the CR is deleted.
+		// TODO: GITOPS-1678 - DEBT - Include test case to check that the various goroutines are terminated when the CR is deleted.
 
 		return false, nil
 	}
@@ -506,13 +509,155 @@ func (a *applicationEventLoopRunner_Action) cleanupOldSyncDBEntry(ctx context.Co
 	return nil
 }
 
-func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploymentModified(ctx context.Context, dbQueries db.ApplicationScopedQueries) (bool, *db.Application, *db.GitopsEngineInstance, error) {
+// applicationEventRunner_handleUpdateDeploymentStatusTick updates the status field of all the GitOpsDeploymentCRs in the workspace.
+func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateDeploymentStatusTick(ctx context.Context,
+	gitopsDeplID string, dbQueries db.ApplicationScopedQueries) error {
+
+	// TODO: GITOPS-1702 - PERF - In general, polling for all GitOpsDeployments in a workspace will scale poorly with large number of applications in the workspace. We should switch away from polling in the future.
+
+	// 1) Retrieve the mapping for the CR we are processing
+	mapping := db.DeploymentToApplicationMapping{
+		Deploymenttoapplicationmapping_uid_id: string(gitopsDeplID),
+	}
+	if err := dbQueries.UncheckedGetDeploymentToApplicationMappingByDeplId(ctx, &mapping); err != nil {
+		if db.IsResultNotFoundError(err) {
+			// Our work is done
+			return nil
+		} else {
+			a.log.Error(err, "unable to locate dtam in handleUpdateDeploymentStatusTick")
+			return err
+		}
+	}
+
+	// 2) Retrieve the GitOpsDeployment from the namespace, using the expected values from the database
+	gitopsDeployment := &managedgitopsv1alpha1.GitOpsDeployment{}
+	{
+		gitopsDeploymentKey := client.ObjectKey{Namespace: mapping.DeploymentNamespace, Name: mapping.DeploymentName}
+
+		if err := a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment); err != nil {
+
+			if apierr.IsNotFound(err) {
+				// Our work is done
+				return nil
+			} else {
+				a.log.Error(err, "unable to locate gitops object in handleUpdateDeploymentStatusTick", "request", gitopsDeploymentKey)
+				return err
+			}
+		}
+	}
+
+	if string(gitopsDeployment.UID) != mapping.Deploymenttoapplicationmapping_uid_id {
+		// This can occur if the GitOpsDeployment CR has been deleted from the workspace
+		a.log.V(sharedutil.LogLevel_Warn).Info("On tick, the UID of the gitopsdeployment in the workspace differed from the tick value: " + string(gitopsDeployment.UID) + " " + mapping.Deploymenttoapplicationmapping_uid_id)
+		return nil
+	}
+
+	// 3) Retrieve the application state for the application pointed to be the depltoappmapping
+	applicationState := db.ApplicationState{Applicationstate_application_id: mapping.Application_id}
+	if err := dbQueries.UncheckedGetApplicationStateById(ctx, &applicationState); err != nil {
+
+		if db.IsResultNotFoundError(err) {
+			a.log.Info("ApplicationState not found for application, on deploymentStatusTick: " + applicationState.Applicationstate_application_id)
+			return nil
+		} else {
+			return err
+		}
+	}
+
+	// TODO: GITOPS-1636 - STUB - 4) update the health and status field of the GitOpsDepl CR
+
+	// if err := a.workspaceClient.Status().Update(ctx, gitopsDeployment, &client.UpdateOptions{}); err != nil {
+	// 	return err
+	// }
+
+	// NOTE: make sure to preserve the existing conditions fields that are in the status field of the CR, when updating the status!
+
+	return nil
+
+}
+
+// applicationEventRunner_handleUpdateDeploymentStatusTick updates the status field of all the GitOpsDeploymentCRs in the workspace.
+func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateDeploymentStatusTickOld(ctx context.Context,
+	dbQueries db.ApplicationScopedQueries) error {
+
+	// 1) Retrieve pointers to all the GitOpsDeployments in the workspace (and their corresponding Applications)
+	deplToAppMappingList := []db.DeploymentToApplicationMapping{}
+	if err := dbQueries.UncheckedListDeploymentToApplicationMappingByWorkspaceUID(ctx, a.workspaceID, &deplToAppMappingList); err != nil {
+		a.log.Error(err, "unable to list applications in workspace, on tick")
+		return err
+	}
+
+	// TODO: GITOPS-1702 - PERF - In general, polling for all GitOpsDeployments in a workspace will scale poorly with large number of applications in the workspace. We should switch away from polling in the future.
+
+	// TODO: GITOPS-1702 - PERF - this could be a join between the DeplToAppMapping and ApplicationState tables
+
+	var errorList error
+
+	// 2) For each GitOpsDeployment in the workspace, find the corresponding ApplicationState, and update the CR based on that
+	for _, deplToAppMapping := range deplToAppMappingList {
+
+		appId := deplToAppMapping.Application_id
+
+		deployment := managedgitopsv1alpha1.GitOpsDeployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      deplToAppMapping.DeploymentName,
+				Namespace: deplToAppMapping.DeploymentNamespace,
+			},
+		}
+
+		// 3) Retrieve the GitOpsDeployment CR from the workspace, based on the name from the database
+		if err := a.workspaceClient.Get(ctx, client.ObjectKeyFromObject(&deployment), &deployment); err != nil {
+
+			if apierr.IsNotFound(err) {
+				a.log.Info("DeplToAppMapping references CR which no longer exists", "deplToAppMapping ID", deplToAppMapping.Deploymenttoapplicationmapping_uid_id)
+
+				// TODO: GITOPS-1581 - we can hook into this logic, as part of workspace reconciliation.
+
+			} else {
+				errorList = appendError(fmt.Sprintf("error on '%s': %v", deplToAppMapping.Deploymenttoapplicationmapping_uid_id, err), errorList)
+			}
+
+			continue
+		}
+
+		// 4) Retrieve the application state for the application pointed to be the depltoappmapping
+		applicationState := db.ApplicationState{Applicationstate_application_id: appId}
+		if err := dbQueries.UncheckedGetApplicationStateById(ctx, &applicationState); err != nil {
+
+			if db.IsResultNotFoundError(err) {
+				a.log.Info("ApplicationState not found for application, on deploymentStatusTick: " + applicationState.Applicationstate_application_id)
+			} else {
+				errorList = appendError(fmt.Sprintf("appstate error on '%s': %v", deplToAppMapping.Deploymenttoapplicationmapping_uid_id, err), errorList)
+			}
+			continue
+		}
+
+		// TODO: GITOPS-1636 - STUB - 5) update the health and status field of the GitOpsDepl CR
+		// NOTE: make sure to preserve the existing conditions fields that are in the status field of the CR, when updating the status!
+
+	}
+
+	return errorList
+
+}
+
+func appendError(msg string, errorList error) error {
+	if errorList == nil {
+		errorList = fmt.Errorf("%v", msg)
+	} else {
+		errorList = fmt.Errorf("%v. previous-error: %v", msg, errorList)
+	}
+	return errorList
+}
+
+func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploymentModified(ctx context.Context,
+	dbQueries db.ApplicationScopedQueries) (bool, *db.Application, *db.GitopsEngineInstance, error) {
 
 	deplName := a.eventResourceName
 	deplNamespace := a.eventResourceNamespace
 	workspaceClient := a.workspaceClient
 
-	log := log.FromContext(ctx)
+	log := a.log
 
 	gitopsDeplNamespace := corev1.Namespace{}
 	if err := workspaceClient.Get(ctx, types.NamespacedName{Namespace: deplNamespace, Name: deplNamespace}, &gitopsDeplNamespace); err != nil {
@@ -582,10 +727,10 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 			// Found: we were able to locate the DeplToAppMap resource for the deleted GitOpsDeployment,
 			deplToAppMapExistsInDB = true
 		}
-
 	}
 
-	log.V(sharedutil.LogLevel_Debug).Info("workspacerEventLoopRunner_handleDeploymentModified processing event", "gitopsDeploymentExists", gitopsDeploymentCRExists, "deplToAppMapExists", deplToAppMapExistsInDB)
+	log.V(sharedutil.LogLevel_Debug).Info("workspacerEventLoopRunner_handleDeploymentModified processing event",
+		"gitopsDeploymentExists", gitopsDeploymentCRExists, "deplToAppMapExists", deplToAppMapExistsInDB)
 
 	if !gitopsDeploymentCRExists && !deplToAppMapExistsInDB {
 		// if neither exists, our work is done
@@ -596,12 +741,12 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 		// If the gitopsdepl CR exists, but the database entry doesn't,
 		// then this is the first time we have seen the GitOpsDepl CR.
 		// Create it in the DB and create the operation.
-		return a.handleNewGitOpsDeplEvent(ctx, gitopsDeployment, clusterUser, sharedutil.GitOpsEngineSingleInstanceNamespace, dbQueries)
+		return a.handleNewGitOpsDeplEvent(ctx, gitopsDeployment, clusterUser, sharedutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries)
 	}
 
 	if !gitopsDeploymentCRExists && deplToAppMapExistsInDB {
 		// If the gitopsdepl CR doesn't exist, but the database row does, then the CR has been deleted, so handle it.
-		signalShutdown, err := a.handleDeleteGitOpsDeplEvent(ctx, clusterUser, sharedutil.GitOpsEngineSingleInstanceNamespace,
+		signalShutdown, err := a.handleDeleteGitOpsDeplEvent(ctx, clusterUser, sharedutil.GetGitOpsEngineSingleInstanceNamespace(),
 			&deplToAppMappingList, dbQueries)
 
 		return signalShutdown, nil, nil, err
@@ -617,7 +762,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 
 		// if both exist: it's an update (or a no-op)
 		return a.handleUpdatedGitOpsDeplEvent(ctx, &deplToAppMappingList[0], gitopsDeployment, clusterUser,
-			sharedutil.GitOpsEngineSingleInstanceNamespace, dbQueries)
+			sharedutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries)
 	}
 
 	return false, nil, nil, fmt.Errorf("SEVERE - All cases should be handled by above if statements")
@@ -767,8 +912,6 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		return false, err
 	}
 
-	// TODO: GITOPS-1467 - Do something with the operation status
-
 	if err := cleanupOperation(ctx, *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, log); err != nil {
 		log.Error(err, "unable to cleanup operation", "operation", dbOperationInput.ShortString())
 		return false, err
@@ -818,9 +961,9 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		return false, nil, nil, err
 	}
 
-	// TODO: ENHANCEMENT - Ensure that the backend code gracefully handles database values that are too large for the DB field (eg too many VARCHARs)
+	// TODO: GITOPS-1701 - ENHANCEMENT - Ensure that the backend code gracefully handles database values that are too large for the DB field (eg too many VARCHARs)
 
-	// TODO: DEBT - Sanity check that the application.name matches the expected value set in handleCreateGitOpsEvent
+	// TODO: GITOPS-1678 - Sanity check that the application.name matches the expected value set in handleCreateGitOpsEvent
 
 	destinationNamespace := gitopsDeployment.Spec.Destination.Namespace
 	if destinationNamespace == "" {
@@ -831,16 +974,22 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		crName:               application.Name,
 		crNamespace:          engineInstanceParam.Namespace_name,
 		destinationNamespace: destinationNamespace,
-		// TODO: After GITOPS 1564 - Fill this in with cluster credentials
+		// TODO: GITOPS-1722 - Fill this in with cluster credentials
 		destinationName:      "in-cluster",
 		sourceRepoURL:        gitopsDeployment.Spec.Source.RepoURL,
 		sourcePath:           gitopsDeployment.Spec.Source.Path,
 		sourceTargetRevision: gitopsDeployment.Spec.Source.TargetRevision,
-		// databaseID:           application.Application_id,
+		automated:            strings.EqualFold(gitopsDeployment.Spec.Type, managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated),
 	}
 
-	specFieldResult := createSpecField(specFieldInput)
+	specFieldResult, err := createSpecField(specFieldInput)
+	if err != nil {
+		log.Error(err, "SEVERE: Unable to parse generated spec field")
+		return false, nil, nil, err
+	}
+
 	if specFieldResult == application.Spec_field {
+		log.Info("No spec change detected between Application DB entry and GitOpsDeployment CR")
 		// No change required: the application database entry is consistent with the gitopsdepl CR
 		return false, application, engineInstanceParam, nil
 	}
@@ -872,8 +1021,6 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		return false, nil, nil, err
 	}
 
-	// TODO: GITOPS-1467 - Do something with the operation status
-
 	if err := cleanupOperation(ctx, *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, log); err != nil {
 		return false, nil, nil, err
 	}
@@ -887,9 +1034,7 @@ func actionGetK8sClientForGitOpsEngineInstance(gitopsEngineInstance *db.GitopsEn
 
 	// TODO: GITOPS-1455: When we support multiple Argo CD instances (and multiple instances on separate clusters), this logic should be updated.
 
-	// TODO: Post GITOPS-1564: At the moment, we're not using the managed env param, but it should be tied to cluster credentials of argo cd instance.
-
-	config, err := config.GetConfig()
+	config, err := sharedutil.GetRESTConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -942,19 +1087,28 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		crName:               appName,
 		crNamespace:          engineInstance.Namespace_name,
 		destinationNamespace: destinationNamespace,
-		// TODO: After GITOPS 1564 - Fill this in with cluster credentials
+		// TODO: GITOPS-1722 - Fill this in with cluster credentials
 		destinationName:      "in-cluster",
 		sourceRepoURL:        gitopsDeployment.Spec.Source.RepoURL,
 		sourcePath:           gitopsDeployment.Spec.Source.Path,
 		sourceTargetRevision: gitopsDeployment.Spec.Source.TargetRevision,
+		automated:            strings.EqualFold(gitopsDeployment.Spec.Type, managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated),
+	}
+
+	specFieldText, err := createSpecField(specFieldInput)
+	if err != nil {
+		a.log.Error(err, "SEVERE: unable to marshal generated YAML")
+		return false, nil, nil, err
 	}
 
 	application := db.Application{
 		Name:                    appName,
 		Engine_instance_inst_id: engineInstance.Gitopsengineinstance_id,
 		Managed_environment_id:  managedEnv.Managedenvironment_id,
-		Spec_field:              createSpecField(specFieldInput),
+		Spec_field:              specFieldText,
 	}
+
+	a.log.Info("Creating new Application in DB: " + application.Application_id)
 
 	if err := dbQueries.CreateApplication(ctx, &application, clusterUser.Clusteruser_id); err != nil {
 		a.log.Error(err, "unable to create application", "application", application, "ownerId", clusterUser.Clusteruser_id)
@@ -968,6 +1122,8 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		DeploymentNamespace:                   gitopsDeployment.Namespace,
 		WorkspaceUID:                          getWorkspaceIDFromNamespaceID(gitopsDeplNamespace),
 	}
+
+	a.log.Info("Upserting new DeploymentToApplicationMapping in DB: " + requiredDeplToAppMapping.Deploymenttoapplicationmapping_uid_id)
 
 	if err := sharedutil.UncheckedGetOrCreateDeploymentToApplicationMapping(ctx, requiredDeplToAppMapping, dbQueries, a.log); err != nil {
 		a.log.Error(err, "unable to create deplToApp mapping", "deplToAppMapping", requiredDeplToAppMapping)
@@ -1013,6 +1169,9 @@ type applicationEventLoopRunner_Action struct {
 
 	// The K8s client that can be used to read/write objects on the workspace cluster
 	workspaceClient client.Client
+
+	// The UID of the workspace (namespace containing GitOps API types)
+	workspaceID string
 
 	// getK8sClientForGitOpsEngineInstance returns the K8s client that corresponds to the gitops engine instance.
 	// As of this writing, only one Argo CD instance is supported, so this is trivial, but should have
@@ -1108,7 +1267,7 @@ func uncheckedCreateOperation(ctx context.Context, waitForOperation bool, dbOper
 
 }
 
-func uncheckedWaitForOperationToComplete(ctx context.Context, dbOperation *db.Operation, dbQueries db.ApplicationScopedQueries, actionLog logr.Logger) error {
+func uncheckedWaitForOperationToComplete(ctx context.Context, dbOperation *db.Operation, dbQueries db.ApplicationScopedQueries, log logr.Logger) error {
 
 	backoff := sharedutil.ExponentialBackoff{Factor: 2, Min: time.Duration(100 * time.Millisecond), Max: time.Duration(10 * time.Second), Jitter: true}
 
@@ -1144,22 +1303,23 @@ func getWorkspaceIDFromNamespaceID(namespace corev1.Namespace) string {
 }
 
 type argoCDSpecInput struct {
+	// MAKE SURE YOU SANITIZE ANY NEW FIELDS THAT ARE ADDED!!!!
 	crName      string
 	crNamespace string
-
-	// databaseID string
-
+	// MAKE SURE YOU SANITIZE ANY NEW FIELDS THAT ARE ADDED!!!!
 	destinationNamespace string
 	destinationName      string
-
+	// MAKE SURE YOU SANITIZE ANY NEW FIELDS THAT ARE ADDED!!!!
 	sourceRepoURL        string
 	sourcePath           string
 	sourceTargetRevision string
+	// MAKE SURE YOU SANITIZE ANY NEW FIELDS THAT ARE ADDED!!!!
+	automated bool
+
+	// Hopefully you are getting the message, here :)
 }
 
-func createSpecField(fieldsParam argoCDSpecInput) string {
-
-	// TODO: ENHANCEMENT - is there a better way to do this without vendoring in Argo CD?
+func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 
 	sanitize := func(input string) string {
 		input = strings.ReplaceAll(input, "\"", "")
@@ -1169,6 +1329,7 @@ func createSpecField(fieldsParam argoCDSpecInput) string {
 		input = strings.ReplaceAll(input, "\n", "")
 		input = strings.ReplaceAll(input, "&", "")
 		input = strings.ReplaceAll(input, ";", "")
+		input = strings.ReplaceAll(input, "%", "")
 
 		return input
 	}
@@ -1183,26 +1344,77 @@ func createSpecField(fieldsParam argoCDSpecInput) string {
 		sourceRepoURL:        sanitize(fieldsParam.sourceRepoURL),
 		sourcePath:           sanitize(fieldsParam.sourcePath),
 		sourceTargetRevision: sanitize(fieldsParam.sourceTargetRevision),
+		automated:            fieldsParam.automated,
 		// MAKE SURE YOU SANITIZE ANY NEW FIELDS THAT ARE ADDED!!!!
+
+		// Hopefully you are getting the message, here :)
 	}
 
-	text := `apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: "` + fields.crName + `"
-  namespace: "` + fields.crNamespace + `"
-spec:
-  destination:
-    name: "` + fields.destinationName + `"
-    namespace: "` + fields.destinationNamespace + `"
-  project: default
-  source:
-    path: "` + fields.sourcePath + `"
-    repoURL: "` + fields.sourceRepoURL + `"
-    targetRevision: "` + fields.sourceTargetRevision + `"`
+	application := fauxargocd.FauxApplication{
+		FauxTypeMeta: fauxargocd.FauxTypeMeta{
+			Kind:       "Application",
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		FauxObjectMeta: fauxargocd.FauxObjectMeta{
+			Name:      fields.crName,
+			Namespace: fields.crNamespace,
+		},
+		Spec: fauxargocd.FauxApplicationSpec{
+			Source: fauxargocd.ApplicationSource{
+				RepoURL:        fields.sourceRepoURL,
+				Path:           fields.sourcePath,
+				TargetRevision: fields.sourceTargetRevision,
+			},
+			Destination: fauxargocd.ApplicationDestination{
+				Name:      fields.destinationName,
+				Namespace: fields.destinationNamespace,
+			},
+			Project: "default",
+		},
+	}
 
-	return text
+	if fields.automated {
+		application.Spec.SyncPolicy = &fauxargocd.SyncPolicy{
+			Automated: &fauxargocd.SyncPolicyAutomated{
+				Prune: false,
+			},
+		}
+	}
+
+	resBytes, err := goyaml.Marshal(application)
+
+	if err != nil {
+		return "", nil
+	}
+
+	return string(resBytes), nil
 }
+
+// func createSpecFieldOld(fieldsParam argoCDSpecInput) string {
+
+// 	text := `apiVersion: argoproj.io/v1alpha1
+// kind: Application
+// metadata:
+//   name: "` + fields.crName + `"
+//   namespace: "` + fields.crNamespace + `"
+// spec:
+//   destination:
+//     name: "` + fields.destinationName + `"
+//     namespace: "` + fields.destinationNamespace + `"
+//   project: default
+//   source:
+//     path: "` + fields.sourcePath + `"
+//     repoURL: "` + fields.sourceRepoURL + `"
+//     targetRevision: "` + fields.sourceTargetRevision + `"`
+
+// 	if fields.automated {
+// 		text += `
+//   syncPolicy:
+//     automated: {}`
+// 	}
+
+// 	return text
+// }
 
 // stringEventLoopEvent is a utility function for debug purposes.
 func stringEventLoopEvent(obj *eventLoopEvent) string {

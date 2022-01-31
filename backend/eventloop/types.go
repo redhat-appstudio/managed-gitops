@@ -13,19 +13,30 @@ const (
 	// WorkspaceModified
 	// ApplicationModified
 	// EnvironmentModified
-	SyncRunModified EventLoopEventType = "SyncRunModified"
+	SyncRunModified            EventLoopEventType = "SyncRunModified"
+	UpdateDeploymentStatusTick EventLoopEventType = "UpdateDeploymentStatusTick"
 )
 
 type eventLoopEvent struct {
-	eventType   EventLoopEventType
-	request     ctrl.Request
-	reqResource managedgitopsv1alpha1.GitOpsResourceType
+	// eventType indicates the type of event, usually the modification of a resource
+	eventType EventLoopEventType
 
-	// TODO: DEBT - depending on how controller-runtime caching works, including this in the struct might be a bad idea:
+	// request from the event context
+	request ctrl.Request
+
+	// client from the event context
 	client client.Client
 
+	// reqResource indicates whether the event is for a GitOpsDeployment, or DeploymentSyncRun (or other resources)
+	reqResource managedgitopsv1alpha1.GitOpsResourceType
+
+	// associatedGitopsDeplUID is the UID of the GitOpsDeployment resource that
+	// - if 'request' is a GitOpsDeployment, then this field matches the UID of the resoruce
+	// - if 'request' is a GitOpsDeploymentSyncRun, then this field matches the UID of the GitOpsDeployment referenced by the sync run's 'gitopsDeploymentName' field.
 	associatedGitopsDeplUID string
-	workspaceID             string
+
+	// workspaceID is the UID of the namespace that contains the request
+	workspaceID string
 }
 
 type applicationEventLoopMessageType int

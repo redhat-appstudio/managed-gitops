@@ -94,7 +94,9 @@ func (srEventLoop *sharedResourceEventLoop) getGitopsEngineInstanceById(ctx cont
 
 }
 
-func (srEventLoop *sharedResourceEventLoop) getOrCreateSharedResources(ctx context.Context, workspaceClient client.Client, workspaceNamespace corev1.Namespace) (*db.ClusterUser, *db.ManagedEnvironment, *db.GitopsEngineInstance, *db.ClusterAccess, error) {
+func (srEventLoop *sharedResourceEventLoop) getOrCreateSharedResources(ctx context.Context,
+	workspaceClient client.Client, workspaceNamespace corev1.Namespace) (*db.ClusterUser,
+	*db.ManagedEnvironment, *db.GitopsEngineInstance, *db.ClusterAccess, error) {
 
 	responseChannel := make(chan interface{})
 
@@ -183,7 +185,7 @@ func internalSharedResourceEventLoop(inputChan chan sharedResourceLoopMessage) {
 	dbQueries, err := db.NewProductionPostgresDBQueries(false)
 	if err != nil {
 		fmt.Println(err)
-		// TODO: DEBT - Log me, and probably handle better
+		// TODO: GITOPS-1678 - DEBT - Log me, and probably handle better
 		return
 	}
 
@@ -191,7 +193,7 @@ func internalSharedResourceEventLoop(inputChan chan sharedResourceLoopMessage) {
 		msg := <-inputChan
 
 		_, err = sharedutil.CatchPanic(func() error {
-			processMessage(ctx, msg, dbQueries, log)
+			processSharedResourceMessage(ctx, msg, dbQueries, log)
 			return nil
 		})
 		if err != nil {
@@ -200,8 +202,8 @@ func internalSharedResourceEventLoop(inputChan chan sharedResourceLoopMessage) {
 	}
 }
 
-func processMessage(ctx context.Context, msg sharedResourceLoopMessage, dbQueries db.DatabaseQueries, log logr.Logger) {
-	log.V(sharedutil.LogLevel_Debug).Info("sharedResourceEventLoop receive message: "+string(msg.messageType), "workspace", msg.workspaceNamespace.UID)
+func processSharedResourceMessage(ctx context.Context, msg sharedResourceLoopMessage, dbQueries db.DatabaseQueries, log logr.Logger) {
+	log.V(sharedutil.LogLevel_Debug).Info("sharedResourceEventLoop received message: "+string(msg.messageType), "workspace", msg.workspaceNamespace.UID)
 
 	if msg.messageType == sharedResourceLoopMessage_getOrCreateSharedResources {
 		clusterUser, managedEnv, gitopsEngineInstance, clusterAccess, err := internalProcessMessage_GetOrCreateSharedResources(ctx, msg.workspaceClient, msg.workspaceNamespace, dbQueries, log)
@@ -278,6 +280,7 @@ func internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx context.Con
 	// TODO: GITOPS-1577 - KCP support: for now, we assume that the namespace UID that the request occurred in is the user id.
 	clusterUser := db.ClusterUser{User_name: string(workspaceNamespace.UID)}
 
+	// TODO: GITOPS-1674 - We are assuming that user namespace uid == username, which is messy. We should add a new field for unique user id, and username should be human readable and not used for security, etc.
 	err := dbq.GetClusterUserByUsername(ctx, &clusterUser)
 	if err != nil {
 		if db.IsResultNotFoundError(err) {
@@ -296,25 +299,24 @@ func internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx context.Con
 
 // Ensure the user's workspace is configured, ensure a GitOpsEngineInstance exists that will target it, and ensure
 // a cluster access exists the give the user permission to target them from the engine.
-func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, workspaceClient client.Client, workspaceNamespace corev1.Namespace, dbQueries db.DatabaseQueries, actionLog logr.Logger) (*db.ClusterUser, *db.ManagedEnvironment, *db.GitopsEngineInstance, *db.ClusterAccess, error) {
+func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, workspaceClient client.Client,
+	workspaceNamespace corev1.Namespace, dbQueries db.DatabaseQueries,
+	log logr.Logger) (*db.ClusterUser, *db.ManagedEnvironment, *db.GitopsEngineInstance, *db.ClusterAccess, error) {
 
 	clusterUser, err := internalGetOrCreateClusterUserByNamespaceUID(ctx, string(workspaceNamespace.UID), dbQueries)
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("unable to retrieve cluster user in processMessage, '%s': %v", string(workspaceNamespace.UID), err)
 	}
 
-	managedEnv, err := sharedutil.UncheckedGetOrCreateManagedEnvironmentByNamespaceUID(ctx, workspaceNamespace, dbQueries, actionLog)
+	managedEnv, err := sharedutil.UncheckedGetOrCreateManagedEnvironmentByNamespaceUID(ctx, workspaceNamespace, dbQueries, log)
 	if err != nil {
-		actionLog.Error(err, "unable to get or created managed env on deployment modified event")
+		log.Error(err, "unable to get or created managed env on deployment modified event")
 		return nil, nil, nil, nil, err
 	}
 
-	// TODO: After GITOPS-1564 - Once cluster credential creation is implemented, we need to create an Operation to create the Argo CD cluster secret.
-	actionLog.Info("STUB: handleNewGitOpsDeplEvent after getOrCreateManagedEnvironmentByNamespaceUID, skipping creating the Argo CD Cluster Secret via a new Operation.")
-
-	engineInstance, err := internalUncheckedDetermineGitOpsEngineInstanceForNewApplication(ctx, *clusterUser, *managedEnv, workspaceClient, dbQueries, actionLog)
+	engineInstance, err := internalUncheckedDetermineGitOpsEngineInstanceForNewApplication(ctx, *clusterUser, *managedEnv, workspaceClient, dbQueries, log)
 	if err != nil {
-		actionLog.Error(err, "unable to determine gitops engine instance")
+		log.Error(err, "unable to determine gitops engine instance")
 		return nil, nil, nil, nil, err
 	}
 
@@ -326,7 +328,7 @@ func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, work
 	}
 
 	if err := internalGetOrCreateClusterAccess(ctx, &ca, dbQueries); err != nil {
-		actionLog.Error(err, "unable to create cluster access")
+		log.Error(err, "unable to create cluster access")
 		return nil, nil, nil, nil, err
 	}
 
@@ -344,9 +346,9 @@ func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, work
 //
 // This logic would be improved by https://issues.redhat.com/browse/GITOPS-1455 (and others)
 func internalUncheckedDetermineGitOpsEngineInstanceForNewApplication(ctx context.Context, user db.ClusterUser, managedEnv db.ManagedEnvironment,
-	k8sClient client.Client, dbq db.DatabaseQueries, actionLog logr.Logger) (*db.GitopsEngineInstance, error) {
+	k8sClient client.Client, dbq db.DatabaseQueries, log logr.Logger) (*db.GitopsEngineInstance, error) {
 
-	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: sharedutil.GitOpsEngineSingleInstanceNamespace, Namespace: sharedutil.GitOpsEngineSingleInstanceNamespace}}
+	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: sharedutil.GetGitOpsEngineSingleInstanceNamespace(), Namespace: sharedutil.GetGitOpsEngineSingleInstanceNamespace()}}
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace); err != nil {
 		return nil, fmt.Errorf("unable to retrieve gitopsengine namespace in determineGitOpsEngineInstanceForNewApplication")
 	}
@@ -356,7 +358,7 @@ func internalUncheckedDetermineGitOpsEngineInstanceForNewApplication(ctx context
 		return nil, fmt.Errorf("unable to retrieve kube-system namespace in determineGitOpsEngineInstanceForNewApplication")
 	}
 
-	gitopsEngineInstance, _, err := sharedutil.UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespace, string(kubeSystemNamespace.UID), dbq, actionLog)
+	gitopsEngineInstance, _, err := sharedutil.UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespace, string(kubeSystemNamespace.UID), dbq, log)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get or create engine instance for new application: %v", err)
 	}

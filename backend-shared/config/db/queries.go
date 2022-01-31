@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// TODO: ENHANCEMENT - Add logging of database entity creation, so that we can track state changes.
+// TODO: GITOPS-1678 - ENHANCEMENT - Add logging of database entity creation, so that we can track state changes.
 
 // Default vs Unchecked vs Unsafe functions:
 //
@@ -67,7 +67,7 @@ type DatabaseQueries interface {
 
 	DeleteDeploymentToApplicationMappingByDeplId(ctx context.Context, id string, ownerId string) (int, error)
 
-	// TODO: DEBT - I think this should still have an owner, even if it presumed that it is user id:
+	// TODO: GITOPS-1678 - DEBT - I think this should still have an owner, even if it presumed that it is user id:
 	DeleteClusterAccessById(ctx context.Context, userId string, managedEnvironmentId string, gitopsEngineInstanceId string) (int, error)
 	DeleteGitopsEngineInstanceById(ctx context.Context, id string, ownerId string) (int, error)
 	DeleteManagedEnvironmentById(ctx context.Context, id string, ownerId string) (int, error)
@@ -165,6 +165,7 @@ type ApplicationScopedQueries interface {
 	CreateDeploymentToApplicationMapping(ctx context.Context, obj *DeploymentToApplicationMapping) error
 	UncheckedGetDeploymentToApplicationMappingByDeplId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping) error
 	UncheckedListDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, workspaceUID string, deplToAppMappingParam *[]DeploymentToApplicationMapping) error
+	UncheckedListDeploymentToApplicationMappingByWorkspaceUID(ctx context.Context, workspaceUID string, deplToAppMappingParam *[]DeploymentToApplicationMapping) error
 	UncheckedDeleteDeploymentToApplicationMappingByDeplId(ctx context.Context, id string) (int, error)
 
 	UpdateSyncOperationRemoveApplicationField(ctx context.Context, applicationId string) (int, error)

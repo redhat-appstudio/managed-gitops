@@ -38,9 +38,9 @@ func genericTestSetup(t *testing.T) (*runtime.Scheme, *v1.Namespace, *v1.Namespa
 
 	argocdNamespace := &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      sharedutil.GitOpsEngineSingleInstanceNamespace,
+			Name:      sharedutil.GetGitOpsEngineSingleInstanceNamespace(),
 			UID:       uuid.NewUUID(),
-			Namespace: sharedutil.GitOpsEngineSingleInstanceNamespace,
+			Namespace: sharedutil.GetGitOpsEngineSingleInstanceNamespace(),
 		},
 		Spec: v1.NamespaceSpec{},
 	}
@@ -104,6 +104,7 @@ func TestApplicationEventLoopRunner_handleDeploymentModified(t *testing.T) {
 		workspaceClient:         k8sClient,
 		log:                     log.FromContext(context.Background()),
 		sharedResourceEventLoop: newSharedResourceLoop(),
+		workspaceID:             workspaceID,
 	}
 
 	// ------
@@ -262,6 +263,7 @@ func TestApplicationEventLoopRunner_handleSyncRunModified(t *testing.T) {
 		workspaceClient:         k8sClient,
 		log:                     log.FromContext(context.Background()),
 		sharedResourceEventLoop: sharedResourceLoop,
+		workspaceID:             string(workspace.UID),
 	}
 
 	_, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
@@ -277,6 +279,7 @@ func TestApplicationEventLoopRunner_handleSyncRunModified(t *testing.T) {
 		workspaceClient:         k8sClient,
 		log:                     log.FromContext(context.Background()),
 		sharedResourceEventLoop: sharedResourceLoop,
+		workspaceID:             a.workspaceID,
 	}
 
 	_, err = a.applicationEventRunner_handleSyncRunModified(ctx, dbQueries)

@@ -19,6 +19,11 @@ import (
 
 // Preprocess Event Loop
 //
+// The pre-process event loop is responsible for:
+// - detecting cases where the user deletes/creates a resource with the same name, before we have have processed the delete
+// - ensures that 'associatedGitopsDeplUID' field is set for all requests that are processed by the GitOps service.
+//     - if the event is for a GitOpsDeployment, then this field matches the UID of the resource (but for deleted resources, we need to retrieve the uid from the database)
+//     - if the event is for a GitOpsDeploymentSyncRun, then this field matches the UID of the GitOp
 //
 // Invariants:
 // - The cache should only ever use values from the database. It should be eventually consistent with the database.
@@ -54,19 +59,18 @@ func preprocessEventLoopRouter(input chan eventLoopEvent, nextStep *controllerEv
 
 	log := log.FromContext(ctx)
 
-	taskRetryLoop := newTaskRetryLoop()
-
-	var resourcesSeenMutex sync.RWMutex
+	taskRetryLoop := sharedutil.NewTaskRetryLoop("event-loop-router-retry-loop")
 
 	// (cache key) -> (uid of the sync/syncrun resource, the last time it was seen)
 	resourcesSeen := map[string]string{}
-	// TODO: PERF - Add a size limit to this: evict LRU if over a certain size, to keep from hitting memory limit.
+	var resourcesSeenMutex sync.RWMutex // Acquire this mutex whenever resourcesSeen is read/modified
+	// TODO: GITOPS-1702 - PERF - Add a size limit to this: evict LRU if over a certain size, to keep from hitting memory limit.
 
 	dbQueries, err := db.NewProductionPostgresDBQueries(false)
 	if err != nil {
 		fmt.Println(err)
 		return
-		// TODO: DEBT - shouldn't return here
+		// TODO: GITOPS-1678 - DEBT - shouldn't return here
 	}
 
 	for {
@@ -74,7 +78,7 @@ func preprocessEventLoopRouter(input chan eventLoopEvent, nextStep *controllerEv
 		// Block on waiting for more events
 		newEvent := <-input
 		mapKey := string(newEvent.reqResource) + "-" + newEvent.request.Name + "-" + newEvent.request.Namespace + "-" + newEvent.workspaceID
-		// TODO: PERF - Use a more memory efficient key
+		// TODO: GITOPS-1702 - PERF - Use a more memory efficient key
 
 		// Pass the event to the retry loop, for processing
 		task := &processEventTask{
@@ -87,7 +91,7 @@ func preprocessEventLoopRouter(input chan eventLoopEvent, nextStep *controllerEv
 			resourcesSeenMutex: &resourcesSeenMutex,
 		}
 
-		taskRetryLoop.addTaskIfNotPresent(mapKey, task, sharedutil.ExponentialBackoff{Factor: 2, Min: time.Millisecond * 200, Max: time.Second * 10, Jitter: true})
+		taskRetryLoop.AddTaskIfNotPresent(mapKey, task, sharedutil.ExponentialBackoff{Factor: 2, Min: time.Millisecond * 200, Max: time.Second * 10, Jitter: true})
 
 	}
 }
@@ -104,7 +108,7 @@ type processEventTask struct {
 	resourcesSeenMutex *sync.RWMutex
 }
 
-func (task *processEventTask) performTask(taskContext context.Context) (bool, error) {
+func (task *processEventTask) PerformTask(taskContext context.Context) (bool, error) {
 
 	return task.processEvent(taskContext, task.newEvent, task.mapKey, task.nextStep, task.dbQueries, task.log), nil
 
@@ -151,7 +155,6 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventLo
 
 		// Check the local cache, to see if we have seen this resource before
 		{
-			// TODO: NAO - is there a way we can avoid going to the database for gitopsdeplsyncruns?
 
 			gitopsDeplUID, err := lookInCacheForAssociatedGitOpsDeplId(ctx, newEvent.reqResource, mapKey, task.resourcesSeen, task.resourcesSeenMutex, dbQueries, log)
 			if err != nil {
@@ -170,7 +173,7 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventLo
 			if gitopsDeplUID != "" {
 				newEvent.associatedGitopsDeplUID = gitopsDeplUID
 				// Emit delete with uid found in local cache
-				emitEvent(newEvent, nextStep, log)
+				emitEvent(newEvent, nextStep, "found in local cache", log)
 				return false
 			}
 		}
@@ -242,7 +245,7 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventLo
 				newEvent.associatedGitopsDeplUID = dtam.Deploymenttoapplicationmapping_uid_id
 
 				// Emit delete, with UID from database
-				emitEvent(newEvent, nextStep, log)
+				emitEvent(newEvent, nextStep, "found in database", log)
 
 				return false
 
@@ -275,7 +278,7 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventLo
 				newEvent.associatedGitopsDeplUID = items[0].Deploymenttoapplicationmapping_uid_id
 
 				// Emit delete, with UID from database
-				emitEvent(newEvent, nextStep, log)
+				emitEvent(newEvent, nextStep, "found with uid from database", log)
 
 				return false
 			} else {
@@ -292,7 +295,7 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventLo
 
 	} else {
 
-		// In this else block, the event we received is for a GitOpsDeployment(SyncRun) that exists in the namespace.
+		// In this else block, the event we received is for a GitOpsDeployment/SyncRun that exists in the namespace.
 
 		// The UID that this CR had when we previously saw it
 		previousGitopsDeplUID, err := lookInCacheForAssociatedGitOpsDeplId(ctx, newEvent.reqResource, mapKey, task.resourcesSeen, task.resourcesSeenMutex, dbQueries, log)
@@ -357,7 +360,7 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventLo
 			newEvent.associatedGitopsDeplUID = string(resource.GetUID())
 		}
 
-		emitEvent(newEvent, nextStep, log)
+		emitEvent(newEvent, nextStep, "first seen resource", log)
 
 	}
 
@@ -365,14 +368,14 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventLo
 }
 
 // emitEvent passes the given event to the controller event loop
-func emitEvent(event eventLoopEvent, nextStep *controllerEventLoop, log logr.Logger) {
+func emitEvent(event eventLoopEvent, nextStep *controllerEventLoop, debugStr string, log logr.Logger) {
 
 	if nextStep == nil {
 		log.Error(nil, "SEVERE: controllerEventLoop pointer should never be nil")
 		return
 	}
 
-	log.V(sharedutil.LogLevel_Debug).Info("Emitting event to workspace event loop", "event", stringEventLoopEvent(&event))
+	log.V(sharedutil.LogLevel_Debug).Info("Emitting event to workspace event loop", "event", stringEventLoopEvent(&event), "debug-context", debugStr)
 
 	nextStep.eventLoopInputChannel <- event
 
@@ -380,17 +383,17 @@ func emitEvent(event eventLoopEvent, nextStep *controllerEventLoop, log logr.Log
 
 func emitEventForExistingResource(gitopsDeplUID string, newEvent eventLoopEvent, resource client.Object, nextStep *controllerEventLoop, log logr.Logger) {
 
-	// if it matches value from client, use provided id
+	// If it matches value from client, use provided id
 	if gitopsDeplUID == string(resource.GetUID()) {
 		newEvent.associatedGitopsDeplUID = gitopsDeplUID
-		emitEvent(newEvent, nextStep, log)
+		emitEvent(newEvent, nextStep, "existing resource, but value matches cr", log)
 		return
 	}
 
 	// If the cache contains a different value than the resource we just acquired, it's a delete of
 	// an old resource, AND a create of a new one.
 
-	// TODO: DEBT - create a concrete example of why this is needed.
+	// TODO: GITOPS-1678 - DEBT - create a concrete example of why this is needed.
 
 	// otherwise, report delete and create
 
@@ -405,10 +408,10 @@ func emitEventForExistingResource(gitopsDeplUID string, newEvent eventLoopEvent,
 	}
 
 	// Report the deletion of the old resource
-	emitEvent(newEvent, nextStep, log)
+	emitEvent(newEvent, nextStep, "old-resource", log)
 
 	// Report the creation of the new resource
-	emitEvent(newerEvent, nextStep, log)
+	emitEvent(newerEvent, nextStep, "new-resource", log)
 
 }
 

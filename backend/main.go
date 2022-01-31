@@ -83,9 +83,14 @@ func main() {
 
 	go initializeRoutes()
 
-	// TODO: GITOPS-1577 - Need to create a manager for each KCP workspace we manage (or switch to lower-level controller API, ala Argo CD gitops engine)
+	restConfig, err := sharedutil.GetRESTConfig()
+	if err != nil {
+		setupLog.Error(err, "unable to get kubeconfig")
+		os.Exit(1)
+		return
+	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
 		Port:                   9443,
@@ -153,7 +158,7 @@ func initializeRoutes() {
 
 //nolint
 // createPrimaryGitOpsEngineInstance create placeholder values, for development purposes. This should not be used in production.
-func createPrimaryGitOpsEngineInstance(k8sclient client.Client, actionLog logr.Logger) error {
+func createPrimaryGitOpsEngineInstance(k8sclient client.Client, log logr.Logger) error {
 
 	ctx := context.Background()
 
@@ -189,7 +194,7 @@ func createPrimaryGitOpsEngineInstance(k8sclient client.Client, actionLog logr.L
 		},
 	}
 
-	gitopsEngineInstance, _, err := sharedutil.UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespace, kubeSystemNamespace.Name, dbQueries, actionLog)
+	gitopsEngineInstance, _, err := sharedutil.UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespace, kubeSystemNamespace.Name, dbQueries, log)
 	if err != nil {
 		return err
 	}
@@ -200,7 +205,7 @@ func createPrimaryGitOpsEngineInstance(k8sclient client.Client, actionLog logr.L
 		},
 	}
 
-	managedEnv, err := sharedutil.UncheckedGetOrCreateManagedEnvironmentByNamespaceUID(ctx, *gitopsLocalWorkspaceNamespace, dbQueries, actionLog)
+	managedEnv, err := sharedutil.UncheckedGetOrCreateManagedEnvironmentByNamespaceUID(ctx, *gitopsLocalWorkspaceNamespace, dbQueries, log)
 	if err != nil {
 		return err
 	}

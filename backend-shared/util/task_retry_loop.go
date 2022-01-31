@@ -1,24 +1,27 @@
-package eventloop
+package util
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
-	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-type taskRetryLoop struct {
+type TaskRetryLoop struct {
 	inputChan chan taskRetryLoopMessage
+
+	// debugName is the name of the task retry loop, reported in the logs for debug purposes
+	debugName string
 }
 
-type retryableTask interface {
+type RetryableTask interface {
 	// returns bool (whether or not the task should be retried), and error
-	performTask(taskContext context.Context) (bool, error)
+	PerformTask(taskContext context.Context) (bool, error)
 }
 
-func (loop *taskRetryLoop) addTaskIfNotPresent(name string, task retryableTask, backoff sharedutil.ExponentialBackoff) {
+func (loop *TaskRetryLoop) AddTaskIfNotPresent(name string, task RetryableTask, backoff ExponentialBackoff) {
 
 	loop.inputChan <- taskRetryLoopMessage{
 		msgType: taskRetryLoop_addTask,
@@ -60,8 +63,8 @@ type taskRetryLoopMessage struct {
 
 type taskRetryMessage_addTask struct {
 	name    string
-	backoff sharedutil.ExponentialBackoff
-	task    retryableTask
+	backoff ExponentialBackoff
+	task    RetryableTask
 }
 type taskRetryMessage_removeTask struct {
 	name string
@@ -73,13 +76,14 @@ type taskRetryMessage_workCompleted struct {
 	resultErr   error
 }
 
-func newTaskRetryLoop() (loop *taskRetryLoop) {
+func NewTaskRetryLoop(debugName string) (loop *TaskRetryLoop) {
 
-	res := &taskRetryLoop{
+	res := &TaskRetryLoop{
 		inputChan: make(chan taskRetryLoopMessage),
+		debugName: debugName,
 	}
 
-	go internalTaskRetryLoop(res.inputChan)
+	go internalTaskRetryLoop(res.inputChan, res.debugName)
 
 	// Ensure the message queue logic runs at least every 200 msecs
 	go func() {
@@ -91,7 +95,7 @@ func newTaskRetryLoop() (loop *taskRetryLoop) {
 				payload: nil,
 			}
 		}
-		// TODO: PERF - I'm sure a more complex form of this logic could calculate the length of time until the next task is 'due'.
+		// TODO: GITOPS-1702 - PERF - I'm sure a more complex form of this logic could calculate the length of time until the next task is 'due'.
 	}()
 
 	return res
@@ -99,23 +103,28 @@ func newTaskRetryLoop() (loop *taskRetryLoop) {
 
 type waitingTaskEntry struct {
 	name                   string
-	task                   retryableTask
-	backoff                sharedutil.ExponentialBackoff
+	task                   RetryableTask
+	backoff                ExponentialBackoff
 	nextScheduledRetryTime *time.Time
 }
 
 type internalTaskEntry struct {
-	name        string
-	task        retryableTask
-	backoff     sharedutil.ExponentialBackoff
-	taskContext context.Context
-	cancelFunc  context.CancelFunc
+	name         string
+	task         RetryableTask
+	backoff      ExponentialBackoff
+	taskContext  context.Context
+	cancelFunc   context.CancelFunc
+	creationTime time.Time
 }
 
-func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage) {
+const (
+	ReportActiveTasksEveryXMinutes = 10 * time.Minute
+)
+
+func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string) {
 
 	ctx := context.Background()
-	log := log.FromContext(ctx)
+	log := log.FromContext(ctx).WithValues("task-retry-name", debugName)
 
 	// activeTaskMap is the set of tasks currently running in goroutines
 	activeTaskMap := map[string]internalTaskEntry{}
@@ -126,16 +135,22 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage) {
 
 	const maxActiveRunners = 20
 
+	nextReportActiveTasks := time.Now().Add(ReportActiveTasksEveryXMinutes)
+
 	for {
 
-		// TODO: DEBT - Add periodic logging of active tasks, waiting tasks, here.
+		// Every X minutes, report how many tasks are in progress, and how many are waiting
+		if time.Now().After(nextReportActiveTasks) {
+			log.Info(fmt.Sprintf("task retry loop status [%v]: waitingTasks: %v, activeTasks: %v ", debugName, len(waitingTasks), len(activeTaskMap)))
+			nextReportActiveTasks = time.Now().Add(ReportActiveTasksEveryXMinutes)
+		}
 
 		// Queue more running tasks if we have resources
 		if len(waitingTasks) > 0 && len(activeTaskMap) < maxActiveRunners {
 
 			updatedWaitingTasks := []waitingTaskEntry{}
 
-			// TODO: PERF - this is an inefficient algorithm for queuing tasks, because it causes an allocation and iteration through the entire list on every received event
+			// TODO: GITOPS-1702 - PERF - this is an inefficient algorithm for queuing tasks, because it causes an allocation and iteration through the entire list on every received event
 
 			for idx := range waitingTasks {
 
@@ -172,7 +187,7 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage) {
 			}
 
 			if _, exists := waitingTasksByName[addTaskMsg.name]; exists {
-				log.V(sharedutil.LogLevel_Debug).Info("skipping message that is already in the wait queue: " + addTaskMsg.name)
+				log.V(LogLevel_Debug).Info("skipping message that is already in the wait queue: " + addTaskMsg.name)
 				continue
 			}
 
@@ -197,7 +212,7 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage) {
 				continue
 			}
 
-			log.V(sharedutil.LogLevel_Debug).Info("Removing task from retry loop: " + removeTaskMsg.name)
+			log.V(LogLevel_Debug).Info("Removing task from retry loop: " + removeTaskMsg.name)
 			delete(activeTaskMap, removeTaskMsg.name)
 
 			if taskEntry.cancelFunc != nil {
@@ -222,7 +237,7 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage) {
 			delete(activeTaskMap, workCompletedMsg.name)
 
 			if workCompletedMsg.shouldRetry {
-				log.V(sharedutil.LogLevel_Debug).Info("Adding failed task '" + taskEntry.name + "' to retry list")
+				log.V(LogLevel_Debug).Info("Adding failed task '" + taskEntry.name + "' to retry list")
 
 				nextScheduledRetryTime := time.Now().Add(taskEntry.backoff.IncreaseAndReturnNewDuration())
 
@@ -250,9 +265,11 @@ func startNewTask(taskToStart waitingTaskEntry, waitingTasksByName map[string]in
 	delete(waitingTasksByName, taskToStart.name)
 
 	newTaskEntry := internalTaskEntry{
-		name:    taskToStart.name,
-		task:    taskToStart.task,
-		backoff: taskToStart.backoff}
+		name:         taskToStart.name,
+		task:         taskToStart.task,
+		backoff:      taskToStart.backoff,
+		creationTime: time.Now(),
+	}
 
 	activeTaskMap[taskToStart.name] = newTaskEntry
 
@@ -271,8 +288,8 @@ func internalStartTaskRunner(taskEntry *internalTaskEntry, workComplete chan tas
 		var shouldRetry bool
 		var resultErr error
 
-		isPanic, panicErr := sharedutil.CatchPanic(func() error {
-			shouldRetry, resultErr = taskEntry.task.performTask(taskContext)
+		isPanic, panicErr := CatchPanic(func() error {
+			shouldRetry, resultErr = taskEntry.task.PerformTask(taskContext)
 			return nil
 		})
 

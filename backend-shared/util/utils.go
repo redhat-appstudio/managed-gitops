@@ -3,6 +3,8 @@ package util
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
@@ -21,17 +23,27 @@ import (
 // just return that.
 //
 // This logic would be improved by https://issues.redhat.com/browse/GITOPS-1455 (and others)
-const GitOpsEngineSingleInstanceNamespace = "argocd"
+const DefaultGitOpsEngineSingleInstanceNamespace = "argocd"
 
-// TODO: Post GITOPS-1564 - Add tests for all scenarios, for each of these.
-// See https://issues.redhat.com/browse/GITOPS-1564
+func GetGitOpsEngineSingleInstanceNamespace() string {
 
-func UncheckedGetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, workspaceNamespace v1.Namespace, dbq db.DatabaseQueries, actionLog logr.Logger) (*db.ManagedEnvironment, error) {
+	argoEnv := os.Getenv("ARGO_CD_NAMESPACE")
+	if len(strings.TrimSpace(argoEnv)) != 0 {
+		return argoEnv
+	}
+
+	return DefaultGitOpsEngineSingleInstanceNamespace
+}
+
+func UncheckedGetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, workspaceNamespace v1.Namespace,
+	dbq db.DatabaseQueries, log logr.Logger) (*db.ManagedEnvironment, error) {
 
 	workspaceNamespaceUID := string(workspaceNamespace.UID)
 
 	var err error
 
+	// Is the namespace we are deploying to already mapped to a ManagedEnvironment in the database?
+	// - Attempt to retrieve the relationship DB entry
 	dbResourceMapping := &db.KubernetesToDBResourceMapping{
 		KubernetesResourceType: db.K8sToDBMapping_Namespace,
 		KubernetesResourceUID:  string(workspaceNamespaceUID),
@@ -41,17 +53,22 @@ func UncheckedGetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, w
 	if err == nil {
 		// If there already exists a managed environment for this workspace, return it
 
+		// Retrieve the managed environment database entry for this resource
 		managedEnvironment := db.ManagedEnvironment{Managedenvironment_id: string(dbResourceMapping.DBRelationKey)}
 		err = dbq.UncheckedGetManagedEnvironmentById(ctx, &managedEnvironment)
 
 		if err == nil {
-			// mapping exists, and so does the environment it points to
+			// Success: mapping exists, and so does the environment it points to
 			return &managedEnvironment, nil
 		}
 
 		if !db.IsResultNotFoundError(err) {
+			// Failure: A generic error occurred.
 			return nil, fmt.Errorf("unable to retrieve resource mapping: %v", err)
 		}
+
+		// At this point, we found the mapping, but didn't find the ManagedEnvironment that the
+		// mapping pointed to.
 
 		// Since the managed environment doesn't exist, delete the mapping; it will be recreated below.
 		if _, err := dbq.UncheckedDeleteKubernetesResourceToDBResourceMapping(ctx, dbResourceMapping); err != nil {
@@ -65,8 +82,7 @@ func UncheckedGetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, w
 	// At this point in the function, both the managed environment and mapping necessarily don't exist
 
 	// Create cluster credentials for the managed env
-	// TODO: GITOPS-1564 - Cluster credentials placeholder values - we will need to create a service account on the target cluster, which we can store in the database.
-	// See https://issues.redhat.com/browse/GITOPS-1564
+	// TODO: GITOPS-1722 - Cluster credentials placeholder values - we will need to create a service account on the target cluster, which we can store in the database.
 
 	clusterCreds := db.ClusterCredentials{
 		Host:                        "host",
@@ -90,9 +106,8 @@ func UncheckedGetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, w
 	dbResourceMapping = &db.KubernetesToDBResourceMapping{
 		KubernetesResourceType: db.K8sToDBMapping_Namespace,
 		KubernetesResourceUID:  string(workspaceNamespaceUID),
-		DBRelationType:         db.K8sToDBMapping_GitopsEngineCluster,
-		// TODO: BUG - This seems wrong: ?????
-		DBRelationKey: managedEnvironment.Managedenvironment_id,
+		DBRelationType:         db.K8sToDBMapping_ManagedEnvironment,
+		DBRelationKey:          managedEnvironment.Managedenvironment_id,
 	}
 
 	if err := dbq.CreateKubernetesResourceToDBResourceMapping(ctx, dbResourceMapping); err != nil {
@@ -270,11 +285,6 @@ func GetGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context, kubesys
 // In order to determine which cluster we are on, we use the UID of the 'kube-system' namespace.
 func UncheckedGetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context, kubesystemNamespaceUID string, dbq db.DatabaseQueries, log logr.Logger) (*db.GitopsEngineCluster, error) {
 
-	// TODO:
-	// Can we create the cluster credentials here?
-	// - either we add cluster credentials to our k8sToDBMapping
-	// - or we just assume that cluster credentials don't exist if the k8sToDBMapping doesn't exist.
-
 	var gitopsEngineCluster *db.GitopsEngineCluster
 
 	expectedDBResourceMapping := db.KubernetesToDBResourceMapping{
@@ -328,8 +338,7 @@ func UncheckedGetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context
 		// Scenario A) neither exists: create both
 
 		// Create cluster credentials for the managed env
-		// TODO: Post GITOPS-1564 - Cluster credentials placeholder values - we will need to create a service account on the target cluster, which we can store in the database.
-		// See https://issues.redhat.com/browse/GITOPS-1564
+		// TODO: GITOPS-1722 - Cluster credentials placeholder values - we will need to create a service account on the target cluster, which we can store in the database.
 		clusterCreds := db.ClusterCredentials{
 			Host:                        "host",
 			Kube_config:                 "kube_config",
@@ -384,12 +393,12 @@ func UncheckedGetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context
 
 }
 
-func UncheckedGetOrCreateDeploymentToApplicationMapping(ctx context.Context, createDeplToAppMapping *db.DeploymentToApplicationMapping, dbq db.ApplicationScopedQueries, actionLog logr.Logger) error {
+func UncheckedGetOrCreateDeploymentToApplicationMapping(ctx context.Context, createDeplToAppMapping *db.DeploymentToApplicationMapping, dbq db.ApplicationScopedQueries, log logr.Logger) error {
 
 	if err := dbq.UncheckedGetDeploymentToApplicationMappingByDeplId(ctx, createDeplToAppMapping); err != nil {
 		if !db.IsResultNotFoundError(err) {
 			logErr := fmt.Errorf("unable to get obj in UncheckedGetOrDeploymentToApplicationMapping: %v", err)
-			actionLog.Error(logErr, "unable to get deplToApp mapping", "createDeplToAppMapping", createDeplToAppMapping)
+			log.Error(logErr, "unable to get deplToApp mapping", "createDeplToAppMapping", createDeplToAppMapping)
 			return logErr
 		}
 		// Object not found, so continue.
@@ -403,13 +412,13 @@ func UncheckedGetOrCreateDeploymentToApplicationMapping(ctx context.Context, cre
 		createDeplToAppMapping.DeploymentName,
 		createDeplToAppMapping.DeploymentNamespace,
 		createDeplToAppMapping.WorkspaceUID); err != nil {
-		actionLog.Error(err, "unable to delete old deployment to application mapping for name '"+
+		log.Error(err, "unable to delete old deployment to application mapping for name '"+
 			createDeplToAppMapping.DeploymentName+"', namespace '"+createDeplToAppMapping.DeploymentNamespace+"'")
 		return err
 	}
 
 	if err := dbq.CreateDeploymentToApplicationMapping(ctx, createDeplToAppMapping); err != nil {
-		actionLog.Error(err, "unable to create deplToApp mapping", "createDeplToAppMapping", createDeplToAppMapping)
+		log.Error(err, "unable to create deplToApp mapping", "createDeplToAppMapping", createDeplToAppMapping)
 		return err
 	}
 
@@ -516,7 +525,8 @@ func GetRESTConfig() (*rest.Config, error) {
 	}
 
 	// Use non-standard rate limiting values
-	res.QPS = 10
-	res.Burst = 25
+	// TODO: GITOPS-1702 - These values are way too high, need to look at request.go in controller-runtime.
+	res.QPS = 100
+	res.Burst = 250
 	return res, nil
 }

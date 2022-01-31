@@ -17,7 +17,7 @@
 --     - See https://github.com/argoproj/argo-cd/blob/a894d4b128c724129752bac9971c903ab6c650ba/cmd/argocd/commands/cluster.go#L116
 CREATE TABLE ClusterCredentials (
 	
-	-- Primary key for the credentials (UID)
+	-- Primary key for the credentials (UID), is a random UUID
 	clustercredentials_cred_id VARCHAR (48) UNIQUE PRIMARY KEY,
 
 	-- API URL for the cluster 
@@ -39,28 +39,35 @@ CREATE TABLE ClusterCredentials (
 	seq_id serial
 );
 
+-- GitopsEngineCluster
 -- A cluster that hosts Argo CD instances
 -- Note: I use the term GitOpsEngine to refer to Argo CD, so as not to marry us to Argo CD at the database level.
 CREATE TABLE GitopsEngineCluster (
+
+	-- Primary key for the GitopsEngineCluster (UID), is a random UUID
 	gitopsenginecluster_id  VARCHAR (48) UNIQUE PRIMARY KEY,
 	
 	seq_id serial, 
 
 	-- pointer to credentials for the cluster
 	-- Foreign key to: ClusterCredentials.clustercredentials_cred_id
-	
 	clustercredentials_id VARCHAR (48) NOT NULL,
 	CONSTRAINT fk_cluster_credential FOREIGN KEY(clustercredentials_id) REFERENCES ClusterCredentials(clustercredentials_cred_id) ON DELETE NO ACTION ON UPDATE NO ACTION
 
 );
 
--- Argo CD instance on a Argo CD cluster
+-- GitopsEngineInstance
+-- Represents an Argo CD instance on a cluster; the specific cluster is pointed to by the enginecluster field, and the
+-- namespace of the Argo CD install is listed here.
 CREATE TABLE GitopsEngineInstance (
+
+	-- Primary key for the GitopsEngineInstance (UID), is a random UUID
 	gitopsengineinstance_id VARCHAR (48) UNIQUE PRIMARY KEY,
+
 	seq_id serial,
 
 	-- An Argo CD cluster may host multiple Argo CD instances; these fields
-	-- indicate which namespace this specific instance lives in.
+	-- indicate which namespace this specific instance lives in (and uid of the namespace)
 	namespace_name VARCHAR (48) NOT NULL,
 	namespace_uid VARCHAR (48) NOT NULL,
 
@@ -73,8 +80,10 @@ CREATE TABLE GitopsEngineInstance (
 
 
 -- ManagedEnvironment
--- An environment (namespace(s) on a user's cluster) that they want to deploy applications to, using Argo CD
+-- An environment (cluster) that the user wants to deploy applications to, using Argo CD
 CREATE TABLE ManagedEnvironment (
+
+	-- Primary key for the ManagedEnvironment (UID), is a random UUID
 	managedenvironment_id VARCHAR (48) UNIQUE PRIMARY KEY,
 	seq_id serial, 
 	
@@ -93,15 +102,21 @@ CREATE TABLE ManagedEnvironment (
 --
 -- Note: This is basically placeholder: a real implementation would need to be way more complex.
 CREATE TABLE ClusterUser (
+	
+	-- Primary key for the ClusterUser (UID), is a random UUID
 	clusteruser_id VARCHAR (48) PRIMARY KEY,
-	user_name VARCHAR (256) NOT NULL UNIQUE,	
+
+	-- A generic string representing a user; this likely need to be replaced with a field
+	-- more consistent with the user configuration we are operating within.
+	user_name VARCHAR (256) NOT NULL UNIQUE,
+
 	seq_id serial
 );
 
 
 
 -- ClusterAccess
-
+--
 -- This table answers the questions:
 -- - What managed clusters does a user have?
 -- - What argo cd instance is managing those clusters?
@@ -124,6 +139,8 @@ CREATE TABLE ClusterAccess (
 	
 	seq_id serial,
 	
+	-- All fields of the cluster are part of the primary key (not seq_uid), and in addition we have indexes
+	-- below for quickly locating a subset of the table.
 	PRIMARY KEY(clusteraccess_user_id, clusteraccess_managed_environment_id, clusteraccess_gitops_engine_instance_id)
 );
 -- Add an index on user_id+managed_cluster, and userid+gitops_manager_instance_Id
@@ -133,11 +150,16 @@ CREATE INDEX idx_userid_instance ON ClusterAccess(clusteraccess_user_id, cluster
 
 
 -- Operation
+-- Operations are used to by the backend to communicate database changes to the cluster-agent.
+-- It is the reponsibility of the cluster agent to respond to operations, to read the database
+-- to discover what database changes occurred, and to ensure that Argo CD is consistent with
+-- the database state.
+-- 
 -- See https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.9tzaobsoav27
 -- for description of Operation
 CREATE TABLE Operation (
 	
-	-- UID
+	-- Primary key for the Operation (UID), is a random UUID
 	operation_id  VARCHAR (48) PRIMARY KEY,
 
 	seq_id serial,
@@ -147,7 +169,7 @@ CREATE TABLE Operation (
 	instance_id VARCHAR(48) NOT NULL,
 	CONSTRAINT fk_gitopsengineinstance_id FOREIGN KEY (instance_id) REFERENCES GitopsEngineInstance(gitopsengineinstance_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 
-	-- ID of the database resource that was modified (usually a database table primary key)
+	-- ID of the database resource that was modified (usually this field contains a primary key of another database table )
 	resource_id VARCHAR(48) NOT NULL,
 
 	-- The user that initiated the operation.
@@ -177,7 +199,6 @@ CREATE TABLE Operation (
 	-- * In_Progress
 	-- * Completed
 	-- * Failed
-	-- TODO: Better way to do this? 
 	state VARCHAR ( 30 ) NOT NULL,
 	
 	-- If there is an error message from the operation, it is passed via this field.
@@ -189,8 +210,6 @@ CREATE TABLE Operation (
 CREATE TABLE Application (
 	application_id VARCHAR ( 48 ) NOT NULL UNIQUE PRIMARY KEY,
 
-	seq_id serial,
-
 	-- Name of the Application CR within the namespace
 	name VARCHAR ( 256 ) NOT NULL,
 
@@ -201,60 +220,65 @@ CREATE TABLE Application (
 	-- In the future, it might be beneficial to pull out SOME of the fields, to reduce CPU time spent on json parsing
 	spec_field VARCHAR ( 16384 ) NOT NULL,
 
-	
 	-- Which Argo CD instance it's hosted on
+	-- Foreign key to: GitopsEngineInstance.gitopsengineinstance_id
 	engine_instance_inst_id VARCHAR(48) NOT NULL,
 	CONSTRAINT fk_gitopsengineinstance_id FOREIGN KEY (engine_instance_inst_id) REFERENCES GitopsEngineInstance(gitopsengineinstance_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 
 	-- Which managed environment it is targetting
 	-- Foreign key to: ManagedEnvironment.managedenvironment_id
 	managed_environment_id VARCHAR(48) NOT NULL,
-	CONSTRAINT fk_managedenvironment_id FOREIGN KEY (managed_environment_id) REFERENCES ManagedEnvironment(managedenvironment_id) ON DELETE NO ACTION ON UPDATE NO ACTION
+	CONSTRAINT fk_managedenvironment_id FOREIGN KEY (managed_environment_id) REFERENCES ManagedEnvironment(managedenvironment_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 	
+	seq_id serial
+
 );
 
 -- ApplicationState is the Argo CD health/sync state of the Application
 -- (Redis may be better suited for this in the future)
 CREATE TABLE ApplicationState (
 
-	-- Also a foreign key to Application.application_id
+	-- Foreign key to Application.application_id
 	applicationstate_application_id  VARCHAR ( 48 ) PRIMARY KEY,
 	CONSTRAINT fk_app_id FOREIGN KEY (applicationstate_application_id) REFERENCES Application(application_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 
-	-- CONSTRAINT fk_app_id  PRIMARY KEY  FOREIGN KEY(app_id)  REFERENCES Application(appl_id),
-
+	-- health field comes directly from Argo CD Application CR's .status.health field
 	-- Possible values:
 	-- * Healthy
 	-- * Progressing
 	-- * Degraded
 	-- * Suspended
 	-- * Missing
-	-- * Unknown
+	-- * Unknown (this is returned by Argo CD, but is also used when Argo CD's health field is "")
 	health VARCHAR (30) NOT NULL,
 
+	-- health field comes directly from Argo CD Application CR's .status.syncStatus field
 	-- Possible values:
 	-- * Synced
 	-- * OutOfSync
+	-- * Unknown (this is used when Argo CD's status field is "")
 	sync_status VARCHAR (30) NOT NULL
-
-	-- human_readable_health ( 512 ) NOT NULL,
-	-- human_readable_sync ( 512 ) NOT NULL,
-	-- human_readable_state ( 512 ) NOT NULL,	
 
 );
 
--- Represents relationship from GitOpsDeployment CR in the namespace, to an Application table row 
+-- Represents the relationship from GitOpsDeployment CR in the API namespace (workspace), to an Application table row.
 -- This means: if we see a change in a GitOpsDeployment CR, we can easily find the corresponding database entry
--- Also: if we see a change to an Argo CD Application, we can easily find the corresponding GitOpsDeployment CR
+-- by looking for a DeploymentToApplicationMapping that captures the relationship (and vice versa)
 CREATE TABLE DeploymentToApplicationMapping (
 	
 	-- uid of our gitops deployment CR within the K8s namespace (or KCP control plane)
 	deploymenttoapplicationmapping_uid_id VARCHAR(48) UNIQUE NOT NULL PRIMARY KEY,
 	
+	-- name of the GitOpsDeployment CR in the API namespace (workspace)
 	name VARCHAR ( 256 ),
+	-- name of the API namespace (workspace)
 	namespace VARCHAR ( 96 ),
+	-- uid of the API namespace (workspace)
 	workspace_uid VARCHAR ( 48 ), 
 
+	-- The Application DB entry that corresponds to this GitOpsDeployment CR
+	-- (For example, deleting the GitOpsDeployment CR should delete the corresponding Application DB table, and likewise
+	-- should delete this table's entry)
 	-- Foreign key to: Application.application_id
 	application_id VARCHAR ( 48 ) NOT NULL UNIQUE,
 	CONSTRAINT fk_app_id FOREIGN KEY (application_id) REFERENCES Application(application_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
@@ -263,28 +287,37 @@ CREATE TABLE DeploymentToApplicationMapping (
 
 );
 
--- Represents a generic relationship between Kubernetes CR <-> Database table
+-- Represents a generic relationship between: Kubernetes CR <->  Database table
 -- The Kubernetes CR can be either in the workspace, or in/on a GitOpsEngine cluster namespace.
 --
 -- Example: when the cluster agent sees an Argo CD Application CR change within a namespace, it needs a way
 -- to know which GitOpsEngineInstance database entries corresponds to the Argo CD namespace.
+-- 
 -- For this we would use:
 -- - kubernetes_resource_type: Namespace
 -- - kubernetes_resource_uid: (uid of namespace)
 -- - db_relation_type: GitOpsEngineInstance
 -- - db_relation_key: (primary key of gitops engine instance)
 --
--- Later, we can query this table to determine 'argo cd instance namespace' <=> 'GitopsEngineInstance database row'
+-- Later, we can query this table to determine 'Argo CD instance namespace' <=> 'GitopsEngineInstance database row'
 --
 -- This is also useful for tracking the lifecycle between CRs <-> database table.
 CREATE TABLE KubernetesToDBResourceMapping  (
 
+	-- kubernetes CR resource (example: Namespace)
+	-- As of this writing (Jan 2022), Namespace is the only supported value for this field.
+	-- - See 'kubernetesresourcetodbresousemapping.go' for latest list.
 	kubernetes_resource_type VARCHAR(64) NOT NULL,
 
+	-- UID of the CR (from the .metadata.UID field)
 	kubernetes_resource_uid  VARCHAR(64) NOT NULL,
 
+	-- name of database table
+	-- As of this writing (Jan 2022), ManagedEnvironment, GitopsEngineCluster, and GitopsEngineInstance are the only supported values for this field.
+	-- - See 'kubernetesresourcetodbresousemapping.go' for latest list.
 	db_relation_type  VARCHAR(64) NOT NULL,
 
+	-- primary key of database table
 	db_relation_key  VARCHAR(64) NOT NULL,
 
 	seq_id serial,
@@ -294,20 +327,36 @@ CREATE TABLE KubernetesToDBResourceMapping  (
 );
 
 CREATE INDEX idx_db_relation_uid ON KubernetesToDBResourceMapping(kubernetes_resource_type, kubernetes_resource_uid, db_relation_type);
+-- Used by: GetDBResourceMappingForKubernetesResource
 
 -- Maps API custom resources on the workspace (such as GitOpsDeploymentSyncRun), to a corresponding entry in the database.
--- This allows us to quickly go from API CR <-to-> Database entry, and also to identify database entry even when the API CR has been
+-- This allows us to quickly go from API CR <-to-> Database entry, and also to identify database entries even when the API CR has been
 -- deleted from the workspace.
 CREATE TABLE APICRToDatabaseMapping  (
 
+	-- The custom resource type of the K8S custom resource being referenced in the mapping
+	-- As of this writing (Jan 2022), the only supported value for this field is GitOpsDeploymentSyncRun.
+	-- See APICRToDatabaseMapping_ResourceType_* constants for latest list.
 	api_resource_type VARCHAR(64) NOT NULL,
+	
+	-- The UID (from .metadata.uid field) of the K8s resource
 	api_resource_uid VARCHAR(64) NOT NULL,
 	
+	-- The name of the k8s resource (from .metadata.name field) of the K8s resource
 	api_resource_name VARCHAR(256) NOT NULL,
+
+	-- The namespace containing the k8s resource
 	api_resource_namespace VARCHAR(256) NOT NULL,
-	api_resource_workspace_uid VARCHAR(64) NOT NULL,
 	
+	-- The UID (from .metadata.uid field) of the namespace containing the k8s resource
+	api_resource_workspace_uid VARCHAR(64) NOT NULL,
+
+	-- The name of the database table being referenced. 
+	-- As of this writing (Jan 2022), the only supported value for this field is SyncOperation.
+	-- See APICRToDatabaseMapping_DBRelationType_ constants for latest list.
 	db_relation_type VARCHAR(32) NOT NULL,
+
+	-- The primary key of the row in the database table being referenced.
 	db_relation_key VARCHAR(64) NOT NULL,
 
 	seq_id serial,
@@ -317,20 +366,26 @@ CREATE TABLE APICRToDatabaseMapping  (
 );
 -- TODO: GITOPS-1702 - PERF - Add index to APICRToDatabaseMapping to correspond to the access patterns we are using.
 
-
-
+-- Sync Operation tracks a sync request from the API, 
 CREATE TABLE SyncOperation (
 
+	-- Primary key for the SyncOperation (UID), is a random UUID
 	syncoperation_id  VARCHAR(48) NOT NULL PRIMARY KEY,
 
+	-- The target Application that is being synchronized
+	-- Foreign key to: Application.application_id
 	application_id VARCHAR(48),
 	CONSTRAINT fk_so_app_id FOREIGN KEY (application_id) REFERENCES Application(application_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 
+	-- The Operation which contains the state of the sync operation
+	-- Foreign key to: Operation.operation_id
 	operation_id VARCHAR(48) NOT NULL,
 	-- CONSTRAINT fk_so_operation_id FOREIGN KEY (operation_id) REFERENCES Operation(operation_id) ON DELETE NO ACTION ON UPDATE NO ACTION
 
+	-- The 'gitopsDeploymentName' field of the GitOpsDeploymentSyncRun CR
 	deployment_name VARCHAR(256) NOT NULL,
 
+	-- The 'revisionID'  field of the GitOpsDeploymentSyncRun CR
 	revision VARCHAR(256) NOT NULL,
 
 	seq_id serial
@@ -404,8 +459,6 @@ KubernetesToDBResourceMapping -> .
 -------------------------------------------------------------------------------
 
 Extra thoughts:
-
-TODO: Add a field for when a resource was created? 
 
 Notes:
 

@@ -119,8 +119,6 @@ spec:
               weight: 1
         nodeAffinity:
           
-      securityContext:
-        fsGroup: 1001
       automountServiceAccountToken: false
       containers:
         - name: gitops-postgresql-staging
@@ -130,8 +128,6 @@ spec:
             requests:
               cpu: 250m
               memory: 256Mi
-          securityContext:
-            runAsUser: 1001
           env:
             - name: BITNAMI_DEBUG
               value: "false"

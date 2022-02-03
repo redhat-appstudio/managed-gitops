@@ -53,8 +53,8 @@ if [ "$1" = "kube" ]; then
   do
     ((counter++))
     sleep 1
-    if [ "$counter" -gt 20 ]; then
-      echo " --> Error: PostgreSQL pod cannot start. Quiting ..."
+    if [ "$counter" -gt 60 ]; then
+      echo " --> Error: PostgreSQL pod cannot start. Quitting ..."
       exit 1
     fi
   done

@@ -81,8 +81,8 @@ build-cluster-agent: ## Build cluster-agent only
 test-cluster-agent: ## Run test for cluster-agent only
 	cd $(MAKEFILE_ROOT)/cluster-agent && make test
 
-### --- F A S T  &  F U R I U S --- ###
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+### --- F A S T  &  F U R I O U S --- ###
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
 devenv-docker: deploy-backend-crd deploy-cluster-agent-crd deploy-backend-rbac deploy-cluster-agent-rbac ## Setup local development environment (Postgres via Docker & local operators)
 	$(MAKEFILE_ROOT)/create-dev-env.sh

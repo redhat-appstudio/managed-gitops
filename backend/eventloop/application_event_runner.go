@@ -487,7 +487,7 @@ func (a *applicationEventLoopRunner_Action) cleanupOldSyncDBEntry(ctx context.Co
 
 			log := log.WithValues("operationId", operationId)
 
-			rowsDeleted, err := dbQueries.DeleteOperationById(ctx, operationId, clusterUser.Clusteruser_id)
+			rowsDeleted, err := dbQueries.CheckedDeleteOperationById(ctx, operationId, clusterUser.Clusteruser_id)
 			if err != nil {
 				log.Error(err, "unable to delete old operation")
 				return err

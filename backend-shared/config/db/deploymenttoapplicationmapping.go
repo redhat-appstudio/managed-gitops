@@ -170,7 +170,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedGetDeploymentToApplicationMapping
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) GetDeploymentToApplicationMappingByDeplId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping, ownerId string) error {
+func (dbq *PostgreSQLDatabaseQueries) CheckedGetDeploymentToApplicationMappingByDeplId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping, ownerId string) error {
 
 	if err := validateQueryParamsEntity(deplToAppMappingParam, dbq); err != nil {
 		return err
@@ -206,7 +206,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetDeploymentToApplicationMappingByDeplId(
 
 	// Check that the user has access to retrieve the referenced Application
 	deplApplication := Application{Application_id: dbResults[0].Application_id}
-	if err := dbq.GetApplicationById(ctx, &deplApplication, ownerId); err != nil {
+	if err := dbq.CheckedGetApplicationById(ctx, &deplApplication, ownerId); err != nil {
 
 		if IsResultNotFoundError(err) {
 			return NewResultNotFoundError(fmt.Sprintf("unable to retrieve deployment mapping for Application: %v", err))
@@ -220,7 +220,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetDeploymentToApplicationMappingByDeplId(
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) DeleteDeploymentToApplicationMappingByDeplId(ctx context.Context, id string, ownerId string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) CheckedDeleteDeploymentToApplicationMappingByDeplId(ctx context.Context, id string, ownerId string) (int, error) {
 
 	if err := validateQueryParams(id, dbq); err != nil {
 		return 0, err
@@ -231,7 +231,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteDeploymentToApplicationMappingByDepl
 	}
 
 	// Verify that the user can delete the mapping, by checking that they can access it.
-	if err := dbq.GetDeploymentToApplicationMappingByDeplId(ctx, entity, ownerId); err != nil {
+	if err := dbq.CheckedGetDeploymentToApplicationMappingByDeplId(ctx, entity, ownerId); err != nil {
 
 		if IsResultNotFoundError(err) {
 			return 0, nil

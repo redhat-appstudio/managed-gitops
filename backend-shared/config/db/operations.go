@@ -139,7 +139,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedGetOperationById(ctx context.Cont
 
 }
 
-func (dbq *PostgreSQLDatabaseQueries) GetOperationById(ctx context.Context, operation *Operation, ownerId string) error {
+func (dbq *PostgreSQLDatabaseQueries) CheckedGetOperationById(ctx context.Context, operation *Operation, ownerId string) error {
 
 	if err := validateQueryParamsEntity(operation, dbq); err != nil {
 		return err
@@ -198,7 +198,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteOperationById(ctx context.C
 	return deleteResult.RowsAffected(), nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) DeleteOperationById(ctx context.Context, id string, ownerId string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) CheckedDeleteOperationById(ctx context.Context, id string, ownerId string) (int, error) {
 
 	if err := validateQueryParams(id, dbq); err != nil {
 		return 0, err

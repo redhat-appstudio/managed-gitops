@@ -142,7 +142,7 @@ func TestApplicationEventLoopRunner_handleDeploymentModified(t *testing.T) {
 		Application_id: deplToAppMapping.Application_id,
 	}
 
-	if err := dbQueries.GetApplicationById(context.Background(), &application, clusterUser.Clusteruser_id); err != nil {
+	if err := dbQueries.CheckedGetApplicationById(context.Background(), &application, clusterUser.Clusteruser_id); err != nil {
 		assert.Nil(t, err)
 		return
 	}
@@ -151,7 +151,7 @@ func TestApplicationEventLoopRunner_handleDeploymentModified(t *testing.T) {
 		Gitopsengineinstance_id: application.Engine_instance_inst_id,
 	}
 
-	err = dbQueries.GetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance, clusterUser.Clusteruser_id)
+	err = dbQueries.CheckedGetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance, clusterUser.Clusteruser_id)
 	if !assert.Nil(t, err) {
 		return
 	}
@@ -185,7 +185,7 @@ func TestApplicationEventLoopRunner_handleDeploymentModified(t *testing.T) {
 	assert.True(t, len(appMappings) == 0)
 
 	// GitopsEngine instance should still be reachable
-	err = dbQueries.GetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance, clusterUser.Clusteruser_id)
+	err = dbQueries.CheckedGetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance, clusterUser.Clusteruser_id)
 	if !assert.Nil(t, err) {
 		return
 	}

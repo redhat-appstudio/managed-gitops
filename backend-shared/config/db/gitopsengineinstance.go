@@ -18,7 +18,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllGitopsEngineInstances(ctx con
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) ListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx context.Context, engineClusterId string, ownerId string, gitopsEngineInstancesParam *[]GitopsEngineInstance) error {
+func (dbq *PostgreSQLDatabaseQueries) CheckedListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx context.Context, engineClusterId string, ownerId string, gitopsEngineInstancesParam *[]GitopsEngineInstance) error {
 
 	if err := validateQueryParams(engineClusterId, dbq); err != nil {
 		return err
@@ -80,7 +80,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedGetGitopsEngineInstanceById(ctx c
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance, ownerId string) error {
+func (dbq *PostgreSQLDatabaseQueries) CheckedGetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance, ownerId string) error {
 
 	if err := validateQueryParamsEntity(engineInstanceParam, dbq); err != nil {
 		return err
@@ -161,7 +161,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateGitopsEngineInstance(ctx context.Con
 
 }
 
-func (dbq *PostgreSQLDatabaseQueries) DeleteGitopsEngineInstanceById(ctx context.Context, id string, ownerId string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) CheckedDeleteGitopsEngineInstanceById(ctx context.Context, id string, ownerId string) (int, error) {
 
 	return dbq.internalDeleteGitopsEngineInstanceById(ctx, id, ownerId, false)
 
@@ -188,7 +188,7 @@ func (dbq *PostgreSQLDatabaseQueries) internalDeleteGitopsEngineInstanceById(ctx
 		// If we are able to retrieve the engine instance with the ownerId, then it is reasonable to
 		// assume the a valid purpose for deleting the value on behalf of the user.
 		existingValue := GitopsEngineInstance{Gitopsengineinstance_id: id}
-		err := dbq.GetGitopsEngineInstanceById(ctx, &existingValue, ownerId)
+		err := dbq.CheckedGetGitopsEngineInstanceById(ctx, &existingValue, ownerId)
 		if err != nil || existingValue.Gitopsengineinstance_id != id {
 			return 0, fmt.Errorf("unable to locate gitops engine instance id, or access denied: '%s', %v", id, err)
 		}

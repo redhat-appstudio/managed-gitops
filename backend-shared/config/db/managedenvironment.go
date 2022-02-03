@@ -150,7 +150,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetManagedEnvironmentById(ctx context.Cont
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) DeleteManagedEnvironmentById(ctx context.Context, id string, ownerId string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) CheckedDeleteManagedEnvironmentById(ctx context.Context, id string, ownerId string) (int, error) {
 
 	if err := validateQueryParams(id, dbq); err != nil {
 		return 0, err

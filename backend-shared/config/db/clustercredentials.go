@@ -81,7 +81,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedGetClusterCredentialsById(ctx con
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) GetClusterCredentialsById(ctx context.Context, clusterCredentials *ClusterCredentials, ownerId string) error {
+func (dbq *PostgreSQLDatabaseQueries) CheckedGetClusterCredentialsById(ctx context.Context, clusterCredentials *ClusterCredentials, ownerId string) error {
 
 	if err := validateQueryParamsEntity(clusterCredentials, dbq); err != nil {
 		return err
@@ -127,7 +127,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetClusterCredentialsById(ctx context.Cont
 
 }
 
-func (dbq *PostgreSQLDatabaseQueries) ListClusterCredentialsByHost(ctx context.Context, hostName string, clusterCredentials *[]ClusterCredentials, ownerId string) error {
+func (dbq *PostgreSQLDatabaseQueries) CheckedListClusterCredentialsByHost(ctx context.Context, hostName string, clusterCredentials *[]ClusterCredentials, ownerId string) error {
 
 	if err := validateQueryParams(hostName, dbq); err != nil {
 		return err
@@ -225,7 +225,7 @@ func (dbq *PostgreSQLDatabaseQueries) isAccessibleByUser(ctx context.Context, cl
 		for _, engineCluster := range engineClustersUsingCredential {
 
 			var gitopsEngineInstances []GitopsEngineInstance
-			if err := dbq.ListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx, engineCluster.Gitopsenginecluster_id, ownerId, &gitopsEngineInstances); err != nil {
+			if err := dbq.CheckedListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx, engineCluster.Gitopsenginecluster_id, ownerId, &gitopsEngineInstances); err != nil {
 				return false, err
 			}
 

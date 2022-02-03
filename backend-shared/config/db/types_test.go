@@ -41,7 +41,7 @@ func testSetup(t *testing.T) {
 	for _, operation := range operations {
 
 		if strings.HasPrefix(operation.Operation_id, "test-") {
-			rowsAffected, err := dbq.DeleteOperationById(ctx, operation.Operation_id, operation.Operation_owner_user_id)
+			rowsAffected, err := dbq.CheckedDeleteOperationById(ctx, operation.Operation_id, operation.Operation_owner_user_id)
 			assert.Equal(t, rowsAffected, 1)
 			assert.NoError(t, err)
 		}
@@ -239,7 +239,7 @@ func TestCreateApplication(t *testing.T) {
 		return
 	}
 
-	rowsAffected, err := dbq.DeleteApplicationById(ctx, application.Application_id, clusterAccess.Clusteraccess_user_id)
+	rowsAffected, err := dbq.CheckedDeleteApplicationById(ctx, application.Application_id, clusterAccess.Clusteraccess_user_id)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -270,7 +270,7 @@ func TestDeploymentToApplicationMapping(t *testing.T) {
 	defer dbq.CloseDatabase()
 
 	mapping := DeploymentToApplicationMapping{}
-	err = dbq.GetDeploymentToApplicationMappingByDeplId(ctx, &mapping, "")
+	err = dbq.CheckedGetDeploymentToApplicationMappingByDeplId(ctx, &mapping, "")
 	fmt.Println(err, mapping)
 
 }
@@ -293,7 +293,7 @@ func TestGitopsEngineInstanceAndCluster(t *testing.T) {
 	}
 
 	retrievedGitopsEngineCluster := &GitopsEngineCluster{Gitopsenginecluster_id: gitopsEngineCluster.Gitopsenginecluster_id}
-	if err = dbq.GetGitopsEngineClusterById(ctx, retrievedGitopsEngineCluster, testClusterUser.Clusteruser_id); !assert.NoError(t, err) {
+	if err = dbq.CheckedGetGitopsEngineClusterById(ctx, retrievedGitopsEngineCluster, testClusterUser.Clusteruser_id); !assert.NoError(t, err) {
 		return
 	}
 	if !assert.Equal(t, &gitopsEngineCluster, &retrievedGitopsEngineCluster) {
@@ -310,7 +310,7 @@ func TestGitopsEngineInstanceAndCluster(t *testing.T) {
 
 	// get should return not found, after the delete
 	gitopsEngineInstance = &GitopsEngineInstance{Gitopsengineinstance_id: gitopsEngineCluster.Gitopsenginecluster_id}
-	if err = dbq.GetGitopsEngineInstanceById(ctx, gitopsEngineInstance, testClusterUser.Clusteruser_id); !assert.Error(t, err) {
+	if err = dbq.CheckedGetGitopsEngineInstanceById(ctx, gitopsEngineInstance, testClusterUser.Clusteruser_id); !assert.Error(t, err) {
 		return
 	}
 	assert.True(t, IsResultNotFoundError(err))
@@ -320,7 +320,7 @@ func TestGitopsEngineInstanceAndCluster(t *testing.T) {
 	assert.NoError(t, err)
 
 	retrievedGitopsEngineCluster = &GitopsEngineCluster{Gitopsenginecluster_id: gitopsEngineCluster.Gitopsenginecluster_id}
-	err = dbq.GetGitopsEngineClusterById(ctx, retrievedGitopsEngineCluster, testClusterUser.Clusteruser_id)
+	err = dbq.CheckedGetGitopsEngineClusterById(ctx, retrievedGitopsEngineCluster, testClusterUser.Clusteruser_id)
 	assert.Error(t, err)
 	assert.True(t, IsResultNotFoundError(err))
 }
@@ -397,20 +397,20 @@ func TestOperation(t *testing.T) {
 	assert.NoError(t, err)
 
 	result := Operation{Operation_id: operation.Operation_id}
-	err = dbq.GetOperationById(ctx, &result, operation.Operation_owner_user_id)
+	err = dbq.CheckedGetOperationById(ctx, &result, operation.Operation_owner_user_id)
 	assert.NoError(t, err)
 	assert.Equal(t, result.Operation_id, operation.Operation_id)
 
 	result = Operation{Operation_id: operation.Operation_id}
-	err = dbq.GetOperationById(ctx, &result, "another-user")
+	err = dbq.CheckedGetOperationById(ctx, &result, "another-user")
 	if !assert.Error(t, err) {
 		return
 	}
 	assert.True(t, IsResultNotFoundError(err))
-	rowsAffected, _ := dbq.DeleteOperationById(ctx, operation.Operation_id, "another-user")
+	rowsAffected, _ := dbq.CheckedDeleteOperationById(ctx, operation.Operation_id, "another-user")
 	assert.Equal(t, rowsAffected, 0)
 
-	rowsAffected, err = dbq.DeleteOperationById(ctx, operation.Operation_id, operation.Operation_owner_user_id)
+	rowsAffected, err = dbq.CheckedDeleteOperationById(ctx, operation.Operation_id, operation.Operation_owner_user_id)
 	assert.Equal(t, rowsAffected, 1)
 	assert.NoError(t, err)
 }
@@ -545,7 +545,7 @@ func TestClusterCredentials(t *testing.T) {
 	retrievedClusterCredentials = &ClusterCredentials{
 		Clustercredentials_cred_id: clusterCredentials.Clustercredentials_cred_id,
 	}
-	err = dbq.GetClusterCredentialsById(ctx, retrievedClusterCredentials, testClusterUser.Clusteruser_id)
+	err = dbq.CheckedGetClusterCredentialsById(ctx, retrievedClusterCredentials, testClusterUser.Clusteruser_id)
 	if !assert.NoError(t, err) ||
 		!assert.NotNil(t, retrievedClusterCredentials) {
 		return

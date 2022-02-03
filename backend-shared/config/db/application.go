@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-func (dbq *PostgreSQLDatabaseQueries) GetApplicationById(ctx context.Context, application *Application, ownerId string) error {
+func (dbq *PostgreSQLDatabaseQueries) CheckedGetApplicationById(ctx context.Context, application *Application, ownerId string) error {
 
 	if err := validateQueryParamsEntity(application, dbq); err != nil {
 		return err
@@ -148,7 +148,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllApplications(ctx context.Cont
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) DeleteApplicationById(ctx context.Context, id string, ownerId string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) CheckedDeleteApplicationById(ctx context.Context, id string, ownerId string) (int, error) {
 
 	if err := validateQueryParams(id, dbq); err != nil {
 		return 0, err
@@ -158,7 +158,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteApplicationById(ctx context.Context,
 		Application_id: id,
 	}
 
-	if err := dbq.GetApplicationById(ctx, result, ownerId); err != nil {
+	if err := dbq.CheckedGetApplicationById(ctx, result, ownerId); err != nil {
 		if IsResultNotFoundError(err) {
 			return 0, nil
 		}

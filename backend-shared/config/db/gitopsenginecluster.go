@@ -37,7 +37,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedGetGitopsEngineClusterById(ctx co
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineClusterById(ctx context.Context, gitopsEngineCluster *GitopsEngineCluster, ownerId string) error {
+func (dbq *PostgreSQLDatabaseQueries) CheckedGetGitopsEngineClusterById(ctx context.Context, gitopsEngineCluster *GitopsEngineCluster, ownerId string) error {
 
 	if err := validateQueryParamsEntity(gitopsEngineCluster, dbq); err != nil {
 		return err
@@ -53,7 +53,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineClusterById(ctx context.Con
 
 	// Return engine instances that are owned by 'ownerid', and are running on cluster 'id'
 	var dbResultGitopsEngineInstances []GitopsEngineInstance
-	if err := dbq.ListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx, gitopsEngineCluster.Gitopsenginecluster_id, ownerId, &dbResultGitopsEngineInstances); err != nil {
+	if err := dbq.CheckedListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx, gitopsEngineCluster.Gitopsenginecluster_id, ownerId, &dbResultGitopsEngineInstances); err != nil {
 		return NewResultNotFoundError(
 			fmt.Sprintf("unable to list engine instances for engine cluster '%s' %v", gitopsEngineCluster.Gitopsenginecluster_id, err))
 	}
@@ -88,7 +88,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineClusterById(ctx context.Con
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) ListGitopsEngineClusterByCredentialId(ctx context.Context, credentialId string, engineClustersParam *[]GitopsEngineCluster, ownerId string) error {
+func (dbq *PostgreSQLDatabaseQueries) CheckedListGitopsEngineClusterByCredentialId(ctx context.Context, credentialId string, engineClustersParam *[]GitopsEngineCluster, ownerId string) error {
 
 	if err := validateQueryParams(credentialId, dbq); err != nil {
 		return err
@@ -120,7 +120,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListGitopsEngineClusterByCredentialId(ctx 
 
 		// Return engine instances that are owned by 'ownerid', and are running on cluster 'id'
 		var dbEngineInstances []GitopsEngineInstance
-		if err := dbq.ListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx, gitopsEngineCluster.Gitopsenginecluster_id, ownerId, &dbEngineInstances); err != nil {
+		if err := dbq.CheckedListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx, gitopsEngineCluster.Gitopsenginecluster_id, ownerId, &dbEngineInstances); err != nil {
 			return fmt.Errorf("unable to list engine instance for '%s', owner '%s', error: %v", gitopsEngineCluster.Gitopsenginecluster_id, ownerId, err)
 		}
 

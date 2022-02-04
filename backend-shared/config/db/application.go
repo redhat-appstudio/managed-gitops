@@ -55,7 +55,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedGetApplicationById(ctx context.Cont
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedGetApplicationById(ctx context.Context, application *Application) error {
+func (dbq *PostgreSQLDatabaseQueries) GetApplicationById(ctx context.Context, application *Application) error {
 
 	if err := validateQueryParamsEntity(application, dbq); err != nil {
 		return err
@@ -88,7 +88,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedGetApplicationById(ctx context.Co
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) CreateApplication(ctx context.Context, obj *Application, ownerId string) error {
+func (dbq *PostgreSQLDatabaseQueries) CheckedCreateApplication(ctx context.Context, obj *Application, ownerId string) error {
 
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return err
@@ -116,7 +116,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateApplication(ctx context.Context, obj
 
 	// Verify the user can access the managed environment
 	managedEnv := ManagedEnvironment{Managedenvironment_id: obj.Managed_environment_id}
-	if err := dbq.GetManagedEnvironmentById(ctx, &managedEnv, ownerId); err != nil {
+	if err := dbq.CheckedGetManagedEnvironmentById(ctx, &managedEnv, ownerId); err != nil {
 		return fmt.Errorf("on creating Application, unable to retrieve managed environment %s for user %s: %v", obj.Managed_environment_id, ownerId, err)
 	}
 
@@ -174,7 +174,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedDeleteApplicationById(ctx context.C
 	return deleteResult.RowsAffected(), nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteApplicationById(ctx context.Context, id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteApplicationById(ctx context.Context, id string) (int, error) {
 
 	if err := validateQueryParams(id, dbq); err != nil {
 		return 0, err
@@ -192,7 +192,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteApplicationById(ctx context
 	return deleteResult.RowsAffected(), nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedCreateApplication(ctx context.Context, obj *Application) error {
+func (dbq *PostgreSQLDatabaseQueries) CreateApplication(ctx context.Context, obj *Application) error {
 
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return err
@@ -227,7 +227,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedCreateApplication(ctx context.Con
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedUpdateApplication(ctx context.Context, obj *Application) error {
+func (dbq *PostgreSQLDatabaseQueries) UpdateApplication(ctx context.Context, obj *Application) error {
 
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return err

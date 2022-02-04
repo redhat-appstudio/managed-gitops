@@ -81,7 +81,7 @@ type DatabaseQueries interface {
 	GetClusterUserByUsername(ctx context.Context, clusterUser *ClusterUser) error
 	CheckedGetGitopsEngineClusterById(ctx context.Context, gitopsEngineCluster *GitopsEngineCluster, ownerId string) error
 	CheckedGetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance, ownerId string) error
-	GetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment, ownerId string) error
+	CheckedGetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment, ownerId string) error
 	CheckedGetOperationById(ctx context.Context, operation *Operation, ownerId string) error
 	CheckedGetDeploymentToApplicationMappingByDeplId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping, ownerId string) error
 	GetClusterAccessByPrimaryKey(ctx context.Context, obj *ClusterAccess) error
@@ -91,22 +91,22 @@ type DatabaseQueries interface {
 	// I'm still figuring out the difference between unchecked and unsafe: For now, they are very similar.
 	// - In the best case, both are useful and can co-exist.
 	// - In the worst case, the idea of unsafe is fundamentally flawed due to cycles in the table model. - jgwest
-	UncheckedGetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance) error
-	UncheckedGetGitopsEngineClusterById(ctx context.Context, gitopsEngineCluster *GitopsEngineCluster) error
-	UncheckedGetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment) error
+	GetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance) error
+	GetGitopsEngineClusterById(ctx context.Context, gitopsEngineCluster *GitopsEngineCluster) error
+	GetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment) error
 
-	UncheckedDeleteKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) (int, error)
-	UncheckedDeleteClusterCredentialsById(ctx context.Context, id string) (int, error)
-	UncheckedDeleteClusterUserById(ctx context.Context, id string) (int, error)
-	UncheckedDeleteGitopsEngineClusterById(ctx context.Context, id string) (int, error)
+	DeleteKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) (int, error)
+	DeleteClusterCredentialsById(ctx context.Context, id string) (int, error)
+	DeleteClusterUserById(ctx context.Context, id string) (int, error)
+	DeleteGitopsEngineClusterById(ctx context.Context, id string) (int, error)
 
-	UncheckedGetClusterCredentialsById(ctx context.Context, clusterCreds *ClusterCredentials) error
+	GetClusterCredentialsById(ctx context.Context, clusterCreds *ClusterCredentials) error
 
-	UncheckedGetDeploymentToApplicationMappingByApplicationId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping) error
+	GetDeploymentToApplicationMappingByApplicationId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping) error
 
-	UncheckedDeleteGitopsEngineInstanceById(ctx context.Context, id string) (int, error)
+	DeleteGitopsEngineInstanceById(ctx context.Context, id string) (int, error)
 
-	UncheckedDeleteManagedEnvironmentById(ctx context.Context, id string) (int, error)
+	DeleteManagedEnvironmentById(ctx context.Context, id string) (int, error)
 
 	// List functions return zero or more results. If no results are found (and no errors occurred), an empty slice is set in the result parameter.
 	CheckedListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx context.Context, engineClusterId string, ownerId string, gitopsEngineInstancesParam *[]GitopsEngineInstance) error
@@ -140,42 +140,43 @@ type DatabaseQueries interface {
 type ApplicationScopedQueries interface {
 	CloseableQueries
 
-	UncheckedUpdateOperation(ctx context.Context, obj *Operation) error
+	UpdateOperation(ctx context.Context, obj *Operation) error
 
 	CreateOperation(ctx context.Context, obj *Operation, ownerId string) error
-	UncheckedGetOperationById(ctx context.Context, operation *Operation) error
+	GetOperationById(ctx context.Context, operation *Operation) error
 	ListOperationsByResourceIdAndTypeAndOwnerId(ctx context.Context, resourceID string, resourceType string, operations *[]Operation, ownerId string) error
 	CheckedDeleteOperationById(ctx context.Context, id string, ownerId string) (int, error)
-	UncheckedDeleteOperationById(ctx context.Context, id string) (int, error)
+	DeleteOperationById(ctx context.Context, id string) (int, error)
 
-	UncheckedCreateSyncOperation(ctx context.Context, obj *SyncOperation) error
-	UncheckedGetSyncOperationById(ctx context.Context, syncOperation *SyncOperation) error
-	UncheckedDeleteSyncOperationById(ctx context.Context, id string) (int, error)
+	CreateSyncOperation(ctx context.Context, obj *SyncOperation) error
+	GetSyncOperationById(ctx context.Context, syncOperation *SyncOperation) error
+	DeleteSyncOperationById(ctx context.Context, id string) (int, error)
 
-	CreateApplication(ctx context.Context, obj *Application, ownerId string) error
-	UncheckedGetApplicationById(ctx context.Context, application *Application) error
-	UncheckedUpdateApplication(ctx context.Context, obj *Application) error
-	UncheckedDeleteApplicationById(ctx context.Context, id string) (int, error)
+	CreateApplication(ctx context.Context, obj *Application) error
+	CheckedCreateApplication(ctx context.Context, obj *Application, ownerId string) error
+	GetApplicationById(ctx context.Context, application *Application) error
+	UpdateApplication(ctx context.Context, obj *Application) error
+	DeleteApplicationById(ctx context.Context, id string) (int, error)
 	CheckedDeleteApplicationById(ctx context.Context, id string, ownerId string) (int, error)
 
 	CreateAPICRToDatabaseMapping(ctx context.Context, obj *APICRToDatabaseMapping) error
-	UncheckedListAPICRToDatabaseMappingByAPINamespaceAndName(ctx context.Context, apiCRResourceType string, crName string, crNamespace string, crWorkspaceUID string, dbRelationType string, apiCRToDBMappingParam *[]APICRToDatabaseMapping) error
+	ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx context.Context, apiCRResourceType string, crName string, crNamespace string, crWorkspaceUID string, dbRelationType string, apiCRToDBMappingParam *[]APICRToDatabaseMapping) error
 	GetDatabaseMappingForAPICR(ctx context.Context, obj *APICRToDatabaseMapping) error
-	UncheckedDeleteAPICRToDatabaseMapping(ctx context.Context, obj *APICRToDatabaseMapping) (int, error)
+	DeleteAPICRToDatabaseMapping(ctx context.Context, obj *APICRToDatabaseMapping) (int, error)
 
 	CreateDeploymentToApplicationMapping(ctx context.Context, obj *DeploymentToApplicationMapping) error
-	UncheckedGetDeploymentToApplicationMappingByDeplId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping) error
-	UncheckedListDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, workspaceUID string, deplToAppMappingParam *[]DeploymentToApplicationMapping) error
-	UncheckedListDeploymentToApplicationMappingByWorkspaceUID(ctx context.Context, workspaceUID string, deplToAppMappingParam *[]DeploymentToApplicationMapping) error
-	UncheckedDeleteDeploymentToApplicationMappingByDeplId(ctx context.Context, id string) (int, error)
-	UncheckedDeleteDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, workspaceUID string) (int, error)
+	GetDeploymentToApplicationMappingByDeplId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping) error
+	ListDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, workspaceUID string, deplToAppMappingParam *[]DeploymentToApplicationMapping) error
+	ListDeploymentToApplicationMappingByWorkspaceUID(ctx context.Context, workspaceUID string, deplToAppMappingParam *[]DeploymentToApplicationMapping) error
+	DeleteDeploymentToApplicationMappingByDeplId(ctx context.Context, id string) (int, error)
+	DeleteDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, workspaceUID string) (int, error)
 
 	UpdateSyncOperationRemoveApplicationField(ctx context.Context, applicationId string) (int, error)
 
-	UncheckedGetApplicationStateById(ctx context.Context, obj *ApplicationState) error
-	UncheckedCreateApplicationState(ctx context.Context, obj *ApplicationState) error
-	UncheckedUpdateApplicationState(ctx context.Context, obj *ApplicationState) error
-	UncheckedDeleteApplicationStateById(ctx context.Context, id string) (int, error)
+	GetApplicationStateById(ctx context.Context, obj *ApplicationState) error
+	CreateApplicationState(ctx context.Context, obj *ApplicationState) error
+	UpdateApplicationState(ctx context.Context, obj *ApplicationState) error
+	DeleteApplicationStateById(ctx context.Context, id string) (int, error)
 }
 
 type CloseableQueries interface {

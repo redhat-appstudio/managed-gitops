@@ -204,7 +204,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		// The CR no longer exists (it was likely deleted), so instead we retrieve the UID of the SyncRun from
 		// the APICRToDatabaseMapping table, by combination of (name/namespace/workspace).
 
-		if err := dbQueries.UncheckedListAPICRToDatabaseMappingByAPINamespaceAndName(ctx, db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
+		if err := dbQueries.ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx, db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
 			a.eventResourceName, a.eventResourceNamespace, getWorkspaceIDFromNamespaceID(namespace),
 			db.APICRToDatabaseMapping_DBRelationType_SyncOperation, &apiCRToDBList); err != nil {
 
@@ -266,13 +266,13 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			// The CR exists, so use the UID of the CR to retrieve the database entry, if possible
 			deplToAppMapping := &db.DeploymentToApplicationMapping{Deploymenttoapplicationmapping_uid_id: string(gitopsDepl.UID)}
 
-			if err = dbQueries.UncheckedGetDeploymentToApplicationMappingByDeplId(ctx, deplToAppMapping); err != nil {
+			if err = dbQueries.GetDeploymentToApplicationMappingByDeplId(ctx, deplToAppMapping); err != nil {
 				log.Error(err, "unable to retrieve deployment to application mapping, on sync run modified", "uid", string(gitopsDepl.UID))
 				return false, err
 			}
 
 			application = &db.Application{Application_id: deplToAppMapping.Application_id}
-			if err := dbQueries.UncheckedGetApplicationById(ctx, application); err != nil {
+			if err := dbQueries.GetApplicationById(ctx, application); err != nil {
 				log.Error(err, "unable to retrieve application, on sync run modified", "applicationId", string(deplToAppMapping.Application_id))
 				return false, err
 			}
@@ -309,7 +309,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			DeploymentNameField: syncRunCR.Spec.GitopsDeploymentName,
 			Revision:            syncRunCR.Spec.RevisionID,
 		}
-		if err := dbQueries.UncheckedCreateSyncOperation(ctx, syncOperation); err != nil {
+		if err := dbQueries.CreateSyncOperation(ctx, syncOperation); err != nil {
 			log.Error(err, "unable to create sync operation in database")
 			return false, err
 		}
@@ -431,7 +431,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 
 		syncOperation := db.SyncOperation{SyncOperation_id: apiCRToDBMapping.DBRelationKey}
 
-		if err := dbQueries.UncheckedGetSyncOperationById(ctx, &syncOperation); err != nil {
+		if err := dbQueries.GetSyncOperationById(ctx, &syncOperation); err != nil {
 			log.Error(err, "unable to retrieve sync operation by id on modified", "operationID", syncOperation.SyncOperation_id)
 			return false, err
 		}
@@ -468,7 +468,7 @@ func (a *applicationEventLoopRunner_Action) cleanupOldSyncDBEntry(ctx context.Co
 		return err
 	}
 
-	rowsDeleted, err := dbQueries.UncheckedDeleteSyncOperationById(ctx, apiCRToDB.DBRelationKey)
+	rowsDeleted, err := dbQueries.DeleteSyncOperationById(ctx, apiCRToDB.DBRelationKey)
 	if err != nil {
 		log.Error(err, "unable to delete sync operation db entry on sync operation delete", "key", apiCRToDB.DBRelationKey)
 		return err
@@ -497,7 +497,7 @@ func (a *applicationEventLoopRunner_Action) cleanupOldSyncDBEntry(ctx context.Co
 		}
 	}
 
-	rowsDeleted, err = dbQueries.UncheckedDeleteAPICRToDatabaseMapping(ctx, apiCRToDB)
+	rowsDeleted, err = dbQueries.DeleteAPICRToDatabaseMapping(ctx, apiCRToDB)
 	if err != nil {
 		log.Error(err, "unable to delete apiCRToDBmapping", "mapping", apiCRToDB.APIResourceUID)
 		return err
@@ -519,7 +519,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	mapping := db.DeploymentToApplicationMapping{
 		Deploymenttoapplicationmapping_uid_id: string(gitopsDeplID),
 	}
-	if err := dbQueries.UncheckedGetDeploymentToApplicationMappingByDeplId(ctx, &mapping); err != nil {
+	if err := dbQueries.GetDeploymentToApplicationMappingByDeplId(ctx, &mapping); err != nil {
 		if db.IsResultNotFoundError(err) {
 			// Our work is done
 			return nil
@@ -554,7 +554,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 
 	// 3) Retrieve the application state for the application pointed to be the depltoappmapping
 	applicationState := db.ApplicationState{Applicationstate_application_id: mapping.Application_id}
-	if err := dbQueries.UncheckedGetApplicationStateById(ctx, &applicationState); err != nil {
+	if err := dbQueries.GetApplicationStateById(ctx, &applicationState); err != nil {
 
 		if db.IsResultNotFoundError(err) {
 			a.log.Info("ApplicationState not found for application, on deploymentStatusTick: " + applicationState.Applicationstate_application_id)
@@ -620,7 +620,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 		// The CR exists, so use the UID of the CR to retrieve the database entry, if possible
 		deplToAppMapping := &db.DeploymentToApplicationMapping{Deploymenttoapplicationmapping_uid_id: string(gitopsDeployment.UID)}
 
-		if err = dbQueries.UncheckedGetDeploymentToApplicationMappingByDeplId(ctx, deplToAppMapping); err != nil {
+		if err = dbQueries.GetDeploymentToApplicationMappingByDeplId(ctx, deplToAppMapping); err != nil {
 
 			if db.IsResultNotFoundError(err) {
 				deplToAppMapExistsInDB = false
@@ -637,7 +637,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 		// The CR no longer exists (it was likely deleted), so instead we retrieve the UID of the GitOpsDeployment from
 		// the DeploymentToApplicationMapping table, by combination of (name/namespace/workspace).
 
-		if err := dbQueries.UncheckedListDeploymentToApplicationMappingByNamespaceAndName(ctx, deplName, deplNamespace,
+		if err := dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(ctx, deplName, deplNamespace,
 			getWorkspaceIDFromNamespaceID(gitopsDeplNamespace), &deplToAppMappingList); err != nil {
 
 			log.Error(err, "unable to retrieve deployment to application mapping by name/namespace/uid",
@@ -742,7 +742,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	dbApplication := db.Application{
 		Application_id: deplToAppMapping.Application_id,
 	}
-	if err := dbQueries.UncheckedGetApplicationById(ctx, &dbApplication); err != nil {
+	if err := dbQueries.GetApplicationById(ctx, &dbApplication); err != nil {
 
 		a.log.Error(err, "unable to get application by id", "id", deplToAppMapping.Application_id)
 
@@ -757,7 +757,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	log := a.log.WithValues("id", dbApplication.Application_id)
 
 	// Remove the ApplicationState from the database
-	rowsDeleted, err := dbQueries.UncheckedDeleteApplicationStateById(ctx, deplToAppMapping.Application_id)
+	rowsDeleted, err := dbQueries.DeleteApplicationStateById(ctx, deplToAppMapping.Application_id)
 	if err != nil {
 
 		log.V(sharedutil.LogLevel_Warn).Error(err, "unable to delete application state by id")
@@ -769,7 +769,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	}
 
 	// Remove DeplToAppMapping
-	rowsDeleted, err = dbQueries.UncheckedDeleteDeploymentToApplicationMappingByDeplId(ctx, deplToAppMapping.Deploymenttoapplicationmapping_uid_id)
+	rowsDeleted, err = dbQueries.DeleteDeploymentToApplicationMappingByDeplId(ctx, deplToAppMapping.Deploymenttoapplicationmapping_uid_id)
 	if err != nil {
 		log.Error(err, "unable to delete deplToAppMapping by id", "deplToAppMapUid", deplToAppMapping.Deploymenttoapplicationmapping_uid_id)
 		return false, err
@@ -798,7 +798,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 
 	// Remove the Application from the database
 	log.Info("deleting database Application, id: " + deplToAppMapping.Application_id)
-	rowsDeleted, err = dbQueries.UncheckedDeleteApplicationById(ctx, deplToAppMapping.Application_id)
+	rowsDeleted, err = dbQueries.DeleteApplicationById(ctx, deplToAppMapping.Application_id)
 	if err != nil {
 		// Log the error, but continue
 		log.Error(err, "unable to delete application by id", "appId", deplToAppMapping.Application_id)
@@ -859,7 +859,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 	log := a.log.WithValues("applicationId", deplToAppMapping.Application_id, "gitopsDeplUID", gitopsDeployment.UID)
 
 	application := &db.Application{Application_id: deplToAppMapping.Application_id}
-	if err := dbQueries.UncheckedGetApplicationById(ctx, application); err != nil {
+	if err := dbQueries.GetApplicationById(ctx, application); err != nil {
 		if !db.IsResultNotFoundError(err) {
 			log.Error(err, "unable to retrieve Application DB entry in handleUpdatedGitOpsDeplEvent")
 			return false, nil, nil, err
@@ -869,7 +869,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 			log.Error(err, "SEVERE: Application pointed to by deplToAppMapping doesn't exist, in handleUpdatedGitOpsDeplEvent")
 
 			// Delete the deplToAppMapping, since the app doesn't exist. This should cause the gitopsdepl to be reconciled by the event loop.
-			if _, err := dbQueries.UncheckedDeleteDeploymentToApplicationMappingByDeplId(ctx, deplToAppMapping.Deploymenttoapplicationmapping_uid_id); err != nil {
+			if _, err := dbQueries.DeleteDeploymentToApplicationMappingByDeplId(ctx, deplToAppMapping.Deploymenttoapplicationmapping_uid_id); err != nil {
 				log.Error(err, "Unable to delete deplToAppMapping which pointed to non-existent Application, in handleUpdatedGitOpsDeplEvent")
 				return false, nil, nil, err
 			}
@@ -925,7 +925,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 
 	application.Spec_field = specFieldResult
 
-	if err := dbQueries.UncheckedUpdateApplication(ctx, application); err != nil {
+	if err := dbQueries.UpdateApplication(ctx, application); err != nil {
 		log.Error(err, "Unable to update application, after mismatch detected")
 		return false, nil, nil, err
 	}
@@ -1038,7 +1038,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 
 	a.log.Info("Creating new Application in DB: " + application.Application_id)
 
-	if err := dbQueries.CreateApplication(ctx, &application, clusterUser.Clusteruser_id); err != nil {
+	if err := dbQueries.CreateApplication(ctx, &application); err != nil {
 		a.log.Error(err, "unable to create application", "application", application, "ownerId", clusterUser.Clusteruser_id)
 		return false, nil, nil, err
 	}
@@ -1053,7 +1053,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 
 	a.log.Info("Upserting new DeploymentToApplicationMapping in DB: " + requiredDeplToAppMapping.Deploymenttoapplicationmapping_uid_id)
 
-	if err := sharedutil.UncheckedGetOrCreateDeploymentToApplicationMapping(ctx, requiredDeplToAppMapping, dbQueries, a.log); err != nil {
+	if err := sharedutil.GetOrCreateDeploymentToApplicationMapping(ctx, requiredDeplToAppMapping, dbQueries, a.log); err != nil {
 		a.log.Error(err, "unable to create deplToApp mapping", "deplToAppMapping", requiredDeplToAppMapping)
 		return false, nil, nil, err
 	}
@@ -1122,7 +1122,7 @@ func cleanupOperation(ctx context.Context, dbOperation db.Operation, k8sOperatio
 	log = log.WithValues("operation", dbOperation.Operation_id, "namespace", operationNamespace)
 
 	// // Delete the database entry
-	// rowsDeleted, err := dbQueries.UncheckedDeleteOperationById(ctx, dbOperation.Operation_id)
+	// rowsDeleted, err := dbQueries.DeleteOperationById(ctx, dbOperation.Operation_id)
 	// if err != nil {
 	// 	return err
 	// }
@@ -1207,7 +1207,7 @@ func uncheckedWaitForOperationToComplete(ctx context.Context, dbOperation *db.Op
 
 	for {
 
-		err := dbQueries.UncheckedGetOperationById(ctx, dbOperation)
+		err := dbQueries.GetOperationById(ctx, dbOperation)
 		if err != nil {
 			// Either the operation couldn't be found (which shouldn't happen here), or some other issue, so return it
 			return err

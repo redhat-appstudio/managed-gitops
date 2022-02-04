@@ -54,7 +54,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateOperation(ctx context.Context, obj *
 
 	// Verify the instance exists
 	gei := GitopsEngineInstance{Gitopsengineinstance_id: obj.Instance_id}
-	if err := dbq.UncheckedGetGitopsEngineInstanceById(ctx, &gei); err != nil {
+	if err := dbq.GetGitopsEngineInstanceById(ctx, &gei); err != nil {
 		return fmt.Errorf("unable to retrieve operation's gitops engine instance ID: '%v' %v", obj.Instance_id, err)
 	}
 
@@ -76,7 +76,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateOperation(ctx context.Context, obj *
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedUpdateOperation(ctx context.Context, obj *Operation) error {
+func (dbq *PostgreSQLDatabaseQueries) UpdateOperation(ctx context.Context, obj *Operation) error {
 
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return err
@@ -105,7 +105,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedUpdateOperation(ctx context.Conte
 
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedGetOperationById(ctx context.Context, operation *Operation) error {
+func (dbq *PostgreSQLDatabaseQueries) GetOperationById(ctx context.Context, operation *Operation) error {
 
 	if err := validateQueryParamsEntity(operation, dbq); err != nil {
 		return err
@@ -178,7 +178,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedGetOperationById(ctx context.Contex
 
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteOperationById(ctx context.Context, id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteOperationById(ctx context.Context, id string) (int, error) {
 
 	if err := validateQueryParams(id, dbq); err != nil {
 		return 0, err

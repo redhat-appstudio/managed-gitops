@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedGetGitopsEngineClusterById(ctx context.Context, gitopsEngineCluster *GitopsEngineCluster) error {
+func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineClusterById(ctx context.Context, gitopsEngineCluster *GitopsEngineCluster) error {
 
 	if err := validateQueryParamsEntity(gitopsEngineCluster, dbq); err != nil {
 		return err
@@ -186,7 +186,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllGitopsEngineClusters(ctx cont
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteGitopsEngineClusterById(ctx context.Context, id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteGitopsEngineClusterById(ctx context.Context, id string) (int, error) {
 
 	if err := validateUnsafeQueryParams(id, dbq); err != nil {
 		return 0, err

@@ -78,7 +78,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListManagedEnvironmentForClusterCredential
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedGetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment) error {
+func (dbq *PostgreSQLDatabaseQueries) GetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment) error {
 
 	if err := validateQueryParamsEntity(managedEnvironment, dbq); err != nil {
 		return err
@@ -111,7 +111,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedGetManagedEnvironmentById(ctx con
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) GetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment, ownerId string) error {
+func (dbq *PostgreSQLDatabaseQueries) CheckedGetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment, ownerId string) error {
 
 	if err := validateQueryParamsEntity(managedEnvironment, dbq); err != nil {
 		return err
@@ -161,7 +161,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedDeleteManagedEnvironmentById(ctx co
 	}
 
 	existingValue := ManagedEnvironment{Managedenvironment_id: id}
-	err := dbq.GetManagedEnvironmentById(ctx, &existingValue, ownerId)
+	err := dbq.CheckedGetManagedEnvironmentById(ctx, &existingValue, ownerId)
 	if err != nil || existingValue.Managedenvironment_id != id {
 		return 0, fmt.Errorf("unable to locate managed environment id, or access denied: %s", id)
 	}
@@ -175,7 +175,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedDeleteManagedEnvironmentById(ctx co
 }
 
 // This method does NOT check whether the user has access
-func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteManagedEnvironmentById(ctx context.Context, id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteManagedEnvironmentById(ctx context.Context, id string) (int, error) {
 
 	if err := validateUnsafeQueryParams(id, dbq); err != nil {
 		return 0, err

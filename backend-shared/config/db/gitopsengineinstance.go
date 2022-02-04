@@ -47,7 +47,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedListAllGitopsEngineInstancesForGito
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedGetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance) error {
+func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance) error {
 
 	if err := validateQueryParamsEntity(engineInstanceParam, dbq); err != nil {
 		return err
@@ -167,7 +167,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedDeleteGitopsEngineInstanceById(ctx 
 
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteGitopsEngineInstanceById(ctx context.Context, id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteGitopsEngineInstanceById(ctx context.Context, id string) (int, error) {
 
 	return dbq.internalDeleteGitopsEngineInstanceById(ctx, id, "", true)
 

@@ -119,7 +119,7 @@ func TestApplicationEventLoopRunner_handleDeploymentModified(t *testing.T) {
 	{
 		var appMappings []db.DeploymentToApplicationMapping
 
-		err = dbQueries.UncheckedListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
+		err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
 		assert.Nil(t, err)
 
 		if !assert.True(t, len(appMappings) == 1) {
@@ -160,7 +160,7 @@ func TestApplicationEventLoopRunner_handleDeploymentModified(t *testing.T) {
 	managedEnvironment := db.ManagedEnvironment{
 		Managedenvironment_id: application.Managed_environment_id,
 	}
-	err = dbQueries.GetManagedEnvironmentById(ctx, &managedEnvironment, clusterUser.Clusteruser_id)
+	err = dbQueries.CheckedGetManagedEnvironmentById(ctx, &managedEnvironment, clusterUser.Clusteruser_id)
 	assert.Nil(t, err)
 
 	// Delete the GitOpsDepl and verify that the corresponding DB entries are removed -------------
@@ -174,13 +174,13 @@ func TestApplicationEventLoopRunner_handleDeploymentModified(t *testing.T) {
 	assert.Nil(t, err)
 
 	// Application should no longer exist
-	err = dbQueries.UncheckedGetApplicationById(ctx, &application)
+	err = dbQueries.GetApplicationById(ctx, &application)
 	assert.NotNil(t, err)
 	assert.True(t, db.IsResultNotFoundError(err))
 
 	// DeploymentToApplicationMapping should be removed, too
 	var appMappings []db.DeploymentToApplicationMapping
-	err = dbQueries.UncheckedListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
+	err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
 	assert.Nil(t, err)
 	assert.True(t, len(appMappings) == 0)
 

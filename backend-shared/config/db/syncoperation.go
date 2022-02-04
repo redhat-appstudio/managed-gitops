@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedGetSyncOperationById(ctx context.Context, syncOperation *SyncOperation) error {
+func (dbq *PostgreSQLDatabaseQueries) GetSyncOperationById(ctx context.Context, syncOperation *SyncOperation) error {
 
 	if err := validateQueryParamsEntity(syncOperation, dbq); err != nil {
 		return err
@@ -22,15 +22,15 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedGetSyncOperationById(ctx context.
 		Context(ctx).
 		Select(); err != nil {
 
-		return fmt.Errorf("error on retrieving UncheckedGetSyncOperationById: %v", err)
+		return fmt.Errorf("error on retrieving GetSyncOperationById: %v", err)
 	}
 
 	if len(dbResults) >= 2 {
-		return fmt.Errorf("multiple results returned from UncheckedGetSyncOperationById")
+		return fmt.Errorf("multiple results returned from GetSyncOperationById")
 	}
 
 	if len(dbResults) == 0 {
-		return NewResultNotFoundError("no results found for UncheckedGetSyncOperationById")
+		return NewResultNotFoundError("no results found for GetSyncOperationById")
 	}
 
 	*syncOperation = dbResults[0]
@@ -38,7 +38,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedGetSyncOperationById(ctx context.
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedCreateSyncOperation(ctx context.Context, obj *SyncOperation) error {
+func (dbq *PostgreSQLDatabaseQueries) CreateSyncOperation(ctx context.Context, obj *SyncOperation) error {
 
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return err
@@ -76,7 +76,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedCreateSyncOperation(ctx context.C
 
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteSyncOperationById(ctx context.Context, id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteSyncOperationById(ctx context.Context, id string) (int, error) {
 
 	if err := validateQueryParams(id, dbq); err != nil {
 		return 0, err
@@ -131,6 +131,6 @@ func (obj *SyncOperation) DisposeAppScoped(ctx context.Context, dbq ApplicationS
 		return fmt.Errorf("missing database interface in syncoperation dispose")
 	}
 
-	_, err := dbq.UncheckedDeleteSyncOperationById(ctx, obj.SyncOperation_id)
+	_, err := dbq.DeleteSyncOperationById(ctx, obj.SyncOperation_id)
 	return err
 }

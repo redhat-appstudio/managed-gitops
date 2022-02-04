@@ -32,7 +32,7 @@ func TestUncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(t *testi
 
 	// kubesystemNamespaceUID := "fake-uid"
 
-	// engineInstance, engineCluster, err := UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(context.Background(), gitopsEngineNamespace,
+	// engineInstance, engineCluster, err := GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(context.Background(), gitopsEngineNamespace,
 	// 	kubesystemNamespaceUID, dbq, logr.FromContext(context.Background()))
 
 	// t.Logf("%v", engineInstance)

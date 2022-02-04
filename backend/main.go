@@ -194,7 +194,7 @@ func createPrimaryGitOpsEngineInstance(k8sclient client.Client, log logr.Logger)
 		},
 	}
 
-	gitopsEngineInstance, _, err := sharedutil.UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespace, kubeSystemNamespace.Name, dbQueries, log)
+	gitopsEngineInstance, _, err := sharedutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespace, kubeSystemNamespace.Name, dbQueries, log)
 	if err != nil {
 		return err
 	}
@@ -205,7 +205,7 @@ func createPrimaryGitOpsEngineInstance(k8sclient client.Client, log logr.Logger)
 		},
 	}
 
-	managedEnv, err := sharedutil.UncheckedGetOrCreateManagedEnvironmentByNamespaceUID(ctx, *gitopsLocalWorkspaceNamespace, dbQueries, log)
+	managedEnv, err := sharedutil.GetOrCreateManagedEnvironmentByNamespaceUID(ctx, *gitopsLocalWorkspaceNamespace, dbQueries, log)
 	if err != nil {
 		return err
 	}

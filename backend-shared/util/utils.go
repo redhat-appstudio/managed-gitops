@@ -35,7 +35,7 @@ func GetGitOpsEngineSingleInstanceNamespace() string {
 	return DefaultGitOpsEngineSingleInstanceNamespace
 }
 
-func UncheckedGetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, workspaceNamespace v1.Namespace,
+func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, workspaceNamespace v1.Namespace,
 	dbq db.DatabaseQueries, log logr.Logger) (*db.ManagedEnvironment, error) {
 
 	workspaceNamespaceUID := string(workspaceNamespace.UID)
@@ -55,7 +55,7 @@ func UncheckedGetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, w
 
 		// Retrieve the managed environment database entry for this resource
 		managedEnvironment := db.ManagedEnvironment{Managedenvironment_id: string(dbResourceMapping.DBRelationKey)}
-		err = dbq.UncheckedGetManagedEnvironmentById(ctx, &managedEnvironment)
+		err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironment)
 
 		if err == nil {
 			// Success: mapping exists, and so does the environment it points to
@@ -71,7 +71,7 @@ func UncheckedGetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, w
 		// mapping pointed to.
 
 		// Since the managed environment doesn't exist, delete the mapping; it will be recreated below.
-		if _, err := dbq.UncheckedDeleteKubernetesResourceToDBResourceMapping(ctx, dbResourceMapping); err != nil {
+		if _, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, dbResourceMapping); err != nil {
 			return nil, fmt.Errorf("unable to delete K8s resource to DB mapping: %v", dbResourceMapping)
 		}
 
@@ -117,14 +117,14 @@ func UncheckedGetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, w
 	return &managedEnvironment, nil
 }
 
-// UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID gets (or creates it if it doesn't exist) a GitOpsEngineInstance database entry that
+// GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID gets (or creates it if it doesn't exist) a GitOpsEngineInstance database entry that
 // corresponds to an GitOps engine instance running on the cluster.
-func UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
+func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 	gitopsEngineNamespace v1.Namespace, kubesystemNamespaceUID string,
 	dbq db.DatabaseQueries, log logr.Logger) (*db.GitopsEngineInstance, *db.GitopsEngineCluster, error) {
 
 	// First create the GitOpsEngine cluster if needed; this will be used to create the instance.
-	gitopsEngineCluster, err := UncheckedGetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, kubesystemNamespaceUID, dbq, log)
+	gitopsEngineCluster, err := GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, kubesystemNamespaceUID, dbq, log)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to create GitOpsEngineCluster for '%v', error: '%v'", kubesystemNamespaceUID, err)
 	}
@@ -157,7 +157,7 @@ func UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.
 			Gitopsengineinstance_id: dbResourceMapping.DBRelationKey,
 		}
 
-		if err := dbq.UncheckedGetGitopsEngineInstanceById(ctx, gitopsEngineInstance); err != nil {
+		if err := dbq.GetGitopsEngineInstanceById(ctx, gitopsEngineInstance); err != nil {
 			if !db.IsResultNotFoundError(err) {
 				return nil, nil, err
 			}
@@ -166,7 +166,7 @@ func UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.
 
 			// We have found a mapping without the corresponding mapped entity, so delete the mapping.
 			// (We will recreate the mapping below)
-			if _, err := dbq.UncheckedDeleteKubernetesResourceToDBResourceMapping(ctx, dbResourceMapping); err != nil {
+			if _, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, dbResourceMapping); err != nil {
 				return nil, nil, err
 			}
 
@@ -229,7 +229,7 @@ func UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.
 		return gitopsEngineInstance, gitopsEngineCluster, nil
 
 	} else {
-		return nil, nil, fmt.Errorf("unexpected state in UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID")
+		return nil, nil, fmt.Errorf("unexpected state in GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID")
 	}
 
 }
@@ -265,7 +265,7 @@ func GetGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context, kubesys
 			Gitopsenginecluster_id: dbResourceMapping.DBRelationKey,
 		}
 
-		if err := dbq.UncheckedGetGitopsEngineClusterById(ctx, gitopsEngineCluster); err != nil {
+		if err := dbq.GetGitopsEngineClusterById(ctx, gitopsEngineCluster); err != nil {
 			if !db.IsResultNotFoundError(err) {
 				return nil, err
 			}
@@ -279,11 +279,11 @@ func GetGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context, kubesys
 
 }
 
-// UncheckedGetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID gets (or creates it if it doesn't exist) a GitOpsEngineCluster
+// GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID gets (or creates it if it doesn't exist) a GitOpsEngineCluster
 // database entry that corresponds to an GitOps engine cluster.
 //
 // In order to determine which cluster we are on, we use the UID of the 'kube-system' namespace.
-func UncheckedGetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context, kubesystemNamespaceUID string, dbq db.DatabaseQueries, log logr.Logger) (*db.GitopsEngineCluster, error) {
+func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context, kubesystemNamespaceUID string, dbq db.DatabaseQueries, log logr.Logger) (*db.GitopsEngineCluster, error) {
 
 	var gitopsEngineCluster *db.GitopsEngineCluster
 
@@ -313,7 +313,7 @@ func UncheckedGetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context
 			Gitopsenginecluster_id: dbResourceMapping.DBRelationKey,
 		}
 
-		if err := dbq.UncheckedGetGitopsEngineClusterById(ctx, gitopsEngineCluster); err != nil {
+		if err := dbq.GetGitopsEngineClusterById(ctx, gitopsEngineCluster); err != nil {
 			if !db.IsResultNotFoundError(err) {
 				return nil, err
 			}
@@ -322,7 +322,7 @@ func UncheckedGetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context
 
 			// We have found a mapping without the corresponding mapped entity, so delete the mapping.
 			// (We will recreate the mapping below)
-			if _, err := dbq.UncheckedDeleteKubernetesResourceToDBResourceMapping(ctx, dbResourceMapping); err != nil {
+			if _, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, dbResourceMapping); err != nil {
 				return nil, err
 			}
 
@@ -393,11 +393,11 @@ func UncheckedGetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context
 
 }
 
-func UncheckedGetOrCreateDeploymentToApplicationMapping(ctx context.Context, createDeplToAppMapping *db.DeploymentToApplicationMapping, dbq db.ApplicationScopedQueries, log logr.Logger) error {
+func GetOrCreateDeploymentToApplicationMapping(ctx context.Context, createDeplToAppMapping *db.DeploymentToApplicationMapping, dbq db.ApplicationScopedQueries, log logr.Logger) error {
 
-	if err := dbq.UncheckedGetDeploymentToApplicationMappingByDeplId(ctx, createDeplToAppMapping); err != nil {
+	if err := dbq.GetDeploymentToApplicationMappingByDeplId(ctx, createDeplToAppMapping); err != nil {
 		if !db.IsResultNotFoundError(err) {
-			logErr := fmt.Errorf("unable to get obj in UncheckedGetOrDeploymentToApplicationMapping: %v", err)
+			logErr := fmt.Errorf("unable to get obj in GetOrDeploymentToApplicationMapping: %v", err)
 			log.Error(logErr, "unable to get deplToApp mapping", "createDeplToAppMapping", createDeplToAppMapping)
 			return logErr
 		}
@@ -408,7 +408,7 @@ func UncheckedGetOrCreateDeploymentToApplicationMapping(ctx context.Context, cre
 	}
 
 	// Ensure that there isn't an old depltoappmapping hanging around with matching name/namespace, before we create a new one.
-	if _, err := dbq.UncheckedDeleteDeploymentToApplicationMappingByNamespaceAndName(ctx,
+	if _, err := dbq.DeleteDeploymentToApplicationMappingByNamespaceAndName(ctx,
 		createDeplToAppMapping.DeploymentName,
 		createDeplToAppMapping.DeploymentNamespace,
 		createDeplToAppMapping.WorkspaceUID); err != nil {

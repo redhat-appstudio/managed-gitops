@@ -60,7 +60,7 @@ func TestGitopsEngineInstanceWrongInput(t *testing.T) {
 		retrieveGitopsEngineInstance := &GitopsEngineInstance{
 			Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
 		}
-		err = dbq.UncheckedGetGitopsEngineInstanceById(ctx, retrieveGitopsEngineInstance)
+		err = dbq.GetGitopsEngineInstanceById(ctx, retrieveGitopsEngineInstance)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -90,7 +90,7 @@ func TestClusterCredentialWrongInput(t *testing.T) {
 	retrievedClusterCredentials := &ClusterCredentials{
 		Clustercredentials_cred_id: clusterCredentials.Clustercredentials_cred_id,
 	}
-	err = dbq.UncheckedGetClusterCredentialsById(ctx, retrievedClusterCredentials)
+	err = dbq.GetClusterCredentialsById(ctx, retrievedClusterCredentials)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -132,7 +132,7 @@ func TestManagedEnviromentWrongInput(t *testing.T) {
 		retrieveManagedEnv := &ManagedEnvironment{
 			Managedenvironment_id: "test-managed-env-1",
 		}
-		err = dbq.UncheckedGetManagedEnvironmentById(ctx, retrieveManagedEnv)
+		err = dbq.GetManagedEnvironmentById(ctx, retrieveManagedEnv)
 		if !assert.NoError(t, err) {
 			return
 		}
@@ -253,14 +253,14 @@ func TestApplicationWrongInput(t *testing.T) {
 		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 	}
 
-	err = dbq.CreateApplication(ctx, application, clusterAccess.Clusteraccess_user_id)
+	err = dbq.CheckedCreateApplication(ctx, application, clusterAccess.Clusteraccess_user_id)
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	retrievedApplication := Application{Application_id: application.Application_id}
 
-	err = dbq.UncheckedGetApplicationById(ctx, &retrievedApplication)
+	err = dbq.GetApplicationById(ctx, &retrievedApplication)
 	if !assert.NoError(t, err) {
 		return
 	}

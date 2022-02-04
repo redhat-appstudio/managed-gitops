@@ -18,7 +18,7 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllApplicationStates(ctx context
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteApplicationStateById(ctx context.Context, id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteApplicationStateById(ctx context.Context, id string) (int, error) {
 
 	if err := validateQueryParams(id, dbq); err != nil {
 		return 0, err
@@ -36,7 +36,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteApplicationStateById(ctx co
 	return deleteResult.RowsAffected(), nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedCreateApplicationState(ctx context.Context, obj *ApplicationState) error {
+func (dbq *PostgreSQLDatabaseQueries) CreateApplicationState(ctx context.Context, obj *ApplicationState) error {
 
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return err
@@ -61,7 +61,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedCreateApplicationState(ctx contex
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedUpdateApplicationState(ctx context.Context, obj *ApplicationState) error {
+func (dbq *PostgreSQLDatabaseQueries) UpdateApplicationState(ctx context.Context, obj *ApplicationState) error {
 
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return err
@@ -87,7 +87,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedUpdateApplicationState(ctx contex
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedGetApplicationStateById(ctx context.Context, obj *ApplicationState) error {
+func (dbq *PostgreSQLDatabaseQueries) GetApplicationStateById(ctx context.Context, obj *ApplicationState) error {
 
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return err

@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedListDeploymentToApplicationMappingByWorkspaceUID(ctx context.Context, workspaceUID string,
+func (dbq *PostgreSQLDatabaseQueries) ListDeploymentToApplicationMappingByWorkspaceUID(ctx context.Context, workspaceUID string,
 	deplToAppMappingParam *[]DeploymentToApplicationMapping) error {
 
 	if err := validateQueryParamsEntity(deplToAppMappingParam, dbq); err != nil {
@@ -29,7 +29,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedListDeploymentToApplicationMappin
 		Context(ctx).
 		Select(); err != nil {
 
-		return fmt.Errorf("error on retrieving UncheckedListDeploymentToApplicationMappingByWorkspaceUID: %v", err)
+		return fmt.Errorf("error on retrieving ListDeploymentToApplicationMappingByWorkspaceUID: %v", err)
 	}
 
 	*deplToAppMappingParam = dbResults
@@ -37,7 +37,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedListDeploymentToApplicationMappin
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedListDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string,
+func (dbq *PostgreSQLDatabaseQueries) ListDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string,
 	deploymentNamespace string, workspaceUID string, deplToAppMappingParam *[]DeploymentToApplicationMapping) error {
 
 	if err := validateQueryParamsEntity(deplToAppMappingParam, dbq); err != nil {
@@ -65,7 +65,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedListDeploymentToApplicationMappin
 		Context(ctx).
 		Select(); err != nil {
 
-		return fmt.Errorf("error on retrieving UncheckedListDeploymentToApplicationMappingByNamespaceAndName: %v", err)
+		return fmt.Errorf("error on retrieving ListDeploymentToApplicationMappingByNamespaceAndName: %v", err)
 	}
 
 	*deplToAppMappingParam = dbResults
@@ -73,7 +73,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedListDeploymentToApplicationMappin
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, workspaceUID string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, workspaceUID string) (int, error) {
 
 	if err := validateQueryParamsNoPK(dbq); err != nil {
 		return 0, err
@@ -100,7 +100,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteDeploymentToApplicationMapp
 	return deleteResult.RowsAffected(), nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedGetDeploymentToApplicationMappingByDeplId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping) error {
+func (dbq *PostgreSQLDatabaseQueries) GetDeploymentToApplicationMappingByDeplId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping) error {
 
 	if err := validateQueryParamsEntity(deplToAppMappingParam, dbq); err != nil {
 		return err
@@ -137,7 +137,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedGetDeploymentToApplicationMapping
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedGetDeploymentToApplicationMappingByApplicationId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping) error {
+func (dbq *PostgreSQLDatabaseQueries) GetDeploymentToApplicationMappingByApplicationId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping) error {
 
 	if err := validateQueryParamsEntity(deplToAppMappingParam, dbq); err != nil {
 		return err
@@ -154,11 +154,11 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedGetDeploymentToApplicationMapping
 		Context(ctx).
 		Select(); err != nil {
 
-		return fmt.Errorf("error on retrieving UncheckedGetDeploymentToApplicationMappingByApplicationId: %v", err)
+		return fmt.Errorf("error on retrieving GetDeploymentToApplicationMappingByApplicationId: %v", err)
 	}
 
 	if len(dbResults) > 1 {
-		return fmt.Errorf("multiple results returned from UncheckedGetDeploymentToApplicationMappingByApplicationId")
+		return fmt.Errorf("multiple results returned from GetDeploymentToApplicationMappingByApplicationId")
 	}
 
 	if len(dbResults) == 0 {
@@ -248,7 +248,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedDeleteDeploymentToApplicationMappin
 	return deleteResult.RowsAffected(), nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteDeploymentToApplicationMappingByDeplId(ctx context.Context, id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteDeploymentToApplicationMappingByDeplId(ctx context.Context, id string) (int, error) {
 
 	if err := validateQueryParams(id, dbq); err != nil {
 		return 0, err

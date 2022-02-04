@@ -187,7 +187,7 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventLo
 
 			// 1) Go from GitOpsDeploymentSyncRun CR -> Sync Operation DB table, by searching
 			// for the CR's namespace/name/workspace ID tuple.
-			if err := dbQueries.UncheckedListAPICRToDatabaseMappingByAPINamespaceAndName(ctx,
+			if err := dbQueries.ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx,
 				db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
 				newEvent.request.Name, newEvent.request.Namespace, newEvent.workspaceID,
 				db.APICRToDatabaseMapping_DBRelationType_SyncOperation, &items); err != nil {
@@ -207,7 +207,7 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventLo
 				syncOperation := &db.SyncOperation{
 					SyncOperation_id: items[0].DBRelationKey,
 				}
-				if err := dbQueries.UncheckedGetSyncOperationById(ctx, syncOperation); err != nil {
+				if err := dbQueries.GetSyncOperationById(ctx, syncOperation); err != nil {
 
 					if !db.IsResultNotFoundError(err) {
 						log.Error(err, "unable to retrieve sync operation for gitopsdeplsyncrun")
@@ -231,7 +231,7 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventLo
 				}
 
 				// 4) Finally, we have found the DeploymentToApplicationMapping, which contains the gitops cr uid
-				if err := dbQueries.UncheckedGetDeploymentToApplicationMappingByApplicationId(ctx, &dtam); err != nil {
+				if err := dbQueries.GetDeploymentToApplicationMappingByApplicationId(ctx, &dtam); err != nil {
 
 					if !db.IsResultNotFoundError(err) {
 						log.Error(err, "unable to retrieve dtam for application id: "+dtam.Application_id)
@@ -265,7 +265,7 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventLo
 
 			// Look for a corresponding DeploymentoApplicationMapping for the GitOpsDeployment CR in the namespace
 			var items []db.DeploymentToApplicationMapping
-			if err := dbQueries.UncheckedListDeploymentToApplicationMappingByNamespaceAndName(ctx, newEvent.request.Name, newEvent.request.Namespace,
+			if err := dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(ctx, newEvent.request.Name, newEvent.request.Namespace,
 				newEvent.workspaceID, &items); err != nil {
 				log.Error(err, "unable to retrieve gitopsdeployment by namespacename in processEvent")
 				return true
@@ -428,7 +428,7 @@ func getGitOpsDeplIdFromDatabaseUsingNameAndNamespace(ctx context.Context, newEv
 
 		var items []db.DeploymentToApplicationMapping
 
-		if err := dbQueries.UncheckedListDeploymentToApplicationMappingByNamespaceAndName(ctx, newEvent.request.Name, newEvent.request.Namespace, newEvent.workspaceID, &items); err != nil {
+		if err := dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(ctx, newEvent.request.Name, newEvent.request.Namespace, newEvent.workspaceID, &items); err != nil {
 			log.Error(err, "unable to list depltoappmapping in getGitOpsDeplFromDatabaseUsingNameAndNamespace")
 			return "", err
 		}
@@ -448,7 +448,7 @@ func getGitOpsDeplIdFromDatabaseUsingNameAndNamespace(ctx context.Context, newEv
 
 		// 1) Go from GitOpsDeploymentSyncRun CR -> Sync Operation DB table, by searching
 		// by the SyncRun CR's namespace/name/workspace ID tuple.
-		if err := dbQueries.UncheckedListAPICRToDatabaseMappingByAPINamespaceAndName(ctx,
+		if err := dbQueries.ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx,
 			db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
 			newEvent.request.Name, newEvent.request.Namespace, newEvent.workspaceID,
 			db.APICRToDatabaseMapping_DBRelationType_SyncOperation, &items); err != nil {
@@ -467,7 +467,7 @@ func getGitOpsDeplIdFromDatabaseUsingNameAndNamespace(ctx context.Context, newEv
 			syncOperation := &db.SyncOperation{
 				SyncOperation_id: items[0].DBRelationKey,
 			}
-			if err := dbQueries.UncheckedGetSyncOperationById(ctx, syncOperation); err != nil {
+			if err := dbQueries.GetSyncOperationById(ctx, syncOperation); err != nil {
 
 				if db.IsResultNotFoundError(err) {
 					log.V(sharedutil.LogLevel_Warn).Info("syncoperation id from apicr to db mapping didn't exist", "operationID", syncOperation.SyncOperation_id)
@@ -489,7 +489,7 @@ func getGitOpsDeplIdFromDatabaseUsingNameAndNamespace(ctx context.Context, newEv
 			dtam := db.DeploymentToApplicationMapping{
 				Application_id: syncOperation.Application_id,
 			}
-			if err := dbQueries.UncheckedGetDeploymentToApplicationMappingByApplicationId(ctx, &dtam); err != nil {
+			if err := dbQueries.GetDeploymentToApplicationMappingByApplicationId(ctx, &dtam); err != nil {
 
 				if db.IsResultNotFoundError(err) {
 					log.V(sharedutil.LogLevel_Warn).Info("dtam not found when using application id from sync operation", "application_id", dtam.Application_id)
@@ -565,7 +565,7 @@ func getGitOpsDeplIdFromSyncRunCR(ctx context.Context, gitopsSyncRunUID string, 
 	syncOperation := &db.SyncOperation{
 		SyncOperation_id: cr.DBRelationKey,
 	}
-	if err := dbQueries.UncheckedGetSyncOperationById(ctx, syncOperation); err != nil {
+	if err := dbQueries.GetSyncOperationById(ctx, syncOperation); err != nil {
 
 		if db.IsResultNotFoundError(err) {
 			return "", nil
@@ -584,7 +584,7 @@ func getGitOpsDeplIdFromSyncRunCR(ctx context.Context, gitopsSyncRunUID string, 
 	dtam := db.DeploymentToApplicationMapping{
 		Application_id: syncOperation.Application_id,
 	}
-	if err := dbQueries.UncheckedGetDeploymentToApplicationMappingByApplicationId(ctx, &dtam); err != nil {
+	if err := dbQueries.GetDeploymentToApplicationMappingByApplicationId(ctx, &dtam); err != nil {
 
 		if db.IsResultNotFoundError(err) {
 			return "", nil

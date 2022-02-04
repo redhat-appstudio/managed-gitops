@@ -54,7 +54,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterCredentials(ctx context.Conte
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedGetClusterCredentialsById(ctx context.Context, clusterCreds *ClusterCredentials) error {
+func (dbq *PostgreSQLDatabaseQueries) GetClusterCredentialsById(ctx context.Context, clusterCreds *ClusterCredentials) error {
 
 	if err := validateUnsafeQueryParamsEntity(clusterCreds, dbq); err != nil {
 		return err
@@ -193,7 +193,7 @@ func (dbq *PostgreSQLDatabaseQueries) isAccessibleByUser(ctx context.Context, cl
 	// Determine if any of those manageEnvironments are accessible by the user
 	for _, managedEnvironment := range *managedEnvironments {
 		dbManagedEnv := ManagedEnvironment{Managedenvironment_id: managedEnvironment.Managedenvironment_id}
-		err := dbq.GetManagedEnvironmentById(ctx, &dbManagedEnv, ownerId)
+		err := dbq.CheckedGetManagedEnvironmentById(ctx, &dbManagedEnv, ownerId)
 		if err != nil {
 
 			if IsResultNotFoundError(err) {
@@ -241,7 +241,7 @@ func (dbq *PostgreSQLDatabaseQueries) isAccessibleByUser(ctx context.Context, cl
 
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteClusterCredentialsById(ctx context.Context, id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteClusterCredentialsById(ctx context.Context, id string) (int, error) {
 
 	if dbq.dbConnection == nil {
 		return 0, fmt.Errorf("database connection is nil")

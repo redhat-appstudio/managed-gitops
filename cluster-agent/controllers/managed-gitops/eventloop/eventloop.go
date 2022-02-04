@@ -121,7 +121,7 @@ func (task *processEventTask) PerformTask(taskContext context.Context) (bool, er
 			dbOperation.Human_readable_state = err.Error()
 		}
 
-		if err := dbQueries.UncheckedUpdateOperation(taskContext, dbOperation); err != nil {
+		if err := dbQueries.UpdateOperation(taskContext, dbOperation); err != nil {
 			task.log.Error(err, "unable to update operation state", "operation", dbOperation.Operation_id)
 			return true, err
 		}
@@ -160,7 +160,7 @@ func (task *processEventTask) internalPerformTask(taskContext context.Context, d
 	dbOperation := db.Operation{
 		Operation_id: operationCR.Spec.OperationID,
 	}
-	if err := dbQueries.UncheckedGetOperationById(taskContext, &dbOperation); err != nil {
+	if err := dbQueries.GetOperationById(taskContext, &dbOperation); err != nil {
 
 		if db.IsResultNotFoundError(err) {
 			// no corresponding db operation, so no work to do
@@ -182,7 +182,7 @@ func (task *processEventTask) internalPerformTask(taskContext context.Context, d
 	dbGitopsEngineInstance := &db.GitopsEngineInstance{
 		Gitopsengineinstance_id: dbOperation.Instance_id,
 	}
-	if err := dbQueries.UncheckedGetGitopsEngineInstanceById(taskContext, dbGitopsEngineInstance); err != nil {
+	if err := dbQueries.GetGitopsEngineInstanceById(taskContext, dbGitopsEngineInstance); err != nil {
 
 		if db.IsResultNotFoundError(err) {
 			// log as warning
@@ -269,7 +269,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		Application_id: dbOperation.Resource_id,
 	}
 
-	if err := dbQueries.UncheckedGetApplicationById(ctx, dbApplication); err != nil {
+	if err := dbQueries.GetApplicationById(ctx, dbApplication); err != nil {
 
 		if db.IsResultNotFoundError(err) {
 			// The application db entry no longer exists, so delete the corresponding application CR

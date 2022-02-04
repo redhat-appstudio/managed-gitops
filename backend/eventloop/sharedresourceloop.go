@@ -270,7 +270,7 @@ func internalProcessMessage_GetGitopsEngineInstanceById(ctx context.Context, id 
 		Gitopsengineinstance_id: id,
 	}
 
-	err := dbq.UncheckedGetGitopsEngineInstanceById(ctx, &gitopsEngineInstance)
+	err := dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstance)
 
 	return &gitopsEngineInstance, err
 }
@@ -308,7 +308,7 @@ func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, work
 		return nil, nil, nil, nil, fmt.Errorf("unable to retrieve cluster user in processMessage, '%s': %v", string(workspaceNamespace.UID), err)
 	}
 
-	managedEnv, err := sharedutil.UncheckedGetOrCreateManagedEnvironmentByNamespaceUID(ctx, workspaceNamespace, dbQueries, log)
+	managedEnv, err := sharedutil.GetOrCreateManagedEnvironmentByNamespaceUID(ctx, workspaceNamespace, dbQueries, log)
 	if err != nil {
 		log.Error(err, "unable to get or created managed env on deployment modified event")
 		return nil, nil, nil, nil, err
@@ -358,7 +358,7 @@ func internalUncheckedDetermineGitOpsEngineInstanceForNewApplication(ctx context
 		return nil, fmt.Errorf("unable to retrieve kube-system namespace in determineGitOpsEngineInstanceForNewApplication")
 	}
 
-	gitopsEngineInstance, _, err := sharedutil.UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespace, string(kubeSystemNamespace.UID), dbq, log)
+	gitopsEngineInstance, _, err := sharedutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespace, string(kubeSystemNamespace.UID), dbq, log)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get or create engine instance for new application: %v", err)
 	}

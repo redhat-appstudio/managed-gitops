@@ -77,7 +77,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	} else {
 		applicationDB.Application_id = databaseID
 	}
-	if err := databaseQueries.UncheckedGetApplicationById(ctx, applicationDB); err != nil {
+	if err := databaseQueries.GetApplicationById(ctx, applicationDB); err != nil {
 		if db.IsResultNotFoundError(err) {
 
 			log.V(sharedutil.LogLevel_Warn).Info("Application CR '" + req.NamespacedName.String() + "' missing corresponding database entry: " + applicationDB.Application_id)
@@ -105,7 +105,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	applicationState := &db.ApplicationState{
 		Applicationstate_application_id: applicationDB.Application_id,
 	}
-	if err := databaseQueries.UncheckedGetApplicationStateById(ctx, applicationState); err != nil {
+	if err := databaseQueries.GetApplicationStateById(ctx, applicationState); err != nil {
 		if db.IsResultNotFoundError(err) {
 
 			// 3a) ApplicationState doesn't exist: so create it
@@ -114,7 +114,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			applicationState.Sync_Status = string(app.Status.Sync.Status)
 			sanitizeHealthAndStatus(applicationState)
 
-			if err := databaseQueries.UncheckedCreateApplicationState(ctx, applicationState); err != nil {
+			if err := databaseQueries.CreateApplicationState(ctx, applicationState); err != nil {
 				log.Error(err, "unexpected error on writing new application state")
 				return ctrl.Result{}, err
 			}
@@ -133,7 +133,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	applicationState.Sync_Status = string(app.Status.Sync.Status)
 	sanitizeHealthAndStatus(applicationState)
 
-	if err := databaseQueries.UncheckedUpdateApplicationState(ctx, applicationState); err != nil {
+	if err := databaseQueries.UpdateApplicationState(ctx, applicationState); err != nil {
 		log.Error(err, "unexpected error on updating existing application state")
 		return ctrl.Result{}, err
 	}

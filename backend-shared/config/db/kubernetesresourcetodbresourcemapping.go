@@ -16,7 +16,7 @@ const (
 	K8sToDBMapping_GitopsEngineInstance = "GitopsEngineInstance"
 )
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) (int, error) {
 
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return 0, err

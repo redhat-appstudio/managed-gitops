@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedDeleteAPICRToDatabaseMapping(ctx context.Context, obj *APICRToDatabaseMapping) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteAPICRToDatabaseMapping(ctx context.Context, obj *APICRToDatabaseMapping) (int, error) {
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return 0, err
 	}
@@ -103,7 +103,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetDatabaseMappingForAPICR(ctx context.Con
 
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UncheckedListAPICRToDatabaseMappingByAPINamespaceAndName(ctx context.Context, apiCRResourceType string, crName string, crNamespace string, crWorkspaceUID string, dbRelationType string, apiCRToDBMappingParam *[]APICRToDatabaseMapping) error {
+func (dbq *PostgreSQLDatabaseQueries) ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx context.Context, apiCRResourceType string, crName string, crNamespace string, crWorkspaceUID string, dbRelationType string, apiCRToDBMappingParam *[]APICRToDatabaseMapping) error {
 
 	if err := validateQueryParamsEntity(apiCRToDBMappingParam, dbq); err != nil {
 		return err
@@ -132,7 +132,7 @@ func (dbq *PostgreSQLDatabaseQueries) UncheckedListAPICRToDatabaseMappingByAPINa
 		Context(ctx).
 		Select(); err != nil {
 
-		return fmt.Errorf("error on retrieving UncheckedListAPICRToDatabaseMappingByAPINamespaceAndName: %v", err)
+		return fmt.Errorf("error on retrieving ListAPICRToDatabaseMappingByAPINamespaceAndName: %v", err)
 	}
 
 	*apiCRToDBMappingParam = dbResults
@@ -147,7 +147,7 @@ func (dbMapping *APICRToDatabaseMapping) DisposeAppScoped(ctx context.Context, d
 	if err := isEmptyValues("APICRToDatabaseMappingDispose", "dbq", dbq); err != nil {
 		return err
 	}
-	_, err := dbq.UncheckedDeleteAPICRToDatabaseMapping(ctx, dbMapping)
+	_, err := dbq.DeleteAPICRToDatabaseMapping(ctx, dbMapping)
 
 	return err
 }

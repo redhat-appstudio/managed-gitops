@@ -24,27 +24,13 @@ cd "$GITOPS_TEMP_DIR"
 git clone https://github.com/redhat-appstudio/managed-gitops
 cd managed-gitops
 
-# Checkout known working commit: https://github.com/redhat-appstudio/managed-gitops/commit/d9c002cfd5155edddfdc78f3e3c633ce3fe9746d
-git checkout d9c002cfd5155edddfdc78f3e3c633ce3fe9746d
+git checkout m2-demo-on-cluster
 
-# Apply the CRDs
-kubectl apply -f "$GITOPS_TEMP_DIR"/managed-gitops/backend/config/crd/bases
-kubectl apply -f "$GITOPS_TEMP_DIR"/managed-gitops/backend-shared/config/crd/bases/managed-gitops.redhat.com_operations.yaml
-
-# Start the local database ----------------------------------------------------
-
-make reset-db
+make install-all-k8s IMG=quay.io/jgwest-redhat/gitops-service:m2-demo
 
 # Create demo user namespaces (workspaces) ------------------------------------
 
 kubectl create namespace jgw
 kubectl create namespace jane
 # Note: any namespace will work!
-
-# Start the process -----------------------------------------------------------
-
-# Install goreman to ~/go/bin
-make download-deps
-
-ARGO_CD_NAMESPACE=openshift-gitops make start
 

@@ -35,6 +35,8 @@ spec:
         command:
         - gitops-service-cluster-agent
         env:
+          - name: ARGO_CD_NAMESPACE
+            value: openshift-gitops
           - name: DB_ADDR
             value: gitops-postgresql-staging.gitops
           - name: DB_PASS

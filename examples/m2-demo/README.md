@@ -1,14 +1,17 @@
-# GitOps Service M2 Demo
+# GitOps Service M2 Demo (On-cluster)
 
 **Note: This demo hardcodes specific 'known good' commits of the managed-gitops repo and infra-deployments repo, for demo stability.** If you wish to test on the latest code, remove the `git checkout` statements from `setup-on-openshift.sh`.
 
 ## Setup the demo
 
-1) Ensure you have [kustomize](https://kubectl.docs.kubernetes.io/installation/kustomize/binaries/), [kubectl](https://kubernetes.io/releases/download/), and Go, installed and on your path.
+1) Ensure you have [kustomize](https://kubectl.docs.kubernetes.io/installation/kustomize/binaries/), and [kubectl](https://kubernetes.io/releases/download/) installed and on your path.
 
 2) Clone this repo and move into the `m2-demo` directory:
 ```
 git clone https://github.com/redhat-appstudio/managed-gitops
+
+git checkout m2-demo
+
 cd managed-gitops/examples/m2-demo
 ```
 
@@ -22,17 +25,8 @@ cd managed-gitops/examples/m2-demo
     - This sets the OpenShift login credentials in your browser, which we will use to log in to Argo CD in a couple steps.
 
 6) Run `setup-on-openshift.sh` from `m2-demo` directory.
-    - After a few minutes, verify that:
+    - After a few moments, verify that:
         - OpenShift GitOps (Argo CD) is successfully running in `openshift-gitops` namespace.
-        - 'managed-gitops-postgres'  Docker container is running successfully on your local machine (do a `docker ps` and look for this container)
-        - The GitOps Service controller processes start without error, and continue to run on your terminal.
-            - Note: the `go vet`, `go get`, and `go: downloading`  steps may take a while to download/compile dependencies (this only occurs on first run, and only if you have never built the GitOps service before)
-    - You may safely ignore these error messages which may be printed by the setup script:
-	    - "`You are in 'detached HEAD' state.`"
-	    - "`Error: No such container: (...)`"
-	    - "`Error: No such network: (...)`"
-        - "`namespaces "(...)" already exists`"
-
 
 7) Log in to Argo CD Web UI
     - Get the URL for Argo CD by running: `kubectl get route -n openshift-gitops openshift-gitops-server`
@@ -40,11 +34,7 @@ cd managed-gitops/examples/m2-demo
     - Verify that:
         - You see the Argo CD application lists (with no applications listed)
 
-8) On the console, where you ran `setup-on-openshift.sh`, wait until you see 'Starting Controller' from both backend and cluster agent:
-    - `INFO backend  | (...) INFO controller-runtime.manager.controller.gitopsdeploymentsyncrun	Starting Controller'`
-    - `INFO cluster-agent | (...)	INFO	controller-runtime.manager.controller.application	Starting Controller`
-    - Verify there are no error messages output by the GitOps service components (only _INFO_ and _DEBUG_ statments in the console output)
-
+8) Wait for all the Deployments to show 1/1 or 2/2 in the `gitops` namespace
 
 ## Run the demo
 

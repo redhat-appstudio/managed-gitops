@@ -34,3 +34,12 @@ kubectl create namespace jgw
 kubectl create namespace jane
 # Note: any namespace will work!
 
+
+# Show services resouces ------------------------------------------------------
+
+echo ""
+echo "GitOps Service K8s resources (in namespace 'gitops'):"
+echo ""
+
+kubectl get all -n gitops
+

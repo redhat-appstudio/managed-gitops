@@ -10,7 +10,7 @@
 ```
 git clone https://github.com/redhat-appstudio/managed-gitops
 
-git checkout m2-demo
+git checkout m2-demo-on-cluster
 
 cd managed-gitops/examples/m2-demo
 ```

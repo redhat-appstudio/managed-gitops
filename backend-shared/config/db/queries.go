@@ -204,7 +204,7 @@ type PostgreSQLDatabaseQueries struct {
 }
 
 func NewProductionPostgresDBQueries(verbose bool) (DatabaseQueries, error) {
-	db, err := connectToDatabase(verbose)
+	db, err := connectToDatabase(verbose, "postgres")
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +220,7 @@ func NewProductionPostgresDBQueries(verbose bool) (DatabaseQueries, error) {
 }
 
 func NewUnsafePostgresDBQueries(verbose bool, allowTestUuids bool) (AllDatabaseQueries, error) {
-	db, err := connectToDatabase(verbose)
+	db, err := connectToDatabase(verbose, "postgres")
 	if err != nil {
 		return nil, err
 	}

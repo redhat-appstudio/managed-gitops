@@ -24,6 +24,6 @@ func TestEphemeralCode(t *testing.T) {
 	err = dbq.UnsafeListAllApplicationStates(ctx, &applicationStates)
 	assert.NoError(t, err)
 
-	errClean := NewEphemeralCleanTestFramework(ephemeralDB.dbContainerID, ephemeralDB.dockerNetwork)
+	errClean := ephemeralDB.Dispose()
 	assert.NoError(t, errClean)
 }

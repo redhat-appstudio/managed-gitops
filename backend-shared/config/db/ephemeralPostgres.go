@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"log"
-	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -24,13 +23,9 @@ type EphemeralDB struct {
 // merely defined for testing purpose
 func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
 	dockerName := "managed-gitops-postgres-test"
-	dockerNetworkcmd := "docker network create %s"
 	uuid := uuid.New().String()
 	tempDBName := "db-" + uuid
 	tempNetworkName := "gitops-net-" + uuid
-	s := fmt.Sprintf(dockerNetworkcmd, tempNetworkName)
-	// To print which command is running
-	fmt.Println("\nRunning: ", s)
 
 	// #nosec G204
 	dockerNetwork := exec.Command("docker", "network", "create", tempNetworkName)
@@ -39,29 +34,11 @@ func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
 		log.Fatal(dockerNetworkerr)
 	}
 
-	tempDatabaseDircmd := "mktemp -d -t postgres-XXXXXXXXXX"
-	s = fmt.Sprintf(tempDatabaseDircmd)
-	fmt.Println("\nRunning: ", s)
-
-	// To actually run the command (runs in background)
+	// creates a temp directory where postgres functionality are performed
 	tempDatabaseDir, err_run := exec.Command("mktemp", "-d", "-t", "postgres-XXXXXXXXXX").Output()
 	if err_run != nil {
 		log.Fatal(err_run)
 	}
-
-	// running a docker container
-	dockerContainerIDcmd := `docker run --name ` + dockerName + ` \
-	-v ` + string(tempDatabaseDir) + `:/var/lib/postgresql/data:Z \
-	-e POSTGRES_PASSWORD=gitops \
-	-e POSTGRES_DB=` + tempDBName + ` \
-	-p 6432:5432 \
-	--network ` + tempNetworkName + ` \
-	-d \
-	postgres:13 \
-	-c log_statement='all' \
-	-c log_min_duration_statement=0`
-
-	fmt.Println("\nRunning:", dockerContainerIDcmd)
 
 	var dockerContainerID []byte
 	var errDockerRun error
@@ -90,24 +67,16 @@ func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
 		if string(status) == "running" {
 			return true, nil
 		}
-		// Todo: Once verified removed these print statements in order to maintain code coverage
-		fmt.Println("Docker Container ID: " + string(dockerContainerID))
 		return true, nil
 	})
 	if errWait != nil {
 		log.Fatal("error in executing docker run command: ", errWait)
 	}
 
-	dbcmd := "PGPASSWORD=gitops psql -h localhost -d %s -U postgres -p 6432 -c 'select 1'"
-	s = fmt.Sprintf(dbcmd, tempDBName)
-
-	fmt.Println("\nRunning: ", s)
-	// To get the output of the command
+	// connects to the database inside the docker container
 	errWait = wait.Poll(5*time.Second, 2*time.Minute, func() (bool, error) {
 		// #nosec G204
-		psqlcmd := exec.Command("psql", "-h", "localhost", "-d", tempDBName, "-U", "postgres", "-p", "6432", "-c", "select 1")
-		psqlcmd.Env = os.Environ()
-		psqlcmd.Env = append(psqlcmd.Env, "PGPASSWORD=gitops")
+		psqlcmd := exec.Command("docker", "exec", "--user", "postgres", "-e", "PGPASSWORD=gitops", "-i", dockerName, "psql", "-h", "localhost", "-d", tempDBName, "-U", "postgres", "-p", "5432", "-c", "select 1")
 		var outb, errb bytes.Buffer
 		psqlcmd.Stdout = &outb
 		psqlcmd.Stderr = &errb
@@ -121,22 +90,16 @@ func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
 		if psqlErr != nil {
 			return false, psqlErr
 		}
-		fmt.Printf("%s database is ready to use\n", tempDBName)
 		return true, nil
 	})
 	if errWait != nil {
 		log.Fatal("error in executing docker run command: ", errWait)
 	}
 
-	// creating a new database
+	// creating a new database inside the postgres container
 	newDBName := "postgres"
-	dbcmd = "PGPASSWORD=gitops psql -h localhost -d %s -U postgres -p 6432"
-	s = fmt.Sprintf(dbcmd, newDBName)
-	fmt.Println("\nRunning: ", s)
+	psqlcmd := exec.Command("docker", "exec", "--user", "postgres", "-e", "PGPASSWORD=gitops", "-i", dockerName, "psql", "-h", "localhost", "-d", newDBName, "-U", "postgres", "-p", "5432")
 
-	psqlcmd := exec.Command("psql", "-h", "localhost", "-d", newDBName, "-U", "postgres", "-p", "6432")
-	psqlcmd.Env = os.Environ()
-	psqlcmd.Env = append(psqlcmd.Env, "PGPASSWORD=gitops")
 	var errConnection bytes.Buffer
 	psqlcmd.Stderr = &errConnection
 	psqlErr := psqlcmd.Run()
@@ -147,17 +110,17 @@ func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
 		log.Fatal("error in creation: ", "\nCommand Error: ", psqlErr, "\nDatabase Error: ", errConnection.String())
 	}
 
-	fmt.Printf("the %s database is created and ready to use\n", newDBName)
-
 	// Following command is used to populate the database tables from the db-schema.sql (defined in the monorepo)
-	dbcmd = "PGPASSWORD=gitops psql -h localhost -d %s -U postgres -p 6432 -q -f ../../../db-schema.sql"
-	s = fmt.Sprintf(dbcmd, newDBName)
-	fmt.Println("\nRunning: ", s)
-	psqlcmd = exec.Command("psql", "-h", "localhost", "-d", newDBName, "-U", "postgres", "-p", "6432", "-q", "-f", "../../../db-schema.sql")
+	schemaToPostgresCont := exec.Command("docker", "cp", "../../../db-schema.sql", dockerName+":/")
+	schemaToPostgresContErr := schemaToPostgresCont.Run()
+
+	if schemaToPostgresContErr != nil {
+		log.Fatal(schemaToPostgresContErr)
+	}
+	psqlcmd = exec.Command("docker", "exec", "--user", "postgres", "-e", "PGPASSWORD=gitops", "-i", dockerName, "psql", "-h", "localhost", "-d", newDBName, "-U", "postgres", "-p", "5432", "-q", "-f", "db-schema.sql")
 	var errSchema bytes.Buffer
 	psqlcmd.Stderr = &errSchema
-	psqlcmd.Env = os.Environ()
-	psqlcmd.Env = append(psqlcmd.Env, "PGPASSWORD=gitops")
+
 	psqlErr = psqlcmd.Run()
 
 	if errSchema.String() != "" {
@@ -166,10 +129,9 @@ func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
 	if psqlErr != nil {
 		log.Fatal(psqlErr)
 	}
-	fmt.Printf("db schema executed in the %s database\n", newDBName)
 
 	// connect the go code with the database
-	database, err := ConnectToDatabase(true, newDBName, 6432)
+	database, err := connectToDatabaseWithPort(true, newDBName, 6432)
 	if err != nil {
 		return EphemeralDB{}, err
 	}
@@ -188,22 +150,18 @@ func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
 
 // NewEphemeralCleanTestFramework will clean a docker container,
 // and network. This is merely defined for testing purpose
-func NewEphemeralCleanTestFramework(dockerContainerID string, tempNetworkName string) error {
-
-	dockerCmd := "docker rm -f %s"
-	fmt.Println("\nRunning: ", fmt.Sprintf(dockerCmd, dockerContainerID))
+func (ephemeralDB *EphemeralDB) Dispose() error {
 
 	// To get the output of the command
-	_, err := exec.Command("docker", "rm", "-f", dockerContainerID).Output()
+	// #nosec G204
+	_, err := exec.Command("docker", "rm", "-f", ephemeralDB.dbContainerID).Output()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	dockerNetworkcmd := "docker network rm %s"
-	fmt.Println("\nRunning: ", fmt.Sprintf(dockerNetworkcmd, tempNetworkName))
-
 	// To get the output of the command
-	_, err = exec.Command("docker", "network", "rm", tempNetworkName).Output()
+	// #nosec G204
+	_, err = exec.Command("docker", "network", "rm", ephemeralDB.dockerNetwork).Output()
 	if err != nil {
 		log.Fatal(err)
 	}

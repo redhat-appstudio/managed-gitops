@@ -204,7 +204,11 @@ type PostgreSQLDatabaseQueries struct {
 }
 
 func NewProductionPostgresDBQueries(verbose bool) (DatabaseQueries, error) {
-	db, err := connectToDatabase(verbose, "postgres")
+	return NewProductionPostgresDBQueriesWithport(verbose, DEFAULT_PORT)
+}
+
+func NewProductionPostgresDBQueriesWithport(verbose bool, port int) (DatabaseQueries, error) {
+	db, err := connectToDatabaseWithPort(verbose, "postgres", port)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +224,11 @@ func NewProductionPostgresDBQueries(verbose bool) (DatabaseQueries, error) {
 }
 
 func NewUnsafePostgresDBQueries(verbose bool, allowTestUuids bool) (AllDatabaseQueries, error) {
-	db, err := connectToDatabase(verbose, "postgres")
+	return NewUnsafePostgresDBQueriesWithPort(verbose, allowTestUuids, DEFAULT_PORT)
+}
+
+func NewUnsafePostgresDBQueriesWithPort(verbose bool, allowTestUuids bool, port int) (AllDatabaseQueries, error) {
+	db, err := connectToDatabaseWithPort(verbose, "postgres", port)
 	if err != nil {
 		return nil, err
 	}

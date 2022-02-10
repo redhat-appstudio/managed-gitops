@@ -15,13 +15,14 @@ import (
 // Default vs Checked vs Unsafe functions:
 //
 // Default:
-// - Functions with no prefix do not take an ownerId.
+// - Functions with no prefix and do not take an ownerId.
 // - They thus do not verify that the user is able to access the database resources they are requesting.
 // - They rely on the calling function to ensure that the user is authorized to perform a particular task.
 //
-// Checked:
+// Checked (experimental):
 // - Functions without a prefix take an ownerId string, which is a database reference to a clusterUser.
-// - This clusterUser is user to verify that the user should have access to the database resource.
+// - This clusterUser is used to verify that the user should have access to the database resource.
+// - How this verification is performed differs based on the database resource.
 //
 // Unsafe:
 // - Functions with the 'Unsafe' prefix should NEVER be used in production code; it should only be used in
@@ -31,11 +32,11 @@ import (
 // - A database query is 'unsafe' (in a security context), and therefore only useful for debug/tests, if
 //   it queries the entire database rather than being scoped to a particular user.
 //
-// STRATEGY: You should use a 'Default' function _if possible_. But, in cases where there is no user, or
-//           during setup, you may need to use unchecked.
-// - If you 'Unchecked', be prepared to justify why you could not use a 'Default' function. (HOWEVER: I am
-//   still not sure how often default functions will be usefuol, so this will be an experiment/learning
-//   experience for all of us :) - jgw)
+// STRATEGY: You should use a 'Default' function _where possible_.
+// - Checked functions were an interesting idea, and we may reexamine them in the future, but for
+//   the moment they have problems: potential for heavy performance load, high cognitive load,
+//   and unergonomic API (no way to distinguish between an unauthorized resource and a missing
+//   resource).
 // - 'Unsafe' should only be used in test code.
 
 type UnsafeDatabaseQueries interface {

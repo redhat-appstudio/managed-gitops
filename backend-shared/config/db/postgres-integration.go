@@ -36,7 +36,7 @@ func connectToDatabaseWithPort(verbose bool, dbName string, port int) (*pg.DB, e
 		password = os.Getenv("DB_PASS")
 	}
 	opts := &pg.Options{
-		Addr:     fmt.Sprintf("%s:%s", addr, fmt.Sprint(port)),
+		Addr:     fmt.Sprintf("%s:%v", addr, port),
 		User:     "postgres",
 		Password: password,
 		Database: dbName,

@@ -204,10 +204,10 @@ type PostgreSQLDatabaseQueries struct {
 }
 
 func NewProductionPostgresDBQueries(verbose bool) (DatabaseQueries, error) {
-	return NewProductionPostgresDBQueriesWithport(verbose, DEFAULT_PORT)
+	return NewProductionPostgresDBQueriesWithPort(verbose, DEFAULT_PORT)
 }
 
-func NewProductionPostgresDBQueriesWithport(verbose bool, port int) (DatabaseQueries, error) {
+func NewProductionPostgresDBQueriesWithPort(verbose bool, port int) (DatabaseQueries, error) {
 	db, err := connectToDatabaseWithPort(verbose, "postgres", port)
 	if err != nil {
 		return nil, err

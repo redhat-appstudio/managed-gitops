@@ -11,7 +11,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineClusterById(ctx context.Con
 		return err
 	}
 
-	if err := isEmptyValues("UncheckedGetGitopsEngineClusterById", "Gitopsenginecluster_id", gitopsEngineCluster.Gitopsenginecluster_id); err != nil {
+	if err := isEmptyValues("GetGitopsEngineClusterById", "Gitopsenginecluster_id", gitopsEngineCluster.Gitopsenginecluster_id); err != nil {
 		return err
 	}
 

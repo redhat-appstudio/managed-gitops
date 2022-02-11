@@ -352,7 +352,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			Resource_type: db.OperationResourceType_SyncOperation,
 		}
 
-		k8sOperation, dbOperation, err := uncheckedCreateOperation(ctx, false && !a.testOnlySkipCreateOperation, dbOperationInput, clusterUser.Clusteruser_id,
+		k8sOperation, dbOperation, err := CreateOperation(ctx, false && !a.testOnlySkipCreateOperation, dbOperationInput, clusterUser.Clusteruser_id,
 			sharedutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log)
 		if err != nil {
 			log.Error(err, "could not create operation", "namespace", sharedutil.GetGitOpsEngineSingleInstanceNamespace())
@@ -832,7 +832,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		Resource_type: db.OperationResourceType_Application,
 	}
 
-	k8sOperation, dbOperation, err := uncheckedCreateOperation(ctx, true && !a.testOnlySkipCreateOperation, dbOperationInput,
+	k8sOperation, dbOperation, err := CreateOperation(ctx, true && !a.testOnlySkipCreateOperation, dbOperationInput,
 		clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, log)
 	if err != nil {
 		log.Error(err, "unable to create operation", "operation", dbOperationInput.ShortString())
@@ -942,7 +942,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		Resource_type: db.OperationResourceType_Application,
 	}
 
-	k8sOperation, dbOperation, err := uncheckedCreateOperation(ctx, true && !a.testOnlySkipCreateOperation, dbOperationInput, clusterUser.Clusteruser_id,
+	k8sOperation, dbOperation, err := CreateOperation(ctx, true && !a.testOnlySkipCreateOperation, dbOperationInput, clusterUser.Clusteruser_id,
 		operationNamespace, dbQueries, gitopsEngineClient, log)
 	if err != nil {
 		log.Error(err, "could not create operation", "operation", dbOperation.Operation_id, "namespace", operationNamespace)
@@ -1069,7 +1069,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		return false, nil, nil, err
 	}
 
-	k8sOperation, dbOperation, err := uncheckedCreateOperation(ctx, true && !a.testOnlySkipCreateOperation, dbOperationInput,
+	k8sOperation, dbOperation, err := CreateOperation(ctx, true && !a.testOnlySkipCreateOperation, dbOperationInput,
 		clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, a.log)
 	if err != nil {
 		a.log.Error(err, "could not create operation", "namespace", operationNamespace)
@@ -1144,7 +1144,7 @@ func cleanupOperation(ctx context.Context, dbOperation db.Operation, k8sOperatio
 
 }
 
-func uncheckedCreateOperation(ctx context.Context, waitForOperation bool, dbOperationParam db.Operation, clusterUserID string,
+func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationParam db.Operation, clusterUserID string,
 	operationNamespace string, dbQueries db.ApplicationScopedQueries, gitopsEngineClient client.Client, log logr.Logger) (*operation.Operation, *db.Operation, error) {
 
 	var err error
@@ -1189,7 +1189,7 @@ func uncheckedCreateOperation(ctx context.Context, waitForOperation bool, dbOper
 	if waitForOperation {
 		log.Info("Waiting for Operation to complete", "operation", fmt.Sprintf("%v", operation.Spec.OperationID))
 
-		if err = uncheckedWaitForOperationToComplete(ctx, &dbOperation, dbQueries, log); err != nil {
+		if err = WaitForOperationToComplete(ctx, &dbOperation, dbQueries, log); err != nil {
 			log.Error(err, "operation did not complete", "operation", dbOperation.Operation_id, "namespace", operation.Namespace)
 			return nil, nil, err
 		}
@@ -1201,7 +1201,7 @@ func uncheckedCreateOperation(ctx context.Context, waitForOperation bool, dbOper
 
 }
 
-func uncheckedWaitForOperationToComplete(ctx context.Context, dbOperation *db.Operation, dbQueries db.ApplicationScopedQueries, log logr.Logger) error {
+func WaitForOperationToComplete(ctx context.Context, dbOperation *db.Operation, dbQueries db.ApplicationScopedQueries, log logr.Logger) error {
 
 	backoff := sharedutil.ExponentialBackoff{Factor: 2, Min: time.Duration(100 * time.Millisecond), Max: time.Duration(10 * time.Second), Jitter: true}
 

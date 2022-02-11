@@ -12,7 +12,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListDeploymentToApplicationMappingByWorksp
 		return err
 	}
 
-	if err := isEmptyValues("UncheckedListDeploymentToApplicationMappingByWorkspaceUID",
+	if err := isEmptyValues("ListDeploymentToApplicationMappingByWorkspaceUID",
 		"WorkspaceUID", workspaceUID,
 	); err != nil {
 		return err
@@ -44,7 +44,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListDeploymentToApplicationMappingByNamesp
 		return err
 	}
 
-	if err := isEmptyValues("UncheckedListDeploymentToApplicationMappingByNamespaceAndName",
+	if err := isEmptyValues("ListDeploymentToApplicationMappingByNamespaceAndName",
 		"DeploymentName", deploymentName,
 		"DeploymentNamespace", deploymentNamespace,
 		"WorkspaceUID", workspaceUID,
@@ -79,7 +79,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteDeploymentToApplicationMappingByName
 		return 0, err
 	}
 
-	if err := isEmptyValues("UncheckedDeleteDeploymentToApplicationMappingByNamespaceAndName",
+	if err := isEmptyValues("DeleteDeploymentToApplicationMappingByNamespaceAndName",
 		"deploymentName", deploymentName,
 		"deploymentNamespace", deploymentNamespace,
 		"workspaceUID", workspaceUID); err != nil {
@@ -106,7 +106,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetDeploymentToApplicationMappingByDeplId(
 		return err
 	}
 
-	if err := isEmptyValues("UncheckedGetDeploymentToApplicationMappingByDeplId",
+	if err := isEmptyValues("GetDeploymentToApplicationMappingByDeplId",
 		"Deploymenttoapplicationmapping_uid_id", deplToAppMappingParam.Deploymenttoapplicationmapping_uid_id,
 	); err != nil {
 		return err
@@ -144,7 +144,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetDeploymentToApplicationMappingByApplica
 	}
 
 	if isEmpty(deplToAppMappingParam.Application_id) {
-		return fmt.Errorf("UncheckedGetDeploymentToApplicationMappingByApplicationId: param is nil")
+		return fmt.Errorf("GetDeploymentToApplicationMappingByApplicationId: param is nil")
 	}
 
 	var dbResults []DeploymentToApplicationMapping
@@ -162,7 +162,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetDeploymentToApplicationMappingByApplica
 	}
 
 	if len(dbResults) == 0 {
-		return NewResultNotFoundError("UncheckedGetDeploymentToApplicationMappingByApplicationId")
+		return NewResultNotFoundError("GetDeploymentToApplicationMappingByApplicationId")
 	}
 
 	*deplToAppMappingParam = dbResults[0]

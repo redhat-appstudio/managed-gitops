@@ -53,7 +53,8 @@ func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineInstanceById(ctx context.Co
 		return err
 	}
 
-	if err := isEmptyValues("UncheckedGetGitopsEngineInstanceById", "Gitopsengineinstance_id", engineInstanceParam.Gitopsengineinstance_id); err != nil {
+	if err := isEmptyValues("GetGitopsEngineInstanceById",
+		"Gitopsengineinstance_id", engineInstanceParam.Gitopsengineinstance_id); err != nil {
 		return err
 	}
 

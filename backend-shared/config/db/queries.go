@@ -34,7 +34,7 @@ import (
 //
 // STRATEGY: You should use a 'Default' function _where possible_.
 // - Checked functions were an interesting idea, and we may reexamine them in the future, but for
-//   the moment they have problems: potential for heavy performance load, high cognitive load,
+//   the moment they have problems: potential for heavy performance load, high cognitive load, cycle in the table model,
 //   and unergonomic API (no way to distinguish between an unauthorized resource and a missing
 //   resource).
 // - 'Unsafe' should only be used in test code.
@@ -88,10 +88,6 @@ type DatabaseQueries interface {
 	GetClusterAccessByPrimaryKey(ctx context.Context, obj *ClusterAccess) error
 	GetDBResourceMappingForKubernetesResource(ctx context.Context, obj *KubernetesToDBResourceMapping) error
 
-	// See definition of unchecked, above.
-	// I'm still figuring out the difference between unchecked and unsafe: For now, they are very similar.
-	// - In the best case, both are useful and can co-exist.
-	// - In the worst case, the idea of unsafe is fundamentally flawed due to cycles in the table model. - jgwest
 	GetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance) error
 	GetGitopsEngineClusterById(ctx context.Context, gitopsEngineCluster *GitopsEngineCluster) error
 	GetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment) error

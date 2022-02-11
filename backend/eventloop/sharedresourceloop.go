@@ -314,7 +314,7 @@ func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, work
 		return nil, nil, nil, nil, err
 	}
 
-	engineInstance, err := internalUncheckedDetermineGitOpsEngineInstanceForNewApplication(ctx, *clusterUser, *managedEnv, workspaceClient, dbQueries, log)
+	engineInstance, err := internalDetermineGitOpsEngineInstanceForNewApplication(ctx, *clusterUser, *managedEnv, workspaceClient, dbQueries, log)
 	if err != nil {
 		log.Error(err, "unable to determine gitops engine instance")
 		return nil, nil, nil, nil, err
@@ -345,7 +345,7 @@ func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, work
 // just return that.
 //
 // This logic would be improved by https://issues.redhat.com/browse/GITOPS-1455 (and others)
-func internalUncheckedDetermineGitOpsEngineInstanceForNewApplication(ctx context.Context, user db.ClusterUser, managedEnv db.ManagedEnvironment,
+func internalDetermineGitOpsEngineInstanceForNewApplication(ctx context.Context, user db.ClusterUser, managedEnv db.ManagedEnvironment,
 	k8sClient client.Client, dbq db.DatabaseQueries, log logr.Logger) (*db.GitopsEngineInstance, error) {
 
 	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: sharedutil.GetGitOpsEngineSingleInstanceNamespace(), Namespace: sharedutil.GetGitOpsEngineSingleInstanceNamespace()}}

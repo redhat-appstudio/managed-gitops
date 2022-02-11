@@ -162,7 +162,7 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 				return nil, nil, err
 			}
 
-			log.V(LogLevel_Warn).Error(nil, "UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID found a resource mapping, but no engine instance.")
+			log.V(LogLevel_Warn).Error(nil, "GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID found a resource mapping, but no engine instance.")
 
 			// We have found a mapping without the corresponding mapped entity, so delete the mapping.
 			// (We will recreate the mapping below)
@@ -318,7 +318,7 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 				return nil, err
 			}
 
-			log.V(LogLevel_Warn).Error(nil, "UncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID found a resource mapping, but no engine instance.")
+			log.V(LogLevel_Warn).Error(nil, "GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID found a resource mapping, but no engine instance.")
 
 			// We have found a mapping without the corresponding mapped entity, so delete the mapping.
 			// (We will recreate the mapping below)

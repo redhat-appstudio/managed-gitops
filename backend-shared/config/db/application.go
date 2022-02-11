@@ -209,7 +209,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateApplication(ctx context.Context, obj
 		obj.Application_id = generateUuid()
 	}
 
-	if err := isEmptyValues("UncheckedCreateApplication",
+	if err := isEmptyValues("CreateApplication",
 		"Engine_instance_inst_id", obj.Engine_instance_inst_id,
 		"Managed_environment_id", obj.Managed_environment_id,
 		"Spec_field", obj.Spec_field,
@@ -233,7 +233,7 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateApplication(ctx context.Context, obj
 		return err
 	}
 
-	if err := isEmptyValues("UncheckedUpdateApplication",
+	if err := isEmptyValues("UpdateApplication",
 		"Application_id", obj.Application_id,
 		"Engine_instance_inst_id", obj.Engine_instance_inst_id,
 		"Managed_environment_id", obj.Managed_environment_id,

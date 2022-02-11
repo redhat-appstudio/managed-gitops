@@ -82,7 +82,7 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateOperation(ctx context.Context, obj *
 		return err
 	}
 
-	if err := isEmptyValues("UncheckedUpdateOperation",
+	if err := isEmptyValues("UpdateOperation",
 		"Instance_id", obj.Instance_id,
 		"Operation_id", obj.Operation_id,
 		"Operation_owner_user_id", obj.Operation_owner_user_id,

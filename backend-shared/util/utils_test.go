@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestUncheckedGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(t *testing.T) {
+func TestGetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(t *testing.T) {
 
 	_, err := db.NewUnsafePostgresDBQueries(true, true)
 	if !assert.Nil(t, err) {

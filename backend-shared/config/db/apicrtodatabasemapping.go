@@ -10,7 +10,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteAPICRToDatabaseMapping(ctx context.C
 		return 0, err
 	}
 
-	if err := isEmptyValues("UncheckedDeleteAPICRToDatabaseMapping",
+	if err := isEmptyValues("DeleteAPICRToDatabaseMapping",
 		"APIResourceType", obj.APIResourceType,
 		"APIResourceUID", obj.APIResourceUID,
 		"DBRelationKey", obj.DBRelationKey,
@@ -109,7 +109,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListAPICRToDatabaseMappingByAPINamespaceAn
 		return err
 	}
 
-	if err := isEmptyValues("UncheckedListAPICRToDatabaseMappingByAPINamespaceAndName",
+	if err := isEmptyValues("ListAPICRToDatabaseMappingByAPINamespaceAndName",
 		"apiCRResourceType", apiCRResourceType,
 		"crName", crName,
 		"crNamespace", crNamespace,

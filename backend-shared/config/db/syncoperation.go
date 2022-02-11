@@ -56,7 +56,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateSyncOperation(ctx context.Context, o
 		obj.SyncOperation_id = generateUuid()
 	}
 
-	if err := isEmptyValues("UncheckedCreateSyncOperation",
+	if err := isEmptyValues("CreateSyncOperation",
 		"Application_id", obj.Application_id,
 		"DeploymentNameField", obj.DeploymentNameField,
 		"Revision", obj.Revision); err != nil {

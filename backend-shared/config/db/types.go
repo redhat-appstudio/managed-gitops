@@ -244,6 +244,10 @@ type ApplicationState struct {
 	// -- * Unknown
 	Sync_Status string `pg:"sync_status"`
 
+	Message string `pg:"message"`
+
+	Revision string `pg:"revision"`
+
 	// -- human_readable_health ( 512 ) NOT NULL,
 	// -- human_readable_sync ( 512 ) NOT NULL,
 	// -- human_readable_state ( 512 ) NOT NULL,

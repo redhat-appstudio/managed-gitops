@@ -252,7 +252,13 @@ CREATE TABLE ApplicationState (
 	-- * Unknown (this is returned by Argo CD, but is also used when Argo CD's health field is "")
 	health VARCHAR (30) NOT NULL,
 
-	-- health field comes directly from Argo CD Application CR's .status.syncStatus field
+	-- message field comes directly from Argo CD Application CR's .status.healthStatus.Message
+    message VARCHAR (1024),
+
+    -- revision field comes directly from Argo CD Application CR's .status.SyncStatus.Revision field
+    revision VARCHAR (1024),
+
+	-- sync_status field comes directly from Argo CD Application CR's .status.SyncStatus field
 	-- Possible values:
 	-- * Synced
 	-- * OutOfSync

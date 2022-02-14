@@ -111,7 +111,9 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			// 3a) ApplicationState doesn't exist: so create it
 
 			applicationState.Health = string(app.Status.Health.Status)
+			applicationState.Message = app.Status.Health.Message
 			applicationState.Sync_Status = string(app.Status.Sync.Status)
+			applicationState.Revision = app.Status.Sync.Revision
 			sanitizeHealthAndStatus(applicationState)
 
 			if err := databaseQueries.UncheckedCreateApplicationState(ctx, applicationState); err != nil {
@@ -130,7 +132,9 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// 4) ApplicationState already exists, so just update it.
 
 	applicationState.Health = string(app.Status.Health.Status)
+	applicationState.Message = app.Status.Health.Message
 	applicationState.Sync_Status = string(app.Status.Sync.Status)
+	applicationState.Revision = app.Status.Sync.Revision
 	sanitizeHealthAndStatus(applicationState)
 
 	if err := databaseQueries.UncheckedUpdateApplicationState(ctx, applicationState); err != nil {

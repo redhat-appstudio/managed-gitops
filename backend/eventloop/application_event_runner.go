@@ -564,11 +564,18 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 		}
 	}
 
-	// TODO: GITOPS-1636 - STUB - 4) update the health and status field of the GitOpsDepl CR
+	// 4) update the health and status field of the GitOpsDepl CR
 
-	// if err := a.workspaceClient.Status().Update(ctx, gitopsDeployment, &client.UpdateOptions{}); err != nil {
-	// 	return err
-	// }
+	// Update the local gitopsDeployment instance with health and status values (fetched from the database)
+	gitopsDeployment.Status.Health.Status = managedgitopsv1alpha1.HealthStatusCode(applicationState.Health)
+	gitopsDeployment.Status.Health.Message = applicationState.Message
+	gitopsDeployment.Status.Sync.Status = managedgitopsv1alpha1.SyncStatusCode(applicationState.Sync_Status)
+	gitopsDeployment.Status.Sync.Revision = applicationState.Revision
+
+	// Update the actual object in Kubernetes
+	if err := a.workspaceClient.Status().Update(ctx, gitopsDeployment, &client.UpdateOptions{}); err != nil {
+		return err
+	}
 
 	// NOTE: make sure to preserve the existing conditions fields that are in the status field of the CR, when updating the status!
 

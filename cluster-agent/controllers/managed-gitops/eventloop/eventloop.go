@@ -10,6 +10,7 @@ import (
 	"github.com/go-logr/logr"
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	corev1 "k8s.io/api/core/v1"
@@ -204,7 +205,7 @@ func (task *processEventTask) internalPerformTask(taskContext context.Context, d
 		log.Error(err, "SEVERE: Unable to retrieve kube-system namespace")
 		return &dbOperation, true, fmt.Errorf("unable to retrieve kube-system namespace in internalPerformTask")
 	}
-	if thisCluster, err := sharedutil.GetGitopsEngineClusterByKubeSystemNamespaceUID(taskContext, string(kubeSystemNamespace.UID), dbQueries, log); err != nil {
+	if thisCluster, err := dbutil.GetGitopsEngineClusterByKubeSystemNamespaceUID(taskContext, string(kubeSystemNamespace.UID), dbQueries, log); err != nil {
 		log.Error(err, "Unable to retrieve GitOpsEngineCluster when processing Operation")
 		return &dbOperation, true, err
 	} else if thisCluster == nil {

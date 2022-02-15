@@ -7,6 +7,7 @@ import (
 
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	"github.com/stretchr/testify/assert"
@@ -38,9 +39,9 @@ func genericTestSetup(t *testing.T) (*runtime.Scheme, *v1.Namespace, *v1.Namespa
 
 	argocdNamespace := &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      sharedutil.GetGitOpsEngineSingleInstanceNamespace(),
+			Name:      dbutil.GetGitOpsEngineSingleInstanceNamespace(),
 			UID:       uuid.NewUUID(),
-			Namespace: sharedutil.GetGitOpsEngineSingleInstanceNamespace(),
+			Namespace: dbutil.GetGitOpsEngineSingleInstanceNamespace(),
 		},
 		Spec: v1.NamespaceSpec{},
 	}

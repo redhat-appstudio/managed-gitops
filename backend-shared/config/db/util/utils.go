@@ -8,10 +8,8 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/rest"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // Whenever a new Argo CD Application needs to be created, we need to find an Argo CD instance
@@ -162,7 +160,7 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 				return nil, nil, err
 			}
 
-			log.V(LogLevel_Warn).Error(nil, "GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID found a resource mapping, but no engine instance.")
+			log.V(util.LogLevel_Warn).Error(nil, "GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID found a resource mapping, but no engine instance.")
 
 			// We have found a mapping without the corresponding mapped entity, so delete the mapping.
 			// (We will recreate the mapping below)
@@ -318,7 +316,7 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 				return nil, err
 			}
 
-			log.V(LogLevel_Warn).Error(nil, "GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID found a resource mapping, but no engine instance.")
+			log.V(util.LogLevel_Warn).Error(nil, "GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID found a resource mapping, but no engine instance.")
 
 			// We have found a mapping without the corresponding mapped entity, so delete the mapping.
 			// (We will recreate the mapping below)
@@ -425,31 +423,6 @@ func GetOrCreateDeploymentToApplicationMapping(ctx context.Context, createDeplTo
 	return nil
 }
 
-// CatchPanic calls f(), and recovers from panic if one occurs.
-func CatchPanic(f func() error) (isPanic bool, err error) {
-
-	panicLog := log.FromContext(context.Background())
-
-	isPanic = false
-
-	doRecover := func() {
-		recoverRes := recover()
-
-		if recoverRes != nil {
-			err = fmt.Errorf("panic: %v", recoverRes)
-			panicLog.Error(err, "SEVERE: Panic occurred")
-			isPanic = true
-		}
-
-	}
-
-	defer doRecover()
-
-	err = f()
-
-	return isPanic, err
-}
-
 // DisposeResources delets of a list of database entries in reverse order.
 func DisposeResources(ctx context.Context, resources []db.DisposableResource, dbq db.DatabaseQueries, log logr.Logger) {
 
@@ -466,7 +439,7 @@ func DisposeResources(ctx context.Context, resources []db.DisposableResource, db
 			continue
 		}
 
-		log.V(LogLevel_Debug).Info(fmt.Sprintf("disposing of resource: %v", resource))
+		log.V(util.LogLevel_Debug).Info(fmt.Sprintf("disposing of resource: %v", resource))
 
 		disposeErr := resource.Dispose(ctx, dbq)
 		if disposeErr != nil {
@@ -500,7 +473,7 @@ func DisposeApplicationScopedResources(ctx context.Context, resources []db.AppSc
 			continue
 		}
 
-		log.V(LogLevel_Debug).Info(fmt.Sprintf("disposing of resource: %v", resource))
+		log.V(util.LogLevel_Debug).Info(fmt.Sprintf("disposing of resource: %v", resource))
 
 		disposeErr := resource.DisposeAppScoped(ctx, dbq)
 		if disposeErr != nil {
@@ -516,17 +489,4 @@ func DisposeApplicationScopedResources(ctx context.Context, resources []db.AppSc
 	if err != nil {
 		log.Error(err, "unable to delete old resources after operation")
 	}
-}
-
-func GetRESTConfig() (*rest.Config, error) {
-	res, err := ctrl.GetConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	// Use non-standard rate limiting values
-	// TODO: GITOPS-1702 - These values are way too high, need to look at request.go in controller-runtime.
-	res.QPS = 100
-	res.Burst = 250
-	return res, nil
 }

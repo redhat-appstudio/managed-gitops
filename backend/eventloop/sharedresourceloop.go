@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-logr/logr"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -308,7 +309,7 @@ func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, work
 		return nil, nil, nil, nil, fmt.Errorf("unable to retrieve cluster user in processMessage, '%s': %v", string(workspaceNamespace.UID), err)
 	}
 
-	managedEnv, err := sharedutil.GetOrCreateManagedEnvironmentByNamespaceUID(ctx, workspaceNamespace, dbQueries, log)
+	managedEnv, err := dbutil.GetOrCreateManagedEnvironmentByNamespaceUID(ctx, workspaceNamespace, dbQueries, log)
 	if err != nil {
 		log.Error(err, "unable to get or created managed env on deployment modified event")
 		return nil, nil, nil, nil, err
@@ -348,7 +349,7 @@ func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, work
 func internalDetermineGitOpsEngineInstanceForNewApplication(ctx context.Context, user db.ClusterUser, managedEnv db.ManagedEnvironment,
 	k8sClient client.Client, dbq db.DatabaseQueries, log logr.Logger) (*db.GitopsEngineInstance, error) {
 
-	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: sharedutil.GetGitOpsEngineSingleInstanceNamespace(), Namespace: sharedutil.GetGitOpsEngineSingleInstanceNamespace()}}
+	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: dbutil.GetGitOpsEngineSingleInstanceNamespace(), Namespace: dbutil.GetGitOpsEngineSingleInstanceNamespace()}}
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace); err != nil {
 		return nil, fmt.Errorf("unable to retrieve gitopsengine namespace in determineGitOpsEngineInstanceForNewApplication")
 	}
@@ -358,7 +359,7 @@ func internalDetermineGitOpsEngineInstanceForNewApplication(ctx context.Context,
 		return nil, fmt.Errorf("unable to retrieve kube-system namespace in determineGitOpsEngineInstanceForNewApplication")
 	}
 
-	gitopsEngineInstance, _, err := sharedutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespace, string(kubeSystemNamespace.UID), dbq, log)
+	gitopsEngineInstance, _, err := dbutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespace, string(kubeSystemNamespace.UID), dbq, log)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get or create engine instance for new application: %v", err)
 	}

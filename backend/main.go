@@ -44,6 +44,7 @@ import (
 
 	managedgitopsv1alpha1operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	managedgitopscontrollers "github.com/redhat-appstudio/managed-gitops/backend/controllers/managed-gitops"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop"
@@ -194,7 +195,7 @@ func createPrimaryGitOpsEngineInstance(k8sclient client.Client, log logr.Logger)
 		},
 	}
 
-	gitopsEngineInstance, _, err := sharedutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespace, kubeSystemNamespace.Name, dbQueries, log)
+	gitopsEngineInstance, _, err := dbutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespace, kubeSystemNamespace.Name, dbQueries, log)
 	if err != nil {
 		return err
 	}
@@ -205,7 +206,7 @@ func createPrimaryGitOpsEngineInstance(k8sclient client.Client, log logr.Logger)
 		},
 	}
 
-	managedEnv, err := sharedutil.GetOrCreateManagedEnvironmentByNamespaceUID(ctx, *gitopsLocalWorkspaceNamespace, dbQueries, log)
+	managedEnv, err := dbutil.GetOrCreateManagedEnvironmentByNamespaceUID(ctx, *gitopsLocalWorkspaceNamespace, dbQueries, log)
 	if err != nil {
 		return err
 	}

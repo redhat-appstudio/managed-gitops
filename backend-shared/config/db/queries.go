@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
-	"github.com/emicklei/go-restful/v3/log"
 	"github.com/go-pg/pg/v10"
-	"github.com/google/uuid"
+
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // TODO: GITOPS-1678 - ENHANCEMENT - Add logging of database entity creation, so that we can track state changes.
@@ -192,10 +194,7 @@ type PostgreSQLDatabaseQueries struct {
 
 	// A database query is 'unsafe' (in a security context), and therefore only useful
 	// for debug/tests if:
-	// - it queries the entire database rather than being scoped to a particular user.
-	// - or, it returns values that should not be accessible in the context of serving a
-	//   particular user (for example, that user should not have access to that database
-	//   resource)
+	// - it queries the entire database rather than being scoped to a particular user or subset of values.
 	//
 	// This should be false in all cases, with the only exception being test code.
 	allowUnsafe bool
@@ -206,9 +205,31 @@ func NewProductionPostgresDBQueries(verbose bool) (DatabaseQueries, error) {
 }
 
 func NewProductionPostgresDBQueriesWithPort(verbose bool, port int) (DatabaseQueries, error) {
-	db, err := connectToDatabaseWithPort(verbose, "postgres", port)
-	if err != nil {
-		return nil, err
+
+	backoff := &sharedutil.ExponentialBackoff{
+		Factor: 2,
+		Min:    time.Duration(time.Millisecond * 200),
+		Max:    time.Duration(time.Second * 30),
+		Jitter: true,
+	}
+
+	var db *pg.DB
+
+	taskError := sharedutil.RunTaskUntilTrue(context.Background(), backoff, "NewProductionPostgresDBQueries", log.FromContext(context.Background()), func() (bool, error) {
+
+		var err error
+
+		db, err = connectToDatabaseWithPort(verbose, "postgres", port)
+		if err != nil {
+			return false, err
+		}
+
+		return true, nil
+
+	})
+
+	if taskError != nil {
+		return nil, fmt.Errorf("unable to acquire database: %v", taskError)
 	}
 
 	dbq := &PostgreSQLDatabaseQueries{
@@ -226,6 +247,10 @@ func NewUnsafePostgresDBQueries(verbose bool, allowTestUuids bool) (AllDatabaseQ
 }
 
 func NewUnsafePostgresDBQueriesWithPort(verbose bool, allowTestUuids bool, port int) (AllDatabaseQueries, error) {
+
+	// We don't add retry logic to this function (unlike the Production function above) because
+	// we want to fail fast during tests.
+
 	db, err := connectToDatabaseWithPort(verbose, "postgres", port)
 	if err != nil {
 		return nil, err
@@ -244,6 +269,8 @@ func NewUnsafePostgresDBQueriesWithPort(verbose bool, allowTestUuids bool, port 
 
 func (dbq *PostgreSQLDatabaseQueries) CloseDatabase() {
 
+	log := log.FromContext(context.Background())
+
 	if dbq.dbConnection != nil {
 		// Close closes the database client, releasing any open resources.
 		//
@@ -251,7 +278,7 @@ func (dbq *PostgreSQLDatabaseQueries) CloseDatabase() {
 		// long-lived and shared between many goroutines.
 		err := dbq.dbConnection.Close()
 		if err != nil {
-			log.Printf("Error occurred on CloseDatabase(): %v", err)
+			log.Error(err, "Error occurred on CloseDatabase()")
 		}
 	}
 }
@@ -272,12 +299,4 @@ func NewResultNotFoundError(errString string) error {
 
 func IsResultNotFoundError(errorParam error) bool {
 	return strings.Contains(errorParam.Error(), "no rows in result set")
-}
-
-func generateUuid() string {
-	return uuid.New().String()
-}
-
-func isEmpty(str string) bool {
-	return len(strings.TrimSpace(str)) == 0
 }

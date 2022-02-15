@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"runtime/debug"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // isEmptyValues returns an error if at least one of the parameters is nil or empty.
@@ -157,4 +159,12 @@ func (o *Operation) LongString() string {
 	res += fmt.Sprintf("created_on: %v", o.Last_state_update)
 
 	return res
+}
+
+func generateUuid() string {
+	return uuid.New().String()
+}
+
+func isEmpty(str string) bool {
+	return len(strings.TrimSpace(str)) == 0
 }

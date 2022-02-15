@@ -9,6 +9,7 @@ import (
 	"github.com/go-logr/logr"
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend/util/fauxargocd"
@@ -329,7 +330,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			log.Error(err, "unable to create api to db mapping in database")
 
 			// If we were unable to retrieve the client, delete the resources we created in the previous steps
-			sharedutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log)
+			dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log)
 
 			return false, err
 		}
@@ -340,7 +341,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			log.Error(err, "unable to retrieve gitopsengine instance from handleSyncRunModified")
 
 			// If we were unable to retrieve the client, delete the resources we created in the previous steps
-			sharedutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log)
+			dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log)
 
 			// Return the original error
 			return false, err
@@ -353,12 +354,12 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		}
 
 		k8sOperation, dbOperation, err := CreateOperation(ctx, false && !a.testOnlySkipCreateOperation, dbOperationInput, clusterUser.Clusteruser_id,
-			sharedutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log)
+			dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log)
 		if err != nil {
-			log.Error(err, "could not create operation", "namespace", sharedutil.GetGitOpsEngineSingleInstanceNamespace())
+			log.Error(err, "could not create operation", "namespace", dbutil.GetGitOpsEngineSingleInstanceNamespace())
 
 			// If we were unable to create the operation, delete the resources we created in the previous steps
-			sharedutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log)
+			dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log)
 
 			return false, err
 		}
@@ -366,7 +367,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		// TODO: GITOPS-1466 - STUB - Remove the 'false' in createOperation above, once cluster agent handling of operation is implemented.
 		log.Info("STUB: Not waiting for create Sync Run operation to complete, in handleNewSyncRunModified")
 
-		if err := cleanupOperation(ctx, *dbOperation, *k8sOperation, sharedutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log); err != nil {
+		if err := cleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log); err != nil {
 			return false, err
 		}
 
@@ -667,12 +668,12 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 		// If the gitopsdepl CR exists, but the database entry doesn't,
 		// then this is the first time we have seen the GitOpsDepl CR.
 		// Create it in the DB and create the operation.
-		return a.handleNewGitOpsDeplEvent(ctx, gitopsDeployment, clusterUser, sharedutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries)
+		return a.handleNewGitOpsDeplEvent(ctx, gitopsDeployment, clusterUser, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries)
 	}
 
 	if !gitopsDeploymentCRExists && deplToAppMapExistsInDB {
 		// If the gitopsdepl CR doesn't exist, but the database row does, then the CR has been deleted, so handle it.
-		signalShutdown, err := a.handleDeleteGitOpsDeplEvent(ctx, clusterUser, sharedutil.GetGitOpsEngineSingleInstanceNamespace(),
+		signalShutdown, err := a.handleDeleteGitOpsDeplEvent(ctx, clusterUser, dbutil.GetGitOpsEngineSingleInstanceNamespace(),
 			&deplToAppMappingList, dbQueries)
 
 		return signalShutdown, nil, nil, err
@@ -688,7 +689,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 
 		// if both exist: it's an update (or a no-op)
 		return a.handleUpdatedGitOpsDeplEvent(ctx, &deplToAppMappingList[0], gitopsDeployment, clusterUser,
-			sharedutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries)
+			dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries)
 	}
 
 	return false, nil, nil, fmt.Errorf("SEVERE - All cases should be handled by above if statements")
@@ -1053,7 +1054,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 
 	a.log.Info("Upserting new DeploymentToApplicationMapping in DB: " + requiredDeplToAppMapping.Deploymenttoapplicationmapping_uid_id)
 
-	if err := sharedutil.GetOrCreateDeploymentToApplicationMapping(ctx, requiredDeplToAppMapping, dbQueries, a.log); err != nil {
+	if err := dbutil.GetOrCreateDeploymentToApplicationMapping(ctx, requiredDeplToAppMapping, dbQueries, a.log); err != nil {
 		a.log.Error(err, "unable to create deplToApp mapping", "deplToAppMapping", requiredDeplToAppMapping)
 		return false, nil, nil, err
 	}

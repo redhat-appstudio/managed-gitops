@@ -38,6 +38,7 @@ type ApplicationReconciler struct {
 	client.Client
 	Scheme        *runtime.Scheme
 	TaskRetryLoop *sharedutil.TaskRetryLoop
+	DB            db.DatabaseQueries
 }
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -49,11 +50,6 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	defer log.V(sharedutil.LogLevel_Debug).Info("Application Reconcile() complete.")
 
 	// TODO: GITOPS-1702 - PERF - this is single-threaded only
-
-	databaseQueries, err := db.NewProductionPostgresDBQueries(true)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
 
 	// 1) Retrieve the Application CR using the request vals
 	app := appv1.Application{}
@@ -77,7 +73,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	} else {
 		applicationDB.Application_id = databaseID
 	}
-	if err := databaseQueries.GetApplicationById(ctx, applicationDB); err != nil {
+	if err := r.DB.GetApplicationById(ctx, applicationDB); err != nil {
 		if db.IsResultNotFoundError(err) {
 
 			log.V(sharedutil.LogLevel_Warn).Info("Application CR '" + req.NamespacedName.String() + "' missing corresponding database entry: " + applicationDB.Application_id)
@@ -105,7 +101,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	applicationState := &db.ApplicationState{
 		Applicationstate_application_id: applicationDB.Application_id,
 	}
-	if err := databaseQueries.GetApplicationStateById(ctx, applicationState); err != nil {
+	if err := r.DB.GetApplicationStateById(ctx, applicationState); err != nil {
 		if db.IsResultNotFoundError(err) {
 
 			// 3a) ApplicationState doesn't exist: so create it
@@ -114,7 +110,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			applicationState.Sync_Status = string(app.Status.Sync.Status)
 			sanitizeHealthAndStatus(applicationState)
 
-			if err := databaseQueries.CreateApplicationState(ctx, applicationState); err != nil {
+			if err := r.DB.CreateApplicationState(ctx, applicationState); err != nil {
 				log.Error(err, "unexpected error on writing new application state")
 				return ctrl.Result{}, err
 			}
@@ -133,7 +129,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	applicationState.Sync_Status = string(app.Status.Sync.Status)
 	sanitizeHealthAndStatus(applicationState)
 
-	if err := databaseQueries.UpdateApplicationState(ctx, applicationState); err != nil {
+	if err := r.DB.UpdateApplicationState(ctx, applicationState); err != nil {
 		log.Error(err, "unexpected error on updating existing application state")
 		return ctrl.Result{}, err
 	}

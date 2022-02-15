@@ -2,8 +2,14 @@ package util
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"time"
+
+	"github.com/go-logr/logr"
+	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // ExponentialBackoff: the more times in a row something fails, the longer we wait.
@@ -60,4 +66,77 @@ func (e *ExponentialBackoff) DelayOnFail(ctx context.Context) {
 	case <-time.After(*e.curr):
 	}
 
+}
+
+// RunUntilTrue runs the task function until the function returns true, or until the context is cancelled.
+func RunTaskUntilTrue(ctx context.Context, backoff *ExponentialBackoff, taskDescription string, log logr.Logger, task func() (bool, error)) error {
+
+	defer backoff.Reset()
+
+	var taskComplete bool
+	var err error
+
+outer:
+	for {
+		// We only return if the context was cancelled.
+		select {
+		case <-ctx.Done():
+			err = fmt.Errorf(taskDescription + ": context cancelled")
+			break outer
+		default:
+		}
+
+		taskComplete, err = task()
+
+		if err != nil {
+			log.Error(err, fmt.Sprintf("%s: %v", taskDescription, err))
+		}
+
+		if taskComplete {
+			break outer
+		} else {
+			backoff.DelayOnFail(ctx)
+		}
+
+	}
+
+	return err
+}
+
+// CatchPanic calls f(), and recovers from panic if one occurs.
+func CatchPanic(f func() error) (isPanic bool, err error) {
+
+	panicLog := log.FromContext(context.Background())
+
+	isPanic = false
+
+	doRecover := func() {
+		recoverRes := recover()
+
+		if recoverRes != nil {
+			err = fmt.Errorf("panic: %v", recoverRes)
+			panicLog.Error(err, "SEVERE: Panic occurred")
+			isPanic = true
+		}
+
+	}
+
+	defer doRecover()
+
+	err = f()
+
+	return isPanic, err
+}
+
+func GetRESTConfig() (*rest.Config, error) {
+	res, err := ctrl.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	// Use non-standard rate limiting values
+	// TODO: GITOPS-1702 - These values are way too high, need to look at request.go in controller-runtime.
+	res.QPS = 100
+	res.Burst = 250
+	return res, nil
 }

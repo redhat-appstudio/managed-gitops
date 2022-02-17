@@ -4,6 +4,8 @@ TAG ?= latest
 BASE_IMAGE ?= gitops-service
 USERNAME ?= redhat-appstudio
 IMG ?= quay.io/${USERNAME}/${BASE_IMAGE}:${TAG}
+ARGO_CD_NAMESPACE ?= argocd
+
 help: ## Display this help menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
@@ -37,7 +39,7 @@ undeploy-backend-rbac: ## Remove backend related RBAC resouces
 
 deploy-backend: deploy-backend-crd deploy-backend-rbac ## Deploy backend operator into Kubernetes -- e.g. make deploy-backend IMG=quay.io/pgeorgia/gitops-service:latest
 	kubectl create namespace gitops 2> /dev/null || true
-	COMMON_IMAGE=${IMG} envsubst < $(MAKEFILE_ROOT)/manifests/managed-gitops-backend-deployment.yaml | kubectl apply -f -
+	ARGO_CD_NAMESPACE=${ARGO_CD_NAMESPACE} COMMON_IMAGE=${IMG} envsubst < $(MAKEFILE_ROOT)/manifests/managed-gitops-backend-deployment.yaml | kubectl apply -f -
 
 undeploy-backend: undeploy-backend-rbac undeploy-backend-crd ## Undeploy backend from Kubernetes
 	kubectl delete -f $(MAKEFILE_ROOT)/manifests/managed-gitops-backend-deployment.yaml
@@ -70,7 +72,7 @@ undeploy-cluster-agent-rbac: ## Remove cluster-agent related RBAC resouces
 
 deploy-cluster-agent: deploy-cluster-agent-crd deploy-cluster-agent-rbac ## Deploy cluster-agent operator into Kubernetes -- e.g. make deploy-cluster-agent IMG=quay.io/pgeorgia/gitops-service:latest
 	kubectl create namespace gitops 2> /dev/null || true
-	COMMON_IMAGE=${IMG} envsubst < $(MAKEFILE_ROOT)/manifests/managed-gitops-clusteragent-deployment.yaml | kubectl apply -f -
+	ARGO_CD_NAMESPACE=${ARGO_CD_NAMESPACE} COMMON_IMAGE=${IMG} envsubst < $(MAKEFILE_ROOT)/manifests/managed-gitops-clusteragent-deployment.yaml | kubectl apply -f -
 
 undeploy-cluster-agent: undeploy-cluster-agent-rbac undeploy-cluster-agent-crd ## Undeploy cluster-agent from Kubernetes
 	kubectl delete -f $(MAKEFILE_ROOT)/manifests/managed-gitops-clusteragent-deployment.yaml

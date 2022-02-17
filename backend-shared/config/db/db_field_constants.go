@@ -26,8 +26,7 @@ func TruncateVarchar(s string, maxLength int) string {
 		return ""
 	}
 
-	var wb []string
-	wb = strings.Split(s, "")
+	var wb = strings.Split(s, "")
 
 	if maxLength < len(wb) {
 		maxLength = maxLength - 3

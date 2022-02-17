@@ -119,6 +119,14 @@ func TestTruncateVarchar(t *testing.T) {
 			},
 			want: "",
 		},
+		{
+			name: "Empty string",
+			args: args{
+				s:         "",
+				maxLength: 5,
+			},
+			want: "",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

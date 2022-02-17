@@ -127,10 +127,10 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// 4) ApplicationState already exists, so just update it.
 
-	applicationState.Health = string(app.Status.Health.Status)
-	applicationState.Message = app.Status.Health.Message
-	applicationState.Sync_Status = string(app.Status.Sync.Status)
-	applicationState.Revision = app.Status.Sync.Revision
+	applicationState.Health = db.TruncateVarchar(string(app.Status.Health.Status), db.ApplicationstateHealthLength)
+	applicationState.Message = db.TruncateVarchar(app.Status.Health.Message, db.ApplicationstateMessageLength)
+	applicationState.Sync_Status = db.TruncateVarchar(string(app.Status.Sync.Status), db.ApplicationstateSyncstatusLength)
+	applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationstateRevisionLength)
 	sanitizeHealthAndStatus(applicationState)
 
 	if err := r.DB.UpdateApplicationState(ctx, applicationState); err != nil {

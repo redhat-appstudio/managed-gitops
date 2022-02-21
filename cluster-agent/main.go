@@ -24,6 +24,7 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -99,9 +100,17 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Operation")
 		os.Exit(1)
 	}
+
+	applicationReconcileDB, err := db.NewProductionPostgresDBQueries(true)
+	if err != nil {
+		setupLog.Error(err, "never able to connect to database")
+		os.Exit(1)
+	}
+
 	if err = (&argoprojiocontrollers.ApplicationReconciler{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
+		DB:            applicationReconcileDB,
 		TaskRetryLoop: sharedutil.NewTaskRetryLoop("application-reconciler"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Application")

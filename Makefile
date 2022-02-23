@@ -14,11 +14,13 @@ help: ## Display this help menu
 deploy-postgresql: ## Deploy postgres into Kubernetes and insert 'db-schema.sql'
 	kubectl create namespace gitops 2> /dev/null || true
 	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/manifests/postgresql-staging/postgresql-staging.yaml
+	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/manifests/postgresql-staging/postgresql-staging-secret.yaml	
 	$(MAKEFILE_ROOT)/create-dev-env.sh kube
 
 undeploy-postgresql: ## Undeploy postgres from Kubernetes
 	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/manifests/postgresql-staging/postgresql-staging.yaml
-
+	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/manifests/postgresql-staging/postgresql-staging-secret.yaml
+	
 ### --- B a c k e n d --- ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~ #
 deploy-backend-crd: ## Deploy backend related CRDs

@@ -185,8 +185,7 @@ func internalSharedResourceEventLoop(inputChan chan sharedResourceLoopMessage) {
 	log := log.FromContext(ctx)
 	dbQueries, err := db.NewProductionPostgresDBQueries(false)
 	if err != nil {
-		fmt.Println(err)
-		// TODO: GITOPS-1678 - DEBT - Log me, and probably handle better
+		log.Error(err, "SEVERE: internalSharedResourceEventLoop exiting before startup")
 		return
 	}
 

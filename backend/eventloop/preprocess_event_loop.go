@@ -68,10 +68,8 @@ func preprocessEventLoopRouter(input chan eventLoopEvent, nextStep *controllerEv
 
 	dbQueries, err := db.NewProductionPostgresDBQueries(false)
 	if err != nil {
-		fmt.Println(err)
+		log.Error(err, "SEVERE: preProcessEventLoopRouter exiting before startup")
 		return
-		// TODO: GITOPS-1678 - DEBT - shouldn't return here
-		// It returns here in case of wrong credentials (authentication failure with database)
 	}
 
 	for {

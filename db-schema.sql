@@ -388,6 +388,10 @@ CREATE TABLE SyncOperation (
 	-- The 'revisionID'  field of the GitOpsDeploymentSyncRun CR
 	revision VARCHAR(256) NOT NULL,
 
+	-- Whether we want the SyncOperation to continue running, or to be terminated.
+	-- values: Running, Terminated
+	desired_state VARCHAR(16) NOT NULL,	
+
 	seq_id serial
 
 );

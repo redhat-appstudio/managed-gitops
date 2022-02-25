@@ -344,6 +344,8 @@ type SyncOperation struct {
 	DeploymentNameField string `pg:"deployment_name"`
 
 	Revision string `pg:"revision"`
+
+	DesiredState string `pg:"desired_state"`
 }
 
 // TODO: GITOPS-1678 - DEBT - Add comment.

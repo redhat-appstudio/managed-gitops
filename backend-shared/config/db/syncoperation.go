@@ -5,6 +5,11 @@ import (
 	"fmt"
 )
 
+const (
+	SyncOperation_DesiredState_Running    = "Running"
+	SyncOperation_DesiredState_Terminated = "Terminated"
+)
+
 func (dbq *PostgreSQLDatabaseQueries) GetSyncOperationById(ctx context.Context, syncOperation *SyncOperation) error {
 
 	if err := validateQueryParamsEntity(syncOperation, dbq); err != nil {
@@ -59,7 +64,8 @@ func (dbq *PostgreSQLDatabaseQueries) CreateSyncOperation(ctx context.Context, o
 	if err := isEmptyValues("CreateSyncOperation",
 		"Application_id", obj.Application_id,
 		"DeploymentNameField", obj.DeploymentNameField,
-		"Revision", obj.Revision); err != nil {
+		"Revision", obj.Revision,
+		"DesiredState", obj.DesiredState); err != nil {
 		return err
 	}
 

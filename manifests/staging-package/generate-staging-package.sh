@@ -25,8 +25,8 @@ cp -R $ROOTPATH/manifests/cluster-agent-rbac/*.yaml $TARGET_DIR
 cp -R $ROOTPATH/manifests/postgresql-staging/postgresql-staging.yaml $TARGET_DIR
 
 # NOTE: ensure you update the COMMON_IMAGE with the image to deploy to the staging cluster
-ARGO_CD_NAMESPACE=gitops-service-argocd COMMON_IMAGE="quay.io/jgwest-redhat/gitops-service:latest" envsubst < $ROOTPATH/manifests/managed-gitops-backend-deployment.yaml > $TARGET_DIR/managed-gitops-backend-deployment.yaml
-ARGO_CD_NAMESPACE=gitops-service-argocd COMMON_IMAGE="quay.io/jgwest-redhat/gitops-service:latest" envsubst < $ROOTPATH/manifests/managed-gitops-clusteragent-deployment.yaml > $TARGET_DIR/managed-gitops-clusteragent-deployment.yaml
+ARGO_CD_NAMESPACE=gitops-service-argocd COMMON_IMAGE="quay.io/redhat-appstudio/gitops-service:239fd296f557024f0382c06d1a736183849808a1" envsubst < $ROOTPATH/manifests/managed-gitops-backend-deployment.yaml > $TARGET_DIR/managed-gitops-backend-deployment.yaml
+ARGO_CD_NAMESPACE=gitops-service-argocd COMMON_IMAGE="quay.io/redhat-appstudio/gitops-service:239fd296f557024f0382c06d1a736183849808a1" envsubst < $ROOTPATH/manifests/managed-gitops-clusteragent-deployment.yaml > $TARGET_DIR/managed-gitops-clusteragent-deployment.yaml
 
 cp -R $ROOTPATH/backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeployments.yaml $TARGET_DIR
 cp -R $ROOTPATH/backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentsyncruns.yaml $TARGET_DIR

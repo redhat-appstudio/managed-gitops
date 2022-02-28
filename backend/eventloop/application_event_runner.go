@@ -429,8 +429,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		// TODO: GITOPS-1466 - STUB - need to implement support for sync operation in cluster agent
 		log.Info("STUB: need to implement sync on cluster side")
 
-		dbQueries.DeleteSyncOperationById(ctx, syncOperation.SyncOperation_id)
-		if err != nil {
+		if _, err := dbQueries.DeleteSyncOperationById(ctx, syncOperation.SyncOperation_id); err != nil {
 			log.Error(err, "could not delete sync operation, when resource was deleted", "namespace", dbutil.GetGitOpsEngineSingleInstanceNamespace())
 			return false, err
 		}

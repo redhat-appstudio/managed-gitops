@@ -4,15 +4,25 @@ go 1.16
 
 require (
 	github.com/argoproj/argo-cd/v2 v2.1.2
+	github.com/argoproj/gitops-engine v0.4.1
+	github.com/coreos/go-oidc v2.1.0+incompatible
 	github.com/go-logr/logr v0.4.0
+	github.com/golang-jwt/jwt/v4 v4.3.0
+	github.com/golang/protobuf v1.5.2
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.15.0
+	github.com/openshift/api v3.9.0+incompatible
 	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0
+	github.com/stretchr/testify v1.7.0
+	golang.org/x/oauth2 v0.0.0-20210628180205-a41e5a781914
+	google.golang.org/grpc v1.33.1
 	k8s.io/api v0.22.4
 	k8s.io/apimachinery v0.22.4
 	k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible
+	k8s.io/utils v0.0.0-20210527160623-6fdb442a123b
 	sigs.k8s.io/controller-runtime v0.9.2
 	sigs.k8s.io/yaml v1.2.0
+
 )
 
 replace (

@@ -2,7 +2,7 @@
 
 ## Current status
 
-Given you have [installed](./install.md) Gitops Managed Service into your Kubernetes cluster, you can start using it by applying a CR.
+Given you have [installed](./install.md) GitOps Managed Service into your Kubernetes cluster, you can start using it by applying a CR.
 This can be either a `GitOpsDeployment` or a `GitOpsDeploymentSyncRun` to trigger the `backend` operator.
 
 Here's a sample:
@@ -26,7 +26,7 @@ In the current development phase, this is the expected output:
 kubectl -n gitops logs managed-gitops-backend-service-77c9648b5b-hgkt4 -c manager -f
 ```
 
-```json
+```
 2022-01-31T11:23:22.945Z	DEBUG	preprocess event loop router received event:	{"workspaceID": "815fa61b-0c05-437e-9f72-401e7cefecfd", "name": "gitopsdeployment-sample", "namespace": "default", "event": "[DeploymentModified] default/gitopsdeployment-sample/GitOpsDeployment, for workspace '815fa61b-0c05-437e-9f72-401e7cefecfd', gitopsdepluid: ''"}
 2022-01-31T11:23:22.952Z	DEBUG	Emitting event to workspace event loop	{"workspaceID": "815fa61b-0c05-437e-9f72-401e7cefecfd", "name": "gitopsdeployment-sample", "namespace": "default", "event": "[DeploymentModified] default/gitopsdeployment-sample/GitOpsDeployment, for workspace '815fa61b-0c05-437e-9f72-401e7cefecfd', gitopsdepluid: '9a4a6a74-900b-4101-b9a2-4bdf6d72060a'"}
 2022-01-31T11:23:22.953Z	DEBUG	eventLoop received event	{"event": "[DeploymentModified] default/gitopsdeployment-sample/GitOpsDeployment, for workspace '815fa61b-0c05-437e-9f72-401e7cefecfd', gitopsdepluid: '9a4a6a74-900b-4101-b9a2-4bdf6d72060a'", "workspace": "815fa61b-0c05-437e-9f72-401e7cefecfd"}
@@ -58,7 +58,7 @@ kubectl -n gitops logs managed-gitops-clusteragent-service-85d4db6968-gl98l -c m
 
 It crashes:
 
-```json
+```
 2022-01-31T11:23:55.057Z	INFO	controller-runtime.manager.controller.operation	Operation event seen in reconciler: argocd/operation-8b25bf97-a9d7-4508-94cf-560b319a46c2	{"reconciler group": "managed-gitops.redhat.com", "reconciler kind": "Operation", "name": "operation-8b25bf97-a9d7-4508-94cf-560b319a46c2", "namespace": "argocd"}
 SELECT "op"."operation_id", "op"."seq_id", "op"."instance_id", "op"."resource_id", "op"."operation_owner_user_id", "op"."resource_type", "op"."created_on", "op"."last_state_update", "op"."state", "op"."human_readable_state" FROM "operation" AS "op" WHERE (operation_id = '8b25bf97-a9d7-4508-94cf-560b319a46c2')
 2022-01-31T11:23:55.072Z	INFO	controller-runtime.manager.controller.operation	Operation event seen in reconciler: argocd/operation-8b25bf97-a9d7-4508-94cf-560b319a46c2	{"reconciler group": "managed-gitops.redhat.com", "reconciler kind": "Operation", "name": "operation-8b25bf97-a9d7-4508-94cf-560b319a46c2", "namespace": "argocd"}
@@ -89,7 +89,7 @@ spec:
 
 The cluster-agent should wake up, detect the change, attempt to connect to the database (which should succeed), and throw a database error indicating that there was no Operation table entry with the given id.
 
-```json
+```
 2022-01-31T11:25:13.951Z	INFO	controller-runtime.manager.controller.operation	Operation event seen in reconciler: default/operation-sample	{"reconciler group": "managed-gitops.redhat.com", "reconciler kind": "Operation", "name": "operation-sample", "namespace": "default"}
 SELECT "op"."operation_id", "op"."seq_id", "op"."instance_id", "op"."resource_id", "op"."operation_owner_user_id", "op"."resource_type", "op"."created_on", "op"."last_state_update", "op"."state", "op"."human_readable_state" FROM "operation" AS "op" WHERE (operation_id = 'fake-uuid!!!!')
 

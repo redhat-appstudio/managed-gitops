@@ -37,7 +37,7 @@ manifests directory
 └── routes.yaml # Currently not used
 ```
 
-These are automatically deployed when the `make deploy-cluster-agent-rbac` and `deploy-backend-rbac` targets are tiggered as dependency of their respective targets.
+These are automatically deployed when the `make deploy-cluster-agent-rbac` and `deploy-backend-rbac` targets are triggered as dependency of their respective targets.
 
 ## CRDs
 

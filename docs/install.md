@@ -68,6 +68,11 @@ undeploy-cluster-agent         Undeploy cluster-agent from Kubernetes
 ```
 
 ```makefile
+deploy-appstudio-controller              Deploy appstudio-controller into Kubernetes
+undeploy-appstudio-controller            Undeploy appstudio-controller from Kubernetes
+```
+
+```makefile
 deploy-postgresql              Deploy postgres into Kubernetes
 undeploy-postgresql            Undeploy postgres from Kubernetes
 ```

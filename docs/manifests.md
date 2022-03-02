@@ -37,7 +37,7 @@ manifests directory
 └── routes.yaml # Currently not used
 ```
 
-These are automatically deployed when the `make deploy-cluster-agent-rbac` and `deploy-backend-rbac` targets are triggered as dependency of their respective targets.
+These are automatically deployed when the `make deploy-(component)-rbac`targets are triggered as dependency of their respective targets.
 
 ## CRDs
 
@@ -58,6 +58,11 @@ It requires 2 CRDs:
 2. [application from ArgoCD](https://raw.githubusercontent.com/argoproj/argo-cd/release-2.2/manifests/crds/application-crd.yaml) into `argocd` namespace.
 
 These are automatically deployed, when the `make deploy-cluster-agent-crd` is triggered as a dependency.
+
+### AppStudio Controller
+
+It requires 1 CRD (as of this writing):
+1. [application](https://github.com/redhat-appstudio/application-service/blob/main/api/v1alpha1/application_types.go)
 
 ## How the manifests were generated
 

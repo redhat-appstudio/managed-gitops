@@ -9,6 +9,7 @@ See the following _build_ targets:
 make build                          # Build all the components
 make build-backend                  # Build backend only
 make build-cluster-agent            # Build cluster-agent only
+make build-appstudio-controller     # Build appstudio-controller only
 make docker-build                   # Build docker image
 ```
 

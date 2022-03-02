@@ -29,6 +29,7 @@ Now, you can run the tests:
 make test-backend-shared            # Run test for backend-shared only
 make test-backend                   # Run tests for backend only
 make test-cluster-agent             # Run test for cluster-agent only
+make test-appstudio-controller      # Run test for appstudio-controller only
 make test                           # Or, run tests for all components
 ```
 

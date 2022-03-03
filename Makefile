@@ -85,17 +85,48 @@ build-cluster-agent: ## Build cluster-agent only
 test-cluster-agent: ## Run test for cluster-agent only
 	cd $(MAKEFILE_ROOT)/cluster-agent && make test
 
+
+### --- a p p s t u d i o - c o n t r o l l e r --- ###
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+deploy-appstudio-controller-crd: ## Deploy appstudio-controller related CRDs
+	# Application CR
+	kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-service/a3c147c351d4bb5273de1a692143bee319693c64/bundle/manifests/appstudio.redhat.com_applications.yaml
+
+undeploy-appstudio-controller-crd: ## Remove appstudio-controller related CRDs
+	kubectl delete -f https://raw.githubusercontent.com/redhat-appstudio/application-service/a3c147c351d4bb5273de1a692143bee319693c64/bundle/manifests/appstudio.redhat.com_applications.yaml
+
+deploy-appstudio-controller-rbac: ## Deploy appstudio-controller related RBAC resouces
+	kubectl create namespace gitops 2> /dev/null || true
+	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/manifests/appstudio-controller-rbac/
+
+undeploy-appstudio-controller-rbac: ## Remove appstudio-controller related RBAC resouces
+	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/manifests/appstudio-controller-rbac/
+
+deploy-appstudio-controller: deploy-appstudio-controller-crd deploy-appstudio-controller-rbac ## Deploy appstudio-controller operator into Kubernetes -- e.g. make appstudio-controller IMG=quay.io/pgeorgia/gitops-service:latest
+	kubectl create namespace gitops 2> /dev/null || true
+	COMMON_IMAGE=${IMG} envsubst < $(MAKEFILE_ROOT)/manifests/managed-gitops-appstudio-controller-deployment.yaml | kubectl apply -f -
+
+undeploy-appstudio-controller: undeploy-appstudio-controller-rbac undeploy-appstudio-controller-crd ## Undeploy appstudio-controller from Kubernetes
+	kubectl delete -f $(MAKEFILE_ROOT)/manifests/managed-gitops-appstudio-controller-deployment.yaml
+
+build-appstudio-controller: ## Build only
+	cd $(MAKEFILE_ROOT)/appstudio-controller && make build
+
+test-appstudio-controller: ## Run test for appstudio-controller only
+	cd $(MAKEFILE_ROOT)/appstudio-controller && make test
+
+
 ### --- F A S T  &  F U R I O U S --- ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-devenv-docker: deploy-backend-crd deploy-cluster-agent-crd deploy-backend-rbac deploy-cluster-agent-rbac ## Setup local development environment (Postgres via Docker & local operators)
+devenv-docker: deploy-backend-crd deploy-cluster-agent-crd deploy-appstudio-controller-crd deploy-backend-rbac deploy-cluster-agent-rbac deploy-appstudio-controller-rbac ## Setup local development environment (Postgres via Docker & local operators)
 	$(MAKEFILE_ROOT)/create-dev-env.sh
 
-devenv-k8s: deploy-backend-crd deploy-cluster-agent-crd deploy-backend-rbac deploy-cluster-agent-rbac deploy-postgresql ## Setup local development environment (Postgres via k8s & local operators)
+devenv-k8s: deploy-backend-crd deploy-cluster-agent-crd deploy-backend-rbac deploy-cluster-agent-rbac deploy-postgresql deploy-appstudio-controller ## Setup local development environment (Postgres via k8s & local operators)
 
-install-all-k8s: deploy-postgresql deploy-backend deploy-cluster-agent ## Installs e.g. make deploy-k8s IMG=quay.io/pgeorgia/gitops-service:latest
+install-all-k8s: deploy-postgresql deploy-backend deploy-cluster-agent deploy-appstudio-controller ## Installs e.g. make deploy-k8s IMG=quay.io/pgeorgia/gitops-service:latest
 
-uninstall-all-k8s: undeploy-postgresql undeploy-backend undeploy-cluster-agent
+uninstall-all-k8s: undeploy-postgresql undeploy-backend undeploy-cluster-agent undeploy-appstudio-controller
 	kubectl delete namespace gitops
 
 ### --- G e n e r a l --- ###
@@ -103,16 +134,16 @@ uninstall-all-k8s: undeploy-postgresql undeploy-backend undeploy-cluster-agent
 start: ## Start all the components, compile & run (ensure goreman is installed, with 'go install github.com/mattn/goreman@latest')
 	$(GOBIN)/goreman start
 
-build: build-backend build-cluster-agent ## Build all the components - note: you do not need to do this before running start
+build: build-backend build-cluster-agent build-appstudio-controller ## Build all the components - note: you do not need to do this before running start
 
-docker-build: ## Build docker image -- note: you have to change the USER var. Optionally change the BASE_IMAGE or TAG
+docker-build: ## Build docker image -- note: you have to change the USERNAME var. Optionally change the BASE_IMAGE or TAG
 	docker build -t ${IMG} $(MAKEFILE_ROOT)
 
-docker-push: ## Push docker image - note: you have to change the USER var. Optionally change the BASE_IMAGE or TAG
+docker-push: ## Push docker image - note: you have to change the USERNAME var. Optionally change the BASE_IMAGE or TAG
 	docker push ${IMG}
 
-test: test-backend test-backend-shared test-cluster-agent ## Run tests for all components
-
+test: test-backend test-backend-shared test-cluster-agent test-appstudio-controller ## Run tests for all components
+	
 test-backend-shared: ## Run test for backend-shared only
 	cd $(MAKEFILE_ROOT)/backend-shared && make test
 
@@ -127,8 +158,11 @@ vendor: ## Clone locally the dependencies - off-line
 	cd $(MAKEFILE_ROOT)/backend-shared && go mod vendor
 	cd $(MAKEFILE_ROOT)/backend && go mod vendor
 	cd $(MAKEFILE_ROOT)/cluster-agent && go mod vendor
+	cd $(MAKEFILE_ROOT)/appstudio-controller && go mod vendor	
 
 tidy: ## Tidy all components
 	cd $(MAKEFILE_ROOT)/backend-shared && go mod tidy
 	cd $(MAKEFILE_ROOT)/backend && go mod tidy 
-	cd $(MAKEFILE_ROOT)/cluster-agent && go mod tidy 
+	cd $(MAKEFILE_ROOT)/cluster-agent && go mod tidy
+	cd $(MAKEFILE_ROOT)/appstudio-controller && go mod tidy
+	 

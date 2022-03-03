@@ -1,0 +1,28 @@
+apiVersion: appstudio.redhat.com/v1alpha1
+kind: Application
+metadata:
+#  finalizers:
+#  - application.appstudio.redhat.com/finalizer
+  name: my-app
+  namespace: jane
+spec:
+  appModelRepository:
+    url: "https://github.com/jgwest/my-app"
+  displayName: my-app
+  gitOpsRepository:
+    url: "https://github.com/jgwest/my-app"
+status:
+  conditions:
+  - lastTransitionTime: "2022-02-22T15:37:59Z"
+    message: Application has been successfully created
+    reason: OK
+    status: "True"
+    type: Created
+  devfile: |
+    metadata:
+      attributes:
+        appModelRepository.url: https://github.com/redhat-appstudio-appdata/sdfgsdfg-jkopriva-trust-jane
+        gitOpsRepository.url: https://github.com/redhat-appstudio-appdata/sdfgsdfg-jkopriva-trust-jane
+      name: sdfgsdfg
+    schemaVersion: 2.1.0
+

@@ -46,6 +46,8 @@ type ApplicationReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+const deploymentSuffix = "-deployment"
+
 //+kubebuilder:rbac:groups=appstudio.redhat.com,resources=applications,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=appstudio.redhat.com,resources=applications/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=appstudio.redhat.com,resources=applications/finalizers,verbs=update
@@ -77,7 +79,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// Convert the app name to corresponding GitOpsDeployment name, ensuring that the GitOpsDeployment name fits within 64 chars
-	gitopsDeplName := sanitizeAppNameWithSuffix(asApplication.Name, "-deployment")
+	gitopsDeplName := sanitizeAppNameWithSuffix(asApplication.Name, deploymentSuffix)
 
 	gitopsDeployment := &gitopsdeploymentv1alpha1.GitOpsDeployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -110,7 +112,6 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// Sanity check the application before we do anything more with it
 	if err := validateApplication(asApplication); err != nil {
-		// TODO: Add error reporting to status
 		return ctrl.Result{}, err
 	}
 
@@ -149,7 +150,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 // processDeleteGitOpsDeployment deletes the GitOpsDeployment that corresponds to req
 func processDeleteGitOpsDeployment(ctx context.Context, req ctrl.Request, k8sClient client.Client, log logr.Logger) error {
 
-	gitopsDeplName := sanitizeAppNameWithSuffix(req.Name, "-deployment") // TODO: constantize this
+	gitopsDeplName := sanitizeAppNameWithSuffix(req.Name, deploymentSuffix)
 
 	gitopsDepl := &gitopsdeploymentv1alpha1.GitOpsDeployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -204,15 +205,15 @@ func validateApplication(asApplication applicationv1alpha1.Application) error {
 		return fmt.Errorf("application resource has invalid name: '%s'", asApplication.Name)
 	}
 
-	if asApplication.Spec.AppModelRepository.URL == "" {
+	if asApplication.Spec.GitOpsRepository.URL == "" {
 		return fmt.Errorf("application resource has invalid URL: '%s'", asApplication.Spec.GitOpsRepository.URL)
 	}
 
-	// if asApplication.Spec.AppModelRepository.Branch == "" {
+	// if asApplication.Spec.GitOpsRepository.Branch == "" {
 	// 	return fmt.Errorf("application resource has invalid branch: '%s'", asApplication.Spec.GitOpsRepository.Branch)
 	// }
 
-	// if asApplication.Spec.AppModelRepository.Context == "" {
+	// if asApplication.Spec.GitOpsRepository.Context == "" {
 	// 	return fmt.Errorf("application resource has invalid context: '%s'", asApplication.Spec.GitOpsRepository.Context)
 	// }
 
@@ -244,9 +245,9 @@ func generateNewGitOpsDeploymentFromApplication(asApplication applicationv1alpha
 		},
 		Spec: gitopsdeploymentv1alpha1.GitOpsDeploymentSpec{
 			Source: gitopsdeploymentv1alpha1.ApplicationSource{
-				RepoURL:        asApplication.Spec.AppModelRepository.URL,
-				Path:           asApplication.Spec.AppModelRepository.Context,
-				TargetRevision: asApplication.Spec.AppModelRepository.Branch,
+				RepoURL:        asApplication.Spec.GitOpsRepository.URL,
+				Path:           asApplication.Spec.GitOpsRepository.Context,
+				TargetRevision: asApplication.Spec.GitOpsRepository.Branch,
 			},
 			Destination: gitopsdeploymentv1alpha1.ApplicationDestination{},
 			Type:        gitopsdeploymentv1alpha1.GitOpsDeploymentSpecType_Automated,
@@ -259,7 +260,6 @@ func generateNewGitOpsDeploymentFromApplication(asApplication applicationv1alpha
 // Ensure that the name of the GitOpsDeployment is always <= 64 characters
 func sanitizeAppNameWithSuffix(appName string, suffix string) string {
 
-	// TODO: Should this be case insensitive?
 	fullName := appName + suffix
 
 	if len(fullName) < 64 {

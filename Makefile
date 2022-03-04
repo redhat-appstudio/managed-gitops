@@ -143,7 +143,7 @@ docker-push: ## Push docker image - note: you have to change the USERNAME var. O
 	docker push ${IMG}
 
 test: test-backend test-backend-shared test-cluster-agent test-appstudio-controller ## Run tests for all components
-	
+
 test-backend-shared: ## Run test for backend-shared only
 	cd $(MAKEFILE_ROOT)/backend-shared && make test
 

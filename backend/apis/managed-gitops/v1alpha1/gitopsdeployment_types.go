@@ -102,9 +102,9 @@ const (
 	SyncStatusCodeOutOfSync SyncStatusCode = "OutOfSync"
 )
 
-// GitOpsDeploymentCondition contains details about an applicationset condition, which is usally an error or warning
+// GitOpsDeploymentCondition contains details about an GitOpsDeployment condition, which is usually an error or warning
 type GitOpsDeploymentCondition struct {
-	// Type is an applicationset condition type
+	// Type is a GitOpsDeployment condition type
 	Type GitOpsDeploymentConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
 
 	// Message contains human-readable message indicating details about condition
@@ -127,10 +127,10 @@ const (
 	GitOpsDeploymentConditionErrorOccurred GitOpsDeploymentConditionType = "ErrorOccurred"
 )
 
-// SyncStatusCode is a type which represents possible comparison results
+// GitOpsConditionStatus is a type which represents possible comparison results
 type GitOpsConditionStatus string
 
-// Application Condition Status
+// GitOpsDeployment Condition Status
 const (
 	// GitOpsConditionStatusTrue indicates that a condition type is true
 	GitOpsConditionStatusTrue GitOpsConditionStatus = "True"

@@ -2,11 +2,6 @@
 
 ## Issues with the Database
 
-## Run (upstream) Postgres in OpenShift
-
-The upstream postgress deployment is not compatible with OpenShift.
-To make this work, apply [this patch](https://github.com/redhat-appstudio/managed-gitops/pull/60#issuecomment-1027920201)
-
 ## Run Postgres in Docker
 
 You can run the `./create-dev-env.sh` script which will start two containers:

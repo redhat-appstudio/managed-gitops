@@ -1,3 +1,4 @@
+//go:build !skip
 // +build !skip
 
 package db

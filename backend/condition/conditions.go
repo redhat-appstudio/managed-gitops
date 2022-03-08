@@ -6,7 +6,7 @@ import (
 )
 
 // Conditions is a wrapper object for actual Condition functions to allow easier mocking/testing.
-//go:generate mockgen -destination=../util/mocks/$GOPACKAGE/conditions.go -package=$GOPACKAGE -source conditions.go
+//go:generate mockgen -destination=mocks/conditions.go -package=$GOPACKAGE -source conditions.go
 
 type Conditions interface {
 	SetCondition(conditions *[]v1alpha1.GitOpsDeploymentCondition, conditionType v1alpha1.GitOpsDeploymentConditionType,

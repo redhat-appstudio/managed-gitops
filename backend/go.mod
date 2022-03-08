@@ -16,7 +16,6 @@ require (
 	k8s.io/apimachinery v0.21.2
 	k8s.io/client-go v0.21.2
 	sigs.k8s.io/controller-runtime v0.9.2
-	github.com/redhat-appstudio/managed-gitops/backend/util/mocks v0.0.0
 )
 
 require (
@@ -91,4 +90,3 @@ require (
 )
 
 replace github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
-replace github.com/redhat-appstudio/managed-gitops/backend/util/mocks => ./util/mocks

@@ -323,13 +323,13 @@ type KubernetesToDBResourceMapping struct {
 	//lint:ignore U1000 used by go-pg
 	tableName struct{} `pg:"kubernetestodbresourcemapping,alias:ktdbrm"` //nolint
 
-	KubernetesResourceType string `pg:"kubernetes_resource_type"`
+	KubernetesResourceType string `pg:"kubernetes_resource_type,pk"`
 
-	KubernetesResourceUID string `pg:"kubernetes_resource_uid"`
+	KubernetesResourceUID string `pg:"kubernetes_resource_uid,pk"`
 
-	DBRelationType string `pg:"db_relation_type"`
+	DBRelationType string `pg:"db_relation_type,pk"`
 
-	DBRelationKey string `pg:"db_relation_key"`
+	DBRelationKey string `pg:"db_relation_key,pk"`
 
 	SeqID int64 `pg:"seq_id"`
 }

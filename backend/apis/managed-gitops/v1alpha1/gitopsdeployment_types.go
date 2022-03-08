@@ -113,7 +113,7 @@ type GitOpsDeploymentCondition struct {
 
 	// LastProbeTime is the last time the condition was observed.
 	// +optional
-	LastProbeTime metav1.Time `json:"lastProbeTime,omitempty,omitempty"`
+	LastProbeTime metav1.Time `json:"lastProbeTime,omitempty"`
 
 	// LastTransitionTime is the last time the condition transitioned from one status to another.
 	// +optional

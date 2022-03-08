@@ -30,7 +30,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteKubernetesResourceToDBResourceMappin
 		return 0, err
 	}
 
-	deleteResult, err := dbq.dbConnection.Model(&obj).WherePK().Context(ctx).Delete()
+	deleteResult, err := dbq.dbConnection.Model(obj).WherePK().Context(ctx).Delete()
 	if err != nil {
 		return 0, fmt.Errorf("error on deleting operation: %v", err)
 	}

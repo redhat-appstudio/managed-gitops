@@ -2,7 +2,9 @@ package eventloop
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/redhat-appstudio/managed-gitops/backend/condition"
 	"strings"
 	"time"
 
@@ -25,6 +27,56 @@ import (
 
 // For more information on how events are distributed between goroutines by event loop, see:
 // https://miro.com/app/board/o9J_lgiqJAs=/?moveToWidget=3458764514216218600&cot=14
+
+type GitOpsDeploymentAdapter struct {
+	gitOpsDeployment *managedgitopsv1alpha1.GitOpsDeployment
+	logger           logr.Logger
+	client           client.Client
+	conditionManager condition.Conditions
+	ctx              context.Context
+}
+
+func NewGitOpsDeploymentAdapter(gitopsDeployment *managedgitopsv1alpha1.GitOpsDeployment, logger logr.Logger, client client.Client, manager condition.Conditions, ctx context.Context) *GitOpsDeploymentAdapter {
+	return &GitOpsDeploymentAdapter{
+		gitOpsDeployment: gitopsDeployment,
+		logger:           logger,
+		client:           client,
+		conditionManager: manager,
+		ctx:              ctx,
+	}
+}
+
+// SetGitOpsDeploymentCondition calls SetCondition() with GitOpsDeployment conditions
+func (g *GitOpsDeploymentAdapter) SetGitOpsDeploymentCondition(conditionType managedgitopsv1alpha1.GitOpsDeploymentConditionType, reason managedgitopsv1alpha1.GitOpsDeploymentReasonType, errMessage error) error {
+	conditions := &g.gitOpsDeployment.Status.Conditions
+
+	// Create a new condition and update the object in k8s with the error message, if err does exist
+	if errMessage != nil {
+		g.conditionManager.SetCondition(conditions, conditionType, managedgitopsv1alpha1.GitOpsConditionStatus(corev1.ConditionTrue), reason, errMessage.Error())
+		if err := g.client.Status().Update(g.ctx, g.gitOpsDeployment, &client.UpdateOptions{}); err != nil {
+			return err
+		}
+	}
+
+	// do nothing, if condition doesn't exist and the error is nil
+	if !g.conditionManager.HasCondition(conditions, conditionType) {
+		return nil
+	}
+
+	// It marks the condition as Resolved if the error is nil and there is at least one condition defined before
+	// but if it's already marked as a "Resolved", then do nothing
+	reason = reason + "Resolved"
+	if cond, _ := g.conditionManager.FindCondition(conditions, conditionType); cond.Reason == reason {
+		return nil
+	}
+
+	g.conditionManager.SetCondition(conditions, conditionType, managedgitopsv1alpha1.GitOpsConditionStatus(corev1.ConditionFalse), reason, "")
+	if err := g.client.Status().Update(g.ctx, g.gitOpsDeployment, &client.UpdateOptions{}); err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func newApplicationEventLoopRunner(informWorkCompleteChan chan applicationEventLoopMessage, sharedResourceEventLoop *sharedResourceEventLoop,
 	gitopsDeplUID string, workspaceID string, debugContext string) chan *eventLoopEvent {
@@ -106,6 +158,22 @@ func applicationEventLoopRunner(inputChannel chan *eventLoopEvent, informWorkCom
 					signalledShutdown, _, _, err = action.applicationEventRunner_handleDeploymentModified(ctx, scopedDBQueries)
 
 					// TODO: GITOPS-1719 - Update the GitOpsDeployment CR's status conditions, based on err.
+					gitopsDepl := managedgitopsv1alpha1.GitOpsDeployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      newEvent.request.Name,
+							Namespace: newEvent.request.Namespace,
+						},
+					}
+
+					instance := &gitopsDepl
+					conditionManager := condition.NewConditionManager()
+					adapter := NewGitOpsDeploymentAdapter(instance, log, newEvent.client, conditionManager, ctx)
+
+					err = errors.New("warning, Kirov's reporting")
+
+					if err2 := adapter.SetGitOpsDeploymentCondition(managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred, managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred, err); err2 != nil {
+						return err2
+					}
 
 				} else if newEvent.eventType == SyncRunModified {
 					// Handle all SyncRun related events

@@ -107,17 +107,24 @@ type GitOpsDeploymentCondition struct {
 	// Type is a GitOpsDeployment condition type
 	Type GitOpsDeploymentConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
 
-	// Message contains human-readable message indicating details about condition
-	Message string `json:"message" protobuf:"bytes,2,opt,name=message"`
+	// Message contains human-readable message indicating details about the last condition.
+	// +optional
+	Message string `json:"message" protobuf:"bytes,2,opt,name=message,omitempty"`
 
-	// LastTransitionTime is the time the condition was last observed
-	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
+	// LastProbeTime is the last time the condition was observed.
+	// +optional
+	LastProbeTime metav1.Time `json:"lastProbeTime,omitempty,omitempty"`
 
-	// True/False/Unknown
+	// LastTransitionTime is the last time the condition transitioned from one status to another.
+	// +optional
+	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime,omitempty"`
+
+	// Status is the status of the condition.
 	Status GitOpsConditionStatus `json:"status" protobuf:"bytes,4,opt,name=status"`
 
-	//Single word camelcase representing the reason for the status eg ErrorOccurred
-	Reason GitOpsDeploymentReasonType `json:"reason" protobuf:"bytes,5,opt,name=reason"`
+	// Reason is a unique, one-word, CamelCase reason for the condition's last transition.
+	// +optional
+	Reason GitOpsDeploymentReasonType `json:"reason" protobuf:"bytes,5,opt,name=reason,omitempty"`
 }
 
 // GitOpsDeploymentConditionType represents type of GitOpsDeployment condition.

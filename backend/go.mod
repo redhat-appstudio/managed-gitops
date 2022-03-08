@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/emicklei/go-restful/v3 v3.7.1
 	github.com/go-logr/logr v0.4.0
+	github.com/golang/mock v1.4.1
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.15.0

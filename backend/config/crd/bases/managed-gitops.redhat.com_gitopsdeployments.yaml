@@ -89,7 +89,7 @@ spec:
               conditions:
                 items:
                   description: GitOpsDeploymentCondition contains details about an
-                    applicationset condition, which is usally an error or warning
+                    GitOpsDeployment condition, which is usually an error or warning
                   properties:
                     lastTransitionTime:
                       description: LastTransitionTime is the time the condition was
@@ -108,7 +108,7 @@ spec:
                       description: True/False/Unknown
                       type: string
                     type:
-                      description: Type is an applicationset condition type
+                      description: Type is a GitOpsDeployment condition type
                       type: string
                   required:
                   - message

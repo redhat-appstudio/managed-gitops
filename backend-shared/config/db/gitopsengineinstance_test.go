@@ -63,7 +63,23 @@ func TestGetGitopsEngineInstanceById(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	assert.Equal(t, gitopsEngineInstanceput.Namespace_name, gitopsEngineInstanceget.Namespace_name)
+	assert.Equal(t, gitopsEngineInstanceput, gitopsEngineInstanceget)
+
+	//check for inexistent primary key
+
+	gitopsEngineInstanceNotExist := GitopsEngineInstance{
+		Gitopsengineinstance_id: "test-fake-engine-instance-id-not-exist",
+		Namespace_name:          "test-fake-namespace-not-exist",
+		Namespace_uid:           "test-fake-namespace-1-not-exist",
+		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+	}
+
+	err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstanceNotExist)
+	if assert.Error(t, err) {
+		if !IsResultNotFoundError(err) {
+			return
+		}
+	}
 
 }
 
@@ -123,7 +139,7 @@ func TestCreateGitopsEngineInstance(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	assert.Equal(t, gitopsEngineInstanceput.Namespace_name, gitopsEngineInstanceget.Namespace_name)
+	assert.Equal(t, gitopsEngineInstanceput, gitopsEngineInstanceget)
 
 }
 
@@ -176,12 +192,30 @@ func TestDeleteGitopsEngineInstanceById(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, rowsAffected, 1)
 
-	rowsAffected3, err := dbq.DeleteGitopsEngineClusterById(ctx, gitopsEngineCluster.Gitopsenginecluster_id)
+	rowsAffected, err = dbq.DeleteGitopsEngineClusterById(ctx, gitopsEngineCluster.Gitopsenginecluster_id)
 	assert.NoError(t, err)
-	assert.Equal(t, rowsAffected3, 1)
+	assert.Equal(t, rowsAffected, 1)
 
-	rowsAffected5, err := dbq.DeleteClusterCredentialsById(ctx, clusterCredentials.Clustercredentials_cred_id)
+	rowsAffected, err = dbq.DeleteClusterCredentialsById(ctx, clusterCredentials.Clustercredentials_cred_id)
 	assert.NoError(t, err)
-	assert.Equal(t, rowsAffected5, 1)
+	assert.Equal(t, rowsAffected, 1)
 
+	err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstance)
+	if assert.Error(t, err) {
+		if !IsResultNotFoundError(err) {
+			return
+		}
+	}
+	err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineCluster)
+	if assert.Error(t, err) {
+		if !IsResultNotFoundError(err) {
+			return
+		}
+	}
+	err = dbq.GetClusterCredentialsById(ctx, &clusterCredentials)
+	if assert.Error(t, err) {
+		if !IsResultNotFoundError(err) {
+			return
+		}
+	}
 }

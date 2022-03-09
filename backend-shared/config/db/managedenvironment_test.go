@@ -50,7 +50,7 @@ func TestCreateManagedEnvironment(t *testing.T) {
 	if !assert.NoError(t, get) {
 		return
 	}
-	assert.Equal(t, managedEnvironment.Name, getmanagedEnvironment.Name)
+	assert.Equal(t, managedEnvironment, getmanagedEnvironment)
 
 }
 
@@ -98,7 +98,22 @@ func TestGetManagedEnvironmentById(t *testing.T) {
 	if !assert.NoError(t, get) {
 		return
 	}
-	assert.Equal(t, managedEnvironment.Name, getmanagedEnvironment.Name)
+	assert.Equal(t, managedEnvironment, getmanagedEnvironment)
+
+	//check for inexistent primary key
+
+	managedEnvironmentNotExist := ManagedEnvironment{
+		Managedenvironment_id: "test-managed-env-4-not-exist",
+		Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+		Name:                  "my env101-not-exist",
+	}
+
+	err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentNotExist)
+	if assert.Error(t, err) {
+		if !IsResultNotFoundError(err) {
+			return
+		}
+	}
 
 }
 
@@ -140,9 +155,23 @@ func TestDeleteManagedEnvironmentById(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, rowsAffected, 1)
 
-	rowsAffected5, err := dbq.DeleteClusterCredentialsById(ctx, clusterCredentials.Clustercredentials_cred_id)
+	rowsAffected, err = dbq.DeleteClusterCredentialsById(ctx, clusterCredentials.Clustercredentials_cred_id)
 	assert.NoError(t, err)
-	assert.Equal(t, rowsAffected5, 1)
+	assert.Equal(t, rowsAffected, 1)
+
+	err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironment)
+	if assert.Error(t, err) {
+		if !IsResultNotFoundError(err) {
+			return
+		}
+	}
+
+	err = dbq.GetClusterCredentialsById(ctx, &clusterCredentials)
+	if assert.Error(t, err) {
+		if !IsResultNotFoundError(err) {
+			return
+		}
+	}
 
 }
 
@@ -229,4 +258,7 @@ func TestListManagedEnvironmentForClusterCredentialsAndOwnerId(t *testing.T) {
 
 	err = dbq.ListManagedEnvironmentForClusterCredentialsAndOwnerId(ctx, clusterCredentials.Clustercredentials_cred_id, clusterAccess.Clusteraccess_user_id, &managedEnvironments)
 	assert.NoError(t, err)
+
+	assert.Equal(t, managedEnvironments[0], managedEnvironment)
+	assert.Equal(t, len(managedEnvironments), 1)
 }

@@ -38,7 +38,7 @@ func TestCreateKubernetesResourceToDBResourceMapping(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	assert.Equal(t, kubernetesToDBResourceMappingpost.KubernetesResourceUID, kubernetesToDBResourceMappingget.KubernetesResourceUID)
+	assert.Equal(t, kubernetesToDBResourceMappingpost, kubernetesToDBResourceMappingget)
 
 }
 
@@ -73,7 +73,21 @@ func TestGetDBResourceMappingForKubernetesResource(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	assert.Equal(t, kubernetesToDBResourceMappingpost.KubernetesResourceUID, kubernetesToDBResourceMappingget.KubernetesResourceUID)
+	assert.Equal(t, kubernetesToDBResourceMappingpost, kubernetesToDBResourceMappingget)
+
+	kubernetesToDBResourceMappingNotExist := KubernetesToDBResourceMapping{
+		KubernetesResourceType: "test_resource_2_not_exist",
+		KubernetesResourceUID:  "test_resource_uid_not_exist",
+		DBRelationType:         "test_relation_type_not_exist",
+		DBRelationKey:          "test_relation_key_not_exist",
+	}
+	//check for inexistent primary key
+	err = dbq.GetDBResourceMappingForKubernetesResource(ctx, &kubernetesToDBResourceMappingNotExist)
+	if assert.Error(t, err) {
+		if !IsResultNotFoundError(err) {
+			return
+		}
+	}
 
 }
 
@@ -89,7 +103,7 @@ func TestDeleteKubernetesResourceToDBResourceMapping(t *testing.T) {
 	ctx := context.Background()
 
 	kubernetesToDBResourceMapping := KubernetesToDBResourceMapping{
-		KubernetesResourceType: "test_resource_1",
+		KubernetesResourceType: "test_resource_11",
 		KubernetesResourceUID:  "test_resource_uid",
 		DBRelationType:         "test_relation_type",
 		DBRelationKey:          "test_relation_key",
@@ -99,8 +113,17 @@ func TestDeleteKubernetesResourceToDBResourceMapping(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = dbq.GetDBResourceMappingForKubernetesResource(ctx, &kubernetesToDBResourceMapping)
-	rowsAffected4, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMapping)
 	assert.NoError(t, err)
-	assert.Equal(t, rowsAffected4, 1)
+
+	rowsAffected, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMapping)
+	assert.NoError(t, err)
+	assert.Equal(t, rowsAffected, 1)
+
+	err = dbq.GetDBResourceMappingForKubernetesResource(ctx, &kubernetesToDBResourceMapping)
+	if assert.Error(t, err) {
+		if !IsResultNotFoundError(err) {
+			return
+		}
+	}
 
 }

@@ -54,10 +54,11 @@ func getMatchingGitOpsDeployment(name, namespace string, client client.Client) (
 	}
 
 	err := client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, gitopsDepl)
+
 	if err != nil {
 		return &managedgitopsv1alpha1.GitOpsDeployment{}, err
-
 	}
+
 	return gitopsDepl, nil
 }
 

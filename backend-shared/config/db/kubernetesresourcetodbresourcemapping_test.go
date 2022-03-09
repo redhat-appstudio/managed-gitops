@@ -19,19 +19,19 @@ func TestCreateKubernetesResourceToDBResourceMapping(t *testing.T) {
 	ctx := context.Background()
 
 	kubernetesToDBResourceMappingpost := KubernetesToDBResourceMapping{
-		KubernetesResourceType: "test_resource_1",
-		KubernetesResourceUID:  "test_resource_uid",
-		DBRelationType:         "test_relation_type",
-		DBRelationKey:          "test_relation_key",
+		KubernetesResourceType: "test-resource_1",
+		KubernetesResourceUID:  "test-resource_uid",
+		DBRelationType:         "test-relation_type",
+		DBRelationKey:          "test-relation_key",
 	}
 	err = dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMappingpost)
 	assert.NoError(t, err)
 
 	kubernetesToDBResourceMappingget := KubernetesToDBResourceMapping{
-		KubernetesResourceType: "test_resource_1",
-		KubernetesResourceUID:  "test_resource_uid",
-		DBRelationType:         "test_relation_type",
-		DBRelationKey:          "test_relation_key",
+		KubernetesResourceType: "test-resource_1",
+		KubernetesResourceUID:  "test-resource_uid",
+		DBRelationType:         "test-relation_type",
+		DBRelationKey:          "test-relation_key",
 	}
 
 	err = dbq.GetDBResourceMappingForKubernetesResource(ctx, &kubernetesToDBResourceMappingget)
@@ -54,19 +54,19 @@ func TestGetDBResourceMappingForKubernetesResource(t *testing.T) {
 	ctx := context.Background()
 
 	kubernetesToDBResourceMappingpost := KubernetesToDBResourceMapping{
-		KubernetesResourceType: "test_resource_2",
-		KubernetesResourceUID:  "test_resource_uid",
-		DBRelationType:         "test_relation_type",
-		DBRelationKey:          "test_relation_key",
+		KubernetesResourceType: "test-resource_2",
+		KubernetesResourceUID:  "test-resource_uid",
+		DBRelationType:         "test-relation_type",
+		DBRelationKey:          "test-relation_key",
 	}
 	err = dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMappingpost)
 	assert.NoError(t, err)
 
 	kubernetesToDBResourceMappingget := KubernetesToDBResourceMapping{
-		KubernetesResourceType: "test_resource_2",
-		KubernetesResourceUID:  "test_resource_uid",
-		DBRelationType:         "test_relation_type",
-		DBRelationKey:          "test_relation_key",
+		KubernetesResourceType: "test-resource_2",
+		KubernetesResourceUID:  "test-resource_uid",
+		DBRelationType:         "test-relation_type",
+		DBRelationKey:          "test-relation_key",
 	}
 
 	err = dbq.GetDBResourceMappingForKubernetesResource(ctx, &kubernetesToDBResourceMappingget)
@@ -76,10 +76,10 @@ func TestGetDBResourceMappingForKubernetesResource(t *testing.T) {
 	assert.Equal(t, kubernetesToDBResourceMappingpost, kubernetesToDBResourceMappingget)
 
 	kubernetesToDBResourceMappingNotExist := KubernetesToDBResourceMapping{
-		KubernetesResourceType: "test_resource_2_not_exist",
-		KubernetesResourceUID:  "test_resource_uid_not_exist",
-		DBRelationType:         "test_relation_type_not_exist",
-		DBRelationKey:          "test_relation_key_not_exist",
+		KubernetesResourceType: "test-resource_2_not_exist",
+		KubernetesResourceUID:  "test-resource_uid_not_exist",
+		DBRelationType:         "test-relation_type_not_exist",
+		DBRelationKey:          "test-relation_key_not_exist",
 	}
 	//check for inexistent primary key
 	err = dbq.GetDBResourceMappingForKubernetesResource(ctx, &kubernetesToDBResourceMappingNotExist)
@@ -103,10 +103,10 @@ func TestDeleteKubernetesResourceToDBResourceMapping(t *testing.T) {
 	ctx := context.Background()
 
 	kubernetesToDBResourceMapping := KubernetesToDBResourceMapping{
-		KubernetesResourceType: "test_resource_11",
-		KubernetesResourceUID:  "test_resource_uid",
-		DBRelationType:         "test_relation_type",
-		DBRelationKey:          "test_relation_key",
+		KubernetesResourceType: "test-resource_11",
+		KubernetesResourceUID:  "test-resource_uid",
+		DBRelationType:         "test-relation_type",
+		DBRelationKey:          "test-relation_key",
 	}
 
 	err = dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMapping)

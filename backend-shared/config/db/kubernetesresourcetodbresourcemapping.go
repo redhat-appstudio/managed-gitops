@@ -102,3 +102,15 @@ func (dbq *PostgreSQLDatabaseQueries) CreateKubernetesResourceToDBResourceMappin
 
 	return nil
 }
+
+func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllKubernetesResourceToDBResourceMapping(ctx context.Context, kubernetesToDBResourceMapping *[]KubernetesToDBResourceMapping) error {
+	if err := validateUnsafeQueryParamsNoPK(dbq); err != nil {
+		return err
+	}
+
+	if err := dbq.dbConnection.Model(kubernetesToDBResourceMapping).Context(ctx).Select(); err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -143,6 +143,23 @@ func testSetup(t *testing.T) {
 	err = dbq.CreateClusterUser(ctx, testClusterUser)
 	assert.NoError(t, err)
 
+	var kubernetesToDBResourceMappings []KubernetesToDBResourceMapping
+	err = dbq.UnsafeListAllKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMappings)
+	assert.NoError(t, err)
+	for _, kubernetesToDBResourceMapping := range kubernetesToDBResourceMappings {
+		if strings.HasPrefix(kubernetesToDBResourceMapping.KubernetesResourceUID, "test-") {
+
+			rowsAffected, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMapping)
+
+			if !assert.NoError(t, err) {
+				return
+			}
+			if err == nil {
+				assert.Equal(t, rowsAffected, 1)
+			}
+		}
+	}
+
 }
 
 func testTeardown(t *testing.T) {

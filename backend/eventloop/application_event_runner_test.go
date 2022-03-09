@@ -2,14 +2,21 @@ package eventloop
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/golang/mock/gomock"
+	"github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1/mocks"
+	condition "github.com/redhat-appstudio/managed-gitops/backend/condition/mocks"
 	"testing"
 
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
+	testStructs "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1/mocks/structs"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -289,3 +296,72 @@ func TestApplicationEventLoopRunner_handleSyncRunModified(t *testing.T) {
 	assert.Nil(t, err)
 
 }
+
+var _ = Describe("GitOpsDeployment Conditions", func() {
+	var (
+		adapter          *GitOpsDeploymentAdapter
+		mockCtrl         *gomock.Controller
+		mockClient       *mocks.MockClient
+		mockStatusWriter *mocks.MockStatusWriter
+		gitopsDeployment *managedgitopsv1alpha1.GitOpsDeployment
+		mockConditions   *condition.MockConditions
+		ctx              context.Context
+	)
+
+	BeforeEach(func() {
+		gitopsDeployment = testStructs.NewGitOpsDeploymentBuilder().Initialized().GetGitopsDeployment()
+		mockCtrl = gomock.NewController(GinkgoT())
+		mockClient = mocks.NewMockClient(mockCtrl)
+		mockConditions = condition.NewMockConditions(mockCtrl)
+		mockStatusWriter = mocks.NewMockStatusWriter(mockCtrl)
+	})
+	JustBeforeEach(func() {
+		adapter = NewGitOpsDeploymentAdapter(gitopsDeployment, log.Log.WithName("Test Logger"), mockClient, mockConditions, ctx)
+	})
+	AfterEach(func() {
+		mockCtrl.Finish()
+	})
+
+	Context("SetProjectClaimCondition()", func() {
+		var (
+			err           = errors.New("fake reconcile")
+			reason        = managedgitopsv1alpha1.GitOpsDeploymentReasonType("ReconcileError")
+			conditionType = managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred
+		)
+		Context("when no conditions defined before and the err is nil", func() {
+			BeforeEach(func() {
+				mockConditions.EXPECT().HasCondition(gomock.Any(), conditionType).Return(false)
+			})
+			It("It returns nil ", func() {
+				errTemp := adapter.SetGitOpsDeploymentCondition(conditionType, reason, nil)
+				Expect(errTemp).To(BeNil())
+			})
+		})
+		Context("when the err comes from reconcileHandler", func() {
+			It("should update the CR", func() {
+				matcher := testStructs.NewGitopsDeploymentMatcher()
+				mockClient.EXPECT().Status().Return(mockStatusWriter)
+				mockStatusWriter.EXPECT().Update(gomock.Any(), matcher, gomock.Any())
+				mockConditions.EXPECT().SetCondition(gomock.Any(), conditionType, managedgitopsv1alpha1.GitOpsConditionStatusTrue, reason, err.Error()).Times(1)
+				err := adapter.SetGitOpsDeploymentCondition(conditionType, reason, err)
+				Expect(err).NotTo(HaveOccurred())
+			})
+		})
+		Context("when the err has been resolved", func() {
+			BeforeEach(func() {
+				mockConditions.EXPECT().HasCondition(gomock.Any(), conditionType).Return(true)
+				mockConditions.EXPECT().FindCondition(gomock.Any(), conditionType).Return(&managedgitopsv1alpha1.GitOpsDeploymentCondition{}, true)
+			})
+			It("It should update the CR condition status as resolved", func() {
+				matcher := testStructs.NewGitopsDeploymentMatcher()
+				conditions := &gitopsDeployment.Status.Conditions
+				*conditions = append(*conditions, managedgitopsv1alpha1.GitOpsDeploymentCondition{})
+				mockClient.EXPECT().Status().Return(mockStatusWriter)
+				mockStatusWriter.EXPECT().Update(gomock.Any(), matcher, gomock.Any())
+				mockConditions.EXPECT().SetCondition(conditions, conditionType, managedgitopsv1alpha1.GitOpsConditionStatusFalse, managedgitopsv1alpha1.GitOpsDeploymentReasonType("ReconcileErrorResolved"), "").Times(1)
+				err := adapter.SetGitOpsDeploymentCondition(conditionType, reason, nil)
+				Expect(err).NotTo(HaveOccurred())
+			})
+		})
+	})
+})

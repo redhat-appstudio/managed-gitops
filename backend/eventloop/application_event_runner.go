@@ -27,7 +27,11 @@ import (
 // For more information on how events are distributed between goroutines by event loop, see:
 // https://miro.com/app/board/o9J_lgiqJAs=/?moveToWidget=3458764514216218600&cot=14
 
-type GitOpsDeploymentAdapter struct {
+// gitOpsDeploymentAdapter is an "adapter" for GitOpsDeployment allowing you to easily plug any other related
+// API component (i.e. for adding Conditions, look at setGitOpsDeploymentCondition() method)
+// Same principle can be used for others, e.g. Finalizers, or any other field which is part of the GitOpsDeployment CRD
+// It comes as a bundle along with a logger, client and ctx, so it can be easily adapted to the code
+type gitOpsDeploymentAdapter struct {
 	gitOpsDeployment *managedgitopsv1alpha1.GitOpsDeployment
 	logger           logr.Logger
 	client           client.Client
@@ -35,8 +39,9 @@ type GitOpsDeploymentAdapter struct {
 	ctx              context.Context
 }
 
-func NewGitOpsDeploymentAdapter(gitopsDeployment *managedgitopsv1alpha1.GitOpsDeployment, logger logr.Logger, client client.Client, manager condition.Conditions, ctx context.Context) *GitOpsDeploymentAdapter {
-	return &GitOpsDeploymentAdapter{
+// newGitOpsDeploymentAdapter returns an initialized gitOpsDeploymentAdapter
+func newGitOpsDeploymentAdapter(gitopsDeployment *managedgitopsv1alpha1.GitOpsDeployment, logger logr.Logger, client client.Client, manager condition.Conditions, ctx context.Context) *gitOpsDeploymentAdapter {
+	return &gitOpsDeploymentAdapter{
 		gitOpsDeployment: gitopsDeployment,
 		logger:           logger,
 		client:           client,
@@ -45,6 +50,7 @@ func NewGitOpsDeploymentAdapter(gitopsDeployment *managedgitopsv1alpha1.GitOpsDe
 	}
 }
 
+// getMatchingGitOpsDeployment returns an updated instance of GitOpsDeployment obj from Kubernetes
 func getMatchingGitOpsDeployment(name, namespace string, client client.Client) (*managedgitopsv1alpha1.GitOpsDeployment, error) {
 	gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -62,8 +68,8 @@ func getMatchingGitOpsDeployment(name, namespace string, client client.Client) (
 	return gitopsDepl, nil
 }
 
-// SetGitOpsDeploymentCondition calls SetCondition() with GitOpsDeployment conditions
-func (g *GitOpsDeploymentAdapter) SetGitOpsDeploymentCondition(conditionType managedgitopsv1alpha1.GitOpsDeploymentConditionType, reason managedgitopsv1alpha1.GitOpsDeploymentReasonType, errMessage error) error {
+// setGitOpsDeploymentCondition calls SetCondition() with GitOpsDeployment conditions
+func (g *gitOpsDeploymentAdapter) setGitOpsDeploymentCondition(conditionType managedgitopsv1alpha1.GitOpsDeploymentConditionType, reason managedgitopsv1alpha1.GitOpsDeploymentReasonType, errMessage error) error {
 	conditions := &g.gitOpsDeployment.Status.Conditions
 
 	// Create a new condition and update the object in k8s with the error message, if err does exist
@@ -172,12 +178,12 @@ func applicationEventLoopRunner(inputChannel chan *eventLoopEvent, informWorkCom
 						return fmt.Errorf("couldn't fetch the GitOpsDeployment instance: %v", clientError)
 					}
 
-					// Create a GitOpsDeploymentAdapter to plug any conditions
+					// Create a gitOpsDeploymentAdapter to plug any conditions
 					conditionManager := condition.NewConditionManager()
-					adapter := NewGitOpsDeploymentAdapter(gitopsDepl, log, newEvent.client, conditionManager, ctx)
+					adapter := newGitOpsDeploymentAdapter(gitopsDepl, log, newEvent.client, conditionManager, ctx)
 
 					// Plug any conditions based on the "err" msg
-					if setConditionError := adapter.SetGitOpsDeploymentCondition(managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred, managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred, err); setConditionError != nil {
+					if setConditionError := adapter.setGitOpsDeploymentCondition(managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred, managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred, err); setConditionError != nil {
 						return setConditionError
 					}
 

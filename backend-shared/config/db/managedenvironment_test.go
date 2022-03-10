@@ -109,10 +109,8 @@ func TestGetManagedEnvironmentById(t *testing.T) {
 	}
 
 	err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentNotExist)
-	if assert.Error(t, err) {
-		if !IsResultNotFoundError(err) {
-			return
-		}
+	if assert.True(t, IsResultNotFoundError(err)) {
+		return
 	}
 
 }
@@ -160,17 +158,13 @@ func TestDeleteManagedEnvironmentById(t *testing.T) {
 	assert.Equal(t, rowsAffected, 1)
 
 	err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironment)
-	if assert.Error(t, err) {
-		if !IsResultNotFoundError(err) {
-			return
-		}
+	if assert.True(t, IsResultNotFoundError(err)) {
+		return
 	}
 
 	err = dbq.GetClusterCredentialsById(ctx, &clusterCredentials)
-	if assert.Error(t, err) {
-		if !IsResultNotFoundError(err) {
-			return
-		}
+	if assert.True(t, IsResultNotFoundError(err)) {
+		return
 	}
 
 }

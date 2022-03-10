@@ -75,10 +75,8 @@ func TestGetGitopsEngineInstanceById(t *testing.T) {
 	}
 
 	err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstanceNotExist)
-	if assert.Error(t, err) {
-		if !IsResultNotFoundError(err) {
-			return
-		}
+	if assert.True(t, IsResultNotFoundError(err)) {
+		return
 	}
 
 }
@@ -201,21 +199,15 @@ func TestDeleteGitopsEngineInstanceById(t *testing.T) {
 	assert.Equal(t, rowsAffected, 1)
 
 	err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstance)
-	if assert.Error(t, err) {
-		if !IsResultNotFoundError(err) {
-			return
-		}
+	if assert.True(t, IsResultNotFoundError(err)) {
+		return
 	}
 	err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineCluster)
-	if assert.Error(t, err) {
-		if !IsResultNotFoundError(err) {
-			return
-		}
+	if assert.True(t, IsResultNotFoundError(err)) {
+		return
 	}
 	err = dbq.GetClusterCredentialsById(ctx, &clusterCredentials)
-	if assert.Error(t, err) {
-		if !IsResultNotFoundError(err) {
-			return
-		}
+	if assert.True(t, IsResultNotFoundError(err)) {
+		return
 	}
 }

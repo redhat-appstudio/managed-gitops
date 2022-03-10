@@ -83,10 +83,8 @@ func TestGetDBResourceMappingForKubernetesResource(t *testing.T) {
 	}
 	//check for inexistent primary key
 	err = dbq.GetDBResourceMappingForKubernetesResource(ctx, &kubernetesToDBResourceMappingNotExist)
-	if assert.Error(t, err) {
-		if !IsResultNotFoundError(err) {
-			return
-		}
+	if assert.True(t, IsResultNotFoundError(err)) {
+		return
 	}
 
 }
@@ -120,10 +118,8 @@ func TestDeleteKubernetesResourceToDBResourceMapping(t *testing.T) {
 	assert.Equal(t, rowsAffected, 1)
 
 	err = dbq.GetDBResourceMappingForKubernetesResource(ctx, &kubernetesToDBResourceMapping)
-	if assert.Error(t, err) {
-		if !IsResultNotFoundError(err) {
-			return
-		}
+	if assert.True(t, IsResultNotFoundError(err)) {
+		return
 	}
 
 }

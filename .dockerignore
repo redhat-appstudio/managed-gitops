@@ -17,3 +17,12 @@ backend-shared/bin/
 backend-shared/dist/
 backend-shared/coverage.out
 backend-shared/vendor/
+backend-shared/.vscode/
+backend-shared/.idea/
+
+appstudio-controller/bin/
+appstudio-controller/dist/
+appstudio-controller/coverage.out
+appstudio-controller/vendor/
+appstudio-controller/.vscode/
+appstudio-controller/.idea/

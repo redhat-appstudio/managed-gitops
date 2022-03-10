@@ -299,7 +299,7 @@ func TestApplicationEventLoopRunner_handleSyncRunModified(t *testing.T) {
 
 var _ = Describe("GitOpsDeployment Conditions", func() {
 	var (
-		adapter          *GitOpsDeploymentAdapter
+		adapter          *gitOpsDeploymentAdapter
 		mockCtrl         *gomock.Controller
 		mockClient       *mocks.MockClient
 		mockStatusWriter *mocks.MockStatusWriter
@@ -316,13 +316,13 @@ var _ = Describe("GitOpsDeployment Conditions", func() {
 		mockStatusWriter = mocks.NewMockStatusWriter(mockCtrl)
 	})
 	JustBeforeEach(func() {
-		adapter = NewGitOpsDeploymentAdapter(gitopsDeployment, log.Log.WithName("Test Logger"), mockClient, mockConditions, ctx)
+		adapter = newGitOpsDeploymentAdapter(gitopsDeployment, log.Log.WithName("Test Logger"), mockClient, mockConditions, ctx)
 	})
 	AfterEach(func() {
 		mockCtrl.Finish()
 	})
 
-	Context("SetProjectClaimCondition()", func() {
+	Context("setGitopsDeploymentCondition()", func() {
 		var (
 			err           = errors.New("fake reconcile")
 			reason        = managedgitopsv1alpha1.GitOpsDeploymentReasonType("ReconcileError")
@@ -333,7 +333,7 @@ var _ = Describe("GitOpsDeployment Conditions", func() {
 				mockConditions.EXPECT().HasCondition(gomock.Any(), conditionType).Return(false)
 			})
 			It("It returns nil ", func() {
-				errTemp := adapter.SetGitOpsDeploymentCondition(conditionType, reason, nil)
+				errTemp := adapter.setGitOpsDeploymentCondition(conditionType, reason, nil)
 				Expect(errTemp).To(BeNil())
 			})
 		})
@@ -343,7 +343,7 @@ var _ = Describe("GitOpsDeployment Conditions", func() {
 				mockClient.EXPECT().Status().Return(mockStatusWriter)
 				mockStatusWriter.EXPECT().Update(gomock.Any(), matcher, gomock.Any())
 				mockConditions.EXPECT().SetCondition(gomock.Any(), conditionType, managedgitopsv1alpha1.GitOpsConditionStatusTrue, reason, err.Error()).Times(1)
-				err := adapter.SetGitOpsDeploymentCondition(conditionType, reason, err)
+				err := adapter.setGitOpsDeploymentCondition(conditionType, reason, err)
 				Expect(err).NotTo(HaveOccurred())
 			})
 		})
@@ -359,7 +359,7 @@ var _ = Describe("GitOpsDeployment Conditions", func() {
 				mockClient.EXPECT().Status().Return(mockStatusWriter)
 				mockStatusWriter.EXPECT().Update(gomock.Any(), matcher, gomock.Any())
 				mockConditions.EXPECT().SetCondition(conditions, conditionType, managedgitopsv1alpha1.GitOpsConditionStatusFalse, managedgitopsv1alpha1.GitOpsDeploymentReasonType("ReconcileErrorResolved"), "").Times(1)
-				err := adapter.SetGitOpsDeploymentCondition(conditionType, reason, nil)
+				err := adapter.setGitOpsDeploymentCondition(conditionType, reason, nil)
 				Expect(err).NotTo(HaveOccurred())
 			})
 		})

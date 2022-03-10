@@ -66,17 +66,17 @@ const (
 // GitOpsDeploymentStatus defines the observed state of GitOpsDeployment
 type GitOpsDeploymentStatus struct {
 	Conditions []GitOpsDeploymentCondition `json:"conditions,omitempty"`
-	Sync       SyncStatus                  `json:"sync,omitempty" protobuf:"bytes,2,opt,name=sync"`
+	Sync       SyncStatus                  `json:"sync,omitempty"`
 	// Health contains information about the application's current health status
-	Health HealthStatus `json:"health,omitempty" protobuf:"bytes,3,opt,name=health"`
+	Health HealthStatus `json:"health,omitempty"`
 }
 
 // HealthStatus contains information about the currently observed health state of an application or resource
 type HealthStatus struct {
 	// Status holds the status code of the application or resource
-	Status HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
+	Status HealthStatusCode `json:"status,omitempty"`
 	// Message is a human-readable informational message describing the health status
-	Message string `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
+	Message string `json:"message,omitempty"`
 }
 
 type HealthStatusCode string
@@ -84,9 +84,9 @@ type HealthStatusCode string
 // SyncStatus contains information about the currently observed live and desired states of an application
 type SyncStatus struct {
 	// Status is the sync state of the comparison
-	Status SyncStatusCode `json:"status" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
+	Status SyncStatusCode `json:"status"`
 	// Revision contains information about the revision the comparison has been performed to
-	Revision string `json:"revision,omitempty" protobuf:"bytes,3,opt,name=revision"`
+	Revision string `json:"revision,omitempty"`
 }
 
 // SyncStatusCode is a type which represents possible comparison results
@@ -105,11 +105,11 @@ const (
 // GitOpsDeploymentCondition contains details about an GitOpsDeployment condition, which is usually an error or warning
 type GitOpsDeploymentCondition struct {
 	// Type is a GitOpsDeployment condition type
-	Type GitOpsDeploymentConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
+	Type GitOpsDeploymentConditionType `json:"type"`
 
 	// Message contains human-readable message indicating details about the last condition.
 	// +optional
-	Message string `json:"message" protobuf:"bytes,2,opt,name=message,omitempty"`
+	Message string `json:"message"`
 
 	// LastProbeTime is the last time the condition was observed.
 	// +optional
@@ -117,14 +117,14 @@ type GitOpsDeploymentCondition struct {
 
 	// LastTransitionTime is the last time the condition transitioned from one status to another.
 	// +optional
-	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime,omitempty"`
+	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty"`
 
 	// Status is the status of the condition.
-	Status GitOpsConditionStatus `json:"status" protobuf:"bytes,4,opt,name=status"`
+	Status GitOpsConditionStatus `json:"status"`
 
 	// Reason is a unique, one-word, CamelCase reason for the condition's last transition.
 	// +optional
-	Reason GitOpsDeploymentReasonType `json:"reason" protobuf:"bytes,5,opt,name=reason,omitempty"`
+	Reason GitOpsDeploymentReasonType `json:"reason"`
 }
 
 // GitOpsDeploymentConditionType represents type of GitOpsDeployment condition.

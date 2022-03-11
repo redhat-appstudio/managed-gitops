@@ -19,7 +19,7 @@ func TestCreateandDeleteDeploymentToApplicationMapping(t *testing.T) {
 	}
 	defer dbq.CloseDatabase()
 
-	_, managedEnvironment, _, gitopsEngineInstance, clusterAccess, err := createSampleData(t, dbq)
+	_, managedEnvironment, _, gitopsEngineInstance, _, err := createSampleData(t, dbq)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -32,14 +32,14 @@ func TestCreateandDeleteDeploymentToApplicationMapping(t *testing.T) {
 		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 	}
 
-	err = dbq.CheckedCreateApplication(ctx, application, clusterAccess.Clusteraccess_user_id)
+	err = dbq.CreateApplication(ctx, application)
 
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	deploymentToApplicationMapping := &DeploymentToApplicationMapping{
-		Deploymenttoapplicationmapping_uid_id: generateUuid(),
+		Deploymenttoapplicationmapping_uid_id: "test-" + generateUuid(),
 		Application_id:                        application.Application_id,
 		DeploymentName:                        "test-deployment",
 		DeploymentNamespace:                   "test-namespace",
@@ -49,6 +49,13 @@ func TestCreateandDeleteDeploymentToApplicationMapping(t *testing.T) {
 	err = dbq.CreateDeploymentToApplicationMapping(ctx, deploymentToApplicationMapping)
 	if !assert.NoError(t, err) {
 		return
+	}
+	fetchRow := &DeploymentToApplicationMapping{
+		Deploymenttoapplicationmapping_uid_id: deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id,
+	}
+	err = dbq.GetDeploymentToApplicationMappingByDeplId(ctx, fetchRow)
+	if !assert.NoError(t, err) && !assert.ObjectsAreEqualValues(fetchRow, deploymentToApplicationMapping) {
+		assert.Fail(t, "Values between Fetched Row and Inserted Row don't match.")
 	}
 	rowsAffected, err := dbq.DeleteDeploymentToApplicationMappingByDeplId(ctx, deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id)
 	assert.NoError(t, err)
@@ -66,7 +73,7 @@ func TestAllListDeploymentToApplicationMapping(t *testing.T) {
 	}
 	defer dbq.CloseDatabase()
 
-	_, managedEnvironment, _, gitopsEngineInstance, clusterAccess, err := createSampleData(t, dbq)
+	_, managedEnvironment, _, gitopsEngineInstance, _, err := createSampleData(t, dbq)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -79,14 +86,14 @@ func TestAllListDeploymentToApplicationMapping(t *testing.T) {
 		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 	}
 
-	err = dbq.CheckedCreateApplication(ctx, application, clusterAccess.Clusteraccess_user_id)
+	err = dbq.CreateApplication(ctx, application)
 
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	deploymentToApplicationMapping := &DeploymentToApplicationMapping{
-		Deploymenttoapplicationmapping_uid_id: generateUuid(),
+		Deploymenttoapplicationmapping_uid_id: "test-" + generateUuid(),
 		Application_id:                        application.Application_id,
 		DeploymentName:                        "test-deployment",
 		DeploymentNamespace:                   "test-namespace",
@@ -106,6 +113,7 @@ func TestAllListDeploymentToApplicationMapping(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
+	assert.True(t, len(dbResults) == 1)
 	assert.Equal(t, dbResults[0], *deploymentToApplicationMapping)
 
 	err = dbq.ListDeploymentToApplicationMappingByNamespaceAndName(ctx, deploymentToApplicationMapping.DeploymentName, deploymentToApplicationMapping.DeploymentNamespace, deploymentToApplicationMapping.WorkspaceUID, &dbResults)

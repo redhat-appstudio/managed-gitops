@@ -51,6 +51,8 @@ type UnsafeDatabaseQueries interface {
 	UnsafeListAllManagedEnvironments(ctx context.Context, managedEnvironments *[]ManagedEnvironment) error
 	UnsafeListAllOperations(ctx context.Context, operations *[]Operation) error
 	UnsafeListAllGitopsEngineClusters(ctx context.Context, gitopsEngineClusters *[]GitopsEngineCluster) error
+	UnsafeListAllDeploymentToApplicationMapping(ctx context.Context, deploymentToApplicationMappings *[]DeploymentToApplicationMapping) error
+	UnsafeListAllSyncOperations(ctx context.Context, syncOperations *[]SyncOperation) error
 }
 
 type AllDatabaseQueries interface {

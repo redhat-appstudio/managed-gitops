@@ -34,6 +34,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
+	attributes "github.com/devfile/api/v2/pkg/attributes"
 	"github.com/go-logr/logr"
 	applicationv1alpha1 "github.com/redhat-appstudio/application-service/api/v1alpha1"
 	devfile "github.com/redhat-appstudio/application-service/pkg/devfile"
@@ -238,6 +239,7 @@ func getGitOpsRepoData(asApplication applicationv1alpha1.Application) (string, s
 
 	metadata := curDevfile.GetMetadata()
 
+	// GitOps Repository is a required field
 	gitopsURL := metadata.Attributes.GetString("gitOpsRepository.url", &getErr)
 	if getErr != nil {
 		return "", "", "", fmt.Errorf("unable to retrieve gitops url: %v", getErr)
@@ -246,14 +248,22 @@ func getGitOpsRepoData(asApplication applicationv1alpha1.Application) (string, s
 		return "", "", "", fmt.Errorf("gitops url is empty")
 	}
 
+	// Branch is not a required field
 	branch := metadata.Attributes.GetString("gitOpsRepository.branch", &getErr)
 	if getErr != nil {
-		return "", "", "", fmt.Errorf("unable to retrieve gitops repo branch: %v", getErr)
+		// Ignore KeyNotFoundErrors, but otherwise report the error and return
+		if _, ok := (getErr).(*attributes.KeyNotFoundError); !ok {
+			return "", "", "", fmt.Errorf("unable to retrieve gitops repo branch: %v", getErr)
+		}
 	}
 
+	// Context is a required field
 	context := metadata.Attributes.GetString("gitOpsRepository.context", &getErr)
 	if getErr != nil {
 		return "", "", "", fmt.Errorf("unable to retrieve gitops repo context: %v", getErr)
+	}
+	if strings.TrimSpace(context) == "" {
+		return "", "", "", fmt.Errorf("gitops repo context is empty: %v", getErr)
 	}
 
 	return gitopsURL, branch, context, nil

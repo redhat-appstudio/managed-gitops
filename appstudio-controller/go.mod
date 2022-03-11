@@ -3,6 +3,7 @@ module github.com/redhat-appstudio/managed-gitops/appstudio-controller
 go 1.17
 
 require (
+	github.com/devfile/api/v2 v2.0.0-20211018184408-84c44e563f58
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.17.0
 	github.com/redhat-appstudio/application-service v0.0.0-20220217152658-648b04951243
@@ -15,7 +16,6 @@ require (
 )
 
 require (
-	github.com/devfile/api/v2 v2.0.0-20211018184408-84c44e563f58 // indirect
 	github.com/devfile/library v1.2.0 // indirect
 	github.com/fatih/color v1.7.0 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect

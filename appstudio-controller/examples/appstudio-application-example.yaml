@@ -1,28 +1,29 @@
 apiVersion: appstudio.redhat.com/v1alpha1
 kind: Application
 metadata:
-#  finalizers:
-#  - application.appstudio.redhat.com/finalizer
-  name: my-app
+  name: purple-mermaid-app
   namespace: jane
+#  finalizers:
+#    - application.appstudio.redhat.com/finalizer
 spec:
   appModelRepository:
-    url: "https://github.com/jgwest/my-app"
-  displayName: my-app
+    url: ''
+  displayName: Purple Mermaid app
   gitOpsRepository:
-    url: "https://github.com/jgwest/my-app"
+    url: ''
 status:
-  conditions:
-  - lastTransitionTime: "2022-02-22T15:37:59Z"
-    message: Application has been successfully created
-    reason: OK
-    status: "True"
-    type: Created
+  conditions: []
   devfile: |
     metadata:
       attributes:
-        appModelRepository.url: https://github.com/redhat-appstudio-appdata/sdfgsdfg-jkopriva-trust-jane
-        gitOpsRepository.url: https://github.com/redhat-appstudio-appdata/sdfgsdfg-jkopriva-trust-jane
-      name: sdfgsdfg
+        appModelRepository.url: https://github.com/redhat-appstudio-appdata/purple-mermaid-app-rhopp-reduce-reaction
+        gitOpsRepository.url: https://github.com/redhat-appstudio-appdata/purple-mermaid-app-rhopp-reduce-reaction
+        gitOpsRepository.context: components/basic-node-js/base
+      name: Purple Mermaid app
+    projects:
+    - git:
+        remotes:
+          origin: https://github.com/nodeshift-starters/devfile-sample.git
+      name: basic-node-js
     schemaVersion: 2.1.0
 

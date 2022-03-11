@@ -14,7 +14,27 @@ require (
 
 )
 
-require github.com/pmezard/go-difflib v1.0.0 // indirect
+require (
+	github.com/devfile/api/v2 v2.0.0-20211018184408-84c44e563f58 // indirect
+	github.com/devfile/library v1.2.0 // indirect
+	github.com/fatih/color v1.7.0 // indirect
+	github.com/gobwas/glob v0.2.3 // indirect
+	github.com/golang/mock v1.6.0 // indirect
+	github.com/google/btree v1.0.1 // indirect
+	github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7 // indirect
+	github.com/hashicorp/errwrap v1.0.0 // indirect
+	github.com/hashicorp/go-multierror v1.1.1 // indirect
+	github.com/mattn/go-colorable v0.1.2 // indirect
+	github.com/mattn/go-isatty v0.0.12 // indirect
+	github.com/mitchellh/reflectwalk v1.0.1 // indirect
+	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/spf13/afero v1.6.0 // indirect
+	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect
+	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
+	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
+	k8s.io/klog v1.0.0 // indirect
+)
 
 require (
 	cloud.google.com/go v0.97.0 // indirect

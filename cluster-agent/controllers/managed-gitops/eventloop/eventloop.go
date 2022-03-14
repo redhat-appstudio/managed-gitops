@@ -118,7 +118,7 @@ func (task *processEventTask) PerformTask(taskContext context.Context) (bool, er
 		dbOperation.Last_state_update = time.Now()
 
 		if err != nil {
-			// TODO: GITOPS-1717 - SECURITY - At some point, we will likely want to sanitize the error value for users
+			// TODO: GITOPSRVCE-77 - SECURITY - At some point, we will likely want to sanitize the error value for users
 			dbOperation.Human_readable_state = err.Error()
 		}
 

@@ -17,6 +17,7 @@ const (
 	GitopsEngineInstanceGitopsengineinstanceId                        = 48
 	GitopsEngineInstanceNamespaceName                                 = 48
 	GitopsEngineInstanceNamespaceUid                                  = 48
+	GitopsEngineClusterClustercredentialsId                           = 48
 	GitopsEngineInstanceEngineclusterId                               = 48
 	ManagedEnvironmentManagedenvironmentId                            = 48
 	ManagedEnvironmentName                                            = 256

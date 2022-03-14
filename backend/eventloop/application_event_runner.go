@@ -3,6 +3,7 @@ package eventloop
 import (
 	"context"
 	"fmt"
+	"github.com/redhat-appstudio/managed-gitops/backend/condition"
 	"strings"
 	"time"
 
@@ -25,6 +26,72 @@ import (
 
 // For more information on how events are distributed between goroutines by event loop, see:
 // https://miro.com/app/board/o9J_lgiqJAs=/?moveToWidget=3458764514216218600&cot=14
+
+// gitOpsDeploymentAdapter is an "adapter" for GitOpsDeployment allowing you to easily plug any other related
+// API component (i.e. for adding Conditions, look at setGitOpsDeploymentCondition() method)
+// Same principle can be used for others, e.g. Finalizers, or any other field which is part of the GitOpsDeployment CRD
+// It comes as a bundle along with a logger, client and ctx, so it can be easily adapted to the code
+type gitOpsDeploymentAdapter struct {
+	gitOpsDeployment *managedgitopsv1alpha1.GitOpsDeployment
+	logger           logr.Logger
+	client           client.Client
+	conditionManager condition.Conditions
+	ctx              context.Context
+}
+
+// newGitOpsDeploymentAdapter returns an initialized gitOpsDeploymentAdapter
+func newGitOpsDeploymentAdapter(gitopsDeployment *managedgitopsv1alpha1.GitOpsDeployment, logger logr.Logger, client client.Client, manager condition.Conditions, ctx context.Context) *gitOpsDeploymentAdapter {
+	return &gitOpsDeploymentAdapter{
+		gitOpsDeployment: gitopsDeployment,
+		logger:           logger,
+		client:           client,
+		conditionManager: manager,
+		ctx:              ctx,
+	}
+}
+
+// getMatchingGitOpsDeployment returns an updated instance of GitOpsDeployment obj from Kubernetes
+func getMatchingGitOpsDeployment(name, namespace string, client client.Client) (*managedgitopsv1alpha1.GitOpsDeployment, error) {
+	gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+
+	err := client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, gitopsDepl)
+
+	if err != nil {
+		return &managedgitopsv1alpha1.GitOpsDeployment{}, err
+	}
+
+	return gitopsDepl, nil
+}
+
+// setGitOpsDeploymentCondition calls SetCondition() with GitOpsDeployment conditions
+func (g *gitOpsDeploymentAdapter) setGitOpsDeploymentCondition(conditionType managedgitopsv1alpha1.GitOpsDeploymentConditionType, reason managedgitopsv1alpha1.GitOpsDeploymentReasonType, errMessage error) error {
+	conditions := &g.gitOpsDeployment.Status.Conditions
+
+	// Create a new condition and update the object in k8s with the error message, if err does exist
+	if errMessage != nil {
+		g.conditionManager.SetCondition(conditions, conditionType, managedgitopsv1alpha1.GitOpsConditionStatus(corev1.ConditionTrue), reason, errMessage.Error())
+		return g.client.Status().Update(g.ctx, g.gitOpsDeployment, &client.UpdateOptions{})
+	} else {
+		// if error does not exist, check if the condition exists or not
+		if g.conditionManager.HasCondition(conditions, conditionType) {
+			reason = reason + "Resolved"
+			// Check the condition and mark it as resolved, if it's resolved
+			if cond, _ := g.conditionManager.FindCondition(conditions, conditionType); cond.Reason != reason {
+				g.conditionManager.SetCondition(conditions, conditionType, managedgitopsv1alpha1.GitOpsConditionStatus(corev1.ConditionFalse), reason, "")
+				return g.client.Status().Update(g.ctx, g.gitOpsDeployment, &client.UpdateOptions{})
+			}
+			// do nothing, if the condition is already marked as resolved
+		}
+		// do nothing, if the condition does not exist anymore
+	}
+
+	return nil
+}
 
 func newApplicationEventLoopRunner(informWorkCompleteChan chan applicationEventLoopMessage, sharedResourceEventLoop *sharedResourceEventLoop,
 	gitopsDeplUID string, workspaceID string, debugContext string) chan *eventLoopEvent {
@@ -105,7 +172,20 @@ func applicationEventLoopRunner(inputChannel chan *eventLoopEvent, informWorkCom
 					// Handle all GitOpsDeployment related events
 					signalledShutdown, _, _, err = action.applicationEventRunner_handleDeploymentModified(ctx, scopedDBQueries)
 
-					// TODO: GITOPS-1719 - Update the GitOpsDeployment CR's status conditions, based on err.
+					// Get the GitOpsDeployment object from k8s, so we can update it if necessary
+					gitopsDepl, clientError := getMatchingGitOpsDeployment(newEvent.request.Name, newEvent.request.Namespace, newEvent.client)
+					if clientError != nil {
+						return fmt.Errorf("couldn't fetch the GitOpsDeployment instance: %v", clientError)
+					}
+
+					// Create a gitOpsDeploymentAdapter to plug any conditions
+					conditionManager := condition.NewConditionManager()
+					adapter := newGitOpsDeploymentAdapter(gitopsDepl, log, newEvent.client, conditionManager, ctx)
+
+					// Plug any conditions based on the "err" msg
+					if setConditionError := adapter.setGitOpsDeploymentCondition(managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred, managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred, err); setConditionError != nil {
+						return setConditionError
+					}
 
 				} else if newEvent.eventType == SyncRunModified {
 					// Handle all SyncRun related events

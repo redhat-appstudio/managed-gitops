@@ -46,19 +46,19 @@ type GitOpsDeploymentSyncRun struct {
 // GitOpsDeploymentCondition contains details about an applicationset condition, which is usally an error or warning
 type GitOpsDeploymentSyncRunCondition struct {
 	// Type is an applicationset condition type
-	Type SyncRunConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
+	Type SyncRunConditionType `json:"type"`
 
 	// Message contains human-readable message indicating details about condition
-	Message string `json:"message" protobuf:"bytes,2,opt,name=message"`
+	Message string `json:"message"`
 
 	// LastTransitionTime is the time the condition was last observed
-	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
+	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty"`
 
 	// True/False/Unknown
-	Status GitOpsConditionStatus `json:"status" protobuf:"bytes,4,opt,name=status"`
+	Status GitOpsConditionStatus `json:"status"`
 
 	//Single word camelcase representing the reason for the status eg ErrorOccurred
-	Reason SyncRunReasonType `json:"reason" protobuf:"bytes,5,opt,name=reason"`
+	Reason SyncRunReasonType `json:"reason"`
 }
 
 type SyncRunReasonType string

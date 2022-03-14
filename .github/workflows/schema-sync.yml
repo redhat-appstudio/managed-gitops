@@ -1,0 +1,20 @@
+name: database schema sync check
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "main"
+  pull_request:
+    branches:
+      - "*"
+jobs:
+  schema-sync-test:
+    name: Run tests to check if database schema is in check with go schema constants
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Run script file
+      run: |
+         chmod +x ../backend-shared/hack/run-ci-check.sh
+         ../backend-shard/hack/run-ci-check.sh
+      shell: bash

@@ -51,7 +51,7 @@ CREATE TABLE GitopsEngineCluster (
 
 	-- pointer to credentials for the cluster
 	-- Foreign key to: ClusterCredentials.clustercredentials_cred_id
-	clustercredentials_id VARCHAR (48) NOT NULL,
+	-- clustercredentials_id VARCHAR (4) NOT NULL,
 	CONSTRAINT fk_cluster_credential FOREIGN KEY(clustercredentials_id) REFERENCES ClusterCredentials(clustercredentials_cred_id) ON DELETE NO ACTION ON UPDATE NO ACTION
 
 );
@@ -253,10 +253,10 @@ CREATE TABLE ApplicationState (
 	health VARCHAR (30) NOT NULL,
 
 	-- message field comes directly from Argo CD Application CR's .status.healthStatus.Message
-    message VARCHAR (1024),
+	message VARCHAR (1024),
 
     -- revision field comes directly from Argo CD Application CR's .status.SyncStatus.Revision field
-    revision VARCHAR (1024),
+	revision VARCHAR (1024),
 
 	-- sync_status field comes directly from Argo CD Application CR's .status.SyncStatus field
 	-- Possible values:

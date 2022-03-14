@@ -16,5 +16,5 @@ jobs:
     - name: Run script file
       run: |
          chmod +x $GITHUB_WORKSPACE/backend-shared/hack/run-ci-check.sh
-         $GITHUB_WORKSPACE/backend-shard/hack/run-ci-check.sh
+         $GITHUB_WORKSPACE/backend-shared/hack/run-ci-check.sh
       shell: bash

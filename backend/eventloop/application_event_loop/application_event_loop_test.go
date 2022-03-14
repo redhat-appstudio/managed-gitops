@@ -1,7 +1,7 @@
 package application_event_loop
 
 import (
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"

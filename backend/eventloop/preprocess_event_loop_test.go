@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"

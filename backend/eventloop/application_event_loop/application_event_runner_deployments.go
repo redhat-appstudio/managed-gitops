@@ -37,7 +37,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 		return false, nil, nil, fmt.Errorf("unable to retrieve namespace '%s': %v", deplNamespace, err)
 	}
 
-	clusterUser, err := a.sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, workspaceClient, gitopsDeplNamespace)
+	clusterUser, _, err := a.sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, workspaceClient, gitopsDeplNamespace)
 	if err != nil {
 		return false, nil, nil, fmt.Errorf("unable to retrieve cluster user in handleDeploymentModified, '%s': %v", string(gitopsDeplNamespace.UID), err)
 	}
@@ -151,7 +151,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		return false, nil, nil, fmt.Errorf("unable to retrieve namespace for managed env, '%s': %v", gitopsDeployment.ObjectMeta.Namespace, err)
 	}
 
-	_, managedEnv, engineInstance, _, err := a.sharedResourceEventLoop.GetOrCreateSharedResources(ctx, a.workspaceClient, gitopsDeplNamespace)
+	_, _, managedEnv, _, engineInstance, _, _, _, _, err := a.sharedResourceEventLoop.GetOrCreateSharedResources(ctx, a.workspaceClient, gitopsDeplNamespace)
 
 	if err != nil {
 		a.log.Error(err, "unable to get or create required db entries on deployment modified event")

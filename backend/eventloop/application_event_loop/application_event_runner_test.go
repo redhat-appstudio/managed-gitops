@@ -10,7 +10,7 @@ import (
 	condition "github.com/redhat-appstudio/managed-gitops/backend/condition/mocks"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"

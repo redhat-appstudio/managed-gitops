@@ -27,7 +27,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		return false, fmt.Errorf("unable to retrieve namespace '%s': %v", a.eventResourceNamespace, err)
 	}
 
-	clusterUser, err := a.sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, a.workspaceClient, namespace)
+	clusterUser, _, err := a.sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, a.workspaceClient, namespace)
 	if err != nil {
 		return false, fmt.Errorf("unable to retrieve cluster user in handleDeploymentModified, '%s': %v", string(namespace.UID), err)
 	}

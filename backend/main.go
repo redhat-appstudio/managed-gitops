@@ -195,7 +195,7 @@ func createPrimaryGitOpsEngineInstance(k8sclient client.Client, log logr.Logger)
 		},
 	}
 
-	gitopsEngineInstance, _, err := dbutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespace, kubeSystemNamespace.Name, dbQueries, log)
+	gitopsEngineInstance, _, _, err := dbutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespace, kubeSystemNamespace.Name, dbQueries, log)
 	if err != nil {
 		return err
 	}
@@ -206,7 +206,7 @@ func createPrimaryGitOpsEngineInstance(k8sclient client.Client, log logr.Logger)
 		},
 	}
 
-	managedEnv, err := dbutil.GetOrCreateManagedEnvironmentByNamespaceUID(ctx, *gitopsLocalWorkspaceNamespace, dbQueries, log)
+	managedEnv, _, err := dbutil.GetOrCreateManagedEnvironmentByNamespaceUID(ctx, *gitopsLocalWorkspaceNamespace, dbQueries, log)
 	if err != nil {
 		return err
 	}

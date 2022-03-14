@@ -51,7 +51,7 @@ CREATE TABLE GitopsEngineCluster (
 
 	-- pointer to credentials for the cluster
 	-- Foreign key to: ClusterCredentials.clustercredentials_cred_id
-	-- clustercredentials_id VARCHAR (4) NOT NULL,
+	clustercredentials_id VARCHAR (48) NOT NULL,
 	CONSTRAINT fk_cluster_credential FOREIGN KEY(clustercredentials_id) REFERENCES ClusterCredentials(clustercredentials_cred_id) ON DELETE NO ACTION ON UPDATE NO ACTION
 
 );

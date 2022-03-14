@@ -60,6 +60,12 @@ func TestCreateandDeleteDeploymentToApplicationMapping(t *testing.T) {
 	rowsAffected, err := dbq.DeleteDeploymentToApplicationMappingByDeplId(ctx, deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, rowsAffected)
+	fetchRow = &DeploymentToApplicationMapping{
+		Deploymenttoapplicationmapping_uid_id: deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id,
+	}
+	err = dbq.GetDeploymentToApplicationMappingByDeplId(ctx, fetchRow)
+	assert.True(t, IsResultNotFoundError(err))
+
 }
 
 func TestAllListDeploymentToApplicationMapping(t *testing.T) {
@@ -136,4 +142,9 @@ func TestAllListDeploymentToApplicationMapping(t *testing.T) {
 	rowsAffected, err := dbq.DeleteDeploymentToApplicationMappingByDeplId(ctx, deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, rowsAffected)
+	fetchRow := &DeploymentToApplicationMapping{
+		Deploymenttoapplicationmapping_uid_id: deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id,
+	}
+	err = dbq.GetDeploymentToApplicationMappingByDeplId(ctx, fetchRow)
+	assert.True(t, IsResultNotFoundError(err))
 }

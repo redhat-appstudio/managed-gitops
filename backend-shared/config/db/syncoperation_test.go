@@ -77,4 +77,11 @@ func TestCreateandGetSyncOperation(t *testing.T) {
 	rowCount, err := dbq.DeleteSyncOperationById(ctx, insertRow.SyncOperation_id)
 	assert.NoError(t, err)
 	assert.True(t, rowCount == 1)
+	fetchRow = SyncOperation{
+		SyncOperation_id: "test-sync",
+	}
+
+	err = dbq.GetSyncOperationById(ctx, &fetchRow)
+	assert.True(t, IsResultNotFoundError(err))
+
 }

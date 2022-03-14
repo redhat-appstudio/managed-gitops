@@ -38,7 +38,7 @@ func TestCreateandDeleteClusterCredentials(t *testing.T) {
 	}
 	assert.Equal(t, 1, count)
 	err = dbq.GetClusterCredentialsById(ctx, &fetchedCluster)
-	assert.Equal(t, err, NewResultNotFoundError("UnsafeGetClusterCredentialsById"))
+	assert.True(t, IsResultNotFoundError(err))
 }
 
 func TestGetClusterCredentialsById(t *testing.T) {

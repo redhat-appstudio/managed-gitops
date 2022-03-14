@@ -15,6 +15,6 @@ jobs:
     - uses: actions/checkout@v2
     - name: Run script file
       run: |
-         chmod +x ../../backend-shared/hack/run-ci-check.sh
-         ../../backend-shared/hack/run-ci-check.sh
+         chmod +x $GITHUB_WORKSPACE/backend-shared/hack/run-ci-check.sh
+         $GITHUB_WORKSPACE/backend-shard/hack/run-ci-check.sh
       shell: bash

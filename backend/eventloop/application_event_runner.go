@@ -198,7 +198,7 @@ func applicationEventLoopRunner(inputChannel chan *eventLoopEvent, informWorkCom
 					log.Error(nil, "SEVERE: Unrecognized event type", "event type", newEvent.eventType)
 				}
 
-				// TODO: GITOPS-1582: Implement detection of workspace/api proxy delete, here, and handle cleanup
+				// TODO: GITOPSRVCE-85: Implement detection of workspace/api proxy delete, here, and handle cleanup
 
 				return err
 
@@ -329,8 +329,8 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 				// If the gitopsdepl doesn't exist, we really can't proceed any further
 
 				err := fmt.Errorf("unable to retrieve gitopsdeployment referenced in syncrun: %v", err)
-				// TODO: GITOPS-1720 - ENHANCEMENT - If the gitopsDepl isn't referenced, update the status of the GitOpsDeplomentSyncRun condition as an error and return
-				// TODO: GITOPS-1720 - ENHANCEMENT - implement status conditions on GitOpsDeploymentSyncRun
+				// TODO: GITOPSRVCE-44 - ENHANCEMENT - If the gitopsDepl isn't referenced, update the status of the GitOpsDeplomentSyncRun condition as an error and return
+				// TODO: GITOPSRVCE-44 - ENHANCEMENT - implement status conditions on GitOpsDeploymentSyncRun
 				log.Error(err, "handleSyncRunModified error")
 				return false, err
 
@@ -381,7 +381,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		// Create sync operation
 		syncOperation := &db.SyncOperation{
 			Application_id:      application.Application_id,
-			Operation_id:        "delme", // TODO: GITOPS-1678 - DEBT - This field can probably be removed from the database
+			Operation_id:        "delme", // TODO: GITOPSRVCE-67 - DEBT - This field can probably be removed from the database
 			DeploymentNameField: syncRunCR.Spec.GitopsDeploymentName,
 			Revision:            syncRunCR.Spec.RevisionID,
 			DesiredState:        db.SyncOperation_DesiredState_Running,
@@ -440,7 +440,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			return false, err
 		}
 
-		// TODO: GITOPS-1466 - STUB - Remove the 'false' in createOperation above, once cluster agent handling of operation is implemented.
+		// TODO: GITOPSRVCE-82 - STUB - Remove the 'false' in createOperation above, once cluster agent handling of operation is implemented.
 		log.Info("STUB: Not waiting for create Sync Run operation to complete, in handleNewSyncRunModified")
 
 		if err := cleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log); err != nil {
@@ -506,7 +506,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			return false, err
 		}
 
-		// TODO: GITOPS-1466 - STUB - need to implement support for sync operation in cluster agent
+		// TODO: GITOPSRVCE-82 - STUB - need to implement support for sync operation in cluster agent
 		log.Info("STUB: need to implement sync on cluster side")
 
 		if _, err := dbQueries.DeleteSyncOperationById(ctx, syncOperation.SyncOperation_id); err != nil {
@@ -583,7 +583,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			return false, err
 		}
 
-		// TODO: GITOPS-1678 - DEBT - Include test case to check that the various goroutines are terminated when the CR is deleted.
+		// TODO: GITOPSRVCE-67 - DEBT - Include test case to check that the various goroutines are terminated when the CR is deleted.
 
 		return false, nil
 	}
@@ -648,7 +648,7 @@ func (a *applicationEventLoopRunner_Action) cleanupOldSyncDBEntry(ctx context.Co
 func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateDeploymentStatusTick(ctx context.Context,
 	gitopsDeplID string, dbQueries db.ApplicationScopedQueries) error {
 
-	// TODO: GITOPS-1702 - PERF - In general, polling for all GitOpsDeployments in a workspace will scale poorly with large number of applications in the workspace. We should switch away from polling in the future.
+	// TODO: GITOPSRVCE-68 - PERF - In general, polling for all GitOpsDeployments in a workspace will scale poorly with large number of applications in the workspace. We should switch away from polling in the future.
 
 	// 1) Retrieve the mapping for the CR we are processing
 	mapping := db.DeploymentToApplicationMapping{
@@ -1030,9 +1030,9 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		return false, nil, nil, err
 	}
 
-	// TODO: GITOPS-1701 - ENHANCEMENT - Ensure that the backend code gracefully handles database values that are too large for the DB field (eg too many VARCHARs)
+	// TODO: GITOPSRVCE-62 - ENHANCEMENT - Ensure that the backend code gracefully handles database values that are too large for the DB field (eg too many VARCHARs)
 
-	// TODO: GITOPS-1678 - Sanity check that the application.name matches the expected value set in handleCreateGitOpsEvent
+	// TODO: GITOPSRVCE-67 - Sanity check that the application.name matches the expected value set in handleCreateGitOpsEvent
 
 	destinationNamespace := gitopsDeployment.Spec.Destination.Namespace
 	if destinationNamespace == "" {
@@ -1043,7 +1043,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		crName:               application.Name,
 		crNamespace:          engineInstanceParam.Namespace_name,
 		destinationNamespace: destinationNamespace,
-		// TODO: GITOPS-1722 - Fill this in with cluster credentials
+		// TODO: GITOPSRVCE-66 - Fill this in with cluster credentials
 		destinationName:      "in-cluster",
 		sourceRepoURL:        gitopsDeployment.Spec.Source.RepoURL,
 		sourcePath:           gitopsDeployment.Spec.Source.Path,
@@ -1102,7 +1102,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 // Don't call this directly: call it via workspaceEventLoopRunner_Action
 func actionGetK8sClientForGitOpsEngineInstance(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 
-	// TODO: GITOPS-1455: When we support multiple Argo CD instances (and multiple instances on separate clusters), this logic should be updated.
+	// TODO: GITOPSRVCE-73: When we support multiple Argo CD instances (and multiple instances on separate clusters), this logic should be updated.
 
 	config, err := sharedutil.GetRESTConfig()
 	if err != nil {
@@ -1157,7 +1157,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		crName:               appName,
 		crNamespace:          engineInstance.Namespace_name,
 		destinationNamespace: destinationNamespace,
-		// TODO: GITOPS-1722 - Fill this in with cluster credentials
+		// TODO: GITOPSRVCE-66 - Fill this in with cluster credentials
 		destinationName:      "in-cluster",
 		sourceRepoURL:        gitopsDeployment.Spec.Source.RepoURL,
 		sourcePath:           gitopsDeployment.Spec.Source.Path,

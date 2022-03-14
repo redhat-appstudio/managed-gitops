@@ -20,7 +20,7 @@ import (
 // However, at the moment we are using a single shared Argo CD instance in 'argocd', so we will
 // just return that.
 //
-// This logic would be improved by https://issues.redhat.com/browse/GITOPS-1455 (and others)
+// This logic would be improved by https://issues.redhat.com/browse/GITOPSRVCE-73 (and others)
 const DefaultGitOpsEngineSingleInstanceNamespace = "argocd"
 
 func GetGitOpsEngineSingleInstanceNamespace() string {
@@ -80,7 +80,7 @@ func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, workspaceN
 	// At this point in the function, both the managed environment and mapping necessarily don't exist
 
 	// Create cluster credentials for the managed env
-	// TODO: GITOPS-1722 - Cluster credentials placeholder values - we will need to create a service account on the target cluster, which we can store in the database.
+	// TODO: GITOPSRVCE-66 - Cluster credentials placeholder values - we will need to create a service account on the target cluster, which we can store in the database.
 
 	clusterCreds := db.ClusterCredentials{
 		Host:                        "host",
@@ -336,7 +336,7 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 		// Scenario A) neither exists: create both
 
 		// Create cluster credentials for the managed env
-		// TODO: GITOPS-1722 - Cluster credentials placeholder values - we will need to create a service account on the target cluster, which we can store in the database.
+		// TODO: GITOPSRVCE-66 - Cluster credentials placeholder values - we will need to create a service account on the target cluster, which we can store in the database.
 		clusterCreds := db.ClusterCredentials{
 			Host:                        "host",
 			Kube_config:                 "kube_config",

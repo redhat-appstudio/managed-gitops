@@ -58,7 +58,7 @@ func applicationEventQueueLoop(input chan applicationEventLoopMessage, gitopsDep
 			break
 		}
 
-		// TODO: GITOPS-1466 - DEBT - Sanity test that everything we receive is directly or indirectly related to this gitopsDeplId
+		// TODO: GITOPSRVCE-82 - DEBT - Sanity test that everything we receive is directly or indirectly related to this gitopsDeplId
 
 		// Block on waiting for more events for this application
 		newEvent := <-input

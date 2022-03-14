@@ -135,7 +135,7 @@ func GetRESTConfig() (*rest.Config, error) {
 	}
 
 	// Use non-standard rate limiting values
-	// TODO: GITOPS-1702 - These values are way too high, need to look at request.go in controller-runtime.
+	// TODO: GITOPSRVCE-68 - These values are way too high, need to look at request.go in controller-runtime.
 	res.QPS = 100
 	res.Burst = 250
 	return res, nil

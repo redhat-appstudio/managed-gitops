@@ -49,7 +49,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	defer log.V(sharedutil.LogLevel_Debug).Info("Application Reconcile() complete.")
 
-	// TODO: GITOPS-1702 - PERF - this is single-threaded only
+	// TODO: GITOPSRVCE-68 - PERF - this is single-threaded only
 
 	// 1) Retrieve the Application CR using the request vals
 	app := appv1.Application{}

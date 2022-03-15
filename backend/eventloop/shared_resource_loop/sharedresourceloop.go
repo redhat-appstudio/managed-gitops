@@ -1,4 +1,4 @@
-package eventloop
+package shared_resource_loop
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// The goal of the shared resource event loop is to ensure that workspace-scoped resources are only
+// The goal of the shared resource event loop is to ensure that API-namespace-scoped resources are only
 // created from a single thread, preventing concurrent goroutines from stepping on each others toes.
 //
 // This ensures that:
@@ -28,11 +28,21 @@ import (
 // - clusteraccess
 // - clusteruser
 // - gitopsengineinstance (for now)
-type sharedResourceEventLoop struct {
+//
+// Ultimately the goal of this file is to avoid this issue:
+// - In the same moment of time, both these actions happen simultaneously:
+//     - thread 1: creates (for example) a managed environment DB row for environment A, while processing a GitOpsDeployment targeting A
+//     - thread 2: creates (for example) a managed environment DB row for environment A, while processing a different GitOpsDeployment targeting A
+// - But this is bad: the database now contains _two different_ managed environment database entries for the same environment A.
+// - Thus, without mutexes/locking, there is a race condition.
+// - However, the shared resource event loop prevents this issue, by ensuring that threads are never able to
+//   concurrently create API-namespace database resources at the same time.
+type SharedResourceEventLoop struct {
 	inputChannel chan sharedResourceLoopMessage
 }
 
-func (srEventLoop *sharedResourceEventLoop) getOrCreateClusterUserByNamespaceUID(ctx context.Context, workspaceClient client.Client, workspaceNamespace corev1.Namespace) (*db.ClusterUser, error) {
+func (srEventLoop *SharedResourceEventLoop) GetOrCreateClusterUserByNamespaceUID(ctx context.Context, workspaceClient client.Client,
+	workspaceNamespace corev1.Namespace) (*db.ClusterUser, error) {
 
 	responseChannel := make(chan interface{})
 
@@ -62,7 +72,7 @@ func (srEventLoop *sharedResourceEventLoop) getOrCreateClusterUserByNamespaceUID
 
 }
 
-func (srEventLoop *sharedResourceEventLoop) getGitopsEngineInstanceById(ctx context.Context, id string, workspaceClient client.Client, workspaceNamespace corev1.Namespace) (*db.GitopsEngineInstance, error) {
+func (srEventLoop *SharedResourceEventLoop) GetGitopsEngineInstanceById(ctx context.Context, id string, workspaceClient client.Client, workspaceNamespace corev1.Namespace) (*db.GitopsEngineInstance, error) {
 
 	responseChannel := make(chan interface{})
 
@@ -95,7 +105,9 @@ func (srEventLoop *sharedResourceEventLoop) getGitopsEngineInstanceById(ctx cont
 
 }
 
-func (srEventLoop *sharedResourceEventLoop) getOrCreateSharedResources(ctx context.Context,
+// Ensure the user's workspace is configured, ensure a GitOpsEngineInstance exists that will target it, and ensure
+// a cluster access exists the give the user permission to target them from the engine.
+func (srEventLoop *SharedResourceEventLoop) GetOrCreateSharedResources(ctx context.Context,
 	workspaceClient client.Client, workspaceNamespace corev1.Namespace) (*db.ClusterUser,
 	*db.ManagedEnvironment, *db.GitopsEngineInstance, *db.ClusterAccess, error) {
 
@@ -127,9 +139,9 @@ func (srEventLoop *sharedResourceEventLoop) getOrCreateSharedResources(ctx conte
 
 }
 
-func newSharedResourceLoop() *sharedResourceEventLoop {
+func NewSharedResourceLoop() *SharedResourceEventLoop {
 
-	sharedResourceEventLoop := &sharedResourceEventLoop{
+	sharedResourceEventLoop := &SharedResourceEventLoop{
 		inputChannel: make(chan sharedResourceLoopMessage),
 	}
 
@@ -275,7 +287,8 @@ func internalProcessMessage_GetGitopsEngineInstanceById(ctx context.Context, id 
 	return &gitopsEngineInstance, err
 }
 
-func internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx context.Context, workspaceNamespace corev1.Namespace, dbq db.DatabaseQueries) (*db.ClusterUser, error) {
+func internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx context.Context, workspaceNamespace corev1.Namespace,
+	dbq db.DatabaseQueries) (*db.ClusterUser, error) {
 
 	// TODO: GITOPSRVCE-19 - KCP support: for now, we assume that the namespace UID that the request occurred in is the user id.
 	clusterUser := db.ClusterUser{User_name: string(workspaceNamespace.UID)}

@@ -1,26 +1,25 @@
-package eventloop
+package application_event_loop
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1/mocks"
 	condition "github.com/redhat-appstudio/managed-gitops/backend/condition/mocks"
-	"testing"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
-	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	testStructs "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1/mocks/structs"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -29,57 +28,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-func genericTestSetup(t *testing.T) (*runtime.Scheme, *v1.Namespace, *v1.Namespace, *v1.Namespace) {
-	scheme := runtime.NewScheme()
-
-	opts := zap.Options{
-		Development: true,
-	}
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-
-	err := managedgitopsv1alpha1.AddToScheme(scheme)
-	assert.Nil(t, err)
-	err = operation.AddToScheme(scheme)
-	assert.Nil(t, err)
-	err = v1.AddToScheme(scheme)
-	assert.Nil(t, err)
-
-	argocdNamespace := &v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      dbutil.GetGitOpsEngineSingleInstanceNamespace(),
-			UID:       uuid.NewUUID(),
-			Namespace: dbutil.GetGitOpsEngineSingleInstanceNamespace(),
-		},
-		Spec: v1.NamespaceSpec{},
-	}
-
-	kubesystemNamespace := &v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "kube-system",
-			UID:       uuid.NewUUID(),
-			Namespace: "kube-system",
-		},
-		Spec: v1.NamespaceSpec{},
-	}
-
-	workspace := &v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-user",
-			UID:       uuid.NewUUID(),
-			Namespace: "my-user",
-		},
-		Spec: v1.NamespaceSpec{},
-	}
-
-	return scheme, argocdNamespace, kubesystemNamespace, workspace
-
-}
-
 func TestApplicationEventLoopRunner_handleDeploymentModified(t *testing.T) {
 
 	ctx := context.Background()
 
-	scheme, argocdNamespace, kubesystemNamespace, workspace := genericTestSetup(t)
+	scheme, argocdNamespace, kubesystemNamespace, workspace := eventlooptypes.GenericTestSetup(t)
 
 	gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -111,7 +64,7 @@ func TestApplicationEventLoopRunner_handleDeploymentModified(t *testing.T) {
 		eventResourceNamespace:      gitopsDepl.Namespace,
 		workspaceClient:             k8sClient,
 		log:                         log.FromContext(context.Background()),
-		sharedResourceEventLoop:     newSharedResourceLoop(),
+		sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
 		workspaceID:                 workspaceID,
 		testOnlySkipCreateOperation: true,
 	}
@@ -222,7 +175,7 @@ func TestApplicationEventLoopRunner_handleDeploymentModified(t *testing.T) {
 func TestApplicationEventLoopRunner_handleSyncRunModified(t *testing.T) {
 	ctx := context.Background()
 
-	scheme, argocdNamespace, kubesystemNamespace, workspace := genericTestSetup(t)
+	scheme, argocdNamespace, kubesystemNamespace, workspace := eventlooptypes.GenericTestSetup(t)
 
 	gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -260,7 +213,7 @@ func TestApplicationEventLoopRunner_handleSyncRunModified(t *testing.T) {
 	}
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	sharedResourceLoop := newSharedResourceLoop()
+	sharedResourceLoop := shared_resource_loop.NewSharedResourceLoop()
 
 	a := applicationEventLoopRunner_Action{
 		// When the code asks for a new k8s client, give it our fake client

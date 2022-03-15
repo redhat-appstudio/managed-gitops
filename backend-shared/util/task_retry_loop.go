@@ -95,7 +95,7 @@ func NewTaskRetryLoop(debugName string) (loop *TaskRetryLoop) {
 				payload: nil,
 			}
 		}
-		// TODO: GITOPS-1702 - PERF - I'm sure a more complex form of this logic could calculate the length of time until the next task is 'due'.
+		// TODO: GITOPSRVCE-68 - PERF - I'm sure a more complex form of this logic could calculate the length of time until the next task is 'due'.
 	}()
 
 	return res
@@ -150,7 +150,7 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string
 
 			updatedWaitingTasks := []waitingTaskEntry{}
 
-			// TODO: GITOPS-1702 - PERF - this is an inefficient algorithm for queuing tasks, because it causes an allocation and iteration through the entire list on every received event
+			// TODO: GITOPSRVCE-68 - PERF - this is an inefficient algorithm for queuing tasks, because it causes an allocation and iteration through the entire list on every received event
 
 			for idx := range waitingTasks {
 

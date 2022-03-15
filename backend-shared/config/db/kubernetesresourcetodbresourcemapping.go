@@ -30,7 +30,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteKubernetesResourceToDBResourceMappin
 		return 0, err
 	}
 
-	deleteResult, err := dbq.dbConnection.Model(&obj).WherePK().Context(ctx).Delete()
+	deleteResult, err := dbq.dbConnection.Model(obj).WherePK().Context(ctx).Delete()
 	if err != nil {
 		return 0, fmt.Errorf("error on deleting operation: %v", err)
 	}
@@ -98,6 +98,18 @@ func (dbq *PostgreSQLDatabaseQueries) CreateKubernetesResourceToDBResourceMappin
 
 	if result.RowsAffected() != 1 {
 		return fmt.Errorf("unexpected number of rows affected: %d", result.RowsAffected())
+	}
+
+	return nil
+}
+
+func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllKubernetesResourceToDBResourceMapping(ctx context.Context, kubernetesToDBResourceMapping *[]KubernetesToDBResourceMapping) error {
+	if err := validateUnsafeQueryParamsNoPK(dbq); err != nil {
+		return err
+	}
+
+	if err := dbq.dbConnection.Model(kubernetesToDBResourceMapping).Context(ctx).Select(); err != nil {
+		return err
 	}
 
 	return nil

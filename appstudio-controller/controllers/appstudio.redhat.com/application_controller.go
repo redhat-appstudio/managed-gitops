@@ -34,8 +34,10 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
+	attributes "github.com/devfile/api/v2/pkg/attributes"
 	"github.com/go-logr/logr"
 	applicationv1alpha1 "github.com/redhat-appstudio/application-service/api/v1alpha1"
+	devfile "github.com/redhat-appstudio/application-service/pkg/devfile"
 	gitopsdeploymentv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -115,7 +117,10 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	gopFromApplication := generateNewGitOpsDeploymentFromApplication(asApplication)
+	gopFromApplication, err := generateNewGitOpsDeploymentFromApplication(asApplication)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("unable to convert Application to GitOpsDeployment: %v", err)
+	}
 
 	if reflect.DeepEqual(gopFromApplication.Spec, gitopsDeployment.Spec) {
 		// D) Both exist, but there is no different, so no-op.
@@ -187,7 +192,10 @@ func processCreateGitOpsDeployment(ctx context.Context, asApplication applicatio
 		return err
 	}
 
-	gitopsDepl := generateNewGitOpsDeploymentFromApplication(asApplication)
+	gitopsDepl, err := generateNewGitOpsDeploymentFromApplication(asApplication)
+	if err != nil {
+		return fmt.Errorf("unable to convert Application to GitOpsDeployment: %v", err)
+	}
 
 	log.Info("creating new GitOpsDeployment '" + gitopsDepl.Name + "' (" + string(gitopsDepl.UID) + ")")
 
@@ -205,25 +213,71 @@ func validateApplication(asApplication applicationv1alpha1.Application) error {
 		return fmt.Errorf("application resource has invalid name: '%s'", asApplication.Name)
 	}
 
-	if asApplication.Spec.GitOpsRepository.URL == "" {
-		return fmt.Errorf("application resource has invalid URL: '%s'", asApplication.Spec.GitOpsRepository.URL)
+	if strings.TrimSpace(asApplication.Status.Devfile) == "" {
+		return fmt.Errorf("application status' devfile field is empty")
 	}
 
-	// if asApplication.Spec.GitOpsRepository.Branch == "" {
-	// 	return fmt.Errorf("application resource has invalid branch: '%s'", asApplication.Spec.GitOpsRepository.Branch)
-	// }
-
-	// if asApplication.Spec.GitOpsRepository.Context == "" {
-	// 	return fmt.Errorf("application resource has invalid context: '%s'", asApplication.Spec.GitOpsRepository.Context)
-	// }
+	_, _, _, err := getGitOpsRepoData(asApplication)
+	if err != nil {
+		return fmt.Errorf("unable to validate application: %v", err)
+	}
 
 	return nil
 
 }
 
+func getGitOpsRepoData(asApplication applicationv1alpha1.Application) (string, string, string, error) {
+
+	curDevfile, err := devfile.ParseDevfileModel(asApplication.Status.Devfile)
+	if err != nil {
+		return "", "", "", fmt.Errorf("unable to parse devfile model: %v", err)
+	}
+
+	var getErr error
+
+	// These strings are not defined as constants in the application service repo
+
+	metadata := curDevfile.GetMetadata()
+
+	// GitOps Repository is a required field
+	gitopsURL := metadata.Attributes.GetString("gitOpsRepository.url", &getErr)
+	if getErr != nil {
+		return "", "", "", fmt.Errorf("unable to retrieve gitops url: %v", getErr)
+	}
+	if strings.TrimSpace(gitopsURL) == "" {
+		return "", "", "", fmt.Errorf("gitops url is empty")
+	}
+
+	// Branch is not a required field
+	branch := metadata.Attributes.GetString("gitOpsRepository.branch", &getErr)
+	if getErr != nil {
+		// Ignore KeyNotFoundErrors, but otherwise report the error and return
+		if _, ok := (getErr).(*attributes.KeyNotFoundError); !ok {
+			return "", "", "", fmt.Errorf("unable to retrieve gitops repo branch: %v", getErr)
+		}
+	}
+
+	// Context is a required field
+	context := metadata.Attributes.GetString("gitOpsRepository.context", &getErr)
+	if getErr != nil {
+		return "", "", "", fmt.Errorf("unable to retrieve gitops repo context: %v", getErr)
+	}
+	if strings.TrimSpace(context) == "" {
+		return "", "", "", fmt.Errorf("gitops repo context is empty: %v", getErr)
+	}
+
+	return gitopsURL, branch, context, nil
+
+}
+
 // generateNewGitOpsDeploymentFromApplication converts the Application into a corresponding GitOpsDeployment, by
 // matching their corresponding fields.
-func generateNewGitOpsDeploymentFromApplication(asApplication applicationv1alpha1.Application) gitopsdeploymentv1alpha1.GitOpsDeployment {
+func generateNewGitOpsDeploymentFromApplication(asApplication applicationv1alpha1.Application) (gitopsdeploymentv1alpha1.GitOpsDeployment, error) {
+
+	url, branch, context, err := getGitOpsRepoData(asApplication)
+	if err != nil {
+		return gitopsdeploymentv1alpha1.GitOpsDeployment{}, err
+	}
 
 	gitopsDeplName := sanitizeAppNameWithSuffix(asApplication.Name, "-deployment")
 
@@ -245,16 +299,16 @@ func generateNewGitOpsDeploymentFromApplication(asApplication applicationv1alpha
 		},
 		Spec: gitopsdeploymentv1alpha1.GitOpsDeploymentSpec{
 			Source: gitopsdeploymentv1alpha1.ApplicationSource{
-				RepoURL:        asApplication.Spec.GitOpsRepository.URL,
-				Path:           asApplication.Spec.GitOpsRepository.Context,
-				TargetRevision: asApplication.Spec.GitOpsRepository.Branch,
+				RepoURL:        url,
+				Path:           context,
+				TargetRevision: branch,
 			},
 			Destination: gitopsdeploymentv1alpha1.ApplicationDestination{},
 			Type:        gitopsdeploymentv1alpha1.GitOpsDeploymentSpecType_Automated,
 		},
 	}
 
-	return res
+	return res, nil
 }
 
 // Ensure that the name of the GitOpsDeployment is always <= 64 characters

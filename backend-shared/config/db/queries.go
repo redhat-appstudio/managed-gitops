@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// TODO: GITOPS-1678 - ENHANCEMENT - Add logging of database entity creation, so that we can track state changes.
+// TODO: GITOPSRVCE-67 - ENHANCEMENT - Add logging of database entity creation, so that we can track state changes.
 
 // Default vs Checked vs Unsafe functions:
 //
@@ -53,6 +53,7 @@ type UnsafeDatabaseQueries interface {
 	UnsafeListAllGitopsEngineClusters(ctx context.Context, gitopsEngineClusters *[]GitopsEngineCluster) error
 	UnsafeListAllDeploymentToApplicationMapping(ctx context.Context, deploymentToApplicationMappings *[]DeploymentToApplicationMapping) error
 	UnsafeListAllSyncOperations(ctx context.Context, syncOperations *[]SyncOperation) error
+	UnsafeListAllKubernetesResourceToDBResourceMapping(ctx context.Context, kubernetesToDBResourceMapping *[]KubernetesToDBResourceMapping) error
 }
 
 type AllDatabaseQueries interface {
@@ -73,7 +74,7 @@ type DatabaseQueries interface {
 
 	CheckedDeleteDeploymentToApplicationMappingByDeplId(ctx context.Context, id string, ownerId string) (int, error)
 
-	// TODO: GITOPS-1678 - DEBT - I think this should still have an owner, even if it presumed that it is user id:
+	// TODO: GITOPSRVCE-67 - DEBT - I think this should still have an owner, even if it presumed that it is user id:
 	DeleteClusterAccessById(ctx context.Context, userId string, managedEnvironmentId string, gitopsEngineInstanceId string) (int, error)
 	CheckedDeleteGitopsEngineInstanceById(ctx context.Context, id string, ownerId string) (int, error)
 	CheckedDeleteManagedEnvironmentById(ctx context.Context, id string, ownerId string) (int, error)

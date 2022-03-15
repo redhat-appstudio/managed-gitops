@@ -294,3 +294,14 @@ func (dbq *PostgreSQLDatabaseQueries) CreateDeploymentToApplicationMapping(ctx c
 	return nil
 
 }
+
+func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllDeploymentToApplicationMapping(ctx context.Context, deploymentToApplicationMappings *[]DeploymentToApplicationMapping) error {
+
+	if err := validateUnsafeQueryParamsNoPK(dbq); err != nil {
+		return err
+	}
+	if err := dbq.dbConnection.Model(deploymentToApplicationMappings).Context(ctx).Select(); err != nil {
+		return err
+	}
+	return nil
+}

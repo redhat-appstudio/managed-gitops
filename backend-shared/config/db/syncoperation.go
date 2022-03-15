@@ -130,6 +130,17 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateSyncOperationRemoveApplicationField(
 	return res.RowsAffected(), err
 }
 
+func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllSyncOperations(ctx context.Context, syncOperations *[]SyncOperation) error {
+
+	if err := validateUnsafeQueryParamsNoPK(dbq); err != nil {
+		return err
+	}
+	if err := dbq.dbConnection.Model(syncOperations).Context(ctx).Select(); err != nil {
+		return err
+	}
+	return nil
+}
+
 var _ AppScopedDisposableResource = &SyncOperation{}
 
 func (obj *SyncOperation) DisposeAppScoped(ctx context.Context, dbq ApplicationScopedQueries) error {

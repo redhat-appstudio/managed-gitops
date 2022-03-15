@@ -22,6 +22,33 @@ func testSetup(t *testing.T) {
 	}
 	defer dbq.CloseDatabase()
 
+	var deploymentToApplicationMappings []DeploymentToApplicationMapping
+	var syncOperations []SyncOperation
+
+	err = dbq.UnsafeListAllDeploymentToApplicationMapping(ctx, &deploymentToApplicationMappings)
+	assert.NoError(t, err)
+	for _, deploydeploymentToApplicationMapping := range deploymentToApplicationMappings {
+		if strings.HasPrefix(deploydeploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id, "test-") {
+			rowsAffected, err := dbq.DeleteDeploymentToApplicationMappingByDeplId(ctx, deploydeploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id)
+			assert.NoError(t, err)
+			if err == nil {
+				assert.Equal(t, rowsAffected, 1)
+			}
+		}
+	}
+
+	err = dbq.UnsafeListAllSyncOperations(ctx, &syncOperations)
+	assert.NoError(t, err)
+	for _, syncOperation := range syncOperations {
+		if strings.HasPrefix(syncOperation.SyncOperation_id, "test-") {
+			rowsAffected, err := dbq.DeleteSyncOperationById(ctx, syncOperation.SyncOperation_id)
+			assert.NoError(t, err)
+			if err == nil {
+				assert.Equal(t, rowsAffected, 1)
+			}
+		}
+	}
+
 	var applicationStates []ApplicationState
 	err = dbq.UnsafeListAllApplicationStates(ctx, &applicationStates)
 	assert.NoError(t, err)

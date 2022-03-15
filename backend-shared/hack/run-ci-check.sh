@@ -6,6 +6,6 @@ set -o nounset
 set -o pipefail
 
 BACKEND_SHARED_DIR=$GITHUB_WORKSPACE/backend-shared
-
-go build -o ${BACKEND_SHARED_DIR}/hack/dist/ci-check ${BACKEND_SHARED_DIR}/hack/ci-check
-./${BACKEND_SHARED_DIR}/dist/ci-check
+cd ${BACKEND_SHARED_DIR}
+go build -o ./hack/dist/ci-check ./hack/ci-check
+./dist/ci-check

@@ -17,7 +17,7 @@ type applicationEventLoop struct {
 	input chan applicationEventLoopMessage
 }
 
-// TODO: GITOPS-1678 - DEBT - Set log to info, and make sure you can still figure out what's going on.
+// TODO: GITOPSRVCE-67 - DEBT - Set log to info, and make sure you can still figure out what's going on.
 
 func startWorkspaceEventLoopRouter(input chan applicationEventLoopMessage, workspaceID string) {
 
@@ -126,7 +126,7 @@ func workspaceEventLoopRouter(input chan applicationEventLoopMessage, workspaceI
 					}
 				}
 
-				// TODO: GITOPS-1678 - DEBT - Make sure it's not still orphaned before adding it to orphanedResources
+				// TODO: GITOPSRVCE-67 - DEBT - Make sure it's not still orphaned before adding it to orphanedResources
 
 				gitopsDeplMap, exists := orphanedResources[syncRunCR.Spec.GitopsDeploymentName]
 				if !exists {

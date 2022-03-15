@@ -6,9 +6,7 @@ metadata:
   name: gitops-postgresql-staging-headless
   labels:
     app.kubernetes.io/name: postgresql
-    helm.sh/chart: postgresql-10.16.1
     app.kubernetes.io/instance: gitops-postgresql-staging
-    app.kubernetes.io/managed-by: Helm
     # Use this annotation in addition to the actual publishNotReadyAddresses
     # field below because the annotation will stop being respected soon but the
     # field is broken in some versions of Kubernetes:
@@ -37,9 +35,7 @@ metadata:
   name: gitops-postgresql-staging
   labels:
     app.kubernetes.io/name: postgresql
-    helm.sh/chart: postgresql-10.16.1
     app.kubernetes.io/instance: gitops-postgresql-staging
-    app.kubernetes.io/managed-by: Helm
   annotations:
   namespace: gitops
 spec:
@@ -60,9 +56,7 @@ metadata:
   name: gitops-postgresql-staging-postgresql
   labels:
     app.kubernetes.io/name: postgresql
-    helm.sh/chart: postgresql-10.16.1
     app.kubernetes.io/instance: gitops-postgresql-staging
-    app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/component: primary
   annotations:
   namespace: gitops
@@ -81,9 +75,7 @@ spec:
       name: gitops-postgresql-staging
       labels:
         app.kubernetes.io/name: postgresql
-        helm.sh/chart: postgresql-10.16.1
         app.kubernetes.io/instance: gitops-postgresql-staging
-        app.kubernetes.io/managed-by: Helm
         role: primary
         app.kubernetes.io/component: primary
     spec:

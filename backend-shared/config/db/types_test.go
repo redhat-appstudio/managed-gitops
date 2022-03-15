@@ -257,7 +257,7 @@ func TestCreateApplication(t *testing.T) {
 
 func TestDeploymentToApplicationMapping(t *testing.T) {
 
-	// TODO: GITOPS-1678 - DEBT - Finish filling this in
+	// TODO: GITOPSRVCE-67 - DEBT - Finish filling this in
 
 	testSetup(t)
 	defer testTeardown(t)

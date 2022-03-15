@@ -64,7 +64,7 @@ func preprocessEventLoopRouter(input chan eventLoopEvent, nextStep *controllerEv
 	// (cache key) -> (uid of the sync/syncrun resource, the last time it was seen)
 	resourcesSeen := map[string]string{}
 	var resourcesSeenMutex sync.RWMutex // Acquire this mutex whenever resourcesSeen is read/modified
-	// TODO: GITOPS-1702 - PERF - Add a size limit to this: evict LRU if over a certain size, to keep from hitting memory limit.
+	// TODO: GITOPSRVCE-68 - PERF - Add a size limit to this: evict LRU if over a certain size, to keep from hitting memory limit.
 
 	dbQueries, err := db.NewProductionPostgresDBQueries(false)
 	if err != nil {
@@ -77,7 +77,7 @@ func preprocessEventLoopRouter(input chan eventLoopEvent, nextStep *controllerEv
 		// Block on waiting for more events
 		newEvent := <-input
 		mapKey := string(newEvent.reqResource) + "-" + newEvent.request.Name + "-" + newEvent.request.Namespace + "-" + newEvent.workspaceID
-		// TODO: GITOPS-1702 - PERF - Use a more memory efficient key
+		// TODO: GITOPSRVCE-68 - PERF - Use a more memory efficient key
 
 		// Pass the event to the retry loop, for processing
 		task := &processEventTask{
@@ -392,7 +392,7 @@ func emitEventForExistingResource(gitopsDeplUID string, newEvent eventLoopEvent,
 	// If the cache contains a different value than the resource we just acquired, it's a delete of
 	// an old resource, AND a create of a new one.
 
-	// TODO: GITOPS-1678 - DEBT - create a concrete example of why this is needed.
+	// TODO: GITOPSRVCE-67 - DEBT - create a concrete example of why this is needed.
 
 	// otherwise, report delete and create
 

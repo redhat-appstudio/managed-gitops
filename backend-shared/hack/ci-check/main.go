@@ -59,7 +59,7 @@ func parseDbSchema() map[string]string {
 
 	fieldToSize := make(map[string]string)
 	dbSchemaFile, err := os.ReadFile(DbSchemaRelativeFileLocation)
-	
+
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -138,7 +138,7 @@ func convertSnakeCaseToCamelCase(fieldName string) string {
 
 	splitFieldName := strings.Split(fieldName, "_")
 	var fieldNameInCamelCase string
-	
+
 	for i := 0; i < len(splitFieldName); i++ {
 		fieldNameInCamelCase += strings.Title(splitFieldName[i])
 	}

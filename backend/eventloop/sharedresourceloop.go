@@ -277,10 +277,10 @@ func internalProcessMessage_GetGitopsEngineInstanceById(ctx context.Context, id 
 
 func internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx context.Context, workspaceNamespace corev1.Namespace, dbq db.DatabaseQueries) (*db.ClusterUser, error) {
 
-	// TODO: GITOPS-1577 - KCP support: for now, we assume that the namespace UID that the request occurred in is the user id.
+	// TODO: GITOPSRVCE-19 - KCP support: for now, we assume that the namespace UID that the request occurred in is the user id.
 	clusterUser := db.ClusterUser{User_name: string(workspaceNamespace.UID)}
 
-	// TODO: GITOPS-1674 - We are assuming that user namespace uid == username, which is messy. We should add a new field for unique user id, and username should be human readable and not used for security, etc.
+	// TODO: GITOPSRVCE-41 - We are assuming that user namespace uid == username, which is messy. We should add a new field for unique user id, and username should be human readable and not used for security, etc.
 	err := dbq.GetClusterUserByUsername(ctx, &clusterUser)
 	if err != nil {
 		if db.IsResultNotFoundError(err) {
@@ -344,7 +344,7 @@ func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, work
 // However, at the moment we are using a single shared Argo CD instnace, so we will
 // just return that.
 //
-// This logic would be improved by https://issues.redhat.com/browse/GITOPS-1455 (and others)
+// This logic would be improved by https://issues.redhat.com/browse/GITOPSRVCE-73 (and others)
 func internalDetermineGitOpsEngineInstanceForNewApplication(ctx context.Context, user db.ClusterUser, managedEnv db.ManagedEnvironment,
 	k8sClient client.Client, dbq db.DatabaseQueries, log logr.Logger) (*db.GitopsEngineInstance, error) {
 
@@ -398,7 +398,7 @@ func internalGetOrCreateClusterAccess(ctx context.Context, ca *db.ClusterAccess,
 
 func internalGetOrCreateClusterUserByNamespaceUID(ctx context.Context, namespaceUID string, dbq db.DatabaseQueries) (*db.ClusterUser, error) {
 
-	// TODO: GITOPS-1577 - KCP support: for now, we assume that the namespace UID that the request occurred in is the user id.
+	// TODO: GITOPSRVCE-19 - KCP support: for now, we assume that the namespace UID that the request occurred in is the user id.
 	clusterUser := db.ClusterUser{User_name: namespaceUID}
 
 	err := dbq.GetClusterUserByUsername(ctx, &clusterUser)

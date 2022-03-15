@@ -22,7 +22,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListDeploymentToApplicationMappingByWorksp
 
 	var dbResults []DeploymentToApplicationMapping
 
-	// TODO: GITOPS-1702 - PERF - Add index for this
+	// TODO: GITOPSRVCE-68 - PERF - Add index for this
 
 	if err := dbq.dbConnection.Model(&dbResults).
 		Where("dta.workspace_uid = ?", workspaceUID).
@@ -56,7 +56,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListDeploymentToApplicationMappingByNamesp
 
 	var dbResults []DeploymentToApplicationMapping
 
-	// TODO: GITOPS-1702 - PERF - Add index for this
+	// TODO: GITOPSRVCE-68 - PERF - Add index for this
 
 	if err := dbq.dbConnection.Model(&dbResults).
 		Where("dta.name = ?", deploymentName).
@@ -150,7 +150,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetDeploymentToApplicationMappingByApplica
 	var dbResults []DeploymentToApplicationMapping
 
 	if err := dbq.dbConnection.Model(&dbResults).
-		Where("dta.application_id = ?", deplToAppMappingParam.Application_id). // TODO: GITOPS-1702 - PERF - Index this
+		Where("dta.application_id = ?", deplToAppMappingParam.Application_id). // TODO: GITOPSRVCE-68 - PERF - Index this
 		Context(ctx).
 		Select(); err != nil {
 

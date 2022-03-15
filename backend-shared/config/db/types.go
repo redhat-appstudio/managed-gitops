@@ -135,8 +135,6 @@ type ClusterAccess struct {
 	SeqID int64 `pg:"seq_id"`
 }
 
-type OperationState string
-
 const (
 	OperationState_Waiting     = "Waiting"
 	OperationState_In_Progress = "In_Progress"

@@ -253,10 +253,10 @@ CREATE TABLE ApplicationState (
 	health VARCHAR (30) NOT NULL,
 
 	-- message field comes directly from Argo CD Application CR's .status.healthStatus.Message
-    message VARCHAR (1024),
+	message VARCHAR (1024),
 
     -- revision field comes directly from Argo CD Application CR's .status.SyncStatus.Revision field
-    revision VARCHAR (1024),
+	revision VARCHAR (1024),
 
 	-- sync_status field comes directly from Argo CD Application CR's .status.SyncStatus field
 	-- Possible values:

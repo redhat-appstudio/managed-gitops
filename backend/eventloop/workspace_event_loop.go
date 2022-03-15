@@ -5,21 +5,40 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-logr/logr"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/application_event_loop"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+// All events that occur within an individual API namespace will be received by an instance of a Workspace Event loop
+// (running with a Goroutine).
+
+// The responsibility of the workspace event loop is to:
+// - Receive events for a API namespace workspace, from the controller event loop
+// - Pass received events to the appropriate Application Event Loop, for the particular GitOpsDeployment/GitOpsDeploymentSync.
+// - Ensure a new Application Event Loop goroutine is running for each active application (see below).
+// - Look for orphaned resources that become un-orphaned. (eg A GitOpsDeploymentSyncRun is orphaned because it
+//   pointed to a non-existent GitOpsDeployment, but then the GitOpsDeployment it referenced was created.)
+// - If this happens, the newly un-orphaned resource is requeued, so that it can finally be processed.
+
+// Cardinality: 1 instance of the Workspace Event Loop goroutine exists for each workspace that contains
+// GitOps service API resources. (For example, if there are 10 workspaces, there will be 10 Workspace
+// Event Loop instances/goroutines servicing those).
+
 type applicationEventLoop struct {
-	input chan applicationEventLoopMessage
+	input chan eventlooptypes.EventLoopMessage
 }
 
 // TODO: GITOPSRVCE-67 - DEBT - Set log to info, and make sure you can still figure out what's going on.
 
-func startWorkspaceEventLoopRouter(input chan applicationEventLoopMessage, workspaceID string) {
+func startWorkspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, workspaceID string) {
 
 	go func() {
 
@@ -63,11 +82,15 @@ const (
 	// we do not know which GitOpsDeployment it should belong to. This is usually because the deployment name
 	// field of the SyncRun refers to a K8s resource that doesn't (or no longer) exists.
 	orphanedResourceGitopsDeplUID = "orphaned"
+
+	// noAssociatedGitOpsDeploymentUID: if a resource does not have an orphanedResourceDeplUID, this constant should be set.
+	// For example: GitOpsDeploymentRepositoryCredentials might be associated with multiple (or zero) GitOpsDeployments.
+	noAssociatedGitOpsDeploymentUID = "none"
 )
 
 // workspaceEventLoopRouter receives all events for the workspace, and passes them to specific goroutine responsible
 // for handling events for individual applications.
-func workspaceEventLoopRouter(input chan applicationEventLoopMessage, workspaceID string) {
+func workspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, workspaceID string) {
 
 	ctx := context.Background()
 
@@ -76,10 +99,10 @@ func workspaceEventLoopRouter(input chan applicationEventLoopMessage, workspaceI
 	log.Info("workspaceEventLoopRouter started")
 	defer log.Info("workspaceEventLoopRouter ended.")
 
-	sharedResourceEventLoop := newSharedResourceLoop()
+	sharedResourceEventLoop := shared_resource_loop.NewSharedResourceLoop()
 
 	// orphanedResources: gitops depl name -> (name field of CR -> event depending on it)
-	orphanedResources := map[string]map[string]eventLoopEvent{}
+	orphanedResources := map[string]map[string]eventlooptypes.EventLoopEvent{}
 
 	// applicationMap: gitopsDepl UID -> channel for go routine responsible for handling it
 	applicationMap := map[string]applicationEventLoop{}
@@ -87,125 +110,137 @@ func workspaceEventLoopRouter(input chan applicationEventLoopMessage, workspaceI
 		event := <-input
 
 		// First, sanity check the event
-
-		if event.messageType == applicationEventLoopMessageType_WorkComplete {
+		if event.MessageType == eventlooptypes.ApplicationEventLoopMessageType_WorkComplete {
 			log.Error(nil, "SEVERE: invalid message type received in applicationEventLooRouter")
 			continue
 		}
-
-		if event.event == nil {
+		if event.Event == nil {
+			log.Error(nil, "SEVERE: event was nil applicationEventLooRouter")
+			continue
+		}
+		if strings.TrimSpace(event.Event.AssociatedGitopsDeplUID) == "" {
 			log.Error(nil, "SEVERE: event was nil applicationEventLooRouter")
 			continue
 		}
 
-		if strings.TrimSpace(event.event.associatedGitopsDeplUID) == "" {
-			log.Error(nil, "SEVERE: event was nil applicationEventLooRouter")
-			continue
-		}
-
-		log.V(sharedutil.LogLevel_Debug).Info("applicationEventLoop received event", "event", stringEventLoopEvent(event.event))
+		log.V(sharedutil.LogLevel_Debug).Info("applicationEventLoop received event", "event", eventlooptypes.StringEventLoopEvent(event.Event))
 
 		// If the event is orphaned (it refers to a gitopsdepl that doesn't exist, add it to our orphaned resources list)
-		if event.event.associatedGitopsDeplUID == orphanedResourceGitopsDeplUID {
-
-			if event.event.reqResource == v1alpha1.GitOpsDeploymentSyncRunTypeName {
-				syncRunCR := &v1alpha1.GitOpsDeploymentSyncRun{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      event.event.request.Name,
-						Namespace: event.event.request.Namespace,
-					},
-				}
-				if err := event.event.client.Get(ctx, client.ObjectKeyFromObject(syncRunCR), syncRunCR); err != nil {
-
-					if apierr.IsNotFound(err) {
-						log.V(sharedutil.LogLevel_Debug).Info("skipping orphaned resource that could no longer be found:", "resource", syncRunCR.ObjectMeta)
-						continue
-					} else {
-						log.Error(err, "unexpected client error on retrieving orphaned syncrun object", "resource", syncRunCR.ObjectMeta)
-						continue
-					}
-				}
-
-				// TODO: GITOPSRVCE-67 - DEBT - Make sure it's not still orphaned before adding it to orphanedResources
-
-				gitopsDeplMap, exists := orphanedResources[syncRunCR.Spec.GitopsDeploymentName]
-				if !exists {
-					gitopsDeplMap = map[string]eventLoopEvent{}
-					orphanedResources[syncRunCR.Spec.GitopsDeploymentName] = gitopsDeplMap
-				}
-
-				log.V(sharedutil.LogLevel_Debug).Info("Adding syncrun CR to orphaned resources list, name: " + syncRunCR.Name + ", missing gitopsdepl name: " + syncRunCR.Spec.GitopsDeploymentName)
-				gitopsDeplMap[syncRunCR.Name] = *event.event
-			} else {
-				log.Error(nil, "SEVERE: unexpected event resource type in applicationEventLoopRouter")
-				continue
-			}
-
+		if event.Event.AssociatedGitopsDeplUID == orphanedResourceGitopsDeplUID {
+			handleOrphaned(ctx, event, orphanedResources, log)
 			continue
 		}
 
-		if event.event.reqResource == v1alpha1.GitOpsDeploymentTypeName {
-
-			// If there exists an orphaned resource that is waiting for this gitopsdepl
-			if gitopsDeplMap, exists := orphanedResources[event.event.request.Name]; exists {
-
-				// Retrieve the gitopsdepl
-				gitopsDeplCR := &v1alpha1.GitOpsDeployment{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      event.event.request.Name,
-						Namespace: event.event.request.Namespace,
-					},
-				}
-				if err := event.event.client.Get(ctx, client.ObjectKeyFromObject(gitopsDeplCR), gitopsDeplCR); err != nil {
-					// log as warning, but continue.
-					log.V(sharedutil.LogLevel_Warn).Error(err, "unexpected client error on retrieving gitopsdepl")
-
-				} else {
-					// Copy the events to a new slice, and remove the events from the orphanedResourced map
-					requeueEvents := []applicationEventLoopMessage{}
-					for index := range gitopsDeplMap {
-
-						orphanedResourceEvent := gitopsDeplMap[index]
-
-						// Unorphan the resource
-						orphanedResourceEvent.associatedGitopsDeplUID = string(gitopsDeplCR.UID)
-
-						requeueEvents = append(requeueEvents, applicationEventLoopMessage{
-							messageType: applicationEventLoopMessageType_Event,
-							event:       &orphanedResourceEvent,
-						})
-
-						log.V(sharedutil.LogLevel_Debug).Info("found parent: " + gitopsDeplCR.Name + " (" + string(gitopsDeplCR.UID) + "), of orphaned resource: " + orphanedResourceEvent.request.Name)
-					}
-					delete(orphanedResources, event.event.request.Name)
-
-					// Requeue the orphaned events from a separate goroutine (to prevent us from blocking this goroutine).
-					// The orphaned events will be reprocessed after the gitopsdepl is processed.
-					go func() {
-						for _, eventToRequeue := range requeueEvents {
-							log.V(sharedutil.LogLevel_Debug).Info("requeueing orphaned resource: " + eventToRequeue.event.request.Name + ", for parent: " + eventToRequeue.event.associatedGitopsDeplUID)
-							input <- eventToRequeue
-						}
-					}()
-				}
-			}
+		// Check GitOpsDeployment that come in: if we get an event for GitOpsDeployment that has an orphaned child resource
+		// depending on it, then unorphan the child resource.
+		if event.Event.ReqResource == v1alpha1.GitOpsDeploymentTypeName {
+			unorphanResourcesIfPossible(ctx, event, orphanedResources, input, log)
 		}
 
-		applicationEntryVal, ok := applicationMap[event.event.associatedGitopsDeplUID]
+		applicationEntryVal, ok := applicationMap[event.Event.AssociatedGitopsDeplUID]
 		if !ok {
+
 			// Start the application event queue go-routine, if it's not already started.
 			applicationEntryVal = applicationEventLoop{
-				input: make(chan applicationEventLoopMessage),
+				input: make(chan eventlooptypes.EventLoopMessage),
 			}
-			applicationMap[event.event.associatedGitopsDeplUID] = applicationEntryVal
+			applicationMap[event.Event.AssociatedGitopsDeplUID] = applicationEntryVal
 
-			go applicationEventQueueLoop(applicationEntryVal.input, event.event.associatedGitopsDeplUID, event.event.workspaceID, sharedResourceEventLoop)
+			go application_event_loop.ApplicationEventQueueLoop(applicationEntryVal.input, event.Event.AssociatedGitopsDeplUID, event.Event.WorkspaceID, sharedResourceEventLoop)
 		}
 
 		// Send the event to the channel/go routine that handles all events for this application/gitopsdepl (non-blocking)
-		applicationEntryVal.input <- applicationEventLoopMessage{
-			messageType: applicationEventLoopMessageType_Event,
-			event:       event.event,
+		applicationEntryVal.input <- eventlooptypes.EventLoopMessage{
+			MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
+			Event:       event.Event,
 		}
 	}
+}
+
+func unorphanResourcesIfPossible(ctx context.Context, event eventlooptypes.EventLoopMessage, orphanedResources map[string]map[string]eventlooptypes.EventLoopEvent,
+	input chan eventlooptypes.EventLoopMessage, log logr.Logger) {
+
+	// If there exists an orphaned resource that is waiting for this gitopsdepl (by name)
+	if gitopsDeplMap, exists := orphanedResources[event.Event.Request.Name]; exists {
+
+		// Retrieve the gitopsdepl
+		gitopsDeplCR := &v1alpha1.GitOpsDeployment{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      event.Event.Request.Name,
+				Namespace: event.Event.Request.Namespace,
+			},
+		}
+		if err := event.Event.Client.Get(ctx, client.ObjectKeyFromObject(gitopsDeplCR), gitopsDeplCR); err != nil {
+			// log as warning, but continue.
+			log.V(sharedutil.LogLevel_Warn).Error(err, "unexpected client error on retrieving gitopsdepl")
+
+		} else {
+			// Copy the events to a new slice, and remove the events from the orphanedResourced map
+			requeueEvents := []eventlooptypes.EventLoopMessage{}
+			for index := range gitopsDeplMap {
+
+				orphanedResourceEvent := gitopsDeplMap[index]
+
+				// Unorphan the resource
+				orphanedResourceEvent.AssociatedGitopsDeplUID = string(gitopsDeplCR.UID)
+
+				requeueEvents = append(requeueEvents, eventlooptypes.EventLoopMessage{
+					MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
+					Event:       &orphanedResourceEvent,
+				})
+
+				log.V(sharedutil.LogLevel_Debug).Info("found parent: " + gitopsDeplCR.Name + " (" + string(gitopsDeplCR.UID) + "), of orphaned resource: " + orphanedResourceEvent.Request.Name)
+			}
+			delete(orphanedResources, event.Event.Request.Name)
+
+			// Requeue the orphaned events from a separate goroutine (to prevent us from blocking this goroutine).
+			// The orphaned events will be reprocessed after the gitopsdepl is processed.
+			go func() {
+				for _, eventToRequeue := range requeueEvents {
+					log.V(sharedutil.LogLevel_Debug).Info("requeueing orphaned resource: " + eventToRequeue.Event.Request.Name + ", for parent: " + eventToRequeue.Event.AssociatedGitopsDeplUID)
+					input <- eventToRequeue
+				}
+			}()
+		}
+	}
+}
+
+// Add a resource to orphaned list (why? because it is a gitopsdeplsyncrun that refers to a gitopsdepl that doesn't exist)
+func handleOrphaned(ctx context.Context, event eventlooptypes.EventLoopMessage, orphanedResources map[string]map[string]eventlooptypes.EventLoopEvent, log logr.Logger) {
+
+	if event.Event.ReqResource == v1alpha1.GitOpsDeploymentSyncRunTypeName {
+
+		syncRunCR := &v1alpha1.GitOpsDeploymentSyncRun{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      event.Event.Request.Name,
+				Namespace: event.Event.Request.Namespace,
+			},
+		}
+		if err := event.Event.Client.Get(ctx, client.ObjectKeyFromObject(syncRunCR), syncRunCR); err != nil {
+
+			if apierr.IsNotFound(err) {
+				log.V(sharedutil.LogLevel_Debug).Info("skipping orphaned resource that could no longer be found:", "resource", syncRunCR.ObjectMeta)
+				return
+			} else {
+				log.Error(err, "unexpected client error on retrieving orphaned syncrun object", "resource", syncRunCR.ObjectMeta)
+				return
+			}
+		}
+
+		// TODO: GITOPSRVCE-67 - DEBT - Make sure it's not still orphaned before adding it to orphanedResources
+
+		gitopsDeplMap, exists := orphanedResources[syncRunCR.Spec.GitopsDeploymentName]
+		if !exists {
+			gitopsDeplMap = map[string]eventlooptypes.EventLoopEvent{}
+			orphanedResources[syncRunCR.Spec.GitopsDeploymentName] = gitopsDeplMap
+		}
+
+		log.V(sharedutil.LogLevel_Debug).Info("Adding syncrun CR to orphaned resources list, name: " + syncRunCR.Name + ", missing gitopsdepl name: " + syncRunCR.Spec.GitopsDeploymentName)
+		gitopsDeplMap[syncRunCR.Name] = *event.Event
+
+	} else {
+		log.Error(nil, "SEVERE: unexpected event resource type in handleOrphaned")
+		return
+	}
+
 }

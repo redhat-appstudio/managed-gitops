@@ -17,7 +17,7 @@ type TaskRetryLoop struct {
 }
 
 type RetryableTask interface {
-	// returns bool (whether or not the task should be retried), and error
+	// returns bool (true if the task should be retried, for example because it failed, false otherwise), and error ('error' value does not affect whether the task will be retried)
 	PerformTask(taskContext context.Context) (bool, error)
 }
 

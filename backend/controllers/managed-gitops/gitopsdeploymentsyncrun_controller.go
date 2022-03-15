@@ -28,6 +28,7 @@ import (
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 )
 
 // GitOpsDeploymentSyncRunReconciler reconciles a GitOpsDeploymentSyncRun object
@@ -59,7 +60,7 @@ func (r *GitOpsDeploymentSyncRunReconciler) Reconcile(ctx context.Context, req c
 		return ctrl.Result{}, err
 	}
 
-	r.PreprocessEventLoop.EventReceived(req, managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName, r.Client, eventloop.SyncRunModified, string(namespace.UID))
+	r.PreprocessEventLoop.EventReceived(req, managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName, r.Client, eventlooptypes.SyncRunModified, string(namespace.UID))
 
 	return ctrl.Result{}, nil
 }

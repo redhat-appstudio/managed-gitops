@@ -1,4 +1,4 @@
-package eventloop_test
+package application_event_loop_test
 
 import (
 	"testing"

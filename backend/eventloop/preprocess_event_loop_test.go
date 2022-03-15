@@ -7,6 +7,7 @@ import (
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -19,7 +20,7 @@ func TestPreprocessEventLoop(t *testing.T) {
 
 	ctx := context.Background()
 
-	scheme, argocdNamespace, kubesystemNamespace, workspace := genericTestSetup(t)
+	scheme, argocdNamespace, kubesystemNamespace, workspace := eventlooptypes.GenericTestSetup(t)
 
 	gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -37,26 +38,26 @@ func TestPreprocessEventLoop(t *testing.T) {
 		Informer:    &informer,
 	}
 
-	fakeEventLoopChannel := make(chan eventLoopEvent)
+	fakeEventLoopChannel := make(chan eventlooptypes.EventLoopEvent)
 	fakeEventLoop := controllerEventLoop{
 		eventLoopInputChannel: fakeEventLoopChannel,
 	}
 
-	channel := make(chan eventLoopEvent)
+	channel := make(chan eventlooptypes.EventLoopEvent)
 
 	go preprocessEventLoopRouter(channel, &fakeEventLoop)
 
-	event := eventLoopEvent{
-		eventType: DeploymentModified,
-		request: reconcile.Request{
+	event := eventlooptypes.EventLoopEvent{
+		EventType: eventlooptypes.DeploymentModified,
+		Request: reconcile.Request{
 			NamespacedName: types.NamespacedName{
 				Namespace: gitopsDepl.Namespace,
 				Name:      gitopsDepl.Name,
 			},
 		},
-		reqResource: managedgitopsv1alpha1.GitOpsDeploymentTypeName,
-		client:      k8sClient,
-		workspaceID: getWorkspaceIDFromNamespaceID(*workspace),
+		ReqResource: managedgitopsv1alpha1.GitOpsDeploymentTypeName,
+		Client:      k8sClient,
+		WorkspaceID: eventlooptypes.GetWorkspaceIDFromNamespaceID(*workspace),
 	}
 
 	fmt.Println("sent event")
@@ -69,17 +70,17 @@ func TestPreprocessEventLoop(t *testing.T) {
 		assert.Nil(t, err)
 	}
 
-	event = eventLoopEvent{
-		eventType: DeploymentModified,
-		request: reconcile.Request{
+	event = eventlooptypes.EventLoopEvent{
+		EventType: eventlooptypes.DeploymentModified,
+		Request: reconcile.Request{
 			NamespacedName: types.NamespacedName{
 				Namespace: gitopsDepl.Namespace,
 				Name:      gitopsDepl.Name,
 			},
 		},
-		reqResource: managedgitopsv1alpha1.GitOpsDeploymentTypeName,
-		client:      k8sClient,
-		workspaceID: getWorkspaceIDFromNamespaceID(*workspace),
+		ReqResource: managedgitopsv1alpha1.GitOpsDeploymentTypeName,
+		Client:      k8sClient,
+		WorkspaceID: eventlooptypes.GetWorkspaceIDFromNamespaceID(*workspace),
 	}
 
 	fmt.Println("sent event")

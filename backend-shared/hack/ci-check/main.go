@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	DbSchemaRelativeFileLocation         = "../../db-schema.sql"
-	DbFieldConstantsRelativeFileLocation = "../config/db/db_field_constants.go"
+	DbSchemaRelativeFileLocation         = "../db-schema.sql"
+	DbFieldConstantsRelativeFileLocation = "./config/db/db_field_constants.go"
 )
 
 func main() {

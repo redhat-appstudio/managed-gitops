@@ -106,10 +106,10 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 			// 3a) ApplicationState doesn't exist: so create it
 
-			applicationState.Health = db.TruncateVarchar(string(app.Status.Health.Status), db.ApplicationstateHealthLength)
-			applicationState.Message = db.TruncateVarchar(app.Status.Health.Message, db.ApplicationstateMessageLength)
-			applicationState.Sync_Status = db.TruncateVarchar(string(app.Status.Sync.Status), db.ApplicationstateSyncstatusLength)
-			applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationstateRevisionLength)
+			applicationState.Health = db.TruncateVarchar(string(app.Status.Health.Status), db.ApplicationStateHealth)
+			applicationState.Message = db.TruncateVarchar(app.Status.Health.Message, db.ApplicationStateMessage)
+			applicationState.Sync_Status = db.TruncateVarchar(string(app.Status.Sync.Status), db.ApplicationStateSyncStatus)
+			applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationStateRevision)
 			sanitizeHealthAndStatus(applicationState)
 
 			if err := r.DB.CreateApplicationState(ctx, applicationState); err != nil {
@@ -127,10 +127,10 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// 4) ApplicationState already exists, so just update it.
 
-	applicationState.Health = db.TruncateVarchar(string(app.Status.Health.Status), db.ApplicationstateHealthLength)
-	applicationState.Message = db.TruncateVarchar(app.Status.Health.Message, db.ApplicationstateMessageLength)
-	applicationState.Sync_Status = db.TruncateVarchar(string(app.Status.Sync.Status), db.ApplicationstateSyncstatusLength)
-	applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationstateRevisionLength)
+	applicationState.Health = db.TruncateVarchar(string(app.Status.Health.Status), db.ApplicationStateHealth)
+	applicationState.Message = db.TruncateVarchar(app.Status.Health.Message, db.ApplicationStateMessage)
+	applicationState.Sync_Status = db.TruncateVarchar(string(app.Status.Sync.Status), db.ApplicationStateSyncStatus)
+	applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationStateRevision)
 	sanitizeHealthAndStatus(applicationState)
 
 	if err := r.DB.UpdateApplicationState(ctx, applicationState); err != nil {

@@ -5,7 +5,7 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-BACKEND_SHARED_DIR=$(cd $(dirname "$0")/.. ; pwd)
+BACKEND_SHARED_DIR=${GITHUB_WORKSPACE}/backend-shared
 
-go build -o ./dist/ci-check ${BACKEND_SHARED_DIR}/hack/ci-check
-./dist/ci-check
+go build -o ${BACKEND_SHARED_DIR}/hack/dist/ci-check ${BACKEND_SHARED_DIR}/hack/ci-check
+${BACKEND_SHARED_DIR}/dist/ci-check

@@ -9,6 +9,7 @@ import (
 )
 
 var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
+var Default = 101
 
 func TestGetOperationById(t *testing.T) {
 	testSetup(t)
@@ -21,38 +22,10 @@ func TestGetOperationById(t *testing.T) {
 
 	ctx := context.Background()
 
-	clusterUser := ClusterUser{
-		Clusteruser_id: "test-user-application-1",
-		User_name:      "test-user-application",
+	_, _, _, gitopsEngineInstance, _, err := createSampleData(t, dbq)
+	if !assert.NoError(t, err) {
+		return
 	}
-
-	clusterCredentials := ClusterCredentials{
-		Clustercredentials_cred_id:  "test-cluster-creds-test-1",
-		Host:                        "host",
-		Kube_config:                 "kube-config",
-		Kube_config_context:         "kube-config-context",
-		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-		Serviceaccount_ns:           "Serviceaccount_ns",
-	}
-
-	managedEnvironment := ManagedEnvironment{
-		Managedenvironment_id: "test-managed-env-1",
-		Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
-		Name:                  "my env",
-	}
-
-	gitopsEngineCluster := GitopsEngineCluster{
-		Gitopsenginecluster_id: "test-fake-cluster-1",
-		Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
-	}
-
-	gitopsEngineInstance := GitopsEngineInstance{
-		Gitopsengineinstance_id: "test-fake-engine-instance-id",
-		Namespace_name:          "test-fake-namespace",
-		Namespace_uid:           "test-fake-namespace-1",
-		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
-	}
-
 	operationput := Operation{
 		Operation_id:            "test-operation-1",
 		Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
@@ -62,43 +35,13 @@ func TestGetOperationById(t *testing.T) {
 		Operation_owner_user_id: testClusterUser.Clusteruser_id,
 	}
 
-	err = dbq.CreateClusterUser(ctx, &clusterUser)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-	if !assert.NoError(t, err) {
-		return
-	}
-
 	err = dbq.CreateOperation(ctx, &operationput, operationput.Operation_owner_user_id)
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	operationget := Operation{
-		Operation_id:            "test-operation-1",
-		Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-		Resource_id:             "test-fake-resource-id",
-		Resource_type:           "GitopsEngineInstance",
-		State:                   OperationState_Waiting,
-		Operation_owner_user_id: testClusterUser.Clusteruser_id,
+		Operation_id: operationput.Operation_id,
 	}
 
 	err = dbq.GetOperationById(ctx, &operationget)
@@ -113,16 +56,11 @@ func TestGetOperationById(t *testing.T) {
 	assert.Equal(t, operationput, operationget)
 
 	operationNotExist := Operation{
-		Operation_id:            "test-operation-1-not-exist",
-		Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-		Resource_id:             "test-fake-resource-id-not-exist",
-		Resource_type:           "GitopsEngineInstance-not-exist",
-		State:                   OperationState_Waiting,
-		Operation_owner_user_id: testClusterUser.Clusteruser_id,
+		Operation_id: "test-operation-1-not-exist",
 	}
 
 	err = dbq.GetOperationById(ctx, &operationNotExist)
-	if assert.True(t, IsResultNotFoundError(err)) {
+	if !assert.True(t, IsResultNotFoundError(err)) {
 		return
 	}
 
@@ -139,38 +77,10 @@ func TestCreateOperation(t *testing.T) {
 
 	ctx := context.Background()
 
-	clusterUser := ClusterUser{
-		Clusteruser_id: "test-user-application-1",
-		User_name:      "test-user-application",
+	_, _, _, gitopsEngineInstance, _, err := createSampleData(t, dbq)
+	if !assert.NoError(t, err) {
+		return
 	}
-
-	clusterCredentials := ClusterCredentials{
-		Clustercredentials_cred_id:  "test-cluster-creds-test-1",
-		Host:                        "host",
-		Kube_config:                 "kube-config",
-		Kube_config_context:         "kube-config-context",
-		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-		Serviceaccount_ns:           "Serviceaccount_ns",
-	}
-
-	managedEnvironment := ManagedEnvironment{
-		Managedenvironment_id: "test-managed-env-1",
-		Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
-		Name:                  "my env",
-	}
-
-	gitopsEngineCluster := GitopsEngineCluster{
-		Gitopsenginecluster_id: "test-fake-cluster-1",
-		Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
-	}
-
-	gitopsEngineInstance := GitopsEngineInstance{
-		Gitopsengineinstance_id: "test-fake-engine-instance-id",
-		Namespace_name:          "test-fake-namespace",
-		Namespace_uid:           "test-fake-namespace-1",
-		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
-	}
-
 	operationput := Operation{
 		Operation_id:            "test-operation-1",
 		Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
@@ -180,43 +90,13 @@ func TestCreateOperation(t *testing.T) {
 		Operation_owner_user_id: testClusterUser.Clusteruser_id,
 	}
 
-	err = dbq.CreateClusterUser(ctx, &clusterUser)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-	if !assert.NoError(t, err) {
-		return
-	}
-
 	err = dbq.CreateOperation(ctx, &operationput, operationput.Operation_owner_user_id)
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	operationget := Operation{
-		Operation_id:            "test-operation-1",
-		Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-		Resource_id:             "test-fake-resource-id",
-		Resource_type:           "GitopsEngineInstance",
-		State:                   OperationState_Waiting,
-		Operation_owner_user_id: testClusterUser.Clusteruser_id,
+		Operation_id: operationput.Operation_id,
 	}
 
 	err = dbq.GetOperationById(ctx, &operationget)
@@ -229,6 +109,7 @@ func TestCreateOperation(t *testing.T) {
 	operationget.Created_on = operationput.Created_on
 	operationget.Last_state_update = operationput.Last_state_update
 	assert.Equal(t, operationput, operationget)
+
 }
 
 func TestDeleteOperationById(t *testing.T) {
@@ -241,39 +122,10 @@ func TestDeleteOperationById(t *testing.T) {
 	defer dbq.CloseDatabase()
 
 	ctx := context.Background()
-
-	clusterUser := ClusterUser{
-		Clusteruser_id: "test-user-application-1",
-		User_name:      "test-user-application",
+	_, _, _, gitopsEngineInstance, _, err := createSampleData(t, dbq)
+	if !assert.NoError(t, err) {
+		return
 	}
-
-	clusterCredentials := ClusterCredentials{
-		Clustercredentials_cred_id:  "test-cluster-creds-test-1",
-		Host:                        "host",
-		Kube_config:                 "kube-config",
-		Kube_config_context:         "kube-config-context",
-		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-		Serviceaccount_ns:           "Serviceaccount_ns",
-	}
-
-	managedEnvironment := ManagedEnvironment{
-		Managedenvironment_id: "test-managed-env-1",
-		Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
-		Name:                  "my env",
-	}
-
-	gitopsEngineCluster := GitopsEngineCluster{
-		Gitopsenginecluster_id: "test-fake-cluster-1",
-		Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
-	}
-
-	gitopsEngineInstance := GitopsEngineInstance{
-		Gitopsengineinstance_id: "test-fake-engine-instance-id",
-		Namespace_name:          "test-fake-namespace",
-		Namespace_uid:           "test-fake-namespace-1",
-		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
-	}
-
 	operation := Operation{
 		Operation_id:            "test-operation-1",
 		Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
@@ -281,31 +133,6 @@ func TestDeleteOperationById(t *testing.T) {
 		Resource_type:           "GitopsEngineInstance",
 		State:                   OperationState_Waiting,
 		Operation_owner_user_id: testClusterUser.Clusteruser_id,
-	}
-
-	err = dbq.CreateClusterUser(ctx, &clusterUser)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-	if !assert.NoError(t, err) {
-		return
 	}
 
 	err = dbq.CreateOperation(ctx, &operation, operation.Operation_owner_user_id)
@@ -317,52 +144,8 @@ func TestDeleteOperationById(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, rowsAffected, 1)
 
-	rowsAffected, err = dbq.DeleteGitopsEngineInstanceById(ctx, gitopsEngineInstance.Gitopsengineinstance_id)
-	assert.NoError(t, err)
-	assert.Equal(t, rowsAffected, 1)
-
-	rowsAffected, err = dbq.DeleteGitopsEngineClusterById(ctx, gitopsEngineCluster.Gitopsenginecluster_id)
-	assert.NoError(t, err)
-	assert.Equal(t, rowsAffected, 1)
-
-	rowsAffected, err = dbq.DeleteManagedEnvironmentById(ctx, managedEnvironment.Managedenvironment_id)
-	assert.NoError(t, err)
-	assert.Equal(t, rowsAffected, 1)
-
-	rowsAffected, err = dbq.DeleteClusterCredentialsById(ctx, clusterCredentials.Clustercredentials_cred_id)
-	assert.NoError(t, err)
-	assert.Equal(t, rowsAffected, 1)
-
-	rowsAffected, err = dbq.DeleteClusterUserById(ctx, clusterUser.Clusteruser_id)
-	assert.NoError(t, err)
-	assert.Equal(t, rowsAffected, 1)
-
 	err = dbq.GetOperationById(ctx, &operation)
-	if assert.True(t, IsResultNotFoundError(err)) {
-		return
-	}
-
-	err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstance)
-	if assert.True(t, IsResultNotFoundError(err)) {
-		return
-	}
-	err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineCluster)
-	if assert.True(t, IsResultNotFoundError(err)) {
-		return
-	}
-
-	err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironment)
-	if assert.True(t, IsResultNotFoundError(err)) {
-		return
-	}
-
-	err = dbq.GetClusterCredentialsById(ctx, &clusterCredentials)
-	if assert.True(t, IsResultNotFoundError(err)) {
-		return
-	}
-
-	err = dbq.GetClusterUserById(ctx, &clusterUser)
-	if assert.True(t, IsResultNotFoundError(err)) {
+	if !assert.True(t, IsResultNotFoundError(err)) {
 		return
 	}
 
@@ -379,36 +162,9 @@ func TestListOperationsByResourceIdAndTypeAndOwnerId(t *testing.T) {
 
 	ctx := context.Background()
 
-	clusterUser := ClusterUser{
-		Clusteruser_id: "test-user-application-1",
-		User_name:      "test-user-application",
-	}
-
-	clusterCredentials := ClusterCredentials{
-		Clustercredentials_cred_id:  "test-cluster-creds-test-1",
-		Host:                        "host",
-		Kube_config:                 "kube-config",
-		Kube_config_context:         "kube-config-context",
-		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-		Serviceaccount_ns:           "Serviceaccount_ns",
-	}
-
-	managedEnvironment := ManagedEnvironment{
-		Managedenvironment_id: "test-managed-env-1",
-		Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
-		Name:                  "my env",
-	}
-
-	gitopsEngineCluster := GitopsEngineCluster{
-		Gitopsenginecluster_id: "test-fake-cluster-1",
-		Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
-	}
-
-	gitopsEngineInstance := GitopsEngineInstance{
-		Gitopsengineinstance_id: "test-fake-engine-instance-id",
-		Namespace_name:          "test-fake-namespace",
-		Namespace_uid:           "test-fake-namespace-1",
-		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+	_, _, _, gitopsEngineInstance, _, err := createSampleData(t, dbq)
+	if !assert.NoError(t, err) {
+		return
 	}
 
 	operation := Operation{
@@ -421,31 +177,6 @@ func TestListOperationsByResourceIdAndTypeAndOwnerId(t *testing.T) {
 	}
 
 	var operations []Operation
-
-	err = dbq.CreateClusterUser(ctx, &clusterUser)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-	if !assert.NoError(t, err) {
-		return
-	}
 
 	err = dbq.CreateOperation(ctx, &operation, operation.Operation_owner_user_id)
 	if !assert.NoError(t, err) {
@@ -475,38 +206,10 @@ func TestUpdateOperation(t *testing.T) {
 
 	ctx := context.Background()
 
-	clusterUser := ClusterUser{
-		Clusteruser_id: "test-user-application-1",
-		User_name:      "test-user-application",
+	_, _, _, gitopsEngineInstance, _, err := createSampleData(t, dbq)
+	if !assert.NoError(t, err) {
+		return
 	}
-
-	clusterCredentials := ClusterCredentials{
-		Clustercredentials_cred_id:  "test-cluster-creds-test-1",
-		Host:                        "host",
-		Kube_config:                 "kube-config",
-		Kube_config_context:         "kube-config-context",
-		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-		Serviceaccount_ns:           "Serviceaccount_ns",
-	}
-
-	managedEnvironment := ManagedEnvironment{
-		Managedenvironment_id: "test-managed-env-1",
-		Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
-		Name:                  "my env",
-	}
-
-	gitopsEngineCluster := GitopsEngineCluster{
-		Gitopsenginecluster_id: "test-fake-cluster-1",
-		Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
-	}
-
-	gitopsEngineInstance := GitopsEngineInstance{
-		Gitopsengineinstance_id: "test-fake-engine-instance-id",
-		Namespace_name:          "test-fake-namespace",
-		Namespace_uid:           "test-fake-namespace-1",
-		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
-	}
-
 	operationput := Operation{
 		Operation_id:            "test-operation-1",
 		Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
@@ -514,31 +217,6 @@ func TestUpdateOperation(t *testing.T) {
 		Resource_type:           "GitopsEngineInstance",
 		State:                   OperationState_Waiting,
 		Operation_owner_user_id: testClusterUser.Clusteruser_id,
-	}
-
-	err = dbq.CreateClusterUser(ctx, &clusterUser)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-	if !assert.NoError(t, err) {
-		return
 	}
 
 	err = dbq.CreateOperation(ctx, &operationput, operationput.Operation_owner_user_id)
@@ -549,16 +227,17 @@ func TestUpdateOperation(t *testing.T) {
 	operationget := Operation{
 		Operation_id:            "test-operation-1",
 		Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-		Resource_id:             "test-fake-resource-id",
+		Resource_id:             "test-fake-resource-id-update",
 		Resource_type:           "GitopsEngineInstance-update",
 		State:                   OperationState_Waiting,
 		Operation_owner_user_id: testClusterUser.Clusteruser_id,
+		SeqID:                   int64(Default),
 	}
 
-	err = dbq.GetOperationById(ctx, &operationget)
-	if !assert.NoError(t, err) {
-		return
-	}
+	assert.IsType(t, timestamp, operationget.Created_on)
+	assert.IsType(t, timestamp, operationget.Last_state_update)
+	operationget.Created_on = operationput.Created_on
+	operationget.Last_state_update = operationput.Last_state_update
 
 	err = dbq.UpdateOperation(ctx, &operationget)
 	if !assert.NoError(t, err) {
@@ -569,9 +248,7 @@ func TestUpdateOperation(t *testing.T) {
 		return
 	}
 
-	assert.IsType(t, timestamp, operationget.Created_on)
-	assert.IsType(t, timestamp, operationget.Last_state_update)
-	operationget.Created_on = operationput.Created_on
-	operationget.Last_state_update = operationput.Last_state_update
-	assert.Equal(t, operationput, operationget)
+	if !assert.NotEqual(t, operationput, operationget) {
+		return
+	}
 }

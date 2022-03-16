@@ -18,31 +18,9 @@ func TestGetApplicationById(t *testing.T) {
 
 	ctx := context.Background()
 
-	clusterCredentials := ClusterCredentials{
-		Clustercredentials_cred_id:  "test-cluster-creds-test-1",
-		Host:                        "host",
-		Kube_config:                 "kube-config",
-		Kube_config_context:         "kube-config-context",
-		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-		Serviceaccount_ns:           "Serviceaccount_ns",
-	}
-
-	managedEnvironment := ManagedEnvironment{
-		Managedenvironment_id: "test-managed-env-1",
-		Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
-		Name:                  "my env",
-	}
-
-	gitopsEngineCluster := GitopsEngineCluster{
-		Gitopsenginecluster_id: "test-fake-cluster-1",
-		Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
-	}
-
-	gitopsEngineInstance := GitopsEngineInstance{
-		Gitopsengineinstance_id: "test-fake-engine-instance-id",
-		Namespace_name:          "test-fake-namespace",
-		Namespace_uid:           "test-fake-namespace-1",
-		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+	_, managedEnvironment, _, gitopsEngineInstance, _, err := createSampleData(t, dbq)
+	if !assert.NoError(t, err) {
+		return
 	}
 	applicationput := Application{
 		Application_id:          "test-my-application-1",
@@ -52,37 +30,13 @@ func TestGetApplicationById(t *testing.T) {
 		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 	}
 
-	err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-	if !assert.NoError(t, err) {
-		return
-	}
-
 	err = dbq.CreateApplication(ctx, &applicationput)
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	applicationget := Application{
-		Application_id:          "test-my-application-1",
-		Name:                    "test-application",
-		Spec_field:              "{}",
-		Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+		Application_id: applicationput.Application_id,
 	}
 
 	err = dbq.GetApplicationById(ctx, &applicationget)
@@ -94,15 +48,11 @@ func TestGetApplicationById(t *testing.T) {
 	// check for non existent primary key
 
 	applicationNotExist := Application{
-		Application_id:          "test-my-application-1-not-exist",
-		Name:                    "test-application-not-exist",
-		Spec_field:              "{}",
-		Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+		Application_id: "test-my-application-1-not-exist",
 	}
 
 	err = dbq.GetApplicationById(ctx, &applicationNotExist)
-	if assert.True(t, IsResultNotFoundError(err)) {
+	if !assert.True(t, IsResultNotFoundError(err)) {
 		return
 	}
 
@@ -119,31 +69,9 @@ func TestCreateApplications(t *testing.T) {
 
 	ctx := context.Background()
 
-	clusterCredentials := ClusterCredentials{
-		Clustercredentials_cred_id:  "test-cluster-creds-test-1",
-		Host:                        "host",
-		Kube_config:                 "kube-config",
-		Kube_config_context:         "kube-config-context",
-		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-		Serviceaccount_ns:           "Serviceaccount_ns",
-	}
-
-	managedEnvironment := ManagedEnvironment{
-		Managedenvironment_id: "test-managed-env-1",
-		Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
-		Name:                  "my env",
-	}
-
-	gitopsEngineCluster := GitopsEngineCluster{
-		Gitopsenginecluster_id: "test-fake-cluster-1",
-		Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
-	}
-
-	gitopsEngineInstance := GitopsEngineInstance{
-		Gitopsengineinstance_id: "test-fake-engine-instance-id",
-		Namespace_name:          "test-fake-namespace",
-		Namespace_uid:           "test-fake-namespace-1",
-		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+	_, managedEnvironment, _, gitopsEngineInstance, _, err := createSampleData(t, dbq)
+	if !assert.NoError(t, err) {
+		return
 	}
 	applicationput := Application{
 		Application_id:          "test-my-application-1",
@@ -153,37 +81,13 @@ func TestCreateApplications(t *testing.T) {
 		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 	}
 
-	err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-	if !assert.NoError(t, err) {
-		return
-	}
-
 	err = dbq.CreateApplication(ctx, &applicationput)
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	applicationget := Application{
-		Application_id:          "test-my-application-1",
-		Name:                    "test-application",
-		Spec_field:              "{}",
-		Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+		Application_id: applicationput.Application_id,
 	}
 
 	err = dbq.GetApplicationById(ctx, &applicationget)
@@ -204,33 +108,11 @@ func TestDeleteApplicationById(t *testing.T) {
 
 	ctx := context.Background()
 
-	clusterCredentials := ClusterCredentials{
-		Clustercredentials_cred_id:  "test-cluster-creds-test-1",
-		Host:                        "host",
-		Kube_config:                 "kube-config",
-		Kube_config_context:         "kube-config-context",
-		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-		Serviceaccount_ns:           "Serviceaccount_ns",
+	_, managedEnvironment, _, gitopsEngineInstance, _, err := createSampleData(t, dbq)
+	if !assert.NoError(t, err) {
+		return
 	}
-
-	managedEnvironment := ManagedEnvironment{
-		Managedenvironment_id: "test-managed-env-1",
-		Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
-		Name:                  "my env",
-	}
-
-	gitopsEngineCluster := GitopsEngineCluster{
-		Gitopsenginecluster_id: "test-fake-cluster-1",
-		Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
-	}
-
-	gitopsEngineInstance := GitopsEngineInstance{
-		Gitopsengineinstance_id: "test-fake-engine-instance-id",
-		Namespace_name:          "test-fake-namespace",
-		Namespace_uid:           "test-fake-namespace-1",
-		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
-	}
-	application := Application{
+	application := &Application{
 		Application_id:          "test-my-application-1",
 		Name:                    "test-application",
 		Spec_field:              "{}",
@@ -238,27 +120,7 @@ func TestDeleteApplicationById(t *testing.T) {
 		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 	}
 
-	err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateApplication(ctx, &application)
+	err = dbq.CreateApplication(ctx, application)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -267,37 +129,8 @@ func TestDeleteApplicationById(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, rowsAffected, 1)
 
-	rowsAffected, err = dbq.DeleteGitopsEngineInstanceById(ctx, gitopsEngineInstance.Gitopsengineinstance_id)
-	assert.NoError(t, err)
-	assert.Equal(t, rowsAffected, 1)
-
-	rowsAffected, err = dbq.DeleteGitopsEngineClusterById(ctx, gitopsEngineCluster.Gitopsenginecluster_id)
-	assert.NoError(t, err)
-	assert.Equal(t, rowsAffected, 1)
-
-	rowsAffected, err = dbq.DeleteManagedEnvironmentById(ctx, managedEnvironment.Managedenvironment_id)
-	assert.NoError(t, err)
-	assert.Equal(t, rowsAffected, 1)
-
-	rowsAffected, err = dbq.DeleteClusterCredentialsById(ctx, clusterCredentials.Clustercredentials_cred_id)
-	assert.NoError(t, err)
-	assert.Equal(t, rowsAffected, 1)
-
-	err = dbq.GetApplicationById(ctx, &application)
-	if assert.True(t, IsResultNotFoundError(err)) {
-		return
-	}
-
-	err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstance)
-	if assert.True(t, IsResultNotFoundError(err)) {
-		return
-	}
-	err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineCluster)
-	if assert.True(t, IsResultNotFoundError(err)) {
-		return
-	}
-	err = dbq.GetClusterCredentialsById(ctx, &clusterCredentials)
-	if assert.True(t, IsResultNotFoundError(err)) {
+	err = dbq.GetApplicationById(ctx, application)
+	if !assert.True(t, IsResultNotFoundError(err)) {
 		return
 	}
 
@@ -314,33 +147,11 @@ func TestUpdateApplication(t *testing.T) {
 
 	ctx := context.Background()
 
-	clusterCredentials := ClusterCredentials{
-		Clustercredentials_cred_id:  "test-cluster-creds-test-1",
-		Host:                        "host",
-		Kube_config:                 "kube-config",
-		Kube_config_context:         "kube-config-context",
-		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-		Serviceaccount_ns:           "Serviceaccount_ns",
+	_, managedEnvironment, _, gitopsEngineInstance, _, err := createSampleData(t, dbq)
+	if !assert.NoError(t, err) {
+		return
 	}
-
-	managedEnvironment := ManagedEnvironment{
-		Managedenvironment_id: "test-managed-env-1",
-		Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
-		Name:                  "my env",
-	}
-
-	gitopsEngineCluster := GitopsEngineCluster{
-		Gitopsenginecluster_id: "test-fake-cluster-1",
-		Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
-	}
-
-	gitopsEngineInstance := GitopsEngineInstance{
-		Gitopsengineinstance_id: "test-fake-engine-instance-id",
-		Namespace_name:          "test-fake-namespace",
-		Namespace_uid:           "test-fake-namespace-1",
-		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
-	}
-	applicationput := Application{
+	applicationput := &Application{
 		Application_id:          "test-my-application-1",
 		Name:                    "test-application",
 		Spec_field:              "{}",
@@ -348,43 +159,19 @@ func TestUpdateApplication(t *testing.T) {
 		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 	}
 
-	err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateApplication(ctx, &applicationput)
+	err = dbq.CreateApplication(ctx, applicationput)
 	if !assert.NoError(t, err) {
 		return
 	}
 
 	applicationget := Application{
 
-		Application_id:          "test-my-application-1",
+		Application_id:          applicationput.Application_id,
 		Name:                    "test-application-update",
 		Spec_field:              "{}",
 		Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
 		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
-	}
-
-	err = dbq.GetApplicationById(ctx, &applicationget)
-	if !assert.NoError(t, err) {
-		return
+		SeqID:                   int64(Default),
 	}
 
 	err = dbq.UpdateApplication(ctx, &applicationget)
@@ -397,6 +184,8 @@ func TestUpdateApplication(t *testing.T) {
 		return
 	}
 
-	assert.Equal(t, applicationput, applicationget)
+	if !assert.NotEqual(t, applicationput, applicationget) {
+		return
+	}
 
 }

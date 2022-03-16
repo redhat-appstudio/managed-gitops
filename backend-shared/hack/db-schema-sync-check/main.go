@@ -42,13 +42,13 @@ func checkIfSchemaInSyncWithConstants(fieldConstantToSize map[string]string, fie
 
 func parseDbSchema(DBSchemaRelativeFileLocation string) map[string]string {
 	fieldToSize := make(map[string]string)
-	dbSchemaFile, err := os.ReadFile(DBSchemaRelativeFileLocation)
+	dbSchemaContents, err := os.ReadFile(DBSchemaRelativeFileLocation)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	dbSchema := strings.Split(string(dbSchemaFile), "\n")
+	dbSchema := strings.Split(string(dbSchemaContents), "\n")
 
 	i := 0
 	for i < len(dbSchema) {
@@ -85,12 +85,12 @@ func parseDbSchema(DBSchemaRelativeFileLocation string) map[string]string {
 
 func parseDbConstants(DBFieldConstantsRelativeFileLocation string) map[string]string {
 	fieldConstantToSize := make(map[string]string)
-	dbFieldConstantsFile, err := os.ReadFile(DBFieldConstantsRelativeFileLocation)
+	dbFieldConstantsContents, err := os.ReadFile(DBFieldConstantsRelativeFileLocation)
 	if err != nil {
 		exitWithError(err)
 	}
 
-	dbFieldConstants := strings.Split(string(dbFieldConstantsFile), "\n")
+	dbFieldConstants := strings.Split(string(dbFieldConstantsContents), "\n")
 
 	i := 0
 	for !(strings.Contains(dbFieldConstants[i], "const")) {

@@ -41,8 +41,7 @@ func TestGetGitopsEngineClusterById(t *testing.T) {
 	}
 
 	gitopsEngineClusterget := GitopsEngineCluster{
-		Gitopsenginecluster_id: "test-fake-cluster-1",
-		Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+		Gitopsenginecluster_id: gitopsEngineClusterput.Gitopsenginecluster_id,
 	}
 
 	err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineClusterget)
@@ -55,10 +54,9 @@ func TestGetGitopsEngineClusterById(t *testing.T) {
 
 	gitopsEngineClusterNotExist := GitopsEngineCluster{
 		Gitopsenginecluster_id: "test-fake-cluster-1-not-exist",
-		Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
 	}
 	err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineClusterNotExist)
-	if assert.True(t, IsResultNotFoundError(err)) {
+	if !assert.True(t, IsResultNotFoundError(err)) {
 		return
 	}
 
@@ -97,8 +95,7 @@ func TestCreateGitopsEngineClusterById(t *testing.T) {
 	}
 
 	gitopsEngineClusterget := GitopsEngineCluster{
-		Gitopsenginecluster_id: "test-fake-cluster-2",
-		Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+		Gitopsenginecluster_id: gitopsEngineClusterput.Gitopsenginecluster_id,
 	}
 
 	err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineClusterget)
@@ -149,11 +146,11 @@ func TestDeleteGitopsEngineClusterById(t *testing.T) {
 	assert.Equal(t, rowsAffected, 1)
 
 	err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineCluster)
-	if assert.True(t, IsResultNotFoundError(err)) {
+	if !assert.True(t, IsResultNotFoundError(err)) {
 		return
 	}
 	err = dbq.GetClusterCredentialsById(ctx, &clusterCredentials)
-	if assert.True(t, IsResultNotFoundError(err)) {
+	if !assert.True(t, IsResultNotFoundError(err)) {
 		return
 	}
 

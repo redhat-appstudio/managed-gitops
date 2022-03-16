@@ -9,6 +9,59 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+// The goal of the task retry loop is to run multiple independent tasks concurrently, and to attempt tasks
+// over and over again until they report success ("pass").
+//
+// Why would a task fail? Well it depends on what the task does, but primarily tasks in the GitOps service
+// will retrieve some data from a database and/or from a K8s namespace, and then act on that data.
+// So, for example, if the database went down, a task would fail to connect, and so the task would keep
+// failing until the database came back up.
+//
+// Here is an example of a task:
+//
+// Imagine that we are implementing a task that deletes all the objects in a namespace.
+//
+// taskRetryLoop := NewTaskRetry("")
+//
+// deleteAllObjs := DeleteAllObjectsInNamespaceTask{}
+//
+// // 1) This will cause the 'DeleteAllObjects' task to start running, on namespace a
+// taskRetryLoopAddTaskIfNotPresent("delete-namespace-A", deleteAllObjs, ...)
+//
+// // 2) This will cause the 'DeleteAllObjects' task to start running, on namespace b
+// taskRetryLoopAddTaskIfNotPresent("delete-namespace-B", deleteAllObjs, ...)
+//
+// Both the tasks in step 1 and step 2 will run concurrently, because the task name if
+// different ("delete-namespace-A" vs "delete-namespace-B"). If the task name was the
+// same, only one task would be allows to run concurrently.
+//
+// In order to run code as a task, the calling function must implement the 'RetryableTask' interface.
+//
+// The task retry loop supports multiple simultaneous tasks running at once. However, the task retry
+// loop will not queue up the same 'task name' more than once. This de-duplication prevents the same
+// task name from being queued more than once.
+//
+// Example: Using our same task example as above.
+//
+// deleteAllObjs := DeleteAllObjectsInNamespaceTask{}
+//
+// // 1) This will cause the 'DeleteAllObjects' task to start running, on namespace a
+// AddTaskIfNotPresent("delete-namespace-A", deleteAllObjs, ...)
+//
+// // 2) This will cause the 'DeleteAllObjects' task to start running, on namespace B
+// AddTaskIfNotPresent("delete-namespace-B", deleteAllObjs, ...)
+
+// // 3) But what if AddTaskIfNotPresent is called on namespace A, before the task has finished with namespace A?
+// AddTaskIfNotPresent("delete-namespace-A", deleteAllObjs, ...)
+//
+// In this case, if 'delete-namespace-A' from step 1 has not started yet, then the task from step 3) will
+// not run (it will be de-duplicated/ignored).
+//
+// However, if task 'delete-namespace-A' from step 1 has already started running, but not finished yet, then the task from step 3
+// will NOT be de-duplicated: instead it will wait for the task from 1 to complete.
+// - Tasks will only be de-duplicated from waitingTasks.
+// - Because of this de-duplication, tasks submitted to the task retry loop must be idempotent.
+
 type TaskRetryLoop struct {
 	inputChan chan taskRetryLoopMessage
 
@@ -16,8 +69,13 @@ type TaskRetryLoop struct {
 	debugName string
 }
 
+// RetryableTask should be implemented for any task that wants to run in the task retry loop.
 type RetryableTask interface {
-	// returns bool (true if the task should be retried, for example because it failed, false otherwise), and error ('error' value does not affect whether the task will be retried)
+	// Returns bool (true if the task should be retried, for example because it failed, false otherwise),
+	// and error (an error to log on failure).
+	//
+	// NOTE: 'error' value does not affect whether the task will be retried, this error is only used for
+	// error reporting.
 	PerformTask(taskContext context.Context) (bool, error)
 }
 
@@ -164,7 +222,7 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string
 					startTask = true
 				}
 
-				if startTask && len(activeTaskMap) < 20 {
+				if startTask && len(activeTaskMap) < maxActiveRunners {
 					startNewTask(task, waitingTasksByName, activeTaskMap, inputChan, log)
 				} else {
 					updatedWaitingTasks = append(updatedWaitingTasks, task)

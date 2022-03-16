@@ -5,6 +5,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"path/filepath"
 )
 
 const (
@@ -42,7 +43,7 @@ func checkIfSchemaInSyncWithConstants(fieldConstantToSize map[string]string, fie
 
 func parseDbSchema(DBSchemaRelativeFileLocation string) map[string]string {
 	fieldToSize := make(map[string]string)
-	dbSchemaContents, err := os.ReadFile(DBSchemaRelativeFileLocation)
+	dbSchemaContents, err := os.ReadFile(filepath.Clean(DBSchemaRelativeFileLocation))
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -85,7 +86,7 @@ func parseDbSchema(DBSchemaRelativeFileLocation string) map[string]string {
 
 func parseDbConstants(DBFieldConstantsRelativeFileLocation string) map[string]string {
 	fieldConstantToSize := make(map[string]string)
-	dbFieldConstantsContents, err := os.ReadFile(DBFieldConstantsRelativeFileLocation)
+	dbFieldConstantsContents, err := os.ReadFile(filepath.Clean(DBFieldConstantsRelativeFileLocation))
 	if err != nil {
 		exitWithError(err)
 	}

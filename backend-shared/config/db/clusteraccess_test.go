@@ -87,7 +87,8 @@ func TestClusterAccessFunctions(t *testing.T) {
 	fetchRow := &ClusterAccess{Clusteraccess_user_id: clusterAccess.Clusteraccess_user_id,
 		Clusteraccess_managed_environment_id:    clusterAccess.Clusteraccess_managed_environment_id,
 		Clusteraccess_gitops_engine_instance_id: clusterAccess.Clusteraccess_gitops_engine_instance_id}
-	dbq.GetClusterAccessByPrimaryKey(ctx, fetchRow)
+	err = dbq.GetClusterAccessByPrimaryKey(ctx, fetchRow)
+	assert.NoError(t, err)
 	assert.ObjectsAreEqualValues(fetchRow, clusterAccess)
 
 	affectedRows, err := dbq.DeleteClusterAccessById(ctx, fetchRow.Clusteraccess_user_id, fetchRow.Clusteraccess_managed_environment_id, fetchRow.Clusteraccess_gitops_engine_instance_id)
@@ -95,6 +96,6 @@ func TestClusterAccessFunctions(t *testing.T) {
 	assert.True(t, affectedRows == 1)
 
 	err = dbq.GetClusterAccessByPrimaryKey(ctx, fetchRow)
-
+	assert.NoError(t, err)
 	assert.True(t, IsResultNotFoundError(err))
 }

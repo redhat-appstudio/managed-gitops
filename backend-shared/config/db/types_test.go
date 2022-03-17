@@ -190,6 +190,7 @@ func testSetup(t *testing.T) {
 }
 
 func testTeardown(t *testing.T) {
+	testSetup(t)
 	// Currently unused
 }
 

@@ -105,6 +105,8 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 	log.V(sharedutil.LogLevel_Debug).Info("workspacerEventLoopRunner_handleDeploymentModified processing event",
 		"gitopsDeploymentExists", gitopsDeploymentCRExists, "deplToAppMapExists", deplToAppMapExistsInDB)
 
+	// Next, the work that we need below depends on how the CR differs from the DB entry
+
 	if !gitopsDeploymentCRExists && !deplToAppMapExistsInDB {
 		// if neither exists, our work is done
 		return false, nil, nil, nil

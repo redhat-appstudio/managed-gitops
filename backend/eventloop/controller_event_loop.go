@@ -32,17 +32,34 @@ type controllerEventLoop struct {
 func newControllerEventLoop() *controllerEventLoop {
 
 	channel := make(chan eventlooptypes.EventLoopEvent)
-	go controllerEventLoopRouter(channel)
+	go controllerEventLoopRouter(channel, defaultWorkspaceEventLoopRouterFactory{})
 
-	res := &controllerEventLoop{}
-	res.eventLoopInputChannel = channel
+	res := &controllerEventLoop{
+		eventLoopInputChannel: channel,
+	}
+
+	return res
+}
+
+// newControllerEventLoopWithFactory is primarily for unit tests that want to mock a factory to catch
+// events sent by the controller event loop.
+//
+// Note: All non-unit-test-based code should use 'newControllerEventLoop', defined above.
+func newControllerEventLoopWithFactory(factory workspaceEventLoopRouterFactory) *controllerEventLoop {
+
+	channel := make(chan eventlooptypes.EventLoopEvent)
+	go controllerEventLoopRouter(channel, factory)
+
+	res := &controllerEventLoop{
+		eventLoopInputChannel: channel,
+	}
 
 	return res
 
 }
 
-// workspaceEntry maintains individual state for each workspace
-type workspaceEntry struct {
+// controllerEventLoop_workspaceEntry maintains individual state for each workspace
+type controllerEventLoop_workspaceEntry struct {
 	workspaceID               string
 	workspaceEventLoopChannel chan eventlooptypes.EventLoopMessage
 	// This struct should only be used from within the controller event loop
@@ -50,31 +67,34 @@ type workspaceEntry struct {
 
 // controllerEventLoopRouter routes messages to the channel/go routine responsible for handling a particular workspace's events
 // This channel is non-blocking.
-func controllerEventLoopRouter(input chan eventlooptypes.EventLoopEvent) {
+func controllerEventLoopRouter(input chan eventlooptypes.EventLoopEvent, workspaceEventFactory workspaceEventLoopRouterFactory) {
 
 	eventLoopRouterLog := log.FromContext(context.Background())
 
 	eventLoopRouterLog.Info("controllerEventLoopRouter started.")
 	defer eventLoopRouterLog.Error(nil, "SEVERE: controllerEventLoopRouter ended.")
 
-	workspaceEntries := map[string] /* workspace id -> */ workspaceEntry{}
+	workspaceEntries := map[string] /* workspace id -> */ controllerEventLoop_workspaceEntry{}
 
 	for {
 
 		event := <-input
 
-		eventLoopRouterLog.V(sharedutil.LogLevel_Debug).Info("eventLoop received event", "event", eventlooptypes.StringEventLoopEvent(&event), "workspace", event.WorkspaceID)
+		eventLoopRouterLog.V(sharedutil.LogLevel_Debug).Info("eventLoop received event",
+			"event", eventlooptypes.StringEventLoopEvent(&event), "workspace", event.WorkspaceID)
 
 		workspaceEntryVal, ok := workspaceEntries[event.WorkspaceID]
 		if !ok {
+
+			inputChan := workspaceEventFactory.startWorkspaceEventLoopRouter(event.WorkspaceID)
+
 			// Start the workspace's event loop go-routine, if it's not already started.
-			workspaceEntryVal = workspaceEntry{
+			workspaceEntryVal = controllerEventLoop_workspaceEntry{
 				workspaceID:               event.WorkspaceID,
-				workspaceEventLoopChannel: make(chan eventlooptypes.EventLoopMessage),
+				workspaceEventLoopChannel: inputChan,
 			}
 			workspaceEntries[event.WorkspaceID] = workspaceEntryVal
 
-			startWorkspaceEventLoopRouter(workspaceEntryVal.workspaceEventLoopChannel, event.WorkspaceID)
 		}
 
 		// Send the event to the channel/go routine that handles all events for this workspace (non-blocking)
@@ -82,7 +102,25 @@ func controllerEventLoopRouter(input chan eventlooptypes.EventLoopEvent) {
 			MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
 			Event:       &event,
 		}
-
 	}
+}
 
+// workspaceEventLoopRouterFactory implements a method that is responsible for starting a new workspace event loop
+// router goroutine, and then returning a channel which can be used to send messages to that goroutine.
+//
+// defaultWorkspaceEventLoopRouterFactory should always be used, unless a mocked replacement is needed
+// for a unit test.
+type workspaceEventLoopRouterFactory interface {
+	startWorkspaceEventLoopRouter(workspaceID string) chan eventlooptypes.EventLoopMessage
+}
+
+type defaultWorkspaceEventLoopRouterFactory struct{}
+
+var _ workspaceEventLoopRouterFactory = defaultWorkspaceEventLoopRouterFactory{}
+
+func (defaultWorkspaceEventLoopRouterFactory) startWorkspaceEventLoopRouter(workspaceID string) chan eventlooptypes.EventLoopMessage {
+
+	inputChan := startWorkspaceEventLoopRouter(workspaceID)
+
+	return inputChan
 }

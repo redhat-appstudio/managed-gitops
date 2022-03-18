@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1/mocks"
@@ -18,7 +17,6 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	testStructs "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1/mocks/structs"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
-	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -28,227 +26,223 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-func TestApplicationEventLoopRunner_handleDeploymentModified(t *testing.T) {
+var _ = Describe("ApplicationEventLoop Test", func() {
 
-	ctx := context.Background()
+	Context("Handle deployment modified", func() {
 
-	scheme, argocdNamespace, kubesystemNamespace, workspace := eventlooptypes.GenericTestSetup(t)
+		It("create a deployment and ensure it processed, then delete it an ensure that is processed", func() {
+			ctx := context.Background()
 
-	gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-gitops-depl",
-			Namespace: workspace.Name,
-			UID:       uuid.NewUUID(),
-		},
-	}
+			scheme, argocdNamespace, kubesystemNamespace, workspace, err := eventlooptypes.GenericTestSetup()
+			Expect(err).To(BeNil())
 
-	informer := sharedutil.ListEventReceiver{}
+			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-gitops-depl",
+					Namespace: workspace.Name,
+					UID:       uuid.NewUUID(),
+				},
+			}
 
-	k8sClientOuter := fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).Build()
-	k8sClient := &sharedutil.ProxyClient{
-		InnerClient: k8sClientOuter,
-		Informer:    &informer,
-	}
+			informer := sharedutil.ListEventReceiver{}
 
-	workspaceID := string(workspace.UID)
+			k8sClientOuter := fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).Build()
+			k8sClient := &sharedutil.ProxyClient{
+				InnerClient: k8sClientOuter,
+				Informer:    &informer,
+			}
 
-	dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
-	assert.Nil(t, err)
+			workspaceID := string(workspace.UID)
 
-	a := applicationEventLoopRunner_Action{
-		// When the code asks for a new k8s client, give it our fake client
-		getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
-			return k8sClient, nil
-		},
-		eventResourceName:           gitopsDepl.Name,
-		eventResourceNamespace:      gitopsDepl.Namespace,
-		workspaceClient:             k8sClient,
-		log:                         log.FromContext(context.Background()),
-		sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
-		workspaceID:                 workspaceID,
-		testOnlySkipCreateOperation: true,
-	}
+			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
+			Expect(err).To(BeNil())
 
-	// ------
+			a := applicationEventLoopRunner_Action{
+				// When the code asks for a new k8s client, give it our fake client
+				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+					return k8sClient, nil
+				},
+				eventResourceName:           gitopsDepl.Name,
+				eventResourceNamespace:      gitopsDepl.Namespace,
+				workspaceClient:             k8sClient,
+				log:                         log.FromContext(context.Background()),
+				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
+				workspaceID:                 workspaceID,
+				testOnlySkipCreateOperation: true,
+			}
 
-	_, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
-	assert.Nil(t, err)
+			// ------
 
-	// Verify that the database entries have been created -----------------------------------------
+			_, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(err).To(BeNil())
 
-	var deplToAppMapping db.DeploymentToApplicationMapping
-	{
-		var appMappings []db.DeploymentToApplicationMapping
+			// Verify that the database entries have been created -----------------------------------------
 
-		err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
-		assert.Nil(t, err)
+			var deplToAppMapping db.DeploymentToApplicationMapping
+			{
+				var appMappings []db.DeploymentToApplicationMapping
 
-		if !assert.True(t, len(appMappings) == 1) {
-			return
-		}
+				err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
+				Expect(err).To(BeNil())
 
-		deplToAppMapping = appMappings[0]
-		fmt.Println(deplToAppMapping)
-	}
+				Expect(len(appMappings)).To(Equal(1))
 
-	clusterUser := db.ClusterUser{
-		User_name: string(workspace.UID),
-	}
-	err = dbQueries.GetClusterUserByUsername(context.Background(), &clusterUser)
-	if !assert.Nil(t, err) {
-		return
-	}
+				deplToAppMapping = appMappings[0]
+				fmt.Println(deplToAppMapping)
+			}
 
-	application := db.Application{
-		Application_id: deplToAppMapping.Application_id,
-	}
+			clusterUser := db.ClusterUser{
+				User_name: string(workspace.UID),
+			}
+			err = dbQueries.GetClusterUserByUsername(context.Background(), &clusterUser)
+			Expect(err).To(BeNil())
 
-	if err := dbQueries.CheckedGetApplicationById(context.Background(), &application, clusterUser.Clusteruser_id); err != nil {
-		assert.Nil(t, err)
-		return
-	}
+			application := db.Application{
+				Application_id: deplToAppMapping.Application_id,
+			}
 
-	gitopsEngineInstance := db.GitopsEngineInstance{
-		Gitopsengineinstance_id: application.Engine_instance_inst_id,
-	}
+			err = dbQueries.GetApplicationById(context.Background(), &application)
+			Expect(err).To(BeNil())
 
-	err = dbQueries.CheckedGetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance, clusterUser.Clusteruser_id)
-	if !assert.Nil(t, err) {
-		return
-	}
-	assert.Nil(t, err)
+			gitopsEngineInstance := db.GitopsEngineInstance{
+				Gitopsengineinstance_id: application.Engine_instance_inst_id,
+			}
 
-	managedEnvironment := db.ManagedEnvironment{
-		Managedenvironment_id: application.Managed_environment_id,
-	}
-	err = dbQueries.CheckedGetManagedEnvironmentById(ctx, &managedEnvironment, clusterUser.Clusteruser_id)
-	assert.Nil(t, err)
+			err = dbQueries.GetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance)
+			Expect(err).To(BeNil())
 
-	// Delete the GitOpsDepl and verify that the corresponding DB entries are removed -------------
+			managedEnvironment := db.ManagedEnvironment{
+				Managedenvironment_id: application.Managed_environment_id,
+			}
+			err = dbQueries.GetManagedEnvironmentById(ctx, &managedEnvironment)
+			Expect(err).To(BeNil())
 
-	err = k8sClient.Delete(ctx, gitopsDepl)
-	if !assert.Nil(t, err) {
-		return
-	}
+			// Delete the GitOpsDepl and verify that the corresponding DB entries are removed -------------
 
-	_, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
-	assert.Nil(t, err)
+			err = k8sClient.Delete(ctx, gitopsDepl)
+			Expect(err).To(BeNil())
 
-	// Application should no longer exist
-	err = dbQueries.GetApplicationById(ctx, &application)
-	assert.NotNil(t, err)
-	assert.True(t, db.IsResultNotFoundError(err))
+			_, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(err).To(BeNil())
 
-	// DeploymentToApplicationMapping should be removed, too
-	var appMappings []db.DeploymentToApplicationMapping
-	err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
-	assert.Nil(t, err)
-	assert.True(t, len(appMappings) == 0)
+			// Application should no longer exist
+			err = dbQueries.GetApplicationById(ctx, &application)
+			Expect(err).ToNot(BeNil())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
-	// GitopsEngine instance should still be reachable
-	err = dbQueries.CheckedGetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance, clusterUser.Clusteruser_id)
-	if !assert.Nil(t, err) {
-		return
-	}
-	assert.Nil(t, err)
+			// DeploymentToApplicationMapping should be removed, too
+			var appMappings []db.DeploymentToApplicationMapping
+			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
+			Expect(err).To(BeNil())
+			Expect(len(appMappings)).To(Equal(0))
 
-	operatorCreated := false
-	operatorDeleted := false
+			// GitopsEngine instance should still be reachable
+			err = dbQueries.GetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance)
+			Expect(err).To(BeNil())
 
-	for idx, event := range informer.Events {
+			operatorCreated := false
+			operatorDeleted := false
 
-		if event.Action == sharedutil.Create && event.ObjectTypeOf() == "Operation" {
-			operatorCreated = true
-		}
-		if event.Action == sharedutil.Delete && event.ObjectTypeOf() == "Operation" {
-			operatorDeleted = true
-		}
+			for idx, event := range informer.Events {
 
-		fmt.Printf("%d) %v\n", idx, event)
-	}
+				if event.Action == sharedutil.Create && event.ObjectTypeOf() == "Operation" {
+					operatorCreated = true
+				}
+				if event.Action == sharedutil.Delete && event.ObjectTypeOf() == "Operation" {
+					operatorDeleted = true
+				}
 
-	assert.True(t, operatorCreated)
-	assert.True(t, operatorDeleted)
+				fmt.Printf("%d) %v\n", idx, event)
+			}
 
-}
+			Expect(operatorCreated).To(BeTrue())
+			Expect(operatorDeleted).To(BeTrue())
 
-func TestApplicationEventLoopRunner_handleSyncRunModified(t *testing.T) {
-	ctx := context.Background()
+		})
 
-	scheme, argocdNamespace, kubesystemNamespace, workspace := eventlooptypes.GenericTestSetup(t)
+	})
 
-	gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-gitops-depl",
-			Namespace: workspace.Name,
-			UID:       uuid.NewUUID(),
-		},
-	}
+	Context("Handle sync run modified", func() {
 
-	gitopsDeplSyncRun := &managedgitopsv1alpha1.GitOpsDeploymentSyncRun{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-gitops-depl-sync",
-			Namespace: workspace.Name,
-			UID:       uuid.NewUUID(),
-		},
-		Spec: managedgitopsv1alpha1.GitOpsDeploymentSyncRunSpec{
-			GitopsDeploymentName: gitopsDepl.Name,
-			RevisionID:           "HEAD",
-		},
-	}
+		It("Ensure the sync run handler can handle a new sync run resource", func() {
+			ctx := context.Background()
 
-	informer := sharedutil.ListEventReceiver{}
+			scheme, argocdNamespace, kubesystemNamespace, workspace, err := eventlooptypes.GenericTestSetup()
+			Expect(err).To(BeNil())
 
-	k8sClientOuter := fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, gitopsDeplSyncRun, workspace, argocdNamespace, kubesystemNamespace).Build()
-	k8sClient := &sharedutil.ProxyClient{
-		InnerClient: k8sClientOuter,
-		Informer:    &informer,
-	}
+			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-gitops-depl",
+					Namespace: workspace.Name,
+					UID:       uuid.NewUUID(),
+				},
+			}
 
-	dbQueries, err := db.NewUnsafePostgresDBQueries(true, false)
-	assert.Nil(t, err)
+			gitopsDeplSyncRun := &managedgitopsv1alpha1.GitOpsDeploymentSyncRun{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-gitops-depl-sync",
+					Namespace: workspace.Name,
+					UID:       uuid.NewUUID(),
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSyncRunSpec{
+					GitopsDeploymentName: gitopsDepl.Name,
+					RevisionID:           "HEAD",
+				},
+			}
 
-	opts := zap.Options{
-		Development: true,
-	}
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+			informer := sharedutil.ListEventReceiver{}
 
-	sharedResourceLoop := shared_resource_loop.NewSharedResourceLoop()
+			k8sClientOuter := fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, gitopsDeplSyncRun, workspace, argocdNamespace, kubesystemNamespace).Build()
+			k8sClient := &sharedutil.ProxyClient{
+				InnerClient: k8sClientOuter,
+				Informer:    &informer,
+			}
 
-	a := applicationEventLoopRunner_Action{
-		// When the code asks for a new k8s client, give it our fake client
-		getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
-			return k8sClient, nil
-		},
-		eventResourceName:           gitopsDepl.Name,
-		eventResourceNamespace:      gitopsDepl.Namespace,
-		workspaceClient:             k8sClient,
-		log:                         log.FromContext(context.Background()),
-		sharedResourceEventLoop:     sharedResourceLoop,
-		workspaceID:                 string(workspace.UID),
-		testOnlySkipCreateOperation: true,
-	}
+			dbQueries, err := db.NewUnsafePostgresDBQueries(true, false)
+			Expect(err).To(BeNil())
 
-	_, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
-	assert.Nil(t, err)
+			opts := zap.Options{
+				Development: true,
+			}
+			ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	a = applicationEventLoopRunner_Action{
-		// When the code asks for a new k8s client, give it our fake client
-		getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
-			return k8sClient, nil
-		},
-		eventResourceName:       gitopsDeplSyncRun.Name,
-		eventResourceNamespace:  gitopsDeplSyncRun.Namespace,
-		workspaceClient:         k8sClient,
-		log:                     log.FromContext(context.Background()),
-		sharedResourceEventLoop: sharedResourceLoop,
-		workspaceID:             a.workspaceID,
-	}
+			sharedResourceLoop := shared_resource_loop.NewSharedResourceLoop()
 
-	_, err = a.applicationEventRunner_handleSyncRunModified(ctx, dbQueries)
-	assert.Nil(t, err)
+			// 1) send a deployment modified event, to ensure the deployment is added to the database, and processed
+			a := applicationEventLoopRunner_Action{
+				// When the code asks for a new k8s client, give it our fake client
+				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+					return k8sClient, nil
+				},
+				eventResourceName:           gitopsDepl.Name,
+				eventResourceNamespace:      gitopsDepl.Namespace,
+				workspaceClient:             k8sClient,
+				log:                         log.FromContext(context.Background()),
+				sharedResourceEventLoop:     sharedResourceLoop,
+				workspaceID:                 string(workspace.UID),
+				testOnlySkipCreateOperation: true,
+			}
+			_, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(err).To(BeNil())
 
-}
+			// 2) add a sync run modified event, to ensure the sync run is added to the database, and processed
+			a = applicationEventLoopRunner_Action{
+				// When the code asks for a new k8s client, give it our fake client
+				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+					return k8sClient, nil
+				},
+				eventResourceName:       gitopsDeplSyncRun.Name,
+				eventResourceNamespace:  gitopsDeplSyncRun.Namespace,
+				workspaceClient:         k8sClient,
+				log:                     log.FromContext(context.Background()),
+				sharedResourceEventLoop: sharedResourceLoop,
+				workspaceID:             a.workspaceID,
+			}
+			_, err = a.applicationEventRunner_handleSyncRunModified(ctx, dbQueries)
+			Expect(err).To(BeNil())
+		})
+	})
+})
 
 var _ = Describe("GitOpsDeployment Conditions", func() {
 	var (

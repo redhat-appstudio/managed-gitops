@@ -40,8 +40,28 @@ var (
 	deploymentStatusTickRate = 15 * time.Second
 )
 
-func ApplicationEventQueueLoop(input chan eventlooptypes.EventLoopMessage, gitopsDeplID string, workspaceID string,
-	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop) {
+func StartApplicationEventQueueLoop(gitopsDeplID string, workspaceID string,
+	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop) chan eventlooptypes.EventLoopMessage {
+
+	res := make(chan eventlooptypes.EventLoopMessage)
+
+	go applicationEventQueueLoop(res, gitopsDeplID, workspaceID, sharedResourceEventLoop, defaultApplicationEventRunnerFactory{})
+
+	return res
+}
+
+func startApplicationEventQueueLoopWithFactory(gitopsDeplID string, workspaceID string,
+	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, aerFactory applicationEventRunnerFactory) chan eventlooptypes.EventLoopMessage {
+
+	res := make(chan eventlooptypes.EventLoopMessage)
+
+	go applicationEventQueueLoop(res, gitopsDeplID, workspaceID, sharedResourceEventLoop, aerFactory)
+
+	return res
+}
+
+func applicationEventQueueLoop(input chan eventlooptypes.EventLoopMessage, gitopsDeplID string, workspaceID string,
+	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, aerFactory applicationEventRunnerFactory) {
 
 	ctx := context.Background()
 
@@ -59,10 +79,10 @@ func ApplicationEventQueueLoop(input chan eventlooptypes.EventLoopMessage, gitop
 	var activeSyncOperationEvent *eventlooptypes.EventLoopEvent
 	waitingSyncOperationEvents := []*eventlooptypes.EventLoopEvent{}
 
-	deploymentEventRunner := newApplicationEventLoopRunner(input, sharedResourceEventLoop, gitopsDeplID, workspaceID, "deployment")
+	deploymentEventRunner := aerFactory.createNewApplicationEventLoopRunner(input, sharedResourceEventLoop, gitopsDeplID, workspaceID, "deployment")
 	deploymentEventRunnerShutdown := false
 
-	syncOperationEventRunner := newApplicationEventLoopRunner(input, sharedResourceEventLoop, gitopsDeplID, workspaceID, "sync-operation")
+	syncOperationEventRunner := aerFactory.createNewApplicationEventLoopRunner(input, sharedResourceEventLoop, gitopsDeplID, workspaceID, "sync-operation")
 	syncOperationEventRunnerShutdown := false
 
 	// Start the ticker, which will -- every X seconds -- instruct the GitOpsDeployment CR fields to update
@@ -253,6 +273,29 @@ func startNewStatusUpdateTimer(ctx context.Context, input chan eventlooptypes.Ev
 		log.V(sharedutil.LogLevel_Debug).Info("Sending tick message for " + tickMessage.Event.AssociatedGitopsDeplUID)
 		input <- tickMessage
 	}()
+}
+
+// applicationEventRunnerFactory is used to start an application loop runner. It is a lightweight wrapper
+// around the 'startNewApplicationEventLoopRunner' function.
+//
+// The defaultApplicationEventRunnerFactory should be used in all cases, except for when writing mocks for unit tests.
+type applicationEventRunnerFactory interface {
+	createNewApplicationEventLoopRunner(informWorkCompleteChan chan eventlooptypes.EventLoopMessage,
+		sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop,
+		gitopsDeplUID string, workspaceID string, debugContext string) chan *eventlooptypes.EventLoopEvent
+}
+
+type defaultApplicationEventRunnerFactory struct {
+}
+
+var _ applicationEventRunnerFactory = defaultApplicationEventRunnerFactory{}
+
+// createNewApplicationEventLoopRunner is a simple wrapper around the default function.
+func (defaultApplicationEventRunnerFactory) createNewApplicationEventLoopRunner(informWorkCompleteChan chan eventlooptypes.EventLoopMessage,
+	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop,
+	gitopsDeplUID string, workspaceID string, debugContext string) chan *eventlooptypes.EventLoopEvent {
+
+	return startNewApplicationEventLoopRunner(informWorkCompleteChan, sharedResourceEventLoop, gitopsDeplUID, workspaceID, debugContext)
 }
 
 func getK8sClientForWorkspace() (client.Client, error) {

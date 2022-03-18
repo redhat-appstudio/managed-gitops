@@ -15,7 +15,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-func GenericTestSetup(t *testing.T) (*runtime.Scheme, *v1.Namespace, *v1.Namespace, *v1.Namespace) {
+func GenericTestSetupForTestingT(t *testing.T) (*runtime.Scheme, *v1.Namespace, *v1.Namespace, *v1.Namespace) {
+
+	scheme, argocdNamespace, kubesystemNamespace, workspace, err := GenericTestSetup()
+	assert.NoError(t, err)
+
+	return scheme, argocdNamespace, kubesystemNamespace, workspace
+
+}
+
+func GenericTestSetup() (*runtime.Scheme, *v1.Namespace, *v1.Namespace, *v1.Namespace, error) {
 	scheme := runtime.NewScheme()
 
 	opts := zap.Options{
@@ -24,11 +33,18 @@ func GenericTestSetup(t *testing.T) (*runtime.Scheme, *v1.Namespace, *v1.Namespa
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	err := managedgitopsv1alpha1.AddToScheme(scheme)
-	assert.Nil(t, err)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
 	err = operation.AddToScheme(scheme)
-	assert.Nil(t, err)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
 	err = v1.AddToScheme(scheme)
-	assert.Nil(t, err)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
 
 	argocdNamespace := &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -57,6 +73,6 @@ func GenericTestSetup(t *testing.T) (*runtime.Scheme, *v1.Namespace, *v1.Namespa
 		Spec: v1.NamespaceSpec{},
 	}
 
-	return scheme, argocdNamespace, kubesystemNamespace, workspace
+	return scheme, argocdNamespace, kubesystemNamespace, workspace, nil
 
 }

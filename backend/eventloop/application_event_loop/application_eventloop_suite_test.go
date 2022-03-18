@@ -9,5 +9,5 @@ import (
 
 func TestEventloop_application_event_runner(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "EventLoop Suite")
+	RunSpecs(t, "Application Event Loop Suite")
 }

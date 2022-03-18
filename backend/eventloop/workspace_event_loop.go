@@ -32,13 +32,19 @@ import (
 // GitOps service API resources. (For example, if there are 10 workspaces, there will be 10 Workspace
 // Event Loop instances/goroutines servicing those).
 
-type applicationEventLoop struct {
-	input chan eventlooptypes.EventLoopMessage
+// Start a workspace event loop router go routine, which is responsible for handling API namespace events and
+// then passing them to the controller loop.
+func startWorkspaceEventLoopRouter(workspaceID string) chan eventlooptypes.EventLoopMessage {
+
+	res := make(chan eventlooptypes.EventLoopMessage)
+
+	internalStartWorkspaceEventLoopRouter(res, workspaceID, defaultApplicationEventLoopFactory{})
+
+	return res
 }
 
-// TODO: GITOPSRVCE-67 - DEBT - Set log to info, and make sure you can still figure out what's going on.
-
-func startWorkspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, workspaceID string) {
+func internalStartWorkspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, workspaceID string,
+	applEventLoopFactory applicationEventQueueLoopFactory) {
 
 	go func() {
 
@@ -50,7 +56,7 @@ func startWorkspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, w
 
 		for {
 			isPanic, _ := sharedutil.CatchPanic(func() error {
-				workspaceEventLoopRouter(input, workspaceID)
+				workspaceEventLoopRouter(input, workspaceID, applEventLoopFactory)
 				return nil
 			})
 
@@ -91,7 +97,8 @@ const (
 
 // workspaceEventLoopRouter receives all events for the workspace, and passes them to specific goroutine responsible
 // for handling events for individual applications.
-func workspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, workspaceID string) {
+func workspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, workspaceID string,
+	applEventLoopFactory applicationEventQueueLoopFactory) {
 
 	ctx := context.Background()
 
@@ -106,7 +113,7 @@ func workspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, worksp
 	orphanedResources := map[string]map[string]eventlooptypes.EventLoopEvent{}
 
 	// applicationMap: gitopsDepl UID -> channel for go routine responsible for handling it
-	applicationMap := map[string]applicationEventLoop{}
+	applicationMap := map[string]workspaceEventLoop_applicationEventLoopEntry{}
 	for {
 		event := <-input
 
@@ -116,15 +123,15 @@ func workspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, worksp
 			continue
 		}
 		if event.Event == nil {
-			log.Error(nil, "SEVERE: event was nil applicationEventLooRouter")
+			log.Error(nil, "SEVERE: event was nil in workspaceEventLooRouter")
 			continue
 		}
 		if strings.TrimSpace(event.Event.AssociatedGitopsDeplUID) == "" {
-			log.Error(nil, "SEVERE: event was nil applicationEventLooRouter")
+			log.Error(nil, "SEVERE: event was nil in workspaceEventLoopRouter")
 			continue
 		}
 
-		log.V(sharedutil.LogLevel_Debug).Info("applicationEventLoop received event", "event", eventlooptypes.StringEventLoopEvent(event.Event))
+		log.V(sharedutil.LogLevel_Debug).Info("workspaceEventLoop received event", "event", eventlooptypes.StringEventLoopEvent(event.Event))
 
 		// If the event is orphaned (it refers to a gitopsdepl that doesn't exist, add it to our orphaned resources list)
 		if event.Event.AssociatedGitopsDeplUID == orphanedResourceGitopsDeplUID {
@@ -140,14 +147,16 @@ func workspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, worksp
 
 		applicationEntryVal, ok := applicationMap[event.Event.AssociatedGitopsDeplUID]
 		if !ok {
-
 			// Start the application event queue go-routine, if it's not already started.
-			applicationEntryVal = applicationEventLoop{
-				input: make(chan eventlooptypes.EventLoopMessage),
+
+			// Start the application event loop's goroutine
+			inputChan := applEventLoopFactory.startApplicationEventQueueLoop(event.Event.AssociatedGitopsDeplUID,
+				event.Event.WorkspaceID, sharedResourceEventLoop)
+
+			applicationEntryVal = workspaceEventLoop_applicationEventLoopEntry{
+				input: inputChan,
 			}
 			applicationMap[event.Event.AssociatedGitopsDeplUID] = applicationEntryVal
-
-			go application_event_loop.ApplicationEventQueueLoop(applicationEntryVal.input, event.Event.AssociatedGitopsDeplUID, event.Event.WorkspaceID, sharedResourceEventLoop)
 		}
 
 		// Send the event to the channel/go routine that handles all events for this application/gitopsdepl (non-blocking)
@@ -157,6 +166,35 @@ func workspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, worksp
 		}
 	}
 }
+
+type workspaceEventLoop_applicationEventLoopEntry struct {
+	// input is the channel used to communicate with an application event loop goroutine.
+	input chan eventlooptypes.EventLoopMessage
+}
+
+// applicationEventQueueLoopFactory is used to start the application event queue. It is a lightweight wrapper
+// around the 'application_event_loop.StartApplicationEventQueueLoop' function.
+//
+// The defaultApplicationEventLoopFactory should be used in all cases, except for when writing mocks for unit tests.
+type applicationEventQueueLoopFactory interface {
+	startApplicationEventQueueLoop(gitopsDeplID string, workspaceID string,
+		sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop) chan eventlooptypes.EventLoopMessage
+}
+
+type defaultApplicationEventLoopFactory struct {
+}
+
+// The default implementation of startApplicationEventQueueLoop is just a simple wrapper around a call to
+// StartApplicationEventQueueLoop
+func (defaultApplicationEventLoopFactory) startApplicationEventQueueLoop(gitopsDeplID string, workspaceID string,
+	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop) chan eventlooptypes.EventLoopMessage {
+
+	res := application_event_loop.StartApplicationEventQueueLoop(gitopsDeplID, workspaceID, sharedResourceEventLoop)
+
+	return res
+}
+
+var _ applicationEventQueueLoopFactory = defaultApplicationEventLoopFactory{}
 
 func unorphanResourcesIfPossible(ctx context.Context, event eventlooptypes.EventLoopMessage, orphanedResources map[string]map[string]eventlooptypes.EventLoopEvent,
 	input chan eventlooptypes.EventLoopMessage, log logr.Logger) {

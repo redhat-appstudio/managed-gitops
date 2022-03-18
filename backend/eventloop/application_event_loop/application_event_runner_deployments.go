@@ -598,7 +598,7 @@ func newGitOpsDeploymentAdapter(gitopsDeployment *managedgitopsv1alpha1.GitOpsDe
 }
 
 // getMatchingGitOpsDeployment returns an updated instance of GitOpsDeployment obj from Kubernetes
-func getMatchingGitOpsDeployment(name, namespace string, client client.Client) (*managedgitopsv1alpha1.GitOpsDeployment, error) {
+func getMatchingGitOpsDeployment(ctx context.Context, name, namespace string, client client.Client) (*managedgitopsv1alpha1.GitOpsDeployment, error) {
 	gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -606,8 +606,7 @@ func getMatchingGitOpsDeployment(name, namespace string, client client.Client) (
 		},
 	}
 
-	// TODO: This function should take a context
-	err := client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, gitopsDepl)
+	err := client.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, gitopsDepl)
 
 	if err != nil {
 		return &managedgitopsv1alpha1.GitOpsDeployment{}, err

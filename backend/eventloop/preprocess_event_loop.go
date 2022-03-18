@@ -395,7 +395,6 @@ func emitEventForExistingResource(gitopsDeplUID string, newEvent eventlooptypes.
 
 	// If it matches value from client, use provided id
 	if gitopsDeplUID == string(resource.GetUID()) {
-		// TODO: This logic seems wrong. (only works for gitopsdepl)
 		newEvent.AssociatedGitopsDeplUID = gitopsDeplUID
 		emitEvent(newEvent, nextStep, "existing resource, but value matches cr", log)
 		return

@@ -144,7 +144,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 					signalledShutdown, _, _, err = action.applicationEventRunner_handleDeploymentModified(ctx, scopedDBQueries)
 
 					// Get the GitOpsDeployment object from k8s, so we can update it if necessary
-					gitopsDepl, clientError := getMatchingGitOpsDeployment(newEvent.Request.Name, newEvent.Request.Namespace, newEvent.Client)
+					gitopsDepl, clientError := getMatchingGitOpsDeployment(ctx, newEvent.Request.Name, newEvent.Request.Namespace, newEvent.Client)
 					if clientError != nil {
 						return fmt.Errorf("couldn't fetch the GitOpsDeployment instance: %v", clientError)
 					}

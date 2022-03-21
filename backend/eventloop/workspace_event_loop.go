@@ -87,6 +87,7 @@ const (
 	// orphanedResourceGitopsDeplUID indicates that a GitOpsDeploymentSyncRunCR is orphaned, which means
 	// we do not know which GitOpsDeployment it should belong to. This is usually because the deployment name
 	// field of the SyncRun refers to a K8s resource that doesn't (or no longer) exists.
+	// See https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.8tiycl1h7rns for details.
 	orphanedResourceGitopsDeplUID = "orphaned"
 
 	// noAssociatedGitOpsDeploymentUID: if a resource does not have an orphanedResourceDeplUID, this constant should be set.
@@ -196,6 +197,46 @@ func (defaultApplicationEventLoopFactory) startApplicationEventQueueLoop(gitopsD
 
 var _ applicationEventQueueLoopFactory = defaultApplicationEventLoopFactory{}
 
+// Add a resource to orphaned list (why? because it is a gitopsdeplsyncrun that refers to a gitopsdepl that doesn't exist)
+// See https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.8tiycl1h7rns for details.
+func handleOrphaned(ctx context.Context, event eventlooptypes.EventLoopMessage, orphanedResources map[string]map[string]eventlooptypes.EventLoopEvent, log logr.Logger) {
+
+	if event.Event.ReqResource == v1alpha1.GitOpsDeploymentSyncRunTypeName {
+
+		syncRunCR := &v1alpha1.GitOpsDeploymentSyncRun{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      event.Event.Request.Name,
+				Namespace: event.Event.Request.Namespace,
+			},
+		}
+		if err := event.Event.Client.Get(ctx, client.ObjectKeyFromObject(syncRunCR), syncRunCR); err != nil {
+			if apierr.IsNotFound(err) {
+				log.V(sharedutil.LogLevel_Debug).Info("skipping orphaned resource that could no longer be found:", "resource", syncRunCR.ObjectMeta)
+				return
+			} else {
+				log.Error(err, "unexpected client error on retrieving orphaned syncrun object", "resource", syncRunCR.ObjectMeta)
+				return
+			}
+		}
+
+		// TODO: GITOPSRVCE-67 - DEBT - Make sure it's not still orphaned before adding it to orphanedResources
+
+		gitopsDeplMap, exists := orphanedResources[syncRunCR.Spec.GitopsDeploymentName]
+		if !exists {
+			gitopsDeplMap = map[string]eventlooptypes.EventLoopEvent{}
+			orphanedResources[syncRunCR.Spec.GitopsDeploymentName] = gitopsDeplMap
+		}
+
+		log.V(sharedutil.LogLevel_Debug).Info("Adding syncrun CR to orphaned resources list, name: " + syncRunCR.Name + ", missing gitopsdepl name: " + syncRunCR.Spec.GitopsDeploymentName)
+		gitopsDeplMap[syncRunCR.Name] = *event.Event
+
+	} else {
+		log.Error(nil, "SEVERE: unexpected event resource type in handleOrphaned")
+		return
+	}
+
+}
+
 func unorphanResourcesIfPossible(ctx context.Context, event eventlooptypes.EventLoopMessage, orphanedResources map[string]map[string]eventlooptypes.EventLoopEvent,
 	input chan eventlooptypes.EventLoopMessage, log logr.Logger) {
 
@@ -242,44 +283,4 @@ func unorphanResourcesIfPossible(ctx context.Context, event eventlooptypes.Event
 			}()
 		}
 	}
-}
-
-// Add a resource to orphaned list (why? because it is a gitopsdeplsyncrun that refers to a gitopsdepl that doesn't exist)
-func handleOrphaned(ctx context.Context, event eventlooptypes.EventLoopMessage, orphanedResources map[string]map[string]eventlooptypes.EventLoopEvent, log logr.Logger) {
-
-	if event.Event.ReqResource == v1alpha1.GitOpsDeploymentSyncRunTypeName {
-
-		syncRunCR := &v1alpha1.GitOpsDeploymentSyncRun{
-			ObjectMeta: v1.ObjectMeta{
-				Name:      event.Event.Request.Name,
-				Namespace: event.Event.Request.Namespace,
-			},
-		}
-		if err := event.Event.Client.Get(ctx, client.ObjectKeyFromObject(syncRunCR), syncRunCR); err != nil {
-
-			if apierr.IsNotFound(err) {
-				log.V(sharedutil.LogLevel_Debug).Info("skipping orphaned resource that could no longer be found:", "resource", syncRunCR.ObjectMeta)
-				return
-			} else {
-				log.Error(err, "unexpected client error on retrieving orphaned syncrun object", "resource", syncRunCR.ObjectMeta)
-				return
-			}
-		}
-
-		// TODO: GITOPSRVCE-67 - DEBT - Make sure it's not still orphaned before adding it to orphanedResources
-
-		gitopsDeplMap, exists := orphanedResources[syncRunCR.Spec.GitopsDeploymentName]
-		if !exists {
-			gitopsDeplMap = map[string]eventlooptypes.EventLoopEvent{}
-			orphanedResources[syncRunCR.Spec.GitopsDeploymentName] = gitopsDeplMap
-		}
-
-		log.V(sharedutil.LogLevel_Debug).Info("Adding syncrun CR to orphaned resources list, name: " + syncRunCR.Name + ", missing gitopsdepl name: " + syncRunCR.Spec.GitopsDeploymentName)
-		gitopsDeplMap[syncRunCR.Name] = *event.Event
-
-	} else {
-		log.Error(nil, "SEVERE: unexpected event resource type in handleOrphaned")
-		return
-	}
-
 }

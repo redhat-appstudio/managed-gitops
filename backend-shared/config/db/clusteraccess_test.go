@@ -96,6 +96,5 @@ func TestClusterAccessFunctions(t *testing.T) {
 	assert.True(t, affectedRows == 1)
 
 	err = dbq.GetClusterAccessByPrimaryKey(ctx, fetchRow)
-	assert.NoError(t, err)
 	assert.True(t, IsResultNotFoundError(err))
 }

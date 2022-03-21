@@ -38,8 +38,8 @@ func TestApplicationStatesFunctions(t *testing.T) {
 
 	applicationState := &ApplicationState{
 		Applicationstate_application_id: application.Application_id,
-		Health:                          "Healthy",
-		Sync_Status:                     "Synced",
+		Health:                          "Progressing",
+		Sync_Status:                     "Unknown",
 	}
 
 	err = dbq.CreateApplicationState(ctx, applicationState)
@@ -51,6 +51,16 @@ func TestApplicationStatesFunctions(t *testing.T) {
 	err = dbq.GetApplicationStateById(ctx, fetchObj)
 	assert.NoError(t, err)
 	assert.ObjectsAreEqualValues(fetchObj, applicationState)
+
+	applicationState.Health = "Healthy"
+	applicationState.Sync_Status = "Synced"
+	err = dbq.UpdateApplicationState(ctx, applicationState)
+	assert.NoError(t, err)
+
+	err = dbq.GetApplicationStateById(ctx, fetchObj)
+	assert.NoError(t, err)
+	assert.ObjectsAreEqualValues(fetchObj, applicationState)
+
 	rowsAffected, err := dbq.DeleteApplicationStateById(ctx, fetchObj.Applicationstate_application_id)
 	assert.NoError(t, err)
 	assert.True(t, rowsAffected == 1)

@@ -9,8 +9,8 @@ import (
 )
 
 func TestCreateandGetSyncOperation(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 
 	ctx := context.Background()
 	dbq, err := NewUnsafePostgresDBQueries(true, true)

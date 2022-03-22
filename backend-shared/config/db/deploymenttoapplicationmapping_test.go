@@ -10,8 +10,8 @@ import (
 
 func TestCreateandDeleteDeploymentToApplicationMapping(t *testing.T) {
 
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 
 	ctx := context.Background()
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
@@ -74,8 +74,8 @@ func TestCreateandDeleteDeploymentToApplicationMapping(t *testing.T) {
 }
 
 func TestAllListDeploymentToApplicationMapping(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 
 	ctx := context.Background()
 	dbq, err := NewUnsafePostgresDBQueries(true, true)

@@ -3,202 +3,16 @@ package db
 import (
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func testSetup(t *testing.T) {
-
-	ctx := context.Background()
-
-	// 'testSetup' deletes all database rows that start with 'test-' in the primary key of the row.
-	// This ensures a clean slate for the test run.
-
-	dbq, err := NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
-
-	var deploymentToApplicationMappings []DeploymentToApplicationMapping
-	var syncOperations []SyncOperation
-
-	err = dbq.UnsafeListAllDeploymentToApplicationMapping(ctx, &deploymentToApplicationMappings)
-	assert.NoError(t, err)
-	for _, deploydeploymentToApplicationMapping := range deploymentToApplicationMappings {
-		if strings.HasPrefix(deploydeploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id, "test-") {
-			rowsAffected, err := dbq.DeleteDeploymentToApplicationMappingByDeplId(ctx, deploydeploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id)
-			assert.NoError(t, err)
-			if err == nil {
-				assert.Equal(t, rowsAffected, 1)
-			}
-		}
-	}
-
-	err = dbq.UnsafeListAllSyncOperations(ctx, &syncOperations)
-	assert.NoError(t, err)
-	for _, syncOperation := range syncOperations {
-		if strings.HasPrefix(syncOperation.SyncOperation_id, "test-") {
-			rowsAffected, err := dbq.DeleteSyncOperationById(ctx, syncOperation.SyncOperation_id)
-			assert.NoError(t, err)
-			if err == nil {
-				assert.Equal(t, rowsAffected, 1)
-			}
-		}
-	}
-
-	var applicationStates []ApplicationState
-	err = dbq.UnsafeListAllApplicationStates(ctx, &applicationStates)
-	assert.NoError(t, err)
-	for _, applicationState := range applicationStates {
-		if strings.HasPrefix(applicationState.Applicationstate_application_id, "test-") {
-			rowsAffected, err := dbq.DeleteApplicationStateById(ctx, applicationState.Applicationstate_application_id)
-			assert.NoError(t, err)
-			if err == nil {
-				assert.Equal(t, rowsAffected, 1)
-			}
-		}
-	}
-
-	var operations []Operation
-	err = dbq.UnsafeListAllOperations(ctx, &operations)
-	assert.NoError(t, err)
-	for _, operation := range operations {
-
-		if strings.HasPrefix(operation.Operation_id, "test-") {
-			rowsAffected, err := dbq.CheckedDeleteOperationById(ctx, operation.Operation_id, operation.Operation_owner_user_id)
-			assert.Equal(t, rowsAffected, 1)
-			assert.NoError(t, err)
-		}
-	}
-
-	var applications []Application
-	err = dbq.UnsafeListAllApplications(ctx, &applications)
-	assert.NoError(t, err)
-	for _, application := range applications {
-		if strings.HasPrefix(application.Application_id, "test-") {
-			rowsAffected, err := dbq.DeleteApplicationById(ctx, application.Application_id)
-			assert.Equal(t, rowsAffected, 1)
-			assert.NoError(t, err)
-		}
-	}
-
-	var clusterAccess []ClusterAccess
-	err = dbq.UnsafeListAllClusterAccess(ctx, &clusterAccess)
-	assert.NoError(t, err)
-	for _, clusterAccess := range clusterAccess {
-		if strings.HasPrefix(clusterAccess.Clusteraccess_managed_environment_id, "test-") {
-			rowsAffected, err := dbq.DeleteClusterAccessById(ctx, clusterAccess.Clusteraccess_user_id,
-				clusterAccess.Clusteraccess_managed_environment_id,
-				clusterAccess.Clusteraccess_gitops_engine_instance_id)
-			assert.NoError(t, err)
-			if err == nil {
-				assert.Equal(t, rowsAffected, 1)
-			}
-		}
-	}
-
-	var engineInstances []GitopsEngineInstance
-	err = dbq.UnsafeListAllGitopsEngineInstances(ctx, &engineInstances)
-	assert.NoError(t, err)
-	for _, gitopsEngineInstance := range engineInstances {
-		if strings.HasPrefix(gitopsEngineInstance.Gitopsengineinstance_id, "test-") {
-
-			rowsAffected, err := dbq.DeleteGitopsEngineInstanceById(ctx, gitopsEngineInstance.Gitopsengineinstance_id)
-
-			if !assert.NoError(t, err) {
-				return
-			}
-			if err == nil {
-				assert.Equal(t, rowsAffected, 1)
-			}
-		}
-	}
-
-	var engineClusters []GitopsEngineCluster
-	err = dbq.UnsafeListAllGitopsEngineClusters(ctx, &engineClusters)
-	assert.NoError(t, err)
-	for _, engineCluster := range engineClusters {
-		if strings.HasPrefix(engineCluster.Gitopsenginecluster_id, "test-") {
-			rowsAffected, err := dbq.DeleteGitopsEngineClusterById(ctx, engineCluster.Gitopsenginecluster_id)
-			assert.NoError(t, err)
-			if err == nil {
-				assert.Equal(t, rowsAffected, 1)
-			}
-		}
-	}
-
-	var managedEnvironments []ManagedEnvironment
-	err = dbq.UnsafeListAllManagedEnvironments(ctx, &managedEnvironments)
-	assert.NoError(t, err)
-	for _, managedEnvironment := range managedEnvironments {
-		if strings.HasPrefix(managedEnvironment.Managedenvironment_id, "test-") {
-			rowsAffected, err := dbq.DeleteManagedEnvironmentById(ctx, managedEnvironment.Managedenvironment_id)
-			assert.Equal(t, rowsAffected, 1)
-			assert.NoError(t, err)
-		}
-	}
-
-	var clusterCredentials []ClusterCredentials
-	err = dbq.UnsafeListAllClusterCredentials(ctx, &clusterCredentials)
-	assert.NoError(t, err)
-	for _, clusterCredential := range clusterCredentials {
-		if strings.HasPrefix(clusterCredential.Clustercredentials_cred_id, "test-") {
-			rowsAffected, err := dbq.DeleteClusterCredentialsById(ctx, clusterCredential.Clustercredentials_cred_id)
-			assert.NoError(t, err)
-			if err == nil {
-				assert.Equal(t, rowsAffected, 1)
-			}
-		}
-	}
-
-	var clusterUsers []ClusterUser
-	if err = dbq.UnsafeListAllClusterUsers(ctx, &clusterUsers); !assert.NoError(t, err) {
-		return
-	}
-
-	for _, user := range clusterUsers {
-		if strings.HasPrefix(user.Clusteruser_id, "test-") {
-			rowsAffected, err := dbq.DeleteClusterUserById(ctx, (user.Clusteruser_id))
-			assert.Equal(t, rowsAffected, 1)
-			assert.NoError(t, err)
-		}
-	}
-
-	err = dbq.CreateClusterUser(ctx, testClusterUser)
-	assert.NoError(t, err)
-
-	var kubernetesToDBResourceMappings []KubernetesToDBResourceMapping
-	err = dbq.UnsafeListAllKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMappings)
-	assert.NoError(t, err)
-	for _, kubernetesToDBResourceMapping := range kubernetesToDBResourceMappings {
-		if strings.HasPrefix(kubernetesToDBResourceMapping.KubernetesResourceUID, "test-") {
-
-			rowsAffected, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMapping)
-
-			if !assert.NoError(t, err) {
-				return
-			}
-			if err == nil {
-				assert.Equal(t, rowsAffected, 1)
-			}
-		}
-	}
-
-}
-
-func testTeardown(t *testing.T) {
-	testSetup(t)
-	// Currently unused
-}
-
 // Ensure that the we are able to select on all the fields of the database.
 func TestSelectOnAllTables(t *testing.T) {
 
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 	ctx := context.Background()
 
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
@@ -246,8 +60,8 @@ func TestSelectOnAllTables(t *testing.T) {
 }
 
 func TestCreateApplication(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
@@ -304,8 +118,8 @@ func TestDeploymentToApplicationMapping(t *testing.T) {
 
 	// TODO: GITOPSRVCE-67 - DEBT - Finish filling this in
 
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 	ctx := context.Background()
 
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
@@ -322,8 +136,8 @@ func TestDeploymentToApplicationMapping(t *testing.T) {
 
 func TestGitopsEngineInstanceAndCluster(t *testing.T) {
 
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
@@ -371,8 +185,8 @@ func TestGitopsEngineInstanceAndCluster(t *testing.T) {
 }
 
 func TestManagedEnvironment(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 	ctx := context.Background()
 
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
@@ -415,8 +229,8 @@ func TestManagedEnvironment(t *testing.T) {
 }
 
 func TestOperation(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
@@ -461,9 +275,8 @@ func TestOperation(t *testing.T) {
 }
 
 func TestClusterUser(t *testing.T) {
-
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 	ctx := context.Background()
 
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
@@ -504,8 +317,8 @@ func TestClusterUser(t *testing.T) {
 
 func TestClusterCredentials(t *testing.T) {
 
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {

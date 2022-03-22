@@ -9,8 +9,8 @@ import (
 )
 
 func TestClusterAccessFunctions(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
 		return

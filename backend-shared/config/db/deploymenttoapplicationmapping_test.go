@@ -20,7 +20,7 @@ func TestCreateandDeleteDeploymentToApplicationMapping(t *testing.T) {
 	}
 	defer dbq.CloseDatabase()
 
-	_, managedEnvironment, _, gitopsEngineInstance, _, err := createSampleData(t, dbq)
+	_, managedEnvironment, _, gitopsEngineInstance, _, err := CreateSampleData(dbq)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -84,7 +84,7 @@ func TestAllListDeploymentToApplicationMapping(t *testing.T) {
 	}
 	defer dbq.CloseDatabase()
 
-	_, managedEnvironment, _, gitopsEngineInstance, _, err := createSampleData(t, dbq)
+	_, managedEnvironment, _, gitopsEngineInstance, _, err := CreateSampleData(dbq)
 	if !assert.NoError(t, err) {
 		return
 	}

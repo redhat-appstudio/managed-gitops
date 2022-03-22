@@ -101,7 +101,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetApplicationStateById(ctx context.Contex
 		return err
 	}
 
-	if isEmpty(obj.Applicationstate_application_id) {
+	if IsEmpty(obj.Applicationstate_application_id) {
 		return fmt.Errorf("applicationstate_application_id is nil")
 	}
 

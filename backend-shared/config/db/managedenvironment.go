@@ -12,17 +12,17 @@ func (dbq *PostgreSQLDatabaseQueries) CreateManagedEnvironment(ctx context.Conte
 	}
 
 	if dbq.allowTestUuids {
-		if isEmpty(obj.Managedenvironment_id) {
+		if IsEmpty(obj.Managedenvironment_id) {
 			obj.Managedenvironment_id = generateUuid()
 		}
 	} else {
-		if !isEmpty(obj.Managedenvironment_id) {
+		if !IsEmpty(obj.Managedenvironment_id) {
 			return fmt.Errorf("primary key should be empty")
 		}
 		obj.Managedenvironment_id = generateUuid()
 	}
 
-	if isEmpty(obj.Name) {
+	if IsEmpty(obj.Name) {
 		return fmt.Errorf("managed environment name field should not be empty")
 	}
 
@@ -61,7 +61,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListManagedEnvironmentForClusterCredential
 		return err
 	}
 
-	if isEmpty(ownerId) {
+	if IsEmpty(ownerId) {
 		return fmt.Errorf("owner id for ListManagedEnvironmentByClusterCredentialsAndOwnerId is empty")
 	}
 
@@ -88,7 +88,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetManagedEnvironmentById(ctx context.Cont
 		return err
 	}
 
-	if isEmpty(managedEnvironment.Managedenvironment_id) {
+	if IsEmpty(managedEnvironment.Managedenvironment_id) {
 		return fmt.Errorf("managedenvironment_id is empty in GetManagedEnvironmentById")
 	}
 
@@ -121,11 +121,11 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedGetManagedEnvironmentById(ctx conte
 		return err
 	}
 
-	if isEmpty(managedEnvironment.Managedenvironment_id) {
+	if IsEmpty(managedEnvironment.Managedenvironment_id) {
 		return fmt.Errorf("managedenvironment_id is empty in GetManagedEnvironmentById")
 	}
 
-	if isEmpty(ownerId) {
+	if IsEmpty(ownerId) {
 		return fmt.Errorf("ownerId is empty in GetManagedEnvironmentById")
 	}
 
@@ -160,7 +160,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedDeleteManagedEnvironmentById(ctx co
 		return 0, err
 	}
 
-	if isEmpty(ownerId) {
+	if IsEmpty(ownerId) {
 		return 0, fmt.Errorf("owner id is empty")
 	}
 

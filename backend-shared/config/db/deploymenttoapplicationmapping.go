@@ -141,7 +141,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetDeploymentToApplicationMappingByApplica
 		return err
 	}
 
-	if isEmpty(deplToAppMappingParam.Application_id) {
+	if IsEmpty(deplToAppMappingParam.Application_id) {
 		return fmt.Errorf("GetDeploymentToApplicationMappingByApplicationId: param is nil")
 	}
 
@@ -174,11 +174,11 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedGetDeploymentToApplicationMappingBy
 		return err
 	}
 
-	if isEmpty(deplToAppMappingParam.Deploymenttoapplicationmapping_uid_id) {
+	if IsEmpty(deplToAppMappingParam.Deploymenttoapplicationmapping_uid_id) {
 		return fmt.Errorf("GetDeploymentToApplicationMappingByDeplId: param is nil")
 	}
 
-	if isEmpty(ownerId) {
+	if IsEmpty(ownerId) {
 		return fmt.Errorf("ownerid is empty")
 	}
 

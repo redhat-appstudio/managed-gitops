@@ -11,7 +11,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedGetApplicationById(ctx context.Cont
 		return err
 	}
 
-	if isEmpty(application.Application_id) {
+	if IsEmpty(application.Application_id) {
 		return fmt.Errorf("application_Id is nil in GetApplicationById")
 	}
 
@@ -61,7 +61,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetApplicationById(ctx context.Context, ap
 		return err
 	}
 
-	if isEmpty(application.Application_id) {
+	if IsEmpty(application.Application_id) {
 		return fmt.Errorf("application_Id is nil")
 	}
 
@@ -95,11 +95,11 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedCreateApplication(ctx context.Conte
 	}
 
 	if dbq.allowTestUuids {
-		if isEmpty(obj.Application_id) {
+		if IsEmpty(obj.Application_id) {
 			obj.Application_id = generateUuid()
 		}
 	} else {
-		if !isEmpty(obj.Application_id) {
+		if !IsEmpty(obj.Application_id) {
 			return fmt.Errorf("primary key should be empty")
 		}
 
@@ -199,11 +199,11 @@ func (dbq *PostgreSQLDatabaseQueries) CreateApplication(ctx context.Context, obj
 	}
 
 	if dbq.allowTestUuids {
-		if isEmpty(obj.Application_id) {
+		if IsEmpty(obj.Application_id) {
 			obj.Application_id = generateUuid()
 		}
 	} else {
-		if !isEmpty(obj.Application_id) {
+		if !IsEmpty(obj.Application_id) {
 			return fmt.Errorf("primary key should be empty")
 		}
 		obj.Application_id = generateUuid()

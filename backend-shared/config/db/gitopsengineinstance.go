@@ -24,7 +24,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedListAllGitopsEngineInstancesForGito
 		return err
 	}
 
-	if isEmpty(ownerId) {
+	if IsEmpty(ownerId) {
 		return fmt.Errorf("engine instance owner id is nil")
 	}
 
@@ -87,11 +87,11 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedGetGitopsEngineInstanceById(ctx con
 		return err
 	}
 
-	if isEmpty(engineInstanceParam.Gitopsengineinstance_id) {
+	if IsEmpty(engineInstanceParam.Gitopsengineinstance_id) {
 		return fmt.Errorf("invalid pk")
 	}
 
-	if isEmpty(ownerId) {
+	if IsEmpty(ownerId) {
 		return fmt.Errorf("invalid ownerId")
 	}
 
@@ -127,25 +127,25 @@ func (dbq *PostgreSQLDatabaseQueries) CreateGitopsEngineInstance(ctx context.Con
 	}
 
 	if dbq.allowTestUuids {
-		if isEmpty(obj.Gitopsengineinstance_id) {
+		if IsEmpty(obj.Gitopsengineinstance_id) {
 			obj.Gitopsengineinstance_id = generateUuid()
 		}
 	} else {
-		if !isEmpty(obj.Gitopsengineinstance_id) {
+		if !IsEmpty(obj.Gitopsengineinstance_id) {
 			return fmt.Errorf("primary key should be empty")
 		}
 		obj.Gitopsengineinstance_id = generateUuid()
 	}
 
-	if isEmpty(obj.EngineCluster_id) {
+	if IsEmpty(obj.EngineCluster_id) {
 		return fmt.Errorf("engine cluster id should not be empty")
 	}
 
-	if isEmpty(obj.Namespace_name) {
+	if IsEmpty(obj.Namespace_name) {
 		return fmt.Errorf("namespace name should not be empty")
 	}
 
-	if isEmpty(obj.Namespace_uid) {
+	if IsEmpty(obj.Namespace_uid) {
 		return fmt.Errorf("namespace uid should not be empty")
 	}
 
@@ -186,7 +186,7 @@ func (dbq *PostgreSQLDatabaseQueries) internalDeleteGitopsEngineInstanceById(ctx
 
 	if !allowUnsafe {
 
-		if isEmpty(ownerId) {
+		if IsEmpty(ownerId) {
 			return 0, fmt.Errorf("owner id is empty")
 		}
 

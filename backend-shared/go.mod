@@ -8,7 +8,7 @@ require (
 	github.com/go-pg/pg/v10 v10.10.6
 	github.com/google/uuid v1.3.0
 	github.com/onsi/ginkgo v1.16.4
-	github.com/onsi/gomega v1.15.0
+	github.com/onsi/gomega v1.13.0
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/zap v1.17.0
 	k8s.io/api v0.21.2

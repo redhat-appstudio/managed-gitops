@@ -3,19 +3,20 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
-	"path/filepath"
 )
 
 const (
 	DBSchemaRelativeFileLocation         = "../db-schema.sql"
 	DBFieldConstantsRelativeFileLocation = "./config/db/db_field_constants.go"
+	minimumExpectedFields                = 50
 )
 
 func main() {
-	fieldToSize := parseDbSchema(DBSchemaRelativeFileLocation)
-	fieldConstantToSize := parseDbConstants(DBFieldConstantsRelativeFileLocation)
+	fieldToSize := parseDBSchema(DBSchemaRelativeFileLocation)
+	fieldConstantToSize := parseDBConstants(DBFieldConstantsRelativeFileLocation)
 	checkIfSchemaInSyncWithConstants(fieldConstantToSize, fieldToSize)
 }
 
@@ -41,7 +42,7 @@ func checkIfSchemaInSyncWithConstants(fieldConstantToSize map[string]string, fie
 	}
 }
 
-func parseDbSchema(DBSchemaRelativeFileLocation string) map[string]string {
+func parseDBSchema(DBSchemaRelativeFileLocation string) map[string]string {
 	fieldToSize := make(map[string]string)
 	dbSchemaContents, err := os.ReadFile(filepath.Clean(DBSchemaRelativeFileLocation))
 	if err != nil {
@@ -72,7 +73,7 @@ func parseDbSchema(DBSchemaRelativeFileLocation string) map[string]string {
 					StartIndexOfSize := strings.Index(currentField, "(")
 					endIndexOfSize := strings.Index(currentField, ")")
 					size := currentField[StartIndexOfSize+1 : endIndexOfSize]
-					uniqueFieldName := tableName + fieldNameInCamelCase
+					uniqueFieldName := tableName + fieldNameInCamelCase + "Length"
 					fieldToSize[uniqueFieldName] = size
 				}
 				i++
@@ -81,10 +82,14 @@ func parseDbSchema(DBSchemaRelativeFileLocation string) map[string]string {
 		i++
 	}
 
+	if len(fieldToSize) < minimumExpectedFields {
+		exitWithError(fmt.Errorf("minimum number of fields i.e., %d not present in the db-schema.sql file", minimumExpectedFields))
+	}
+
 	return fieldToSize
 }
 
-func parseDbConstants(DBFieldConstantsRelativeFileLocation string) map[string]string {
+func parseDBConstants(DBFieldConstantsRelativeFileLocation string) map[string]string {
 	fieldConstantToSize := make(map[string]string)
 	dbFieldConstantsContents, err := os.ReadFile(filepath.Clean(DBFieldConstantsRelativeFileLocation))
 	if err != nil {
@@ -108,6 +113,9 @@ func parseDbConstants(DBFieldConstantsRelativeFileLocation string) map[string]st
 		fieldConstantToSize[fieldName] = fieldSize
 		i++
 	}
+	if len(fieldConstantToSize) < minimumExpectedFields {
+		exitWithError(fmt.Errorf("minimum number of fields i.e., %d not present as constants in the db_field_constants.go file", minimumExpectedFields))
+	}
 
 	return fieldConstantToSize
 }
@@ -117,7 +125,11 @@ func convertSnakeCaseToCamelCase(fieldName string) string {
 	var fieldNameInCamelCase string
 
 	for i := 0; i < len(splitFieldName); i++ {
-		fieldNameInCamelCase += strings.Title(splitFieldName[i])
+		if splitFieldName[i] == "id" || splitFieldName[i] == "uid" {
+			fieldNameInCamelCase += strings.ToUpper(splitFieldName[i])
+		} else {
+			fieldNameInCamelCase += strings.Title(splitFieldName[i])
+		}
 	}
 
 	return fieldNameInCamelCase

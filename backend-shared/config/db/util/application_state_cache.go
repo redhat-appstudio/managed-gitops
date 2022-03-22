@@ -247,7 +247,7 @@ func processGetMessage(dbQueries db.DatabaseQueries, req applicationStateCacheRe
 	}
 
 	var err error
-	var valueFromCache bool = false
+	var valueFromCache bool
 
 	if db.IsEmpty(req.primaryKey) {
 		return fmt.Errorf("PrimaryKey should not be nil: " + req.primaryKey + " not found")
@@ -257,6 +257,7 @@ func processGetMessage(dbQueries db.DatabaseQueries, req applicationStateCacheRe
 
 	if !exists {
 		// If it's not in the cache, then get it from the database
+		valueFromCache = false
 		err = dbQueries.GetApplicationStateById(req.ctx, &appState)
 		if err != nil {
 			appState = db.ApplicationState{}
@@ -265,18 +266,17 @@ func processGetMessage(dbQueries db.DatabaseQueries, req applicationStateCacheRe
 		// Update the cache if we get a result from the database
 		// Update valueFromCache to false, since data is retrieved from db
 		if err == nil && appState.Applicationstate_application_id != "" {
-			valueFromCache = true
 			cache[appState.Applicationstate_application_id] = appState
 		}
 
 	} else {
 		// If it is in the cache, return it from the cache
-		valueFromCache = false
+		valueFromCache = true
 		appState = res
 	}
 
 	req.responseChannel <- applicationStateCacheResponse{
-		applicationState: res,
+		applicationState: appState,
 		valueFromCache:   valueFromCache,
 		err:              err,
 	}

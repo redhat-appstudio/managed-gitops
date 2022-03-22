@@ -25,6 +25,7 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	cache "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,6 +39,7 @@ type ApplicationReconciler struct {
 	client.Client
 	Scheme        *runtime.Scheme
 	TaskRetryLoop *sharedutil.TaskRetryLoop
+	cache         cache.ApplicationInfoCache
 	DB            db.DatabaseQueries
 }
 
@@ -73,7 +75,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	} else {
 		applicationDB.Application_id = databaseID
 	}
-	if err := r.DB.GetApplicationById(ctx, applicationDB); err != nil {
+	if _, _, err := r.cache.GetApplicationById(ctx, applicationDB.Application_id); err != nil {
 		if db.IsResultNotFoundError(err) {
 
 			log.V(sharedutil.LogLevel_Warn).Info("Application CR '" + req.NamespacedName.String() + "' missing corresponding database entry: " + applicationDB.Application_id)
@@ -101,8 +103,10 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	applicationState := &db.ApplicationState{
 		Applicationstate_application_id: applicationDB.Application_id,
 	}
-	if err := r.DB.GetApplicationStateById(ctx, applicationState); err != nil {
-		if db.IsResultNotFoundError(err) {
+	_, _, errGet := r.cache.GetApplicationStateById(ctx, applicationState.Applicationstate_application_id)
+
+	if errGet != nil {
+		if db.IsResultNotFoundError(errGet) {
 
 			// 3a) ApplicationState doesn't exist: so create it
 
@@ -112,16 +116,15 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationStateRevisionLength)
 			sanitizeHealthAndStatus(applicationState)
 
-			if err := r.DB.CreateApplicationState(ctx, applicationState); err != nil {
-				log.Error(err, "unexpected error on writing new application state")
-				return ctrl.Result{}, err
+			if errCreate := r.cache.CreateApplicationState(ctx, *applicationState); errCreate != nil {
+				log.Error(errCreate, "unexpected error on writing new application state")
+				return ctrl.Result{}, errCreate
 			}
-
 			// Successfully created ApplicationState
 			return ctrl.Result{}, nil
 		} else {
-			log.Error(err, "Unable to retrieve ApplicationState from database: "+applicationDB.Application_id)
-			return ctrl.Result{}, err
+			log.Error(errGet, "Unable to retrieve ApplicationState from database: "+applicationDB.Application_id)
+			return ctrl.Result{}, errGet
 		}
 	}
 
@@ -133,9 +136,9 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationStateRevisionLength)
 	sanitizeHealthAndStatus(applicationState)
 
-	if err := r.DB.UpdateApplicationState(ctx, applicationState); err != nil {
-		log.Error(err, "unexpected error on updating existing application state")
-		return ctrl.Result{}, err
+	if errUpdate := r.cache.UpdateApplicationState(ctx, *applicationState); errUpdate != nil {
+		log.Error(errUpdate, "unexpected error on updating existing application state")
+		return ctrl.Result{}, errUpdate
 	}
 
 	return ctrl.Result{}, nil

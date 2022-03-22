@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"runtime/debug"
@@ -64,7 +65,7 @@ func validateQueryParams(entityId string, dbq *PostgreSQLDatabaseQueries) error 
 		return fmt.Errorf("database connection is nil")
 	}
 
-	if isEmpty(entityId) {
+	if IsEmpty(entityId) {
 		debug.PrintStack()
 		return fmt.Errorf("primary key is empty")
 	}
@@ -166,7 +167,7 @@ func generateUuid() string {
 	return uuid.New().String()
 }
 
-func isEmpty(str string) bool {
+func IsEmpty(str string) bool {
 	return len(strings.TrimSpace(str)) == 0
 }
 
@@ -215,4 +216,76 @@ func isMaxLengthError(err error) bool {
 		return strings.Contains(err.Error(), "value exceeds maximum size")
 	}
 	return false
+
+var testClusterUser = &ClusterUser{
+	Clusteruser_id: "test-user",
+	User_name:      "test-user",
+}
+
+func CreateSampleData(dbq AllDatabaseQueries) (*ClusterCredentials, *ManagedEnvironment, *GitopsEngineCluster, *GitopsEngineInstance, *ClusterAccess, error) {
+
+	ctx := context.Background()
+	var err error
+
+	clusterCredentials, managedEnvironment, engineCluster, engineInstance, clusterAccess := generateSampleData()
+
+	if err = dbq.CreateClusterCredentials(ctx, &clusterCredentials); err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	if err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment); err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	if err = dbq.CreateGitopsEngineCluster(ctx, &engineCluster); err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	if err = dbq.CreateGitopsEngineInstance(ctx, &engineInstance); err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	if err = dbq.CreateClusterAccess(ctx, &clusterAccess); err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
+
+	return &clusterCredentials, &managedEnvironment, &engineCluster, &engineInstance, &clusterAccess, nil
+
+}
+
+func generateSampleData() (ClusterCredentials, ManagedEnvironment, GitopsEngineCluster, GitopsEngineInstance, ClusterAccess) {
+	clusterCredentials := ClusterCredentials{
+		Clustercredentials_cred_id:  "test-cluster-creds-test",
+		Host:                        "host",
+		Kube_config:                 "kube-config",
+		Kube_config_context:         "kube-config-context",
+		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+		Serviceaccount_ns:           "Serviceaccount_ns",
+	}
+
+	managedEnvironment := ManagedEnvironment{
+		Managedenvironment_id: "test-managed-env-914",
+		Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+		Name:                  "my env",
+	}
+
+	gitopsEngineCluster := GitopsEngineCluster{
+		Gitopsenginecluster_id: "test-fake-cluster-914",
+		Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+	}
+
+	gitopsEngineInstance := GitopsEngineInstance{
+		Gitopsengineinstance_id: "test-fake-engine-instance-id",
+		Namespace_name:          "test-fake-namespace",
+		Namespace_uid:           "test-fake-namespace-914",
+		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+	}
+
+	clusterAccess := ClusterAccess{
+		Clusteraccess_user_id:                   testClusterUser.Clusteruser_id,
+		Clusteraccess_managed_environment_id:    managedEnvironment.Managedenvironment_id,
+		Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
+	}
+
+	return clusterCredentials, managedEnvironment, gitopsEngineCluster, gitopsEngineInstance, clusterAccess
 }

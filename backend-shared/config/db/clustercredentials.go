@@ -29,13 +29,13 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterCredentials(ctx context.Conte
 
 	if dbq.allowTestUuids {
 
-		if isEmpty(obj.Clustercredentials_cred_id) {
+		if IsEmpty(obj.Clustercredentials_cred_id) {
 			obj.Clustercredentials_cred_id = generateUuid()
 		}
 
 	} else {
 
-		if !isEmpty(obj.Clustercredentials_cred_id) {
+		if !IsEmpty(obj.Clustercredentials_cred_id) {
 			return fmt.Errorf("primary key should be empty")
 		}
 
@@ -251,7 +251,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteClusterCredentialsById(ctx context.C
 		return 0, fmt.Errorf("database connection is nil")
 	}
 
-	if isEmpty(id) {
+	if IsEmpty(id) {
 		return 0, fmt.Errorf("primary key is empty")
 	}
 

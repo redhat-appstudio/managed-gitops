@@ -62,11 +62,11 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterAccess(ctx context.Context, o
 		return err
 	}
 
-	if isEmpty(obj.Clusteraccess_managed_environment_id) {
+	if IsEmpty(obj.Clusteraccess_managed_environment_id) {
 		return fmt.Errorf("primary key environment id should not be empty")
 	}
 
-	if isEmpty(obj.Clusteraccess_user_id) {
+	if IsEmpty(obj.Clusteraccess_user_id) {
 		return fmt.Errorf("primary key user_id should not be empty")
 	}
 
@@ -92,11 +92,11 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteClusterAccessById(ctx context.Contex
 		return 0, err
 	}
 
-	if isEmpty(managedEnvironmentId) {
+	if IsEmpty(managedEnvironmentId) {
 		return 0, fmt.Errorf("primary key is empty")
 	}
 
-	if isEmpty(gitopsEngineInstanceId) {
+	if IsEmpty(gitopsEngineInstanceId) {
 		return 0, fmt.Errorf("primary key is empty")
 	}
 

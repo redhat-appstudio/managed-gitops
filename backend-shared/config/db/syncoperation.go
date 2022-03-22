@@ -16,7 +16,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetSyncOperationById(ctx context.Context, 
 		return err
 	}
 
-	if isEmpty(syncOperation.SyncOperation_id) {
+	if IsEmpty(syncOperation.SyncOperation_id) {
 		return fmt.Errorf("sync operation id is empty")
 	}
 
@@ -50,11 +50,11 @@ func (dbq *PostgreSQLDatabaseQueries) CreateSyncOperation(ctx context.Context, o
 	}
 
 	if dbq.allowTestUuids {
-		if isEmpty(obj.SyncOperation_id) {
+		if IsEmpty(obj.SyncOperation_id) {
 			obj.SyncOperation_id = generateUuid()
 		}
 	} else {
-		if !isEmpty(obj.SyncOperation_id) {
+		if !IsEmpty(obj.SyncOperation_id) {
 			return fmt.Errorf("primary key should be empty")
 		}
 
@@ -92,7 +92,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteSyncOperationById(ctx context.Contex
 		return 0, err
 	}
 
-	if isEmpty(id) {
+	if IsEmpty(id) {
 		return 0, fmt.Errorf("sync operation id was empty in delete")
 	}
 

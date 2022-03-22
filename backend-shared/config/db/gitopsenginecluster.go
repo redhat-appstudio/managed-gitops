@@ -43,11 +43,11 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedGetGitopsEngineClusterById(ctx cont
 		return err
 	}
 
-	if isEmpty(gitopsEngineCluster.Gitopsenginecluster_id) {
+	if IsEmpty(gitopsEngineCluster.Gitopsenginecluster_id) {
 		return fmt.Errorf("invalid pk in GetGitopsEngineClusterById")
 	}
 
-	if isEmpty(ownerId) {
+	if IsEmpty(ownerId) {
 		return fmt.Errorf("invalid owner in GetGitopsEngineClusterById")
 	}
 
@@ -94,7 +94,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedListGitopsEngineClusterByCredential
 		return err
 	}
 
-	if isEmpty(ownerId) {
+	if IsEmpty(ownerId) {
 		return fmt.Errorf("invalid owner in GetGitopsEngineClusterByCredentialId")
 	}
 
@@ -140,11 +140,11 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedListGitopsEngineClusterByCredential
 func (dbq *PostgreSQLDatabaseQueries) CreateGitopsEngineCluster(ctx context.Context, obj *GitopsEngineCluster) error {
 
 	if dbq.allowTestUuids {
-		if isEmpty(obj.Gitopsenginecluster_id) {
+		if IsEmpty(obj.Gitopsenginecluster_id) {
 			obj.Gitopsenginecluster_id = generateUuid()
 		}
 	} else {
-		if !isEmpty(obj.Gitopsenginecluster_id) {
+		if !IsEmpty(obj.Gitopsenginecluster_id) {
 			return fmt.Errorf("primary key should be empty")
 		}
 
@@ -155,7 +155,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateGitopsEngineCluster(ctx context.Cont
 		return err
 	}
 
-	if isEmpty(obj.Clustercredentials_id) {
+	if IsEmpty(obj.Clustercredentials_id) {
 		return fmt.Errorf("cluster credentials field should not be empty")
 	}
 

@@ -45,11 +45,11 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterUser(ctx context.Context, obj
 	}
 
 	if dbq.allowTestUuids {
-		if isEmpty(obj.Clusteruser_id) {
+		if IsEmpty(obj.Clusteruser_id) {
 			obj.Clusteruser_id = generateUuid()
 		}
 	} else {
-		if !isEmpty(obj.Clusteruser_id) {
+		if !IsEmpty(obj.Clusteruser_id) {
 			return fmt.Errorf("primary key should be empty")
 		}
 
@@ -58,7 +58,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterUser(ctx context.Context, obj
 
 	// State
 
-	if isEmpty(obj.User_name) {
+	if IsEmpty(obj.User_name) {
 		return fmt.Errorf("user name should not be empty")
 	}
 
@@ -86,7 +86,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetClusterUserByUsername(ctx context.Conte
 		return err
 	}
 
-	if isEmpty(clusterUser.User_name) {
+	if IsEmpty(clusterUser.User_name) {
 		return fmt.Errorf("username is nil for GetClusterUserByUsername")
 	}
 
@@ -119,7 +119,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetClusterUserById(ctx context.Context, cl
 		return err
 	}
 
-	if isEmpty(clusterUser.Clusteruser_id) {
+	if IsEmpty(clusterUser.Clusteruser_id) {
 		return fmt.Errorf("cluster user id is empty")
 	}
 

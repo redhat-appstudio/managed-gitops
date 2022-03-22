@@ -28,13 +28,13 @@ func (dbq *PostgreSQLDatabaseQueries) CreateOperation(ctx context.Context, obj *
 
 	if dbq.allowTestUuids {
 
-		if isEmpty(obj.Operation_id) {
+		if IsEmpty(obj.Operation_id) {
 			obj.Operation_id = generateUuid()
 		}
 
 	} else {
 
-		if !isEmpty(obj.Operation_id) {
+		if !IsEmpty(obj.Operation_id) {
 			return fmt.Errorf("primary key should be empty")
 		}
 		obj.Operation_id = generateUuid()
@@ -119,7 +119,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetOperationById(ctx context.Context, oper
 		return err
 	}
 
-	if isEmpty(operation.Operation_id) {
+	if IsEmpty(operation.Operation_id) {
 		return fmt.Errorf("invalid pk")
 	}
 
@@ -153,11 +153,11 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedGetOperationById(ctx context.Contex
 		return err
 	}
 
-	if isEmpty(operation.Operation_id) {
+	if IsEmpty(operation.Operation_id) {
 		return fmt.Errorf("invalid pk")
 	}
 
-	if isEmpty(ownerId) {
+	if IsEmpty(ownerId) {
 		return fmt.Errorf("owner id is empty")
 	}
 
@@ -212,7 +212,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedDeleteOperationById(ctx context.Con
 		return 0, err
 	}
 
-	if isEmpty(ownerId) {
+	if IsEmpty(ownerId) {
 		return 0, fmt.Errorf("owner id is empty")
 	}
 

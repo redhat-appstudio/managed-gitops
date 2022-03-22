@@ -154,7 +154,7 @@ func (o *Operation) LongString() string {
 	res += "resource-type: " + o.Resource_type + ", "
 
 	res += "human-readable-state: " + o.Human_readable_state + ", "
-	res += "state: " + o.State + ", "
+	res += "state: " + string(o.State) + ", "
 	res += fmt.Sprintf("last-status-update: %v", o.Last_state_update) + ", "
 	res += fmt.Sprintf("created_on: %v", o.Last_state_update)
 

@@ -138,10 +138,10 @@ type ClusterAccess struct {
 type OperationState string
 
 const (
-	OperationState_Waiting     = "Waiting"
-	OperationState_In_Progress = "In_Progress"
-	OperationState_Completed   = "Completed"
-	OperationState_Failed      = "Failed"
+	OperationState_Waiting     OperationState = "Waiting"
+	OperationState_In_Progress OperationState = "In_Progress"
+	OperationState_Completed   OperationState = "Completed"
+	OperationState_Failed      OperationState = "Failed"
 )
 
 const (
@@ -188,7 +188,7 @@ type Operation struct {
 	// -- * In_Progress
 	// -- * Completed
 	// -- * Failed
-	State string `pg:"state"`
+	State OperationState `pg:"state"`
 
 	// -- If there is an error message from the operation, it is passed via this field.
 	Human_readable_state string `pg:"human_readable_state"`

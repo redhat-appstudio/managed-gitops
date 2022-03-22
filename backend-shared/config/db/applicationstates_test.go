@@ -9,8 +9,8 @@ import (
 )
 
 func TestApplicationStatesFunctions(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 	ctx := context.Background()
 
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
@@ -18,7 +18,7 @@ func TestApplicationStatesFunctions(t *testing.T) {
 		return
 	}
 	defer dbq.CloseDatabase()
-	_, managedEnvironment, _, gitopsEngineInstance, _, err := createSampleData(t, dbq)
+	_, managedEnvironment, _, gitopsEngineInstance, _, err := CreateSampleData(dbq)
 	if !assert.NoError(t, err) {
 		return
 	}

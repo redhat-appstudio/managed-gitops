@@ -18,8 +18,8 @@ func TestApiCRToDBMappingFunctions(t *testing.T) {
 		DBRelationType:       APICRToDatabaseMapping_DBRelationType_SyncOperation,
 		DBRelationKey:        "test-key",
 	}
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 	ctx := context.Background()
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {

@@ -13,8 +13,8 @@ var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
 var DefaultValue = 101
 
 func TestGetOperationById(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
 		return
@@ -23,7 +23,7 @@ func TestGetOperationById(t *testing.T) {
 
 	ctx := context.Background()
 
-	_, _, _, gitopsEngineInstance, _, err := createSampleData(t, dbq)
+	_, _, _, gitopsEngineInstance, _, err := CreateSampleData(dbq)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -68,8 +68,8 @@ func TestGetOperationById(t *testing.T) {
 }
 
 func TestCreateOperation(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
 		return
@@ -78,7 +78,7 @@ func TestCreateOperation(t *testing.T) {
 
 	ctx := context.Background()
 
-	_, _, _, gitopsEngineInstance, _, err := createSampleData(t, dbq)
+	_, _, _, gitopsEngineInstance, _, err := CreateSampleData(dbq)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -114,8 +114,8 @@ func TestCreateOperation(t *testing.T) {
 }
 
 func TestDeleteOperationById(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
 		return
@@ -123,7 +123,7 @@ func TestDeleteOperationById(t *testing.T) {
 	defer dbq.CloseDatabase()
 
 	ctx := context.Background()
-	_, _, _, gitopsEngineInstance, _, err := createSampleData(t, dbq)
+	_, _, _, gitopsEngineInstance, _, err := CreateSampleData(dbq)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -153,8 +153,8 @@ func TestDeleteOperationById(t *testing.T) {
 }
 
 func TestListOperationsByResourceIdAndTypeAndOwnerId(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
 		return
@@ -163,7 +163,7 @@ func TestListOperationsByResourceIdAndTypeAndOwnerId(t *testing.T) {
 
 	ctx := context.Background()
 
-	_, _, _, gitopsEngineInstance, _, err := createSampleData(t, dbq)
+	_, _, _, gitopsEngineInstance, _, err := CreateSampleData(dbq)
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -197,8 +197,8 @@ func TestListOperationsByResourceIdAndTypeAndOwnerId(t *testing.T) {
 }
 
 func TestUpdateOperation(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
 		return
@@ -207,7 +207,7 @@ func TestUpdateOperation(t *testing.T) {
 
 	ctx := context.Background()
 
-	_, _, _, gitopsEngineInstance, _, err := createSampleData(t, dbq)
+	_, _, _, gitopsEngineInstance, _, err := CreateSampleData(dbq)
 	if !assert.NoError(t, err) {
 		return
 	}

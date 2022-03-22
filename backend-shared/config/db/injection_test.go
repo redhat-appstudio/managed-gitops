@@ -8,8 +8,8 @@ import (
 )
 
 func TestGitopsEngineInstanceWrongInput(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
 		return
@@ -72,8 +72,8 @@ func TestGitopsEngineInstanceWrongInput(t *testing.T) {
 }
 
 func TestClusterCredentialWrongInput(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
 		return
@@ -104,8 +104,8 @@ func TestClusterCredentialWrongInput(t *testing.T) {
 }
 
 func TestManagedEnviromentWrongInput(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
 		return
@@ -148,8 +148,8 @@ func TestManagedEnviromentWrongInput(t *testing.T) {
 }
 
 func TestClusterUserWrongInput(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
 		return
@@ -178,8 +178,8 @@ func TestClusterUserWrongInput(t *testing.T) {
 }
 
 func TestApplicationWrongInput(t *testing.T) {
-	testSetup(t)
-	defer testTeardown(t)
+	SetupforTestingDB(t)
+	defer TestTeardown(t)
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
 		return

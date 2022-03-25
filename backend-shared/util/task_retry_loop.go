@@ -215,6 +215,7 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string
 				startTask := false
 
 				task := waitingTasks[idx]
+				waitingTasksByName[task.name] = task
 
 				if task.nextScheduledRetryTime == nil {
 					startTask = true

@@ -7,8 +7,8 @@ require (
 	github.com/go-logr/logr v0.4.0
 	github.com/golang/mock v1.4.1
 	github.com/google/go-github v17.0.0+incompatible
-	github.com/onsi/ginkgo v1.16.4
-	github.com/onsi/gomega v1.15.0
+	github.com/onsi/ginkgo v1.16.5
+	github.com/onsi/gomega v1.18.1
 	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
@@ -70,7 +70,7 @@ require (
 	go.uber.org/zap v1.17.0 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/net v0.0.0-20210428140749-89ef3d95e781 // indirect
-	golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac // indirect
+	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
 	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d // indirect
 	golang.org/x/text v0.3.6 // indirect
 	golang.org/x/time v0.0.0-20210611083556-38a9dc6acbc6 // indirect

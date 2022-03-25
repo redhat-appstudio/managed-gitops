@@ -7,8 +7,8 @@ require (
 	github.com/go-pg/pg/extra/pgdebug v0.2.0
 	github.com/go-pg/pg/v10 v10.10.6
 	github.com/google/uuid v1.3.0
-	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.18.1
+	github.com/onsi/ginkgo v1.16.4
+	github.com/onsi/gomega v1.15.0
 	github.com/stretchr/testify v1.7.0
 	k8s.io/api v0.21.2
 	k8s.io/apimachinery v0.21.2

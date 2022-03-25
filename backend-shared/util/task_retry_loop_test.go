@@ -13,7 +13,10 @@ import (
 	"time"
 )
 
-var wg sync.WaitGroup
+var (
+	wg sync.WaitGroup
+	m sync.Mutex
+)
 
 const (
 	numberOfTasks int = 5000
@@ -34,9 +37,13 @@ func (event *TestEvent) PerformTask(taskContext context.Context) (bool, error) {
 		panic(event.errorReturned)
 	}
 
-	time.Sleep(time.Duration(event.taskDuration) * time.Millisecond)
+	m.Lock()
 
+	time.Sleep(time.Duration(event.taskDuration) * time.Millisecond)
 	event.taskCompleted = true
+	
+	m.Unlock()
+
 	wg.Done()
 
 	return event.shouldTaskFail, nil

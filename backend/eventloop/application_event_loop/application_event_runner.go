@@ -133,6 +133,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 				if err != nil {
 					return fmt.Errorf("unable to access database in workspaceEventLoopRunner: %v", err)
 				}
+				defer dbQueriesUnscoped.CloseDatabase()
 
 				scopedDBQueries, ok := dbQueriesUnscoped.(db.ApplicationScopedQueries)
 				if !ok {
@@ -140,6 +141,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 				}
 
 				if newEvent.EventType == eventlooptypes.DeploymentModified {
+
 					// Handle all GitOpsDeployment related events
 					signalledShutdown, _, _, err = action.applicationEventRunner_handleDeploymentModified(ctx, scopedDBQueries)
 
@@ -236,10 +238,10 @@ type applicationEventLoopRunner_Action struct {
 	// logger to use
 	log logr.Logger
 
-	// The Name field of the K8s object (for example, a GitOpsDeploymentRun with a name of 'my-app-deployment')
+	// The Name field of the K8s object (for example, a GitOpsDeployment with a name of 'my-app-deployment')
 	eventResourceName string
 
-	// The namespace (for example, a GitOpsDeploymentRun in namespace 'my-deployments')
+	// The namespace containing the API resource (for example, a GitOpsDeployment in namespace 'my-deployments')
 	eventResourceNamespace string
 
 	// The K8s client that can be used to read/write objects on the workspace cluster

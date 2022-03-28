@@ -81,6 +81,15 @@ type HealthStatus struct {
 
 type HealthStatusCode string
 
+const (
+	HeathStatusCodeHealthy     HealthStatusCode = "Healthy"
+	HeathStatusCodeProgressing HealthStatusCode = "Progressing"
+	HeathStatusCodeDegraded    HealthStatusCode = "Degraded"
+	HeathStatusCodeSuspended   HealthStatusCode = "Suspended"
+	HeathStatusCodeMissing     HealthStatusCode = "Missing"
+	HeathStatusCodeUnknown     HealthStatusCode = "Unknown"
+)
+
 // SyncStatus contains information about the currently observed live and desired states of an application
 type SyncStatus struct {
 	// Status is the sync state of the comparison

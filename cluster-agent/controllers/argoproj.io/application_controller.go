@@ -103,9 +103,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	applicationState := &db.ApplicationState{
 		Applicationstate_application_id: applicationDB.Application_id,
 	}
-	_, _, errGet := r.cache.GetApplicationStateById(ctx, applicationState.Applicationstate_application_id)
-
-	if errGet != nil {
+	if _, _, errGet := r.cache.GetApplicationStateById(ctx, applicationState.Applicationstate_application_id); errGet != nil {
 		if db.IsResultNotFoundError(errGet) {
 
 			// 3a) ApplicationState doesn't exist: so create it
@@ -136,9 +134,9 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationStateRevisionLength)
 	sanitizeHealthAndStatus(applicationState)
 
-	if errUpdate := r.cache.UpdateApplicationState(ctx, *applicationState); errUpdate != nil {
-		log.Error(errUpdate, "unexpected error on updating existing application state")
-		return ctrl.Result{}, errUpdate
+	if err := r.cache.UpdateApplicationState(ctx, *applicationState); err != nil {
+		log.Error(err, "unexpected error on updating existing application state")
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil

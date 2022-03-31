@@ -23,6 +23,20 @@ import (
 
 // This file is responsible for processing events related to GitOpsDeployment CR.
 
+// applicationEventRunner_handleDeploymentModified handles GitOpsDeployment resource events, ensuring that the
+// database is consistent with the corresponding GitOpsDeployment resource.
+//
+// For example:
+// - If a GitOpsDeployment resource is created in the namespace, ensure there exists a corresponding Application database row.
+// - If a GitOpsDeployment resource is modifeid in the namespace, ensure the corresponding Application database row is modified.
+// - Likewise, if a GitOpsDeployment previously existed, and has been deleted, then ensure the Application is cleaned up.
+//
+// If a change is made to the database, the cluster-agent will be informed by creating an Operation resource, pointing to the changed Application.
+//
+// Returns:
+// - true if the goroutine responsible for this application can shutdown (e.g. because the GitOpsDeployment no longer exists, so no longer needs to be processed), false otherwise.
+// - references to the Application and GitOpsEngineInstance database fields.
+// - error is non-nil, if an error occurred
 func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploymentModified(ctx context.Context,
 	dbQueries db.ApplicationScopedQueries) (bool, *db.Application, *db.GitopsEngineInstance, error) {
 
@@ -143,6 +157,15 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 	return false, nil, nil, fmt.Errorf("SEVERE - All cases should be handled by above if statements")
 }
 
+// handleNewGitOpsDeplEvent handles GitOpsDeployment events where the user has just created a new GitOpsDeployment resource.
+// In this case, we need to create Application and DeploymentToApplicationMapping rows in the database (among others).
+//
+// Finally, we need to inform the cluster-agent component, so that it configures Argo CD.
+//
+// Returns:
+// - true if the goroutine responsible for this application can shutdown (e.g. because the GitOpsDeployment no longer exists, so no longer needs to be processed), false otherwise.
+// - references to the Application and GitOpsEngineInstance database fields.
+// - error is non-nil, if an error occurred
 func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.Context, gitopsDeployment *managedgitopsv1alpha1.GitOpsDeployment,
 	clusterUser *db.ClusterUser, operationNamespace string, dbQueries db.ApplicationScopedQueries) (bool, *db.Application, *db.GitopsEngineInstance, error) {
 
@@ -237,6 +260,14 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	return false, &application, engineInstance, nil
 }
 
+// handleDeleteGitOpsDeplEvent handles GitOpsDeployment events where the user has just deleted a new GitOpsDeployment resource.
+// In this case, we need to delete the Application and DeploymentToApplicationMapping rows in the database (among others).
+//
+// Finally, we need to inform the cluster-agent component, so that it configures Argo CD.
+//
+// Returns:
+// - true if the goroutine responsible for this application can shutdown (e.g. because the GitOpsDeployment no longer exists, so no longer needs to be processed), false otherwise.
+// - error is non-nil, if an error occurred
 func (a applicationEventLoopRunner_Action) handleDeleteGitOpsDeplEvent(ctx context.Context, clusterUser *db.ClusterUser,
 	operationNamespace string, deplToAppMappingList *[]db.DeploymentToApplicationMapping, dbQueries db.ApplicationScopedQueries) (bool, error) {
 
@@ -276,6 +307,16 @@ func (a applicationEventLoopRunner_Action) handleDeleteGitOpsDeplEvent(ctx conte
 	return signalShutdown, allErrors
 }
 
+// handleUpdatedGitOpsDeplEvent handles GitOpsDeployment events where the user has updated an existing GitOpsDeployment resource.
+// In this case, we need to ensure the Application row in the database is consistent with what the user has provided
+// in the GitOpsDeployment.
+//
+// Finally, we need to inform the cluster-agent component, so that it configures Argo CD.
+//
+// Returns:
+// - true if the goroutine responsible for this application can shutdown (e.g. because the GitOpsDeployment no longer exists, so no longer needs to be processed), false otherwise.
+// - references to the Application and GitOpsEngineInstance database fields.
+// - error is non-nil, if an error occurred
 func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx context.Context, deplToAppMapping *db.DeploymentToApplicationMapping,
 	gitopsDeployment *managedgitopsv1alpha1.GitOpsDeployment, clusterUser *db.ClusterUser, operationNamespace string,
 	dbQueries db.ApplicationScopedQueries) (bool, *db.Application, *db.GitopsEngineInstance, error) {
@@ -731,7 +772,7 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 	resBytes, err := goyaml.Marshal(application)
 
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	return string(resBytes), nil

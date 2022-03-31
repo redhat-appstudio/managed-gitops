@@ -8,8 +8,8 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 )
 
-// A wrapper over the ApplicationStateCache entries of the datbase
-
+// A wrapper over the ApplicationStateCache entries of the database
+// Note: This should only be used by cluster-agent's application controller.
 func NewApplicationInfoCache() *ApplicationInfoCache {
 
 	res := &ApplicationInfoCache{
@@ -25,7 +25,7 @@ type ApplicationInfoCacheMessageType int
 
 const (
 	ApplicationStateCacheMessage_Get ApplicationInfoCacheMessageType = iota
-	ApplicationCacheMessage_Get      ApplicationInfoCacheMessageType = iota
+	ApplicationCacheMessage_Get
 	ApplicationStateCacheMessage_Create
 	ApplicationStateCacheMessage_Update
 	ApplicationStateCacheMessage_Delete
@@ -273,7 +273,7 @@ func processDeleteAppStateMessage(dbQueries db.DatabaseQueries, req applicationI
 
 }
 
-func processGetAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cache map[string]db.ApplicationState) error {
+func processGetAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cache map[string]db.ApplicationState) {
 
 	appState := db.ApplicationState{
 		Applicationstate_application_id: req.primaryKey,
@@ -283,11 +283,10 @@ func processGetAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfo
 	var valueFromCache bool
 
 	if db.IsEmpty(req.primaryKey) {
-		return fmt.Errorf("PrimaryKey should not be nil: " + req.primaryKey + " not found")
+		log.Error("PrimaryKey should not be nil: " + req.primaryKey + " not found")
 	}
 
 	res, exists := cache[appState.Applicationstate_application_id]
-
 	if !exists {
 		// If it's not in the cache, then get it from the database
 		valueFromCache = false
@@ -313,10 +312,10 @@ func processGetAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfo
 		valueFromCache:   valueFromCache,
 		err:              err,
 	}
-	return nil
+
 }
 
-func processGetAppMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cache map[string]db.Application) error {
+func processGetAppMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cache map[string]db.Application) {
 
 	app := db.Application{
 		Application_id: req.primaryKey,
@@ -326,7 +325,7 @@ func processGetAppMessage(dbQueries db.DatabaseQueries, req applicationInfoCache
 	var valueFromCache bool
 
 	if db.IsEmpty(req.primaryKey) {
-		return fmt.Errorf("PrimaryKey should not be nil: " + req.primaryKey + " not found")
+		log.Error("PrimaryKey should not be nil: " + req.primaryKey + " not found")
 	}
 
 	res, exists := cache[app.Application_id]
@@ -356,5 +355,5 @@ func processGetAppMessage(dbQueries db.DatabaseQueries, req applicationInfoCache
 		valueFromCache: valueFromCache,
 		err:            err,
 	}
-	return nil
+
 }

@@ -49,11 +49,13 @@ func TestCreateApplicationState(t *testing.T) {
 	errCreate := asc.CreateApplicationState(ctx, testAppState)
 	assert.NoError(t, errCreate)
 
-	dbAppStateObj := &db.ApplicationState{
+	dbAppStateObj := db.ApplicationState{
 		Applicationstate_application_id: testAppState.Applicationstate_application_id,
 	}
-	errGet := dbq.GetApplicationStateById(ctx, dbAppStateObj)
+	errGet := dbq.GetApplicationStateById(ctx, &dbAppStateObj)
 	assert.NoError(t, errGet)
+	assert.Equal(t, testAppState, dbAppStateObj)
+
 }
 
 // TestGetApplicationStateById test is used for retrieving of ApplicationState using cache
@@ -74,10 +76,10 @@ func TestGetApplicationStateById(t *testing.T) {
 	testId := "test-get-appState"
 
 	//testId doesn't exist, the test should report an error
-	appState, valuefromCache, errGet := asc.GetApplicationStateById(ctx, testId)
+	appState, isFromCache, errGet := asc.GetApplicationStateById(ctx, testId)
 	assert.Error(t, errGet)
 	// since no entry in the valuefromcache should be false, appState should be empty
-	assert.False(t, valuefromCache)
+	assert.False(t, isFromCache)
 	assert.Equal(t, appState, db.ApplicationState{})
 
 	_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
@@ -108,13 +110,23 @@ func TestGetApplicationStateById(t *testing.T) {
 	errCreate := asc.CreateApplicationState(ctx, testAppState)
 	assert.NoError(t, errCreate)
 
-	_, _, errGet = asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
+	getAppState, isFromCache, errGet := asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
 	// ideally the appState should now report an ApplicationState obj
+	// isFromCache should be false since initially the value will be coming from db
 	assert.NoError(t, errGet)
+	assert.False(t, isFromCache)
+	assert.Equal(t, getAppState, testAppState)
+
+	//calling the same GetApplicationStateById again should come from cache, hence ifFromCache should be True
+	_, isFromCache, errGet = asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
+	assert.NoError(t, errGet)
+	assert.True(t, isFromCache)
 
 	// checking if the entry for the above exists in the database
 	errGet = dbq.GetApplicationStateById(ctx, &testAppState)
 	assert.NoError(t, errGet)
+	assert.Equal(t, getAppState, testAppState)
+
 }
 
 // TestUpdateApplicationState test is used for updating of ApplicationState using cache
@@ -164,13 +176,15 @@ func TestUpdateApplicationState(t *testing.T) {
 	errUpdate := asc.UpdateApplicationState(ctx, testAppState)
 	assert.NoError(t, errUpdate)
 
-	appState, _, errGet := asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
+	appState, isFromCache, errGet := asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
 	assert.NoError(t, errGet)
-	// the application should be retrieved from the cache hence valuefromcache should be true (is it ideal scenario?)
-	// assert.True(t, valuefromCache)
+	assert.False(t, isFromCache)
+	assert.Equal(t, appState, testAppState)
 
-	// check if the object is updated
-	assert.Equal(t, testAppState, appState)
+	//calling the same GetApplicationStateById again should come from cache, hence ifFromCache should be True
+	_, isFromCache, errGet = asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
+	assert.NoError(t, errGet)
+	assert.True(t, isFromCache)
 }
 
 // TestUpdateApplicationState test is used for updating of ApplicationState using cache
@@ -257,7 +271,7 @@ func TestGetApplicationById(t *testing.T) {
 		return
 	}
 
-	testapplication := &db.Application{
+	testapplication := db.Application{
 		Application_id:          testId,
 		Name:                    "my-application",
 		Spec_field:              "{}",
@@ -265,17 +279,24 @@ func TestGetApplicationById(t *testing.T) {
 		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 	}
 
-	// An entry for the application should be there in order to create an entry for applicationState
-	err = dbq.CreateApplication(ctx, testapplication)
+	err = dbq.CreateApplication(ctx, &testapplication)
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	_, _, errGet = asc.GetApplicationById(ctx, testapplication.Application_id)
-	// ideally the appState should now report an ApplicationState obj
+	getApp, isFromCache, errGet := asc.GetApplicationById(ctx, testapplication.Application_id)
+	// ideally the appState should now report an Application obj
 	assert.NoError(t, errGet)
+	assert.False(t, isFromCache)
+	assert.Equal(t, getApp, testapplication)
+
+	//calling the same GetApplicationById again should come from cache, hence ifFromCache should be True
+	_, isFromCache, errGet = asc.GetApplicationById(ctx, testapplication.Application_id)
+	assert.NoError(t, errGet)
+	assert.True(t, isFromCache)
 
 	// checking if the entry for the above exists in the database
-	errGet = dbq.GetApplicationById(ctx, testapplication)
+	errGet = dbq.GetApplicationById(ctx, &testapplication)
 	assert.NoError(t, errGet)
+	assert.Equal(t, getApp, testapplication)
 }

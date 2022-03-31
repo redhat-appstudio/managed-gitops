@@ -456,10 +456,9 @@ func SetupforTestingDB(t *testing.T) {
 	var kubernetesToDBResourceMappings []KubernetesToDBResourceMapping
 	err = dbq.UnsafeListAllKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMappings)
 	assert.NoError(t, err)
-	for _, kubernetesToDBResourceMapping := range kubernetesToDBResourceMappings {
-		if strings.HasPrefix(kubernetesToDBResourceMapping.KubernetesResourceUID, "test-") {
-
-			rowsAffected, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMapping)
+	for i := range kubernetesToDBResourceMappings {
+		if strings.HasPrefix(kubernetesToDBResourceMappings[i].KubernetesResourceUID, "test-") {
+			rowsAffected, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMappings[i])
 
 			if !assert.NoError(t, err) {
 				return

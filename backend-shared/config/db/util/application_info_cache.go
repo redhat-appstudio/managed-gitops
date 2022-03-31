@@ -38,7 +38,6 @@ type ApplicationInfoCache struct {
 type applicationInfoCacheRequest struct {
 	ctx                          context.Context
 	msgType                      ApplicationInfoCacheMessageType
-	createOrUpdateAppObject      db.Application
 	createOrUpdateAppStateObject db.ApplicationState
 	primaryKey                   string
 	responseChannel              chan applicationInfoCacheResponse
@@ -226,7 +225,7 @@ func applicationInfoCacheLoop(inputChan chan applicationInfoCacheRequest) {
 func processCreateAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cache map[string]db.ApplicationState) {
 	err := dbQueries.CreateApplicationState(req.ctx, &req.createOrUpdateAppStateObject)
 
-	if err != nil {
+	if err == nil {
 		// Create the cache on success
 		var appState db.ApplicationState = req.createOrUpdateAppStateObject
 		cache[req.primaryKey] = appState
@@ -242,7 +241,7 @@ func processUpdateAppStateMessage(dbQueries db.DatabaseQueries, req applicationI
 
 	err := dbQueries.UpdateApplicationState(req.ctx, &req.createOrUpdateAppStateObject)
 
-	if err != nil {
+	if err == nil {
 		// Update the cache on success
 		var appState db.ApplicationState = req.createOrUpdateAppStateObject
 		cache[req.primaryKey] = appState

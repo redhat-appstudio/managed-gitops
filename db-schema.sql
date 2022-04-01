@@ -235,7 +235,6 @@ CREATE TABLE Application (
 );
 
 -- ApplicationState is the Argo CD health/sync state of the Application
--- (Redis may be better suited for this in the future)
 CREATE TABLE ApplicationState (
 
 	-- Foreign key to Application.application_id
@@ -270,6 +269,10 @@ CREATE TABLE ApplicationState (
 -- Represents the relationship from GitOpsDeployment CR in the API namespace (workspace), to an Application table row.
 -- This means: if we see a change in a GitOpsDeployment CR, we can easily find the corresponding database entry
 -- by looking for a DeploymentToApplicationMapping that captures the relationship (and vice versa)
+--
+-- See for details:
+-- 'What are the DeploymentToApplicationMapping, KubernetesToDBResourceMapping, and APICRToDatabaseMapping, database tables for?:
+-- (https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.45brv1rx6wmo)
 CREATE TABLE DeploymentToApplicationMapping (
 	
 	-- uid of our gitops deployment CR within the K8s namespace (or KCP control plane)
@@ -308,6 +311,9 @@ CREATE TABLE DeploymentToApplicationMapping (
 -- Later, we can query this table to determine 'Argo CD instance namespace' <=> 'GitopsEngineInstance database row'
 --
 -- This is also useful for tracking the lifecycle between CRs <-> database table.
+--
+-- See also the FAQ of the internal architeture doc for info on what this database table ise used for:
+-- https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.3jwssie7xjn2
 CREATE TABLE KubernetesToDBResourceMapping  (
 
 	-- kubernetes CR resource (example: Namespace)
@@ -338,6 +344,10 @@ CREATE INDEX idx_db_relation_uid ON KubernetesToDBResourceMapping(kubernetes_res
 -- Maps API custom resources on the workspace (such as GitOpsDeploymentSyncRun), to a corresponding entry in the database.
 -- This allows us to quickly go from API CR <-to-> Database entry, and also to identify database entries even when the API CR has been
 -- deleted from the workspace.
+--
+-- See for details:
+-- 'What are the DeploymentToApplicationMapping, KubernetesToDBResourceMapping, and APICRToDatabaseMapping, database tables for?:
+-- (https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.45brv1rx6wmo)
 CREATE TABLE APICRToDatabaseMapping  (
 
 	-- The custom resource type of the K8S custom resource being referenced in the mapping
@@ -372,7 +382,8 @@ CREATE TABLE APICRToDatabaseMapping  (
 );
 -- TODO: GITOPSRVCE-68 - PERF - Add index to APICRToDatabaseMapping to correspond to the access patterns we are using.
 
--- Sync Operation tracks a sync request from the API, 
+-- Sync Operation tracks a sync request from the API. This will correspond to a sync operation on an Argo CD Application, which 
+-- will cause Argo CD to deploy the K8s resources from Git, to the target environment. This is also known as manual sync.
 CREATE TABLE SyncOperation (
 
 	-- Primary key for the SyncOperation (UID), is a random UUID

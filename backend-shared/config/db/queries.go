@@ -12,8 +12,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// TODO: GITOPSRVCE-67 - ENHANCEMENT - Add logging of database entity creation, so that we can track state changes.
-
 // Default vs Checked vs Unsafe functions:
 //
 // Default:
@@ -161,17 +159,19 @@ type ApplicationScopedQueries interface {
 	DeleteApplicationById(ctx context.Context, id string) (int, error)
 	CheckedDeleteApplicationById(ctx context.Context, id string, ownerId string) (int, error)
 
+	// TODO: GITOPSRVCE-19 - KCP support: All of the *ByAPINamespaceAndName database queries should only return items that are part of a specific KCP workspace.
+
 	CreateAPICRToDatabaseMapping(ctx context.Context, obj *APICRToDatabaseMapping) error
-	ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx context.Context, apiCRResourceType string, crName string, crNamespace string, crWorkspaceUID string, dbRelationType string, apiCRToDBMappingParam *[]APICRToDatabaseMapping) error
+	ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx context.Context, apiCRResourceType string, crName string, crNamespace string, crNamespaceUID string, dbRelationType string, apiCRToDBMappingParam *[]APICRToDatabaseMapping) error
 	GetDatabaseMappingForAPICR(ctx context.Context, obj *APICRToDatabaseMapping) error
 	DeleteAPICRToDatabaseMapping(ctx context.Context, obj *APICRToDatabaseMapping) (int, error)
 
 	CreateDeploymentToApplicationMapping(ctx context.Context, obj *DeploymentToApplicationMapping) error
 	GetDeploymentToApplicationMappingByDeplId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping) error
-	ListDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, workspaceUID string, deplToAppMappingParam *[]DeploymentToApplicationMapping) error
-	ListDeploymentToApplicationMappingByWorkspaceUID(ctx context.Context, workspaceUID string, deplToAppMappingParam *[]DeploymentToApplicationMapping) error
+	ListDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, namespaceUID string, deplToAppMappingParam *[]DeploymentToApplicationMapping) error
+	ListDeploymentToApplicationMappingByWorkspaceUID(ctx context.Context, namespaceUID string, deplToAppMappingParam *[]DeploymentToApplicationMapping) error
 	DeleteDeploymentToApplicationMappingByDeplId(ctx context.Context, id string) (int, error)
-	DeleteDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, workspaceUID string) (int, error)
+	DeleteDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, namespaceUID string) (int, error)
 
 	UpdateSyncOperationRemoveApplicationField(ctx context.Context, applicationId string) (int, error)
 

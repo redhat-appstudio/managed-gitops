@@ -1,0 +1,31 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: managed-gitops-cluster-agent-
+  annotations:
+    pipelinesascode.tekton.dev/on-event: "push"
+    pipelinesascode.tekton.dev/on-target-branch: "main"
+    pipelinesascode.tekton.dev/task: "git-clone"
+    pipelinesascode.tekton.dev/max-keep-runs: "5"
+spec:
+  params:
+  - name: git-url
+    value: 'https://github.com/redhat-appstudio/managed-gitops'
+  - name: revision
+    value: $(params.git-revision)
+  - name: output-image
+    value: 'quay.io/redhat-appstudio/gitops-service:$(params.git-revision)'
+  - name: path-context
+    value: .
+  - name: dockerfile
+    value: Dockerfile
+  pipelineRef:
+    name: docker-build
+    bundle: quay.io/redhat-appstudio/build-templates-bundle:b2cb5d5b21dc59d172379e639b336533bd8a8bf6
+  workspaces:
+    - name: workspace
+      persistentVolumeClaim:
+        claimName: app-studio-default-workspace
+      subPath: gitops-service-$(params.git-revision)
+

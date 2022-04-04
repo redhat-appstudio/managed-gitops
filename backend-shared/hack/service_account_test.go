@@ -29,7 +29,8 @@ func TestCreateServiceAccount(t *testing.T) {
 
 	_, err = clientset.CoreV1().Namespaces().Get(context.TODO(), "kube-system", metav1.GetOptions{})
 	if err != nil {
-		if strings.Contains(err.Error(), "connect: no route to host") {
+
+		if strings.Contains(err.Error(), "connect: no route to host") || strings.Contains(err.Error(), "no such host") {
 			t.Skip("Skipping K8s test because there is no accessible K8s cluster")
 			return
 		}

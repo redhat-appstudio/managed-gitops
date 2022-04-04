@@ -19,18 +19,18 @@ var (
 	m  sync.Mutex
 )
 
-type TestEvent struct {
+type testEvent struct {
 	shouldTaskFail bool
 	//task Duration in milliseconds
-	taskCompleted bool
-	errorReturned string
-	shouldPanic   bool
+	taskCompleted     bool
+	errorReturned     string
+	shouldReturnError bool
 }
 
-func (event *TestEvent) PerformTask(taskContext context.Context) (bool, error) {
-	if event.shouldPanic {
+func (event *testEvent) PerformTask(taskContext context.Context) (bool, error) {
+	if event.shouldReturnError {
 		wg.Done()
-		panic(event.errorReturned)
+		return false, fmt.Errorf(event.errorReturned)
 	}
 
 	m.Lock()
@@ -67,7 +67,7 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 
 		It("should generate 5000 tasks with random IDs and execute them successfully", func() {
 
-			testEvent := &TestEvent{shouldTaskFail: false}
+			testEvent := &testEvent{shouldTaskFail: false}
 			taskRetryLoop := NewTaskRetryLoop("test-name")
 
 			for i := 0; i < numberOfTasks; i++ {
@@ -88,7 +88,7 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 
 		It("should generate 5000 tasks with randomly selected among a list of 5 names, and the number of active tasks doesn't exceed the size of the list", func() {
 
-			testEvent := &TestEvent{shouldTaskFail: false}
+			testEvent := &testEvent{shouldTaskFail: false}
 			taskRetryLoop := NewTaskRetryLoop("dummy-name")
 			taskNames := [5]string{"a", "b", "c", "d", "e"}
 
@@ -129,7 +129,7 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 		It("ensures that the task provided runs as expected", func() {
 
 			workComplete := make(chan taskRetryLoopMessage)
-			task := &TestEvent{shouldTaskFail: false}
+			task := &testEvent{shouldTaskFail: false}
 			taskEntry := &internalTaskEntry{task: task, name: "test-task", creationTime: time.Now()}
 
 			wg.Add(1)
@@ -147,7 +147,7 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 
 		It("ensures that when the task returns _an error_, it is communicated to the channel in a 'taskRetryLoopMessage'", func() {
 
-			task := &TestEvent{shouldTaskFail: true, errorReturned: "internalTaskRunner error", shouldPanic: true}
+			task := &testEvent{shouldTaskFail: true, errorReturned: "internalTaskRunner error", shouldReturnError: true}
 			taskEntry := &internalTaskEntry{task: task, name: "test-task", creationTime: time.Now()}
 
 			wg.Add(1)
@@ -158,12 +158,12 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 
 			workCompletedMsg, _ := (receivedMsg.payload).(taskRetryMessage_workCompleted)
 
-			Expect(workCompletedMsg.resultErr).To(MatchError(fmt.Errorf("panic: internalTaskRunner error")))
+			Expect(workCompletedMsg.resultErr).To(MatchError(fmt.Errorf("internalTaskRunner error")))
 		})
 
 		It("ensure that when the task return _true_ for retry, it is communicated to the channel in a 'taskRetryLoopMessage'", func() {
 
-			task := &TestEvent{shouldTaskFail: true, shouldPanic: false}
+			task := &testEvent{shouldTaskFail: true, shouldReturnError: false}
 			taskEntry := &internalTaskEntry{task: task, name: "test-task", creationTime: time.Now()}
 
 			wg.Add(1)
@@ -179,7 +179,7 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 
 		It("ensure that when the task returns _false_ for retry, it is communicated to the channel in a 'taskRetryLoopMessage'", func() {
 
-			task := &TestEvent{shouldTaskFail: false, shouldPanic: false}
+			task := &testEvent{shouldTaskFail: false, shouldReturnError: false}
 			taskEntry := &internalTaskEntry{task: task, name: "test-task", creationTime: time.Now()}
 
 			wg.Add(1)

@@ -239,6 +239,8 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string
 
 		if msg.msgType == taskRetryLoop_addTask {
 
+			log.V(LogLevel_Debug).Info("Task retry loop: addTask received", "msg", msg)
+
 			addTaskMsg, ok := (msg.payload).(taskRetryMessage_addTask)
 			if !ok {
 				log.Error(nil, "SEVERE: unexpected message payload for addTask")
@@ -294,6 +296,8 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string
 
 			// Now that the task is complete, remove it from the active map
 			delete(activeTaskMap, workCompletedMsg.name)
+
+			log.V(LogLevel_Debug).Info("Task retry loop: task completed '"+taskEntry.name+"'", "shouldRetry", workCompletedMsg.shouldRetry)
 
 			if workCompletedMsg.shouldRetry {
 				log.V(LogLevel_Debug).Info("Adding failed task '" + taskEntry.name + "' to retry list")

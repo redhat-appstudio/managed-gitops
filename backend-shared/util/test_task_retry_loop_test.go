@@ -19,32 +19,6 @@ var (
 	m  sync.Mutex
 )
 
-type testEvent struct {
-	shouldTaskFail bool
-	//task Duration in milliseconds
-	taskCompleted     bool
-	errorReturned     string
-	shouldReturnError bool
-}
-
-func (event *testEvent) PerformTask(taskContext context.Context) (bool, error) {
-	if event.shouldReturnError {
-		wg.Done()
-		return false, fmt.Errorf(event.errorReturned)
-	}
-
-	m.Lock()
-
-	time.Sleep(1 * time.Millisecond)
-	event.taskCompleted = true
-
-	m.Unlock()
-
-	wg.Done()
-
-	return event.shouldTaskFail, nil
-}
-
 var _ = Describe("Task Retry Loop Unit Tests", func() {
 
 	const (
@@ -61,9 +35,22 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 		workComplete = make(chan taskRetryLoopMessage)
 		ctx = context.Background()
 		log = logger.FromContext(ctx)
+		wg = sync.WaitGroup{}
 	})
 
 	Context("AddTaskIfNotPresent Test", func() {
+
+		It("should rerun a test that is requesting retry", func() {
+
+			mockTestEvent := &mockTestEventCounter{}
+			taskRetryLoop := NewTaskRetryLoop("test-name")
+
+			wg.Add(2)
+			taskRetryLoop.AddTaskIfNotPresent("my-test-task", mockTestEvent, ExponentialBackoff{Factor: 2, Min: time.Duration(100 * time.Microsecond), Max: time.Duration(1 * time.Second), Jitter: true})
+			wg.Wait()
+
+			Expect(mockTestEvent.timesRun).Should(Equal(2))
+		})
 
 		It("should generate 5000 tasks with random IDs and execute them successfully", func() {
 
@@ -195,3 +182,53 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 	})
 
 })
+
+// mockTestEventCounter counts the number of calls to performTask, so that we can verify it is called a certain amount of itmes.
+type mockTestEventCounter struct {
+	timesRun int
+}
+
+func (event *mockTestEventCounter) PerformTask(taskContext context.Context) (bool, error) {
+	event.timesRun++
+	fmt.Println("Call: ", event.timesRun)
+	defer wg.Done()
+
+	// This method should be be called once.
+
+	// On first call, return true for retry
+	if event.timesRun == 1 {
+		return true, nil
+	} else if event.timesRun == 2 {
+		// On second call, return false for retry
+		return false, nil
+	} else {
+		return false, fmt.Errorf("Unexpected case")
+	}
+
+}
+
+type testEvent struct {
+	shouldTaskFail bool
+	//task Duration in milliseconds
+	taskCompleted     bool
+	errorReturned     string
+	shouldReturnError bool
+}
+
+func (event *testEvent) PerformTask(taskContext context.Context) (bool, error) {
+	if event.shouldReturnError {
+		wg.Done()
+		return false, fmt.Errorf(event.errorReturned)
+	}
+
+	m.Lock()
+
+	time.Sleep(1 * time.Millisecond)
+	event.taskCompleted = true
+
+	m.Unlock()
+
+	wg.Done()
+
+	return event.shouldTaskFail, nil
+}

@@ -18,7 +18,7 @@ func TestUtil(t *testing.T) {
 	// Enable controller-runtime log output
 	opts := zap.Options{
 		Development: true,
-		Level:       zapcore.DebugLevel,
+		Level:       zapcore.ErrorLevel,
 	}
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 

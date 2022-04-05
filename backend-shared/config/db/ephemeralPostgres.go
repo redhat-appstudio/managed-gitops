@@ -3,7 +3,6 @@ package db
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"os/exec"
 	"strings"
 	"time"
@@ -22,6 +21,7 @@ type EphemeralDB struct {
 // network, connect to database and populate the schema. This is
 // merely defined for testing purpose
 func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
+
 	dockerName := "managed-gitops-postgres-test"
 	uuid := uuid.New().String()
 	tempDBName := "db-" + uuid
@@ -31,13 +31,13 @@ func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
 	dockerNetwork := exec.Command("docker", "network", "create", tempNetworkName)
 	dockerNetworkerr := dockerNetwork.Run()
 	if dockerNetworkerr != nil {
-		log.Fatal(dockerNetworkerr)
+		return EphemeralDB{}, fmt.Errorf("unable to create docker network: %v. Do a 'docker system prune', for now", dockerNetworkerr)
 	}
 
 	// creates a temp directory where postgres functionality are performed
 	tempDatabaseDir, err_run := exec.Command("mktemp", "-d", "-t", "postgres-XXXXXXXXXX").Output()
 	if err_run != nil {
-		log.Fatal(err_run)
+		return EphemeralDB{}, fmt.Errorf("unable to mktemp: %v", err_run)
 	}
 
 	var dockerContainerID []byte
@@ -56,10 +56,10 @@ func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
 			"-c", "log_min_duration_statement=0").Output()
 
 		if errDockerRun != nil {
-			log.Fatal(errDockerRun)
+			return false, fmt.Errorf("unable to docker run: %v", errDockerRun)
 		}
 		if dockerContainerID == nil {
-			return false, errDockerRun
+			return false, fmt.Errorf("dockerContainerID is nil, after run")
 		}
 		// check for container status
 		// #nosec G204
@@ -70,7 +70,7 @@ func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
 		return true, nil
 	})
 	if errWait != nil {
-		log.Fatal("error in executing docker run command: ", errWait)
+		return EphemeralDB{}, fmt.Errorf("error in executing docker run command: %v", errWait)
 	}
 
 	// connects to the database inside the docker container
@@ -84,16 +84,15 @@ func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
 		psqlErr := psqlcmd.Run()
 
 		if errb.String() != "" {
-			// log.Fatal(errb.String())
-			return false, fmt.Errorf(errb.String())
+			return false, fmt.Errorf("error on psql run: %v", errb.String())
 		}
 		if psqlErr != nil {
-			return false, psqlErr
+			return false, fmt.Errorf("psqlErr is non-nil: %v", psqlErr)
 		}
 		return true, nil
 	})
 	if errWait != nil {
-		log.Fatal("error in executing docker run command: ", errWait)
+		return EphemeralDB{}, fmt.Errorf("error in executing docker run command: %v", errWait)
 	}
 
 	// creating a new database inside the postgres container
@@ -104,10 +103,10 @@ func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
 	psqlcmd.Stderr = &errConnection
 	psqlErr := psqlcmd.Run()
 	if errConnection.String() != "" {
-		log.Fatal(errConnection.String())
+		return EphemeralDB{}, fmt.Errorf("connection error: %v", errConnection.String())
 	}
 	if psqlErr != nil {
-		log.Fatal("error in creation: ", "\nCommand Error: ", psqlErr, "\nDatabase Error: ", errConnection.String())
+		return EphemeralDB{}, fmt.Errorf("error in creation: \nCommand Error: %v\nDatabase Error: %v", psqlErr, errConnection.String())
 	}
 
 	// Following command is used to populate the database tables from the db-schema.sql (defined in the monorepo)
@@ -115,7 +114,7 @@ func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
 	schemaToPostgresContErr := schemaToPostgresCont.Run()
 
 	if schemaToPostgresContErr != nil {
-		log.Fatal(schemaToPostgresContErr)
+		return EphemeralDB{}, fmt.Errorf("unable to execute docker cp of schema: %v", schemaToPostgresContErr)
 	}
 	psqlcmd = exec.Command("docker", "exec", "--user", "postgres", "-e", "PGPASSWORD=gitops", "-i", dockerName, "psql", "-h", "localhost", "-d", newDBName, "-U", "postgres", "-p", "5432", "-q", "-f", "db-schema.sql")
 	var errSchema bytes.Buffer
@@ -124,16 +123,16 @@ func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
 	psqlErr = psqlcmd.Run()
 
 	if errSchema.String() != "" {
-		log.Fatal(errSchema.String())
+		return EphemeralDB{}, fmt.Errorf("errSchema is non-nil: %v", errSchema.String())
 	}
 	if psqlErr != nil {
-		log.Fatal(psqlErr)
+		return EphemeralDB{}, fmt.Errorf("psql error: %v", psqlErr)
 	}
 
 	// connect the go code with the database
 	database, err := connectToDatabaseWithPort(true, newDBName, 6432)
 	if err != nil {
-		return EphemeralDB{}, err
+		return EphemeralDB{}, fmt.Errorf("unable to connect to database: %v", err)
 	}
 
 	dbq := &PostgreSQLDatabaseQueries{
@@ -156,14 +155,14 @@ func (ephemeralDB *EphemeralDB) Dispose() error {
 	// #nosec G204
 	_, err := exec.Command("docker", "rm", "-f", ephemeralDB.dbContainerID).Output()
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("unable to docker rm -f container: %v", err)
 	}
 
 	// To get the output of the command
 	// #nosec G204
 	_, err = exec.Command("docker", "network", "rm", ephemeralDB.dockerNetwork).Output()
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("unable to docker network rm: %v", err)
 	}
 	return nil
 }

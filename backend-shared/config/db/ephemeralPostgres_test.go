@@ -15,7 +15,9 @@ func TestEphemeralCode(t *testing.T) {
 	ctx := context.Background()
 	// Create ephemeral DB
 	ephemeralDB, err := NewEphemeralCreateTestFramework()
-	assert.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	dbq := ephemeralDB.db
 	defer dbq.CloseDatabase()

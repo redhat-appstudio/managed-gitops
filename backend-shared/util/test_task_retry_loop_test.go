@@ -42,7 +42,7 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 
 		It("should rerun a test that is requesting retry", func() {
 
-			mockTestEvent := &mockTestEventCounter{}
+			mockTestEvent := &mockTestTaskCounter{}
 			taskRetryLoop := NewTaskRetryLoop("test-name")
 
 			wg.Add(2)
@@ -54,7 +54,7 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 
 		It("should generate 5000 tasks with random IDs and execute them successfully", func() {
 
-			testEvent := &testEvent{shouldTaskFail: false}
+			testEvent := &mockTestTaskEvent{shouldTaskFail: false}
 			taskRetryLoop := NewTaskRetryLoop("test-name")
 
 			for i := 0; i < numberOfTasks; i++ {
@@ -75,7 +75,7 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 
 		It("should generate 5000 tasks with randomly selected among a list of 5 names, and the number of active tasks doesn't exceed the size of the list", func() {
 
-			testEvent := &testEvent{shouldTaskFail: false}
+			testEvent := &mockTestTaskEvent{shouldTaskFail: false}
 			taskRetryLoop := NewTaskRetryLoop("dummy-name")
 			taskNames := [5]string{"a", "b", "c", "d", "e"}
 
@@ -97,8 +97,10 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 
 		It("ensures that calling startTask removes the task from 'waitingTasksByName'", func() {
 
+			task := &mockEmptyTask{}
+
 			activeTaskMap := make(map[string]internalTaskEntry)
-			taskToStart := waitingTaskEntry{name: "test-task"}
+			taskToStart := waitingTaskEntry{name: "test-task", task: task}
 			waitingTasksByName := make(map[string]interface{})
 
 			waitingTasksByName["test-task"] = waitingTaskEntry{}
@@ -116,7 +118,7 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 		It("ensures that the task provided runs as expected", func() {
 
 			workComplete := make(chan taskRetryLoopMessage)
-			task := &testEvent{shouldTaskFail: false}
+			task := &mockTestTaskEvent{shouldTaskFail: false}
 			taskEntry := &internalTaskEntry{task: task, name: "test-task", creationTime: time.Now()}
 
 			wg.Add(1)
@@ -134,7 +136,7 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 
 		It("ensures that when the task returns _an error_, it is communicated to the channel in a 'taskRetryLoopMessage'", func() {
 
-			task := &testEvent{shouldTaskFail: true, errorReturned: "internalTaskRunner error", shouldReturnError: true}
+			task := &mockTestTaskEvent{shouldTaskFail: true, errorReturned: "internalTaskRunner error", shouldReturnError: true}
 			taskEntry := &internalTaskEntry{task: task, name: "test-task", creationTime: time.Now()}
 
 			wg.Add(1)
@@ -150,7 +152,7 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 
 		It("ensure that when the task return _true_ for retry, it is communicated to the channel in a 'taskRetryLoopMessage'", func() {
 
-			task := &testEvent{shouldTaskFail: true, shouldReturnError: false}
+			task := &mockTestTaskEvent{shouldTaskFail: true, shouldReturnError: false}
 			taskEntry := &internalTaskEntry{task: task, name: "test-task", creationTime: time.Now()}
 
 			wg.Add(1)
@@ -166,7 +168,7 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 
 		It("ensure that when the task returns _false_ for retry, it is communicated to the channel in a 'taskRetryLoopMessage'", func() {
 
-			task := &testEvent{shouldTaskFail: false, shouldReturnError: false}
+			task := &mockTestTaskEvent{shouldTaskFail: false, shouldReturnError: false}
 			taskEntry := &internalTaskEntry{task: task, name: "test-task", creationTime: time.Now()}
 
 			wg.Add(1)
@@ -183,12 +185,12 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 
 })
 
-// mockTestEventCounter counts the number of calls to performTask, so that we can verify it is called a certain amount of itmes.
-type mockTestEventCounter struct {
+// mockTestTaskCounter counts the number of calls to performTask, so that we can verify it is called a certain amount of itmes.
+type mockTestTaskCounter struct {
 	timesRun int
 }
 
-func (event *mockTestEventCounter) PerformTask(taskContext context.Context) (bool, error) {
+func (event *mockTestTaskCounter) PerformTask(taskContext context.Context) (bool, error) {
 	event.timesRun++
 	fmt.Println("Call: ", event.timesRun)
 	defer wg.Done()
@@ -207,7 +209,7 @@ func (event *mockTestEventCounter) PerformTask(taskContext context.Context) (boo
 
 }
 
-type testEvent struct {
+type mockTestTaskEvent struct {
 	shouldTaskFail bool
 	//task Duration in milliseconds
 	taskCompleted     bool
@@ -215,7 +217,7 @@ type testEvent struct {
 	shouldReturnError bool
 }
 
-func (event *testEvent) PerformTask(taskContext context.Context) (bool, error) {
+func (event *mockTestTaskEvent) PerformTask(taskContext context.Context) (bool, error) {
 	if event.shouldReturnError {
 		wg.Done()
 		return false, fmt.Errorf(event.errorReturned)
@@ -231,4 +233,11 @@ func (event *testEvent) PerformTask(taskContext context.Context) (bool, error) {
 	wg.Done()
 
 	return event.shouldTaskFail, nil
+}
+
+type mockEmptyTask struct {
+}
+
+func (event *mockEmptyTask) PerformTask(taskContext context.Context) (bool, error) {
+	return false, nil
 }

@@ -215,7 +215,6 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string
 				startTask := false
 
 				task := waitingTasks[idx]
-				waitingTasksByName[task.name] = task
 
 				if task.nextScheduledRetryTime == nil {
 					startTask = true
@@ -223,8 +222,25 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string
 					startTask = true
 				}
 
+				// Don't start a task (yet) if it's already running
+				if _, exists := activeTaskMap[task.name]; exists {
+					startTask = false
+				}
+
 				if startTask && len(activeTaskMap) < maxActiveRunners {
+
+					prevActiveTaskMapSize := len(activeTaskMap)
+					prevWaitingTasksByNameSize := len(waitingTasksByName)
 					startNewTask(task, waitingTasksByName, activeTaskMap, inputChan, log)
+
+					// Sanity check the task start
+					if len(activeTaskMap) != prevActiveTaskMapSize+1 {
+						log.Error(nil, "SEVERE: active task map did not grow after startNewTask was called")
+					}
+					if len(waitingTasksByName) != prevWaitingTasksByNameSize-1 {
+						log.Error(nil, "SEVERE: waiting tasks by name did not shrink after startNewTask was called")
+					}
+
 				} else {
 					updatedWaitingTasks = append(updatedWaitingTasks, task)
 				}
@@ -252,10 +268,14 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string
 				continue
 			}
 
-			waitingTasks = append(waitingTasks, waitingTaskEntry{
+			newWaitingTaskEntry := waitingTaskEntry{
 				name:    addTaskMsg.name,
 				task:    addTaskMsg.task,
-				backoff: addTaskMsg.backoff})
+				backoff: addTaskMsg.backoff}
+
+			waitingTasks = append(waitingTasks, newWaitingTaskEntry)
+
+			waitingTasksByName[newWaitingTaskEntry.name] = newWaitingTaskEntry
 
 		} else if msg.msgType == taskRetryLoop_removeTask {
 

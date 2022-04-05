@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -22,19 +21,16 @@ var (
 var _ = Describe("Task Retry Loop Unit Tests", func() {
 
 	const (
-		numberOfTasks int = 5000
+		numberOfTasks int = 1000
 	)
 
 	var (
 		workComplete chan taskRetryLoopMessage
-		ctx          context.Context
-		log          logr.Logger
+		log          = logger.FromContext(context.Background())
 	)
 
 	BeforeEach(func() {
 		workComplete = make(chan taskRetryLoopMessage)
-		ctx = context.Background()
-		log = logger.FromContext(ctx)
 		wg = sync.WaitGroup{}
 	})
 
@@ -52,7 +48,7 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 			Expect(mockTestEvent.timesRun).Should(Equal(2))
 		})
 
-		It("should generate 5000 tasks with random IDs and execute them successfully", func() {
+		It("should generate 1000 tasks with random IDs and execute them successfully", func() {
 
 			testEvent := &mockTestTaskEvent{shouldTaskFail: false}
 			taskRetryLoop := NewTaskRetryLoop("test-name")
@@ -73,23 +69,36 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 
 	Context("AddTaskIfNotPresent Test: Test De-duplication", func() {
 
-		It("should generate 5000 tasks with randomly selected among a list of 5 names, and the number of active tasks doesn't exceed the size of the list", func() {
+		It("should generate 1000 tasks with randomly selected among a list of 5 names, and the number of active tasks doesn't exceed the size of the list", func() {
 
-			testEvent := &mockTestTaskEvent{shouldTaskFail: false}
 			taskRetryLoop := NewTaskRetryLoop("dummy-name")
 			taskNames := [5]string{"a", "b", "c", "d", "e"}
 
+			tasksRunByName := map[string]int{}
+
 			for i := 0; i < numberOfTasks; i++ {
-				wg.Add(1)
 				taskName := taskNames[rand.Intn(len(taskNames))]
+				testEvent := &mockTestTaskEvent{shouldTaskFail: false, taskName: taskName, tasksRunByName: tasksRunByName}
+				wg.Add(1)
+
 				taskRetryLoop.AddTaskIfNotPresent(taskName, testEvent, ExponentialBackoff{Factor: 2, Min: time.Duration(100 * time.Microsecond), Max: time.Duration(1 * time.Second), Jitter: true})
 			}
 
-			fmt.Printf("Waiting for %d tasks to complete...\n", numberOfTasks)
+			fmt.Println("Waiting for tasks to complete...")
 
-			wg.Wait()
+			time.Sleep(3 * time.Second)
 
-			fmt.Printf("%d tasks successfully completed\n", numberOfTasks)
+			m.Lock()
+			defer m.Unlock()
+
+			fmt.Println(tasksRunByName)
+
+			// Each task should have run at least once within 5 seconds
+			for _, taskName := range taskNames {
+				Expect(tasksRunByName[taskName]).To(BeNumerically(">", 0))
+			}
+
+			fmt.Println("Tasks successfully completed")
 		})
 	})
 
@@ -210,6 +219,11 @@ func (event *mockTestTaskCounter) PerformTask(taskContext context.Context) (bool
 }
 
 type mockTestTaskEvent struct {
+
+	// Acquire mutex 'm' before writing to this
+	tasksRunByName map[string]int
+
+	taskName       string
 	shouldTaskFail bool
 	//task Duration in milliseconds
 	taskCompleted     bool
@@ -218,17 +232,21 @@ type mockTestTaskEvent struct {
 }
 
 func (event *mockTestTaskEvent) PerformTask(taskContext context.Context) (bool, error) {
+	m.Lock()
+	defer m.Unlock()
+
 	if event.shouldReturnError {
 		wg.Done()
 		return false, fmt.Errorf(event.errorReturned)
 	}
 
-	m.Lock()
-
 	time.Sleep(1 * time.Millisecond)
 	event.taskCompleted = true
 
-	m.Unlock()
+	// Keep track of the number of times the task is run, by name
+	if event.tasksRunByName != nil && event.taskName != "" {
+		event.tasksRunByName[event.taskName] = event.tasksRunByName[event.taskName] + 1
+	}
 
 	wg.Done()
 

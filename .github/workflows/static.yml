@@ -10,34 +10,18 @@ on:
 
 jobs:
   gofmt:
-    name: Ensure that code is gofmt-ed
+    name: "Ensure that code is gofmt-ed"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
-      - name: "Ensure 'backend' is 'go fmt'-ed - run 'make fmt' to fix"
-        uses: grandcolline/golang-github-actions@v1.1.0
+      - name: Setup Golang
+        uses: actions/setup-go@v2
         with:
-          run: fmt
-          directory: backend
-          comment: false
-      - name: "Ensure 'cluster-agent' is 'go fmt'-ed - run 'make fmt to fix"
-        uses: grandcolline/golang-github-actions@v1.1.0
-        with:
-          run: fmt
-          directory: cluster-agent
-          comment: false
-      - name: "Ensure 'backend-shared' is 'go fmt'-ed - run 'make fmt to fix"
-        uses: grandcolline/golang-github-actions@v1.1.0
-        with:
-          run: fmt
-          directory: backend-shared
-          comment: false
-      - name: "Ensure 'backend-shared' is 'go fmt'-ed - run 'make fmt to fix"
-        uses: grandcolline/golang-github-actions@v1.1.0
-        with:
-          run: fmt
-          directory: appstudio-controller
-          comment: false
+          go-version: "1.17.6"
+      - name: "Run make fmt and then 'git diff' to see if anything changed: to fix this check, run make fmt and then commit the changes."
+        run: |
+          make fmt
+          git diff --exit-code -- .
 
   gosec:
     name: Ensure that code passes gosec and golint

@@ -166,3 +166,8 @@ tidy: ## Tidy all components
 	cd $(MAKEFILE_ROOT)/cluster-agent && go mod tidy
 	cd $(MAKEFILE_ROOT)/appstudio-controller && go mod tidy
 	 
+fmt: ## Run 'go fmt' on all components
+	cd $(MAKEFILE_ROOT)/backend-shared && make fmt
+	cd $(MAKEFILE_ROOT)/backend && make fmt
+	cd $(MAKEFILE_ROOT)/cluster-agent && make fmt
+	cd $(MAKEFILE_ROOT)/appstudio-controller && make fmt

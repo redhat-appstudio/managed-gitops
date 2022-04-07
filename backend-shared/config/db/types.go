@@ -5,10 +5,12 @@ import (
 	"time"
 )
 
+//    \/   \/   \/   \/   \/   \/   \/   \/   \/   \/   \/   \/   \/   \/   \/   \/   \/
 //
 // See the separate 'db-schema.sql' schema file, for descriptions of each of these tables
 // and the fields within them.
 //
+//    /\   /\   /\   /\   /\   /\   /\   /\   /\   /\   /\   /\   /\   /\   /\   /\   /\
 
 // GitopsEngineCluster is used to track clusters that host Argo CD instances
 type GitopsEngineCluster struct {
@@ -149,31 +151,39 @@ const (
 	OperationResourceType_Application   = "Application"
 )
 
+// Operation
+// Operations are used to by the backend to communicate database changes to the cluster-agent.
+// It is the reponsibility of the cluster agent to respond to operations, to read the database
+// to discover what database changes occurred, and to ensure that Argo CD is consistent with
+// the database state.
+//
+// See https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.9tzaobsoav27
+// for description of Operation
 type Operation struct {
 
 	//lint:ignore U1000 used by go-pg
 	tableName struct{} `pg:"operation,alias:op"` //nolint
 
-	// -- UID
+	// Auto-generated primary key, based on a random UID
 	Operation_id string `pg:"operation_id,pk"`
 
 	// -- Specifies which Argo CD instance this operation is targeting
 	// -- Foreign key to: GitopsEngineInstance.gitopsengineinstance_id
 	Instance_id string `pg:"instance_id"`
 
-	// -- UID of the resource that was updated
+	// Primary key of the resource that was updated
 	Resource_id string `pg:"resource_id"`
 
 	// -- The user that initiated the operation.
 	Operation_owner_user_id string `pg:"operation_owner_user_id"`
 
-	// -- Resource type of the the resoutce that was updated.
-	// -- This value lets the operation know which table contains the resource.
-	// --
-	// -- possible values:
-	// -- * ClusterAccess (specified when we want Argo CD to C/R/U/D a user's cluster credentials)
-	// -- * GitopsEngineInstance (specified to CRUD an Argo instance, for example to create a new namespace and put Argo CD in it, then signal when it's done)
-	// -- * Application (user creates a new Application via service/web UI)
+	// Resource type of the the resoutce that was updated.
+	// This value lets the operation know which table contains the resource.
+	//
+	// Possible values:
+	// * ClusterAccess (specified when we want Argo CD to C/R/U/D a user's cluster credentials)
+	// * GitopsEngineInstance (specified to CRUD an Argo instance, for example to create a new namespace and put Argo CD in it, then signal when it's done)
+	// * Application (user creates a new Application via service/web UI)
 	Resource_type string `pg:"resource_type"`
 
 	// -- When the operation was created. Used for garbage collection, as operations should be short lived.
@@ -183,11 +193,8 @@ type Operation struct {
 	// -- (initial value should be equal to created_on)
 	Last_state_update time.Time `pg:"last_state_update"`
 
-	// -- possible values:
-	// -- * Waiting
-	// -- * In_Progress
-	// -- * Completed
-	// -- * Failed
+	// Whether the Operation is in progress/has completed/has been processed/etc.
+	// (possible values: Waiting / In_Progress / Completed / Failed)
 	State OperationState `pg:"state"`
 
 	// -- If there is an error message from the operation, it is passed via this field.
@@ -196,31 +203,35 @@ type Operation struct {
 	SeqID int64 `pg:"seq_id"`
 }
 
+// Application represents an Argo CD Application CR within an Argo CD namespace.
 type Application struct {
 
 	//lint:ignore U1000 used by go-pg
 	tableName struct{} `pg:"application"` //nolint
 
+	// primary key: auto-generated random uid.
 	Application_id string `pg:"application_id,pk"`
 
-	SeqID int64 `pg:"seq_id"`
-
-	// -- Name of the Application CR within the namespace
+	// Name of the Application CR within the namespace
+	// Value: gitopsdepl-(uid of the gitopsdeployment)
+	// Example: gitopsdepl-ac2efb8e-2e2a-45a2-9c08-feb0e2e0e29b
 	Name string `pg:"name"`
 
-	// -- '.spec' field of the Application CR
-	// -- Note: Rather than converting individual JSON fields into SQL Table fields, we just pull the whole spec field.
-	// -- In the future, it might be beneficial to pull out SOME of the fields, to reduce CPU time spent on json parsing
+	// '.spec' field of the Application CR
+	// Note: Rather than converting individual JSON fields into SQL Table fields, we just pull the whole spec field.
 	Spec_field string `pg:"spec_field"`
 
-	// -- Which Argo CD instance it's hosted on
+	// Which Argo CD instance it's hosted on
 	Engine_instance_inst_id string `pg:"engine_instance_inst_id"`
 
-	// -- Which managed environment it is targetting
-	// -- Foreign key to ManagedEnvironment.Managedenvironment_id
+	// Which managed environment it is targetting
+	// Foreign key to ManagedEnvironment.Managedenvironment_id
 	Managed_environment_id string `pg:"managed_environment_id"`
+
+	SeqID int64 `pg:"seq_id"`
 }
 
+// ApplicationState is the Argo CD health/sync state of the Application
 type ApplicationState struct {
 
 	//lint:ignore U1000 used by go-pg
@@ -254,24 +265,35 @@ type ApplicationState struct {
 
 }
 
-// -- Represents relationship from GitOpsDeployment CR in the namespace, to an Application table row
-// -- This means: if we see a change in a GitOpsDeployment CR, we can easily find the corresponding database entry
-// -- Also: if we see a change to an Argo CD Application, we can easily find the corresponding GitOpsDeployment CR
+// Represents relationship from GitOpsDeployment CR in the namespace, to an Application table row
+// This means: if we see a change in a GitOpsDeployment CR, we can easily find the corresponding database entry
+// Also: if we see a change to an Argo CD Application, we can easily find the corresponding GitOpsDeployment CR
+//
+// See for details:
+// 'What are the DeploymentToApplicationMapping, KubernetesToDBResourceMapping, and APICRToDatabaseMapping, database tables for?:
+// (https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.45brv1rx6wmo)
 type DeploymentToApplicationMapping struct {
+
+	// TODO: GITOPSRVCE-67 - DEBT - PK should be (mapping uid, application_id), rather than just mapping uid?
 
 	//lint:ignore U1000 used by go-pg
 	tableName struct{} `pg:"deploymenttoapplicationmapping,alias:dta"` //nolint
 
-	// TODO: GITOPSRVCE-67 - DEBT - PK should be (mapping uid, application_id), rather than just mapping uid?
-
-	// UID of deployment CR resource in K8s/KCP
-	// NOTE: This is NOT an autogenerated PK!
+	// UID of GitOpsDeployment resource in K8s/KCP namespace
+	// (value from '.metadata.uid' field of GitOpsDeployment)
 	Deploymenttoapplicationmapping_uid_id string `pg:"deploymenttoapplicationmapping_uid_id,pk"`
 
-	DeploymentName      string `pg:"name"`
-	DeploymentNamespace string `pg:"namespace"`
-	WorkspaceUID        string `pg:"workspace_uid"`
+	// Name of the GitOpsDeployment in the namespace
+	DeploymentName string `pg:"name"`
 
+	// Namespace of the GitOpsDeployment
+	DeploymentNamespace string `pg:"namespace"`
+
+	// UID (.metadata.uid) of the Namespace, containing the GitOpsDeployments
+	// value: (uid of namespace)
+	NamespaceUID string `pg:"workspace_uid"`
+
+	// Reference to the corresponding Application row
 	// -- Foreign key to: Application.Application_id
 	Application_id string `pg:"application_id"`
 
@@ -284,6 +306,13 @@ const (
 	APICRToDatabaseMapping_DBRelationType_SyncOperation = "SyncOperation"
 )
 
+// Maps API custom resources on the workspace (such as GitOpsDeploymentSyncRun), to a corresponding entry in the database.
+// This allows us to quickly go from API CR <-to-> Database entry, and also to identify database entries even when the API CR has been
+// deleted from the workspace.
+//
+// See for details:
+// 'What are the DeploymentToApplicationMapping, KubernetesToDBResourceMapping, and APICRToDatabaseMapping, database tables for?:
+// (https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.45brv1rx6wmo)
 type APICRToDatabaseMapping struct {
 
 	//lint:ignore U1000 used by go-pg
@@ -302,22 +331,22 @@ type APICRToDatabaseMapping struct {
 	SeqID int64 `pg:"seq_id"`
 }
 
-// -- Represents a generic relationship between Kubernetes CR <-> Database table
-// -- The Kubernetes CR can be either in the workspace, or in/on a GitOpsEngine cluster namespace.
-// --
-// -- Example: when the cluster agent sees an Argo CD Application CR change within a namespace, it needs a way
-// -- to know which GitOpsEngineInstance database entries corresponds to the Argo CD namespace.
-// -- For this we would use:
-// -- - kubernetes_resource_type: Namespace
-// -- - kubernetes_resource_uid: (uid of namespace)
-// -- - db_relation_type: GitOpsEngineInstance
-// -- - db_relation_key: (primary key of gitops engine instance)
-// --
-// -- Later, we can query this table to go from 'argo cd instance namespace' <= to => 'GitopsEngineInstance database row'
-// --
-// -- See DeploymentToApplicationMapping for another example of this.
-// --
-// -- This is also useful for tracking the lifecycle between CRs <-> database table.
+// Represents a generic relationship between Kubernetes CR <-> Database table
+// The Kubernetes CR can be either in the workspace, or in/on a GitOpsEngine cluster namespace.
+//
+// Example: when the cluster agent sees an Argo CD Application CR change within a namespace, it needs a way
+// to know which GitOpsEngineInstance database entries corresponds to the Argo CD namespace.
+// For this we would use:
+// - kubernetes_resource_type: Namespace
+// - kubernetes_resource_uid: (uid of namespace)
+// - db_relation_type: GitOpsEngineInstance
+// - db_relation_key: (primary key of gitops engine instance)
+//
+// Later, we can query this table to go from 'argo cd instance namespace' <= to => 'GitopsEngineInstance database row'
+//
+// See DeploymentToApplicationMapping for another example of this.
+//
+// This is also useful for tracking the lifecycle between CRs <-> database table.
 type KubernetesToDBResourceMapping struct {
 
 	//lint:ignore U1000 used by go-pg
@@ -334,6 +363,8 @@ type KubernetesToDBResourceMapping struct {
 	SeqID int64 `pg:"seq_id"`
 }
 
+// Sync Operation tracks a sync request from the API. This will correspond to a sync operation on an Argo CD Application, which
+// will cause Argo CD to deploy the K8s resources from Git, to the target environment. This is also known as manual sync.
 type SyncOperation struct {
 
 	//lint:ignore U1000 used by go-pg

@@ -275,7 +275,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateDeploymentToApplicationMapping(ctx c
 		"Deploymenttoapplicationmapping_uid_id", obj.Deploymenttoapplicationmapping_uid_id,
 		"DeploymentName", obj.DeploymentName,
 		"DeploymentNamespace", obj.DeploymentNamespace,
-		"WorkspaceUID", obj.WorkspaceUID,
+		"NamespaceUID", obj.NamespaceUID,
 	); err != nil {
 		return err
 	}

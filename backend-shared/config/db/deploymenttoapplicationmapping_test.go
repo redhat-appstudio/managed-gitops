@@ -44,7 +44,7 @@ func TestCreateandDeleteDeploymentToApplicationMapping(t *testing.T) {
 		Application_id:                        application.Application_id,
 		DeploymentName:                        "test-deployment",
 		DeploymentNamespace:                   "test-namespace",
-		WorkspaceUID:                          "demo-workspace",
+		NamespaceUID:                          "demo-workspace",
 	}
 
 	err = dbq.CreateDeploymentToApplicationMapping(ctx, deploymentToApplicationMapping)
@@ -108,7 +108,7 @@ func TestAllListDeploymentToApplicationMapping(t *testing.T) {
 		Application_id:                        application.Application_id,
 		DeploymentName:                        "test-deployment",
 		DeploymentNamespace:                   "test-namespace",
-		WorkspaceUID:                          "demo-workspace",
+		NamespaceUID:                          "demo-workspace",
 	}
 
 	err = dbq.CreateDeploymentToApplicationMapping(ctx, deploymentToApplicationMapping)
@@ -127,7 +127,7 @@ func TestAllListDeploymentToApplicationMapping(t *testing.T) {
 	assert.True(t, len(dbResults) == 1)
 	assert.Equal(t, dbResults[0], *deploymentToApplicationMapping)
 
-	err = dbq.ListDeploymentToApplicationMappingByNamespaceAndName(ctx, deploymentToApplicationMapping.DeploymentName, deploymentToApplicationMapping.DeploymentNamespace, deploymentToApplicationMapping.WorkspaceUID, &dbResults)
+	err = dbq.ListDeploymentToApplicationMappingByNamespaceAndName(ctx, deploymentToApplicationMapping.DeploymentName, deploymentToApplicationMapping.DeploymentNamespace, deploymentToApplicationMapping.NamespaceUID, &dbResults)
 	if !assert.NoError(t, err) {
 		return
 	}

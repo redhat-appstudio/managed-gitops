@@ -12,6 +12,16 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
+// This file contains database-specific utility method for interacting with multiple database resources at once.
+//
+// You may be interested in the internal architecture doc:
+// https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#
+//
+// The internal architecture doc discussed why we use kube-system, and what the KubernetesToDBResourceMapping
+// database table is for.
+
+//
+
 // Whenever a new Argo CD Application needs to be created, we need to find an Argo CD instance
 // that is available to use it. In the future, when we have multiple instances, there would
 // be an algorithm that intelligently places applications -> instances, to ensure that
@@ -33,6 +43,9 @@ func GetGitOpsEngineSingleInstanceNamespace() string {
 	return DefaultGitOpsEngineSingleInstanceNamespace
 }
 
+// GetOrCreateManagedEnvironmentByNamespaceUID returns the managed environment database entry that
+// corresponds to given namespace.
+//
 // The bool return value is 'true' if ManagedEnvironment is created; 'false' if it already exists in DB or in case of failure.
 func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, workspaceNamespace v1.Namespace,
 	dbq db.DatabaseQueries, log logr.Logger) (*db.ManagedEnvironment, bool, error) {
@@ -41,6 +54,9 @@ func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, workspaceN
 
 	var err error
 
+	// dbResourceMapping will be non-nil if there is already a mapping in the database for the 'workspaceNamespace' namespace:
+	// Namespace <-> ManagedEnvironment
+	//
 	// Is the namespace we are deploying to already mapped to a ManagedEnvironment in the database?
 	// - Attempt to retrieve the relationship DB entry
 	dbResourceMapping := &db.KubernetesToDBResourceMapping{
@@ -123,8 +139,11 @@ func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, workspaceN
 }
 
 // GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID gets (or creates it if it doesn't exist) a GitOpsEngineInstance database entry that
-// corresponds to an GitOps engine instance running on the cluster.
-// The bool return value is 'true' if GitopsEngineInstance is created; 'false' if it already exists in DB or in case of failure.
+//
+// This lets us track the relationship between an Argo CD instance <-> GitOps Engine database table.
+// corresponds to an GitOps engine (Argo CD) instance running on the cluster.
+//
+// bool return value is true if the GitOpsEngineInstance row was created by this function, false otherwise.
 func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 	gitopsEngineNamespace v1.Namespace, kubesystemNamespaceUID string,
 	dbq db.DatabaseQueries, log logr.Logger) (*db.GitopsEngineInstance, bool, *db.GitopsEngineCluster, error) {
@@ -135,14 +154,21 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 		return nil, false, nil, fmt.Errorf("unable to create GitOpsEngineCluster for '%v', error: '%v'", kubesystemNamespaceUID, err)
 	}
 
+	// Next: check the database to see if there is already a database entry for this namespace.
+	// This relationship is represented in the KubernetesToDBResourceMapping table.
+
 	var gitopsEngineInstance *db.GitopsEngineInstance
 
+	// expectedDBResourceMapping is the value to query the database with:
+	// - we are looking for a Namespace, with a given uid, that points to a GitOpsEngineInstance)
+	// We will re-use this object later in the function to create the mapping, if it doesn't already exist.
 	expectedDBResourceMapping := db.KubernetesToDBResourceMapping{
 		KubernetesResourceType: db.K8sToDBMapping_Namespace,
 		KubernetesResourceUID:  kubesystemNamespaceUID,
 		DBRelationType:         db.K8sToDBMapping_GitopsEngineInstance,
 	}
 
+	// dbResourceMapping is the KubernetesToDBResourceMapping we retrieved from the database (or nil if not found)
 	var dbResourceMapping *db.KubernetesToDBResourceMapping
 	{
 		var expectedDBResourceMappingCopy db.KubernetesToDBResourceMapping = expectedDBResourceMapping
@@ -245,22 +271,23 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 
 }
 
-// GetGitopsEngineClusterByKubeSystemNamespaceUID returns nil (with no error) if the cluster could not be found.
+// GetGitopsEngineClusterByKubeSystemNamespaceUID looks for a GitOpsEngineCluster based on the uid of the kube-system namespace,
+// and returns nil (with no error) if the cluster could not be found.
+//
+// This function does not attempt to create it, if it could not be found.
+//
+// In order to determine which cluster we are on, we use the UID of the 'kube-system' namespace.
+// See https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.6kdajkig83ul for more details on this.
 func GetGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context, kubesystemNamespaceUID string, dbq db.DatabaseQueries,
 	log logr.Logger) (*db.GitopsEngineCluster, error) {
 
 	var gitopsEngineCluster *db.GitopsEngineCluster
 
-	expectedDBResourceMapping := db.KubernetesToDBResourceMapping{
+	// Query the DB for a Namespace <-> GitOpsEngineCluster relationship, with namespace UID of 'kubesystemNamespaceUID'
+	dbResourceMapping := &db.KubernetesToDBResourceMapping{
 		KubernetesResourceType: db.K8sToDBMapping_Namespace,
 		KubernetesResourceUID:  kubesystemNamespaceUID,
 		DBRelationType:         db.K8sToDBMapping_GitopsEngineCluster,
-	}
-
-	var dbResourceMapping *db.KubernetesToDBResourceMapping
-	{
-		var expectedDBResourceMappingCopy db.KubernetesToDBResourceMapping = expectedDBResourceMapping
-		dbResourceMapping = &expectedDBResourceMappingCopy
 	}
 
 	if err := dbq.GetDBResourceMappingForKubernetesResource(ctx, dbResourceMapping); err != nil {
@@ -269,70 +296,80 @@ func GetGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context, kubesys
 			return nil, err
 		}
 		return nil, nil
-
-	} else {
-		// If there exists a db resource mapping for this cluster, see if we can get the GitOpsEngineCluster
-		gitopsEngineCluster = &db.GitopsEngineCluster{
-			Gitopsenginecluster_id: dbResourceMapping.DBRelationKey,
-		}
-
-		if err := dbq.GetGitopsEngineClusterById(ctx, gitopsEngineCluster); err != nil {
-			if !db.IsResultNotFoundError(err) {
-				return nil, err
-			}
-
-			return nil, nil
-		} else {
-			// Success: both existed.
-			return gitopsEngineCluster, nil
-		}
 	}
 
+	// If there exists a db resource mapping for this cluster, see if we can get the GitOpsEngineCluster
+	gitopsEngineCluster = &db.GitopsEngineCluster{
+		Gitopsenginecluster_id: dbResourceMapping.DBRelationKey,
+	}
+
+	if err := dbq.GetGitopsEngineClusterById(ctx, gitopsEngineCluster); err != nil {
+		if !db.IsResultNotFoundError(err) {
+			return nil, err
+		}
+
+		return nil, nil
+	} else {
+		// Success: both existed.
+		return gitopsEngineCluster, nil
+	}
 }
 
 // GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID gets (or creates it if it doesn't exist) a GitOpsEngineCluster
 // database entry that corresponds to an GitOps engine cluster.
 //
 // In order to determine which cluster we are on, we use the UID of the 'kube-system' namespace.
-func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context, kubesystemNamespaceUID string, dbq db.DatabaseQueries, log logr.Logger) (*db.GitopsEngineCluster, error) {
+// See https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.6kdajkig83ul for more details on this.
+func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context, kubesystemNamespaceUID string, dbq db.DatabaseQueries,
+	log logr.Logger) (*db.GitopsEngineCluster, error) {
 
 	var gitopsEngineCluster *db.GitopsEngineCluster
 
+	// First, look to see if we have created an existing row in the database that corresponds to the kube-system namespace of
+	// the cluster that Argo CD is running on.
+	// If this exists, we can then look at the 'DBRelationKey' to find the GitopsEngineCluster primary key.
 	expectedDBResourceMapping := db.KubernetesToDBResourceMapping{
 		KubernetesResourceType: db.K8sToDBMapping_Namespace,
 		KubernetesResourceUID:  kubesystemNamespaceUID,
 		DBRelationType:         db.K8sToDBMapping_GitopsEngineCluster,
 	}
 
+	// dbResourceMapping is non-nil if there is already a mapping in the database for the kube-system namesapce, nil otherwise.
 	var dbResourceMapping *db.KubernetesToDBResourceMapping
 	{
 		var expectedDBResourceMappingCopy db.KubernetesToDBResourceMapping = expectedDBResourceMapping
 		dbResourceMapping = &expectedDBResourceMappingCopy
 	}
 
+	// Retrieve the K8s to DB mapping, to see if we already have a namespace for this cluster.
 	if err := dbq.GetDBResourceMappingForKubernetesResource(ctx, dbResourceMapping); err != nil {
 
 		if !db.IsResultNotFoundError(err) {
 			return nil, fmt.Errorf("unable to get DBResourceMapping: %v", err)
 		}
 
+		// No existing mapping found.
 		dbResourceMapping = nil
 
 	} else {
-		// If there exists a db resource mapping for this cluster, see if we can get the GitOpsEngineCluster
+		// If there exists a db resource mapping for this cluster, then the DBRelationKeyField points to
+		// the primary key of GitOpsEngineCluster.
+		//
+		// Next: see if we can get that GitOpsEngineCluster, using that primary key.
 		gitopsEngineCluster = &db.GitopsEngineCluster{
 			Gitopsenginecluster_id: dbResourceMapping.DBRelationKey,
 		}
 
 		if err := dbq.GetGitopsEngineClusterById(ctx, gitopsEngineCluster); err != nil {
 			if !db.IsResultNotFoundError(err) {
+				// If a generic error occurs, return
 				return nil, err
 			}
 
-			log.V(util.LogLevel_Warn).Error(nil, "GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID found a resource mapping, but no engine instance.")
-
 			// We have found a mapping without the corresponding mapped entity, so delete the mapping.
 			// (We will recreate the mapping below)
+			log.V(util.LogLevel_Warn).Error(nil, "GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID found a resource mapping, but no engine instance.")
+
 			if _, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, dbResourceMapping); err != nil {
 				return nil, err
 			}
@@ -347,7 +384,7 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 	}
 
 	if dbResourceMapping == nil && gitopsEngineCluster == nil {
-		// Scenario A) neither exists: create both
+		// Scenario A) neither mapping row, nor engine cluste row exists in the db: so create both
 
 		// Create cluster credentials for the managed env
 		// TODO: GITOPSRVCE-66 - Cluster credentials placeholder values - we will need to create a service account on the target cluster, which we can store in the database.
@@ -384,7 +421,6 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 		// Scenario B) This shouldn't happen: the above logic should ensure that dbResourceMapping is always nil, if gitopsEngineCluster is nil
 
 		err := fmt.Errorf("SEVERE: the dbResourceMapping existed, but the gitops engine cluster did not")
-
 		log.Error(err, err.Error())
 
 		return nil, err
@@ -409,25 +445,31 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 
 }
 
+// GetOrCreateDeploymentToApplicationMapping looks for a DeploymentToApplicationMapping row by UID.
+// See https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.6kdajkig83ul for more details on DeploymentToApplicationMapping.
 func GetOrCreateDeploymentToApplicationMapping(ctx context.Context, createDeplToAppMapping *db.DeploymentToApplicationMapping, dbq db.ApplicationScopedQueries, log logr.Logger) error {
 
 	if err := dbq.GetDeploymentToApplicationMappingByDeplId(ctx, createDeplToAppMapping); err != nil {
+
 		if !db.IsResultNotFoundError(err) {
+			// Return on generic error
 			logErr := fmt.Errorf("unable to get obj in GetOrDeploymentToApplicationMapping: %v", err)
 			log.Error(logErr, "unable to get deplToApp mapping", "createDeplToAppMapping", createDeplToAppMapping)
 			return logErr
 		}
-		// Object not found, so continue.
+		// Database row not found, so continue.
 	} else {
-		// Object was found
+		// Database row was found, and was set in the param, so return.
 		return nil
 	}
+
+	// At this point in the function, the database row necessarily does not exist.
 
 	// Ensure that there isn't an old depltoappmapping hanging around with matching name/namespace, before we create a new one.
 	if _, err := dbq.DeleteDeploymentToApplicationMappingByNamespaceAndName(ctx,
 		createDeplToAppMapping.DeploymentName,
 		createDeplToAppMapping.DeploymentNamespace,
-		createDeplToAppMapping.WorkspaceUID); err != nil {
+		createDeplToAppMapping.NamespaceUID); err != nil {
 		log.Error(err, "unable to delete old deployment to application mapping for name '"+
 			createDeplToAppMapping.DeploymentName+"', namespace '"+createDeplToAppMapping.DeploymentNamespace+"'")
 		return err
@@ -443,7 +485,7 @@ func GetOrCreateDeploymentToApplicationMapping(ctx context.Context, createDeplTo
 	return nil
 }
 
-// DisposeResources delets of a list of database entries in reverse order.
+// DisposeResources deletes of a 'resources' list of database entries in reverse order, by calling Dispose() on the object.
 func DisposeResources(ctx context.Context, resources []db.DisposableResource, dbq db.DatabaseQueries, log logr.Logger) {
 
 	if len(resources) == 0 {
@@ -477,7 +519,7 @@ func DisposeResources(ctx context.Context, resources []db.DisposableResource, db
 	}
 }
 
-// DisposeApplicationScopedResources delets of a list of database entries in reverse order.
+// DisposeApplicationScopedResources of a 'resources' list of database entries in reverse order, by calling Dispose() on the object.
 func DisposeApplicationScopedResources(ctx context.Context, resources []db.AppScopedDisposableResource, dbq db.ApplicationScopedQueries, log logr.Logger) {
 
 	if len(resources) == 0 {

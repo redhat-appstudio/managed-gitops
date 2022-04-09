@@ -359,6 +359,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		return false, nil, nil, err
 	}
 	log.Info("Application Updated with ID: " + application.Application_id)
+
 	// Create the operation
 	gitopsEngineClient, err := a.getK8sClientForGitOpsEngineInstance(engineInstanceParam)
 	if err != nil {

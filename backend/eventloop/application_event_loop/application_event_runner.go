@@ -307,13 +307,12 @@ func createOperation(ctx context.Context, waitForOperation bool, dbOperationPara
 		Human_readable_state:    "",
 	}
 
-	log.Info("Creating database operation", "operation", dbOperation.ShortString())
-
 	if err := dbQueries.CreateOperation(ctx, &dbOperation, clusterUserID); err != nil {
 		log.Error(err, "unable to create operation", "operation", dbOperation.LongString())
 		return nil, nil, err
 	}
-	log.Info("Operation Created with ID: " + dbOperation.Operation_id)
+
+	log.Info("Created database operation", "operation", dbOperation.ShortString())
 
 	// Create K8s operation
 	operation := operation.Operation{

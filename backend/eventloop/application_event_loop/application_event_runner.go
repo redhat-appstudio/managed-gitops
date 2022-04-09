@@ -313,6 +313,7 @@ func createOperation(ctx context.Context, waitForOperation bool, dbOperationPara
 		log.Error(err, "unable to create operation", "operation", dbOperation.LongString())
 		return nil, nil, err
 	}
+	log.Info("Operation Created with ID: " + dbOperation.Operation_id)
 
 	// Create K8s operation
 	operation := operation.Operation{

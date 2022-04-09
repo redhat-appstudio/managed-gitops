@@ -301,6 +301,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 				log.Error(err, "Unable to delete deplToAppMapping which pointed to non-existent Application, in handleUpdatedGitOpsDeplEvent")
 				return false, nil, nil, err
 			}
+			log.Info("Deleted DeploymentToApplicationMapping with Deployment ID: " + deplToAppMapping.Deploymenttoapplicationmapping_uid_id)
 			return false, nil, nil, err
 		}
 	}
@@ -357,6 +358,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		log.Error(err, "Unable to update application, after mismatch detected")
 		return false, nil, nil, err
 	}
+	log.Info("Application Updated with ID: " + application.Application_id)
 	// Create the operation
 	gitopsEngineClient, err := a.getK8sClientForGitOpsEngineInstance(engineInstanceParam)
 	if err != nil {
@@ -418,6 +420,8 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	} else if rowsDeleted == 0 {
 		// Log the warning, but continue
 		log.Info("no application rows deleted for application state", "rowsDeleted", rowsDeleted)
+	} else {
+		log.Info("ApplicationState rows deleted App ID: ", deplToAppMapping.Application_id, "rowsDeleted", rowsDeleted)
 	}
 
 	// Remove DeplToAppMapping
@@ -429,6 +433,8 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	} else if rowsDeleted == 0 {
 		// Log the warning, but continue
 		log.V(sharedutil.LogLevel_Warn).Error(nil, "unexpected number of rows deleted for deplToAppMapping", "rowsDeleted", rowsDeleted)
+	} else {
+		log.Info("Deleted deplToAppMapping by id", "deplToAppMapUid", deplToAppMapping.Deploymenttoapplicationmapping_uid_id)
 	}
 
 	rowsUpdated, err := dbQueries.UpdateSyncOperationRemoveApplicationField(ctx, deplToAppMapping.Application_id)
@@ -438,6 +444,8 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 
 	} else if rowsUpdated == 0 {
 		log.Info("no sync operation rows updated, for updating old syncoperations on gitopsdepl deletion")
+	} else {
+		log.Info("Removed Application Field with ID: " + deplToAppMapping.Application_id)
 	}
 
 	if !dbApplicationFound {

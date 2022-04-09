@@ -72,9 +72,9 @@ func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, workspaceN
 		// Since the managed environment doesn't exist, delete the mapping; it will be recreated below.
 		if _, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, dbResourceMapping); err != nil {
 			return nil, false, fmt.Errorf("unable to delete K8s resource to DB mapping: %v", dbResourceMapping)
-		} else {
-			log.Info("Deleted KubernetesResourceToDBResourceMapping: " + fmt.Sprintf("%v", dbResourceMapping))
 		}
+
+		log.Info("Deleted KubernetesResourceToDBResourceMapping: " + fmt.Sprintf("%v", dbResourceMapping))
 
 	} else if !db.IsResultNotFoundError(err) {
 		return nil, false, fmt.Errorf("unable to retrieve resource mapping: %v", err)
@@ -104,9 +104,8 @@ func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, workspaceN
 	}
 	if err := dbq.CreateManagedEnvironment(ctx, &managedEnvironment); err != nil {
 		return nil, false, fmt.Errorf("unable to create managed env: %v", err)
-	} else {
-		log.Info("Created Managed Environment: " + managedEnvironment.Managedenvironment_id)
 	}
+	log.Info("Created Managed Environment: " + managedEnvironment.Managedenvironment_id)
 
 	dbResourceMapping = &db.KubernetesToDBResourceMapping{
 		KubernetesResourceType: db.K8sToDBMapping_Namespace,
@@ -117,9 +116,8 @@ func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, workspaceN
 
 	if err := dbq.CreateKubernetesResourceToDBResourceMapping(ctx, dbResourceMapping); err != nil {
 		return nil, false, fmt.Errorf("unable to create KubernetesResourceToDBResourceMapping: %v", err)
-	} else {
-		log.Info("Created KubernetesResourceToDBResourceMapping: " + dbResourceMapping.KubernetesResourceUID)
 	}
+	log.Info("Created KubernetesResourceToDBResourceMapping: " + dbResourceMapping.KubernetesResourceUID)
 
 	return &managedEnvironment, true, nil
 }
@@ -176,9 +174,8 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 			// (We will recreate the mapping below)
 			if _, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, dbResourceMapping); err != nil {
 				return nil, false, nil, err
-			} else {
-				log.Info("Deleted KubernetesResourceToDBResourceMapping: " + fmt.Sprintf("%v", dbResourceMapping))
 			}
+			log.Info("Deleted KubernetesResourceToDBResourceMapping: " + fmt.Sprintf("%v", dbResourceMapping))
 
 			gitopsEngineInstance = nil
 			dbResourceMapping = nil
@@ -205,16 +202,15 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 
 		if err := dbq.CreateGitopsEngineInstance(ctx, gitopsEngineInstance); err != nil {
 			return nil, false, nil, fmt.Errorf("unable to create engine instance, when neither existed: %v", err)
-		} else {
-			log.Info("Created GitopsEngineInstance: " + gitopsEngineInstance.Gitopsengineinstance_id)
 		}
+		log.Info("Created GitopsEngineInstance: " + gitopsEngineInstance.Gitopsengineinstance_id)
 
 		expectedDBResourceMapping.DBRelationKey = gitopsEngineInstance.Gitopsengineinstance_id
 		if err := dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &expectedDBResourceMapping); err != nil {
 			return nil, false, nil, fmt.Errorf("unable to create mapping when neither existed: %v", err)
-		} else {
-			log.Info("Created KubernetesResourceToDBResourceMapping with KubernetesResourceUID: " + expectedDBResourceMapping.KubernetesResourceUID)
 		}
+
+		log.Info("Created KubernetesResourceToDBResourceMapping with KubernetesResourceUID: " + expectedDBResourceMapping.KubernetesResourceUID)
 
 		return gitopsEngineInstance, true, gitopsEngineCluster, nil
 
@@ -228,9 +224,8 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 		expectedDBResourceMapping.DBRelationKey = gitopsEngineInstance.Gitopsengineinstance_id
 		if err := dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &expectedDBResourceMapping); err != nil {
 			return nil, false, nil, fmt.Errorf("unable to create mapping when dbResourceMapping didn't exist: %v", err)
-		} else {
-			log.Info("Created KubernetesResourceToDBResourceMapping with KubernetesResourceUID: " + expectedDBResourceMapping.KubernetesResourceUID)
 		}
+		log.Info("Created KubernetesResourceToDBResourceMapping with KubernetesResourceUID: " + expectedDBResourceMapping.KubernetesResourceUID)
 
 		return gitopsEngineInstance, false, gitopsEngineCluster, nil
 
@@ -340,9 +335,8 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 			// (We will recreate the mapping below)
 			if _, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, dbResourceMapping); err != nil {
 				return nil, err
-			} else {
-				log.Info("Deleted KubernetesResourceToDBResourceMapping: " + fmt.Sprintf("%v", dbResourceMapping))
 			}
+			log.Info("Deleted KubernetesResourceToDBResourceMapping: " + fmt.Sprintf("%v", dbResourceMapping))
 
 			gitopsEngineCluster = nil
 			dbResourceMapping = nil
@@ -366,9 +360,8 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 		}
 		if err := dbq.CreateClusterCredentials(ctx, &clusterCreds); err != nil {
 			return nil, fmt.Errorf("unable to create cluster creds for managed env: %v", err)
-		} else {
-			log.Info("Created Cluster Credentials: " + clusterCreds.Clustercredentials_cred_id)
 		}
+		log.Info("Created Cluster Credentials: " + clusterCreds.Clustercredentials_cred_id)
 
 		gitopsEngineCluster = &db.GitopsEngineCluster{
 			Clustercredentials_id: clusterCreds.Clustercredentials_cred_id,
@@ -376,16 +369,14 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 
 		if err := dbq.CreateGitopsEngineCluster(ctx, gitopsEngineCluster); err != nil {
 			return nil, fmt.Errorf("unable to create engine cluster, when neither existed: %v", err)
-		} else {
-			log.Info("Created GitopsEngineCluster: " + gitopsEngineCluster.Gitopsenginecluster_id)
 		}
+		log.Info("Created GitopsEngineCluster: " + gitopsEngineCluster.Gitopsenginecluster_id)
 
 		expectedDBResourceMapping.DBRelationKey = gitopsEngineCluster.Gitopsenginecluster_id
 		if err := dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &expectedDBResourceMapping); err != nil {
 			return nil, fmt.Errorf("unable to create mapping when neither existed: %v", err)
-		} else {
-			log.Info("Created KubernetesResourceToDBResourceMapping with DBRelationKey: " + expectedDBResourceMapping.DBRelationKey)
 		}
+		log.Info("Created KubernetesResourceToDBResourceMapping with DBRelationKey: " + expectedDBResourceMapping.DBRelationKey)
 
 		return gitopsEngineCluster, nil
 
@@ -404,9 +395,8 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 		expectedDBResourceMapping.DBRelationKey = gitopsEngineCluster.Gitopsenginecluster_id
 		if err := dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &expectedDBResourceMapping); err != nil {
 			return nil, fmt.Errorf("unable to create mapping when dbResourceMapping didn't exist: %v", err)
-		} else {
-			log.Info("Created KubernetesResourceToDBResourceMapping with DBRelationKey: " + expectedDBResourceMapping.DBRelationKey)
 		}
+		log.Info("Created KubernetesResourceToDBResourceMapping with DBRelationKey: " + expectedDBResourceMapping.DBRelationKey)
 
 		return gitopsEngineCluster, nil
 
@@ -441,16 +431,14 @@ func GetOrCreateDeploymentToApplicationMapping(ctx context.Context, createDeplTo
 		log.Error(err, "unable to delete old deployment to application mapping for name '"+
 			createDeplToAppMapping.DeploymentName+"', namespace '"+createDeplToAppMapping.DeploymentNamespace+"'")
 		return err
-	} else {
-		log.Info(fmt.Sprintf("Deleted DeploymentToApplicationMappingByNamespaceAndName with NameSpace: %s and Name: %s", createDeplToAppMapping.DeploymentNamespace, createDeplToAppMapping.DeploymentName))
 	}
+	log.Info(fmt.Sprintf("Deleted DeploymentToApplicationMappingByNamespaceAndName with namespace: %s and name: %s", createDeplToAppMapping.DeploymentNamespace, createDeplToAppMapping.DeploymentName))
 
 	if err := dbq.CreateDeploymentToApplicationMapping(ctx, createDeplToAppMapping); err != nil {
 		log.Error(err, "unable to create deplToApp mapping", "createDeplToAppMapping", createDeplToAppMapping)
 		return err
-	} else {
-		log.Info("Created DeploymentToApplicationMapping: " + createDeplToAppMapping.Deploymenttoapplicationmapping_uid_id)
 	}
+	log.Info("Created DeploymentToApplicationMapping: " + createDeplToAppMapping.Deploymenttoapplicationmapping_uid_id)
 
 	return nil
 }

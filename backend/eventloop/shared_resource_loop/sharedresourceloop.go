@@ -334,7 +334,7 @@ func internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx context.Con
 			if err := dbq.CreateClusterUser(ctx, &clusterUser); err != nil {
 				return nil, false, err
 			}
-			log.V(sharedutil.LogLevel_Debug).Info("Cluster User Created with User ID: " + clusterUser.Clusteruser_id)
+			log.Info("Cluster User Created with User ID: " + clusterUser.Clusteruser_id)
 
 		} else {
 			return nil, false, err
@@ -450,7 +450,7 @@ func internalGetOrCreateClusterAccess(ctx context.Context, ca *db.ClusterAccess,
 	if err := dbq.CreateClusterAccess(ctx, ca); err != nil {
 		return err, false
 	}
-	log.V(sharedutil.LogLevel_Debug).Info(fmt.Sprintf("Cluster Access Created for UserID: %s, for ManagedEnvironment: %s", ca.Clusteraccess_user_id, ca.Clusteraccess_managed_environment_id))
+	log.Info(fmt.Sprintf("Cluster Access Created for UserID: %s, for ManagedEnvironment: %s", ca.Clusteraccess_user_id, ca.Clusteraccess_managed_environment_id))
 
 	return nil, true
 }
@@ -470,7 +470,7 @@ func internalGetOrCreateClusterUserByNamespaceUID(ctx context.Context, namespace
 			if err := dbq.CreateClusterUser(ctx, &clusterUser); err != nil {
 				return nil, false, err
 			}
-			log.V(sharedutil.LogLevel_Debug).Info("Cluster User Created with User ID: " + clusterUser.Clusteruser_id)
+			log.Info("Cluster User Created with User ID: " + clusterUser.Clusteruser_id)
 
 		} else {
 			return nil, false, err

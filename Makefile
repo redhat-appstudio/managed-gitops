@@ -85,7 +85,6 @@ build-cluster-agent: ## Build cluster-agent only
 test-cluster-agent: ## Run test for cluster-agent only
 	cd $(MAKEFILE_ROOT)/cluster-agent && make test
 
-
 ### --- a p p s t u d i o - c o n t r o l l e r --- ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 deploy-appstudio-controller-crd: ## Deploy appstudio-controller related CRDs
@@ -115,6 +114,13 @@ build-appstudio-controller: ## Build only
 test-appstudio-controller: ## Run test for appstudio-controller only
 	cd $(MAKEFILE_ROOT)/appstudio-controller && make test
 
+### --- A r g o C D    W e b   U I --- ###
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+deploy-argocd: ## Install ArgoCD vanilla Web UI
+	$(MAKEFILE_ROOT)/argocd.sh install
+
+undeploy-argocd: ## Remove ArgoCD vanilla Web UI
+	$(MAKEFILE_ROOT)/argocd.sh remove
 
 ### --- F A S T  &  F U R I O U S --- ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #

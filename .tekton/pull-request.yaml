@@ -17,7 +17,6 @@ spec:
   pipelineRef:
     name: docker-build
     bundle: quay.io/redhat-appstudio/build-templates-bundle:0866720a87aec4675074069cd16662d8e01237cf
-  serviceAccountName: pipeline
   workspaces:
     - name: workspace
       volumeClaimTemplate:

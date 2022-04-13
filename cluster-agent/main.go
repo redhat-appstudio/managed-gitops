@@ -95,7 +95,7 @@ func main() {
 	if err = (&controllers.OperationReconciler{
 		Client:              mgr.GetClient(),
 		Scheme:              mgr.GetScheme(),
-		ControllerEventLoop: eventloop.NewControllerEventLoop(),
+		ControllerEventLoop: eventloop.NewOperationEventLoop(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Operation")
 		os.Exit(1)

@@ -24,35 +24,50 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-type ControllerEventLoop struct {
-	eventLoopInputChannel chan controllerEventLoopEvent
+// OperationEventLoop is informed of Operation resource changes (creations/modifications/deletions) by
+// the Operation controller (operation_controller.go).
+//
+// Next, these resource changes (events) are then processed within a task retry loop.
+// - Operations are how the backend informs the cluster-agent of database changes.
+// - For example:
+//     - The user updated a field in a GitOpsDeployment in the user's namespace
+//     - The managed-gitops backend updated corresponding field in the Application database row
+//     - Next: an Operation was created to inform the cluster-agent component of the Application row changed
+//     - We are here: now the Operation controller of cluster-agent has been informed of the Operation.
+//     - We need to: Look at the Operation, determine what database entry changed, and ensure that Argo CD
+//                   is reconciled to the contents of the database entry.
+//
+// The overall workflow of Operations can be found in the architecture doc:
+// https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.9vyguee8vhow
+//
+type OperationEventLoop struct {
+	eventLoopInputChannel chan operationEventLoopEvent
 }
 
-func NewControllerEventLoop() *ControllerEventLoop {
-	channel := make(chan controllerEventLoopEvent)
+func NewOperationEventLoop() *OperationEventLoop {
+	channel := make(chan operationEventLoopEvent)
 
-	res := &ControllerEventLoop{}
+	res := &OperationEventLoop{}
 	res.eventLoopInputChannel = channel
 
-	go controllerEventLoopRouter(channel)
+	go operationEventLoopRouter(channel)
 
 	return res
 
 }
 
-type controllerEventLoopEvent struct {
+type operationEventLoopEvent struct {
 	request ctrl.Request
-
-	client client.Client
+	client  client.Client
 }
 
-func (evl *ControllerEventLoop) EventReceived(req ctrl.Request, client client.Client) {
+func (evl *OperationEventLoop) EventReceived(req ctrl.Request, client client.Client) {
 
-	event := controllerEventLoopEvent{request: req, client: client}
+	event := operationEventLoopEvent{request: req, client: client}
 	evl.eventLoopInputChannel <- event
 }
 
-func controllerEventLoopRouter(input chan controllerEventLoopEvent) {
+func operationEventLoopRouter(input chan operationEventLoopEvent) {
 
 	ctx := context.Background()
 
@@ -67,9 +82,9 @@ func controllerEventLoopRouter(input chan controllerEventLoopEvent) {
 
 		mapKey := newEvent.request.Name + "-" + newEvent.request.Namespace
 
-		// Call PerformTask below, when a request is received.
-		task := &processEventTask{
-			event: controllerEventLoopEvent{
+		// Queue a new task in the task retry loop for our event.
+		task := &processOperationEventTask{
+			event: operationEventLoopEvent{
 				request: newEvent.request,
 				client:  newEvent.client,
 			},
@@ -81,19 +96,27 @@ func controllerEventLoopRouter(input chan controllerEventLoopEvent) {
 
 }
 
-type processEventTask struct {
-	event controllerEventLoopEvent
+// processOperationEventTask takes as input an Operation resource event, and processes it based on the contents of that event.
+type processOperationEventTask struct {
+	event operationEventLoopEvent
 	log   logr.Logger
 }
 
-func (task *processEventTask) PerformTask(taskContext context.Context) (bool, error) {
+// PerformTask takes as input an Operation resource event, and processes it based on the contents of that event.
+//
+// Returns bool (true if the task should be retried, for example because it failed, false otherwise),
+// and error (an error to log on failure).
+//
+// NOTE: 'error' value does not affect whether the task will be retried, this error is only used for
+// error reporting.
+func (task *processOperationEventTask) PerformTask(taskContext context.Context) (bool, error) {
 	dbQueries, err := db.NewProductionPostgresDBQueries(true)
 	if err != nil {
-		task.log.Error(err, "unable to instantiate database")
-		return true, err
+		return true, fmt.Errorf("unable to instantiate database in operation controller loop: %v", err)
 	}
+	defer dbQueries.CloseDatabase()
 
-	// Process the event
+	// Process the event (this is where most of the work is done)
 	dbOperation, shouldRetry, err := task.internalPerformTask(taskContext, dbQueries)
 
 	if dbOperation != nil {
@@ -103,12 +126,13 @@ func (task *processEventTask) PerformTask(taskContext context.Context) (bool, er
 			return false, err
 		}
 
+		// If the task failed and thus should be retried...
 		if shouldRetry {
 			// Not complete, still (re)trying.
 			dbOperation.State = db.OperationState_In_Progress
 		} else {
 
-			// Complete, but possibly due to a fatal error
+			// Complete (but complete doesn't mean successful: it could be complete due to a fatal error)
 			if err == nil {
 				dbOperation.State = db.OperationState_Completed
 			} else {
@@ -122,18 +146,19 @@ func (task *processEventTask) PerformTask(taskContext context.Context) (bool, er
 			dbOperation.Human_readable_state = err.Error()
 		}
 
+		// Update the Operation row of the database, based on the new state.
 		if err := dbQueries.UpdateOperation(taskContext, dbOperation); err != nil {
 			task.log.Error(err, "unable to update operation state", "operation", dbOperation.Operation_id)
 			return true, err
 		}
-		task.log.Info("Updated Operation State at: " + dbOperation.Operation_id)
+		task.log.Info("Updated Operation state for '" + dbOperation.Operation_id + "', state is: " + string(dbOperation.State))
 	}
 
 	return shouldRetry, err
 
 }
 
-func (task *processEventTask) internalPerformTask(taskContext context.Context, dbQueries db.DatabaseQueries) (*db.Operation, bool, error) {
+func (task *processOperationEventTask) internalPerformTask(taskContext context.Context, dbQueries db.DatabaseQueries) (*db.Operation, bool, error) {
 	log := log.FromContext(taskContext)
 
 	eventClient := task.event.client
@@ -147,14 +172,13 @@ func (task *processEventTask) internalPerformTask(taskContext context.Context, d
 	}
 	if err := eventClient.Get(taskContext, client.ObjectKeyFromObject(operationCR), operationCR); err != nil {
 		if apierr.IsNotFound(err) {
-			// work is complete
+			// If the resource doesn't exist, our job is done.
 			log.V(sharedutil.LogLevel_Debug).Info("Received a request for an operation CR that doesn't exist: " + operationCR.Namespace + "/" + operationCR.Name)
 			return nil, false, nil
 
 		} else {
 			// generic error
-			log.Error(err, err.Error())
-			return nil, true, err
+			return nil, true, fmt.Errorf("unable to retrieve operation CR: %v", err)
 		}
 	}
 
@@ -175,8 +199,9 @@ func (task *processEventTask) internalPerformTask(taskContext context.Context, d
 		}
 	}
 
-	// If the operation has already completed (we previously ran it), then just ignore it and return
+	// If the operation has already completed (e.g. we previously ran it), then just ignore it and return
 	if dbOperation.State == db.OperationState_Completed || dbOperation.State == db.OperationState_Failed {
+		log.V(sharedutil.LogLevel_Debug).Info("Skipping Operation with state of completed/failed", "operationId", dbOperation.Operation_id)
 		return &dbOperation, false, nil
 	}
 
@@ -274,7 +299,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 	if err := dbQueries.GetApplicationById(ctx, dbApplication); err != nil {
 
 		if db.IsResultNotFoundError(err) {
-			// The application db entry no longer exists, so delete the corresponding application CR
+			// The application db entry no longer exists, so delete the corresponding Application CR
 
 			// Find the Application that has the corresponding databaseID label
 			list := appv1.ApplicationList{}

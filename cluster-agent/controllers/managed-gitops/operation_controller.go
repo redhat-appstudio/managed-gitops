@@ -32,7 +32,7 @@ import (
 type OperationReconciler struct {
 	client.Client
 	Scheme              *runtime.Scheme
-	ControllerEventLoop *eventloop.ControllerEventLoop
+	ControllerEventLoop *eventloop.OperationEventLoop
 }
 
 //+kubebuilder:rbac:groups=managed-gitops.redhat.com,resources=operations,verbs=get;list;watch;create;update;patch;delete

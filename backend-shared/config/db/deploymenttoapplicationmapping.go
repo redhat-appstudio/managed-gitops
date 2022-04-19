@@ -112,8 +112,6 @@ func (dbq *PostgreSQLDatabaseQueries) GetDeploymentToApplicationMappingByDeplId(
 		return err
 	}
 
-	// Application exists, and user can access it
-
 	var dbResults []DeploymentToApplicationMapping
 
 	if err := dbq.dbConnection.Model(&dbResults).
@@ -279,6 +277,10 @@ func (dbq *PostgreSQLDatabaseQueries) CreateDeploymentToApplicationMapping(ctx c
 		"DeploymentNamespace", obj.DeploymentNamespace,
 		"WorkspaceUID", obj.WorkspaceUID,
 	); err != nil {
+		return err
+	}
+
+	if err := validateFieldLength(obj); err != nil {
 		return err
 	}
 

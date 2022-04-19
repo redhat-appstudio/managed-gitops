@@ -149,6 +149,10 @@ func (dbq *PostgreSQLDatabaseQueries) CreateGitopsEngineInstance(ctx context.Con
 		return fmt.Errorf("namespace uid should not be empty")
 	}
 
+	if err := validateFieldLength(obj); err != nil {
+		return err
+	}
+
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
 		return fmt.Errorf("error on inserting gitops engine instance: %v", err)

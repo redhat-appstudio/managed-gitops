@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"reflect"
 	"runtime/debug"
 	"strings"
 
@@ -182,4 +183,36 @@ func ConvertSnakeCaseToCamelCase(fieldName string) string {
 	}
 
 	return fieldNameInCamelCase
+}
+
+// A generic function to validate length of string values in input provided by users.
+// The max length of string is checked using constant variables defined for each type and field in db_field_constants.go
+func validateFieldLength(obj interface{}) error {
+	valuesOfObject := reflect.ValueOf(obj).Elem()
+	typeOfObject := reflect.TypeOf(obj).Elem().Name()
+
+	// Iterate through each field present in object
+	for i := 0; i < valuesOfObject.NumField(); i++ {
+		fieldName := valuesOfObject.Type().Field(i).Name
+		fieldValue := valuesOfObject.FieldByName(fieldName)
+		fieldType := fieldValue.Type().Name()
+
+		if fieldType != "string" {
+			continue
+		}
+		// Format object type and field name according to constants defined in db_field_constants.go
+		maximumSize := getConstantValue(ConvertSnakeCaseToCamelCase(typeOfObject + "_" + fieldName + "_Length"))
+
+		if len(fieldValue.String()) > maximumSize {
+			return fmt.Errorf("%v value exceeds maximum size: max: %d, actual: %d", fieldName, maximumSize, len(fieldValue.String()))
+		}
+	}
+	return nil
+}
+
+func isMaxLengthError(err error) bool {
+	if err != nil {
+		return strings.Contains(err.Error(), "value exceeds maximum size")
+	}
+	return false
 }

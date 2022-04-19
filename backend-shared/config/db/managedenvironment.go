@@ -26,6 +26,10 @@ func (dbq *PostgreSQLDatabaseQueries) CreateManagedEnvironment(ctx context.Conte
 		return fmt.Errorf("managed environment name field should not be empty")
 	}
 
+	if err := validateFieldLength(obj); err != nil {
+		return err
+	}
+
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
 		return fmt.Errorf("error on inserting managed environment: %v", err)

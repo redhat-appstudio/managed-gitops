@@ -1,9 +1,14 @@
 package db
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 func TestIsEmptyValues(t *testing.T) {
@@ -84,3 +89,66 @@ func TestIsEmptyValues(t *testing.T) {
 		})
 	}
 }
+
+var _ = Describe("Test utility functions", func() {
+	Context("Ensure ValidateFieldLength reports database rows that are too long", func() {
+		It("Should return error for Clusteruser_id", func() {
+			user := &ClusterUser{
+				Clusteruser_id: strings.Repeat("abc", 17),
+				User_name:      "user-name",
+			}
+			err := validateFieldLength(user)
+			Expect(isMaxLengthError(err)).To(BeTrue())
+		})
+
+		It("Should return error for User_name", func() {
+			user := &ClusterUser{
+				Clusteruser_id: "user-id",
+				User_name:      strings.Repeat("abc", 86),
+			}
+			err := validateFieldLength(user)
+			Expect(isMaxLengthError(err)).To(BeTrue())
+		})
+
+		It("Should pass", func() {
+			user := &ClusterUser{
+				Clusteruser_id: "user-id",
+				User_name:      "user-name",
+			}
+			err := validateFieldLength(user)
+			Expect(isMaxLengthError(err)).To(BeFalse())
+		})
+
+		It("Should pass.", func() {
+			gitopsEngineCluster := &GitopsEngineCluster{
+				Gitopsenginecluster_id: "user-id",
+				SeqID:                  123,
+			}
+			err := validateFieldLength(gitopsEngineCluster)
+			Expect(isMaxLengthError(err)).To(BeFalse())
+		})
+
+		It("Should return error for Gitopsenginecluster_id", func() {
+			gitopsEngineCluster := &GitopsEngineCluster{
+				Gitopsenginecluster_id: strings.Repeat("abc", 17),
+				SeqID:                  123,
+			}
+			err := validateFieldLength(gitopsEngineCluster)
+			Expect(isMaxLengthError(err)).To(BeTrue())
+		})
+	})
+
+	Context("Ensure isMaxLengthError checks for error returned by validateFieldLength.", func() {
+		It("Should return True", func() {
+			Expect(isMaxLengthError(fmt.Errorf("%v value exceeds maximum size: max: %d, actual: %d", "fieldName", 5, 10))).To(BeTrue())
+		})
+
+		It("Should return False", func() {
+			Expect(isMaxLengthError(fmt.Errorf("Some error"))).To(BeFalse())
+		})
+
+		It("Should return False", func() {
+			Expect(isMaxLengthError(nil)).To(BeFalse())
+		})
+	})
+})

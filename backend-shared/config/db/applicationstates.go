@@ -49,6 +49,10 @@ func (dbq *PostgreSQLDatabaseQueries) CreateApplicationState(ctx context.Context
 		return err
 	}
 
+	if err := validateFieldLength(obj); err != nil {
+		return err
+	}
+
 	// Inserting ApplicationState object
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
@@ -71,6 +75,10 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateApplicationState(ctx context.Context
 		"Applicationstate_application_id", obj.Applicationstate_application_id,
 		"Health", obj.Health,
 		"Sync_Status", obj.Sync_Status); err != nil {
+		return err
+	}
+
+	if err := validateFieldLength(obj); err != nil {
 		return err
 	}
 

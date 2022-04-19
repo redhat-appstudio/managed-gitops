@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -66,4 +67,13 @@ func TestApplicationStatesFunctions(t *testing.T) {
 	assert.True(t, rowsAffected == 1)
 	err = dbq.GetApplicationStateById(ctx, fetchObj)
 	assert.True(t, IsResultNotFoundError(err))
+
+	// Set the invalid value
+	applicationState.Sync_Status = strings.Repeat("abc", 100)
+	err = dbq.CreateApplicationState(ctx, applicationState)
+	assert.True(t, isMaxLengthError(err))
+
+	err = dbq.UpdateApplicationState(ctx, applicationState)
+	assert.True(t, isMaxLengthError(err))
+
 }

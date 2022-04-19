@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -95,6 +96,11 @@ func TestCreateApplications(t *testing.T) {
 		return
 	}
 	assert.Equal(t, applicationput, applicationget)
+
+	// Set the invalid value
+	applicationput.Name = strings.Repeat("abc", 100)
+	err = dbq.CreateApplication(ctx, &applicationput)
+	assert.True(t, isMaxLengthError(err))
 }
 
 func TestDeleteApplicationById(t *testing.T) {
@@ -171,7 +177,7 @@ func TestUpdateApplication(t *testing.T) {
 		Spec_field:              "{}",
 		Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
 		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
-		SeqID:                   int64(Default),
+		SeqID:                   int64(DefaultValue),
 	}
 
 	err = dbq.UpdateApplication(ctx, &applicationget)
@@ -188,4 +194,8 @@ func TestUpdateApplication(t *testing.T) {
 		return
 	}
 
+	// Set the invalid value
+	applicationget.Name = strings.Repeat("abc", 100)
+	err = dbq.UpdateApplication(ctx, &applicationget)
+	assert.True(t, isMaxLengthError(err))
 }

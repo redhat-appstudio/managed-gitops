@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -9,7 +10,7 @@ import (
 )
 
 var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
-var Default = 101
+var DefaultValue = 101
 
 func TestGetOperationById(t *testing.T) {
 	testSetup(t)
@@ -231,7 +232,7 @@ func TestUpdateOperation(t *testing.T) {
 		Resource_type:           "GitopsEngineInstance-update",
 		State:                   OperationState_Waiting,
 		Operation_owner_user_id: testClusterUser.Clusteruser_id,
-		SeqID:                   int64(Default),
+		SeqID:                   int64(DefaultValue),
 	}
 
 	assert.IsType(t, timestamp, operationget.Created_on)
@@ -251,4 +252,13 @@ func TestUpdateOperation(t *testing.T) {
 	if !assert.NotEqual(t, operationput, operationget) {
 		return
 	}
+
+	// Set the invalid value
+	operationput.Operation_id = strings.Repeat("abc", 100)
+	err = dbq.CreateOperation(ctx, &operationput, operationput.Operation_owner_user_id)
+	assert.True(t, isMaxLengthError(err))
+
+	operationget.Operation_owner_user_id = strings.Repeat("abc", 100)
+	err = dbq.UpdateOperation(ctx, &operationget)
+	assert.True(t, isMaxLengthError(err))
 }

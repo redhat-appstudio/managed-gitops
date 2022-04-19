@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -84,4 +85,8 @@ func TestCreateandGetSyncOperation(t *testing.T) {
 	err = dbq.GetSyncOperationById(ctx, &fetchRow)
 	assert.True(t, IsResultNotFoundError(err))
 
+	// Set the invalid value
+	insertRow.DeploymentNameField = strings.Repeat("abc", 100)
+	err = dbq.CreateSyncOperation(ctx, &insertRow)
+	assert.True(t, isMaxLengthError(err))
 }

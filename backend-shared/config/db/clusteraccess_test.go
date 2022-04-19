@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -97,4 +98,9 @@ func TestClusterAccessFunctions(t *testing.T) {
 
 	err = dbq.GetClusterAccessByPrimaryKey(ctx, fetchRow)
 	assert.True(t, IsResultNotFoundError(err))
+
+	// Set the invalid value
+	clusterAccess.Clusteraccess_user_id = strings.Repeat("abc", 100)
+	err = dbq.CreateClusterAccess(ctx, &clusterAccess)
+	assert.True(t, isMaxLengthError(err))
 }

@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -60,6 +61,10 @@ func TestGetGitopsEngineClusterById(t *testing.T) {
 		return
 	}
 
+	// Set the invalid value
+	gitopsEngineClusterput.Clustercredentials_id = strings.Repeat("abc", 100)
+	err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClusterput)
+	assert.True(t, isMaxLengthError(err))
 }
 
 func TestCreateGitopsEngineClusterById(t *testing.T) {

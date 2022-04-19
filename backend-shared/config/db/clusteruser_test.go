@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -53,4 +54,9 @@ func TestClusterUserFunctions(t *testing.T) {
 	assert.True(t, rowsAffected == 1)
 	err = dbq.GetClusterUserById(ctx, retrieveUser)
 	assert.True(t, IsResultNotFoundError(err))
+
+	// Set the invalid value
+	user.User_name = strings.Repeat("abc", 100)
+	err = dbq.CreateClusterUser(ctx, user)
+	assert.True(t, isMaxLengthError(err))
 }

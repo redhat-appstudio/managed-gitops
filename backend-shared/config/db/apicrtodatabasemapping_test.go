@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -57,4 +58,8 @@ func TestApiCRToDBMappingFunctions(t *testing.T) {
 	err = dbq.GetDatabaseMappingForAPICR(ctx, &fetchRow)
 	assert.True(t, IsResultNotFoundError(err))
 
+	// Set the invalid value
+	item.APIResourceName = strings.Repeat("abc", 100)
+	err = dbq.CreateAPICRToDatabaseMapping(ctx, &item)
+	assert.True(t, isMaxLengthError(err))
 }

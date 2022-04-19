@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/golang/mock/gomock"
 	"github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1/mocks"
@@ -160,6 +161,56 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 		})
 
+		It("create an invalid deployment and ensure it fails.", func() {
+			ctx := context.Background()
+
+			scheme, argocdNamespace, kubesystemNamespace, workspace, err := eventlooptypes.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      strings.Repeat("abc", 100),
+					Namespace: workspace.Name,
+					UID:       uuid.NewUUID(),
+				},
+			}
+
+			k8sClientOuter := fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).Build()
+			k8sClient := &sharedutil.ProxyClient{
+				InnerClient: k8sClientOuter,
+			}
+
+			workspaceID := string(workspace.UID)
+
+			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
+			Expect(err).To(BeNil())
+
+			a := applicationEventLoopRunner_Action{
+				// When the code asks for a new k8s client, give it our fake client
+				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+					return k8sClient, nil
+				},
+				eventResourceName:           gitopsDepl.Name,
+				eventResourceNamespace:      gitopsDepl.Namespace,
+				workspaceClient:             k8sClient,
+				log:                         log.FromContext(context.Background()),
+				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
+				workspaceID:                 workspaceID,
+				testOnlySkipCreateOperation: true,
+			}
+
+			// ------
+
+			_, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(err).NotTo(BeNil())
+
+			gitopsDeployment := &managedgitopsv1alpha1.GitOpsDeployment{}
+			gitopsDeploymentKey := client.ObjectKey{Namespace: gitopsDepl.Namespace, Name: gitopsDepl.Name}
+			clientErr := a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
+			Expect(clientErr).To(BeNil())
+			Expect(gitopsDeployment.Status.Conditions).NotTo(BeNil())
+		})
+
 	})
 
 	Context("Handle sync run modified", func() {
@@ -241,7 +292,89 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			_, err = a.applicationEventRunner_handleSyncRunModified(ctx, dbQueries)
 			Expect(err).To(BeNil())
 		})
+
+		It("Ensure the sync run handler fails when an invalid new sync run resource is passed.", func() {
+			ctx := context.Background()
+
+			scheme, argocdNamespace, kubesystemNamespace, workspace, err := eventlooptypes.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-gitops-depl",
+					Namespace: workspace.Name,
+					UID:       uuid.NewUUID(),
+				},
+			}
+
+			gitopsDeplSyncRun := &managedgitopsv1alpha1.GitOpsDeploymentSyncRun{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      strings.Repeat("abc", 100),
+					Namespace: workspace.Name,
+					UID:       uuid.NewUUID(),
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSyncRunSpec{
+					GitopsDeploymentName: gitopsDepl.Name,
+					RevisionID:           "HEAD",
+				},
+			}
+
+			k8sClientOuter := fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, gitopsDeplSyncRun, workspace, argocdNamespace, kubesystemNamespace).Build()
+			k8sClient := &sharedutil.ProxyClient{
+				InnerClient: k8sClientOuter,
+			}
+
+			dbQueries, err := db.NewUnsafePostgresDBQueries(true, false)
+			Expect(err).To(BeNil())
+
+			opts := zap.Options{
+				Development: true,
+			}
+			ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+			sharedResourceLoop := shared_resource_loop.NewSharedResourceLoop()
+
+			// 1) send a deployment modified event, to ensure the deployment is added to the database, and processed
+			a := applicationEventLoopRunner_Action{
+				// When the code asks for a new k8s client, give it our fake client
+				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+					return k8sClient, nil
+				},
+				eventResourceName:           gitopsDepl.Name,
+				eventResourceNamespace:      gitopsDepl.Namespace,
+				workspaceClient:             k8sClient,
+				log:                         log.FromContext(context.Background()),
+				sharedResourceEventLoop:     sharedResourceLoop,
+				workspaceID:                 string(workspace.UID),
+				testOnlySkipCreateOperation: true,
+			}
+			_, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(err).To(BeNil())
+
+			// 2) add a sync run modified event, to ensure the sync run is added to the database, and processed
+			a = applicationEventLoopRunner_Action{
+				// When the code asks for a new k8s client, give it our fake client
+				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+					return k8sClient, nil
+				},
+				eventResourceName:       gitopsDeplSyncRun.Name,
+				eventResourceNamespace:  gitopsDeplSyncRun.Namespace,
+				workspaceClient:         k8sClient,
+				log:                     log.FromContext(context.Background()),
+				sharedResourceEventLoop: sharedResourceLoop,
+				workspaceID:             a.workspaceID,
+			}
+			_, err = a.applicationEventRunner_handleSyncRunModified(ctx, dbQueries)
+			Expect(err).NotTo(BeNil())
+
+			gitopsDeployment := &managedgitopsv1alpha1.GitOpsDeployment{}
+			gitopsDeploymentKey := client.ObjectKey{Namespace: gitopsDepl.Namespace, Name: gitopsDepl.Name}
+			clientErr := a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
+			Expect(clientErr).To(BeNil())
+			Expect(gitopsDeployment.Status.Conditions).NotTo(BeNil())
+		})
 	})
+
 })
 
 var _ = Describe("GitOpsDeployment Conditions", func() {

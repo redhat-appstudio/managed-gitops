@@ -91,6 +91,10 @@ func (dbq *PostgreSQLDatabaseQueries) CreateKubernetesResourceToDBResourceMappin
 		return err
 	}
 
+	if err := validateFieldLength(obj); err != nil {
+		return err
+	}
+
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
 		return fmt.Errorf("error on inserting managed environment: %v", err)

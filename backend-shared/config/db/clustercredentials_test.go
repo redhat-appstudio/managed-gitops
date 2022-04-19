@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -39,6 +40,12 @@ func TestCreateandDeleteClusterCredentials(t *testing.T) {
 	assert.Equal(t, 1, count)
 	err = dbq.GetClusterCredentialsById(ctx, &fetchedCluster)
 	assert.True(t, IsResultNotFoundError(err))
+
+	// Set the invalid value
+	clusterCreds.Kube_config_context = strings.Repeat("abc", 100)
+	err = dbq.CreateClusterCredentials(ctx, &clusterCreds)
+	assert.True(t, isMaxLengthError(err))
+
 }
 
 func TestGetClusterCredentialsById(t *testing.T) {

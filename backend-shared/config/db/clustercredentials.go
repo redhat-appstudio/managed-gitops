@@ -42,6 +42,10 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterCredentials(ctx context.Conte
 		obj.Clustercredentials_cred_id = generateUuid()
 	}
 
+	if err := validateFieldLength(obj); err != nil {
+		return err
+	}
+
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
 		return fmt.Errorf("error on inserting cluster credentials: %v", err)

@@ -70,6 +70,10 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterAccess(ctx context.Context, o
 		return fmt.Errorf("primary key user_id should not be empty")
 	}
 
+	if err := validateFieldLength(obj); err != nil {
+		return err
+	}
+
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
 		return fmt.Errorf("error on inserting cluster access: %v", err)

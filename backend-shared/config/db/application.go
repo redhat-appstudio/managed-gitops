@@ -217,6 +217,10 @@ func (dbq *PostgreSQLDatabaseQueries) CreateApplication(ctx context.Context, obj
 		return err
 	}
 
+	if err := validateFieldLength(obj); err != nil {
+		return err
+	}
+
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
 		return fmt.Errorf("error on inserting application %v", err)
@@ -239,6 +243,10 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateApplication(ctx context.Context, obj
 		"Managed_environment_id", obj.Managed_environment_id,
 		"Spec_field", obj.Spec_field,
 		"Name", obj.Name); err != nil {
+		return err
+	}
+
+	if err := validateFieldLength(obj); err != nil {
 		return err
 	}
 

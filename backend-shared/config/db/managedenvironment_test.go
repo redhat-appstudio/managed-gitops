@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -255,4 +256,9 @@ func TestListManagedEnvironmentForClusterCredentialsAndOwnerId(t *testing.T) {
 
 	assert.Equal(t, managedEnvironments[0], managedEnvironment)
 	assert.Equal(t, len(managedEnvironments), 1)
+
+	// Set the invalid value
+	managedEnvironment.Clustercredentials_id = strings.Repeat("abc", 100)
+	err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
+	assert.True(t, isMaxLengthError(err))
 }

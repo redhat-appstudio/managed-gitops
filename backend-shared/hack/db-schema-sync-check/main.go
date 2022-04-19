@@ -31,6 +31,10 @@ func checkIfSchemaInSyncWithConstants(fieldConstantToSize map[string]string, fie
 		if fieldToSize[fieldName] != fieldSize {
 			exitWithError(fmt.Errorf("sizes for the field %s are not in sync", fieldName))
 		}
+
+		if _, ok := db.DbFieldMap[fieldName]; !ok {
+			exitWithError(fmt.Errorf("field %s is not present in db.DbFieldMap.", fieldName))
+		}
 	}
 
 	for fieldName, fieldSize := range fieldToSize {

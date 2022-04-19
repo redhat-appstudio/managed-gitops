@@ -64,6 +64,10 @@ func (dbq *PostgreSQLDatabaseQueries) CreateOperation(ctx context.Context, obj *
 	// Initial state is waiting
 	obj.State = OperationState_Waiting
 
+	if err := validateFieldLength(obj); err != nil {
+		return err
+	}
+
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
 		return fmt.Errorf("error on inserting operation: %v", err)
@@ -89,6 +93,10 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateOperation(ctx context.Context, obj *
 		"Resource_id", obj.Resource_id,
 		"Resource_type", obj.Resource_type,
 		"State", obj.State); err != nil {
+		return err
+	}
+
+	if err := validateFieldLength(obj); err != nil {
 		return err
 	}
 

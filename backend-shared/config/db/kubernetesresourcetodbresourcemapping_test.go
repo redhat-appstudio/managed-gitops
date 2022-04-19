@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -87,6 +88,10 @@ func TestGetDBResourceMappingForKubernetesResource(t *testing.T) {
 		return
 	}
 
+	// Set the invalid value
+	kubernetesToDBResourceMappingpost.DBRelationType = strings.Repeat("abc", 100)
+	err = dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMappingpost)
+	assert.True(t, isMaxLengthError(err))
 }
 
 func TestDeleteKubernetesResourceToDBResourceMapping(t *testing.T) {

@@ -146,6 +146,10 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.Context, gitopsDeployment *managedgitopsv1alpha1.GitOpsDeployment,
 	clusterUser *db.ClusterUser, operationNamespace string, dbQueries db.ApplicationScopedQueries) (bool, *db.Application, *db.GitopsEngineInstance, error) {
 
+	// Create a gitOpsDeploymentAdapter to plug any conditions
+	conditionManager := condition.NewConditionManager()
+	adapter := newGitOpsDeploymentAdapter(gitopsDeployment, a.log, a.workspaceClient, conditionManager, ctx)
+
 	gitopsDeplNamespace := corev1.Namespace{}
 	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: gitopsDeployment.ObjectMeta.Namespace, Name: gitopsDeployment.ObjectMeta.Namespace}, &gitopsDeplNamespace); err != nil {
 		return false, nil, nil, fmt.Errorf("unable to retrieve namespace for managed env, '%s': %v", gitopsDeployment.ObjectMeta.Namespace, err)
@@ -155,6 +159,11 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 
 	if err != nil {
 		a.log.Error(err, "unable to get or create required db entries on deployment modified event")
+
+		// Set error in status.condition in GitOpsDeployment object.
+		if conditionErr := adapter.setGitOpsDeploymentCondition(managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred, managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred, err); conditionErr != nil {
+			a.log.Error(conditionErr, "Failed while setting condition into.")
+		}
 		return false, nil, nil, err
 	}
 
@@ -194,6 +203,11 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 
 	if err := dbQueries.CreateApplication(ctx, &application); err != nil {
 		a.log.Error(err, "unable to create application", "application", application, "ownerId", clusterUser.Clusteruser_id)
+
+		// Set error in status.condition in GitOpsDeployment object.
+		if conditionErr := adapter.setGitOpsDeploymentCondition(managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred, managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred, err); conditionErr != nil {
+			a.log.Error(conditionErr, "Failed while setting condition into.")
+		}
 		return false, nil, nil, err
 	}
 
@@ -209,6 +223,11 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 
 	if err := dbutil.GetOrCreateDeploymentToApplicationMapping(ctx, requiredDeplToAppMapping, dbQueries, a.log); err != nil {
 		a.log.Error(err, "unable to create deplToApp mapping", "deplToAppMapping", requiredDeplToAppMapping)
+
+		// Set error in status.condition in GitOpsDeployment object.
+		if conditionErr := adapter.setGitOpsDeploymentCondition(managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred, managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred, err); conditionErr != nil {
+			a.log.Error(conditionErr, "Failed while setting condition into.")
+		}
 		return false, nil, nil, err
 	}
 
@@ -227,6 +246,11 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, a.log)
 	if err != nil {
 		a.log.Error(err, "could not create operation", "namespace", operationNamespace)
+
+		// Set error in status.condition in GitOpsDeployment object.
+		if conditionErr := adapter.setGitOpsDeploymentCondition(managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred, managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred, err); conditionErr != nil {
+			a.log.Error(conditionErr, "Failed while setting condition into.")
+		}
 		return false, nil, nil, err
 	}
 
@@ -279,6 +303,10 @@ func (a applicationEventLoopRunner_Action) handleDeleteGitOpsDeplEvent(ctx conte
 func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx context.Context, deplToAppMapping *db.DeploymentToApplicationMapping,
 	gitopsDeployment *managedgitopsv1alpha1.GitOpsDeployment, clusterUser *db.ClusterUser, operationNamespace string,
 	dbQueries db.ApplicationScopedQueries) (bool, *db.Application, *db.GitopsEngineInstance, error) {
+
+	// Create a gitOpsDeploymentAdapter to plug any conditions
+	conditionManager := condition.NewConditionManager()
+	adapter := newGitOpsDeploymentAdapter(gitopsDeployment, a.log, a.workspaceClient, conditionManager, ctx)
 
 	if deplToAppMapping == nil || gitopsDeployment == nil || clusterUser == nil {
 		return false, nil, nil, fmt.Errorf("unexpected nil param in handleUpdatedGitOpsDeplEvent: %v %v %v", deplToAppMapping, gitopsDeployment, clusterUser)
@@ -356,6 +384,11 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 
 	if err := dbQueries.UpdateApplication(ctx, application); err != nil {
 		log.Error(err, "Unable to update application, after mismatch detected")
+
+		// Set error in status.condition in GitOpsDeployment object.
+		if conditionErr := adapter.setGitOpsDeploymentCondition(managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred, managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred, err); conditionErr != nil {
+			a.log.Error(conditionErr, "Failed while setting condition into.")
+		}
 		return false, nil, nil, err
 	}
 	log.Info("Application Updated with ID: " + application.Application_id)
@@ -377,6 +410,11 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		operationNamespace, dbQueries, gitopsEngineClient, log)
 	if err != nil {
 		log.Error(err, "could not create operation", "operation", dbOperation.Operation_id, "namespace", operationNamespace)
+
+		// Set error in status.condition in GitOpsDeployment object.
+		if conditionErr := adapter.setGitOpsDeploymentCondition(managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred, managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred, err); conditionErr != nil {
+			a.log.Error(conditionErr, "Failed while setting condition into.")
+		}
 		return false, nil, nil, err
 	}
 

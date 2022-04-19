@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -66,6 +67,10 @@ func TestCreateandDeleteDeploymentToApplicationMapping(t *testing.T) {
 	err = dbq.GetDeploymentToApplicationMappingByDeplId(ctx, fetchRow)
 	assert.True(t, IsResultNotFoundError(err))
 
+	// Set the invalid value
+	deploymentToApplicationMapping.DeploymentName = strings.Repeat("abc", 100)
+	err = dbq.CreateDeploymentToApplicationMapping(ctx, deploymentToApplicationMapping)
+	assert.True(t, isMaxLengthError(err))
 }
 
 func TestAllListDeploymentToApplicationMapping(t *testing.T) {

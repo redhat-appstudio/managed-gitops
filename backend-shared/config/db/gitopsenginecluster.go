@@ -159,6 +159,10 @@ func (dbq *PostgreSQLDatabaseQueries) CreateGitopsEngineCluster(ctx context.Cont
 		return fmt.Errorf("cluster credentials field should not be empty")
 	}
 
+	if err := validateFieldLength(obj); err != nil {
+		return err
+	}
+
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
 		return fmt.Errorf("error on inserting engine cluster: %v", err)

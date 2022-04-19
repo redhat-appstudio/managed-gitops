@@ -1,8 +1,9 @@
 package db
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTruncateVarchar(t *testing.T) {
@@ -132,5 +133,12 @@ func TestTruncateVarchar(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equalf(t, tt.want, TruncateVarchar(tt.args.s, tt.args.maxLength), "TruncateVarchar(%v, %v)", tt.args.s, tt.args.maxLength)
 		})
+	}
+}
+
+func TestGetConstantValue(t *testing.T) {
+	for field, value := range DbFieldMap {
+		result := getConstantValue(field)
+		assert.Equal(t, value, result)
 	}
 }

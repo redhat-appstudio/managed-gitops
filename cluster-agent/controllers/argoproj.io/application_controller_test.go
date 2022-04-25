@@ -38,7 +38,9 @@ var _ = Describe("Application Controller", func() {
 		var err error
 
 		BeforeEach(func() {
-			scheme, argocdNamespace, kubesystemNamespace, workspace, _ := eventlooptypes.GenericTestSetup()
+			scheme, argocdNamespace, kubesystemNamespace, workspace, err := eventlooptypes.GenericTestSetup()
+			Expect(err).To(BeNil())
+
 			err = appv1.AddToScheme(scheme)
 			Expect(err).To(BeNil())
 
@@ -50,13 +52,10 @@ var _ = Describe("Application Controller", func() {
 				},
 			}
 
-			informer := sharedutil.ListEventReceiver{}
-
 			// Fake kube client.
 			k8sClientOuter := fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).Build()
 			k8sClient = &sharedutil.ProxyClient{
 				InnerClient: k8sClientOuter,
-				Informer:    &informer,
 			}
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
@@ -103,6 +102,9 @@ var _ = Describe("Application Controller", func() {
 		})
 
 		It("Create New Application CR in namespace and database and ApplicationState does not exist so it will create ApplicationState", func() {
+			// Close database connection.
+			defer dbQueries.CloseDatabase()
+
 			ctx = context.Background()
 
 			// Add databaseID label to applicationID.
@@ -131,6 +133,9 @@ var _ = Describe("Application Controller", func() {
 		})
 
 		It("ApplicationState already exists, so just update it", func() {
+			// Close database connection.
+			defer dbQueries.CloseDatabase()
+
 			ctx = context.Background()
 
 			// Add databaseID label to applicationID.
@@ -169,6 +174,9 @@ var _ = Describe("Application Controller", func() {
 		})
 
 		It("Application CR missing corresponding namespace entry", func() {
+			// Close database connection.
+			defer dbQueries.CloseDatabase()
+
 			ctx = context.Background()
 
 			// Add databaseID label to applicationID.
@@ -193,6 +201,9 @@ var _ = Describe("Application Controller", func() {
 		})
 
 		It("Application CR missing corresponding database entry", func() {
+			// Close database connection.
+			defer dbQueries.CloseDatabase()
+
 			ctx = context.Background()
 
 			// Create a new ArgoCD Application.
@@ -207,6 +218,9 @@ var _ = Describe("Application Controller", func() {
 		})
 
 		It("Delete Application CR from namespace", func() {
+			// Close database connection.
+			defer dbQueries.CloseDatabase()
+
 			ctx = context.Background()
 
 			// Create a new ArgoCD Application.
@@ -225,6 +239,9 @@ var _ = Describe("Application Controller", func() {
 		})
 
 		It("Delete Application CR from database", func() {
+			// Close database connection.
+			defer dbQueries.CloseDatabase()
+
 			ctx = context.Background()
 
 			// Add databaseID label to applicationID.

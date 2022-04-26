@@ -168,3 +168,18 @@ func generateUuid() string {
 func isEmpty(str string) bool {
 	return len(strings.TrimSpace(str)) == 0
 }
+
+func ConvertSnakeCaseToCamelCase(fieldName string) string {
+	splitFieldName := strings.Split(fieldName, "_")
+	var fieldNameInCamelCase string
+
+	for i := 0; i < len(splitFieldName); i++ {
+		if splitFieldName[i] == "id" || splitFieldName[i] == "uid" || splitFieldName[i] == "url" {
+			fieldNameInCamelCase += strings.ToUpper(splitFieldName[i])
+		} else {
+			fieldNameInCamelCase += strings.Title(splitFieldName[i])
+		}
+	}
+
+	return fieldNameInCamelCase
+}

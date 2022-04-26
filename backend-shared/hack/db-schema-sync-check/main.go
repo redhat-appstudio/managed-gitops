@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 )
 
 const (
@@ -67,7 +69,7 @@ func parseDBSchema(DBSchemaRelativeFileLocation string) map[string]string {
 					spaces := regexp.MustCompile(`\s+`)
 					// remove all leading white spaces
 					fieldName := spaces.ReplaceAllString(strings.Split(dbSchema[i], " ")[0], "")
-					fieldNameInCamelCase := convertSnakeCaseToCamelCase(fieldName)
+					fieldNameInCamelCase := db.ConvertSnakeCaseToCamelCase(fieldName)
 					currentField := strings.ReplaceAll(dbSchema[i], " ", "")
 					// extract size of the VARCHAR field as a substring
 					StartIndexOfSize := strings.Index(currentField, "(")
@@ -118,21 +120,6 @@ func parseDBConstants(DBFieldConstantsRelativeFileLocation string) map[string]st
 	}
 
 	return fieldConstantToSize
-}
-
-func convertSnakeCaseToCamelCase(fieldName string) string {
-	splitFieldName := strings.Split(fieldName, "_")
-	var fieldNameInCamelCase string
-
-	for i := 0; i < len(splitFieldName); i++ {
-		if splitFieldName[i] == "id" || splitFieldName[i] == "uid" || splitFieldName[i] == "url" {
-			fieldNameInCamelCase += strings.ToUpper(splitFieldName[i])
-		} else {
-			fieldNameInCamelCase += strings.Title(splitFieldName[i])
-		}
-	}
-
-	return fieldNameInCamelCase
 }
 
 func exitWithError(err error) {

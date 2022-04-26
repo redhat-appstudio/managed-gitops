@@ -249,7 +249,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		Application_id:                        application.Application_id,
 		DeploymentName:                        gitopsDeployment.Name,
 		DeploymentNamespace:                   gitopsDeployment.Namespace,
-		NamespaceUID:                          eventlooptypes.GetWorkspaceIDFromNamespaceID(gitopsDeplNamespace),
+		WorkspaceUID:                          eventlooptypes.GetWorkspaceIDFromNamespaceID(gitopsDeplNamespace),
 	}
 
 	a.log.Info("Upserting new DeploymentToApplicationMapping in DB: " + requiredDeplToAppMapping.Deploymenttoapplicationmapping_uid_id)
@@ -511,7 +511,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		// Log the warning, but continue
 		log.Info("no application rows deleted for application state", "rowsDeleted", rowsDeleted)
 	} else {
-		log.Info("ApplicationState rows deleted App ID: "+deplToAppMapping.Application_id, "rowsDeleted", rowsDeleted)
+		log.Info("ApplicationState rows deleted App ID: ", "application_id", deplToAppMapping.Application_id, "rowsDeleted", rowsDeleted)
 	}
 
 	// Remove DeplToAppMapping

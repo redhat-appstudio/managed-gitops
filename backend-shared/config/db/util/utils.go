@@ -31,7 +31,7 @@ import (
 // just return that.
 //
 // This logic would be improved by https://issues.redhat.com/browse/GITOPSRVCE-73 (and others)
-const DefaultGitOpsEngineSingleInstanceNamespace = "argocd"
+const DefaultGitOpsEngineSingleInstanceNamespace = "gitops-service-argocd"
 
 func GetGitOpsEngineSingleInstanceNamespace() string {
 

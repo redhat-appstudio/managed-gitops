@@ -143,7 +143,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 				if newEvent.EventType == eventlooptypes.DeploymentModified {
 
 					// Handle all GitOpsDeployment related events
-					signalledShutdown, _, _, err = action.applicationEventRunner_handleDeploymentModified(ctx, scopedDBQueries)
+					signalledShutdown, _, _, _, err = action.applicationEventRunner_handleDeploymentModified(ctx, scopedDBQueries)
 
 					// Get the GitOpsDeployment object from k8s, so we can update it if necessary
 					gitopsDepl, clientError := getMatchingGitOpsDeployment(ctx, newEvent.Request.Name, newEvent.Request.Namespace, newEvent.Client)

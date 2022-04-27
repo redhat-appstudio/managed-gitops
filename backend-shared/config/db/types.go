@@ -152,7 +152,7 @@ const (
 )
 
 // Operation
-// Operations are used to by the backend to communicate database changes to the cluster-agent.
+// Operations are used by the backend to communicate database changes to the cluster-agent.
 // It is the reponsibility of the cluster agent to respond to operations, to read the database
 // to discover what database changes occurred, and to ensure that Argo CD is consistent with
 // the database state.

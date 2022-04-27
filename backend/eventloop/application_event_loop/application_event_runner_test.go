@@ -18,7 +18,9 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	testStructs "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1/mocks/structs"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,36 +32,127 @@ import (
 var _ = Describe("ApplicationEventLoop Test", func() {
 
 	Context("Handle deployment modified", func() {
+		var err error
+		var workspaceID string
+		var ctx context.Context
+		var scheme *runtime.Scheme
+		var workspace *v1.Namespace
+		var argocdNamespace *v1.Namespace
+		var dbQueries db.AllDatabaseQueries
+		var k8sClientOuter client.WithWatch
+		var k8sClient *sharedutil.ProxyClient
+		var kubesystemNamespace *v1.Namespace
+		var informer sharedutil.ListEventReceiver
+		var gitopsDepl *managedgitopsv1alpha1.GitOpsDeployment
+		var appEventLoopRunnerAction applicationEventLoopRunner_Action
 
-		It("create a deployment and ensure it processed, then delete it an ensure that is processed", func() {
-			ctx := context.Background()
+		BeforeEach(func() {
+			ctx = context.Background()
+			informer = sharedutil.ListEventReceiver{}
 
-			scheme, argocdNamespace, kubesystemNamespace, workspace, err := eventlooptypes.GenericTestSetup()
+			scheme,
+				argocdNamespace,
+				kubesystemNamespace,
+				workspace,
+				err = eventlooptypes.GenericTestSetup()
 			Expect(err).To(BeNil())
 
-			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
+			workspaceID = string(workspace.UID)
+
+			gitopsDepl = &managedgitopsv1alpha1.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-gitops-depl",
 					Namespace: workspace.Name,
 					UID:       uuid.NewUUID(),
 				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/abc-org/abc-repo",
+						Path:           "/abc-path",
+						TargetRevision: "abc-commit"},
+					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated,
+					Destination: managedgitopsv1alpha1.ApplicationDestination{
+						Namespace: "abc-namespace",
+					},
+				},
 			}
 
-			informer := sharedutil.ListEventReceiver{}
+			k8sClientOuter = fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).
+				Build()
 
-			k8sClientOuter := fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).Build()
-			k8sClient := &sharedutil.ProxyClient{
+			k8sClient = &sharedutil.ProxyClient{
 				InnerClient: k8sClientOuter,
 				Informer:    &informer,
 			}
 
-			workspaceID := string(workspace.UID)
-
-			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
+			dbQueries, err = db.NewUnsafePostgresDBQueries(false, false)
 			Expect(err).To(BeNil())
 
-			a := applicationEventLoopRunner_Action{
-				// When the code asks for a new k8s client, give it our fake client
+			appEventLoopRunnerAction = applicationEventLoopRunner_Action{
+				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+					return k8sClient, nil
+				},
+				eventResourceName:           gitopsDepl.Name,
+				eventResourceNamespace:      gitopsDepl.Namespace,
+				workspaceClient:             k8sClient,
+				log:                         log.FromContext(context.Background()),
+				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
+				workspaceID:                 workspaceID,
+				testOnlySkipCreateOperation: true,
+			}
+		})
+
+		It("Should update existing deployment, instead of creating new.", func() {
+
+			// ----------------------------------------------------------------------------
+			By("Create new deployment.")
+			// ----------------------------------------------------------------------------
+			var message deploymentModifiedResult
+			_, _, _, message, err = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+
+			Expect(err).To(BeNil())
+			Expect(message).To(Equal(deploymentModifiedresult_Created))
+
+			// ----------------------------------------------------------------------------
+			By("Verify that database entries are created.")
+			// ----------------------------------------------------------------------------
+
+			var appMappingsFirst []db.DeploymentToApplicationMapping
+			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappingsFirst)
+
+			Expect(err).To(BeNil())
+			Expect(len(appMappingsFirst)).To(Equal(1))
+
+			deplToAppMappingFirst := appMappingsFirst[0]
+			applicationFirst := db.Application{Application_id: deplToAppMappingFirst.Application_id}
+			err = dbQueries.GetApplicationById(context.Background(), &applicationFirst)
+
+			Expect(err).To(BeNil())
+
+			//############################################################################
+
+			// ----------------------------------------------------------------------------
+			By("Update existing deployment.")
+			// ----------------------------------------------------------------------------
+
+			gitopsDepl.Spec.Source.Path = "/def-path"
+			gitopsDepl.Spec.Source.RepoURL = "https://github.com/def-org/def-repo"
+			gitopsDepl.Spec.Source.TargetRevision = "def-commit"
+			gitopsDepl.Spec.Destination.Namespace = "def-namespace"
+
+			// Create new client and application runner, but pass existing gitOpsDeployment object.
+			k8sClientOuter = fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).
+				Build()
+			k8sClient = &sharedutil.ProxyClient{
+				InnerClient: k8sClientOuter,
+				Informer:    &informer,
+			}
+
+			appEventLoopRunnerActionSecond := applicationEventLoopRunner_Action{
 				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 					return k8sClient, nil
 				},
@@ -72,9 +165,219 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				testOnlySkipCreateOperation: true,
 			}
 
-			// ------
+			// ----------------------------------------------------------------------------
+			By("This should update the existing application.")
+			// ----------------------------------------------------------------------------
 
-			_, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			_, _, _, message, err = appEventLoopRunnerActionSecond.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(err).To(BeNil())
+			Expect(message).To(Equal(deploymentModifiedresult_Updated))
+
+			// ----------------------------------------------------------------------------
+			By("Verify that the database entries have been updated.")
+			// ----------------------------------------------------------------------------
+
+			var appMappingsSecond []db.DeploymentToApplicationMapping
+			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappingsSecond)
+
+			Expect(err).To(BeNil())
+			Expect(len(appMappingsSecond)).To(Equal(1))
+
+			deplToAppMappingSecond := appMappingsSecond[0]
+			applicationSecond := db.Application{Application_id: deplToAppMappingSecond.Application_id}
+			err = dbQueries.GetApplicationById(context.Background(), &applicationSecond)
+
+			Expect(err).To(BeNil())
+			Expect(applicationFirst.SeqID).To(Equal(applicationSecond.SeqID))
+			Expect(applicationFirst.Spec_field).NotTo(Equal(applicationSecond.Spec_field))
+
+			clusterUser := db.ClusterUser{User_name: string(workspace.UID)}
+			err = dbQueries.GetClusterUserByUsername(context.Background(), &clusterUser)
+			Expect(err).To(BeNil())
+
+			gitopsEngineInstance := db.GitopsEngineInstance{Gitopsengineinstance_id: applicationSecond.Engine_instance_inst_id}
+			err = dbQueries.GetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance)
+			Expect(err).To(BeNil())
+
+			managedEnvironment := db.ManagedEnvironment{Managedenvironment_id: applicationSecond.Managed_environment_id}
+			err = dbQueries.GetManagedEnvironmentById(ctx, &managedEnvironment)
+			Expect(err).To(BeNil())
+
+			//############################################################################
+
+			// ----------------------------------------------------------------------------
+			By("Delete the GitOpsDepl and verify that the corresponding DB entries are removed.")
+			// ----------------------------------------------------------------------------
+
+			err = k8sClient.Delete(ctx, gitopsDepl)
+			Expect(err).To(BeNil())
+
+			_, _, _, message, err = appEventLoopRunnerActionSecond.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(err).To(BeNil())
+			Expect(message).To(Equal(deploymentModifiedresult_Deleted))
+
+			// Application should no longer exist
+			err = dbQueries.GetApplicationById(ctx, &applicationSecond)
+			Expect(err).ToNot(BeNil())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+
+			// DeploymentToApplicationMapping should be removed, too
+			var appMappings []db.DeploymentToApplicationMapping
+			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
+			Expect(err).To(BeNil())
+			Expect(len(appMappings)).To(Equal(0))
+
+			// GitopsEngine instance should still be reachable
+			err = dbQueries.GetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance)
+			Expect(err).To(BeNil())
+
+			operationCreated := false
+			operationDeleted := false
+			for _, event := range informer.Events {
+				if event.Action == sharedutil.Create && event.ObjectTypeOf() == "Operation" {
+					operationCreated = true
+				}
+				if event.Action == sharedutil.Delete && event.ObjectTypeOf() == "Operation" {
+					operationDeleted = true
+				}
+			}
+
+			Expect(operationCreated).To(BeTrue())
+			Expect(operationDeleted).To(BeTrue())
+		})
+
+		It("Should not deploy application, as request data is not valid.", func() {
+
+			appEventLoopRunnerAction = applicationEventLoopRunner_Action{
+				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+					return k8sClient, nil
+				},
+				eventResourceName:           gitopsDepl.Name,
+				workspaceClient:             k8sClient,
+				log:                         log.FromContext(context.Background()),
+				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
+				workspaceID:                 workspaceID,
+				testOnlySkipCreateOperation: true,
+			}
+
+			// This should fail while creating new application
+			_, _, _, _, err = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(err).NotTo(BeNil())
+
+			// ----------------------------------------------------------------------------
+			By("Verify that the database entry is not created.")
+			// ----------------------------------------------------------------------------
+
+			var appMappings []db.DeploymentToApplicationMapping
+			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
+
+			Expect(err).To(BeNil())
+			Expect(len(appMappings)).To(Equal(0))
+		})
+
+		It("Should not update existing deployment, if no changes were done in fields.", func() {
+			// This should create new application
+			var message deploymentModifiedResult
+			_, _, _, message, err = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+
+			Expect(err).To(BeNil())
+			Expect(message).To(Equal(deploymentModifiedresult_Created))
+
+			// ----------------------------------------------------------------------------
+			By("Verify that the database entries have been created.")
+			// ----------------------------------------------------------------------------
+
+			var appMappingsFirst []db.DeploymentToApplicationMapping
+			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappingsFirst)
+
+			Expect(err).To(BeNil())
+			Expect(len(appMappingsFirst)).To(Equal(1))
+
+			deplToAppMappingFirst := appMappingsFirst[0]
+			applicationFirst := db.Application{Application_id: deplToAppMappingFirst.Application_id}
+			err = dbQueries.GetApplicationById(context.Background(), &applicationFirst)
+			Expect(err).To(BeNil())
+
+			//--------------------------------------------------------------------------------------
+			// Now create new client and event loop runner object.
+			//--------------------------------------------------------------------------------------
+
+			k8sClientOuter = fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).Build()
+			k8sClient = &sharedutil.ProxyClient{
+				InnerClient: k8sClientOuter,
+				Informer:    &informer,
+			}
+
+			appEventLoopRunnerActionSecond := applicationEventLoopRunner_Action{
+				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+					return k8sClient, nil
+				},
+				eventResourceName:           gitopsDepl.Name,
+				eventResourceNamespace:      gitopsDepl.Namespace,
+				workspaceClient:             k8sClient,
+				log:                         log.FromContext(context.Background()),
+				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
+				workspaceID:                 workspaceID,
+				testOnlySkipCreateOperation: true,
+			}
+
+			//--------------------------------------------------------------------------------------
+			// Pass same gitOpsDeployment again, but no changes should be done in the application.
+			//--------------------------------------------------------------------------------------
+			_, _, _, message, err = appEventLoopRunnerActionSecond.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+
+			Expect(err).To(BeNil())
+			Expect(message).To(Equal(deploymentModifiedresult_NoChange))
+
+			//############################################################################
+
+			// ----------------------------------------------------------------------------
+			By("Delete the GitOpsDepl and verify that the corresponding DB entries are removed.")
+			// ----------------------------------------------------------------------------
+
+			err = k8sClient.Delete(ctx, gitopsDepl)
+			Expect(err).To(BeNil())
+
+			_, _, _, message, err = appEventLoopRunnerActionSecond.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(err).To(BeNil())
+			Expect(message).To(Equal(deploymentModifiedresult_Deleted))
+
+			// Application should no longer exist
+			err = dbQueries.GetApplicationById(ctx, &applicationFirst)
+			Expect(err).ToNot(BeNil())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+
+			// DeploymentToApplicationMapping should be removed, too
+			var appMappings []db.DeploymentToApplicationMapping
+			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
+			Expect(err).To(BeNil())
+			Expect(len(appMappings)).To(Equal(0))
+
+			// GitopsEngine instance should still be reachable
+			gitopsEngineInstance := db.GitopsEngineInstance{Gitopsengineinstance_id: applicationFirst.Engine_instance_inst_id}
+			err = dbQueries.GetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance)
+			Expect(err).To(BeNil())
+
+			err = dbQueries.GetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance)
+			Expect(err).To(BeNil())
+
+			operationCreated := false
+			operationDeleted := false
+			for _, event := range informer.Events {
+				if event.Action == sharedutil.Create && event.ObjectTypeOf() == "Operation" {
+					operationCreated = true
+				}
+				if event.Action == sharedutil.Delete && event.ObjectTypeOf() == "Operation" {
+					operationDeleted = true
+				}
+			}
+
+			Expect(operationCreated).To(BeTrue())
+			Expect(operationDeleted).To(BeTrue())
+		})
+
+		It("create a deployment and ensure it processed, then delete it an ensure that is processed", func() {
+			_, _, _, _, err = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(err).To(BeNil())
 
 			// Verify that the database entries have been created -----------------------------------------
@@ -123,7 +426,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			err = k8sClient.Delete(ctx, gitopsDepl)
 			Expect(err).To(BeNil())
 
-			_, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			_, _, _, _, err = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(err).To(BeNil())
 
 			// Application should no longer exist
@@ -201,7 +504,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			// ------
 
-			_, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			_, _, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(err).NotTo(BeNil())
 
 			gitopsDeployment := &managedgitopsv1alpha1.GitOpsDeployment{}
@@ -273,7 +576,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				workspaceID:                 string(workspace.UID),
 				testOnlySkipCreateOperation: true,
 			}
-			_, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			_, _, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(err).To(BeNil())
 
 			// 2) add a sync run modified event, to ensure the sync run is added to the database, and processed
@@ -348,7 +651,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				workspaceID:                 string(workspace.UID),
 				testOnlySkipCreateOperation: true,
 			}
-			_, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			_, _, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(err).To(BeNil())
 
 			// 2) add a sync run modified event, to ensure the sync run is added to the database, and processed

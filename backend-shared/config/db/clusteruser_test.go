@@ -1,11 +1,13 @@
-package db
+package db_test
 
 import (
 	"context"
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 )
 
 func TestClusterUserFunctions(t *testing.T) {
@@ -13,20 +15,16 @@ func TestClusterUserFunctions(t *testing.T) {
 	defer TestTeardown(t)
 	ctx := context.Background()
 
-	dbq, err := NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
+	dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+	Expect(err).To(BeNil())
 	defer dbq.CloseDatabase()
 
-	user := &ClusterUser{
+	user := &db.ClusterUser{
 		Clusteruser_id: "test-user-id",
 		User_name:      "tirthuser",
 	}
 	err = dbq.CreateClusterUser(ctx, user)
-	if !assert.NoError(t, err) {
-		return
-	}
+	Expect(err).To(BeNil())
 
 	retrieveUser := &ClusterUser{
 		User_name: "tirthuser",

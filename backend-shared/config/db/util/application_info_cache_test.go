@@ -117,7 +117,7 @@ func TestGetApplicationStateById(t *testing.T) {
 	assert.False(t, isFromCache)
 	assert.Equal(t, getAppState, testAppState)
 
-	//calling the same GetApplicationStateById again should come from cache, hence ifFromCache should be True
+	//calling the same GetApplicationStateById again should come from cache, hence isFromCache should be True
 	_, isFromCache, errGet = asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
 	assert.NoError(t, errGet)
 	assert.True(t, isFromCache)

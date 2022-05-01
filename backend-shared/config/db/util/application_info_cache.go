@@ -3,6 +3,8 @@ package util
 import (
 	"context"
 	"fmt"
+	"math/rand"
+	"time"
 
 	"github.com/prometheus/common/log"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
@@ -21,39 +23,14 @@ func NewApplicationInfoCache() *ApplicationInfoCache {
 	return res
 }
 
-type ApplicationInfoCacheMessageType int
-
 const (
 	ApplicationStateCacheMessage_Get ApplicationInfoCacheMessageType = iota
 	ApplicationCacheMessage_Get
 	ApplicationStateCacheMessage_Create
 	ApplicationStateCacheMessage_Update
 	ApplicationStateCacheMessage_Delete
+	ApplicationInfoCacheMessage_ExpireCacheEntries
 )
-
-type ApplicationInfoCache struct {
-	channel chan applicationInfoCacheRequest
-}
-
-type applicationInfoCacheRequest struct {
-	ctx                          context.Context
-	msgType                      ApplicationInfoCacheMessageType
-	createOrUpdateAppStateObject db.ApplicationState
-	primaryKey                   string
-	responseChannel              chan applicationInfoCacheResponse
-}
-
-type applicationInfoCacheResponse struct {
-	application      db.Application
-	applicationState db.ApplicationState
-	err              error
-
-	// valueFromCache is true if the value that was returned came from the cache, false otherwise.
-	valueFromCache bool
-
-	// Delete only: rowsAffectedForDelete contains the number of rows that were affected by the deletion oepration
-	rowsAffectedForDelete int
-}
 
 func (asc *ApplicationInfoCache) GetApplicationById(ctx context.Context, id string) (db.Application, bool, error) {
 
@@ -187,8 +164,12 @@ func (asc *ApplicationInfoCache) DeleteApplicationStateById(ctx context.Context,
 
 func applicationInfoCacheLoop(inputChan chan applicationInfoCacheRequest) {
 
-	cacheAppState := map[string]db.ApplicationState{}
-	cacheApp := map[string]db.Application{}
+	startTimer(&ApplicationInfoCache{
+		channel: inputChan,
+	})
+
+	cacheAppState := map[string]applicationStateCacheEntry{}
+	cacheApp := map[string]applicationCacheEntry{}
 
 	dbQueries, err := db.NewProductionPostgresDBQueries(false)
 	if err != nil {
@@ -200,19 +181,22 @@ func applicationInfoCacheLoop(inputChan chan applicationInfoCacheRequest) {
 
 		request := <-inputChan
 		if request.msgType == ApplicationStateCacheMessage_Get {
-			processGetAppStateMessage(dbQueries, request, cacheAppState)
+			processGetAppStateMessage(dbQueries, request, cacheApp, cacheAppState)
 
 		} else if request.msgType == ApplicationStateCacheMessage_Create {
-			processCreateAppStateMessage(dbQueries, request, cacheAppState)
+			processCreateAppStateMessage(dbQueries, request, cacheApp, cacheAppState)
 
 		} else if request.msgType == ApplicationStateCacheMessage_Update {
-			processUpdateAppStateMessage(dbQueries, request, cacheAppState)
+			processUpdateAppStateMessage(dbQueries, request, cacheApp, cacheAppState)
 
 		} else if request.msgType == ApplicationStateCacheMessage_Delete {
-			processDeleteAppStateMessage(dbQueries, request, cacheAppState)
+			processDeleteAppStateMessage(dbQueries, request, cacheApp, cacheAppState)
 
 		} else if request.msgType == ApplicationCacheMessage_Get {
-			processGetAppMessage(dbQueries, request, cacheApp)
+			processGetAppMessage(dbQueries, request, cacheApp, cacheAppState)
+
+		} else if request.msgType == ApplicationInfoCacheMessage_ExpireCacheEntries {
+			processExpireCacheEntriesMessage(cacheApp, cacheAppState, inputChan)
 
 		} else {
 			log.Error(nil, "SEVERE: unimplemented message type")
@@ -222,13 +206,26 @@ func applicationInfoCacheLoop(inputChan chan applicationInfoCacheRequest) {
 	}
 }
 
-func processCreateAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cache map[string]db.ApplicationState) {
+func processCreateAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cacheApp map[string]applicationCacheEntry, cacheAppState map[string]applicationStateCacheEntry) {
 	err := dbQueries.CreateApplicationState(req.ctx, &req.createOrUpdateAppStateObject)
 
 	if err == nil {
 		// Create the cache on success
 		var appState db.ApplicationState = req.createOrUpdateAppStateObject
-		cache[req.primaryKey] = appState
+
+		if entryInCache, exists := cacheAppState[req.primaryKey]; !exists {
+			entryInCache.appState = appState
+			cacheAppState[req.primaryKey] = entryInCache
+		}
+	} else {
+		// An error occurred, so remove the cache entry from both the application state, and the application,
+		// so that it can be re-acquired.
+		// A common error returned by dbQueries above, will be that the applicate state cannot be updated, because the application no
+		// longer exists in the database.
+		// This is normal, and occurs when a GitOpsDeployment is deleted (and then the corresponding Application/Application state are deleted as well).
+		// In this case, we need to remove the Application/ApplicationState from the DB, as they have likely been deleted (and thus should no longer be cached.)
+		delete(cacheApp, req.createOrUpdateAppStateObject.Applicationstate_application_id)
+		delete(cacheAppState, req.createOrUpdateAppStateObject.Applicationstate_application_id)
 	}
 
 	req.responseChannel <- applicationInfoCacheResponse{
@@ -237,14 +234,20 @@ func processCreateAppStateMessage(dbQueries db.DatabaseQueries, req applicationI
 
 }
 
-func processUpdateAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cache map[string]db.ApplicationState) {
+func processUpdateAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cacheApp map[string]applicationCacheEntry, cacheAppState map[string]applicationStateCacheEntry) {
 
 	err := dbQueries.UpdateApplicationState(req.ctx, &req.createOrUpdateAppStateObject)
 
 	if err == nil {
 		// Update the cache on success
 		var appState db.ApplicationState = req.createOrUpdateAppStateObject
-		cache[req.primaryKey] = appState
+		if entryInCache, exists := cacheAppState[req.primaryKey]; !exists {
+			entryInCache.appState = appState
+			cacheAppState[req.primaryKey] = entryInCache
+		}
+	} else {
+		delete(cacheApp, req.createOrUpdateAppStateObject.Applicationstate_application_id)
+		delete(cacheAppState, req.createOrUpdateAppStateObject.Applicationstate_application_id)
 	}
 
 	req.responseChannel <- applicationInfoCacheResponse{
@@ -253,14 +256,15 @@ func processUpdateAppStateMessage(dbQueries db.DatabaseQueries, req applicationI
 
 }
 
-func processDeleteAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cache map[string]db.ApplicationState) {
+func processDeleteAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cacheApp map[string]applicationCacheEntry, cacheAppState map[string]applicationStateCacheEntry) {
 
 	if db.IsEmpty(req.primaryKey) {
 		log.Error(fmt.Errorf("PrimaryKey should not be nil"), "SEVERE: "+req.primaryKey+" not found")
 	}
 
 	// Remove from cache
-	delete(cache, req.primaryKey)
+	delete(cacheAppState, req.primaryKey)
+	delete(cacheApp, req.primaryKey)
 
 	// Remove from DB
 	rowsAffected, err := dbQueries.DeleteApplicationStateById(req.ctx, req.primaryKey)
@@ -272,7 +276,7 @@ func processDeleteAppStateMessage(dbQueries db.DatabaseQueries, req applicationI
 
 }
 
-func processGetAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cache map[string]db.ApplicationState) {
+func processGetAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cacheApp map[string]applicationCacheEntry, cacheAppState map[string]applicationStateCacheEntry) {
 
 	appState := db.ApplicationState{
 		Applicationstate_application_id: req.primaryKey,
@@ -283,9 +287,12 @@ func processGetAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfo
 
 	if db.IsEmpty(req.primaryKey) {
 		log.Error("PrimaryKey should not be nil: " + req.primaryKey + " not found")
+	} else {
+		delete(cacheAppState, req.createOrUpdateAppStateObject.Applicationstate_application_id)
+		delete(cacheApp, req.createOrUpdateAppStateObject.Applicationstate_application_id)
 	}
 
-	res, exists := cache[appState.Applicationstate_application_id]
+	res, exists := cacheAppState[appState.Applicationstate_application_id]
 	if !exists {
 		// If it's not in the cache, then get it from the database
 		valueFromCache = false
@@ -297,13 +304,16 @@ func processGetAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfo
 		// Update the cache if we get a result from the database
 		// Update valueFromCache to false, since data is retrieved from db
 		if err == nil && appState.Applicationstate_application_id != "" {
-			cache[appState.Applicationstate_application_id] = appState
+			if entryInCache, exists := cacheAppState[appState.Applicationstate_application_id]; !exists {
+				entryInCache.appState = appState
+				cacheAppState[appState.Applicationstate_application_id] = entryInCache
+			}
 		}
 
 	} else {
 		// If it is in the cache, return it from the cache
 		valueFromCache = true
-		appState = res
+		appState = res.appState
 	}
 
 	req.responseChannel <- applicationInfoCacheResponse{
@@ -314,7 +324,7 @@ func processGetAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfo
 
 }
 
-func processGetAppMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cache map[string]db.Application) {
+func processGetAppMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cacheApp map[string]applicationCacheEntry, cacheAppState map[string]applicationStateCacheEntry) {
 
 	app := db.Application{
 		Application_id: req.primaryKey,
@@ -325,11 +335,12 @@ func processGetAppMessage(dbQueries db.DatabaseQueries, req applicationInfoCache
 
 	if db.IsEmpty(req.primaryKey) {
 		log.Error("PrimaryKey should not be nil: " + req.primaryKey + " not found")
+	} else {
+		delete(cacheApp, req.createOrUpdateAppStateObject.Applicationstate_application_id)
+		delete(cacheAppState, req.createOrUpdateAppStateObject.Applicationstate_application_id)
 	}
 
-	res, exists := cache[app.Application_id]
-
-	if !exists {
+	if res, exists := cacheApp[app.Application_id]; !exists {
 		// If it's not in the cache, then get it from the database
 		valueFromCache = false
 		err = dbQueries.GetApplicationById(req.ctx, &app)
@@ -340,13 +351,16 @@ func processGetAppMessage(dbQueries db.DatabaseQueries, req applicationInfoCache
 		// Update the cache if we get a result from the database
 		// Update valueFromCache to false, since data is retrieved from db
 		if err == nil && app.Application_id != "" {
-			cache[app.Application_id] = app
+			if entryInCache, exists := cacheApp[app.Application_id]; !exists {
+				entryInCache.app = app
+				cacheApp[app.Application_id] = entryInCache
+			}
 		}
 
 	} else {
 		// If it is in the cache, return it from the cache
 		valueFromCache = true
-		app = res
+		app = res.app
 	}
 
 	req.responseChannel <- applicationInfoCacheResponse{
@@ -355,4 +369,43 @@ func processGetAppMessage(dbQueries db.DatabaseQueries, req applicationInfoCache
 		err:            err,
 	}
 
+}
+
+func processExpireCacheEntriesMessage(cacheApp map[string]applicationCacheEntry, cacheAppState map[string]applicationStateCacheEntry, inputChan chan applicationInfoCacheRequest) {
+
+	for key, elements := range cacheApp {
+		if time.Duration(elements.cacheExpireTime.Minute()) > time.Minute {
+			delete(cacheApp, key)
+		}
+	}
+
+	for key, elements := range cacheAppState {
+		if time.Duration(elements.cacheExpireTime.Minute()) > time.Minute {
+			delete(cacheAppState, key)
+		}
+	}
+
+	startTimer(&ApplicationInfoCache{
+		channel: inputChan,
+	})
+}
+
+// Timer for every minute to expire cache entries
+// the AIC loop should expire old cache entries
+func startTimer(asc *ApplicationInfoCache) {
+	go func() {
+		// Up to 1 second of jitter
+		// #nosec
+		jitter := time.Duration(int64(time.Millisecond) * int64(rand.Float64()*1000))
+
+		// Wait 60 seconds (plus a little) for the timer to complete
+		statusUpdateTimer := time.NewTimer(time.Second*60 + jitter)
+		<-statusUpdateTimer.C
+
+		// Send the message, indicating its time to expire the old cache entries
+		asc.channel <- applicationInfoCacheRequest{
+			msgType: ApplicationInfoCacheMessage_ExpireCacheEntries,
+		}
+
+	}()
 }

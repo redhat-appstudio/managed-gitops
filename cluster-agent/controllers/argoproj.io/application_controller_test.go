@@ -106,13 +106,13 @@ var _ = Describe("Application Controller", func() {
 		})
 
 		It("Create New Application CR in namespace and database and verify that ApplicationState is created", func() {
-			// Close database connection.
+			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
 
 			ctx = context.Background()
 
-			// Add databaseID label to applicationID.
+			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
 			applicationDB := &db.Application{
 				Application_id:          databaseID,
@@ -126,37 +126,37 @@ var _ = Describe("Application Controller", func() {
 				Applicationstate_application_id: applicationDB.Application_id,
 			}
 
-			// Create a new ArgoCD Application.
+			By("Create a new ArgoCD Application")
 			err = reconciler.Create(ctx, guestbookApp)
 			Expect(err).To(BeNil())
 
-			// Create Application in Database.
+			By("Create Application in Database")
 			err = reconciler.DB.CreateApplication(ctx, applicationDB)
 			Expect(err).To(BeNil())
 
-			// Call reconcile function.
+			By("Call reconcile function")
 			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
 			Expect(err).To(BeNil())
 			Expect(result).ToNot(BeNil())
 
-			// Verify Application State is created in database.
+			By("Verify Application State is created in database")
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationState)
 			Expect(err).To(BeNil())
 
-			// Verify that Health and Status of ArgoCD Application is equal to the Health and Status of Application in database.
+			By("Verify that Health and Status of ArgoCD Application is equal to the Health and Status of Application in database")
 			Expect(applicationState.Health).To(Equal(string(guestbookApp.Status.Health.Status)))
 			Expect(applicationState.Sync_Status).To(Equal(string(guestbookApp.Status.Sync.Status)))
 
 		})
 
 		It("Update an existing Application table in the database, call Reconcile on the Argo CD Application, and verify an existing ApplicationState DB entry is updated", func() {
-			// Close database connection.
+			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
 
 			ctx = context.Background()
 
-			// Add databaseID label to applicationID.
+			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
 			applicationDB := &db.Application{
 				Application_id:          databaseID,
@@ -172,41 +172,41 @@ var _ = Describe("Application Controller", func() {
 				Sync_Status:                     "OutOfSync",
 			}
 
-			// Create Application in Database.
+			By("Create Application in Database")
 			err = reconciler.DB.CreateApplication(ctx, applicationDB)
 			Expect(err).To(BeNil())
 
-			// Create Application in Database.
+			By("Create ApplicationState in Database")
 			err = reconciler.DB.CreateApplicationState(ctx, applicationState)
 			Expect(err).To(BeNil())
 
-			// Create a new ArgoCD Application.
+			By("Create a new ArgoCD Application")
 			err = reconciler.Create(ctx, guestbookApp)
 			Expect(err).To(BeNil())
 
-			// Call reconcile function.
+			By("Call reconcile function")
 			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
 			Expect(err).To(BeNil())
 			Expect(result).ToNot(BeNil())
 
-			// Verify Application State is created in database.
+			By("Verify Application State is created in database")
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationState)
 			Expect(err).To(BeNil())
 
-			// Verify that Health and Status of ArgoCD Application is equal to the Health and Status of Application in database.
+			By("Verify that Health and Status of ArgoCD Application is equal to the Health and Status of Application in database")
 			Expect(applicationState.Health).To(Equal(string(guestbookApp.Status.Health.Status)))
 			Expect(applicationState.Sync_Status).To(Equal(string(guestbookApp.Status.Sync.Status)))
 
 		})
 
-		It("Application CR missing corresponding namespace entry", func() {
-			// Close database connection.
+		It("Calls Reconcile on an Argo CD Application resource that doesn't exist", func() {
+			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
 
 			ctx = context.Background()
 
-			// Add databaseID label to applicationID.
+			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
 			applicationDB := &db.Application{
 				Application_id:          databaseID,
@@ -216,19 +216,19 @@ var _ = Describe("Application Controller", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 
-			// Create Application in Database.
+			By("Create Application in Database")
 			err = reconciler.DB.CreateApplication(ctx, applicationDB)
 			Expect(err).To(BeNil())
 
-			// Call reconcile function.
+			By("Call reconcile function")
 			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
 			Expect(err).To(BeNil())
 			Expect(result).ToNot(BeNil())
 
 		})
 
-		It("Application CR missing corresponding database entry", func() {
-			// Close database connection.
+		It("Has an Argo CD Application that points to a database entry that doesn't exist", func() {
+			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
 			Expect(err).To(BeNil())
@@ -269,7 +269,7 @@ var _ = Describe("Application Controller", func() {
 				},
 			}
 
-			// Add databaseID label to applicationID.
+			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
 			applicationDB := &db.Application{
 				Application_id:          databaseID,
@@ -279,15 +279,15 @@ var _ = Describe("Application Controller", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 
-			// Verify Application is present in database.
+			By("Verify Application is not present in database")
 			err = reconciler.DB.GetApplicationById(ctx, applicationDB)
 			Expect(err).ToNot(BeNil())
 
-			// Create a new ArgoCD Application.
+			By("Create a new ArgoCD Application")
 			err = reconciler.Create(ctx, guestbookApp)
 			Expect(err).To(BeNil())
 
-			// Call reconcile function.
+			By("Call reconcile function")
 			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
 			Expect(err).To(BeNil())
 			Expect(result).ToNot(BeNil())
@@ -295,13 +295,13 @@ var _ = Describe("Application Controller", func() {
 		})
 
 		It("Delete the Argo CD Application resource, and call Reconcile. Assert that no error is returned", func() {
-			// Close database connection.
+			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
 
 			ctx = context.Background()
 
-			// Add databaseID label to applicationID.
+			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
 			applicationDB := &db.Application{
 				Application_id:          databaseID,
@@ -315,35 +315,35 @@ var _ = Describe("Application Controller", func() {
 				Applicationstate_application_id: applicationDB.Application_id,
 			}
 
-			// Create a new ArgoCD Application.
+			By("Create a new ArgoCD Application")
 			err = reconciler.Create(ctx, guestbookApp)
 			Expect(err).To(BeNil())
 
-			// Create Application in Database.
+			By("Create Application in Database")
 			err = reconciler.DB.CreateApplication(ctx, applicationDB)
 			Expect(err).To(BeNil())
 
-			// Call reconcile function.
+			By("Call reconcile function")
 			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
 			Expect(err).To(BeNil())
 			Expect(result).ToNot(BeNil())
 
-			// Verify Application State is created in database.
+			By("Verify Application State is created in database")
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationState)
 			Expect(err).To(BeNil())
 
-			// Delete ArgoCD Application.
+			By("Delete ArgoCD Application")
 			err = reconciler.Delete(ctx, guestbookApp)
 			Expect(err).To(BeNil())
 
-			// Call reconcile function.
+			By("Call reconcile function")
 			_, err = reconciler.Reconcile(ctx, newRequest(namespace, name))
 			Expect(err).To(BeNil())
 
 		})
 
 		It("Health and Sync Status of Application CR is empty, sanitize Health and sync status", func() {
-			// Close database connection.
+			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
 
@@ -375,7 +375,7 @@ var _ = Describe("Application Controller", func() {
 				},
 			}
 
-			// Add databaseID label to applicationID.
+			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
 			applicationDB := &db.Application{
 				Application_id:          databaseID,
@@ -385,15 +385,15 @@ var _ = Describe("Application Controller", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 
-			// Create a new ArgoCD Application.
+			By("Create a new ArgoCD Application")
 			err = reconciler.Create(ctx, guestbookApp)
 			Expect(err).To(BeNil())
 
-			// Create Application in Database.
+			By("Create Application in Database")
 			err = reconciler.DB.CreateApplication(ctx, applicationDB)
 			Expect(err).To(BeNil())
 
-			// Call reconcile function.
+			By("Call reconcile function")
 			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
 			Expect(err).To(BeNil())
 			Expect(result).ToNot(BeNil())

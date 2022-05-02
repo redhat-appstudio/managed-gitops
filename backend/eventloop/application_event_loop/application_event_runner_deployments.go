@@ -249,7 +249,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		Application_id:                        application.Application_id,
 		DeploymentName:                        gitopsDeployment.Name,
 		DeploymentNamespace:                   gitopsDeployment.Namespace,
-		WorkspaceUID:                          eventlooptypes.GetWorkspaceIDFromNamespaceID(gitopsDeplNamespace),
+		NamespaceUID:                          eventlooptypes.GetWorkspaceIDFromNamespaceID(gitopsDeplNamespace),
 	}
 
 	a.log.Info("Upserting new DeploymentToApplicationMapping in DB: " + requiredDeplToAppMapping.Deploymenttoapplicationmapping_uid_id)

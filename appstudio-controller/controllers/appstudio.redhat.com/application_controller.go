@@ -254,6 +254,8 @@ func getGitOpsRepoData(asApplication applicationv1alpha1.Application) (string, s
 		// Ignore KeyNotFoundErrors, but otherwise report the error and return
 		if _, ok := (getErr).(*attributes.KeyNotFoundError); !ok {
 			return "", "", "", fmt.Errorf("unable to retrieve gitops repo branch: %v", getErr)
+		} else {
+			getErr = nil
 		}
 	}
 

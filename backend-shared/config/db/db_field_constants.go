@@ -141,6 +141,7 @@ var DbFieldMap = map[string]int{
 	"DeploymentToApplicationMappingDeploymentNameLength":                      DeploymentToApplicationMappingNameLength,
 	"DeploymentToApplicationMappingNamespaceLength":                           DeploymentToApplicationMappingNamespaceLength,
 	"DeploymentToApplicationMappingDeploymentNamespaceLength":                 DeploymentToApplicationMappingNamespaceLength,
+	"DeploymentToApplicationMappingNamespaceUIDLength":                        DeploymentToApplicationMappingWorkspaceUIDLength,
 	"DeploymentToApplicationMappingWorkspaceUIDLength":                        DeploymentToApplicationMappingWorkspaceUIDLength,
 	"DeploymentToApplicationMappingApplicationIDLength":                       DeploymentToApplicationMappingApplicationIDLength,
 	"KubernetesToDBResourceMappingKubernetesResourceTypeLength":               KubernetesToDBResourceMappingKubernetesResourceTypeLength,

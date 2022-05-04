@@ -124,7 +124,9 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	if reflect.DeepEqual(gopFromApplication.Spec, gitopsDeployment.Spec) {
 		// D) Both exist, but there is no different, so no-op.
-		log.V(sharedutil.LogLevel_Debug).Info("GitOpsDeployment '%s' is unchanged from Application, so did not require an update.", gitopsDeployment.Namespace+"/"+gitopsDeployment.Name)
+		log.V(sharedutil.LogLevel_Debug).Info(fmt.Sprintf("GitOpsDeployment '%s' is unchanged from Application, so did not require an update.",
+			gitopsDeployment.Namespace+"/"+gitopsDeployment.Name))
+
 		return ctrl.Result{}, nil
 	}
 
@@ -138,11 +140,12 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			return ctrl.Result{}, err
 		}
 		log.V(sharedutil.LogLevel_Debug).
-			Info("updating GitOpsDeployment '%s' with new spec: '%s'",
-				gitopsDeployment.Namespace+"/"+gitopsDeployment.Name, string(jsonStr))
+			Info(fmt.Sprintf("updating GitOpsDeployment '%s' with new spec: '%s'",
+				gitopsDeployment.Namespace+"/"+gitopsDeployment.Name, string(jsonStr)))
 
 	} else {
-		log.Info("updating GitOpsDeployment '%s' with new spec", gitopsDeployment.Namespace+"/"+gitopsDeployment.Name)
+		log.Info(fmt.Sprintf("updating GitOpsDeployment '%s' with new spec",
+			gitopsDeployment.Namespace+"/"+gitopsDeployment.Name))
 	}
 
 	if err := r.Client.Update(ctx, gitopsDeployment); err != nil {

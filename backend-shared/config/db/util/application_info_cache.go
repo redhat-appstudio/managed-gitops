@@ -215,7 +215,9 @@ func processCreateAppStateMessage(dbQueries db.DatabaseQueries, req applicationI
 
 		if entryInCache, exists := cacheAppState[req.primaryKey]; !exists {
 			entryInCache.appState = appState
+			entryInCache.cacheExpireTime = time.Now().Add(1 * time.Minute)
 			cacheAppState[req.primaryKey] = entryInCache
+
 		}
 	} else {
 		// An error occurred, so remove the cache entry from both the application state, and the application,
@@ -243,6 +245,7 @@ func processUpdateAppStateMessage(dbQueries db.DatabaseQueries, req applicationI
 		var appState db.ApplicationState = req.createOrUpdateAppStateObject
 		if entryInCache, exists := cacheAppState[req.primaryKey]; !exists {
 			entryInCache.appState = appState
+			entryInCache.cacheExpireTime = time.Now().Add(1 * time.Minute)
 			cacheAppState[req.primaryKey] = entryInCache
 		}
 	} else {
@@ -287,9 +290,6 @@ func processGetAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfo
 
 	if db.IsEmpty(req.primaryKey) {
 		log.Error("PrimaryKey should not be nil: " + req.primaryKey + " not found")
-	} else {
-		delete(cacheAppState, req.createOrUpdateAppStateObject.Applicationstate_application_id)
-		delete(cacheApp, req.createOrUpdateAppStateObject.Applicationstate_application_id)
 	}
 
 	res, exists := cacheAppState[appState.Applicationstate_application_id]
@@ -299,6 +299,9 @@ func processGetAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfo
 		err = dbQueries.GetApplicationStateById(req.ctx, &appState)
 		if err != nil {
 			appState = db.ApplicationState{}
+		} else {
+			delete(cacheAppState, req.createOrUpdateAppStateObject.Applicationstate_application_id)
+			delete(cacheApp, req.createOrUpdateAppStateObject.Applicationstate_application_id)
 		}
 
 		// Update the cache if we get a result from the database
@@ -306,6 +309,7 @@ func processGetAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfo
 		if err == nil && appState.Applicationstate_application_id != "" {
 			if entryInCache, exists := cacheAppState[appState.Applicationstate_application_id]; !exists {
 				entryInCache.appState = appState
+				entryInCache.cacheExpireTime = time.Now().Add(1 * time.Minute)
 				cacheAppState[appState.Applicationstate_application_id] = entryInCache
 			}
 		}
@@ -335,9 +339,6 @@ func processGetAppMessage(dbQueries db.DatabaseQueries, req applicationInfoCache
 
 	if db.IsEmpty(req.primaryKey) {
 		log.Error("PrimaryKey should not be nil: " + req.primaryKey + " not found")
-	} else {
-		delete(cacheApp, req.createOrUpdateAppStateObject.Applicationstate_application_id)
-		delete(cacheAppState, req.createOrUpdateAppStateObject.Applicationstate_application_id)
 	}
 
 	if res, exists := cacheApp[app.Application_id]; !exists {
@@ -346,6 +347,9 @@ func processGetAppMessage(dbQueries db.DatabaseQueries, req applicationInfoCache
 		err = dbQueries.GetApplicationById(req.ctx, &app)
 		if err != nil {
 			app = db.Application{}
+		} else {
+			delete(cacheApp, req.createOrUpdateAppStateObject.Applicationstate_application_id)
+			delete(cacheAppState, req.createOrUpdateAppStateObject.Applicationstate_application_id)
 		}
 
 		// Update the cache if we get a result from the database
@@ -353,6 +357,7 @@ func processGetAppMessage(dbQueries db.DatabaseQueries, req applicationInfoCache
 		if err == nil && app.Application_id != "" {
 			if entryInCache, exists := cacheApp[app.Application_id]; !exists {
 				entryInCache.app = app
+				entryInCache.cacheExpireTime = time.Now().Add(1 * time.Minute)
 				cacheApp[app.Application_id] = entryInCache
 			}
 		}
@@ -374,13 +379,13 @@ func processGetAppMessage(dbQueries db.DatabaseQueries, req applicationInfoCache
 func processExpireCacheEntriesMessage(cacheApp map[string]applicationCacheEntry, cacheAppState map[string]applicationStateCacheEntry, inputChan chan applicationInfoCacheRequest) {
 
 	for key, elements := range cacheApp {
-		if time.Duration(elements.cacheExpireTime.Minute()) > time.Minute {
+		if time.Now().After(elements.cacheExpireTime) {
 			delete(cacheApp, key)
 		}
 	}
 
 	for key, elements := range cacheAppState {
-		if time.Duration(elements.cacheExpireTime.Minute()) > time.Minute {
+		if time.Now().After(elements.cacheExpireTime) {
 			delete(cacheAppState, key)
 		}
 	}

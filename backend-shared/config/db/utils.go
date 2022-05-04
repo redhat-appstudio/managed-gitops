@@ -218,6 +218,7 @@ func isMaxLengthError(err error) bool {
 		return strings.Contains(err.Error(), "value exceeds maximum size")
 	}
 	return false
+}
 
 var testClusterUser = &ClusterUser{
 	Clusteruser_id: "test-user",

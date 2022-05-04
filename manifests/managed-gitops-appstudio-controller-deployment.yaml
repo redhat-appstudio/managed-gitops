@@ -32,9 +32,9 @@ spec:
         resources:
           limits:
             cpu: 500m
-            memory: 128Mi
+            memory: 256Mi
           requests:
-            cpu: 5m
+            cpu: 100m
             memory: 64Mi
       - args:
         - --health-probe-bind-address=:8081

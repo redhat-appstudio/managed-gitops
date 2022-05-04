@@ -16,14 +16,15 @@ status:
   devfile: |
     metadata:
       attributes:
-        appModelRepository.url: https://github.com/redhat-appstudio-appdata/purple-mermaid-app-rhopp-reduce-reaction
-        gitOpsRepository.url: https://github.com/redhat-appstudio-appdata/purple-mermaid-app-rhopp-reduce-reaction
-        gitOpsRepository.context: components/basic-node-js/base
-      name: Purple Mermaid app
+        appModelRepository.context: /
+        appModelRepository.url: https://github.com/redhat-appstudio-appdata/test-application-rorai-concentrate-complete
+        gitOpsRepository.context: /
+        gitOpsRepository.url: https://github.com/redhat-appstudio-appdata/test-application-rorai-concentrate-complete
+      name: Test Application
     projects:
     - git:
         remotes:
-          origin: https://github.com/nodeshift-starters/devfile-sample.git
-      name: basic-node-js
+          origin: https://github.com/devfile-samples/devfile-sample-code-with-quarkus
+      name: java-quarkus
     schemaVersion: 2.1.0
 

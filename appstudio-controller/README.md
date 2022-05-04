@@ -33,18 +33,20 @@ spec:
   gitOpsRepository:
     url: "https://github.com/jgwest/my-app"
 status:
-  conditions:
-  - lastTransitionTime: "2022-02-22T15:37:59Z"
-    message: Application has been successfully created
-    reason: OK
-    status: "True"
-    type: Created
+  conditions: []
   devfile: |
     metadata:
       attributes:
-        appModelRepository.url: https://github.com/redhat-appstudio-appdata/sdfgsdfg-jkopriva-trust-jane
-        gitOpsRepository.url: https://github.com/redhat-appstudio-appdata/sdfgsdfg-jkopriva-trust-jane
-      name: sdfgsdfg
+        appModelRepository.context: /
+        appModelRepository.url: https://github.com/redhat-appstudio-appdata/test-application-concentrate-complete
+        gitOpsRepository.context: /
+        gitOpsRepository.url: https://github.com/redhat-appstudio-appdata/test-application-concentrate-complete
+      name: Test Application
+    projects:
+    - git:
+        remotes:
+          origin: https://github.com/devfile-samples/devfile-sample-code-with-quarkus
+      name: java-quarkus
     schemaVersion: 2.1.0
 ```
 

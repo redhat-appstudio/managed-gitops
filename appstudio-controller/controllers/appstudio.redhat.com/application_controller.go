@@ -228,44 +228,47 @@ func validateApplication(asApplication applicationv1alpha1.Application) error {
 
 func getGitOpsRepoData(asApplication applicationv1alpha1.Application) (string, string, string, error) {
 
+	var err error
+
 	curDevfile, err := devfile.ParseDevfileModel(asApplication.Status.Devfile)
 	if err != nil {
 		return "", "", "", fmt.Errorf("unable to parse devfile model: %v", err)
 	}
 
-	var getErr error
+	// Need to reset the err to nil after it is used, because GetString() doesn't clear old errors.
+	err = nil
 
 	// These strings are not defined as constants in the application service repo
 
 	metadata := curDevfile.GetMetadata()
 
 	// GitOps Repository is a required field
-	gitopsURL := metadata.Attributes.GetString("gitOpsRepository.url", &getErr)
-	if getErr != nil {
-		return "", "", "", fmt.Errorf("unable to retrieve gitops url: %v", getErr)
+	gitopsURL := metadata.Attributes.GetString("gitOpsRepository.url", &err)
+	if err != nil {
+		return "", "", "", fmt.Errorf("unable to retrieve gitops url: %v", err)
 	}
 	if strings.TrimSpace(gitopsURL) == "" {
 		return "", "", "", fmt.Errorf("gitops url is empty")
 	}
 
+	err = nil
 	// Branch is not a required field
-	branch := metadata.Attributes.GetString("gitOpsRepository.branch", &getErr)
-	if getErr != nil {
+	branch := metadata.Attributes.GetString("gitOpsRepository.branch", &err)
+	if err != nil {
 		// Ignore KeyNotFoundErrors, but otherwise report the error and return
-		if _, ok := (getErr).(*attributes.KeyNotFoundError); !ok {
-			return "", "", "", fmt.Errorf("unable to retrieve gitops repo branch: %v", getErr)
-		} else {
-			getErr = nil
+		if _, ok := (err).(*attributes.KeyNotFoundError); !ok {
+			return "", "", "", fmt.Errorf("unable to retrieve gitops repo branch: %v", err)
 		}
 	}
 
+	err = nil
 	// Context is a required field
-	context := metadata.Attributes.GetString("gitOpsRepository.context", &getErr)
-	if getErr != nil {
-		return "", "", "", fmt.Errorf("unable to retrieve gitops repo context: %v", getErr)
+	context := metadata.Attributes.GetString("gitOpsRepository.context", &err)
+	if err != nil {
+		return "", "", "", fmt.Errorf("unable to retrieve gitops repo context: %v", err)
 	}
 	if strings.TrimSpace(context) == "" {
-		return "", "", "", fmt.Errorf("gitops repo context is empty: %v", getErr)
+		return "", "", "", fmt.Errorf("gitops repo context is empty: %v", err)
 	}
 
 	return gitopsURL, branch, context, nil

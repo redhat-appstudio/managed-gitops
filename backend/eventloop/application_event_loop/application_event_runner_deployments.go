@@ -511,7 +511,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		// Log the warning, but continue
 		log.Info("no application rows deleted for application state", "rowsDeleted", rowsDeleted)
 	} else {
-		log.Info("ApplicationState rows deleted App ID: ", deplToAppMapping.Application_id, "rowsDeleted", rowsDeleted)
+		log.Info("ApplicationState rows deleted App ID: "+deplToAppMapping.Application_id, "rowsDeleted", rowsDeleted)
 	}
 
 	// Remove DeplToAppMapping

@@ -392,7 +392,6 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				Expect(len(appMappings)).To(Equal(1))
 
 				deplToAppMapping = appMappings[0]
-				fmt.Println(deplToAppMapping)
 			}
 
 			clusterUser := db.ClusterUser{
@@ -678,6 +677,335 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 		})
 	})
 
+	Context("Handle deployment Health/Synk status.", func() {
+		var err error
+		var workspaceID string
+		var ctx context.Context
+		var scheme *runtime.Scheme
+		var workspace *v1.Namespace
+		var argocdNamespace *v1.Namespace
+		var dbQueries db.AllDatabaseQueries
+		var kubesystemNamespace *v1.Namespace
+
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			scheme,
+				argocdNamespace,
+				kubesystemNamespace,
+				workspace,
+				err = eventlooptypes.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			workspaceID = string(workspace.UID)
+
+			dbQueries, err = db.NewUnsafePostgresDBQueries(false, false)
+			Expect(err).To(BeNil())
+		})
+
+		It("Should update correct status of deployment after calling DeploymentStatusTick handler.", func() {
+			// ----------------------------------------------------------------------------
+			By("Create new deployment.")
+			// ----------------------------------------------------------------------------
+
+			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-gitops-depl",
+					Namespace: workspace.Name,
+					UID:       uuid.NewUUID(),
+				},
+			}
+
+			k8sClientOuter := fake.
+				NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).
+				Build()
+
+			k8sClient := &sharedutil.ProxyClient{
+				InnerClient: k8sClientOuter,
+			}
+
+			a := applicationEventLoopRunner_Action{
+				// When the code asks for a new k8s client, give it our fake client
+				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+					return k8sClient, nil
+				},
+				eventResourceName:           gitopsDepl.Name,
+				eventResourceNamespace:      gitopsDepl.Namespace,
+				workspaceClient:             k8sClient,
+				log:                         log.FromContext(context.Background()),
+				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
+				workspaceID:                 workspaceID,
+				testOnlySkipCreateOperation: true,
+			}
+
+			_, _, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(err).To(BeNil())
+
+			// ----------------------------------------------------------------------------
+			By("Get DeploymentToApplicationMapping and Application objects, to be used later.")
+			// ----------------------------------------------------------------------------
+			var deplToAppMapping db.DeploymentToApplicationMapping
+			{
+				var appMappings []db.DeploymentToApplicationMapping
+
+				err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
+				Expect(err).To(BeNil())
+
+				Expect(len(appMappings)).To(Equal(1))
+
+				deplToAppMapping = appMappings[0]
+			}
+
+			// ----------------------------------------------------------------------------
+			By("Inserting dummy data into ApplicationState table, because we are not calling the Reconciler for this, which updates the status of application into db.")
+			// ----------------------------------------------------------------------------
+			applicationState := &db.ApplicationState{
+				Applicationstate_application_id: deplToAppMapping.Application_id,
+				Health:                          string(managedgitopsv1alpha1.HeathStatusCodeHealthy),
+				Sync_Status:                     string(managedgitopsv1alpha1.SyncStatusCodeSynced),
+				Revision:                        "abcdefg",
+				Message:                         "Success",
+			}
+
+			err = dbQueries.CreateApplicationState(ctx, applicationState)
+			Expect(err).To(BeNil())
+
+			// ----------------------------------------------------------------------------
+			By("Retrieve latest version of GitObsDeployment and check Health/Synk before calling applicationEventRunner_handleUpdateDeploymentStatusTick function.")
+			// ----------------------------------------------------------------------------
+
+			gitopsDeployment := &managedgitopsv1alpha1.GitOpsDeployment{}
+			gitopsDeploymentKey := client.ObjectKey{Namespace: gitopsDepl.Namespace, Name: gitopsDepl.Name}
+			clientErr := a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
+
+			Expect(clientErr).To(BeNil())
+
+			Expect(gitopsDeployment.Status.Health.Status).To(BeEmpty())
+			Expect(gitopsDeployment.Status.Sync.Status).To(BeEmpty())
+			Expect(gitopsDeployment.Status.Sync.Revision).To(BeEmpty())
+			Expect(gitopsDeployment.Status.Health.Message).To(BeEmpty())
+
+			// ----------------------------------------------------------------------------
+			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Synk status.")
+			// ----------------------------------------------------------------------------
+
+			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, string(gitopsDepl.UID), dbQueries)
+			Expect(err).To(BeNil())
+
+			// ----------------------------------------------------------------------------
+			By("Retrieve latest version of GitObsDeployment and check Health/Synk after calling applicationEventRunner_handleUpdateDeploymentStatusTick function.")
+			// ----------------------------------------------------------------------------
+
+			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
+
+			Expect(clientErr).To(BeNil())
+
+			Expect(gitopsDeployment.Status.Health.Status).To(Equal(managedgitopsv1alpha1.HeathStatusCodeHealthy))
+			Expect(gitopsDeployment.Status.Sync.Status).To(Equal(managedgitopsv1alpha1.SyncStatusCodeSynced))
+			Expect(gitopsDeployment.Status.Sync.Revision).To(Equal("abcdefg"))
+			Expect(gitopsDeployment.Status.Health.Message).To(Equal("Success"))
+
+			// ----------------------------------------------------------------------------
+			By("Delete GitOpsDepl to clean resources.")
+			// ----------------------------------------------------------------------------
+			err = k8sClient.Delete(ctx, gitopsDepl)
+			Expect(err).To(BeNil())
+
+			_, _, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(err).To(BeNil())
+		})
+
+		It("Should not return any error, if deploymentToApplicationMapping doesn't exist for given gitopsdeployment.", func() {
+			// Don't create Deployment and resources by calling applicationEventRunner_handleDeploymentModified function,
+			// but check for Health/Synk status of deployment which doesn't exist.
+			k8sClientOuter := fake.NewClientBuilder().Build()
+			k8sClient := &sharedutil.ProxyClient{
+				InnerClient: k8sClientOuter,
+			}
+
+			a := applicationEventLoopRunner_Action{
+				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+					return k8sClient, nil
+				},
+				eventResourceName:           "dummy-deployment",
+				eventResourceNamespace:      workspace.Namespace,
+				workspaceClient:             k8sClient,
+				log:                         log.FromContext(context.Background()),
+				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
+				workspaceID:                 workspaceID,
+				testOnlySkipCreateOperation: true,
+			}
+
+			// ----------------------------------------------------------------------------
+			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Synk status of a deployment which doesn't exist.")
+			// ----------------------------------------------------------------------------
+			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, "dummy-deployment", dbQueries)
+			Expect(err).To(BeNil())
+		})
+
+		It("Should return error, if deploymentToApplicationMapping object is invalid.", func() {
+			// Don't create Deployment and resources by calling applicationEventRunner_handleDeploymentModified function,
+			// But check for Health/Synk status of a deployment having invalid name.
+			k8sClientOuter := fake.NewClientBuilder().Build()
+			k8sClient := &sharedutil.ProxyClient{
+				InnerClient: k8sClientOuter,
+			}
+
+			a := applicationEventLoopRunner_Action{
+				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+					return k8sClient, nil
+				},
+				eventResourceName:           "dummy-deployment",
+				eventResourceNamespace:      workspace.Namespace,
+				workspaceClient:             k8sClient,
+				log:                         log.FromContext(context.Background()),
+				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
+				workspaceID:                 workspaceID,
+				testOnlySkipCreateOperation: true,
+			}
+
+			// ----------------------------------------------------------------------------
+			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Synk status of a deployment having invalid name.")
+			// ----------------------------------------------------------------------------
+
+			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, "", dbQueries)
+			Expect(err).NotTo(BeNil())
+			Expect(strings.Contains(err.Error(), "field should not be empty string")).To(BeTrue())
+		})
+
+		It("Should not return error, if GitOpsDeployment doesn't exist in given namespace.", func() {
+			// ----------------------------------------------------------------------------
+			By("Create new deployment, even though it will be deleted later, but we need to do this to create resources to pass initial checks of applicationEventRunner_handleUpdateDeploymentStatusTick function.")
+			// ----------------------------------------------------------------------------
+
+			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-gitops-depl",
+					Namespace: workspace.Name,
+					UID:       uuid.NewUUID(),
+				},
+			}
+
+			k8sClientOuter := fake.
+				NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).
+				Build()
+			k8sClient := &sharedutil.ProxyClient{
+				InnerClient: k8sClientOuter,
+			}
+
+			a := applicationEventLoopRunner_Action{
+				// When the code asks for a new k8s client, give it our fake client
+				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+					return k8sClient, nil
+				},
+				eventResourceName:           gitopsDepl.Name,
+				eventResourceNamespace:      gitopsDepl.Namespace,
+				workspaceClient:             k8sClient,
+				log:                         log.FromContext(context.Background()),
+				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
+				workspaceID:                 workspaceID,
+				testOnlySkipCreateOperation: true,
+			}
+
+			_, _, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(err).To(BeNil())
+
+			// ----------------------------------------------------------------------------
+			By("Delete deployment, but we don't want to delete other DB entries, hence not calling applicationEventRunner_handleDeploymentModified after deleting deployment.")
+			// ----------------------------------------------------------------------------
+			err = k8sClient.Delete(ctx, gitopsDepl)
+			Expect(err).To(BeNil())
+
+			// ----------------------------------------------------------------------------
+			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Synk status for a deployment which doesn'r exist in given namespace.")
+			// ----------------------------------------------------------------------------
+			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, string(gitopsDepl.UID), dbQueries)
+			Expect(err).To(BeNil())
+
+			// ----------------------------------------------------------------------------
+			By("Deployment is already been deleted in previous step, now delete related db entries and clean resources.")
+			// ----------------------------------------------------------------------------
+			_, _, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(err).To(BeNil())
+		})
+
+		It("Should not return error, if ApplicationState doesnt exists for given GitOpsDeployment.", func() {
+			// ----------------------------------------------------------------------------
+			By("Create new deployment.")
+			// ----------------------------------------------------------------------------
+
+			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-gitops-depl",
+					Namespace: workspace.Name,
+					UID:       uuid.NewUUID(),
+				},
+			}
+
+			k8sClientOuter := fake.
+				NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).
+				Build()
+			k8sClient := &sharedutil.ProxyClient{
+				InnerClient: k8sClientOuter,
+			}
+
+			a := applicationEventLoopRunner_Action{
+				// When the code asks for a new k8s client, give it our fake client
+				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+					return k8sClient, nil
+				},
+				eventResourceName:           gitopsDepl.Name,
+				eventResourceNamespace:      gitopsDepl.Namespace,
+				workspaceClient:             k8sClient,
+				log:                         log.FromContext(context.Background()),
+				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
+				workspaceID:                 workspaceID,
+				testOnlySkipCreateOperation: true,
+			}
+
+			_, _, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(err).To(BeNil())
+
+			// ----------------------------------------------------------------------------
+			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Synk status for deployment which is missing ApplicationState entries.")
+			// ----------------------------------------------------------------------------
+
+			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, string(gitopsDepl.UID), dbQueries)
+			Expect(err).To(BeNil())
+
+			// ----------------------------------------------------------------------------
+			By("Retrieve latest version of GitObsDeployment and check Health/Synk, it should not have any Health/Synk status.")
+			// ----------------------------------------------------------------------------
+
+			gitopsDeployment := &managedgitopsv1alpha1.GitOpsDeployment{}
+			gitopsDeploymentKey := client.ObjectKey{Namespace: gitopsDepl.Namespace, Name: gitopsDepl.Name}
+			clientErr := a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
+
+			Expect(clientErr).To(BeNil())
+
+			Expect(gitopsDeployment.Status.Health.Status).To(BeEmpty())
+			Expect(gitopsDeployment.Status.Sync.Status).To(BeEmpty())
+			Expect(gitopsDeployment.Status.Sync.Revision).To(BeEmpty())
+			Expect(gitopsDeployment.Status.Health.Message).To(BeEmpty())
+
+			// ----------------------------------------------------------------------------
+			By("Delete GitOpsDepl to clean resources.")
+			// ----------------------------------------------------------------------------
+
+			err = k8sClient.Delete(ctx, gitopsDepl)
+			Expect(err).To(BeNil())
+
+			_, _, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(err).To(BeNil())
+		})
+
+	})
 })
 
 var _ = Describe("GitOpsDeployment Conditions", func() {

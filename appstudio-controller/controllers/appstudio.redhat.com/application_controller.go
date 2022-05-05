@@ -274,6 +274,12 @@ func getGitOpsRepoData(asApplication applicationv1alpha1.Application) (string, s
 		return "", "", "", fmt.Errorf("gitops repo context is empty: %v", err)
 	}
 
+	// Argo CD expects a "non-absolute" path here. Argo CD interprets "/" as absolute, so change it to "."
+	// to indicate the root.
+	if context == "/" {
+		context = "."
+	}
+
 	return gitopsURL, branch, context, nil
 
 }

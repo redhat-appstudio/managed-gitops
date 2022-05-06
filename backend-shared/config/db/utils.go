@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -293,6 +294,206 @@ func generateSampleData() (ClusterCredentials, ManagedEnvironment, GitopsEngineC
 	return clusterCredentials, managedEnvironment, gitopsEngineCluster, gitopsEngineInstance, clusterAccess
 }
 
+// Ginkgo-based tests that need to setup the database should call this first.
+func SetupForTestingDBGinkgo() error {
+
+	ctx := context.Background()
+
+	// 'testSetup' deletes all database rows that start with 'test-' in the primary key of the row.
+	// This ensures a clean slate for the test run.
+
+	dbq, err := NewUnsafePostgresDBQueries(true, true)
+	Expect(err).To(BeNil())
+
+	defer dbq.CloseDatabase()
+
+	var syncOperations []SyncOperation
+
+	err = dbq.UnsafeListAllSyncOperations(ctx, &syncOperations)
+	Expect(err).To(BeNil())
+
+	for _, syncOperation := range syncOperations {
+		if strings.HasPrefix(syncOperation.SyncOperation_id, "test-") {
+			rowsAffected, err := dbq.DeleteSyncOperationById(ctx, syncOperation.SyncOperation_id)
+			Expect(err).To(BeNil())
+
+			if err == nil {
+				Expect(rowsAffected).Should((Equal(1)))
+			}
+		}
+	}
+
+	var applicationStates []ApplicationState
+	err = dbq.UnsafeListAllApplicationStates(ctx, &applicationStates)
+	Expect(err).To(BeNil())
+
+	for _, applicationState := range applicationStates {
+		if strings.HasPrefix(applicationState.Applicationstate_application_id, "test-") {
+			rowsAffected, err := dbq.DeleteApplicationStateById(ctx, applicationState.Applicationstate_application_id)
+			Expect(err).To(BeNil())
+			if err == nil {
+				Expect(rowsAffected).Should((Equal(1)))
+			}
+		}
+	}
+
+	var operations []Operation
+	err = dbq.UnsafeListAllOperations(ctx, &operations)
+	Expect(err).To(BeNil())
+
+	for _, operation := range operations {
+
+		if strings.HasPrefix(operation.Operation_id, "test-") {
+			rowsAffected, err := dbq.CheckedDeleteOperationById(ctx, operation.Operation_id, operation.Operation_owner_user_id)
+			Expect(rowsAffected).Should((Equal(1)))
+			Expect(err).To(BeNil())
+
+		}
+	}
+
+	var deploymentToApplicationMappings []DeploymentToApplicationMapping
+
+	err = dbq.UnsafeListAllDeploymentToApplicationMapping(ctx, &deploymentToApplicationMappings)
+	Expect(err).To(BeNil())
+
+	for _, deploydeploymentToApplicationMapping := range deploymentToApplicationMappings {
+		if strings.HasPrefix(deploydeploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id, "test-") {
+			rowsAffected, err := dbq.DeleteDeploymentToApplicationMappingByDeplId(ctx, deploydeploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id)
+			Expect(err).To(BeNil())
+
+			if err == nil {
+				Expect(rowsAffected).Should((Equal(1)))
+			}
+		}
+	}
+
+	var applications []Application
+	err = dbq.UnsafeListAllApplications(ctx, &applications)
+	Expect(err).To(BeNil())
+
+	for _, application := range applications {
+		if strings.HasPrefix(application.Application_id, "test-") {
+			rowsAffected, err := dbq.DeleteApplicationById(ctx, application.Application_id)
+			Expect(rowsAffected).Should((Equal(1)))
+			Expect(err).To(BeNil())
+
+		}
+	}
+
+	var clusterAccess []ClusterAccess
+	err = dbq.UnsafeListAllClusterAccess(ctx, &clusterAccess)
+	Expect(err).To(BeNil())
+
+	for _, clusterAccess := range clusterAccess {
+		if strings.HasPrefix(clusterAccess.Clusteraccess_managed_environment_id, "test-") {
+			rowsAffected, err := dbq.DeleteClusterAccessById(ctx, clusterAccess.Clusteraccess_user_id,
+				clusterAccess.Clusteraccess_managed_environment_id,
+				clusterAccess.Clusteraccess_gitops_engine_instance_id)
+			Expect(err).To(BeNil())
+
+			if err == nil {
+				Expect(rowsAffected).Should((Equal(1)))
+			}
+		}
+	}
+
+	var engineInstances []GitopsEngineInstance
+	err = dbq.UnsafeListAllGitopsEngineInstances(ctx, &engineInstances)
+	Expect(err).To(BeNil())
+
+	for _, gitopsEngineInstance := range engineInstances {
+		if strings.HasPrefix(gitopsEngineInstance.Gitopsengineinstance_id, "test-") {
+
+			rowsAffected, err := dbq.DeleteGitopsEngineInstanceById(ctx, gitopsEngineInstance.Gitopsengineinstance_id)
+
+			Expect(err).To(BeNil())
+
+			if err == nil {
+				Expect(rowsAffected).Should((Equal(1)))
+			}
+		}
+	}
+
+	var engineClusters []GitopsEngineCluster
+	err = dbq.UnsafeListAllGitopsEngineClusters(ctx, &engineClusters)
+	Expect(err).To(BeNil())
+
+	for _, engineCluster := range engineClusters {
+		if strings.HasPrefix(engineCluster.Gitopsenginecluster_id, "test-") {
+			rowsAffected, err := dbq.DeleteGitopsEngineClusterById(ctx, engineCluster.Gitopsenginecluster_id)
+			Expect(err).To(BeNil())
+
+			if err == nil {
+				Expect(rowsAffected).Should((Equal(1)))
+			}
+		}
+	}
+
+	var managedEnvironments []ManagedEnvironment
+	err = dbq.UnsafeListAllManagedEnvironments(ctx, &managedEnvironments)
+	Expect(err).To(BeNil())
+
+	for _, managedEnvironment := range managedEnvironments {
+		if strings.HasPrefix(managedEnvironment.Managedenvironment_id, "test-") {
+			rowsAffected, err := dbq.DeleteManagedEnvironmentById(ctx, managedEnvironment.Managedenvironment_id)
+			Expect(rowsAffected).Should((Equal(1)))
+			Expect(err).To(BeNil())
+
+		}
+	}
+
+	var clusterCredentials []ClusterCredentials
+	err = dbq.UnsafeListAllClusterCredentials(ctx, &clusterCredentials)
+	Expect(err).To(BeNil())
+
+	for _, clusterCredential := range clusterCredentials {
+		if strings.HasPrefix(clusterCredential.Clustercredentials_cred_id, "test-") {
+			rowsAffected, err := dbq.DeleteClusterCredentialsById(ctx, clusterCredential.Clustercredentials_cred_id)
+			Expect(err).To(BeNil())
+
+			if err == nil {
+				Expect(rowsAffected).Should((Equal(1)))
+			}
+		}
+	}
+
+	var clusterUsers []ClusterUser
+	err = dbq.UnsafeListAllClusterUsers(ctx, &clusterUsers)
+
+	if Expect(err).To(BeNil()) {
+		for _, user := range clusterUsers {
+			if strings.HasPrefix(user.Clusteruser_id, "test-") {
+				rowsAffected, err := dbq.DeleteClusterUserById(ctx, (user.Clusteruser_id))
+				Expect(rowsAffected).Should((Equal(1)))
+				Expect(err).To(BeNil())
+			}
+		}
+	}
+
+	err = dbq.CreateClusterUser(ctx, testClusterUser)
+	Expect(err).To(BeNil())
+
+	var kubernetesToDBResourceMappings []KubernetesToDBResourceMapping
+	err = dbq.UnsafeListAllKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMappings)
+	Expect(err).To(BeNil())
+
+	for i := range kubernetesToDBResourceMappings {
+		item := kubernetesToDBResourceMappings[i]
+
+		if strings.HasPrefix(item.KubernetesResourceUID, "test-") {
+			rowsAffected, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, &item)
+
+			Expect(err).To(BeNil())
+			if err == nil {
+				Expect(rowsAffected).Should((Equal(1)))
+			}
+		}
+	}
+
+	return nil
+}
+
+// Non-Ginkgo-based tests that need to setup the database should call this first.
 func SetupforTestingDB(t *testing.T) {
 
 	ctx := context.Background()

@@ -164,8 +164,8 @@ func (asc *ApplicationInfoCache) DeleteApplicationStateById(ctx context.Context,
 	return response.rowsAffectedForDelete, nil
 }
 
-// debugOnly_Shutdown should only be called in unit tests. This function terminates the cache loop.
-func (asc *ApplicationInfoCache) debugOnly_Shutdown(ctx context.Context) {
+// DebugOnly_Shutdown should only be called in unit tests. This function terminates the cache loop.
+func (asc *ApplicationInfoCache) DebugOnly_Shutdown(ctx context.Context) {
 
 	responseChannel := make(chan applicationInfoCacheResponse)
 

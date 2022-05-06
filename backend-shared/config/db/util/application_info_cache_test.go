@@ -16,7 +16,7 @@ func TestCreateApplicationState(t *testing.T) {
 	ctx := context.Background()
 
 	asc := NewApplicationInfoCache()
-	defer asc.debugOnly_Shutdown(ctx)
+	defer asc.DebugOnly_Shutdown(ctx)
 
 	dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
@@ -72,7 +72,7 @@ func TestGetApplicationStateById(t *testing.T) {
 	defer db.TestTeardown(t)
 
 	asc := NewApplicationInfoCache()
-	defer asc.debugOnly_Shutdown(ctx)
+	defer asc.DebugOnly_Shutdown(ctx)
 
 	dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
@@ -145,7 +145,7 @@ func TestUpdateApplicationState(t *testing.T) {
 	defer db.TestTeardown(t)
 
 	asc := NewApplicationInfoCache()
-	defer asc.debugOnly_Shutdown(ctx)
+	defer asc.DebugOnly_Shutdown(ctx)
 
 	dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
@@ -200,7 +200,7 @@ func TestDeleteApplicationState(t *testing.T) {
 	defer db.TestTeardown(t)
 
 	asc := NewApplicationInfoCache()
-	defer asc.debugOnly_Shutdown(ctx)
+	defer asc.DebugOnly_Shutdown(ctx)
 
 	dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
@@ -256,7 +256,7 @@ func TestGetApplicationById(t *testing.T) {
 	defer db.TestTeardown(t)
 
 	asc := NewApplicationInfoCache()
-	defer asc.debugOnly_Shutdown(ctx)
+	defer asc.DebugOnly_Shutdown(ctx)
 
 	dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {

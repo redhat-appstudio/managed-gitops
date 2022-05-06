@@ -113,7 +113,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			_, _, _, message, err = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 
 			Expect(err).To(BeNil())
-			Expect(message).To(Equal(deploymentModifiedresult_Created))
+			Expect(message).To(Equal(deploymentModifiedResult_Created))
 
 			// ----------------------------------------------------------------------------
 			By("Verify that database entries are created.")
@@ -171,7 +171,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			_, _, _, message, err = appEventLoopRunnerActionSecond.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(err).To(BeNil())
-			Expect(message).To(Equal(deploymentModifiedresult_Updated))
+			Expect(message).To(Equal(deploymentModifiedResult_Updated))
 
 			// ----------------------------------------------------------------------------
 			By("Verify that the database entries have been updated.")
@@ -214,7 +214,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			_, _, _, message, err = appEventLoopRunnerActionSecond.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(err).To(BeNil())
-			Expect(message).To(Equal(deploymentModifiedresult_Deleted))
+			Expect(message).To(Equal(deploymentModifiedResult_Deleted))
 
 			// Application should no longer exist
 			err = dbQueries.GetApplicationById(ctx, &applicationSecond)
@@ -281,7 +281,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			_, _, _, message, err = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 
 			Expect(err).To(BeNil())
-			Expect(message).To(Equal(deploymentModifiedresult_Created))
+			Expect(message).To(Equal(deploymentModifiedResult_Created))
 
 			// ----------------------------------------------------------------------------
 			By("Verify that the database entries have been created.")
@@ -327,7 +327,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			_, _, _, message, err = appEventLoopRunnerActionSecond.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 
 			Expect(err).To(BeNil())
-			Expect(message).To(Equal(deploymentModifiedresult_NoChange))
+			Expect(message).To(Equal(deploymentModifiedResult_NoChange))
 
 			//############################################################################
 
@@ -340,7 +340,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			_, _, _, message, err = appEventLoopRunnerActionSecond.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(err).To(BeNil())
-			Expect(message).To(Equal(deploymentModifiedresult_Deleted))
+			Expect(message).To(Equal(deploymentModifiedResult_Deleted))
 
 			// Application should no longer exist
 			err = dbQueries.GetApplicationById(ctx, &applicationFirst)

@@ -64,7 +64,7 @@ func TestGetGitopsEngineClusterById(t *testing.T) {
 	// Set the invalid value
 	gitopsEngineClusterput.Clustercredentials_id = strings.Repeat("abc", 100)
 	err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClusterput)
-	assert.True(t, isMaxLengthError(err))
+	assert.True(t, IsMaxLengthError(err))
 }
 
 func TestCreateGitopsEngineClusterById(t *testing.T) {

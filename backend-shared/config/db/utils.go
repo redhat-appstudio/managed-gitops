@@ -214,7 +214,7 @@ func validateFieldLength(obj interface{}) error {
 	return nil
 }
 
-func isMaxLengthError(err error) bool {
+func IsMaxLengthError(err error) bool {
 	if err != nil {
 		return strings.Contains(err.Error(), "value exceeds maximum size")
 	}

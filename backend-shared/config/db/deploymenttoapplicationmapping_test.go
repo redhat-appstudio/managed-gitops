@@ -16,7 +16,9 @@ func generateUuid() string {
 var _ = Describe("DeploymentToApplicationMapping Tests", func() {
 	Context("It should execute all DeploymentToApplicationMapping Functions", func() {
 		It("Should execute all DeploymentToApplicationMapping Functions", func() {
-			ginkgoTestSetup()
+			err := db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
+
 			ctx := context.Background()
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).To(BeNil())
@@ -42,7 +44,7 @@ var _ = Describe("DeploymentToApplicationMapping Tests", func() {
 				Application_id:                        application.Application_id,
 				DeploymentName:                        "test-deployment",
 				DeploymentNamespace:                   "test-namespace",
-				WorkspaceUID:                          "demo-workspace",
+				NamespaceUID:                          "demo-workspace",
 			}
 
 			err = dbq.CreateDeploymentToApplicationMapping(ctx, deploymentToApplicationMapping)
@@ -64,7 +66,9 @@ var _ = Describe("DeploymentToApplicationMapping Tests", func() {
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 		})
 		It("Should Successfully Test ListAll Function", func() {
-			ginkgoTestSetup()
+			err := db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
+
 			ctx := context.Background()
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).To(BeNil())
@@ -90,7 +94,7 @@ var _ = Describe("DeploymentToApplicationMapping Tests", func() {
 				Application_id:                        application.Application_id,
 				DeploymentName:                        "test-deployment",
 				DeploymentNamespace:                   "test-namespace",
-				WorkspaceUID:                          "demo-workspace",
+				NamespaceUID:                          "demo-workspace",
 			}
 
 			err = dbq.CreateDeploymentToApplicationMapping(ctx, deploymentToApplicationMapping)
@@ -105,7 +109,7 @@ var _ = Describe("DeploymentToApplicationMapping Tests", func() {
 			Expect(len(dbResults)).Should(Equal(1))
 			Expect(dbResults[0]).Should(Equal(*deploymentToApplicationMapping))
 
-			err = dbq.ListDeploymentToApplicationMappingByNamespaceAndName(ctx, deploymentToApplicationMapping.DeploymentName, deploymentToApplicationMapping.DeploymentNamespace, deploymentToApplicationMapping.WorkspaceUID, &dbResults)
+			err = dbq.ListDeploymentToApplicationMappingByNamespaceAndName(ctx, deploymentToApplicationMapping.DeploymentName, deploymentToApplicationMapping.DeploymentNamespace, deploymentToApplicationMapping.NamespaceUID, &dbResults)
 			Expect(err).To(BeNil())
 			Expect(dbResults[0]).Should(Equal(*deploymentToApplicationMapping))
 

@@ -100,7 +100,7 @@ func TestCreateApplications(t *testing.T) {
 	// Set the invalid value
 	applicationput.Name = strings.Repeat("abc", 100)
 	err = dbq.CreateApplication(ctx, &applicationput)
-	assert.True(t, isMaxLengthError(err))
+	assert.True(t, IsMaxLengthError(err))
 }
 
 func TestDeleteApplicationById(t *testing.T) {
@@ -197,5 +197,5 @@ func TestUpdateApplication(t *testing.T) {
 	// Set the invalid value
 	applicationget.Name = strings.Repeat("abc", 100)
 	err = dbq.UpdateApplication(ctx, &applicationget)
-	assert.True(t, isMaxLengthError(err))
+	assert.True(t, IsMaxLengthError(err))
 }

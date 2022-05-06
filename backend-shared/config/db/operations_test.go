@@ -256,9 +256,9 @@ func TestUpdateOperation(t *testing.T) {
 	// Set the invalid value
 	operationput.Operation_id = strings.Repeat("abc", 100)
 	err = dbq.CreateOperation(ctx, &operationput, operationput.Operation_owner_user_id)
-	assert.True(t, isMaxLengthError(err))
+	assert.True(t, IsMaxLengthError(err))
 
 	operationget.Operation_owner_user_id = strings.Repeat("abc", 100)
 	err = dbq.UpdateOperation(ctx, &operationget)
-	assert.True(t, isMaxLengthError(err))
+	assert.True(t, IsMaxLengthError(err))
 }

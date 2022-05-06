@@ -1,264 +1,140 @@
-package db
+package db_test
 
 import (
 	"context"
-	"strings"
-	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
+	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 )
 
 var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
-var DefaultValue = 101
+var seq = 101
 
-func TestGetOperationById(t *testing.T) {
-	SetupforTestingDB(t)
-	defer TestTeardown(t)
-	dbq, err := NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
+var _ = Describe("Operations", func() {
 
-	ctx := context.Background()
+	It("Should Create, Get, List, Update and Delete an Operation", func() {
+		err := db.SetupForTestingDBGinkgo()
+		Expect(err).To(BeNil())
 
-	_, _, _, gitopsEngineInstance, _, err := CreateSampleData(dbq)
-	if !assert.NoError(t, err) {
-		return
-	}
-	operationput := Operation{
-		Operation_id:            "test-operation-1",
-		Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-		Resource_id:             "test-fake-resource-id",
-		Resource_type:           "GitopsEngineInstance",
-		State:                   OperationState_Waiting,
-		Operation_owner_user_id: testClusterUser.Clusteruser_id,
-	}
+		ctx := context.Background()
+		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+		Expect(err).To(BeNil())
+		defer dbq.CloseDatabase()
 
-	err = dbq.CreateOperation(ctx, &operationput, operationput.Operation_owner_user_id)
-	if !assert.NoError(t, err) {
-		return
-	}
+		var testClusterUser = &db.ClusterUser{
+			Clusteruser_id: "test-user-new",
+			User_name:      "test-user-new",
+		}
+		clusterCredentials := db.ClusterCredentials{
+			Clustercredentials_cred_id:  "test-cluster-creds-test",
+			Host:                        "host",
+			Kube_config:                 "kube-config",
+			Kube_config_context:         "kube-config-context",
+			Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+			Serviceaccount_ns:           "Serviceaccount_ns",
+		}
 
-	operationget := Operation{
-		Operation_id: operationput.Operation_id,
-	}
+		managedEnvironment := db.ManagedEnvironment{
+			Managedenvironment_id: "test-managed-env-914",
+			Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+			Name:                  "my env",
+		}
 
-	err = dbq.GetOperationById(ctx, &operationget)
-	if !assert.NoError(t, err) {
-		return
-	}
+		gitopsEngineCluster := db.GitopsEngineCluster{
+			Gitopsenginecluster_id: "test-fake-cluster-914",
+			Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+		}
 
-	assert.IsType(t, timestamp, operationget.Created_on)
-	assert.IsType(t, timestamp, operationget.Last_state_update)
-	operationget.Created_on = operationput.Created_on
-	operationget.Last_state_update = operationput.Last_state_update
-	assert.Equal(t, operationput, operationget)
+		gitopsEngineInstance := db.GitopsEngineInstance{
+			Gitopsengineinstance_id: "test-fake-engine-instance-id",
+			Namespace_name:          "test-fake-namespace",
+			Namespace_uid:           "test-fake-namespace-914",
+			EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+		}
+		clusterAccess := db.ClusterAccess{
+			Clusteraccess_user_id:                   testClusterUser.Clusteruser_id,
+			Clusteraccess_managed_environment_id:    managedEnvironment.Managedenvironment_id,
+			Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
+		}
 
-	operationNotExist := Operation{
-		Operation_id: "test-operation-1-not-exist",
-	}
+		operation := db.Operation{
+			Operation_id:            "test-operation-1",
+			Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+			Resource_id:             "test-fake-resource-id",
+			Resource_type:           "GitopsEngineInstance",
+			State:                   db.OperationState_Waiting,
+			Operation_owner_user_id: testClusterUser.Clusteruser_id,
+		}
+		err = dbq.CreateClusterUser(ctx, testClusterUser)
+		Expect(err).To(BeNil())
 
-	err = dbq.GetOperationById(ctx, &operationNotExist)
-	if !assert.True(t, IsResultNotFoundError(err)) {
-		return
-	}
+		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
+		Expect(err).To(BeNil())
 
-}
+		err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
+		Expect(err).To(BeNil())
 
-func TestCreateOperation(t *testing.T) {
-	SetupforTestingDB(t)
-	defer TestTeardown(t)
-	dbq, err := NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
+		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
+		Expect(err).To(BeNil())
 
-	ctx := context.Background()
+		err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
+		Expect(err).To(BeNil())
 
-	_, _, _, gitopsEngineInstance, _, err := CreateSampleData(dbq)
-	if !assert.NoError(t, err) {
-		return
-	}
-	operationput := Operation{
-		Operation_id:            "test-operation-1",
-		Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-		Resource_id:             "test-fake-resource-id",
-		Resource_type:           "GitopsEngineInstance",
-		State:                   OperationState_Waiting,
-		Operation_owner_user_id: testClusterUser.Clusteruser_id,
-	}
+		err = dbq.CreateClusterAccess(ctx, &clusterAccess)
+		Expect(err).To(BeNil())
 
-	err = dbq.CreateOperation(ctx, &operationput, operationput.Operation_owner_user_id)
-	if !assert.NoError(t, err) {
-		return
-	}
+		err = dbq.CreateOperation(ctx, &operation, operation.Operation_owner_user_id)
+		Expect(err).To(BeNil())
 
-	operationget := Operation{
-		Operation_id: operationput.Operation_id,
-	}
+		operationget := db.Operation{
+			Operation_id: operation.Operation_id,
+		}
 
-	err = dbq.GetOperationById(ctx, &operationget)
-	if !assert.NoError(t, err) {
-		return
-	}
+		err = dbq.GetOperationById(ctx, &operationget)
+		Expect(err).To(BeNil())
+		Expect(operationget.Last_state_update).To(BeAssignableToTypeOf(timestamp))
+		Expect(operationget.Created_on).To(BeAssignableToTypeOf(timestamp))
+		operationget.Created_on = operation.Created_on
+		operationget.Last_state_update = operation.Last_state_update
+		Expect(operation).Should(Equal(operationget))
 
-	assert.IsType(t, timestamp, operationget.Created_on)
-	assert.IsType(t, timestamp, operationget.Last_state_update)
-	operationget.Created_on = operationput.Created_on
-	operationget.Last_state_update = operationput.Last_state_update
-	assert.Equal(t, operationput, operationget)
+		var operationlist []db.Operation
 
-}
+		err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, operation.Resource_id, operation.Resource_type, &operationlist, operation.Operation_owner_user_id)
+		Expect(err).To(BeNil())
+		Expect(operationlist[0].Last_state_update).To(BeAssignableToTypeOf(timestamp))
+		Expect(operationlist[0].Created_on).To(BeAssignableToTypeOf(timestamp))
+		operationlist[0].Created_on = operation.Created_on
+		operationlist[0].Last_state_update = operation.Last_state_update
 
-func TestDeleteOperationById(t *testing.T) {
-	SetupforTestingDB(t)
-	defer TestTeardown(t)
-	dbq, err := NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
+		Expect(operationlist[0]).Should(Equal(operation))
+		Expect(len(operationlist)).Should(Equal(1))
 
-	ctx := context.Background()
-	_, _, _, gitopsEngineInstance, _, err := CreateSampleData(dbq)
-	if !assert.NoError(t, err) {
-		return
-	}
-	operation := Operation{
-		Operation_id:            "test-operation-1",
-		Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-		Resource_id:             "test-fake-resource-id",
-		Resource_type:           "GitopsEngineInstance",
-		State:                   OperationState_Waiting,
-		Operation_owner_user_id: testClusterUser.Clusteruser_id,
-	}
+		operationupdate := db.Operation{
+			Operation_id:            "test-operation-1",
+			Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+			Resource_id:             "test-fake-resource-id-update",
+			Resource_type:           "GitopsEngineInstance-update",
+			State:                   db.OperationState_Waiting,
+			Operation_owner_user_id: testClusterUser.Clusteruser_id,
+			SeqID:                   int64(seq),
+		}
+		operationupdate.Created_on = operation.Created_on
+		operationupdate.Last_state_update = operation.Last_state_update
+		err = dbq.UpdateOperation(ctx, &operationupdate)
+		Expect(err).To(BeNil())
+		err = dbq.GetOperationById(ctx, &operationupdate)
+		Expect(err).To(BeNil())
+		Expect(operationupdate).ShouldNot(Equal(operation))
 
-	err = dbq.CreateOperation(ctx, &operation, operation.Operation_owner_user_id)
-	if !assert.NoError(t, err) {
-		return
-	}
+		rowsAffected, err := dbq.DeleteOperationById(ctx, operationget.Operation_id)
+		Expect(err).To(BeNil())
+		Expect(rowsAffected).Should(Equal(1))
 
-	rowsAffected, err := dbq.DeleteOperationById(ctx, operation.Operation_id)
-	assert.NoError(t, err)
-	assert.Equal(t, rowsAffected, 1)
-
-	err = dbq.GetOperationById(ctx, &operation)
-	if !assert.True(t, IsResultNotFoundError(err)) {
-		return
-	}
-
-}
-
-func TestListOperationsByResourceIdAndTypeAndOwnerId(t *testing.T) {
-	SetupforTestingDB(t)
-	defer TestTeardown(t)
-	dbq, err := NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
-
-	ctx := context.Background()
-
-	_, _, _, gitopsEngineInstance, _, err := CreateSampleData(dbq)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	operation := Operation{
-		Operation_id:            "test-operation-1",
-		Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-		Resource_id:             "test-fake-resource-id",
-		Resource_type:           "GitopsEngineInstance",
-		State:                   OperationState_Waiting,
-		Operation_owner_user_id: testClusterUser.Clusteruser_id,
-	}
-
-	var operations []Operation
-
-	err = dbq.CreateOperation(ctx, &operation, operation.Operation_owner_user_id)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, operation.Resource_id, operation.Resource_type, &operations, operation.Operation_owner_user_id)
-	assert.NoError(t, err)
-
-	assert.IsType(t, timestamp, operation.Created_on)
-	assert.IsType(t, timestamp, operation.Last_state_update)
-	operation.Created_on = operations[0].Created_on
-	operation.Last_state_update = operations[0].Last_state_update
-
-	assert.Equal(t, operations[0].Last_state_update, operation.Last_state_update)
-	assert.Equal(t, len(operations), 1)
-}
-
-func TestUpdateOperation(t *testing.T) {
-	SetupforTestingDB(t)
-	defer TestTeardown(t)
-	dbq, err := NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
-
-	ctx := context.Background()
-
-	_, _, _, gitopsEngineInstance, _, err := CreateSampleData(dbq)
-	if !assert.NoError(t, err) {
-		return
-	}
-	operationput := Operation{
-		Operation_id:            "test-operation-1",
-		Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-		Resource_id:             "test-fake-resource-id",
-		Resource_type:           "GitopsEngineInstance",
-		State:                   OperationState_Waiting,
-		Operation_owner_user_id: testClusterUser.Clusteruser_id,
-	}
-
-	err = dbq.CreateOperation(ctx, &operationput, operationput.Operation_owner_user_id)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	operationget := Operation{
-		Operation_id:            "test-operation-1",
-		Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-		Resource_id:             "test-fake-resource-id-update",
-		Resource_type:           "GitopsEngineInstance-update",
-		State:                   OperationState_Waiting,
-		Operation_owner_user_id: testClusterUser.Clusteruser_id,
-		SeqID:                   int64(DefaultValue),
-	}
-
-	assert.IsType(t, timestamp, operationget.Created_on)
-	assert.IsType(t, timestamp, operationget.Last_state_update)
-	operationget.Created_on = operationput.Created_on
-	operationget.Last_state_update = operationput.Last_state_update
-
-	err = dbq.UpdateOperation(ctx, &operationget)
-	if !assert.NoError(t, err) {
-		return
-	}
-	err = dbq.GetOperationById(ctx, &operationget)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	if !assert.NotEqual(t, operationput, operationget) {
-		return
-	}
-
-	// Set the invalid value
-	operationput.Operation_id = strings.Repeat("abc", 100)
-	err = dbq.CreateOperation(ctx, &operationput, operationput.Operation_owner_user_id)
-	assert.True(t, IsMaxLengthError(err))
-
-	operationget.Operation_owner_user_id = strings.Repeat("abc", 100)
-	err = dbq.UpdateOperation(ctx, &operationget)
-	assert.True(t, IsMaxLengthError(err))
-}
+		err = dbq.GetOperationById(ctx, &operationget)
+		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
+	})
+})

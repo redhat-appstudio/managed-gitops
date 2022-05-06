@@ -1,201 +1,106 @@
-package db
+package db_test
 
 import (
 	"context"
-	"strings"
-	"testing"
 
-	"github.com/stretchr/testify/assert"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
+	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 )
 
-func TestGetApplicationById(t *testing.T) {
-	SetupforTestingDB(t)
-	defer TestTeardown(t)
-	dbq, err := NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
+var _ = Describe("Application Test", func() {
 
-	ctx := context.Background()
+	It("Should Create, Get, Update and Delete an Application", func() {
+		err := db.SetupForTestingDBGinkgo()
+		Expect(err).To(BeNil())
 
-	_, managedEnvironment, _, gitopsEngineInstance, _, err := CreateSampleData(dbq)
-	if !assert.NoError(t, err) {
-		return
-	}
-	applicationput := Application{
-		Application_id:          "test-my-application-1",
-		Name:                    "test-application",
-		Spec_field:              "{}",
-		Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
-	}
+		ctx := context.Background()
+		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+		Expect(err).To(BeNil())
+		defer dbq.CloseDatabase()
 
-	err = dbq.CreateApplication(ctx, &applicationput)
-	if !assert.NoError(t, err) {
-		return
-	}
+		clusterCredentials := db.ClusterCredentials{
+			Clustercredentials_cred_id:  "test-cluster-creds-test",
+			Host:                        "host",
+			Kube_config:                 "kube-config",
+			Kube_config_context:         "kube-config-context",
+			Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+			Serviceaccount_ns:           "Serviceaccount_ns",
+		}
 
-	applicationget := Application{
-		Application_id: applicationput.Application_id,
-	}
+		managedEnvironment := db.ManagedEnvironment{
+			Managedenvironment_id: "test-managed-env-914",
+			Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+			Name:                  "my env",
+		}
 
-	err = dbq.GetApplicationById(ctx, &applicationget)
-	if !assert.NoError(t, err) {
-		return
-	}
-	assert.Equal(t, applicationput, applicationget)
+		gitopsEngineCluster := db.GitopsEngineCluster{
+			Gitopsenginecluster_id: "test-fake-cluster-914",
+			Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+		}
 
-	// check for non existent primary key
+		gitopsEngineInstance := db.GitopsEngineInstance{
+			Gitopsengineinstance_id: "test-fake-engine-instance-id",
+			Namespace_name:          "test-fake-namespace",
+			Namespace_uid:           "test-fake-namespace-914",
+			EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+		}
 
-	applicationNotExist := Application{
-		Application_id: "test-my-application-1-not-exist",
-	}
+		application := db.Application{
+			Application_id:          "test-my-application-1",
+			Name:                    "test-application",
+			Spec_field:              "{}",
+			Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+			Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+		}
 
-	err = dbq.GetApplicationById(ctx, &applicationNotExist)
-	if !assert.True(t, IsResultNotFoundError(err)) {
-		return
-	}
+		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
+		Expect(err).To(BeNil())
 
-}
+		err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
+		Expect(err).To(BeNil())
 
-func TestCreateApplications(t *testing.T) {
-	SetupforTestingDB(t)
-	defer TestTeardown(t)
-	dbq, err := NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
+		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
+		Expect(err).To(BeNil())
 
-	ctx := context.Background()
+		err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
+		Expect(err).To(BeNil())
 
-	_, managedEnvironment, _, gitopsEngineInstance, _, err := CreateSampleData(dbq)
-	if !assert.NoError(t, err) {
-		return
-	}
-	applicationput := Application{
-		Application_id:          "test-my-application-1",
-		Name:                    "test-application",
-		Spec_field:              "{}",
-		Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
-	}
+		err = dbq.CreateApplication(ctx, &application)
+		Expect(err).To(BeNil())
 
-	err = dbq.CreateApplication(ctx, &applicationput)
-	if !assert.NoError(t, err) {
-		return
-	}
+		applicationget := db.Application{
+			Application_id: application.Application_id,
+		}
 
-	applicationget := Application{
-		Application_id: applicationput.Application_id,
-	}
+		err = dbq.GetApplicationById(ctx, &applicationget)
+		Expect(err).To(BeNil())
+		Expect(application).Should(Equal(applicationget))
 
-	err = dbq.GetApplicationById(ctx, &applicationget)
-	if !assert.NoError(t, err) {
-		return
-	}
-	assert.Equal(t, applicationput, applicationget)
+		applicationupdate := db.Application{
 
-	// Set the invalid value
-	applicationput.Name = strings.Repeat("abc", 100)
-	err = dbq.CreateApplication(ctx, &applicationput)
-	assert.True(t, IsMaxLengthError(err))
-}
+			Application_id:          application.Application_id,
+			Name:                    "test-application-update",
+			Spec_field:              "{}",
+			Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+			Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			SeqID:                   int64(seq),
+		}
 
-func TestDeleteApplicationById(t *testing.T) {
-	SetupforTestingDB(t)
-	defer TestTeardown(t)
-	dbq, err := NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
+		err = dbq.UpdateApplication(ctx, &applicationupdate)
+		Expect(err).To(BeNil())
 
-	ctx := context.Background()
+		err = dbq.GetApplicationById(ctx, &applicationupdate)
+		Expect(err).To(BeNil())
+		Expect(applicationupdate).ShouldNot(Equal(applicationget))
 
-	_, managedEnvironment, _, gitopsEngineInstance, _, err := CreateSampleData(dbq)
-	if !assert.NoError(t, err) {
-		return
-	}
-	application := &Application{
-		Application_id:          "test-my-application-1",
-		Name:                    "test-application",
-		Spec_field:              "{}",
-		Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
-	}
+		rowsAffected, err := dbq.DeleteApplicationById(ctx, application.Application_id)
+		Expect(err).To(BeNil())
+		Expect(rowsAffected).Should(Equal(1))
 
-	err = dbq.CreateApplication(ctx, application)
-	if !assert.NoError(t, err) {
-		return
-	}
+		err = dbq.GetApplicationById(ctx, &application)
+		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
-	rowsAffected, err := dbq.DeleteApplicationById(ctx, application.Application_id)
-	assert.NoError(t, err)
-	assert.Equal(t, rowsAffected, 1)
-
-	err = dbq.GetApplicationById(ctx, application)
-	if !assert.True(t, IsResultNotFoundError(err)) {
-		return
-	}
-
-}
-
-func TestUpdateApplication(t *testing.T) {
-	SetupforTestingDB(t)
-	defer TestTeardown(t)
-	dbq, err := NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
-
-	ctx := context.Background()
-
-	_, managedEnvironment, _, gitopsEngineInstance, _, err := CreateSampleData(dbq)
-	if !assert.NoError(t, err) {
-		return
-	}
-	applicationput := &Application{
-		Application_id:          "test-my-application-1",
-		Name:                    "test-application",
-		Spec_field:              "{}",
-		Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
-	}
-
-	err = dbq.CreateApplication(ctx, applicationput)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	applicationget := Application{
-
-		Application_id:          applicationput.Application_id,
-		Name:                    "test-application-update",
-		Spec_field:              "{}",
-		Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
-		SeqID:                   int64(DefaultValue),
-	}
-
-	err = dbq.UpdateApplication(ctx, &applicationget)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.GetApplicationById(ctx, &applicationget)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	if !assert.NotEqual(t, applicationput, applicationget) {
-		return
-	}
-
-	// Set the invalid value
-	applicationget.Name = strings.Repeat("abc", 100)
-	err = dbq.UpdateApplication(ctx, &applicationget)
-	assert.True(t, IsMaxLengthError(err))
-}
+	})
+})

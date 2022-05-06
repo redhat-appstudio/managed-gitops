@@ -2,6 +2,7 @@ package db_test
 
 import (
 	"context"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -11,6 +12,11 @@ import (
 var _ = Describe("SyncOperation Tests", func() {
 	Context("It should execute all SyncOperation Functions", func() {
 		It("Should execute all SyncOperation Functions", func() {
+			var testClusterUser = &db.ClusterUser{
+				Clusteruser_id: "test-user",
+				User_name:      "test-user",
+			}
+
 			err := db.SetupForTestingDBGinkgo()
 			Expect(err).To(BeNil())
 
@@ -19,7 +25,7 @@ var _ = Describe("SyncOperation Tests", func() {
 			Expect(err).To(BeNil())
 			defer dbq.CloseDatabase()
 
-			_, managedEnvironment, _, gitopsEngineInstance, _, err := createSampleData(dbq)
+			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
 			Expect(err).To(BeNil())
 
 			application := &db.Application{
@@ -75,6 +81,12 @@ var _ = Describe("SyncOperation Tests", func() {
 
 			err = dbq.GetSyncOperationById(ctx, &fetchRow)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
+
+			// Set the invalid value
+			insertRow.DeploymentNameField = strings.Repeat("abc", 100)
+			err = dbq.CreateSyncOperation(ctx, &insertRow)
+			Expect(db.IsMaxLengthError(err)).To(Equal(true))
+
 		})
 	})
 })

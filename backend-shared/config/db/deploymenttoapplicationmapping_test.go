@@ -24,7 +24,7 @@ var _ = Describe("DeploymentToApplicationMapping Tests", func() {
 			Expect(err).To(BeNil())
 			defer dbq.CloseDatabase()
 
-			_, managedEnvironment, _, gitopsEngineInstance, _, err := createSampleData(dbq)
+			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
 			Expect(err).To(BeNil())
 
 			application := &db.Application{
@@ -74,7 +74,7 @@ var _ = Describe("DeploymentToApplicationMapping Tests", func() {
 			Expect(err).To(BeNil())
 			defer dbq.CloseDatabase()
 
-			_, managedEnvironment, _, gitopsEngineInstance, _, err := createSampleData(dbq)
+			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
 			Expect(err).To(BeNil())
 
 			application := &db.Application{

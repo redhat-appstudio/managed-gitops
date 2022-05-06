@@ -26,11 +26,17 @@ type ApplicationInfoCache struct {
 }
 
 type applicationInfoCacheRequest struct {
-	ctx                          context.Context
-	msgType                      ApplicationInfoCacheMessageType
+	ctx     context.Context
+	msgType ApplicationInfoCacheMessageType
+
+	// if createappstate or updateappstate is called, this value will contain the db.ApplicationState object provided by the caller
+	// otherwise, it will be empty
 	createOrUpdateAppStateObject db.ApplicationState
-	primaryKey                   string
-	responseChannel              chan applicationInfoCacheResponse
+
+	// primaryKey is the application/applicationstate database primary key id
+	// Note: it is no set for Create or Update, for that, use 'createOrUpdateAppStateObject'
+	primaryKey      string
+	responseChannel chan applicationInfoCacheResponse
 }
 
 type applicationInfoCacheResponse struct {

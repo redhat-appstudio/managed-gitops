@@ -306,21 +306,7 @@ func SetupforTestingDB(t *testing.T) {
 	}
 	defer dbq.CloseDatabase()
 
-	var deploymentToApplicationMappings []DeploymentToApplicationMapping
 	var syncOperations []SyncOperation
-
-	err = dbq.UnsafeListAllDeploymentToApplicationMapping(ctx, &deploymentToApplicationMappings)
-	assert.NoError(t, err)
-	for _, deploydeploymentToApplicationMapping := range deploymentToApplicationMappings {
-		if strings.HasPrefix(deploydeploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id, "test-") {
-			rowsAffected, err := dbq.DeleteDeploymentToApplicationMappingByDeplId(ctx, deploydeploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id)
-			assert.NoError(t, err)
-			if err == nil {
-				assert.Equal(t, rowsAffected, 1)
-			}
-		}
-	}
-
 	err = dbq.UnsafeListAllSyncOperations(ctx, &syncOperations)
 	assert.NoError(t, err)
 	for _, syncOperation := range syncOperations {
@@ -328,11 +314,10 @@ func SetupforTestingDB(t *testing.T) {
 			rowsAffected, err := dbq.DeleteSyncOperationById(ctx, syncOperation.SyncOperation_id)
 			assert.NoError(t, err)
 			if err == nil {
-				assert.Equal(t, rowsAffected, 1)
+				assert.Equal(t, 1, rowsAffected)
 			}
 		}
 	}
-
 	var applicationStates []ApplicationState
 	err = dbq.UnsafeListAllApplicationStates(ctx, &applicationStates)
 	assert.NoError(t, err)
@@ -341,7 +326,21 @@ func SetupforTestingDB(t *testing.T) {
 			rowsAffected, err := dbq.DeleteApplicationStateById(ctx, applicationState.Applicationstate_application_id)
 			assert.NoError(t, err)
 			if err == nil {
-				assert.Equal(t, rowsAffected, 1)
+				assert.Equal(t, 1, rowsAffected)
+			}
+		}
+	}
+
+	var deploymentToApplicationMappings []DeploymentToApplicationMapping
+
+	err = dbq.UnsafeListAllDeploymentToApplicationMapping(ctx, &deploymentToApplicationMappings)
+	assert.NoError(t, err)
+	for _, deploydeploymentToApplicationMapping := range deploymentToApplicationMappings {
+		if strings.HasPrefix(deploydeploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id, "test-") {
+			rowsAffected, err := dbq.DeleteDeploymentToApplicationMappingByDeplId(ctx, deploydeploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id)
+			assert.NoError(t, err)
+			if err == nil {
+				assert.Equal(t, 1, rowsAffected)
 			}
 		}
 	}
@@ -353,7 +352,7 @@ func SetupforTestingDB(t *testing.T) {
 
 		if strings.HasPrefix(operation.Operation_id, "test-") {
 			rowsAffected, err := dbq.CheckedDeleteOperationById(ctx, operation.Operation_id, operation.Operation_owner_user_id)
-			assert.Equal(t, rowsAffected, 1)
+			assert.Equal(t, 1, rowsAffected)
 			assert.NoError(t, err)
 		}
 	}
@@ -364,7 +363,7 @@ func SetupforTestingDB(t *testing.T) {
 	for _, application := range applications {
 		if strings.HasPrefix(application.Application_id, "test-") {
 			rowsAffected, err := dbq.DeleteApplicationById(ctx, application.Application_id)
-			assert.Equal(t, rowsAffected, 1)
+			assert.Equal(t, 1, rowsAffected)
 			assert.NoError(t, err)
 		}
 	}
@@ -379,7 +378,7 @@ func SetupforTestingDB(t *testing.T) {
 				clusterAccess.Clusteraccess_gitops_engine_instance_id)
 			assert.NoError(t, err)
 			if err == nil {
-				assert.Equal(t, rowsAffected, 1)
+				assert.Equal(t, 1, rowsAffected)
 			}
 		}
 	}
@@ -392,11 +391,8 @@ func SetupforTestingDB(t *testing.T) {
 
 			rowsAffected, err := dbq.DeleteGitopsEngineInstanceById(ctx, gitopsEngineInstance.Gitopsengineinstance_id)
 
-			if !assert.NoError(t, err) {
-				return
-			}
-			if err == nil {
-				assert.Equal(t, rowsAffected, 1)
+			if assert.NoError(t, err) {
+				assert.Equal(t, 1, rowsAffected)
 			}
 		}
 	}
@@ -409,7 +405,7 @@ func SetupforTestingDB(t *testing.T) {
 			rowsAffected, err := dbq.DeleteGitopsEngineClusterById(ctx, engineCluster.Gitopsenginecluster_id)
 			assert.NoError(t, err)
 			if err == nil {
-				assert.Equal(t, rowsAffected, 1)
+				assert.Equal(t, 1, rowsAffected)
 			}
 		}
 	}
@@ -418,9 +414,10 @@ func SetupforTestingDB(t *testing.T) {
 	err = dbq.UnsafeListAllManagedEnvironments(ctx, &managedEnvironments)
 	assert.NoError(t, err)
 	for _, managedEnvironment := range managedEnvironments {
+
 		if strings.HasPrefix(managedEnvironment.Managedenvironment_id, "test-") {
 			rowsAffected, err := dbq.DeleteManagedEnvironmentById(ctx, managedEnvironment.Managedenvironment_id)
-			assert.Equal(t, rowsAffected, 1)
+			assert.Equal(t, 1, rowsAffected)
 			assert.NoError(t, err)
 		}
 	}
@@ -433,22 +430,22 @@ func SetupforTestingDB(t *testing.T) {
 			rowsAffected, err := dbq.DeleteClusterCredentialsById(ctx, clusterCredential.Clustercredentials_cred_id)
 			assert.NoError(t, err)
 			if err == nil {
-				assert.Equal(t, rowsAffected, 1)
+				assert.Equal(t, 1, rowsAffected)
 			}
 		}
 	}
 
 	var clusterUsers []ClusterUser
-	if err = dbq.UnsafeListAllClusterUsers(ctx, &clusterUsers); !assert.NoError(t, err) {
-		return
-	}
+	if err = dbq.UnsafeListAllClusterUsers(ctx, &clusterUsers); assert.NoError(t, err) {
 
-	for _, user := range clusterUsers {
-		if strings.HasPrefix(user.Clusteruser_id, "test-") {
-			rowsAffected, err := dbq.DeleteClusterUserById(ctx, (user.Clusteruser_id))
-			assert.Equal(t, rowsAffected, 1)
-			assert.NoError(t, err)
+		for _, user := range clusterUsers {
+			if strings.HasPrefix(user.Clusteruser_id, "test-") {
+				rowsAffected, err := dbq.DeleteClusterUserById(ctx, (user.Clusteruser_id))
+				assert.Equal(t, 1, rowsAffected)
+				assert.NoError(t, err)
+			}
 		}
+
 	}
 
 	err = dbq.CreateClusterUser(ctx, testClusterUser)
@@ -461,15 +458,16 @@ func SetupforTestingDB(t *testing.T) {
 		if strings.HasPrefix(kubernetesToDBResourceMappings[i].KubernetesResourceUID, "test-") {
 			rowsAffected, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMappings[i])
 
-			if !assert.NoError(t, err) {
-				return
-			}
-			if err == nil {
-				assert.Equal(t, rowsAffected, 1)
+			if assert.NoError(t, err) {
+				assert.Equal(t, 1, rowsAffected)
 			}
 		}
 	}
 
+	// If test setup fails, then we should just immediately exit, rather than continuing
+	if t.Failed() {
+		t.FailNow()
+	}
 }
 
 func TestTeardown(t *testing.T) {

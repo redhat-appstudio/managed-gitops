@@ -1,218 +1,65 @@
-package db
+package db_test
 
 import (
 	"context"
-	"strings"
-	"testing"
 
-	"github.com/stretchr/testify/assert"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 )
 
-func TestGetGitopsEngineInstanceById(t *testing.T) {
-	SetupforTestingDB(t)
-	defer TestTeardown(t)
-	dbq, err := NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
+var _ = Describe("Gitopsengineinstance Test", func() {
+	It("Should Create, Get and Delete a GitopsEngineInstance", func() {
+		err := db.SetupForTestingDBGinkgo()
+		Expect(err).To(BeNil())
 
-	ctx := context.Background()
+		ctx := context.Background()
+		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+		Expect(err).To(BeNil())
+		defer dbq.CloseDatabase()
 
-	clusterCredentials := ClusterCredentials{
-		Clustercredentials_cred_id:  "test-cluster-creds-test-1",
-		Host:                        "host",
-		Kube_config:                 "kube-config",
-		Kube_config_context:         "kube-config-context",
-		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-		Serviceaccount_ns:           "Serviceaccount_ns",
-	}
+		clusterCredentials := db.ClusterCredentials{
+			Clustercredentials_cred_id:  "test-cluster-creds-test-1",
+			Host:                        "host",
+			Kube_config:                 "kube-config",
+			Kube_config_context:         "kube-config-context",
+			Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+			Serviceaccount_ns:           "Serviceaccount_ns",
+		}
 
-	gitopsEngineCluster := GitopsEngineCluster{
-		Gitopsenginecluster_id: "test-fake-cluster-1",
-		Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
-	}
+		gitopsEngineCluster := db.GitopsEngineCluster{
+			Gitopsenginecluster_id: "test-fake-cluster-1",
+			Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+		}
 
-	gitopsEngineInstanceput := GitopsEngineInstance{
-		Gitopsengineinstance_id: "test-fake-engine-instance-id",
-		Namespace_name:          "test-fake-namespace",
-		Namespace_uid:           "test-fake-namespace-1",
-		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
-	}
-	err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-	if !assert.NoError(t, err) {
-		return
-	}
+		gitopsEngineInstanceput := db.GitopsEngineInstance{
+			Gitopsengineinstance_id: "test-fake-engine-instance-id",
+			Namespace_name:          "test-fake-namespace",
+			Namespace_uid:           "test-fake-namespace-1",
+			EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+		}
+		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
+		Expect(err).To(BeNil())
 
-	err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-	if !assert.NoError(t, err) {
-		return
-	}
+		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
+		Expect(err).To(BeNil())
 
-	err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstanceput)
-	if !assert.NoError(t, err) {
-		return
-	}
-	gitopsEngineInstanceget := GitopsEngineInstance{
-		Gitopsengineinstance_id: "test-fake-engine-instance-id",
-		Namespace_name:          "test-fake-namespace",
-		Namespace_uid:           "test-fake-namespace-1",
-		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
-	}
+		err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstanceput)
+		Expect(err).To(BeNil())
 
-	err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstanceget)
-	if !assert.NoError(t, err) {
-		return
-	}
-	assert.Equal(t, gitopsEngineInstanceput, gitopsEngineInstanceget)
+		gitopsEngineInstanceget := db.GitopsEngineInstance{
+			Gitopsengineinstance_id: gitopsEngineInstanceput.Gitopsengineinstance_id,
+		}
 
-	//check for inexistent primary key
+		err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstanceget)
+		Expect(err).To(BeNil())
+		Expect(gitopsEngineInstanceput).Should(Equal(gitopsEngineInstanceget))
 
-	gitopsEngineInstanceNotExist := GitopsEngineInstance{
-		Gitopsengineinstance_id: "test-fake-engine-instance-id-not-exist",
-		Namespace_name:          "test-fake-namespace-not-exist",
-		Namespace_uid:           "test-fake-namespace-1-not-exist",
-		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
-	}
+		rowsAffected, err := dbq.DeleteGitopsEngineInstanceById(ctx, gitopsEngineInstanceput.Gitopsengineinstance_id)
+		Expect(err).To(BeNil())
+		Expect(rowsAffected).Should(Equal(1))
 
-	err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstanceNotExist)
-	if !assert.True(t, IsResultNotFoundError(err)) {
-		return
-	}
-
-	// Set the invalid value
-	gitopsEngineInstanceput.EngineCluster_id = strings.Repeat("abc", 100)
-	err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstanceput)
-	assert.True(t, IsMaxLengthError(err))
-}
-
-func TestCreateGitopsEngineInstance(t *testing.T) {
-	SetupforTestingDB(t)
-	defer TestTeardown(t)
-	dbq, err := NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
-
-	ctx := context.Background()
-
-	clusterCredentials := ClusterCredentials{
-		Clustercredentials_cred_id:  "test-cluster-creds-test-2",
-		Host:                        "host",
-		Kube_config:                 "kube-config",
-		Kube_config_context:         "kube-config-context",
-		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-		Serviceaccount_ns:           "Serviceaccount_ns",
-	}
-
-	gitopsEngineCluster := GitopsEngineCluster{
-		Gitopsenginecluster_id: "test-fake-cluster-2",
-		Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
-	}
-
-	gitopsEngineInstanceput := GitopsEngineInstance{
-		Gitopsengineinstance_id: "test-fake-engine-instance-id",
-		Namespace_name:          "test-fake-namespace",
-		Namespace_uid:           "test-fake-namespace-2",
-		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
-	}
-	err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstanceput)
-	if !assert.NoError(t, err) {
-		return
-	}
-	gitopsEngineInstanceget := GitopsEngineInstance{
-		Gitopsengineinstance_id: "test-fake-engine-instance-id",
-		Namespace_name:          "test-fake-namespace",
-		Namespace_uid:           "test-fake-namespace-2",
-		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
-	}
-
-	err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstanceget)
-	if !assert.NoError(t, err) {
-		return
-	}
-	assert.Equal(t, gitopsEngineInstanceput, gitopsEngineInstanceget)
-
-}
-
-func TestDeleteGitopsEngineInstanceById(t *testing.T) {
-	SetupforTestingDB(t)
-	defer TestTeardown(t)
-	dbq, err := NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
-
-	ctx := context.Background()
-
-	clusterCredentials := ClusterCredentials{
-		Clustercredentials_cred_id:  "test-cluster-creds-test-3",
-		Host:                        "host",
-		Kube_config:                 "kube-config",
-		Kube_config_context:         "kube-config-context",
-		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-		Serviceaccount_ns:           "Serviceaccount_ns",
-	}
-
-	gitopsEngineCluster := GitopsEngineCluster{
-		Gitopsenginecluster_id: "test-fake-cluster-3",
-		Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
-	}
-
-	gitopsEngineInstance := GitopsEngineInstance{
-		Gitopsengineinstance_id: "test-fake-engine-instance-id",
-		Namespace_name:          "test-fake-namespace",
-		Namespace_uid:           "test-fake-namespace-3",
-		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
-	}
-	err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-	if !assert.NoError(t, err) {
-		return
-	}
-	rowsAffected, err := dbq.DeleteGitopsEngineInstanceById(ctx, gitopsEngineInstance.Gitopsengineinstance_id)
-	assert.NoError(t, err)
-	assert.Equal(t, rowsAffected, 1)
-
-	rowsAffected, err = dbq.DeleteGitopsEngineClusterById(ctx, gitopsEngineCluster.Gitopsenginecluster_id)
-	assert.NoError(t, err)
-	assert.Equal(t, rowsAffected, 1)
-
-	rowsAffected, err = dbq.DeleteClusterCredentialsById(ctx, clusterCredentials.Clustercredentials_cred_id)
-	assert.NoError(t, err)
-	assert.Equal(t, rowsAffected, 1)
-
-	err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstance)
-	if !assert.True(t, IsResultNotFoundError(err)) {
-		return
-	}
-	err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineCluster)
-	if !assert.True(t, IsResultNotFoundError(err)) {
-		return
-	}
-	err = dbq.GetClusterCredentialsById(ctx, &clusterCredentials)
-	if !assert.True(t, IsResultNotFoundError(err)) {
-		return
-	}
-}
+		err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstanceget)
+		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
+	})
+})

@@ -91,7 +91,7 @@ func TestGetDBResourceMappingForKubernetesResource(t *testing.T) {
 	// Set the invalid value
 	kubernetesToDBResourceMappingpost.DBRelationType = strings.Repeat("abc", 100)
 	err = dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMappingpost)
-	assert.True(t, isMaxLengthError(err))
+	assert.True(t, IsMaxLengthError(err))
 }
 
 func TestDeleteKubernetesResourceToDBResourceMapping(t *testing.T) {

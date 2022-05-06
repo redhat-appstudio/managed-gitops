@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
@@ -98,7 +98,7 @@ var _ = Describe("Test utility functions", func() {
 				User_name:      "user-name",
 			}
 			err := validateFieldLength(user)
-			Expect(isMaxLengthError(err)).To(BeTrue())
+			Expect(IsMaxLengthError(err)).To(BeTrue())
 		})
 
 		It("Should return error for User_name", func() {
@@ -107,7 +107,7 @@ var _ = Describe("Test utility functions", func() {
 				User_name:      strings.Repeat("abc", 86),
 			}
 			err := validateFieldLength(user)
-			Expect(isMaxLengthError(err)).To(BeTrue())
+			Expect(IsMaxLengthError(err)).To(BeTrue())
 		})
 
 		It("Should pass", func() {
@@ -116,7 +116,7 @@ var _ = Describe("Test utility functions", func() {
 				User_name:      "user-name",
 			}
 			err := validateFieldLength(user)
-			Expect(isMaxLengthError(err)).To(BeFalse())
+			Expect(IsMaxLengthError(err)).To(BeFalse())
 		})
 
 		It("Should pass.", func() {
@@ -125,7 +125,7 @@ var _ = Describe("Test utility functions", func() {
 				SeqID:                  123,
 			}
 			err := validateFieldLength(gitopsEngineCluster)
-			Expect(isMaxLengthError(err)).To(BeFalse())
+			Expect(IsMaxLengthError(err)).To(BeFalse())
 		})
 
 		It("Should return error for Gitopsenginecluster_id", func() {
@@ -134,21 +134,21 @@ var _ = Describe("Test utility functions", func() {
 				SeqID:                  123,
 			}
 			err := validateFieldLength(gitopsEngineCluster)
-			Expect(isMaxLengthError(err)).To(BeTrue())
+			Expect(IsMaxLengthError(err)).To(BeTrue())
 		})
 	})
 
-	Context("Ensure isMaxLengthError checks for error returned by validateFieldLength.", func() {
+	Context("Ensure IsMaxLengthError checks for error returned by validateFieldLength.", func() {
 		It("Should return True", func() {
-			Expect(isMaxLengthError(fmt.Errorf("%v value exceeds maximum size: max: %d, actual: %d", "fieldName", 5, 10))).To(BeTrue())
+			Expect(IsMaxLengthError(fmt.Errorf("%v value exceeds maximum size: max: %d, actual: %d", "fieldName", 5, 10))).To(BeTrue())
 		})
 
 		It("Should return False", func() {
-			Expect(isMaxLengthError(fmt.Errorf("Some error"))).To(BeFalse())
+			Expect(IsMaxLengthError(fmt.Errorf("Some error"))).To(BeFalse())
 		})
 
 		It("Should return False", func() {
-			Expect(isMaxLengthError(nil)).To(BeFalse())
+			Expect(IsMaxLengthError(nil)).To(BeFalse())
 		})
 	})
 })

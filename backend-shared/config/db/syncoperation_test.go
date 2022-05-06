@@ -11,7 +11,9 @@ import (
 var _ = Describe("SyncOperation Tests", func() {
 	Context("It should execute all SyncOperation Functions", func() {
 		It("Should execute all SyncOperation Functions", func() {
-			ginkgoTestSetup()
+			err := db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
+
 			ctx := context.Background()
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).To(BeNil())

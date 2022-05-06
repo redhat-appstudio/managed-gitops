@@ -84,7 +84,9 @@ func createSampleData(dbq db.AllDatabaseQueries) (*db.ClusterCredentials, *db.Ma
 var _ = Describe("ApplicationStates Tests", func() {
 	Context("It should execute all DB functions for ApplicationStates", func() {
 		It("Should execute all ApplicationStates Functions", func() {
-			ginkgoTestSetup()
+			err := db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
+
 			ctx := context.Background()
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)

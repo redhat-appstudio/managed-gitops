@@ -260,5 +260,5 @@ func TestListManagedEnvironmentForClusterCredentialsAndOwnerId(t *testing.T) {
 	// Set the invalid value
 	managedEnvironment.Clustercredentials_id = strings.Repeat("abc", 100)
 	err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
-	assert.True(t, isMaxLengthError(err))
+	assert.True(t, IsMaxLengthError(err))
 }

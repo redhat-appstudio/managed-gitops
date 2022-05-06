@@ -83,7 +83,7 @@ func TestGetGitopsEngineInstanceById(t *testing.T) {
 	// Set the invalid value
 	gitopsEngineInstanceput.EngineCluster_id = strings.Repeat("abc", 100)
 	err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstanceput)
-	assert.True(t, isMaxLengthError(err))
+	assert.True(t, IsMaxLengthError(err))
 }
 
 func TestCreateGitopsEngineInstance(t *testing.T) {

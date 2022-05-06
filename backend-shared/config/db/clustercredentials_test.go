@@ -11,7 +11,9 @@ import (
 var _ = Describe("ClusterCredentials Tests", func() {
 	Context("It should execute all DB functions for ClusterCredentials", func() {
 		It("Should execute all ClusterCredentials Functions", func() {
-			ginkgoTestSetup()
+			err := db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
+
 			ctx := context.Background()
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).To(BeNil())

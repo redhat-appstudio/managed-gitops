@@ -25,6 +25,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -112,6 +113,7 @@ func main() {
 		Scheme:        mgr.GetScheme(),
 		DB:            applicationReconcileDB,
 		TaskRetryLoop: sharedutil.NewTaskRetryLoop("application-reconciler"),
+		Cache:         dbutil.NewApplicationInfoCache(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Application")
 		os.Exit(1)

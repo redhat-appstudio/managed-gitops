@@ -39,7 +39,7 @@ type ApplicationReconciler struct {
 	client.Client
 	Scheme        *runtime.Scheme
 	TaskRetryLoop *sharedutil.TaskRetryLoop
-	cache         cache.ApplicationInfoCache
+	Cache         *cache.ApplicationInfoCache
 	DB            db.DatabaseQueries
 }
 
@@ -75,7 +75,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	} else {
 		applicationDB.Application_id = databaseID
 	}
-	if _, _, err := r.cache.GetApplicationById(ctx, applicationDB.Application_id); err != nil {
+	if _, _, err := r.Cache.GetApplicationById(ctx, applicationDB.Application_id); err != nil {
 		if db.IsResultNotFoundError(err) {
 
 			log.V(sharedutil.LogLevel_Warn).Info("Application CR '" + req.NamespacedName.String() + "' missing corresponding database entry: " + applicationDB.Application_id)
@@ -103,7 +103,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	applicationState := &db.ApplicationState{
 		Applicationstate_application_id: applicationDB.Application_id,
 	}
-	if _, _, errGet := r.cache.GetApplicationStateById(ctx, applicationState.Applicationstate_application_id); errGet != nil {
+	if _, _, errGet := r.Cache.GetApplicationStateById(ctx, applicationState.Applicationstate_application_id); errGet != nil {
 		if db.IsResultNotFoundError(errGet) {
 
 			// 3a) ApplicationState doesn't exist: so create it
@@ -114,7 +114,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationStateRevisionLength)
 			sanitizeHealthAndStatus(applicationState)
 
-			if errCreate := r.cache.CreateApplicationState(ctx, *applicationState); errCreate != nil {
+			if errCreate := r.Cache.CreateApplicationState(ctx, *applicationState); errCreate != nil {
 				log.Error(errCreate, "unexpected error on writing new application state")
 				return ctrl.Result{}, errCreate
 			}
@@ -134,7 +134,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationStateRevisionLength)
 	sanitizeHealthAndStatus(applicationState)
 
-	if err := r.cache.UpdateApplicationState(ctx, *applicationState); err != nil {
+	if err := r.Cache.UpdateApplicationState(ctx, *applicationState); err != nil {
 		log.Error(err, "unexpected error on updating existing application state")
 		return ctrl.Result{}, err
 	}

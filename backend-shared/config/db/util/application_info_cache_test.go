@@ -13,9 +13,11 @@ func TestCreateApplicationState(t *testing.T) {
 	db.SetupforTestingDB(t)
 	defer db.TestTeardown(t)
 
-	asc := NewApplicationInfoCache()
-
 	ctx := context.Background()
+
+	asc := NewApplicationInfoCache()
+	defer asc.debugOnly_Shutdown(ctx)
+
 	dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
 		return
@@ -56,16 +58,22 @@ func TestCreateApplicationState(t *testing.T) {
 	assert.NoError(t, errGet)
 	assert.Equal(t, testAppState, dbAppStateObj)
 
+	_, fromCache, err := asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
+	assert.NoError(t, err)
+	assert.True(t, fromCache)
+
 }
 
 // TestGetApplicationStateById test is used for retrieving of ApplicationState using cache
 func TestGetApplicationStateById(t *testing.T) {
+	ctx := context.Background()
+
 	db.SetupforTestingDB(t)
 	defer db.TestTeardown(t)
 
 	asc := NewApplicationInfoCache()
+	defer asc.debugOnly_Shutdown(ctx)
 
-	ctx := context.Background()
 	dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
 		return
@@ -107,8 +115,8 @@ func TestGetApplicationStateById(t *testing.T) {
 		Health:                          "Healthy",
 		Sync_Status:                     "Synced",
 	}
-	errCreate := asc.CreateApplicationState(ctx, testAppState)
-	assert.NoError(t, errCreate)
+	err = dbq.CreateApplicationState(ctx, &testAppState)
+	assert.NoError(t, err)
 
 	getAppState, isFromCache, errGet := asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
 	// ideally the appState should now report an ApplicationState obj
@@ -131,13 +139,14 @@ func TestGetApplicationStateById(t *testing.T) {
 
 // TestUpdateApplicationState test is used for updating of ApplicationState using cache
 func TestUpdateApplicationState(t *testing.T) {
+	ctx := context.Background()
 
 	db.SetupforTestingDB(t)
 	defer db.TestTeardown(t)
 
 	asc := NewApplicationInfoCache()
+	defer asc.debugOnly_Shutdown(ctx)
 
-	ctx := context.Background()
 	dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
 		return
@@ -178,24 +187,21 @@ func TestUpdateApplicationState(t *testing.T) {
 
 	appState, isFromCache, errGet := asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
 	assert.NoError(t, errGet)
-	assert.False(t, isFromCache)
+	assert.True(t, isFromCache)
 	assert.Equal(t, appState, testAppState)
 
-	//calling the same GetApplicationStateById again should come from cache, hence ifFromCache should be True
-	_, isFromCache, errGet = asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
-	assert.NoError(t, errGet)
-	assert.True(t, isFromCache)
 }
 
 // TestUpdateApplicationState test is used for updating of ApplicationState using cache
 func TestDeleteApplicationState(t *testing.T) {
 
+	ctx := context.Background()
 	db.SetupforTestingDB(t)
 	defer db.TestTeardown(t)
 
 	asc := NewApplicationInfoCache()
+	defer asc.debugOnly_Shutdown(ctx)
 
-	ctx := context.Background()
 	dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
 		return
@@ -244,12 +250,14 @@ func TestDeleteApplicationState(t *testing.T) {
 
 // TestGetApplicationById test is used for retrieving of Application using cache
 func TestGetApplicationById(t *testing.T) {
+	ctx := context.Background()
+
 	db.SetupforTestingDB(t)
 	defer db.TestTeardown(t)
 
 	asc := NewApplicationInfoCache()
+	defer asc.debugOnly_Shutdown(ctx)
 
-	ctx := context.Background()
 	dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 	if !assert.NoError(t, err) {
 		return

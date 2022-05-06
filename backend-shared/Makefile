@@ -38,7 +38,7 @@ endef
 
 .PHONY: test
 test: fmt vet
-	go test -v -race -count=1 -coverprofile=coverage.out `go list ./...`
+	go test -p=1 -race -count=1 -coverprofile=coverage.out `go list ./...`
 
 .PHONY: gosec
 gosec: go_sec

@@ -450,6 +450,9 @@ Foreign key relationships between tables, as of this writing:
 
 Miro Diagram: https://miro.com/app/board/o9J_lgiqJAs=/?moveToWidget=3458764513858646837&cot=14
 
+SyncOperation -> Operation
+SyncOperation -> Application
+
 ApplicationState ->  Application
 
 DeploymentToApplicationMapping -> Application

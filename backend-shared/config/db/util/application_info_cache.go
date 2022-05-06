@@ -6,8 +6,9 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/prometheus/common/log"
+	"github.com/go-logr/logr"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // A wrapper over the ApplicationStateCache entries of the database
@@ -30,6 +31,7 @@ const (
 	ApplicationStateCacheMessage_Update
 	ApplicationStateCacheMessage_Delete
 	ApplicationInfoCacheMessage_ExpireCacheEntries
+	ApplicationInfoCacheMessage_DebugOnly_Shutdown
 )
 
 func (asc *ApplicationInfoCache) GetApplicationById(ctx context.Context, id string) (db.Application, bool, error) {
@@ -162,11 +164,28 @@ func (asc *ApplicationInfoCache) DeleteApplicationStateById(ctx context.Context,
 	return response.rowsAffectedForDelete, nil
 }
 
+// debugOnly_Shutdown should only be called in unit tests. This function terminates the cache loop.
+func (asc *ApplicationInfoCache) debugOnly_Shutdown(ctx context.Context) {
+
+	responseChannel := make(chan applicationInfoCacheResponse)
+
+	asc.channel <- applicationInfoCacheRequest{
+		ctx:             ctx,
+		msgType:         ApplicationInfoCacheMessage_DebugOnly_Shutdown,
+		responseChannel: responseChannel,
+	}
+
+	<-responseChannel
+
+}
+
 func applicationInfoCacheLoop(inputChan chan applicationInfoCacheRequest) {
 
 	startTimer(&ApplicationInfoCache{
 		channel: inputChan,
 	})
+
+	log := log.FromContext(context.Background())
 
 	cacheAppState := map[string]applicationStateCacheEntry{}
 	cacheApp := map[string]applicationCacheEntry{}
@@ -177,26 +196,31 @@ func applicationInfoCacheLoop(inputChan chan applicationInfoCacheRequest) {
 		return
 	}
 
+outer_for_loop:
 	for {
 
 		request := <-inputChan
 		if request.msgType == ApplicationStateCacheMessage_Get {
-			processGetAppStateMessage(dbQueries, request, cacheApp, cacheAppState)
+			processGetAppStateMessage(dbQueries, request, cacheApp, cacheAppState, log)
 
 		} else if request.msgType == ApplicationStateCacheMessage_Create {
 			processCreateAppStateMessage(dbQueries, request, cacheApp, cacheAppState)
 
 		} else if request.msgType == ApplicationStateCacheMessage_Update {
-			processUpdateAppStateMessage(dbQueries, request, cacheApp, cacheAppState)
+			processUpdateAppStateMessage(dbQueries, request, cacheApp, cacheAppState, log)
 
 		} else if request.msgType == ApplicationStateCacheMessage_Delete {
-			processDeleteAppStateMessage(dbQueries, request, cacheApp, cacheAppState)
+			processDeleteAppStateMessage(dbQueries, request, cacheApp, cacheAppState, log)
 
 		} else if request.msgType == ApplicationCacheMessage_Get {
-			processGetAppMessage(dbQueries, request, cacheApp, cacheAppState)
+			processGetAppMessage(dbQueries, request, cacheApp, cacheAppState, log)
 
 		} else if request.msgType == ApplicationInfoCacheMessage_ExpireCacheEntries {
 			processExpireCacheEntriesMessage(cacheApp, cacheAppState, inputChan)
+
+		} else if request.msgType == ApplicationInfoCacheMessage_DebugOnly_Shutdown {
+			processDebugOnlyShutdownMessage(request, log)
+			break outer_for_loop
 
 		} else {
 			log.Error(nil, "SEVERE: unimplemented message type")
@@ -206,19 +230,26 @@ func applicationInfoCacheLoop(inputChan chan applicationInfoCacheRequest) {
 	}
 }
 
+func processDebugOnlyShutdownMessage(req applicationInfoCacheRequest, log logr.Logger) {
+	log.Info("DEBUG-ONLY: terminating info cache. You should only see this in unit tests.")
+	req.responseChannel <- applicationInfoCacheResponse{}
+}
+
 func processCreateAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cacheApp map[string]applicationCacheEntry, cacheAppState map[string]applicationStateCacheEntry) {
 	err := dbQueries.CreateApplicationState(req.ctx, &req.createOrUpdateAppStateObject)
 
 	if err == nil {
+
 		// Create the cache on success
 		var appState db.ApplicationState = req.createOrUpdateAppStateObject
 
-		if entryInCache, exists := cacheAppState[req.primaryKey]; !exists {
-			entryInCache.appState = appState
-			entryInCache.cacheExpireTime = time.Now().Add(1 * time.Minute)
-			cacheAppState[req.primaryKey] = entryInCache
-
+		newCacheEntry := applicationStateCacheEntry{
+			appState:        appState,
+			cacheExpireTime: time.Now().Add(1 * time.Minute),
 		}
+
+		cacheAppState[appState.Applicationstate_application_id] = newCacheEntry
+
 	} else {
 		// An error occurred, so remove the cache entry from both the application state, and the application,
 		// so that it can be re-acquired.
@@ -236,19 +267,24 @@ func processCreateAppStateMessage(dbQueries db.DatabaseQueries, req applicationI
 
 }
 
-func processUpdateAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cacheApp map[string]applicationCacheEntry, cacheAppState map[string]applicationStateCacheEntry) {
+func processUpdateAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cacheApp map[string]applicationCacheEntry, cacheAppState map[string]applicationStateCacheEntry, log logr.Logger) {
 
 	err := dbQueries.UpdateApplicationState(req.ctx, &req.createOrUpdateAppStateObject)
 
 	if err == nil {
+
 		// Update the cache on success
 		var appState db.ApplicationState = req.createOrUpdateAppStateObject
-		if entryInCache, exists := cacheAppState[req.primaryKey]; !exists {
-			entryInCache.appState = appState
-			entryInCache.cacheExpireTime = time.Now().Add(1 * time.Minute)
-			cacheAppState[req.primaryKey] = entryInCache
+
+		newCacheEntry := applicationStateCacheEntry{
+			appState:        appState,
+			cacheExpireTime: time.Now().Add(1 * time.Minute),
 		}
+
+		cacheAppState[appState.Applicationstate_application_id] = newCacheEntry
+
 	} else {
+		// Invalidate the cache on database error, and return the error back to the caller
 		delete(cacheApp, req.createOrUpdateAppStateObject.Applicationstate_application_id)
 		delete(cacheAppState, req.createOrUpdateAppStateObject.Applicationstate_application_id)
 	}
@@ -259,10 +295,16 @@ func processUpdateAppStateMessage(dbQueries db.DatabaseQueries, req applicationI
 
 }
 
-func processDeleteAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cacheApp map[string]applicationCacheEntry, cacheAppState map[string]applicationStateCacheEntry) {
+func processDeleteAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cacheApp map[string]applicationCacheEntry, cacheAppState map[string]applicationStateCacheEntry, log logr.Logger) {
 
 	if db.IsEmpty(req.primaryKey) {
-		log.Error(fmt.Errorf("PrimaryKey should not be nil"), "SEVERE: "+req.primaryKey+" not found")
+		err := fmt.Errorf("SEVERE: PrimaryKey should not be nil")
+		log.Error(err, "")
+		req.responseChannel <- applicationInfoCacheResponse{
+			rowsAffectedForDelete: 0,
+			err:                   err,
+		}
+		return
 	}
 
 	// Remove from cache
@@ -279,38 +321,52 @@ func processDeleteAppStateMessage(dbQueries db.DatabaseQueries, req applicationI
 
 }
 
-func processGetAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cacheApp map[string]applicationCacheEntry, cacheAppState map[string]applicationStateCacheEntry) {
+func processGetAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cacheApp map[string]applicationCacheEntry, cacheAppState map[string]applicationStateCacheEntry, log logr.Logger) {
 
 	appState := db.ApplicationState{
 		Applicationstate_application_id: req.primaryKey,
 	}
 
+	if db.IsEmpty(req.primaryKey) {
+		err := fmt.Errorf("SEVERE: PrimaryKey should not be nil: " + req.primaryKey + " not found")
+		log.Error(err, "")
+		req.responseChannel <- applicationInfoCacheResponse{
+			applicationState: db.ApplicationState{},
+			valueFromCache:   false,
+			err:              err,
+		}
+		return
+	}
+
 	var err error
 	var valueFromCache bool
 
-	if db.IsEmpty(req.primaryKey) {
-		log.Error("PrimaryKey should not be nil: " + req.primaryKey + " not found")
-	}
-
 	res, exists := cacheAppState[appState.Applicationstate_application_id]
 	if !exists {
-		// If it's not in the cache, then get it from the database
-		valueFromCache = false
-		err = dbQueries.GetApplicationStateById(req.ctx, &appState)
-		if err != nil {
-			appState = db.ApplicationState{}
-		} else {
-			delete(cacheAppState, req.createOrUpdateAppStateObject.Applicationstate_application_id)
-			delete(cacheApp, req.createOrUpdateAppStateObject.Applicationstate_application_id)
-		}
+		// Since it's not in the cache, we get it from the database
 
-		// Update the cache if we get a result from the database
-		// Update valueFromCache to false, since data is retrieved from db
-		if err == nil && appState.Applicationstate_application_id != "" {
-			if entryInCache, exists := cacheAppState[appState.Applicationstate_application_id]; !exists {
-				entryInCache.appState = appState
-				entryInCache.cacheExpireTime = time.Now().Add(1 * time.Minute)
-				cacheAppState[appState.Applicationstate_application_id] = entryInCache
+		// Update valueFromCache to false, since data is retrieved from DB
+		valueFromCache = false
+
+		if err = dbQueries.GetApplicationStateById(req.ctx, &appState); err != nil {
+
+			// If there is an error, invalidate the cache for both the Application and ApplicationState
+			delete(cacheAppState, appState.Applicationstate_application_id)
+			delete(cacheApp, appState.Applicationstate_application_id)
+
+			appState = db.ApplicationState{}
+
+		} else {
+			// Update the cache if we successfully get a result from the database
+			if appState.Applicationstate_application_id != "" {
+
+				newCacheEntry := applicationStateCacheEntry{
+					appState:        appState,
+					cacheExpireTime: time.Now().Add(1 * time.Minute),
+				}
+
+				cacheAppState[appState.Applicationstate_application_id] = newCacheEntry
+
 			}
 		}
 
@@ -328,37 +384,48 @@ func processGetAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfo
 
 }
 
-func processGetAppMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cacheApp map[string]applicationCacheEntry, cacheAppState map[string]applicationStateCacheEntry) {
-
+func processGetAppMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cacheApp map[string]applicationCacheEntry, cacheAppState map[string]applicationStateCacheEntry, log logr.Logger) {
 	app := db.Application{
 		Application_id: req.primaryKey,
+	}
+
+	if db.IsEmpty(req.primaryKey) {
+		err := fmt.Errorf("SEVERE: PrimaryKey should not be nil: " + req.primaryKey + " not found")
+		log.Error(err, "")
+		req.responseChannel <- applicationInfoCacheResponse{
+			application:    db.Application{},
+			valueFromCache: false,
+			err:            err,
+		}
+		return
 	}
 
 	var err error
 	var valueFromCache bool
 
-	if db.IsEmpty(req.primaryKey) {
-		log.Error("PrimaryKey should not be nil: " + req.primaryKey + " not found")
-	}
-
 	if res, exists := cacheApp[app.Application_id]; !exists {
 		// If it's not in the cache, then get it from the database
-		valueFromCache = false
-		err = dbQueries.GetApplicationById(req.ctx, &app)
-		if err != nil {
-			app = db.Application{}
-		} else {
-			delete(cacheApp, req.createOrUpdateAppStateObject.Applicationstate_application_id)
-			delete(cacheAppState, req.createOrUpdateAppStateObject.Applicationstate_application_id)
-		}
 
-		// Update the cache if we get a result from the database
 		// Update valueFromCache to false, since data is retrieved from db
-		if err == nil && app.Application_id != "" {
-			if entryInCache, exists := cacheApp[app.Application_id]; !exists {
-				entryInCache.app = app
-				entryInCache.cacheExpireTime = time.Now().Add(1 * time.Minute)
-				cacheApp[app.Application_id] = entryInCache
+		valueFromCache = false
+
+		if err = dbQueries.GetApplicationById(req.ctx, &app); err != nil {
+			// Error occurred: invalidate the cache and return the error
+			delete(cacheApp, app.Application_id)
+			delete(cacheAppState, app.Application_id)
+
+			app = db.Application{}
+
+		} else {
+			// No error, so update the cache with the result from the database
+
+			if app.Application_id != "" {
+				newCacheEntry := applicationCacheEntry{
+					app:             app,
+					cacheExpireTime: time.Now().Add(1 * time.Minute),
+				}
+
+				cacheApp[app.Application_id] = newCacheEntry
 			}
 		}
 

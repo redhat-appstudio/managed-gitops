@@ -259,6 +259,8 @@ type ApplicationState struct {
 
 	Revision string `pg:"revision"`
 
+	Resources []byte `pg:"resources"`
+
 	// -- human_readable_health ( 512 ) NOT NULL,
 	// -- human_readable_sync ( 512 ) NOT NULL,
 	// -- human_readable_state ( 512 ) NOT NULL,

@@ -133,6 +133,41 @@ spec:
                       resource
                     type: string
                 type: object
+              resources:
+                description: List of Resource created by a deployment
+                items:
+                  description: ResourceStatus holds the current sync and health status
+                    of a resource
+                  properties:
+                    group:
+                      type: string
+                    health:
+                      description: HealthStatus contains information about the currently
+                        observed health state of an application or resource
+                      properties:
+                        message:
+                          description: Message is a human-readable informational message
+                            describing the health status
+                          type: string
+                        status:
+                          description: Status holds the status code of the application
+                            or resource
+                          type: string
+                      type: object
+                    kind:
+                      type: string
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                    status:
+                      description: SyncStatusCode is a type which represents possible
+                        comparison results
+                      type: string
+                    version:
+                      type: string
+                  type: object
+                type: array
               sync:
                 description: SyncStatus contains information about the currently observed
                   live and desired states of an application

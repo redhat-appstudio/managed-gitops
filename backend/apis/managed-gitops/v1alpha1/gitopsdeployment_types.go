@@ -63,12 +63,26 @@ const (
 	GitOpsDeploymentSpecType_Manual    = "manual"
 )
 
+// ResourceStatus holds the current sync and health status of a resource
+type ResourceStatus struct {
+	Group     string         `json:"group,omitempty"`
+	Version   string         `json:"version,omitempty"`
+	Kind      string         `json:"kind,omitempty"`
+	Namespace string         `json:"namespace,omitempty"`
+	Name      string         `json:"name,omitempty"`
+	Status    SyncStatusCode `json:"status,omitempty"`
+	Health    *HealthStatus  `json:"health,omitempty"`
+}
+
 // GitOpsDeploymentStatus defines the observed state of GitOpsDeployment
 type GitOpsDeploymentStatus struct {
 	Conditions []GitOpsDeploymentCondition `json:"conditions,omitempty"`
 	Sync       SyncStatus                  `json:"sync,omitempty"`
 	// Health contains information about the application's current health status
 	Health HealthStatus `json:"health,omitempty"`
+
+	// List of Resource created by a deployment
+	Resources []ResourceStatus `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
 }
 
 // HealthStatus contains information about the currently observed health state of an application or resource

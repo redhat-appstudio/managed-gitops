@@ -406,6 +406,51 @@ var _ = Describe("Application Controller", func() {
 
 		})
 	})
+
+	Context("Test compressResourceData function", func() {
+		It("Should compress resource data into byte array", func() {
+			resourceStatus := appv1.ResourceStatus{
+				Group:     "apps",
+				Version:   "v1",
+				Kind:      "Deployment",
+				Namespace: "argoCD",
+				Name:      "component-a",
+				Status:    "Synced",
+				Health: &appv1.HealthStatus{
+					Status:  "Healthy",
+					Message: "success",
+				},
+			}
+
+			var resources []appv1.ResourceStatus
+			resources = append(resources, resourceStatus)
+
+			byteArr, err := argo.CompressResourceData(resources)
+
+			Expect(err).To(BeNil())
+			Expect(byteArr).NotTo(BeEmpty())
+		})
+
+		It("Should work for empty ResourceStatus", func() {
+			var resourceStatus appv1.ResourceStatus
+			var resources []appv1.ResourceStatus
+			resources = append(resources, resourceStatus)
+
+			byteArr, err := argo.CompressResourceData(resources)
+
+			Expect(err).To(BeNil())
+			Expect(byteArr).NotTo(BeEmpty())
+		})
+
+		It("Should work for empty Resource Array", func() {
+			var resources []appv1.ResourceStatus
+
+			byteArr, err := argo.CompressResourceData(resources)
+
+			Expect(err).To(BeNil())
+			Expect(byteArr).NotTo(BeEmpty())
+		})
+	})
 })
 
 // newRequest contains the information necessary to reconcile a Kubernetes object.

@@ -1,6 +1,8 @@
 package application_event_loop
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
@@ -10,6 +12,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1/mocks"
 	condition "github.com/redhat-appstudio/managed-gitops/backend/condition/mocks"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
+	"gopkg.in/yaml.v2"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -747,12 +750,32 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			// ----------------------------------------------------------------------------
 			By("Inserting dummy data into ApplicationState table, because we are not calling the Reconciler for this, which updates the status of application into db.")
 			// ----------------------------------------------------------------------------
+			var resourceStatus managedgitopsv1alpha1.ResourceStatus
+			var resources []managedgitopsv1alpha1.ResourceStatus
+			resources = append(resources, resourceStatus)
+
+			var buffer bytes.Buffer
+			// Convert ResourceStatus object into String.
+			resourceStr, err := yaml.Marshal(&resources)
+			Expect(err).To(BeNil())
+
+			// Compress the data
+			gzipWriter, err := gzip.NewWriterLevel(&buffer, gzip.BestSpeed)
+			Expect(err).To(BeNil())
+
+			_, err = gzipWriter.Write([]byte(string(resourceStr)))
+			Expect(err).To(BeNil())
+
+			err = gzipWriter.Close()
+			Expect(err).To(BeNil())
+
 			applicationState := &db.ApplicationState{
 				Applicationstate_application_id: deplToAppMapping.Application_id,
 				Health:                          string(managedgitopsv1alpha1.HeathStatusCodeHealthy),
 				Sync_Status:                     string(managedgitopsv1alpha1.SyncStatusCodeSynced),
 				Revision:                        "abcdefg",
 				Message:                         "Success",
+				Resources:                       buffer.Bytes(),
 			}
 
 			err = dbQueries.CreateApplicationState(ctx, applicationState)
@@ -991,6 +1014,158 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(err).To(BeNil())
 		})
 
+	})
+
+	Context("Check decompressResourceData function.", func() {
+		It("Should decompress resource data and return actual Array of ResourceStatus objects.", func() {
+			// ----------------------------------------------------------------------------
+			By("Creating sample resource data.")
+			// ----------------------------------------------------------------------------
+
+			resourceStatus := managedgitopsv1alpha1.ResourceStatus{
+				Group:     "apps",
+				Version:   "v1",
+				Kind:      "Deployment",
+				Namespace: "argoCD",
+				Name:      "component-a",
+				Status:    "Synced",
+				Health: &managedgitopsv1alpha1.HealthStatus{
+					Status:  "Healthy",
+					Message: "success",
+				},
+			}
+
+			var resourcesIn []managedgitopsv1alpha1.ResourceStatus
+			resourcesIn = append(resourcesIn, resourceStatus)
+
+			// ----------------------------------------------------------------------------
+			By("Convert sample ResourceStatus objects into String.")
+			// ----------------------------------------------------------------------------
+			resourceStr, err := yaml.Marshal(&resourcesIn)
+			Expect(err).To(BeNil())
+
+			// ----------------------------------------------------------------------------
+			By("Compress sample data to be passed as input for decompressResourceData function.")
+			// ----------------------------------------------------------------------------
+			var buffer bytes.Buffer
+			gzipWriter, err := gzip.NewWriterLevel(&buffer, gzip.BestSpeed)
+
+			Expect(err).To(BeNil())
+
+			_, err = gzipWriter.Write([]byte(string(resourceStr)))
+			Expect(err).To(BeNil())
+
+			err = gzipWriter.Close()
+			Expect(err).To(BeNil())
+
+			// ----------------------------------------------------------------------------
+			By("Decompress data and convert it to String, then convert String into ResourceStatus Array.")
+			// ----------------------------------------------------------------------------
+
+			var resourcesOut []managedgitopsv1alpha1.ResourceStatus
+
+			resourcesOut, err = decompressResourceData(buffer.Bytes())
+
+			Expect(err).To(BeNil())
+
+			Expect(resourcesOut).NotTo(BeNil())
+			Expect(resourcesOut).NotTo(BeEmpty())
+
+			Expect(resourcesOut[0]).NotTo(BeNil())
+			Expect(resourcesOut[0].Group).To(Equal("apps"))
+			Expect(resourcesOut[0].Version).To(Equal("v1"))
+			Expect(resourcesOut[0].Kind).To(Equal("Deployment"))
+			Expect(resourcesOut[0].Namespace).To(Equal("argoCD"))
+			Expect(resourcesOut[0].Status).To(Equal(managedgitopsv1alpha1.SyncStatusCodeSynced))
+			Expect(resourcesOut[0].Health.Status).To(Equal(managedgitopsv1alpha1.HeathStatusCodeHealthy))
+			Expect(resourcesOut[0].Health.Message).To(Equal("success"))
+		})
+
+		It("Should decompress empty resource data and return actual Array of ResourceStatus objects.", func() {
+			// ----------------------------------------------------------------------------
+			By("Creating sample resource data.")
+			// ----------------------------------------------------------------------------
+			resourceStatus := managedgitopsv1alpha1.ResourceStatus{}
+
+			var resourcesIn []managedgitopsv1alpha1.ResourceStatus
+			resourcesIn = append(resourcesIn, resourceStatus)
+
+			// ----------------------------------------------------------------------------
+			By("Convert sample ResourceStatus objects into String.")
+			// ----------------------------------------------------------------------------
+			resourceStr, err := yaml.Marshal(&resourcesIn)
+			Expect(err).To(BeNil())
+
+			// ----------------------------------------------------------------------------
+			By("Compress sample data to be passed as input for decompressResourceData function.")
+			// ----------------------------------------------------------------------------
+			var buffer bytes.Buffer
+			gzipWriter, err := gzip.NewWriterLevel(&buffer, gzip.BestSpeed)
+
+			Expect(err).To(BeNil())
+
+			_, err = gzipWriter.Write([]byte(string(resourceStr)))
+			Expect(err).To(BeNil())
+
+			err = gzipWriter.Close()
+			Expect(err).To(BeNil())
+
+			// ----------------------------------------------------------------------------
+			By("Decompress data and convert it to String, then convert String into ResourceStatus Array.")
+			// ----------------------------------------------------------------------------
+
+			var resourcesOut []managedgitopsv1alpha1.ResourceStatus
+
+			resourcesOut, err = decompressResourceData(buffer.Bytes())
+
+			Expect(err).To(BeNil())
+
+			Expect(resourcesOut).NotTo(BeNil())
+			Expect(resourcesOut).NotTo(BeEmpty())
+
+			Expect(resourcesOut[0]).NotTo(BeNil())
+			Expect(managedgitopsv1alpha1.ResourceStatus{} == resourcesOut[0]).To(BeTrue())
+		})
+
+		It("Should decompress empty resource data and return empty Array of ResourceStatus objects.", func() {
+			// ----------------------------------------------------------------------------
+			By("Creating sample resource data.")
+			// ----------------------------------------------------------------------------
+
+			var resourcesIn []managedgitopsv1alpha1.ResourceStatus
+
+			// ----------------------------------------------------------------------------
+			By("Convert sample ResourceStatus objects into String.")
+			// ----------------------------------------------------------------------------
+			resourceStr, err := yaml.Marshal(&resourcesIn)
+			Expect(err).To(BeNil())
+
+			// ----------------------------------------------------------------------------
+			By("Compress sample data to be passed as input for decompressResourceData function.")
+			// ----------------------------------------------------------------------------
+			var buffer bytes.Buffer
+			gzipWriter, err := gzip.NewWriterLevel(&buffer, gzip.BestSpeed)
+			Expect(err).To(BeNil())
+
+			_, err = gzipWriter.Write([]byte(string(resourceStr)))
+			Expect(err).To(BeNil())
+
+			err = gzipWriter.Close()
+			Expect(err).To(BeNil())
+
+			// ----------------------------------------------------------------------------
+			By("Decompress data and convert it to String, then convert String into ResourceStatus Array.")
+			// ----------------------------------------------------------------------------
+
+			var resourcesOut []managedgitopsv1alpha1.ResourceStatus
+
+			resourcesOut, err = decompressResourceData(buffer.Bytes())
+
+			Expect(err).To(BeNil())
+
+			Expect(resourcesOut).NotTo(BeNil())
+			Expect(resourcesOut).To(BeEmpty())
+		})
 	})
 })
 

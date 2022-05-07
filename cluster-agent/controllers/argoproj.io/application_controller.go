@@ -17,7 +17,10 @@ limitations under the License.
 package argoprojio
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
+	"fmt"
 	"time"
 
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -28,6 +31,7 @@ import (
 	cache "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
+	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -114,6 +118,14 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationStateRevisionLength)
 			sanitizeHealthAndStatus(applicationState)
 
+			// Get the list of resources created by deployment and convert it into a compressed YAML string.
+			var err error
+			applicationState.Resources, err = CompressResourceData(app.Status.Resources)
+			if err != nil {
+				log.Error(err, "unable to compress resource data into byte array.")
+				return ctrl.Result{}, err
+			}
+
 			if errCreate := r.Cache.CreateApplicationState(ctx, *applicationState); errCreate != nil {
 				log.Error(errCreate, "unexpected error on writing new application state")
 				return ctrl.Result{}, errCreate
@@ -133,6 +145,14 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	applicationState.Sync_Status = db.TruncateVarchar(string(app.Status.Sync.Status), db.ApplicationStateSyncStatusLength)
 	applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationStateRevisionLength)
 	sanitizeHealthAndStatus(applicationState)
+
+	// Get the list of resources created by deployment and convert it into a compressed YAML string.
+	var err error
+	applicationState.Resources, err = CompressResourceData(app.Status.Resources)
+	if err != nil {
+		log.Error(err, "unable to compress resource data into byte array.")
+		return ctrl.Result{}, err
+	}
 
 	if err := r.Cache.UpdateApplicationState(ctx, *applicationState); err != nil {
 		log.Error(err, "unexpected error on updating existing application state")
@@ -178,4 +198,34 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&appv1.Application{}).
 		Complete(r)
+}
+
+// Convert ResourceStatus Array into String and then compress it into Byte Array​
+func CompressResourceData(resources []appv1.ResourceStatus) ([]byte, error) {
+	var byteArr []byte
+	var buffer bytes.Buffer
+
+	// Convert ResourceStatus object into String.
+	resourceStr, err := yaml.Marshal(&resources)
+	if err != nil {
+		return byteArr, fmt.Errorf("Unable to Marshal resource data. %v", err)
+	}
+
+	// Compress string data
+	gzipWriter, err := gzip.NewWriterLevel(&buffer, gzip.BestSpeed)
+	if err != nil {
+		return byteArr, fmt.Errorf("Unable to create Buffer writer. %v", err)
+	}
+
+	_, err = gzipWriter.Write([]byte(string(resourceStr)))
+
+	if err != nil {
+		return byteArr, fmt.Errorf("Unable to compress resource string. %v", err)
+	}
+
+	if err := gzipWriter.Close(); err != nil {
+		return byteArr, fmt.Errorf("Unable to close gzip writer connection. %v", err)
+	}
+
+	return buffer.Bytes(), nil
 }

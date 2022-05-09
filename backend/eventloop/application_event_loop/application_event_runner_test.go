@@ -677,7 +677,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 		})
 	})
 
-	Context("Handle deployment Health/Synk status.", func() {
+	Context("Handle deployment Health/Sync status.", func() {
 		var err error
 		var workspaceID string
 		var ctx context.Context
@@ -716,15 +716,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				},
 			}
 
-			k8sClientOuter := fake.
+			k8sClient := fake.
 				NewClientBuilder().
 				WithScheme(scheme).
 				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).
 				Build()
-
-			k8sClient := &sharedutil.ProxyClient{
-				InnerClient: k8sClientOuter,
-			}
 
 			a := applicationEventLoopRunner_Action{
 				// When the code asks for a new k8s client, give it our fake client
@@ -773,7 +769,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(err).To(BeNil())
 
 			// ----------------------------------------------------------------------------
-			By("Retrieve latest version of GitObsDeployment and check Health/Synk before calling applicationEventRunner_handleUpdateDeploymentStatusTick function.")
+			By("Retrieve latest version of GitOpsDeployment and check Health/Sync before calling applicationEventRunner_handleUpdateDeploymentStatusTick function.")
 			// ----------------------------------------------------------------------------
 
 			gitopsDeployment := &managedgitopsv1alpha1.GitOpsDeployment{}
@@ -788,14 +784,14 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(gitopsDeployment.Status.Health.Message).To(BeEmpty())
 
 			// ----------------------------------------------------------------------------
-			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Synk status.")
+			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status.")
 			// ----------------------------------------------------------------------------
 
 			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, string(gitopsDepl.UID), dbQueries)
 			Expect(err).To(BeNil())
 
 			// ----------------------------------------------------------------------------
-			By("Retrieve latest version of GitObsDeployment and check Health/Synk after calling applicationEventRunner_handleUpdateDeploymentStatusTick function.")
+			By("Retrieve latest version of GitOpsDeployment and check Health/Sync after calling applicationEventRunner_handleUpdateDeploymentStatusTick function.")
 			// ----------------------------------------------------------------------------
 
 			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
@@ -819,7 +815,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 		It("Should not return any error, if deploymentToApplicationMapping doesn't exist for given gitopsdeployment.", func() {
 			// Don't create Deployment and resources by calling applicationEventRunner_handleDeploymentModified function,
-			// but check for Health/Synk status of deployment which doesn't exist.
+			// but check for Health/Sync status of deployment which doesn't exist.
 			k8sClientOuter := fake.NewClientBuilder().Build()
 			k8sClient := &sharedutil.ProxyClient{
 				InnerClient: k8sClientOuter,
@@ -839,7 +835,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			}
 
 			// ----------------------------------------------------------------------------
-			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Synk status of a deployment which doesn't exist.")
+			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status of a deployment which doesn't exist.")
 			// ----------------------------------------------------------------------------
 			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, "dummy-deployment", dbQueries)
 			Expect(err).To(BeNil())
@@ -847,7 +843,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 		It("Should return error, if deploymentToApplicationMapping object is invalid.", func() {
 			// Don't create Deployment and resources by calling applicationEventRunner_handleDeploymentModified function,
-			// But check for Health/Synk status of a deployment having invalid name.
+			// But check for Health/Sync status of a deployment having invalid name.
 			k8sClientOuter := fake.NewClientBuilder().Build()
 			k8sClient := &sharedutil.ProxyClient{
 				InnerClient: k8sClientOuter,
@@ -867,7 +863,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			}
 
 			// ----------------------------------------------------------------------------
-			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Synk status of a deployment having invalid name.")
+			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status of a deployment having invalid name.")
 			// ----------------------------------------------------------------------------
 
 			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, "", dbQueries)
@@ -921,7 +917,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(err).To(BeNil())
 
 			// ----------------------------------------------------------------------------
-			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Synk status for a deployment which doesn'r exist in given namespace.")
+			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status for a deployment which doesn'r exist in given namespace.")
 			// ----------------------------------------------------------------------------
 			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, string(gitopsDepl.UID), dbQueries)
 			Expect(err).To(BeNil())
@@ -973,14 +969,14 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(err).To(BeNil())
 
 			// ----------------------------------------------------------------------------
-			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Synk status for deployment which is missing ApplicationState entries.")
+			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status for deployment which is missing ApplicationState entries.")
 			// ----------------------------------------------------------------------------
 
 			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, string(gitopsDepl.UID), dbQueries)
 			Expect(err).To(BeNil())
 
 			// ----------------------------------------------------------------------------
-			By("Retrieve latest version of GitObsDeployment and check Health/Synk, it should not have any Health/Synk status.")
+			By("Retrieve latest version of GitOpsDeployment and check Health/Sync, it should not have any Health/Sync status.")
 			// ----------------------------------------------------------------------------
 
 			gitopsDeployment := &managedgitopsv1alpha1.GitOpsDeployment{}

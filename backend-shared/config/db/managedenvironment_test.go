@@ -2,6 +2,7 @@ package db_test
 
 import (
 	"context"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -57,76 +58,60 @@ var _ = Describe("Managedenvironment Test", func() {
 		err = dbq.GetManagedEnvironmentById(ctx, &getmanagedEnvironment)
 		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
+		managedEnvironmentNotExist := db.ManagedEnvironment{
+			Managedenvironment_id: "test-managed-env-4-not-exist",
+			Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+			Name:                  "my env101-not-exist",
+		}
+		err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentNotExist)
+		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
+
+		managedEnvironment.Clustercredentials_id = strings.Repeat("abc", 100)
+		err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
+		Expect(true).To(Equal(db.IsMaxLengthError(err)))
+
 	})
 
 	It("Should List all the ManagedEnvironment entries", func() {
+
+		err := db.SetupForTestingDBGinkgo()
+		Expect(err).To(BeNil())
+
 		ctx := context.Background()
 		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 		Expect(err).To(BeNil())
 		defer dbq.CloseDatabase()
 
-		var clusterUser = &db.ClusterUser{
-			Clusteruser_id: "test-user-application",
-			User_name:      "test-user-application",
-		}
+		clusterCredentials, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
+		Expect(err).To(BeNil())
 
-		clusterCredentials := db.ClusterCredentials{
-			Clustercredentials_cred_id:  "test-cluster-creds-test-6",
-			Host:                        "host",
-			Kube_config:                 "kube-config",
-			Kube_config_context:         "kube-config-context",
-			Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-			Serviceaccount_ns:           "Serviceaccount_ns",
+		var testClusterUser = &db.ClusterUser{
+			Clusteruser_id: "test-user-1",
+			User_name:      "test-user-1",
 		}
-
-		managedEnvironment := db.ManagedEnvironment{
-			Managedenvironment_id: "test-managed-env-6",
+		managedEnvironmentput := db.ManagedEnvironment{
+			Managedenvironment_id: "test-managed-env",
 			Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
-			Name:                  "my env101",
+			Name:                  "my env",
 		}
-
-		gitopsEngineCluster := db.GitopsEngineCluster{
-			Gitopsenginecluster_id: "test-fake-cluster-6",
-			Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
-		}
-
-		gitopsEngineInstance := db.GitopsEngineInstance{
-			Gitopsengineinstance_id: "test-fake-engine-instance-id",
-			Namespace_name:          "test-fake-namespace",
-			Namespace_uid:           "test-fake-namespace-6",
-			EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
-		}
-
-		clusterAccess := db.ClusterAccess{
-			Clusteraccess_user_id:                   clusterUser.Clusteruser_id,
-			Clusteraccess_managed_environment_id:    managedEnvironment.Managedenvironment_id,
+		clusterAccessput := db.ClusterAccess{
+			Clusteraccess_user_id:                   testClusterUser.Clusteruser_id,
+			Clusteraccess_managed_environment_id:    managedEnvironmentput.Managedenvironment_id,
 			Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
 		}
+		err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentput)
+		Expect(err).To(BeNil())
+		err = dbq.CreateClusterUser(ctx, testClusterUser)
+		Expect(err).To(BeNil())
+		err = dbq.CreateClusterAccess(ctx, &clusterAccessput)
+		Expect(err).To(BeNil())
 
 		var managedEnvironmentget []db.ManagedEnvironment
 
-		err = dbq.CreateClusterUser(ctx, clusterUser)
+		err = dbq.ListManagedEnvironmentForClusterCredentialsAndOwnerId(ctx, clusterCredentials.Clustercredentials_cred_id, clusterAccessput.Clusteraccess_user_id, &managedEnvironmentget)
 		Expect(err).To(BeNil())
 
-		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-		Expect(err).To(BeNil())
-
-		err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
-		Expect(err).To(BeNil())
-
-		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-		Expect(err).To(BeNil())
-
-		err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-		Expect(err).To(BeNil())
-
-		err = dbq.CreateClusterAccess(ctx, &clusterAccess)
-		Expect(err).To(BeNil())
-
-		err = dbq.ListManagedEnvironmentForClusterCredentialsAndOwnerId(ctx, clusterCredentials.Clustercredentials_cred_id, clusterAccess.Clusteraccess_user_id, &managedEnvironmentget)
-		Expect(err).To(BeNil())
-
-		Expect(managedEnvironmentget[0]).Should(Equal(managedEnvironment))
+		Expect(managedEnvironmentget[0]).Should(Equal(managedEnvironmentput))
 		Expect(len(managedEnvironmentget)).Should(Equal(1))
 
 	})

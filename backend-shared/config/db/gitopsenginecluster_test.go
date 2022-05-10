@@ -2,6 +2,7 @@ package db_test
 
 import (
 	"context"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -53,5 +54,15 @@ var _ = Describe("Gitopsenginecluster Test", func() {
 
 		err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineClusterget)
 		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
+
+		gitopsEngineClusterget = db.GitopsEngineCluster{
+			Gitopsenginecluster_id: "does-not-exist"}
+		err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineClusterget)
+		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
+
+		gitopsEngineClusterput.Clustercredentials_id = strings.Repeat("abc", 100)
+		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClusterput)
+		Expect(true).To(Equal(db.IsMaxLengthError(err)))
+
 	})
 })

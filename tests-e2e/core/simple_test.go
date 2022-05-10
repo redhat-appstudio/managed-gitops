@@ -16,7 +16,7 @@ import (
 
 var _ = Describe("GitOpsDeployment E2E tests", func() {
 
-	Context("Create a new GitOpDeployment", func() {
+	Context("Create a new GitOpsDeployment", func() {
 
 		It("should be healthy and have synced status, and resources should be deployed", func() {
 

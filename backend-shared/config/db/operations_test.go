@@ -2,6 +2,7 @@ package db_test
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -10,11 +11,9 @@ import (
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 )
 
-var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
-var seq = 101
-
-var _ = Describe("Operations", func() {
-
+var _ = Describe("Operations Test", func() {
+	var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
+	var seq = 101
 	It("Should Create, Get, List, Update and Delete an Operation", func() {
 		err := db.SetupForTestingDBGinkgo()
 		Expect(err).To(BeNil())
@@ -24,42 +23,12 @@ var _ = Describe("Operations", func() {
 		Expect(err).To(BeNil())
 		defer dbq.CloseDatabase()
 
+		_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
+		Expect(err).To(BeNil())
 		var testClusterUser = &db.ClusterUser{
-			Clusteruser_id: "test-user-new",
-			User_name:      "test-user-new",
+			Clusteruser_id: "test-user-1",
+			User_name:      "test-user-1",
 		}
-		clusterCredentials := db.ClusterCredentials{
-			Clustercredentials_cred_id:  "test-cluster-creds-test",
-			Host:                        "host",
-			Kube_config:                 "kube-config",
-			Kube_config_context:         "kube-config-context",
-			Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-			Serviceaccount_ns:           "Serviceaccount_ns",
-		}
-
-		managedEnvironment := db.ManagedEnvironment{
-			Managedenvironment_id: "test-managed-env-914",
-			Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
-			Name:                  "my env",
-		}
-
-		gitopsEngineCluster := db.GitopsEngineCluster{
-			Gitopsenginecluster_id: "test-fake-cluster-914",
-			Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
-		}
-
-		gitopsEngineInstance := db.GitopsEngineInstance{
-			Gitopsengineinstance_id: "test-fake-engine-instance-id",
-			Namespace_name:          "test-fake-namespace",
-			Namespace_uid:           "test-fake-namespace-914",
-			EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
-		}
-		clusterAccess := db.ClusterAccess{
-			Clusteraccess_user_id:                   testClusterUser.Clusteruser_id,
-			Clusteraccess_managed_environment_id:    managedEnvironment.Managedenvironment_id,
-			Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
-		}
-
 		operation := db.Operation{
 			Operation_id:            "test-operation-1",
 			Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
@@ -69,21 +38,6 @@ var _ = Describe("Operations", func() {
 			Operation_owner_user_id: testClusterUser.Clusteruser_id,
 		}
 		err = dbq.CreateClusterUser(ctx, testClusterUser)
-		Expect(err).To(BeNil())
-
-		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-		Expect(err).To(BeNil())
-
-		err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
-		Expect(err).To(BeNil())
-
-		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-		Expect(err).To(BeNil())
-
-		err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-		Expect(err).To(BeNil())
-
-		err = dbq.CreateClusterAccess(ctx, &clusterAccess)
 		Expect(err).To(BeNil())
 
 		err = dbq.CreateOperation(ctx, &operation, operation.Operation_owner_user_id)
@@ -136,5 +90,18 @@ var _ = Describe("Operations", func() {
 
 		err = dbq.GetOperationById(ctx, &operationget)
 		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
+
+		operationNotExist := db.Operation{Operation_id: "test-operation-1-not-exist"}
+		err = dbq.GetOperationById(ctx, &operationNotExist)
+		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
+
+		operation.Operation_id = strings.Repeat("abc", 100)
+		err = dbq.CreateOperation(ctx, &operation, operation.Operation_owner_user_id)
+		Expect(true).To(Equal(db.IsMaxLengthError(err)))
+
+		operationget.Operation_owner_user_id = strings.Repeat("abc", 100)
+		err = dbq.UpdateOperation(ctx, &operationget)
+		Expect(true).To(Equal(db.IsMaxLengthError(err)))
+
 	})
 })

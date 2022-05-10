@@ -19,15 +19,15 @@ exit_if_binary_not_installed() {
 if [ "$1" = "install" ]; then
     exit_if_binary_not_installed "kubectl"
 
-    if kubectl -n $ARGO_CD_NAMESPACE get pods | grep argocd-server | grep '1/1' | grep 'Running' &>/dev/null; then
+    if kubectl -n "$ARGO_CD_NAMESPACE" get pods | grep argocd-server | grep '1/1' | grep 'Running' &>/dev/null; then
         echo "ArgoCD is already running..."
         echo "Skipping ArgoCD setup."
         exit 1
     fi
 
     # Apply the argo-cd-route manifest
-    kubectl create namespace $ARGO_CD_NAMESPACE || true
-    kubectl apply -n $ARGO_CD_NAMESPACE -f https://raw.githubusercontent.com/argoproj/argo-cd/$ARGO_CD_VERSION/manifests/install.yaml
+    kubectl create namespace "$ARGO_CD_NAMESPACE" || true
+    kubectl apply -n "$ARGO_CD_NAMESPACE" -f https://raw.githubusercontent.com/argoproj/argo-cd/$ARGO_CD_VERSION/manifests/install.yaml
 
     # Get the secret
     counter=0
@@ -55,7 +55,7 @@ if [ "$1" = "install" ]; then
     echo " * argocd-server Pod is running."
 
     # Port forward the ArgoCD service locally, so we can access it
-    kubectl port-forward svc/argocd-server -n $ARGO_CD_NAMESPACE 18080:443 &
+    kubectl port-forward svc/argocd-server -n "$ARGO_CD_NAMESPACE" 18080:443 &
     KUBE_PID=$!
 
     # Checks if 18080 is occupied
@@ -103,5 +103,5 @@ fi
 # Remove 'ArgoCD Web UI' from your Kubernetes cluster
 if [ "$1" = "remove" ]; then
     exit_if_binary_not_installed "kubectl"
-    kubectl delete -n $ARGO_CD_NAMESPACE -f https://raw.githubusercontent.com/argoproj/argo-cd/$ARGO_CD_VERSION/manifests/install.yaml
+    kubectl delete -n "$ARGO_CD_NAMESPACE" -f https://raw.githubusercontent.com/argoproj/argo-cd/$ARGO_CD_VERSION/manifests/install.yaml
 fi

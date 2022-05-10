@@ -4,6 +4,7 @@ TAG ?= latest
 BASE_IMAGE ?= gitops-service
 USERNAME ?= redhat-appstudio
 IMG ?= quay.io/${USERNAME}/${BASE_IMAGE}:${TAG}
++# Default values match the their respective deployments in staging/production environment for GitOps Service, otherwise the E2E will fail.
 ARGO_CD_NAMESPACE ?= gitops-service-argocd
 ARGO_CD_VERSION ?= release-2.3
 
@@ -58,7 +59,7 @@ test-backend: ## Run tests for backend only
 deploy-cluster-agent-crd: ## Deploy cluster-agent related CRDs
 	kubectl create namespace gitops 2> /dev/null || true
 	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_operations.yaml
-	kubectl create ns ${ARGO_CD_NAMESPACE} 2> /dev/null || true
+	kubectl create ns "${ARGO_CD_NAMESPACE}" 2> /dev/null || true
 	kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/$(ARGO_CD_VERSION)/manifests/crds/application-crd.yaml
 
 undeploy-cluster-agent-crd: ## Remove cluster-agent related CRDs

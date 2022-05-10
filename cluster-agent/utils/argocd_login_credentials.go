@@ -136,7 +136,7 @@ func (cs *CredentialService) credentialHandler(input chan credentialRequest) {
 		// Return value from the cache, if it exists (as long as the cache is not invalidated)
 		cacheValue, exists := credentials[credentialsKey]
 		if exists && !req.skipCache {
-			_, err := sharedutil.CatchPanic(func() error {
+			isPanic, err := sharedutil.CatchPanic(func() error {
 				// Verify the cached login still works
 				acdClient, err := cs.testLogin(req.ctx, cacheValue.ServerAddress, cacheValue.Passsword)
 				if err != nil {
@@ -150,6 +150,14 @@ func (cs *CredentialService) credentialHandler(input chan credentialRequest) {
 				}
 				return nil
 			})
+
+			if isPanic {
+				// On generic panic, invalidate the cache and return
+				delete(credentials, credentialsKey)
+				resp.err = err
+				req.output <- resp
+				continue
+			}
 
 			if err != nil {
 				log.Error(err, "cached login was invalid, so invalidating and reacquiring.")

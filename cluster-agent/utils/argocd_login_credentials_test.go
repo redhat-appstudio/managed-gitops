@@ -6,6 +6,7 @@ import (
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/utils/mocks"
 	"github.com/stretchr/testify/assert"
@@ -69,12 +70,18 @@ func TestGetArgoCDLoginCredentials(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
+	mockVersionClient := &mocks.VersionServiceClient{}
+
 	mockSessionClient := &mocks.SessionServiceClient{}
 
 	mockAppClient := &mocks.Client{}
 
 	mockAppClient.On("NewSettingsClient").Return(mockCloser{}, nil, nil)
 	mockAppClient.On("NewSessionClient").Return(mockCloser{}, mockSessionClient, nil)
+
+	// The code being tested only expects a version client that returns a non-error
+	mockAppClient.On("NewVersionClient").Return(mockCloser{}, mockVersionClient, nil)
+	mockVersionClient.On("Version", mock.Anything, mock.Anything).Return(&version.VersionMessage{Version: ""}, nil)
 
 	mockSessionClient.On("Create", mock.Anything, &session.SessionCreateRequest{
 		Username: "admin",

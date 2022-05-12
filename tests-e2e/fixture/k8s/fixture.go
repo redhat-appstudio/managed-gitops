@@ -16,14 +16,12 @@ import (
 // Create creates the given K8s resource, returning an error on failure, or nil otherwise.
 func Create(obj client.Object) error {
 
-	client, err := fixture.GetKubeClient()
+	k8sClient, err := fixture.GetKubeClient()
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("Creating ", obj.GetName())
-
-	if err := client.Create(context.Background(), obj); err != nil {
+	if err := k8sClient.Create(context.Background(), obj); err != nil {
 		fmt.Println("Error on creating ", obj.GetName(), err)
 		return err
 	}

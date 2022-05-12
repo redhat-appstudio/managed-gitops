@@ -7,9 +7,7 @@ import (
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 
-	// matcher "github.com/onsi/gomega/types"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
-	// corev1 "k8s.io/api/core/v1"
 	apps "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -22,34 +20,23 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
-			By("Create the GitOpsDeployment")
+			By("creating the GitOpsDeployment")
 
-			gitOpsDeploymentResource := &managedgitopsv1alpha1.GitOpsDeployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "my-gitops-depl",
-					Namespace: fixture.GitOpsServiceE2ENamespace,
-				},
-				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
-					Source: managedgitopsv1alpha1.ApplicationSource{
-						RepoURL: "https://github.com/redhat-appstudio/gitops-repository-template",
-						Path:    "environments/overlays/dev",
-					},
-					Destination: managedgitopsv1alpha1.ApplicationDestination{},
-					Type:        managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated,
-				},
-			}
+			gitOpsDeploymentResource := buildGitOpsDeploymentResource("my-gitops-depl",
+				"https://github.com/redhat-appstudio/gitops-repository-template", "environments/overlays/dev",
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
-			err := k8s.Create(gitOpsDeploymentResource)
+			err := k8s.Create(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
-			By("GitOpsDeployment should have expected health and status")
+			By("ensuring GitOpsDeployment should have expected health and status")
 
-			Eventually(*gitOpsDeploymentResource, "2m", "1s").Should(
+			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
-					gitopsDeplFixture.HaveHealthStatusCode("Healthy"))) // TODO: Switch this to the constant once PR #101 merges.
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)))
 
-			By("The resources of the GitOps repo should be successfully deployed")
+			By("ensuring the resources of the GitOps repo are successfully deployed")
 
 			componentADepl := &apps.Deployment{
 				ObjectMeta: metav1.ObjectMeta{Name: "component-a", Namespace: fixture.GitOpsServiceE2ENamespace},
@@ -60,12 +47,12 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			Eventually(componentADepl, "60s", "1s").Should(k8s.ExistByName())
 			Eventually(componentBDepl, "60s", "1s").Should(k8s.ExistByName())
 
-			By("Delete the GitOpsDeployment")
+			By("deleting the GitOpsDeployment")
 
-			err = k8s.Delete(gitOpsDeploymentResource)
+			err = k8s.Delete(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
-			By("The resources of the GitOps repo should be successfully deleted")
+			By("ensuring the resources of the GitOps repo are successfully deleted")
 
 			Eventually(componentADepl, "60s", "1s").ShouldNot(k8s.ExistByName())
 			Eventually(componentBDepl, "60s", "1s").ShouldNot(k8s.ExistByName())
@@ -73,3 +60,27 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 		})
 	})
 })
+
+// buildGitOpsDeploymentResource builds a GitOpsDeployment with 'opinionated' default values, which is self-contained to
+// the GitGitOpsServiceE2ENamespace. This makes it easy to clean up after tests using EnsureCleanSlate.
+// - Defaults to creation in GitOpsServiceE2ENamespace
+// - Defaults to deployment of K8s resources to GitOpsServiceE2ENamespace
+func buildGitOpsDeploymentResource(name, repoURL, path, deploymentSpecType string) managedgitopsv1alpha1.GitOpsDeployment {
+
+	gitOpsDeploymentResource := managedgitopsv1alpha1.GitOpsDeployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: fixture.GitOpsServiceE2ENamespace,
+		},
+		Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+			Source: managedgitopsv1alpha1.ApplicationSource{
+				RepoURL: repoURL,
+				Path:    path,
+			},
+			Destination: managedgitopsv1alpha1.ApplicationDestination{},
+			Type:        deploymentSpecType,
+		},
+	}
+
+	return gitOpsDeploymentResource
+}

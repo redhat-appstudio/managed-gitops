@@ -4,7 +4,8 @@ TAG ?= latest
 BASE_IMAGE ?= gitops-service
 USERNAME ?= redhat-appstudio
 IMG ?= quay.io/${USERNAME}/${BASE_IMAGE}:${TAG}
-+# Default values match the their respective deployments in staging/production environment for GitOps Service, otherwise the E2E will fail.
+
+# Default values match the their respective deployments in staging/production environment for GitOps Service, otherwise the E2E will fail.
 ARGO_CD_NAMESPACE ?= gitops-service-argocd
 ARGO_CD_VERSION ?= release-2.3
 
@@ -65,7 +66,7 @@ deploy-cluster-agent-crd: ## Deploy cluster-agent related CRDs
 undeploy-cluster-agent-crd: ## Remove cluster-agent related CRDs
 	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_operations.yaml
 	kubectl delete -f https://raw.githubusercontent.com/argoproj/argo-cd/$(ARGO_CD_VERSION)/manifests/crds/application-crd.yaml
-	kubectl delete ns ${ARGO_CD_NAMESPACE} 2> /dev/null || true
+	kubectl delete ns "${ARGO_CD_NAMESPACE}" 2> /dev/null || true
 
 deploy-cluster-agent-rbac: ## Deploy cluster-agent related RBAC resouces
 	kubectl create namespace gitops 2> /dev/null || true
@@ -134,7 +135,7 @@ install-argocd-k8s: ## (Non-OpenShift): Install Argo CD to the gitops-service-ar
 	ARGO_CD_VERSION=$(ARGO_CD_VERSION) manifests/k8s-argo-deploy/deploy.sh
 
 uninstall-argocd: ## Uninstall Argo CD from gitops-service-argocd namespace (from either OpenShift or K8s)
-	kubectl delete namespace gitops-service-argocd || true
+	kubectl delete namespace "$(ARGO_CD_NAMESPACE)" || true
 	kubectl delete -f manifests/openshift-argo-deploy/openshift-gitops-subscription.yaml || true
 
 devenv-docker: deploy-backend-crd deploy-cluster-agent-crd deploy-appstudio-controller-crd deploy-backend-rbac deploy-cluster-agent-rbac deploy-appstudio-controller-rbac ## Setup local development environment (Postgres via Docker & local operators)

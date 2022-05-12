@@ -13,8 +13,20 @@ require (
 )
 
 require (
+	github.com/go-pg/pg/extra/pgdebug v0.2.0 // indirect
+	github.com/go-pg/pg/v10 v10.10.6 // indirect
+	github.com/go-pg/zerochecker v0.2.0 // indirect
+	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/stretchr/testify v1.7.0 // indirect
+	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
+	github.com/vmihailenco/bufpool v0.1.11 // indirect
+	github.com/vmihailenco/msgpack/v5 v5.3.4 // indirect
+	github.com/vmihailenco/tagparser v0.1.2 // indirect
+	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
+	mellium.im/sasl v0.2.1 // indirect
 )
 
 require (

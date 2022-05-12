@@ -148,7 +148,12 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 					// Get the GitOpsDeployment object from k8s, so we can update it if necessary
 					gitopsDepl, clientError := getMatchingGitOpsDeployment(ctx, newEvent.Request.Name, newEvent.Request.Namespace, newEvent.Client)
 					if clientError != nil {
-						return fmt.Errorf("couldn't fetch the GitOpsDeployment instance: %v", clientError)
+						if !apierr.IsNotFound(clientError) {
+							return fmt.Errorf("couldn't fetch the GitOpsDeployment instance: %v", clientError)
+						}
+
+						// For IsNotFound error, no more we need to do, so return nil.
+						return nil
 					}
 
 					// Create a gitOpsDeploymentAdapter to plug any conditions

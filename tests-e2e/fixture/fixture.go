@@ -10,6 +10,8 @@ import (
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 
+	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
+
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/rbac/v1"
@@ -28,6 +30,14 @@ const (
 	GitOpsServiceE2ENamespace = "gitops-service-e2e"
 )
 
+// EnsureCleanSlate should be called before every E2E tests:
+// it ensures that the state of the GitOpsServiceE2ENamespace namespace is reset to scratch before each test, including:
+// - Removing any old resources in GitOpsServiceE2ENamespace, by deleting the namespace
+// - Recreating the GitOpsServiceE2ENamespace with the expected settings
+// - Waiting for Argo CD to watch the namespace before exiting (to prevent race conditions)
+//
+// This ensures that previous E2E tests runs do not interfere with the results of current test runs.
+// This function can also be called after a test, in order to clean up any resources it create in the GitOpsServiceE2ENamespace.
 func EnsureCleanSlate() error {
 
 	policy := metav1.DeletePropagationForeground
@@ -64,7 +74,7 @@ func EnsureCleanSlate() error {
 	_, err = kubeClientSet.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
 		Name: GitOpsServiceE2ENamespace,
 		Labels: map[string]string{
-			"argocd.argoproj.io/managed-by": "gitops-service-argocd",
+			"argocd.argoproj.io/managed-by": dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
 		},
 	}}, metav1.CreateOptions{})
 	if err != nil {
@@ -87,7 +97,7 @@ func EnsureCleanSlate() error {
 		// This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
 		// set up proper roles for it.
 		for _, item := range roleBindings.Items {
-			if strings.Contains(item.Name, "gitops-service-argocd-") {
+			if strings.Contains(item.Name, dbutil.DefaultGitOpsEngineSingleInstanceNamespace+"-") {
 				count++
 			}
 		}
@@ -114,7 +124,7 @@ func EnsureCleanSlate() error {
 		// This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
 		// set up proper roles for it.
 		for _, item := range roles.Items {
-			if strings.Contains(item.Name, "gitops-service-argocd-") {
+			if strings.Contains(item.Name, dbutil.DefaultGitOpsEngineSingleInstanceNamespace+"-") {
 				count++
 			}
 		}
@@ -133,6 +143,7 @@ func EnsureCleanSlate() error {
 
 }
 
+// Retrieve the system-level Kubernetes config (e.g. ~/.kube/config)
 func GetKubeConfig() (*rest.Config, error) {
 
 	overrides := clientcmd.ConfigOverrides{}
@@ -143,15 +154,20 @@ func GetKubeConfig() (*rest.Config, error) {
 	restConfig, err := clientConfig.ClientConfig()
 
 	if restConfig != nil {
-		// Sanity check that we're not running on a known staging system
+		// Sanity check that we're not running on a known staging system: don't want to accidentally break staging :|
 		if strings.Contains(restConfig.Host, "x99m.p1.openshiftapps.com") {
 			return nil, fmt.Errorf("E2E tests should not be run on staging server")
 		}
+
+		// fmt.Println("Using Kube Config, targeting host:", restConfig.Host)
 	}
 
 	return restConfig, err
 }
 
+// GetKubeClientSet returns a Clientset for accesing K8s API resources.
+// This API has the advantage over `GetKubeClient` in that it is strongly typed, but cannot be used for
+// custom resources.
 func GetKubeClientSet() (*kubernetes.Clientset, error) {
 	config, err := GetKubeConfig()
 	if err != nil {
@@ -160,6 +176,9 @@ func GetKubeClientSet() (*kubernetes.Clientset, error) {
 	return kubernetes.NewForConfig(config)
 }
 
+// GetKubeClient returns a controller-runtime Client for accessing K8s API resources.
+// The client returned by this function will, by default, already be aware of all
+// the necessary schemes for interacting with Argo CD/GitOps Service.
 func GetKubeClient() (client.Client, error) {
 
 	config, err := GetKubeConfig()

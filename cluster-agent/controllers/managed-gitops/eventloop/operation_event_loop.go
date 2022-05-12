@@ -121,6 +121,8 @@ func (task *processOperationEventTask) PerformTask(taskContext context.Context) 
 
 	if dbOperation != nil {
 
+		// After the event is processed, update the status in the database
+
 		// Don't update the status of operations that have previously completed.
 		if dbOperation.State == db.OperationState_Completed || dbOperation.State == db.OperationState_Failed {
 			return false, err
@@ -344,7 +346,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 			return false, nil
 
 		} else {
-			log.Error(err, "An error occurred while attempting to retrieve Argo CD Application cR")
+			log.Error(err, "An error occurred while attempting to retrieve Argo CD Application CR")
 			return true, err
 		}
 	}

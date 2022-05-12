@@ -506,11 +506,6 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			_, _, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(err).NotTo(BeNil())
 
-			gitopsDeployment := &managedgitopsv1alpha1.GitOpsDeployment{}
-			gitopsDeploymentKey := client.ObjectKey{Namespace: gitopsDepl.Namespace, Name: gitopsDepl.Name}
-			clientErr := a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
-			Expect(clientErr).To(BeNil())
-			Expect(gitopsDeployment.Status.Conditions).NotTo(BeNil())
 		})
 
 	})
@@ -669,11 +664,6 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			_, err = a.applicationEventRunner_handleSyncRunModified(ctx, dbQueries)
 			Expect(err).NotTo(BeNil())
 
-			gitopsDeployment := &managedgitopsv1alpha1.GitOpsDeployment{}
-			gitopsDeploymentKey := client.ObjectKey{Namespace: gitopsDepl.Namespace, Name: gitopsDepl.Name}
-			clientErr := a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
-			Expect(clientErr).To(BeNil())
-			Expect(gitopsDeployment.Status.Conditions).NotTo(BeNil())
 		})
 	})
 

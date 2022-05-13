@@ -1,5 +1,5 @@
 ### For Installation Guide refer:
-- Refer: https://github.com/golang-migrate/migrate/blob/master/cmd/migrate/README.md
+- https://github.com/golang-migrate/migrate/blob/master/cmd/migrate/README.md
 
 ### For best practices refer: 
 - https://github.com/golang-migrate/migrate/blob/master/MIGRATIONS.md

@@ -186,6 +186,8 @@ vendor: ## Clone locally the dependencies - off-line
 	cd $(MAKEFILE_ROOT)/cluster-agent && go mod vendor
 	cd $(MAKEFILE_ROOT)/appstudio-controller && go mod vendor
 	cd $(MAKEFILE_ROOT)/tests-e2e && go mod vendor	
+	cd $(MAKEFILE_ROOT)/appstudio-controller && go mod vendor	
+	cd $(MAKEFILE_ROOT)/db && go mod vendor	
 
 tidy: ## Tidy all components
 	cd $(MAKEFILE_ROOT)/backend-shared && go mod tidy
@@ -193,6 +195,7 @@ tidy: ## Tidy all components
 	cd $(MAKEFILE_ROOT)/cluster-agent && go mod tidy
 	cd $(MAKEFILE_ROOT)/appstudio-controller && go mod tidy
 	cd $(MAKEFILE_ROOT)/tests-e2e && go mod tidy
+	cd $(MAKEFILE_ROOT)/db && go mod tidy
 	 
 fmt: ## Run 'go fmt' on all components
 	cd $(MAKEFILE_ROOT)/backend-shared && make fmt

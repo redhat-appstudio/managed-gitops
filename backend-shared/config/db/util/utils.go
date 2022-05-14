@@ -447,7 +447,7 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 
 // GetOrCreateDeploymentToApplicationMapping looks for a DeploymentToApplicationMapping row by UID.
 // See https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.6kdajkig83ul for more details on DeploymentToApplicationMapping.
-func GetOrCreateDeploymentToApplicationMapping(ctx context.Context, createDeplToAppMapping *db.DeploymentToApplicationMapping, dbq db.ApplicationScopedQueries, log logr.Logger) error {
+func GetOrCreateDeploymentToApplicationMapping(ctx context.Context, createDeplToAppMapping *db.DeploymentToApplicationMapping, dbq db.ApplicationScopedQueries, log logr.Logger) (bool, error) {
 
 	if err := dbq.GetDeploymentToApplicationMappingByDeplId(ctx, createDeplToAppMapping); err != nil {
 
@@ -455,12 +455,12 @@ func GetOrCreateDeploymentToApplicationMapping(ctx context.Context, createDeplTo
 			// Return on generic error
 			logErr := fmt.Errorf("unable to get obj in GetOrDeploymentToApplicationMapping: %v", err)
 			log.Error(logErr, "unable to get deplToApp mapping", "createDeplToAppMapping", createDeplToAppMapping)
-			return logErr
+			return false, logErr
 		}
 		// Database row not found, so continue.
 	} else {
 		// Database row was found, and was set in the param, so return.
-		return nil
+		return false, nil
 	}
 
 	// At this point in the function, the database row necessarily does not exist.
@@ -472,17 +472,17 @@ func GetOrCreateDeploymentToApplicationMapping(ctx context.Context, createDeplTo
 		createDeplToAppMapping.NamespaceUID); err != nil {
 		log.Error(err, "unable to delete old deployment to application mapping for name '"+
 			createDeplToAppMapping.DeploymentName+"', namespace '"+createDeplToAppMapping.DeploymentNamespace+"'")
-		return err
+		return false, err
 	}
 	log.Info(fmt.Sprintf("Deleted DeploymentToApplicationMappingByNamespaceAndName with namespace: %s and name: %s", createDeplToAppMapping.DeploymentNamespace, createDeplToAppMapping.DeploymentName))
 
 	if err := dbq.CreateDeploymentToApplicationMapping(ctx, createDeplToAppMapping); err != nil {
 		log.Error(err, "unable to create deplToApp mapping", "createDeplToAppMapping", createDeplToAppMapping)
-		return err
+		return false, err
 	}
 	log.Info("Created DeploymentToApplicationMapping: " + createDeplToAppMapping.Deploymenttoapplicationmapping_uid_id)
 
-	return nil
+	return true, nil
 }
 
 // DisposeResources deletes of a 'resources' list of database entries in reverse order, by calling Dispose() on the object.

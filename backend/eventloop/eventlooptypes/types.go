@@ -12,10 +12,11 @@ import (
 type EventLoopEventType string
 
 const (
-	DeploymentModified EventLoopEventType = "eventlooptypes.DeploymentModified"
 	// WorkspaceModified
 	// ApplicationModified
 	// EnvironmentModified
+	DeploymentModified         EventLoopEventType = "DeploymentModified"
+	CredentialModified         EventLoopEventType = "CredentialModified"
 	SyncRunModified            EventLoopEventType = "SyncRunModified"
 	UpdateDeploymentStatusTick EventLoopEventType = "UpdateDeploymentStatusTick"
 )

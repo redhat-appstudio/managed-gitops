@@ -2,4 +2,5 @@
 resources:
 - managed-gitops_v1alpha1_gitopsdeployment.yaml
 - managed-gitops_v1alpha1_gitopsdeploymentsyncrun.yaml
+- managed-gitops_v1alpha1_gitopsdeploymentrepositorycredential.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

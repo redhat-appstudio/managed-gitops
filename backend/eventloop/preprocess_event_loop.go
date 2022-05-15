@@ -144,6 +144,13 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventlo
 				Namespace: newEvent.Request.Namespace,
 			},
 		}
+	} else if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialTypeName {
+		resource = &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      newEvent.Request.Name,
+				Namespace: newEvent.Request.Namespace,
+			},
+		}
 	} else {
 		log.Error(nil, "SEVERE - unexpected request resource type: "+string(newEvent.ReqResource))
 		return false
@@ -161,9 +168,12 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventlo
 		// Past this point in the if block, the CR necessarily doesn't exist
 
 		// Check the local cache, to see if we have seen this resource before
-		{
+		// - only check resources which we cache: GitOpsDeployment and GitOpsDeplomentSyncRun
+		if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentTypeName ||
+			newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName {
 
-			gitopsDeplUID, err := lookInCacheForAssociatedGitOpsDeplId(ctx, newEvent.ReqResource, mapKey, task.resourcesSeen, task.resourcesSeenMutex, dbQueries, log)
+			gitopsDeplUID, err := lookInCacheForAssociatedGitOpsDeplId(ctx, newEvent.ReqResource, mapKey, task.resourcesSeen,
+				task.resourcesSeenMutex, dbQueries, log)
 			if err != nil {
 				// If a generic error occurred (database or client connection issue), then log the error
 				// and return true, so that we can retry.
@@ -183,6 +193,23 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventlo
 				emitEvent(newEvent, nextStep, "found in local cache", log)
 				return false
 			}
+		} else if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialTypeName {
+
+			// Check the local cache
+			// task.resourcesSeenMutex.RLock()
+			// mapUID, exists := task.resourcesSeen[mapKey]
+			// delete(task.resourcesSeen, mapKey)
+			// task.resourcesSeenMutex.RUnlock()
+
+			// if exists {
+			newEvent.AssociatedGitopsDeplUID = noAssociatedGitOpsDeploymentUID
+			// Emit the delete with UID found in local cache
+			emitEvent(newEvent, nextStep, "found in local cache", log)
+			return false
+			// }
+		} else {
+			log.Error(err, "SEVERE: unexpected resource type: ", "resource", newEvent.ReqResource)
+			return false
 		}
 
 		// If not found in local cache, check the database.
@@ -298,6 +325,20 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventlo
 				log.Info("Deleted CR " + string(newEvent.ReqResource) + " wasn't present in local cache or DB, so ignoring.")
 				return false
 			}
+		} else if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialTypeName {
+
+			// TODO: Add link to database
+
+			// New logic would be:
+			// - pass event as is, no need to check database.
+
+			// Logic would be:
+			// - Check for an APICRToDatabasemapping for this resource, by name, namespace, workspace
+			// - if it exists, and is different file two events
+			// - otherwise, file one event
+			// - but I don't think we need to do that here?
+			// - In backend runner, make sure  When we first see a GitOpsDeploymentRepoCred, add it to
+
 		} else {
 			log.Error(err, "SEVERE: no logic for processing req resource"+string(newEvent.ReqResource))
 		}
@@ -395,6 +436,7 @@ func emitEventForExistingResource(gitopsDeplUID string, newEvent eventlooptypes.
 
 	// If it matches value from client, use provided id
 	if gitopsDeplUID == string(resource.GetUID()) {
+		// TODO: This logic seems wrong. (only works for gitopsdepl)
 		newEvent.AssociatedGitopsDeplUID = gitopsDeplUID
 		emitEvent(newEvent, nextStep, "existing resource, but value matches cr", log)
 		return

@@ -92,8 +92,7 @@ const (
 
 	// noAssociatedGitOpsDeploymentUID: if a resource does not have an orphanedResourceDeplUID, this constant should be set.
 	// For example: GitOpsDeploymentRepositoryCredentials might be associated with multiple (or zero) GitOpsDeployments.
-	// noAssociatedGitOpsDeploymentUID = "none"
-	// TODO: GITOPSRVCE-96: Uncomment this constant, and use it as needed to perpuate the message through the layers
+	noAssociatedGitOpsDeploymentUID = "none"
 )
 
 // workspaceEventLoopRouter receives all events for the workspace, and passes them to specific goroutine responsible

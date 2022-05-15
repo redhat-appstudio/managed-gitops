@@ -137,6 +137,14 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "GitOpsDeploymentSyncRun")
 		os.Exit(1)
 	}
+	if err = (&managedgitopscontrollers.GitOpsDeploymentRepositoryCredentialReconciler{
+		Client:              mgr.GetClient(),
+		Scheme:              mgr.GetScheme(),
+		PreprocessEventLoop: preprocessEventLoop,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "GitOpsDeploymentRepositoryCredential")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

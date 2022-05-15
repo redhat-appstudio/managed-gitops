@@ -149,7 +149,7 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 	dbq db.DatabaseQueries, log logr.Logger) (*db.GitopsEngineInstance, bool, *db.GitopsEngineCluster, error) {
 
 	// First create the GitOpsEngine cluster if needed; this will be used to create the instance.
-	gitopsEngineCluster, err := GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, kubesystemNamespaceUID, dbq, log)
+	gitopsEngineCluster, _, err := GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, kubesystemNamespaceUID, dbq, log)
 	if err != nil {
 		return nil, false, nil, fmt.Errorf("unable to create GitOpsEngineCluster for '%v', error: '%v'", kubesystemNamespaceUID, err)
 	}
@@ -320,8 +320,10 @@ func GetGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context, kubesys
 //
 // In order to determine which cluster we are on, we use the UID of the 'kube-system' namespace.
 // See https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.6kdajkig83ul for more details on this.
+//
+// bool return value is true if the GitopsEngineCluster row was created by this function, false otherwise.
 func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context, kubesystemNamespaceUID string, dbq db.DatabaseQueries,
-	log logr.Logger) (*db.GitopsEngineCluster, error) {
+	log logr.Logger) (*db.GitopsEngineCluster, bool, error) {
 
 	var gitopsEngineCluster *db.GitopsEngineCluster
 
@@ -345,7 +347,7 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 	if err := dbq.GetDBResourceMappingForKubernetesResource(ctx, dbResourceMapping); err != nil {
 
 		if !db.IsResultNotFoundError(err) {
-			return nil, fmt.Errorf("unable to get DBResourceMapping: %v", err)
+			return nil, false, fmt.Errorf("unable to get DBResourceMapping: %v", err)
 		}
 
 		// No existing mapping found.
@@ -363,7 +365,7 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 		if err := dbq.GetGitopsEngineClusterById(ctx, gitopsEngineCluster); err != nil {
 			if !db.IsResultNotFoundError(err) {
 				// If a generic error occurs, return
-				return nil, err
+				return nil, false, err
 			}
 
 			// We have found a mapping without the corresponding mapped entity, so delete the mapping.
@@ -371,7 +373,7 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 			log.V(util.LogLevel_Warn).Error(nil, "GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID found a resource mapping, but no engine instance.")
 
 			if _, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, dbResourceMapping); err != nil {
-				return nil, err
+				return nil, false, err
 			}
 			log.Info("Deleted KubernetesResourceToDBResourceMapping: " + fmt.Sprintf("%v", dbResourceMapping))
 
@@ -379,7 +381,7 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 			dbResourceMapping = nil
 		} else {
 			// Success: both existed.
-			return gitopsEngineCluster, nil
+			return gitopsEngineCluster, false, nil
 		}
 	}
 
@@ -396,7 +398,7 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 			Serviceaccount_ns:           "serviceaccount_ns",
 		}
 		if err := dbq.CreateClusterCredentials(ctx, &clusterCreds); err != nil {
-			return nil, fmt.Errorf("unable to create cluster creds for managed env: %v", err)
+			return nil, false, fmt.Errorf("unable to create cluster creds for managed env: %v", err)
 		}
 		log.Info("Created Cluster Credentials: " + clusterCreds.Clustercredentials_cred_id)
 
@@ -405,17 +407,17 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 		}
 
 		if err := dbq.CreateGitopsEngineCluster(ctx, gitopsEngineCluster); err != nil {
-			return nil, fmt.Errorf("unable to create engine cluster, when neither existed: %v", err)
+			return nil, false, fmt.Errorf("unable to create engine cluster, when neither existed: %v", err)
 		}
 		log.Info("Created GitopsEngineCluster: " + gitopsEngineCluster.Gitopsenginecluster_id)
 
 		expectedDBResourceMapping.DBRelationKey = gitopsEngineCluster.Gitopsenginecluster_id
 		if err := dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &expectedDBResourceMapping); err != nil {
-			return nil, fmt.Errorf("unable to create mapping when neither existed: %v", err)
+			return nil, false, fmt.Errorf("unable to create mapping when neither existed: %v", err)
 		}
 		log.Info("Created KubernetesResourceToDBResourceMapping with DBRelationKey: " + expectedDBResourceMapping.DBRelationKey)
 
-		return gitopsEngineCluster, nil
+		return gitopsEngineCluster, true, nil
 
 	} else if dbResourceMapping != nil && gitopsEngineCluster == nil {
 		// Scenario B) This shouldn't happen: the above logic should ensure that dbResourceMapping is always nil, if gitopsEngineCluster is nil
@@ -423,30 +425,32 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 		err := fmt.Errorf("SEVERE: the dbResourceMapping existed, but the gitops engine cluster did not")
 		log.Error(err, err.Error())
 
-		return nil, err
+		return nil, false, err
 
 	} else if dbResourceMapping == nil && gitopsEngineCluster != nil {
 		// Scenario C) this will happen if the engine cluster db entry exists, but there is no mapping for it
 
 		expectedDBResourceMapping.DBRelationKey = gitopsEngineCluster.Gitopsenginecluster_id
 		if err := dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &expectedDBResourceMapping); err != nil {
-			return nil, fmt.Errorf("unable to create mapping when dbResourceMapping didn't exist: %v", err)
+			return nil, false, fmt.Errorf("unable to create mapping when dbResourceMapping didn't exist: %v", err)
 		}
 		log.Info("Created KubernetesResourceToDBResourceMapping with DBRelationKey: " + expectedDBResourceMapping.DBRelationKey)
 
-		return gitopsEngineCluster, nil
+		return gitopsEngineCluster, true, nil
 
 	} else if dbResourceMapping != nil && gitopsEngineCluster != nil {
 		// Scenario D) both exist, so just return the cluster
-		return gitopsEngineCluster, nil
+		return gitopsEngineCluster, false, nil
 	}
 
-	return nil, fmt.Errorf("unexpected return")
+	return nil, false, fmt.Errorf("unexpected return")
 
 }
 
 // GetOrCreateDeploymentToApplicationMapping looks for a DeploymentToApplicationMapping row by UID.
 // See https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.6kdajkig83ul for more details on DeploymentToApplicationMapping.
+//
+// bool return value is true if the DeploymentToApplicationMapping row was created by this function, false otherwise.
 func GetOrCreateDeploymentToApplicationMapping(ctx context.Context, createDeplToAppMapping *db.DeploymentToApplicationMapping, dbq db.ApplicationScopedQueries, log logr.Logger) (bool, error) {
 
 	if err := dbq.GetDeploymentToApplicationMappingByDeplId(ctx, createDeplToAppMapping); err != nil {

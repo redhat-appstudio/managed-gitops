@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+// These tests are expected to run in parallel with other test cases, We can run the ginkgo tests parallelly by passing "ginkgo -p" command in CLI.
 var _ = Describe("ArgoCD Login Command", func() {
 	Context("ArgoCD Login Command Test", func() {
 		It("Ensure we are able to login to get a token”", func() {

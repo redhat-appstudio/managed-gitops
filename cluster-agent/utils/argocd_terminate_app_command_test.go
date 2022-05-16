@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -69,7 +70,7 @@ var _ = Describe("Terminate Operation on Argo CD Application", func() {
 				return
 			}
 
-			Expect(err).ToNot(BeNil())
+			Expect(strings.Contains(err.Error(), "application operation never terminated: my-app")).To(BeTrue())
 		})
 
 		Context("Terminate Operation Goes To Done Test", func() {

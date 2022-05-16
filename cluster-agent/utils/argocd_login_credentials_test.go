@@ -86,19 +86,19 @@ var _ = Describe("ArgoCD Login Credentials", func() {
 
 			creds, argoClient, err := cs.GetArgoCDLoginCredentials(context.Background(), "openshift-gitops", "12", true, k8sClient)
 			Expect(err).To(BeNil())
-			Expect(creds).ToNot(BeNil())
+			Expect(argoCDCredentials{} == creds).To(BeFalse())
 			Expect(argoClient).ToNot(BeNil())
 
 			By("A second call should work as well")
 			creds, argoClient, err = cs.GetArgoCDLoginCredentials(context.Background(), "openshift-gitops", "12", true, k8sClient)
 			Expect(err).To(BeNil())
-			Expect(creds).ToNot(BeNil())
+			Expect(argoCDCredentials{} == creds).To(BeFalse())
 			Expect(argoClient).ToNot(BeNil())
 
 			By("Acquire from the cache")
 			creds, argoClient, err = cs.GetArgoCDLoginCredentials(context.Background(), "openshift-gitops", "12", false, k8sClient)
 			Expect(err).To(BeNil())
-			Expect(creds).ToNot(BeNil())
+			Expect(argoCDCredentials{} == creds).To(BeFalse())
 			Expect(argoClient).ToNot(BeNil())
 
 		})

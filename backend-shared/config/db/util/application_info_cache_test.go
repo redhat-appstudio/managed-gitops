@@ -1,310 +1,149 @@
-package util
+package util_test
 
 import (
 	"context"
-	"testing"
 
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
-	"github.com/stretchr/testify/assert"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
+	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	util "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 )
 
-// TestCreateApplicationState test is used for creating of ApplicationState using cache
-func TestCreateApplicationState(t *testing.T) {
-	db.SetupforTestingDB(t)
-	defer db.TestTeardown(t)
+var _ = Describe("application_info_cache Test", func() {
+	It("Test to Create, Update and Delete an ApplicationInfoCache", func() {
+		err := db.SetupForTestingDBGinkgo()
+		Expect(err).To(BeNil())
 
-	ctx := context.Background()
+		ctx := context.Background()
+		asc := util.NewApplicationInfoCache()
+		defer asc.DebugOnly_Shutdown(ctx)
 
-	asc := NewApplicationInfoCache()
-	defer asc.DebugOnly_Shutdown(ctx)
+		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 
-	dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
+		Expect(err).To(BeNil())
+		defer dbq.CloseDatabase()
 
-	_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-	if !assert.NoError(t, err) {
-		return
-	}
+		_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
+		Expect(err).To(BeNil())
 
-	application := &db.Application{
-		Application_id:          "test-my-application",
-		Name:                    "my-application",
-		Spec_field:              "{}",
-		Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
-	}
+		application := &db.Application{
+			Application_id:          "test-my-application",
+			Name:                    "my-application",
+			Spec_field:              "{}",
+			Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+			Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+		}
 
-	// An entry for the application should be there in order to create an entry for applicationState
-	err = dbq.CreateApplication(ctx, application)
-	if !assert.NoError(t, err) {
-		return
-	}
+		// An entry for the application should be there in order to create an entry for applicationState
+		err = dbq.CreateApplication(ctx, application)
+		Expect(err).To(BeNil())
 
-	testAppState := db.ApplicationState{
-		Applicationstate_application_id: application.Application_id,
-		Health:                          "Healthy",
-		Sync_Status:                     "Synced",
-	}
-	errCreate := asc.CreateApplicationState(ctx, testAppState)
-	assert.NoError(t, errCreate)
+		testAppState := db.ApplicationState{
+			Applicationstate_application_id: application.Application_id,
+			Health:                          "Healthy",
+			Sync_Status:                     "Synced",
+		}
+		errCreate := asc.CreateApplicationState(ctx, testAppState)
+		Expect(errCreate).To(BeNil())
 
-	dbAppStateObj := db.ApplicationState{
-		Applicationstate_application_id: testAppState.Applicationstate_application_id,
-	}
-	errGet := dbq.GetApplicationStateById(ctx, &dbAppStateObj)
-	assert.NoError(t, errGet)
-	assert.Equal(t, testAppState, dbAppStateObj)
+		dbAppStateObj := db.ApplicationState{
+			Applicationstate_application_id: testAppState.Applicationstate_application_id,
+		}
+		errGet := dbq.GetApplicationStateById(ctx, &dbAppStateObj)
+		Expect(errGet).To(BeNil())
+		Expect(testAppState).To(Equal(dbAppStateObj))
 
-	_, fromCache, err := asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
-	assert.NoError(t, err)
-	assert.True(t, fromCache)
+		_, fromCache, err := asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
+		Expect(err).To(BeNil())
+		Expect(fromCache).To(BeTrue())
 
-}
+		testAppState.Health = "Unhealthy"
+		errUpdate := asc.UpdateApplicationState(ctx, testAppState)
+		Expect(errUpdate).To(BeNil())
 
-// TestGetApplicationStateById test is used for retrieving of ApplicationState using cache
-func TestGetApplicationStateById(t *testing.T) {
-	ctx := context.Background()
+		appState, isFromCache, errGet := asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
+		Expect(errGet).To(BeNil())
+		Expect(isFromCache).To(BeTrue())
+		Expect(testAppState).To(Equal(appState))
 
-	db.SetupforTestingDB(t)
-	defer db.TestTeardown(t)
+		testDeleteAppState := db.ApplicationState{
+			Applicationstate_application_id: testAppState.Applicationstate_application_id,
+		}
 
-	asc := NewApplicationInfoCache()
-	defer asc.DebugOnly_Shutdown(ctx)
+		rowsAffected, errCreate := asc.DeleteApplicationStateById(ctx, testDeleteAppState.Applicationstate_application_id)
+		Expect(errCreate).To(BeNil())
+		Expect(rowsAffected).Should(Equal(1))
 
-	dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
+		// check for entry in db, which should report an error
+		errGet = dbq.GetApplicationStateById(ctx, &testDeleteAppState)
+		Expect(errGet).ToNot(BeNil())
 
-	// check if the application state entry is in the cache?
-	testId := "test-get-appState"
+	})
+	It("Test to Get an ApplicationInfoCache", func() {
+		err := db.SetupForTestingDBGinkgo()
+		Expect(err).To(BeNil())
 
-	//testId doesn't exist, the test should report an error
-	appState, isFromCache, errGet := asc.GetApplicationStateById(ctx, testId)
-	assert.Error(t, errGet)
-	// since no entry in the valuefromcache should be false, appState should be empty
-	assert.False(t, isFromCache)
-	assert.Equal(t, appState, db.ApplicationState{})
+		ctx := context.Background()
+		asc := util.NewApplicationInfoCache()
+		defer asc.DebugOnly_Shutdown(ctx)
 
-	_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-	if !assert.NoError(t, err) {
-		return
-	}
+		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 
-	application := &db.Application{
-		Application_id:          testId,
-		Name:                    "my-application",
-		Spec_field:              "{}",
-		Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
-	}
+		Expect(err).To(BeNil())
+		defer dbq.CloseDatabase()
+		defer dbq.CloseDatabase()
 
-	// An entry for the application should be there in order to create an entry for applicationState
-	err = dbq.CreateApplication(ctx, application)
-	if !assert.NoError(t, err) {
-		return
-	}
+		// check if the application state entry is in the cache?
+		testId := "test-get-appState"
 
-	// create an applicationstate then try to get it
-	testAppState := db.ApplicationState{
-		Applicationstate_application_id: testId,
-		Health:                          "Healthy",
-		Sync_Status:                     "Synced",
-	}
-	err = dbq.CreateApplicationState(ctx, &testAppState)
-	assert.NoError(t, err)
+		//testId doesn't exist, the test should report an error
+		appState, isFromCache, errGet := asc.GetApplicationStateById(ctx, testId)
+		Expect(errGet).ToNot(BeNil())
+		// since no entry in the valuefromcache should be false, appState should be empty
+		Expect(isFromCache).To(BeFalse())
+		Expect(appState).To(Equal(db.ApplicationState{}))
 
-	getAppState, isFromCache, errGet := asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
-	// ideally the appState should now report an ApplicationState obj
-	// isFromCache should be false since initially the value will be coming from db
-	assert.NoError(t, errGet)
-	assert.False(t, isFromCache)
-	assert.Equal(t, getAppState, testAppState)
+		_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
+		Expect(err).To(BeNil())
 
-	//calling the same GetApplicationStateById again should come from cache, hence isFromCache should be True
-	_, isFromCache, errGet = asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
-	assert.NoError(t, errGet)
-	assert.True(t, isFromCache)
+		application := &db.Application{
+			Application_id:          testId,
+			Name:                    "my-application",
+			Spec_field:              "{}",
+			Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+			Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+		}
 
-	// checking if the entry for the above exists in the database
-	errGet = dbq.GetApplicationStateById(ctx, &testAppState)
-	assert.NoError(t, errGet)
-	assert.Equal(t, getAppState, testAppState)
+		// An entry for the application should be there in order to create an entry for applicationState
+		err = dbq.CreateApplication(ctx, application)
+		Expect(err).To(BeNil())
 
-}
+		// create an applicationstate then try to get it
+		testAppState := db.ApplicationState{
+			Applicationstate_application_id: testId,
+			Health:                          "Healthy",
+			Sync_Status:                     "Synced",
+		}
+		err = dbq.CreateApplicationState(ctx, &testAppState)
+		Expect(err).To(BeNil())
 
-// TestUpdateApplicationState test is used for updating of ApplicationState using cache
-func TestUpdateApplicationState(t *testing.T) {
-	ctx := context.Background()
+		getAppState, isFromCache, errGet := asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
+		// ideally the appState should now report an ApplicationState obj
+		// isFromCache should be false since initially the value will be coming from db
+		Expect(errGet).To(BeNil())
+		Expect(isFromCache).To(BeFalse())
+		Expect(testAppState).To(Equal(getAppState))
 
-	db.SetupforTestingDB(t)
-	defer db.TestTeardown(t)
+		//calling the same GetApplicationStateById again should come from cache, hence isFromCache should be True
+		_, isFromCache, errGet = asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
+		Expect(errGet).To(BeNil())
+		Expect(isFromCache).To(BeTrue())
 
-	asc := NewApplicationInfoCache()
-	defer asc.DebugOnly_Shutdown(ctx)
+		// checking if the entry for the above exists in the database
+		errGet = dbq.GetApplicationStateById(ctx, &testAppState)
+		Expect(errGet).To(BeNil())
+		Expect(testAppState).To(Equal(getAppState))
+	})
 
-	dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
-
-	_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	application := &db.Application{
-		Application_id:          "test-update-cache-1",
-		Name:                    "my-application",
-		Spec_field:              "{}",
-		Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
-	}
-
-	// An entry for the application should be there in order to create an entry for applicationState
-	err = dbq.CreateApplication(ctx, application)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	testAppState := db.ApplicationState{
-		Applicationstate_application_id: application.Application_id,
-		Health:                          "Healthy",
-		Sync_Status:                     "Synced",
-	}
-	errCreate := asc.CreateApplicationState(ctx, testAppState)
-	assert.NoError(t, errCreate)
-
-	// updating the health status to Unhealthy and updating
-	testAppState.Health = "Unhealthy"
-	errUpdate := asc.UpdateApplicationState(ctx, testAppState)
-	assert.NoError(t, errUpdate)
-
-	appState, isFromCache, errGet := asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
-	assert.NoError(t, errGet)
-	assert.True(t, isFromCache)
-	assert.Equal(t, appState, testAppState)
-
-}
-
-// TestUpdateApplicationState test is used for updating of ApplicationState using cache
-func TestDeleteApplicationState(t *testing.T) {
-
-	ctx := context.Background()
-	db.SetupforTestingDB(t)
-	defer db.TestTeardown(t)
-
-	asc := NewApplicationInfoCache()
-	defer asc.DebugOnly_Shutdown(ctx)
-
-	dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
-
-	_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	application := &db.Application{
-		Application_id:          "test-delete-cache-1",
-		Name:                    "my-application",
-		Spec_field:              "{}",
-		Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
-	}
-
-	// An entry for the application should be there in order to create an entry for applicationState
-	err = dbq.CreateApplication(ctx, application)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	testAppState := db.ApplicationState{
-		Applicationstate_application_id: application.Application_id,
-		Health:                          "Healthy",
-		Sync_Status:                     "Synced",
-	}
-	errCreate := asc.CreateApplicationState(ctx, testAppState)
-	assert.NoError(t, errCreate)
-
-	testDeleteAppState := db.ApplicationState{
-		Applicationstate_application_id: testAppState.Applicationstate_application_id,
-	}
-
-	rowsAffected, errCreate := asc.DeleteApplicationStateById(ctx, testDeleteAppState.Applicationstate_application_id)
-	assert.NoError(t, errCreate)
-	assert.GreaterOrEqual(t, rowsAffected, 1)
-
-	// check for entry in db, which should report an error
-	errGet := dbq.GetApplicationStateById(ctx, &testDeleteAppState)
-	assert.Error(t, errGet)
-}
-
-// TestGetApplicationById test is used for retrieving of Application using cache
-func TestGetApplicationById(t *testing.T) {
-	ctx := context.Background()
-
-	db.SetupforTestingDB(t)
-	defer db.TestTeardown(t)
-
-	asc := NewApplicationInfoCache()
-	defer asc.DebugOnly_Shutdown(ctx)
-
-	dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
-
-	// check if the application state entry is in the cache?
-	testId := "test-get-appState"
-
-	//testId doesn't exist, the test should report an error
-	app, valuefromCache, errGet := asc.GetApplicationById(ctx, testId)
-	assert.Error(t, errGet)
-	// since no entry in the valuefromcache should be false, appState should be empty
-	assert.False(t, valuefromCache)
-	assert.Equal(t, app, db.Application{})
-
-	_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	testapplication := db.Application{
-		Application_id:          testId,
-		Name:                    "my-application",
-		Spec_field:              "{}",
-		Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
-	}
-
-	err = dbq.CreateApplication(ctx, &testapplication)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	getApp, isFromCache, errGet := asc.GetApplicationById(ctx, testapplication.Application_id)
-	// ideally the appState should now report an Application obj
-	assert.NoError(t, errGet)
-	assert.False(t, isFromCache)
-	assert.Equal(t, getApp, testapplication)
-
-	//calling the same GetApplicationById again should come from cache, hence ifFromCache should be True
-	_, isFromCache, errGet = asc.GetApplicationById(ctx, testapplication.Application_id)
-	assert.NoError(t, errGet)
-	assert.True(t, isFromCache)
-
-	// checking if the entry for the above exists in the database
-	errGet = dbq.GetApplicationById(ctx, &testapplication)
-	assert.NoError(t, errGet)
-	assert.Equal(t, getApp, testapplication)
-}
+})

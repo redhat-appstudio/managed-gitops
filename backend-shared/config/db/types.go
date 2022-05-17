@@ -27,7 +27,7 @@ type GitopsEngineCluster struct {
 	Clustercredentials_id string `pg:"clustercredentials_id"`
 }
 
-// GitopsEngineInstance is an Argo CD instance on a Argo CD cluster
+// GitopsEngineInstance is an Argo CD instance on an Argo CD cluster
 type GitopsEngineInstance struct {
 
 	//lint:ignore U1000 used by go-pg
@@ -153,7 +153,7 @@ const (
 
 // Operation
 // Operations are used by the backend to communicate database changes to the cluster-agent.
-// It is the reponsibility of the cluster agent to respond to operations, to read the database
+// It is the responsibility of the cluster agent to respond to operations, to read the database
 // to discover what database changes occurred, and to ensure that Argo CD is consistent with
 // the database state.
 //
@@ -184,6 +184,7 @@ type Operation struct {
 	// * ClusterAccess (specified when we want Argo CD to C/R/U/D a user's cluster credentials)
 	// * GitopsEngineInstance (specified to CRUD an Argo instance, for example to create a new namespace and put Argo CD in it, then signal when it's done)
 	// * Application (user creates a new Application via service/web UI)
+	// * RepositoryCredentials (user provides private repository credentials via web UI)
 	Resource_type string `pg:"resource_type"`
 
 	// -- When the operation was created. Used for garbage collection, as operations should be short lived.
@@ -267,7 +268,7 @@ type ApplicationState struct {
 
 }
 
-// Represents relationship from GitOpsDeployment CR in the namespace, to an Application table row
+// DeploymentToApplicationMapping represents relationship from GitOpsDeployment CR in the namespace, to an Application table row
 // This means: if we see a change in a GitOpsDeployment CR, we can easily find the corresponding database entry
 // Also: if we see a change to an Argo CD Application, we can easily find the corresponding GitOpsDeployment CR
 //
@@ -313,7 +314,7 @@ const (
 	APICRToDatabaseMapping_DBRelationType_RepositoryCredential = "RepositoryCredential"
 )
 
-// Maps API custom resources on the API namespace (such as GitOpsDeploymentSyncRun), to a corresponding entry in the database.
+// APICRToDatabaseMapping maps API custom resources on the workspace (such as GitOpsDeploymentSyncRun), to a corresponding entry in the database.
 // This allows us to quickly go from API CR <-to-> Database entry, and also to identify database entries even when the API CR has been
 // deleted from the API namespace.
 //
@@ -338,8 +339,8 @@ type APICRToDatabaseMapping struct {
 	SeqID int64 `pg:"seq_id"`
 }
 
-// Represents a generic relationship between Kubernetes CR <-> Database table
-// The Kubernetes CR can be either in the API namespace, or in/on a GitOpsEngine cluster namespace.
+// KubernetesToDBResourceMapping represents a generic relationship between Kubernetes CR <-> Database table
+// The Kubernetes CR can be either in the workspace, or in/on a GitOpsEngine cluster namespace.
 //
 // Example: when the cluster agent sees an Argo CD Application CR change within a namespace, it needs a way
 // to know which GitOpsEngineInstance database entries corresponds to the Argo CD namespace.
@@ -370,7 +371,7 @@ type KubernetesToDBResourceMapping struct {
 	SeqID int64 `pg:"seq_id"`
 }
 
-// Sync Operation tracks a sync request from the API. This will correspond to a sync operation on an Argo CD Application, which
+// SyncOperation tracks a sync request from the API. This will correspond to a sync operation on an Argo CD Application, which
 // will cause Argo CD to deploy the K8s resources from Git, to the target environment. This is also known as manual sync.
 type SyncOperation struct {
 
@@ -395,4 +396,34 @@ type DisposableResource interface {
 
 type AppScopedDisposableResource interface {
 	DisposeAppScoped(ctx context.Context, dbq ApplicationScopedQueries) error
+}
+
+// RepositoryCredentials represents a RepositoryCredentials CR.
+// It is created by the backend component, if the user needs to provide access to a private repo.
+// Can be is used as a reference via the Operation row by providing the Resource_id and Resource_type.
+type RepositoryCredentials struct {
+
+	// Repository_credentials_id is the PK (Primary Key), that is an auto-generated random UID.
+	Repository_credentials_id string `pg:"repository_credentials_id,pk"`
+
+	// User_id represents a customer of the GitOps service that wants to use a private repository.
+	// -- Foreign key to: ClusterUser.Clusteruser_id
+	User_id string `pg:"user_id"`
+
+	// Repository_url is the URL of the private Git repository.
+	Repository_url string `pg:"repository_url"`
+
+	// Repository_username for accessing the private Git repo.
+	Repository_username string `pg:"repository_username"`
+
+	// Repository_password for accessing the private Git repo. It is usually encoded with Base64.
+	Repository_password string `pg:"repository_password"`
+
+	// Repository_secret is the name of the (insecure and unencrypted) secret that provides
+	// the credentials (Repository_username and Repository_password) to ArgoCD to gain access into Repository_url.
+	Repository_secret string `pg:"repository_secret"`
+
+	// Argo_cluster is the internal RedHat Managed cluster where ArgoCD is running and the Repository_secret is stored.
+	// -- Foreign key to: GitopsEngineInstance.Gitopsengineinstance_id
+	Argo_cluster string `pg:"argo_cluster"`
 }

@@ -146,6 +146,7 @@ var _ = Describe("application_info_cache Test", func() {
 			Expect(errGet).To(BeNil())
 			Expect(testAppState).To(Equal(getAppState))
 		})
+
 		It("Tests GetApplicationById", func() {
 			err := db.SetupForTestingDBGinkgo()
 			Expect(err).To(BeNil())
@@ -167,7 +168,7 @@ var _ = Describe("application_info_cache Test", func() {
 			Expect(err).To(BeNil())
 			// since no entry in the valuefromcache should be false, appState should be empty
 			Expect(valuefromCache).To(BeFalse())
-			Expect(app).To(Equal(db.ApplicationState{}))
+			Expect(app).To(Equal(db.Application{}))
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
 			Expect(err).To(BeNil())

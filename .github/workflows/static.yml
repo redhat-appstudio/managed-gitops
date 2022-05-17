@@ -143,7 +143,7 @@ jobs:
           go-version: "1.17.6"
       - name: "Install go modules for migration"
         run: |
-          cd $GITHUB_WORKSPACE/migration
+          cd $GITHUB_WORKSPACE/db
           go mod download
       - name: "Start PostgreSQL"
         run: |
@@ -155,15 +155,15 @@ jobs:
           pg_dump postgresql://postgres:gitops@localhost:5432/postgres > master.sql && cat master.sql
       - name: "Clean the state of db."
         run: |
-          cd $GITHUB_WORKSPACE/migration
+          cd $GITHUB_WORKSPACE/db
           go run migrate_db.go drop
       - name: "Apply migrations to the db."
         run: |
-          cd $GITHUB_WORKSPACE/migration
+          cd $GITHUB_WORKSPACE/db
           go run migrate_db.go
       - name: "Remove the schema_migration table."
         run: |
-          cd $GITHUB_WORKSPACE/migration
+          cd $GITHUB_WORKSPACE/db
           go run migrate_db.go drop_smtable
       - name: "Create a pg_dump file for migration schema"
         run: |

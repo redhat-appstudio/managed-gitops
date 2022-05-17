@@ -25,7 +25,7 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 
 	log = log.WithValues("name", appFromList.Name, "namespace", appFromList.Namespace, "uid", string(appFromList.UID))
 
-	log.Info("Attempting to delete Argo CD CR " + appFromList.Name)
+	log.Info("Attempting to delete Argo CD Application CR " + appFromList.Name)
 
 	app := &appv1.Application{
 		ObjectMeta: metav1.ObjectMeta{

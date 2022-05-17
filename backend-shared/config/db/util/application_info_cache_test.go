@@ -165,7 +165,7 @@ var _ = Describe("application_info_cache Test", func() {
 
 			//testId doesn't exist, the test should report an error
 			app, valuefromCache, errGet := asc.GetApplicationById(ctx, testId)
-			Expect(errGet).To(BeNil())
+			Expect(errGet).ToNot(BeNil())
 			// since no entry in the valuefromcache should be false, appState should be empty
 			Expect(valuefromCache).To(BeFalse())
 			Expect(app).To(Equal(db.Application{}))

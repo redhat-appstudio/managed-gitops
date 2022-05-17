@@ -3,8 +3,8 @@ BEGIN;
 
 DROP TABLE IF EXISTS ApplicationState;
 DROP TABLE IF EXISTS DeploymentToApplicationMapping;
-DROP TABLE IF EXISTS KubernetesToDBResourceMapping ;
-DROP TABLE IF EXISTS APICRToDatabaseMapping ;
+DROP TABLE IF EXISTS KubernetesToDBResourceMapping;
+DROP TABLE IF EXISTS APICRToDatabaseMapping;
 DROP TABLE IF EXISTS SyncOperation;
 DROP TABLE IF EXISTS Application;
 DROP TABLE IF EXISTS Operation;

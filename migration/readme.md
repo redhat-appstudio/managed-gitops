@@ -6,9 +6,9 @@
 
 ----
 
-The Managed GitOps migration component is responsible for making sure the database can be versioned UP and DOWN according to the need.
+The Managed GitOps Database Migration component is responsible for making sure that the database can be versioned UP and DOWN according to the need.
 
-## Getting started with migrations for manged-gitops
+## Getting started with database migrations for manged-gitops
 
 ### For the Installation Guide refer to the [migration guide](https://github.com/golang-migrate/migrate/blob/master/cmd/migrate/README.md).
 

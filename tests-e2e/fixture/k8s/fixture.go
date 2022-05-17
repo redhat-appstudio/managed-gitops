@@ -13,6 +13,11 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 )
 
+const (
+	// K8sClientError is a prefix that can/should be used when outputting errors from K8s client
+	K8sClientError = "Error from k8s client:"
+)
+
 // Create creates the given K8s resource, returning an error on failure, or nil otherwise.
 func Create(obj client.Object) error {
 
@@ -22,7 +27,7 @@ func Create(obj client.Object) error {
 	}
 
 	if err := k8sClient.Create(context.Background(), obj); err != nil {
-		fmt.Println("Error on creating ", obj.GetName(), err)
+		fmt.Println(K8sClientError, "Error on creating ", obj.GetName(), err)
 		return err
 	}
 
@@ -42,7 +47,7 @@ func ExistByName() matcher.GomegaMatcher {
 
 		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(k8sObject), k8sObject)
 		if err != nil {
-			fmt.Println("Object does not exists in ExistByName:", k8sObject.GetName(), err)
+			fmt.Println(K8sClientError, "Object does not exists in ExistByName:", k8sObject.GetName(), err)
 		} else {
 			fmt.Println("Object exists in ExistByName:", k8sObject.GetName())
 		}
@@ -65,7 +70,7 @@ func Delete(obj client.Object) error {
 			// success
 			return nil
 		}
-		fmt.Println("Unable to delete in Delete:", obj.GetName(), err)
+		fmt.Println(K8sClientError, "Unable to delete in Delete:", obj.GetName(), err)
 		return err
 	}
 

@@ -10,6 +10,7 @@ import (
 	"context"
 
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
+	k8sFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
@@ -25,13 +26,13 @@ func HaveHealthStatusCode(status managedgitopsv1alpha1.HealthStatusCode) matcher
 
 		k8sClient, err := fixture.GetKubeClient()
 		if err != nil {
-			fmt.Println("Error from k8s client:", err)
+			fmt.Println(k8sFixture.K8sClientError, err)
 			return false
 		}
 
 		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitopsDepl), &gitopsDepl)
 		if err != nil {
-			fmt.Println("Error from k8s client:", err)
+			fmt.Println(k8sFixture.K8sClientError, err)
 			return false
 		}
 
@@ -53,13 +54,13 @@ func HaveSyncStatusCode(status managedgitopsv1alpha1.SyncStatusCode) matcher.Gom
 
 		k8sClient, err := fixture.GetKubeClient()
 		if err != nil {
-			fmt.Println("Error from k8s client:", err)
+			fmt.Println(k8sFixture.K8sClientError, err)
 			return false
 		}
 
 		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitopsDepl), &gitopsDepl)
 		if err != nil {
-			fmt.Println("Error from k8s client:", err)
+			fmt.Println(k8sFixture.K8sClientError, err)
 			return false
 		}
 

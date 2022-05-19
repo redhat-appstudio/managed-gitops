@@ -107,8 +107,8 @@ spec:
                       description: Status is/was the result of promoting to that environment.
                       type: string
                     step:
-                      description: 'Step is the # number of the step in the slice,
-                        starting with 1'
+                      description: Step is the sequential number of the step in the
+                        array, starting with 1
                       type: integer
                   required:
                   - environmentName

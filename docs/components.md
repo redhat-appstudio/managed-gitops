@@ -5,6 +5,7 @@ There are 4 separated, tightly-coupled components:
 - [Backend]: responsible for receiving the latest user's intent and then informing both the database and the [Cluster-Agent] about it. It also includes a REST APIServer for webhooks, called [routes].
 - [Cluster-Agent]: responsible for keeping synchronised the [ArgoCD Application CR] and its relevant Application entry in the database.
 - [App Studio Controller]: Responsible for interfacing with other components of App Studio, including watching them and creating corresponding API objects in the GitOps Serice. For example: When an Argo CD `Application` resource is created, we might create a corresponding `GitOpsDeployment` resource.
+- [App Studio Shared]: Go types and CRDs for the AppStudio Environment API.
 - [Backend Shared]: group of libraries shared among the rest of the components.
 The frontend code is merely a mock collection of react pages created using [PatternFly](https://www.patternfly.org/) which is using dummy data to portray a very basic idea of how UI might look like. The actual UI for the same will differ.
 
@@ -23,6 +24,7 @@ For detailed step-by-step guide on how each component works, check the `README` 
 Plus, within each of the components there is a `Makefile`, which can be used for local development of that component.
 
 [App Studio Controller]: https://github.com/redhat-appstudio/managed-gitops/tree/main/appstudio-controller
+[App Studio Shared]: https://github.com/redhat-appstudio/managed-gitops/tree/main/appstudio-shared
 [Backend Shared]: https://github.com/redhat-appstudio/managed-gitops/tree/main/backend-shared
 [Backend]: https://github.com/redhat-appstudio/managed-gitops/tree/main/backend
 [Cluster-Agent]: https://github.com/redhat-appstudio/managed-gitops/tree/main/cluster-agent

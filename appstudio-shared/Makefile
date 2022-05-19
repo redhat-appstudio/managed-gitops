@@ -223,14 +223,17 @@ endef
 # catalog-push: ## Push a catalog image.
 # 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
+GO_SEC = $(shell pwd)/bin/gosec
+go_sec: ## Download gosec locally if necessary.
+	$(call go-get-tool,$(GO_SEC),github.com/securego/gosec/v2/cmd/gosec@latest)
+
 .PHONY: lint
 lint:
 	golangci-lint --version
 	GOMAXPROCS=2 golangci-lint run --fix --verbose --timeout 300s
 
-
 .PHONY: gosec
-gosec: 
+gosec: go_sec 
 	# Run this command, to install gosec, if not installed:
 	# go get -u github.com/securego/gosec/v2/cmd/gosec
-	gosec ./...
+	$(GO_SEC) ./...

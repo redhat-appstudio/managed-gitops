@@ -399,31 +399,43 @@ type AppScopedDisposableResource interface {
 }
 
 // RepositoryCredentials represents a RepositoryCredentials CR.
-// It is created by the backend component, if the user needs to provide access to a private repo.
-// Can be is used as a reference via the Operation row by providing the Resource_id and Resource_type.
+// It is created by the backend component, if we need to access a private repository.
+// Can be used as a reference via the Operation row by providing the Resource_id and Resource_type.
 type RepositoryCredentials struct {
 
-	// Repository_credentials_id is the PK (Primary Key), that is an auto-generated random UID.
-	Repository_credentials_id string `pg:"repository_credentials_id,pk"`
+	//lint:ignore U1000 used by go-pg
+	tableName struct{} `pg:"repositorycredentials,alias:rc"` //nolint
 
-	// User_id represents a customer of the GitOps service that wants to use a private repository.
+	// PrimaryKeyID is the PK (Primary Key) from the database, that is an auto-generated random UID.
+	PrimaryKeyID string `pg:"repositorycredentials_id,pk"`
+
+	// UserID represents a customer of the GitOps service that wants to use a private repository.
 	// -- Foreign key to: ClusterUser.Clusteruser_id
-	User_id string `pg:"user_id"`
+	UserID string `pg:"repo_cred_user_id"`
 
-	// Repository_url is the URL of the private Git repository.
-	Repository_url string `pg:"repository_url"`
+	// PrivateURL is the address of the private Git repository.
+	PrivateURL string `pg:"repo_cred_url"`
 
-	// Repository_username for accessing the private Git repo.
-	Repository_username string `pg:"repository_username"`
+	// AuthUsername is the authorized username login for accessing the private Git repo.
+	AuthUsername string `pg:"repo_cred_user"`
 
-	// Repository_password for accessing the private Git repo. It is usually encoded with Base64.
-	Repository_password string `pg:"repository_password"`
+	// AuthPassword is the authorized password login for accessing the private Git repo (usually encoded with Base64).
+	AuthPassword string `pg:"repo_cred_pass"`
 
-	// Repository_secret is the name of the (insecure and unencrypted) secret that provides
-	// the credentials (Repository_username and Repository_password) to ArgoCD to gain access into Repository_url.
-	Repository_secret string `pg:"repository_secret"`
+	// AuthSSHKey (alternative authentication method) is the authorized private SSH key
+	// that provides access to the private Git repo. It can also be used for decrypting Sealed secrets.
+	AuthSSHKey string `pg:"repo_cred_ssh"`
 
-	// Argo_cluster is the internal RedHat Managed cluster where ArgoCD is running and the Repository_secret is stored.
+	// SecretObj is the name of the (insecure and unencrypted) Kubernetes secret object that provides
+	// the credentials (AuthUsername & AuthPassword, OR the AuthSSHKey) to the GitOps Engine (e.g. ArgoCD)
+	// to gain access into the PrivateURL repo.
+	SecretObj string `pg:"repo_cred_secret"`
+
+	// EngineClusterID is the internal RedHat Managed cluster where the GitOps Engine (e.g. ArgoCD) is running.
+	// -- NOTE: It is expected the SecretObj to be stored there as well.
 	// -- Foreign key to: GitopsEngineInstance.Gitopsengineinstance_id
-	Argo_cluster string `pg:"argo_cluster"`
+	EngineClusterID string `pg:"repo_cred_engine_id"`
+
+	// SeqID is used only for debugging purposes. It helps us to keep track of the order that rows are created.
+	SeqID int64 `pg:"seq_id"`
 }

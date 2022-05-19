@@ -5,6 +5,8 @@
 
 ⚠️ Until these APIs are stabilized, they are subject to change with limited notice. Best efforts will me made to inform API consumers of how to migrate, when the changes are breaking. ⚠️
 
+The APIs defined in this module are based on the [Environment API discussions](https://docs.google.com/document/d/1-_rWLgALd5pdSlqNNcQ5FSrD00fZb0l_exU-_FiL68o/) of April/May 2022.
+
 ### Expected upcoming changes, as of this writing (May 2022):
 - Drop the `Application-` prefix for prefixed resources
 - Move away from using `Snapshot` noun (replacement TBD)

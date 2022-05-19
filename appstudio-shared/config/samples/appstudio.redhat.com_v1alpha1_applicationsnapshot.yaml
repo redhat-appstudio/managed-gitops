@@ -1,0 +1,6 @@
+apiVersion: appstudio.redhat.com/v1alpha1
+kind: ApplicationSnapshot
+metadata:
+  name: applicationsnapshot-sample
+spec:
+  # TODO(user): Add fields here

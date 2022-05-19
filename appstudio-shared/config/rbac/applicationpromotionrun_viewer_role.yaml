@@ -1,0 +1,20 @@
+# permissions for end users to view applicationpromotionruns.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: applicationpromotionrun-viewer-role
+rules:
+- apiGroups:
+  - appstudio.redhat.com
+  resources:
+  - applicationpromotionruns
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - appstudio.redhat.com
+  resources:
+  - applicationpromotionruns/status
+  verbs:
+  - get

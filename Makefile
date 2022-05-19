@@ -92,6 +92,7 @@ test-cluster-agent: ## Run test for cluster-agent only
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 deploy-appstudio-controller-crd: ## Deploy appstudio-controller related CRDs
 	# Application CR
+	kubectl apply -f appstudio-shared/manifests/crd-install.yaml
 	kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-service/a3c147c351d4bb5273de1a692143bee319693c64/bundle/manifests/appstudio.redhat.com_applications.yaml
 
 undeploy-appstudio-controller-crd: ## Remove appstudio-controller related CRDs
@@ -181,6 +182,7 @@ reset-db: ## Erase the current database, and reset it scratch; useful during dev
 	$(MAKEFILE_ROOT)/create-dev-env.sh
 
 vendor: ## Clone locally the dependencies - off-line
+	cd $(MAKEFILE_ROOT)/appstudio-shared && go mod vendor
 	cd $(MAKEFILE_ROOT)/backend-shared && go mod vendor
 	cd $(MAKEFILE_ROOT)/backend && go mod vendor
 	cd $(MAKEFILE_ROOT)/cluster-agent && go mod vendor
@@ -188,6 +190,7 @@ vendor: ## Clone locally the dependencies - off-line
 	cd $(MAKEFILE_ROOT)/tests-e2e && go mod vendor	
 
 tidy: ## Tidy all components
+	cd $(MAKEFILE_ROOT)/appstudio-shared && go mod tidy
 	cd $(MAKEFILE_ROOT)/backend-shared && go mod tidy
 	cd $(MAKEFILE_ROOT)/backend && go mod tidy 
 	cd $(MAKEFILE_ROOT)/cluster-agent && go mod tidy
@@ -195,6 +198,7 @@ tidy: ## Tidy all components
 	cd $(MAKEFILE_ROOT)/tests-e2e && go mod tidy
 	 
 fmt: ## Run 'go fmt' on all components
+	cd $(MAKEFILE_ROOT)/appstudio-shared && make fmt
 	cd $(MAKEFILE_ROOT)/backend-shared && make fmt
 	cd $(MAKEFILE_ROOT)/backend && make fmt
 	cd $(MAKEFILE_ROOT)/cluster-agent && make fmt

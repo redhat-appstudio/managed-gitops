@@ -1,0 +1,24 @@
+# permissions for end users to edit applicationpromotionruns.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: applicationpromotionrun-editor-role
+rules:
+- apiGroups:
+  - appstudio.redhat.com
+  resources:
+  - applicationpromotionruns
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - appstudio.redhat.com
+  resources:
+  - applicationpromotionruns/status
+  verbs:
+  - get

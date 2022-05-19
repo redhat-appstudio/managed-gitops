@@ -24,25 +24,38 @@ import (
 // ApplicationSnapshotSpec defines the desired state of ApplicationSnapshot
 type ApplicationSnapshotSpec struct {
 
-	// NOTE: The name (kind) of this API, "ApplicationSnapshot" is likely to change in the short term (Q2 2022).
+	// NOTE: The name (kind) of this API resource, "ApplicationSnapshot" is likely to change in the short term (Q2 2022).
 	// Stay tuned for refactoring needed for your component.
 
-	DisplayName        string `json:"displayName,omitempty"`
+	// DisplayName is a user-visible, user-definable name for the resource (and is not used for any functional behaviour)
+	DisplayName string `json:"displayName,omitempty"`
+
+	// DisplayDescription is a user-visible, user definable description for the resource (and is not used for any functional behaviour)
 	DisplayDescription string `json:"displayDescription,omitempty"`
 
+	// Components field contains the sets of components to deploy as part of this snapshot.
 	Components []ApplicationSnapshotComponent `json:"components,omitempty"`
+
+	// Artifacts is a placeholder section for 'artifact links' we want to maintain to other AppStudio resources.
+	// See Environment API doc for details.
+	Artifacts SnapshotArtifacts `json:"artifacts,omitempty"`
 }
 
+// ApplicationSnapshotComponent
 type ApplicationSnapshotComponent struct {
-	Name           string `json:"name"`
+
+	// Name is the name of the component
+	Name string `json:"name"`
+
+	// ContainerImage is the container image to use when deploying the component, as part of a Snapshot
 	ContainerImage string `json:"containerImage"`
 }
 
-// Artifacts is a placeholder section for 'artifact links' we want to maintain to other AppStudio resources.
+// SnapshotArtifacts is a placeholder section for 'artifact links' we want to maintain to other AppStudio resources.
 //
 // For example: here I'm imagining we might want to keep track of container image <=> (source code repo, commit sha) links,
 // Which might be useful to present to the user within the UI.
-type Artifacts struct {
+type SnapshotArtifacts struct {
 
 	// NOTE: This field (and struct) are placeholders.
 	// - Until this API is stabilized, consumers of the API may store any unstructured JSON/YAML data here,

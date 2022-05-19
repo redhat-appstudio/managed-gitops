@@ -38,7 +38,8 @@ spec:
               ApplicationPromotionRun
             properties:
               application:
-                description: Application is the name of the Application to target
+                description: Application is the name of an Application resource defined
+                  within the namespaced, and which is the target of the promotion
                 type: string
               automatedPromotion:
                 description: 'AutomatedPromotion is for fields specific to automated
@@ -46,8 +47,8 @@ spec:
                   or ''automatedPromotion'', but not both.'
                 properties:
                   initialEnvironment:
-                    description: Start iterating through the digraph, beginning with
-                      the value specified in 'initialEnvironment'
+                    description: 'InitialEnvironment: start iterating through the
+                      digraph, beginning with the value specified in ''initialEnvironment'''
                     type: string
                 required:
                 - initialEnvironment
@@ -64,7 +65,8 @@ spec:
                 - targetEnvironment
                 type: object
               snapshot:
-                description: Snapshot refers to snapshot to promote between environments.
+                description: Snapshot refers to the name of a Snapshot resource defined
+                  within the namespace, used to promote container images between Environments.
                 type: string
             required:
             - application
@@ -84,21 +86,36 @@ spec:
                 type: array
               completionResult:
                 description: CompletionResult indicates success/failure once the promotion
-                  has completed all work.
+                  has completed all work. CompletionResult will only have a value
+                  if State field is 'Complete'.
                 type: string
               environmentStatus:
-                properties:
-                  environmentName:
-                    type: string
-                  status:
-                    type: string
-                  step:
-                    type: integer
-                required:
-                - environmentName
-                - status
-                - step
-                type: object
+                description: EnvironmentStatus represents the set of steps taken during
+                  the  current promotion
+                items:
+                  description: 'PromotionRunEnvironmentStatus represents the set of
+                    steps taken during the  current promotion: - manual promotions
+                    will only have a single step. - automated promotions may have
+                    one or more steps, depending on how many environments have been
+                    promoted to.'
+                  properties:
+                    environmentName:
+                      description: EnvironmentName is the name of the environment
+                        that was promoted to in this step
+                      type: string
+                    status:
+                      description: Status is/was the result of promoting to that environment.
+                      type: string
+                    step:
+                      description: 'Step is the # number of the step in the slice,
+                        starting with 1'
+                      type: integer
+                  required:
+                  - environmentName
+                  - status
+                  - step
+                  type: object
+                type: array
               state:
                 description: State indicates whether or not the overall promotion
                   (either manual or automated is complete)

@@ -26,55 +26,46 @@ type ApplicationPromotionRunSpec struct {
 	// NOTE: The name (kind) of this API, "ApplicationPromotionRun" is likely to change in the short term (Q2 2022).
 	// Stay tuned for refactoring needed for your component.
 
-	// Snapshot refers to snapshot to promote between environments.
+	// Snapshot refers to the name of a Snapshot resource defined within the namespace, used to promote container images between Environments.
 	Snapshot string `json:"snapshot"`
 
-	// Application is the name of the Application to target
+	// Application is the name of an Application resource defined within the namespaced, and which is the target of the promotion
 	Application string `json:"application"`
 
 	// ManualPromotion is for fields specific to manual promotion.
 	// Only one field should be defined: either 'manualPromotion' or 'automatedPromotion', but not both.
-	ManualPromotion ApplicationPromotionRunManual `json:"manualPromotion,omitempty"`
+	ManualPromotion ManualPromotionConfiguration `json:"manualPromotion,omitempty"`
 
 	// AutomatedPromotion is for fields specific to automated promotion
 	// Only one field should be defined: either 'manualPromotion' or 'automatedPromotion', but not both.
-	AutomatedPromotion ApplicationPromotionRunAutomated `json:"automatedPromotion,omitempty"`
+	AutomatedPromotion AutomatedPromotionConfiguration `json:"automatedPromotion,omitempty"`
 }
 
-type ApplicationPromotionRunManual struct {
+// ManualPromotionConfiguration defines promotion parameters specific to manual promotion: the target environment to promote to.
+type ManualPromotionConfiguration struct {
 	// TargetEnvironment is the environment to promote to
 	TargetEnvironment string `json:"targetEnvironment"`
 }
 
-type ApplicationPromotionRunAutomated struct {
-	// Start iterating through the digraph, beginning with the value specified in 'initialEnvironment'
+// AutomatedPromotionConfiguration defines promotion parameters specific to automated promotion: the initial environment
+// (in the promotion graph) to begin promoting on.
+type AutomatedPromotionConfiguration struct {
+	// InitialEnvironment: start iterating through the digraph, beginning with the value specified in 'initialEnvironment'
 	InitialEnvironment string `json:"initialEnvironment"`
 }
-
-type ApplicationPromotionRunState string
-
-const (
-	ApplicationPromotionRunState_Active   ApplicationPromotionRunState = "Active"
-	ApplicationPromotionRunState_Waiting  ApplicationPromotionRunState = "Waiting"
-	ApplicationPromotionRunState_Complete ApplicationPromotionRunState = "Complete"
-)
-
-type ApplicationPromotionRunCompleteResult string
-
-const (
-	ApplicationPromotionRunCompleteResult_Success ApplicationPromotionRunCompleteResult = "Success"
-	ApplicationPromotionRunCompleteResult_Failure ApplicationPromotionRunCompleteResult = "Failure"
-)
 
 // ApplicationPromotionRunStatus defines the observed state of ApplicationPromotionRun
 type ApplicationPromotionRunStatus struct {
 
 	// State indicates whether or not the overall promotion (either manual or automated is complete)
-	State ApplicationPromotionRunState `json:"state"`
+	State PromotionRunState `json:"state"`
 
 	// CompletionResult indicates success/failure once the promotion has completed all work.
-	CompletionResult  ApplicationPromotionRunCompleteResult    `json:"completionResult,omitempty"`
-	EnvironmentStatus ApplicationPromotionRunEnvironmentStatus `json:"environmentStatus,omitempty"`
+	// CompletionResult will only have a value if State field is 'Complete'.
+	CompletionResult PromotionRunCompleteResult `json:"completionResult,omitempty"`
+
+	// EnvironmentStatus represents the set of steps taken during the  current promotion
+	EnvironmentStatus []PromotionRunEnvironmentStatus `json:"environmentStatus,omitempty"`
 
 	// ActiveBindings is the list of active bindings currently being promoted to:
 	// - For an automated promotion, there can be multiple active bindings at a time (one for each env at a particular tree depth)
@@ -82,19 +73,47 @@ type ApplicationPromotionRunStatus struct {
 	ActiveBindings []string `json:"activeBindings,omitempty"`
 }
 
-type ApplicationPromotionRunEnvironmentStatusField string
+// PromotionRunState defines the 3 states of an ApplicationPromotion resource.
+type PromotionRunState string
 
 const (
-	ApplicationPromotionRunEnvironmentStatus_Success    ApplicationPromotionRunEnvironmentStatusField = "Success"
-	ApplicationPromotionRunEnvironmentStatus_InProgress ApplicationPromotionRunEnvironmentStatusField = "In Progress"
-	ApplicationPromotionRunEnvironmentStatus_Failed     ApplicationPromotionRunEnvironmentStatusField = "Failed"
+	PromotionRunState_Active   PromotionRunState = "Active"
+	PromotionRunState_Waiting  PromotionRunState = "Waiting"
+	PromotionRunState_Complete PromotionRunState = "Complete"
 )
 
-type ApplicationPromotionRunEnvironmentStatus struct {
-	Step            int                                           `json:"step"`
-	EnvironmentName string                                        `json:"environmentName"`
-	Status          ApplicationPromotionRunEnvironmentStatusField `json:"status"`
+// PromotionRunCompleteResult defines the success/failure states if the PromotionRunState is 'Complete'.
+type PromotionRunCompleteResult string
+
+const (
+	PromotionRunCompleteResult_Success PromotionRunCompleteResult = "Success"
+	PromotionRunCompleteResult_Failure PromotionRunCompleteResult = "Failure"
+)
+
+// PromotionRunEnvironmentStatus represents the set of steps taken during the  current promotion:
+// - manual promotions will only have a single step.
+// - automated promotions may have one or more steps, depending on how many environments have been promoted to.
+type PromotionRunEnvironmentStatus struct {
+
+	// Step is the sequential number of the step in the array, starting with 1
+	Step int `json:"step"`
+
+	// EnvironmentName is the name of the environment that was promoted to in this step
+	EnvironmentName string `json:"environmentName"`
+
+	// Status is/was the result of promoting to that environment.
+	Status PromotionRunEnvironmentStatusField `json:"status"`
 }
+
+// PromotionRunEnvironmentStatusField are the state values for promotion to individual enviroments, as
+// used by the Status field of ApplicationPromotionRunEnvironmentStatus
+type PromotionRunEnvironmentStatusField string
+
+const (
+	ApplicationPromotionRunEnvironmentStatus_Success    PromotionRunEnvironmentStatusField = "Success"
+	ApplicationPromotionRunEnvironmentStatus_InProgress PromotionRunEnvironmentStatusField = "In Progress"
+	ApplicationPromotionRunEnvironmentStatus_Failed     PromotionRunEnvironmentStatusField = "Failed"
+)
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status

@@ -36,9 +36,14 @@ spec:
             description: EnvironmentSpec defines the desired state of Environment
             properties:
               configuration:
+                description: Configuration contains environment-specific details for
+                  Applications/Components that are deployed to the Environment.
                 properties:
                   env:
+                    description: Env is an array of standard environment vairables
                     items:
+                      description: EnvVarPair describes environment variables to use
+                        for the component
                       properties:
                         name:
                           description: Name is the environment variable name
@@ -55,16 +60,27 @@ spec:
                 - env
                 type: object
               deploymentStrategy:
+                description: DeploymentStrategy is the promotion strategy for the
+                  Environment See Environment API doc for details.
                 type: string
               displayName:
+                description: DisplayName is the user-visible, user-definable name
+                  for the environment (but not used for functional requirements)
                 type: string
               parentEnvironment:
+                description: 'ParentEnvironment references another Environment defined
+                  in the namespace: when automated promotion is enabled, promotions
+                  to the parent environment will cause this environment to be promoted
+                  to. See Environment API doc for details.'
                 type: string
               tags:
+                description: Tags are a user-visisble, user-definable set of tags
+                  that can be applied to the environment
                 items:
                   type: string
                 type: array
               type:
+                description: Type is whether the Environment is a POC or non-POC environment
                 type: string
             required:
             - deploymentStrategy

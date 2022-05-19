@@ -22,18 +22,31 @@ import (
 
 // EnvironmentSpec defines the desired state of Environment
 type EnvironmentSpec struct {
-	Type string `json:"type"`
 
-	DisplayName        string                 `json:"displayName"`
+	// Type is whether the Environment is a POC or non-POC environment
+	Type EnvironmentType `json:"type"`
+
+	// DisplayName is the user-visible, user-definable name for the environment (but not used for functional requirements)
+	DisplayName string `json:"displayName"`
+
+	// DeploymentStrategy is the promotion strategy for the Environment
+	// See Environment API doc for details.
 	DeploymentStrategy DeploymentStrategyType `json:"deploymentStrategy"`
 
+	// ParentEnvironment references another Environment defined in the namespace: when automated promotion is enabled,
+	// promotions to the parent environment will cause this environment to be promoted to.
+	// See Environment API doc for details.
 	ParentEnvironment string `json:"parentEnvironment,omitempty"`
 
+	// Tags are a user-visisble, user-definable set of tags that can be applied to the environment
 	Tags []string `json:"tags,omitempty"`
 
+	// Configuration contains environment-specific details for Applications/Components that are deployed to
+	// the Environment.
 	Configuration EnvironmentConfiguration `json:"configuration,omitempty"`
 }
 
+// EnvironmentType currently indicates whether an environment is POC/Non-POC, see API doc for details.
 type EnvironmentType string
 
 const (
@@ -41,14 +54,24 @@ const (
 	EnvironmentType_NonPOC EnvironmentType = "Non-POC"
 )
 
+// DeploymentStrategyType defines the available promotion/deployment strategies for an Environment
+// See Environment API doc for details.
 type DeploymentStrategyType string
 
 const (
-	DeploymentStrategy_Manual             DeploymentStrategyType = "Manual"
+	// DeploymentStrategy_Manual: Promotions to an Environment with this strategy will occur due to explicit user intent
+	DeploymentStrategy_Manual DeploymentStrategyType = "Manual"
+
+	// DeploymentStrategy_AppStudioAutomated: Promotions to an Environment with this strategy will occur if a previous ("parent")
+	// environment in the environment graph was successfully promoted to.
+	// See Environment API doc for details.
 	DeploymentStrategy_AppStudioAutomated DeploymentStrategyType = "AppStudioAutomated"
 )
 
+// EnvironmentConfiguration contains Environment-specific configurations details, to be used when generating
+// Component/Application GitOps repository resources.
 type EnvironmentConfiguration struct {
+	// Env is an array of standard environment vairables
 	Env []EnvVarPair `json:"env"`
 }
 

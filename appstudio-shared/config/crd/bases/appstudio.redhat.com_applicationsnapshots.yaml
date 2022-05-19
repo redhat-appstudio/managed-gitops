@@ -36,12 +36,30 @@ spec:
           spec:
             description: ApplicationSnapshotSpec defines the desired state of ApplicationSnapshot
             properties:
+              artifacts:
+                description: Artifacts is a placeholder section for 'artifact links'
+                  we want to maintain to other AppStudio resources. See Environment
+                  API doc for details.
+                properties:
+                  unstableFields:
+                    description: 'NOTE: This field (and struct) are placeholders.
+                      - Until this API is stabilized, consumers of the API may store
+                      any unstructured JSON/YAML data here, but no backwards compatibility
+                      will be preserved.'
+                    x-kubernetes-preserve-unknown-fields: true
+                type: object
               components:
+                description: Components field contains the sets of components to deploy
+                  as part of this snapshot.
                 items:
+                  description: ApplicationSnapshotComponent
                   properties:
                     containerImage:
+                      description: ContainerImage is the container image to use when
+                        deploying the component, as part of a Snapshot
                       type: string
                     name:
+                      description: Name is the name of the component
                       type: string
                   required:
                   - containerImage
@@ -49,8 +67,13 @@ spec:
                   type: object
                 type: array
               displayDescription:
+                description: DisplayDescription is a user-visible, user definable
+                  description for the resource (and is not used for any functional
+                  behaviour)
                 type: string
               displayName:
+                description: DisplayName is a user-visible, user-definable name for
+                  the resource (and is not used for any functional behaviour)
                 type: string
             type: object
           status:

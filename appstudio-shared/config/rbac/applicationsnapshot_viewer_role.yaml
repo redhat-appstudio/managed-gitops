@@ -1,0 +1,20 @@
+# permissions for end users to view applicationsnapshots.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: applicationsnapshot-viewer-role
+rules:
+- apiGroups:
+  - appstudio.redhat.com
+  resources:
+  - applicationsnapshots
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - appstudio.redhat.com
+  resources:
+  - applicationsnapshots/status
+  verbs:
+  - get

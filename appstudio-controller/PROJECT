@@ -13,4 +13,24 @@ resources:
   group: appstudio.redhat.com
   kind: Application
   version: v1alpha1
+- controller: true
+  domain: redhat.com
+  group: appstudio.redhat.com
+  kind: ApplicationSnapshot
+  version: v1alpha1
+- controller: true
+  domain: redhat.com
+  group: appstudio.redhat.com
+  kind: ApplicationPromotionRun
+  version: v1alpha1
+- controller: true
+  domain: redhat.com
+  group: appstudio.redhat.com
+  kind: ApplicationSnapshotEnvironmentBinding
+  version: v1alpha1
+- controller: true
+  domain: redhat.com
+  group: appstudio.redhat.com
+  kind: Environment
+  version: v1alpha1
 version: "3"

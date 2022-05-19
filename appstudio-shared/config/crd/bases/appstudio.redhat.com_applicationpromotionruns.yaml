@@ -1,0 +1,119 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: applicationpromotionruns.appstudio.redhat.com
+spec:
+  group: appstudio.redhat.com
+  names:
+    kind: ApplicationPromotionRun
+    listKind: ApplicationPromotionRunList
+    plural: applicationpromotionruns
+    singular: applicationpromotionrun
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ApplicationPromotionRun is the Schema for the applicationpromotionruns
+          API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ApplicationPromotionRunSpec defines the desired state of
+              ApplicationPromotionRun
+            properties:
+              application:
+                description: Application is the name of the Application to target
+                type: string
+              automatedPromotion:
+                description: 'AutomatedPromotion is for fields specific to automated
+                  promotion Only one field should be defined: either ''manualPromotion''
+                  or ''automatedPromotion'', but not both.'
+                properties:
+                  initialEnvironment:
+                    description: Start iterating through the digraph, beginning with
+                      the value specified in 'initialEnvironment'
+                    type: string
+                required:
+                - initialEnvironment
+                type: object
+              manualPromotion:
+                description: 'ManualPromotion is for fields specific to manual promotion.
+                  Only one field should be defined: either ''manualPromotion'' or
+                  ''automatedPromotion'', but not both.'
+                properties:
+                  targetEnvironment:
+                    description: TargetEnvironment is the environment to promote to
+                    type: string
+                required:
+                - targetEnvironment
+                type: object
+              snapshot:
+                description: Snapshot refers to snapshot to promote between environments.
+                type: string
+            required:
+            - application
+            - snapshot
+            type: object
+          status:
+            description: ApplicationPromotionRunStatus defines the observed state
+              of ApplicationPromotionRun
+            properties:
+              activeBindings:
+                description: 'ActiveBindings is the list of active bindings currently
+                  being promoted to: - For an automated promotion, there can be multiple
+                  active bindings at a time (one for each env at a particular tree
+                  depth) - For a manual promotion, there will be only one.'
+                items:
+                  type: string
+                type: array
+              completionResult:
+                description: CompletionResult indicates success/failure once the promotion
+                  has completed all work.
+                type: string
+              environmentStatus:
+                properties:
+                  environmentName:
+                    type: string
+                  status:
+                    type: string
+                  step:
+                    type: integer
+                required:
+                - environmentName
+                - status
+                - step
+                type: object
+              state:
+                description: State indicates whether or not the overall promotion
+                  (either manual or automated is complete)
+                type: string
+            required:
+            - state
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

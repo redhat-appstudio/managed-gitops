@@ -1,11 +1,11 @@
 
-# AppStudio-shared
+# AppStudio-Shared
+
+The APIs defined in this module are based on the [Environment API discussions](https://docs.google.com/document/d/1-_rWLgALd5pdSlqNNcQ5FSrD00fZb0l_exU-_FiL68o/) of April/May 2022.
 
 ## Warning for API Consumers
 
 ⚠️ Until these APIs are stabilized, they are subject to change with limited notice. Best efforts will me made to inform API consumers of how to migrate, when the changes are breaking. ⚠️
-
-The APIs defined in this module are based on the [Environment API discussions](https://docs.google.com/document/d/1-_rWLgALd5pdSlqNNcQ5FSrD00fZb0l_exU-_FiL68o/) of April/May 2022.
 
 ### Expected upcoming changes, as of this writing (May 2022):
 - Drop the `Application-` prefix for prefixed resources
@@ -23,7 +23,7 @@ kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/managed-gito
 
 ### Generate controllers for the APIs in your operator
 
-To generate a controller for one or more of these APIS, run these commands in your project:
+To generate a controller for one or more of these APIs, run these commands in your project:
 ```bash
 # Tested on operator-sdk v1.17 - the commands may require minor adjustment if you are using a different version:
 
@@ -33,6 +33,7 @@ operator-sdk create api --group appstudio --version v1alpha1 --kind ApplicationS
 operator-sdk create api --group appstudio --version v1alpha1 --kind Environment --controller
 
 # In all cases, answer `N` to the `Create Resource [y/n]` prompt from operator-sdk CLI.
+# These commands presume you have `domain: redhat.com` defined in your PROJECT
 ```
 
 #### Add the dependency to your go.mod
@@ -45,10 +46,10 @@ go get github.com/redhat-appstudio/managed-gitops/appstudio-shared
 
 #### Update SetupWithManager within the controller
 
-After generating the controller, ensure you update the `SetupWithManager` function within the controller to reference the resource.
+After generating each controller, ensure you update the `SetupWithManager` function within the controller to reference the resource. See examples below for details.
 
 
-#### Finally, add the scheme to your operator's `main.go`:
+#### Remember to add the scheme to your operator's `main.go`:
 ```go
 import (
     // (...)
@@ -69,7 +70,9 @@ For [an example of generated controllers](https://github.com/redhat-appstudio/ma
 
 
 
-## Bootstrapped with operator-sdk v1.17
+## Resources for appstudio-shared developers
+
+Bootstrapped with operator-sdk v1.17.
 
 These are the commands that were used to bootstrap the resources. This should be useful when we later upgrade (re-bootstrap) onto a newer version of the operator-sdk.
 

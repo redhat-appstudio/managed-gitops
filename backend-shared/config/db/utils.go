@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"os"
 	"reflect"
 	"runtime/debug"
 	"strings"
@@ -673,4 +674,11 @@ func SetupforTestingDB(t *testing.T) {
 
 func TestTeardown(t *testing.T) {
 	// Currently unused
+}
+
+// This functions skips the testing in Openshift CI enviroment
+func skipOpenshiftCI(t *testing.T) {
+	if os.Getenv("OPENSHIFT_CI") != "" {
+		t.Skip("Skipping testing in OpenShift CI environment")
+	}
 }

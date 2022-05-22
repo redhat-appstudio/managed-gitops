@@ -21,6 +21,8 @@ import (
 // Preprocess Event Loop
 //
 // The pre-process event loop is responsible for:
+// - receives all events all the API Resources controllers
+// - pass the events to the next layer, which is controller_event_loop
 // - detecting cases where the user deletes/creates a resource with the same name, before we have have processed the delete
 // - ensures that 'associatedGitopsDeplUID' field is set for all requests that are processed by the GitOps service.
 //     - if the event is for a GitOpsDeployment, then this field matches the UID of the resource (but for deleted resources, we need to retrieve the uid from the database)
@@ -60,7 +62,6 @@ func NewPreprocessEventLoop() *PreprocessEventLoop {
 func preprocessEventLoopRouter(input chan eventlooptypes.EventLoopEvent, nextStep *controllerEventLoop /*, workspaceID string*/) {
 
 	ctx := context.Background()
-
 	log := log.FromContext(ctx)
 
 	taskRetryLoop := sharedutil.NewTaskRetryLoop("event-loop-router-retry-loop")
@@ -68,7 +69,7 @@ func preprocessEventLoopRouter(input chan eventlooptypes.EventLoopEvent, nextSte
 	// (cache key) -> (uid of the sync/syncrun resource, the last time it was seen)
 	resourcesSeen := map[string]string{}
 	var resourcesSeenMutex sync.RWMutex // Acquire this mutex whenever resourcesSeen is read/modified
-	// TODO: GITOPSRVCE-68 - PERF - Add a size limit to this: evict LRU if over a certain size, to keep from hitting memory limit.
+	// TODO: GITOPSRVCE-68 - PERF - Add a size limit to this: evict LRU if over a certain size, to keep from hitting memory limit. (so golang-lru, which is included from api-machinery)
 
 	dbQueries, err := db.NewProductionPostgresDBQueries(false)
 	if err != nil {
@@ -128,8 +129,8 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventlo
 
 	log.V(sharedutil.LogLevel_Debug).Info("preprocess event loop router received event:", "event", eventlooptypes.StringEventLoopEvent(&newEvent))
 
+	// Retrieve the event object
 	var resource client.Object
-
 	if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentTypeName {
 		resource = &managedgitopsv1alpha1.GitOpsDeployment{
 			ObjectMeta: v1.ObjectMeta{
@@ -161,258 +162,80 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventlo
 		if !apierr.IsNotFound(err) {
 			log.Error(err, "unable to retrieve resource during preprocess", "resource", resource)
 			return true
-		} else {
-			log.Info("CR doesn't exist in namespace, so the resource is likely deleted.", "resource", resource)
 		}
+		log.Info("CR doesn't exist in namespace, so the resource is likely deleted.", "resource", resource)
 
 		// Past this point in the if block, the CR necessarily doesn't exist
 
-		// Check the local cache, to see if we have seen this resource before
-		// - only check resources which we cache: GitOpsDeployment and GitOpsDeplomentSyncRun
-		if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentTypeName ||
-			newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName {
+		return task.processResourceThatDoesntExist(ctx, newEvent, nextStep, mapKey, dbQueries, log)
+	}
 
-			gitopsDeplUID, err := lookInCacheForAssociatedGitOpsDeplId(ctx, newEvent.ReqResource, mapKey, task.resourcesSeen,
-				task.resourcesSeenMutex, dbQueries, log)
-			if err != nil {
-				// If a generic error occurred (database or client connection issue), then log the error
-				// and return true, so that we can retry.
-				log.Error(err, "unable to retrieve resource from local cache", "resource", resource)
-				return true
-			}
+	// The event we received is for a GitOpsDeployment/SyncRun that exists, and is in the namespace.
 
-			// Clear the cache after retrieving it, because the resource has necessarily been deleted from the namespace.
-			task.resourcesSeenMutex.Lock()
-			delete(task.resourcesSeen, mapKey)
-			task.resourcesSeenMutex.Unlock()
+	// The UID that this CR had when we previously saw it
+	previousGitopsDeplUID, err := lookInCacheForAssociatedGitOpsDeplId(ctx, newEvent.ReqResource, mapKey, task.resourcesSeen, task.resourcesSeenMutex, dbQueries, log)
+	if err != nil {
+		log.Error(err, "unexpected error when checking database contents with local map", "mapKey", mapKey)
+		return true
+	}
 
-			// If the GitOpsDeployment CR UID was found in the cache, then tag the event and emit it.
-			if gitopsDeplUID != "" {
-				newEvent.AssociatedGitopsDeplUID = gitopsDeplUID
-				// Emit delete with uid found in local cache
-				emitEvent(newEvent, nextStep, "found in local cache", log)
-				return false
-			}
-		} else if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialTypeName {
+	// Update the cache with the latest UID for this resource
+	task.resourcesSeenMutex.Lock()
+	task.resourcesSeen[mapKey] = string(resource.GetUID())
+	task.resourcesSeenMutex.Unlock()
 
-			// Check the local cache
-			// task.resourcesSeenMutex.RLock()
-			// mapUID, exists := task.resourcesSeen[mapKey]
-			// delete(task.resourcesSeen, mapKey)
-			// task.resourcesSeenMutex.RUnlock()
+	if previousGitopsDeplUID != "" {
+		emitEventForExistingResource(previousGitopsDeplUID, newEvent, resource, nextStep, log)
+		return false
+	}
 
-			// if exists {
-			newEvent.AssociatedGitopsDeplUID = noAssociatedGitOpsDeploymentUID
-			// Emit the delete with UID found in local cache
-			emitEvent(newEvent, nextStep, "found in local cache", log)
-			return false
-			// }
-		} else {
-			log.Error(err, "SEVERE: unexpected resource type: ", "resource", newEvent.ReqResource)
-			return false
-		}
-
-		// If not found in local cache, check the database.
-
-		if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName {
-
-			var items []db.APICRToDatabaseMapping
-
-			// 1) Go from GitOpsDeploymentSyncRun CR -> Sync Operation DB table, by searching
-			// for the CR's namespace/name/workspace ID tuple.
-			if err := dbQueries.ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx,
-				db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
-				newEvent.Request.Name, newEvent.Request.Namespace, newEvent.WorkspaceID,
-				db.APICRToDatabaseMapping_DBRelationType_SyncOperation, &items); err != nil {
-
-				log.Error(err, "unable to retrieve api to database mapping in preprocessEventLoopRouter")
-				return true
-			}
-
-			if len(items) > 1 {
-				log.Error(nil, "SEVERE: Unexpected number of items associated with GitOpsDeploymentSyncRun resource in database", "name", newEvent.Request.Name, "namespace", newEvent.Request.Namespace, "workspaceId", newEvent.WorkspaceID)
-				return false
-
-			} else if len(items) == 1 {
-
-				// 2) We have found the pointer from GitOpsDeploymentSyncRun name/namespace to SyncOperation,
-				// so next attempt to retrieve the SyncOperation
-				syncOperation := &db.SyncOperation{
-					SyncOperation_id: items[0].DBRelationKey,
-				}
-				if err := dbQueries.GetSyncOperationById(ctx, syncOperation); err != nil {
-
-					if !db.IsResultNotFoundError(err) {
-						log.Error(err, "unable to retrieve sync operation for gitopsdeplsyncrun")
-						return true
-					}
-
-					// Sync operation doesn't exist, so not much more we can do.
-					return false
-				}
-
-				// Make sure the SyncOperation's target application hasn't already been deleted.
-				if syncOperation.Application_id == "" {
-					log.Info("syncOperation '" + syncOperation.SyncOperation_id + "'was found in processEvent, but application field was nil (likely it was deleted.)")
-					return false
-				}
-
-				// 3) We have found the SyncOperation, now use it find the DeploymentToApplicationMapping
-				// using the application id.
-				dtam := db.DeploymentToApplicationMapping{
-					Application_id: syncOperation.Application_id,
-				}
-
-				// 4) Finally, we have found the DeploymentToApplicationMapping, which contains the gitops cr uid
-				if err := dbQueries.GetDeploymentToApplicationMappingByApplicationId(ctx, &dtam); err != nil {
-
-					if !db.IsResultNotFoundError(err) {
-						log.Error(err, "unable to retrieve dtam for application id: "+dtam.Application_id)
-						return true
-					}
-
-					// depl to app mapping for this application doesn't exist, so not much we can do.
-					return false
-				}
-
-				// Success, tag the event and emit it
-				newEvent.AssociatedGitopsDeplUID = dtam.Deploymenttoapplicationmapping_uid_id
-
-				// Emit delete, with UID from database
-				emitEvent(newEvent, nextStep, "found in database", log)
-
-				return false
-
-			} else {
-				// In this else block:
-				// - the CR doesn't exist
-				// - the local cache hasn't previously seen a CR with this name/namespace/resource type
-				// - we couldn't find any reference to this CR in the database
-
-				// So it's safe to ignore it (after logging it as INFO)
-				log.Info("Deleted CR " + string(newEvent.ReqResource) + " wasn't present in local cache or DB, so ignoring.")
-				return false
-			}
-
-		} else if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentTypeName {
-
-			// Look for a corresponding DeploymentoApplicationMapping for the GitOpsDeployment CR in the namespace
-			var items []db.DeploymentToApplicationMapping
-			if err := dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(ctx, newEvent.Request.Name, newEvent.Request.Namespace,
-				newEvent.WorkspaceID, &items); err != nil {
-				log.Error(err, "unable to retrieve gitopsdeployment by namespacename in processEvent")
-				return true
-			}
-
-			if len(items) > 1 {
-				log.Error(nil, "SEVERE: unexpected number of items associated with GitOpsDeployment resource in database")
-				return false
-
-			} else if len(items) == 1 {
-				newEvent.AssociatedGitopsDeplUID = items[0].Deploymenttoapplicationmapping_uid_id
-
-				// Emit delete, with UID from database
-				emitEvent(newEvent, nextStep, "found with uid from database", log)
-
-				return false
-			} else {
-				// In this else block:
-				// - the CR doesn't exist
-				// - the local cache hasn't previously seen a CR with this name/namespace/resource type
-				// - we couldn't find any reference to this CR in the database
-
-				// So it's safe to ignore it (after logging it as INFO)
-				log.Info("Deleted CR " + string(newEvent.ReqResource) + " wasn't present in local cache or DB, so ignoring.")
-				return false
-			}
-		} else if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialTypeName {
-
-			// TODO: Add link to database
-
-			// New logic would be:
-			// - pass event as is, no need to check database.
-
-			// Logic would be:
-			// - Check for an APICRToDatabasemapping for this resource, by name, namespace, workspace
-			// - if it exists, and is different file two events
-			// - otherwise, file one event
-			// - but I don't think we need to do that here?
-			// - In backend runner, make sure  When we first see a GitOpsDeploymentRepoCred, add it to
-
-		} else {
-			log.Error(err, "SEVERE: no logic for processing req resource"+string(newEvent.ReqResource))
-		}
-
-	} else {
-
-		// In this else block, the event we received is for a GitOpsDeployment/SyncRun that exists in the namespace.
-
-		// The UID that this CR had when we previously saw it
-		previousGitopsDeplUID, err := lookInCacheForAssociatedGitOpsDeplId(ctx, newEvent.ReqResource, mapKey, task.resourcesSeen, task.resourcesSeenMutex, dbQueries, log)
+	// Not found in the local cache, so check the database to see if this CR was previously processed
+	{
+		previousGitopsDeplUID, err = getGitOpsDeplIdFromDatabaseUsingNameAndNamespace(ctx, newEvent, dbQueries, log)
 		if err != nil {
-			log.Error(err, "unexpected error when checking database contents with local map", "mapKey", mapKey)
+			log.Error(err, "unexpected error when resolving the gitopsdeplid using name and namespace")
 			return true
 		}
 
-		// Update the cache with the latest UID for this resource
-		task.resourcesSeenMutex.Lock()
-		task.resourcesSeen[mapKey] = string(resource.GetUID())
-		task.resourcesSeenMutex.Unlock()
-
+		// If we found a corresponding database entry (indicating this CR was previously processed) then
+		// emit the event for it.
 		if previousGitopsDeplUID != "" {
 			emitEventForExistingResource(previousGitopsDeplUID, newEvent, resource, nextStep, log)
 			return false
 		}
+	}
 
-		// Not found in the local cache, so check the database to see if this CR was previously processed
-		{
-			previousGitopsDeplUID, err = getGitOpsDeplIdFromDatabaseUsingNameAndNamespace(ctx, newEvent, dbQueries, log)
-			if err != nil {
-				log.Error(err, "unexpected error when resolving the gitopsdeplid using name and namespace")
+	// Finally, it's not in the local cache, it's not the database, but it exists in the namespace,
+	// so it's just a never before seen/processed resource.
+	if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName {
+
+		gitopsDeplSyncRun, ok := resource.(*managedgitopsv1alpha1.GitOpsDeploymentSyncRun)
+		if !ok {
+			log.Error(nil, "SEVERE: unable to cast resource to GitOpsDeploymentSyncRun")
+			return false
+		}
+
+		gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      gitopsDeplSyncRun.Spec.GitopsDeploymentName,
+				Namespace: resource.GetNamespace(),
+			},
+		}
+		if err := newEvent.Client.Get(ctx, client.ObjectKeyFromObject(gitopsDepl), gitopsDepl); err != nil {
+			if !apierr.IsNotFound(err) {
+				log.Error(err, "unable to retrieve gitopsdepl referenced by gitopsdeplsyncrun")
 				return true
 			}
-
-			// If we found a corresponding database entry (indicating this CR was previously processed) then
-			// emit the event for it.
-			if previousGitopsDeplUID != "" {
-				emitEventForExistingResource(previousGitopsDeplUID, newEvent, resource, nextStep, log)
-				return false
-			}
-		}
-
-		// Finally, it's not in the local cache, it's not the database, but it exists in the namespace,
-		// so it's just a never before seen/processed resource.
-		if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName {
-
-			gitopsDeplSyncRun, ok := resource.(*managedgitopsv1alpha1.GitOpsDeploymentSyncRun)
-			if !ok {
-				log.Error(nil, "SEVERE: unable to cast resource to GitOpsDeploymentSyncRun")
-				return false
-			}
-
-			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
-				ObjectMeta: v1.ObjectMeta{
-					Name:      gitopsDeplSyncRun.Spec.GitopsDeploymentName,
-					Namespace: resource.GetNamespace(),
-				},
-			}
-			if err := newEvent.Client.Get(ctx, client.ObjectKeyFromObject(gitopsDepl), gitopsDepl); err != nil {
-				if !apierr.IsNotFound(err) {
-					log.Error(err, "unable to retrieve gitopsdepl referenced by gitopsdeplsyncrun")
-					return true
-				}
-				newEvent.AssociatedGitopsDeplUID = orphanedResourceGitopsDeplUID
-			} else {
-				newEvent.AssociatedGitopsDeplUID = string(gitopsDepl.GetUID())
-			}
-
+			newEvent.AssociatedGitopsDeplUID = orphanedResourceGitopsDeplUID
 		} else {
-			newEvent.AssociatedGitopsDeplUID = string(resource.GetUID())
+			newEvent.AssociatedGitopsDeplUID = string(gitopsDepl.GetUID())
 		}
 
-		emitEvent(newEvent, nextStep, "first seen resource", log)
-
+	} else {
+		newEvent.AssociatedGitopsDeplUID = string(resource.GetUID())
 	}
+
+	emitEvent(newEvent, nextStep, "first seen resource", log)
 
 	return false
 }
@@ -429,6 +252,174 @@ func emitEvent(event eventlooptypes.EventLoopEvent, nextStep *controllerEventLoo
 		"event", eventlooptypes.StringEventLoopEvent(&event), "debug-context", debugStr)
 
 	nextStep.eventLoopInputChannel <- event
+
+}
+
+// This function processes the case where we event loop received an event for an API resource that doesn't in the K8s namespace.
+// returns true if the task should be retried (for example, because it failed), false otherwise.
+func (task *processEventTask) processResourceThatDoesntExist(ctx context.Context, newEvent eventlooptypes.EventLoopEvent, nextStep *controllerEventLoop,
+	mapKey string, dbQueries db.DatabaseQueries, log logr.Logger) bool {
+
+	// Check the local cache, to see if we have seen this resource before
+	// - only check resources which we cache: GitOpsDeployment and GitOpsDeplomentSyncRun
+	if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentTypeName ||
+		newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName {
+
+		gitopsDeplUID, err := lookInCacheForAssociatedGitOpsDeplId(ctx, newEvent.ReqResource, mapKey, task.resourcesSeen,
+			task.resourcesSeenMutex, dbQueries, log)
+		if err != nil {
+			// If a generic error occurred (database or client connection issue), then log the error
+			// and return true, so that we can retry.
+			log.Error(err, "unable to retrieve resource from local cache", "resource", newEvent.ReqResource)
+			return true
+		}
+
+		// Clear the cache after retrieving it, because the resource has necessarily been deleted from the namespace.
+		task.resourcesSeenMutex.Lock()
+		delete(task.resourcesSeen, mapKey)
+		task.resourcesSeenMutex.Unlock()
+
+		// If the GitOpsDeployment CR UID was found in the cache, then tag the event and emit it.
+		if gitopsDeplUID != "" {
+			newEvent.AssociatedGitopsDeplUID = gitopsDeplUID
+			// Emit delete with uid found in local cache
+			emitEvent(newEvent, nextStep, "found in local cache", log)
+			return false
+		}
+
+		// Not found in the cache, so exit the 'if' block...
+
+	} else if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialTypeName {
+
+		// GitOpsDeploymentRepositoryCredentials doesn't have an associated GitOpsDeployment, so we use
+		// the 'noAssociatedGitOpsDeploymentUID' and emit the delete event to the next layer.
+		newEvent.AssociatedGitopsDeplUID = noAssociatedGitOpsDeploymentUID
+		emitEvent(newEvent, nextStep, "repocreds deleted", log)
+		return false
+
+	} else {
+
+		// This shouldn't happen.
+		log.Error(nil, "SEVERE: unexpected resource type: ", "resource", newEvent.ReqResource)
+		return false
+	}
+
+	// Next: If the item wasn't found in the local cache above, check the database.
+
+	if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName {
+
+		var items []db.APICRToDatabaseMapping
+
+		// 1) Go from GitOpsDeploymentSyncRun CR -> Sync Operation DB table, by searching
+		// for the CR's namespace/name/workspace ID tuple.
+		if err := dbQueries.ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx,
+			db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
+			newEvent.Request.Name, newEvent.Request.Namespace, newEvent.WorkspaceID,
+			db.APICRToDatabaseMapping_DBRelationType_SyncOperation, &items); err != nil {
+
+			log.Error(err, "unable to retrieve api to database mapping in preprocessEventLoopRouter")
+			return true
+		}
+
+		if len(items) > 1 {
+			log.Error(nil, "SEVERE: Unexpected number of items associated with GitOpsDeploymentSyncRun resource in database", "name", newEvent.Request.Name, "namespace", newEvent.Request.Namespace, "workspaceId", newEvent.WorkspaceID)
+			return false
+		} else if len(items) == 0 {
+			// In this else block:
+			// - the CR doesn't exist
+			// - the local cache hasn't previously seen a CR with this name/namespace/resource type
+			// - we couldn't find any reference to this CR in the database
+
+			// So it's safe to ignore it (after logging it as INFO)
+			log.Info("Deleted CR " + string(newEvent.ReqResource) + " wasn't present in local cache or DB, so ignoring.")
+			return false
+
+		}
+
+		// 2) We have found the pointer from GitOpsDeploymentSyncRun name/namespace to SyncOperation,
+		// so next attempt to retrieve the SyncOperation
+		syncOperation := &db.SyncOperation{
+			SyncOperation_id: items[0].DBRelationKey,
+		}
+		if err := dbQueries.GetSyncOperationById(ctx, syncOperation); err != nil {
+
+			if !db.IsResultNotFoundError(err) {
+				log.Error(err, "unable to retrieve sync operation for gitopsdeplsyncrun")
+				return true
+			}
+
+			// Sync operation doesn't exist, so not much more we can do.
+			return false
+		}
+
+		// Make sure the SyncOperation's target application hasn't already been deleted.
+		if syncOperation.Application_id == "" {
+			log.Info("syncOperation '" + syncOperation.SyncOperation_id + "'was found in processEvent, but application field was nil (likely it was deleted.)")
+			return false
+		}
+
+		// 3) We have found the SyncOperation, now use it find the DeploymentToApplicationMapping
+		// using the application id.
+		dtam := db.DeploymentToApplicationMapping{
+			Application_id: syncOperation.Application_id,
+		}
+
+		// 4) Finally, we have found the DeploymentToApplicationMapping, which contains the gitops cr uid
+		if err := dbQueries.GetDeploymentToApplicationMappingByApplicationId(ctx, &dtam); err != nil {
+
+			if !db.IsResultNotFoundError(err) {
+				log.Error(err, "unable to retrieve dtam for application id: "+dtam.Application_id)
+				return true
+			}
+
+			// depl to app mapping for this application doesn't exist, so not much we can do.
+			return false
+		}
+
+		// Success, tag the event and emit it
+		newEvent.AssociatedGitopsDeplUID = dtam.Deploymenttoapplicationmapping_uid_id
+
+		// Emit delete, with UID from database
+		emitEvent(newEvent, nextStep, "found in database", log)
+
+		return false
+
+	} else if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentTypeName {
+
+		// Look for a corresponding DeploymentoApplicationMapping for the GitOpsDeployment CR in the namespace
+		var items []db.DeploymentToApplicationMapping
+		if err := dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(ctx, newEvent.Request.Name, newEvent.Request.Namespace,
+			newEvent.WorkspaceID, &items); err != nil {
+			log.Error(err, "unable to retrieve gitopsdeployment by namespacename in processEvent")
+			return true
+		}
+
+		if len(items) > 1 {
+			log.Error(nil, "SEVERE: unexpected number of items associated with GitOpsDeployment resource in database")
+			return false
+
+		} else if len(items) == 1 {
+			newEvent.AssociatedGitopsDeplUID = items[0].Deploymenttoapplicationmapping_uid_id
+
+			// Emit delete, with UID from database
+			emitEvent(newEvent, nextStep, "found with uid from database", log)
+
+			return false
+		}
+
+		// In this block:
+		// - the CR doesn't exist
+		// - the local cache hasn't previously seen a CR with this name/namespace/resource type
+		// - we couldn't find any reference to this CR in the database
+
+		// So it's safe to ignore it (after logging it as INFO)
+		log.Info("Deleted CR " + string(newEvent.ReqResource) + " wasn't present in local cache or DB, so ignoring.")
+		return false
+
+	} else {
+		log.Error(nil, "SEVERE: no logic for processing req resource"+string(newEvent.ReqResource))
+		return false
+	}
 
 }
 
@@ -578,7 +569,7 @@ func lookInCacheForAssociatedGitOpsDeplId(ctx context.Context, resourceType mana
 
 		if resourceType == managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName {
 			// If the resource is a GitOpsDeploymentSyncRun, we need to do an additional lookup up
-			// to determie what the corresponding GitOpsDeployment is
+			// to determine what the corresponding GitOpsDeployment is
 			return getGitOpsDeplIdFromSyncRunCR(ctx, mapUID, dbQueries, log)
 
 		} else if resourceType == managedgitopsv1alpha1.GitOpsDeploymentTypeName {
@@ -586,7 +577,7 @@ func lookInCacheForAssociatedGitOpsDeplId(ctx context.Context, resourceType mana
 			return mapUID, nil
 
 		} else {
-			return "", fmt.Errorf("unsupported resource type in getGitopsDeplIdFromMap")
+			return "", fmt.Errorf("unsupported resource type in getGitopsDeplIdFromMap: %v", resourceType)
 		}
 	}
 
@@ -594,7 +585,12 @@ func lookInCacheForAssociatedGitOpsDeplId(ctx context.Context, resourceType mana
 
 }
 
-// getGitOpsDeplIdFromSyncRunCR returns gitopsdepl cr uid if found, "" if not found, or error if a generic error occurred
+// getGitOpsDeplIdFromSyncRunCR attempts to locate the GitOpsDeployment resource that is associated with a
+// particular GitOpsDeploymentSyncRun resource.
+// - In order to determine that, we look if there is a SyncOperation associated with the GitOpsDeploymentSyncRun.
+// - When then use that to look up the Application row, and then the GitOpsDeployment UID
+//
+// returns gitopsdepl cr uid if found, "" if not found, or error if a generic error occurred
 func getGitOpsDeplIdFromSyncRunCR(ctx context.Context, gitopsSyncRunUID string, dbQueries db.DatabaseQueries, log logr.Logger) (string, error) {
 
 	// 1) Retrieve the APICRToDatabaseMapping, to allow us to go from GitOpsDeploymentSync CR -> SyncOperation in DB
@@ -612,7 +608,7 @@ func getGitOpsDeplIdFromSyncRunCR(ctx context.Context, gitopsSyncRunUID string, 
 		return "", fmt.Errorf("unable to retrieve db mapping for sync run CR: %v", err)
 	}
 
-	// 2) We now have the SyncOperation table entry primary key, so retrieve it.
+	// 2) We now have the primary key for a SyncOperation row , so retrieve it.
 	syncOperation := &db.SyncOperation{
 		SyncOperation_id: cr.DBRelationKey,
 	}
@@ -631,7 +627,7 @@ func getGitOpsDeplIdFromSyncRunCR(ctx context.Context, gitopsSyncRunUID string, 
 		return "", nil
 	}
 
-	// 3) We have the application id, so go from Application ID DB table -> GitOpsDeployment CR
+	// 3) We have the application_id for the Application row, so go from Application ID DB table -> GitOpsDeployment CR
 	dtam := db.DeploymentToApplicationMapping{
 		Application_id: syncOperation.Application_id,
 	}

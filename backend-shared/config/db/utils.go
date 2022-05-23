@@ -295,7 +295,7 @@ func generateSampleData() (ClusterCredentials, ManagedEnvironment, GitopsEngineC
 	return clusterCredentials, managedEnvironment, gitopsEngineCluster, gitopsEngineInstance, clusterAccess
 }
 
-// Ginkgo-based tests that need to setup the database should call this first.
+// SetupForTestingDBGinkgo call this first, if you need to set up the database for tests written in Ginkgo.
 func SetupForTestingDBGinkgo() error {
 
 	ctx := context.Background()

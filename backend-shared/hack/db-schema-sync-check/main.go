@@ -73,6 +73,15 @@ func parseDBSchema(DBSchemaRelativeFileLocation string) map[string]string {
 					spaces := regexp.MustCompile(`\s+`)
 					// remove all leading white spaces
 					fieldName := spaces.ReplaceAllString(strings.Split(dbSchema[i], " ")[0], "")
+					j := 0
+					for {
+						fieldName = spaces.ReplaceAllString(strings.Split(dbSchema[i], " ")[j], "")
+						if fieldName == "" {
+							j++
+						} else {
+							break
+						}
+					}
 					fieldNameInCamelCase := db.ConvertSnakeCaseToCamelCase(fieldName)
 					currentField := strings.ReplaceAll(dbSchema[i], " ", "")
 					// extract size of the VARCHAR field as a substring

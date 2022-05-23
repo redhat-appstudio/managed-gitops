@@ -178,14 +178,14 @@ var DbFieldMap = map[string]int{
 	"SyncOperationDeploymentNameFieldLength":                                  SyncOperationDeploymentNameLength,
 	"SyncOperationRevisionLength":                                             SyncOperationRevisionLength,
 	"SyncOperationDesiredStateLength":                                         SyncOperationDesiredStateLength,
-	"RepositoryCredentialsPrimaryKeyLength":                                   RepositoryCredentialsRepositorycredentialsIDLength,
-	"RepositoryCredentialsUserIDLength":                                       RepositoryCredentialsRepoCredUserIDLength,
-	"RepositoryCredentialsPrivateURLLength":                                   RepositoryCredentialsRepoCredURLLength,
-	"RepositoryCredentialsAuthUsernameLength":                                 RepositoryCredentialsRepoCredUserLength,
-	"RepositoryCredentialsAuthPasswordLength":                                 RepositoryCredentialsRepoCredPassLength,
-	"RepositoryCredentialsAuthSSHKeyLength":                                   RepositoryCredentialsRepoCredSshLength,
-	"RepositoryCredentialsSecretObjLength":                                    RepositoryCredentialsRepoCredSecretLength,
-	"RepositoryCredentialsEngineClusterIDLength":                              RepositoryCredentialsRepoCredEngineIDLength,
+	"RepositoryCredentialsRepositorycredentialsIDLength":                      RepositoryCredentialsRepositorycredentialsIDLength,
+	"RepositoryCredentialsRepoCredUserIDLength":                               RepositoryCredentialsRepoCredUserIDLength,
+	"RepositoryCredentialsRepoCredURLLength":                                  RepositoryCredentialsRepoCredURLLength,
+	"RepositoryCredentialsRepoCredUserLength":                                 RepositoryCredentialsRepoCredUserLength,
+	"RepositoryCredentialsRepoCredPassLength":                                 RepositoryCredentialsRepoCredPassLength,
+	"RepositoryCredentialsRepoCredSshLength":                                  RepositoryCredentialsRepoCredSshLength,
+	"RepositoryCredentialsRepoCredSecretLength":                               RepositoryCredentialsRepoCredSecretLength,
+	"RepositoryCredentialsRepoCredEngineIDLength":                             RepositoryCredentialsRepoCredEngineIDLength,
 }
 
 // Get value of constants based on constant variable name given as String.

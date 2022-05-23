@@ -236,3 +236,6 @@ db-drop:
 
 db-drop_smtable:
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && go run main.go drop_smtable
+
+db-schema: ## Run tests to check if database schema is in check with go schema constants
+	cd $(MAKEFILE_ROOT)/backend-shared && go run ./hack/db-schema-sync-check

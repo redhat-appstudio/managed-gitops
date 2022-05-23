@@ -63,7 +63,7 @@ var _ = Describe("Terminate Operation on Argo CD Application", func() {
 
 			elapsedTime := time.Since(startTime)
 
-			fmt.Printf("elapsed time: %v", elapsedTime)
+			fmt.Fprintf(GinkgoWriter, "elapsed time: %v", elapsedTime)
 
 			if elapsedTime < 2*time.Second {
 				Fail("Not enough time passed in terminate operation")
@@ -139,7 +139,7 @@ var _ = Describe("Terminate Operation on Argo CD Application", func() {
 
 						elapsedTime := time.Since(startTime)
 
-						fmt.Printf("elapsed time: %v", elapsedTime)
+						fmt.Fprintf(GinkgoWriter, "elapsed time: %v", elapsedTime)
 
 						if elapsedTime < 2*time.Second {
 							Fail("Not enough time passeed in terminate operation")
@@ -197,7 +197,7 @@ var _ = Describe("Terminate Operation on Argo CD Application", func() {
 
 			elapsedTime := time.Since(startTime)
 
-			fmt.Printf("elapsed time: %v", elapsedTime)
+			fmt.Fprintf(GinkgoWriter, "elapsed time: %v", elapsedTime)
 
 			if elapsedTime < 2*time.Second {
 				Fail("Not enough time passeed in terminate operation")

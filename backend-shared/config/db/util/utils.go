@@ -47,26 +47,26 @@ func GetGitOpsEngineSingleInstanceNamespace() string {
 // corresponds to given namespace.
 //
 // The bool return value is 'true' if ManagedEnvironment is created; 'false' if it already exists in DB or in case of failure.
-func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, workspaceNamespace v1.Namespace,
+func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, namespace v1.Namespace,
 	dbq db.DatabaseQueries, log logr.Logger) (*db.ManagedEnvironment, bool, error) {
 
-	workspaceNamespaceUID := string(workspaceNamespace.UID)
+	namespaceUID := string(namespace.UID)
 
 	var err error
 
-	// dbResourceMapping will be non-nil if there is already a mapping in the database for the 'workspaceNamespace' namespace:
+	// dbResourceMapping will be non-nil if there is already a mapping in the database for the 'namespace' Namespace:
 	// Namespace <-> ManagedEnvironment
 	//
 	// Is the namespace we are deploying to already mapped to a ManagedEnvironment in the database?
 	// - Attempt to retrieve the relationship DB entry
 	dbResourceMapping := &db.KubernetesToDBResourceMapping{
 		KubernetesResourceType: db.K8sToDBMapping_Namespace,
-		KubernetesResourceUID:  string(workspaceNamespaceUID),
+		KubernetesResourceUID:  string(namespaceUID),
 		DBRelationType:         db.K8sToDBMapping_ManagedEnvironment}
 	err = dbq.GetDBResourceMappingForKubernetesResource(ctx, dbResourceMapping)
 
 	if err == nil {
-		// If there already exists a managed environment for this workspace, return it
+		// If there already exists a managed environment for this namespace, return it
 
 		// Retrieve the managed environment database entry for this resource
 		managedEnvironment := db.ManagedEnvironment{Managedenvironment_id: string(dbResourceMapping.DBRelationKey)}
@@ -115,7 +115,7 @@ func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, workspaceN
 	}
 
 	managedEnvironment := db.ManagedEnvironment{
-		Name:                  "Managed Environment for " + workspaceNamespace.Name,
+		Name:                  "Managed Environment for " + namespace.Name,
 		Clustercredentials_id: clusterCreds.Clustercredentials_cred_id,
 	}
 	if err := dbq.CreateManagedEnvironment(ctx, &managedEnvironment); err != nil {
@@ -125,7 +125,7 @@ func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, workspaceN
 
 	dbResourceMapping = &db.KubernetesToDBResourceMapping{
 		KubernetesResourceType: db.K8sToDBMapping_Namespace,
-		KubernetesResourceUID:  string(workspaceNamespaceUID),
+		KubernetesResourceUID:  string(namespaceUID),
 		DBRelationType:         db.K8sToDBMapping_ManagedEnvironment,
 		DBRelationKey:          managedEnvironment.Managedenvironment_id,
 	}

@@ -35,7 +35,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 	var ctx context.Context
 	var k8sClient *sharedutil.ProxyClient
-	var workspace *v1.Namespace
+	var namespace *v1.Namespace
 
 	Context("Shared Resource Event Loop test", func() {
 
@@ -45,23 +45,23 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			scheme,
 				argocdNamespace,
 				kubesystemNamespace,
-				workspaceTemp, err := eventlooptypes.GenericTestSetup()
+				namespaceTemp, err := eventlooptypes.GenericTestSetup()
 
 			Expect(err).To(BeNil())
 
-			workspace = workspaceTemp
+			namespace = namespaceTemp
 
 			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-gitops-depl",
-					Namespace: workspace.Name,
+					Namespace: namespace.Name,
 					UID:       uuid.NewUUID(),
 				},
 			}
 
 			k8sClientOuter := fake.NewClientBuilder().
 				WithScheme(scheme).
-				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).
+				WithObjects(gitopsDepl, namespace, argocdNamespace, kubesystemNamespace).
 				Build()
 
 			k8sClient = &sharedutil.ProxyClient{
@@ -134,7 +134,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			// At first assuming there are no existing users, hence creating new.
 			usrOld,
 				isNewUser,
-				err := sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, k8sClient, *workspace)
+				err := sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, k8sClient, *namespace)
 
 			Expect(err).To(BeNil())
 			Expect(usrOld).NotTo(BeNil())
@@ -143,7 +143,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			// User is created in previous call, then same user should be returned instead of creating new.
 			usrNew,
 				isNewUser,
-				err := sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, k8sClient, *workspace)
+				err := sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, k8sClient, *namespace)
 
 			Expect(err).To(BeNil())
 			Expect(usrNew).NotTo(BeNil())
@@ -169,7 +169,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				clusterAccessOld,
 				isNewClusterAccess,
 				gitopsEngineClusterOld,
-				err := sharedResourceEventLoop.GetOrCreateSharedResources(ctx, k8sClient, *workspace)
+				err := sharedResourceEventLoop.GetOrCreateSharedResources(ctx, k8sClient, *namespace)
 
 			Expect(err).To(BeNil())
 			Expect(clusterUserOld).NotTo(BeNil())
@@ -191,7 +191,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				isNewInstance,
 				clusterAccessNew,
 				isNewClusterAccess,
-				_, err := sharedResourceEventLoop.GetOrCreateSharedResources(ctx, k8sClient, *workspace)
+				_, err := sharedResourceEventLoop.GetOrCreateSharedResources(ctx, k8sClient, *namespace)
 
 			Expect(err).To(BeNil())
 			Expect(clusterUserNew).NotTo(BeNil())
@@ -229,7 +229,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			go internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
 
 			// Negative test, engineInstance is not present, it should return error
-			engineInstanceOld, err := sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, "", k8sClient, *workspace)
+			engineInstanceOld, err := sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, "", k8sClient, *namespace)
 			Expect(err).NotTo(BeNil())
 			Expect(engineInstanceOld.EngineCluster_id).To(BeEmpty())
 
@@ -250,8 +250,8 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			gitopsEngineInstance := db.GitopsEngineInstance{
 				Gitopsengineinstance_id: string(uuid.NewUUID()),
-				Namespace_name:          workspace.Namespace,
-				Namespace_uid:           string(workspace.UID),
+				Namespace_name:          namespace.Namespace,
+				Namespace_uid:           string(namespace.UID),
 				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 			}
 
@@ -265,7 +265,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(err).To(BeNil())
 
 			// Fetch the same engineInstance by ID
-			engineInstanceNew, err := sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, gitopsEngineInstance.Gitopsengineinstance_id, k8sClient, *workspace)
+			engineInstanceNew, err := sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, gitopsEngineInstance.Gitopsengineinstance_id, k8sClient, *namespace)
 
 			Expect(err).To(BeNil())
 			Expect(engineInstanceNew.EngineCluster_id).NotTo(BeNil())

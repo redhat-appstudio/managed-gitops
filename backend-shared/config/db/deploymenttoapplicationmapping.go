@@ -5,15 +5,15 @@ import (
 	"fmt"
 )
 
-func (dbq *PostgreSQLDatabaseQueries) ListDeploymentToApplicationMappingByWorkspaceUID(ctx context.Context, workspaceUID string,
+func (dbq *PostgreSQLDatabaseQueries) ListDeploymentToApplicationMappingByNamespaceUID(ctx context.Context, namespaceUID string,
 	deplToAppMappingParam *[]DeploymentToApplicationMapping) error {
 
 	if err := validateQueryParamsEntity(deplToAppMappingParam, dbq); err != nil {
 		return err
 	}
 
-	if err := isEmptyValues("ListDeploymentToApplicationMappingByWorkspaceUID",
-		"WorkspaceUID", workspaceUID,
+	if err := isEmptyValues("ListDeploymentToApplicationMappingByNamespaceUID",
+		"NamespaceUID", namespaceUID,
 	); err != nil {
 		return err
 	}
@@ -25,11 +25,11 @@ func (dbq *PostgreSQLDatabaseQueries) ListDeploymentToApplicationMappingByWorksp
 	// TODO: GITOPSRVCE-68 - PERF - Add index for this
 
 	if err := dbq.dbConnection.Model(&dbResults).
-		Where("dta.workspace_uid = ?", workspaceUID).
+		Where("dta.namespace_uid = ?", namespaceUID).
 		Context(ctx).
 		Select(); err != nil {
 
-		return fmt.Errorf("error on retrieving ListDeploymentToApplicationMappingByWorkspaceUID: %v", err)
+		return fmt.Errorf("error on retrieving ListDeploymentToApplicationMappingByNamespaceUID: %v", err)
 	}
 
 	*deplToAppMappingParam = dbResults
@@ -38,7 +38,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListDeploymentToApplicationMappingByWorksp
 }
 
 func (dbq *PostgreSQLDatabaseQueries) ListDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string,
-	deploymentNamespace string, workspaceUID string, deplToAppMappingParam *[]DeploymentToApplicationMapping) error {
+	deploymentNamespace string, namespaceUID string, deplToAppMappingParam *[]DeploymentToApplicationMapping) error {
 
 	if err := validateQueryParamsEntity(deplToAppMappingParam, dbq); err != nil {
 		return err
@@ -47,7 +47,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListDeploymentToApplicationMappingByNamesp
 	if err := isEmptyValues("ListDeploymentToApplicationMappingByNamespaceAndName",
 		"DeploymentName", deploymentName,
 		"DeploymentNamespace", deploymentNamespace,
-		"WorkspaceUID", workspaceUID,
+		"NamespaceUID", namespaceUID,
 	); err != nil {
 		return err
 	}
@@ -61,7 +61,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListDeploymentToApplicationMappingByNamesp
 	if err := dbq.dbConnection.Model(&dbResults).
 		Where("dta.name = ?", deploymentName).
 		Where("dta.namespace = ?", deploymentNamespace).
-		Where("dta.workspace_uid = ?", workspaceUID).
+		Where("dta.namespace_uid = ?", namespaceUID).
 		Context(ctx).
 		Select(); err != nil {
 
@@ -73,7 +73,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListDeploymentToApplicationMappingByNamesp
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) DeleteDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, workspaceUID string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, namespaceUID string) (int, error) {
 
 	if err := validateQueryParamsNoPK(dbq); err != nil {
 		return 0, err
@@ -82,7 +82,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteDeploymentToApplicationMappingByName
 	if err := isEmptyValues("DeleteDeploymentToApplicationMappingByNamespaceAndName",
 		"deploymentName", deploymentName,
 		"deploymentNamespace", deploymentNamespace,
-		"workspaceUID", workspaceUID); err != nil {
+		"namespaceUID", namespaceUID); err != nil {
 
 		return 0, err
 	}
@@ -92,7 +92,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteDeploymentToApplicationMappingByName
 	deleteResult, err := dbq.dbConnection.Model(entity).
 		Where("dta.name = ?", deploymentName).
 		Where("dta.namespace = ?", deploymentNamespace).
-		Where("dta.workspace_uid = ?", workspaceUID).Context(ctx).Delete()
+		Where("dta.namespace_uid = ?", namespaceUID).Context(ctx).Delete()
 	if err != nil {
 		return 0, fmt.Errorf("error on deleting application: %v", err)
 	}

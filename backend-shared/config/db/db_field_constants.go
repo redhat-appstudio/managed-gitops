@@ -65,6 +65,14 @@ const (
 	SyncOperationDeploymentNameLength                                       = 256
 	SyncOperationRevisionLength                                             = 256
 	SyncOperationDesiredStateLength                                         = 16
+	RepositoryCredentialsRepositorycredentialsIDLength                      = 48
+	RepositoryCredentialsRepoCredUserIDLength                               = 48
+	RepositoryCredentialsRepoCredURLLength                                  = 512
+	RepositoryCredentialsRepoCredUserLength                                 = 256
+	RepositoryCredentialsRepoCredPassLength                                 = 1024
+	RepositoryCredentialsRepoCredSshLength                                  = 1024
+	RepositoryCredentialsRepoCredSecretLength                               = 48
+	RepositoryCredentialsRepoCredEngineIDLength                             = 48
 )
 
 // TruncateVarchar converts string to "str..." if chars is > maxLength
@@ -170,6 +178,14 @@ var DbFieldMap = map[string]int{
 	"SyncOperationDeploymentNameFieldLength":                                  SyncOperationDeploymentNameLength,
 	"SyncOperationRevisionLength":                                             SyncOperationRevisionLength,
 	"SyncOperationDesiredStateLength":                                         SyncOperationDesiredStateLength,
+	"RepositoryCredentialsPrimaryKeyLength":                                   RepositoryCredentialsRepositorycredentialsIDLength,
+	"RepositoryCredentialsUserIDLength":                                       RepositoryCredentialsRepoCredUserIDLength,
+	"RepositoryCredentialsPrivateURLLength":                                   RepositoryCredentialsRepoCredURLLength,
+	"RepositoryCredentialsAuthUsernameLength":                                 RepositoryCredentialsRepoCredUserLength,
+	"RepositoryCredentialsAuthPasswordLength":                                 RepositoryCredentialsRepoCredPassLength,
+	"RepositoryCredentialsAuthSSHKeyLength":                                   RepositoryCredentialsRepoCredSshLength,
+	"RepositoryCredentialsSecretObjLength":                                    RepositoryCredentialsRepoCredSecretLength,
+	"RepositoryCredentialsEngineClusterIDLength":                              RepositoryCredentialsRepoCredEngineIDLength,
 }
 
 // Get value of constants based on constant variable name given as String.

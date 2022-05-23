@@ -435,7 +435,7 @@ CREATE TABLE RepositoryCredentials (
     repo_cred_ssh VARCHAR ( 1024 ) NOT NULL,
 
     -- The name of the Secret resource in the Argo CD Repository, in the GitOps Engine instance
-    repo_cred_secret VARCHAR(48), VARCHAR ( 256 ) NOT NULL,
+    repo_cred_secret VARCHAR(48) NOT NULL,
 
     -- The internal RedHat Managed cluster where the GitOps Engine (e.g. ArgoCD) is running
     -- NOTE: It is expected the 'repo_cred_secret' to be stored there as well.

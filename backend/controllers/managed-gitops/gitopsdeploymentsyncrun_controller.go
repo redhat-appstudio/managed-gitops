@@ -34,9 +34,7 @@ import (
 // GitOpsDeploymentSyncRunReconciler reconciles a GitOpsDeploymentSyncRun object
 type GitOpsDeploymentSyncRunReconciler struct {
 	client.Client
-	Scheme        *runtime.Scheme
-	WorkspaceName string
-	// EventLoop           *eventloop.EventLoop
+	Scheme              *runtime.Scheme
 	PreprocessEventLoop *eventloop.PreprocessEventLoop
 }
 

@@ -64,7 +64,7 @@ func GenericTestSetup() (*runtime.Scheme, *v1.Namespace, *v1.Namespace, *v1.Name
 		Spec: v1.NamespaceSpec{},
 	}
 
-	workspace := &v1.Namespace{
+	namespace := &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-user",
 			UID:       uuid.NewUUID(),
@@ -73,6 +73,6 @@ func GenericTestSetup() (*runtime.Scheme, *v1.Namespace, *v1.Namespace, *v1.Name
 		Spec: v1.NamespaceSpec{},
 	}
 
-	return scheme, argocdNamespace, kubesystemNamespace, workspace, nil
+	return scheme, argocdNamespace, kubesystemNamespace, namespace, nil
 
 }

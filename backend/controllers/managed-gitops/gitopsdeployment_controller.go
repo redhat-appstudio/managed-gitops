@@ -34,7 +34,6 @@ import (
 // GitOpsDeploymentReconciler reconciles a GitOpsDeployment object
 type GitOpsDeploymentReconciler struct {
 	client.Client
-	WorkspaceName       string // not used
 	Scheme              *runtime.Scheme
 	PreprocessEventLoop *eventloop.PreprocessEventLoop
 }

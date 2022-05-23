@@ -203,7 +203,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 
 			APIResourceName:      syncRunCR.Name,
 			APIResourceNamespace: syncRunCR.Namespace,
-			WorkspaceUID:         eventlooptypes.GetWorkspaceIDFromNamespaceID(namespace),
+			NamespaceUID:         eventlooptypes.GetWorkspaceIDFromNamespaceID(namespace),
 		}
 		if err := dbQueries.CreateAPICRToDatabaseMapping(ctx, &newApiCRToDBMapping); err != nil {
 			log.Error(err, "unable to create api to db mapping in database")

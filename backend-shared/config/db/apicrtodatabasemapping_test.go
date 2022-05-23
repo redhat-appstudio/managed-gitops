@@ -20,7 +20,7 @@ var _ = Describe("Apicrtodatabasemapping Tests", func() {
 				APIResourceUID:       "test-k8s-uid",
 				APIResourceName:      "test-k8s-name",
 				APIResourceNamespace: "test-k8s-namespace",
-				WorkspaceUID:         "test-workspace-uid",
+				NamespaceUID:         "test-namespace-uid",
 				DBRelationType:       db.APICRToDatabaseMapping_DBRelationType_SyncOperation,
 				DBRelationKey:        "test-key",
 			}
@@ -44,7 +44,7 @@ var _ = Describe("Apicrtodatabasemapping Tests", func() {
 
 			var items []db.APICRToDatabaseMapping
 
-			err = dbq.ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx, item.APIResourceType, item.APIResourceName, item.APIResourceNamespace, item.WorkspaceUID, item.DBRelationType, &items)
+			err = dbq.ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx, item.APIResourceType, item.APIResourceName, item.APIResourceNamespace, item.NamespaceUID, item.DBRelationType, &items)
 			Expect(err).To(BeNil())
 			Expect(items[0]).Should(Equal(item))
 

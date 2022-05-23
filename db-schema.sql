@@ -268,7 +268,7 @@ CREATE TABLE ApplicationState (
 	resources bytea
 );
 
--- Represents the relationship from GitOpsDeployment CR in the API namespace (workspace), to an Application table row.
+-- Represents the relationship from GitOpsDeployment CR in the API namespace, to an Application table row.
 -- This means: if we see a change in a GitOpsDeployment CR, we can easily find the corresponding database entry
 -- by looking for a DeploymentToApplicationMapping that captures the relationship (and vice versa)
 --
@@ -280,12 +280,12 @@ CREATE TABLE DeploymentToApplicationMapping (
 	-- uid of our gitops deployment CR within the K8s namespace (or KCP control plane)
 	deploymenttoapplicationmapping_uid_id VARCHAR(48) UNIQUE NOT NULL PRIMARY KEY,
 	
-	-- name of the GitOpsDeployment CR in the API namespace (workspace)
+	-- name of the GitOpsDeployment CR in the API namespace
 	name VARCHAR ( 256 ),
-	-- name of the API namespace (workspace)
+	-- name of the API namespace
 	namespace VARCHAR ( 96 ),
-	-- uid of the API namespace (workspace)
-	workspace_uid VARCHAR ( 48 ), 
+	-- uid of the API namespace 
+	namespace_uid VARCHAR ( 48 ), 
 
 	-- The Application DB entry that corresponds to this GitOpsDeployment CR
 	-- (For example, deleting the GitOpsDeployment CR should delete the corresponding Application DB table, and likewise
@@ -299,7 +299,7 @@ CREATE TABLE DeploymentToApplicationMapping (
 );
 
 -- Represents a generic relationship between: Kubernetes CR <->  Database table
--- The Kubernetes CR can be either in the workspace, or in/on a GitOpsEngine cluster namespace.
+-- The Kubernetes CR can be either in the API namespace, or in/on a GitOpsEngine cluster namespace.
 --
 -- Example: when the cluster agent sees an Argo CD Application CR change within a namespace, it needs a way
 -- to know which GitOpsEngineInstance database entries corresponds to the Argo CD namespace.
@@ -343,9 +343,9 @@ CREATE TABLE KubernetesToDBResourceMapping  (
 CREATE INDEX idx_db_relation_uid ON KubernetesToDBResourceMapping(kubernetes_resource_type, kubernetes_resource_uid, db_relation_type);
 -- Used by: GetDBResourceMappingForKubernetesResource
 
--- Maps API custom resources on the workspace (such as GitOpsDeploymentSyncRun), to a corresponding entry in the database.
+-- Maps API custom resources in an API namespace (such as GitOpsDeploymentSyncRun), to a corresponding entry in the database.
 -- This allows us to quickly go from API CR <-to-> Database entry, and also to identify database entries even when the API CR has been
--- deleted from the workspace.
+-- deleted from the namespace/workspace.
 --
 -- See for details:
 -- 'What are the DeploymentToApplicationMapping, KubernetesToDBResourceMapping, and APICRToDatabaseMapping, database tables for?:
@@ -367,7 +367,7 @@ CREATE TABLE APICRToDatabaseMapping  (
 	api_resource_namespace VARCHAR(256) NOT NULL,
 	
 	-- The UID (from .metadata.uid field) of the namespace containing the k8s resource
-	api_resource_workspace_uid VARCHAR(64) NOT NULL,
+	api_resource_namespace_uid VARCHAR(64) NOT NULL,
 
 	-- The name of the database table being referenced. 
 	-- As of this writing (Jan 2022), the only supported value for this field is SyncOperation.

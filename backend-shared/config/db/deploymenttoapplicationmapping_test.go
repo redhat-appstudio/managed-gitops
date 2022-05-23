@@ -44,7 +44,7 @@ var _ = Describe("DeploymentToApplicationMapping Tests", func() {
 				Application_id:                        application.Application_id,
 				DeploymentName:                        "test-deployment",
 				DeploymentNamespace:                   "test-namespace",
-				NamespaceUID:                          "demo-workspace",
+				NamespaceUID:                          "demo-namespace",
 			}
 
 			err = dbq.CreateDeploymentToApplicationMapping(ctx, deploymentToApplicationMapping)
@@ -94,7 +94,7 @@ var _ = Describe("DeploymentToApplicationMapping Tests", func() {
 				Application_id:                        application.Application_id,
 				DeploymentName:                        "test-deployment",
 				DeploymentNamespace:                   "test-namespace",
-				NamespaceUID:                          "demo-workspace",
+				NamespaceUID:                          "demo-namespace",
 			}
 
 			err = dbq.CreateDeploymentToApplicationMapping(ctx, deploymentToApplicationMapping)
@@ -104,7 +104,7 @@ var _ = Describe("DeploymentToApplicationMapping Tests", func() {
 				Deploymenttoapplicationmapping_uid_id: deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id,
 			}
 
-			err = dbq.ListDeploymentToApplicationMappingByWorkspaceUID(ctx, "demo-workspace", &dbResults)
+			err = dbq.ListDeploymentToApplicationMappingByNamespaceUID(ctx, "demo-namespace", &dbResults)
 			Expect(err).To(BeNil())
 			Expect(len(dbResults)).Should(Equal(1))
 			Expect(dbResults[0]).Should(Equal(*deploymentToApplicationMapping))

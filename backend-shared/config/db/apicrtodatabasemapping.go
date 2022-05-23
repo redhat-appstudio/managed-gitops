@@ -107,7 +107,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetDatabaseMappingForAPICR(ctx context.Con
 
 }
 
-func (dbq *PostgreSQLDatabaseQueries) ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx context.Context, apiCRResourceType string, crName string, crNamespace string, crWorkspaceUID string, dbRelationType string, apiCRToDBMappingParam *[]APICRToDatabaseMapping) error {
+func (dbq *PostgreSQLDatabaseQueries) ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx context.Context, apiCRResourceType string, crName string, crNamespace string, crNamespaceUID string, dbRelationType string, apiCRToDBMappingParam *[]APICRToDatabaseMapping) error {
 
 	if err := validateQueryParamsEntity(apiCRToDBMappingParam, dbq); err != nil {
 		return err
@@ -117,7 +117,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListAPICRToDatabaseMappingByAPINamespaceAn
 		"apiCRResourceType", apiCRResourceType,
 		"crName", crName,
 		"crNamespace", crNamespace,
-		"crWorkspaceUID", crWorkspaceUID,
+		"crNamespaceUID", crNamespaceUID,
 		"dbRelationType", dbRelationType,
 	); err != nil {
 		return err
@@ -131,7 +131,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListAPICRToDatabaseMappingByAPINamespaceAn
 		Where("atdbm.api_resource_type = ?", apiCRResourceType).
 		Where("atdbm.api_resource_name = ?", crName).
 		Where("atdbm.api_resource_namespace = ?", crNamespace).
-		Where("atdbm.api_resource_workspace_uid = ?", crWorkspaceUID).
+		Where("atdbm.api_resource_namespace_uid = ?", crNamespaceUID).
 		Where("atdbm.db_relation_type = ?", dbRelationType).
 		Context(ctx).
 		Select(); err != nil {

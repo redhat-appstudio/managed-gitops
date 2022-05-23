@@ -293,7 +293,7 @@ type DeploymentToApplicationMapping struct {
 
 	// UID (.metadata.uid) of the Namespace, containing the GitOpsDeployments
 	// value: (uid of namespace)
-	NamespaceUID string `pg:"workspace_uid"`
+	NamespaceUID string `pg:"namespace_uid"`
 
 	// Reference to the corresponding Application row
 	// -- Foreign key to: Application.Application_id
@@ -308,9 +308,9 @@ const (
 	APICRToDatabaseMapping_DBRelationType_SyncOperation = "SyncOperation"
 )
 
-// Maps API custom resources on the workspace (such as GitOpsDeploymentSyncRun), to a corresponding entry in the database.
+// Maps API custom resources on the API namespace (such as GitOpsDeploymentSyncRun), to a corresponding entry in the database.
 // This allows us to quickly go from API CR <-to-> Database entry, and also to identify database entries even when the API CR has been
-// deleted from the workspace.
+// deleted from the API namespace.
 //
 // See for details:
 // 'What are the DeploymentToApplicationMapping, KubernetesToDBResourceMapping, and APICRToDatabaseMapping, database tables for?:
@@ -325,7 +325,7 @@ type APICRToDatabaseMapping struct {
 
 	APIResourceName      string `pg:"api_resource_name"`
 	APIResourceNamespace string `pg:"api_resource_namespace"`
-	WorkspaceUID         string `pg:"api_resource_workspace_uid"`
+	NamespaceUID         string `pg:"api_resource_namespace_uid"`
 
 	DBRelationType string `pg:"db_relation_type"`
 	DBRelationKey  string `pg:"db_relation_key"`
@@ -334,7 +334,7 @@ type APICRToDatabaseMapping struct {
 }
 
 // Represents a generic relationship between Kubernetes CR <-> Database table
-// The Kubernetes CR can be either in the workspace, or in/on a GitOpsEngine cluster namespace.
+// The Kubernetes CR can be either in the API namespace, or in/on a GitOpsEngine cluster namespace.
 //
 // Example: when the cluster agent sees an Argo CD Application CR change within a namespace, it needs a way
 // to know which GitOpsEngineInstance database entries corresponds to the Argo CD namespace.

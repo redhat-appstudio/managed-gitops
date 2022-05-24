@@ -73,13 +73,13 @@ var _ = Describe("application_info_cache Test", func() {
 				Applicationstate_application_id: testAppState.Applicationstate_application_id,
 			}
 
-			rowsAffected, errCreate := asc.DeleteApplicationStateById(ctx, testDeleteAppState.Applicationstate_application_id)
-			Expect(errCreate).To(BeNil())
+			rowsAffected, errDelete := asc.DeleteApplicationStateById(ctx, testDeleteAppState.Applicationstate_application_id)
+			Expect(errDelete).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))
 
 			// check for entry in db, which should report an error
 			errGet = dbq.GetApplicationStateById(ctx, &testDeleteAppState)
-			Expect(errGet).ToNot(BeNil())
+			Expect(db.IsResultNotFoundError(errGet)).To(BeTrue())
 
 		})
 		It("Tests GetApplicationStateById", func() {

@@ -1,7 +1,32 @@
-[[rules]]
-  description = "example for postgres-staging"
-  file = '''postgresql-staging.yaml'''
-  path = '''./manifests/postgresql-staging'''
-  [rules.allowlist]
-    description = "Ignore example postgres credential"
-    files = ['''postgresql-staging.yaml''']
+[allowlist]
+  description = "global allow list"
+
+  regexes = [
+    '''cnhOZmg3cm1NVQ==''',
+    '''N29DMGRxdHF6cw==''',
+    '''3CqCKcXLyN''',
+    '''a1Y4c0RvdkgxcHFPUTNJYWxSaDRubXlaZ3c3QUJGcmQ=''',
+    '''M0NxQ0tjWEx5Tg==''',
+  ]
+
+# How to test this:
+#
+# git clone https://gitlab.corp.redhat.com/infosec-public/apps/config/leak-patterns.git
+# cd leak-patterns
+# make setup
+# make all.toml
+# PATH_TO_SCAN=(...)
+# bin/gitleaks --config-path all.toml --path $PATH_TO_SCAN  --additional-config $PATH_TO_SCAN/.gitleaks.toml -v
+#
+# (Based on: https://gitlab.corp.redhat.com/infosec-public/apps/config/leak-patterns/#trying-these-out-against-your-own-repo)
+
+
+# It's also possible to ignore specific paths, like below, but it's better to add the actual password value to ignore, like above
+#  paths = [
+#    '''manifests/postgresql-staging/postgresql-staging.yaml''',
+#    '''argocd_(.*)_test.go''',
+#    '''manifests/postgresql-staging/postgresql-staging-secret.yaml''',
+#    '''docs/development.md''',
+#  ]
+
+

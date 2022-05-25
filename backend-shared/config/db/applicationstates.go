@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 )
 
@@ -53,6 +54,16 @@ func (dbq *PostgreSQLDatabaseQueries) CreateApplicationState(ctx context.Context
 		return err
 	}
 
+	// Check if number of bytes in Array is more then the allowed limit
+	// validateFieldLength function is not modified as that is written for Strings
+	// and after adding check for byte array it would get messy. As of now This is the only place byte array has to be checked,
+	// if multiple places need this it new function can be created in utils.
+	noOfBytesInObj := binary.Size(obj.Resources)
+	maxSize := DbFieldMap["ApplicationStateResourcesLength"]
+	if noOfBytesInObj > maxSize {
+		return fmt.Errorf("Resources value exceeds maximum size: max: %d, actual: %d", maxSize, noOfBytesInObj)
+	}
+
 	// Inserting ApplicationState object
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
@@ -80,6 +91,16 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateApplicationState(ctx context.Context
 
 	if err := validateFieldLength(obj); err != nil {
 		return err
+	}
+
+	// Check if number of bytes in Array is more then the allowed limit
+	// validateFieldLength function is not modified as that is written for Strings
+	// and after adding check for byte array it would get messy. As of now This is the only place byte array has to be checked,
+	// if multiple places need this it new function can be created in utils.
+	noOfBytesInObj := binary.Size(obj.Resources)
+	maxSize := DbFieldMap["ApplicationStateResourcesLength"]
+	if noOfBytesInObj > maxSize {
+		return fmt.Errorf("Resources value exceeds maximum size: max: %d, actual: %d", maxSize, noOfBytesInObj)
 	}
 
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).

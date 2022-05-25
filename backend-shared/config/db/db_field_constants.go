@@ -136,6 +136,7 @@ var DbFieldMap = map[string]int{
 	"ApplicationStateMessageLength":                                           ApplicationStateMessageLength,
 	"ApplicationStateRevisionLength":                                          ApplicationStateRevisionLength,
 	"ApplicationStateSyncStatusLength":                                        ApplicationStateSyncStatusLength,
+	"ApplicationStateResourcesLength":                                         262144, /*Size is defined here because table doesn't have byte Array limit.*/
 	"DeploymentToApplicationMappingDeploymenttoapplicationmappingUIDIDLength": DeploymentToApplicationMappingDeploymenttoapplicationmappingUIDIDLength,
 	"DeploymentToApplicationMappingNameLength":                                DeploymentToApplicationMappingNameLength,
 	"DeploymentToApplicationMappingDeploymentNameLength":                      DeploymentToApplicationMappingNameLength,

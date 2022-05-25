@@ -10,8 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Note: This function is not tested in an openshift-ci  enviroment
 func TestEphemeralCode(t *testing.T) {
-
+	skipOpenshiftCI(t)
 	ctx := context.Background()
 	// Create ephemeral DB
 	ephemeralDB, err := NewEphemeralCreateTestFramework()

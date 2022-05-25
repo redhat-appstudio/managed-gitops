@@ -1,8 +1,11 @@
 package application_event_loop
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -629,6 +632,14 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	gitopsDeployment.Status.Sync.Status = managedgitopsv1alpha1.SyncStatusCode(applicationState.Sync_Status)
 	gitopsDeployment.Status.Sync.Revision = applicationState.Revision
 
+	// Fetch the list of resources created by deployment from table and update local gitopsDeployment instance.
+	var err error
+	gitopsDeployment.Status.Resources, err = decompressResourceData(applicationState.Resources)
+	if err != nil {
+		a.log.Error(err, "unable to decompress byte array received from table.")
+		return err
+	}
+
 	// Update the actual object in Kubernetes
 	if err := a.workspaceClient.Status().Update(ctx, gitopsDeployment, &client.UpdateOptions{}); err != nil {
 		return err
@@ -792,4 +803,48 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 	}
 
 	return string(resBytes), nil
+}
+
+// Decompress byte array received from table to get String and then convert it into ResourceStatus Array.
+func decompressResourceData(resourceData []byte) ([]managedgitopsv1alpha1.ResourceStatus, error) {
+	var resourceList []managedgitopsv1alpha1.ResourceStatus
+
+	// Decompress data to get actual resource string
+	bufferIn := bytes.NewBuffer(resourceData)
+	gzipReader, err := gzip.NewReader(bufferIn)
+
+	if err != nil {
+		return resourceList, fmt.Errorf("Unable to create gzipReader. %v", err)
+	}
+
+	var bufferOut bytes.Buffer
+
+	// Using CopyN with For loop to avoid gosec error "Potential DoS vulnerability via decompression bomb",
+	// occurred while using below code
+
+	/*if _, err := io.Copy(&bufferOut, gzipReader); err != nil {
+		return resourceList, fmt.Errorf("Unable to convert resource data to String. %v", err)
+	}*/
+
+	for {
+		_, err := io.CopyN(&bufferOut, gzipReader, 131072)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return resourceList, fmt.Errorf("Unable to convert resource data to String. %v", err)
+		}
+	}
+
+	if err := gzipReader.Close(); err != nil {
+		return resourceList, fmt.Errorf("Unable to close gzip reader connection. %v", err)
+	}
+
+	// Convert resource string into ResourceStatus Array
+	err = goyaml.Unmarshal(bufferOut.Bytes(), &resourceList)
+	if err != nil {
+		return resourceList, fmt.Errorf("Unable to Unmarshal resource data. %v", err)
+	}
+
+	return resourceList, nil
 }

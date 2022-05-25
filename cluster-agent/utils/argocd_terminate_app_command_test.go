@@ -2,16 +2,18 @@ package utils
 
 import (
 	"context"
+	"fmt"
 	"io"
-	"testing"
+	"strings"
 	"time"
 
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/utils/mocks"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,89 +24,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func TestTerminateOperation(t *testing.T) {
-
-	// If the operation never terminates, after we ask it to terminate, then an error should be returned.
-
-	t.Parallel()
-
-	var err error
-
-	argoCDNamespace := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: "argocd", UID: uuid.NewUUID()}}
-
-	application := &appv1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-app",
-			Namespace: "argocd",
-		},
-		Status: appv1.ApplicationStatus{
-			OperationState: &appv1.OperationState{
-				Phase: common.OperationRunning,
-			},
-		},
-	}
-
-	k8sClient, err := generateFakeK8sClient(application)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	mockAppServiceClient := &mocks.ApplicationServiceClient{}
-
-	mockAppClient := &mocks.Client{}
-	mockAppClient.On("NewApplicationClient").Return(mockCloser{}, mockAppServiceClient, nil)
-
-	mockAppServiceClient.On("TerminateOperation", mock.Anything, &applicationpkg.OperationTerminateRequest{Name: &application.Name}).Return(nil, nil)
-
-	startTime := time.Now()
-
-	err = terminateOperation(context.Background(), application.Name, argoCDNamespace, mockAppClient, k8sClient,
-		time.Duration(2*time.Second), log.FromContext(context.Background()))
-
-	elapsedTime := time.Since(startTime)
-
-	t.Logf("elapsed time: %v", elapsedTime)
-
-	if elapsedTime < 2*time.Second {
-		t.Error("Not enough time passeed in terminate operation")
-		return
-	}
-
-	assert.EqualError(t, err, "application operation never terminated: my-app")
-
-}
-
-func TestTerminateOperation_OperationGoesToDone(t *testing.T) {
-
-	argoCDNamespace := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: "argocd", UID: uuid.NewUUID()}}
-
-	// Confirm that once an operation goes to error/succeeded/failed, that the
-	// terminate operation exits without error.
-
-	testCases := []struct {
-		name       string
-		finalPhase common.OperationPhase
-	}{
-		{
-			name:       "error",
-			finalPhase: common.OperationError,
-		},
-		{
-			name:       "succeeded",
-			finalPhase: common.OperationSucceeded,
-		},
-		{
-			name:       "failed",
-			finalPhase: common.OperationFailed,
-		},
-	}
-
-	for _, testCase := range testCases {
-
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-
-			var err error
+var _ = Describe("Terminate Operation on Argo CD Application", func() {
+	Context("Terminate Operation on Argo CD Application Test", func() {
+		It("If the operation never terminates, after we ask it to terminate, then an error should be returned.", func() {
+			argoCDNamespace := corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd",
+					Namespace: "argocd",
+					UID:       uuid.NewUUID(),
+				},
+			}
 
 			application := &appv1.Application{
 				ObjectMeta: metav1.ObjectMeta{
@@ -119,120 +48,164 @@ func TestTerminateOperation_OperationGoesToDone(t *testing.T) {
 			}
 
 			k8sClient, err := generateFakeK8sClient(application)
-			if err != nil {
-				t.Error(err)
+			Expect(err).To(BeNil())
+
+			mockAppServiceClient := &mocks.ApplicationServiceClient{}
+			mockAppClient := &mocks.Client{}
+
+			mockAppClient.On("NewApplicationClient").Return(mockCloser{}, mockAppServiceClient, nil)
+			mockAppServiceClient.On("TerminateOperation", mock.Anything, &applicationpkg.OperationTerminateRequest{Name: &application.Name}).Return(nil, nil)
+
+			startTime := time.Now()
+
+			err = terminateOperation(context.Background(), application.Name, argoCDNamespace, mockAppClient, k8sClient,
+				time.Duration(2*time.Second), log.FromContext(context.Background()))
+
+			elapsedTime := time.Since(startTime)
+
+			fmt.Fprintf(GinkgoWriter, "elapsed time: %v", elapsedTime)
+
+			if elapsedTime < 2*time.Second {
+				Fail("Not enough time passed in terminate operation")
 				return
 			}
 
-			// application exists and has a running operation
-			// then application doesn't exist
-			// confirm no error
+			Expect(strings.Contains(err.Error(), "application operation never terminated: my-app")).To(BeTrue())
+		})
+
+		Context("Terminate Operation Goes To Done Test", func() {
+			argoCDNamespace := corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd",
+					Namespace: "argocd",
+					UID:       uuid.NewUUID(),
+				},
+			}
+			testCases := []struct {
+				name       string
+				finalPhase common.OperationPhase
+			}{
+				{
+					name:       "error",
+					finalPhase: common.OperationError,
+				},
+				{
+					name:       "succeeded",
+					finalPhase: common.OperationSucceeded,
+				},
+				{
+					name:       "failed",
+					finalPhase: common.OperationFailed,
+				},
+			}
+
+			for _, testCase := range testCases {
+				When(testCase.name, func() {
+					It("Confirm that once an operation goes "+testCase.name+" that the terminate operation exits without error.", func() {
+						application := &appv1.Application{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      "my-app",
+								Namespace: "argocd",
+							},
+							Status: appv1.ApplicationStatus{
+								OperationState: &appv1.OperationState{
+									Phase: common.OperationRunning,
+								},
+							},
+						}
+
+						k8sClient, err := generateFakeK8sClient(application)
+						Expect(err).To(BeNil())
+
+						By("Application exists and has a running operation then application doesn't exist confirm no error")
+						mockAppServiceClient := &mocks.ApplicationServiceClient{}
+						mockAppClient := &mocks.Client{}
+
+						mockAppClient.On("NewApplicationClient").Return(mockCloser{}, mockAppServiceClient, nil)
+						mockAppServiceClient.On("TerminateOperation", mock.Anything, &applicationpkg.OperationTerminateRequest{Name: &application.Name}).Return(nil, nil)
+
+						go func() {
+							time.Sleep(time.Second * 2)
+							application.Status.OperationState.Phase = testCase.finalPhase
+
+							err := k8sClient.Status().Update(context.Background(), application)
+							Expect(err).To(BeNil())
+						}()
+
+						startTime := time.Now()
+
+						err = terminateOperation(context.Background(), application.Name, argoCDNamespace, mockAppClient, k8sClient, time.Duration(5*time.Second), log.FromContext(context.Background()))
+						Expect(err).To(BeNil())
+
+						elapsedTime := time.Since(startTime)
+
+						fmt.Fprintf(GinkgoWriter, "elapsed time: %v", elapsedTime)
+
+						if elapsedTime < 2*time.Second {
+							Fail("Not enough time passeed in terminate operation")
+							return
+						}
+					})
+
+				})
+			}
+		})
+
+		It("Verify that the terminate operation exits immediately, if the application is deleted (no longer exists)", func() {
+			argoCDNamespace := corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd",
+					Namespace: "argocd",
+					UID:       uuid.NewUUID(),
+				},
+			}
+
+			application := &appv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-app",
+					Namespace: "argocd",
+				},
+				Status: appv1.ApplicationStatus{
+					OperationState: &appv1.OperationState{
+						Phase: common.OperationRunning,
+					},
+				},
+			}
+
+			By("Application exists and has a running operation then application doesn't exist confirm no error")
+			k8sClient, err := generateFakeK8sClient(application)
+			Expect(err).To(BeNil())
 
 			mockAppServiceClient := &mocks.ApplicationServiceClient{}
-
 			mockAppClient := &mocks.Client{}
-			mockAppClient.On("NewApplicationClient").Return(mockCloser{}, mockAppServiceClient, nil)
 
-			mockAppServiceClient.On("TerminateOperation", mock.Anything, &applicationpkg.OperationTerminateRequest{Name: &application.Name}).Return(nil, nil)
+			mockAppClient.On("NewApplicationClient").Return(mockCloser{}, mockAppServiceClient, nil)
+			mockAppServiceClient.On("TerminateOperation", mock.Anything,
+				&applicationpkg.OperationTerminateRequest{Name: &application.Name}).Return(nil, nil)
 
 			go func() {
-
 				time.Sleep(time.Second * 2)
-				application.Status.OperationState.Phase = testCase.finalPhase
-
-				if err := k8sClient.Status().Update(context.Background(), application); err != nil {
-					t.Error(err)
-					return
-				}
-
+				err := k8sClient.Delete(context.Background(), application)
+				Expect(err).To(BeNil())
 			}()
 
 			startTime := time.Now()
 
-			err = terminateOperation(context.Background(), application.Name, argoCDNamespace, mockAppClient, k8sClient, time.Duration(5*time.Second), log.FromContext(context.Background()))
-			if err != nil {
-				t.Error(err)
-				return
-			}
+			err = terminateOperation(context.Background(), application.Name, argoCDNamespace, mockAppClient, k8sClient,
+				time.Duration(5*time.Second), log.FromContext(context.Background()))
+			Expect(err).To(BeNil())
 
 			elapsedTime := time.Since(startTime)
 
-			t.Logf("elapsed time: %v", elapsedTime)
+			fmt.Fprintf(GinkgoWriter, "elapsed time: %v", elapsedTime)
 
 			if elapsedTime < 2*time.Second {
-				t.Error("Not enough time passeed in terminate operation")
+				Fail("Not enough time passeed in terminate operation")
 				return
 			}
 		})
-	}
-
-}
-
-func TestTerminateOperation_ExitIfAppDoesntExist(t *testing.T) {
-
-	argoCDNamespace := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: "argocd", UID: uuid.NewUUID()}}
-
-	// Verify that the terminate operation exits immediately, if the application is deleted (no longer exists)
-
-	var err error
-
-	application := &appv1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-app",
-			Namespace: "argocd",
-		},
-		Status: appv1.ApplicationStatus{
-			OperationState: &appv1.OperationState{
-				Phase: common.OperationRunning,
-			},
-		},
-	}
-
-	// application exists and has a running operation
-	// then application doesn't exist
-	// confirm no error
-
-	k8sClient, err := generateFakeK8sClient(application)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	mockAppServiceClient := &mocks.ApplicationServiceClient{}
-
-	mockAppClient := &mocks.Client{}
-	mockAppClient.On("NewApplicationClient").Return(mockCloser{}, mockAppServiceClient, nil)
-
-	mockAppServiceClient.On("TerminateOperation", mock.Anything,
-		&applicationpkg.OperationTerminateRequest{Name: &application.Name}).Return(nil, nil)
-
-	go func() {
-
-		time.Sleep(time.Second * 2)
-		err := k8sClient.Delete(context.Background(), application)
-
-		assert.NoError(t, err)
-
-	}()
-
-	startTime := time.Now()
-
-	err = terminateOperation(context.Background(), application.Name, argoCDNamespace, mockAppClient, k8sClient,
-		time.Duration(5*time.Second), log.FromContext(context.Background()))
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	elapsedTime := time.Since(startTime)
-
-	t.Logf("elapsed time: %v", elapsedTime)
-
-	if elapsedTime < 2*time.Second {
-		t.Error("Not enough time passeed in terminate operation")
-		return
-	}
-
-}
+	})
+})
 
 func generateFakeK8sClient(initObjs ...client.Object) (client.WithWatch, error) {
 	scheme := runtime.NewScheme()

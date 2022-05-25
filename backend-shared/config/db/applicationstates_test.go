@@ -37,6 +37,7 @@ var _ = Describe("ApplicationStates Tests", func() {
 				Applicationstate_application_id: application.Application_id,
 				Health:                          "Progressing",
 				Sync_Status:                     "Unknown",
+				Resources:                       make([]byte, 10),
 			}
 
 			err = dbq.CreateApplicationState(ctx, applicationState)
@@ -63,6 +64,12 @@ var _ = Describe("ApplicationStates Tests", func() {
 			Expect(rowsAffected).To(Equal(1))
 			err = dbq.GetApplicationStateById(ctx, fetchObj)
 			Expect(db.IsResultNotFoundError(err)).To(Equal(true))
+
+			// Set the invalid value
+			applicationState.Resources = make([]byte, 262145)
+
+			err = dbq.CreateApplicationState(ctx, applicationState)
+			Expect(err).NotTo(BeNil())
 		})
 	})
 })

@@ -130,7 +130,7 @@ func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
 	}
 
 	// connect the go code with the database
-	database, err := connectToDatabaseWithPort(true, newDBName, 6432)
+	database, err := ConnectToDatabaseWithPort(true, newDBName, 6432)
 	if err != nil {
 		return EphemeralDB{}, fmt.Errorf("unable to connect to database: %v", err)
 	}

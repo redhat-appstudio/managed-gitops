@@ -157,9 +157,9 @@ var _ = Describe("Test utility functions.", func() {
 
 			// Check KubernetesToDBResourceMapping resource
 			kubernetesToDBResourceMapping := db.KubernetesToDBResourceMapping{
-				KubernetesResourceType: "Namespace",
+				KubernetesResourceType: db.K8sToDBMapping_Namespace,
 				KubernetesResourceUID:  string(workSpaceUid),
-				DBRelationType:         "ManagedEnvironment",
+				DBRelationType:         db.K8sToDBMapping_ManagedEnvironment,
 			}
 
 			err = dbQueries.GetDBResourceMappingForKubernetesResource(ctx, &kubernetesToDBResourceMapping)
@@ -381,6 +381,7 @@ var _ = Describe("Test utility functions.", func() {
 				Deploymenttoapplicationmapping_uid_id: deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id,
 			})
 			Expect(err).NotTo(BeNil())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 			// ----------------------------------------------------------------------------
 			By("Check second DeploymentToApplicationMapping resource is created in DB.")

@@ -1,15 +1,15 @@
 
 # AppStudio-Shared
 
-The APIs defined in this module are based on the [Environment API discussions](https://docs.google.com/document/d/1-_rWLgALd5pdSlqNNcQ5FSrD00fZb0l_exU-_FiL68o/) of April/May 2022.
+The APIs defined in this module is based on the [Environment API discussions](https://docs.google.com/document/d/1-_rWLgALd5pdSlqNNcQ5FSrD00fZb0l_exU-_FiL68o/) of April/May 2022.
 
 ## Warning for API Consumers
 
-⚠️ Until these APIs are stabilized, they are subject to change with limited notice. Best efforts will me made to inform API consumers of how to migrate, when the changes are breaking. ⚠️
+⚠️ Until these APIs are stabilized, they are subject to change with limited notice. Best efforts will be made to inform API consumers of how to migrate when the changes are breaking. ⚠️
 
 ### Expected upcoming changes, as of this writing (May 2022):
 - Drop the `Application-` prefix for prefixed resources
-- Move away from using `Snapshot` noun (replacement TBD)
+- Move away from using the `Snapshot` noun (replacement TBD)
 - Consider moving this module out of the GitOps Service monorepo and into its own Git repository
 
 ## Consuming the API

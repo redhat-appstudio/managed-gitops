@@ -1,4 +1,3 @@
-
 # Managed GitOps Cluster-Agent
 
 [![GoDoc](https://godoc.org/github.com/redhat-appstudio/managed-gitops/migration?status.svg)](https://pkg.go.dev/mod/github.com/redhat-appstudio/managed-gitops/migration)
@@ -18,10 +17,10 @@ The Managed GitOps Database Migration component is responsible for making sure t
 
 ## How are migrations applied? 
 
-- Whenever you need to make changes to the currently applied schema, in the migrations folder, run `migrate create -ext sql -seq {{file_name}}`
+- Whenever you need to make changes to the currently applied schema, in the migrations folder, run `make migration-script {filename}`
 - A new version of migration will be created. Once the changes are written and verified.
 - Make sure to write a rollback script in the `__.down.sql` file. Otherwise, the rollback of migrations won't be possible.
-- To apply the latest version of the migration, simply execute `go run migrate_db.go`
-- For additional utilities, for eg: drop the entire db, simply pass drop as a runtime argument like `go run migrate_db.go drop`
+- To apply the latest version of the migration, simply execute `make migrate`
+- For additional utilities, for eg: drop the entire db, simply pass drop as a runtime argument like `make db-drop`
 - **DO NOT** drop the `schema_migrations` table as that will lead to migration failure.
 

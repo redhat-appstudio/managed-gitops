@@ -1,5 +1,5 @@
 BEGIN;
-
+-- These files are auto generated. If you wish to update the schema, create a new migration file by following the readme.
 -- ClusterCredentials contains the credentials required to access a K8s cluster. 
 -- The credentials may be in one of two forms:
 -- 1) Kubeconfig state: Kubeconfig file, plus a reference to a specific context within the

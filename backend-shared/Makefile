@@ -58,3 +58,15 @@ fmt:
 .PHONY: vet
 vet:
 	go vet ./...
+
+make migration-script:
+	cd migrations && migrate create -ext sql -seq $(filename)
+
+make db-migrate:
+	cd hack/db-migration/ && go run main.go
+
+make db-drop:
+	cd hack/db-migration/ && go run main.go drop
+
+make drop-migration-table:
+	cd hack/db-migration/ && go run main.go drop_smtable

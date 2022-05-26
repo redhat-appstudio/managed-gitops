@@ -1,31 +1,29 @@
-package main
+package dbmigrate
 
 import (
 	"context"
 	"fmt"
-	"os"
-
-	logger "sigs.k8s.io/controller-runtime/pkg/log"
 
 	migrate "github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func main() {
+func Migrate_db(op_type string) {
 	addr, password := db.GetAddrAndPassword()
 	port := 5432
 	ctx := context.Background()
-	log := logger.FromContext(ctx)
+	log := log.FromContext(ctx)
+	fmt.Println("logger works fine!")
 	m, err := migrate.New(
 		"file://migrations/",
 		fmt.Sprintf("postgresql://postgres:%s@%s:%v/postgres?sslmode=disable", password, addr, port))
 	if err != nil {
 		log.Error(err, fmt.Sprintf("%v", err))
 	}
-	if len(os.Args) >= 2 {
-		op_type := os.Args[1]
+	if len(op_type) >= 0 {
 		if op_type == "drop_smtable" {
 			dbq, err := db.ConnectToDatabaseWithPort(true, "postgres", port)
 			if err != nil {

@@ -52,6 +52,11 @@ jobs:
           cd $GITHUB_WORKSPACE/appstudio-controller
           make gosec
 
+      - name: "Ensure 'appstudio-shared' passes 'go-sec' - run 'make gosec' to identify issues"
+        run: |
+          cd $GITHUB_WORKSPACE/appstudio-shared
+          make gosec
+
       - name: "Ensure 'backend' passes 'go-lint' - run 'make lint' to identify issues"
         run: |
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.40.1

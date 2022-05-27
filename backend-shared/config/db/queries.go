@@ -64,6 +64,7 @@ type DatabaseQueries interface {
 	ApplicationScopedQueries
 
 	CreateClusterAccess(ctx context.Context, obj *ClusterAccess) error
+	CreateRepositoryCredentials(ctx context.Context, obj *RepositoryCredentials) error
 	CreateClusterCredentials(ctx context.Context, obj *ClusterCredentials) error
 	CreateClusterUser(ctx context.Context, obj *ClusterUser) error
 	CreateGitopsEngineCluster(ctx context.Context, obj *GitopsEngineCluster) error

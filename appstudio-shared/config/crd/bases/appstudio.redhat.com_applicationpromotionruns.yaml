@@ -99,6 +99,10 @@ spec:
                     one or more steps, depending on how many environments have been
                     promoted to.'
                   properties:
+                    displayStatus:
+                      description: DisplayStatus is human-readible description of
+                        the current state/status.
+                      type: string
                     environmentName:
                       description: EnvironmentName is the name of the environment
                         that was promoted to in this step
@@ -111,6 +115,7 @@ spec:
                         array, starting with 1
                       type: integer
                   required:
+                  - displayStatus
                   - environmentName
                   - status
                   - step

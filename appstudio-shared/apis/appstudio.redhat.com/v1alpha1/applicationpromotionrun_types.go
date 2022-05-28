@@ -103,6 +103,9 @@ type PromotionRunEnvironmentStatus struct {
 
 	// Status is/was the result of promoting to that environment.
 	Status PromotionRunEnvironmentStatusField `json:"status"`
+
+	// DisplayStatus is human-readible description of the current state/status.
+	DisplayStatus string `json:"displayStatus"`
 }
 
 // PromotionRunEnvironmentStatusField are the state values for promotion to individual enviroments, as

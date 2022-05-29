@@ -3,7 +3,6 @@ module github.com/redhat-appstudio/managed-gitops/tests-e2e
 go 1.18
 
 require (
-	github.com/argoproj/argo-cd/v2 v2.3.1
 	github.com/redhat-appstudio/application-service v0.0.0-20220316030335-c7f42f12f29f
 	github.com/redhat-appstudio/managed-gitops/appstudio-controller v0.0.0
 	github.com/redhat-appstudio/managed-gitops/backend v0.0.0
@@ -19,6 +18,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.1.1 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
+	github.com/argoproj/argo-cd/v2 v2.3.1 // indirect
 	github.com/argoproj/gitops-engine v0.6.0 // indirect
 	github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0 // indirect
 	github.com/bombsimon/logrusr/v2 v2.0.1 // indirect

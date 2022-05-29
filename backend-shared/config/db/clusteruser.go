@@ -5,6 +5,9 @@ import (
 	"fmt"
 )
 
+// Set the Special Cluster User details.
+const SpecialClusterUserName string = "cluster-agent-application-sync-user"
+
 func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterUsers(ctx context.Context, clusterUsers *[]ClusterUser) error {
 
 	if err := validateUnsafeQueryParamsNoPK(dbq); err != nil {
@@ -143,5 +146,41 @@ func (dbq *PostgreSQLDatabaseQueries) GetClusterUserById(ctx context.Context, cl
 
 	*clusterUser = dbResults[0]
 
+	return nil
+}
+
+// Get or Create a user which can be used internally by gitops-service only. If we need to perform any operation or create resources for gitops-service purposes,
+// for example namespace reconciler, here we need to create few resources, but this task is not performed by an actual user (customer) instead they are created in background by gitops-service,
+// so we will use special user (dummy user/internal user) details.
+func (dbq *PostgreSQLDatabaseQueries) GetOrCreateSpecialClusterUser(ctx context.Context, clusterUser *ClusterUser) error {
+	if dbq.dbConnection == nil {
+		return fmt.Errorf("database connection is nil")
+	}
+
+	var dbResults []ClusterUser
+
+	// Check if SpecialClusterUser already exists.
+	if err := dbq.dbConnection.Model(&dbResults).
+		Where("cu.clusteruser_id = ?", SpecialClusterUserName).
+		Context(ctx).
+		Select(); err != nil {
+		return fmt.Errorf("error on retrieving SpecialClusterUser: %v", err)
+	}
+
+	if len(dbResults) >= 2 {
+		return fmt.Errorf("Multiple users are found is GetOrCreateSpecialClusterUser.")
+	}
+
+	// If user already exists then return it, else create new.
+	if len(dbResults) == 0 {
+		clusterUser.Clusteruser_id = SpecialClusterUserName
+		clusterUser.User_name = SpecialClusterUserName
+
+		if _, err := dbq.dbConnection.Model(clusterUser).Context(ctx).Insert(); err != nil {
+			return fmt.Errorf("error on inserting SpecialClusterUser: %v", err)
+		}
+	} else {
+		*clusterUser = dbResults[0]
+	}
 	return nil
 }

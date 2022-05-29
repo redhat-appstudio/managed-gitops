@@ -5,19 +5,25 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	appEventLoop "github.com/redhat-appstudio/managed-gitops/backend/eventloop/application_event_loop"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/uuid"
+	"github.com/redhat-appstudio/managed-gitops/backend/util/fauxargocd"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	cache "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	argo "github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/argoproj.io"
+	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/uuid"
 )
 
 var _ = Describe("Application Controller", func() {
@@ -453,6 +459,443 @@ var _ = Describe("Application Controller", func() {
 	})
 })
 
+var _ = Describe("Namespace Reconciler Tests.", func() {
+	var reconciler argo.ApplicationReconciler
+
+	Context("Testing for Namespace Reconciler.", func() {
+		var err error
+		var ctx context.Context
+		var argoCdApp appv1.Application
+		var dummyApplicationSpec string
+		var applicationput db.Application
+		var dbQueries db.AllDatabaseQueries
+
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			err = db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
+
+			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).To(BeNil())
+
+			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
+			Expect(err).To(BeNil())
+
+			scheme, argocdNamespace, kubesystemNamespace, workspace, err := eventlooptypes.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			_, dummyApplicationSpec, argoCdApp, err = createDummyApplicationData()
+			Expect(err).To(BeNil())
+
+			applicationput = db.Application{
+				Application_id:          "test-my-application",
+				Name:                    "test-my-application",
+				Spec_field:              dummyApplicationSpec,
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+
+			err = dbQueries.CreateApplication(ctx, &applicationput)
+			Expect(err).To(BeNil())
+
+			err = appv1.AddToScheme(scheme)
+			Expect(err).To(BeNil())
+
+			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-gitops-depl",
+					Namespace: workspace.Name,
+					UID:       uuid.NewUUID(),
+				},
+			}
+
+			// Fake kube client.
+			k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).Build()
+
+			reconciler = argo.ApplicationReconciler{
+				Client: k8sClient,
+				DB:     dbQueries,
+				Cache:  dbutil.NewApplicationInfoCache(),
+			}
+
+			err = reconciler.Create(ctx, &argoCdApp)
+			Expect(err).To(BeNil())
+
+			var speCialClusterUser db.ClusterUser
+			err = dbQueries.GetOrCreateSpecialClusterUser(context.Background(), &speCialClusterUser)
+			Expect(err).To(BeNil())
+		})
+
+		AfterEach(func() {
+			listOfK8sOperation := v1alpha1.OperationList{}
+			err = reconciler.List(ctx, &listOfK8sOperation)
+			Expect(err).To(BeNil())
+
+			for _, k8sOperation := range listOfK8sOperation.Items {
+				// Look for Operation created by Namespace Reconciler.
+				if k8sOperation.Annotations[appEventLoop.IdentifierKey] == appEventLoop.IdentifierValue {
+					rowsAffected, err := dbQueries.DeleteOperationById(ctx, k8sOperation.Spec.OperationID)
+					Expect(err).To(BeNil())
+					Expect(rowsAffected).Should((Equal(1)))
+
+					err = reconciler.Delete(ctx, &k8sOperation)
+					Expect(err).To(BeNil())
+				}
+			}
+		})
+
+		It("Should do nothing as ArgoCD Application is in sync with DB entry.", func() {
+			ctx := context.Background()
+			log := log.FromContext(ctx)
+
+			// Call function for workSpace/Namespace reconciler
+			argo.RunNamespaceReconcile(ctx, reconciler.DB, reconciler.Client, log)
+
+			// We are using a fake k8s client and because of that we can not check if ArgoCD application has been created/updated.
+			// We will just check if k8s Operation created or not.
+
+			By("Verify that K8s Operation and Operation table entry are created.")
+
+			listOfK8sOperation := v1alpha1.OperationList{}
+
+			err = reconciler.List(ctx, &listOfK8sOperation)
+			Expect(err).To(BeNil())
+
+			count := 0
+			for _, k8sOperation := range listOfK8sOperation.Items {
+				// Look for Operation created by Namespace Reconciler.
+				if k8sOperation.Annotations[appEventLoop.IdentifierKey] == appEventLoop.IdentifierValue {
+					// Fetch corresponding DB entry
+					dbOperation := db.Operation{
+						Operation_id: k8sOperation.Spec.OperationID,
+					}
+					err = dbQueries.GetOperationById(ctx, &dbOperation)
+					Expect(err).To(BeNil())
+					if dbOperation.Resource_id == applicationput.Application_id {
+						count += 1
+					}
+				}
+			}
+			Expect(count).To(Equal(0))
+		})
+
+		It("Should update OutofSync ArgoCD Application to keep it in sync with DB entry.", func() {
+
+			// Update ArgoCD Application, so it will be out of Sync with DB entry.
+			argoCdApp.Spec.Source.RepoURL = "https://github.com/test/gitops-repository-template"
+
+			err = reconciler.Update(ctx, &argoCdApp)
+			Expect(err).To(BeNil())
+
+			ctx := context.Background()
+			log := log.FromContext(ctx)
+
+			// Call function for workSpace/Namespace reconciler
+			argo.RunNamespaceReconcile(ctx, reconciler.DB, reconciler.Client, log)
+
+			// We are using a fake k8s client and because of that we can not check if ArgoCD application has been created/updated.
+			// We will just check if k8s Operation and DB entries are created and assume that in actual environment ArgoCD will pick up this Operation and update/create the application.
+
+			By("Verify that K8s Operation and Operation table entry are created.")
+
+			listOfK8sOperation := v1alpha1.OperationList{}
+
+			err = reconciler.List(ctx, &listOfK8sOperation)
+			Expect(err).To(BeNil())
+			Expect(len(listOfK8sOperation.Items)).NotTo(Equal(0))
+
+			for _, k8sOperation := range listOfK8sOperation.Items {
+				// Look for Operation created by Namespace Reconciler.
+				if k8sOperation.Annotations[appEventLoop.IdentifierKey] == appEventLoop.IdentifierValue {
+					// Fetch corresponding DB entry
+					dbOperation := db.Operation{
+						Operation_id: k8sOperation.Spec.OperationID,
+					}
+					err = dbQueries.GetOperationById(ctx, &dbOperation)
+					Expect(err).To(BeNil())
+					if dbOperation.Resource_id == applicationput.Application_id {
+						Expect(dbOperation.Resource_id).To(Equal(applicationput.Application_id))
+						Expect(dbOperation.Instance_id).To(Equal(applicationput.Engine_instance_inst_id))
+					}
+				}
+			}
+		})
+
+		It("Should create new ArgoCD Application if application exists in DB, but it is not available in ArgoCD.", func() {
+
+			// Delete the application from ArgoCD, but keep all DB entries.
+			err = reconciler.Delete(ctx, &argoCdApp)
+			Expect(err).To(BeNil())
+
+			ctx := context.Background()
+			log := log.FromContext(ctx)
+
+			// Call function for workSpace/Namespace reconciler
+			argo.RunNamespaceReconcile(ctx, reconciler.DB, reconciler.Client, log)
+
+			// We are using a fake k8s client and because of that we can not check if ArgoCD application has been created/updated.
+			// We will just check if k8s Operation and DB entries are created and assume that in actual environment ArgoCD will pick up this Operation and update/create the application.
+
+			By("Verify that K8s Operation and Operation table entry are created.")
+
+			listOfK8sOperation := v1alpha1.OperationList{}
+
+			err = reconciler.List(ctx, &listOfK8sOperation)
+			Expect(err).To(BeNil())
+			Expect(len(listOfK8sOperation.Items)).NotTo(Equal(0))
+
+			for _, k8sOperation := range listOfK8sOperation.Items {
+				// Look for Operation created by Namespace Reconciler.
+				if k8sOperation.Annotations[appEventLoop.IdentifierKey] == appEventLoop.IdentifierValue {
+					// Fetch corresponding DB entry
+					dbOperation := db.Operation{
+						Operation_id: k8sOperation.Spec.OperationID,
+					}
+					err = dbQueries.GetOperationById(ctx, &dbOperation)
+					Expect(err).To(BeNil())
+					if dbOperation.Resource_id == applicationput.Application_id {
+						Expect(dbOperation.Resource_id).To(Equal(applicationput.Application_id))
+						Expect(dbOperation.Instance_id).To(Equal(applicationput.Engine_instance_inst_id))
+					}
+				}
+			}
+		})
+	})
+
+	Context("Testing for CompareApplications function.", func() {
+		It("Should compare applications.", func() {
+
+			applicationFromDB, _, applicationFromArgoCD, err := createDummyApplicationData()
+			Expect(err).To(BeNil())
+
+			var ctx context.Context
+			log := log.FromContext(ctx)
+
+			result := argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			Expect(result).To(BeTrue())
+
+			// Set different value in each field then revert them, otherwise next field wont be compared
+			applicationFromArgoCD.APIVersion = "test"
+			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			Expect(result).To(BeFalse())
+			applicationFromArgoCD.APIVersion = applicationFromDB.APIVersion // Revert the value, to compare next field.
+
+			applicationFromArgoCD.Kind = "test"
+			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			Expect(result).To(BeFalse())
+			applicationFromArgoCD.Kind = applicationFromDB.Kind
+
+			applicationFromArgoCD.Name = "test"
+			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			Expect(result).To(BeFalse())
+			applicationFromArgoCD.Name = applicationFromDB.Name
+
+			applicationFromArgoCD.Namespace = "test"
+			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			Expect(result).To(BeFalse())
+			applicationFromArgoCD.Namespace = applicationFromDB.Namespace
+
+			applicationFromArgoCD.Spec.Source.RepoURL = "test"
+			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			Expect(result).To(BeFalse())
+			applicationFromArgoCD.Spec.Source.RepoURL = applicationFromDB.Spec.Source.RepoURL
+
+			applicationFromArgoCD.Spec.Source.Path = "test"
+			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			Expect(result).To(BeFalse())
+			applicationFromArgoCD.Spec.Source.Path = applicationFromDB.Spec.Source.Path
+
+			applicationFromArgoCD.Spec.Source.TargetRevision = "test"
+			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			Expect(result).To(BeFalse())
+			applicationFromArgoCD.Spec.Source.TargetRevision = applicationFromDB.Spec.Source.TargetRevision
+
+			applicationFromArgoCD.Spec.Destination.Server = "test"
+			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			Expect(result).To(BeFalse())
+			applicationFromArgoCD.Spec.Destination.Server = applicationFromDB.Spec.Destination.Server
+
+			applicationFromArgoCD.Spec.Destination.Namespace = "test"
+			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			Expect(result).To(BeFalse())
+			applicationFromArgoCD.Spec.Destination.Namespace = applicationFromDB.Spec.Destination.Namespace
+
+			applicationFromArgoCD.Spec.Destination.Name = "test"
+			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			Expect(result).To(BeFalse())
+			applicationFromArgoCD.Spec.Destination.Name = applicationFromDB.Spec.Destination.Name
+
+			applicationFromArgoCD.Spec.Project = "test"
+			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			Expect(result).To(BeFalse())
+			applicationFromArgoCD.Spec.Project = applicationFromDB.Spec.Project
+
+			applicationFromArgoCD.Spec.SyncPolicy.Automated.Prune = true
+			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			Expect(result).To(BeFalse())
+			applicationFromArgoCD.Spec.SyncPolicy.Automated.Prune = applicationFromDB.Spec.SyncPolicy.Automated.Prune
+
+			applicationFromArgoCD.Spec.SyncPolicy.Automated.SelfHeal = true
+			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			Expect(result).To(BeFalse())
+			applicationFromArgoCD.Spec.SyncPolicy.Automated.SelfHeal = applicationFromDB.Spec.SyncPolicy.Automated.SelfHeal
+
+			applicationFromArgoCD.Spec.SyncPolicy.Automated.AllowEmpty = true
+			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			Expect(result).To(BeFalse())
+			applicationFromArgoCD.Spec.SyncPolicy.Automated.AllowEmpty = applicationFromDB.Spec.SyncPolicy.Automated.AllowEmpty
+		})
+	})
+
+	Context("Testing CleanK8sOperations function", func() {
+		var err error
+		var dbQueries db.AllDatabaseQueries
+		var ctx context.Context
+		var operationList []db.Operation
+		var argoCdApp appv1.Application
+		var dummyApplicationSpec string
+		var applicationput db.Application
+
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			err = db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
+
+			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).To(BeNil())
+
+			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
+			Expect(err).To(BeNil())
+
+			scheme, argocdNamespace, kubesystemNamespace, workspace, err := eventlooptypes.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			_, dummyApplicationSpec, argoCdApp, err = createDummyApplicationData()
+			Expect(err).To(BeNil())
+
+			applicationput = db.Application{
+				Application_id:          "test-my-application",
+				Name:                    "test-my-application",
+				Spec_field:              dummyApplicationSpec,
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+
+			err = dbQueries.CreateApplication(ctx, &applicationput)
+			Expect(err).To(BeNil())
+
+			err = appv1.AddToScheme(scheme)
+			Expect(err).To(BeNil())
+
+			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-gitops-depl",
+					Namespace: workspace.Name,
+					UID:       uuid.NewUUID(),
+				},
+			}
+
+			// Fake kube client.
+			k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).Build()
+
+			reconciler = argo.ApplicationReconciler{
+				Client: k8sClient,
+				DB:     dbQueries,
+				Cache:  dbutil.NewApplicationInfoCache(),
+			}
+
+			err = reconciler.Create(ctx, &argoCdApp)
+			Expect(err).To(BeNil())
+
+			var speCialClusterUser db.ClusterUser
+			err = dbQueries.GetOrCreateSpecialClusterUser(context.Background(), &speCialClusterUser)
+			Expect(err).To(BeNil())
+		})
+
+		AfterEach(func() {
+			for _, operation := range operationList {
+				rowsAffected, err := dbQueries.CheckedDeleteOperationById(ctx, operation.Operation_id, operation.Operation_owner_user_id)
+				Expect(rowsAffected).Should((Equal(1)))
+				Expect(err).To(BeNil())
+			}
+			// Empty Operation List
+			operationList = []db.Operation{}
+		})
+
+		It("Should delete Operations from cluster and if operation is completed.", func() {
+
+			ctx := context.Background()
+			log := log.FromContext(ctx)
+
+			dbOperationInput := db.Operation{
+				Instance_id:   applicationput.Engine_instance_inst_id,
+				Resource_id:   applicationput.Application_id,
+				Resource_type: db.OperationResourceType_Application,
+			}
+
+			_, dbOperation, err := appEventLoop.CreateOperation(ctx, false, dbOperationInput,
+				db.SpecialClusterUserName, cache.GetGitOpsEngineSingleInstanceNamespace(), reconciler.DB, reconciler.Client, log)
+			Expect(err).To(BeNil())
+
+			dbOperation.State = "Completed"
+			err = dbQueries.UpdateOperation(ctx, dbOperation)
+			Expect(err).To(BeNil())
+
+			operationList = append(operationList, *dbOperation)
+
+			// Get list of Operations before cleanup.
+			listOfK8sOperationFirst := v1alpha1.OperationList{}
+			err = reconciler.List(ctx, &listOfK8sOperationFirst)
+			Expect(err).To(BeNil())
+			Expect(len(listOfK8sOperationFirst.Items)).NotTo(Equal(0))
+
+			// Clean Operations
+			argo.CleanK8sOperations(ctx, dbQueries, reconciler.Client, log)
+
+			// Get list of Operations after cleanup.
+			listOfK8sOperationSecond := v1alpha1.OperationList{}
+			err = reconciler.List(ctx, &listOfK8sOperationSecond)
+			Expect(err).To(BeNil())
+			Expect(len(listOfK8sOperationSecond.Items)).To(Equal(0))
+		})
+
+		It("Should not delete Operations from cluster and if operation is not completed.", func() {
+
+			ctx := context.Background()
+			log := log.FromContext(ctx)
+
+			dbOperationInput := db.Operation{
+				Instance_id:   applicationput.Engine_instance_inst_id,
+				Resource_id:   applicationput.Application_id,
+				Resource_type: db.OperationResourceType_Application,
+			}
+
+			_, dbOperation, err := appEventLoop.CreateOperation(ctx, false, dbOperationInput,
+				db.SpecialClusterUserName, cache.GetGitOpsEngineSingleInstanceNamespace(), reconciler.DB, reconciler.Client, log)
+			Expect(err).To(BeNil())
+
+			operationList = append(operationList, *dbOperation)
+
+			// Get list of Operations before cleanup.
+			listOfK8sOperationFirst := v1alpha1.OperationList{}
+			err = reconciler.List(ctx, &listOfK8sOperationFirst)
+			Expect(err).To(BeNil())
+			Expect(len(listOfK8sOperationFirst.Items)).NotTo(Equal(0))
+
+			// Clean Operations
+			argo.CleanK8sOperations(ctx, dbQueries, reconciler.Client, log)
+
+			// Get list of Operations after cleanup.
+			listOfK8sOperationSecond := v1alpha1.OperationList{}
+			err = reconciler.List(ctx, &listOfK8sOperationSecond)
+			Expect(err).To(BeNil())
+			Expect(len(listOfK8sOperationSecond.Items)).NotTo(Equal(0))
+		})
+	})
+})
+
 // newRequest contains the information necessary to reconcile a Kubernetes object.
 func newRequest(namespace, name string) reconcile.Request {
 	return reconcile.Request{
@@ -541,4 +984,72 @@ func generateSampleData() (db.ClusterCredentials, db.ManagedEnvironment, db.Gito
 func testTeardown() {
 	err := db.SetupForTestingDBGinkgo()
 	Expect(err).To(BeNil())
+}
+
+func createDummyApplicationData() (fauxargocd.FauxApplication, string, appv1.Application, error) {
+	// Create dummy ArgoCD Application CR.
+	dummyArgoCdApplication := appv1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Application",
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-my-application",
+			Namespace: "gitops-service-argocd",
+		},
+		Spec: appv1.ApplicationSpec{
+			Source: appv1.ApplicationSource{
+				RepoURL:        "https://github.com/redhat-appstudio/gitops-repository-template",
+				Path:           "environments/overlays/dev",
+				TargetRevision: "",
+			},
+			Destination: appv1.ApplicationDestination{
+				Name:      "in-cluster",
+				Namespace: "test-fake-namespace",
+			},
+			SyncPolicy: &appv1.SyncPolicy{
+				Automated: &appv1.SyncPolicyAutomated{
+					Prune: false,
+				},
+			},
+			Project: "default",
+		},
+	}
+
+	// Create dummy Application Spec to be saved in DB
+	dummyApplicationSpec := fauxargocd.FauxApplication{
+		FauxTypeMeta: fauxargocd.FauxTypeMeta{
+			Kind:       "Application",
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		FauxObjectMeta: fauxargocd.FauxObjectMeta{
+			Name:      "test-my-application",
+			Namespace: "gitops-service-argocd",
+		},
+		Spec: fauxargocd.FauxApplicationSpec{
+			Source: fauxargocd.ApplicationSource{
+				RepoURL:        "https://github.com/redhat-appstudio/gitops-repository-template",
+				Path:           "environments/overlays/dev",
+				TargetRevision: "",
+			},
+			Destination: fauxargocd.ApplicationDestination{
+				Name:      "in-cluster",
+				Namespace: "test-fake-namespace",
+			},
+			SyncPolicy: &fauxargocd.SyncPolicy{
+				Automated: &fauxargocd.SyncPolicyAutomated{
+					Prune: false,
+				},
+			},
+			Project: "default",
+		},
+	}
+
+	dummyApplicationSpecBytes, err := yaml.Marshal(dummyApplicationSpec)
+
+	if err != nil {
+		return fauxargocd.FauxApplication{}, "", appv1.Application{}, err
+	}
+
+	return dummyApplicationSpec, string(dummyApplicationSpecBytes), dummyArgoCdApplication, nil
 }

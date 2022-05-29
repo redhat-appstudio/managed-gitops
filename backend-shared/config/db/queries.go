@@ -65,6 +65,7 @@ type DatabaseQueries interface {
 
 	CreateClusterAccess(ctx context.Context, obj *ClusterAccess) error
 	CreateRepositoryCredentials(ctx context.Context, obj *RepositoryCredentials) error
+	GetRepositoryCredentialsByID(ctx context.Context, id string) (repoCred RepositoryCredentials, err error)
 	CreateClusterCredentials(ctx context.Context, obj *ClusterCredentials) error
 	CreateClusterUser(ctx context.Context, obj *ClusterUser) error
 	CreateGitopsEngineCluster(ctx context.Context, obj *GitopsEngineCluster) error
@@ -105,6 +106,7 @@ type DatabaseQueries interface {
 	DeleteClusterCredentialsById(ctx context.Context, id string) (int, error)
 	DeleteClusterUserById(ctx context.Context, id string) (int, error)
 	DeleteGitopsEngineClusterById(ctx context.Context, id string) (int, error)
+	DeleteRepositoryCredentialsByID(ctx context.Context, id string) error
 
 	GetClusterCredentialsById(ctx context.Context, clusterCreds *ClusterCredentials) error
 

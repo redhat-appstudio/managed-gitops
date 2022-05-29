@@ -51,6 +51,15 @@ var _ = Describe("ClusterUser Tests", func() {
 			err = dbq.CreateClusterUser(ctx, user)
 			Expect(db.IsMaxLengthError(err)).To(Equal(true))
 
+			var specialClusterUser db.ClusterUser
+			err = dbq.GetOrCreateSpecialClusterUser(ctx, &specialClusterUser)
+			Expect(err).To(BeNil())
+			Expect(specialClusterUser.Clusteruser_id).To(Equal(db.SpecialClusterUserName))
+			Expect(specialClusterUser.User_name).To(Equal(db.SpecialClusterUserName))
+
+			rowsAffected, err = dbq.DeleteClusterUserById(ctx, specialClusterUser.Clusteruser_id)
+			Expect(err).To(BeNil())
+			Expect(rowsAffected).Should(Equal(1))
 		})
 	})
 })

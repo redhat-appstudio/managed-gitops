@@ -83,6 +83,10 @@ type DatabaseQueries interface {
 	CheckedGetClusterCredentialsById(ctx context.Context, clusterCredentials *ClusterCredentials, ownerId string) error
 	GetClusterUserById(ctx context.Context, clusterUser *ClusterUser) error
 	GetClusterUserByUsername(ctx context.Context, clusterUser *ClusterUser) error
+
+	// Get or Create a user which can be used internally by gitops-service only. If we need to perform any operation or create resources for gitops-service purposes,
+	// we will use special user (dummy user/internal user) details.
+	GetOrCreateSpecialClusterUser(ctx context.Context, clusterUser *ClusterUser) error
 	CheckedGetGitopsEngineClusterById(ctx context.Context, gitopsEngineCluster *GitopsEngineCluster, ownerId string) error
 	CheckedGetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance, ownerId string) error
 	CheckedGetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment, ownerId string) error
@@ -158,6 +162,9 @@ type ApplicationScopedQueries interface {
 	UpdateApplication(ctx context.Context, obj *Application) error
 	DeleteApplicationById(ctx context.Context, id string) (int, error)
 	CheckedDeleteApplicationById(ctx context.Context, id string, ownerId string) (int, error)
+
+	// Get applications in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+	GetApplicationBatch(ctx context.Context, applications *[]Application, limit, offSet int) error
 
 	// TODO: GITOPSRVCE-19 - KCP support: All of the *ByAPINamespaceAndName database queries should only return items that are part of a specific KCP workspace.
 

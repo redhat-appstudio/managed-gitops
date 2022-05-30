@@ -1,6 +1,6 @@
 module github.com/redhat-appstudio/managed-gitops/appstudio-controller
 
-go 1.17
+go 1.18
 
 require (
 	github.com/devfile/api/v2 v2.0.0-20211018184408-84c44e563f58

@@ -12,11 +12,12 @@ jobs:
     name: Run tests to check if database schema is in check with go schema constants
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout
+      uses: actions/checkout@v3
     - name: Setup Go
       uses: actions/setup-go@v3.2.0
       with:
-        go-version: "1.17.6"
-    - uses: actions/checkout@v3
+        go-version-file: './backend/go.mod'
     - name: Run script file
       run: |
          $GITHUB_WORKSPACE/backend-shared/hack/run-db-schema-sync-check.sh

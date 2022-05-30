@@ -51,21 +51,21 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteRepositoryCredentialsByID(ctx contex
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) GetRepositoryCredentialsByID(ctx context.Context, id string) (repoCred RepositoryCredentials, err error) {
+func (dbq *PostgreSQLDatabaseQueries) GetRepositoryCredentialsByID(ctx context.Context, id string) (obj RepositoryCredentials, err error) {
 	if err = validateQueryParams(id, dbq); err != nil {
-		return repoCred, err
+		return obj, err
 	}
 
-	repoCred = RepositoryCredentials{
+	obj = RepositoryCredentials{
 		PrimaryKeyID: id,
 	}
 
-	err = dbq.dbConnection.Model(&repoCred).WherePK().Context(ctx).Select()
+	err = dbq.dbConnection.Model(&obj).WherePK().Context(ctx).Select()
 	if err != nil {
-		return repoCred, fmt.Errorf("%v: %w", errGetRepositoryCredentials, err)
+		return obj, fmt.Errorf("%v: %w", errGetRepositoryCredentials, err)
 	}
 
-	return repoCred, nil
+	return obj, nil
 }
 
 func (dbq *PostgreSQLDatabaseQueries) UpdateRepositoryCredentials(ctx context.Context, obj *RepositoryCredentials) error {

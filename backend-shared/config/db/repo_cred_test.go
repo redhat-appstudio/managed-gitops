@@ -87,7 +87,7 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			dbq.CloseDatabase() // Close the database connection.
 		})
 
-		It("it should create and delete RepositoryCredentials", func() {
+		It("it should create, update, get and delete RepositoryCredentials", func() {
 
 			// Create a RepositoryCredentials object.
 			gitopsRepositoryCredentials := db.RepositoryCredentials{
@@ -110,6 +110,25 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			fetch, err := dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentials.PrimaryKeyID)
 			Expect(err).To(BeNil())
 			Expect(fetch).Should(Equal(gitopsRepositoryCredentials))
+
+			// Update the RepositoryCredentials in the database.
+			updatedCR := db.RepositoryCredentials{
+				PrimaryKeyID:    "fake-repo-cred-id",
+				UserID:          clusterUser.Clusteruser_id, // constrain 'fk_clusteruser_id'
+				PrivateURL:      "https://fake-private-url",
+				AuthUsername:    "updated-auth-username",
+				AuthPassword:    "updated-auth-password",
+				AuthSSHKey:      "updated-auth-ssh-key",
+				SecretObj:       "updated-secret-obj",
+				EngineClusterID: gitopsEngineInstance.Gitopsengineinstance_id, // constrain 'fk_gitopsengineinstance_id'
+				SeqID:           12,
+			}
+
+			err = dbq.UpdateRepositoryCredentials(ctx, &updatedCR)
+			Expect(err).To(BeNil())
+
+			// Diff the two CRs (original and updated).
+			Expect(gitopsRepositoryCredentials).ShouldNot(Equal(updatedCR))
 
 			// Delete the RepositoryCredentials from the database.
 			err = dbq.DeleteRepositoryCredentialsByID(ctx, gitopsRepositoryCredentials.PrimaryKeyID)

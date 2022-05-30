@@ -72,7 +72,7 @@ func parseDBSchema(DBSchemaRelativeFileLocation string) map[string]string {
 				if strings.Contains(dbSchema[i], "VARCHAR") && !(strings.Contains(dbSchema[i], "--")) {
 					spaces := regexp.MustCompile(`\s+`)
 					// remove all leading white spaces
-					fieldName := spaces.ReplaceAllString(strings.Split(dbSchema[i], " ")[0], "")
+					var fieldName string
 					j := 0
 					for {
 						fieldName = spaces.ReplaceAllString(strings.Split(dbSchema[i], " ")[j], "")

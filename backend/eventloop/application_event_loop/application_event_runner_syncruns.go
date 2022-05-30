@@ -349,8 +349,8 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 	if syncRunCRExists && dbEntryExists {
 
 		// Sanity checks
-		if syncRunCR == nil {
-			err := fmt.Errorf("SEVERE - vsync run cr is nil")
+		if syncRunCR == (&managedgitopsv1alpha1.GitOpsDeploymentSyncRun{}) {
+			err := fmt.Errorf("SEVERE - vsync run cr is empty")
 			log.Error(err, err.Error())
 			return false, err
 		}

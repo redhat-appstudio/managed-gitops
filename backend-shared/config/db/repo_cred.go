@@ -10,15 +10,18 @@ var (
 	errCreateRepositoryCredentials = errors.New("cannot insert repository credentials")
 	errDeleteRepositoryCredentials = errors.New("cannot delete repository credentials")
 	errGetRepositoryCredentials    = errors.New("cannot find repository credentials")
+	errUpdateRepositoryCredentials = errors.New("cannot update repository credentials")
 	errRowsAffected                = errors.New("unexpected number of affected rows")
 )
 
 func (dbq *PostgreSQLDatabaseQueries) CreateRepositoryCredentials(ctx context.Context, obj *RepositoryCredentials) error {
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
+		return err
+	}
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
 		return fmt.Errorf("%v: %w", errCreateRepositoryCredentials, err)
 	}
-
 	if result.RowsAffected() != 1 {
 		return fmt.Errorf("%w: %d", errRowsAffected, result.RowsAffected())
 	}
@@ -63,4 +66,21 @@ func (dbq *PostgreSQLDatabaseQueries) GetRepositoryCredentialsByID(ctx context.C
 	}
 
 	return repoCred, nil
+}
+
+func (dbq *PostgreSQLDatabaseQueries) UpdateRepositoryCredentials(ctx context.Context, obj *RepositoryCredentials) error {
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
+		return err
+	}
+
+	result, err := dbq.dbConnection.Model(obj).WherePK().Context(ctx).Update()
+	if err != nil {
+		return fmt.Errorf("%v: %w", errUpdateRepositoryCredentials, err)
+	}
+
+	if result.RowsAffected() != 1 {
+		return fmt.Errorf("%w: %d", errRowsAffected, result.RowsAffected())
+	}
+
+	return nil
 }

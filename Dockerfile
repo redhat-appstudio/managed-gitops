@@ -6,7 +6,7 @@ ARG BASE_IMAGE=registry.access.redhat.com/ubi8/ubi-minimal:8.5-218
 #
 # Note: Make sure you use '.dockerignore' to avoid local copy of binaries (e.g. controller-gen)
 ################################################################################################
-FROM golang:1.17 as builder
+FROM golang:1.18 as builder
 
 WORKDIR /workspace
 

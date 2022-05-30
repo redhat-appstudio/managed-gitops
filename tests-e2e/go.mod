@@ -1,6 +1,6 @@
 module github.com/redhat-appstudio/managed-gitops/tests-e2e
 
-go 1.17
+go 1.18
 
 require (
 	github.com/redhat-appstudio/application-service v0.0.0-20220316030335-c7f42f12f29f

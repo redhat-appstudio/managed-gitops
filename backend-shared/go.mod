@@ -1,6 +1,6 @@
 module github.com/redhat-appstudio/managed-gitops/backend-shared
 
-go 1.17
+go 1.18
 
 require (
 	github.com/go-logr/logr v0.4.0

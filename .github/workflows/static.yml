@@ -34,7 +34,7 @@ jobs:
           go-version-file: './backend/go.mod'
       - name: "Install gosec"
         run: |
-          go get -u github.com/securego/gosec/v2/cmd/gosec
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
       - name: "Ensure 'backend' passes 'go-sec' - run 'make gosec' to identify issues"
         run: |
           cd $GITHUB_WORKSPACE/backend

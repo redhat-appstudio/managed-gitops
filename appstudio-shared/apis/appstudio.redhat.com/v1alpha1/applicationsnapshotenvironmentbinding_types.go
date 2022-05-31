@@ -49,7 +49,7 @@ type BindingComponent struct {
 	Configuration BindingComponentConfiguration `json:"configuration,omitempty"`
 
 	// GitOpsRepository contains the Git URL, path, and branch, for the component
-	GitOpsRepository BindingComponentGitOpsRepostory `json:"gitopsRepository"`
+	GitOpsRepository BindingComponentGitOpsRepository `json:"gitopsRepository"`
 }
 
 // BindingComponentConfiguration describes GitOps repository customizations that are specific to the
@@ -82,9 +82,9 @@ type EnvVarPair struct {
 	Value string `json:"value"`
 }
 
-// BindingComponentGitOpsRepostory is a reference to a GitOps repository, including path/branch
+// BindingComponentGitOpsRepository is a reference to a GitOps repository, including path/branch
 // where the application/component/environment resources can be found (usually via a kustomize overlay).
-type BindingComponentGitOpsRepostory struct {
+type BindingComponentGitOpsRepository struct {
 
 	// URL is the Git repository URL
 	// e.g. The Git repository that contains the K8s resources to deployment for the component of the application.

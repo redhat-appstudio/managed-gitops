@@ -124,6 +124,7 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 				SeqID:           12,
 			}
 
+			// Update the RepositoryCredentials in the database.
 			err = dbq.UpdateRepositoryCredentials(ctx, &updatedCR)
 			Expect(err).To(BeNil())
 

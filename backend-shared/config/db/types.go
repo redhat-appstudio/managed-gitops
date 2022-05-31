@@ -2,6 +2,9 @@ package db
 
 import (
 	"context"
+	"fmt"
+	"reflect"
+	"strings"
 	"time"
 )
 
@@ -411,10 +414,10 @@ type RepositoryCredentials struct {
 
 	// UserID represents a customer of the GitOps service that wants to use a private repository.
 	// -- Foreign key to: ClusterUser.Clusteruser_id
-	UserID string `pg:"repo_cred_user_id"`
+	UserID string `pg:"repo_cred_user_id,notnull"`
 
 	// PrivateURL is the address of the private Git repository.
-	PrivateURL string `pg:"repo_cred_url"`
+	PrivateURL string `pg:"repo_cred_url,notnull"`
 
 	// AuthUsername is the authorized username login for accessing the private Git repo.
 	AuthUsername string `pg:"repo_cred_user"`
@@ -429,13 +432,33 @@ type RepositoryCredentials struct {
 	// SecretObj is the name of the (insecure and unencrypted) Kubernetes secret object that provides
 	// the credentials (AuthUsername & AuthPassword, OR the AuthSSHKey) to the GitOps Engine (e.g. ArgoCD)
 	// to gain access into the PrivateURL repo.
-	SecretObj string `pg:"repo_cred_secret"`
+	SecretObj string `pg:"repo_cred_secret,notnull"`
 
 	// EngineClusterID is the internal RedHat Managed cluster where the GitOps Engine (e.g. ArgoCD) is running.
 	// -- NOTE: It is expected the SecretObj to be stored there as well.
 	// -- Foreign key to: GitopsEngineInstance.Gitopsengineinstance_id
-	EngineClusterID string `pg:"repo_cred_engine_id"`
+	EngineClusterID string `pg:"repo_cred_engine_id,notnull"`
 
 	// SeqID is used only for debugging purposes. It helps us to keep track of the order that rows are created.
 	SeqID int64 `pg:"seq_id"`
+}
+
+// hasEmptyValues returns error if any of the notnull tagged fields are empty.
+func (rc *RepositoryCredentials) hasEmptyValues() error {
+	s := reflect.ValueOf(rc).Elem()
+	typeOfObj := s.Type()
+
+	for i := 0; i < s.NumField(); i++ {
+		f := s.Field(i)
+		tag := typeOfObj.Field(i).Tag.Get("pg")
+
+		// Check fields tagged with `notnull` and throw error if they are null (empty)
+		if strings.Contains(tag, "notnull") {
+			if f.Interface() == reflect.Zero(f.Type()).Interface() {
+				fieldName := typeOfObj.Field(i).Name
+				return fmt.Errorf("%s.%s is empty", typeOfObj.Name(), fieldName)
+			}
+		}
+	}
+	return nil
 }

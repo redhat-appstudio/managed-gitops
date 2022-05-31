@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	errCreateRepositoryCredentials = errors.New("cannot insert repository credentials")
+	errCreateRepositoryCredentials = errors.New("cannot create repository credentials")
 	errDeleteRepositoryCredentials = errors.New("cannot delete repository credentials")
 	errGetRepositoryCredentials    = errors.New("cannot find repository credentials")
 	errUpdateRepositoryCredentials = errors.New("cannot update repository credentials")
@@ -18,6 +18,9 @@ func (dbq *PostgreSQLDatabaseQueries) CreateRepositoryCredentials(ctx context.Co
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return err
 	}
+	if err := obj.hasEmptyValues(); err != nil {
+		return err
+	}
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
 		return fmt.Errorf("%v: %w", errCreateRepositoryCredentials, err)
@@ -25,30 +28,24 @@ func (dbq *PostgreSQLDatabaseQueries) CreateRepositoryCredentials(ctx context.Co
 	if result.RowsAffected() != 1 {
 		return fmt.Errorf("%w: %d", errRowsAffected, result.RowsAffected())
 	}
-
-	return err
+	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) DeleteRepositoryCredentialsByID(ctx context.Context, id string) error {
+func (dbq *PostgreSQLDatabaseQueries) DeleteRepositoryCredentialsByID(ctx context.Context, id string) (int, error) {
 	if err := validateQueryParams(id, dbq); err != nil {
-		return err
+		return 0, err
 	}
 
 	repoCred := &RepositoryCredentials{
 		PrimaryKeyID: id,
 	}
 
-	// Delete the database row, if PK is valid.
 	result, err := dbq.dbConnection.Model(repoCred).WherePK().Context(ctx).Delete()
 	if err != nil {
-		return fmt.Errorf("%v: %w", errDeleteRepositoryCredentials, err)
+		return 0, fmt.Errorf("%v: %w", errDeleteRepositoryCredentials, err)
 	}
 
-	if result.RowsAffected() != 1 {
-		return fmt.Errorf("%w: %d", errRowsAffected, result.RowsAffected())
-	}
-
-	return nil
+	return result.RowsAffected(), nil
 }
 
 func (dbq *PostgreSQLDatabaseQueries) GetRepositoryCredentialsByID(ctx context.Context, id string) (obj RepositoryCredentials, err error) {
@@ -71,6 +68,12 @@ func (dbq *PostgreSQLDatabaseQueries) GetRepositoryCredentialsByID(ctx context.C
 func (dbq *PostgreSQLDatabaseQueries) UpdateRepositoryCredentials(ctx context.Context, obj *RepositoryCredentials) error {
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return err
+	}
+	if err := obj.hasEmptyValues(); err != nil {
+		return err
+	}
+	if IsEmpty(obj.PrimaryKeyID) {
+		return fmt.Errorf("PrimaryKeyID is empty")
 	}
 
 	result, err := dbq.dbConnection.Model(obj).WherePK().Context(ctx).Update()

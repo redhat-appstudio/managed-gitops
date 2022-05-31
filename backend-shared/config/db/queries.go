@@ -107,7 +107,7 @@ type DatabaseQueries interface {
 	DeleteClusterCredentialsById(ctx context.Context, id string) (int, error)
 	DeleteClusterUserById(ctx context.Context, id string) (int, error)
 	DeleteGitopsEngineClusterById(ctx context.Context, id string) (int, error)
-	DeleteRepositoryCredentialsByID(ctx context.Context, id string) error
+	DeleteRepositoryCredentialsByID(ctx context.Context, id string) (int, error)
 
 	GetClusterCredentialsById(ctx context.Context, clusterCreds *ClusterCredentials) error
 

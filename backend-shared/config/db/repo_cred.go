@@ -87,3 +87,18 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateRepositoryCredentials(ctx context.Co
 
 	return nil
 }
+
+func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllRepositoryCredentials(ctx context.Context, repositoryCredentials *[]RepositoryCredentials) error {
+
+	if err := validateUnsafeQueryParamsNoPK(dbq); err != nil {
+		return err
+	}
+
+	err := dbq.dbConnection.Model(repositoryCredentials).Context(ctx).Select()
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

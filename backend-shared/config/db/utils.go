@@ -319,7 +319,7 @@ func SetupForTestingDBGinkgo() error {
 			Expect(err).To(BeNil())
 
 			if err == nil {
-				Expect(rowsAffected).Should((Equal(1)))
+				Expect(rowsAffected).Should(Equal(1))
 			}
 		}
 	}
@@ -333,7 +333,7 @@ func SetupForTestingDBGinkgo() error {
 			rowsAffected, err := dbq.DeleteApplicationStateById(ctx, applicationState.Applicationstate_application_id)
 			Expect(err).To(BeNil())
 			if err == nil {
-				Expect(rowsAffected).Should((Equal(1)))
+				Expect(rowsAffected).Should(Equal(1))
 			}
 		}
 	}
@@ -346,11 +346,15 @@ func SetupForTestingDBGinkgo() error {
 
 		if strings.HasPrefix(operation.Operation_id, "test-") {
 			rowsAffected, err := dbq.CheckedDeleteOperationById(ctx, operation.Operation_id, operation.Operation_owner_user_id)
-			Expect(rowsAffected).Should((Equal(1)))
+			Expect(rowsAffected).Should(Equal(1))
 			Expect(err).To(BeNil())
 
 		}
 	}
+
+	// Delete all RepositoryCredential database rows that start with 'test-' in the primary key of the row.
+	err = removeAnyRepositoryCredentialsTestEntries(ctx, dbq, err)
+	Expect(err).To(BeNil())
 
 	var deploymentToApplicationMappings []DeploymentToApplicationMapping
 
@@ -363,7 +367,7 @@ func SetupForTestingDBGinkgo() error {
 			Expect(err).To(BeNil())
 
 			if err == nil {
-				Expect(rowsAffected).Should((Equal(1)))
+				Expect(rowsAffected).Should(Equal(1))
 			}
 		}
 	}
@@ -377,7 +381,7 @@ func SetupForTestingDBGinkgo() error {
 			rowsAffected, err := dbq.DeleteApplicationById(ctx, application.Application_id)
 			Expect(err).To(BeNil())
 			if err == nil {
-				Expect(rowsAffected).Should((Equal(1)))
+				Expect(rowsAffected).Should(Equal(1))
 			}
 		}
 	}
@@ -394,7 +398,7 @@ func SetupForTestingDBGinkgo() error {
 			Expect(err).To(BeNil())
 
 			if err == nil {
-				Expect(rowsAffected).Should((Equal(1)))
+				Expect(rowsAffected).Should(Equal(1))
 			}
 		}
 	}
@@ -411,7 +415,7 @@ func SetupForTestingDBGinkgo() error {
 			Expect(err).To(BeNil())
 
 			if err == nil {
-				Expect(rowsAffected).Should((Equal(1)))
+				Expect(rowsAffected).Should(Equal(1))
 			}
 		}
 	}
@@ -426,7 +430,7 @@ func SetupForTestingDBGinkgo() error {
 			Expect(err).To(BeNil())
 
 			if err == nil {
-				Expect(rowsAffected).Should((Equal(1)))
+				Expect(rowsAffected).Should(Equal(1))
 			}
 		}
 	}
@@ -438,7 +442,7 @@ func SetupForTestingDBGinkgo() error {
 	for _, managedEnvironment := range managedEnvironments {
 		if strings.HasPrefix(managedEnvironment.Managedenvironment_id, "test-") {
 			rowsAffected, err := dbq.DeleteManagedEnvironmentById(ctx, managedEnvironment.Managedenvironment_id)
-			Expect(rowsAffected).Should((Equal(1)))
+			Expect(rowsAffected).Should(Equal(1))
 			Expect(err).To(BeNil())
 
 		}
@@ -454,7 +458,7 @@ func SetupForTestingDBGinkgo() error {
 			Expect(err).To(BeNil())
 
 			if err == nil {
-				Expect(rowsAffected).Should((Equal(1)))
+				Expect(rowsAffected).Should(Equal(1))
 			}
 		}
 	}
@@ -465,8 +469,8 @@ func SetupForTestingDBGinkgo() error {
 	if Expect(err).To(BeNil()) {
 		for _, user := range clusterUsers {
 			if strings.HasPrefix(user.Clusteruser_id, "test-") {
-				rowsAffected, err := dbq.DeleteClusterUserById(ctx, (user.Clusteruser_id))
-				Expect(rowsAffected).Should((Equal(1)))
+				rowsAffected, err := dbq.DeleteClusterUserById(ctx, user.Clusteruser_id)
+				Expect(rowsAffected).Should(Equal(1))
 				Expect(err).To(BeNil())
 			}
 		}
@@ -487,7 +491,7 @@ func SetupForTestingDBGinkgo() error {
 
 			Expect(err).To(BeNil())
 			if err == nil {
-				Expect(rowsAffected).Should((Equal(1)))
+				Expect(rowsAffected).Should(Equal(1))
 			}
 		}
 	}
@@ -501,7 +505,7 @@ func SetupForTestingDBGinkgo() error {
 			rowsAffected, err := dbq.DeleteAPICRToDatabaseMapping(ctx, &item)
 			Expect(err).To(BeNil())
 			if err == nil {
-				Expect(rowsAffected).Should((Equal(1)))
+				Expect(rowsAffected).Should(Equal(1))
 			}
 		}
 	}
@@ -514,4 +518,22 @@ func skipOpenshiftCI(t *testing.T) {
 	if os.Getenv("OPENSHIFT_CI") != "" {
 		t.Skip("Skipping testing in OpenShift CI environment")
 	}
+}
+
+func removeAnyRepositoryCredentialsTestEntries(ctx context.Context, dbq AllDatabaseQueries, err error) error {
+	var repositoryCredentials []RepositoryCredentials
+	var rowsAffected int
+
+	err = dbq.UnsafeListAllRepositoryCredentials(ctx, &repositoryCredentials)
+	Expect(err).To(BeNil())
+
+	for _, repoCred := range repositoryCredentials {
+		if strings.HasPrefix(repoCred.PrimaryKeyID, "test-") {
+			rowsAffected, err = dbq.DeleteRepositoryCredentialsByID(ctx, repoCred.PrimaryKeyID)
+			Expect(rowsAffected).Should(Equal(1))
+			Expect(err).To(BeNil())
+		}
+	}
+
+	return err
 }

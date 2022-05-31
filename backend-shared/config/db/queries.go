@@ -54,6 +54,7 @@ type UnsafeDatabaseQueries interface {
 	UnsafeListAllSyncOperations(ctx context.Context, syncOperations *[]SyncOperation) error
 	UnsafeListAllKubernetesResourceToDBResourceMapping(ctx context.Context, kubernetesToDBResourceMapping *[]KubernetesToDBResourceMapping) error
 	UnsafeListAllAPICRToDatabaseMappings(ctx context.Context, applicationStates *[]APICRToDatabaseMapping) error
+	UnsafeListAllRepositoryCredentials(ctx context.Context, repositoryCredentials *[]RepositoryCredentials) error
 }
 
 type AllDatabaseQueries interface {
@@ -66,7 +67,6 @@ type DatabaseQueries interface {
 
 	CreateClusterAccess(ctx context.Context, obj *ClusterAccess) error
 	CreateRepositoryCredentials(ctx context.Context, obj *RepositoryCredentials) error
-	GetRepositoryCredentialsByID(ctx context.Context, id string) (obj RepositoryCredentials, err error)
 	UpdateRepositoryCredentials(ctx context.Context, obj *RepositoryCredentials) error
 	CreateClusterCredentials(ctx context.Context, obj *ClusterCredentials) error
 	CreateClusterUser(ctx context.Context, obj *ClusterUser) error
@@ -103,6 +103,7 @@ type DatabaseQueries interface {
 	GetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance) error
 	GetGitopsEngineClusterById(ctx context.Context, gitopsEngineCluster *GitopsEngineCluster) error
 	GetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment) error
+	GetRepositoryCredentialsByID(ctx context.Context, id string) (obj RepositoryCredentials, err error)
 
 	DeleteKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) (int, error)
 	DeleteClusterCredentialsById(ctx context.Context, id string) (int, error)

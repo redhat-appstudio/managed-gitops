@@ -131,8 +131,13 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			Expect(gitopsRepositoryCredentials).ShouldNot(Equal(updatedCR))
 
 			// Delete the RepositoryCredentials from the database.
-			err = dbq.DeleteRepositoryCredentialsByID(ctx, gitopsRepositoryCredentials.PrimaryKeyID)
+			rowsAffected, err := dbq.DeleteRepositoryCredentialsByID(ctx, gitopsRepositoryCredentials.PrimaryKeyID)
 			Expect(err).To(BeNil())
+			Expect(rowsAffected).Should(Equal(1))
+
+			fetch, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentials.PrimaryKeyID)
+			Expect(err).ShouldNot(BeNil())
+			Expect(fetch).ShouldNot(Equal(gitopsRepositoryCredentials))
 
 		})
 	})

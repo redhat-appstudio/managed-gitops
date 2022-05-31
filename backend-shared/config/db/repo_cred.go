@@ -72,9 +72,6 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateRepositoryCredentials(ctx context.Co
 	if err := obj.hasEmptyValues(); err != nil {
 		return err
 	}
-	if IsEmpty(obj.PrimaryKeyID) {
-		return fmt.Errorf("PrimaryKeyID is empty")
-	}
 
 	result, err := dbq.dbConnection.Model(obj).WherePK().Context(ctx).Update()
 	if err != nil {

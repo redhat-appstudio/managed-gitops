@@ -410,7 +410,7 @@ type RepositoryCredentials struct {
 	tableName struct{} `pg:"repositorycredentials,alias:rc"` //nolint
 
 	// PrimaryKeyID is the PK (Primary Key) from the database, that is an auto-generated random UID.
-	PrimaryKeyID string `pg:"repositorycredentials_id,pk"`
+	PrimaryKeyID string `pg:"repositorycredentials_id,pk,notnull"`
 
 	// UserID represents a customer of the GitOps service that wants to use a private repository.
 	// -- Foreign key to: ClusterUser.Clusteruser_id
@@ -456,7 +456,7 @@ func (rc *RepositoryCredentials) hasEmptyValues() error {
 		if strings.Contains(tag, "notnull") {
 			if f.Interface() == reflect.Zero(f.Type()).Interface() {
 				fieldName := typeOfObj.Field(i).Name
-				return fmt.Errorf("%s.%s is empty", typeOfObj.Name(), fieldName)
+				return fmt.Errorf("%s.%s is empty, but it shouldn't (notnull tag found: `%s`)", typeOfObj.Name(), fieldName, tag)
 			}
 		}
 	}

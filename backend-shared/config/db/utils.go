@@ -183,7 +183,8 @@ func ConvertSnakeCaseToCamelCase(fieldName string) string {
 		if splitFieldName[i] == "id" || splitFieldName[i] == "uid" || splitFieldName[i] == "url" {
 			fieldNameInCamelCase += strings.ToUpper(splitFieldName[i])
 		} else {
-			fieldNameInCamelCase += strings.Title(splitFieldName[i])
+			// TODO: strings.Title() has been deprecated in Go 1.18. Use golang.org/x/text/cases instead.
+			fieldNameInCamelCase += strings.Title(splitFieldName[i]) // nolint:staticcheck
 		}
 	}
 

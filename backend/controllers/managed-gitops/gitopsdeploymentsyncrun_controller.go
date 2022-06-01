@@ -27,18 +27,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend/eventloop"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop"
 )
 
 // GitOpsDeploymentSyncRunReconciler reconciles a GitOpsDeploymentSyncRun object
 type GitOpsDeploymentSyncRunReconciler struct {
 	client.Client
 	Scheme              *runtime.Scheme
-	PreprocessEventLoop *eventloop.PreprocessEventLoop
+	PreprocessEventLoop *preprocess_event_loop.PreprocessEventLoop
 }
-
-// TODO: GITOPSRVCE-57 - How to find orphaned resources: is there any better way than 'select * from APICRToDatabaseMapping'
 
 //+kubebuilder:rbac:groups=managed-gitops.redhat.com,resources=gitopsdeploymentsyncruns,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=managed-gitops.redhat.com,resources=gitopsdeploymentsyncruns/status,verbs=get;update;patch

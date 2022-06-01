@@ -25,17 +25,17 @@ import (
 // Cardinality: A single instance of the controller event loop (e.g. a single goroutine) exists for the whole of
 // the GitOps Service backend.
 
-type controllerEventLoop struct {
-	eventLoopInputChannel chan eventlooptypes.EventLoopEvent
+type ControllerEventLoop struct {
+	EventLoopInputChannel chan eventlooptypes.EventLoopEvent
 }
 
-func newControllerEventLoop() *controllerEventLoop {
+func NewControllerEventLoop() *ControllerEventLoop {
 
 	channel := make(chan eventlooptypes.EventLoopEvent)
 	go controllerEventLoopRouter(channel, defaultWorkspaceEventLoopRouterFactory{})
 
-	res := &controllerEventLoop{
-		eventLoopInputChannel: channel,
+	res := &ControllerEventLoop{
+		EventLoopInputChannel: channel,
 	}
 
 	return res
@@ -45,13 +45,13 @@ func newControllerEventLoop() *controllerEventLoop {
 // events sent by the controller event loop.
 //
 // Note: All non-unit-test-based code should use 'newControllerEventLoop', defined above.
-func newControllerEventLoopWithFactory(factory workspaceEventLoopRouterFactory) *controllerEventLoop {
+func newControllerEventLoopWithFactory(factory workspaceEventLoopRouterFactory) *ControllerEventLoop {
 
 	channel := make(chan eventlooptypes.EventLoopEvent)
 	go controllerEventLoopRouter(channel, factory)
 
-	res := &controllerEventLoop{
-		eventLoopInputChannel: channel,
+	res := &ControllerEventLoop{
+		EventLoopInputChannel: channel,
 	}
 
 	return res

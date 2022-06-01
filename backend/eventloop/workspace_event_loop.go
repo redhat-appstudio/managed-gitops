@@ -43,6 +43,7 @@ func startWorkspaceEventLoopRouter(workspaceID string) chan eventlooptypes.Event
 	return res
 }
 
+// internalStartWorkspaceEventLoopRouter has the primary goal of catching panics from the workspaceEventLoopRouter, and recovering from them.
 func internalStartWorkspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, workspaceID string,
 	applEventLoopFactory applicationEventQueueLoopFactory) {
 
@@ -100,6 +101,8 @@ const (
 func workspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, workspaceID string,
 	applEventLoopFactory applicationEventQueueLoopFactory) {
 
+	workspaceResourceLoop := newWorkspaceResourceLoop()
+
 	ctx := context.Background()
 
 	log := log.FromContext(ctx).WithValues("workspaceID", workspaceID)
@@ -143,6 +146,13 @@ func workspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, worksp
 		// depending on it, then unorphan the child resource.
 		if event.Event.ReqResource == v1alpha1.GitOpsDeploymentTypeName {
 			unorphanResourcesIfPossible(ctx, event, orphanedResources, input, log)
+		}
+
+		// Handle Repository Credentials
+		if event.Event.ReqResource == v1alpha1.GitOpsDeploymentRepositoryCredentialTypeName {
+
+			workspaceResourceLoop.processRepositoryCredential(ctx, event.Event.Request, event.Event.Client)
+			continue
 		}
 
 		applicationEntryVal, ok := applicationMap[event.Event.AssociatedGitopsDeplUID]

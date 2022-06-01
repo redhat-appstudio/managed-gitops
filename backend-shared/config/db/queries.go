@@ -52,6 +52,7 @@ type UnsafeDatabaseQueries interface {
 	UnsafeListAllDeploymentToApplicationMapping(ctx context.Context, deploymentToApplicationMappings *[]DeploymentToApplicationMapping) error
 	UnsafeListAllSyncOperations(ctx context.Context, syncOperations *[]SyncOperation) error
 	UnsafeListAllKubernetesResourceToDBResourceMapping(ctx context.Context, kubernetesToDBResourceMapping *[]KubernetesToDBResourceMapping) error
+	UnsafeListAllAPICRToDatabaseMappings(ctx context.Context, applicationStates *[]APICRToDatabaseMapping) error
 }
 
 type AllDatabaseQueries interface {

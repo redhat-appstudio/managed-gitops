@@ -1,9 +1,10 @@
 package db
 
 import (
-	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_isEnvExist(t *testing.T) {
@@ -22,7 +23,7 @@ func Test_isEnvExist(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, isEnvExist(tt.args.envVar), "isEnvExist(%v)", tt.args.envVar)
+			assert.Equalf(t, tt.want, IsEnvExist(tt.args.envVar), "IsEnvExist(%v)", tt.args.envVar)
 		})
 	}
 }

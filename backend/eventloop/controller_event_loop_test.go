@@ -21,7 +21,7 @@ var _ = Describe("Controller Event Loop Test", func() {
 
 			loop := newControllerEventLoopWithFactory(mockOutputChannelFactory)
 
-			loop.eventLoopInputChannel <- eventlooptypes.EventLoopEvent{
+			loop.EventLoopInputChannel <- eventlooptypes.EventLoopEvent{
 				EventType: eventlooptypes.DeploymentModified,
 				Request: reconcile.Request{
 					NamespacedName: types.NamespacedName{

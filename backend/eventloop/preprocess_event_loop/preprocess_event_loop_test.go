@@ -1,4 +1,4 @@
-package eventloop
+package preprocess_event_loop
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -72,8 +73,8 @@ var _ = Describe("Preprocess Event Loop Test", func() {
 			Expect(err).To(BeNil())
 
 			fakeControllerEventLoopChannel := make(chan eventlooptypes.EventLoopEvent)
-			fakeControllerEventLoop := controllerEventLoop{
-				eventLoopInputChannel: fakeControllerEventLoopChannel,
+			fakeControllerEventLoop := eventloop.ControllerEventLoop{
+				EventLoopInputChannel: fakeControllerEventLoopChannel,
 			}
 
 			channel := make(chan eventlooptypes.EventLoopEvent)
@@ -86,7 +87,7 @@ var _ = Describe("Preprocess Event Loop Test", func() {
 			channel <- event
 
 			fmt.Println("Waiting for response")
-			response := <-fakeControllerEventLoop.eventLoopInputChannel
+			response := <-fakeControllerEventLoop.EventLoopInputChannel
 			Expect(response.Request).Should(Equal(event.Request))
 			Expect(response.EventType).Should(Equal(event.EventType))
 			Expect(response.WorkspaceID).Should(Equal(event.WorkspaceID))
@@ -100,7 +101,7 @@ var _ = Describe("Preprocess Event Loop Test", func() {
 			fmt.Println("Sending event", event)
 			channel <- event
 			fmt.Println("Received response")
-			response = <-fakeControllerEventLoop.eventLoopInputChannel
+			response = <-fakeControllerEventLoop.EventLoopInputChannel
 			Expect(response.Request).Should(Equal(event.Request))
 			Expect(response.EventType).Should(Equal(event.EventType))
 			Expect(response.WorkspaceID).Should(Equal(event.WorkspaceID))
@@ -400,7 +401,7 @@ var _ = Describe("Preprocess Event Loop Test", func() {
 			fixture.preprocessInputChannel <- event
 
 			expectExactlyANumberOfEvents(1, &fixture.responsesReceived)
-			Expect(fixture.responsesReceived[0].AssociatedGitopsDeplUID).To(Equal(string(orphanedResourceGitopsDeplUID)),
+			Expect(fixture.responsesReceived[0].AssociatedGitopsDeplUID).To(Equal(string(eventloop.OrphanedResourceGitopsDeplUID)),
 				"since the gitopsdeployment doesn't exist, the associated gitops depl uid should be 'orphaned'")
 		})
 
@@ -491,7 +492,7 @@ var _ = Describe("Preprocess Event Loop Test", func() {
 
 			expectExactlyANumberOfEvents(2, &fixture.responsesReceived)
 			Expect(fixture.responsesReceived[0].AssociatedGitopsDeplUID).To(Equal(string(gitopsDepl.GetUID())))
-			Expect(fixture.responsesReceived[1].AssociatedGitopsDeplUID).To(Equal(orphanedResourceGitopsDeplUID))
+			Expect(fixture.responsesReceived[1].AssociatedGitopsDeplUID).To(Equal(eventloop.OrphanedResourceGitopsDeplUID))
 
 		})
 
@@ -552,8 +553,8 @@ func startPreprocessEventLoopRouter() *preprocessEventLoopRouterTestFixture {
 	channel := make(chan eventlooptypes.EventLoopEvent)
 
 	fakeControllerEventLoopChannel := make(chan eventlooptypes.EventLoopEvent)
-	fakeControllerEventLoop := controllerEventLoop{
-		eventLoopInputChannel: fakeControllerEventLoopChannel,
+	fakeControllerEventLoop := eventloop.ControllerEventLoop{
+		EventLoopInputChannel: fakeControllerEventLoopChannel,
 	}
 
 	go preprocessEventLoopRouter(channel, &fakeControllerEventLoop)
@@ -566,7 +567,7 @@ func startPreprocessEventLoopRouter() *preprocessEventLoopRouterTestFixture {
 
 	go func() {
 		for {
-			response := <-fakeControllerEventLoop.eventLoopInputChannel
+			response := <-fakeControllerEventLoop.EventLoopInputChannel
 			GinkgoWriter.Println(response, "->", response.AssociatedGitopsDeplUID)
 			res.responsesReceived = append(res.responsesReceived, response)
 		}

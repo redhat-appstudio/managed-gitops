@@ -89,11 +89,11 @@ const (
 	// we do not know which GitOpsDeployment it should belong to. This is usually because the deployment name
 	// field of the SyncRun refers to a K8s resource that doesn't (or no longer) exists.
 	// See https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.8tiycl1h7rns for details.
-	orphanedResourceGitopsDeplUID = "orphaned"
+	OrphanedResourceGitopsDeplUID = "orphaned"
 
 	// noAssociatedGitOpsDeploymentUID: if a resource does not have an orphanedResourceDeplUID, this constant should be set.
 	// For example: GitOpsDeploymentRepositoryCredentials might be associated with multiple (or zero) GitOpsDeployments.
-	noAssociatedGitOpsDeploymentUID = "none"
+	NoAssociatedGitOpsDeploymentUID = "none"
 )
 
 // workspaceEventLoopRouter receives all events for the workspace, and passes them to specific goroutine responsible
@@ -137,7 +137,7 @@ func workspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, worksp
 		log.V(sharedutil.LogLevel_Debug).Info("workspaceEventLoop received event", "event", eventlooptypes.StringEventLoopEvent(event.Event))
 
 		// If the event is orphaned (it refers to a gitopsdepl that doesn't exist, add it to our orphaned resources list)
-		if event.Event.AssociatedGitopsDeplUID == orphanedResourceGitopsDeplUID {
+		if event.Event.AssociatedGitopsDeplUID == OrphanedResourceGitopsDeplUID {
 			handleOrphaned(ctx, event, orphanedResources, log)
 			continue
 		}

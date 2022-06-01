@@ -1,4 +1,4 @@
-package eventloop
+package preprocess_event_loop
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -41,7 +42,7 @@ func (evl *PreprocessEventLoop) EventReceived(req ctrl.Request, reqResource mana
 
 type PreprocessEventLoop struct {
 	eventLoopInputChannel chan eventlooptypes.EventLoopEvent
-	nextStep              *controllerEventLoop
+	nextStep              *eventloop.ControllerEventLoop
 }
 
 func NewPreprocessEventLoop() *PreprocessEventLoop {
@@ -49,7 +50,7 @@ func NewPreprocessEventLoop() *PreprocessEventLoop {
 
 	res := &PreprocessEventLoop{}
 	res.eventLoopInputChannel = channel
-	res.nextStep = newControllerEventLoop()
+	res.nextStep = eventloop.NewControllerEventLoop()
 
 	go preprocessEventLoopRouter(channel, res.nextStep)
 
@@ -57,7 +58,7 @@ func NewPreprocessEventLoop() *PreprocessEventLoop {
 
 }
 
-func preprocessEventLoopRouter(input chan eventlooptypes.EventLoopEvent, nextStep *controllerEventLoop) {
+func preprocessEventLoopRouter(input chan eventlooptypes.EventLoopEvent, nextStep *eventloop.ControllerEventLoop) {
 
 	ctx := context.Background()
 	log := log.FromContext(ctx)
@@ -102,7 +103,7 @@ type processEventTask struct {
 	newEvent eventlooptypes.EventLoopEvent
 
 	// nextStep is a reference to the controller event loop, which is where the preprocess event loop will output events, after processing them
-	nextStep *controllerEventLoop
+	nextStep *eventloop.ControllerEventLoop
 
 	dbQueries db.DatabaseQueries
 	log       logr.Logger
@@ -123,7 +124,7 @@ func (task *processEventTask) PerformTask(taskContext context.Context) (bool, er
 
 // processEvent returns true if the task should be retried (for example, because it failed), false otherwise.
 func (task *processEventTask) processEvent(ctx context.Context, newEvent eventlooptypes.EventLoopEvent,
-	nextStep *controllerEventLoop, dbQueries db.DatabaseQueries, log logr.Logger) bool {
+	nextStep *eventloop.ControllerEventLoop, dbQueries db.DatabaseQueries, log logr.Logger) bool {
 
 	log = log.WithValues("namespaceID", newEvent.WorkspaceID, "name", newEvent.Request.Name, "namespace", newEvent.Request.Namespace)
 
@@ -173,7 +174,7 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventlo
 // handleEventFromDatabase processes 'newEvent' using the database.
 // It returns true if the task should be retried, false otherwise.
 func (task *processEventTask) handleEventFromDatabase(ctx context.Context, newEvent eventlooptypes.EventLoopEvent, resource client.Object,
-	nextStep *controllerEventLoop, dbQueries db.DatabaseQueries, log logr.Logger) bool {
+	nextStep *eventloop.ControllerEventLoop, dbQueries db.DatabaseQueries, log logr.Logger) bool {
 
 	if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName {
 
@@ -219,7 +220,7 @@ func (task *processEventTask) handleEventFromDatabase(ctx context.Context, newEv
 			newEvent.AssociatedGitopsDeplUID = currentUID.deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id
 		} else {
 			// Otherwise, it's orphaned
-			newEvent.AssociatedGitopsDeplUID = orphanedResourceGitopsDeplUID
+			newEvent.AssociatedGitopsDeplUID = eventloop.OrphanedResourceGitopsDeplUID
 		}
 
 		emitEvent(newEvent, nextStep, "new sync run from db", log)
@@ -263,7 +264,7 @@ func (task *processEventTask) handleEventFromDatabase(ctx context.Context, newEv
 // it did not handle the event.
 // returns bools: (shouldRetry: whether or not the task should be called again, because it failed), (whether this function processed the event)
 func (task *processEventTask) handleEventIfCached(ctx context.Context, newEvent eventlooptypes.EventLoopEvent, resource client.Object,
-	nextStep *controllerEventLoop, dbQueries db.DatabaseQueries, log logr.Logger) (bool, bool) {
+	nextStep *eventloop.ControllerEventLoop, dbQueries db.DatabaseQueries, log logr.Logger) (bool, bool) {
 
 	// Check the cache to find what the previously associated GitOpsDeployment for this resource was.
 	previousResourceUIDFromCache, previousGitopsDeplUIDFromCache, err := retrieveCacheValuesForResource(ctx, newEvent, task.recentUIDCache, task.gitopsDeplSyncRunCache, dbQueries, log)
@@ -323,7 +324,7 @@ func (task *processEventTask) handleEventIfCached(ctx context.Context, newEvent 
 				emitEvent(newEvent, nextStep, "new event", log)
 
 			} else {
-				newEvent.AssociatedGitopsDeplUID = orphanedResourceGitopsDeplUID
+				newEvent.AssociatedGitopsDeplUID = eventloop.OrphanedResourceGitopsDeplUID
 				emitEvent(newEvent, nextStep, "new orphaned event", log)
 			}
 			return false, true
@@ -341,7 +342,7 @@ func (task *processEventTask) handleEventIfCached(ctx context.Context, newEvent 
 }
 
 // emitEvent passes the given event to the controller event loop
-func emitEvent(event eventlooptypes.EventLoopEvent, nextStep *controllerEventLoop, debugStr string, log logr.Logger) {
+func emitEvent(event eventlooptypes.EventLoopEvent, nextStep *eventloop.ControllerEventLoop, debugStr string, log logr.Logger) {
 
 	if nextStep == nil {
 		log.Error(nil, "SEVERE: controllerEventLoop pointer should never be nil")
@@ -351,13 +352,13 @@ func emitEvent(event eventlooptypes.EventLoopEvent, nextStep *controllerEventLoo
 	log.V(sharedutil.LogLevel_Debug).Info("Emitting event to workspace event loop",
 		"event", eventlooptypes.StringEventLoopEvent(&event), "debug-context", debugStr)
 
-	nextStep.eventLoopInputChannel <- event
+	nextStep.EventLoopInputChannel <- event
 
 }
 
 // This function processes the case where the event loop received an event for an API resource that doesn't in the K8s namespace.
 // returns true if the task should be retried (for example, because it failed), false otherwise.
-func processResourceThatDoesntExistInNamespace(ctx context.Context, newEvent eventlooptypes.EventLoopEvent, nextStep *controllerEventLoop,
+func processResourceThatDoesntExistInNamespace(ctx context.Context, newEvent eventlooptypes.EventLoopEvent, nextStep *eventloop.ControllerEventLoop,
 	lastUIDCache *recentUIDCache, gitopsDeplSyncRunCache *gitopsDeplSyncRunCache, dbQueries db.DatabaseQueries, log logr.Logger) bool {
 
 	// Check the local cache, to see if we have seen this resource before
@@ -397,7 +398,7 @@ func processResourceThatDoesntExistInNamespace(ctx context.Context, newEvent eve
 
 		// GitOpsDeploymentRepositoryCredentials doesn't have an associated GitOpsDeployment, so we use
 		// the 'noAssociatedGitOpsDeploymentUID' and emit the delete event to the next layer.
-		newEvent.AssociatedGitopsDeplUID = noAssociatedGitOpsDeploymentUID
+		newEvent.AssociatedGitopsDeplUID = eventloop.NoAssociatedGitOpsDeploymentUID
 		emitEvent(newEvent, nextStep, "repocreds deleted", log)
 		return false
 

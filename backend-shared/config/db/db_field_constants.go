@@ -62,7 +62,6 @@ const (
 	APICRToDatabaseMappingDbRelationKeyLength                               = 64
 	SyncOperationSyncoperationIDLength                                      = 48
 	SyncOperationApplicationIDLength                                        = 48
-	SyncOperationOperationIDLength                                          = 48
 	SyncOperationDeploymentNameLength                                       = 256
 	SyncOperationRevisionLength                                             = 256
 	SyncOperationDesiredStateLength                                         = 16
@@ -167,7 +166,6 @@ var DbFieldMap = map[string]int{
 	"SyncOperationSyncoperationIDLength":                                      SyncOperationSyncoperationIDLength,
 	"SyncOperationSyncOperationIDLength":                                      SyncOperationSyncoperationIDLength,
 	"SyncOperationApplicationIDLength":                                        SyncOperationApplicationIDLength,
-	"SyncOperationOperationIDLength":                                          SyncOperationOperationIDLength,
 	"SyncOperationDeploymentNameLength":                                       SyncOperationDeploymentNameLength,
 	"SyncOperationDeploymentNameFieldLength":                                  SyncOperationDeploymentNameLength,
 	"SyncOperationRevisionLength":                                             SyncOperationRevisionLength,

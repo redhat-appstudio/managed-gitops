@@ -182,7 +182,6 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		// Create sync operation
 		syncOperation := &db.SyncOperation{
 			Application_id:      application.Application_id,
-			Operation_id:        "delme", // TODO: GITOPSRVCE-67 - DEBT - This field can probably be removed from the database
 			DeploymentNameField: syncRunCR.Spec.GitopsDeploymentName,
 			Revision:            syncRunCR.Spec.RevisionID,
 			DesiredState:        db.SyncOperation_DesiredState_Running,

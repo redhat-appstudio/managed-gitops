@@ -396,11 +396,6 @@ CREATE TABLE SyncOperation (
 	application_id VARCHAR(48),
 	CONSTRAINT fk_so_app_id FOREIGN KEY (application_id) REFERENCES Application(application_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 
-	-- The Operation which contains the state of the sync operation
-	-- Foreign key to: Operation.operation_id
-	operation_id VARCHAR(48) NOT NULL,
-	-- CONSTRAINT fk_so_operation_id FOREIGN KEY (operation_id) REFERENCES Operation(operation_id) ON DELETE NO ACTION ON UPDATE NO ACTION
-
 	-- The 'gitopsDeploymentName' field of the GitOpsDeploymentSyncRun CR
 	deployment_name VARCHAR(256) NOT NULL,
 

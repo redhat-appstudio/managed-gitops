@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - "*"
+      - "main"
   pull_request:
     branches:
       - "*"
@@ -164,7 +164,7 @@ jobs:
       - name: Setup Golang
         uses: actions/setup-go@v3
         with:
-          go-version: "1.17.6"
+          go-version-file: './backend/go.mod'
       - name: "Install go modules for migration"
         run: |
           cd $GITHUB_WORKSPACE/utilities

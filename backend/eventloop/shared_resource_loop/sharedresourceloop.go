@@ -18,12 +18,12 @@ import (
 // created from a single thread, preventing concurrent goroutines from stepping on each others toes.
 //
 // This ensures that:
-// - When multiple application goroutines are attempting to create workspace-scoped resources,
+// - When multiple 'application event loop' goroutines are attempting to create workspace-scoped resources,
 //   that no duplicates are created (eg multiple clusterusers for a single user, or multiple
 //   managedenvs for a single workspace)
 // - There are no race conditions on creation of workspace-scoped resources.
 //
-// Workspace scoped resources are:
+// API-namespace-scoped resources are:
 // - managedenv
 // - clusteraccess
 // - clusteruser

@@ -10,20 +10,22 @@ import (
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+// workspaceResourceEventLoop is responsible for handling workspace-scoped events, like events for RepositoryCredentials resources.
 type workspaceResourceEventLoop struct {
 	inputChannel chan workspaceResourceLoopMessage
 }
 
 type workspaceResourceLoopMessage struct {
 	apiNamespaceClient client.Client
-	apiNamespace       corev1.Namespace
 
-	messageType     workspaceResourceLoopMessageType
-	responseChannel chan (interface{})
+	messageType workspaceResourceLoopMessageType
 
 	// optional payload
 	payload interface{}
@@ -35,25 +37,15 @@ const (
 	workspaceResourceLoopMessageType_processRepositoryCredential workspaceResourceLoopMessageType = "processRepositoryCredential"
 )
 
-func (werl *workspaceResourceEventLoop) processRepositoryCredential(ctx context.Context, repoCredResource managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential,
-	apiNamespace corev1.Namespace, apiNamespaceClient client.Client) error {
-	responseChannel := make(chan interface{})
+func (werl *workspaceResourceEventLoop) processRepositoryCredential(ctx context.Context, req ctrl.Request, apiNamespaceClient client.Client) error {
 
 	msg := workspaceResourceLoopMessage{
 		apiNamespaceClient: apiNamespaceClient,
-		apiNamespace:       apiNamespace,
 		messageType:        workspaceResourceLoopMessageType_processRepositoryCredential,
-		responseChannel:    responseChannel,
-		payload:            repoCredResource,
+		payload:            req,
 	}
 
 	werl.inputChannel <- msg
-
-	select {
-	case <-responseChannel:
-	case <-ctx.Done():
-		return fmt.Errorf("context cancelled in processRepositoryCredential")
-	}
 
 	return nil
 
@@ -73,7 +65,7 @@ func newWorkspaceResourceLoop() *workspaceResourceEventLoop {
 func internalWorkspaceResourceEventLoop(inputChan chan workspaceResourceLoopMessage) {
 
 	ctx := context.Background()
-	log := log.FromContext(ctx)
+	log := log.FromContext(ctx).WithValues("component", "workspace_resource_event_loop")
 
 	dbQueries, err := db.NewProductionPostgresDBQueries(false)
 	if err != nil {
@@ -106,7 +98,7 @@ func internalWorkspaceResourceEventLoop(inputChan chan workspaceResourceLoopMess
 		// TODO: GITOPS-1702 - PERF - Use a more memory efficient key
 
 		// Pass the event to the retry loop, for processing
-		task := &WorkspaceResourceEventTask{
+		task := &workspaceResourceEventTask{
 			msg:       msg,
 			dbQueries: dbQueries,
 			log:       log,
@@ -116,14 +108,14 @@ func internalWorkspaceResourceEventLoop(inputChan chan workspaceResourceLoopMess
 	}
 }
 
-type WorkspaceResourceEventTask struct {
+type workspaceResourceEventTask struct {
 	msg       workspaceResourceLoopMessage
 	dbQueries db.DatabaseQueries
 	log       logr.Logger
 }
 
 // Returns true if the task should be retried, false otherwise
-func (wert *WorkspaceResourceEventTask) PerformTask(taskContext context.Context) (bool, error) {
+func (wert *workspaceResourceEventTask) PerformTask(taskContext context.Context) (bool, error) {
 
 	retry, err := processWorkspaceResourceMessage(taskContext, wert.msg, wert.dbQueries, wert.log)
 
@@ -132,22 +124,74 @@ func (wert *WorkspaceResourceEventTask) PerformTask(taskContext context.Context)
 
 func processWorkspaceResourceMessage(ctx context.Context, msg workspaceResourceLoopMessage, dbQueries db.DatabaseQueries, log logr.Logger) (bool, error) {
 
-	log.V(sharedutil.LogLevel_Debug).Info("processWorkspaceResource received message: "+string(msg.messageType), "workspace",
-		msg.apiNamespace.UID)
+	log.V(sharedutil.LogLevel_Debug).Info("processWorkspaceResource received message: " + string(msg.messageType))
+
+	if msg.apiNamespaceClient == nil {
+		return false, fmt.Errorf("invalid namespace client")
+	}
 
 	if msg.messageType == workspaceResourceLoopMessageType_processRepositoryCredential {
 
-		// repoCred, ok := (msg.payload).(managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential)
-		// if !ok {
-		// 	return false, fmt.Errorf("SEVERE: Unexpected payload type in workspace resource event loop")
-		// }
+		req, ok := (msg.payload).(ctrl.Request)
+		if !ok {
+			return false, fmt.Errorf("invalid payload in processWorkspaceResourceMessage")
+		}
 
-		// Get or create repository credential in the database
+		// Retrieve the namespace that the repository credential is contained within
+		namespace := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      req.Namespace,
+				Namespace: req.Namespace,
+			},
+		}
+		if err := msg.apiNamespaceClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace); err != nil {
 
-		// Reply on a separate goroutine so cancelled callers don't block the event loop
-		// go func() {
-		// 	msg.responseChannel <- response
-		// }()
+			if !apierr.IsNotFound(err) {
+				return true, fmt.Errorf("unexpected error in retrieving repo credentials: %v", err)
+			}
+
+			log.V(sharedutil.LogLevel_Warn).Info("Received a message for a repository credential in a namepace that doesn't exist", "namespace", namespace)
+			return false, nil
+		}
+
+		repoCreds := &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{}
+
+		if err := msg.apiNamespaceClient.Get(ctx, req.NamespacedName, repoCreds); err != nil {
+
+			if !apierr.IsNotFound(err) {
+				return true, fmt.Errorf("unexpected error in retrieving repo credentials: %v", err)
+			}
+
+			// The repository credentials necessarily don't exist
+
+			// Find any existing database resources for repository credentials that previously existing with this namespace/name
+			apiCRToDBMappingList := []db.APICRToDatabaseMapping{}
+			if err := dbQueries.ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx, db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentRepositoryCredential,
+				req.Name, req.Namespace, string(namespace.GetUID()), db.APICRToDatabaseMapping_DBRelationType_RepositoryCredential, &apiCRToDBMappingList); err != nil {
+
+				return true, fmt.Errorf("unable to list APICRs for repository credentials: %v", err)
+			}
+
+			for _, item := range apiCRToDBMappingList {
+
+				fmt.Println("STUB:", item)
+
+				// TODO: GITOPSRVCE-96: STUB: Next steps:
+				// - Delete the repository credential from the database
+				// - Create the operation row, pointing to the deleted repository credentials table
+				// - Delete the APICRToDatabaseMapping referenced by 'item'
+
+			}
+
+			// TODO: GITOPSRVCE-96:  STUB - reconcile on the missing repository credentials
+
+			return false, fmt.Errorf("STUB: reconcile on the missing repository credentials")
+
+		}
+
+		// TODO: GITOPSRVCE-96: STUB: If it exists, compare it with what's in the database
+		// - If it doesn't exist in the database, create it
+		// - If it does exist in the database, but the values are different, update it
 
 	} else {
 		log.Error(nil, "SEVERE: unrecognized sharedResourceLoopMessageType: "+string(msg.messageType))

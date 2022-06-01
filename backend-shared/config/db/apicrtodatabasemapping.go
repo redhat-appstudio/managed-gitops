@@ -146,6 +146,19 @@ func (dbq *PostgreSQLDatabaseQueries) ListAPICRToDatabaseMappingByAPINamespaceAn
 	return nil
 }
 
+func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllAPICRToDatabaseMappings(ctx context.Context, applicationStates *[]APICRToDatabaseMapping) error {
+
+	if err := validateUnsafeQueryParamsNoPK(dbq); err != nil {
+		return err
+	}
+
+	if err := dbq.dbConnection.Model(applicationStates).Context(ctx).Select(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 var _ AppScopedDisposableResource = &APICRToDatabaseMapping{}
 
 func (dbMapping *APICRToDatabaseMapping) DisposeAppScoped(ctx context.Context, dbq ApplicationScopedQueries) error {

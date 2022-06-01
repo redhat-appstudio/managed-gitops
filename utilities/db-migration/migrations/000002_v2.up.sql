@@ -1,0 +1,1 @@
+ALTER TABLE SyncOperation DROP COLUMN operation_id;

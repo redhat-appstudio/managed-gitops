@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "main"
+      - "new-db-migration"
   pull_request:
     branches:
       - "*"
@@ -88,6 +89,11 @@ jobs:
           cd $GITHUB_WORKSPACE/appstudio-shared
           make lint 
 
+      - name: "Ensure 'db-migration' passes 'go-lint' - run 'make lint' to identify issues"
+        run: |
+          cd $GITHUB_WORKSPACE/utilities/db-migration
+          make lint 
+
 
   check-go:
     name: Ensure Go modules synchronicity
@@ -150,6 +156,49 @@ jobs:
           go mod tidy
           git diff --exit-code -- .
 
+  validate-db-migration:
+    name: Check if migration schema matches with super schema.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Setup Golang
+        uses: actions/setup-go@v3
+        with:
+          go-version: "1.17.6"
+      - name: "Install go modules for migration"
+        run: |
+          cd $GITHUB_WORKSPACE/utilities/db-migration
+          go mod download
+      - name: "Start PostgreSQL"
+        run: |
+          cd $GITHUB_WORKSPACE
+          ./create-dev-env.sh
+      - name: "Create a pg_dump file for master schema"
+        run: |
+          cd $GITHUB_WORKSPACE
+          pg_dump postgresql://postgres:gitops@localhost:5432/postgres > master.sql && cat master.sql
+      - name: "Clean the state of db."
+        run: |
+          cd $GITHUB_WORKSPACE/
+          make db-drop
+      - name: "Apply migrations to the db."
+        run: |
+          cd $GITHUB_WORKSPACE/
+          make db-migrate
+      - name: "Remove the schema_migration table."
+        run: |
+          cd $GITHUB_WORKSPACE/
+          make db-drop_smtable
+      - name: "Create a pg_dump file for migration schema"
+        run: |
+          cd $GITHUB_WORKSPACE
+          pg_dump postgresql://postgres:gitops@localhost:5432/postgres > migration.sql && cat migration.sql
+      - name: "Execute diff to check for any discrepencies"
+        run: |
+          cd $GITHUB_WORKSPACE
+          diff migration.sql master.sql
+
 
   test-go:
     name: Run unit tests for Go packages
@@ -194,7 +243,7 @@ jobs:
         uses: actions/setup-go@v3.2.0
         with:
           go-version-file: './backend/go.mod'
-      - name: "appstudio-shared: Run 'make generate manifests' and report any diff"
+      - name: "Run 'make generate manifests' and report any diff"
         run: |
           cd $GITHUB_WORKSPACE
           make generate-manifests

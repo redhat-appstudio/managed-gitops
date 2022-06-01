@@ -10,7 +10,7 @@ import (
 
 const DEFAULT_PORT = 5432
 
-func isEnvExist(key string) bool {
+func IsEnvExist(key string) bool {
 	if _, ok := os.LookupEnv(key); ok {
 		return true
 	}
@@ -24,17 +24,22 @@ func checkConn(db *pg.DB) error {
 	return err
 }
 
-// connectToDatabaseWithPort connects to Postgres with a defined port
-func connectToDatabaseWithPort(verbose bool, dbName string, port int) (*pg.DB, error) {
+func GetAddrAndPassword() (string, string) {
 	addr := "localhost"
-	if isEnvExist("DB_ADDR") {
+	if IsEnvExist("DB_ADDR") {
 		addr = os.Getenv("DB_ADDR")
 	}
 
 	password := "gitops"
-	if isEnvExist("DB_PASS") {
+	if IsEnvExist("DB_PASS") {
 		password = os.Getenv("DB_PASS")
 	}
+	return addr, password
+}
+
+// connectToDatabaseWithPort connects to Postgres with a defined port
+func ConnectToDatabaseWithPort(verbose bool, dbName string, port int) (*pg.DB, error) {
+	addr, password := GetAddrAndPassword()
 	opts := &pg.Options{
 		Addr:     fmt.Sprintf("%s:%v", addr, port),
 		User:     "postgres",

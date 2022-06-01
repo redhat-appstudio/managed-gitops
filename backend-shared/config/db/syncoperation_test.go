@@ -56,7 +56,6 @@ var _ = Describe("SyncOperation Tests", func() {
 			insertRow := db.SyncOperation{
 				SyncOperation_id:    "test-sync",
 				Application_id:      application.Application_id,
-				Operation_id:        operation.Operation_id,
 				DeploymentNameField: "testDeployment",
 				Revision:            "testRev",
 				DesiredState:        "Terminated",

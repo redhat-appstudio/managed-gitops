@@ -376,8 +376,6 @@ type SyncOperation struct {
 
 	Application_id string `pg:"application_id"`
 
-	Operation_id string `pg:"operation_id"`
-
 	DeploymentNameField string `pg:"deployment_name"`
 
 	Revision string `pg:"revision"`

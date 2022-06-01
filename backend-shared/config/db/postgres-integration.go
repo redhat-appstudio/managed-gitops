@@ -10,7 +10,7 @@ import (
 
 const DEFAULT_PORT = 5432
 
-func IsEnvExist(key string) bool {
+func isEnvExist(key string) bool {
 	if _, ok := os.LookupEnv(key); ok {
 		return true
 	}
@@ -26,12 +26,12 @@ func checkConn(db *pg.DB) error {
 
 func GetAddrAndPassword() (string, string) {
 	addr := "localhost"
-	if IsEnvExist("DB_ADDR") {
+	if isEnvExist("DB_ADDR") {
 		addr = os.Getenv("DB_ADDR")
 	}
 
 	password := "gitops"
-	if IsEnvExist("DB_PASS") {
+	if isEnvExist("DB_PASS") {
 		password = os.Getenv("DB_PASS")
 	}
 	return addr, password

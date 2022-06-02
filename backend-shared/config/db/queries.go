@@ -162,7 +162,10 @@ type ApplicationScopedQueries interface {
 	// TODO: GITOPSRVCE-19 - KCP support: All of the *ByAPINamespaceAndName database queries should only return items that are part of a specific KCP workspace.
 
 	CreateAPICRToDatabaseMapping(ctx context.Context, obj *APICRToDatabaseMapping) error
+
+	// ListAPICRToDatabaseMappingByAPINamespaceAndName returns the DBRelationKey for a given type/name/namespace/namespace uid/db-relation-type query
 	ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx context.Context, apiCRResourceType string, crName string, crNamespace string, crNamespaceUID string, dbRelationType string, apiCRToDBMappingParam *[]APICRToDatabaseMapping) error
+
 	GetDatabaseMappingForAPICR(ctx context.Context, obj *APICRToDatabaseMapping) error
 	DeleteAPICRToDatabaseMapping(ctx context.Context, obj *APICRToDatabaseMapping) (int, error)
 

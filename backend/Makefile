@@ -49,7 +49,7 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 test: fmt vet envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -p=1 ./... -coverprofile cover.out -coverpkg=./... -tags skiproutes
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -timeout=15s -p=1 ./... -coverprofile cover.out -coverpkg=./... -tags skiproutes
 
 ##@ Build
 

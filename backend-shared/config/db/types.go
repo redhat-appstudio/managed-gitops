@@ -303,6 +303,9 @@ type DeploymentToApplicationMapping struct {
 }
 
 const (
+
+	// TODO: GITOPSRVCE-67: Convert these into typed constants
+
 	APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun = "GitOpsDeploymentSyncRun"
 
 	APICRToDatabaseMapping_DBRelationType_SyncOperation = "SyncOperation"

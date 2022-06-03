@@ -1,0 +1,297 @@
+package utils
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"time"
+
+	argocdoperator "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	openshiftv1 "github.com/openshift/api/route/v1"
+	v1 "github.com/openshift/api/route/v1"
+	corev1 "k8s.io/api/core/v1"
+	rbac "k8s.io/api/rbac/v1beta1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+const (
+	ArgoCDManagerServiceAccount     = "argocd-manager"
+	ArgoCDManagerClusterRole        = "argocd-manager-role"
+	ArgoCDManagerClusterRoleBinding = "argocd-manager-role-binding"
+)
+
+func CreateNamespaceScopedArgoCD(ctx context.Context, name string, namespace string, k8sClient client.Client) error {
+	policy := "g, system:authenticated, role:admin"
+	scopes := "'[groups]'"
+
+	// The values from manifests/staging-cluster-resources/argo-cd.yaml are conveeted in a Go struct.
+
+	argoCDOperand := argocdoperator.ArgoCD{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: argocdoperator.ArgoCDSpec{
+
+			ApplicationSet: &argocdoperator.ArgoCDApplicationSet{
+				Resources: &corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{
+						corev1.ResourceLimitsCPU:    resource.MustParse("1"),
+						corev1.ResourceLimitsMemory: resource.MustParse("1Gi"),
+					},
+					Requests: corev1.ResourceList{
+						corev1.ResourceRequestsCPU:    resource.MustParse("250m"),
+						corev1.ResourceRequestsMemory: resource.MustParse("128Mi"),
+					},
+				},
+			},
+			Controller: argocdoperator.ArgoCDApplicationControllerSpec{
+				Processors: argocdoperator.ArgoCDApplicationControllerProcessorsSpec{},
+				Resources: &corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{
+						corev1.ResourceLimitsCPU:    resource.MustParse("1"),
+						corev1.ResourceLimitsMemory: resource.MustParse("1Gi"),
+					},
+					Requests: corev1.ResourceList{
+						corev1.ResourceRequestsCPU:    resource.MustParse("250m"),
+						corev1.ResourceRequestsMemory: resource.MustParse("256Mi"),
+					},
+				},
+				Sharding: argocdoperator.ArgoCDApplicationControllerShardSpec{},
+			},
+			Grafana: argocdoperator.ArgoCDGrafanaSpec{
+				Enabled: false,
+				Ingress: argocdoperator.ArgoCDIngressSpec{
+					Enabled: false,
+				},
+				Resources: &corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{
+						corev1.ResourceLimitsCPU:    resource.MustParse("500m"),
+						corev1.ResourceLimitsMemory: resource.MustParse("256Mi"),
+					},
+					Requests: corev1.ResourceList{
+						corev1.ResourceRequestsCPU:    resource.MustParse("250m"),
+						corev1.ResourceRequestsMemory: resource.MustParse("128Mi"),
+					},
+				},
+				Route: argocdoperator.ArgoCDRouteSpec{
+					Enabled: false,
+				},
+			},
+			HA: argocdoperator.ArgoCDHASpec{
+				Enabled: false,
+				Resources: &corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{
+						corev1.ResourceLimitsCPU:    resource.MustParse("500m"),
+						corev1.ResourceLimitsMemory: resource.MustParse("256Mi"),
+					},
+					Requests: corev1.ResourceList{
+						corev1.ResourceRequestsCPU:    resource.MustParse("250m"),
+						corev1.ResourceRequestsMemory: resource.MustParse("128Mi"),
+					},
+				},
+			},
+			InitialSSHKnownHosts: argocdoperator.SSHHostsSpec{},
+			Prometheus: argocdoperator.ArgoCDPrometheusSpec{
+				Enabled: false,
+				Ingress: argocdoperator.ArgoCDIngressSpec{
+					Enabled: false,
+				},
+				Route: argocdoperator.ArgoCDRouteSpec{
+					Enabled: false,
+				},
+			},
+			RBAC: argocdoperator.ArgoCDRBACSpec{
+				Policy: &policy,
+				Scopes: &scopes,
+			},
+			Redis: argocdoperator.ArgoCDRedisSpec{
+				Resources: &corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{
+						corev1.ResourceLimitsCPU:    resource.MustParse("500m"),
+						corev1.ResourceLimitsMemory: resource.MustParse("256Mi"),
+					},
+					Requests: corev1.ResourceList{
+						corev1.ResourceRequestsCPU:    resource.MustParse("250m"),
+						corev1.ResourceRequestsMemory: resource.MustParse("128Mi"),
+					},
+				},
+			},
+			Repo: argocdoperator.ArgoCDRepoSpec{
+				Resources: &corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{
+						corev1.ResourceLimitsCPU:    resource.MustParse("1"),
+						corev1.ResourceLimitsMemory: resource.MustParse("1Gi"),
+					},
+					Requests: corev1.ResourceList{
+						corev1.ResourceRequestsCPU:    resource.MustParse("250m"),
+						corev1.ResourceRequestsMemory: resource.MustParse("256Mi"),
+					},
+				},
+			},
+			Server: argocdoperator.ArgoCDServerSpec{
+				Autoscale: argocdoperator.ArgoCDServerAutoscaleSpec{
+					Enabled: false,
+				},
+				GRPC: argocdoperator.ArgoCDServerGRPCSpec{
+					Ingress: argocdoperator.ArgoCDIngressSpec{
+						Enabled: false,
+					},
+				},
+				Ingress: argocdoperator.ArgoCDIngressSpec{
+					Enabled: false,
+				},
+				Resources: &corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{
+						corev1.ResourceLimitsCPU:    resource.MustParse("500m"),
+						corev1.ResourceLimitsMemory: resource.MustParse("256Mi"),
+					},
+					Requests: corev1.ResourceList{
+						corev1.ResourceRequestsCPU:    resource.MustParse("125m"),
+						corev1.ResourceRequestsMemory: resource.MustParse("128Mi"),
+					},
+				},
+				Route: argocdoperator.ArgoCDRouteSpec{
+					Enabled: true,
+					TLS: &v1.TLSConfig{
+						Termination: openshiftv1.TLSTerminationReencrypt,
+					},
+				},
+				Service: argocdoperator.ArgoCDServerServiceSpec{
+					Type: "",
+				},
+			},
+			TLS: argocdoperator.ArgoCDTLSSpec{
+				CA: argocdoperator.ArgoCDCASpec{},
+			},
+		},
+	}
+
+	// This will create the ArgoCD resource in the target namespace. The OpenShift GitOps operator (which should already be installed)
+	// will then install Argo CD in the target namespace.
+	err := k8sClient.Create(ctx, &argoCDOperand)
+	if err != nil {
+		return err
+	}
+
+	// Wait for Argo CD to be installed by gitops operator. Use wait.Poll for ths
+
+	err = wait.Poll(500*time.Millisecond, 30*time.Second, func() (bool, error) {
+
+		appProject := &appv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "default",
+				Namespace: "namespace",
+			},
+		}
+
+		exists := false
+
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject); err != nil {
+			// doesn't exist, or error occurred, so keep polling
+		} else {
+			exists = true // it exists! so we can stop polling
+		}
+
+		return exists, nil
+
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func setupArgoCD(k8sClient client.Client) error {
+
+	serviceAccount := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-manager",
+			Namespace: "kube-system",
+		},
+	}
+
+	if err := k8sClient.Create(context.Background(), serviceAccount); err != nil {
+		if !apierr.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create service account %q in namespace %q: %v", serviceAccount.Name, serviceAccount.Namespace, err)
+		}
+		return fmt.Errorf("serviceAccount %q already exists in namespace %q", serviceAccount.Name, serviceAccount.Namespace)
+	}
+
+	log.Printf("serviceAccount %q created in namespace %q", serviceAccount.Name, serviceAccount.Namespace)
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-manager-secret",
+			Namespace: "kube-system",
+			Annotations: map[string]string{
+				"kubernetes.io/service-account.name": "argocd-manager",
+			},
+		},
+		Type: "kubernetes.io/service-account-token",
+	}
+
+	if err := k8sClient.Create(context.Background(), secret); err != nil {
+		if !apierr.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create secret %q in namespace %q: %v", secret.Name, secret.Namespace, err)
+		}
+		return fmt.Errorf("secret %q already exists in namespace %q", secret.Name, secret.Namespace)
+	}
+
+	log.Printf("secret %q created in namespace %q", secret.Name, secret.Namespace)
+
+	clusterRole := rbac.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "argocd-manager-role",
+		},
+		Rules: []rbac.PolicyRule{
+			{
+				APIGroups:       []string{"*"},
+				Resources:       []string{"*"},
+				Verbs:           []string{"*"},
+				NonResourceURLs: []string{"*"},
+			},
+		},
+	}
+	if err := k8sClient.Create(context.Background(), &clusterRole); err != nil {
+		if !apierr.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create clusterRole %q in namespace %q: %v", clusterRole.Name, clusterRole.Namespace, err)
+		}
+		return fmt.Errorf("clusterRole %q already exists in namespace %q", clusterRole.Name, clusterRole.Namespace)
+	}
+	log.Printf("clusterRole %q created in namespace %q", clusterRole.Name, clusterRole.Namespace)
+
+	clusterRoleBinding := rbac.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "argocd-manager-role-binding",
+		},
+		RoleRef: rbac.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     "argocd-manager-role",
+		},
+		Subjects: []rbac.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      "argocd-manager",
+				Namespace: "kube-system",
+			},
+		},
+	}
+	if err := k8sClient.Create(context.Background(), &clusterRoleBinding); err != nil {
+		if !apierr.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create clusterRoleBinding %q in namespace %q: %v", clusterRoleBinding.Name, clusterRoleBinding.Namespace, err)
+		}
+		return fmt.Errorf("clusterRoleBinding %q already exists in namespace %q", clusterRoleBinding.Name, clusterRoleBinding.Namespace)
+	}
+	log.Printf("clusterRoleBinding %q created in namespace %q", clusterRoleBinding.Name, clusterRoleBinding.Namespace)
+
+	return nil
+}

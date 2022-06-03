@@ -16,7 +16,7 @@ COPY backend-shared ./backend-shared
 COPY cluster-agent ./cluster-agent
 COPY appstudio-controller ./appstudio-controller
 COPY appstudio-shared ./appstudio-shared
-COPY utilities/db-migration/migrations/ ./utilities/db-migration/migrations/
+COPY utilities/db-migration/ ./utilities/db-migration/
 
 # Perform the build for all components
 RUN make build

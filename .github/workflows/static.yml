@@ -213,7 +213,7 @@ jobs:
         uses: actions/setup-go@v3.2.0
         with:
           go-version-file: './backend/go.mod'
-      - name: "Run 'make generate-manifests' and report any diff (run 'make generate-manifests' at root, and check in changes, to fix this)"
+      - name: "Run 'make generate-manifests' and report any diff (to fix this if failing: run 'make clean' then 'make generate-manifests' at root, and check in changes)"
         run: |
           cd $GITHUB_WORKSPACE
           make generate-manifests

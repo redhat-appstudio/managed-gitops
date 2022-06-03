@@ -65,3 +65,7 @@ gosec: go_sec
 	# go install github.com/securego/gosec/v2/cmd/gosec@latest
 	$(GO_SEC) ./...
 
+# Remove the vendor and bin folders
+.PHONY: clean
+clean:
+	rm -rf vendor/ bin/

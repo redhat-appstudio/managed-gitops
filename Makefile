@@ -154,6 +154,15 @@ uninstall-all-k8s: undeploy-postgresql undeploy-backend undeploy-cluster-agent u
 start: ## Start all the components, compile & run (ensure goreman is installed, with 'go install github.com/mattn/goreman@latest')
 	$(GOBIN)/goreman start
 
+clean: ## remove the bin and vendor folders from each component
+	cd $(MAKEFILE_ROOT)/appstudio-shared && make clean
+	cd $(MAKEFILE_ROOT)/backend-shared && make clean
+	cd $(MAKEFILE_ROOT)/backend && make clean
+	cd $(MAKEFILE_ROOT)/cluster-agent && make clean
+	cd $(MAKEFILE_ROOT)/appstudio-controller && make clean
+	cd $(MAKEFILE_ROOT)/tests-e2e && make clean
+	cd $(MAKEFILE_ROOT)/utilities/db-migration && make clean
+
 build: build-backend build-cluster-agent build-appstudio-controller ## Build all the components - note: you do not need to do this before running start
 
 docker-build: ## Build docker image -- note: you have to change the USERNAME var. Optionally change the BASE_IMAGE or TAG

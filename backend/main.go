@@ -41,6 +41,7 @@ import (
 
 	"github.com/go-logr/logr"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	"github.com/redhat-appstudio/managed-gitops/utilities/db-migration/migrate"
 
 	managedgitopsv1alpha1operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
@@ -49,7 +50,6 @@ import (
 	managedgitopscontrollers "github.com/redhat-appstudio/managed-gitops/backend/controllers/managed-gitops"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop"
 	"github.com/redhat-appstudio/managed-gitops/backend/routes"
-	migrate "github.com/redhat-appstudio/managed-gitops/utilities/db-migration/migrate"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -59,10 +59,6 @@ var (
 )
 
 func init() {
-	if !migrate.Main("", "backend") {
-		setupLog.Error(fmt.Errorf("migration was not successful"), "Fatal Error: Unsuccessful Migration")
-		os.Exit(1)
-	}
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(managedgitopsv1alpha1operation.AddToScheme(scheme))
 
@@ -71,6 +67,10 @@ func init() {
 }
 
 func main() {
+	if !migrate.Main("", "backend") {
+		setupLog.Error(fmt.Errorf("migration was not successful"), "Fatal Error: Unsuccessful Migration")
+		os.Exit(1)
+	}
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string

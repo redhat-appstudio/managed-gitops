@@ -27,6 +27,9 @@ type ApplicationSnapshotSpec struct {
 	// NOTE: The name (kind) of this API resource, "ApplicationSnapshot" is likely to change in the short term (Q2 2022).
 	// Stay tuned for refactoring needed for your component.
 
+	// Application is a reference to the name of an Application resource within the same namespace, which defines the target application for the Snapshot (when used with a Binding).
+	Application string `json:"application"`
+
 	// DisplayName is a user-visible, user-definable name for the resource (and is not used for any functional behaviour)
 	DisplayName string `json:"displayName,omitempty"`
 

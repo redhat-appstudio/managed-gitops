@@ -36,6 +36,11 @@ spec:
           spec:
             description: ApplicationSnapshotSpec defines the desired state of ApplicationSnapshot
             properties:
+              application:
+                description: Application is a reference to the name of an Application
+                  resource within the same namespace, which defines the target application
+                  for the Snapshot (when used with a Binding).
+                type: string
               artifacts:
                 description: Artifacts is a placeholder section for 'artifact links'
                   we want to maintain to other AppStudio resources. See Environment
@@ -75,6 +80,8 @@ spec:
                 description: DisplayName is a user-visible, user-definable name for
                   the resource (and is not used for any functional behaviour)
                 type: string
+            required:
+            - application
             type: object
           status:
             description: ApplicationSnapshotStatus defines the observed state of ApplicationSnapshot

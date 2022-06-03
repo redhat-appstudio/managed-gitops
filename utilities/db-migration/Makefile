@@ -15,3 +15,8 @@ fmt:
 .PHONY: vet
 vet:
 	go vet ./...
+
+# Remove the vendor and bin folders
+.PHONY: clean
+clean:
+	rm -rf vendor/ bin/

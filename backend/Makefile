@@ -167,3 +167,8 @@ gosec:
 	# Run this command, to install gosec, if not installed:
 	# go install github.com/securego/gosec/v2/cmd/gosec@latest
 	gosec ./...
+
+# Remove the vendor and bin folders
+.PHONY: clean
+clean:
+	rm -rf vendor/ bin/

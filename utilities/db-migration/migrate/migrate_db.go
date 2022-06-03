@@ -57,7 +57,7 @@ func Main(op_type string, call_type string) bool {
 	} else {
 		// applies every migrations till the lastest migration-sql present.
 		// Automatically makes sure about the version the current database is on and updates it.
-		if err := m.Up(); err != nil {
+		if err := m.Up(); err != nil && err.Error() != "no change" {
 			log.Error(err, fmt.Sprintf("%v", err))
 			return false
 		}

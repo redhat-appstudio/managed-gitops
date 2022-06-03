@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	migrate "github.com/redhat-appstudio/managed-gitops/utilities/db-migrate/migrate"
+	migrate "github.com/redhat-appstudio/managed-gitops/utilities/db-migration/migrate"
 )
 
 func main() {
@@ -11,5 +11,5 @@ func main() {
 	if len(os.Args) >= 2 {
 		op_type = os.Args[1]
 	}
-	migrate.Main(op_type)
+	migrate.Main(op_type, "migrate")
 }

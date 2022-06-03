@@ -1,6 +1,6 @@
-module github.com/redhat-appstudio/managed-gitops/utilities/db-migrate
+module github.com/redhat-appstudio/managed-gitops/utilities/db-migration
 
-go 1.17
+go 1.18
 
 require (
 	github.com/golang-migrate/migrate/v4 v4.15.2

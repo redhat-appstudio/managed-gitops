@@ -209,7 +209,7 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, name string, namespace str
 	return nil
 }
 
-func setupArgoCD(k8sClient client.Client) error {
+func SetupArgoCD(k8sClient client.Client) error {
 
 	serviceAccount := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{

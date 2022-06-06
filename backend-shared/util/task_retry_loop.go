@@ -159,11 +159,25 @@ func NewTaskRetryLoop(debugName string) (loop *TaskRetryLoop) {
 	return res
 }
 
+type waitingTaskContainer struct {
+	waitingTasksByName map[string]interface{}
+	waitingTasks       []waitingTaskEntry
+}
+
 type waitingTaskEntry struct {
 	name                   string
 	task                   RetryableTask
 	backoff                ExponentialBackoff
 	nextScheduledRetryTime *time.Time
+}
+
+func (wte *waitingTaskContainer) isWorkAvailable() bool {
+	return len(wte.waitingTasks) > 0
+}
+
+func (wte *waitingTaskContainer) addTask(entry waitingTaskEntry) {
+	wte.waitingTasks = append(wte.waitingTasks, entry)
+	wte.waitingTasksByName[entry.name] = entry
 }
 
 type internalTaskEntry struct {
@@ -188,8 +202,10 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string
 	activeTaskMap := map[string]internalTaskEntry{}
 
 	// tasks that are waiting to run. We ensure there are no duplicates in either list.
-	waitingTasksByName := map[string]interface{}{}
-	waitingTasks := []waitingTaskEntry{}
+	waitingTaskContainer := waitingTaskContainer{
+		waitingTasksByName: map[string]interface{}{},
+		waitingTasks:       []waitingTaskEntry{},
+	}
 
 	const maxActiveRunners = 20
 
@@ -199,57 +215,64 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string
 
 		// Every X minutes, report how many tasks are in progress, and how many are waiting
 		if time.Now().After(nextReportActiveTasks) {
-			log.Info(fmt.Sprintf("task retry loop status [%v]: waitingTasks: %v, activeTasks: %v ", debugName, len(waitingTasks), len(activeTaskMap)))
+			log.Info(fmt.Sprintf("task retry loop status [%v]: waitingTasks: %v, activeTasks: %v ", debugName, len(waitingTaskContainer.waitingTasks), len(activeTaskMap)))
 			nextReportActiveTasks = time.Now().Add(ReportActiveTasksEveryXMinutes)
 		}
 
 		// Queue more running tasks if we have resources
-		if len(waitingTasks) > 0 && len(activeTaskMap) < maxActiveRunners {
+		if waitingTaskContainer.isWorkAvailable() && len(activeTaskMap) < maxActiveRunners {
 
 			updatedWaitingTasks := []waitingTaskEntry{}
 
 			// TODO: GITOPSRVCE-68 - PERF - this is an inefficient algorithm for queuing tasks, because it causes an allocation and iteration through the entire list on every received event
 
-			for idx := range waitingTasks {
+			for idx := range waitingTaskContainer.waitingTasks {
+
+				task := waitingTaskContainer.waitingTasks[idx]
 
 				startTask := false
+				{
+					if task.nextScheduledRetryTime == nil {
+						startTask = true
+					} else if time.Now().After(*task.nextScheduledRetryTime) {
+						startTask = true
+					}
 
-				task := waitingTasks[idx]
-
-				if task.nextScheduledRetryTime == nil {
-					startTask = true
-				} else if time.Now().After(*task.nextScheduledRetryTime) {
-					startTask = true
+					// Don't start a task (yet) if it's already running
+					if _, exists := activeTaskMap[task.name]; exists {
+						startTask = false
+					}
 				}
 
-				// Don't start a task (yet) if it's already running
-				if _, exists := activeTaskMap[task.name]; exists {
-					startTask = false
-				}
-
+				// If the task is ready to go, and we still have room for it, start it
 				if startTask && len(activeTaskMap) < maxActiveRunners {
 
-					prevActiveTaskMapSize := len(activeTaskMap)
-					prevWaitingTasksByNameSize := len(waitingTasksByName)
-					startNewTask(task, waitingTasksByName, activeTaskMap, inputChan, log)
+					prevActiveTaskMapSize := len(activeTaskMap) // used for sanity tests
+					prevWaitingTasksByNameSize := len(waitingTaskContainer.waitingTasksByName)
+
+					startNewTask(task, &waitingTaskContainer, activeTaskMap, inputChan, log)
 
 					// Sanity check the task start
 					if len(activeTaskMap) != prevActiveTaskMapSize+1 {
 						log.Error(nil, "SEVERE: active task map did not grow after startNewTask was called")
 					}
-					if len(waitingTasksByName) != prevWaitingTasksByNameSize-1 {
+					if len(waitingTaskContainer.waitingTasksByName) != prevWaitingTasksByNameSize-1 {
 						log.Error(nil, "SEVERE: waiting tasks by name did not shrink after startNewTask was called")
 					}
 
 				} else {
+					// Otherwise, we don't yet have room for it, or it isn't ready yet, so keep it in the list
+					// of waiting tasks.
 					updatedWaitingTasks = append(updatedWaitingTasks, task)
 				}
 			}
 
 			// replace the waitingTask var, with a new list with started tasks removed
-			waitingTasks = updatedWaitingTasks
+			waitingTaskContainer.waitingTasks = updatedWaitingTasks
 
 		}
+
+		// After we have ensured our task queue is full, pull the next message from the channel.
 
 		msg := <-inputChan
 
@@ -263,19 +286,19 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string
 				continue
 			}
 
-			if _, exists := waitingTasksByName[addTaskMsg.name]; exists {
-				log.V(LogLevel_Debug).Info("skipping message that is already in the wait queue: " + addTaskMsg.name)
+			taskName := addTaskMsg.name
+
+			if _, exists := waitingTaskContainer.waitingTasksByName[taskName]; exists {
+				log.V(LogLevel_Debug).Info("skipping message that is already in the wait queue: " + taskName)
 				continue
 			}
 
 			newWaitingTaskEntry := waitingTaskEntry{
-				name:    addTaskMsg.name,
+				name:    taskName,
 				task:    addTaskMsg.task,
 				backoff: addTaskMsg.backoff}
 
-			waitingTasks = append(waitingTasks, newWaitingTaskEntry)
-
-			waitingTasksByName[newWaitingTaskEntry.name] = newWaitingTaskEntry
+			waitingTaskContainer.addTask(newWaitingTaskEntry)
 
 		} else if msg.msgType == taskRetryLoop_removeTask {
 
@@ -314,6 +337,11 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string
 				continue
 			}
 
+			if taskEntry.name != workCompletedMsg.name { // sanity test
+				log.Error(nil, "SEVERE: taskEntry name should match work completed msg name")
+				continue
+			}
+
 			// Now that the task is complete, remove it from the active map
 			delete(activeTaskMap, workCompletedMsg.name)
 
@@ -324,11 +352,15 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string
 
 				nextScheduledRetryTime := time.Now().Add(taskEntry.backoff.IncreaseAndReturnNewDuration())
 
-				waitingTasks = append(waitingTasks, waitingTaskEntry{
-					name:                   workCompletedMsg.name,
+				waitingTaskEntry := waitingTaskEntry{
+					name:                   taskEntry.name,
 					task:                   taskEntry.task,
 					nextScheduledRetryTime: &nextScheduledRetryTime,
-					backoff:                taskEntry.backoff})
+					backoff:                taskEntry.backoff}
+
+				waitingTaskContainer.addTask(waitingTaskEntry)
+
+				// waitingTasks = append(waitingTasks, waitingTaskEntry)
 			}
 			continue
 
@@ -342,19 +374,21 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string
 	}
 }
 
-func startNewTask(taskToStart waitingTaskEntry, waitingTasksByName map[string]interface{}, activeTaskMap map[string]internalTaskEntry,
+func startNewTask(taskToStart waitingTaskEntry, waitingTaskContainer *waitingTaskContainer, activeTaskMap map[string]internalTaskEntry,
 	inputChan chan taskRetryLoopMessage, log logr.Logger) {
 
-	delete(waitingTasksByName, taskToStart.name)
+	taskName := taskToStart.name
+
+	delete(waitingTaskContainer.waitingTasksByName, taskName)
 
 	newTaskEntry := internalTaskEntry{
-		name:         taskToStart.name,
+		name:         taskName,
 		task:         taskToStart.task,
 		backoff:      taskToStart.backoff,
 		creationTime: time.Now(),
 	}
 
-	activeTaskMap[taskToStart.name] = newTaskEntry
+	activeTaskMap[taskName] = newTaskEntry
 
 	taskContext, taskCancelFunc := internalStartTaskRunner(&newTaskEntry, inputChan, log)
 	newTaskEntry.taskContext = taskContext
@@ -362,6 +396,7 @@ func startNewTask(taskToStart waitingTaskEntry, waitingTasksByName map[string]in
 
 }
 
+// internalStartTaskRunner starts a new goroutine that is responsible for running the given task, and then returning the result to internalTaskRetryLoop
 func internalStartTaskRunner(taskEntry *internalTaskEntry, workComplete chan taskRetryLoopMessage, log logr.Logger) (context.Context, context.CancelFunc) {
 
 	taskContext, cancelFunc := context.WithCancel(context.Background())

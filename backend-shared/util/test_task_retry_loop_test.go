@@ -106,19 +106,23 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 
 		It("ensures that calling startTask removes the task from 'waitingTasksByName'", func() {
 
+			waitingTaskContainer := waitingTaskContainer{
+				waitingTasksByName: make(map[string]interface{}),
+				waitingTasks:       []waitingTaskEntry{},
+			}
+
 			task := &mockEmptyTask{}
 
 			activeTaskMap := make(map[string]internalTaskEntry)
 			taskToStart := waitingTaskEntry{name: "test-task", task: task}
-			waitingTasksByName := make(map[string]interface{})
 
-			waitingTasksByName["test-task"] = waitingTaskEntry{}
+			waitingTaskContainer.waitingTasksByName["test-task"] = waitingTaskEntry{}
 
-			Expect(len(waitingTasksByName)).To(Equal(1))
+			Expect(len(waitingTaskContainer.waitingTasksByName)).To(Equal(1))
 
-			startNewTask(taskToStart, waitingTasksByName, activeTaskMap, workComplete, log)
+			startNewTask(taskToStart, &waitingTaskContainer, activeTaskMap, workComplete, log)
 
-			Expect(len(waitingTasksByName)).To(Equal(0))
+			Expect(len(waitingTaskContainer.waitingTasksByName)).To(Equal(0))
 		})
 	})
 

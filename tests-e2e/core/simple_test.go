@@ -3,19 +3,19 @@ package core
 import (
 	"context"
 
+	argocdoperator "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
-	argocdv1 "github.com/redhat-appstudio/managed-gitops/cluster-agent"
+	argocdv1 "github.com/redhat-appstudio/managed-gitops/cluster-agent/utils"
+	mocks "github.com/redhat-appstudio/managed-gitops/cluster-agent/utils/mocks"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	apps "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	client "sigs.k8s.io/controller-runtime/pkg/client"
-	argocdoperator "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("GitOpsDeployment E2E tests", func() {
@@ -97,17 +97,18 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 
 		It("should create ArgoCD resource and application, wait for it to be installed and synced", func() {
 			ctx := context.Background()
-			k8sClient := client.Client
+			var k8sClient client.Client
 
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("creating ArgoCD resource")
 
-			//todo
-			argoCDResource := {
-					Name:      "ArgoCD",
+			argoCDResource := argocdoperator.ArgoCD{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd",
 					Namespace: "my-argo-cd",
-				}
+				},
+			}
 			err := argocdv1.CreateNamespaceScopedArgoCD(ctx, argoCDResource.Name, argoCDResource.Namespace, k8sClient)
 			Expect(err).To(Succeed())
 
@@ -115,7 +116,10 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 			argoCDInstance := &apps.Deployment{
 				ObjectMeta: metav1.ObjectMeta{Name: argoCDResource.Name, Namespace: argoCDResource.Namespace},
 			}
-			Eventually(argocdInstance, "60s", "1s").Should(k8s.ExistByName())
+			Eventually(argoCDInstance, "60s", "1s").Should(k8s.ExistByName())
+
+			err = argocdv1.SetupArgoCD(k8sClient)
+			Expect(err).To(Succeed())
 
 			By("creating ArgoCD application")
 			app := appv1.Application{
@@ -135,12 +139,23 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 					},
 				},
 			}
-			err := k8s.Create(&app)
+			err = k8s.Create(&app)
 			Expect(err).To(Succeed())
 
-			//todo appsync
-			//todo eventually sync and healthcheck
+			//debug appsync
 
+			mockAppClient := &mocks.Client{}
+			clientGenerator := argocdv1.MockClientGenerator{
+				mockClient: mockAppClient,
+			}
+
+			cs := argocdv1.NewCredentialService(&clientGenerator, true)
+			err = argocdv1.AppSync(context.Background(), app.Name, "master", app.Namespace, k8sClient, cs, true)
+
+			Eventually(app, "2m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)))
 
 		})
 	})

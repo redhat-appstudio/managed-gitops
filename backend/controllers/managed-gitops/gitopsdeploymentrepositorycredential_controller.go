@@ -60,7 +60,7 @@ func (r *GitOpsDeploymentRepositoryCredentialReconciler) Reconcile(ctx context.C
 	}
 
 	r.PreprocessEventLoop.EventReceived(req, managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialTypeName, r.Client,
-		eventlooptypes.CredentialModified, string(namespace.UID))
+		eventlooptypes.RepositoryCredentialModified, string(namespace.UID))
 
 	return ctrl.Result{}, nil
 }

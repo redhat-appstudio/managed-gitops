@@ -73,7 +73,6 @@ require (
 	github.com/robfig/cron v1.2.0 // indirect
 	github.com/russross/blackfriday v1.6.0 // indirect
 	github.com/spf13/cobra v1.2.1 // indirect
-	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.7.0 // indirect
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
 	github.com/vmihailenco/bufpool v0.1.11 // indirect

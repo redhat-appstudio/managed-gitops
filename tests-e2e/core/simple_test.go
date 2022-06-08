@@ -9,13 +9,11 @@ import (
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	argocdv1 "github.com/redhat-appstudio/managed-gitops/cluster-agent/utils"
-	mocks "github.com/redhat-appstudio/managed-gitops/cluster-agent/utils/mocks"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	apps "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("GitOpsDeployment E2E tests", func() {
@@ -96,20 +94,19 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 	Context("Create a Standalone ArgoCD instance", func() {
 
 		It("should create ArgoCD resource and application, wait for it to be installed and synced", func() {
-			ctx := context.Background()
-			var k8sClient client.Client
-
-			Expect(fixture.EnsureCleanSlate()).To(Succeed())
-
 			By("creating ArgoCD resource")
+			ctx := context.Background()
+
+			k8sClient, err := fixture.GetKubeClient()
+			Expect(err).To(BeNil())
 
 			argoCDResource := argocdoperator.ArgoCD{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "argocd",
-					Namespace: "my-argo-cd",
-				},
+				TypeMeta:   metav1.TypeMeta{},
+				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: "my-argocd"},
+				Spec:       argocdoperator.ArgoCDSpec{},
+				Status:     argocdoperator.ArgoCDStatus{},
 			}
-			err := argocdv1.CreateNamespaceScopedArgoCD(ctx, argoCDResource.Name, argoCDResource.Namespace, k8sClient)
+			err = argocdv1.CreateNamespaceScopedArgoCD(ctx, argoCDResource.Name, argoCDResource.Namespace, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("ensuring ArgoCD resource exists")
@@ -129,28 +126,22 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 				},
 				Spec: appv1.ApplicationSpec{
 					Source: appv1.ApplicationSource{
-						RepoURL: "https://github.com/redhat-appstudio/gitops-repository-template",
-						Path:    "environments/overlays/dev",
-						// TargetRevision: "",
+						RepoURL:        "https://github.com/redhat-appstudio/gitops-repository-template",
+						Path:           "environments/overlays/dev",
+						TargetRevision: "HEAD",
 					},
 					Destination: appv1.ApplicationDestination{
 						Name:      "in-cluster",
-						Namespace: argoCDResource.Namespace,
+						Namespace: fixture.GitOpsServiceE2ENamespace,
 					},
 				},
 			}
 			err = k8s.Create(&app)
 			Expect(err).To(Succeed())
 
-			//debug appsync
-
-			mockAppClient := &mocks.Client{}
-			clientGenerator := argocdv1.MockClientGenerator{
-				mockClient: mockAppClient,
-			}
-
-			cs := argocdv1.NewCredentialService(&clientGenerator, true)
+			cs := argocdv1.NewCredentialService(nil, true)
 			err = argocdv1.AppSync(context.Background(), app.Name, "master", app.Namespace, k8sClient, cs, true)
+			Expect(err).To(Succeed())
 
 			Eventually(app, "2m", "1s").Should(
 				SatisfyAll(

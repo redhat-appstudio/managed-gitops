@@ -16,6 +16,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -23,6 +25,8 @@ const (
 	ArgoCDManagerServiceAccount     = "argocd-manager"
 	ArgoCDManagerClusterRole        = "argocd-manager-role"
 	ArgoCDManagerClusterRoleBinding = "argocd-manager-role-binding"
+	// K8sClientError is a prefix that can/should be used when outputting errors from K8s client
+	K8sClientError = "Error from k8s client:"
 )
 
 func CreateNamespaceScopedArgoCD(ctx context.Context, name string, namespace string, k8sClient client.Client) error {
@@ -33,8 +37,9 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, name string, namespace str
 
 	argoCDOperand := argocdoperator.ArgoCD{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Finalizers: []string{"argoproj.io/finalizer"},
+			Name:       name,
+			Namespace:  namespace,
 		},
 		Spec: argocdoperator.ArgoCDSpec{
 
@@ -63,6 +68,19 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, name string, namespace str
 					},
 				},
 				Sharding: argocdoperator.ArgoCDApplicationControllerShardSpec{},
+			},
+			Dex: argocdoperator.ArgoCDDexSpec{
+				OpenShiftOAuth: false,
+				Resources: &corev1.ResourceRequirements{
+					Limits: corev1.ResourceList{
+						corev1.ResourceLimitsCPU:    resource.MustParse("500m"),
+						corev1.ResourceLimitsMemory: resource.MustParse("256Mi"),
+					},
+					Requests: corev1.ResourceList{
+						corev1.ResourceRequestsCPU:    resource.MustParse("250m"),
+						corev1.ResourceRequestsMemory: resource.MustParse("128Mi"),
+					},
+				},
 			},
 			Grafana: argocdoperator.ArgoCDGrafanaSpec{
 				Enabled: false,
@@ -172,37 +190,51 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, name string, namespace str
 		},
 	}
 
-	// This will create the ArgoCD resource in the target namespace. The OpenShift GitOps operator (which should already be installed)
-	// will then install Argo CD in the target namespace.
-	err := k8sClient.Create(ctx, &argoCDOperand)
+	// Creating namespace
+	config := ctrl.GetConfigOrDie()
+	config.Timeout = time.Duration(1000 * time.Second)
+	clientset := kubernetes.NewForConfigOrDie(config)
+	namespaceToCreate := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: namespace,
+		},
+	}
+	_, err := clientset.CoreV1().Namespaces().Create(context.Background(), namespaceToCreate, metav1.CreateOptions{})
 	if err != nil {
+		fmt.Println("Namespace could not be created")
 		return err
+	}
+
+	errk8s := k8sClient.Create(ctx, &argoCDOperand)
+	if errk8s != nil {
+		fmt.Println(K8sClientError, "Error on creating ", argoCDOperand.GetName(), errk8s)
+		return errk8s
 	}
 
 	// Wait for Argo CD to be installed by gitops operator. Use wait.Poll for ths
 
-	err = wait.Poll(500*time.Millisecond, 30*time.Second, func() (bool, error) {
+	err = wait.PollInfinite(30*time.Second, func() (bool, error) {
 
 		appProject := &appv1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "default",
-				Namespace: "namespace",
+				Namespace: namespace,
 			},
 		}
-
 		exists := false
-
-		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject); err != nil {
+		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
+		if err != nil {
 			// doesn't exist, or error occurred, so keep polling
+			return exists, err
 		} else {
 			exists = true // it exists! so we can stop polling
 		}
-
 		return exists, nil
 
 	})
 
 	if err != nil {
+		fmt.Println("wait.Poll error : ", err)
 		return err
 	}
 

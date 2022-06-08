@@ -3,6 +3,7 @@ package preprocess_event_loop
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -58,6 +59,11 @@ func NewPreprocessEventLoop() *PreprocessEventLoop {
 
 }
 
+const (
+	// maxCacheSize is the maxmimum size of the LRU cache.
+	maxCacheSize = 1000
+)
+
 func preprocessEventLoopRouter(input chan eventlooptypes.EventLoopEvent, nextStep *eventloop.ControllerEventLoop) {
 
 	ctx := context.Background()
@@ -68,11 +74,23 @@ func preprocessEventLoopRouter(input chan eventlooptypes.EventLoopEvent, nextSte
 	dbQueries, err := db.NewProductionPostgresDBQueries(false)
 	if err != nil {
 		log.Error(err, "SEVERE: preProcessEventLoopRouter exiting before startup")
+		os.Exit(1)
 		return
 	}
 
-	lastUIDCache := newLastUIDCache()
-	gitopsDeplSyncRunCache := newGitOpsDeplSyncRunCache()
+	lastUIDCache, err := newLastUIDCache(maxCacheSize)
+	if err != nil {
+		log.Error(err, "SEVERE: unexpected error on initializing cache")
+		os.Exit(1)
+		return
+	}
+
+	gitopsDeplSyncRunCache, err := newGitOpsDeplSyncRunCache(maxCacheSize)
+	if err != nil {
+		log.Error(err, "SEVERE: unexpected error on initializing cache")
+		os.Exit(1)
+		return
+	}
 
 	for {
 

@@ -42,7 +42,7 @@ func Migrate(opType string, migrationPath string) error {
 	} else {
 		// applies every migrations till the lastest migration-sql present.
 		// Automatically makes sure about the version the current database is on and updates it.
-		if err := m.Up(); err != nil || err != migrate.ErrNoChange {
+		if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 			return fmt.Errorf("FATAL: migration could not be applied; %v", err)
 		}
 		return nil

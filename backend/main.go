@@ -67,8 +67,8 @@ func init() {
 }
 
 func main() {
-	if !migrate.Main("", "backend") {
-		setupLog.Error(fmt.Errorf("migration was not successful"), "Fatal Error: Unsuccessful Migration")
+	if err := migrate.Migrate("", "file://../utilities/db-migration/migrations/"); err != nil {
+		setupLog.Error(err, "Fatal Error: Unsuccessful Migration")
 		os.Exit(1)
 	}
 	var metricsAddr string

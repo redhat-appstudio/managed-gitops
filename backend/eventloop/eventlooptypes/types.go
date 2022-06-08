@@ -13,13 +13,10 @@ import (
 type EventLoopEventType string
 
 const (
-	// WorkspaceModified
-	// ApplicationModified
-	// EnvironmentModified
-	DeploymentModified         EventLoopEventType = "DeploymentModified"
-	CredentialModified         EventLoopEventType = "CredentialModified"
-	SyncRunModified            EventLoopEventType = "SyncRunModified"
-	UpdateDeploymentStatusTick EventLoopEventType = "UpdateDeploymentStatusTick"
+	DeploymentModified           EventLoopEventType = "DeploymentModified"
+	RepositoryCredentialModified EventLoopEventType = "RepositoryCredentialModified"
+	SyncRunModified              EventLoopEventType = "SyncRunModified"
+	UpdateDeploymentStatusTick   EventLoopEventType = "UpdateDeploymentStatusTick"
 )
 
 // EventLoopEvent tracks an event received from the controllers in the apis/managed-gitops/v1alpha1 package.

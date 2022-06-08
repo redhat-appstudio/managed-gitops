@@ -346,7 +346,6 @@ var _ = Describe("Preprocess Event Loop Test", func() {
 		var dbQueries db.AllDatabaseQueries
 		var managedEnv *db.ManagedEnvironment
 		var engineInstance *db.GitopsEngineInstance
-
 		var k8sClient client.Client
 
 		BeforeEach(func() {
@@ -539,6 +538,89 @@ var _ = Describe("Preprocess Event Loop Test", func() {
 			expectExactlyANumberOfEvents(2, &fixture.responsesReceived)
 			Expect(fixture.responsesReceived[0].AssociatedGitopsDeplUID).To(Equal(string(gitopsDepl.GetUID())))
 			Expect(fixture.responsesReceived[1].AssociatedGitopsDeplUID).To(Equal(string(gitopsDepl2.GetUID())))
+
+		})
+
+	})
+
+	Context("Preprocess event loop responds to GitOpsRepositoryCredential channel events", func() {
+
+		var err error
+		var ctx context.Context
+		var scheme *runtime.Scheme
+		var argocdNamespace *corev1.Namespace
+		var kubesystemNamespace *corev1.Namespace
+		var namespace *corev1.Namespace
+		var dbQueries db.AllDatabaseQueries
+		var k8sClient client.Client
+
+		BeforeEach(func() {
+
+			ctx = context.Background()
+
+			err := db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
+
+			scheme, argocdNamespace, kubesystemNamespace, namespace, err = eventlooptypes.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).To(BeNil())
+
+			_, _, _, _, _, err = db.CreateSampleData(dbQueries)
+			Expect(err).To(BeNil())
+
+			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(namespace, argocdNamespace, kubesystemNamespace).Build()
+
+			err = nil
+
+		})
+
+		It("Emit a repository credential resource, and ensure it is passed to controller event loop", func() {
+
+			repoCred := &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      namespace.Name,
+					Namespace: namespace.Name,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialSpec{
+					Repository: "https://github.com/redhat-appstudio/managed-gitops",
+					Secret:     "",
+				},
+			}
+
+			err = k8sClient.Create(ctx, repoCred)
+			Expect(err).To(BeNil())
+
+			By("starting the preprocess event loop")
+
+			fixture := startPreprocessEventLoopRouter()
+
+			By("sending an event for a new repository credentials resource")
+
+			event := eventlooptypes.EventLoopEvent{
+				EventType: eventlooptypes.RepositoryCredentialModified,
+				Request: reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      repoCred.Name,
+						Namespace: repoCred.Namespace,
+					},
+				},
+				ReqResource: managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialTypeName,
+				Client:      k8sClient,
+				WorkspaceID: eventlooptypes.GetWorkspaceIDFromNamespaceID(*namespace),
+			}
+
+			GinkgoWriter.Println("Sending event", event)
+			fixture.preprocessInputChannel <- event
+
+			expectExactlyANumberOfEvents(1, &fixture.responsesReceived)
+
+			response := fixture.responsesReceived[0]
+			Expect(response.EventType).To(Equal(event.EventType))
+			Expect(response.ReqResource).To(Equal(event.ReqResource))
+			Expect(response.WorkspaceID).To(Equal(event.WorkspaceID))
+			Expect(response.AssociatedGitopsDeplUID).To(Equal(""))
 
 		})
 

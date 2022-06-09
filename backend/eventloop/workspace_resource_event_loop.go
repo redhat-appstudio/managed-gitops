@@ -37,7 +37,7 @@ const (
 	workspaceResourceLoopMessageType_processRepositoryCredential workspaceResourceLoopMessageType = "processRepositoryCredential"
 )
 
-func (werl *workspaceResourceEventLoop) processRepositoryCredential(ctx context.Context, req ctrl.Request, apiNamespaceClient client.Client) error {
+func (werl *workspaceResourceEventLoop) processRepositoryCredential(ctx context.Context, req ctrl.Request, apiNamespaceClient client.Client) {
 
 	msg := workspaceResourceLoopMessage{
 		apiNamespaceClient: apiNamespaceClient,
@@ -46,8 +46,6 @@ func (werl *workspaceResourceEventLoop) processRepositoryCredential(ctx context.
 	}
 
 	werl.inputChannel <- msg
-
-	return nil
 
 }
 

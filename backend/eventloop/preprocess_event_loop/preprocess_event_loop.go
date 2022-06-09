@@ -499,100 +499,101 @@ func processResourceThatDoesntExistInNamespace(ctx context.Context, newEvent eve
 // getGitOpsDeplIdFromDatabaseUsingNameAndNamespace returns gitopsdepl cr uid if found, "" if not found, or error if a generic error occurred.
 // An error should only be returned if there is a reasonable expectation of success if this function were to be retried.
 // (for example, network issues tend to be ephemeral, so we can return an error for suspected network issues)
-func getGitOpsDeplIdFromDatabaseUsingNameAndNamespace(ctx context.Context, newEvent eventlooptypes.EventLoopEvent,
-	dbQueries db.DatabaseQueries, log logr.Logger) (string, error) {
 
-	// TODO: GITOPSRVCE-166: I believe this function is no longer needed; remove it once the rest of the syncoperation code in this file is fully covered.
+// TODO: GITOPSRVCE-166: I believe this function is no longer needed; remove it once the rest of the syncoperation code in this file is fully covered.
+//
+// func getGitOpsDeplIdFromDatabaseUsingNameAndNamespace(ctx context.Context, newEvent eventlooptypes.EventLoopEvent,
+// 	dbQueries db.DatabaseQueries, log logr.Logger) (string, error) {
 
-	log = log.WithValues("name", newEvent.Request.Name, "namespace", newEvent.Request.Namespace)
+// 	log = log.WithValues("name", newEvent.Request.Name, "namespace", newEvent.Request.Namespace)
 
-	if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentTypeName {
+// 	if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentTypeName {
 
-		var items []db.DeploymentToApplicationMapping
+// 		var items []db.DeploymentToApplicationMapping
 
-		if err := dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(ctx, newEvent.Request.Name, newEvent.Request.Namespace, newEvent.WorkspaceID, &items); err != nil {
-			log.Error(err, "unable to list depltoappmapping in getGitOpsDeplFromDatabaseUsingNameAndNamespace")
-			return "", err
-		}
+// 		if err := dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(ctx, newEvent.Request.Name, newEvent.Request.Namespace, newEvent.WorkspaceID, &items); err != nil {
+// 			log.Error(err, "unable to list depltoappmapping in getGitOpsDeplFromDatabaseUsingNameAndNamespace")
+// 			return "", err
+// 		}
 
-		if len(items) > 1 {
-			log.Error(nil, "SEVERE: unexpected number of application mappings when resolving depltoappmapping for gitopsdepl")
-			return "", nil
-		} else if len(items) == 1 {
-			return items[0].Deploymenttoapplicationmapping_uid_id, nil
-		} else {
-			return "", nil
-		}
+// 		if len(items) > 1 {
+// 			log.Error(nil, "SEVERE: unexpected number of application mappings when resolving depltoappmapping for gitopsdepl")
+// 			return "", nil
+// 		} else if len(items) == 1 {
+// 			return items[0].Deploymenttoapplicationmapping_uid_id, nil
+// 		} else {
+// 			return "", nil
+// 		}
 
-	} else if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName {
+// 	} else if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName {
 
-		var items []db.APICRToDatabaseMapping
+// 		var items []db.APICRToDatabaseMapping
 
-		// 1) Go from GitOpsDeploymentSyncRun CR -> Sync Operation DB table, by searching
-		// by the SyncRun CR's namespace/name/namespace ID tuple.
-		if err := dbQueries.ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx,
-			db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
-			newEvent.Request.Name, newEvent.Request.Namespace, newEvent.WorkspaceID,
-			db.APICRToDatabaseMapping_DBRelationType_SyncOperation, &items); err != nil {
-			log.Error(err, "unable to list api cr to db mapping in getGitOpsDeplFromDatabaseUsingNameAndNamespace")
-			return "", err
-		}
+// 		// 1) Go from GitOpsDeploymentSyncRun CR -> Sync Operation DB table, by searching
+// 		// by the SyncRun CR's namespace/name/namespace ID tuple.
+// 		if err := dbQueries.ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx,
+// 			db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
+// 			newEvent.Request.Name, newEvent.Request.Namespace, newEvent.WorkspaceID,
+// 			db.APICRToDatabaseMapping_DBRelationType_SyncOperation, &items); err != nil {
+// 			log.Error(err, "unable to list api cr to db mapping in getGitOpsDeplFromDatabaseUsingNameAndNamespace")
+// 			return "", err
+// 		}
 
-		if len(items) > 1 {
-			log.Error(nil, "SEVERE: unexpected number of api cr to database mappings in getGitopsDeplUdFromDatabaseUsingNameAndNamespace")
-			return "", nil
+// 		if len(items) > 1 {
+// 			log.Error(nil, "SEVERE: unexpected number of api cr to database mappings in getGitopsDeplUdFromDatabaseUsingNameAndNamespace")
+// 			return "", nil
 
-		} else if len(items) == 1 {
+// 		} else if len(items) == 1 {
 
-			// 2) We have found the pointer from GitOpsDeploymentSyncRun name/namespace to SyncOperation,
-			// so next attempt to retrieve the SyncOperation
-			syncOperation := &db.SyncOperation{
-				SyncOperation_id: items[0].DBRelationKey,
-			}
-			if err := dbQueries.GetSyncOperationById(ctx, syncOperation); err != nil {
+// 			// 2) We have found the pointer from GitOpsDeploymentSyncRun name/namespace to SyncOperation,
+// 			// so next attempt to retrieve the SyncOperation
+// 			syncOperation := &db.SyncOperation{
+// 				SyncOperation_id: items[0].DBRelationKey,
+// 			}
+// 			if err := dbQueries.GetSyncOperationById(ctx, syncOperation); err != nil {
 
-				if db.IsResultNotFoundError(err) {
-					log.V(sharedutil.LogLevel_Warn).Info("syncoperation id from apicr to db mapping didn't exist", "operationID", syncOperation.SyncOperation_id)
-					return "", nil
-				} else {
-					log.Error(err, "unable to retrieve sync operation by id: "+syncOperation.SyncOperation_id)
-					return "", err
-				}
+// 				if db.IsResultNotFoundError(err) {
+// 					log.V(sharedutil.LogLevel_Warn).Info("syncoperation id from apicr to db mapping didn't exist", "operationID", syncOperation.SyncOperation_id)
+// 					return "", nil
+// 				} else {
+// 					log.Error(err, "unable to retrieve sync operation by id: "+syncOperation.SyncOperation_id)
+// 					return "", err
+// 				}
 
-			}
+// 			}
 
-			// It's possible the Application (that this sync operation is targetting) is already deleted, if so just return.
-			if syncOperation.Application_id == "" {
-				log.Info("syncOperation '" + syncOperation.SyncOperation_id + "' was found in getGitOpsDeplFromDatabaseUsingNameAndNamespace, but application field was nil (likely it was deleted.)")
-				return "", nil
-			}
+// 			// It's possible the Application (that this sync operation is targetting) is already deleted, if so just return.
+// 			if syncOperation.Application_id == "" {
+// 				log.Info("syncOperation '" + syncOperation.SyncOperation_id + "' was found in getGitOpsDeplFromDatabaseUsingNameAndNamespace, but application field was nil (likely it was deleted.)")
+// 				return "", nil
+// 			}
 
-			// 3) We have the application id, so go from Application ID DB table -> GitOpsDeployment CR
-			dtam := db.DeploymentToApplicationMapping{
-				Application_id: syncOperation.Application_id,
-			}
-			if err := dbQueries.GetDeploymentToApplicationMappingByApplicationId(ctx, &dtam); err != nil {
+// 			// 3) We have the application id, so go from Application ID DB table -> GitOpsDeployment CR
+// 			dtam := db.DeploymentToApplicationMapping{
+// 				Application_id: syncOperation.Application_id,
+// 			}
+// 			if err := dbQueries.GetDeploymentToApplicationMappingByApplicationId(ctx, &dtam); err != nil {
 
-				if db.IsResultNotFoundError(err) {
-					log.V(sharedutil.LogLevel_Warn).Info("dtam not found when using application id from sync operation", "application_id", dtam.Application_id)
-					return "", nil
-				}
+// 				if db.IsResultNotFoundError(err) {
+// 					log.V(sharedutil.LogLevel_Warn).Info("dtam not found when using application id from sync operation", "application_id", dtam.Application_id)
+// 					return "", nil
+// 				}
 
-				log.Error(err, "unable to retrieve depltoappmapping by id: "+dtam.Application_id)
-				return "", err
-			}
+// 				log.Error(err, "unable to retrieve depltoappmapping by id: "+dtam.Application_id)
+// 				return "", err
+// 			}
 
-			// Success, return the GitOpsDeployment UID from the entry
-			return dtam.Deploymenttoapplicationmapping_uid_id, nil
-		} else {
-			// otherwise, not found.
-			return "", nil
-		}
+// 			// Success, return the GitOpsDeployment UID from the entry
+// 			return dtam.Deploymenttoapplicationmapping_uid_id, nil
+// 		} else {
+// 			// otherwise, not found.
+// 			return "", nil
+// 		}
 
-	} else {
-		return "", fmt.Errorf("SEVERE - unexpected request resource type")
-	}
-}
+// 	} else {
+// 		return "", fmt.Errorf("SEVERE - unexpected request resource type")
+// 	}
+// }
 
 // syncRunAssociatedResource is returned by the 'getAssociatedResourcesForSyncRunAPINamespaceAndName' function. It contains a set of resources
 // that were previously associated with a SyncRun with the given name/namespace/namespace uid

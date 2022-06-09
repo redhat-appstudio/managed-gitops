@@ -41,7 +41,7 @@ var _ = Describe("Preprocess Event Loop Test", func() {
 
 			ctx = context.Background()
 
-			err := db.SetupForTestingDBGinkgo()
+			err = db.SetupForTestingDBGinkgo()
 			Expect(err).To(BeNil())
 
 			scheme, argocdNamespace, kubesystemNamespace, namespace, err = eventlooptypes.GenericTestSetup()
@@ -352,7 +352,7 @@ var _ = Describe("Preprocess Event Loop Test", func() {
 
 			ctx = context.Background()
 
-			err := db.SetupForTestingDBGinkgo()
+			err = db.SetupForTestingDBGinkgo()
 			Expect(err).To(BeNil())
 
 			scheme, argocdNamespace, kubesystemNamespace, namespace, err = eventlooptypes.GenericTestSetup()
@@ -558,7 +558,7 @@ var _ = Describe("Preprocess Event Loop Test", func() {
 
 			ctx = context.Background()
 
-			err := db.SetupForTestingDBGinkgo()
+			err = db.SetupForTestingDBGinkgo()
 			Expect(err).To(BeNil())
 
 			scheme, argocdNamespace, kubesystemNamespace, namespace, err = eventlooptypes.GenericTestSetup()

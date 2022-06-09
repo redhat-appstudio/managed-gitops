@@ -1,4 +1,4 @@
-package argoprojio_test
+package argoprojio
 
 import (
 	"context"
@@ -19,7 +19,6 @@ import (
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
-	argo "github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/argoproj.io"
 	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -38,7 +37,7 @@ var _ = Describe("Application Controller", func() {
 		var gitopsEngineInstance *db.GitopsEngineInstance
 		var dbQueries db.AllDatabaseQueries
 		var guestbookApp *appv1.Application
-		var reconciler argo.ApplicationReconciler
+		var reconciler ApplicationReconciler
 		var err error
 
 		BeforeEach(func() {
@@ -103,7 +102,7 @@ var _ = Describe("Application Controller", func() {
 				},
 			}
 
-			reconciler = argo.ApplicationReconciler{
+			reconciler = ApplicationReconciler{
 				Client:        k8sClient,
 				Scheme:        scheme,
 				DB:            dbQueries,
@@ -431,7 +430,7 @@ var _ = Describe("Application Controller", func() {
 			var resources []appv1.ResourceStatus
 			resources = append(resources, resourceStatus)
 
-			byteArr, err := argo.CompressResourceData(resources)
+			byteArr, err := compressResourceData(resources)
 
 			Expect(err).To(BeNil())
 			Expect(byteArr).NotTo(BeEmpty())
@@ -442,7 +441,7 @@ var _ = Describe("Application Controller", func() {
 			var resources []appv1.ResourceStatus
 			resources = append(resources, resourceStatus)
 
-			byteArr, err := argo.CompressResourceData(resources)
+			byteArr, err := compressResourceData(resources)
 
 			Expect(err).To(BeNil())
 			Expect(byteArr).NotTo(BeEmpty())
@@ -451,7 +450,7 @@ var _ = Describe("Application Controller", func() {
 		It("Should work for empty Resource Array", func() {
 			var resources []appv1.ResourceStatus
 
-			byteArr, err := argo.CompressResourceData(resources)
+			byteArr, err := compressResourceData(resources)
 
 			Expect(err).To(BeNil())
 			Expect(byteArr).NotTo(BeEmpty())
@@ -460,7 +459,7 @@ var _ = Describe("Application Controller", func() {
 })
 
 var _ = Describe("Namespace Reconciler Tests.", func() {
-	var reconciler argo.ApplicationReconciler
+	var reconciler ApplicationReconciler
 
 	Context("Testing for Namespace Reconciler.", func() {
 		var err error
@@ -513,7 +512,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			// Fake kube client.
 			k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).Build()
 
-			reconciler = argo.ApplicationReconciler{
+			reconciler = ApplicationReconciler{
 				Client: k8sClient,
 				DB:     dbQueries,
 				Cache:  dbutil.NewApplicationInfoCache(),
@@ -550,7 +549,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			log := log.FromContext(ctx)
 
 			// Call function for workSpace/Namespace reconciler
-			argo.RunNamespaceReconcile(ctx, reconciler.DB, reconciler.Client, log)
+			runNamespaceReconcile(ctx, reconciler.DB, reconciler.Client, log)
 
 			// We are using a fake k8s client and because of that we can not check if ArgoCD application has been created/updated.
 			// We will just check if k8s Operation created or not.
@@ -592,7 +591,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			log := log.FromContext(ctx)
 
 			// Call function for workSpace/Namespace reconciler
-			argo.RunNamespaceReconcile(ctx, reconciler.DB, reconciler.Client, log)
+			runNamespaceReconcile(ctx, reconciler.DB, reconciler.Client, log)
 
 			// We are using a fake k8s client and because of that we can not check if ArgoCD application has been created/updated.
 			// We will just check if k8s Operation and DB entries are created and assume that in actual environment ArgoCD will pick up this Operation and update/create the application.
@@ -632,7 +631,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			log := log.FromContext(ctx)
 
 			// Call function for workSpace/Namespace reconciler
-			argo.RunNamespaceReconcile(ctx, reconciler.DB, reconciler.Client, log)
+			runNamespaceReconcile(ctx, reconciler.DB, reconciler.Client, log)
 
 			// We are using a fake k8s client and because of that we can not check if ArgoCD application has been created/updated.
 			// We will just check if k8s Operation and DB entries are created and assume that in actual environment ArgoCD will pick up this Operation and update/create the application.
@@ -672,77 +671,77 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			var ctx context.Context
 			log := log.FromContext(ctx)
 
-			result := argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			result := compareApplications(applicationFromArgoCD, applicationFromDB, log)
 			Expect(result).To(BeTrue())
 
 			// Set different value in each field then revert them, otherwise next field wont be compared
 			applicationFromArgoCD.APIVersion = "test"
-			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
 			Expect(result).To(BeFalse())
 			applicationFromArgoCD.APIVersion = applicationFromDB.APIVersion // Revert the value, to compare next field.
 
 			applicationFromArgoCD.Kind = "test"
-			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
 			Expect(result).To(BeFalse())
 			applicationFromArgoCD.Kind = applicationFromDB.Kind
 
 			applicationFromArgoCD.Name = "test"
-			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
 			Expect(result).To(BeFalse())
 			applicationFromArgoCD.Name = applicationFromDB.Name
 
 			applicationFromArgoCD.Namespace = "test"
-			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
 			Expect(result).To(BeFalse())
 			applicationFromArgoCD.Namespace = applicationFromDB.Namespace
 
 			applicationFromArgoCD.Spec.Source.RepoURL = "test"
-			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
 			Expect(result).To(BeFalse())
 			applicationFromArgoCD.Spec.Source.RepoURL = applicationFromDB.Spec.Source.RepoURL
 
 			applicationFromArgoCD.Spec.Source.Path = "test"
-			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
 			Expect(result).To(BeFalse())
 			applicationFromArgoCD.Spec.Source.Path = applicationFromDB.Spec.Source.Path
 
 			applicationFromArgoCD.Spec.Source.TargetRevision = "test"
-			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
 			Expect(result).To(BeFalse())
 			applicationFromArgoCD.Spec.Source.TargetRevision = applicationFromDB.Spec.Source.TargetRevision
 
 			applicationFromArgoCD.Spec.Destination.Server = "test"
-			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
 			Expect(result).To(BeFalse())
 			applicationFromArgoCD.Spec.Destination.Server = applicationFromDB.Spec.Destination.Server
 
 			applicationFromArgoCD.Spec.Destination.Namespace = "test"
-			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
 			Expect(result).To(BeFalse())
 			applicationFromArgoCD.Spec.Destination.Namespace = applicationFromDB.Spec.Destination.Namespace
 
 			applicationFromArgoCD.Spec.Destination.Name = "test"
-			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
 			Expect(result).To(BeFalse())
 			applicationFromArgoCD.Spec.Destination.Name = applicationFromDB.Spec.Destination.Name
 
 			applicationFromArgoCD.Spec.Project = "test"
-			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
 			Expect(result).To(BeFalse())
 			applicationFromArgoCD.Spec.Project = applicationFromDB.Spec.Project
 
 			applicationFromArgoCD.Spec.SyncPolicy.Automated.Prune = true
-			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
 			Expect(result).To(BeFalse())
 			applicationFromArgoCD.Spec.SyncPolicy.Automated.Prune = applicationFromDB.Spec.SyncPolicy.Automated.Prune
 
 			applicationFromArgoCD.Spec.SyncPolicy.Automated.SelfHeal = true
-			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
 			Expect(result).To(BeFalse())
 			applicationFromArgoCD.Spec.SyncPolicy.Automated.SelfHeal = applicationFromDB.Spec.SyncPolicy.Automated.SelfHeal
 
 			applicationFromArgoCD.Spec.SyncPolicy.Automated.AllowEmpty = true
-			result = argo.CompareApplications(applicationFromArgoCD, applicationFromDB, log)
+			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
 			Expect(result).To(BeFalse())
 			applicationFromArgoCD.Spec.SyncPolicy.Automated.AllowEmpty = applicationFromDB.Spec.SyncPolicy.Automated.AllowEmpty
 		})
@@ -800,7 +799,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			// Fake kube client.
 			k8sClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).Build()
 
-			reconciler = argo.ApplicationReconciler{
+			reconciler = ApplicationReconciler{
 				Client: k8sClient,
 				DB:     dbQueries,
 				Cache:  dbutil.NewApplicationInfoCache(),
@@ -852,7 +851,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			Expect(len(listOfK8sOperationFirst.Items)).NotTo(Equal(0))
 
 			// Clean Operations
-			argo.CleanK8sOperations(ctx, dbQueries, reconciler.Client, log)
+			cleanK8sOperations(ctx, dbQueries, reconciler.Client, log)
 
 			// Get list of Operations after cleanup.
 			listOfK8sOperationSecond := v1alpha1.OperationList{}
@@ -885,7 +884,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			Expect(len(listOfK8sOperationFirst.Items)).NotTo(Equal(0))
 
 			// Clean Operations
-			argo.CleanK8sOperations(ctx, dbQueries, reconciler.Client, log)
+			cleanK8sOperations(ctx, dbQueries, reconciler.Client, log)
 
 			// Get list of Operations after cleanup.
 			listOfK8sOperationSecond := v1alpha1.OperationList{}

@@ -31,6 +31,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	cache "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	appEventLoop "github.com/redhat-appstudio/managed-gitops/backend/eventloop/application_event_loop"
 	"github.com/redhat-appstudio/managed-gitops/backend/util/fauxargocd"
@@ -124,7 +125,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 			// Get the list of resources created by deployment and convert it into a compressed YAML string.
 			var err error
-			applicationState.Resources, err = CompressResourceData(app.Status.Resources)
+			applicationState.Resources, err = compressResourceData(app.Status.Resources)
 			if err != nil {
 				log.Error(err, "unable to compress resource data into byte array.")
 				return ctrl.Result{}, err
@@ -152,7 +153,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// Get the list of resources created by deployment and convert it into a compressed YAML string.
 	var err error
-	applicationState.Resources, err = CompressResourceData(app.Status.Resources)
+	applicationState.Resources, err = compressResourceData(app.Status.Resources)
 	if err != nil {
 		log.Error(err, "unable to compress resource data into byte array.")
 		return ctrl.Result{}, err
@@ -168,33 +169,42 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 }
 
 const (
-	initialAppRowOffset         = 0
-	appRowBatchSize             = 50  // Number of rows needs to be fetched in each batch.
-	namespaceReConcilerInterval = 2   //Interval in Minutes to reconcile workspace/namespace.
-	sleepIntervalsOfBatches     = 100 //Interval in Millisecond between each batch.
+	appRowBatchSize             = 50               // Number of rows needs to be fetched in each batch.
+	namespaceReconcilerInterval = 30 * time.Minute // Interval in Minutes to reconcile workspace/namespace.
+	sleepIntervalsOfBatches     = 1 * time.Second  // Interval in Millisecond between each batch.
 )
 
 // This function iterates through each Workspace/Namespace present in DB and ensures that the state of resources in Cluster is in Sync with DB.
-func (r *ApplicationReconciler) NamespaceReconcile() {
-	time.Sleep(sleepIntervalsOfBatches * time.Millisecond) // Wait for Cache to start
-
-	// Timer to trigger Reconciler
-	ticker := time.NewTicker(time.Duration(namespaceReConcilerInterval) * time.Minute)
-
-	ctx := context.Background()
-	log := log.FromContext(ctx)
-
-	// First Iteration after interval configured for workspace/namespace reconciliation.
-	for ; true; <-ticker.C {
-		RunNamespaceReconcile(ctx, r.DB, r.Client, log)
-	}
+func (r *ApplicationReconciler) StartNamespaceReconciler() {
+	r.startTimerForNextCycle()
 }
 
-func RunNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, log logr.Logger) {
-	offSet := initialAppRowOffset
+func (r *ApplicationReconciler) startTimerForNextCycle() {
+	go func() {
+		// Timer to trigger Reconciler
+		timer := time.NewTimer(time.Duration(namespaceReconcilerInterval))
+		<-timer.C
+
+		ctx := context.Background()
+		log := log.FromContext(ctx).WithValues("component", "namespace-reconciler")
+
+		_, _ = util.CatchPanic(func() error {
+			runNamespaceReconcile(ctx, r.DB, r.Client, log)
+			return nil
+		})
+
+		// Kick off the timer again, once the old task runs.
+		// This ensures that at least 'namespaceReconcilerInterval' time elapses from the end of one rum to the beginning of another.
+		r.startTimerForNextCycle()
+	}()
+
+}
+
+func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, log logr.Logger) {
+	offSet := 0
 
 	// Delete operation resources created during previous run.
-	CleanK8sOperations(ctx, dbQueries, client, log)
+	cleanK8sOperations(ctx, dbQueries, client, log)
 
 	// Get Special user from DB because we need ClusterUser for creating Operation and we don't have one.
 	// Hence created a dummy Cluster User for internal purpose.
@@ -208,8 +218,9 @@ func RunNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 
 	// Continuously iterate and fetch batches until all entries of Application table are processed.
 	for {
+
 		if offSet != 0 {
-			time.Sleep(sleepIntervalsOfBatches * time.Millisecond)
+			time.Sleep(sleepIntervalsOfBatches)
 		}
 
 		var listOfApplicationsFromDB []db.Application
@@ -270,11 +281,11 @@ func RunNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 			}
 
 			// At this point we have the applications from ArgoCD and DB, now compare them to check if they are not in Sync.
-			if CompareApplications(applicationFromArgoCD, applicationFromDB, log) {
+			if compareApplications(applicationFromArgoCD, applicationFromDB, log) {
 				log.V(sharedutil.LogLevel_Debug).Info("Argo application is in Sync with DB, Application:" + applicationRowFromDB.Application_id)
 				continue
 			} else {
-				log.Info("Argo application is not in Sync with DB, Updating ArgoCD App. Application:" + applicationRowFromDB.Application_id)
+				log.Info("Argo application is not in Sync with DB, updating Argo CD App. Application:" + applicationRowFromDB.Application_id)
 			}
 
 			// At this point application from ArgoCD and DB are not in Sync, so need to update ArgoCD application according to DB entry
@@ -295,7 +306,7 @@ func RunNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 				continue
 			}
 
-			log.Info("Namespace Reconcile processed application : " + applicationRowFromDB.Application_id)
+			log.Info("Namespace Reconcile processed application: " + applicationRowFromDB.Application_id)
 		}
 
 		// Skip processed entries in next iteration
@@ -303,7 +314,7 @@ func RunNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 	}
 
 	log.Info(fmt.Sprintf("Namespace Reconciler finished an iteration at %s. "+
-		"Next iteration will be triggered after %d Minutes", time.Now().String(), namespaceReConcilerInterval))
+		"Next iteration will be triggered after %v Minutes", time.Now().String(), namespaceReconcilerInterval))
 }
 
 func sanitizeHealthAndStatus(applicationState *db.ApplicationState) {
@@ -344,37 +355,37 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // Convert ResourceStatus Array into String and then compress it into Byte Array​
-func CompressResourceData(resources []appv1.ResourceStatus) ([]byte, error) {
+func compressResourceData(resources []appv1.ResourceStatus) ([]byte, error) {
 	var byteArr []byte
 	var buffer bytes.Buffer
 
 	// Convert ResourceStatus object into String.
 	resourceStr, err := yaml.Marshal(&resources)
 	if err != nil {
-		return byteArr, fmt.Errorf("Unable to Marshal resource data. %v", err)
+		return byteArr, fmt.Errorf("unable to Marshal resource data. %v", err)
 	}
 
 	// Compress string data
 	gzipWriter, err := gzip.NewWriterLevel(&buffer, gzip.BestSpeed)
 	if err != nil {
-		return byteArr, fmt.Errorf("Unable to create Buffer writer. %v", err)
+		return byteArr, fmt.Errorf("unable to create Buffer writer. %v", err)
 	}
 
 	_, err = gzipWriter.Write([]byte(string(resourceStr)))
 
 	if err != nil {
-		return byteArr, fmt.Errorf("Unable to compress resource string. %v", err)
+		return byteArr, fmt.Errorf("unable to compress resource string. %v", err)
 	}
 
 	if err := gzipWriter.Close(); err != nil {
-		return byteArr, fmt.Errorf("Unable to close gzip writer connection. %v", err)
+		return byteArr, fmt.Errorf("unable to close gzip writer connection. %v", err)
 	}
 
 	return buffer.Bytes(), nil
 }
 
-// Compare Application objects, since both objects are of different types we can not use == operator for comparison.
-func CompareApplications(applicationFromArgoCD appv1.Application, applicationFromDB fauxargocd.FauxApplication, log logr.Logger) bool {
+// compareApplications compares Application objects, since both objects are of different types we can not use == operator for comparison.
+func compareApplications(applicationFromArgoCD appv1.Application, applicationFromDB fauxargocd.FauxApplication, log logr.Logger) bool {
 
 	if applicationFromArgoCD.APIVersion != applicationFromDB.APIVersion {
 		log.Info("APIVersion field in ArgoCD and DB entry is not in Sync.")
@@ -446,8 +457,8 @@ func CompareApplications(applicationFromArgoCD appv1.Application, applicationFro
 	return true
 }
 
-func CleanK8sOperations(ctx context.Context, dbq db.DatabaseQueries, client client.Client, log logr.Logger) {
-	// Get list of Operaions from cluster.
+func cleanK8sOperations(ctx context.Context, dbq db.DatabaseQueries, client client.Client, log logr.Logger) {
+	// Get list of Operations from cluster.
 	listOfK8sOperation := v1alpha1.OperationList{}
 	err := client.List(ctx, &listOfK8sOperation)
 	if err != nil {

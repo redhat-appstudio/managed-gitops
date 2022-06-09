@@ -495,7 +495,8 @@ func SetupForTestingDBGinkgo() error {
 	var apiCRToDatabaseMappings []APICRToDatabaseMapping
 	err = dbq.UnsafeListAllAPICRToDatabaseMappings(ctx, &apiCRToDatabaseMappings)
 	Expect(err).To(BeNil())
-	for _, item := range apiCRToDatabaseMappings {
+	for idx := range apiCRToDatabaseMappings {
+		item := apiCRToDatabaseMappings[idx]
 		if strings.HasPrefix(item.APIResourceUID, "test-") || strings.HasPrefix(item.DBRelationKey, "test-") {
 			rowsAffected, err := dbq.DeleteAPICRToDatabaseMapping(ctx, &item)
 			Expect(err).To(BeNil())

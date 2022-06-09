@@ -26,9 +26,7 @@ const (
 	ArgoCDManagerClusterRole        = "argocd-manager-role"
 	ArgoCDManagerClusterRoleBinding = "argocd-manager-role-binding"
 	// K8sClientError is a prefix that can/should be used when outputting errors from K8s client
-	K8sClientError  = "Error from k8s client:"
-	argocdnamespace = "my-argocd"
-	argocdname      = "argocd"
+	K8sClientError = "Error from k8s client:"
 )
 
 func CreateNamespaceScopedArgoCD(ctx context.Context, name string, namespace string, k8sClient client.Client) error {

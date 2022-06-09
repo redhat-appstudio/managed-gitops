@@ -1,0 +1,59 @@
+
+# Current as of June 9th, 2022
+
+apiVersion: appstudio.redhat.com/v1alpha1
+kind: Component
+metadata:
+#  finalizers:
+#  - component.appstudio.redhat.com/finalizer
+  name: demo
+# namespace: rorai (your namespace)
+#  ownerReferences:
+#  - apiVersion: appstudio.redhat.com/v1alpha1
+#    kind: Application
+#    name: new-demo-app
+#    uid: 43012e93-170f-4b9f-9b2f-5c81a00fe536
+spec:
+  application: new-demo-app
+  componentName: demo
+  containerImage: quay.io/sbudhwar/demo
+  replicas: 2
+  resources:
+    requests:
+      cpu: 1m
+      memory: 512Mi
+  source:
+    git:
+      url: ""
+  targetPort: 8080
+status:
+  conditions:
+  - lastTransitionTime: "2022-06-09T09:45:04Z"
+    message: Component has been successfully created
+    reason: OK
+    status: "True"
+    type: Created
+  - lastTransitionTime: "2022-06-09T10:09:40Z"
+    message: Component has been successfully updated
+    reason: OK
+    status: "True"
+    type: Updated
+  containerImage: quay.io/sbudhwar/demo
+  devfile: |
+    components:
+    - attributes:
+        deployment/container-port: 8080
+        deployment/cpuRequest: 1m
+        deployment/memoryRequest: 512Mi
+        deployment/replicas: 2
+        deployment/storageRequest: "0"
+      kubernetes:
+        inlined: placeholder
+      name: kubernetes
+    metadata:
+      name: demo
+    schemaVersion: 2.1.0
+  gitops:
+    context: ./  # path of the kustomize.yaml within the repo
+    repositoryURL: https://github.com/redhat-appstudio-appdata/new-demo-app-rorai-ask-display
+    # you can use any repositoryURL from https://github.com/redhat-appstudio-appdata for this field, or create your own GitOps repository that Argo CD will use

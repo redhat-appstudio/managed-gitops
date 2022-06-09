@@ -1,0 +1,36 @@
+# Current as of June 9th, 2022
+
+apiVersion: appstudio.redhat.com/v1alpha1
+kind: Application
+metadata:
+#  finalizers:
+#  - application.appstudio.redhat.com/finalizer
+  name: new-demo-app
+#  namespace: (your namespace)
+spec:
+  appModelRepository:
+    url: ""
+  displayName: New Demo App
+  gitOpsRepository:
+    url: ""
+status:
+  conditions:
+  - lastTransitionTime: "2022-06-09T09:23:15Z"
+    message: Application has been successfully created
+    reason: OK
+    status: "True"
+    type: Created
+  devfile: |
+    attributes:
+      containerImage/demo: quay.io/sbudhwar/demo
+    metadata:
+      attributes:
+        appModelRepository.context: /
+        appModelRepository.url: https://github.com/redhat-appstudio-appdata/new-demo-app-rorai-ask-display
+        # This field would normally point to source code; since the GitOps Service doesn't interact with source code, it can be ignored.
+
+        gitOpsRepository.context: ./
+        gitOpsRepository.url: https://github.com/redhat-appstudio-appdata/new-demo-app-rorai-ask-display
+        # you can use any repositoryURL from https://github.com/redhat-appstudio-appdata for this field, or create your own GitOps repository that Argo CD will use
+      name: New Demo App
+    schemaVersion: 2.1.0

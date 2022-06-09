@@ -17,38 +17,7 @@ Create the 'jgw' namespace:
 kubectl create namespace jgw
 ```
 
-Here is a sample Application yaml you can use (which is valid schema, as of this writing). You can `kubectl apply -f` this, and the appstudio-controller should create a corresponding `GitOpsDeployment` resource.
-```yaml
-apiVersion: appstudio.redhat.com/v1alpha1
-kind: Application
-metadata:
-#  finalizers:
-#  - application.appstudio.redhat.com/finalizer
-  name: my-app
-  namespace: jane
-spec:
-  appModelRepository:
-    url: "https://github.com/jgwest/my-app"
-  displayName: my-app
-  gitOpsRepository:
-    url: "https://github.com/jgwest/my-app"
-status:
-  conditions: []
-  devfile: |
-    metadata:
-      attributes:
-        appModelRepository.context: /
-        appModelRepository.url: https://github.com/redhat-appstudio-appdata/test-application-concentrate-complete
-        gitOpsRepository.context: /
-        gitOpsRepository.url: https://github.com/redhat-appstudio-appdata/test-application-concentrate-complete
-      name: Test Application
-    projects:
-    - git:
-        remotes:
-          origin: https://github.com/devfile-samples/devfile-sample-code-with-quarkus
-      name: java-quarkus
-    schemaVersion: 2.1.0
-```
+Next, you can create AppStudio `Application` or `Component` resources, which the AppStudio controller will respond to. See the [examples](examples) folder README.md for details.
 
 ### Bootstrapped with operator-sdk v1.17
 

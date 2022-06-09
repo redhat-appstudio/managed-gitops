@@ -11,7 +11,7 @@ import (
 	openshiftv1 "github.com/openshift/api/route/v1"
 	v1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbac "k8s.io/api/rbac/v1beta1"
+	rbac "k8s.io/api/rbac/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,7 +26,9 @@ const (
 	ArgoCDManagerClusterRole        = "argocd-manager-role"
 	ArgoCDManagerClusterRoleBinding = "argocd-manager-role-binding"
 	// K8sClientError is a prefix that can/should be used when outputting errors from K8s client
-	K8sClientError = "Error from k8s client:"
+	K8sClientError  = "Error from k8s client:"
+	argocdnamespace = "my-argocd"
+	argocdname      = "argocd"
 )
 
 func CreateNamespaceScopedArgoCD(ctx context.Context, name string, namespace string, k8sClient client.Client) error {
@@ -224,10 +226,11 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, name string, namespace str
 		exists := false
 		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
 		if err != nil {
-			// doesn't exist, or error occurred, so keep polling
-			return exists, err
-		} else {
-			exists = true // it exists! so we can stop polling
+			if apierr.IsNotFound(err) {
+				return true, nil
+			} else {
+				return false, err
+			}
 		}
 		return exists, nil
 
@@ -241,13 +244,25 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, name string, namespace str
 	return nil
 }
 
-func SetupArgoCD(k8sClient client.Client) error {
+func SetupArgoCD(k8sClient client.Client, kubeClientSet *kubernetes.Clientset) error {
+
+	policy := metav1.DeletePropagationForeground
 
 	serviceAccount := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-manager",
 			Namespace: "kube-system",
 		},
+	}
+	// Delete the resources, if it exists
+
+	_, errOnGet := kubeClientSet.CoreV1().ServiceAccounts(serviceAccount.Namespace).Get(context.Background(), serviceAccount.Name, metav1.GetOptions{})
+	if errOnGet == nil {
+		errOnDelete := kubeClientSet.CoreV1().ServiceAccounts(serviceAccount.Namespace).Delete(context.Background(), serviceAccount.Name, metav1.DeleteOptions{PropagationPolicy: &policy})
+		if errOnDelete != nil {
+			return fmt.Errorf("Error on DELETE %v", errOnDelete)
+		}
+
 	}
 
 	if err := k8sClient.Create(context.Background(), serviceAccount); err != nil {
@@ -281,16 +296,25 @@ func SetupArgoCD(k8sClient client.Client) error {
 
 	clusterRole := rbac.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "argocd-manager-role",
+			Name:      "argocd-manager-role",
+			Namespace: "kube-system",
 		},
 		Rules: []rbac.PolicyRule{
 			{
 				APIGroups:       []string{"*"},
 				Resources:       []string{"*"},
 				Verbs:           []string{"*"},
-				NonResourceURLs: []string{"*"},
+				NonResourceURLs: []string{},
 			},
 		},
+	}
+
+	_, errOnGet = kubeClientSet.RbacV1().ClusterRoles().Get(context.Background(), clusterRole.Name, metav1.GetOptions{})
+	if errOnGet == nil {
+		errOnDelete := kubeClientSet.RbacV1().ClusterRoles().Delete(context.Background(), clusterRole.Name, metav1.DeleteOptions{PropagationPolicy: &policy})
+		if errOnDelete != nil {
+			return fmt.Errorf("Error on DELETE %v", errOnDelete)
+		}
 	}
 	if err := k8sClient.Create(context.Background(), &clusterRole); err != nil {
 		if !apierr.IsAlreadyExists(err) {
@@ -302,7 +326,8 @@ func SetupArgoCD(k8sClient client.Client) error {
 
 	clusterRoleBinding := rbac.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "argocd-manager-role-binding",
+			Name:      "argocd-manager-role-binding",
+			Namespace: "kube-system",
 		},
 		RoleRef: rbac.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
@@ -316,6 +341,13 @@ func SetupArgoCD(k8sClient client.Client) error {
 				Namespace: "kube-system",
 			},
 		},
+	}
+	_, errOnGet = kubeClientSet.RbacV1().ClusterRoles().Get(context.Background(), clusterRoleBinding.Name, metav1.GetOptions{})
+	if errOnGet == nil {
+		errOnDelete := kubeClientSet.RbacV1().ClusterRoles().Delete(context.Background(), clusterRoleBinding.Name, metav1.DeleteOptions{PropagationPolicy: &policy})
+		if errOnDelete != nil {
+			return fmt.Errorf("Error on DELETE %v", errOnDelete)
+		}
 	}
 	if err := k8sClient.Create(context.Background(), &clusterRoleBinding); err != nil {
 		if !apierr.IsAlreadyExists(err) {

@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"time"
 
 	argocdoperator "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -13,7 +14,14 @@ import (
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	apps "k8s.io/api/apps/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+)
+
+const (
+	argocdnamespace = "my-argocd"
+	argocdname      = "argocd"
 )
 
 var _ = Describe("GitOpsDeployment E2E tests", func() {
@@ -35,7 +43,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			By("ensuring GitOpsDeployment should have expected health and status")
 
-			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
+			Eventually(gitOpsDeploymentResource, "30s", "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)))
@@ -92,8 +100,40 @@ func buildGitOpsDeploymentResource(name, repoURL, path, deploymentSpecType strin
 var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 
 	Context("Create a Standalone ArgoCD instance", func() {
+		kubeClientSet, err := fixture.GetKubeClientSet()
+		Expect(err).To(BeNil())
+
+		BeforeEach(func() {
+			By("deleting the namespace before the test starts, so that the code can create it")
+			policy := metav1.DeletePropagationForeground
+
+			// Delete the e2e namespace, if it exists
+			err = kubeClientSet.CoreV1().Namespaces().Delete(context.Background(), "my-argocd", metav1.DeleteOptions{PropagationPolicy: &policy})
+			if err != nil && !apierr.IsNotFound(err) {
+				Expect(err).To(BeNil())
+			}
+
+			// Wait for namespace to delete
+			if err := wait.Poll(time.Second*1, time.Minute*2, func() (done bool, err error) {
+
+				_, err = kubeClientSet.CoreV1().Namespaces().Get(context.Background(), "my-argocd", metav1.GetOptions{})
+				if err != nil {
+					if apierr.IsNotFound(err) {
+						return true, nil
+					} else {
+						return false, err
+					}
+				}
+
+				return false, nil
+			}); err != nil {
+				Expect(err).To(BeNil())
+			}
+
+		})
 
 		It("should create ArgoCD resource and application, wait for it to be installed and synced", func() {
+
 			By("creating ArgoCD resource")
 			ctx := context.Background()
 
@@ -102,26 +142,28 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 
 			argoCDResource := argocdoperator.ArgoCD{
 				TypeMeta:   metav1.TypeMeta{},
-				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: "my-argocd"},
+				ObjectMeta: metav1.ObjectMeta{Name: argocdname, Namespace: argocdnamespace},
 				Spec:       argocdoperator.ArgoCDSpec{},
 				Status:     argocdoperator.ArgoCDStatus{},
 			}
 			err = argocdv1.CreateNamespaceScopedArgoCD(ctx, argoCDResource.Name, argoCDResource.Namespace, k8sClient)
 			Expect(err).To(Succeed())
 
-			By("ensuring ArgoCD resource exists")
-			argoCDInstance := &apps.Deployment{
-				ObjectMeta: metav1.ObjectMeta{Name: argoCDResource.Name, Namespace: argoCDResource.Namespace},
+			By("ensuring ArgoCD service resource exists")
+			argocdInstance := &apps.Deployment{
+				ObjectMeta: metav1.ObjectMeta{Name: argocdname, Namespace: argocdnamespace},
 			}
-			Eventually(argoCDInstance, "60s", "1s").Should(k8s.ExistByName())
+			Eventually(argocdInstance, "30s", "1s").Should(k8s.ExistByServiceName())
+			Expect(err).To(BeNil())
 
-			err = argocdv1.SetupArgoCD(k8sClient)
+			By("ensuring ArgoCD resource exists in kube-system namespace")
+			err = argocdv1.SetupArgoCD(k8sClient, kubeClientSet)
 			Expect(err).To(Succeed())
 
 			By("creating ArgoCD application")
 			app := appv1.Application{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "",
+					Name:      "argo-app",
 					Namespace: "gitops-service-argocd",
 				},
 				Spec: appv1.ApplicationSpec{

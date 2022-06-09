@@ -11,20 +11,20 @@ import (
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
-
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbac "k8s.io/api/rbac/v1"
 	v1 "k8s.io/api/rbac/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 const (
@@ -202,6 +202,15 @@ func GetKubeClient() (client.Client, error) {
 	}
 
 	err = apps.AddToScheme(scheme)
+	if err != nil {
+		return nil, err
+	}
+	err = appv1.AddToScheme(scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	err = rbac.AddToScheme(scheme)
 	if err != nil {
 		return nil, err
 	}

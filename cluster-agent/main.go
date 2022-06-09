@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 
@@ -119,6 +120,26 @@ func main() {
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
+
+	//==============================================
+	// Process to trigger Namespace Reconciler
+
+	// Get Special user created for internal use,
+	// because we need ClusterUser for creating Operation and we don't have one.
+	// Hence created a dummy Cluster User for internal purpose.
+	var specialClusterUser db.ClusterUser
+	if err = applicationReconcileDB.GetOrCreateSpecialClusterUser(context.Background(), &specialClusterUser); err != nil {
+		setupLog.Error(err, "unable to create special cluster user")
+	}
+	namespacesReconciler := argoprojiocontrollers.ApplicationReconciler{
+		DB:     applicationReconcileDB,
+		Client: mgr.GetClient(),
+	}
+
+	// Trigger goroutine for workSpace/NameSpace reconciler
+	namespacesReconciler.StartNamespaceReconciler()
+
+	//==============================================
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")

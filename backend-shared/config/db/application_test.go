@@ -82,4 +82,54 @@ var _ = Describe("Application Test", func() {
 		Expect(true).To(Equal(db.IsMaxLengthError(err)))
 
 	})
+
+	It("Should Get Application in batch.", func() {
+		err := db.SetupForTestingDBGinkgo()
+		Expect(err).To(BeNil())
+
+		ctx := context.Background()
+		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+		Expect(err).To(BeNil())
+		defer dbq.CloseDatabase()
+
+		_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
+		Expect(err).To(BeNil())
+
+		// Create multiple application entries.
+		applicationput := db.Application{
+			Application_id:          "test-my-application-1",
+			Name:                    "my-application",
+			Spec_field:              "{}",
+			Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+			Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+		}
+
+		err = dbq.CreateApplication(ctx, &applicationput)
+		Expect(err).To(BeNil())
+
+		applicationput.Application_id = "test-my-application-2"
+		err = dbq.CreateApplication(ctx, &applicationput)
+		Expect(err).To(BeNil())
+
+		applicationput.Application_id = "test-my-application-3"
+		err = dbq.CreateApplication(ctx, &applicationput)
+		Expect(err).To(BeNil())
+
+		applicationput.Application_id = "test-my-application-4"
+		err = dbq.CreateApplication(ctx, &applicationput)
+		Expect(err).To(BeNil())
+
+		applicationput.Application_id = "test-my-application-5"
+		err = dbq.CreateApplication(ctx, &applicationput)
+		Expect(err).To(BeNil())
+
+		var listOfApplicationsFromDB []db.Application
+		err = dbq.GetApplicationBatch(ctx, &listOfApplicationsFromDB, 2, 0)
+		Expect(err).To(BeNil())
+		Expect(len(listOfApplicationsFromDB)).To(Equal(2))
+
+		err = dbq.GetApplicationBatch(ctx, &listOfApplicationsFromDB, 3, 1)
+		Expect(err).To(BeNil())
+		Expect(len(listOfApplicationsFromDB)).To(Equal(3))
+	})
 })

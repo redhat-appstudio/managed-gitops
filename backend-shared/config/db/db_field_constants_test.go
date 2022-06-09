@@ -1,144 +1,36 @@
 package db
 
 import (
-	"testing"
-
-	"github.com/stretchr/testify/assert"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
-func TestTruncateVarchar(t *testing.T) {
-	type args struct {
-		s         string
-		maxLength int
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		{
-			name: "String Larger Than Max",
-			args: args{
-				s:         "1234567890",
-				maxLength: 8,
+var _ = Describe("Db Field Constants Test", func() {
+	Context("Test truncate varchar", func() {
+		DescribeTable("description",
+			func(expected string, s string, maxLength int) {
+				Expect(expected).To(Equal(TruncateVarchar(s, maxLength)))
 			},
-			want: "12345...",
-		},
-		{
-			name: "String Smaller Than Max",
-			args: args{
-				s:         "1234567890",
-				maxLength: 11,
-			},
-			want: "1234567890",
-		},
-		{
-			name: "String Equals Max",
-			args: args{
-				s:         "1234567890",
-				maxLength: 10,
-			},
-			want: "1234567890",
-		},
-		{
-			name: "Runes",
-			args: args{
-				s:         "αβγδεζηθικλμνξοπρστω",
-				maxLength: 5,
-			},
-			want: "αβ...",
-		},
-		{
-			name: "Runes with spaces",
-			args: args{
-				s:         "αβ γδ εζ η θικλ μν ξο  πρ σ τω",
-				maxLength: 5,
-			},
-			want: "αβ...",
-		},
-		{
-			name: "Multi-byte string",
-			args: args{
-				s:         "僤凘墈 葎萻萶...",
-				maxLength: 7,
-			},
-			want: "僤凘墈 ...",
-		},
-		{
-			name: "MaxLength 0",
-			args: args{
-				s:         "僤凘墈 葎萻萶...",
-				maxLength: 0,
-			},
-			want: "",
-		},
-		{
-			name: "MaxLength 3",
-			args: args{
-				s:         "僤凘墈 葎萻萶...",
-				maxLength: 3,
-			},
-			want: "...",
-		},
-		{
-			name: "MaxLength 2",
-			args: args{
-				s:         "僤凘墈 葎萻萶...",
-				maxLength: 2,
-			},
-			want: "..",
-		},
-		{
-			name: "MaxLength 1",
-			args: args{
-				s:         "僤凘墈 葎萻萶...",
-				maxLength: 1,
-			},
-			want: ".",
-		},
-		{
-			name: "MaxLength -1",
-			args: args{
-				s:         "僤凘墈 葎萻萶...",
-				maxLength: -1,
-			},
-			want: "",
-		},
-		{
-			name: "Emoji",
-			args: args{
-				s:         "😈👻👾🤖🎃⛑",
-				maxLength: 5,
-			},
-			want: "😈👻...",
-		},
-		{
-			name: "Invalid UTF-8 rune",
-			args: args{
-				s:         string([]byte{0xff, 0xfe, 0xfd}),
-				maxLength: 5,
-			},
-			want: "",
-		},
-		{
-			name: "Empty string",
-			args: args{
-				s:         "",
-				maxLength: 5,
-			},
-			want: "",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, TruncateVarchar(tt.args.s, tt.args.maxLength), "TruncateVarchar(%v, %v)", tt.args.s, tt.args.maxLength)
-		})
-	}
-}
-
-func TestGetConstantValue(t *testing.T) {
-	for field, value := range DbFieldMap {
-		result := getConstantValue(field)
-		assert.Equal(t, value, result)
-	}
-}
+			Entry("String Larger Than Max", "12345...", "1234567890", 8),
+			Entry("String Smaller Than Max", "1234567890", "1234567890", 11),
+			Entry("String Equals Max", "1234567890", "1234567890", 10),
+			Entry("Runes", "αβ...", "αβγδεζηθικλμνξοπρστω", 5),
+			Entry("Runes with spaces", "αβ...", "αβ γδ εζ η θικλ μν ξο  πρ σ τω", 5),
+			Entry("Multi-byte string", "僤凘墈 ...", "僤凘墈 葎萻萶...", 7),
+			Entry("MaxLength 0", "", "僤凘墈 葎萻萶...", 0),
+			Entry("MaxLength 3", "...", "僤凘墈 葎萻萶...", 3),
+			Entry("MaxLength 2", "..", "僤凘墈 葎萻萶...", 2),
+			Entry("MaxLength 1", ".", "僤凘墈 葎萻萶...", 1),
+			Entry("MaxLength -1", "", "僤凘墈 葎萻萶...", -1),
+			Entry("Emoji", "😈👻...", "😈👻👾🤖🎃⛑", 5),
+			Entry("Invalid UTF-8 rune", "", string([]byte{0xff, 0xfe, 0xfd}), 5),
+			Entry("Empty string", "", "", 5),
+		)
+	})
+	Context("Test getConstantValue", func() {
+		for field, value := range DbFieldMap {
+			result := getConstantValue(field)
+			Expect(value).To(Equal(result))
+		}
+	})
+})

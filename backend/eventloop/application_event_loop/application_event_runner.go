@@ -22,6 +22,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+// Global variables to identify resources created by Namespace Reconciler.
+const (
+	IdentifierKey   = "source"
+	IdentifierValue = "periodic-cleanup"
+)
+
 // Within the application event runner  is where the vast majority of the work takes place. This is the code that is
 // actually responsible for acting on events. It is here that received events are processed, and the corresponding Argo
 // CD Applications, Cluster Secrets, etc, are created.
@@ -271,7 +277,7 @@ type applicationEventLoopRunner_Action struct {
 }
 
 // cleanupOperation cleans up the database entry and (optionally) the CR, once an operation has concluded.
-func cleanupOperation(ctx context.Context, dbOperation db.Operation, k8sOperation operation.Operation, operationNamespace string,
+func CleanupOperation(ctx context.Context, dbOperation db.Operation, k8sOperation operation.Operation, operationNamespace string,
 	dbQueries db.ApplicationScopedQueries, gitopsEngineClient client.Client, log logr.Logger) error {
 
 	log = log.WithValues("operation", dbOperation.Operation_id, "namespace", operationNamespace)
@@ -299,7 +305,7 @@ func cleanupOperation(ctx context.Context, dbOperation db.Operation, k8sOperatio
 
 }
 
-func createOperation(ctx context.Context, waitForOperation bool, dbOperationParam db.Operation, clusterUserID string,
+func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationParam db.Operation, clusterUserID string,
 	operationNamespace string, dbQueries db.ApplicationScopedQueries, gitopsEngineClient client.Client, log logr.Logger) (*operation.Operation, *db.Operation, error) {
 
 	var err error
@@ -332,6 +338,10 @@ func createOperation(ctx context.Context, waitForOperation bool, dbOperationPara
 		},
 	}
 
+	// Set annotation as an identifier for Operations created by NameSpace Reconciler.
+	if clusterUserID == db.SpecialClusterUserName {
+		operation.Annotations = map[string]string{IdentifierKey: IdentifierValue}
+	}
 	log.Info("Creating K8s Operation CR", "operation", fmt.Sprintf("%v", operation.Spec.OperationID))
 
 	if err := gitopsEngineClient.Create(ctx, &operation, &client.CreateOptions{}); err != nil {

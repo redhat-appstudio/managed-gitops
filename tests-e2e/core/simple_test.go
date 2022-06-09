@@ -185,6 +185,8 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 			err = argocdv1.AppSync(context.Background(), app.Name, "master", app.Namespace, k8sClient, cs, true)
 			Expect(err).To(Succeed())
 
+			//error on above line, no login credentials provided
+
 			Eventually(app, "2m", "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),

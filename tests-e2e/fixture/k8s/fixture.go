@@ -86,6 +86,7 @@ func Delete(obj client.Object) error {
 
 }
 
+//checks for existence of argocd services
 func ExistByServiceName() matcher.GomegaMatcher {
 	return WithTransform(func(k8sObject client.Object) bool {
 

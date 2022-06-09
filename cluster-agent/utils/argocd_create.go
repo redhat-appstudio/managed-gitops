@@ -307,6 +307,8 @@ func SetupArgoCD(k8sClient client.Client, kubeClientSet *kubernetes.Clientset) e
 		},
 	}
 
+	// Delete the resources, if it exists
+
 	_, errOnGet = kubeClientSet.RbacV1().ClusterRoles().Get(context.Background(), clusterRole.Name, metav1.GetOptions{})
 	if errOnGet == nil {
 		errOnDelete := kubeClientSet.RbacV1().ClusterRoles().Delete(context.Background(), clusterRole.Name, metav1.DeleteOptions{PropagationPolicy: &policy})
@@ -340,6 +342,8 @@ func SetupArgoCD(k8sClient client.Client, kubeClientSet *kubernetes.Clientset) e
 			},
 		},
 	}
+
+	// debug : cluster role binding doesn't respond to the below code, need to delete manually using kubectl.
 	_, errOnGet = kubeClientSet.RbacV1().ClusterRoles().Get(context.Background(), clusterRoleBinding.Name, metav1.GetOptions{})
 	if errOnGet == nil {
 		errOnDelete := kubeClientSet.RbacV1().ClusterRoles().Delete(context.Background(), clusterRoleBinding.Name, metav1.DeleteOptions{PropagationPolicy: &policy})

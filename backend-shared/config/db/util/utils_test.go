@@ -113,13 +113,13 @@ func findKubernetesToDBResourceMappingInTable(ctx context.Context, dbQueries db.
 
 // initialize object required prior to tests
 func initialSetUp() (context.Context, db.AllDatabaseQueries, logr.Logger, types.UID, error) {
-	dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
-	if err != nil {
-		return nil, nil, nil, "", err
-	}
-
 	ctx := context.Background()
 	log := logger.FromContext(ctx)
+
+	dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
+	if err != nil {
+		return nil, nil, log, "", err
+	}
 
 	return ctx, dbQueries, log, uuid.NewUUID(), err
 }

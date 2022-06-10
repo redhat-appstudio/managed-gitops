@@ -67,10 +67,6 @@ func init() {
 }
 
 func main() {
-	if err := migrate.Migrate("", "file://../utilities/db-migration/migrations/"); err != nil {
-		setupLog.Error(err, "Fatal Error: Unsuccessful Migration")
-		os.Exit(1)
-	}
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
@@ -86,6 +82,11 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	if err := migrate.Migrate("", "file://../utilities/db-migration/migrations/"); err != nil {
+		setupLog.Error(err, "Fatal Error: Unsuccessful Migration")
+		os.Exit(1)
+	}
 
 	go initializeRoutes()
 

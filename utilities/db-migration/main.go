@@ -13,7 +13,8 @@ func main() {
 		opType = os.Args[1]
 	}
 	if err := migrate.Migrate(opType, "file://migrations/"); err != nil {
-		fmt.Printf("%v", err)
+		fmt.Println("Unable to migrate database:", err)
 		os.Exit(1)
+		return
 	}
 }

@@ -224,15 +224,7 @@ if ! docker cp "$SCRIPTPATH/db-schema.sql" $POSTGRES_CONTAINER:/ >/dev/null 2>&1
   echo "db-schema.sql cannot be copied into the '$POSTGRES_CONTAINER' container"
   exit 1
 fi
-docker exec \
-  --user postgres \
-  -e PGPASSWORD=gitops \
-  -i "$POSTGRES_CONTAINER" "psql" \
-  -h localhost \
-  -d postgres \
-  -U postgres \
-  -p 5432 \
-  -q -f db-schema.sql
+make db-migrate
 
 echo
 echo "== Dev environment initialized =="

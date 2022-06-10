@@ -9,6 +9,7 @@ import (
 	appEventLoop "github.com/redhat-appstudio/managed-gitops/backend/eventloop/application_event_loop"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/util/fauxargocd"
+	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -30,7 +31,7 @@ var _ = Describe("Application Controller", func() {
 		const (
 			name      = "my-application"
 			namespace = "argocd"
-			dbID      = "databaseID"
+			dbID      = controllers.ArgoCDApplicationDatabaseIDLabel
 		)
 		var ctx context.Context
 		var managedEnvironment *db.ManagedEnvironment

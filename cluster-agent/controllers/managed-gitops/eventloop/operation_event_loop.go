@@ -285,7 +285,8 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 }
 
-// processOperation_Application handles an Operation that targets an Application. Returns true if the task should be retried (eg due to failure).
+// processOperation_Application handles an Operation that targets an Application.
+// Returns true if the task should be retried (eg due to failure), false otherwise.
 func processOperation_Application(ctx context.Context, dbOperation db.Operation, crOperation operation.Operation, dbQueries db.DatabaseQueries,
 	argoCDNamespace corev1.Namespace, eventClient client.Client, log logr.Logger) (bool, error) {
 
@@ -298,6 +299,8 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		Application_id: dbOperation.Resource_id,
 	}
 
+	log = log.WithValues("applicationRow", dbApplication.Application_id)
+
 	if err := dbQueries.GetApplicationById(ctx, dbApplication); err != nil {
 
 		if db.IsResultNotFoundError(err) {
@@ -306,10 +309,10 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 			// Find the Application that has the corresponding databaseID label
 			list := appv1.ApplicationList{}
 			labelSelector := labels.NewSelector()
-			req, err := labels.NewRequirement("databaseID", selection.Equals, []string{dbApplication.Application_id})
+			req, err := labels.NewRequirement(controllers.ArgoCDApplicationDatabaseIDLabel, selection.Equals, []string{dbApplication.Application_id})
 			if err != nil {
-				log.Error(err, "invalid label requirement")
-				return true, err
+				log.Error(err, "SEVERE: invalid label requirement")
+				return false, err
 			}
 			labelSelector = labelSelector.Add(*req)
 			if err := eventClient.List(ctx, &list, &client.ListOptions{
@@ -322,11 +325,16 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 
 			if len(list.Items) > 1 {
 				// Sanity test: should really only ever be 0 or 1
-				log.Error(nil, "unexpected number of items in list", "length", len(list.Items))
+				log.Error(nil, "SEVERE: unexpected number of items in list", "length", len(list.Items))
 			}
 
 			var firstDeletionErr error
 			for _, item := range list.Items {
+
+				log := log.WithValues("argoCDApplicationName", item.Name, "argoCDApplicationNmespace", item.Namespace)
+
+				log.Info("Deleting Argo CD Application that is missing a DB Entry")
+
 				// Delete all Argo CD applications with the corresponding database label (but, there should be only one)
 				err := controllers.DeleteArgoCDApplication(ctx, item, eventClient, log)
 				if err != nil {
@@ -343,10 +351,11 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 				return true, firstDeletionErr
 			}
 
+			// success
 			return false, nil
 
 		} else {
-			log.Error(err, "An error occurred while attempting to retrieve Argo CD Application CR")
+			log.Error(err, "Unable to retrieve database Application row from database")
 			return true, err
 		}
 	}
@@ -358,8 +367,8 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		},
 	}
 
-	log = log.WithValues("app.Name", app.Name)
-
+	// Retrieve the Argo CD Application from the namespace
+	log = log.WithValues("argoCDApplicationName", app.Name)
 	if err := eventClient.Get(ctx, client.ObjectKeyFromObject(app), app); err != nil {
 
 		if apierr.IsNotFound(err) {
@@ -372,7 +381,8 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 				return false, nil
 			}
 
-			app.ObjectMeta.Labels = map[string]string{"databaseID": dbApplication.Application_id}
+			// Add databaseID label
+			app.ObjectMeta.Labels = map[string]string{controllers.ArgoCDApplicationDatabaseIDLabel: dbApplication.Application_id}
 
 			if err := eventClient.Create(ctx, app, &client.CreateOptions{}); err != nil {
 				log.Error(err, "unable to create Argo CD Application CR: "+app.Name)
@@ -383,11 +393,13 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 
 			log.Info("Created Argo CD Application CR: " + app.Name)
 
+			// Success
 			return false, nil
 
 		} else {
+			// If another error occurred, retry.
 			log.Error(err, "Unexpected error when attempting to retrieve Argo CD Application CR")
-			return false, err
+			return true, err
 		}
 
 	}
@@ -399,7 +411,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 
 	if err := yaml.Unmarshal([]byte(dbApplication.Spec_field), specFieldApp); err != nil {
 		log.Error(err, "SEVERE: unable to unmarshal DB application spec field, on updating existing Application cR: "+app.Name)
-		// We return nil here, because there's likely nothing else that can be done to fix this.
+		// We return nil here, with no retry, because there's likely nothing else that can be done to fix this.
 		// Thus there is no need to keep retrying.
 		return false, nil
 	}
@@ -422,7 +434,8 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 
 		if err := eventClient.Update(ctx, app); err != nil {
 			log.Error(err, "unable to update application after difference detected: "+app.Name)
-			return false, err
+			// Retry if we were unable to update the Application, for example due to a conflict
+			return true, err
 		}
 
 		log.Info("Updated Argo CD Application CR: " + app.Name + ", diff was: " + specDiff)

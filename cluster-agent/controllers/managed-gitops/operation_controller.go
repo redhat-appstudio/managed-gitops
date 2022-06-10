@@ -47,13 +47,6 @@ type OperationReconciler struct {
 func (r *OperationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	contextLog := log.FromContext(ctx)
 
-	// operation := managedgitopsv1alpha1.Operation{}
-
-	// if err := r.Get(ctx, req.NamespacedName, &operation); err != nil {
-	// 	contextLog.Error(err, "Unable to find operation: "+operation.Name)
-	// 	return ctrl.Result{}, err
-	// }
-
 	contextLog.Info("Operation event seen in reconciler: " + req.NamespacedName.String())
 
 	r.ControllerEventLoop.EventReceived(req, r.Client)

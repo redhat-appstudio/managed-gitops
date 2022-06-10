@@ -78,7 +78,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// - This is a field we add ourselves to every Application we create, which references the
 	//   corresponding an Application table primary key.
 	applicationDB := &db.Application{}
-	if databaseID, exists := app.Labels["databaseID"]; !exists {
+	if databaseID, exists := app.Labels[controllers.ArgoCDApplicationDatabaseIDLabel]; !exists {
 		log.V(sharedutil.LogLevel_Warn).Info("Application CR was missing 'databaseID' label")
 		return ctrl.Result{}, nil
 	} else {
@@ -87,7 +87,8 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if _, _, err := r.Cache.GetApplicationById(ctx, applicationDB.Application_id); err != nil {
 		if db.IsResultNotFoundError(err) {
 
-			log.V(sharedutil.LogLevel_Warn).Info("Application CR '" + req.NamespacedName.String() + "' missing corresponding database entry: " + applicationDB.Application_id)
+			log.V(sharedutil.LogLevel_Warn).Info("Application CR '" + req.NamespacedName.String() +
+				"' missing corresponding database entry: " + applicationDB.Application_id)
 
 			adt := applicationDeleteTask{
 				applicationCR: app,

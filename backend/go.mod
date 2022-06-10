@@ -7,6 +7,7 @@ require (
 	github.com/go-logr/logr v1.2.2
 	github.com/golang/mock v1.6.0
 	github.com/google/go-github v17.0.0+incompatible
+	github.com/hashicorp/golang-lru v0.5.1
 	github.com/onsi/ginkgo/v2 v2.1.3
 	github.com/onsi/gomega v1.19.0
 	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0

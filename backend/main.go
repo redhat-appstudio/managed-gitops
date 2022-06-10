@@ -83,7 +83,16 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	if err := migrate.Migrate("", "file://../utilities/db-migration/migrations/"); err != nil {
+	// Default to the backend running from backend folder
+	migrationsPath := "file://../utilities/db-migration/migrations/"
+
+	// If the /migrations path exists, when the backend is running in a container, use that instead.
+	_, err := os.Stat("/migrations")
+	if !os.IsNotExist(err) {
+		migrationsPath = "file:///migrations"
+	}
+
+	if err := migrate.Migrate("", migrationsPath); err != nil {
 		setupLog.Error(err, "Fatal Error: Unsuccessful Migration")
 		os.Exit(1)
 	}

@@ -16,8 +16,8 @@ echo "Start PostgreSQL"
 
 
 cd $REPO_ROOT
-./create-dev-env.sh
-make reset-db
+USE_MASTER_SCHEMA="true" ./create-dev-env.sh
+USE_MASTER_SCHEMA="true" make reset-db
 
 MASTER_SQL_FILE=`mktemp`
 MIGRATION_SQL_FILE=`mktemp`

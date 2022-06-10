@@ -219,12 +219,35 @@ echo "  Done"
 echo
 
 echo "* Initializing DB"
-echo "  Copying db-schema.sql into the postgress container."
+echo "  Copying db-schema.sql into the postgres container."
 if ! docker cp "$SCRIPTPATH/db-schema.sql" $POSTGRES_CONTAINER:/ >/dev/null 2>&1; then
   echo "db-schema.sql cannot be copied into the '$POSTGRES_CONTAINER' container"
   exit 1
 fi
-make db-migrate
+
+if [ "$USE_MASTER_SCHEMA" != "true" ]; then
+  # After the database starts, ensure it is up to date with the latest schema.
+  # This is the default behaviour, and is nearly always the corrects choice.
+  make db-migrate
+else
+  echo
+  echo "* Initializing database with master schema"
+  echo
+  # Start the database with the master schema.
+  # The primary (and currently, only) use for this is for the 'check-db-schema.sh' script.
+  # WARNING: this will cause backend to fail to start, as it expects an empty database on startup.
+  docker exec \
+  --user postgres \
+  -e PGPASSWORD=gitops \
+  -i "$POSTGRES_CONTAINER" "psql" \
+  -h localhost \
+  -d postgres \
+  -U postgres \
+  -p 5432 \
+  -q -f db-schema.sql
+fi
+
+
 
 echo
 echo "== Dev environment initialized =="

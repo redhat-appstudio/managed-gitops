@@ -16,6 +16,7 @@ COPY backend-shared ./backend-shared
 COPY cluster-agent ./cluster-agent
 COPY appstudio-controller ./appstudio-controller
 COPY appstudio-shared ./appstudio-shared
+COPY utilities/db-migration/ ./utilities/db-migration/
 
 # Perform the build for all components
 RUN make build
@@ -38,10 +39,13 @@ RUN microdnf install shadow-utils \
 
 WORKDIR /
 
+RUN mkdir -p /migrations
+
 # Copy both the controller binaries into the $PATH so they can be invoked
 COPY --from=builder workspace/backend/bin/manager /usr/local/bin/gitops-service-backend
 COPY --from=builder workspace/cluster-agent/bin/manager /usr/local/bin/gitops-service-cluster-agent
 COPY --from=builder workspace/appstudio-controller/bin/manager /usr/local/bin/appstudio-controller
+COPY --from=builder workspace/utilities/db-migration/migrations /migrations
 
 # Run as non-root user
 USER 65532:65532

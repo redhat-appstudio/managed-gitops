@@ -1,15 +1,20 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
-	migrate "github.com/redhat-appstudio/managed-gitops/utilities/db-migrate/migrate"
+	migrate "github.com/redhat-appstudio/managed-gitops/utilities/db-migration/migrate"
 )
 
 func main() {
-	op_type := ""
+	opType := ""
 	if len(os.Args) >= 2 {
-		op_type = os.Args[1]
+		opType = os.Args[1]
 	}
-	migrate.Main(op_type)
+	if err := migrate.Migrate(opType, "file://migrations/"); err != nil {
+		fmt.Println("Unable to migrate database:", err)
+		os.Exit(1)
+		return
+	}
 }

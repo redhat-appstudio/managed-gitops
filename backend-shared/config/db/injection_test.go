@@ -1,281 +1,262 @@
-package db
+package db_test
 
 import (
 	"context"
-	"testing"
 
-	"github.com/stretchr/testify/assert"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 )
 
-func TestGitopsEngineInstanceWrongInput(t *testing.T) {
-	SetupforTestingDB(t)
-	defer TestTeardown(t)
-	dbq, err := NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
+var _ = Describe("Injection Test", func() {
+	It("Should test GitopsEngineInstanceWrongInput", func() {
+		err := db.SetupForTestingDBGinkgo()
+		Expect(err).To(BeNil())
+		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+		Expect(err).To(BeNil())
+		defer dbq.CloseDatabase()
 
-	ctx := context.Background()
+		ctx := context.Background()
 
-	clusterCredentials := ClusterCredentials{
-		Clustercredentials_cred_id:  "test-cluster-creds-test-0",
-		Host:                        "host",
-		Kube_config:                 "kube-config",
-		Kube_config_context:         "kube-config-context",
-		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-		Serviceaccount_ns:           "Serviceaccount_ns",
-	}
+		var clusterUser = &db.ClusterUser{
+			Clusteruser_id: "test-user-wrong-application",
+			User_name:      "test-user-wrong-application",
+		}
+		err = dbq.CreateClusterUser(ctx, clusterUser)
+		Expect(err).To(BeNil())
 
-	err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-	assert.NoError(t, err)
-	{
-		managedEnvironment := ManagedEnvironment{
-			Managedenvironment_id: "test-managed-env-0",
+		clusterCredentials := db.ClusterCredentials{
+			Clustercredentials_cred_id:  "test-cluster-creds-test-5",
+			Host:                        "host",
+			Kube_config:                 "kube-config",
+			Kube_config_context:         "kube-config-context",
+			Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+			Serviceaccount_ns:           "Serviceaccount_ns",
+		}
+
+		managedEnvironment := db.ManagedEnvironment{
+			Managedenvironment_id: "test-managed-env-5",
 			Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
 			Name:                  "my env",
 		}
-		err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
-		if !assert.NoError(t, err) {
-			return
-		}
 
-		gitopsEngineCluster := GitopsEngineCluster{
-			Gitopsenginecluster_id: "test-fake-cluster-0",
+		gitopsEngineCluster := db.GitopsEngineCluster{
+			Gitopsenginecluster_id: "test-fake-cluster-5",
 			Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
 		}
-		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-		if !assert.NoError(t, err) {
-			return
-		}
 
-		gitopsEngineInstance := GitopsEngineInstance{
-			Gitopsengineinstance_id: "test-fake-engine-instance-id-0",
+		gitopsEngineInstance := db.GitopsEngineInstance{
+			Gitopsengineinstance_id: "test-fake-engine-instance-id",
 			Namespace_name:          "test'fake'namespace",
-			Namespace_uid:           "test-fake-namespace-0",
+			Namespace_uid:           "test-fake-namespace-5",
 			EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 		}
-		err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-		if !assert.NoError(t, err) {
-			return
+
+		clusterAccess := db.ClusterAccess{
+			Clusteraccess_user_id:                   clusterUser.Clusteruser_id,
+			Clusteraccess_managed_environment_id:    managedEnvironment.Managedenvironment_id,
+			Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
 		}
-		retrieveGitopsEngineInstance := &GitopsEngineInstance{
-			Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
-		}
-		err = dbq.GetGitopsEngineInstanceById(ctx, retrieveGitopsEngineInstance)
-		if !assert.NoError(t, err) {
-			return
-		}
-		assert.Equal(t, gitopsEngineInstance.Namespace_name, retrieveGitopsEngineInstance.Namespace_name)
-	}
-	assert.NoError(t, err)
-}
 
-func TestClusterCredentialWrongInput(t *testing.T) {
-	SetupforTestingDB(t)
-	defer TestTeardown(t)
-	dbq, err := NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
+		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
+		Expect(err).To(BeNil())
 
-	ctx := context.Background()
-
-	clusterCredentials := ClusterCredentials{
-		Clustercredentials_cred_id: "test-cluster-creds-input",
-		Host:                       "host'sInput'",
-	}
-
-	err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-	if !assert.NoError(t, err) {
-		return
-	}
-	retrievedClusterCredentials := &ClusterCredentials{
-		Clustercredentials_cred_id: clusterCredentials.Clustercredentials_cred_id,
-	}
-	err = dbq.GetClusterCredentialsById(ctx, retrievedClusterCredentials)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	assert.Equal(t, clusterCredentials.Host, retrievedClusterCredentials.Host)
-	assert.NoError(t, err)
-}
-
-func TestManagedEnviromentWrongInput(t *testing.T) {
-	SetupforTestingDB(t)
-	defer TestTeardown(t)
-	dbq, err := NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
-
-	ctx := context.Background()
-
-	clusterCredentials := ClusterCredentials{
-		Clustercredentials_cred_id:  "test-cluster-creds-test-1",
-		Host:                        "host",
-		Kube_config:                 "kube-config",
-		Kube_config_context:         "kube-config-context",
-		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-		Serviceaccount_ns:           "Serviceaccount_ns",
-	}
-
-	err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-	assert.NoError(t, err)
-	{
-		managedEnvironment := ManagedEnvironment{
-			Managedenvironment_id: "test-managed-env-1",
-			Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
-			Name:                  "test'env",
-		}
 		err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
-		if !assert.NoError(t, err) {
-			return
+		Expect(err).To(BeNil())
+
+		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
+		Expect(err).To(BeNil())
+
+		err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
+		Expect(err).To(BeNil())
+
+		err = dbq.CreateClusterAccess(ctx, &clusterAccess)
+		Expect(err).To(BeNil())
+
+		application := &db.Application{
+			Application_id:          "test-my-application-5",
+			Name:                    "test'application",
+			Spec_field:              "{}",
+			Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+			Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 		}
-		retrieveManagedEnv := &ManagedEnvironment{
-			Managedenvironment_id: "test-managed-env-1",
+
+		err = dbq.CheckedCreateApplication(ctx, application, clusterAccess.Clusteraccess_user_id)
+		Expect(err).To(BeNil())
+
+		retrievedApplication := db.Application{Application_id: application.Application_id}
+
+		err = dbq.GetApplicationById(ctx, &retrievedApplication)
+		Expect(err).To(BeNil())
+		Expect(application.Name).To(Equal(retrievedApplication.Name))
+	})
+
+	It("Should test TestClusterCredentialWrongInput", func() {
+		err := db.SetupForTestingDBGinkgo()
+		Expect(err).To(BeNil())
+		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+		Expect(err).To(BeNil())
+		defer dbq.CloseDatabase()
+
+		ctx := context.Background()
+
+		clusterCredentials := db.ClusterCredentials{
+			Clustercredentials_cred_id: "test-cluster-creds-input",
+			Host:                       "host'sInput'",
 		}
-		err = dbq.GetManagedEnvironmentById(ctx, retrieveManagedEnv)
-		if !assert.NoError(t, err) {
-			return
+
+		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
+		Expect(err).To(BeNil())
+		retrievedClusterCredentials := &db.ClusterCredentials{
+			Clustercredentials_cred_id: clusterCredentials.Clustercredentials_cred_id,
 		}
-		assert.Equal(t, managedEnvironment.Name, retrieveManagedEnv.Name)
-	}
-	assert.NoError(t, err)
-}
+		err = dbq.GetClusterCredentialsById(ctx, retrievedClusterCredentials)
+		Expect(err).To(BeNil())
+		Expect(clusterCredentials.Host).To(Equal(retrievedClusterCredentials.Host))
+		Expect(err).To(BeNil())
+	})
 
-func TestClusterUserWrongInput(t *testing.T) {
-	SetupforTestingDB(t)
-	defer TestTeardown(t)
-	dbq, err := NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
+	It("Should test TestManagedEnviromentWrongInput", func() {
+		err := db.SetupForTestingDBGinkgo()
+		Expect(err).To(BeNil())
+		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+		Expect(err).To(BeNil())
+		defer dbq.CloseDatabase()
 
-	ctx := context.Background()
+		ctx := context.Background()
 
-	user := &ClusterUser{
-		Clusteruser_id: "test-user-id",
-		User_name:      "samyak'scluster",
-	}
-	err = dbq.CreateClusterUser(ctx, user)
-	if !assert.NoError(t, err) {
-		return
-	}
+		clusterCredentials := db.ClusterCredentials{
+			Clustercredentials_cred_id:  "test-cluster-creds-test-1",
+			Host:                        "host",
+			Kube_config:                 "kube-config",
+			Kube_config_context:         "kube-config-context",
+			Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+			Serviceaccount_ns:           "Serviceaccount_ns",
+		}
 
-	retrieveUser := &ClusterUser{
-		User_name: "samyak'scluster",
-	}
-	err = dbq.GetClusterUserByUsername(ctx, retrieveUser)
-	if !assert.NoError(t, err) {
-		return
-	}
-	assert.NoError(t, err)
-}
+		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
+		Expect(err).To(BeNil())
+		{
+			managedEnvironment := db.ManagedEnvironment{
+				Managedenvironment_id: "test-managed-env-1",
+				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+				Name:                  "test'env",
+			}
+			err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
+			Expect(err).To(BeNil())
+			retrieveManagedEnv := &db.ManagedEnvironment{
+				Managedenvironment_id: "test-managed-env-1",
+			}
+			err = dbq.GetManagedEnvironmentById(ctx, retrieveManagedEnv)
+			Expect(err).To(BeNil())
+			Expect(managedEnvironment.Name).To(Equal(retrieveManagedEnv.Name))
+		}
+		Expect(err).To(BeNil())
+	})
 
-func TestApplicationWrongInput(t *testing.T) {
-	SetupforTestingDB(t)
-	defer TestTeardown(t)
-	dbq, err := NewUnsafePostgresDBQueries(true, true)
-	if !assert.NoError(t, err) {
-		return
-	}
-	defer dbq.CloseDatabase()
+	It("Should test TestClusterUserWrongInput", func() {
+		err := db.SetupForTestingDBGinkgo()
+		Expect(err).To(BeNil())
+		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+		Expect(err).To(BeNil())
+		defer dbq.CloseDatabase()
 
-	ctx := context.Background()
+		ctx := context.Background()
 
-	var clusterUser = &ClusterUser{
-		Clusteruser_id: "test-user-wrong-application",
-		User_name:      "test-user-wrong-application",
-	}
-	err = dbq.CreateClusterUser(ctx, clusterUser)
-	if !assert.NoError(t, err) {
-		return
-	}
+		user := &db.ClusterUser{
+			Clusteruser_id: "test-user-id",
+			User_name:      "samyak'scluster",
+		}
+		err = dbq.CreateClusterUser(ctx, user)
+		Expect(err).To(BeNil())
 
-	clusterCredentials := ClusterCredentials{
-		Clustercredentials_cred_id:  "test-cluster-creds-test-5",
-		Host:                        "host",
-		Kube_config:                 "kube-config",
-		Kube_config_context:         "kube-config-context",
-		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-		Serviceaccount_ns:           "Serviceaccount_ns",
-	}
+		retrieveUser := &db.ClusterUser{
+			User_name: "samyak'scluster",
+		}
+		err = dbq.GetClusterUserByUsername(ctx, retrieveUser)
+		Expect(err).To(BeNil())
+	})
 
-	managedEnvironment := ManagedEnvironment{
-		Managedenvironment_id: "test-managed-env-5",
-		Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
-		Name:                  "my env",
-	}
+	It("Should test TestApplicationWrongInput", func() {
+		err := db.SetupForTestingDBGinkgo()
+		Expect(err).To(BeNil())
+		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+		Expect(err).To(BeNil())
+		defer dbq.CloseDatabase()
 
-	gitopsEngineCluster := GitopsEngineCluster{
-		Gitopsenginecluster_id: "test-fake-cluster-5",
-		Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
-	}
+		ctx := context.Background()
 
-	gitopsEngineInstance := GitopsEngineInstance{
-		Gitopsengineinstance_id: "test-fake-engine-instance-id",
-		Namespace_name:          "test-fake-namespace",
-		Namespace_uid:           "test-fake-namespace-5",
-		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
-	}
+		var clusterUser = &db.ClusterUser{
+			Clusteruser_id: "test-user-wrong-application",
+			User_name:      "test-user-wrong-application",
+		}
+		err = dbq.CreateClusterUser(ctx, clusterUser)
+		Expect(err).To(BeNil())
 
-	clusterAccess := ClusterAccess{
-		Clusteraccess_user_id:                   clusterUser.Clusteruser_id,
-		Clusteraccess_managed_environment_id:    managedEnvironment.Managedenvironment_id,
-		Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
-	}
+		clusterCredentials := db.ClusterCredentials{
+			Clustercredentials_cred_id:  "test-cluster-creds-test-5",
+			Host:                        "host",
+			Kube_config:                 "kube-config",
+			Kube_config_context:         "kube-config-context",
+			Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+			Serviceaccount_ns:           "Serviceaccount_ns",
+		}
 
-	err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-	if !assert.NoError(t, err) {
-		return
-	}
+		managedEnvironment := db.ManagedEnvironment{
+			Managedenvironment_id: "test-managed-env-5",
+			Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+			Name:                  "my env",
+		}
 
-	err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
-	if !assert.NoError(t, err) {
-		return
-	}
+		gitopsEngineCluster := db.GitopsEngineCluster{
+			Gitopsenginecluster_id: "test-fake-cluster-5",
+			Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+		}
 
-	err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-	if !assert.NoError(t, err) {
-		return
-	}
+		gitopsEngineInstance := db.GitopsEngineInstance{
+			Gitopsengineinstance_id: "test-fake-engine-instance-id",
+			Namespace_name:          "test-fake-namespace",
+			Namespace_uid:           "test-fake-namespace-5",
+			EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+		}
 
-	err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-	if !assert.NoError(t, err) {
-		return
-	}
+		clusterAccess := db.ClusterAccess{
+			Clusteraccess_user_id:                   clusterUser.Clusteruser_id,
+			Clusteraccess_managed_environment_id:    managedEnvironment.Managedenvironment_id,
+			Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
+		}
 
-	err = dbq.CreateClusterAccess(ctx, &clusterAccess)
-	if !assert.NoError(t, err) {
-		return
-	}
+		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
+		Expect(err).To(BeNil())
 
-	application := &Application{
-		Application_id:          "test-my-application-5",
-		Name:                    "test'application",
-		Spec_field:              "{}",
-		Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-		Managed_environment_id:  managedEnvironment.Managedenvironment_id,
-	}
+		err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
+		Expect(err).To(BeNil())
 
-	err = dbq.CheckedCreateApplication(ctx, application, clusterAccess.Clusteraccess_user_id)
-	if !assert.NoError(t, err) {
-		return
-	}
+		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
+		Expect(err).To(BeNil())
 
-	retrievedApplication := Application{Application_id: application.Application_id}
+		err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
+		Expect(err).To(BeNil())
 
-	err = dbq.GetApplicationById(ctx, &retrievedApplication)
-	if !assert.NoError(t, err) {
-		return
-	}
-	if !assert.Equal(t, application.Name, retrievedApplication.Name) {
-		return
-	}
-	assert.NoError(t, err)
-}
+		err = dbq.CreateClusterAccess(ctx, &clusterAccess)
+		Expect(err).To(BeNil())
+
+		application := &db.Application{
+			Application_id:          "test-my-application-5",
+			Name:                    "test'application",
+			Spec_field:              "{}",
+			Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+			Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+		}
+
+		err = dbq.CheckedCreateApplication(ctx, application, clusterAccess.Clusteraccess_user_id)
+		Expect(err).To(BeNil())
+
+		retrievedApplication := db.Application{Application_id: application.Application_id}
+
+		err = dbq.GetApplicationById(ctx, &retrievedApplication)
+		Expect(err).To(BeNil())
+		Expect(application.Name).To(Equal(retrievedApplication.Name))
+	})
+
+})

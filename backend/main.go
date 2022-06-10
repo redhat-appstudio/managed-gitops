@@ -41,6 +41,7 @@ import (
 
 	"github.com/go-logr/logr"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	"github.com/redhat-appstudio/managed-gitops/utilities/db-migration/migrate"
 
 	managedgitopsv1alpha1operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
@@ -81,6 +82,20 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	// Default to the backend running from backend folder
+	migrationsPath := "file://../utilities/db-migration/migrations/"
+
+	// If the /migrations path exists, when the backend is running in a container, use that instead.
+	_, err := os.Stat("/migrations")
+	if !os.IsNotExist(err) {
+		migrationsPath = "file:///migrations"
+	}
+
+	if err := migrate.Migrate("", migrationsPath); err != nil {
+		setupLog.Error(err, "Fatal Error: Unsuccessful Migration")
+		os.Exit(1)
+	}
 
 	go initializeRoutes()
 

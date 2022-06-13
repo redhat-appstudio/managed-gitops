@@ -4,8 +4,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/ginkgo"
-	"github.com/onsi/ginkgo/config"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/zap/zapcore"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -13,7 +12,10 @@ import (
 )
 
 func TestUtil(t *testing.T) {
-	config.DefaultReporterConfig.SlowSpecThreshold = time.Hour.Seconds() * 30
+
+	_, reporterConfig := GinkgoConfiguration()
+
+	reporterConfig.SlowSpecThreshold = time.Duration(30 * time.Second)
 
 	// Enable controller-runtime log output
 	opts := zap.Options{

@@ -138,7 +138,7 @@ func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, namespace 
 	return &managedEnvironment, true, nil
 }
 
-// GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID gets (or creates it if it doesn't exist) a GitOpsEngineInstance database entry that
+// GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID gets (or creates it if it doesn't exist) a GitOpsEngineInstance database entry.
 //
 // This lets us track the relationship between an Argo CD instance <-> GitOps Engine database table.
 // corresponds to an GitOps engine (Argo CD) instance running on the cluster.

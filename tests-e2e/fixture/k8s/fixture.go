@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/onsi/gomega"
@@ -84,4 +85,58 @@ func Delete(obj client.Object) error {
 	// fail
 	return fmt.Errorf("'%s' still exists", obj.GetName())
 
+}
+
+func ExistByServiceName() matcher.GomegaMatcher {
+	return WithTransform(func(k8sObject client.Object) bool {
+
+		kubeClientSet, err := fixture.GetKubeClientSet()
+		if err != nil {
+			return false
+		}
+
+		_, err = kubeClientSet.CoreV1().Services(k8sObject.GetNamespace()).Get(context.Background(), k8sObject.GetName()+"-dex-server", metav1.GetOptions{})
+		if err != nil {
+			fmt.Println(K8sClientError, "Object does not exists in ExistByServiceName:", k8sObject.GetName(), err)
+		} else {
+			fmt.Println("Object exists in ExistByServiceName:", k8sObject.GetName())
+		}
+
+		_, err = kubeClientSet.CoreV1().Services(k8sObject.GetNamespace()).Get(context.Background(), k8sObject.GetName()+"-metrics", metav1.GetOptions{})
+		if err != nil {
+			fmt.Println(K8sClientError, "Object does not exists in ExistByServiceName:", k8sObject.GetName(), err)
+		} else {
+			fmt.Println("Object exists in ExistByServiceName:", k8sObject.GetName())
+		}
+
+		_, err = kubeClientSet.CoreV1().Services(k8sObject.GetNamespace()).Get(context.Background(), k8sObject.GetName()+"-redis", metav1.GetOptions{})
+		if err != nil {
+			fmt.Println(K8sClientError, "Object does not exists in ExistByServiceName:", k8sObject.GetName(), err)
+		} else {
+			fmt.Println("Object exists in ExistByServiceName:", k8sObject.GetName())
+		}
+
+		_, err = kubeClientSet.CoreV1().Services(k8sObject.GetNamespace()).Get(context.Background(), k8sObject.GetName()+"-repo-server", metav1.GetOptions{})
+		if err != nil {
+			fmt.Println(K8sClientError, "Object does not exists in ExistByServiceName:", k8sObject.GetName(), err)
+		} else {
+			fmt.Println("Object exists in ExistByServiceName:", k8sObject.GetName())
+		}
+
+		_, err = kubeClientSet.CoreV1().Services(k8sObject.GetNamespace()).Get(context.Background(), k8sObject.GetName()+"-server", metav1.GetOptions{})
+		if err != nil {
+			fmt.Println(K8sClientError, "Object does not exists in ExistByServiceName:", k8sObject.GetName(), err)
+		} else {
+			fmt.Println("Object exists in ExistByServiceName:", k8sObject.GetName())
+		}
+
+		_, err = kubeClientSet.CoreV1().Services(k8sObject.GetNamespace()).Get(context.Background(), k8sObject.GetName()+"-server-metrics", metav1.GetOptions{})
+		if err != nil {
+			fmt.Println(K8sClientError, "Object does not exists in ExistByServiceName:", k8sObject.GetName(), err)
+		} else {
+			fmt.Println("Object exists in ExistByServiceName:", k8sObject.GetName())
+		}
+
+		return err == nil
+	}, BeTrue())
 }

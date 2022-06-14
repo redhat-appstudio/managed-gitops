@@ -6,6 +6,32 @@ metadata:
   name: managed-gitops-backend-manager-role
 rules:
 - apiGroups:
+  - managed-gitops.redhat.com
+  resources:
+  - gitopsdeploymentrepositorycredentials
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - managed-gitops.redhat.com
+  resources:
+  - gitopsdeploymentrepositorycredentials/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - managed-gitops.redhat.com
+  resources:
+  - gitopsdeploymentrepositorycredentials/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - ""
   resources:
     - namespaces

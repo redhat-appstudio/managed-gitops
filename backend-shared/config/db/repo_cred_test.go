@@ -99,7 +99,6 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 				AuthSSHKey:      "test-auth-ssh-key",
 				SecretObj:       "test-secret-obj",
 				EngineClusterID: gitopsEngineInstance.Gitopsengineinstance_id, // constrain 'fk_gitopsengineinstance_id'
-				SeqID:           0,
 			}
 
 			// Insert the RepositoryCredentials to the database.
@@ -121,7 +120,6 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 				AuthSSHKey:      "updated-auth-ssh-key",
 				SecretObj:       "updated-secret-obj",
 				EngineClusterID: gitopsEngineInstance.Gitopsengineinstance_id, // constrain 'fk_gitopsengineinstance_id'
-				SeqID:           12,
 			}
 
 			// Update the RepositoryCredentials in the database.

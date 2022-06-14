@@ -20,7 +20,7 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 
 	When("When ClusterUser, ClusterCredentials, GitopsEngine and GitopsInstance exist", func() {
 		BeforeEach(func() {
-			// Connect to the database (the connection closes at AfterEach)
+			By("Connecting to the database")
 			err = db.SetupForTestingDBGinkgo()
 			Expect(err).To(BeNil())
 
@@ -29,7 +29,7 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 
 			ctx = context.Background()
 
-			// Satisfy the foreign key constraint 'fk_clusteruser_id'
+			By("Satisfying the foreign key constraint 'fk_clusteruser_id'")
 			// aka: ClusterUser.Clusteruser_id) required for 'repo_cred_user_id'
 			clusterUser = &db.ClusterUser{
 				Clusteruser_id: "test-repocred-user-id",
@@ -38,7 +38,7 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			err = dbq.CreateClusterUser(ctx, clusterUser)
 			Expect(err).To(BeNil())
 
-			// Satisfy the foreign key constraint 'fk_gitopsengineinstance_id'
+			By("Satisfying the foreign key constraint 'fk_gitopsengineinstance_id'")
 			// aka: GitOpsEngineInstance.Gitopsengineinstance_id) required for 'repo_cred_gitopsengineinstance_id'
 			clusterCredentials = db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-repocred-Clustercredentials_cred_id",
@@ -49,6 +49,7 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 				Serviceaccount_ns:           "test-repocred-Serviceaccount_ns",
 			}
 
+			By("Creating clusterCredentials as a pre-requisite for GitopsEngineCluster")
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
 			Expect(err).To(BeNil())
 
@@ -57,6 +58,7 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 				Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
 			}
 
+			By("Creating gitopsEngineCluster as a pre-requisite for GitopsEngineInstance")
 			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
 			Expect(err).To(BeNil())
 
@@ -67,29 +69,18 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 			}
 
+			By("Creating gitopsEngineInstance as a pre-requisite for RepositoryCredentials")
 			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
 			Expect(err).To(BeNil())
 		})
 		AfterEach(func() {
-			// Delete Cluster User, Cluster Credentials, Gitops Engine Cluster, Gitops Engine Instance.
-			_, err = dbq.DeleteGitopsEngineInstanceById(ctx, gitopsEngineInstance.Gitopsengineinstance_id)
-			Expect(err).To(BeNil())
-
-			_, err = dbq.DeleteGitopsEngineClusterById(ctx, gitopsEngineCluster.Gitopsenginecluster_id)
-			Expect(err).To(BeNil())
-
-			_, err = dbq.DeleteClusterCredentialsById(ctx, clusterCredentials.Clustercredentials_cred_id)
-			Expect(err).To(BeNil())
-
-			_, err = dbq.DeleteClusterUserById(ctx, clusterUser.Clusteruser_id)
-			Expect(err).To(BeNil())
-
+			By("Closing the database connection")
 			dbq.CloseDatabase() // Close the database connection.
 		})
 
 		It("it should create, update, get and delete RepositoryCredentials", func() {
 
-			// Create a RepositoryCredentials object.
+			By("Creating a RepositoryCredentials object")
 			gitopsRepositoryCredentials := db.RepositoryCredentials{
 				PrimaryKeyID:    "test-repo-cred-id",
 				UserID:          clusterUser.Clusteruser_id, // constrain 'fk_clusteruser_id'
@@ -101,16 +92,16 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 				EngineClusterID: gitopsEngineInstance.Gitopsengineinstance_id, // constrain 'fk_gitopsengineinstance_id'
 			}
 
-			// Insert the RepositoryCredentials to the database.
+			By("Inserting the RepositoryCredentials object to the database")
 			err = dbq.CreateRepositoryCredentials(ctx, &gitopsRepositoryCredentials)
 			Expect(err).To(BeNil())
 
-			// Get the RepositoryCredentials from the database.
+			By("Getting the RepositoryCredentials object from the database")
 			fetch, err := dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentials.PrimaryKeyID)
 			Expect(err).To(BeNil())
 			Expect(fetch).Should(Equal(gitopsRepositoryCredentials))
 
-			// Update the RepositoryCredentials in the database.
+			By("Updating the RepositoryCredentials object in the database")
 			updatedCR := db.RepositoryCredentials{
 				PrimaryKeyID:    "test-repo-cred-id",
 				UserID:          clusterUser.Clusteruser_id, // constrain 'fk_clusteruser_id'
@@ -122,18 +113,18 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 				EngineClusterID: gitopsEngineInstance.Gitopsengineinstance_id, // constrain 'fk_gitopsengineinstance_id'
 			}
 
-			// Update the RepositoryCredentials in the database.
 			err = dbq.UpdateRepositoryCredentials(ctx, &updatedCR)
 			Expect(err).To(BeNil())
 
-			// Diff the two CRs (original and updated).
+			By("Comparing the original and updated RepositoryCredentials objects")
 			Expect(gitopsRepositoryCredentials).ShouldNot(Equal(updatedCR))
 
-			// Delete the RepositoryCredentials from the database.
+			By("Deleting the RepositoryCredentials object from the database")
 			rowsAffected, err := dbq.DeleteRepositoryCredentialsByID(ctx, gitopsRepositoryCredentials.PrimaryKeyID)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))
 
+			By("Getting the deleted RepositoryCredentials object from the database should fail")
 			fetch, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentials.PrimaryKeyID)
 			Expect(err).ShouldNot(BeNil())
 			Expect(fetch).ShouldNot(Equal(gitopsRepositoryCredentials))

@@ -102,16 +102,14 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			Expect(fetch).Should(Equal(gitopsRepositoryCredentials))
 
 			By("Updating the RepositoryCredentials object in the database")
-			updatedCR := db.RepositoryCredentials{
-				PrimaryKeyID:    "test-repo-cred-id",
-				UserID:          clusterUser.Clusteruser_id, // constrain 'fk_clusteruser_id'
-				PrivateURL:      "https://test-private-url",
-				AuthUsername:    "updated-auth-username",
-				AuthPassword:    "updated-auth-password",
-				AuthSSHKey:      "updated-auth-ssh-key",
-				SecretObj:       "updated-secret-obj",
-				EngineClusterID: gitopsEngineInstance.Gitopsengineinstance_id, // constrain 'fk_gitopsengineinstance_id'
-			}
+
+			// copy the fetched object into a new one, so we can modify only the fields we want to update
+			// and also keep a copy to compare the updated object with the original one.
+			updatedCR := fetch
+			updatedCR.AuthUsername = "updated-auth-username"
+			updatedCR.AuthPassword = "updated-auth-password"
+			updatedCR.AuthSSHKey = "updated-auth-ssh-key"
+			updatedCR.SecretObj = "updated-secret-obj"
 
 			err = dbq.UpdateRepositoryCredentials(ctx, &updatedCR)
 			Expect(err).To(BeNil())

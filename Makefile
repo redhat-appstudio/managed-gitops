@@ -93,12 +93,15 @@ test-cluster-agent: ## Run test for cluster-agent only
 ### --- a p p s t u d i o - c o n t r o l l e r --- ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 deploy-appstudio-controller-crd: ## Deploy appstudio-controller related CRDs
-	# Application CR
+	# appstudio-shared CRs
 	kubectl apply -f appstudio-shared/manifests/appstudio-shared-customresourcedefinitions.yaml
-	kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-service/a3c147c351d4bb5273de1a692143bee319693c64/bundle/manifests/appstudio.redhat.com_applications.yaml
+	# Application CR from AppStudio HAS
+	kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-service/7a1a14b575dc725a46ea2ab175692f464122f0f8/config/crd/bases/appstudio.redhat.com_applications.yaml
+	kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-service/7a1a14b575dc725a46ea2ab175692f464122f0f8/config/crd/bases/appstudio.redhat.com_components.yaml
 
 undeploy-appstudio-controller-crd: ## Remove appstudio-controller related CRDs
-	kubectl delete -f https://raw.githubusercontent.com/redhat-appstudio/application-service/a3c147c351d4bb5273de1a692143bee319693c64/bundle/manifests/appstudio.redhat.com_applications.yaml
+	kubectl delete -f https://raw.githubusercontent.com/redhat-appstudio/application-service/7a1a14b575dc725a46ea2ab175692f464122f0f8/config/crd/bases/appstudio.redhat.com_applications.yaml
+	kubectl delete -f https://raw.githubusercontent.com/redhat-appstudio/application-service/7a1a14b575dc725a46ea2ab175692f464122f0f8/config/crd/bases/appstudio.redhat.com_components.yaml
 
 deploy-appstudio-controller-rbac: ## Deploy appstudio-controller related RBAC resouces
 	kubectl create namespace gitops 2> /dev/null || true

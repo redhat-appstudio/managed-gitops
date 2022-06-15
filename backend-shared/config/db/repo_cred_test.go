@@ -1,3 +1,5 @@
+// db_test is a test suite for the db package.
+// To run the tests: cd backend-shared; go test ./config/db -v -run TestDb
 package db_test
 
 import (

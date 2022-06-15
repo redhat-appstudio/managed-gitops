@@ -37,7 +37,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteRepositoryCredentialsByID(ctx contex
 	}
 
 	repoCred := &RepositoryCredentials{
-		PrimaryKeyID: id,
+		RepositoryCredentialsID: id,
 	}
 
 	result, err := dbq.dbConnection.Model(repoCred).WherePK().Context(ctx).Delete()
@@ -54,7 +54,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetRepositoryCredentialsByID(ctx context.C
 	}
 
 	obj = RepositoryCredentials{
-		PrimaryKeyID: id,
+		RepositoryCredentialsID: id,
 	}
 
 	err = dbq.dbConnection.Model(&obj).WherePK().Context(ctx).Select()

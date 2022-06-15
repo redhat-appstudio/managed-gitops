@@ -528,8 +528,8 @@ func removeAnyRepositoryCredentialsTestEntries(ctx context.Context, dbq AllDatab
 	Expect(err).To(BeNil())
 
 	for _, repoCred := range repositoryCredentials {
-		if strings.HasPrefix(repoCred.PrimaryKeyID, "test-") {
-			rowsAffected, err = dbq.DeleteRepositoryCredentialsByID(ctx, repoCred.PrimaryKeyID)
+		if strings.HasPrefix(repoCred.RepositoryCredentialsID, "test-") {
+			rowsAffected, err = dbq.DeleteRepositoryCredentialsByID(ctx, repoCred.RepositoryCredentialsID)
 			Expect(rowsAffected).Should(Equal(1))
 			Expect(err).To(BeNil())
 		}

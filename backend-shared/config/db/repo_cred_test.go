@@ -82,14 +82,14 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 
 			By("Creating a RepositoryCredentials object")
 			gitopsRepositoryCredentials := db.RepositoryCredentials{
-				PrimaryKeyID:    "test-repo-cred-id",
-				UserID:          clusterUser.Clusteruser_id, // constrain 'fk_clusteruser_id'
-				PrivateURL:      "https://test-private-url",
-				AuthUsername:    "test-auth-username",
-				AuthPassword:    "test-auth-password",
-				AuthSSHKey:      "test-auth-ssh-key",
-				SecretObj:       "test-secret-obj",
-				EngineClusterID: gitopsEngineInstance.Gitopsengineinstance_id, // constrain 'fk_gitopsengineinstance_id'
+				RepositoryCredentialsID: "test-repo-cred-id",
+				UserID:                  clusterUser.Clusteruser_id, // constrain 'fk_clusteruser_id'
+				PrivateURL:              "https://test-private-url",
+				AuthUsername:            "test-auth-username",
+				AuthPassword:            "test-auth-password",
+				AuthSSHKey:              "test-auth-ssh-key",
+				SecretObj:               "test-secret-obj",
+				EngineClusterID:         gitopsEngineInstance.Gitopsengineinstance_id, // constrain 'fk_gitopsengineinstance_id'
 			}
 
 			By("Inserting the RepositoryCredentials object to the database")
@@ -97,7 +97,7 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			Expect(err).To(BeNil())
 
 			By("Getting the RepositoryCredentials object from the database")
-			fetch, err := dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentials.PrimaryKeyID)
+			fetch, err := dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentials.RepositoryCredentialsID)
 			Expect(err).To(BeNil())
 			Expect(fetch).Should(Equal(gitopsRepositoryCredentials))
 
@@ -115,7 +115,7 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			Expect(err).To(BeNil())
 
 			By("Getting the updated RepositoryCredentials object from the database")
-			fetchUpdated, err := dbq.GetRepositoryCredentialsByID(ctx, updatedCR.PrimaryKeyID)
+			fetchUpdated, err := dbq.GetRepositoryCredentialsByID(ctx, updatedCR.RepositoryCredentialsID)
 			Expect(err).To(BeNil())
 			Expect(fetchUpdated).Should(Equal(updatedCR))
 
@@ -123,12 +123,12 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			Expect(fetch).ShouldNot(Equal(fetchUpdated))
 
 			By("Deleting the RepositoryCredentials object from the database")
-			rowsAffected, err := dbq.DeleteRepositoryCredentialsByID(ctx, gitopsRepositoryCredentials.PrimaryKeyID)
+			rowsAffected, err := dbq.DeleteRepositoryCredentialsByID(ctx, gitopsRepositoryCredentials.RepositoryCredentialsID)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))
 
 			By("Getting the deleted RepositoryCredentials object from the database should fail")
-			fetch, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentials.PrimaryKeyID)
+			fetch, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentials.RepositoryCredentialsID)
 			Expect(err).ShouldNot(BeNil())
 			Expect(fetch).ShouldNot(Equal(gitopsRepositoryCredentials))
 

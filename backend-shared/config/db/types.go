@@ -409,8 +409,8 @@ type RepositoryCredentials struct {
 	//lint:ignore U1000 used by go-pg
 	tableName struct{} `pg:"repositorycredentials,alias:rc"` //nolint
 
-	// PrimaryKeyID is the PK (Primary Key) from the database, that is an auto-generated random UID.
-	PrimaryKeyID string `pg:"repositorycredentials_id,pk,notnull"`
+	// RepositoryCredentialsID is the PK (Primary Key) from the database, that is an auto-generated random UID.
+	RepositoryCredentialsID string `pg:"repositorycredentials_id,pk,notnull"`
 
 	// UserID represents a customer of the GitOps service that wants to use a private repository.
 	// -- Foreign key to: ClusterUser.Clusteruser_id

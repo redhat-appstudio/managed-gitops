@@ -3,10 +3,14 @@ module github.com/redhat-appstudio/managed-gitops/tests-e2e
 go 1.18
 
 require (
+	github.com/argoproj-labs/argocd-operator v0.3.0
+	github.com/argoproj/argo-cd/v2 v2.3.1
+	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
 	github.com/redhat-appstudio/application-service v0.0.0-20220609190313-7a1a14b575dc
 	github.com/redhat-appstudio/managed-gitops/appstudio-controller v0.0.0
 	github.com/redhat-appstudio/managed-gitops/backend v0.0.0
 	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0
+	github.com/redhat-appstudio/managed-gitops/cluster-agent v0.0.0
 	k8s.io/apimachinery v0.23.5
 	k8s.io/client-go v0.23.3
 	sigs.k8s.io/controller-runtime v0.11.0
@@ -24,11 +28,13 @@ require (
 	github.com/bombsimon/logrusr/v2 v2.0.1 // indirect
 	github.com/bradleyfalzon/ghinstallation/v2 v2.0.4 // indirect
 	github.com/chai2010/gettext-go v0.0.0-20170215093142-bf70f2a70fb1 // indirect
+	github.com/coreos/go-oidc v2.2.1+incompatible // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/emicklei/go-restful v2.15.0+incompatible // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
 	github.com/fatih/camelcase v1.0.0 // indirect
+	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/fvbommel/sortorder v1.0.1 // indirect
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32 // indirect
 	github.com/go-errors/errors v1.4.1 // indirect
@@ -45,6 +51,10 @@ require (
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/gorilla/handlers v1.5.1 // indirect
+	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
+	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
+	github.com/hashicorp/go-retryablehttp v0.7.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jonboulle/clockwork v0.2.2 // indirect
@@ -59,6 +69,8 @@ require (
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/pquerna/cachecontrol v0.1.0 // indirect
+	github.com/r3labs/diff v1.1.0 // indirect
 	github.com/redhat-appstudio/managed-gitops/appstudio-shared v0.0.0 // indirect
 	github.com/robfig/cron v1.2.0 // indirect
 	github.com/russross/blackfriday v1.6.0 // indirect
@@ -74,6 +86,7 @@ require (
 	github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
 	golang.org/x/exp v0.0.0-20210901193431-a062eea981d2 // indirect
+	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	k8s.io/apiserver v0.23.1 // indirect
 	k8s.io/cli-runtime v0.23.1 // indirect

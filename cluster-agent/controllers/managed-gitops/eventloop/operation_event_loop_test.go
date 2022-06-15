@@ -56,9 +56,6 @@ var _ = Describe("Operation Controller", func() {
 			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).To(BeNil())
 
-			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
-
 			scheme, argocdNamespace, kubesystemNamespace, workspace, err = eventlooptypes.GenericTestSetup()
 			Expect(err).To(BeNil())
 
@@ -101,6 +98,9 @@ var _ = Describe("Operation Controller", func() {
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
 
+			err = db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
+
 			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
 			Expect(err).To(BeNil())
 
@@ -127,6 +127,9 @@ var _ = Describe("Operation Controller", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
+
+			err = db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
 
 			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
 			Expect(err).To(BeNil())
@@ -167,6 +170,9 @@ var _ = Describe("Operation Controller", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
+
+			err = db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
 
 			By("'kube-system' namespace has a UID that is not found in a corresponding row in GitOpsEngineCluster database")
 			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
@@ -209,7 +215,6 @@ var _ = Describe("Operation Controller", func() {
 		It("Ensure that if the GitopsEngineInstance's namespace_name field doesn't exist, an error is returned", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
-			defer testTeardown()
 
 			clusterCredentials := db.ClusterCredentials{
 				Clustercredentials_cred_id: string(uuid.NewUUID()),
@@ -262,7 +267,25 @@ var _ = Describe("Operation Controller", func() {
 
 			res, err := task.PerformTask(ctx)
 			Expect(err).To(BeNil())
-			Expect(res).To(BeTrue())
+			Expect(res).To(BeFalse())
+
+			kubernetesToDBResourceMapping := db.KubernetesToDBResourceMapping{
+				KubernetesResourceType: "Namespace",
+				KubernetesResourceUID:  string(kubesystemNamespace.UID),
+				DBRelationType:         "GitopsEngineCluster",
+				DBRelationKey:          gitopsEngineCluster.Gitopsenginecluster_id,
+			}
+
+			By("Delete resources and clean db entries created by test.")
+			resourcesToBeDeleted := testResources{
+				Operation_id:                  operationDB.Operation_id,
+				Gitopsenginecluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+				Gitopsengineinstance_id:       gitopsEngineInstance.Gitopsengineinstance_id,
+				ClusterCredentials_id:         gitopsEngineCluster.Clustercredentials_id,
+				kubernetesToDBResourceMapping: kubernetesToDBResourceMapping,
+			}
+
+			deleteTestResources(ctx, dbQueries, resourcesToBeDeleted)
 
 		})
 	})
@@ -279,5 +302,55 @@ func newRequest(namespace, name string) reconcile.Request {
 			Name:      name,
 			Namespace: namespace,
 		},
+	}
+}
+
+// Used to list down resources for deletion which are created while running tests.
+type testResources struct {
+	Operation_id                  string
+	Gitopsenginecluster_id        string
+	Gitopsengineinstance_id       string
+	ClusterCredentials_id         string
+	kubernetesToDBResourceMapping db.KubernetesToDBResourceMapping
+}
+
+// Delete resources from table
+func deleteTestResources(ctx context.Context, dbQueries db.AllDatabaseQueries, resourcesToBeDeleted testResources) {
+	var rowsAffected int
+	var err error
+
+	// Delete kubernetesToDBResourceMapping
+	if resourcesToBeDeleted.kubernetesToDBResourceMapping.KubernetesResourceUID != "" {
+		rowsAffected, err = dbQueries.DeleteKubernetesResourceToDBResourceMapping(ctx, &resourcesToBeDeleted.kubernetesToDBResourceMapping)
+		Expect(err).To(BeNil())
+		Expect(rowsAffected).To(Equal(1))
+	}
+
+	// Delete Operation
+	if resourcesToBeDeleted.Operation_id != "" {
+		rowsAffected, err = dbQueries.DeleteOperationById(ctx, resourcesToBeDeleted.Operation_id)
+		Expect(err).To(BeNil())
+		Expect(rowsAffected).To(Equal(1))
+	}
+
+	// Delete GitopsEngineInstance
+	if resourcesToBeDeleted.Gitopsengineinstance_id != "" {
+		rowsAffected, err = dbQueries.DeleteGitopsEngineInstanceById(ctx, resourcesToBeDeleted.Gitopsengineinstance_id)
+		Expect(err).To(BeNil())
+		Expect(rowsAffected).To(Equal(1))
+	}
+
+	// Delete GitopsEngineCluster
+	if resourcesToBeDeleted.Gitopsenginecluster_id != "" {
+		rowsAffected, err = dbQueries.DeleteGitopsEngineClusterById(ctx, resourcesToBeDeleted.Gitopsenginecluster_id)
+		Expect(err).To(BeNil())
+		Expect(rowsAffected).To(Equal(1))
+	}
+
+	// Delete ClusterCredentials
+	if resourcesToBeDeleted.ClusterCredentials_id != "" {
+		rowsAffected, err = dbQueries.DeleteClusterCredentialsById(ctx, resourcesToBeDeleted.ClusterCredentials_id)
+		Expect(err).To(BeNil())
+		Expect(rowsAffected).To(Equal(1))
 	}
 }

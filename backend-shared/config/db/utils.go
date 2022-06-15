@@ -353,7 +353,7 @@ func SetupForTestingDBGinkgo() error {
 	}
 
 	// Delete all RepositoryCredential database rows that start with 'test-' in the primary key of the row.
-	err = removeAnyRepositoryCredentialsTestEntries(ctx, dbq, err)
+	err = removeAnyRepositoryCredentialsTestEntries(ctx, dbq)
 	Expect(err).To(BeNil())
 
 	var deploymentToApplicationMappings []DeploymentToApplicationMapping
@@ -520,11 +520,11 @@ func skipOpenshiftCI(t *testing.T) {
 	}
 }
 
-func removeAnyRepositoryCredentialsTestEntries(ctx context.Context, dbq AllDatabaseQueries, err error) error {
+func removeAnyRepositoryCredentialsTestEntries(ctx context.Context, dbq AllDatabaseQueries) error {
 	var repositoryCredentials []RepositoryCredentials
 	var rowsAffected int
 
-	err = dbq.UnsafeListAllRepositoryCredentials(ctx, &repositoryCredentials)
+	err := dbq.UnsafeListAllRepositoryCredentials(ctx, &repositoryCredentials)
 	Expect(err).To(BeNil())
 
 	for _, repoCred := range repositoryCredentials {

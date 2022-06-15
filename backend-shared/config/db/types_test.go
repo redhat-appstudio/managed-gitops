@@ -3,7 +3,6 @@ package db_test
 import (
 	"context"
 	"fmt"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"

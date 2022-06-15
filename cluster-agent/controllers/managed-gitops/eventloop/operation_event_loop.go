@@ -252,10 +252,10 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		},
 	}
 	if err := eventClient.Get(taskContext, client.ObjectKeyFromObject(argoCDNamespace), argoCDNamespace); err != nil {
-		if db.IsResultNotFoundError(err) {
-			log.Error(err, "Argo CD namespace doesn't exist")
-			// no corresponding db operation, so no work to do
-			return &dbOperation, false, nil
+		if apierr.IsNotFound(err) {
+			log.Error(err, "Argo CD namespace doesn't exist: "+argoCDNamespace.Name)
+			// Return retry as true, as it's possible it may exist in the future.
+			return &dbOperation, true, nil
 		} else {
 			log.Error(err, "unexpected error on retrieve Argo CD namespace")
 			// some other generic error

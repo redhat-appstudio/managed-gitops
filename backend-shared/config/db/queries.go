@@ -9,6 +9,7 @@ import (
 	"github.com/go-pg/pg/v10"
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -312,5 +313,12 @@ func NewResultNotFoundError(errString string) error {
 }
 
 func IsResultNotFoundError(errorParam error) bool {
+
+	// Sanity test: it's possible to unintentionally call db.IsResultNotFoundError() when apierror.IsNotFound() is intended,
+	// so we attempt to catch that here, and print a message.
+	if apierr.IsNotFound(errorParam) {
+		fmt.Println("SEVERE: IsResultNotFoundError called on k8s client error")
+	}
+
 	return strings.Contains(errorParam.Error(), "no rows in result set")
 }

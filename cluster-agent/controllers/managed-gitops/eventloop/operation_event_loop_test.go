@@ -41,7 +41,6 @@ var _ = Describe("Operation Controller", func() {
 		var workspace *v1.Namespace
 		var scheme *runtime.Scheme
 		var testClusterUser *db.ClusterUser
-		var operationEventLoop OperationEventLoop
 		var err error
 
 		BeforeEach(func() {
@@ -73,28 +72,16 @@ var _ = Describe("Operation Controller", func() {
 			By("Initialize fake kube client")
 			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).Build()
 
-			ch := make(chan operationEventLoopEvent)
-
-			go func() {
-				ch <- operationEventLoopEvent{
+			task = processOperationEventTask{
+				log: logger,
+				event: operationEventLoopEvent{
 					request: newRequest(namespace, name),
 					client:  k8sClient,
-				}
-				close(ch)
-			}()
-
-			operationEventLoop = OperationEventLoop{
-				eventLoopInputChannel: ch,
-			}
-
-			task = processOperationEventTask{
-				log:   logger,
-				event: <-operationEventLoop.eventLoopInputChannel,
+				},
 			}
 
 		})
-		It("Ensure that calling perform task on an operation CR that doesn't exist, it doesn't return an error", func() {
-			By("Close database connection")
+		It("Ensure that calling perform task on an operation CR that doesn't exist, it doesn't return an error, and retry is false", func() {
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
 
@@ -104,7 +91,7 @@ var _ = Describe("Operation Controller", func() {
 			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
 			Expect(err).To(BeNil())
 
-			By("Operation row exits in database")
+			By("creating Operation row in database")
 			operationDB := &db.Operation{
 				Operation_id:            "test-operation",
 				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
@@ -117,13 +104,13 @@ var _ = Describe("Operation Controller", func() {
 			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
 			Expect(err).To(BeNil())
 
-			res, err := task.PerformTask(ctx)
+			retry, err := task.PerformTask(ctx)
 			Expect(err).To(BeNil())
-			Expect(res).To(BeFalse())
+			Expect(retry).To(BeFalse())
 
 		})
 
-		It("Ensure that if the operation row doesn't exist, an error is not returned", func() {
+		It("ensures that if the operation row doesn't exist, an error is not returned, and retry is false", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
@@ -160,13 +147,13 @@ var _ = Describe("Operation Controller", func() {
 			err = task.event.client.Create(ctx, operationCR)
 			Expect(err).To(BeNil())
 
-			res, err := task.PerformTask(ctx)
+			retry, err := task.PerformTask(ctx)
 			Expect(err).To(BeNil())
-			Expect(res).To(BeFalse())
+			Expect(retry).To(BeFalse())
 
 		})
 
-		It("Ensure that if the kube-system namespace does not having a matching namespace uid, an error is returned", func() {
+		It("ensures that if the kube-system namespace does not having a matching namespace uid, an error is not returned, but retry it true", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
@@ -179,7 +166,7 @@ var _ = Describe("Operation Controller", func() {
 			Expect(err).To(BeNil())
 			Expect(kubesystemNamespace.UID).ToNot(Equal(gitopsEngineInstance.Namespace_uid))
 
-			By("Operation row exits in database")
+			By("creating Operation row in database")
 			operationDB := &db.Operation{
 				Operation_id:            "test-operation",
 				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
@@ -206,13 +193,13 @@ var _ = Describe("Operation Controller", func() {
 			err = task.event.client.Create(ctx, operationCR)
 			Expect(err).To(BeNil())
 
-			res, err := task.PerformTask(ctx)
+			retry, err := task.PerformTask(ctx)
 			Expect(err).To(BeNil())
-			Expect(res).To(BeTrue())
+			Expect(retry).To(BeTrue())
 
 		})
 
-		It("Ensure that if the GitopsEngineInstance's namespace_name field doesn't exist, an error is returned", func() {
+		It("Ensures that if the GitopsEngineInstance's namespace_name field doesn't exist, an error is not returned, and retry is true", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 
@@ -224,21 +211,20 @@ var _ = Describe("Operation Controller", func() {
 			Expect(err).To(BeNil())
 
 			gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
+			Expect(gitopsEngineCluster).ToNot(BeNil())
 			Expect(err).To(BeNil())
 
+			By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 			gitopsEngineInstance := &db.GitopsEngineInstance{
 				Gitopsengineinstance_id: "test-fake-engine-instance",
-				Namespace_name:          workspace.Namespace,
-				Namespace_uid:           string(workspace.UID),
+				Namespace_name:          "doesn't-exist",
+				Namespace_uid:           string("doesnt-exist-uid"),
 				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 			}
-
-			By("The namespace_name of the GitOpsEngineInstance row points to a namespace that doesn't exist")
 			err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
 			Expect(err).To(BeNil())
-			Expect(gitopsEngineInstance.Namespace_name).ToNot(Equal(kubesystemNamespace.Namespace))
 
-			By("Operation row exits in database")
+			By("creating Operation row in database")
 			operationDB := &db.Operation{
 				Operation_id:            "test-operation",
 				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
@@ -251,7 +237,7 @@ var _ = Describe("Operation Controller", func() {
 			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
 			Expect(err).To(BeNil())
 
-			By("Operation CR exists")
+			By("creating Operation CR")
 			operationCR := &operation.Operation{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
@@ -265,9 +251,9 @@ var _ = Describe("Operation Controller", func() {
 			err = task.event.client.Create(ctx, operationCR)
 			Expect(err).To(BeNil())
 
-			res, err := task.PerformTask(ctx)
+			retry, err := task.PerformTask(ctx)
 			Expect(err).To(BeNil())
-			Expect(res).To(BeFalse())
+			Expect(retry).To(BeTrue())
 
 			kubernetesToDBResourceMapping := db.KubernetesToDBResourceMapping{
 				KubernetesResourceType: "Namespace",
@@ -276,7 +262,7 @@ var _ = Describe("Operation Controller", func() {
 				DBRelationKey:          gitopsEngineCluster.Gitopsenginecluster_id,
 			}
 
-			By("Delete resources and clean db entries created by test.")
+			By("deleting resources and cleaning up db entries created by test.")
 			resourcesToBeDeleted := testResources{
 				Operation_id:                  operationDB.Operation_id,
 				Gitopsenginecluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,

@@ -361,5 +361,30 @@ func SetupArgoCD(k8sClient client.Client, kubeClientSet *kubernetes.Clientset) e
 	}
 	log.Printf("clusterRoleBinding %q created in namespace %q", clusterRoleBinding.Name, clusterRoleBinding.Namespace)
 
+	// secretResource, secretErr := kubeClientSet.CoreV1().Secrets(secret.Namespace).Get(context.Background(), secret.Name, metav1.GetOptions{})
+	// if secretErr!=nil{
+	// 	return secretErr
+	// }
+	// token := &secretResource.Data
+
+	// 	apiVersion: v1
+	// kind: Secret
+	// metadata:
+	//   name: my-cluster-secret
+	//   labels:
+	//     argocd.argoproj.io/secret-type: cluster
+	// type: Opaque
+	// stringData:
+	//   name: my-cluster
+	//   server: $API_URL
+	//   config: |
+	//     {
+	//       "bearerToken": "$SECRET_TOKEN",
+	//       "tlsClientConfig": {
+	//         "insecure": true
+	//       }
+	//     }
+
 	return nil
+
 }

@@ -10,10 +10,10 @@ exit_if_binary_not_installed() {
   done
 }
 
-# Checks if a command is successfull within a timeframe
+# Checks if a command is successful within a timeframe
 wait-until() {
   command="${1}"
-  timeout="${2:-30}"
+  timeout="${2:-120}"
 
   i=1
   until eval "${command}"; do
@@ -39,7 +39,7 @@ if [ "$1" = "kube" ]; then
   do
     ((counter++))
     sleep 1
-    if [ "$counter" -gt 5 ]; then
+    if [ "$counter" -gt 30 ]; then
       echo " --> Error: Cannot find gitops-postgresql-staging secret."
       exit 1
     fi
@@ -53,12 +53,18 @@ if [ "$1" = "kube" ]; then
   do
     ((counter++))
     sleep 1
-    if [ "$counter" -gt 60 ]; then
+    if [ "$counter" -gt 150 ]; then
       echo " --> Error: PostgreSQL pod cannot start. Quitting ..."
+      echo ""
+      echo "Namespace events:"
+      kubectl get events -n gitops
       exit 1
     fi
   done
   echo " * Postgres Pod is running."
+
+  # With the new migration logic, this block should no longer be required: remove the commented out
+  # section once we confirmed it is no longer needed.
 
   # Checks if 5432 is occupied
   if lsof -i:5432 | grep LISTEN; then
@@ -91,13 +97,8 @@ if [ "$1" = "kube" ]; then
   # Decode the password from the secret
   POSTGRES_PASSWORD=$(kubectl get -n gitops secret gitops-postgresql-staging -o jsonpath="{.data.postgresql-password}" | base64 --decode)
 
-  # Import the schema
-	if psql postgresql://postgres:"${POSTGRES_PASSWORD}"@127.0.0.1:5432/postgres -q -f db-schema.sql; then
-    echo " * db-schema.sql has been imported into PostgreSQL (running in Kubernetes)"
-  else
-    echo " --> Error: Cannot import 'db-schema.sql' into PostgreSQL (running in Kubernetes)"
-    exit 1
-  fi
+  # Call the migration binary to migrate the database to the latest version
+  make db-migrate
 
   # Stop port-forwarding
 	if ! kill $KUBE_PID; then

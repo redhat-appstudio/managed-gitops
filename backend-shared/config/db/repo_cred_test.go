@@ -132,6 +132,47 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			Expect(err).ShouldNot(BeNil())
 			Expect(fetch).ShouldNot(Equal(gitopsRepositoryCredentials))
 
+			By("Testing the hasEmptyValues function")
+
+			By("Should return error if Primary Key is null")
+			updatedCR.RepositoryCredentialsID = ""
+			err = dbq.CreateRepositoryCredentials(ctx, &updatedCR)
+			Expect(err).ShouldNot(BeNil())
+			expectedErr := "RepositoryCredentials.RepositoryCredentialsID is empty, but it shouldn't (notnull tag found: `repositorycredentials_id,pk,notnull`)"
+			Expect(err.Error()).Should(Equal(expectedErr))
+			updatedCR.RepositoryCredentialsID = "test-repo-cred-id" // reset the UserID to the original value
+
+			By("Should return error if UserID is null")
+			updatedCR.UserID = ""
+			err = dbq.CreateRepositoryCredentials(ctx, &updatedCR)
+			Expect(err).ShouldNot(BeNil())
+			expectedErr = "RepositoryCredentials.UserID is empty, but it shouldn't (notnull tag found: `repo_cred_user_id,notnull`)"
+			Expect(err.Error()).Should(Equal(expectedErr))
+			updatedCR.UserID = clusterUser.Clusteruser_id // reset the UserID to the original value
+
+			By("Should return error if PrivateURL is null")
+			updatedCR.PrivateURL = ""
+			err = dbq.CreateRepositoryCredentials(ctx, &updatedCR)
+			Expect(err).ShouldNot(BeNil())
+			expectedErr = "RepositoryCredentials.PrivateURL is empty, but it shouldn't (notnull tag found: `repo_cred_url,notnull`)"
+			Expect(err.Error()).Should(Equal(expectedErr))
+			updatedCR.PrivateURL = "https://test-private-url" // reset the PrivateURL to the original value
+
+			By("Should return error if SecretObj is null")
+			updatedCR.SecretObj = ""
+			err = dbq.CreateRepositoryCredentials(ctx, &updatedCR)
+			Expect(err).ShouldNot(BeNil())
+			expectedErr = "RepositoryCredentials.SecretObj is empty, but it shouldn't (notnull tag found: `repo_cred_secret,notnull`)"
+			Expect(err.Error()).Should(Equal(expectedErr))
+			updatedCR.SecretObj = "test-secret-obj" // reset the SecretObj to the original value
+
+			By("Should return error if EngineClusterID is null")
+			updatedCR.EngineClusterID = ""
+			err = dbq.CreateRepositoryCredentials(ctx, &updatedCR)
+			Expect(err).ShouldNot(BeNil())
+			expectedErr = "RepositoryCredentials.EngineClusterID is empty, but it shouldn't (notnull tag found: `repo_cred_engine_id,notnull`)"
+			Expect(err.Error()).Should(Equal(expectedErr))
+			updatedCR.EngineClusterID = gitopsEngineInstance.Gitopsengineinstance_id // reset the EngineClusterID to the original value
 		})
 	})
 })

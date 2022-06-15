@@ -43,6 +43,7 @@ func startWorkspaceEventLoopRouter(workspaceID string) chan eventlooptypes.Event
 	return res
 }
 
+// internalStartWorkspaceEventLoopRouter has the primary goal of catching panics from the workspaceEventLoopRouter, and recovering from them.
 func internalStartWorkspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, workspaceID string,
 	applEventLoopFactory applicationEventQueueLoopFactory) {
 
@@ -88,18 +89,19 @@ const (
 	// we do not know which GitOpsDeployment it should belong to. This is usually because the deployment name
 	// field of the SyncRun refers to a K8s resource that doesn't (or no longer) exists.
 	// See https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.8tiycl1h7rns for details.
-	orphanedResourceGitopsDeplUID = "orphaned"
+	OrphanedResourceGitopsDeplUID = "orphaned"
 
 	// noAssociatedGitOpsDeploymentUID: if a resource does not have an orphanedResourceDeplUID, this constant should be set.
 	// For example: GitOpsDeploymentRepositoryCredentials might be associated with multiple (or zero) GitOpsDeployments.
-	// noAssociatedGitOpsDeploymentUID = "none"
-	// TODO: GITOPSRVCE-96: Uncomment this constant, and use it as needed to perpuate the message through the layers
+	NoAssociatedGitOpsDeploymentUID = "none"
 )
 
 // workspaceEventLoopRouter receives all events for the workspace, and passes them to specific goroutine responsible
 // for handling events for individual applications.
 func workspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, workspaceID string,
 	applEventLoopFactory applicationEventQueueLoopFactory) {
+
+	workspaceResourceLoop := newWorkspaceResourceLoop()
 
 	ctx := context.Background()
 
@@ -135,7 +137,7 @@ func workspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, worksp
 		log.V(sharedutil.LogLevel_Debug).Info("workspaceEventLoop received event", "event", eventlooptypes.StringEventLoopEvent(event.Event))
 
 		// If the event is orphaned (it refers to a gitopsdepl that doesn't exist, add it to our orphaned resources list)
-		if event.Event.AssociatedGitopsDeplUID == orphanedResourceGitopsDeplUID {
+		if event.Event.AssociatedGitopsDeplUID == OrphanedResourceGitopsDeplUID {
 			handleOrphaned(ctx, event, orphanedResources, log)
 			continue
 		}
@@ -144,6 +146,13 @@ func workspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, worksp
 		// depending on it, then unorphan the child resource.
 		if event.Event.ReqResource == v1alpha1.GitOpsDeploymentTypeName {
 			unorphanResourcesIfPossible(ctx, event, orphanedResources, input, log)
+		}
+
+		// Handle Repository Credentials
+		if event.Event.ReqResource == v1alpha1.GitOpsDeploymentRepositoryCredentialTypeName {
+
+			workspaceResourceLoop.processRepositoryCredential(ctx, event.Event.Request, event.Event.Client)
+			continue
 		}
 
 		applicationEntryVal, ok := applicationMap[event.Event.AssociatedGitopsDeplUID]

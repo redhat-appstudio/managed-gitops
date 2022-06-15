@@ -1,4 +1,4 @@
-package eventloop
+package preprocess_event_loop
 
 import (
 	"testing"
@@ -13,7 +13,7 @@ func TestEventLoop(t *testing.T) {
 
 	_, reporterConfig := GinkgoConfiguration()
 
-	reporterConfig.SlowSpecThreshold = time.Duration(6 * time.Second)
+	reporterConfig.SlowSpecThreshold = time.Duration(10 * time.Second)
 
-	RunSpecs(t, "Event Loop Tests")
+	RunSpecs(t, "Pre-process Event Loop Tests")
 }

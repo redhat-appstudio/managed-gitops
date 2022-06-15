@@ -375,9 +375,10 @@ func SetupForTestingDBGinkgo() error {
 	for _, application := range applications {
 		if strings.HasPrefix(application.Application_id, "test-") {
 			rowsAffected, err := dbq.DeleteApplicationById(ctx, application.Application_id)
-			Expect(rowsAffected).Should((Equal(1)))
 			Expect(err).To(BeNil())
-
+			if err == nil {
+				Expect(rowsAffected).Should((Equal(1)))
+			}
 		}
 	}
 
@@ -484,6 +485,20 @@ func SetupForTestingDBGinkgo() error {
 		if strings.HasPrefix(item.KubernetesResourceUID, "test-") {
 			rowsAffected, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, &item)
 
+			Expect(err).To(BeNil())
+			if err == nil {
+				Expect(rowsAffected).Should((Equal(1)))
+			}
+		}
+	}
+
+	var apiCRToDatabaseMappings []APICRToDatabaseMapping
+	err = dbq.UnsafeListAllAPICRToDatabaseMappings(ctx, &apiCRToDatabaseMappings)
+	Expect(err).To(BeNil())
+	for idx := range apiCRToDatabaseMappings {
+		item := apiCRToDatabaseMappings[idx]
+		if strings.HasPrefix(item.APIResourceUID, "test-") || strings.HasPrefix(item.DBRelationKey, "test-") {
+			rowsAffected, err := dbq.DeleteAPICRToDatabaseMapping(ctx, &item)
 			Expect(err).To(BeNil())
 			if err == nil {
 				Expect(rowsAffected).Should((Equal(1)))

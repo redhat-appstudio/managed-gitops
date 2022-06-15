@@ -3,6 +3,7 @@ package routes
 import (
 	"log"
 	"net/http"
+	"time"
 
 	restful "github.com/emicklei/go-restful/v3"
 
@@ -47,7 +48,7 @@ func RouteInit() *http.Server {
 	wsContainer.Add(webhookR)
 
 	log.Print("Main: the server is up, and listening to port 8090 on your host.")
-	server := &http.Server{Addr: ":8090", Handler: wsContainer}
+	server := &http.Server{Addr: ":8090", Handler: wsContainer, ReadHeaderTimeout: time.Second * 30}
 
 	return server
 }

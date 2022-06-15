@@ -5,6 +5,7 @@ import (
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -12,12 +13,10 @@ import (
 type EventLoopEventType string
 
 const (
-	DeploymentModified EventLoopEventType = "eventlooptypes.DeploymentModified"
-	// WorkspaceModified
-	// ApplicationModified
-	// EnvironmentModified
-	SyncRunModified            EventLoopEventType = "SyncRunModified"
-	UpdateDeploymentStatusTick EventLoopEventType = "UpdateDeploymentStatusTick"
+	DeploymentModified           EventLoopEventType = "DeploymentModified"
+	RepositoryCredentialModified EventLoopEventType = "RepositoryCredentialModified"
+	SyncRunModified              EventLoopEventType = "SyncRunModified"
+	UpdateDeploymentStatusTick   EventLoopEventType = "UpdateDeploymentStatusTick"
 )
 
 // EventLoopEvent tracks an event received from the controllers in the apis/managed-gitops/v1alpha1 package.
@@ -44,6 +43,40 @@ type EventLoopEvent struct {
 
 	// WorkspaceID is the UID of the namespace that contains the request
 	WorkspaceID string
+}
+
+// GetReqResourceAsClientObject converts the resource into a simple client.Object: it will be of
+// the expected type (GitOpsDeployment/SyncRun/etc), but only contain the name and namespace.
+func (ele *EventLoopEvent) GetReqResourceAsSimpleClientObject() (client.Object, error) {
+
+	var resource client.Object
+
+	if ele.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentTypeName {
+		resource = &managedgitopsv1alpha1.GitOpsDeployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      ele.Request.Name,
+				Namespace: ele.Request.Namespace,
+			},
+		}
+	} else if ele.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName {
+		resource = &managedgitopsv1alpha1.GitOpsDeploymentSyncRun{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      ele.Request.Name,
+				Namespace: ele.Request.Namespace,
+			},
+		}
+	} else if ele.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialTypeName {
+		resource = &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      ele.Request.Name,
+				Namespace: ele.Request.Namespace,
+			},
+		}
+	} else {
+		return nil, fmt.Errorf("SEVERE - unexpected request resource type: %v", string(ele.ReqResource))
+	}
+
+	return resource, nil
 }
 
 // Packages an EventLoopEvent as a message between event loop channels.

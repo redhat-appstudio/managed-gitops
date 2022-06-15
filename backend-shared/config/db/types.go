@@ -212,7 +212,7 @@ type Application struct {
 	// primary key: auto-generated random uid.
 	Application_id string `pg:"application_id,pk"`
 
-	// Name of the Application CR within the namespace
+	// Name of the Application CR within the Argo CD namespace
 	// Value: gitopsdepl-(uid of the gitopsdeployment)
 	// Example: gitopsdepl-ac2efb8e-2e2a-45a2-9c08-feb0e2e0e29b
 	Name string `pg:"name"`
@@ -306,9 +306,11 @@ const (
 
 	// TODO: GITOPSRVCE-67: Convert these into typed constants
 
-	APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun = "GitOpsDeploymentSyncRun"
+	APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun              = "GitOpsDeploymentSyncRun"
+	APICRToDatabaseMapping_ResourceType_GitOpsDeploymentRepositoryCredential = "GitOpsDeploymentRepositoryCredential"
 
-	APICRToDatabaseMapping_DBRelationType_SyncOperation = "SyncOperation"
+	APICRToDatabaseMapping_DBRelationType_SyncOperation        = "SyncOperation"
+	APICRToDatabaseMapping_DBRelationType_RepositoryCredential = "RepositoryCredential"
 )
 
 // Maps API custom resources on the API namespace (such as GitOpsDeploymentSyncRun), to a corresponding entry in the database.

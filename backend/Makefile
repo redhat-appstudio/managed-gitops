@@ -49,7 +49,7 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 test: fmt vet envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -timeout=15s -p=1 ./... -coverprofile cover.out -coverpkg=./... -tags skiproutes
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -timeout=60s -p=1 ./... -coverprofile cover.out -coverpkg=./... -tags skiproutes
 
 ##@ Build
 
@@ -57,7 +57,7 @@ build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./main.go --zap-log-level debug 
+	go run ./main.go --zap-log-level debug --zap-time-encoding=rfc3339nano
 # more on controller log level configuration: https://sdk.operatorframework.io/docs/building-operators/golang/references/logging/
 
 ##@ Deployment

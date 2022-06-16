@@ -3,7 +3,6 @@ package utils
 import (
 	"context"
 	"fmt"
-	"log"
 	"reflect"
 	"sort"
 	"time"
@@ -100,7 +99,7 @@ func appSync(ctx context.Context, acdClient argocdclient.Client, appName string,
 		syncReq.Strategy = &argoappv1.SyncStrategy{Hook: &argoappv1.SyncStrategyHook{}}
 		syncReq.Strategy.Hook.Force = force
 	default:
-		log.Fatalf("Unknown sync strategy: '%s'", strategy)
+		return fmt.Errorf("unknown sync strategy: '%s'", strategy)
 	}
 	if retryLimit > 0 {
 		syncReq.RetryStrategy = &argoappv1.RetryStrategy{
@@ -125,12 +124,12 @@ func appSync(ctx context.Context, acdClient argocdclient.Client, appName string,
 
 		if !dryRun {
 			if !app.Status.OperationState.Phase.Successful() {
-				log.Fatalf("Operation has completed with phase: %s", app.Status.OperationState.Phase)
+				return fmt.Errorf("operation has completed with phase: %s", app.Status.OperationState.Phase)
 			} else if /*len(selectedResources) == 0 &&*/ app.Status.Sync.Status != argoappv1.SyncStatusCodeSynced {
 				// Only get resources to be pruned if sync was application-wide and final status is not synced
 				pruningRequired := app.Status.OperationState.SyncResult.Resources.PruningRequired()
 				if pruningRequired > 0 {
-					log.Fatalf("%d resources require pruning", pruningRequired)
+					return fmt.Errorf("%d resources require pruning", pruningRequired)
 				}
 			}
 		}

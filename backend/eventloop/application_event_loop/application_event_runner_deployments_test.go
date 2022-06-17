@@ -1,8 +1,6 @@
 package application_event_loop
 
 import (
-	"fmt"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -20,7 +18,6 @@ var _ = Describe("Application Event Runner Deployments", func() {
 			input := fakeInputSpec(false, true)
 			application, err := createSpecField(input)
 			Expect(err).To(BeNil())
-			fmt.Println(application)
 			Expect(application).To(Equal(validApplication()))
 		})
 

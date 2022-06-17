@@ -14,9 +14,7 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 		err                  error
 		ctx                  context.Context
 		clusterUser          *db.ClusterUser
-		clusterCredentials   db.ClusterCredentials
-		gitopsEngineCluster  db.GitopsEngineCluster
-		gitopsEngineInstance db.GitopsEngineInstance
+		gitopsEngineInstance *db.GitopsEngineInstance
 		dbq                  db.AllDatabaseQueries
 	)
 
@@ -31,6 +29,9 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 
 			ctx = context.Background()
 
+			_, _, _, gitopsEngineInstance, _, err = db.CreateSampleData(dbq)
+			Expect(err).To(BeNil())
+
 			By("Satisfying the foreign key constraint 'fk_clusteruser_id'")
 			// aka: ClusterUser.Clusteruser_id) required for 'repo_cred_user_id'
 			clusterUser = &db.ClusterUser{
@@ -38,41 +39,6 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 				User_name:      "test-repocred-user",
 			}
 			err = dbq.CreateClusterUser(ctx, clusterUser)
-			Expect(err).To(BeNil())
-
-			By("Satisfying the foreign key constraint 'fk_gitopsengineinstance_id'")
-			// aka: GitOpsEngineInstance.Gitopsengineinstance_id) required for 'repo_cred_gitopsengineinstance_id'
-			clusterCredentials = db.ClusterCredentials{
-				Clustercredentials_cred_id:  "test-repocred-Clustercredentials_cred_id",
-				Host:                        "test-repocred-host",
-				Kube_config:                 "test-repocred-kube-config",
-				Kube_config_context:         "test-repocred-kube-config-context",
-				Serviceaccount_bearer_token: "test-repocred-serviceaccount_bearer_token",
-				Serviceaccount_ns:           "test-repocred-Serviceaccount_ns",
-			}
-
-			By("Creating clusterCredentials as a pre-requisite for GitopsEngineCluster")
-			err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-			Expect(err).To(BeNil())
-
-			gitopsEngineCluster = db.GitopsEngineCluster{
-				Gitopsenginecluster_id: "test-repocred-Gitopsenginecluster_id",
-				Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
-			}
-
-			By("Creating gitopsEngineCluster as a pre-requisite for GitopsEngineInstance")
-			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-			Expect(err).To(BeNil())
-
-			gitopsEngineInstance = db.GitopsEngineInstance{
-				Gitopsengineinstance_id: "test-repocred-Gitopsengineinstance_id",
-				Namespace_name:          "test-repocred-Namespace_name",
-				Namespace_uid:           "test-repocred-Namespace_uid",
-				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
-			}
-
-			By("Creating gitopsEngineInstance as a pre-requisite for RepositoryCredentials")
-			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
 			Expect(err).To(BeNil())
 		})
 		AfterEach(func() {

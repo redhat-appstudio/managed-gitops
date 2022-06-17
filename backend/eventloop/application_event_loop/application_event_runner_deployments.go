@@ -791,7 +791,9 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 	if fields.automated {
 		application.Spec.SyncPolicy = &fauxargocd.SyncPolicy{
 			Automated: &fauxargocd.SyncPolicyAutomated{
-				Prune: false,
+				Prune:      true,
+				SelfHeal:   true,
+				AllowEmpty: true,
 			},
 		}
 	}

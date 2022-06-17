@@ -411,7 +411,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		specDiff = "spec.destination fields differ"
 	} else if specFieldApp.Spec.Project != app.Spec.Project {
 		specDiff = "spec project fields differ"
-	} else if specFieldApp.Spec.SyncPolicy != app.Spec.SyncPolicy {
+	} else if !reflect.DeepEqual(specFieldApp.Spec.SyncPolicy, app.Spec.SyncPolicy) {
 		specDiff = "sync policy fields differ"
 	}
 
@@ -419,6 +419,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		app.Spec.Destination = specFieldApp.Spec.Destination
 		app.Spec.Source = specFieldApp.Spec.Source
 		app.Spec.Project = specFieldApp.Spec.Project
+		app.Spec.SyncPolicy = specFieldApp.Spec.SyncPolicy
 
 		if err := eventClient.Update(ctx, app); err != nil {
 			log.Error(err, "unable to update application after difference detected: "+app.Name)

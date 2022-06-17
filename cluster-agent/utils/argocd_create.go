@@ -387,7 +387,7 @@ func SetupArgoCD(k8sClient client.Client, kubeClientSet *kubernetes.Clientset) e
 	}
 	// token := secret.Data["token"]  not sure whether this will work
 	token := secretResource.Data["token"]
-	// no need to decode token, it is unmarshalled base64
+	// no need to decode token, it is unmarshalled from base64
 
 	// decodedToken, err := base64.StdEncoding.DecodeString(string(token))
 	// if err != nil {
@@ -415,6 +415,10 @@ func SetupArgoCD(k8sClient client.Client, kubeClientSet *kubernetes.Clientset) e
 	}
 
 	config, _ := ctrl.GetConfig()
+
+	// fmt.Printf("HOST %v \n", config.Host)
+	// fmt.Printf("TOKEN %v \n", string(token))
+
 	clusterSecret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{

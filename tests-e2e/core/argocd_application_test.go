@@ -1,0 +1,79 @@
+package core
+
+import (
+	"context"
+
+	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
+	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
+	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
+	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
+)
+
+var _ = Describe("Argo CD Application", func() {
+	Context("Creating GitOpsDeployment should result in an Argo CD Application", func() {
+		It("Argo CD Application should have has prune, allowEmpty and selfHeal enabled", func() {
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			By("create a new GitOpsDeployment CR")
+			gitOpsDeployment := buildGitOpsDeploymentResource("my-gitops-depl-automated",
+				"https://github.com/redhat-appstudio/gitops-repository-template", "environments/overlays/dev",
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+			err := k8s.Create(&gitOpsDeployment)
+			Expect(err).To(Succeed())
+
+			By("GitOpsDeployment should have expected health and status")
+			Eventually(gitOpsDeployment, "2m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)))
+
+			By("get the Application name created by the GitOpsDeployment resource")
+			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
+			Expect(err).To(BeNil())
+
+			appMapping := &db.DeploymentToApplicationMapping{
+				Deploymenttoapplicationmapping_uid_id: string(gitOpsDeployment.UID),
+			}
+			err = dbQueries.GetDeploymentToApplicationMappingByDeplId(context.Background(), appMapping)
+			Expect(err).To(BeNil())
+
+			dbApplication := &db.Application{
+				Application_id: appMapping.Application_id,
+			}
+			err = dbQueries.GetApplicationById(context.Background(), dbApplication)
+			Expect(err).To(BeNil())
+
+			By("verify that the Argo CD Application has prune, allowEmpty and selfHeal enabled")
+			app := &appv1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      dbApplication.Name,
+					Namespace: dbutil.GetGitOpsEngineSingleInstanceNamespace(),
+				},
+			}
+			Eventually(func() bool {
+				err = k8s.Get(app)
+				if err != nil {
+					if errors.IsNotFound(err) {
+						return false
+					}
+					Expect(err).To(BeNil())
+				}
+
+				syncPolicy := app.Spec.SyncPolicy
+				if syncPolicy != nil && syncPolicy.Automated != nil {
+					return syncPolicy.Automated.AllowEmpty && syncPolicy.Automated.Prune && syncPolicy.Automated.SelfHeal
+				}
+				return false
+			}, "5m", "1s").Should(BeTrue())
+		})
+
+	})
+})

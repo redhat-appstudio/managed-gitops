@@ -34,6 +34,22 @@ func Create(obj client.Object) error {
 	return nil
 }
 
+// Get the given K8s resource, returning an error on failure, or nil otherwise.
+func Get(obj client.Object) error {
+
+	k8sClient, err := fixture.GetKubeClient()
+	if err != nil {
+		return err
+	}
+
+	if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(obj), obj); err != nil {
+		fmt.Println(K8sClientError, "Unable to Get ", obj.GetName(), err)
+		return err
+	}
+
+	return nil
+}
+
 // ExistByName checks if the given resource exists, when retrieving it by name/namespace.
 // Does NOT check if the resource content matches.
 func ExistByName() matcher.GomegaMatcher {

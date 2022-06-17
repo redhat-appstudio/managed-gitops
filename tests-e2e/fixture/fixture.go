@@ -10,6 +10,7 @@ import (
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 
+	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 
 	apps "k8s.io/api/apps/v1"
@@ -201,6 +202,11 @@ func GetKubeClient() (client.Client, error) {
 	}
 
 	err = apps.AddToScheme(scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	err = appv1alpha1.AddToScheme(scheme)
 	if err != nil {
 		return nil, err
 	}

@@ -5,9 +5,6 @@ import (
 	"strings"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
-
 	argocdoperator "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -18,6 +15,8 @@ import (
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	apps "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -226,7 +225,7 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 						TargetRevision: "HEAD",
 					},
 					Destination: appv1.ApplicationDestination{
-						Name:      "in-cluster",
+						Name:      argocdv1.ClusterSecretName,
 						Namespace: fixture.GitOpsServiceE2ENamespace,
 					},
 				},
@@ -244,8 +243,6 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 				GinkgoWriter.Println("- AppSync result: ", err)
 				return err == nil
 			}).WithTimeout(time.Minute * 2).WithPolling(time.Second * 1).Should(BeTrue())
-
-			//error on above line, rpc error: code = Unauthenticated desc = no session information
 
 			// Eventually(app, "2m", "1s").Should(
 			// 	SatisfyAll(

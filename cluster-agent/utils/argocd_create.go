@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -26,7 +27,8 @@ const (
 	ArgoCDManagerClusterRole        = "argocd-manager-role"
 	ArgoCDManagerClusterRoleBinding = "argocd-manager-role-binding"
 	// K8sClientError is a prefix that can/should be used when outputting errors from K8s client
-	K8sClientError = "Error from k8s client:"
+	K8sClientError    = "Error from k8s client:"
+	ClusterSecretName = "my-cluster"
 )
 
 func CreateNamespaceScopedArgoCD(ctx context.Context, name string, namespace string, k8sClient client.Client) error {
@@ -361,12 +363,6 @@ func SetupArgoCD(k8sClient client.Client, kubeClientSet *kubernetes.Clientset) e
 	}
 	log.Printf("clusterRoleBinding %q created in namespace %q", clusterRoleBinding.Name, clusterRoleBinding.Namespace)
 
-	// secretResource, secretErr := kubeClientSet.CoreV1().Secrets(secret.Namespace).Get(context.Background(), secret.Name, metav1.GetOptions{})
-	// if secretErr!=nil{
-	// 	return secretErr
-	// }
-	// token := &secretResource.Data
-
 	// 	apiVersion: v1
 	// kind: Secret
 	// metadata:
@@ -385,6 +381,70 @@ func SetupArgoCD(k8sClient client.Client, kubeClientSet *kubernetes.Clientset) e
 	//       }
 	//     }
 
-	return nil
+	secretResource, secretErr := kubeClientSet.CoreV1().Secrets(secret.Namespace).Get(context.Background(), secret.Name, metav1.GetOptions{})
+	if secretErr != nil {
+		return secretErr
+	}
+	// token := secret.Data["token"]  not sure whether this will work
+	token := secretResource.Data["token"]
+	// no need to decode token, it is unmarshalled base64
 
+	// decodedToken, err := base64.StdEncoding.DecodeString(string(token))
+	// if err != nil {
+	// 	fmt.Printf("Error decoding Base64 encoded data %v", err)
+	// }
+
+	type ClusterSecretTLSClientConfigJSON struct {
+		Insecure bool `json:"insecure"`
+	}
+	type ClusterSecretConfigJSON struct {
+		BearerToken     string                           `json:"bearerToken"`
+		TLSClientConfig ClusterSecretTLSClientConfigJSON `json:"tlsClientConfig"`
+	}
+
+	clusterSecretConfigJSON := ClusterSecretConfigJSON{
+		BearerToken: string(token),
+		TLSClientConfig: ClusterSecretTLSClientConfigJSON{
+			Insecure: true,
+		},
+	}
+
+	jsonString, err := json.Marshal(clusterSecretConfigJSON)
+	if err != nil {
+		return fmt.Errorf("SEVERE: unable to marshal JSON")
+	}
+
+	config, _ := ctrl.GetConfig()
+	clusterSecret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-cluster-secret",
+			Namespace: "kube-system",
+			Labels:    map[string]string{"argocd.argoproj.io/secret-type": "cluster"},
+		},
+		StringData: map[string]string{
+			"name":   ClusterSecretName,
+			"server": config.Host,
+			"config": string(jsonString),
+		},
+		Type: corev1.SecretType("Opaque"),
+	}
+	//delete cluster secret if it already exists to create a new one
+	_, errOnGet = kubeClientSet.CoreV1().Secrets(clusterSecret.Namespace).Get(context.Background(), clusterSecret.Name, metav1.GetOptions{})
+	if errOnGet == nil {
+		errOnDelete := kubeClientSet.CoreV1().Secrets(clusterSecret.Namespace).Delete(context.Background(), clusterSecret.Name, metav1.DeleteOptions{PropagationPolicy: &policy})
+		if errOnDelete != nil {
+			return fmt.Errorf("Error on DELETE %v", errOnDelete)
+		}
+
+	}
+	if err := k8sClient.Create(context.Background(), clusterSecret); err != nil {
+		if !apierr.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create cluster secret %q : %v", clusterSecret.Name, err)
+		}
+		return fmt.Errorf("cluster secret %q already exists", clusterSecret.Name)
+	}
+
+	log.Printf("cluster secret %q created ", clusterSecret.Name)
+	return nil
 }

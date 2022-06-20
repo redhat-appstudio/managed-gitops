@@ -108,6 +108,8 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 		Expect(err).To(BeNil())
 
 		BeforeEach(func() {
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
 			By("deleting the namespace before the test starts, so that the code can create it")
 			policy := metav1.DeletePropagationForeground
 
@@ -209,7 +211,7 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 			Expect(err).To(BeNil())
 
 			By("ensuring ArgoCD resource exists in kube-system namespace")
-			err = argocdv1.SetupArgoCD(k8sClient, kubeClientSet)
+			err = argocdv1.SetupArgoCD(argocdnamespace, k8sClient, kubeClientSet)
 			Expect(err).To(BeNil())
 
 			By("creating ArgoCD application")

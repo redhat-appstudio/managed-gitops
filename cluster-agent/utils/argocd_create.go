@@ -224,17 +224,16 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, name string, namespace str
 				Namespace: namespace,
 			},
 		}
-		exists := false
 		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
 		if err != nil {
 			if apierr.IsNotFound(err) {
-				return true, nil
+				return false, nil
 			} else {
 				return false, err
 			}
+		} else {
+			return true, nil
 		}
-		return exists, nil
-
 	})
 
 	if err != nil {
@@ -245,7 +244,7 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, name string, namespace str
 	return nil
 }
 
-func SetupArgoCD(k8sClient client.Client, kubeClientSet *kubernetes.Clientset) error {
+func SetupArgoCD(argoCDNamespace string, k8sClient client.Client, kubeClientSet *kubernetes.Clientset) error {
 
 	policy := metav1.DeletePropagationForeground
 
@@ -261,7 +260,7 @@ func SetupArgoCD(k8sClient client.Client, kubeClientSet *kubernetes.Clientset) e
 	if errOnGet == nil {
 		errOnDelete := kubeClientSet.CoreV1().ServiceAccounts(serviceAccount.Namespace).Delete(context.Background(), serviceAccount.Name, metav1.DeleteOptions{PropagationPolicy: &policy})
 		if errOnDelete != nil {
-			return fmt.Errorf("Error on DELETE %v", errOnDelete)
+			return fmt.Errorf("error on DELETE %v", errOnDelete)
 		}
 
 	}
@@ -423,7 +422,7 @@ func SetupArgoCD(k8sClient client.Client, kubeClientSet *kubernetes.Clientset) e
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-cluster-secret",
-			Namespace: "kube-system",
+			Namespace: argoCDNamespace,
 			Labels:    map[string]string{"argocd.argoproj.io/secret-type": "cluster"},
 		},
 		StringData: map[string]string{
@@ -438,7 +437,7 @@ func SetupArgoCD(k8sClient client.Client, kubeClientSet *kubernetes.Clientset) e
 	if errOnGet == nil {
 		errOnDelete := kubeClientSet.CoreV1().Secrets(clusterSecret.Namespace).Delete(context.Background(), clusterSecret.Name, metav1.DeleteOptions{PropagationPolicy: &policy})
 		if errOnDelete != nil {
-			return fmt.Errorf("Error on DELETE %v", errOnDelete)
+			return fmt.Errorf("error on DELETE %v", errOnDelete)
 		}
 
 	}

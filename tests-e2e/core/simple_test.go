@@ -7,6 +7,7 @@ import (
 
 	argocdoperator "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
@@ -246,10 +247,18 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 				return err == nil
 			}).WithTimeout(time.Minute * 2).WithPolling(time.Second * 1).Should(BeTrue())
 
-			// Eventually(app, "2m", "1s").Should(
-			// 	SatisfyAll(
-			// 		gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
-			// 		gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)))
+			Eventually(app, "2m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveAppSyncStatusCode(appv1.ApplicationStatus{
+						Sync: appv1.SyncStatus{
+							Status: appv1.SyncStatusCodeSynced,
+						},
+					}),
+					gitopsDeplFixture.HaveAppHealthStatusCode(appv1.ApplicationStatus{
+						Health: appv1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+					})))
 
 		})
 	})

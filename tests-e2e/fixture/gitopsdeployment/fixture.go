@@ -2,6 +2,7 @@ package gitopsdeployment
 
 import (
 	"fmt"
+	"reflect"
 
 	. "github.com/onsi/gomega"
 
@@ -68,5 +69,47 @@ func HaveSyncStatusCode(status managedgitopsv1alpha1.SyncStatusCode) matcher.Gom
 		fmt.Println("HaveSyncStatusCode:", res, "/ Expected:", status, "/ Actual:", gitopsDepl.Status.Sync.Status)
 
 		return res
+	}, BeTrue())
+}
+
+// HaveResources checks if the .status.resources field of GitOpsDeployment have the required resources
+func HaveResources(resourceStatusList []managedgitopsv1alpha1.ResourceStatus) matcher.GomegaMatcher {
+	return WithTransform(func(gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment) bool {
+		k8sClient, err := fixture.GetKubeClient()
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitopsDeployment), &gitopsDeployment)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		// compare the slices irrespective of their order
+		resourceExists := false
+		existingResourceStatusList := gitopsDeployment.Status.Resources
+
+		if len(resourceStatusList) != len(existingResourceStatusList) {
+			fmt.Println("HaveResources:", resourceExists, "/ Expected:", resourceStatusList, "/ Actual:", gitopsDeployment.Status.Resources)
+			return false
+		}
+
+		for _, resourceStatus := range resourceStatusList {
+			resourceExists = false
+			for _, existingResourceStatus := range existingResourceStatusList {
+				if reflect.DeepEqual(resourceStatus, existingResourceStatus) {
+					resourceExists = true
+					break
+				}
+			}
+			if !resourceExists {
+				fmt.Println("HaveResources:", resourceExists, "/ Expected:", resourceStatusList, "/ Actual:", gitopsDeployment.Status.Resources)
+				break
+			}
+		}
+		return resourceExists
+
 	}, BeTrue())
 }

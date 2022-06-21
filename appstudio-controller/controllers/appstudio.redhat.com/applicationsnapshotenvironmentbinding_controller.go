@@ -65,13 +65,21 @@ func (r *ApplicationSnapshotEnvironmentBindingReconciler) ReconcilePOC(ctx conte
 		return ctrl.Result{}, nil
 	}
 
-	if len(binding.Status.GitOpsRepoConditions) > 0 && binding.Status.GitOpsRepoConditions[len(binding.Status.GitOpsRepoConditions)-1].Status == metav1.ConditionFalse {
-		// if the ApplicationSnapshotEventBinding GitOps Repo Conditions status is false - return; since there was an unexpected issue with refreshing/syncing the GitOps repository
-		return ctrl.Result{}, nil
-	} else if len(binding.Status.Components) == 0 {
-		// if length of the Binding component status is 0 and there is no issue with the GitOps Repo Conditions; the Application Service controller has not synced the GitOps repository yet, return and requeue
+	// Don't reconcile the binding if the HAS component indicated via the binding.status field
+	// that there were issues with the GitOps repository, or if the GitOps repository isn't ready
+	// yet.
 
-		return ctrl.Result{}, fmt.Errorf("ApplicationSnapshotEventBinding Component status is required to generate GitOps deployment, waiting for the Application Service controller to finish reconciling")
+	if len(binding.Status.GitOpsRepoConditions) > 0 &&
+		binding.Status.GitOpsRepoConditions[len(binding.Status.GitOpsRepoConditions)-1].Status == metav1.ConditionFalse {
+		// if the ApplicationSnapshotEventBinding GitOps Repo Conditions status is false - return;
+		// since there was an unexpected issue with refreshing/syncing the GitOps repository
+		return ctrl.Result{}, nil
+
+	} else if len(binding.Status.Components) == 0 {
+		// if length of the Binding component status is 0 and there is no issue with the GitOps Repo Conditions;
+		// the Application Service controller has not synced the GitOps repository yet, return and requeue.
+		return ctrl.Result{}, fmt.Errorf("ApplicationSnapshotEventBinding Component status is required to " +
+			"generate GitOps deployment, waiting for the Application Service controller to finish reconciling")
 	}
 
 	expectedDeployments := []apibackend.GitOpsDeployment{}

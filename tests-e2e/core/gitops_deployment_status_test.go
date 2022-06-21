@@ -44,7 +44,8 @@ var _ = Describe("GitOpsDeployment Status Tests", func() {
 						Name:      name,
 						Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
 						Health: &managedgitopsv1alpha1.HealthStatus{
-							Status: managedgitopsv1alpha1.HeathStatusCodeHealthy,
+							Status:  managedgitopsv1alpha1.HeathStatusCodeHealthy,
+							Message: "Route is healthy",
 						},
 					},
 					{
@@ -68,9 +69,6 @@ var _ = Describe("GitOpsDeployment Status Tests", func() {
 					Namespace: fixture.GitOpsServiceE2ENamespace,
 					Name:      "environment-config-map",
 					Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
-					Health: &managedgitopsv1alpha1.HealthStatus{
-						Status: managedgitopsv1alpha1.HeathStatusCodeHealthy,
-					},
 				},
 			}
 			expectedResourceStatusList = append(expectedResourceStatusList, getResourceStatusList("component-a")...)

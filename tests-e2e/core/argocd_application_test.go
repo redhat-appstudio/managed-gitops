@@ -9,9 +9,9 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
+	appFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/application"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
@@ -52,27 +52,13 @@ var _ = Describe("Argo CD Application", func() {
 			Expect(err).To(BeNil())
 
 			By("verify that the Argo CD Application has prune, allowEmpty and selfHeal enabled")
-			app := &appv1alpha1.Application{
+			app := appv1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      dbApplication.Name,
 					Namespace: dbutil.GetGitOpsEngineSingleInstanceNamespace(),
 				},
 			}
-			Eventually(func() bool {
-				err = k8s.Get(app)
-				if err != nil {
-					if errors.IsNotFound(err) {
-						return false
-					}
-					Expect(err).To(BeNil())
-				}
-
-				syncPolicy := app.Spec.SyncPolicy
-				if syncPolicy != nil && syncPolicy.Automated != nil {
-					return syncPolicy.Automated.AllowEmpty && syncPolicy.Automated.Prune && syncPolicy.Automated.SelfHeal
-				}
-				return false
-			}, "5m", "1s").Should(BeTrue())
+			Eventually(app, "60s", "1s").Should(appFixture.HaveAutomatedSyncPolicy(appv1alpha1.SyncPolicyAutomated{Prune: true, SelfHeal: true, AllowEmpty: true}))
 		})
 
 	})

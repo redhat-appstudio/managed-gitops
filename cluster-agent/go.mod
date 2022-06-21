@@ -121,6 +121,7 @@ require (
 	github.com/prometheus/common v0.30.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/r3labs/diff v1.1.0 // indirect
+	github.com/redhat-appstudio/managed-gitops/appstudio-shared v0.0.0 // indirect
 	github.com/robfig/cron v1.2.0 // indirect
 	github.com/russross/blackfriday v1.5.2 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
@@ -176,9 +177,12 @@ require (
 replace (
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
+
+	github.com/redhat-appstudio/managed-gitops/appstudio-shared => ../appstudio-shared
 	github.com/redhat-appstudio/managed-gitops/backend => ../backend
 
 	github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
+
 	k8s.io/api => k8s.io/api v0.23.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.23.1
 	k8s.io/apimachinery => k8s.io/apimachinery v0.23.1

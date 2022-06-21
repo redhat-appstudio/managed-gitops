@@ -10,6 +10,7 @@ import (
 	argocdoperator "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
+	appstudiosharedv1 "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
 
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -343,6 +344,11 @@ func GetKubeClient() (client.Client, error) {
 	}
 
 	err = appv1alpha1.AddToScheme(scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	err = appstudiosharedv1.AddToScheme(scheme)
 	if err != nil {
 		return nil, err
 	}

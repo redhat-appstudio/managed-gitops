@@ -10,6 +10,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/onsi/ginkgo/v2 v2.1.3
 	github.com/onsi/gomega v1.19.0
+	github.com/redhat-appstudio/managed-gitops/appstudio-shared v0.0.0
 	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0
 	github.com/redhat-appstudio/managed-gitops/utilities/db-migration v0.0.0
 	github.com/stretchr/testify v1.7.0
@@ -98,3 +99,5 @@ require (
 replace github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
 
 replace github.com/redhat-appstudio/managed-gitops/utilities/db-migration => ../utilities/db-migration
+
+replace github.com/redhat-appstudio/managed-gitops/appstudio-shared => ../appstudio-shared

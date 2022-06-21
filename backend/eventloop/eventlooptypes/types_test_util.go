@@ -3,6 +3,7 @@ package eventlooptypes
 import (
 	"testing"
 
+	appstudiosharedv1 "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
@@ -42,6 +43,11 @@ func GenericTestSetup() (*runtime.Scheme, *v1.Namespace, *v1.Namespace, *v1.Name
 		return nil, nil, nil, nil, err
 	}
 	err = v1.AddToScheme(scheme)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	err = appstudiosharedv1.AddToScheme(scheme)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}

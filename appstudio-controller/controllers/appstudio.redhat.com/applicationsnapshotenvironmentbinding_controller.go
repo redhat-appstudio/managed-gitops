@@ -22,6 +22,7 @@ import (
 	"reflect"
 
 	appstudioshared "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	apibackend "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,21 +49,17 @@ type ApplicationSnapshotEnvironmentBindingReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
 func (r *ApplicationSnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
 
-	fmt.Println("ApplicationSnapshotEventBinding event: ", req)
+	log := log.FromContext(ctx).WithValues("name", req.Name, "namespace", req.Namespace)
+	defer log.V(sharedutil.LogLevel_Debug).Info("Application Snapshot Environment Binding Reconcile() complete.")
 
-	return ctrl.Result{}, nil
-}
-
-// Proof-of-concept Reconcile. Comment out the above Reconcile, and rename this to Reconcile, when starting working on this.
-func (r *ApplicationSnapshotEnvironmentBindingReconciler) ReconcilePOC(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	binding := &appstudioshared.ApplicationSnapshotEnvironmentBinding{}
 
 	if err := r.Client.Get(ctx, req.NamespacedName, binding); err != nil {
 		// Binding doesn't exist: it was deleted.
 		// Owner refs will ensure the GitOpsDeployments are deleted, so no work to do.
-		return ctrl.Result{}, nil
+		log.Error(err, "Binding not found in namespace.")
+		return ctrl.Result{}, err
 	}
 
 	// Don't reconcile the binding if the HAS component indicated via the binding.status field
@@ -73,13 +70,14 @@ func (r *ApplicationSnapshotEnvironmentBindingReconciler) ReconcilePOC(ctx conte
 		binding.Status.GitOpsRepoConditions[len(binding.Status.GitOpsRepoConditions)-1].Status == metav1.ConditionFalse {
 		// if the ApplicationSnapshotEventBinding GitOps Repo Conditions status is false - return;
 		// since there was an unexpected issue with refreshing/syncing the GitOps repository
+		log.V(sharedutil.LogLevel_Debug).Info("Can not Reconcile Binding " + binding.Name + ", since GitOps Repo Conditions status is false.")
 		return ctrl.Result{}, nil
 
 	} else if len(binding.Status.Components) == 0 {
 		// if length of the Binding component status is 0 and there is no issue with the GitOps Repo Conditions;
 		// the Application Service controller has not synced the GitOps repository yet, return and requeue.
-		return ctrl.Result{}, fmt.Errorf("ApplicationSnapshotEventBinding Component status is required to " +
-			"generate GitOps deployment, waiting for the Application Service controller to finish reconciling")
+		return ctrl.Result{}, fmt.Errorf("ApplicationSnapshotEventBinding Component status is required to "+
+			"generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding %s", binding.Name)
 	}
 
 	expectedDeployments := []apibackend.GitOpsDeployment{}
@@ -88,22 +86,26 @@ func (r *ApplicationSnapshotEnvironmentBindingReconciler) ReconcilePOC(ctx conte
 	}
 
 	statusField := []appstudioshared.BindingStatusGitOpsDeployment{}
+	var allErrors error
 
-	var firstErr error
 	// For each deployment, check if it exists, and if it has the expected content.
 	// - If not, create/update it.
-	for _, expectedGitOpsDeployment := range expectedDeployments {
+	for i, expectedGitOpsDeployment := range expectedDeployments {
 
 		if err := processExpectedGitOpsDeployment(ctx, expectedGitOpsDeployment, *binding, r.Client); err != nil {
+			errorMessage := fmt.Sprintf("Error occurred while processing expected GitOpsDeployment %s for Binding %s", expectedGitOpsDeployment.Name, binding.Name)
+			log.Error(err, errorMessage)
 
-			if firstErr != nil {
-				firstErr = err
-				continue
+			// Combine all errors occurred in loop
+			if allErrors == nil {
+				allErrors = fmt.Errorf("%s Error: %w", errorMessage, err)
+			} else {
+				allErrors = fmt.Errorf("%s\n%s Error: %w", allErrors.Error(), errorMessage, err)
 			}
 		} else {
 			// No error: add to status
 			statusField = append(statusField, appstudioshared.BindingStatusGitOpsDeployment{
-				ComponentName:    "", // GITOPSRVCE-156: TODO: use the actual component name
+				ComponentName:    binding.Spec.Components[i].Name,
 				GitOpsDeployment: expectedGitOpsDeployment.Name,
 			})
 		}
@@ -112,11 +114,12 @@ func (r *ApplicationSnapshotEnvironmentBindingReconciler) ReconcilePOC(ctx conte
 	// Update the status field with statusField vars (even if an error occurred)
 	binding.Status.GitOpsDeployments = statusField
 	if err := r.Client.Status().Update(ctx, binding); err != nil {
-		return ctrl.Result{}, fmt.Errorf("unable to update gitopsdeployments status: %v", err)
+		log.Error(err, "unable to update gitopsdeployments status for Binding "+binding.Name)
+		return ctrl.Result{}, fmt.Errorf("unable to update gitopsdeployments status for Binding %s. Error: %w", binding.Name, err)
 	}
 
-	if firstErr != nil {
-		return ctrl.Result{}, fmt.Errorf("unable to process expected GitOpsDeployment: %v", firstErr)
+	if allErrors != nil {
+		return ctrl.Result{}, fmt.Errorf("unable to process expected GitOpsDeployment: %w", allErrors)
 	}
 
 	return ctrl.Result{}, nil
@@ -126,16 +129,19 @@ func (r *ApplicationSnapshotEnvironmentBindingReconciler) ReconcilePOC(ctx conte
 func processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployment apibackend.GitOpsDeployment,
 	binding appstudioshared.ApplicationSnapshotEnvironmentBinding, k8sClient client.Client) error {
 
+	log := log.FromContext(ctx).WithValues("binding", binding.Name, "gitOpsDeployment", expectedGitopsDeployment.Name, "namespace", binding.Namespace)
 	actualGitOpsDeployment := apibackend.GitOpsDeployment{}
 
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&expectedGitopsDeployment), &actualGitOpsDeployment); err != nil {
 
 		// A) If the GitOpsDeployment doesn't exist, create it
 		if !apierr.IsNotFound(err) {
-			return fmt.Errorf("unable to retrieve gitopsdeployment '%s': %v", expectedGitopsDeployment.Name, err)
+			log.Error(err, "expectedGitopsDeployment: "+expectedGitopsDeployment.Name+" not found for Binding "+binding.Name)
+			return fmt.Errorf("expectedGitopsDeployment: %s not found for Binding: %s: Error: %w", expectedGitopsDeployment.Name, binding.Name, err)
 		}
 
 		if err := k8sClient.Create(ctx, &expectedGitopsDeployment); err != nil {
+			log.Error(err, "unable to create expectedGitopsDeployment: "+expectedGitopsDeployment.Name+" for Binding: "+binding.Name)
 			return err
 		}
 
@@ -143,8 +149,7 @@ func processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployme
 	}
 
 	// GitOpsDeployment already exists, so compare it with what we expect
-
-	if reflect.DeepEqual(expectedGitopsDeployment.Spec, actualGitOpsDeployment) {
+	if reflect.DeepEqual(expectedGitopsDeployment.Spec, actualGitOpsDeployment.Spec) {
 		// B) The GitOpsDeployment is exactly as expected, so return
 		return nil
 	}
@@ -153,7 +158,8 @@ func processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployme
 	actualGitOpsDeployment.Spec = expectedGitopsDeployment.Spec
 
 	if err := k8sClient.Update(ctx, &actualGitOpsDeployment); err != nil {
-		return fmt.Errorf("unable to update '%s', %v", actualGitOpsDeployment.Name, err)
+		log.Error(err, "unable to update actualGitOpsDeployment: "+actualGitOpsDeployment.Name+" for Binding: "+binding.Name)
+		return fmt.Errorf("unable to update actualGitOpsDeployment '%s', for Binding:%s, Error: %w", actualGitOpsDeployment.Name, binding.Name, err)
 	}
 
 	return nil
@@ -162,11 +168,20 @@ func processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployme
 func generateExpectedGitOpsDeployment(component appstudioshared.ComponentStatus, binding appstudioshared.ApplicationSnapshotEnvironmentBinding) apibackend.GitOpsDeployment {
 
 	res := apibackend.GitOpsDeployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "managed-gitops.redhat.com/v1alpha1",
+			Kind:       "GitOpsDeployment",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + component.Name,
 			Namespace: binding.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
-				*metav1.GetControllerOf(&binding),
+				{
+					APIVersion: binding.APIVersion,
+					Kind:       binding.Kind,
+					Name:       binding.Name,
+					UID:        binding.UID,
+				},
 			},
 		},
 		Spec: apibackend.GitOpsDeploymentSpec{

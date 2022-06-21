@@ -1,0 +1,15 @@
+apiVersion: appstudio.redhat.com/v1alpha1
+kind: Environment
+metadata:
+  name: staging
+spec:
+  type: poc
+  displayName: “Production for Team A”
+  deploymentStrategy: AppStudioAutomated
+  parentEnvironment: staging
+  tags:
+    - staging
+  configuration:     
+    env: 
+      - name: My_STG_ENV
+        value: "100"

@@ -1,12 +1,10 @@
 
-# Current as of June 9th, 2022
-
 apiVersion: appstudio.redhat.com/v1alpha1
 kind: Component
 metadata:
 #  finalizers:
 #  - component.appstudio.redhat.com/finalizer
-  name: demo
+  name: component-a
 # namespace: rorai (your namespace)
 #  ownerReferences:
 #  - apiVersion: appstudio.redhat.com/v1alpha1
@@ -15,8 +13,8 @@ metadata:
 #    uid: 43012e93-170f-4b9f-9b2f-5c81a00fe536
 spec:
   application: new-demo-app
-  componentName: demo
-  containerImage: quay.io/sbudhwar/demo
+  componentName: component-a
+  containerImage: quay.io/jgwest-redhat/sample-workload:latest
   replicas: 2
   resources:
     requests:
@@ -38,7 +36,7 @@ status:
     reason: OK
     status: "True"
     type: Updated
-  containerImage: quay.io/sbudhwar/demo
+  containerImage: quay.io/jgwest-redhat/sample-workload:latest
   devfile: |
     components:
     - attributes:
@@ -51,9 +49,8 @@ status:
         inlined: placeholder
       name: kubernetes
     metadata:
-      name: demo
+      name: component-a
     schemaVersion: 2.1.0
   gitops:
-    context: ./  # path of the kustomize.yaml within the repo
-    repositoryURL: https://github.com/redhat-appstudio-appdata/new-demo-app-rorai-ask-display
-    # you can use any repositoryURL from https://github.com/redhat-appstudio-appdata for this field, or create your own GitOps repository that Argo CD will use
+    context: ./components/componentA/overlays/staging/
+    repositoryURL: https://github.com/redhat-appstudio/gitops-repository-template

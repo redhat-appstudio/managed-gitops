@@ -113,3 +113,26 @@ func HaveResources(resourceStatusList []managedgitopsv1alpha1.ResourceStatus) ma
 
 	}, BeTrue())
 }
+
+func HaveSpecSource(source managedgitopsv1alpha1.ApplicationSource) matcher.GomegaMatcher {
+
+	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
+
+		k8sClient, err := fixture.GetKubeClient()
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitopsDepl), &gitopsDepl)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		res := reflect.DeepEqual(source, gitopsDepl.Spec.Source)
+		fmt.Println("HaveSource:", res, "/ Expected:", source, "/ Actual:", gitopsDepl.Spec.Source)
+
+		return res
+	}, BeTrue())
+}

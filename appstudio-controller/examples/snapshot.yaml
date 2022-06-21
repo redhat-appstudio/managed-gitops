@@ -1,0 +1,20 @@
+apiVersion: appstudio.redhat.com/v1alpha1
+kind: ApplicationSnapshot
+metadata:
+  name: my-snapshot
+spec:
+  application: "new-demo-app" 
+  displayName: "My known good staging snapshot"
+  displayDescription: "The best we've had so far!"
+  components:
+    - name: component-a
+      containerImage: quay.io/jgwest-redhat/sample-workload:latest
+  artifacts:
+    unstableFields:
+      build:
+        - containerImage: quay.io/jgwest-redhat/sample-workload:latest
+          sourceRepository:
+          url: https://github.com/redhat-appstudio/gitops-repository-template
+          commitID: a594265
+      attributes:
+        - qeApproved

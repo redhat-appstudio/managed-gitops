@@ -101,3 +101,31 @@ func Delete(obj client.Object) error {
 	return fmt.Errorf("'%s' still exists", obj.GetName())
 
 }
+
+func UpdateStatus(obj client.Object) error {
+	k8sClient, err := fixture.GetKubeClient()
+	if err != nil {
+		return err
+	}
+
+	if err = k8sClient.Status().Update(context.Background(), obj); err != nil {
+		fmt.Println(K8sClientError, "Error on Status Update : ", err)
+		return err
+	}
+
+	return nil
+}
+
+func Update(obj client.Object) error {
+	k8sClient, err := fixture.GetKubeClient()
+	if err != nil {
+		return err
+	}
+
+	if err := k8sClient.Update(context.Background(), obj, &client.UpdateOptions{}); err != nil {
+		fmt.Println(K8sClientError, "Error on updating ", err)
+		return err
+	}
+
+	return nil
+}

@@ -13,6 +13,7 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	argocdv1 "github.com/redhat-appstudio/managed-gitops/cluster-agent/utils"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
+	argocdFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/argocd"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	apps "k8s.io/api/apps/v1"
@@ -22,6 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -104,7 +106,7 @@ func buildGitOpsDeploymentResource(name, repoURL, path, deploymentSpecType strin
 
 var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 
-	Context("Create a Standalone ArgoCD instance", func() {
+	FContext("Create a Standalone ArgoCD instance", func() {
 		kubeClientSet, err := fixture.GetKubeClientSet()
 		Expect(err).To(BeNil())
 
@@ -191,6 +193,7 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 
 			By("creating ArgoCD resource")
 			ctx := context.Background()
+			log := log.FromContext(ctx)
 
 			k8sClient, err := fixture.GetKubeClient()
 			Expect(err).To(BeNil())
@@ -201,7 +204,7 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 				Spec:       argocdoperator.ArgoCDSpec{},
 				Status:     argocdoperator.ArgoCDStatus{},
 			}
-			err = argocdv1.CreateNamespaceScopedArgoCD(ctx, argoCDResource.Name, argoCDResource.Namespace, k8sClient)
+			err = argocdv1.CreateNamespaceScopedArgoCD(ctx, argoCDResource.Name, argoCDResource.Namespace, k8sClient, log)
 			Expect(err).To(BeNil())
 
 			By("ensuring ArgoCD service resource exists")
@@ -212,7 +215,7 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 			Expect(err).To(BeNil())
 
 			By("ensuring ArgoCD resource exists in kube-system namespace")
-			err = argocdv1.SetupArgoCD(argocdnamespace, k8sClient, kubeClientSet)
+			err = argocdv1.SetupArgoCD(ctx, argocdnamespace, k8sClient, log)
 			Expect(err).To(BeNil())
 
 			By("creating ArgoCD application")
@@ -249,12 +252,12 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 
 			Eventually(app, "2m", "1s").Should(
 				SatisfyAll(
-					gitopsDeplFixture.HaveAppSyncStatusCode(appv1.ApplicationStatus{
+					argocdFixture.HaveAppSyncStatusCode(appv1.ApplicationStatus{
 						Sync: appv1.SyncStatus{
 							Status: appv1.SyncStatusCodeSynced,
 						},
 					}),
-					gitopsDeplFixture.HaveAppHealthStatusCode(appv1.ApplicationStatus{
+					argocdFixture.HaveAppHealthStatusCode(appv1.ApplicationStatus{
 						Health: appv1.HealthStatus{
 							Status: health.HealthStatusHealthy,
 						},

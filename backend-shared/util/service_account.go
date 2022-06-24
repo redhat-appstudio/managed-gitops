@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -72,12 +73,41 @@ func InstallServiceAccount(ctx context.Context, k8sClient client.Client, uuid st
 		return "", nil, fmt.Errorf("unable to create role and cluster role binding: %v", err)
 	}
 
-	token, err := getServiceAccountBearerToken(ctx, k8sClient, serviceAccountName, serviceAccountNS)
+	token, err := getOrCreateServiceAccountBearerToken(ctx, k8sClient, serviceAccountName, serviceAccountNS)
 	if err != nil {
 		return "", nil, err
 	}
 
 	return token, sa, nil
+}
+
+// getOrCreateServiceAccountBearerToken returns a token if there is an existing token secret for a service account.
+// If the token secret is missing, it creates a new secret and attach it to the service account
+func getOrCreateServiceAccountBearerToken(ctx context.Context, k8sClient client.Client, serviceAccountName string, serviceAccountNS string) (string, error) {
+	token, err := getServiceAccountBearerToken(ctx, k8sClient, serviceAccountName, serviceAccountNS)
+	if err != nil {
+		// If we timed out waiting for service account token secret, assume that the secret is not created.
+		// From k8s 1.24 onwards service accounts will not get a default token secret.
+		// Instead, we need to create a token secret of type "kubernetes.io/service-account-token" and point it to our service account.
+		// Ref: https://kubernetes.io/docs/concepts/configuration/secret/#service-account-token-secrets
+		if errors.Is(err, wait.ErrWaitTimeout) {
+			tokenSecret, err := createServiceAccountTokenSecret(ctx, k8sClient, serviceAccountName, serviceAccountNS)
+			if err != nil {
+				return "", fmt.Errorf("failed to create a token secret for service account %s: %w", serviceAccountName, err)
+			}
+
+			if err = addSecretToServiceAccount(ctx, k8sClient, tokenSecret, serviceAccountName, serviceAccountNS); err != nil {
+				return "", fmt.Errorf("failed to attach the token secret to service account %s: %w", serviceAccountName, err)
+			}
+		} else {
+			return "", err
+		}
+	}
+	if token != "" {
+		return token, nil
+	}
+
+	return getServiceAccountBearerToken(ctx, k8sClient, serviceAccountName, serviceAccountNS)
 }
 
 // GetServiceAccountBearerToken will attempt to get the provided service account until it
@@ -99,27 +129,18 @@ func getServiceAccountBearerToken(ctx context.Context, k8sClient client.Client, 
 			return false, err
 		}
 
-		// Scan all secrets looking for one of the correct type:
-		for _, oRef := range serviceAccount.Secrets {
-			var getErr error
-			innerSecret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      oRef.Name,
-					Namespace: serviceAccountNS,
-				},
-			}
-
-			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(innerSecret), innerSecret); err != nil {
-				return false, fmt.Errorf("failed to retrieve secret %q: %v", oRef.Name, getErr)
-			}
-			if innerSecret.Type == corev1.SecretTypeServiceAccountToken {
-				secret = innerSecret
-				return true, nil
-			}
+		innerSecret, err := getServiceAccountTokenSecret(ctx, k8sClient, serviceAccount)
+		if err != nil {
+			return false, err
 		}
+		if innerSecret != nil {
+			secret = innerSecret
+			return true, nil
+		}
+
 		return false, nil
 	}); err != nil {
-		return "", fmt.Errorf("failed to wait for service account secret: %v", err)
+		return "", fmt.Errorf("failed to wait for service account secret: %w", err)
 	}
 
 	if secret == nil {
@@ -131,6 +152,64 @@ func getServiceAccountBearerToken(ctx context.Context, k8sClient client.Client, 
 		return "", fmt.Errorf("secret %q for service account %q did not have a token", secret.Name, serviceAccount)
 	}
 	return string(token), nil
+}
+
+func getServiceAccountTokenSecret(ctx context.Context, k8sClient client.Client, serviceAccount *corev1.ServiceAccount) (*corev1.Secret, error) {
+	for _, oRef := range serviceAccount.Secrets {
+		var getErr error
+		innerSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      oRef.Name,
+				Namespace: serviceAccount.Namespace,
+			},
+		}
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(innerSecret), innerSecret); err != nil {
+			return nil, fmt.Errorf("failed to retrieve secret %q: %v", oRef.Name, getErr)
+		}
+
+		if innerSecret.Type == corev1.SecretTypeServiceAccountToken {
+			return innerSecret, nil
+		}
+	}
+
+	return nil, nil
+}
+
+func createServiceAccountTokenSecret(ctx context.Context, k8sClient client.Client, serviceAccountName, serviceAccountNS string) (*corev1.Secret, error) {
+	tokenSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: serviceAccountName,
+			Namespace:    serviceAccountNS,
+			Annotations: map[string]string{
+				corev1.ServiceAccountNameKey: serviceAccountName,
+			},
+		},
+		Type: corev1.SecretTypeServiceAccountToken,
+	}
+	if err := k8sClient.Create(ctx, tokenSecret); err != nil {
+		return nil, err
+	}
+
+	return tokenSecret, nil
+}
+
+func addSecretToServiceAccount(ctx context.Context, k8sClient client.Client, secret *corev1.Secret, serviceAccountName, serviceAccountNS string) error {
+	serviceAccount := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceAccountName,
+			Namespace: serviceAccountNS,
+		},
+	}
+	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(serviceAccount), serviceAccount); err != nil {
+		return err
+	}
+
+	serviceAccount.Secrets = append(serviceAccount.Secrets, corev1.ObjectReference{
+		Namespace: secret.Namespace,
+		Name:      secret.Name,
+	})
+
+	return k8sClient.Update(ctx, serviceAccount)
 }
 
 func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k8sClient client.Client,

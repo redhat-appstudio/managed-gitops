@@ -130,5 +130,46 @@ var _ = Describe("Service Account Tests", func() {
 				Expect(err).To(BeNil())
 			})
 		})
+
+		When("Token secret is not found", func() {
+			It("Should create a new token secret and attach to service account", func() {
+				const (
+					uuid               = "my-uuid"
+					serviceAccountName = ArgoCDManagerServiceAccountPrefix + "my-uuid"
+					serviceAccountNS   = "kube-system"
+				)
+				sa, err := getOrCreateServiceAccount(ctx, k8sClient, serviceAccountName, serviceAccountNS, log)
+				Expect(err).To(BeNil())
+
+				secret, err := getServiceAccountTokenSecret(ctx, k8sClient, sa)
+				Expect(err).To(BeNil())
+
+				By("check if a new token secret is created")
+				if secret == nil {
+					token, sa, err := InstallServiceAccount(ctx, k8sClient, uuid, serviceAccountNS, log)
+					Expect(err).To(BeNil())
+					Expect(token).ToNot(BeEmpty())
+					Expect(sa).ToNot(BeNil())
+
+					clientObj, err := generateClientFromClusterServiceAccount(ctrl.GetConfigOrDie(), token)
+					Expect(err).To(BeNil())
+					Expect(clientObj).ToNot(BeNil())
+
+					sa, err = getOrCreateServiceAccount(ctx, k8sClient, sa.Name, sa.Namespace, log)
+					Expect(err).To(BeNil())
+
+					secret, err := getServiceAccountTokenSecret(ctx, k8sClient, sa)
+					Expect(err).To(BeNil())
+					Expect(secret).ToNot(BeNil())
+					Expect(secret.Type).To(Equal(corev1.SecretTypeServiceAccountToken))
+
+					err = clientObj.Delete(ctx, secret)
+					Expect(err).To(BeNil())
+				}
+
+				err = k8sClient.Delete(ctx, sa)
+				Expect(err).To(BeNil())
+			})
+		})
 	})
 })

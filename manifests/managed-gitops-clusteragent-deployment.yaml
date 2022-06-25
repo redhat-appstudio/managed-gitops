@@ -29,9 +29,10 @@ spec:
           name: https
           protocol: TCP
       - args:
-        - --health-probe-bind-address=:8081
-        - --metrics-bind-address=127.0.0.1:8080
+        - --health-probe-bind-address=:8083
+        - --metrics-bind-address=127.0.0.1:8082
         - --leader-elect
+        - --zap-time-encoding=rfc3339nano
         command:
         - gitops-service-cluster-agent
         env:
@@ -48,14 +49,14 @@ spec:
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 8081
+            port: 8083
           initialDelaySeconds: 15
           periodSeconds: 20
         name: manager
         readinessProbe:
           httpGet:
             path: /readyz
-            port: 8081
+            port: 8083
           initialDelaySeconds: 5
           periodSeconds: 10
         resources:

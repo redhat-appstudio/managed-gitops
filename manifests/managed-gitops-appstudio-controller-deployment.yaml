@@ -37,23 +37,24 @@ spec:
             cpu: 100m
             memory: 64Mi
       - args:
-        - --health-probe-bind-address=:8081
+        - --health-probe-bind-address=:8085
         - --metrics-bind-address=127.0.0.1:8080
         - --leader-elect
+        - --zap-time-encoding=rfc3339nano
         command:
         - appstudio-controller
         image: ${COMMON_IMAGE}
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 8081
+            port: 8085
           initialDelaySeconds: 15
           periodSeconds: 20
         name: manager
         readinessProbe:
           httpGet:
             path: /readyz
-            port: 8081
+            port: 8085
           initialDelaySeconds: 5
           periodSeconds: 10
         resources:

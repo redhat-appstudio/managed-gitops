@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "main"
+      - "db-migration-ci"
   pull_request:
     branches:
       - "*"
@@ -169,7 +170,20 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/utilities
           ./check-db-schema.sh
-
+  verify-db-migration:
+    name: Check if migrations work as expected when applied to most recent two migrations.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Setup Golang
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: './backend/go.mod'
+      - name: "Install go modules for migration"
+        run: |
+          cd $GITHUB_WORKSPACE/utilities
+          ./verify-db-schema.sh
   test-go:
     name: Run unit tests for Go packages
     runs-on: ubuntu-latest

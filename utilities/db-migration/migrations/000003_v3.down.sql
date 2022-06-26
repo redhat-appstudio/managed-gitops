@@ -1,2 +1,1 @@
 DROP TABLE repositorycredentials;
-DROP SEQUENCE repositorycredentials_seq_id_seq;

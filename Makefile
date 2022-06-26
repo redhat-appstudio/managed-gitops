@@ -242,5 +242,11 @@ db-drop:
 db-drop_smtable:
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && go run main.go drop_smtable
 
+db-migrate-downgrade:
+	cd $(MAKEFILE_ROOT)/utilities/db-migration && go run main.go downgrade_migration
+
+db-migrate-upgrade:
+	cd $(MAKEFILE_ROOT)/utilities/db-migration && go run main.go upgrade_migration
+
 db-schema: ## Run db-schema varchar tests
 	cd $(MAKEFILE_ROOT)/backend-shared && go run ./hack/db-schema-sync-check

@@ -124,6 +124,7 @@ func Update(obj client.Object) error {
 
 	if err := k8sClient.Update(context.Background(), obj, &client.UpdateOptions{}); err != nil {
 		fmt.Println(K8sClientError, "Error on updating ", err)
+		fmt.Println(K8sClientError, "Error on updating", err)
 		return err
 	}
 

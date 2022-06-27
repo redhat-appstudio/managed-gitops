@@ -48,12 +48,12 @@ func Migrate(opType string, migrationPath string) error {
 
 	} else if opType == "downgrade_migration" {
 		if err := m.Steps(-1); err != nil {
-			return fmt.Errorf("unable to down migration version by 1 level: %v", err)
+			return fmt.Errorf("unable to downgrade migration version by 1 level: %v", err)
 		}
 		return nil
 	} else if opType == "upgrade_migration" {
 		if err := m.Steps(1); err != nil {
-			return fmt.Errorf("unable to down migration version by 1 level: %v", err)
+			return fmt.Errorf("unable to upgrade migration version by 1 level: %v", err)
 		}
 		return nil
 	} else {

@@ -420,8 +420,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("creating a new GitOpsDeployment resource")
-			gitOpsDeploymentResource := buildTargetRevisionGitOpsDeploymentResource("gitops-depl-test-status",
-				"https://github.com/redhat-appstudio/gitops-repository-template", "environments/overlays/dev", "HEAD",
+			gitOpsDeploymentResource := buildGitOpsDeploymentResource("gitops-depl-test-status",
+				"https://github.com/redhat-appstudio/gitops-repository-template", "environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			err = k8s.Create(&gitOpsDeploymentResource)
@@ -506,7 +506,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 		})
 
-		FIt("Checks for failure of deployment when an invalid input is provided", func() {
+		It("Checks for failure of deployment when an invalid input is provided", func() {
 
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 

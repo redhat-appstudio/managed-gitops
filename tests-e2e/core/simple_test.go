@@ -84,3 +84,24 @@ func buildGitOpsDeploymentResource(name, repoURL, path, deploymentSpecType strin
 
 	return gitOpsDeploymentResource
 }
+
+func buildTargetRevisionGitOpsDeploymentResource(name, repoURL, path, target, deploymentSpecType string) managedgitopsv1alpha1.GitOpsDeployment {
+
+	gitOpsDeploymentResource := managedgitopsv1alpha1.GitOpsDeployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: fixture.GitOpsServiceE2ENamespace,
+		},
+		Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+			Source: managedgitopsv1alpha1.ApplicationSource{
+				RepoURL:        repoURL,
+				Path:           path,
+				TargetRevision: target,
+			},
+			Destination: managedgitopsv1alpha1.ApplicationDestination{},
+			Type:        deploymentSpecType,
+		},
+	}
+
+	return gitOpsDeploymentResource
+}

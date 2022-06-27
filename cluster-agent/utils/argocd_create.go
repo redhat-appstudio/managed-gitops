@@ -10,8 +10,7 @@ import (
 
 	argocdoperator "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	openshiftv1 "github.com/openshift/api/route/v1"
-	v1 "github.com/openshift/api/route/v1"
+	routev1 "github.com/openshift/api/route/v1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	corev1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
@@ -19,18 +18,21 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
-	ArgoCDManagerServiceAccount     = "argocd-manager"
-	ArgoCDManagerClusterRole        = "argocd-manager-role"
-	ArgoCDManagerClusterRoleBinding = "argocd-manager-role-binding"
-	ArgoCDNamespace                 = "kube-system"
-	// K8sClientError is a prefix that can/should be used when outputting errors from K8s client
-	K8sClientError    = "Error from k8s client:"
-	ClusterSecretName = "my-cluster"
+	/* #nosec */
+	ArgoCDManagerSecretName             = "argocd-manager-secret"
+	ArgoCDManagerServiceAccountName     = "argocd-manager"
+	ArgoCDManagerClusterRoleName        = "argocd-manager-role"
+	ArgoCDManagerClusterRoleBindingName = "argocd-manager-role-binding"
+	KubeSystemNamespace                 = "kube-system"
+	ClusterSecretName                   = "my-cluster"
+
+	DefaultAppProject = "default"
+
+	ArgoCDFinalizerName = "argoproj.io/finalizer"
 )
 
 type ClusterSecretTLSClientConfigJSON struct {
@@ -41,16 +43,16 @@ type ClusterSecretConfigJSON struct {
 	TLSClientConfig ClusterSecretTLSClientConfigJSON `json:"tlsClientConfig"`
 }
 
-func CreateNamespaceScopedArgoCD(ctx context.Context, name string, namespace string, k8sClient client.Client, log logr.Logger) error {
+func CreateNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, namespace string, k8sClient client.Client, log logr.Logger) error {
 	policy := "g, system:authenticated, role:admin"
 	scopes := "[groups]"
 
 	// The values from manifests/staging-cluster-resources/argo-cd.yaml are conveeted in a Go struct.
 
-	argoCDOperand := argocdoperator.ArgoCD{
+	argoCDOperand := &argocdoperator.ArgoCD{
 		ObjectMeta: metav1.ObjectMeta{
-			Finalizers: []string{"argoproj.io/finalizer"},
-			Name:       name,
+			Finalizers: []string{ArgoCDFinalizerName},
+			Name:       argocdCRName,
 			Namespace:  namespace,
 		},
 		Spec: argocdoperator.ArgoCDSpec{
@@ -188,8 +190,8 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, name string, namespace str
 				},
 				Route: argocdoperator.ArgoCDRouteSpec{
 					Enabled: true,
-					TLS: &v1.TLSConfig{
-						Termination: openshiftv1.TLSTerminationReencrypt,
+					TLS: &routev1.TLSConfig{
+						Termination: routev1.TLSTerminationReencrypt,
 					},
 				},
 				Service: argocdoperator.ArgoCDServerServiceSpec{
@@ -202,40 +204,30 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, name string, namespace str
 		},
 	}
 
-	// Creating namespace
-	config, err := ctrl.GetConfig()
-	if err != nil {
-		return err
-	}
-	config.Timeout = time.Duration(10 * time.Second)
-
 	namespaceToCreate := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namespace,
 		},
 	}
-	err = k8sClient.Create(ctx, namespaceToCreate)
-	if err != nil {
-		return fmt.Errorf("Namespace could not be created: %v", err)
+	if err := k8sClient.Create(ctx, namespaceToCreate); err != nil {
+		return fmt.Errorf("namespace could not be created: %v", err)
 	}
 
-	errk8s := k8sClient.Create(ctx, &argoCDOperand)
-	if errk8s != nil {
-		return fmt.Errorf("Error on creating: %s, %v ", argoCDOperand.GetName(), errk8s)
+	if errk8s := k8sClient.Create(ctx, argoCDOperand); errk8s != nil {
+		return fmt.Errorf("error on creating: %s, %v ", argoCDOperand.GetName(), errk8s)
 	}
 
-	// Wait for Argo CD to be installed by gitops operator. Use wait.Poll for ths
+	// Wait for Argo CD to be installed by gitops operator.
+	err := wait.Poll(1*time.Second, 3*time.Minute, func() (bool, error) {
 
-	err = wait.Poll(1*time.Second, 3*time.Minute, func() (bool, error) {
-
+		// 'default' AppProject will be created by Argo CD if Argo CD is successfully started.
 		appProject := &appv1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
+				Name:      DefaultAppProject,
 				Namespace: namespace,
 			},
 		}
-		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
-		if err != nil {
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject); err != nil {
 			if apierr.IsNotFound(err) {
 				log.V(sharedutil.LogLevel_Debug).Info("Waiting for AppProject to exist in namespace " + namespace)
 				return false, nil
@@ -248,28 +240,23 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, name string, namespace str
 		}
 	})
 
-	if err != nil {
-		fmt.Println("wait.Poll error : ", err)
-		return err
-	}
+	return err
 
-	return nil
 }
 
-func SetupArgoCD(ctx context.Context, argoCDNamespace string, k8sClient client.Client, log logr.Logger) error {
+func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8sClient client.Client, log logr.Logger) error {
 
 	serviceAccount := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ArgoCDManagerServiceAccount,
-			Namespace: ArgoCDNamespace,
+			Name:      ArgoCDManagerServiceAccountName,
+			Namespace: KubeSystemNamespace,
 		},
 	}
 
-	err := k8sClient.Create(context.Background(), serviceAccount, &client.CreateOptions{})
-	if err != nil {
+	if err := k8sClient.Create(ctx, serviceAccount, &client.CreateOptions{}); err != nil {
 		// If it already exists, then we update it
 		if apierr.IsAlreadyExists(err) {
-			if err := k8sClient.Update(context.Background(), serviceAccount); err != nil {
+			if err := k8sClient.Update(ctx, serviceAccount); err != nil {
 				return fmt.Errorf("error on Update %v", err)
 			}
 		} else {
@@ -280,18 +267,18 @@ func SetupArgoCD(ctx context.Context, argoCDNamespace string, k8sClient client.C
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-manager-secret",
-			Namespace: ArgoCDNamespace,
+			Name:      ArgoCDManagerSecretName,
+			Namespace: KubeSystemNamespace,
 			Annotations: map[string]string{
-				"kubernetes.io/service-account.name": "argocd-manager",
+				"kubernetes.io/service-account.name": serviceAccount.Name,
 			},
 		},
 		Type: "kubernetes.io/service-account-token",
 	}
 
-	if err := k8sClient.Create(context.Background(), secret); err != nil {
+	if err := k8sClient.Create(ctx, secret); err != nil {
 		if apierr.IsAlreadyExists(err) {
-			if err := k8sClient.Update(context.Background(), secret); err != nil {
+			if err := k8sClient.Update(ctx, secret); err != nil {
 				return fmt.Errorf("error on Update %v", err)
 			}
 		} else {
@@ -303,8 +290,8 @@ func SetupArgoCD(ctx context.Context, argoCDNamespace string, k8sClient client.C
 
 	clusterRole := rbac.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ArgoCDManagerClusterRole,
-			Namespace: ArgoCDNamespace,
+			Name:      ArgoCDManagerClusterRoleName,
+			Namespace: KubeSystemNamespace,
 		},
 		Rules: []rbac.PolicyRule{
 			{
@@ -316,9 +303,9 @@ func SetupArgoCD(ctx context.Context, argoCDNamespace string, k8sClient client.C
 		},
 	}
 
-	if err := k8sClient.Create(context.Background(), &clusterRole); err != nil {
+	if err := k8sClient.Create(ctx, &clusterRole); err != nil {
 		if apierr.IsAlreadyExists(err) {
-			if err := k8sClient.Update(context.Background(), &clusterRole); err != nil {
+			if err := k8sClient.Update(ctx, &clusterRole); err != nil {
 				return fmt.Errorf("error on Update %v", err)
 			}
 		} else {
@@ -329,26 +316,26 @@ func SetupArgoCD(ctx context.Context, argoCDNamespace string, k8sClient client.C
 
 	clusterRoleBinding := rbac.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      ArgoCDManagerClusterRoleBinding,
-			Namespace: ArgoCDNamespace,
+			Name:      ArgoCDManagerClusterRoleBindingName,
+			Namespace: KubeSystemNamespace,
 		},
 		RoleRef: rbac.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
-			Name:     ArgoCDManagerClusterRole,
+			Name:     ArgoCDManagerClusterRoleName,
 		},
 		Subjects: []rbac.Subject{
 			{
 				Kind:      "ServiceAccount",
-				Name:      ArgoCDManagerServiceAccount,
-				Namespace: ArgoCDNamespace,
+				Name:      ArgoCDManagerServiceAccountName,
+				Namespace: KubeSystemNamespace,
 			},
 		},
 	}
 
-	if err := k8sClient.Create(context.Background(), &clusterRoleBinding); err != nil {
+	if err := k8sClient.Create(ctx, &clusterRoleBinding); err != nil {
 		if apierr.IsAlreadyExists(err) {
-			if err := k8sClient.Update(context.Background(), &clusterRoleBinding); err != nil {
+			if err := k8sClient.Update(ctx, &clusterRoleBinding); err != nil {
 				return fmt.Errorf("error on Update %v", err)
 			}
 		} else {
@@ -357,13 +344,14 @@ func SetupArgoCD(ctx context.Context, argoCDNamespace string, k8sClient client.C
 	}
 	log.Info(fmt.Sprintf("clusterRoleBinding %q created in namespace %q", clusterRoleBinding.Name, clusterRoleBinding.Namespace))
 
-	err = wait.Poll(1*time.Second, 3*time.Minute, func() (bool, error) {
-		secret := &corev1.Secret{
+	// Wait for Secret to contain a bearer token
+	err := wait.Poll(1*time.Second, 3*time.Minute, func() (bool, error) {
+		secret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "argocd-manager-secret",
-				Namespace: ArgoCDNamespace,
+				Name:      ArgoCDManagerSecretName,
+				Namespace: KubeSystemNamespace,
 				Annotations: map[string]string{
-					"kubernetes.io/service-account.name": "argocd-manager",
+					"kubernetes.io/service-account.name": serviceAccount.Name,
 				},
 			},
 			Type: "kubernetes.io/service-account-token",
@@ -375,26 +363,24 @@ func SetupArgoCD(ctx context.Context, argoCDNamespace string, k8sClient client.C
 				return false, nil
 			} else {
 				log.Error(err, "unable to retrieve Secret")
-				return false, err
+				return false, nil
 			}
 		} else {
-			if string(secret.Data["token"]) == "" {
-				log.Error(err, "Token byte stream is empty")
+			validToken := false
+			secretToken, exists := secret.Data["token"]
+			if !exists || string(secretToken) == "" {
+				log.Info("Token byte stream is still empty")
+				validToken = false
+			} else {
+				validToken = true
 			}
-			return true, nil
+			return validToken, nil
 		}
 	})
 	if err != nil {
-		fmt.Println("wait.Poll error : ", err)
 		return err
 	}
 
-	// err = k8sClient.Get(ctx, client.ObjectKeyFromObject(secret), secret)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// token := secret.Data["token"]  not sure whether this will work
 	token := secret.Data["token"]
 
 	// no need to decode token, it is unmarshalled from base64
@@ -411,11 +397,6 @@ func SetupArgoCD(ctx context.Context, argoCDNamespace string, k8sClient client.C
 		return fmt.Errorf("SEVERE: unable to marshal JSON")
 	}
 
-	config, _ := ctrl.GetConfig()
-
-	// fmt.Printf("HOST %v \n", config.Host)
-	// fmt.Printf("TOKEN %v \n", string(token))
-
 	clusterSecret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
@@ -425,17 +406,16 @@ func SetupArgoCD(ctx context.Context, argoCDNamespace string, k8sClient client.C
 		},
 		StringData: map[string]string{
 			"name":   ClusterSecretName,
-			"server": config.Host,
+			"server": apiHost,
 			"config": string(jsonString),
 		},
 		Type: corev1.SecretType("Opaque"),
 	}
 
-	//delete cluster secret if it already exists to create a new one
-
+	// Create, or update cluster secret if it already exists
 	if err := k8sClient.Create(context.Background(), clusterSecret); err != nil {
 		if apierr.IsAlreadyExists(err) {
-			if err := k8sClient.Update(context.Background(), clusterSecret); err != nil {
+			if err := k8sClient.Update(ctx, clusterSecret); err != nil {
 				return fmt.Errorf("error on Update %v", err)
 			}
 		} else {

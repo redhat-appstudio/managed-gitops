@@ -42,3 +42,52 @@ func HaveAutomatedSyncPolicy(syncPolicy appv1alpha1.SyncPolicyAutomated) matcher
 		return syncPolicyEnabled
 	}, BeTrue())
 }
+
+// HaveHealthStatusCode waits for Argo CD Application to have the given health
+func HaveHealthStatusCode(status appv1alpha1.ApplicationStatus) matcher.GomegaMatcher {
+
+	return WithTransform(func(app appv1alpha1.Application) bool {
+
+		k8sClient, err := fixture.GetKubeClient()
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&app), &app)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		res := status.Health.Status == app.Status.Health.Status
+
+		fmt.Println("HaveHealthStatusCode:", res, "/ Expected:", status, "/ Actual:", app.Status.Health.Status)
+
+		return res
+	}, BeTrue())
+}
+
+// HaveSyncStatusCode waits for Argo CD to have the given sync status
+func HaveSyncStatusCode(status appv1alpha1.ApplicationStatus) matcher.GomegaMatcher {
+
+	return WithTransform(func(app appv1alpha1.Application) bool {
+
+		k8sClient, err := fixture.GetKubeClient()
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&app), &app)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		res := status.Sync.Status == app.Status.Sync.Status
+		fmt.Println("HaveSyncStatusCode:", res, "/ Expected:", status, "/ Actual:", app.Status.Sync.Status)
+
+		return res
+	}, BeTrue())
+}

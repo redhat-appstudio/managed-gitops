@@ -178,6 +178,7 @@ replace (
 
 	github.com/redhat-appstudio/managed-gitops/appstudio-shared => ../appstudio-shared
 	github.com/redhat-appstudio/managed-gitops/backend => ../backend
+  github.com/redhat-appstudio/managed-gitops/utilities/db-migration => ../utilities/db-migration
 
 	github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
 

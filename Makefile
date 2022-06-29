@@ -178,7 +178,7 @@ docker-push: ## Push docker image - note: you have to change the USERNAME var. O
 
 test: test-backend test-backend-shared test-cluster-agent test-appstudio-controller ## Run tests for all components
 
-setup-e2e-openshift: install-argocd-openshift devenv-k8s reset-db ## Setup steps for E2E tests to run with Openshift CI
+setup-e2e-openshift: install-argocd-openshift devenv-k8s create-db ## Setup steps for E2E tests to run with Openshift CI
 
 setup-e2e-local: install-argocd-openshift devenv-docker reset-db ## Setup steps for E2E tests to run with Local Openshift Cluster
 
@@ -196,6 +196,9 @@ download-deps: ## Download goreman to ~/go/bin
 reset-db: ## Erase the current database, and reset it scratch; useful during development if you want a clean slate.
 	$(MAKEFILE_ROOT)/delete-dev-env.sh
 	$(MAKEFILE_ROOT)/create-dev-env.sh
+
+create-db: ## Create a new development database in Kubernetes
+	$(MAKEFILE_ROOT)/create-dev-env.sh kube
 
 vendor: ## Clone locally the dependencies - off-line
 	cd $(MAKEFILE_ROOT)/appstudio-shared && go mod vendor

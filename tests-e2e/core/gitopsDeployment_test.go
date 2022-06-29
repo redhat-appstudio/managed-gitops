@@ -3,7 +3,7 @@ package core
 import (
 	"context"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	fixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
@@ -20,7 +20,7 @@ const (
 
 var _ = Describe("GitOpsDeployment E2E tests", func() {
 
-	Context("Create, Update and Delete a GitOpsDeployment ", func() {
+	FContext("Create, Update and Delete a GitOpsDeployment ", func() {
 		k8sClient, err := fixture.GetKubeClient()
 
 		Expect(err).To(BeNil())

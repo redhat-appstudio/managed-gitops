@@ -178,7 +178,9 @@ docker-push: ## Push docker image - note: you have to change the USERNAME var. O
 
 test: test-backend test-backend-shared test-cluster-agent test-appstudio-controller ## Run tests for all components
 
-setup-e2e-openshift: install-argocd-openshift devenv-docker reset-db ## Setup steps for E2E tests
+setup-e2e-openshift: install-argocd-openshift devenv-k8s reset-db ## Setup steps for E2E tests to run with Openshift CI
+
+setup-e2e-local: install-argocd-openshift devenv-docker reset-db ## Setup steps for E2E tests to run with Local Openshift Cluster
 
 start-e2e: start ## Start the managed gitops processes for E2E tests. At the moment this is just a wrapper over 'start' target
 

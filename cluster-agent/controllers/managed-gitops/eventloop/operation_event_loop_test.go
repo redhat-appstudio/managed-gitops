@@ -10,6 +10,7 @@ import (
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	"gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -304,6 +305,9 @@ var _ = Describe("Operation Controller", func() {
 				err = task.event.client.Create(ctx, applicationCR)
 				Expect(err).To(BeNil())
 
+				/* The Argo CD Applications used by GitOps Service use finalizers, so the Applicaitonwill not be deleted until the finalizer is removed.
+				   Normally it us Argo CD's job to do this, but since this is a unit test, there is no Argo CD. Instead we wait for the deletiontimestamp
+				   to be set (by the delete call of PerformTask, and then just remove the finalize and update, simulating what Argo CD does) */
 				go func() {
 					err = wait.Poll(1*time.Second, 1*time.Minute, func() (bool, error) {
 						if applicationCR.DeletionTimestamp != nil {
@@ -384,6 +388,11 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 				Expect(retry).To(BeFalse())
 
+				By("If no error was returned, and retry is false, then verify that the 'state' field of the Operation row is Completed")
+				err = dbQueries.GetOperationById(ctx, operationDB)
+				Expect(err).To(BeNil())
+				Expect(operationDB.State).To(Equal(db.OperationState_Completed))
+
 				kubernetesToDBResourceMapping := db.KubernetesToDBResourceMapping{
 					KubernetesResourceType: "Namespace",
 					KubernetesResourceUID:  string(kubesystemNamespace.UID),
@@ -392,8 +401,10 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				By("Verifying whether Application CR is deleted")
-				err = task.event.client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, applicationCR)
-				Expect(err).ToNot(BeNil())
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, applicationCR)
+					return apierr.IsNotFound(err)
+				}).Should(BeTrue())
 
 				By("deleting resources and cleaning up db entries created by test.")
 				resourcesToBeDeleted := testResources{
@@ -412,7 +423,7 @@ var _ = Describe("Operation Controller", func() {
 				By("Close database connection")
 				defer dbQueries.CloseDatabase()
 
-				dummyApplicationSpec, dummyApplicationSpecBytes, err := createDummyApplicationData()
+				dummyApplicationSpec, dummyApplicationSpecString, err := createDummyApplicationData()
 				Expect(err).To(BeNil())
 
 				clusterCredentials := db.ClusterCredentials{
@@ -449,20 +460,13 @@ var _ = Describe("Operation Controller", func() {
 				applicationDB := &db.Application{
 					Application_id:          "test-my-application",
 					Name:                    name,
-					Spec_field:              dummyApplicationSpecBytes,
+					Spec_field:              dummyApplicationSpecString,
 					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
 					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 				}
 
 				err = dbQueries.CreateApplication(ctx, applicationDB)
 				Expect(err).To(BeNil())
-
-				applicationCR := appv1.Application{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      applicationDB.Name,
-						Namespace: "my-user",
-					},
-				}
 
 				By("Creating Operation row in database")
 				operationDB := &db.Operation{
@@ -495,7 +499,19 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 				Expect(retry).To(BeFalse())
 
+				By("If no error was returned, and retry is false, then verify that the 'state' field of the Operation row is Completed")
+				err = dbQueries.GetOperationById(ctx, operationDB)
+				Expect(err).To(BeNil())
+				Expect(operationDB.State).To(Equal(db.OperationState_Completed))
+
 				By("Verifying whether Application CR is created")
+				applicationCR := appv1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      applicationDB.Name,
+						Namespace: "my-user",
+					},
+				}
+
 				err = task.event.client.Get(ctx, types.NamespacedName{Namespace: applicationCR.Namespace, Name: name}, &applicationCR)
 				Expect(err).To(BeNil())
 				Expect(dummyApplicationSpec.Spec).To(Equal(applicationCR.Spec))
@@ -525,27 +541,7 @@ var _ = Describe("Operation Controller", func() {
 				By("Close database connection")
 				defer dbQueries.CloseDatabase()
 
-				_, dummyApplicationSpecBytes, err := createDummyApplicationData()
-				Expect(err).To(BeNil())
-
-				applicationCR := &appv1.Application{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
-						APIVersion: "argoproj.io/v1alpha1",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      name,
-						Namespace: "my-user",
-						Labels: map[string]string{
-							dbID: "test-my-application",
-						},
-						DeletionTimestamp: &metav1.Time{
-							Time: time.Now(),
-						},
-					},
-				}
-
-				err = task.event.client.Create(ctx, applicationCR)
+				dummyApplicationSpec, dummyApplicationSpecString, err := createDummyApplicationData()
 				Expect(err).To(BeNil())
 
 				clusterCredentials := db.ClusterCredentials{
@@ -578,11 +574,46 @@ var _ = Describe("Operation Controller", func() {
 				err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironment)
 				Expect(err).To(BeNil())
 
+				applicationCR := &appv1.Application{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: "my-user",
+						Labels: map[string]string{
+							dbID: "test-my-application",
+						},
+						DeletionTimestamp: &metav1.Time{
+							Time: time.Now(),
+						},
+					},
+					Spec: appv1.ApplicationSpec{
+						Source: appv1.ApplicationSource{
+							Path:           "guestbook",
+							TargetRevision: "HEAD",
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						},
+						Destination: appv1.ApplicationDestination{
+							Namespace: "guestbook",
+							Server:    "https://kubernetes.default.svc",
+						},
+						Project: "default",
+						SyncPolicy: &appv1.SyncPolicy{
+							Automated: &appv1.SyncPolicyAutomated{},
+						},
+					},
+				}
+
+				err = task.event.client.Create(ctx, applicationCR)
+				Expect(err).To(BeNil())
+
 				databaseID := applicationCR.Labels[dbID]
 				applicationDB := &db.Application{
 					Application_id:          databaseID,
 					Name:                    name,
-					Spec_field:              dummyApplicationSpecBytes,
+					Spec_field:              dummyApplicationSpecString,
 					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
 					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 				}
@@ -591,7 +622,7 @@ var _ = Describe("Operation Controller", func() {
 				err = dbQueries.CreateApplication(ctx, applicationDB)
 				Expect(err).To(BeNil())
 
-				By("Creating Operation row in database")
+				By("Creating new operation row in database")
 				operationDB := &db.Operation{
 					Operation_id:            "test-operation",
 					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
@@ -622,32 +653,46 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 				Expect(retry).To(BeFalse())
 
-				applicationGet := &db.Application{
-					Application_id: applicationDB.Application_id,
-				}
-
-				err = dbQueries.GetApplicationById(ctx, applicationGet)
+				By("If no error was returned, and retry is false, then verify that the 'state' field of the Operation row is Completed")
+				err = dbQueries.GetOperationById(ctx, operationDB)
 				Expect(err).To(BeNil())
-				Expect(applicationDB).Should(Equal(applicationGet))
+				Expect(operationDB.State).To(Equal(db.OperationState_Completed))
 
+				By("Verify that Appliaction CR hasn't changed and that it matches what's in the database")
+				Expect(dummyApplicationSpec.Spec).To(Equal(applicationCR.Spec))
+
+				By("Update Application in Database")
 				applicationUpdate := &db.Application{
 					Application_id:          databaseID,
 					Name:                    "test-application-updated",
-					Spec_field:              dummyApplicationSpecBytes,
+					Spec_field:              dummyApplicationSpecString,
 					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
 					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 					SeqID:                   101,
 				}
 
-				By("Update Application in Database")
 				err = dbQueries.UpdateApplication(ctx, applicationUpdate)
+				Expect(err).To(BeNil())
+
+				By("Create new operation CR")
+				operationCR = &operation.Operation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "operation-1",
+						Namespace: namespace,
+					},
+					Spec: operation.OperationSpec{
+						OperationID: operationDB.Operation_id,
+					},
+				}
+
+				err = task.event.client.Create(ctx, operationCR)
 				Expect(err).To(BeNil())
 
 				By("Call Perform task again and verify that update works")
 				retry, err = task.PerformTask(ctx)
 				Expect(err).To(BeNil())
 				Expect(retry).To(BeFalse())
-				Expect(applicationUpdate).ToNot(Equal(applicationGet))
+				Expect(dummyApplicationSpec.Spec).To(Equal(applicationCR.Spec))
 
 				kubernetesToDBResourceMapping := db.KubernetesToDBResourceMapping{
 					KubernetesResourceType: "Namespace",

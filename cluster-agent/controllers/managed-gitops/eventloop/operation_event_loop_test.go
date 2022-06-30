@@ -305,9 +305,9 @@ var _ = Describe("Operation Controller", func() {
 				err = task.event.client.Create(ctx, applicationCR)
 				Expect(err).To(BeNil())
 
-				/* The Argo CD Applications used by GitOps Service use finalizers, so the Applicaitonwill not be deleted until the finalizer is removed.
-				   Normally it us Argo CD's job to do this, but since this is a unit test, there is no Argo CD. Instead we wait for the deletiontimestamp
-				   to be set (by the delete call of PerformTask, and then just remove the finalize and update, simulating what Argo CD does) */
+				// The Argo CD Applications used by GitOps Service use finalizers, so the Applicaitonwill not be deleted until the finalizer is removed.
+				// Normally it us Argo CD's job to do this, but since this is a unit test, there is no Argo CD. Instead we wait for the deletiontimestamp
+				// to be set (by the delete call of PerformTask, and then just remove the finalize and update, simulating what Argo CD does)
 				go func() {
 					err = wait.Poll(1*time.Second, 1*time.Minute, func() (bool, error) {
 						if applicationCR.DeletionTimestamp != nil {
@@ -661,11 +661,15 @@ var _ = Describe("Operation Controller", func() {
 				By("Verify that Appliaction CR hasn't changed and that it matches what's in the database")
 				Expect(dummyApplicationSpec.Spec).To(Equal(applicationCR.Spec))
 
+				By("creating a new spec and putting it into the Application in the database, so that operation wlil update it")
+				newSpecApp, newSpecString, err := createCustomizedDummyApplicationData("different-path")
+				Expect(err).To(BeNil())
+
 				By("Update Application in Database")
 				applicationUpdate := &db.Application{
 					Application_id:          databaseID,
 					Name:                    "test-application-updated",
-					Spec_field:              dummyApplicationSpecString,
+					Spec_field:              newSpecString,
 					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
 					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 					SeqID:                   101,
@@ -685,14 +689,21 @@ var _ = Describe("Operation Controller", func() {
 					},
 				}
 
+				By("updating the task that we are calling PerformTask with to point to the new operation")
+				task.event.request.Name = operationCR.Name
+				task.event.request.Namespace = operationCR.Namespace
+
 				err = task.event.client.Create(ctx, operationCR)
 				Expect(err).To(BeNil())
 
-				By("Call Perform task again and verify that update works")
+				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
+				Expect(err).To(BeNil())
+
+				By("Call Perform task again and verify that update works: the Application CR should now have the updated spec from the databaes.")
 				retry, err = task.PerformTask(ctx)
 				Expect(err).To(BeNil())
 				Expect(retry).To(BeFalse())
-				Expect(dummyApplicationSpec.Spec).To(Equal(applicationCR.Spec))
+				Expect(newSpecApp.Spec).To(Equal(applicationCR.Spec), "PerformTask should have updated the Application CR to be consistent with the new spec in the database")
 
 				kubernetesToDBResourceMapping := db.KubernetesToDBResourceMapping{
 					KubernetesResourceType: "Namespace",
@@ -801,6 +812,10 @@ func deleteTestResources(ctx context.Context, dbQueries db.AllDatabaseQueries, r
 }
 
 func createDummyApplicationData() (appv1.Application, string, error) {
+	return createCustomizedDummyApplicationData("guestbook")
+}
+
+func createCustomizedDummyApplicationData(repoPath string) (appv1.Application, string, error) {
 	// Create dummy Application Spec to be saved in DB
 	dummyApplicationSpec := appv1.Application{
 		TypeMeta: metav1.TypeMeta{

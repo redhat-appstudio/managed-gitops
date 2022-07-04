@@ -129,12 +129,34 @@ add-workload-cluster() {
   kubectl apply -f "${TMP_DIR}/syncer.yaml" >/dev/null 2>&1
 }
 
-# install ArgoCD manifests in the argocd  namespace
+# install ArgoCD manifests in the argocd namespace
 install-argocd-in-kcp() {
-    KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl create ns argocd
-    KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl apply -f https://gist.githubusercontent.com/samyak-jn/192b754b8a079cca53478b487a7242fe/raw/6e48401f08357bc53fb68c86915f785e933e686e/installArgoForKCP.yaml -n argocd
+  export KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig
+  kubectl create ns argocd
+  kubectl apply -f https://gist.githubusercontent.com/samyak-jn/192b754b8a079cca53478b487a7242fe/raw/6e48401f08357bc53fb68c86915f785e933e686e/installArgoForKCP.yaml -n argocd
 }
 
+# install gitops-service manifests using make targets
+install-gitops-service-in-kcp() {
+  export KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig
+  if [[ -z "${TMP_DIR}" ]]; then
+    exit_if_binary_not_installed "git"
+    pushd "${TMP_DIR}"
+    git clone https://github.com/redhat-appstudio/managed-gitops.git
+    KCP_DIR="${TMP_DIR}/managed-gitops"
+    pushd managed-gitops
+    make devenv-docker
+    popd
+    popd
+    printf "\nThe dev enviroment for gitops service is setup successfully ...\n"
+  fi
+}
+
+test-gitops-service-e2e-in-kcp() {
+  export KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig 
+  make start-e2e
+  make test-e2e
+}
 
 # creates a development workspace (ex: dev-work)
 create-workspace() {
@@ -151,9 +173,15 @@ TMP_DIR="$(mktemp -d -t kcp-gitops-service.XXXXXXXXX)"
 printf "Temporary directory created: %s\n" "${TMP_DIR}"
 kcp-init $TMP_DIR $KCP_DIR
 wait_for 30 check_if_kcp_is_ready $TMP_DIR
+
 # Once, KCP is up and running add a workloadcluster to it
 add-workload-cluster $TMP_DIR
 # Create a workspace for development purposes
 create-workspace $TMP_DIR
-# installs argocd in KCP workspace
+# install argocd in KCP workspace
 install-argocd-in-kcp $TMP_DIR
+# install gitops-service in KCP workspace
+install-gitops-service-in-kcp $TMP_DIR
+
+# run the service and test e2e against the cluster
+test-gitops-service-e2e-in-kcp $TMP_DIR

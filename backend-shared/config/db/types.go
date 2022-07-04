@@ -207,6 +207,9 @@ type Operation struct {
 	Human_readable_state string `pg:"human_readable_state"`
 
 	SeqID int64 `pg:"seq_id"`
+
+	// -- Amount of time to wait before a completed/failed operation can be garbage collected.
+	GC_expiration_time time.Duration `pg:gc_expiration_time`
 }
 
 // Application represents an Argo CD Application CR within an Argo CD namespace.

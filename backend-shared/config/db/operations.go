@@ -271,4 +271,7 @@ func (operation *Operation) DisposeAppScoped(ctx context.Context, dbq Applicatio
 	_, err := dbq.DeleteOperationById(ctx, operation.Operation_id)
 
 	return err
+func (dbq *PostgreSQLDatabaseQueries) ListOperationsToBeGarbageCollected(operations *[]Operation) error {
+
+	return nil
 }

@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/managed-gitops/eventloop"
 )
 
@@ -33,6 +34,7 @@ type OperationReconciler struct {
 	client.Client
 	Scheme              *runtime.Scheme
 	ControllerEventLoop *eventloop.OperationEventLoop
+	DB                  db.DatabaseQueries
 }
 
 //+kubebuilder:rbac:groups=managed-gitops.redhat.com,resources=operations,verbs=get;list;watch;create;update;patch;delete

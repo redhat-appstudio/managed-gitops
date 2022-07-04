@@ -207,13 +207,7 @@ var _ = Describe("Operation Controller", func() {
 		It("Ensures that if the GitopsEngineInstance's namespace_name field doesn't exist, an error is not returned, and retry is true", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
-
-			clusterCredentials := db.ClusterCredentials{
-				Clustercredentials_cred_id: string(uuid.NewUUID()),
-			}
-
-			err = dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
-			Expect(err).To(BeNil())
+			defer testTeardown()
 
 			gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
 			Expect(gitopsEngineCluster).ToNot(BeNil())
@@ -326,13 +320,6 @@ var _ = Describe("Operation Controller", func() {
 					})
 				}()
 
-				clusterCredentials := db.ClusterCredentials{
-					Clustercredentials_cred_id: string(uuid.NewUUID()),
-				}
-
-				err = dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
-				Expect(err).To(BeNil())
-
 				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
 				Expect(gitopsEngineCluster).ToNot(BeNil())
 				Expect(err).To(BeNil())
@@ -346,15 +333,6 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
-				Expect(err).To(BeNil())
-
-				managedEnvironment := db.ManagedEnvironment{
-					Managedenvironment_id: "test-managed-env-914",
-					Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
-					Name:                  "my env",
-				}
-
-				err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironment)
 				Expect(err).To(BeNil())
 
 				By("Creating Operation row in database")
@@ -393,6 +371,12 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 				Expect(operationDB.State).To(Equal(db.OperationState_Completed))
 
+				By("Verifying whether Application CR is deleted")
+				Eventually(func() bool {
+					err := k8sClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, applicationCR)
+					return apierr.IsNotFound(err)
+				}).Should(BeTrue())
+
 				kubernetesToDBResourceMapping := db.KubernetesToDBResourceMapping{
 					KubernetesResourceType: "Namespace",
 					KubernetesResourceUID:  string(kubesystemNamespace.UID),
@@ -400,37 +384,28 @@ var _ = Describe("Operation Controller", func() {
 					DBRelationKey:          gitopsEngineCluster.Gitopsenginecluster_id,
 				}
 
-				By("Verifying whether Application CR is deleted")
-				Eventually(func() bool {
-					err := k8sClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, applicationCR)
-					return apierr.IsNotFound(err)
-				}).Should(BeTrue())
-
 				By("deleting resources and cleaning up db entries created by test.")
 				resourcesToBeDeleted := testResources{
 					Operation_id:                  operationDB.Operation_id,
 					Gitopsenginecluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 					Gitopsengineinstance_id:       gitopsEngineInstance.Gitopsengineinstance_id,
 					ClusterCredentials_id:         gitopsEngineCluster.Clustercredentials_id,
-					Managedenvironment_id:         managedEnvironment.Managedenvironment_id,
 					kubernetesToDBResourceMapping: kubernetesToDBResourceMapping,
 				}
 
 				deleteTestResources(ctx, dbQueries, resourcesToBeDeleted)
+
 			})
 
 			It("Verify that when an Operation row points to an Application row that exists in the database, but doesn't exist in the Argo CD namespace, it should be created.", func() {
 				By("Close database connection")
 				defer dbQueries.CloseDatabase()
+				defer testTeardown()
 
-				dummyApplicationSpec, dummyApplicationSpecString, err := createDummyApplicationData()
+				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
 				Expect(err).To(BeNil())
 
-				clusterCredentials := db.ClusterCredentials{
-					Clustercredentials_cred_id: string(uuid.NewUUID()),
-				}
-
-				err = dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
+				dummyApplicationSpec, dummyApplicationSpecString, err := createDummyApplicationData()
 				Expect(err).To(BeNil())
 
 				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
@@ -445,15 +420,6 @@ var _ = Describe("Operation Controller", func() {
 					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 				}
 				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
-				Expect(err).To(BeNil())
-
-				managedEnvironment := db.ManagedEnvironment{
-					Managedenvironment_id: "test-managed-env-914",
-					Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
-					Name:                  "my env",
-				}
-
-				err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironment)
 				Expect(err).To(BeNil())
 
 				By("Create Application in Database")
@@ -530,25 +496,22 @@ var _ = Describe("Operation Controller", func() {
 					Gitopsenginecluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 					Gitopsengineinstance_id:       gitopsEngineInstance.Gitopsengineinstance_id,
 					ClusterCredentials_id:         gitopsEngineCluster.Clustercredentials_id,
-					Managedenvironment_id:         managedEnvironment.Managedenvironment_id,
 					kubernetesToDBResourceMapping: kubernetesToDBResourceMapping,
 				}
 
 				deleteTestResources(ctx, dbQueries, resourcesToBeDeleted)
+
 			})
 
 			It("Verify that Application CR should be updated to be consistent with the Application row", func() {
 				By("Close database connection")
 				defer dbQueries.CloseDatabase()
+				defer testTeardown()
 
-				dummyApplicationSpec, dummyApplicationSpecString, err := createDummyApplicationData()
+				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
 				Expect(err).To(BeNil())
 
-				clusterCredentials := db.ClusterCredentials{
-					Clustercredentials_cred_id: string(uuid.NewUUID()),
-				}
-
-				err = dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
+				_, dummyApplicationSpecString, err := createDummyApplicationData()
 				Expect(err).To(BeNil())
 
 				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
@@ -565,53 +528,8 @@ var _ = Describe("Operation Controller", func() {
 				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
 				Expect(err).To(BeNil())
 
-				managedEnvironment := db.ManagedEnvironment{
-					Managedenvironment_id: "test-managed-env-914",
-					Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
-					Name:                  "my env",
-				}
-
-				err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironment)
-				Expect(err).To(BeNil())
-
-				applicationCR := &appv1.Application{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
-						APIVersion: "argoproj.io/v1alpha1",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      name,
-						Namespace: "my-user",
-						Labels: map[string]string{
-							dbID: "test-my-application",
-						},
-						DeletionTimestamp: &metav1.Time{
-							Time: time.Now(),
-						},
-					},
-					Spec: appv1.ApplicationSpec{
-						Source: appv1.ApplicationSource{
-							Path:           "guestbook",
-							TargetRevision: "HEAD",
-							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-						},
-						Destination: appv1.ApplicationDestination{
-							Namespace: "guestbook",
-							Server:    "https://kubernetes.default.svc",
-						},
-						Project: "default",
-						SyncPolicy: &appv1.SyncPolicy{
-							Automated: &appv1.SyncPolicyAutomated{},
-						},
-					},
-				}
-
-				err = task.event.client.Create(ctx, applicationCR)
-				Expect(err).To(BeNil())
-
-				databaseID := applicationCR.Labels[dbID]
 				applicationDB := &db.Application{
-					Application_id:          databaseID,
+					Application_id:          "test-my-application",
 					Name:                    name,
 					Spec_field:              dummyApplicationSpecString,
 					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
@@ -658,16 +576,13 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 				Expect(operationDB.State).To(Equal(db.OperationState_Completed))
 
-				By("Verify that Appliaction CR hasn't changed and that it matches what's in the database")
-				Expect(dummyApplicationSpec.Spec).To(Equal(applicationCR.Spec))
-
 				By("creating a new spec and putting it into the Application in the database, so that operation wlil update it")
 				newSpecApp, newSpecString, err := createCustomizedDummyApplicationData("different-path")
 				Expect(err).To(BeNil())
 
 				By("Update Application in Database")
 				applicationUpdate := &db.Application{
-					Application_id:          databaseID,
+					Application_id:          "test-my-application",
 					Name:                    "test-application-updated",
 					Spec_field:              newSpecString,
 					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
@@ -696,6 +611,14 @@ var _ = Describe("Operation Controller", func() {
 				err = task.event.client.Create(ctx, operationCR)
 				Expect(err).To(BeNil())
 
+				By("Verifying whether Application CR is created")
+				applicationCR := &appv1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: "my-user",
+					},
+				}
+
 				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
 				Expect(err).To(BeNil())
 
@@ -719,7 +642,6 @@ var _ = Describe("Operation Controller", func() {
 					Gitopsenginecluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 					Gitopsengineinstance_id:       gitopsEngineInstance.Gitopsengineinstance_id,
 					ClusterCredentials_id:         gitopsEngineCluster.Clustercredentials_id,
-					Managedenvironment_id:         managedEnvironment.Managedenvironment_id,
 					kubernetesToDBResourceMapping: kubernetesToDBResourceMapping,
 				}
 

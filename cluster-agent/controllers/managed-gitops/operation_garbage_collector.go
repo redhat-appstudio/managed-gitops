@@ -20,6 +20,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -58,28 +59,27 @@ func (g *garbageCollector) startGarbageCollectionCycle() {
 
 			ctx := context.Background()
 			log := log.FromContext(ctx)
-			// get the  failed/completed operations with non-null gc time
 
+			// get the  failed/completed operations with non-null gc time
 			operations := []db.Operation{}
-			// handle panics here
-			err := g.db.ListOperationsToBeGarbageCollected(&operations)
+			err := g.db.ListOperationsToBeGarbageCollected(ctx, &operations)
 			if err != nil {
 				log.Error(err, "failed to list operations ready for garbage collected")
 			}
 
-			g.garbageCollectOperations(operations)
+			g.garbageCollectOperations(operations, log)
 		}
 	}()
 }
 
-func (g *garbageCollector) garbageCollectOperations(operations []db.Operation) {
+func (g *garbageCollector) garbageCollectOperations(operations []db.Operation, log logr.Logger) {
 	for _, operation := range operations {
 		// check if the order of operations are right
 		// last_state_update + gc_expiration_time < time.Now
 		if operation.Last_state_update.Add(operation.GC_expiration_time).Before(time.Now()) {
 			_, err := g.db.DeleteOperationById(context.Background(), operation.Operation_id)
 			if err != nil {
-
+				log.Error(err, "failed to delete operation", operation.Operation_id)
 			}
 		}
 	}

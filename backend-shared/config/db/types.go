@@ -208,8 +208,8 @@ type Operation struct {
 
 	SeqID int64 `pg:"seq_id"`
 
-	// -- Amount of time to wait before a completed/failed operation can be garbage collected.
-	GC_expiration_time time.Duration `pg:gc_expiration_time`
+	// -- Amount of time to wait in seconds before a completed/failed operation can be garbage collected.
+	GC_expiration_time int `pg:gc_expiration_time`
 }
 
 // Application represents an Argo CD Application CR within an Argo CD namespace.
@@ -468,4 +468,8 @@ func (rc *RepositoryCredentials) hasEmptyValues() error {
 		}
 	}
 	return nil
+}
+
+func (o Operation) GetGCExpirationTime() time.Duration {
+	return time.Duration(o.GC_expiration_time) * time.Second
 }

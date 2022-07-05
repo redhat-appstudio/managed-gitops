@@ -282,10 +282,10 @@ func (dbq *PostgreSQLDatabaseQueries) ListOperationsToBeGarbageCollected(ctx con
 	}
 
 	err := dbq.dbConnection.ModelContext(ctx, operations).
-		Where("op.gc_expiration_time != ?", nil).
+		Where("gc_expiration_time != ?", 0).
 		WhereGroup(func(q *orm.Query) (*orm.Query, error) {
-			return q.WhereOr("op.state = ?", OperationState_Completed).
-				WhereOr("op.state = ?", OperationState_Failed), nil
+			return q.WhereOr("state = ?", OperationState_Completed).
+				WhereOr("state = ?", OperationState_Failed), nil
 		}).
 		Select()
 	if err != nil {

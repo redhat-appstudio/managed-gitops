@@ -1,0 +1,10 @@
+
+ALTER TABLE apicrtodatabasemapping ADD CONSTRAINT apicrtodatabasemapping_api_resource_type_api_resource_uid_d_key UNIQUE (api_resource_type, api_resource_uid, db_relation_type);
+
+ALTER TABLE apicrtodatabasemapping ADD CONSTRAINT apicrtodatabasemapping_db_relation_type_db_relation_key_api_key UNIQUE (db_relation_type, db_relation_key, api_resource_type);
+
+ALTER TABLE gitopsengineinstance ADD CONSTRAINT gitopsengineinstance_namespace_name_namespace_uid_engineclu_key UNIQUE (namespace_name, namespace_uid, enginecluster_id);
+
+ALTER TABLE kubernetestodbresourcemapping ADD CONSTRAINT kubernetestodbresourcemapping_db_relation_type_db_relation__key UNIQUE (db_relation_type, db_relation_key, kubernetes_resource_type);
+
+ALTER TABLE kubernetestodbresourcemapping ADD CONSTRAINT kubernetestodbresourcemapping_kubernetes_resource_type_kube_key UNIQUE (kubernetes_resource_type, kubernetes_resource_uid, db_relation_type);

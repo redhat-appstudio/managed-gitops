@@ -229,18 +229,6 @@ var _ = Describe("Application Snapshot Environment Binding Reconciler Tests", fu
 			Expect(apierr.IsNotFound(err)).To(BeTrue())
 		})
 
-		It("Should return error if Status.Components is not available in Binding object.", func() {
-			binding.Status.Components = []appstudiosharedv1.ComponentStatus{}
-			// Create ApplicationSnapshotEnvironmentBinding CR in cluster.
-			err := bindingReconciler.Create(ctx, binding)
-			Expect(err).To(BeNil())
-
-			// Trigger Reconciler
-			_, err = bindingReconciler.Reconcile(ctx, request)
-			Expect(err).NotTo(BeNil())
-			Expect(err.Error()).To(Equal("ApplicationSnapshotEventBinding Component status is required to generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding appa-staging-binding"))
-		})
-
 		It("Should return error if Status.GitOpsRepoConditions Status is set to False in Binding object.", func() {
 			binding.Status.GitOpsRepoConditions = []metav1.Condition{
 				{

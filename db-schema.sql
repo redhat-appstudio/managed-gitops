@@ -201,8 +201,8 @@ CREATE TABLE Operation (
 	-- * Failed
 	state VARCHAR ( 30 ) NOT NULL,
 	
-	-- Amount of time to wait before a completed/failed operation can be garbage collected.
-	gc_expiration_time TIMESTAMP,
+	-- Amount of time to wait in seconds before a completed/failed operation can be garbage collected.
+	gc_expiration_time INT,
 
 	-- If there is an error message from the operation, it is passed via this field.
 	human_readable_state VARCHAR ( 1024 )

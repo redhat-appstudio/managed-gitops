@@ -55,16 +55,16 @@ func (g *garbageCollector) startGarbageCollectionCycle() {
 	func() {
 		for {
 			// garbage collect the operations after a specified interval
-			time.After(garbageCollectionInterval)
+			<-time.After(garbageCollectionInterval)
 
 			ctx := context.Background()
 			log := log.FromContext(ctx)
 
-			// get the  failed/completed operations with non-null gc time
+			// get the  failed/completed operations with non-zero gc interval
 			operations := []db.Operation{}
 			err := g.db.ListOperationsToBeGarbageCollected(ctx, &operations)
 			if err != nil {
-				log.Error(err, "failed to list operations ready for garbage collected")
+				log.Error(err, "failed to list operations ready for garbage collection")
 			}
 
 			g.garbageCollectOperations(operations, log)
@@ -76,11 +76,13 @@ func (g *garbageCollector) garbageCollectOperations(operations []db.Operation, l
 	for _, operation := range operations {
 		// check if the order of operations are right
 		// last_state_update + gc_expiration_time < time.Now
-		if operation.Last_state_update.Add(operation.GC_expiration_time).Before(time.Now()) {
+		if operation.Last_state_update.Add(operation.GetGCExpirationTime()).Before(time.Now()) {
 			_, err := g.db.DeleteOperationById(context.Background(), operation.Operation_id)
 			if err != nil {
 				log.Error(err, "failed to delete operation", operation.Operation_id)
+				continue
 			}
+			log.Info("successfully garbage collected operation", "operation_id", operation.Operation_id)
 		}
 	}
 }

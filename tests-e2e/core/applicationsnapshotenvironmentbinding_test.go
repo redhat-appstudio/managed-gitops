@@ -42,7 +42,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			Expect(err).To(Succeed())
 
 			//====================================================
-			By("Verify that Status.GitOpsDeployments field of Binding is updated by GitOps-Service with metadata of GitOpsDeployment CR created.")
+			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
 
 			gitOpsDeploymentNameFirst := binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + binding.Spec.Components[0].Name
 			gitOpsDeploymentNameSecond := binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + binding.Spec.Components[1].Name
@@ -55,7 +55,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments))
 
 			//====================================================
-			By("Verify that GitOpsDeployment CR created by GitOps-Service is having metadata as given in Binding.")
+			By("Verify that GitOpsDeployment CR created by GitOps-Service is having spec source as given in Binding.")
 
 			gitOpsDeploymentFirst := buildGitOpsDeploymentObjectMeta(gitOpsDeploymentNameFirst, binding.Namespace)
 			Eventually(gitOpsDeploymentFirst, "2m", "1s").Should(gitopsDeplFixture.HaveSpecSource(managedgitopsv1alpha1.ApplicationSource{
@@ -70,11 +70,30 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 				Path:           binding.Status.Components[1].GitOpsRepository.Path,
 				TargetRevision: binding.Status.Components[1].GitOpsRepository.Branch,
 			}))
+
+			//====================================================
+			By("Verify that GitOpsDeployment CR created by GitOps-Service is having ownerReference according to Binding.")
+			err = k8s.Get(&binding)
+			Expect(err).To(Succeed())
+
+			err = k8s.Get(&gitOpsDeploymentFirst)
+			Expect(err).To(Succeed())
+			Expect(gitOpsDeploymentFirst.OwnerReferences[0].Name).To(Equal(binding.Name))
+			Expect(gitOpsDeploymentFirst.OwnerReferences[0].UID).To(Equal(binding.UID))
+			//Expect(gitOpsDeploymentFirst.OwnerReferences[0].APIVersion).To(Equal(binding.APIVersion))
+			//Expect(gitOpsDeploymentFirst.OwnerReferences[0].Kind).To(Equal(binding.Kind))
+
+			err = k8s.Get(&gitOpsDeploymentSecond)
+			Expect(err).To(Succeed())
+			Expect(gitOpsDeploymentSecond.OwnerReferences[0].Name).To(Equal(binding.Name))
+			Expect(gitOpsDeploymentSecond.OwnerReferences[0].UID).To(Equal(binding.UID))
+			//Expect(gitOpsDeploymentSecond.OwnerReferences[0].APIVersion).To(Equal(binding.APIVersion))
+			//Expect(gitOpsDeploymentSecond.OwnerReferences[0].Kind).To(Equal(binding.Kind))
 		})
 
 		//This test is to verify the scenario when a user creates an ApplicationSnapshotEnvironmentBinding CR in Cluster and after GitOpsDeployment CR is created by GitOps-Service,
 		// user does modification in Binding CR. In this case GitOps-Service should also update GitOpsDeployment CR accordingly.
-		It("Should update GitOpsDeployment CR if Binding metadata is updated.", func() {
+		It("Should update GitOpsDeployment CR if Binding CR is updated.", func() {
 
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
@@ -93,7 +112,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			Expect(err).To(Succeed())
 
 			//====================================================
-			By("Verify that Status.GitOpsDeployments field of Binding is updated by GitOps-Service with metadata of GitOpsDeployment CR created.")
+			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
 
 			gitOpsDeploymentName := binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + binding.Spec.Components[0].Name
 
@@ -104,7 +123,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments))
 
 			//====================================================
-			By("Verify that GitOpsDeployment CR created by GitOps-Service is having metadata as given in Binding.")
+			By("Verify that GitOpsDeployment CR created, is having Spec.Source as given in Binding.")
 
 			gitOpsDeployment := buildGitOpsDeploymentObjectMeta(gitOpsDeploymentName, binding.Namespace)
 
@@ -115,7 +134,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			}))
 
 			//====================================================
-			By("Verify that GitOpsDeployment CR is updated by GitOps-Service as Binding metadata is updated.")
+			By("Verify that GitOpsDeployment CR is updated by GitOps-Service as Binding is updated.")
 
 			err = k8s.Get(&binding)
 			Expect(err).To(Succeed())
@@ -124,12 +143,12 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			Expect(err).To(Succeed())
 
 			//====================================================
-			By("Verify that Status.GitOpsDeployments field of Binding is updated by GitOps-Service with metadata of GitOpsDeployment CR created.")
+			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
 
 			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments))
 
 			//====================================================
-			By("Verify that GitOpsDeployment CR updated by GitOps-Service and having metadata as given in Binding.")
+			By("Verify that GitOpsDeployment CR updated by GitOps-Service is having Spec.Source as given in Binding.")
 
 			err = k8s.Get(&gitOpsDeployment)
 			Expect(err).To(Succeed())
@@ -143,7 +162,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 
 		// This test is to verify the scenario when a user creates an ApplicationSnapshotEnvironmentBinding CR in Cluster and then GitOps-Service creates GitOpsDeployment CR,
 		// but the user does modification directly in the GitOpsDeployment CR. In this case GitOps-Service service should revert changes done by the user in GitOpsDeployment CR.
-		It("Should revert GitOpsDeployment, if modification are done directly for it, without updating Binding metadata.", func() {
+		It("Should revert GitOpsDeployment, if modification are done directly for it, without updating Binding CR.", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			//====================================================
@@ -161,7 +180,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			Expect(err).To(Succeed())
 
 			//====================================================
-			By("Verify that Status.GitOpsDeployments field of Binding is updated by GitOps-Service with metadata of GitOpsDeployment CR created.")
+			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
 
 			gitOpsDeploymentName := binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + binding.Spec.Components[0].Name
 
@@ -172,7 +191,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments))
 
 			//====================================================
-			By("Verify that GitOpsDeployment CR created by GitOps-Service is having metadata as given in Binding.")
+			By("Verify that GitOpsDeployment CR created, is having Spec.Source as given in Binding.")
 
 			gitOpsDeploymentBefore := buildGitOpsDeploymentObjectMeta(gitOpsDeploymentName, binding.Namespace)
 
@@ -183,7 +202,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			}))
 
 			//====================================================
-			By("Update GitOpsDeployment CR, but dont change anything is metadata of Binding.")
+			By("Update GitOpsDeployment CR, but dont change anything is in Binding CR.")
 
 			err = k8s.Get(&binding)
 			Expect(err).To(Succeed())
@@ -192,7 +211,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			Expect(err).To(Succeed())
 
 			//====================================================
-			By("Verify that GitOpsDeployment CR is reverted by GitOps-Service is having same metadata as given in Binding.")
+			By("Verify that GitOpsDeployment CR is reverted by GitOps-Service is having same Spec.Source as given in Binding.")
 
 			gitOpsDeploymentAfter := buildGitOpsDeploymentObjectMeta(gitOpsDeploymentName, binding.Namespace)
 
@@ -225,7 +244,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			Expect(err).To(Succeed())
 
 			//====================================================
-			By("Verify that Status.GitOpsDeployments field of Binding is updated by GitOps-Service with metadata of GitOpsDeployment CR created.")
+			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
 
 			gitOpsDeploymentName := binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + binding.Spec.Components[0].Name
 
@@ -236,7 +255,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments))
 
 			//====================================================
-			By("Verify that GitOpsDeployment CR created by GitOps-Service is having metadata as given in Binding.")
+			By("Verify that GitOpsDeployment CR created, is having Spec.Source as given in Binding.")
 
 			gitOpsDeploymentBefore := buildGitOpsDeploymentObjectMeta(gitOpsDeploymentName, binding.Namespace)
 
@@ -326,10 +345,6 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 func buildApplicationSnapshotEnvironmentBindingResource(name, appName, envName, snapShotName string, replica int, componentNames []string) appstudiosharedv1.ApplicationSnapshotEnvironmentBinding {
 	// Create ApplicationSnapshotEnvironmentBinding CR.
 	binding := appstudiosharedv1.ApplicationSnapshotEnvironmentBinding{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ApplicationSnapshotEnvironmentBinding",
-			APIVersion: "appstudio.redhat.com/v1alpha1",
-		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: fixture.GitOpsServiceE2ENamespace,

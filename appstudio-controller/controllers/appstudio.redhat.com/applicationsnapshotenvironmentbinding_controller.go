@@ -59,7 +59,7 @@ func (r *ApplicationSnapshotEnvironmentBindingReconciler) Reconcile(ctx context.
 		// Binding doesn't exist: it was deleted.
 		// Owner refs will ensure the GitOpsDeployments are deleted, so no work to do.
 		log.Error(err, "Binding not found in namespace.")
-		return ctrl.Result{}, err
+		return ctrl.Result{}, nil
 	}
 
 	// Don't reconcile the binding if the HAS component indicated via the binding.status field
@@ -105,7 +105,7 @@ func (r *ApplicationSnapshotEnvironmentBindingReconciler) Reconcile(ctx context.
 		} else {
 			// No error: add to status
 			statusField = append(statusField, appstudioshared.BindingStatusGitOpsDeployment{
-				ComponentName:    binding.Spec.Components[i].Name,
+				ComponentName:    binding.Status.Components[i].Name,
 				GitOpsDeployment: expectedGitOpsDeployment.Name,
 			})
 		}
@@ -168,10 +168,6 @@ func processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployme
 func generateExpectedGitOpsDeployment(component appstudioshared.ComponentStatus, binding appstudioshared.ApplicationSnapshotEnvironmentBinding) apibackend.GitOpsDeployment {
 
 	res := apibackend.GitOpsDeployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "managed-gitops.redhat.com/v1alpha1",
-			Kind:       "GitOpsDeployment",
-		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + component.Name,
 			Namespace: binding.Namespace,

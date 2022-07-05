@@ -47,10 +47,6 @@ var _ = Describe("Application Snapshot Environment Binding Reconciler Tests", fu
 
 			// Create ApplicationSnapshotEnvironmentBinding CR.
 			binding = &appstudiosharedv1.ApplicationSnapshotEnvironmentBinding{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "ApplicationSnapshotEnvironmentBinding",
-					APIVersion: "appstudio.redhat.com/v1alpha1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "appa-staging-binding",
 					Namespace: kubesystemNamespace.Name,
@@ -231,6 +227,34 @@ var _ = Describe("Application Snapshot Environment Binding Reconciler Tests", fu
 			_, err := bindingReconciler.Reconcile(ctx, request)
 			Expect(err).NotTo(BeNil())
 			Expect(apierr.IsNotFound(err)).To(BeTrue())
+		})
+
+		It("Should return error if Status.Components is not available in Binding object.", func() {
+			binding.Status.Components = []appstudiosharedv1.ComponentStatus{}
+			// Create ApplicationSnapshotEnvironmentBinding CR in cluster.
+			err := bindingReconciler.Create(ctx, binding)
+			Expect(err).To(BeNil())
+
+			// Trigger Reconciler
+			_, err = bindingReconciler.Reconcile(ctx, request)
+			Expect(err).NotTo(BeNil())
+			Expect(err.Error()).To(Equal("ApplicationSnapshotEventBinding Component status is required to generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding appa-staging-binding"))
+		})
+
+		It("Should return error if Status.GitOpsRepoConditions Status is set to False in Binding object.", func() {
+			binding.Status.GitOpsRepoConditions = []metav1.Condition{
+				{
+					Status: metav1.ConditionFalse,
+				},
+			}
+
+			// Create ApplicationSnapshotEnvironmentBinding CR in cluster.
+			err := bindingReconciler.Create(ctx, binding)
+			Expect(err).To(BeNil())
+
+			// Trigger Reconciler
+			_, err = bindingReconciler.Reconcile(ctx, request)
+			Expect(err).To(BeNil())
 		})
 	})
 })

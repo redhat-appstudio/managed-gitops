@@ -17,7 +17,6 @@ import (
 	appstudiosharedv1 "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
 	apibackend "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
 )
 
 var _ = Describe("Application Snapshot Environment Binding Reconciler Tests", func() {
@@ -222,11 +221,16 @@ var _ = Describe("Application Snapshot Environment Binding Reconciler Tests", fu
 				To(Equal(binding.Name + "-" + binding.Spec.Components[0].Name))
 		})
 
-		It("Should return error as Binding object is not available in cluster.", func() {
+		It("Should return error if Status.Components is not available in Binding object.", func() {
+			binding.Status.Components = []appstudiosharedv1.ComponentStatus{}
+			// Create ApplicationSnapshotEnvironmentBinding CR in cluster.
+			err := bindingReconciler.Create(ctx, binding)
+			Expect(err).To(BeNil())
+
 			// Trigger Reconciler
-			_, err := bindingReconciler.Reconcile(ctx, request)
+			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).NotTo(BeNil())
-			Expect(apierr.IsNotFound(err)).To(BeTrue())
+			Expect(err.Error()).To(Equal("ApplicationSnapshotEventBinding Component status is required to generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding appa-staging-binding"))
 		})
 
 		It("Should return error if Status.GitOpsRepoConditions Status is set to False in Binding object.", func() {

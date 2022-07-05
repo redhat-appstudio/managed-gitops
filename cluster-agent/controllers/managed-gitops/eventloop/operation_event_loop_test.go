@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	"gopkg.in/yaml.v2"
@@ -263,7 +263,7 @@ var _ = Describe("Operation Controller", func() {
 
 			By("deleting resources and cleaning up db entries created by test.")
 			resourcesToBeDeleted := testResources{
-				Operation_id:                  operationDB.Operation_id,
+				Operation_id:                  []string{operationDB.Operation_id},
 				Gitopsenginecluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 				Gitopsengineinstance_id:       gitopsEngineInstance.Gitopsengineinstance_id,
 				ClusterCredentials_id:         gitopsEngineCluster.Clustercredentials_id,
@@ -386,7 +386,7 @@ var _ = Describe("Operation Controller", func() {
 
 				By("deleting resources and cleaning up db entries created by test.")
 				resourcesToBeDeleted := testResources{
-					Operation_id:                  operationDB.Operation_id,
+					Operation_id:                  []string{operationDB.Operation_id},
 					Gitopsenginecluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 					Gitopsengineinstance_id:       gitopsEngineInstance.Gitopsengineinstance_id,
 					ClusterCredentials_id:         gitopsEngineCluster.Clustercredentials_id,
@@ -492,7 +492,7 @@ var _ = Describe("Operation Controller", func() {
 				By("deleting resources and cleaning up db entries created by test.")
 				resourcesToBeDeleted := testResources{
 					Application_id:                applicationDB.Application_id,
-					Operation_id:                  operationDB.Operation_id,
+					Operation_id:                  []string{operationDB.Operation_id},
 					Gitopsenginecluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 					Gitopsengineinstance_id:       gitopsEngineInstance.Gitopsengineinstance_id,
 					ClusterCredentials_id:         gitopsEngineCluster.Clustercredentials_id,
@@ -583,7 +583,7 @@ var _ = Describe("Operation Controller", func() {
 				By("Update Application in Database")
 				applicationUpdate := &db.Application{
 					Application_id:          "test-my-application",
-					Name:                    "test-application-updated",
+					Name:                    applicationDB.Name,
 					Spec_field:              newSpecString,
 					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
 					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
@@ -593,6 +593,19 @@ var _ = Describe("Operation Controller", func() {
 				err = dbQueries.UpdateApplication(ctx, applicationUpdate)
 				Expect(err).To(BeNil())
 
+				By("Creating new operation row in database")
+				operationDB2 := &db.Operation{
+					Operation_id:            "test-operation-2",
+					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+					Resource_id:             applicationDB.Application_id,
+					Resource_type:           "Application",
+					State:                   db.OperationState_Waiting,
+					Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				}
+
+				err = dbQueries.CreateOperation(ctx, operationDB2, operationDB2.Operation_owner_user_id)
+				Expect(err).To(BeNil())
+
 				By("Create new operation CR")
 				operationCR = &operation.Operation{
 					ObjectMeta: metav1.ObjectMeta{
@@ -600,7 +613,7 @@ var _ = Describe("Operation Controller", func() {
 						Namespace: namespace,
 					},
 					Spec: operation.OperationSpec{
-						OperationID: operationDB.Operation_id,
+						OperationID: operationDB2.Operation_id,
 					},
 				}
 
@@ -636,9 +649,10 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				By("deleting resources and cleaning up db entries created by test.")
+
 				resourcesToBeDeleted := testResources{
 					Application_id:                applicationDB.Application_id,
-					Operation_id:                  operationDB.Operation_id,
+					Operation_id:                  []string{operationDB.Operation_id, operationDB2.Operation_id},
 					Gitopsenginecluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 					Gitopsengineinstance_id:       gitopsEngineInstance.Gitopsengineinstance_id,
 					ClusterCredentials_id:         gitopsEngineCluster.Clustercredentials_id,
@@ -668,7 +682,7 @@ func newRequest(namespace, name string) reconcile.Request {
 
 // Used to list down resources for deletion which are created while running tests.
 type testResources struct {
-	Operation_id                  string
+	Operation_id                  []string
 	Gitopsenginecluster_id        string
 	Gitopsengineinstance_id       string
 	ClusterCredentials_id         string
@@ -704,10 +718,11 @@ func deleteTestResources(ctx context.Context, dbQueries db.AllDatabaseQueries, r
 	}
 
 	// Delete Operation
-	if resourcesToBeDeleted.Operation_id != "" {
-		rowsAffected, err = dbQueries.DeleteOperationById(ctx, resourcesToBeDeleted.Operation_id)
+	for _, operationToDelete := range resourcesToBeDeleted.Operation_id {
+		rowsAffected, err = dbQueries.DeleteOperationById(ctx, operationToDelete)
 		Expect(err).To(BeNil())
 		Expect(rowsAffected).To(Equal(1))
+
 	}
 
 	// Delete GitopsEngineInstance

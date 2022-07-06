@@ -9,7 +9,7 @@ import (
 )
 
 var _ = Describe("GuardRow test", func() {
-	FContext("It creates database unit tests which guard against missing WHERE clauses of UPDATE/DELETE operations to the database ", func() {
+	Context("It creates database unit tests which guard against missing WHERE clauses of UPDATE/DELETE operations to the database ", func() {
 
 		It("Should test guard row against delete for ApiCRtoDBmapping", func() {
 			err := db.SetupForTestingDBGinkgo()

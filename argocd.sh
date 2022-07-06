@@ -2,6 +2,7 @@
 
 ARGO_CD_VERSION="${ARGO_CD_VERSION:-stable}"
 ARGO_CD_NAMESPACE="${ARGO_CD_NAMESPACE:-gitops-service-argocd}"
+ARGO_CD_PORT="${ARGO_CD_PORT:-4000}"
 
 # This script installs ArgoCD vanilla according to https://argo-cd.readthedocs.io/en/stable/getting_started/
 
@@ -31,7 +32,7 @@ if [ "$1" = "install" ]; then
 
     # Get the secret
     counter=0
-    until kubectl -n argocd get secret | grep argocd-initial-admin-secret; do
+    until kubectl -n "$ARGO_CD_NAMESPACE" get secret | grep argocd-initial-admin-secret; do
         ((counter++))
         sleep 1
         if [ "$counter" -gt 60 ]; then
@@ -44,7 +45,7 @@ if [ "$1" = "install" ]; then
     # Wait until argocd-server pod is running
     echo " * Wait until argocd-server pod is running"
     counter=0
-    until kubectl -n argocd get pods | grep argocd-server | grep '1/1' | grep 'Running' &>/dev/null; do
+    until kubectl -n "$ARGO_CD_NAMESPACE" get pods | grep argocd-server | grep '1/1' | grep 'Running' &>/dev/null; do
         ((counter++))
         sleep 1
         if [ "$counter" -gt 60 ]; then
@@ -55,12 +56,12 @@ if [ "$1" = "install" ]; then
     echo " * argocd-server Pod is running."
 
     # Port forward the ArgoCD service locally, so we can access it
-    kubectl port-forward svc/argocd-server -n "$ARGO_CD_NAMESPACE" 18080:443 &
+    kubectl port-forward svc/argocd-server -n "$ARGO_CD_NAMESPACE" "$ARGO_CD_PORT":443 &
     KUBE_PID=$!
 
-    # Checks if 18080 is occupied
+    # Checks if ARGO_CD_PORT is occupied
     counter=0
-    until lsof -i:18080 | grep LISTEN; do
+    until lsof -i:"$ARGO_CD_PORT" | grep LISTEN; do
         sleep 1
         if [ "$counter" -gt 10 ]; then
             echo ".. retry $counter ..."
@@ -74,7 +75,7 @@ if [ "$1" = "install" ]; then
     echo " * Port-Forwarding worked"
 
     # Decode the password from the secret
-    ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 --decode)
+    ARGOCD_PASSWORD=$(kubectl -n "$ARGO_CD_NAMESPACE" get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 --decode)
 
     # Stop port-forwarding
     if ! kill $KUBE_PID; then
@@ -84,7 +85,7 @@ if [ "$1" = "install" ]; then
         echo " * Port-forwarding has been successfully stopped"
     fi
 
-    if lsof -i:18080 | grep LISTEN; then
+    if lsof -i:"$ARGO_CD_PORT" | grep LISTEN; then
         echo " * Port forwarding is still active for some reason. Investigate further ..."
     fi
 
@@ -94,8 +95,8 @@ if [ "$1" = "install" ]; then
     echo "| To access the ArgoCD Web UI |"
     echo " ------------------------------"
     echo
-    echo "  - Run:            kubectl port-forward svc/argocd-server -n argocd 18080:443 &"
-    echo "  - Credentials:    HOST=localhost:18080  USERNAME=admin  PASSWORD=$ARGOCD_PASSWORD"
+    echo "  - Run:            kubectl port-forward svc/argocd-server -n "$ARGO_CD_NAMESPACE" "$ARGO_CD_PORT":443 &"
+    echo "  - Credentials:    HOST=localhost:"$ARGO_CD_PORT"  USERNAME=admin  PASSWORD=$ARGOCD_PASSWORD"
     echo
     exit 0
 fi

@@ -23,13 +23,13 @@ var _ = Describe("ClusterUser Tests", func() {
 
 			user := &db.ClusterUser{
 				Clusteruser_id: "test-user-id",
-				User_name:      "test-user",
+				User_name:      "test-user-name",
 			}
 			err = dbq.CreateClusterUser(ctx, user)
 			Expect(err).To(BeNil())
 
 			retrieveUser := &db.ClusterUser{
-				User_name: "test-user",
+				User_name: "test-user-name",
 			}
 			err = dbq.GetClusterUserByUsername(ctx, retrieveUser)
 			Expect(err).To(BeNil())

@@ -18,12 +18,20 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logger "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -50,7 +58,11 @@ var _ = Describe("Garbage Collect Operations", func() {
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).To(BeNil())
 
-			gc = NewGarbageCollector(dbq)
+			scheme, _, _, _, err := eventlooptypes.GenericTestSetup()
+			Expect(err).To(BeNil())
+			k8sClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+			gc = NewGarbageCollector(dbq, k8sClient)
 
 			_, _, _, gitopsEngineInstance, clusterAccess, err = db.CreateSampleData(dbq)
 			Expect(err).To(BeNil())
@@ -79,6 +91,16 @@ var _ = Describe("Garbage Collect Operations", func() {
 			By("operation should be removed from DB")
 			err = dbq.GetOperationById(ctx, &validOperation)
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+
+			By("operation CR should be removed from the cluster")
+			operationCR := &managedgitopsv1alpha1.Operation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("operation-%s", validOperation.Operation_id),
+					Namespace: util.GetGitOpsEngineSingleInstanceNamespace(),
+				},
+			}
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(operationCR), operationCR)
+			Expect(errors.IsNotFound(err)).To(BeTrue())
 		})
 
 		It("operation within the gc interval should not be removed", func() {

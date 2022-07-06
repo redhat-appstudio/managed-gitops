@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,7 +29,9 @@ import (
 	"github.com/go-logr/logr"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/managed-gitops/eventloop"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -69,13 +72,15 @@ func (r *OperationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 type garbageCollector struct {
-	db db.DatabaseQueries
+	db        db.DatabaseQueries
+	k8sClient client.Client
 }
 
 // NewGarbageCollector creates a new instance of garbageCollector for Operations
-func NewGarbageCollector(dbQueries db.DatabaseQueries) *garbageCollector {
+func NewGarbageCollector(dbQueries db.DatabaseQueries, client client.Client) *garbageCollector {
 	return &garbageCollector{
-		db: dbQueries,
+		db:        dbQueries,
+		k8sClient: client,
 	}
 }
 
@@ -109,11 +114,25 @@ func (g *garbageCollector) garbageCollectOperations(ctx context.Context, operati
 	for _, operation := range operations {
 		// last_state_update + gc_expiration_time < time.Now
 		if operation.Last_state_update.Add(operation.GetGCExpirationTime()).Before(time.Now()) {
+			// remove the Operation from the DB
 			_, err := g.db.DeleteOperationById(ctx, operation.Operation_id)
 			if err != nil {
-				log.Error(err, "failed to delete operation", operation.Operation_id)
+				log.Error(err, "failed to delete operation from DB", "operation_id", operation.Operation_id)
 				continue
 			}
+
+			// remove the Operation resource from the cluster
+			operationCR := &managedgitopsv1alpha1.Operation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("operation-%s", operation.Operation_id),
+					Namespace: util.GetGitOpsEngineSingleInstanceNamespace(),
+				},
+			}
+			err = g.k8sClient.Delete(ctx, operationCR)
+			if err != nil {
+				log.Error(err, "failed to delete operation from the cluster", "operation_id", operation.Operation_id)
+			}
+
 			log.Info("successfully garbage collected operation", "operation_id", operation.Operation_id)
 		}
 	}

@@ -109,7 +109,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	operationsGC := controllers.NewGarbageCollector(dbQueries)
+	operationsGC := controllers.NewGarbageCollector(dbQueries, mgr.GetClient())
 	operationsGC.StartGarbageCollector()
 
 	if err = (&argoprojiocontrollers.ApplicationReconciler{

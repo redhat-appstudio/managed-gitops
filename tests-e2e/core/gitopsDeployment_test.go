@@ -20,7 +20,7 @@ const (
 
 var _ = Describe("GitOpsDeployment E2E tests", func() {
 
-	FContext("Create, Update and Delete a GitOpsDeployment ", func() {
+	Context("Create, Update and Delete a GitOpsDeployment ", func() {
 		k8sClient, err := fixture.GetKubeClient()
 
 		Expect(err).To(BeNil())

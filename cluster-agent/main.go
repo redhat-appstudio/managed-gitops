@@ -104,14 +104,12 @@ func main() {
 		Client:              mgr.GetClient(),
 		Scheme:              mgr.GetScheme(),
 		ControllerEventLoop: eventloop.NewOperationEventLoop(),
-		DB:                  dbQueries,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Operation")
 		os.Exit(1)
 	}
 
 	operationsGC := controllers.NewGarbageCollector(dbQueries)
-
 	operationsGC.StartGarbageCollector()
 
 	if err = (&argoprojiocontrollers.ApplicationReconciler{

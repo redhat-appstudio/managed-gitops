@@ -23,7 +23,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 	Context("Testing ApplicationSnapshotEnvironmentBinding Reconciler.", func() {
 
 		// This test is to verify the scenario when a user creates an ApplicationSnapshotEnvironmentBinding CR in Cluster.
-		// Then GitOps-Service should create GitOpsDeployment CR based on metadata given in Binding and update details of GitOpsDeployment in Status field of Binding.
+		// Then GitOps-Service should create GitOpsDeployment CR based on data given in Binding and update details of GitOpsDeployment in Status field of Binding.
 		It("Should update Status of Binding and create new GitOpsDeployment CR.", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
@@ -80,15 +80,11 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			Expect(err).To(Succeed())
 			Expect(gitOpsDeploymentFirst.OwnerReferences[0].Name).To(Equal(binding.Name))
 			Expect(gitOpsDeploymentFirst.OwnerReferences[0].UID).To(Equal(binding.UID))
-			//Expect(gitOpsDeploymentFirst.OwnerReferences[0].APIVersion).To(Equal(binding.APIVersion))
-			//Expect(gitOpsDeploymentFirst.OwnerReferences[0].Kind).To(Equal(binding.Kind))
 
 			err = k8s.Get(&gitOpsDeploymentSecond)
 			Expect(err).To(Succeed())
 			Expect(gitOpsDeploymentSecond.OwnerReferences[0].Name).To(Equal(binding.Name))
 			Expect(gitOpsDeploymentSecond.OwnerReferences[0].UID).To(Equal(binding.UID))
-			//Expect(gitOpsDeploymentSecond.OwnerReferences[0].APIVersion).To(Equal(binding.APIVersion))
-			//Expect(gitOpsDeploymentSecond.OwnerReferences[0].Kind).To(Equal(binding.Kind))
 		})
 
 		//This test is to verify the scenario when a user creates an ApplicationSnapshotEnvironmentBinding CR in Cluster and after GitOpsDeployment CR is created by GitOps-Service,
@@ -98,7 +94,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			//====================================================
-			By("Create Binding CR in Cluster and it requires to update the Status field ob Binding, because it is not updated while creating object.")
+			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
 
 			binding := buildApplicationSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			err := k8s.Create(&binding)
@@ -166,7 +162,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			//====================================================
-			By("Create Binding CR in Cluster and it requires to update the Status field ob Binding, because it is not updated while creating object.")
+			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
 
 			binding := buildApplicationSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			err := k8s.Create(&binding)
@@ -228,7 +224,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			//====================================================
-			By("Create Binding CR in Cluster and it requires to update the Status field ob Binding, because it is not updated while creating object.")
+			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
 
 			binding := buildApplicationSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app",
 				"staging", "my-snapshot", 3, []string{"component-a"})
@@ -303,7 +299,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			//====================================================
-			By("Create Binding CR in Cluster and it requires to update the Status field ob Binding, because it is not updated while creating object.")
+			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
 
 			binding := buildApplicationSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			binding.Spec.Application = strings.Repeat("abcde", 45)
@@ -332,7 +328,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			err = k8s.Get(&gitOpsDeployment)
 			Expect(err).To(Succeed())
 
-			// Check GitOpsDeployment is having metadata as given in Binding.
+			// Check GitOpsDeployment is having repository data as given in Binding.
 			Eventually(gitOpsDeployment, "2m", "1s").Should(gitopsDeplFixture.HaveSpecSource(managedgitopsv1alpha1.ApplicationSource{
 				RepoURL:        binding.Status.Components[0].GitOpsRepository.URL,
 				Path:           binding.Status.Components[0].GitOpsRepository.Path,

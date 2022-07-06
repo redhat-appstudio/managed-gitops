@@ -25,13 +25,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// Add a new row 'gc_expiration_time' for operations in the DB
-// If null it will gc'ed manually.
-// DB function that returns all rows with non-null `gc_expiration_time` and which are in 'Completed'/'Failed' state
-// Delete the row if last_state_update + gc_expiration_time < time.Now()
-// Run the above functionality in a goroutine
-// Unit tests for above
-
 const (
 	garbageCollectionInterval = 10 * time.Minute
 )
@@ -67,17 +60,16 @@ func (g *garbageCollector) startGarbageCollectionCycle() {
 				log.Error(err, "failed to list operations ready for garbage collection")
 			}
 
-			g.garbageCollectOperations(operations, log)
+			g.garbageCollectOperations(ctx, operations, log)
 		}
 	}()
 }
 
-func (g *garbageCollector) garbageCollectOperations(operations []db.Operation, log logr.Logger) {
+func (g *garbageCollector) garbageCollectOperations(ctx context.Context, operations []db.Operation, log logr.Logger) {
 	for _, operation := range operations {
-		// check if the order of operations are right
 		// last_state_update + gc_expiration_time < time.Now
 		if operation.Last_state_update.Add(operation.GetGCExpirationTime()).Before(time.Now()) {
-			_, err := g.db.DeleteOperationById(context.Background(), operation.Operation_id)
+			_, err := g.db.DeleteOperationById(ctx, operation.Operation_id)
 			if err != nil {
 				log.Error(err, "failed to delete operation", operation.Operation_id)
 				continue
@@ -86,8 +78,3 @@ func (g *garbageCollector) garbageCollectOperations(operations []db.Operation, l
 		}
 	}
 }
-
-// Questions
-
-// 1. Why can't the operation controller delete the operation row?
-// 2. last_state_update + gc_expiration_time < time.Now ??

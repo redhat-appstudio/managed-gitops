@@ -145,6 +145,10 @@ e2e: build setup-e2e-openshift ## Run e2e tests
 	$(GOBIN)/goreman start &> goreman.log &
 	cd $(MAKEFILE_ROOT)/tests-e2e && ginkgo -v ./... run
 
+e2e-reset: ## Kills the port-forwarding and the controllers
+	pkill goreman
+	pkill kubectl
+
 install-argocd-openshift: ## Using OpenShift GitOps, install Argo CD to the gitops-service-argocd namespace
 	manifests/openshift-argo-deploy/deploy.sh
 

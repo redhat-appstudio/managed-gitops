@@ -163,67 +163,23 @@ var _ = Describe("RepositoryCredentials Operation Tests", func() {
 			Expect(err).To(BeNil())
 			Expect(retry).To(BeFalse())
 
-			// Get the secret and check it
 			By("Get the secret")
 			secret := &corev1.Secret{}
 			err = task.event.client.Get(ctx, types.NamespacedName{Name: repositoryCredential.SecretObj, Namespace: namespace}, secret)
 			Expect(err).To(BeNil())
+
+			By("Checking the secret validity")
 			Expect(secret.Data).Should(HaveKey("url"))
 			Expect(secret.Data).Should(HaveKey("username"))
 			Expect(secret.Data).Should(HaveKey("password"))
+			Expect(secret.Labels).Should(HaveKey("argocd.argoproj.io/secret-type"))
 			Expect(string(secret.Data["url"])).Should(Equal(repositoryCredential.PrivateURL))
 			Expect(string(secret.Data["username"])).Should(Equal(repositoryCredential.AuthUsername))
 			Expect(string(secret.Data["password"])).Should(Equal(repositoryCredential.AuthPassword))
-
-			//// New Test Case: Change the secret
-			//// I have to somehow change the status back to "Progressing"
-			//// otherwise: --> Skipping Operation with state of completed/failed	{"operationId": "test-operation"}
-			//By("Changing the status of the operation to Waiting")
-			//operationDB.State = db.OperationState_Waiting
-			//err = dbq.UpdateOperation(ctx, operationDB)
-			//Expect(err).To(BeNil())
-			//
-			//By("creating Operation CR")
-			//operationCR = &operation.Operation{
-			//	ObjectMeta: metav1.ObjectMeta{
-			//		Name:      name,
-			//		Namespace: namespace,
-			//	},
-			//	Spec: operation.OperationSpec{
-			//		OperationID: operationDB.Operation_id,
-			//	},
-			//}
-			//
-			//err = task.event.client.Update(ctx, operationCR)
-			//Expect(err).To(BeNil())
-			//
-			//By("Changing the secret")
-			//secret.Data["url"] = []byte("test-fake-private-url-2")
-			//secret.Data["username"] = []byte("test-fake-auth-username-2")
-			//secret.Data["password"] = []byte("test-fake-auth-password-2")
-			//err = task.event.client.Update(ctx, secret)
-			//
-			//// Run again the task, it should fix the secret
-			//By("Running again the task, it should fix the secret")
-			//retry, err = task.PerformTask(ctx)
-			//Expect(err).To(BeNil())
-			//Expect(retry).To(BeFalse())
-			//
-			//// Check the secret if it's OK (in sync with the database)
-			//By("Get the secret")
-			//err = task.event.client.Get(ctx, types.NamespacedName{Name: repositoryCredential.SecretObj, Namespace: namespace}, secret)
-			//Expect(err).To(BeNil())
-			//By("Check the secret if it's OK (in sync with the database)")
-			//Expect(secret.Data).Should(HaveKey("url"))
-			//Expect(secret.Data).Should(HaveKey("username"))
-			//Expect(secret.Data).Should(HaveKey("password"))
-			//Expect(string(secret.Data["url"])).Should(Equal(repositoryCredential.PrivateURL))
-			//Expect(string(secret.Data["username"])).Should(Equal(repositoryCredential.AuthUsername))
-			//Expect(string(secret.Data["password"])).Should(Equal(repositoryCredential.AuthPassword))
-
+			Expect(secret.Labels["argocd.argoproj.io/secret-type"]).Should(Equal("repository"))
 		})
 		It("If there is a valid Operation ID for a problematic ArgoCD secret, fix the secret", func() {
-			By("Create the ArgoCD secret with wrong values")
+			By("Create the ArgoCD secret with wrong values and argocd labels")
 			secret := &corev1.Secret{
 				TypeMeta: metav1.TypeMeta{},
 				ObjectMeta: metav1.ObjectMeta{
@@ -297,18 +253,20 @@ var _ = Describe("RepositoryCredentials Operation Tests", func() {
 			Expect(err).To(BeNil())
 			Expect(retry).To(BeFalse())
 
-			// Get the secret and check it
 			By("Get the secret")
 			secret = &corev1.Secret{}
 			err = task.event.client.Get(ctx, types.NamespacedName{Name: repositoryCredential.SecretObj, Namespace: namespace}, secret)
 			Expect(err).To(BeNil())
+
+			By("Checking the secret validity")
 			Expect(secret.Data).Should(HaveKey("url"))
 			Expect(secret.Data).Should(HaveKey("username"))
 			Expect(secret.Data).Should(HaveKey("password"))
+			Expect(secret.Labels).Should(HaveKey("argocd.argoproj.io/secret-type"))
 			Expect(string(secret.Data["url"])).Should(Equal(repositoryCredential.PrivateURL))
 			Expect(string(secret.Data["username"])).Should(Equal(repositoryCredential.AuthUsername))
 			Expect(string(secret.Data["password"])).Should(Equal(repositoryCredential.AuthPassword))
-
+			Expect(secret.Labels["argocd.argoproj.io/secret-type"]).Should(Equal("repository"))
 		})
 	})
 })

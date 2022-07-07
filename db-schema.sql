@@ -31,7 +31,7 @@ CREATE TABLE ClusterCredentials (
 	kube_config_context VARCHAR (64),
 
 	-- State 2) ServiceAccount bearer token from the target manager cluster
-	serviceaccount_bearer_token VARCHAR (128),
+	serviceaccount_bearer_token VARCHAR (2048),
 
 	-- State 2) The namespace of the ServiceAccount
 	serviceaccount_ns VARCHAR (128),
@@ -227,7 +227,7 @@ CREATE TABLE Application (
 
 	-- Which managed environment it is targetting
 	-- Foreign key to: ManagedEnvironment.managedenvironment_id
-	managed_environment_id VARCHAR(48) NOT NULL,
+	managed_environment_id VARCHAR(48),
 	CONSTRAINT fk_managedenvironment_id FOREIGN KEY (managed_environment_id) REFERENCES ManagedEnvironment(managedenvironment_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 	
 	seq_id serial

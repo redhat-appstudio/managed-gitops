@@ -12,6 +12,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+const (
+	// ArgoCDDefaultDestinationInCluster is 'in-cluster' which is the spec destination value that Argo CD recognizes
+	ArgoCDDefaultDestinationInCluster = "in-cluster"
+)
+
+const (
+	ManagedEnvironmentSecretType = "managed-gitops.redhat.com/managed-environment"
+)
+
 // ExponentialBackoff: the more times in a row something fails, the longer we wait.
 type ExponentialBackoff struct {
 	Factor float64

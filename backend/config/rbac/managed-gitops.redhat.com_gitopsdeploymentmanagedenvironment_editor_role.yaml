@@ -1,0 +1,24 @@
+# permissions for end users to edit gitopsdeploymentmanagedenvironments.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gitopsdeploymentmanagedenvironment-editor-role
+rules:
+- apiGroups:
+  - managed-gitops.redhat.com
+  resources:
+  - gitopsdeploymentmanagedenvironments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - managed-gitops.redhat.com
+  resources:
+  - gitopsdeploymentmanagedenvironments/status
+  verbs:
+  - get

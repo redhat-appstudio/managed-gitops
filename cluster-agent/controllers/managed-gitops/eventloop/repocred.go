@@ -41,6 +41,10 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 	if err != nil {
 		if db.IsResultNotFoundError(err) {
 			l.Error(err, errRowNotFound, "resource-id", dbOperation.Resource_id)
+			// The RepositoryCredentials DB row doesn't exist. This means a RepositoryCredentials CR was deleted and the backend-controller deleted its corresponding DB row.
+			// We have to find if there are any ArgoCD leftovers and delete them (e.g. ArgoCD Secret).
+			// We do this by looking for the ArgoCD Secrets that have the label: "databaseID: <dbRepositoryCredentials Primary Key>"
+
 			// TODO: Delete the corresponding repositoryCredentials CR, if it exists
 			// TODO: Add a finalizer to the CR, to make sure it is deleted only when the corresponding ArgoCD secret has been deleted as well
 			// // 1. Find the associated RepostitoryCredentials CR (How?)
@@ -112,31 +116,40 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 	// 4. Check if the Argo CD secret has the correct data, and if not, update it with the data from the database.
 	// https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#repositories
 
-	l.Info(fmt.Sprintf("Labels: %s", argoCDSecret.Labels))
-	l.Info(fmt.Sprintf("Annotations: %s", argoCDSecret.Annotations))
-
 	decodedSecret := secretToRepoCred(argoCDSecret)
-	fmt.Println("Name:", decodedSecret.SecretObj)
-	fmt.Println("URL", decodedSecret.PrivateURL)
-	fmt.Println("Username", decodedSecret.AuthUsername)
-	fmt.Println("Password", decodedSecret.AuthPassword)
-	fmt.Println("SSH", decodedSecret.AuthSSHKey)
 
-	l.Info("Checking if the Name of the Argo CD Private Repository secret needs to be updated")
-	if decodedSecret.SecretObj != dbRepositoryCredentials.SecretObj {
-		l.Info("Updating Argo CD Private Repository secret", "secret name", argoCDSecret.Name)
-		argoCDSecret.Name = dbRepositoryCredentials.SecretObj
-		if err = eventClient.Update(ctx, argoCDSecret); err != nil {
-			l.Error(err, errUpdatePrivateSecret, "name")
-			return retry, err
+	//l.Info("Checking if the Name of the Argo CD Private Repository secret needs to be updated")
+	//if decodedSecret.SecretObj != dbRepositoryCredentials.SecretObj {
+	//	l.Info("Updating Argo CD Private Repository secret name", "secret name", argoCDSecret.Name)
+	//	argoCDSecret.Data["name"] = []byte(dbRepositoryCredentials.SecretObj)
+	//	if err = eventClient.Update(ctx, argoCDSecret); err != nil {
+	//		l.Error(err, errUpdatePrivateSecret, "name")
+	//		return retry, err
+	//	}
+	//} else {
+	//	l.Info("Re: No need the Name of the Argo CD Private Repository secret is the same with the respective RepositoryCredentials db entry")
+	//}
+
+	// Check if the secret has the correct Labels
+	l.Info("Checking if the Label of the Argo CD Private Repository secret needs to be updated")
+	secretLabels := getSecretLabels(argoCDSecret)
+	var labelFound = false
+	for _, v := range secretLabels {
+		if v == "argocd.argoproj.io/secret-type: repository" {
+			labelFound = true
 		}
-	} else {
-		l.Info("Re: No need the Name of the Argo CD Private Repository secret is the same with the respective RepositoryCredentials db entry")
 	}
 
-	//argoCDSecret.Data["url"] = []byte("https://www.google.com")
-	//_ = eventClient.Update(ctx, argoCDSecret)
-	//decodedSecret = secretToRepoCred(argoCDSecret)
+	if labelFound {
+		l.Info("Re: No need the Label of the Argo CD Private Repository secret is the same with the respective RepositoryCredentials db entry")
+	} else {
+		l.Info("Updating Argo CD Private Repository secret label", "secret name", argoCDSecret.Name)
+		addSecretMetadata(argoCDSecret, common.LabelValueSecretTypeRepository)
+		if err = eventClient.Update(ctx, argoCDSecret); err != nil {
+			l.Error(err, errUpdatePrivateSecret, "label")
+			return retry, err
+		}
+	}
 
 	l = l.WithValues("ArgoCD Repository Secret", argoCDSecret.Name)
 	l.Info("Checking if the URL of the Argo CD Private Repository secret needs to be updated")
@@ -153,7 +166,7 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 
 	l.Info("Checking if the password of the Argo CD Private Repository secret needs to be updated")
 	if decodedSecret.AuthPassword != dbRepositoryCredentials.AuthPassword {
-		l.Info("Updating Argo CD Private Repository secret password", "secret name", argoCDSecret.Name)
+		l.Info("Re: Yes, updating Argo CD Private Repository secret password", "From (Current)", string(argoCDSecret.Data["password"]), "to (Database)", dbRepositoryCredentials.AuthPassword)
 		argoCDSecret.Data["password"] = []byte(dbRepositoryCredentials.AuthPassword)
 		if err = eventClient.Update(ctx, argoCDSecret); err != nil {
 			l.Error(err, errUpdatePrivateSecret, "password")
@@ -165,7 +178,7 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 
 	l.Info("Checking if the username of the Argo CD Private Repository secret needs to be updated")
 	if decodedSecret.AuthUsername != dbRepositoryCredentials.AuthUsername {
-		l.Info("Updating Argo CD Private Repository secret", "secret name", argoCDSecret.Name)
+		l.Info("Re: Yes, updating Argo CD Private Repository secret username", "From (Current)", string(argoCDSecret.Data["username"]), "to (Database)", dbRepositoryCredentials.AuthUsername)
 		argoCDSecret.Data["username"] = []byte(dbRepositoryCredentials.AuthUsername)
 		if err = eventClient.Update(ctx, argoCDSecret); err != nil {
 			l.Error(err, errUpdatePrivateSecret, "username")
@@ -177,7 +190,7 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 
 	l.Info("Checking if the SSH key of the Argo CD Private Repository secret needs to be updated")
 	if decodedSecret.AuthSSHKey != dbRepositoryCredentials.AuthSSHKey {
-		l.Info("Updating Argo CD Private Repository secret", "secret name", argoCDSecret.Name)
+		l.Info("Re: Yes, updating Argo CD Private Repository secret SSH key", "From (Current)", string(argoCDSecret.Data["ssh"]), "to (Database)", dbRepositoryCredentials.AuthSSHKey)
 		argoCDSecret.Data["ssh"] = []byte(dbRepositoryCredentials.AuthSSHKey)
 		if err = eventClient.Update(ctx, argoCDSecret); err != nil {
 			l.Error(err, errUpdatePrivateSecret, "ssh")
@@ -195,14 +208,6 @@ func repoCredToSecret(repoCred db.RepositoryCredentials, secret *corev1.Secret) 
 		fmt.Printf("\n\nSecret is nil. Creating a map.\n\n")
 		secret.Data = make(map[string][]byte)
 	}
-
-	fmt.Println("This is the repoCred", repoCred)
-	fmt.Println("RepoCred name", repoCred.SecretObj)
-	fmt.Println("RepoCred URL", repoCred.PrivateURL)
-	fmt.Println("RepoCred username", repoCred.AuthUsername)
-	fmt.Println("RepoCred password", repoCred.AuthPassword)
-	fmt.Println("RepoCred SSH PrivateKey", repoCred.AuthSSHKey)
-	fmt.Println("Common Label:", common.LabelValueSecretTypeRepository)
 
 	updateSecretString(secret, "name", repoCred.SecretObj)
 	updateSecretString(secret, "url", repoCred.PrivateURL)
@@ -245,6 +250,7 @@ func addSecretMetadata(secret *corev1.Secret, secretType string) {
 		secret.Labels = map[string]string{}
 	}
 	secret.Labels[common.LabelKeySecretType] = secretType
+
 }
 
 // secretToRepoCred converts a Secret to a RepositoryCredentials
@@ -260,4 +266,14 @@ func secretToRepoCred(secret *corev1.Secret) (repoCred *db.RepositoryCredentials
 		AuthSSHKey:   string(secret.Data["sshPrivateKey"]),
 		SecretObj:    string(secret.Data["name"]),
 	}
+}
+
+func getSecretLabels(secret *corev1.Secret) []string {
+	var s string
+	var arr []string
+	for key, val := range secret.Labels {
+		s = fmt.Sprintf("%s=\"%s\"", key, val)
+		arr = append(arr, s)
+	}
+	return arr
 }

@@ -119,17 +119,17 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 
 	decodedSecret := secretToRepoCred(argoCDSecret)
 
-	//l.Info("Checking if the Name of the Argo CD Private Repository secret needs to be updated")
-	//if decodedSecret.SecretObj != dbRepositoryCredentials.SecretObj {
-	//	l.Info("Updating Argo CD Private Repository secret name", "secret name", argoCDSecret.Name)
-	//	argoCDSecret.Data["name"] = []byte(dbRepositoryCredentials.SecretObj)
-	//	if err = eventClient.Update(ctx, argoCDSecret); err != nil {
-	//		l.Error(err, errUpdatePrivateSecret, "name")
-	//		return retry, err
-	//	}
-	//} else {
-	//	l.Info("Re: No need the Name of the Argo CD Private Repository secret is the same with the respective RepositoryCredentials db entry")
-	//}
+	l.Info("Checking if the Name of the Argo CD Private Repository secret needs to be updated")
+	if decodedSecret.SecretObj != dbRepositoryCredentials.SecretObj {
+		l.Info("Updating Argo CD Private Repository secret name", "secret name", argoCDSecret.Name)
+		argoCDSecret.Data["name"] = []byte(dbRepositoryCredentials.SecretObj)
+		if err = eventClient.Update(ctx, argoCDSecret); err != nil {
+			l.Error(err, errUpdatePrivateSecret, "name")
+			return retry, err
+		}
+	} else {
+		l.Info("Re: No need the Name of the Argo CD Private Repository secret is the same with the respective RepositoryCredentials db entry")
+	}
 
 	// Check if the secret has the correct Labels
 	l.Info("Checking if the Label of the Argo CD Private Repository secret needs to be updated")

@@ -18,11 +18,16 @@ deploy-postgresql: ## Deploy postgres into Kubernetes and insert 'db-schema.sql'
 	kubectl create namespace gitops 2> /dev/null || true
 	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/manifests/postgresql-staging/postgresql-staging.yaml
 	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/manifests/postgresql-staging/postgresql-staging-secret.yaml	
-	$(MAKEFILE_ROOT)/create-dev-env.sh kube
 
 undeploy-postgresql: ## Undeploy postgres from Kubernetes
 	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/manifests/postgresql-staging/postgresql-staging.yaml
 	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/manifests/postgresql-staging/postgresql-staging-secret.yaml
+
+port-forward-postgress-manual: ## Port forward postgresql manually
+	$(MAKEFILE_ROOT)/create-dev-env.sh kube
+
+port-forward-postgress-auto: ## Port forward postgresql automatically
+	$(MAKEFILE_ROOT)/create-dev-env.sh kube-auto
 	
 ### --- B a c k e n d --- ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~ #
@@ -136,6 +141,10 @@ undeploy-argocd: ## Remove ArgoCD vanilla Web UI
 ### --- F A S T  &  F U R I O U S --- ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
+e2e: build setup-e2e-openshift ## Run e2e tests
+	$(GOBIN)/goreman start &> goreman.log &
+	cd $(MAKEFILE_ROOT)/tests-e2e && ginkgo -v ./... run
+
 install-argocd-openshift: ## Using OpenShift GitOps, install Argo CD to the gitops-service-argocd namespace
 	manifests/openshift-argo-deploy/deploy.sh
 
@@ -149,9 +158,11 @@ uninstall-argocd: ## Uninstall Argo CD from gitops-service-argocd namespace (fro
 devenv-docker: deploy-backend-crd deploy-cluster-agent-crd deploy-appstudio-controller-crd deploy-backend-rbac deploy-cluster-agent-rbac deploy-appstudio-controller-rbac ## Setup local development environment (Postgres via Docker & local operators)
 	$(MAKEFILE_ROOT)/create-dev-env.sh
 
-devenv-k8s: deploy-backend-crd deploy-cluster-agent-crd deploy-backend-rbac deploy-cluster-agent-rbac deploy-postgresql deploy-appstudio-controller ## Setup local development environment (Postgres via k8s & local operators)
+devenv-k8s: deploy-backend-crd deploy-cluster-agent-crd deploy-backend-rbac deploy-cluster-agent-rbac deploy-postgresql port-forward-postgress-manual deploy-appstudio-controller ## Setup local development environment (Postgres via k8s & local operators)
 
-install-all-k8s: deploy-postgresql deploy-backend deploy-cluster-agent deploy-appstudio-controller ## Installs e.g. make deploy-k8s IMG=quay.io/pgeorgia/gitops-service:latest
+devenv-k8s-e2e: deploy-backend-crd deploy-cluster-agent-crd deploy-backend-rbac deploy-cluster-agent-rbac deploy-postgresql port-forward-postgress-auto deploy-appstudio-controller ## Setup local development environment (Postgres via k8s & local operators)
+
+install-all-k8s: deploy-postgresql port-forward-postgress-manual deploy-backend deploy-cluster-agent deploy-appstudio-controller ## Installs e.g. make deploy-k8s IMG=quay.io/pgeorgia/gitops-service:latest
 
 uninstall-all-k8s: undeploy-postgresql undeploy-backend undeploy-cluster-agent undeploy-appstudio-controller
 	kubectl delete namespace gitops
@@ -180,7 +191,7 @@ docker-push: ## Push docker image - note: you have to change the USERNAME var. O
 
 test: test-backend test-backend-shared test-cluster-agent test-appstudio-controller ## Run tests for all components
 
-setup-e2e-openshift: install-argocd-openshift devenv-k8s create-db ## Setup steps for E2E tests to run with Openshift CI
+setup-e2e-openshift: install-argocd-openshift devenv-k8s-e2e ## Setup steps for E2E tests to run with Openshift CI
 
 setup-e2e-local: install-argocd-openshift devenv-docker reset-db ## Setup steps for E2E tests to run with Local Openshift Cluster
 
@@ -198,9 +209,6 @@ download-deps: ## Download goreman to ~/go/bin
 reset-db: ## Erase the current database, and reset it scratch; useful during development if you want a clean slate.
 	$(MAKEFILE_ROOT)/delete-dev-env.sh
 	$(MAKEFILE_ROOT)/create-dev-env.sh
-
-create-db: ## Create a new development database in Kubernetes
-	$(MAKEFILE_ROOT)/create-dev-env.sh kube
 
 vendor: ## Clone locally the dependencies - off-line
 	cd $(MAKEFILE_ROOT)/appstudio-shared && go mod vendor

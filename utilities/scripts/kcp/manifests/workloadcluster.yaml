@@ -4,3 +4,4 @@ metadata:
  name: local
 spec:
  kubeconfig: |
+ 

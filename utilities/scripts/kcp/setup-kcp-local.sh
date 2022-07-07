@@ -61,14 +61,14 @@ install-build-kcp-binaries() {
 kcp-init() {
   printf "\nInitiating KCP server ...\n"
   pushd "${TMP_DIR}"
-  pwd
+  printf "Current Directory:" pwd
   "$($KCP_DIR/bin/kcp start)" &> "${TMP_DIR}/kcp.log" &
   KCP_PID=$!
   printf "KCP server started: %s\n" $KCP_PID
   touch "${TMP_DIR}/kcp-started"
   printf "\n\n----------------------------------\n\n"
   printf "\nKCP ready: %s\n" $?
-
+  popd
 }
 
 # wait for the passed function to complete the expected result with timeout instructions
@@ -115,10 +115,11 @@ CR_TOSYNC=(
 
 # Adds a workload cluster to KCP
 add-workload-cluster() {
-  exit_if_binary_not_installed "kubectl kcp"
+  exit_if_binary_not_installed "kubectl-kcp"
   # First, we need to add a workloadcluster to the kcp in order to sync resources
   cat $(kubectl -v 99 config current-context 2>&1 | grep file: | awk -F ': ' '{print $2}' | xargs) > ${TMP_DIR}/local_kubeconfig
-  KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig sed -e 's/^/    /' ${TMP_DIR}/local_kubeconfig | cat ./manifests/workloadcluster.yaml - | kubectl apply -f -
+  printf "Current Directory:" pwd
+  KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig sed -e 's/^/    /' ${TMP_DIR}/local_kubeconfig | cat ./utilities/scripts/kcp/manifests/workloadcluster.yaml - | kubectl apply -f -
 
   # Then we add a syncer to kcp to sync the given resources to sync
   cr_string="$(IFS=,; echo "${CR_TOSYNC[*]}")"
@@ -127,6 +128,8 @@ add-workload-cluster() {
   --syncer-image ghcr.io/kcp-dev/kcp/syncer:release-0.5 \ # we are using the stable release-0.5 tag for this
   --resources "$cr_string" > "${TMP_DIR}/syncer.yaml"
   kubectl apply -f "${TMP_DIR}/syncer.yaml" >/dev/null 2>&1
+
+  printf "Add workload cluster ran successfully!"
 }
 
 # install ArgoCD manifests in the argocd namespace
@@ -162,8 +165,14 @@ test-gitops-service-e2e-in-kcp() {
 create-workspace() {
     printf "Creating a org dev workspace: dev-work"
     kcp_ws="dev-work"
-    exit_if_binary_not_installed "kubectl kcp"
+    exit_if_binary_not_installed "kubectl-kcp"
     KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl kcp workspaces create $kcp_ws --enter
+}
+
+cleanup() {
+  pkill kcp
+  rm -rf ${TMP_DIR}
+  rm -rf ${KCP_DIR}
 }
 
 # Steps to setup KCP
@@ -172,10 +181,10 @@ install-build-kcp-binaries
 TMP_DIR="$(mktemp -d -t kcp-gitops-service.XXXXXXXXX)"
 printf "Temporary directory created: %s\n" "${TMP_DIR}"
 kcp-init $TMP_DIR $KCP_DIR
-wait_for 30 check_if_kcp_is_ready $TMP_DIR
+wait_for 100 check_if_kcp_is_ready $TMP_DIR
 
 # Once, KCP is up and running add a workloadcluster to it
-add-workload-cluster $TMP_DIR
+  add-workload-cluster $TMP_DIR
 # Create a workspace for development purposes
 create-workspace $TMP_DIR
 # install argocd in KCP workspace
@@ -185,3 +194,6 @@ install-gitops-service-in-kcp $TMP_DIR
 
 # run the service and test e2e against the cluster
 test-gitops-service-e2e-in-kcp $TMP_DIR
+
+# cleanup directories and process once the script is ran successfully
+cleanup $TMP_DIR $KCP_DIR

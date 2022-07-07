@@ -1,0 +1,6 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeploymentManagedEnvironment
+metadata:
+  name: gitopsdeploymentmanagedenvironment-sample
+spec:
+  # TODO(user): Add fields here

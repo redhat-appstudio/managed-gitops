@@ -8,7 +8,8 @@ import (
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/uuid"
@@ -16,7 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-func GenericTestSetupForTestingT(t *testing.T) (*runtime.Scheme, *v1.Namespace, *v1.Namespace, *v1.Namespace) {
+func GenericTestSetupForTestingT(t *testing.T) (*runtime.Scheme, *corev1.Namespace, *corev1.Namespace, *corev1.Namespace) {
 
 	scheme, argocdNamespace, kubesystemNamespace, workspace, err := GenericTestSetup()
 	assert.NoError(t, err)
@@ -25,7 +26,7 @@ func GenericTestSetupForTestingT(t *testing.T) (*runtime.Scheme, *v1.Namespace, 
 
 }
 
-func GenericTestSetup() (*runtime.Scheme, *v1.Namespace, *v1.Namespace, *v1.Namespace, error) {
+func GenericTestSetup() (*runtime.Scheme, *corev1.Namespace, *corev1.Namespace, *corev1.Namespace, error) {
 	scheme := runtime.NewScheme()
 
 	opts := zap.Options{
@@ -42,7 +43,7 @@ func GenericTestSetup() (*runtime.Scheme, *v1.Namespace, *v1.Namespace, *v1.Name
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	err = v1.AddToScheme(scheme)
+	err = corev1.AddToScheme(scheme)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -52,31 +53,36 @@ func GenericTestSetup() (*runtime.Scheme, *v1.Namespace, *v1.Namespace, *v1.Name
 		return nil, nil, nil, nil, err
 	}
 
-	argocdNamespace := &v1.Namespace{
+	err = rbacv1.AddToScheme(scheme)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+
+	argocdNamespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      dbutil.GetGitOpsEngineSingleInstanceNamespace(),
 			UID:       uuid.NewUUID(),
 			Namespace: dbutil.GetGitOpsEngineSingleInstanceNamespace(),
 		},
-		Spec: v1.NamespaceSpec{},
+		Spec: corev1.NamespaceSpec{},
 	}
 
-	kubesystemNamespace := &v1.Namespace{
+	kubesystemNamespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "kube-system",
 			UID:       uuid.NewUUID(),
 			Namespace: "kube-system",
 		},
-		Spec: v1.NamespaceSpec{},
+		Spec: corev1.NamespaceSpec{},
 	}
 
-	namespace := &v1.Namespace{
+	namespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-user",
 			UID:       uuid.NewUUID(),
 			Namespace: "my-user",
 		},
-		Spec: v1.NamespaceSpec{},
+		Spec: corev1.NamespaceSpec{},
 	}
 
 	return scheme, argocdNamespace, kubesystemNamespace, namespace, nil

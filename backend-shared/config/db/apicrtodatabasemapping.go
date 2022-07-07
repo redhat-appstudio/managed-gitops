@@ -146,13 +146,13 @@ func (dbq *PostgreSQLDatabaseQueries) ListAPICRToDatabaseMappingByAPINamespaceAn
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllAPICRToDatabaseMappings(ctx context.Context, applicationStates *[]APICRToDatabaseMapping) error {
+func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllAPICRToDatabaseMappings(ctx context.Context, mappings *[]APICRToDatabaseMapping) error {
 
 	if err := validateUnsafeQueryParamsNoPK(dbq); err != nil {
 		return err
 	}
 
-	if err := dbq.dbConnection.Model(applicationStates).Context(ctx).Select(); err != nil {
+	if err := dbq.dbConnection.Model(mappings).Context(ctx).Select(); err != nil {
 		return err
 	}
 

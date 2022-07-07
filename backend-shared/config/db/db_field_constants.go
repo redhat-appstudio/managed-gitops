@@ -11,7 +11,7 @@ const (
 	ClusterCredentialsHostLength                                            = 512
 	ClusterCredentialsKubeConfigLength                                      = 65000
 	ClusterCredentialsKubeConfigContextLength                               = 64
-	ClusterCredentialsServiceaccountBearerTokenLength                       = 128
+	ClusterCredentialsServiceaccountBearerTokenLength                       = 2048
 	ClusterCredentialsServiceaccountNsLength                                = 128
 	GitopsEngineClusterGitopsengineclusterIDLength                          = 48
 	GitopsEngineInstanceGitopsengineinstanceIDLength                        = 48

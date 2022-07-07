@@ -25,19 +25,22 @@ var _ = Describe("Service Account Tests", func() {
 		kubeSystemNamespace := "kube-system"
 		var k8sClient client.Client
 
-		// TEST: Create Service Account
-		GinkgoWriter.Println("creating a service account on remote cluster!")
-
-		config, err := ctrl.GetConfig()
-		if err != nil {
-			GinkgoWriter.Println("Skipping service account creation tests, because a K8s config could not be found.")
-			return
-		}
-		Expect(err).To(BeNil())
-
 		BeforeEach(func() {
+			// TEST: Create Service Account
+			GinkgoWriter.Println("creating a service account on remote cluster!")
+
+			config, err := ctrl.GetConfig()
+			if err != nil {
+				Skip("Skipping service account creation tests, because a K8s config could not be found.")
+				return
+			}
+			Expect(err).To(BeNil())
 
 			k8sClient, err = client.New(config, client.Options{Scheme: scheme.Scheme})
+			if strings.Contains(err.Error(), "no such host") {
+				Skip("Skipping K8s test because there is no accessible K8s cluster")
+				return
+			}
 			Expect(err).To(BeNil())
 
 			namespace := &corev1.Namespace{

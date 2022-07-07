@@ -31,11 +31,13 @@ deploy-backend-crd: ## Deploy backend related CRDs
 	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeployments.yaml
 	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentsyncruns.yaml
 	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentrepositorycredentials.yaml
+	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentmanagedenvironments.yaml
 
 undeploy-backend-crd: ## Remove backend related CRDs
 	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeployments.yaml
 	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentsyncruns.yaml
 	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentrepositorycredentials.yaml
+	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentmanagedenvironments.yaml
 
 deploy-backend-rbac: ## Deploy backend related RBAC resouces
 	kubectl create namespace gitops 2> /dev/null || true

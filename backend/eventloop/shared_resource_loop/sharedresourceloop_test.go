@@ -160,65 +160,48 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			go internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
 
 			// At first assuming there are no existing resources, hence creating new.
-			clusterUserOld,
-				isNewUser,
-				managedEnvOld,
-				isNewManagedEnv,
-				gitopsEngineInstanceOld,
-				isNewInstance,
-				clusterAccessOld,
-				isNewClusterAccess,
-				gitopsEngineClusterOld,
-				err := sharedResourceEventLoop.GetOrCreateSharedResources(ctx, k8sClient, *namespace)
+			sharedResourceOld, err := sharedResourceEventLoop.ReconcileSharedManagedEnv(ctx, k8sClient, *namespace, "", "", true, DefaultK8sClientFactory{})
 
 			Expect(err).To(BeNil())
-			Expect(clusterUserOld).NotTo(BeNil())
-			Expect(managedEnvOld).NotTo(BeNil())
-			Expect(gitopsEngineInstanceOld).NotTo(BeNil())
-			Expect(clusterAccessOld).NotTo(BeNil())
+			Expect(sharedResourceOld.ClusterUser).NotTo(BeNil())
+			Expect(sharedResourceOld.ManagedEnv).NotTo(BeNil())
+			Expect(sharedResourceOld.GitopsEngineInstance).NotTo(BeNil())
+			Expect(sharedResourceOld.ClusterAccess).NotTo(BeNil())
 
-			Expect(isNewUser).To(BeTrue())
-			Expect(isNewManagedEnv).To(BeTrue())
-			Expect(isNewInstance).To(BeTrue())
-			Expect(isNewClusterAccess).To(BeTrue())
+			Expect(sharedResourceOld.IsNewUser).To(BeTrue())
+			Expect(sharedResourceOld.IsNewManagedEnv).To(BeTrue())
+			Expect(sharedResourceOld.IsNewInstance).To(BeTrue())
+			Expect(sharedResourceOld.IsNewClusterAccess).To(BeTrue())
 
 			// Resources are created in previous call, then same resources should be returned instead of creating new.
-			clusterUserNew,
-				isNewUser,
-				managedEnvNew,
-				isNewManagedEnv,
-				gitopsEngineInstanceNew,
-				isNewInstance,
-				clusterAccessNew,
-				isNewClusterAccess,
-				_, err := sharedResourceEventLoop.GetOrCreateSharedResources(ctx, k8sClient, *namespace)
+			sharedResourceNew, err := sharedResourceEventLoop.ReconcileSharedManagedEnv(ctx, k8sClient, *namespace, "", "", true, DefaultK8sClientFactory{})
 
 			Expect(err).To(BeNil())
-			Expect(clusterUserNew).NotTo(BeNil())
-			Expect(managedEnvNew).NotTo(BeNil())
-			Expect(gitopsEngineInstanceNew).NotTo(BeNil())
-			Expect(clusterAccessNew).NotTo(BeNil())
+			Expect(sharedResourceNew.ClusterUser).NotTo(BeNil())
+			Expect(sharedResourceNew.ManagedEnv).NotTo(BeNil())
+			Expect(sharedResourceNew.GitopsEngineInstance).NotTo(BeNil())
+			Expect(sharedResourceNew.ClusterAccess).NotTo(BeNil())
 
-			Expect(isNewUser).To(BeFalse())
-			Expect(isNewManagedEnv).To(BeFalse())
-			Expect(isNewInstance).To(BeFalse())
-			Expect(isNewClusterAccess).To(BeFalse())
+			Expect(sharedResourceNew.IsNewUser).To(BeFalse())
+			Expect(sharedResourceNew.IsNewManagedEnv).To(BeFalse())
+			Expect(sharedResourceNew.IsNewInstance).To(BeFalse())
+			Expect(sharedResourceNew.IsNewClusterAccess).To(BeFalse())
 
-			Expect(clusterUserOld).To(Equal(clusterUserNew))
-			Expect(managedEnvOld).To(Equal(managedEnvNew))
-			Expect(gitopsEngineInstanceOld).To(Equal(gitopsEngineInstanceNew))
-			Expect(clusterAccessOld).To(Equal(clusterAccessNew))
+			Expect(sharedResourceOld.ClusterUser).To(Equal(sharedResourceNew.ClusterUser))
+			Expect(sharedResourceOld.ManagedEnv).To(Equal(sharedResourceNew.ManagedEnv))
+			Expect(sharedResourceOld.GitopsEngineInstance).To(Equal(sharedResourceNew.GitopsEngineInstance))
+			Expect(sharedResourceOld.ClusterAccess).To(Equal(sharedResourceNew.ClusterAccess))
 
 			// To be used by AfterEach to clean up the resources created by test
 			resourcesToBeDeleted = testResources{
-				Clusteruser_id:          clusterUserOld.Clusteruser_id,
-				Managedenvironment_id:   managedEnvOld.Managedenvironment_id,
-				Gitopsengineinstance_id: gitopsEngineInstanceOld.Gitopsengineinstance_id,
-				clusterAccess:           clusterAccessOld,
-				EngineCluster_id:        gitopsEngineInstanceOld.EngineCluster_id,
+				Clusteruser_id:          sharedResourceOld.ClusterUser.Clusteruser_id,
+				Managedenvironment_id:   sharedResourceOld.ManagedEnv.Managedenvironment_id,
+				Gitopsengineinstance_id: sharedResourceOld.GitopsEngineInstance.Gitopsengineinstance_id,
+				clusterAccess:           sharedResourceOld.ClusterAccess,
+				EngineCluster_id:        sharedResourceOld.GitopsEngineInstance.EngineCluster_id,
 				Clustercredentials_id: []string{
-					gitopsEngineClusterOld.Clustercredentials_id,
-					managedEnvOld.Clustercredentials_id,
+					sharedResourceOld.GitopsEngineCluster.Clustercredentials_id,
+					sharedResourceOld.ManagedEnv.Clustercredentials_id,
 				},
 			}
 		})
@@ -250,7 +233,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			gitopsEngineInstance := db.GitopsEngineInstance{
 				Gitopsengineinstance_id: string(uuid.NewUUID()),
-				Namespace_name:          namespace.Namespace,
+				Namespace_name:          namespace.Name,
 				Namespace_uid:           string(namespace.UID),
 				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 			}

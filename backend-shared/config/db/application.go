@@ -108,7 +108,6 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedCreateApplication(ctx context.Conte
 
 	if err := isEmptyValues("CreateApplication",
 		"Engine_instance_inst_id", obj.Engine_instance_inst_id,
-		"Managed_environment_id", obj.Managed_environment_id,
 		"Spec_field", obj.Spec_field,
 		"Name", obj.Name); err != nil {
 		return err
@@ -211,7 +210,6 @@ func (dbq *PostgreSQLDatabaseQueries) CreateApplication(ctx context.Context, obj
 
 	if err := isEmptyValues("CreateApplication",
 		"Engine_instance_inst_id", obj.Engine_instance_inst_id,
-		"Managed_environment_id", obj.Managed_environment_id,
 		"Spec_field", obj.Spec_field,
 		"Name", obj.Name); err != nil {
 		return err
@@ -240,7 +238,6 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateApplication(ctx context.Context, obj
 	if err := isEmptyValues("UpdateApplication",
 		"Application_id", obj.Application_id,
 		"Engine_instance_inst_id", obj.Engine_instance_inst_id,
-		"Managed_environment_id", obj.Managed_environment_id,
 		"Spec_field", obj.Spec_field,
 		"Name", obj.Name); err != nil {
 		return err
@@ -263,6 +260,58 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateApplication(ctx context.Context, obj
 
 }
 
+// RemoveManagedEnvironmentFromAllApplications update the 'managed_environment_id' field to null
+// for all Applications that reference a specific managed environment. This function is used while
+// deleting a managed environment.
+//
+// Note: this function is not guaranteed to update all applications: it is possible that another thread
+//       could create an Application after step 1. The logic of calling functions should expect and
+//       handle this behaviour.
+func (dbq *PostgreSQLDatabaseQueries) RemoveManagedEnvironmentFromAllApplications(ctx context.Context,
+	managedEnvironmentID string, applications *[]Application) (int, error) {
+
+	if err := validateQueryParams(managedEnvironmentID, dbq); err != nil {
+		return 0, err
+	}
+
+	// 1) Retrieve all applications which are targetting this managed_environment
+	err := dbq.dbConnection.Model(applications).Context(ctx).Where("managed_environment_id = ?", managedEnvironmentID).Select()
+	if err != nil {
+		return 0, fmt.Errorf("unable to retrieve applications with managed environment id: %v", err)
+	}
+
+	// 2) For each application, nil the managed_environment_id field
+	for appIndex := range *applications {
+		app := (*applications)[appIndex]
+		app.Managed_environment_id = ""
+
+		if err := dbq.UpdateApplication(ctx, &app); err != nil {
+			return 0, fmt.Errorf("unable to update application '%s': %v", app.Application_id, err)
+		}
+	}
+
+	return len(*applications), nil
+
+}
+
+// ListApplicationsForManagedEnvironment returns a list of all Applications that reference the specified ManagedEnvironment row
+func (dbq *PostgreSQLDatabaseQueries) ListApplicationsForManagedEnvironment(ctx context.Context,
+	managedEnvironmentID string, applications *[]Application) (int, error) {
+
+	if err := validateQueryParams(managedEnvironmentID, dbq); err != nil {
+		return 0, err
+	}
+
+	// 1) Retrieve all applications which are targetting this managed_environment
+	err := dbq.dbConnection.Model(applications).Context(ctx).Where("managed_environment_id = ?", managedEnvironmentID).Select()
+	if err != nil {
+		return 0, fmt.Errorf("unable to retrieve applications with managed environment id: %v", err)
+	}
+
+	return len(*applications), nil
+
+}
+
 // Get applications in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
 // For example if you want applications starting from 51-150 then set the limit to 100 and offset to 50.
 func (dbq *PostgreSQLDatabaseQueries) GetApplicationBatch(ctx context.Context, applications *[]Application, limit, offSet int) error {
@@ -278,4 +327,14 @@ func (dbq *PostgreSQLDatabaseQueries) GetApplicationBatch(ctx context.Context, a
 		return err
 	}
 	return nil
+}
+
+func (app *Application) DisposeAppScoped(ctx context.Context, dbq ApplicationScopedQueries) error {
+
+	if err := isEmptyValues("DisposeAppScoped-Application", "dbq", dbq); err != nil {
+		return err
+	}
+	_, err := dbq.DeleteApplicationById(ctx, app.Application_id)
+
+	return err
 }

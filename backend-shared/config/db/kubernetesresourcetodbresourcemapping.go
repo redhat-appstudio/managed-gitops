@@ -118,3 +118,12 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllKubernetesResourceToDBResourc
 
 	return nil
 }
+
+func (obj *KubernetesToDBResourceMapping) Dispose(ctx context.Context, dbq DatabaseQueries) error {
+	if dbq == nil {
+		return fmt.Errorf("missing database interface in KubernetesToDBResourceMapping dispose")
+	}
+
+	_, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, obj)
+	return err
+}

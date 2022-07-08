@@ -184,3 +184,14 @@ func (dbq *PostgreSQLDatabaseQueries) GetOrCreateSpecialClusterUser(ctx context.
 	}
 	return nil
 }
+
+var _ DisposableResource = &ClusterUser{}
+
+func (obj *ClusterUser) Dispose(ctx context.Context, dbq DatabaseQueries) error {
+	if dbq == nil {
+		return fmt.Errorf("missing database interface in ClusterUser dispose")
+	}
+
+	_, err := dbq.DeleteClusterUserById(ctx, obj.Clusteruser_id)
+	return err
+}

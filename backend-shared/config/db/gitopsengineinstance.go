@@ -210,3 +210,12 @@ func (dbq *PostgreSQLDatabaseQueries) internalDeleteGitopsEngineInstanceById(ctx
 
 	return deleteResult.RowsAffected(), nil
 }
+
+func (obj *GitopsEngineInstance) Dispose(ctx context.Context, dbq DatabaseQueries) error {
+	if dbq == nil {
+		return fmt.Errorf("missing database interface in GitopsEngineInstance dispose")
+	}
+
+	_, err := dbq.DeleteGitopsEngineInstanceById(ctx, obj.Gitopsengineinstance_id)
+	return err
+}

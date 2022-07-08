@@ -3,10 +3,9 @@ package argoprojio
 import (
 	"context"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	appEventLoop "github.com/redhat-appstudio/managed-gitops/backend/eventloop/application_event_loop"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/util/fauxargocd"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
@@ -16,7 +15,6 @@ import (
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
-	cache "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
@@ -534,7 +532,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			for _, k8sOperation := range listOfK8sOperation.Items {
 				// Look for Operation created by Namespace Reconciler.
-				if k8sOperation.Annotations[appEventLoop.IdentifierKey] == appEventLoop.IdentifierValue {
+				if k8sOperation.Annotations[eventlooptypes.IdentifierKey] == eventlooptypes.IdentifierValue {
 					rowsAffected, err := dbQueries.DeleteOperationById(ctx, k8sOperation.Spec.OperationID)
 					Expect(err).To(BeNil())
 					Expect(rowsAffected).Should((Equal(1)))
@@ -565,7 +563,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			count := 0
 			for _, k8sOperation := range listOfK8sOperation.Items {
 				// Look for Operation created by Namespace Reconciler.
-				if k8sOperation.Annotations[appEventLoop.IdentifierKey] == appEventLoop.IdentifierValue {
+				if k8sOperation.Annotations[eventlooptypes.IdentifierKey] == eventlooptypes.IdentifierValue {
 					// Fetch corresponding DB entry
 					dbOperation := db.Operation{
 						Operation_id: k8sOperation.Spec.OperationID,
@@ -607,7 +605,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			for _, k8sOperation := range listOfK8sOperation.Items {
 				// Look for Operation created by Namespace Reconciler.
-				if k8sOperation.Annotations[appEventLoop.IdentifierKey] == appEventLoop.IdentifierValue {
+				if k8sOperation.Annotations[eventlooptypes.IdentifierKey] == eventlooptypes.IdentifierValue {
 					// Fetch corresponding DB entry
 					dbOperation := db.Operation{
 						Operation_id: k8sOperation.Spec.OperationID,
@@ -647,7 +645,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			for _, k8sOperation := range listOfK8sOperation.Items {
 				// Look for Operation created by Namespace Reconciler.
-				if k8sOperation.Annotations[appEventLoop.IdentifierKey] == appEventLoop.IdentifierValue {
+				if k8sOperation.Annotations[eventlooptypes.IdentifierKey] == eventlooptypes.IdentifierValue {
 					// Fetch corresponding DB entry
 					dbOperation := db.Operation{
 						Operation_id: k8sOperation.Spec.OperationID,
@@ -835,8 +833,8 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 				Resource_type: db.OperationResourceType_Application,
 			}
 
-			_, dbOperation, err := appEventLoop.CreateOperation(ctx, false, dbOperationInput,
-				db.SpecialClusterUserName, cache.GetGitOpsEngineSingleInstanceNamespace(), reconciler.DB, reconciler.Client, log)
+			_, dbOperation, err := eventlooptypes.CreateOperation(ctx, false, dbOperationInput,
+				db.SpecialClusterUserName, dbutil.GetGitOpsEngineSingleInstanceNamespace(), reconciler.DB, reconciler.Client, log)
 			Expect(err).To(BeNil())
 
 			dbOperation.State = "Completed"
@@ -872,8 +870,8 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 				Resource_type: db.OperationResourceType_Application,
 			}
 
-			_, dbOperation, err := appEventLoop.CreateOperation(ctx, false, dbOperationInput,
-				db.SpecialClusterUserName, cache.GetGitOpsEngineSingleInstanceNamespace(), reconciler.DB, reconciler.Client, log)
+			_, dbOperation, err := eventlooptypes.CreateOperation(ctx, false, dbOperationInput,
+				db.SpecialClusterUserName, dbutil.GetGitOpsEngineSingleInstanceNamespace(), reconciler.DB, reconciler.Client, log)
 			Expect(err).To(BeNil())
 
 			operationList = append(operationList, *dbOperation)

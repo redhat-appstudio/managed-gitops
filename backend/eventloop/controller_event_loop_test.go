@@ -16,7 +16,7 @@ var _ = Describe("Controller Event Loop Test", func() {
 		It("Should pass events received on input channel to mock workspace event loop router", func() {
 
 			mockOutputChannelFactory := &mockWorkspaceEventLoopFactory{
-				mockChannel: make(chan eventlooptypes.EventLoopMessage),
+				mockChannel: make(chan workspaceEventLoopMessage),
 			}
 
 			loop := newControllerEventLoopWithFactory(mockOutputChannelFactory)
@@ -44,12 +44,14 @@ var _ = Describe("Controller Event Loop Test", func() {
 
 // mockWorkspaceEventLoopFactory is a mock of workspaceEventLoopRouterFactory
 type mockWorkspaceEventLoopFactory struct {
-	mockChannel chan eventlooptypes.EventLoopMessage
+	mockChannel chan workspaceEventLoopMessage
 }
 
 var _ workspaceEventLoopRouterFactory = &mockWorkspaceEventLoopFactory{}
 
-func (cetf *mockWorkspaceEventLoopFactory) startWorkspaceEventLoopRouter(workspaceID string) chan eventlooptypes.EventLoopMessage {
+func (cetf *mockWorkspaceEventLoopFactory) startWorkspaceEventLoopRouter(workspaceID string) WorkspaceEventLoopRouterStruct {
 	// Rather than starting a new workspace event loop, instead just return a pre-provided channel
-	return cetf.mockChannel
+	return WorkspaceEventLoopRouterStruct{
+		channel: cetf.mockChannel,
+	}
 }

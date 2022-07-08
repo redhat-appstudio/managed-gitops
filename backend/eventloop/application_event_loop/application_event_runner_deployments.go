@@ -12,6 +12,8 @@ import (
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	argocdutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
+	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend/condition"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
@@ -56,7 +58,6 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 	deplName := a.eventResourceName
 	deplNamespace := a.eventResourceNamespace
 	workspaceClient := a.workspaceClient
-
 	log := a.log
 
 	gitopsDeplNamespace := corev1.Namespace{}
@@ -69,7 +70,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 		return false, nil, nil, deploymentModifiedResult_Failed, fmt.Errorf("unable to retrieve cluster user in handleDeploymentModified, '%s': %v", string(gitopsDeplNamespace.UID), err)
 	}
 
-	// Retrieve the GitOpsDeployment from the namespace
+	// 1) Retrieve the GitOpsDeployment from the namespace
 	gitopsDeploymentCRExists := true // True if the GitOpsDeployment resource exists in the namespace, false otherwise
 	gitopsDeployment := &managedgitopsv1alpha1.GitOpsDeployment{}
 	{
@@ -86,12 +87,12 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 		}
 	}
 
-	// Next, retrieve the corresponding database for the gitopsdepl, if applicable
+	// 2) Next, retrieve the corresponding database for the gitopsdepl, if applicable
 	deplToAppMapExistsInDB := false
 
 	var deplToAppMappingList []db.DeploymentToApplicationMapping
 	if gitopsDeploymentCRExists {
-		// The CR exists, so use the UID of the CR to retrieve the database entry, if possible
+		// 2a) The CR exists, so use the UID of the CR to retrieve the database entry, if possible
 		deplToAppMapping := &db.DeploymentToApplicationMapping{Deploymenttoapplicationmapping_uid_id: string(gitopsDeployment.UID)}
 
 		if err = dbQueries.GetDeploymentToApplicationMappingByDeplId(ctx, deplToAppMapping); err != nil {
@@ -108,7 +109,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 			deplToAppMapExistsInDB = true
 		}
 	} else {
-		// The CR no longer exists (it was likely deleted), so instead we retrieve the UID of the GitOpsDeployment from
+		// 2b) The CR no longer exists (it was likely deleted), so instead we retrieve the UID of the GitOpsDeployment from
 		// the DeploymentToApplicationMapping table, by combination of (name/namespace/workspace).
 
 		if err := dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(ctx, deplName, deplNamespace,
@@ -132,22 +133,22 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 	log.V(sharedutil.LogLevel_Debug).Info("workspacerEventLoopRunner_handleDeploymentModified processing event",
 		"gitopsDeploymentExists", gitopsDeploymentCRExists, "deplToAppMapExists", deplToAppMapExistsInDB)
 
-	// Next, the work that we need below depends on how the CR differs from the DB entry
+	// 3) Next, the work that we need below depends on how the CR differs from the DB entry
 
 	if !gitopsDeploymentCRExists && !deplToAppMapExistsInDB {
-		// if neither exists, our work is done
+		// 3a) if neither exists, our work is done
 		return false, nil, nil, deploymentModifiedResult_Failed, nil
 	}
 
 	if gitopsDeploymentCRExists && !deplToAppMapExistsInDB {
-		// If the gitopsdepl CR exists, but the database entry doesn't,
+		// 3b) If the gitopsdepl CR exists, but the database entry doesn't,
 		// then this is the first time we have seen the GitOpsDepl CR.
 		// Create it in the DB and create the operation.
 		return a.handleNewGitOpsDeplEvent(ctx, gitopsDeployment, clusterUser, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries)
 	}
 
 	if !gitopsDeploymentCRExists && deplToAppMapExistsInDB {
-		// If the gitopsdepl CR doesn't exist, but the database row does, then the CR has been deleted, so handle it.
+		// 3c) If the gitopsdepl CR doesn't exist, but the database row does, then the CR has been deleted, so handle it.
 		signalShutdown, err := a.handleDeleteGitOpsDeplEvent(ctx, clusterUser, dbutil.GetGitOpsEngineSingleInstanceNamespace(),
 			&deplToAppMappingList, dbQueries)
 
@@ -162,7 +163,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 			return false, nil, nil, deploymentModifiedResult_Failed, err
 		}
 
-		// if both exist: it's an update (or a no-op)
+		// 3d) if both exist: it's an update (or a no-op)
 		return a.handleUpdatedGitOpsDeplEvent(ctx, &deplToAppMappingList[0], gitopsDeployment, clusterUser,
 			dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries)
 	}
@@ -173,33 +174,48 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 // handleNewGitOpsDeplEvent handles GitOpsDeployment events where the user has just created a new GitOpsDeployment resource.
 // In this case, we need to create Application and DeploymentToApplicationMapping rows in the database (among others).
 //
-// Finally, we need to inform the cluster-agent component, so that it configures Argo CD.
+// Finally, we need to inform the cluster-agent component (via Operation), so that it configures Argo CD.
 //
 // Returns:
-// - true if the goroutine responsible for this application can shutdown (e.g. because the GitOpsDeployment no longer exists, so no longer needs to be processed), false otherwise.
+// - true if the goroutine responsible for this application can shutdown (e.g. because the GitOpsDeployment
+//   no longer exists, so no longer needs to be processed), false otherwise.
 // - references to the Application and GitOpsEngineInstance database fields.
 // - error is non-nil, if an error occurred
-func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.Context, gitopsDeployment *managedgitopsv1alpha1.GitOpsDeployment,
-	clusterUser *db.ClusterUser, operationNamespace string, dbQueries db.ApplicationScopedQueries) (bool, *db.Application, *db.GitopsEngineInstance, deploymentModifiedResult, error) {
+func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.Context,
+	gitopsDeployment *managedgitopsv1alpha1.GitOpsDeployment, clusterUser *db.ClusterUser, operationNamespace string,
+	dbQueries db.ApplicationScopedQueries) (bool, *db.Application, *db.GitopsEngineInstance, deploymentModifiedResult, error) {
 
 	gitopsDeplNamespace := corev1.Namespace{}
-	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: gitopsDeployment.ObjectMeta.Namespace, Name: gitopsDeployment.ObjectMeta.Namespace}, &gitopsDeplNamespace); err != nil {
-		return false, nil, nil, deploymentModifiedResult_Failed, fmt.Errorf("unable to retrieve namespace for managed env, '%s': %v", gitopsDeployment.ObjectMeta.Namespace, err)
+	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: gitopsDeployment.ObjectMeta.Namespace,
+		Name: gitopsDeployment.ObjectMeta.Namespace}, &gitopsDeplNamespace); err != nil {
+
+		return false, nil, nil, deploymentModifiedResult_Failed,
+			fmt.Errorf("unable to retrieve namespace for managed env, '%s': %v", gitopsDeployment.ObjectMeta.Namespace, err)
 	}
 
-	_, _, managedEnv, _, engineInstance, _, _, _, _, err := a.sharedResourceEventLoop.GetOrCreateSharedResources(ctx, a.workspaceClient, gitopsDeplNamespace)
-
+	isWorkspaceTarget := gitopsDeployment.Spec.Destination.Environment == ""
+	managedEnv, engineInstance, destinationName, err := a.reconcileManagedEnvironmentOfGitOpsDeployment(ctx, *gitopsDeployment,
+		gitopsDeplNamespace, isWorkspaceTarget)
 	if err != nil {
-		a.log.Error(err, "unable to get or create required db entries on deployment modified event")
-
-		return false, nil, nil, deploymentModifiedResult_Failed, err
+		return false, nil, nil, deploymentModifiedResult_Failed,
+			fmt.Errorf("unable to get or create managed environment, isworkspacetarget:%v: %v", isWorkspaceTarget, err)
 	}
 
-	appName := "gitopsdepl-" + string(gitopsDeployment.UID)
+	if engineInstance == nil {
+		return false, nil, nil, deploymentModifiedResult_Failed, fmt.Errorf("unable to locate managed environment for new application")
+	}
 
+	appName := argocdutil.GenerateArgoCDApplicationName(string(gitopsDeployment.UID))
+
+	// If the user specified a value, always use it. If not, use the API resource namespace (but only in the workspace target case)
 	destinationNamespace := gitopsDeployment.Spec.Destination.Namespace
+	if isWorkspaceTarget {
+		if destinationNamespace == "" {
+			destinationNamespace = a.eventResourceNamespace
+		}
+	}
 	if destinationNamespace == "" {
-		destinationNamespace = a.eventResourceNamespace
+		return false, nil, nil, deploymentModifiedResult_Failed, fmt.Errorf("invalid destination namespace: %s", destinationNamespace)
 	}
 
 	specFieldInput := argoCDSpecInput{
@@ -207,7 +223,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		crNamespace:          engineInstance.Namespace_name,
 		destinationNamespace: destinationNamespace,
 		// TODO: GITOPSRVCE-66 - Fill this in with cluster credentials
-		destinationName:      "in-cluster",
+		destinationName:      destinationName,
 		sourceRepoURL:        gitopsDeployment.Spec.Source.RepoURL,
 		sourcePath:           gitopsDeployment.Spec.Source.Path,
 		sourceTargetRevision: gitopsDeployment.Spec.Source.TargetRevision,
@@ -220,10 +236,15 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		return false, nil, nil, deploymentModifiedResult_Failed, err
 	}
 
+	var targetManagedEnvId string
+	if managedEnv != nil {
+		targetManagedEnvId = managedEnv.Managedenvironment_id
+	}
+
 	application := db.Application{
 		Name:                    appName,
 		Engine_instance_inst_id: engineInstance.Gitopsengineinstance_id,
-		Managed_environment_id:  managedEnv.Managedenvironment_id,
+		Managed_environment_id:  targetManagedEnvId,
 		Spec_field:              specFieldText,
 	}
 
@@ -262,7 +283,8 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		return false, nil, nil, deploymentModifiedResult_Failed, err
 	}
 
-	k8sOperation, dbOperation, err := CreateOperation(ctx, true && !a.testOnlySkipCreateOperation, dbOperationInput,
+	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
+	k8sOperation, dbOperation, err := eventlooptypes.CreateOperation(ctx, waitForOperation, dbOperationInput,
 		clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, a.log)
 	if err != nil {
 		a.log.Error(err, "could not create operation", "namespace", operationNamespace)
@@ -324,6 +346,37 @@ func (a applicationEventLoopRunner_Action) handleDeleteGitOpsDeplEvent(ctx conte
 	return signalShutdown, allErrors
 }
 
+// Note: this function will return a nil ManagedEnvironment and/or GitOpsEngineInstance if the ManagedEnvironment
+// doesn't exist (for example, because it was deleted)
+func (a applicationEventLoopRunner_Action) reconcileManagedEnvironmentOfGitOpsDeployment(ctx context.Context,
+	gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment, gitopsDeplNamespace corev1.Namespace,
+	isWorkspaceTarget bool) (*db.ManagedEnvironment,
+	*db.GitopsEngineInstance, string, error) {
+
+	// Ask the event loop to ensure that the managed environment exists, is up-to-date, and is valid (can be connected to using k8s client)
+	sharedResourceRes, err := a.sharedResourceEventLoop.ReconcileSharedManagedEnv(ctx, a.workspaceClient, gitopsDeplNamespace,
+		gitopsDeployment.Spec.Destination.Environment, a.eventResourceNamespace, isWorkspaceTarget,
+		a.k8sClientFactory)
+
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("unable to get or create managed environment when reconciling for GitOpsDeployment: %v", err)
+	}
+
+	var destinationName string
+
+	if isWorkspaceTarget {
+		destinationName = sharedutil.ArgoCDDefaultDestinationInCluster
+
+	} else {
+
+		if sharedResourceRes.ManagedEnv != nil {
+			destinationName = argosharedutil.GenerateArgoCDClusterSecretName(*sharedResourceRes.ManagedEnv)
+		}
+	}
+
+	return sharedResourceRes.ManagedEnv, sharedResourceRes.GitopsEngineInstance, destinationName, nil
+}
+
 // handleUpdatedGitOpsDeplEvent handles GitOpsDeployment events where the user has updated an existing GitOpsDeployment resource.
 // In this case, we need to ensure the Application row in the database is consistent with what the user has provided
 // in the GitOpsDeployment.
@@ -364,79 +417,117 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		}
 	}
 
-	workspaceNamespace := corev1.Namespace{}
-	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: a.eventResourceNamespace, Name: a.eventResourceNamespace}, &workspaceNamespace); err != nil {
+	apiNamespace := corev1.Namespace{}
+	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: a.eventResourceNamespace, Name: a.eventResourceNamespace}, &apiNamespace); err != nil {
 		return false, nil, nil, deploymentModifiedResult_Failed, fmt.Errorf("unable to retrieve workspace namespace")
 	}
 
-	engineInstanceParam, err := a.sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, application.Engine_instance_inst_id, a.workspaceClient, workspaceNamespace)
+	isWorkspaceTarget := gitopsDeployment.Spec.Destination.Environment == ""
+	managedEnv, engineInstance, destinationName, err := a.reconcileManagedEnvironmentOfGitOpsDeployment(ctx, *gitopsDeployment, apiNamespace, isWorkspaceTarget)
 	if err != nil {
-		log.Error(err, "SEVERE: GitOps engine instance pointed to by Application doesn't exist, in handleUpdatedGitOpsDeplEvent", "engine-instance-id", engineInstanceParam.Gitopsengineinstance_id)
-		return false, nil, nil, deploymentModifiedResult_Failed, err
+		return false, nil, nil, deploymentModifiedResult_Failed, fmt.Errorf("unable to get or create managed environment: %v", err)
 	}
 
-	// TODO: GITOPSRVCE-62 - ENHANCEMENT - Ensure that the backend code gracefully handles database values that are too large for the DB field (eg too many VARCHARs)
+	if engineInstance == nil {
+		// If engineInstance from reconcileManagedEnvironmentOfGitOpsDeployment is nil, instead get the engine instance from
+		// the application.
+		engineInstance = &db.GitopsEngineInstance{
+			Gitopsengineinstance_id: application.Engine_instance_inst_id,
+		}
+		if err := dbQueries.GetGitopsEngineInstanceById(ctx, engineInstance); err != nil {
+			return false, nil, nil, deploymentModifiedResult_Failed, fmt.Errorf("unable to retrieve GitOpsEngineInstance for existing GitOpsDeployment: %v", err)
+		}
+	}
 
 	// TODO: GITOPSRVCE-67 - Sanity check that the application.name matches the expected value set in handleCreateGitOpsEvent
 
+	// If the user specified a value, always use it. If not, use the API resource namespace (but only in the workspace target case)
 	destinationNamespace := gitopsDeployment.Spec.Destination.Namespace
+	if isWorkspaceTarget {
+		if destinationNamespace == "" {
+			destinationNamespace = a.eventResourceNamespace
+		}
+	}
+
 	if destinationNamespace == "" {
-		destinationNamespace = a.eventResourceNamespace
+		return false, nil, nil, deploymentModifiedResult_Failed, fmt.Errorf("invalid destination namespace: %s", destinationNamespace)
 	}
 
 	specFieldInput := argoCDSpecInput{
 		crName:               application.Name,
-		crNamespace:          engineInstanceParam.Namespace_name,
+		crNamespace:          engineInstance.Namespace_name,
 		destinationNamespace: destinationNamespace,
-		// TODO: GITOPSRVCE-66 - Fill this in with cluster credentials
-		destinationName:      "in-cluster",
+		destinationName:      destinationName,
 		sourceRepoURL:        gitopsDeployment.Spec.Source.RepoURL,
 		sourcePath:           gitopsDeployment.Spec.Source.Path,
 		sourceTargetRevision: gitopsDeployment.Spec.Source.TargetRevision,
 		automated:            strings.EqualFold(gitopsDeployment.Spec.Type, managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated),
 	}
 
-	specFieldResult, err := createSpecField(specFieldInput)
-	if err != nil {
-		log.Error(err, "SEVERE: Unable to parse generated spec field")
-		return false, nil, nil, deploymentModifiedResult_Failed, err
+	shouldUpdateApplication := false
+
+	// If the spec field changed from what is in the database, we should update the application
+	{
+		specFieldResult, err := createSpecField(specFieldInput)
+		if err != nil {
+			log.Error(err, "SEVERE: Unable to parse generated spec field")
+			return false, nil, nil, deploymentModifiedResult_Failed, err
+		}
+
+		if specFieldResult == application.Spec_field {
+			log.Info("No spec change detected between Application DB entry and GitOpsDeployment CR")
+			// No change required: the application database entry is consistent with the gitopsdepl CR
+		} else {
+
+			shouldUpdateApplication = true
+			application.Spec_field = specFieldResult
+
+			log.Info("Spec change detected between Application DB entry and GitOpsDeployment CR")
+		}
+
+		// If the managed environment changed from what is in the database, we should update the environment
+		var newManagedEnvId string
+		if managedEnv != nil {
+			newManagedEnvId = managedEnv.Managedenvironment_id
+		}
+		if newManagedEnvId != application.Managed_environment_id {
+			application.Managed_environment_id = newManagedEnvId
+			shouldUpdateApplication = true
+		}
+
 	}
 
-	if specFieldResult == application.Spec_field {
-		log.Info("No spec change detected between Application DB entry and GitOpsDeployment CR")
-		// No change required: the application database entry is consistent with the gitopsdepl CR
-		return false, application, engineInstanceParam, deploymentModifiedResult_NoChange, nil
+	// If neither the managed environment, nor the spec field changed, then no need to update the database, so exit.
+	if !shouldUpdateApplication {
+		log.Info("No Application row change detected")
+		return false, application, engineInstance, deploymentModifiedResult_NoChange, nil
 	}
-
-	log.Info("Spec change detected between Application DB entry and GitOpsDeployment CR")
-
-	application.Spec_field = specFieldResult
 
 	if err := dbQueries.UpdateApplication(ctx, application); err != nil {
 		log.Error(err, "Unable to update application, after mismatch detected")
 
 		return false, nil, nil, deploymentModifiedResult_Failed, err
 	}
-	log.Info("Application Updated with ID: " + application.Application_id)
+	log.Info("Application updated with ID: " + application.Application_id)
 
 	// Create the operation
-	gitopsEngineClient, err := a.getK8sClientForGitOpsEngineInstance(engineInstanceParam)
+	gitopsEngineClient, err := a.getK8sClientForGitOpsEngineInstance(engineInstance)
 	if err != nil {
-		log.Error(err, "unable to retrieve gitopsengineinstance for updated gitopsdepl", "gitopsEngineIstance", engineInstanceParam.EngineCluster_id)
+		log.Error(err, "unable to retrieve gitopsengineinstance for updated gitopsdepl", "gitopsEngineIstance", engineInstance.EngineCluster_id)
 		return false, nil, nil, deploymentModifiedResult_Failed, err
 	}
 
 	dbOperationInput := db.Operation{
-		Instance_id:   engineInstanceParam.Gitopsengineinstance_id,
+		Instance_id:   engineInstance.Gitopsengineinstance_id,
 		Resource_id:   application.Application_id,
 		Resource_type: db.OperationResourceType_Application,
 	}
 
-	k8sOperation, dbOperation, err := CreateOperation(ctx, true && !a.testOnlySkipCreateOperation, dbOperationInput, clusterUser.Clusteruser_id,
+	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
+	k8sOperation, dbOperation, err := eventlooptypes.CreateOperation(ctx, waitForOperation, dbOperationInput, clusterUser.Clusteruser_id,
 		operationNamespace, dbQueries, gitopsEngineClient, log)
 	if err != nil {
 		log.Error(err, "could not create operation", "operation", dbOperation.Operation_id, "namespace", operationNamespace)
-
 		return false, nil, nil, deploymentModifiedResult_Failed, err
 	}
 
@@ -444,7 +535,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		return false, nil, nil, deploymentModifiedResult_Failed, err
 	}
 
-	return false, application, engineInstanceParam, deploymentModifiedResult_Updated, nil
+	return false, application, engineInstance, deploymentModifiedResult_Updated, nil
 
 }
 
@@ -553,7 +644,8 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		Resource_type: db.OperationResourceType_Application,
 	}
 
-	k8sOperation, dbOperation, err := CreateOperation(ctx, true && !a.testOnlySkipCreateOperation, dbOperationInput,
+	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
+	k8sOperation, dbOperation, err := eventlooptypes.CreateOperation(ctx, waitForOperation, dbOperationInput,
 		clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, log)
 	if err != nil {
 		log.Error(err, "unable to create operation", "operation", dbOperationInput.ShortString())
@@ -612,7 +704,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 		return nil
 	}
 
-	// 3) Retrieve the application state for the application pointed to be the depltoappmapping
+	// 3) Retrieve the application state for the application pointed to by the depltoappmapping
 	applicationState := db.ApplicationState{Applicationstate_application_id: mapping.Application_id}
 	if err := dbQueries.GetApplicationStateById(ctx, &applicationState); err != nil {
 
@@ -816,36 +908,31 @@ func decompressResourceData(resourceData []byte) ([]managedgitopsv1alpha1.Resour
 	gzipReader, err := gzip.NewReader(bufferIn)
 
 	if err != nil {
-		return resourceList, fmt.Errorf("Unable to create gzipReader. %v", err)
+		return resourceList, fmt.Errorf("unable to create gzipReader: %v", err)
 	}
 
 	var bufferOut bytes.Buffer
 
 	// Using CopyN with For loop to avoid gosec error "Potential DoS vulnerability via decompression bomb",
 	// occurred while using below code
-
-	/*if _, err := io.Copy(&bufferOut, gzipReader); err != nil {
-		return resourceList, fmt.Errorf("Unable to convert resource data to String. %v", err)
-	}*/
-
 	for {
 		_, err := io.CopyN(&bufferOut, gzipReader, 131072)
 		if err != nil {
 			if err == io.EOF {
 				break
 			}
-			return resourceList, fmt.Errorf("Unable to convert resource data to String. %v", err)
+			return resourceList, fmt.Errorf("unable to convert resource data to string: %v", err)
 		}
 	}
 
 	if err := gzipReader.Close(); err != nil {
-		return resourceList, fmt.Errorf("Unable to close gzip reader connection. %v", err)
+		return resourceList, fmt.Errorf("unable to close gzip reader connection: %v", err)
 	}
 
 	// Convert resource string into ResourceStatus Array
 	err = goyaml.Unmarshal(bufferOut.Bytes(), &resourceList)
 	if err != nil {
-		return resourceList, fmt.Errorf("Unable to Unmarshal resource data. %v", err)
+		return resourceList, fmt.Errorf("unable to Unmarshal resource data: %v", err)
 	}
 
 	return resourceList, nil

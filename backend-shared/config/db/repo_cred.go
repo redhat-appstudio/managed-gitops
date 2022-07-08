@@ -99,3 +99,12 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllRepositoryCredentials(ctx con
 
 	return nil
 }
+
+func (obj *RepositoryCredentials) Dispose(ctx context.Context, dbq DatabaseQueries) error {
+	if dbq == nil {
+		return fmt.Errorf("missing database interface in RepositoryCredentials dispose")
+	}
+
+	_, err := dbq.DeleteRepositoryCredentialsByID(ctx, obj.RepositoryCredentialsID)
+	return err
+}

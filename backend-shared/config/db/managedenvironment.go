@@ -181,7 +181,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedDeleteManagedEnvironmentById(ctx co
 // This method does NOT check whether the user has access
 func (dbq *PostgreSQLDatabaseQueries) DeleteManagedEnvironmentById(ctx context.Context, id string) (int, error) {
 
-	if err := validateUnsafeQueryParams(id, dbq); err != nil {
+	if err := validateQueryParams(id, dbq); err != nil {
 		return 0, err
 	}
 
@@ -195,4 +195,41 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteManagedEnvironmentById(ctx context.C
 	}
 
 	return deleteResult.RowsAffected(), nil
+}
+
+func (dbq *PostgreSQLDatabaseQueries) UpdateManagedEnvironment(ctx context.Context, obj *ManagedEnvironment) error {
+
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
+		return err
+	}
+
+	if err := isEmptyValues("UpdateManagedEnvironment",
+		"Clustercredentials_id", obj.Clustercredentials_id); err != nil {
+		return err
+	}
+
+	if err := validateFieldLength(obj); err != nil {
+		return err
+	}
+
+	result, err := dbq.dbConnection.Model(obj).WherePK().Context(ctx).Update()
+	if err != nil {
+		return fmt.Errorf("error on updating operation: %v, %v", err, obj.Managedenvironment_id)
+	}
+
+	if result.RowsAffected() != 1 {
+		return fmt.Errorf("unexpected number of rows affected: %d, %v", result.RowsAffected(), obj.Managedenvironment_id)
+	}
+
+	return nil
+
+}
+
+func (obj *ManagedEnvironment) Dispose(ctx context.Context, dbq DatabaseQueries) error {
+	if dbq == nil {
+		return fmt.Errorf("missing database interface in ManagedEnvironment dispose")
+	}
+
+	_, err := dbq.DeleteManagedEnvironmentById(ctx, obj.Managedenvironment_id)
+	return err
 }

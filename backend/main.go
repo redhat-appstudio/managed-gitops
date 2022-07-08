@@ -24,7 +24,7 @@ import (
 	"net/http"
 	"os"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -40,10 +40,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/go-logr/logr"
-	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/utilities/db-migration/migrate"
 
 	managedgitopsv1alpha1operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
@@ -96,7 +97,6 @@ func main() {
 		setupLog.Error(err, "Fatal Error: Unsuccessful Migration")
 		os.Exit(1)
 	}
-
 	go initializeRoutes()
 
 	restConfig, err := sharedutil.GetRESTConfig()
@@ -143,6 +143,14 @@ func main() {
 		PreprocessEventLoop: preprocessEventLoop,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "GitOpsDeploymentRepositoryCredential")
+		os.Exit(1)
+	}
+	if err = (&managedgitopscontrollers.GitOpsDeploymentManagedEnvironmentReconciler{
+		Client:                       mgr.GetClient(),
+		Scheme:                       mgr.GetScheme(),
+		PreprocessEventLoopProcessor: managedgitopscontrollers.NewDefaultPreProcessEventLoopProcessor(preprocessEventLoop),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "GitOpsDeploymentManagedEnvironment")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
@@ -203,7 +211,7 @@ func createPrimaryGitOpsEngineInstance(k8sclient client.Client, log logr.Logger)
 		}
 	}
 
-	namespace := &v1.Namespace{
+	namespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "argocd",
 		},
@@ -212,7 +220,7 @@ func createPrimaryGitOpsEngineInstance(k8sclient client.Client, log logr.Logger)
 		return fmt.Errorf("unable to retrieve gitopsengine namespace: %v", err)
 	}
 
-	kubeSystemNamespace := &v1.Namespace{
+	kubeSystemNamespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "kube-system",
 		},
@@ -223,7 +231,7 @@ func createPrimaryGitOpsEngineInstance(k8sclient client.Client, log logr.Logger)
 		return err
 	}
 
-	gitopsLocalWorkspaceNamespace := &v1.Namespace{
+	gitopsLocalWorkspaceNamespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "gitops-local",
 		},

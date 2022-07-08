@@ -53,7 +53,7 @@ type UnsafeDatabaseQueries interface {
 	UnsafeListAllDeploymentToApplicationMapping(ctx context.Context, deploymentToApplicationMappings *[]DeploymentToApplicationMapping) error
 	UnsafeListAllSyncOperations(ctx context.Context, syncOperations *[]SyncOperation) error
 	UnsafeListAllKubernetesResourceToDBResourceMapping(ctx context.Context, kubernetesToDBResourceMapping *[]KubernetesToDBResourceMapping) error
-	UnsafeListAllAPICRToDatabaseMappings(ctx context.Context, applicationStates *[]APICRToDatabaseMapping) error
+	UnsafeListAllAPICRToDatabaseMappings(ctx context.Context, mappings *[]APICRToDatabaseMapping) error
 	UnsafeListAllRepositoryCredentials(ctx context.Context, repositoryCredentials *[]RepositoryCredentials) error
 }
 
@@ -100,7 +100,6 @@ type DatabaseQueries interface {
 	GetClusterAccessByPrimaryKey(ctx context.Context, obj *ClusterAccess) error
 	GetDBResourceMappingForKubernetesResource(ctx context.Context, obj *KubernetesToDBResourceMapping) error
 
-	GetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance) error
 	GetGitopsEngineClusterById(ctx context.Context, gitopsEngineCluster *GitopsEngineCluster) error
 	GetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment) error
 	GetRepositoryCredentialsByID(ctx context.Context, id string) (obj RepositoryCredentials, err error)
@@ -115,6 +114,7 @@ type DatabaseQueries interface {
 
 	GetDeploymentToApplicationMappingByApplicationId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping) error
 
+	UpdateManagedEnvironment(ctx context.Context, obj *ManagedEnvironment) error
 	DeleteGitopsEngineInstanceById(ctx context.Context, id string) (int, error)
 
 	DeleteManagedEnvironmentById(ctx context.Context, id string) (int, error)
@@ -124,6 +124,20 @@ type DatabaseQueries interface {
 	CheckedListClusterCredentialsByHost(ctx context.Context, hostName string, clusterCredentials *[]ClusterCredentials, ownerId string) error
 	ListManagedEnvironmentForClusterCredentialsAndOwnerId(ctx context.Context, clusterCredentialId string, ownerId string, managedEnvironments *[]ManagedEnvironment) error
 	CheckedListGitopsEngineClusterByCredentialId(ctx context.Context, credentialId string, engineClustersParam *[]GitopsEngineCluster, ownerId string) error
+
+	// RemoveManagedEnvironmentFromAllApplications update the 'managed_environment_id' field to null
+	// for all Applications that reference a specific managed environment. This function is used while
+	// deleting a managed environment.
+	//
+	// Note: this function is not guaranteed to update all applications: it is possible that another thread
+	//       could create an Application after step 1. The logic of calling functions should expect and
+	//       handle this behaviour.
+	RemoveManagedEnvironmentFromAllApplications(ctx context.Context, managedEnvironmentID string, applications *[]Application) (int, error)
+
+	ListClusterAccessesByManagedEnvironmentID(ctx context.Context, managedEnvironmentID string, clusterAccesses *[]ClusterAccess) error
+
+	// ListApplicationsForManagedEnvironment returns a list of all Applications that reference the specified ManagedEnvironment row
+	ListApplicationsForManagedEnvironment(ctx context.Context, managedEnvironmentID string, applications *[]Application) (int, error)
 }
 
 // ApplicationScopedQueries are the set of database queries that act on application DB resources:
@@ -186,7 +200,10 @@ type ApplicationScopedQueries interface {
 	CreateDeploymentToApplicationMapping(ctx context.Context, obj *DeploymentToApplicationMapping) error
 	GetDeploymentToApplicationMappingByDeplId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping) error
 	ListDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, namespaceUID string, deplToAppMappingParam *[]DeploymentToApplicationMapping) error
+
+	// ListDeploymentToApplicationMappingByNamespaceUID lists all DTAMs that are in a namespace with the given UID
 	ListDeploymentToApplicationMappingByNamespaceUID(ctx context.Context, namespaceUID string, deplToAppMappingParam *[]DeploymentToApplicationMapping) error
+
 	DeleteDeploymentToApplicationMappingByDeplId(ctx context.Context, id string) (int, error)
 	DeleteDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, namespaceUID string) (int, error)
 
@@ -196,6 +213,9 @@ type ApplicationScopedQueries interface {
 	CreateApplicationState(ctx context.Context, obj *ApplicationState) error
 	UpdateApplicationState(ctx context.Context, obj *ApplicationState) error
 	DeleteApplicationStateById(ctx context.Context, id string) (int, error)
+
+	GetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment) error
+	GetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance) error
 }
 
 type CloseableQueries interface {

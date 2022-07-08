@@ -400,7 +400,7 @@ var _ = Describe("Preprocess Event Loop Test", func() {
 			fixture.preprocessInputChannel <- event
 
 			expectExactlyANumberOfEvents(1, &fixture.responsesReceived)
-			Expect(fixture.responsesReceived[0].AssociatedGitopsDeplUID).To(Equal(string(eventloop.OrphanedResourceGitopsDeplUID)),
+			Expect(fixture.responsesReceived[0].AssociatedGitopsDeplUID).To(Equal(string(eventlooptypes.OrphanedResourceGitopsDeplUID)),
 				"since the gitopsdeployment doesn't exist, the associated gitops depl uid should be 'orphaned'")
 		})
 
@@ -491,7 +491,7 @@ var _ = Describe("Preprocess Event Loop Test", func() {
 
 			expectExactlyANumberOfEvents(2, &fixture.responsesReceived)
 			Expect(fixture.responsesReceived[0].AssociatedGitopsDeplUID).To(Equal(string(gitopsDepl.GetUID())))
-			Expect(fixture.responsesReceived[1].AssociatedGitopsDeplUID).To(Equal(eventloop.OrphanedResourceGitopsDeplUID))
+			Expect(fixture.responsesReceived[1].AssociatedGitopsDeplUID).To(Equal(eventlooptypes.OrphanedResourceGitopsDeplUID))
 
 		})
 
@@ -620,7 +620,7 @@ var _ = Describe("Preprocess Event Loop Test", func() {
 			Expect(response.EventType).To(Equal(event.EventType))
 			Expect(response.ReqResource).To(Equal(event.ReqResource))
 			Expect(response.WorkspaceID).To(Equal(event.WorkspaceID))
-			Expect(response.AssociatedGitopsDeplUID).To(Equal(""))
+			Expect(response.AssociatedGitopsDeplUID).To(Equal(eventlooptypes.NoAssociatedGitOpsDeploymentUID))
 
 		})
 

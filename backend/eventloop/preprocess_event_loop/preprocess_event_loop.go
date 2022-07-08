@@ -150,7 +150,15 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventlo
 
 	// Repository credentials are workspace-scoped, and thus do not need to go through this preprocess-event processing.
 	if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialTypeName {
+		newEvent.AssociatedGitopsDeplUID = eventlooptypes.NoAssociatedGitOpsDeploymentUID
 		emitEvent(newEvent, nextStep, "repo cred", log)
+		return false
+	}
+
+	// Managed environments are passed to all gitopsdeployments of a workspace, and thus do not need to go through this preprocess-event processing.
+	if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentTypeName {
+		newEvent.AssociatedGitopsDeplUID = eventlooptypes.NoAssociatedGitOpsDeploymentUID
+		emitEvent(newEvent, nextStep, "managed env", log)
 		return false
 	}
 
@@ -246,7 +254,7 @@ func (task *processEventTask) handleEventFromDatabase(ctx context.Context, newEv
 			newEvent.AssociatedGitopsDeplUID = currentUID.deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id
 		} else {
 			// Otherwise, it's orphaned
-			newEvent.AssociatedGitopsDeplUID = eventloop.OrphanedResourceGitopsDeplUID
+			newEvent.AssociatedGitopsDeplUID = eventlooptypes.OrphanedResourceGitopsDeplUID
 		}
 
 		emitEvent(newEvent, nextStep, "new sync run from db", log)
@@ -350,7 +358,7 @@ func (task *processEventTask) handleEventIfCached(ctx context.Context, newEvent 
 				emitEvent(newEvent, nextStep, "new event", log)
 
 			} else {
-				newEvent.AssociatedGitopsDeplUID = eventloop.OrphanedResourceGitopsDeplUID
+				newEvent.AssociatedGitopsDeplUID = eventlooptypes.OrphanedResourceGitopsDeplUID
 				emitEvent(newEvent, nextStep, "new orphaned event", log)
 			}
 			return false, true
@@ -424,7 +432,7 @@ func processResourceThatDoesntExistInNamespace(ctx context.Context, newEvent eve
 
 		// GitOpsDeploymentRepositoryCredentials doesn't have an associated GitOpsDeployment, so we use
 		// the 'noAssociatedGitOpsDeploymentUID' and emit the delete event to the next layer.
-		newEvent.AssociatedGitopsDeplUID = eventloop.NoAssociatedGitOpsDeploymentUID
+		newEvent.AssociatedGitopsDeplUID = eventlooptypes.NoAssociatedGitOpsDeploymentUID
 		emitEvent(newEvent, nextStep, "repo creds deleted", log)
 		return false
 

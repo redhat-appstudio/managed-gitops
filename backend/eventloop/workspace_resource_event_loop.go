@@ -9,6 +9,8 @@ import (
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,6 +20,7 @@ import (
 )
 
 // workspaceResourceEventLoop is responsible for handling workspace-scoped events, like events for RepositoryCredentials resources.
+// NOTE: workspaceResourceEventLoop should only be called from workspace_event_loop.go.
 type workspaceResourceEventLoop struct {
 	inputChannel chan workspaceResourceLoopMessage
 }
@@ -35,6 +38,7 @@ type workspaceResourceLoopMessageType string
 
 const (
 	workspaceResourceLoopMessageType_processRepositoryCredential workspaceResourceLoopMessageType = "processRepositoryCredential"
+	workspaceResourceLoopMessageType_processManagedEnvironment   workspaceResourceLoopMessageType = "processManagedEnvironment"
 )
 
 func (werl *workspaceResourceEventLoop) processRepositoryCredential(ctx context.Context, req ctrl.Request, apiNamespaceClient client.Client) {
@@ -47,20 +51,38 @@ func (werl *workspaceResourceEventLoop) processRepositoryCredential(ctx context.
 
 	werl.inputChannel <- msg
 
+	// This function is async: we don't wait for a return value from the loop.
 }
 
-func newWorkspaceResourceLoop() *workspaceResourceEventLoop {
+func (werl *workspaceResourceEventLoop) processManagedEnvironment(ctx context.Context, eventLoopMessage eventlooptypes.EventLoopMessage,
+	apiNamespaceClient client.Client) {
+
+	msg := workspaceResourceLoopMessage{
+		apiNamespaceClient: apiNamespaceClient,
+		messageType:        workspaceResourceLoopMessageType_processManagedEnvironment,
+		payload:            eventLoopMessage,
+	}
+
+	werl.inputChannel <- msg
+
+	// This function is async: we don't wait for a return value from the loop.
+}
+
+func newWorkspaceResourceLoop(sharedResourceLoop *shared_resource_loop.SharedResourceEventLoop,
+	workspaceEventLoopInputChannel chan workspaceEventLoopMessage) *workspaceResourceEventLoop {
 
 	workspaceResourceEventLoop := &workspaceResourceEventLoop{
 		inputChannel: make(chan workspaceResourceLoopMessage),
 	}
 
-	go internalWorkspaceResourceEventLoop(workspaceResourceEventLoop.inputChannel)
+	go internalWorkspaceResourceEventLoop(workspaceResourceEventLoop.inputChannel, sharedResourceLoop, workspaceEventLoopInputChannel)
 
 	return workspaceResourceEventLoop
 }
 
-func internalWorkspaceResourceEventLoop(inputChan chan workspaceResourceLoopMessage) {
+func internalWorkspaceResourceEventLoop(inputChan chan workspaceResourceLoopMessage,
+	sharedResourceLoop *shared_resource_loop.SharedResourceEventLoop,
+	workspaceEventLoopInputChannel chan workspaceEventLoopMessage) {
 
 	ctx := context.Background()
 	log := log.FromContext(ctx).WithValues("component", "workspace_resource_event_loop")
@@ -80,7 +102,7 @@ func internalWorkspaceResourceEventLoop(inputChan chan workspaceResourceLoopMess
 
 		if msg.messageType == workspaceResourceLoopMessageType_processRepositoryCredential {
 
-			repoCred, ok := (msg.payload).(managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential)
+			repoCred, ok := (msg.payload).(ctrl.Request)
 			if !ok {
 				log.Error(nil, "SEVERE: Unexpected payload type in workspace resource event loop")
 				continue
@@ -88,18 +110,30 @@ func internalWorkspaceResourceEventLoop(inputChan chan workspaceResourceLoopMess
 
 			mapKey = "repo-cred-" + repoCred.Namespace + "-" + repoCred.Name
 
+		} else if msg.messageType == workspaceResourceLoopMessageType_processManagedEnvironment {
+
+			evlMsg, ok := (msg.payload).(eventlooptypes.EventLoopMessage)
+			if !ok {
+				log.Error(nil, "SEVERE: Unexpected payload type in workspace resource event loop")
+				continue
+			}
+
+			mapKey = "managed-env-" + evlMsg.Event.Request.Namespace + "-" + evlMsg.Event.Request.Name
+
 		} else {
 			log.Error(nil, "SEVERE: Unexpected message type: "+string(msg.messageType))
 			continue
 		}
 
-		// TODO: GITOPS-1702 - PERF - Use a more memory efficient key
+		// TODO: GITOPSRVCE-68 - PERF - Use a more memory efficient key
 
 		// Pass the event to the retry loop, for processing
 		task := &workspaceResourceEventTask{
-			msg:       msg,
-			dbQueries: dbQueries,
-			log:       log,
+			msg:                            msg,
+			dbQueries:                      dbQueries,
+			log:                            log,
+			sharedResourceLoop:             sharedResourceLoop,
+			workspaceEventLoopInputChannel: workspaceEventLoopInputChannel,
 		}
 
 		taskRetryLoop.AddTaskIfNotPresent(mapKey, task, sharedutil.ExponentialBackoff{Factor: 2, Min: time.Millisecond * 200, Max: time.Second * 10, Jitter: true})
@@ -107,20 +141,25 @@ func internalWorkspaceResourceEventLoop(inputChan chan workspaceResourceLoopMess
 }
 
 type workspaceResourceEventTask struct {
-	msg       workspaceResourceLoopMessage
-	dbQueries db.DatabaseQueries
-	log       logr.Logger
+	msg                            workspaceResourceLoopMessage
+	dbQueries                      db.DatabaseQueries
+	log                            logr.Logger
+	sharedResourceLoop             *shared_resource_loop.SharedResourceEventLoop
+	workspaceEventLoopInputChannel chan workspaceEventLoopMessage
 }
 
-// Returns true if the task should be retried, false otherwise
+// Returns true if the task should be retried, false otherwise, plus an error
 func (wert *workspaceResourceEventTask) PerformTask(taskContext context.Context) (bool, error) {
 
-	retry, err := processWorkspaceResourceMessage(taskContext, wert.msg, wert.dbQueries, wert.log)
+	retry, err := internalProcessWorkspaceResourceMessage(taskContext, wert.msg, wert.sharedResourceLoop, wert.workspaceEventLoopInputChannel, wert.dbQueries, wert.log)
 
 	return retry, err
 }
 
-func processWorkspaceResourceMessage(ctx context.Context, msg workspaceResourceLoopMessage, dbQueries db.DatabaseQueries, log logr.Logger) (bool, error) {
+// Returns true if the task should be retried, false otherwise, plus an error
+func internalProcessWorkspaceResourceMessage(ctx context.Context, msg workspaceResourceLoopMessage,
+	sharedResourceLoop *shared_resource_loop.SharedResourceEventLoop, workspaceEventLoopInputChannel chan workspaceEventLoopMessage,
+	dbQueries db.DatabaseQueries, log logr.Logger) (bool, error) {
 
 	log.V(sharedutil.LogLevel_Debug).Info("processWorkspaceResource received message: " + string(msg.messageType))
 
@@ -191,9 +230,52 @@ func processWorkspaceResourceMessage(ctx context.Context, msg workspaceResourceL
 		// - If it doesn't exist in the database, create it
 		// - If it does exist in the database, but the values are different, update it
 
+		return false, fmt.Errorf("STUB: not yet implemented")
+
+	} else if msg.messageType == workspaceResourceLoopMessageType_processManagedEnvironment {
+
+		evlMessage, ok := (msg.payload).(eventlooptypes.EventLoopMessage)
+		if !ok {
+			return false, fmt.Errorf("invalid payload in processWorkspaceResourceMessage")
+		}
+		req := evlMessage.Event.Request
+
+		// Retrieve the namespace that the managed environment is contained within
+		namespace := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      req.Namespace,
+				Namespace: req.Namespace,
+			},
+		}
+		if err := msg.apiNamespaceClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace); err != nil {
+
+			if !apierr.IsNotFound(err) {
+				return true, fmt.Errorf("unexpected error in retrieving namespace of managed env CR: %v", err)
+			}
+
+			log.V(sharedutil.LogLevel_Warn).Info("Received a message for a managed end CR in a namepace that doesn't exist", "namespace", namespace)
+			return false, nil
+		}
+
+		// Ask the shared resource loop to ensure the managed environment is reconciled
+		_, err := sharedResourceLoop.ReconcileSharedManagedEnv(ctx, msg.apiNamespaceClient, *namespace, req.Name, req.Namespace, false, shared_resource_loop.DefaultK8sClientFactory{})
+		if err != nil {
+			return true, fmt.Errorf("unable to reconcile shared managed env: %v", err)
+		}
+
+		// Once we finish processing the managed environment, send it back to the workspace event loop, so it can be passed to GitOpsDeployments.
+		// - Send it on another go routine to keep from blocking this one
+		go func() {
+			workspaceEventLoopInputChannel <- workspaceEventLoopMessage{
+				messageType: managedEnvProcessed_Event,
+				payload:     evlMessage,
+			}
+		}()
+
+		return false, nil
+
 	} else {
-		log.Error(nil, "SEVERE: unrecognized sharedResourceLoopMessageType: "+string(msg.messageType))
+		return false, fmt.Errorf("SEVERE: unrecognized sharedResourceLoopMessageType: %s " + string(msg.messageType))
 	}
 
-	return false, fmt.Errorf("unimplemented")
 }

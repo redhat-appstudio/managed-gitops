@@ -207,3 +207,12 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteGitopsEngineClusterById(ctx context.
 
 	return deleteResult.RowsAffected(), nil
 }
+
+func (obj *GitopsEngineCluster) Dispose(ctx context.Context, dbq DatabaseQueries) error {
+	if dbq == nil {
+		return fmt.Errorf("missing database interface in GitOpsEngineCluster dispose")
+	}
+
+	_, err := dbq.DeleteGitopsEngineClusterById(ctx, obj.Gitopsenginecluster_id)
+	return err
+}

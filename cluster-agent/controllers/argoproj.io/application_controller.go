@@ -31,9 +31,9 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	cache "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	appEventLoop "github.com/redhat-appstudio/managed-gitops/backend/eventloop/application_event_loop"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/util/fauxargocd"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	"gopkg.in/yaml.v2"
@@ -189,7 +189,7 @@ func (r *ApplicationReconciler) startTimerForNextCycle() {
 		ctx := context.Background()
 		log := log.FromContext(ctx).WithValues("component", "namespace-reconciler")
 
-		_, _ = util.CatchPanic(func() error {
+		_, _ = sharedutil.CatchPanic(func() error {
 			runNamespaceReconcile(ctx, r.DB, r.Client, log)
 			return nil
 		})
@@ -201,21 +201,21 @@ func (r *ApplicationReconciler) startTimerForNextCycle() {
 
 }
 
-func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, log logr.Logger) {
+func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, logParam logr.Logger) {
 	offSet := 0
 
 	// Delete operation resources created during previous run.
-	cleanK8sOperations(ctx, dbQueries, client, log)
+	cleanK8sOperations(ctx, dbQueries, client, logParam)
 
 	// Get Special user from DB because we need ClusterUser for creating Operation and we don't have one.
 	// Hence created a dummy Cluster User for internal purpose.
 	var specialClusterUser db.ClusterUser
 	if err := dbQueries.GetOrCreateSpecialClusterUser(ctx, &specialClusterUser); err != nil {
-		log.Error(err, "Error occurred in Namespace Reconciler while fetching clusterUser.")
+		logParam.Error(err, "Error occurred in Namespace Reconciler while fetching clusterUser.")
 		return
 	}
 
-	log.Info("Triggered Namespace Reconciler to keep Argo application in sync with DB.")
+	logParam.Info("Triggered Namespace Reconciler to keep Argo application in sync with DB.")
 
 	// Continuously iterate and fetch batches until all entries of Application table are processed.
 	for {
@@ -229,19 +229,21 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 
 		// Fetch Application table entries in batch size as configured above.​
 		if err := dbQueries.GetApplicationBatch(ctx, &listOfApplicationsFromDB, appRowBatchSize, offSet); err != nil {
-			log.Error(err, fmt.Sprintf("Error occurred in Namespace Reconciler while fetching batch from Offset: %d to %d: ",
+			logParam.Error(err, fmt.Sprintf("Error occurred in Namespace Reconciler while fetching batch from Offset: %d to %d: ",
 				offSet, offSet+appRowBatchSize))
 			break
 		}
 
 		// Break the loop if no entries are left in table to be processed.
 		if len(listOfApplicationsFromDB) == 0 {
-			log.Info("All Application entries are processed by Namespace Reconciler.")
+			logParam.Info("All Application entries are processed by Namespace Reconciler.")
 			break
 		}
 
 		// Iterate over batch received above.
 		for _, applicationRowFromDB := range listOfApplicationsFromDB {
+
+			log := logParam.WithValues("applicationID", applicationRowFromDB.Application_id)
 
 			// Fetch the Application object from DB
 			if err := yaml.Unmarshal([]byte(applicationRowFromDB.Spec_field), &applicationFromDB); err != nil {
@@ -268,7 +270,7 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 						Resource_type: db.OperationResourceType_Application,
 					}
 
-					_, _, err = appEventLoop.CreateOperation(ctx, false, dbOperationInput,
+					_, _, err = eventlooptypes.CreateOperation(ctx, false, dbOperationInput,
 						specialClusterUser.Clusteruser_id, cache.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, client, log)
 					if err != nil {
 						log.Error(err, "Namespace Reconciler is unable to create operation: "+dbOperationInput.ShortString())
@@ -300,7 +302,7 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 				Resource_type: db.OperationResourceType_Application,
 			}
 
-			_, _, err = appEventLoop.CreateOperation(ctx, false, dbOperationInput,
+			_, _, err = eventlooptypes.CreateOperation(ctx, false, dbOperationInput,
 				specialClusterUser.Clusteruser_id, cache.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, client, log)
 			if err != nil {
 				log.Error(err, "Namespace Reconciler is unable to create operation: "+dbOperationInput.ShortString())
@@ -314,7 +316,7 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 		offSet += appRowBatchSize
 	}
 
-	log.Info(fmt.Sprintf("Namespace Reconciler finished an iteration at %s. "+
+	logParam.Info(fmt.Sprintf("Namespace Reconciler finished an iteration at %s. "+
 		"Next iteration will be triggered after %v Minutes", time.Now().String(), namespaceReconcilerInterval))
 }
 
@@ -470,7 +472,7 @@ func cleanK8sOperations(ctx context.Context, dbq db.DatabaseQueries, client clie
 	for _, k8sOperation := range listOfK8sOperation.Items {
 
 		// Skip if Operation was not created by Namespace Reconciler.
-		if k8sOperation.Annotations[appEventLoop.IdentifierKey] != appEventLoop.IdentifierValue {
+		if k8sOperation.Annotations[eventlooptypes.IdentifierKey] != eventlooptypes.IdentifierValue {
 			continue
 		}
 

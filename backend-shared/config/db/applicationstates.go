@@ -148,3 +148,13 @@ func (dbq *PostgreSQLDatabaseQueries) GetApplicationStateById(ctx context.Contex
 
 	return nil
 }
+
+func (app *ApplicationState) DisposeAppScoped(ctx context.Context, dbq ApplicationScopedQueries) error {
+
+	if err := isEmptyValues("DisposeAppScoped-ApplicationState", "dbq", dbq); err != nil {
+		return err
+	}
+	_, err := dbq.DeleteApplicationStateById(ctx, app.Applicationstate_application_id)
+
+	return err
+}

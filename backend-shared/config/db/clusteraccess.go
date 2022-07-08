@@ -114,3 +114,40 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteClusterAccessById(ctx context.Contex
 
 	return deleteResult.RowsAffected(), nil
 }
+
+func (dbq *PostgreSQLDatabaseQueries) ListClusterAccessesByManagedEnvironmentID(ctx context.Context, managedEnvironmentID string, clusterAccesses *[]ClusterAccess) error {
+
+	if err := validateQueryParamsEntity(clusterAccesses, dbq); err != nil {
+		return err
+	}
+
+	if err := isEmptyValues("ListClusterAccessByManagedEnvironmentID",
+		"managedEnvironmentID", managedEnvironmentID); err != nil {
+		return err
+	}
+
+	var dbResults []ClusterAccess
+
+	// TODO: GITOPSRVCE-68 - PERF - Add index for this
+
+	if err := dbq.dbConnection.Model(&dbResults).
+		Where("clusteraccess_managed_environment_id = ?", managedEnvironmentID).
+		Context(ctx).
+		Select(); err != nil {
+
+		return fmt.Errorf("error on retrieving ListOperationsByResourceIdAndTypeAndOwnerId: %v", err)
+	}
+
+	*clusterAccesses = dbResults
+
+	return nil
+}
+
+func (obj *ClusterAccess) Dispose(ctx context.Context, dbq DatabaseQueries) error {
+	if dbq == nil {
+		return fmt.Errorf("missing database interface in ClusterAccess dispose")
+	}
+
+	_, err := dbq.DeleteClusterAccessById(ctx, obj.Clusteraccess_user_id, obj.Clusteraccess_managed_environment_id, obj.Clusteraccess_gitops_engine_instance_id)
+	return err
+}

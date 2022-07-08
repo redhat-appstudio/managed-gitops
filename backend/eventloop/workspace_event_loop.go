@@ -2,6 +2,7 @@ package eventloop
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -34,17 +35,56 @@ import (
 
 // Start a workspace event loop router go routine, which is responsible for handling API namespace events and
 // then passing them to the controller loop.
-func startWorkspaceEventLoopRouter(workspaceID string) chan eventlooptypes.EventLoopMessage {
+func newWorkspaceEventLoopRouter(workspaceID string) WorkspaceEventLoopRouterStruct {
 
-	res := make(chan eventlooptypes.EventLoopMessage)
+	res := WorkspaceEventLoopRouterStruct{
+		channel: make(chan workspaceEventLoopMessage),
+	}
 
-	internalStartWorkspaceEventLoopRouter(res, workspaceID, defaultApplicationEventLoopFactory{})
+	internalStartWorkspaceEventLoopRouter(res.channel, workspaceID, defaultApplicationEventLoopFactory{})
 
 	return res
 }
 
-// internalStartWorkspaceEventLoopRouter has the primary goal of catching panics from the workspaceEventLoopRouter, and recovering from them.
-func internalStartWorkspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, workspaceID string,
+func newWorkspaceEventLoopRouterWithFactory(workspaceID string, applEventLoopFactory applicationEventQueueLoopFactory) WorkspaceEventLoopRouterStruct {
+
+	res := WorkspaceEventLoopRouterStruct{
+		channel: make(chan workspaceEventLoopMessage),
+	}
+
+	internalStartWorkspaceEventLoopRouter(res.channel, workspaceID, applEventLoopFactory)
+
+	return res
+}
+
+func (welrs *WorkspaceEventLoopRouterStruct) SendMessage(msg eventlooptypes.EventLoopMessage) {
+
+	welrs.channel <- workspaceEventLoopMessage{
+		messageType: workspaceEventLoopMessageType_Event,
+		payload:     msg,
+	}
+}
+
+type WorkspaceEventLoopRouterStruct struct {
+	// channel chan eventlooptypes.EventLoopMessage
+	channel chan workspaceEventLoopMessage
+}
+
+type workspaceEventLoopMessageType string
+
+const (
+	workspaceEventLoopMessageType_Event workspaceEventLoopMessageType = "event"
+	managedEnvProcessed_Event           workspaceEventLoopMessageType = "managedEnvProcessed"
+)
+
+type workspaceEventLoopMessage struct {
+	messageType workspaceEventLoopMessageType
+	payload     interface{}
+}
+
+// internalStartWorkspaceEventLoopRouter has the primary goal of catching panics from the workspaceEventLoopRouter, and
+// recovering from them.
+func internalStartWorkspaceEventLoopRouter(input chan workspaceEventLoopMessage, workspaceID string,
 	applEventLoopFactory applicationEventQueueLoopFactory) {
 
 	go func() {
@@ -84,24 +124,10 @@ func internalStartWorkspaceEventLoopRouter(input chan eventlooptypes.EventLoopMe
 
 }
 
-const (
-	// orphanedResourceGitopsDeplUID indicates that a GitOpsDeploymentSyncRunCR is orphaned, which means
-	// we do not know which GitOpsDeployment it should belong to. This is usually because the deployment name
-	// field of the SyncRun refers to a K8s resource that doesn't (or no longer) exists.
-	// See https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.8tiycl1h7rns for details.
-	OrphanedResourceGitopsDeplUID = "orphaned"
-
-	// noAssociatedGitOpsDeploymentUID: if a resource does not have an orphanedResourceDeplUID, this constant should be set.
-	// For example: GitOpsDeploymentRepositoryCredentials might be associated with multiple (or zero) GitOpsDeployments.
-	NoAssociatedGitOpsDeploymentUID = "none"
-)
-
 // workspaceEventLoopRouter receives all events for the workspace, and passes them to specific goroutine responsible
 // for handling events for individual applications.
-func workspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, workspaceID string,
+func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, workspaceID string,
 	applEventLoopFactory applicationEventQueueLoopFactory) {
-
-	workspaceResourceLoop := newWorkspaceResourceLoop()
 
 	ctx := context.Background()
 
@@ -112,67 +138,101 @@ func workspaceEventLoopRouter(input chan eventlooptypes.EventLoopMessage, worksp
 
 	sharedResourceEventLoop := shared_resource_loop.NewSharedResourceLoop()
 
+	workspaceResourceLoop := newWorkspaceResourceLoop(sharedResourceEventLoop, input)
+
 	// orphanedResources: gitops depl name -> (name field of CR -> event depending on it)
 	orphanedResources := map[string]map[string]eventlooptypes.EventLoopEvent{}
 
 	// applicationMap: gitopsDepl UID -> channel for go routine responsible for handling it
 	applicationMap := map[string]workspaceEventLoop_applicationEventLoopEntry{}
 	for {
-		event := <-input
+		wrapperEvent := <-input
 
-		// First, sanity check the event
-		if event.MessageType == eventlooptypes.ApplicationEventLoopMessageType_WorkComplete {
-			log.Error(nil, "SEVERE: invalid message type received in applicationEventLooRouter")
-			continue
-		}
-		if event.Event == nil {
-			log.Error(nil, "SEVERE: event was nil in workspaceEventLooRouter")
-			continue
-		}
-		if strings.TrimSpace(event.Event.AssociatedGitopsDeplUID) == "" {
-			log.Error(nil, "SEVERE: event was nil in workspaceEventLoopRouter")
-			continue
-		}
-
-		log.V(sharedutil.LogLevel_Debug).Info("workspaceEventLoop received event", "event", eventlooptypes.StringEventLoopEvent(event.Event))
-
-		// If the event is orphaned (it refers to a gitopsdepl that doesn't exist, add it to our orphaned resources list)
-		if event.Event.AssociatedGitopsDeplUID == OrphanedResourceGitopsDeplUID {
-			handleOrphaned(ctx, event, orphanedResources, log)
-			continue
-		}
-
-		// Check GitOpsDeployment that come in: if we get an event for GitOpsDeployment that has an orphaned child resource
-		// depending on it, then unorphan the child resource.
-		if event.Event.ReqResource == v1alpha1.GitOpsDeploymentTypeName {
-			unorphanResourcesIfPossible(ctx, event, orphanedResources, input, log)
-		}
-
-		// Handle Repository Credentials
-		if event.Event.ReqResource == v1alpha1.GitOpsDeploymentRepositoryCredentialTypeName {
-
-			workspaceResourceLoop.processRepositoryCredential(ctx, event.Event.Request, event.Event.Client)
-			continue
-		}
-
-		applicationEntryVal, ok := applicationMap[event.Event.AssociatedGitopsDeplUID]
-		if !ok {
-			// Start the application event queue go-routine, if it's not already started.
-
-			// Start the application event loop's goroutine
-			inputChan := applEventLoopFactory.startApplicationEventQueueLoop(event.Event.AssociatedGitopsDeplUID,
-				event.Event.WorkspaceID, sharedResourceEventLoop)
-
-			applicationEntryVal = workspaceEventLoop_applicationEventLoopEntry{
-				input: inputChan,
+		if wrapperEvent.messageType == workspaceEventLoopMessageType_Event {
+			event := (wrapperEvent.payload).(eventlooptypes.EventLoopMessage)
+			// First, sanity check the event
+			if event.MessageType == eventlooptypes.ApplicationEventLoopMessageType_WorkComplete {
+				log.Error(nil, "SEVERE: invalid message type received in applicationEventLooRouter")
+				continue
 			}
-			applicationMap[event.Event.AssociatedGitopsDeplUID] = applicationEntryVal
-		}
+			if event.Event == nil {
+				log.Error(nil, "SEVERE: event was nil in workspaceEventLooRouter")
+				continue
+			}
+			if strings.TrimSpace(event.Event.AssociatedGitopsDeplUID) == "" {
+				log.Error(nil, "SEVERE: event was nil in workspaceEventLoopRouter")
+				continue
+			}
 
-		// Send the event to the channel/go routine that handles all events for this application/gitopsdepl (non-blocking)
-		applicationEntryVal.input <- eventlooptypes.EventLoopMessage{
-			MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
-			Event:       event.Event,
+			log.V(sharedutil.LogLevel_Debug).Info("workspaceEventLoop received event", "event", eventlooptypes.StringEventLoopEvent(event.Event))
+
+			// If the event is orphaned (it refers to a gitopsdepl that doesn't exist, add it to our orphaned resources list)
+			if event.Event.AssociatedGitopsDeplUID == eventlooptypes.OrphanedResourceGitopsDeplUID {
+				handleOrphaned(ctx, event, orphanedResources, log)
+				continue
+			}
+
+			// Check GitOpsDeployment that come in: if we get an event for GitOpsDeployment that has an orphaned child resource
+			// depending on it, then unorphan the child resource.
+			if event.Event.ReqResource == v1alpha1.GitOpsDeploymentTypeName {
+				unorphanResourcesIfPossible(ctx, event, orphanedResources, input, log)
+			}
+
+			// Handle Repository Credentials
+			if event.Event.ReqResource == v1alpha1.GitOpsDeploymentRepositoryCredentialTypeName {
+				workspaceResourceLoop.processRepositoryCredential(ctx, event.Event.Request, event.Event.Client)
+				continue
+			}
+
+			// Handle Managed Environment
+			if event.Event.ReqResource == v1alpha1.GitOpsDeploymentManagedEnvironmentTypeName {
+
+				// Reconcile to managed environment in the workspace resource loop, to ensure it is up-to-date (exists, or is deleted)
+				workspaceResourceLoop.processManagedEnvironment(ctx, event, event.Event.Client)
+
+				continue
+			}
+
+			applicationEntryVal, exists := applicationMap[event.Event.AssociatedGitopsDeplUID]
+			if !exists {
+				// Start the application event queue go-routine, if it's not already started.
+
+				// Start the application event loop's goroutine
+				inputChan := applEventLoopFactory.startApplicationEventQueueLoop(event.Event.AssociatedGitopsDeplUID,
+					event.Event.WorkspaceID, sharedResourceEventLoop)
+
+				applicationEntryVal = workspaceEventLoop_applicationEventLoopEntry{
+					input: inputChan,
+				}
+				applicationMap[event.Event.AssociatedGitopsDeplUID] = applicationEntryVal
+			}
+
+			// Send the event to the channel/go routine that handles all events for this application/gitopsdepl (non-blocking)
+			applicationEntryVal.input <- eventlooptypes.EventLoopMessage{
+				MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
+				Event:       event.Event,
+			}
+
+		} else if wrapperEvent.messageType == managedEnvProcessed_Event {
+			event := (wrapperEvent.payload).(eventlooptypes.EventLoopMessage)
+
+			log.V(sharedutil.LogLevel_Debug).Info(fmt.Sprintf("received ManagedEnvironment event, passed event to %d applications",
+				len(applicationMap)))
+
+			// Send a message about this ManagedEnvironment to all of the goroutines currently processing GitOpsDeployment/SyncRuns
+			for key := range applicationMap {
+				applicationEntryVal := applicationMap[key]
+
+				go func() {
+					applicationEntryVal.input <- eventlooptypes.EventLoopMessage{
+						MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
+						Event:       event.Event,
+					}
+				}()
+			}
+
+		} else {
+			log.Error(nil, "SEVERE: unrecognized workspace event loop message type")
 		}
 	}
 }
@@ -246,8 +306,9 @@ func handleOrphaned(ctx context.Context, event eventlooptypes.EventLoopMessage, 
 
 }
 
-func unorphanResourcesIfPossible(ctx context.Context, event eventlooptypes.EventLoopMessage, orphanedResources map[string]map[string]eventlooptypes.EventLoopEvent,
-	input chan eventlooptypes.EventLoopMessage, log logr.Logger) {
+func unorphanResourcesIfPossible(ctx context.Context, event eventlooptypes.EventLoopMessage,
+	orphanedResources map[string]map[string]eventlooptypes.EventLoopEvent,
+	input chan workspaceEventLoopMessage, log logr.Logger) {
 
 	// If there exists an orphaned resource that is waiting for this gitopsdepl (by name)
 	if gitopsDeplMap, exists := orphanedResources[event.Event.Request.Name]; exists {
@@ -287,7 +348,10 @@ func unorphanResourcesIfPossible(ctx context.Context, event eventlooptypes.Event
 			go func() {
 				for _, eventToRequeue := range requeueEvents {
 					log.V(sharedutil.LogLevel_Debug).Info("requeueing orphaned resource: " + eventToRequeue.Event.Request.Name + ", for parent: " + eventToRequeue.Event.AssociatedGitopsDeplUID)
-					input <- eventToRequeue
+					input <- workspaceEventLoopMessage{
+						messageType: workspaceEventLoopMessageType_Event,
+						payload:     eventToRequeue,
+					}
 				}
 			}()
 		}

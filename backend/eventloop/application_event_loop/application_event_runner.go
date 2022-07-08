@@ -17,15 +17,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-)
-
-// Global variables to identify resources created by Namespace Reconciler.
-const (
-	IdentifierKey   = "source"
-	IdentifierValue = "periodic-cleanup"
 )
 
 // Within the application event runner  is where the vast majority of the work takes place. This is the code that is
@@ -84,16 +77,19 @@ func startNewApplicationEventLoopRunner(informWorkCompleteChan chan eventlooptyp
 }
 
 func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent, informWorkCompleteChan chan eventlooptypes.EventLoopMessage,
-	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, gitopsDeplUID string, workspaceID string, debugContext string) {
+	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, gitopsDeplUID string, namespaceID string, debugContext string) {
 
 	outerContext := context.Background()
 	log := log.FromContext(outerContext)
 
-	log = log.WithValues("gitopsDeplUID", gitopsDeplUID, "workspaceID", workspaceID, "debugContext", debugContext)
+	log = log.WithValues("gitopsDeplUID", gitopsDeplUID, "namespaceID", namespaceID, "debugContext", debugContext)
 
 	log.V(sharedutil.LogLevel_Debug).Info("applicationEventLoopRunner started")
 
 	signalledShutdown := false
+
+	// The name of the resource (GitOpsDeployment/SyncRun) being handled by this runner.
+	var expectedResourceName string
 
 	for {
 		// Read from input channel: wait for an event on this application
@@ -107,6 +103,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 
 		log.V(sharedutil.LogLevel_Debug).Info("applicationEventLoopRunner - event received", "event", eventlooptypes.StringEventLoopEvent(newEvent))
 
+		// Keep attempting the process the event until no error is returned, or the request is cancelled.
 		attempts := 1
 		backoff := sharedutil.ExponentialBackoff{Min: time.Duration(100 * time.Millisecond), Max: time.Duration(15 * time.Second), Factor: 2, Jitter: true}
 	inner_for:
@@ -114,7 +111,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 
 			log.V(sharedutil.LogLevel_Debug).Info("applicationEventLoopRunner - processing event", "event", eventlooptypes.StringEventLoopEvent(newEvent), "attempt", attempts)
 
-			// Break if the request is cancelled, or the timeout expires
+			// Break if the context is cancelled
 			select {
 			case <-ctx.Done():
 				break inner_for
@@ -124,13 +121,14 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 			_, err := sharedutil.CatchPanic(func() error {
 
 				action := applicationEventLoopRunner_Action{
-					getK8sClientForGitOpsEngineInstance: actionGetK8sClientForGitOpsEngineInstance,
+					getK8sClientForGitOpsEngineInstance: eventlooptypes.GetK8sClientForGitOpsEngineInstance,
 					eventResourceName:                   newEvent.Request.Name,
 					eventResourceNamespace:              newEvent.Request.Namespace,
 					workspaceClient:                     newEvent.Client,
 					sharedResourceEventLoop:             sharedResourceEventLoop,
 					log:                                 log,
-					workspaceID:                         workspaceID,
+					workspaceID:                         namespaceID,
+					k8sClientFactory:                    shared_resource_loop.DefaultK8sClientFactory{},
 				}
 
 				var err error
@@ -148,28 +146,15 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 
 				if newEvent.EventType == eventlooptypes.DeploymentModified {
 
-					// Handle all GitOpsDeployment related events
-					signalledShutdown, _, _, _, err = action.applicationEventRunner_handleDeploymentModified(ctx, scopedDBQueries)
-
-					// Get the GitOpsDeployment object from k8s, so we can update it if necessary
-					gitopsDepl, clientError := getMatchingGitOpsDeployment(ctx, newEvent.Request.Name, newEvent.Request.Namespace, newEvent.Client)
-					if clientError != nil {
-						if !apierr.IsNotFound(clientError) {
-							return fmt.Errorf("couldn't fetch the GitOpsDeployment instance: %v", clientError)
-						}
-
-						// For IsNotFound error, no more we need to do, so return nil.
-						return nil
+					// Keep track of the resource name the first time we see it.
+					if expectedResourceName == "" && newEvent.Request.Name != "" {
+						expectedResourceName = newEvent.Request.Name
+					}
+					if expectedResourceName != "" && newEvent.Request.Name != expectedResourceName {
+						return fmt.Errorf("SEVERE: Application event runner received. Expected: " + expectedResourceName + ", actual: " + newEvent.Request.Name)
 					}
 
-					// Create a gitOpsDeploymentAdapter to plug any conditions
-					conditionManager := condition.NewConditionManager()
-					adapter := newGitOpsDeploymentAdapter(gitopsDepl, log, newEvent.Client, conditionManager, ctx)
-
-					// Plug any conditions based on the "err" msg
-					if setConditionError := adapter.setGitOpsDeploymentCondition(managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred, managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred, err); setConditionError != nil {
-						return setConditionError
-					}
+					signalledShutdown, err = handleDeploymentModified(ctx, newEvent, action, scopedDBQueries, log)
 
 				} else if newEvent.EventType == eventlooptypes.SyncRunModified {
 					// Handle all SyncRun related events
@@ -177,6 +162,14 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 
 				} else if newEvent.EventType == eventlooptypes.UpdateDeploymentStatusTick {
 					err = action.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, newEvent.AssociatedGitopsDeplUID, scopedDBQueries)
+
+				} else if newEvent.EventType == eventlooptypes.ManagedEnvironmentModified {
+
+					if expectedResourceName == "" {
+						// If this runner hasn't processed a GitOpsDeployment yet, then no work is required for the managed environment.
+						return nil
+					}
+					signalledShutdown, err = handleManagedEnvironmentModified(ctx, expectedResourceName, newEvent, action, dbQueriesUnscoped, log)
 
 				} else {
 					log.Error(nil, "SEVERE: Unrecognized event type", "event type", newEvent.EventType)
@@ -210,35 +203,186 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 	log.Info("ApplicationEventLoopRunner goroutine terminated.", "signalledShutdown", signalledShutdown)
 }
 
-// Don't call this directly: call it via workspaceEventLoopRunner_Action
-func actionGetK8sClientForGitOpsEngineInstance(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+// handleManagedEnvironmentModified_shouldInformGitOpsDeployment returns true if the GitOpsDeployment CR references
+// the ManagedEnvironment resource that changed, false otherwise.
+func handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx context.Context, gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment,
+	managedEnvEvent *eventlooptypes.EventLoopEvent, dbQueries db.DatabaseQueries) (bool, error) {
 
-	// TODO: GITOPSRVCE-73: When we support multiple Argo CD instances (and multiple instances on separate clusters), this logic should be updated.
+	informGitOpsDeployment := false // whether or not this gitopsdeployment references the managed environment that changed
 
-	config, err := sharedutil.GetRESTConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	scheme := runtime.NewScheme()
-	err = managedgitopsv1alpha1.AddToScheme(scheme)
-	if err != nil {
-		return nil, err
-	}
-	err = operation.AddToScheme(scheme)
-	if err != nil {
-		return nil, err
-	}
-	err = corev1.AddToScheme(scheme)
-	if err != nil {
-		return nil, err
-	}
-	k8sClient, err := client.New(config, client.Options{Scheme: scheme})
-	if err != nil {
-		return nil, err
+	// 1) If the GitOpsDeployment CR points to the managed environment of the event we are processing, then flag the
+	// GitOpsDeployment as needed to be reconclied
+	if gitopsDeployment.Spec.Destination.Environment == managedEnvEvent.Request.Name {
+		informGitOpsDeployment = true
 	}
 
-	return k8sClient, nil
+	// 2) If the above check wasn't true, look at the database to see if any Application rows are pointing to the managed
+	// environment that changed. If so, flag as needing to be reconciled.
+	if !informGitOpsDeployment {
+
+		// 2a) Retrieve the Namespace containing the ManagedEnvironment CR
+		gitopsDeplNamespace := corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      managedEnvEvent.Request.Namespace,
+				Namespace: managedEnvEvent.Request.Namespace,
+			},
+		}
+		if err := managedEnvEvent.Client.Get(ctx, client.ObjectKeyFromObject(&gitopsDeplNamespace), &gitopsDeplNamespace); err != nil {
+			if apierr.IsNotFound(err) {
+				// Namespace doesn't exist, so no work to do.
+				return false, nil
+			} else {
+				return false, fmt.Errorf("unable to retrieve namespace '%s': %v", gitopsDeplNamespace.Name, err)
+			}
+		}
+
+		// 2b) Retrieve all the managed environments in the database that have had name of the req resource, in this namespace.
+		managedEnvironmentDBIDs := []string{}
+		{
+			apiCRs := []db.APICRToDatabaseMapping{}
+
+			// convert managed env cr to database
+			if err := dbQueries.ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx,
+				db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentManagedEnvironment,
+				managedEnvEvent.Request.Name, managedEnvEvent.Request.Namespace, string(gitopsDeplNamespace.UID),
+				db.APICRToDatabaseMapping_DBRelationType_ManagedEnvironment, &apiCRs); err != nil {
+				return false, fmt.Errorf("unable to retrieve API CRs for managed env '%s': %v", managedEnvEvent.Request.Name, err)
+			}
+
+			for _, apiCR := range apiCRs {
+				managedEnvironmentDBIDs = append(managedEnvironmentDBIDs, apiCR.DBRelationKey)
+			}
+		}
+
+		// 2c) Locate Applications that have been associated with the GitOpsDeployment being handled by this runner.
+		// - For each of them, check if they matching any of managed environments from the previous step.
+		if len(managedEnvironmentDBIDs) > 0 {
+			dtams := []db.DeploymentToApplicationMapping{}
+
+			if err := dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(ctx,
+				gitopsDeployment.Name, managedEnvEvent.Request.Namespace, string(gitopsDeplNamespace.UID), &dtams); err != nil {
+				return false, fmt.Errorf("unable to list DeploymentToApplicationMappings for namespace '%s': %v",
+					managedEnvEvent.Request.Namespace, managedEnvEvent.Request.Name)
+			}
+
+			for _, deplToAppMapping := range dtams {
+
+				appl := db.Application{
+					Application_id: deplToAppMapping.Application_id,
+				}
+
+				if err := dbQueries.GetApplicationById(ctx, &appl); err != nil {
+					if db.IsResultNotFoundError(err) {
+						continue
+					} else {
+						return false, fmt.Errorf("unable to retrieve application '%s': %v", appl.Application_id, err)
+					}
+				}
+
+				// If the Application row references the managed environment, then we need to reconcile the GitOpsDeployment
+				match := false
+				for _, managedEnvDBID := range managedEnvironmentDBIDs {
+					if appl.Managed_environment_id == managedEnvDBID {
+						match = true
+						break
+					}
+				}
+				if match {
+					informGitOpsDeployment = true
+					break
+				}
+
+			}
+		}
+	}
+
+	return informGitOpsDeployment, nil
+
+}
+
+// handleManagedEnvironmentModified checks to see the GitOpsDeployment that is handled by this event runner is referencing the
+// managed environment referenced in 'newEvent'. If the GitOpsDeployment DOES reference it, then we need to ensure that the
+// GitOpsDeployment is reconciled, because it might need to respond to the ManagedEnvironment change.
+//
+// returns true if shutdown was signalled by 'handleDeploymentModified', false otherwise.
+func handleManagedEnvironmentModified(ctx context.Context, expectedResourceName string, newEvent *eventlooptypes.EventLoopEvent,
+	action applicationEventLoopRunner_Action, dbQueries db.DatabaseQueries, log logr.Logger) (bool, error) {
+
+	// 1) Retrieve the GitOpsDeployment that the runner is handling events for
+	gitopsDeployment := &managedgitopsv1alpha1.GitOpsDeployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      expectedResourceName,
+			Namespace: newEvent.Request.Namespace,
+		},
+	}
+	if err := newEvent.Client.Get(ctx, client.ObjectKeyFromObject(gitopsDeployment), gitopsDeployment); err != nil {
+		if apierr.IsNotFound(err) {
+			// gitopsdeployment doesn't exist; no work for us to do here.
+			return false, nil
+		} else {
+			return false, fmt.Errorf("unable to retrieve gitopsdeployment: %v", err)
+		}
+	}
+
+	informGitOpsDeployment, err := handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx, *gitopsDeployment,
+		newEvent, dbQueries)
+	if err != nil {
+		return false, err
+	}
+
+	// If we discovered that this GitOpsDeployment CR or Application row is referencing this ManagedEnvironment,
+	// then call handle deployment modified to ensure that the GitOpsDeployment is reconciled to the latest
+	// contents of the managed environment.
+	if informGitOpsDeployment {
+		// Update the existing action, but change the 'eventResourceName' and 'eventResourceNamespace' to point
+		// to the GitOpsDeployment.
+		newAction := applicationEventLoopRunner_Action{
+			getK8sClientForGitOpsEngineInstance: eventlooptypes.GetK8sClientForGitOpsEngineInstance,
+			eventResourceName:                   gitopsDeployment.Name,
+			eventResourceNamespace:              gitopsDeployment.Namespace,
+			workspaceClient:                     action.workspaceClient,
+			sharedResourceEventLoop:             action.sharedResourceEventLoop,
+			log:                                 action.log,
+			workspaceID:                         action.workspaceID,
+			k8sClientFactory:                    shared_resource_loop.DefaultK8sClientFactory{},
+		}
+
+		signalledShutdown, err := handleDeploymentModified(ctx, newEvent, newAction, dbQueries, log)
+		return signalledShutdown, err
+	}
+
+	return false, nil
+
+}
+
+// Handle events originating from the GitOpsDeployment controller
+func handleDeploymentModified(ctx context.Context, newEvent *eventlooptypes.EventLoopEvent, action applicationEventLoopRunner_Action,
+	scopedDBQueries db.ApplicationScopedQueries, log logr.Logger) (bool, error) {
+
+	// Handle all GitOpsDeployment related events
+	signalledShutdown, _, _, _, err := action.applicationEventRunner_handleDeploymentModified(ctx, scopedDBQueries)
+
+	// Get the GitOpsDeployment object from k8s, so we can update it if necessary
+	gitopsDepl, clientError := getMatchingGitOpsDeployment(ctx, newEvent.Request.Name, newEvent.Request.Namespace, newEvent.Client)
+	if clientError != nil {
+		if !apierr.IsNotFound(clientError) {
+			return false, fmt.Errorf("couldn't fetch the GitOpsDeployment instance: %v", clientError)
+		}
+
+		// For IsNotFound error, no more we need to do, so return nil.
+		return false, nil
+	}
+
+	// Create a gitOpsDeploymentAdapter to plug any conditions
+	conditionManager := condition.NewConditionManager()
+	adapter := newGitOpsDeploymentAdapter(gitopsDepl, log, newEvent.Client, conditionManager, ctx)
+
+	// Plug any conditions based on the "err" msg
+	if setConditionError := adapter.setGitOpsDeploymentCondition(managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred, managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred, err); setConditionError != nil {
+		return false, setConditionError
+	}
+
+	return signalledShutdown, err
 
 }
 
@@ -274,6 +418,8 @@ type applicationEventLoopRunner_Action struct {
 	// processing the action. This allows us to unit test application event functions without needing to
 	// have a cluster-agent running alongside it.
 	testOnlySkipCreateOperation bool
+
+	k8sClientFactory shared_resource_loop.SRLK8sClientFactory
 }
 
 // cleanupOperation cleans up the database entry and (optionally) the CR, once an operation has concluded.
@@ -303,97 +449,4 @@ func CleanupOperation(ctx context.Context, dbOperation db.Operation, k8sOperatio
 
 	return nil
 
-}
-
-func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationParam db.Operation, clusterUserID string,
-	operationNamespace string, dbQueries db.ApplicationScopedQueries, gitopsEngineClient client.Client, log logr.Logger) (*operation.Operation, *db.Operation, error) {
-
-	var err error
-	dbOperation := db.Operation{
-		Instance_id:             dbOperationParam.Instance_id,
-		Resource_id:             dbOperationParam.Resource_id,
-		Resource_type:           dbOperationParam.Resource_type,
-		Operation_owner_user_id: clusterUserID,
-		Created_on:              time.Now(),
-		Last_state_update:       time.Now(),
-		State:                   db.OperationState_Waiting,
-		Human_readable_state:    "",
-	}
-
-	if err := dbQueries.CreateOperation(ctx, &dbOperation, clusterUserID); err != nil {
-		log.Error(err, "unable to create operation", "operation", dbOperation.LongString())
-		return nil, nil, err
-	}
-
-	log.Info("Created database operation", "operation", dbOperation.ShortString())
-
-	// Create K8s operation
-	operation := operation.Operation{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "operation-" + dbOperation.Operation_id,
-			Namespace: operationNamespace,
-		},
-		Spec: operation.OperationSpec{
-			OperationID: dbOperation.Operation_id,
-		},
-	}
-
-	// Set annotation as an identifier for Operations created by NameSpace Reconciler.
-	if clusterUserID == db.SpecialClusterUserName {
-		operation.Annotations = map[string]string{IdentifierKey: IdentifierValue}
-	}
-	log.Info("Creating K8s Operation CR", "operation", fmt.Sprintf("%v", operation.Spec.OperationID))
-
-	if err := gitopsEngineClient.Create(ctx, &operation, &client.CreateOptions{}); err != nil {
-		log.Error(err, "unable to create K8s Operation in namespace", "operation", dbOperation.Operation_id, "namespace", operation.Namespace)
-		return nil, nil, err
-	}
-
-	// Wait for operation to complete.
-
-	if waitForOperation {
-		log.Info("Waiting for Operation to complete", "operation", fmt.Sprintf("%v", operation.Spec.OperationID))
-
-		if err = waitForOperationToComplete(ctx, &dbOperation, dbQueries, log); err != nil {
-			log.Error(err, "operation did not complete", "operation", dbOperation.Operation_id, "namespace", operation.Namespace)
-			return nil, nil, err
-		}
-
-		log.Info("Operation completed", "operation", fmt.Sprintf("%v", operation.Spec.OperationID))
-	}
-
-	return &operation, &dbOperation, nil
-
-}
-
-// waitForOperationToComplete waits for an Operation database entry to have 'Completed' or 'Failed' status.
-//
-func waitForOperationToComplete(ctx context.Context, dbOperation *db.Operation, dbQueries db.ApplicationScopedQueries, log logr.Logger) error {
-
-	backoff := sharedutil.ExponentialBackoff{Factor: 2, Min: time.Duration(100 * time.Millisecond), Max: time.Duration(10 * time.Second), Jitter: true}
-
-	for {
-
-		err := dbQueries.GetOperationById(ctx, dbOperation)
-		if err != nil {
-			// Either the operation couldn't be found (which shouldn't happen here), or some other issue, so return it
-			return err
-		}
-
-		if err == nil && (dbOperation.State == db.OperationState_Completed || dbOperation.State == db.OperationState_Failed) {
-			break
-		}
-
-		backoff.DelayOnFail(ctx)
-
-		// Break if the request is cancelled, or the timeout expires
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("operation context is Done() in waitForOperationToComplete")
-		default:
-		}
-
-	}
-
-	return nil
 }

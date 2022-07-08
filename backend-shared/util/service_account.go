@@ -60,17 +60,22 @@ func getOrCreateServiceAccount(ctx context.Context, k8sClient client.Client, ser
 	return serviceAccount, nil
 }
 
+// GenerateServiceAccountName encapsulates the logic of what name to use when creating a ServiceAccount for Argo CD to use.
+func GenerateServiceAccountName(uuid string) string {
+	return ArgoCDManagerServiceAccountPrefix + uuid
+}
+
 func InstallServiceAccount(ctx context.Context, k8sClient client.Client, uuid string, serviceAccountNS string, log logr.Logger) (string, *corev1.ServiceAccount, error) {
 
-	serviceAccountName := ArgoCDManagerServiceAccountPrefix + uuid
+	serviceAccountName := GenerateServiceAccountName(uuid)
 
 	sa, err := getOrCreateServiceAccount(ctx, k8sClient, serviceAccountName, serviceAccountNS, log)
 	if err != nil {
-		return "", nil, fmt.Errorf("unable to create service account: %v", serviceAccountName)
+		return "", nil, fmt.Errorf("unable to create or update service account: %v", serviceAccountName)
 	}
 
 	if err := createOrUpdateClusterRoleAndRoleBinding(ctx, uuid, k8sClient, serviceAccountName, serviceAccountNS); err != nil {
-		return "", nil, fmt.Errorf("unable to create role and cluster role binding: %v", err)
+		return "", nil, fmt.Errorf("unable to create or update role and cluster role binding: %v", err)
 	}
 
 	token, err := getOrCreateServiceAccountBearerToken(ctx, k8sClient, serviceAccountName, serviceAccountNS)
@@ -86,6 +91,7 @@ func InstallServiceAccount(ctx context.Context, k8sClient client.Client, uuid st
 func getOrCreateServiceAccountBearerToken(ctx context.Context, k8sClient client.Client, serviceAccountName string, serviceAccountNS string) (string, error) {
 	token, err := getServiceAccountBearerToken(ctx, k8sClient, serviceAccountName, serviceAccountNS)
 	if err != nil {
+
 		// If we timed out waiting for service account token secret, assume that the secret is not created.
 		// From k8s 1.24 onwards service accounts will not get a default token secret.
 		// Instead, we need to create a token secret of type "kubernetes.io/service-account-token" and point it to our service account.
@@ -219,15 +225,22 @@ func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k
 		ObjectMeta: metav1.ObjectMeta{
 			Name: ArgoCDManagerClusterRoleNamePrefix + uuid,
 		},
-		Rules: ArgoCDManagerNamespacePolicyRules,
 	}
-	if err := k8sClient.Create(ctx, clusterRole); err != nil {
-		if apierr.IsAlreadyExists(err) {
-			if err := k8sClient.Update(ctx, clusterRole); err != nil {
-				return fmt.Errorf("unable to update cluster role: %v", err)
-			}
-		} else {
+	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(clusterRole), clusterRole); err != nil {
+
+		if !apierr.IsNotFound(err) {
+			return fmt.Errorf("unable to get cluster role: %v", err)
+		}
+
+		clusterRole.Rules = ArgoCDManagerNamespacePolicyRules
+		if err := k8sClient.Create(ctx, clusterRole); err != nil {
 			return fmt.Errorf("unable to create clusterrole: %v", err)
+		}
+
+	} else {
+		clusterRole.Rules = ArgoCDManagerNamespacePolicyRules
+		if err := k8sClient.Update(ctx, clusterRole); err != nil {
+			return fmt.Errorf("unable to update cluster role: %v", err)
 		}
 	}
 
@@ -235,23 +248,33 @@ func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k
 		ObjectMeta: metav1.ObjectMeta{
 			Name: ArgoCDManagerClusterRoleBindingNamePrefix + uuid,
 		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     clusterRole.Name,
-		},
-		Subjects: []rbacv1.Subject{{
-			Kind:      rbacv1.ServiceAccountKind,
-			Name:      serviceAccountName,
-			Namespace: serviceAccountNamespace,
-		}},
 	}
-	if err := k8sClient.Create(ctx, clusterRoleBinding); err != nil {
-		if apierr.IsAlreadyExists(err) {
-			if err := k8sClient.Update(ctx, clusterRoleBinding); err != nil {
-				return fmt.Errorf("unable to update cluster role: %v", err)
-			}
-		} else {
+	update := true
+	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(clusterRoleBinding), clusterRoleBinding); err != nil {
+		if !apierr.IsNotFound(err) {
+			return fmt.Errorf("unable to get cluster role binding: %v", err)
+		}
+		update = false
+	}
+
+	clusterRoleBinding.RoleRef = rbacv1.RoleRef{
+		APIGroup: "rbac.authorization.k8s.io",
+		Kind:     "ClusterRole",
+		Name:     clusterRole.Name,
+	}
+
+	clusterRoleBinding.Subjects = []rbacv1.Subject{{
+		Kind:      rbacv1.ServiceAccountKind,
+		Name:      serviceAccountName,
+		Namespace: serviceAccountNamespace,
+	}}
+
+	if update {
+		if err := k8sClient.Update(ctx, clusterRoleBinding); err != nil {
+			return fmt.Errorf("unable to create clusterrole: %v", err)
+		}
+	} else {
+		if err := k8sClient.Create(ctx, clusterRoleBinding); err != nil {
 			return fmt.Errorf("unable to create clusterrole: %v", err)
 		}
 	}

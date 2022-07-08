@@ -262,3 +262,13 @@ func (dbq *PostgreSQLDatabaseQueries) ListOperationsByResourceIdAndTypeAndOwnerI
 
 	return nil
 }
+
+func (operation *Operation) DisposeAppScoped(ctx context.Context, dbq ApplicationScopedQueries) error {
+
+	if err := isEmptyValues("DisposeAppScoped-Operation", "dbq", dbq); err != nil {
+		return err
+	}
+	_, err := dbq.DeleteOperationById(ctx, operation.Operation_id)
+
+	return err
+}

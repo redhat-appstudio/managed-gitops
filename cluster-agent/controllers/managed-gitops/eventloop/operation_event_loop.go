@@ -2,6 +2,7 @@ package eventloop
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -255,7 +257,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		if apierr.IsNotFound(err) {
 			log.Error(err, "Argo CD namespace doesn't exist: "+argoCDNamespace.Name)
 			// Return retry as true, as it's possible it may exist in the future.
-			return &dbOperation, true, nil
+			return &dbOperation, true, fmt.Errorf("argo CD namespace doesn't exist: %s", argoCDNamespace.Name)
 		} else {
 			log.Error(err, "unexpected error on retrieve Argo CD namespace")
 			// some other generic error
@@ -278,12 +280,79 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 		return &dbOperation, shouldRetry, err
 
+	} else if dbOperation.Resource_type == db.OperationResourceType_ManagedEnvironment {
+		shouldRetry, err := processOperation_ManagedEnvironment(taskContext, dbOperation, *operationCR, dbQueries, *argoCDNamespace, eventClient, log)
+
+		if err != nil {
+			log.Error(err, "error occurred on processing the application operation")
+		}
+
+		return &dbOperation, shouldRetry, err
+
 	} else {
 		log.Error(nil, "SEVERE: unrecognized resource type: "+dbOperation.Resource_type)
 		return &dbOperation, false, nil
 	}
 
 }
+
+// processOoperation_ManagedEnvironment handles an Operation that targets an Application.
+// Returns true if the task should be retried (eg due to failure), false otherwise.
+func processOperation_ManagedEnvironment(ctx context.Context, dbOperation db.Operation, crOperation operation.Operation,
+	dbQueries db.DatabaseQueries, argoCDNamespace corev1.Namespace, eventClient client.Client, log logr.Logger) (bool, error) {
+
+	// The only operation we currently support for managed environment is deletion (creation is handled by Application operations).
+	// Thus, we expect the ManagedEnvironment database entry here to not be found.
+
+	// 1) Make sure the managed environment db entry DOESN'T exist (see above)
+	{
+		managedEnv := &db.ManagedEnvironment{
+			Managedenvironment_id: dbOperation.Resource_id, // managed env id referencing managed env row
+		}
+		if err := dbQueries.GetManagedEnvironmentById(ctx, managedEnv); err != nil {
+			if !db.IsResultNotFoundError(err) {
+				return true, fmt.Errorf("an unexpected error occcurred on retrieving managed env: %v", err)
+			}
+		} else {
+			// The database entry still exists, so return an error
+			return false, fmt.Errorf("managed environment still exists in the database")
+		}
+	}
+
+	// 2) Delete the Argo CD cluster secret corresponding to the managed environment.
+	// - the cluster secret has a specific name format, so it is easy to locate by the name.
+
+	// We have confirmed the database entry doesn't exist, now locate the Argo CD Cluster Secret that
+	// corresponds to the managed environment.
+	expectedSecretName := argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: dbOperation.Resource_id})
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      expectedSecretName,
+			Namespace: argoCDNamespace.Name,
+		},
+	}
+
+	if err := eventClient.Delete(ctx, secret); err != nil {
+		if apierr.IsNotFound(err) {
+			// The cluster secret doesn't exist, so our work is done.
+			return false, nil
+		} else {
+			return true, fmt.Errorf("unable to retrieve Argo CD Cluster Secret '%s' in '%s': %v", secret.Name, secret.Namespace, err)
+		}
+	}
+
+	// Argo CD cluster secret corresponding to environment is successfully deleted.
+	return false, nil
+}
+
+const (
+	// ArgoCDDefaultDestinationInCluster is 'in-cluster' which is the spec destination value that Argo CD recognizes
+	// as indicating that Argo CD should deply to the local cluster (the cluster that Argo CD is installed on).
+	ArgoCDDefaultDestinationInCluster   = "in-cluster"
+	ArgoCDSecretTypeKey                 = "argocd.argoproj.io/secret-type"
+	ArgoCDSecretTypeValue_ClusterSecret = "cluster"
+)
 
 // processOperation_Application handles an Operation that targets an Application.
 // Returns true if the task should be retried (eg due to failure), false otherwise.
@@ -374,6 +443,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		if apierr.IsNotFound(err) {
 			// The Application CR doesn't exist, so we need to create it
 
+			// Copy the contents of the Spec_field database column, into the Spec field of the Argo CD Application CR
 			if err := yaml.Unmarshal([]byte(dbApplication.Spec_field), app); err != nil {
 				log.Error(err, "SEVERE: unable to unmarshal application spec field on creating Application CR: "+app.Name)
 				// We return nil here, because there's likely nothing else that can be done to fix this.
@@ -383,6 +453,14 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 
 			// Add databaseID label
 			app.ObjectMeta.Labels = map[string]string{controllers.ArgoCDApplicationDatabaseIDLabel: dbApplication.Application_id}
+
+			// Before we create the application, make sure that the managed environment exists that the application points to
+			if app.Spec.Destination.Name != ArgoCDDefaultDestinationInCluster {
+				if err := ensureManagedEnvironmentExists(ctx, *dbApplication, dbQueries, argoCDNamespace, eventClient, log); err != nil {
+					log.Error(err, "unable to ensure that managed environment exists")
+					return true, err
+				}
+			}
 
 			if err := eventClient.Create(ctx, app, &client.CreateOptions{}); err != nil {
 				log.Error(err, "unable to create Argo CD Application CR: "+app.Name)
@@ -406,6 +484,8 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 
 	// The application CR exists, and the database entry exists, so check if there is any
 	// difference between them.
+
+	// Before we create the application, make sure that the managed environment that the application points to exists
 
 	specFieldApp := &appv1.Application{}
 
@@ -445,5 +525,177 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		log.Info("no changes detected in application, so no update needed")
 	}
 
+	// Finally, ensure that the managed-environment secret is still up to date
+	if app.Spec.Destination.Name != ArgoCDDefaultDestinationInCluster {
+		if err := ensureManagedEnvironmentExists(ctx, *dbApplication, dbQueries, argoCDNamespace, eventClient, log); err != nil {
+			log.Error(err, "unable to ensure that managed environment exists")
+			return true, err
+		}
+	}
+
 	return false, nil
+}
+
+// ensureManagedEnvironmentExists ensures that the managed environment described by 'application' is defined as an Argo CD
+// cluster secret, in the Argo CD namespace.
+func ensureManagedEnvironmentExists(ctx context.Context, application db.Application, dbQueries db.DatabaseQueries,
+	argoCDNamespace corev1.Namespace, eventClient client.Client, log logr.Logger) error {
+
+	if application.Managed_environment_id == "" {
+		// No work to do
+		return nil
+	}
+
+	expectedSecret, shouldDeleteSecret, err := generateExpectedClusterSecret(ctx, application, dbQueries, argoCDNamespace, eventClient, log)
+	if err != nil {
+		return fmt.Errorf("unable to generate expected cluster secret: %v", err)
+	}
+
+	// If we detected that the managed environment row was deleted, ensure the secret is deleted.
+	if shouldDeleteSecret {
+		secretName := argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: application.Managed_environment_id})
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: argoCDNamespace.Name,
+			},
+		}
+		if err := eventClient.Delete(ctx, secret); err != nil {
+			if apierr.IsNotFound(err) {
+				// The secret doesn't exist, so no more work to do.
+				return nil
+			} else {
+				return fmt.Errorf("unable to delete secret of deleted managed environment: %v", err)
+			}
+		}
+
+		return nil
+	}
+
+	// If the secret is otherwise empty, no work is required
+	if expectedSecret.Name == "" {
+		return nil
+	}
+
+	existingSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      expectedSecret.Name,
+			Namespace: expectedSecret.Namespace,
+		},
+	}
+	if err := eventClient.Get(ctx, client.ObjectKeyFromObject(existingSecret), existingSecret); err != nil {
+		if !apierr.IsNotFound(err) {
+			return fmt.Errorf("unable to retrieve existing Argo CD Cluster secret '%s' in '%s'", existingSecret.Name, existingSecret.Namespace)
+		}
+
+		// A) Secret doesn't exist, so create it
+		if err := eventClient.Create(ctx, &expectedSecret); err != nil {
+			return fmt.Errorf("unable to create expected Argo CD Cluster secret '%s' in '%s'", expectedSecret.Name, expectedSecret.Namespace)
+		}
+
+		return nil
+	}
+
+	// B) Secret already exists, so compare
+	if reflect.DeepEqual(existingSecret.Data, expectedSecret.Data) {
+		// No work required, so exit.
+		return nil
+	}
+	existingSecret.Data = expectedSecret.Data
+
+	// C) Secret exists, but is different from what is expected, so update it.
+	if err := eventClient.Update(ctx, existingSecret); err != nil {
+		return fmt.Errorf("unable to update existing secret '%s' in '%s'", existingSecret.Name, existingSecret.Namespace)
+	}
+
+	return nil
+
+}
+
+// generateExpectedClusterSecret generates (but does apply) an Argo CD cluster secret for the environment of the application.
+// returns:
+// - argo cd cluster secret based on managed environment
+// - bool: true if secret should be deleted false otherwise
+// - error
+func generateExpectedClusterSecret(ctx context.Context, application db.Application, dbQueries db.DatabaseQueries,
+	argoCDNamespace corev1.Namespace, eventClient client.Client, log logr.Logger) (corev1.Secret, bool, error) {
+
+	const (
+		deleteSecret_true  = true
+		deleteSecret_false = false
+	)
+
+	managedEnv := &db.ManagedEnvironment{
+		Managedenvironment_id: application.Managed_environment_id,
+	}
+
+	if err := dbQueries.GetManagedEnvironmentById(ctx, managedEnv); err != nil {
+		if db.IsResultNotFoundError(err) {
+			// Application refers to a managed environment that doesn't exist: no more work to do.
+			// Return true to indicate that the managed environment cluster secret should be deleted.
+			return corev1.Secret{}, deleteSecret_true, nil
+		} else {
+			return corev1.Secret{}, deleteSecret_false,
+				fmt.Errorf("unable to get managed environment '%s': %v", managedEnv.Managedenvironment_id, err)
+		}
+	}
+
+	clusterCredentials := &db.ClusterCredentials{
+		Clustercredentials_cred_id: managedEnv.Clustercredentials_id,
+	}
+
+	if err := dbQueries.GetClusterCredentialsById(ctx, clusterCredentials); err != nil {
+		if db.IsResultNotFoundError(err) {
+			// Managed environment refers to cluster credentials which no longer exist: no more work to do.
+			// Return true to indicate that the managed environment cluster secret should be deleted.
+			return corev1.Secret{}, deleteSecret_true, nil
+		} else {
+			return corev1.Secret{}, deleteSecret_false,
+				fmt.Errorf("unable to get cluster credentials '%s': %v", clusterCredentials.Clustercredentials_cred_id, err)
+		}
+	}
+
+	bearerToken := clusterCredentials.Serviceaccount_bearer_token
+
+	name := argosharedutil.GenerateArgoCDClusterSecretName(*managedEnv)
+
+	clusterSecretConfigJSON := ClusterSecretConfigJSON{
+		BearerToken: bearerToken,
+		TLSClientConfig: ClusterSecretTLSClientConfigJSON{
+			Insecure: true, // TODO: GITOPSRVCE-178: Once TLS certification validation configuration is implmented, this value should be updated.
+		},
+	}
+
+	jsonString, err := json.Marshal(clusterSecretConfigJSON)
+	if err != nil {
+		return corev1.Secret{}, deleteSecret_false, fmt.Errorf("SEVERE: unable to marshal JSON")
+	}
+
+	managedEnvironmentSecret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: argoCDNamespace.Name,
+			Labels: map[string]string{
+				ArgoCDSecretTypeKey:                            ArgoCDSecretTypeValue_ClusterSecret,
+				controllers.ArgoCDClusterSecretDatabaseIDLabel: managedEnv.Managedenvironment_id,
+			},
+		},
+		Data: map[string][]byte{
+			"name":   ([]byte)(name),
+			"server": ([]byte)(clusterCredentials.Host),
+			"config": ([]byte)(string(jsonString)),
+		},
+	}
+
+	return managedEnvironmentSecret, deleteSecret_false, nil
+
+}
+
+type ClusterSecretConfigJSON struct {
+	BearerToken     string                           `json:"bearerToken"`
+	TLSClientConfig ClusterSecretTLSClientConfigJSON `json:"tlsClientConfig"`
+}
+
+type ClusterSecretTLSClientConfigJSON struct {
+	Insecure bool `json:"insecure"`
 }

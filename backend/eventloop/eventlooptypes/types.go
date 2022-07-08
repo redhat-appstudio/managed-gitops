@@ -1,13 +1,21 @@
 package eventlooptypes
 
 import (
+	"context"
 	"fmt"
+	"time"
 
+	"github.com/go-logr/logr"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 type EventLoopEventType string
@@ -15,9 +23,12 @@ type EventLoopEventType string
 const (
 	DeploymentModified           EventLoopEventType = "DeploymentModified"
 	RepositoryCredentialModified EventLoopEventType = "RepositoryCredentialModified"
+	ManagedEnvironmentModified   EventLoopEventType = "ManagedEnvironmentModified"
 	SyncRunModified              EventLoopEventType = "SyncRunModified"
 	UpdateDeploymentStatusTick   EventLoopEventType = "UpdateDeploymentStatusTick"
 )
+
+const KubeSystemNamespace = "kube-system"
 
 // EventLoopEvent tracks an event received from the controllers in the apis/managed-gitops/v1alpha1 package.
 // For example, when a GitOpsDeployment is created/modified/deleted, an EventLoopEvent is created and
@@ -44,6 +55,18 @@ type EventLoopEvent struct {
 	// WorkspaceID is the UID of the namespace that contains the request
 	WorkspaceID string
 }
+
+const (
+	// orphanedResourceGitopsDeplUID indicates that a GitOpsDeploymentSyncRunCR is orphaned, which means
+	// we do not know which GitOpsDeployment it should belong to. This is usually because the deployment name
+	// field of the SyncRun refers to a K8s resource that doesn't (or no longer) exists.
+	// See https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.8tiycl1h7rns for details.
+	OrphanedResourceGitopsDeplUID = "orphaned"
+
+	// noAssociatedGitOpsDeploymentUID: if a resource does not have an orphanedResourceDeplUID, this constant should be set.
+	// For example: GitOpsDeploymentRepositoryCredentials might be associated with multiple (or zero) GitOpsDeployments.
+	NoAssociatedGitOpsDeploymentUID = "none"
+)
 
 // GetReqResourceAsClientObject converts the resource into a simple client.Object: it will be of
 // the expected type (GitOpsDeployment/SyncRun/etc), but only contain the name and namespace.
@@ -114,4 +137,135 @@ func StringEventLoopEvent(obj *EventLoopEvent) string {
 func GetWorkspaceIDFromNamespaceID(namespace corev1.Namespace) string {
 	// Here we assume that the namespace UID is the same as the workspace UID. If/when that changes, this should be updated.
 	return string(namespace.UID)
+}
+
+// Global variables to identify resources created by Namespace Reconciler.
+const (
+	IdentifierKey   = "source"
+	IdentifierValue = "periodic-cleanup"
+)
+
+func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationParam db.Operation, clusterUserID string,
+	operationNamespace string, dbQueries db.ApplicationScopedQueries, gitopsEngineClient client.Client,
+	log logr.Logger) (*operation.Operation, *db.Operation, error) {
+
+	var err error
+	dbOperation := db.Operation{
+		Instance_id:             dbOperationParam.Instance_id,
+		Resource_id:             dbOperationParam.Resource_id,
+		Resource_type:           dbOperationParam.Resource_type,
+		Operation_owner_user_id: clusterUserID,
+		Created_on:              time.Now(),
+		Last_state_update:       time.Now(),
+		State:                   db.OperationState_Waiting,
+		Human_readable_state:    "",
+	}
+
+	if err := dbQueries.CreateOperation(ctx, &dbOperation, clusterUserID); err != nil {
+		log.Error(err, "unable to create operation", "operation", dbOperation.LongString())
+		return nil, nil, err
+	}
+
+	log.Info("Created database operation", "operation", dbOperation.ShortString())
+
+	// Create K8s operation
+	operation := operation.Operation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "operation-" + dbOperation.Operation_id,
+			Namespace: operationNamespace,
+		},
+		Spec: operation.OperationSpec{
+			OperationID: dbOperation.Operation_id,
+		},
+	}
+
+	// Set annotation as an identifier for Operations created by NameSpace Reconciler.
+	if clusterUserID == db.SpecialClusterUserName {
+		operation.Annotations = map[string]string{IdentifierKey: IdentifierValue}
+	}
+	log.Info("Creating K8s Operation CR", "operation", fmt.Sprintf("%v", operation.Spec.OperationID))
+
+	if err := gitopsEngineClient.Create(ctx, &operation, &client.CreateOptions{}); err != nil {
+		log.Error(err, "unable to create K8s Operation in namespace", "operation", dbOperation.Operation_id, "namespace", operation.Namespace)
+		return nil, nil, err
+	}
+
+	// Wait for operation to complete.
+
+	if waitForOperation {
+		log.Info("Waiting for Operation to complete", "operation", fmt.Sprintf("%v", operation.Spec.OperationID))
+
+		if err = waitForOperationToComplete(ctx, &dbOperation, dbQueries, log); err != nil {
+			log.Error(err, "operation did not complete", "operation", dbOperation.Operation_id, "namespace", operation.Namespace)
+			return nil, nil, err
+		}
+
+		log.Info("Operation completed", "operation", fmt.Sprintf("%v", operation.Spec.OperationID))
+	}
+
+	return &operation, &dbOperation, nil
+
+}
+
+// waitForOperationToComplete waits for an Operation database entry to have 'Completed' or 'Failed' status.
+//
+func waitForOperationToComplete(ctx context.Context, dbOperation *db.Operation, dbQueries db.ApplicationScopedQueries, log logr.Logger) error {
+
+	backoff := sharedutil.ExponentialBackoff{Factor: 2, Min: time.Duration(100 * time.Millisecond), Max: time.Duration(10 * time.Second), Jitter: true}
+
+	for {
+
+		err := dbQueries.GetOperationById(ctx, dbOperation)
+		if err != nil {
+			// Either the operation couldn't be found (which shouldn't happen here), or some other issue, so return it
+			return err
+		}
+
+		if err == nil && (dbOperation.State == db.OperationState_Completed || dbOperation.State == db.OperationState_Failed) {
+			break
+		}
+
+		backoff.DelayOnFail(ctx)
+
+		// Break if the request is cancelled, or the timeout expires
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("operation context is Done() in waitForOperationToComplete")
+		default:
+		}
+
+	}
+
+	return nil
+}
+
+func GetK8sClientForGitOpsEngineInstance(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+
+	// TODO: GITOPSRVCE-73: When we support multiple Argo CD instances (and multiple instances on separate clusters), this logic should be updated.
+
+	config, err := sharedutil.GetRESTConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	scheme := runtime.NewScheme()
+	err = managedgitopsv1alpha1.AddToScheme(scheme)
+	if err != nil {
+		return nil, err
+	}
+	err = operation.AddToScheme(scheme)
+	if err != nil {
+		return nil, err
+	}
+	err = corev1.AddToScheme(scheme)
+	if err != nil {
+		return nil, err
+	}
+	k8sClient, err := client.New(config, client.Options{Scheme: scheme})
+	if err != nil {
+		return nil, err
+	}
+
+	return k8sClient, nil
+
 }

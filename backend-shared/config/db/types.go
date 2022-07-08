@@ -150,8 +150,9 @@ const (
 )
 
 const (
-	OperationResourceType_SyncOperation = "SyncOperation"
-	OperationResourceType_Application   = "Application"
+	OperationResourceType_SyncOperation      = "SyncOperation"
+	OperationResourceType_Application        = "Application"
+	OperationResourceType_ManagedEnvironment = "ManagedEnvironment"
 )
 
 // Operation
@@ -310,9 +311,11 @@ const (
 
 	// TODO: GITOPSRVCE-67: Convert these into typed constants
 
+	APICRToDatabaseMapping_ResourceType_GitOpsDeploymentManagedEnvironment   = "GitOpsDeploymentManagedEnvironment"
 	APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun              = "GitOpsDeploymentSyncRun"
 	APICRToDatabaseMapping_ResourceType_GitOpsDeploymentRepositoryCredential = "GitOpsDeploymentRepositoryCredential"
 
+	APICRToDatabaseMapping_DBRelationType_ManagedEnvironment   = "ManagedEnvironment"
 	APICRToDatabaseMapping_DBRelationType_SyncOperation        = "SyncOperation"
 	APICRToDatabaseMapping_DBRelationType_RepositoryCredential = "RepositoryCredential"
 )

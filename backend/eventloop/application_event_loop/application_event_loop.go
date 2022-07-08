@@ -71,11 +71,13 @@ func applicationEventQueueLoop(input chan eventlooptypes.EventLoopMessage, gitop
 	defer log.Info("applicationEventQueueLoop ended.")
 
 	// Only one deployment event is processed at a time
+	// These are events that are waiting to be sent to application_event_runner_deployments runner
 	var activeDeploymentEvent *eventlooptypes.EventLoopEvent
 	waitingDeploymentEvents := []*eventlooptypes.EventLoopEvent{}
 
 	// Only one sync operation event is processed at a time
 	// For example: if the user created multiple GitOpsDeploymentSyncRun CRs, they will be processed to completion, one at a time.
+	// These are events that are waiting to be sent to application_event_runner_syncruns runner
 	var activeSyncOperationEvent *eventlooptypes.EventLoopEvent
 	waitingSyncOperationEvents := []*eventlooptypes.EventLoopEvent{}
 
@@ -90,13 +92,11 @@ func applicationEventQueueLoop(input chan eventlooptypes.EventLoopMessage, gitop
 
 	for {
 
-		// If both the runner signal that they have shutdown, then
+		// If both the runners signal that they have shutdown, then exit
 		if deploymentEventRunnerShutdown && syncOperationEventRunnerShutdown {
 			log.V(sharedutil.LogLevel_Debug).Info("orderly termination of deployment and sync runners.")
 			break
 		}
-
-		// TODO: GITOPSRVCE-82 - DEBT - Sanity test that everything we receive is directly or indirectly related to this gitopsDeplId
 
 		// Block on waiting for more events for this application
 		newEvent := <-input
@@ -105,7 +105,11 @@ func applicationEventQueueLoop(input chan eventlooptypes.EventLoopMessage, gitop
 			log.Error(nil, "SEVERE: applicationEventQueueLoop event was nil", "messageType", newEvent.MessageType)
 			continue
 		}
-		if newEvent.Event.AssociatedGitopsDeplUID != gitopsDeplID {
+
+		if newEvent.Event.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentTypeName {
+			// This is expected: the AssociatedGitopsDeplUID won't match for managedenvironments
+
+		} else if newEvent.Event.AssociatedGitopsDeplUID != gitopsDeplID {
 			log.Error(nil, "SEVERE: gitopsdepluid associated with event had a different value than the application event queue loop gitopsdepl", "event-gitopsdepl-uid", newEvent.Event.AssociatedGitopsDeplUID, "application-event-loop-gitopsdepl-", gitopsDeplID)
 			continue
 		}
@@ -132,6 +136,14 @@ func applicationEventQueueLoop(input chan eventlooptypes.EventLoopMessage, gitop
 				} else {
 					log.V(sharedutil.LogLevel_Debug).Info("Ignoring post-shutdown sync operation event")
 				}
+			} else if newEvent.Event.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentTypeName {
+
+				if !deploymentEventRunnerShutdown {
+					waitingDeploymentEvents = append(waitingDeploymentEvents, newEvent.Event)
+				} else {
+					log.V(sharedutil.LogLevel_Debug).Info("Ignoring post-shutdown managed environment event")
+				}
+
 			} else if newEvent.Event.EventType == eventlooptypes.UpdateDeploymentStatusTick {
 
 				if !deploymentEventRunnerShutdown {
@@ -157,7 +169,8 @@ func applicationEventQueueLoop(input chan eventlooptypes.EventLoopMessage, gitop
 				activeDeploymentEvent = nil
 				startNewStatusUpdateTimer(ctx, input, gitopsDeplID, log)
 
-			} else if newEvent.Event.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentTypeName {
+			} else if newEvent.Event.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentTypeName ||
+				newEvent.Event.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentTypeName {
 
 				if activeDeploymentEvent != newEvent.Event {
 					log.Error(nil, "SEVERE: unmatched deployment event work item", "activeDeploymentEvent", eventlooptypes.StringEventLoopEvent(activeDeploymentEvent))

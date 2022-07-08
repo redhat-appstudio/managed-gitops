@@ -204,7 +204,7 @@ var _ = Describe("Operation Controller", func() {
 
 		})
 
-		It("Ensures that if the GitopsEngineInstance's namespace_name field doesn't exist, an error is not returned, and retry is true", func() {
+		It("Ensures that if the GitopsEngineInstance's namespace_name field doesn't exist, an error is returned, and retry is true", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
@@ -251,7 +251,7 @@ var _ = Describe("Operation Controller", func() {
 			Expect(err).To(BeNil())
 
 			retry, err := task.PerformTask(ctx)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(BeNil())
 			Expect(retry).To(BeTrue())
 
 			kubernetesToDBResourceMapping := db.KubernetesToDBResourceMapping{

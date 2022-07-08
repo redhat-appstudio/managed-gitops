@@ -5,6 +5,7 @@ import (
 	"fmt"
 )
 
+// ListDeploymentToApplicationMappingByNamespaceUID lists all DTAMs that are in a namespace with the given UID
 func (dbq *PostgreSQLDatabaseQueries) ListDeploymentToApplicationMappingByNamespaceUID(ctx context.Context, namespaceUID string,
 	deplToAppMappingParam *[]DeploymentToApplicationMapping) error {
 
@@ -306,4 +307,13 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllDeploymentToApplicationMappin
 		return err
 	}
 	return nil
+}
+
+func (obj *DeploymentToApplicationMapping) Dispose(ctx context.Context, dbq DatabaseQueries) error {
+	if dbq == nil {
+		return fmt.Errorf("missing database interface in DeploymentToApplicationMapping dispose")
+	}
+
+	_, err := dbq.DeleteDeploymentToApplicationMappingByDeplId(ctx, obj.Deploymenttoapplicationmapping_uid_id)
+	return err
 }

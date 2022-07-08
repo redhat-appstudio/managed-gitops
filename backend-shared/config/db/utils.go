@@ -140,6 +140,19 @@ func validateQueryParamsNoPK(dbq *PostgreSQLDatabaseQueries) error {
 	return nil
 }
 
+func (e *APICRToDatabaseMapping) ShortString() string {
+
+	res := ""
+	res += "name: " + e.APIResourceName + ", "
+	res += "namespace: " + e.APIResourceNamespace + ", "
+	res += "resource-type: : " + e.APIResourceType + ", "
+	res += "namespace-uid: " + e.NamespaceUID + ", "
+	res += "db-relation-key: " + e.DBRelationKey + ", "
+	res += "db-relation-type: " + e.DBRelationType
+
+	return res
+}
+
 func (o *Operation) ShortString() string {
 	res := ""
 	res += "operation-id: " + o.Operation_id + ", "
@@ -338,13 +351,32 @@ func SetupForTestingDBGinkgo() error {
 		}
 	}
 
+	// Create a list of gitops engine instance uids that were created by test cases; we
+	// will later use this to delete old Operations rows, that reference these instances.
+	gitopsEngineInstanceUIDsToDelete := map[string]interface{}{}
+	{
+		var engineInstances []GitopsEngineInstance
+		err = dbq.UnsafeListAllGitopsEngineInstances(ctx, &engineInstances)
+		Expect(err).To(BeNil())
+
+		for _, gitopsEngineInstance := range engineInstances {
+
+			if strings.HasPrefix(gitopsEngineInstance.Gitopsengineinstance_id, "test-") {
+				gitopsEngineInstanceUIDsToDelete[gitopsEngineInstance.Gitopsengineinstance_id] = ""
+			}
+		}
+	}
+
 	var operations []Operation
 	err = dbq.UnsafeListAllOperations(ctx, &operations)
 	Expect(err).To(BeNil())
 
 	for _, operation := range operations {
 
-		if strings.HasPrefix(operation.Operation_id, "test-") {
+		// Clean up any operations that reference GitOpsEngineInstance that are going to be deleted below.
+		_, instanceToBeDeleted := gitopsEngineInstanceUIDsToDelete[operation.Instance_id]
+
+		if instanceToBeDeleted || strings.HasPrefix(operation.Operation_id, "test-") {
 			rowsAffected, err := dbq.CheckedDeleteOperationById(ctx, operation.Operation_id, operation.Operation_owner_user_id)
 			Expect(rowsAffected).Should(Equal(1))
 			Expect(err).To(BeNil())
@@ -444,7 +476,6 @@ func SetupForTestingDBGinkgo() error {
 			rowsAffected, err := dbq.DeleteManagedEnvironmentById(ctx, managedEnvironment.Managedenvironment_id)
 			Expect(rowsAffected).Should(Equal(1))
 			Expect(err).To(BeNil())
-
 		}
 	}
 

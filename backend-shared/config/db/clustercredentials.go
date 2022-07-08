@@ -60,7 +60,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterCredentials(ctx context.Conte
 
 func (dbq *PostgreSQLDatabaseQueries) GetClusterCredentialsById(ctx context.Context, clusterCreds *ClusterCredentials) error {
 
-	if err := validateUnsafeQueryParamsEntity(clusterCreds, dbq); err != nil {
+	if err := validateQueryParamsEntity(clusterCreds, dbq); err != nil {
 		return err
 	}
 
@@ -73,7 +73,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetClusterCredentialsById(ctx context.Cont
 	}
 
 	if len(dbResults) == 0 {
-		return NewResultNotFoundError("UnsafeGetClusterCredentialsById")
+		return NewResultNotFoundError("No results found for GetClusterCredentialsById")
 	}
 
 	if len(dbResults) > 1 {
@@ -265,4 +265,13 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteClusterCredentialsById(ctx context.C
 	}
 
 	return deleteResult.RowsAffected(), nil
+}
+
+func (obj *ClusterCredentials) Dispose(ctx context.Context, dbq DatabaseQueries) error {
+	if dbq == nil {
+		return fmt.Errorf("missing database interface in ClusterCredentials dispose")
+	}
+
+	_, err := dbq.DeleteClusterCredentialsById(ctx, obj.Clustercredentials_cred_id)
+	return err
 }

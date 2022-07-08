@@ -11,18 +11,81 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
-	errOperationIDNotFound   = "resource ID was nil while processing operation: \"%s\""
+	errOperationIDNotFound   = "resource ID was nil while processing operation"
 	errGenericDB             = "unable to retrieve database row from database"
 	errRowNotFound           = "row no longer exists in the database"
-	errPrivateSecretNotFound = "Argo CD Private Repository secret doesn't exist:"
-	errPrivateSecretCreate   = "Unable to create Argo CD Repository secret:"
-	errGetPrivateSecret      = "unexpected error on retrieve Argo CD secret:"
-	errUpdatePrivateSecret   = "unable to update Argo CD Private Repository secret's \"%s\""
+	errPrivateSecretNotFound = "Argo CD Private Repository secret doesn't exist"
+	errPrivateSecretCreate   = "unable to create Argo CD Repository secret"
+	errGetPrivateSecret      = "unexpected error on retrieve Argo CD secret"
+	errUpdatePrivateSecret   = "unable to update Argo CD Private Repository secret"
+	errDeletePrivateSecret   = "unable to delete Argo CD Private Repository secret"
+	errLabelNotFound         = "SEVERE: invalid label requirement"
+	errSecretLabelList       = "unable to complete Argo CD Secret list"
+	errNumOfItemsInList      = "SEVERE: unexpected number of items in list"
 )
+
+// deleteArgoCDSecretLeftovers best effort attempt to clean up ArgoCD Secret leftovers.
+func deleteArgoCDSecretLeftovers(ctx context.Context, argoCDNamespace corev1.Namespace, eventClient client.Client, l logr.Logger, databaseID string) (bool, error) {
+	const retry, noRetry = true, false
+
+	list := corev1.SecretList{}
+	labelSelector := labels.NewSelector()
+	req, err := labels.NewRequirement(controllers.RepoCredDatabaseIDLabel, selection.Equals, []string{databaseID})
+	if err != nil {
+		l.Error(err, errLabelNotFound)
+		return noRetry, err
+	}
+	labelSelector = labelSelector.Add(*req)
+	if err := eventClient.List(ctx, &list, &client.ListOptions{
+		Namespace:     argoCDNamespace.Name,
+		LabelSelector: labelSelector,
+	}); err != nil {
+		l.Error(err, errSecretLabelList)
+		return retry, err
+	}
+
+	if len(list.Items) > 1 {
+		// Sanity test: should really only ever be 0 or 1
+		l.Error(nil, errNumOfItemsInList, "length", len(list.Items))
+	}
+
+	var firstDeletionErr error
+	for _, item := range list.Items {
+
+		l2 := l.WithValues("argoCDSecret", item.Name, "argoCDSecretNamespace", item.Namespace)
+
+		l2.Info("Deleting Argo CD Secret that is missing a DB Entry")
+
+		// Delete all Argo CD Secret with the corresponding database label (but, there should be only one)
+		err := eventClient.Delete(ctx, &item)
+		if err != nil {
+			if apierr.IsNotFound(err) {
+				l2.Info("Argo CD Secret was already deleted")
+			} else {
+				l2.Error(err, errDeletePrivateSecret, "Secret Name", item.Name)
+
+				if firstDeletionErr == nil {
+					firstDeletionErr = err
+				}
+			}
+		} else {
+			l2.Info("Deleted Argo CD Secret", "argoCDSecret", item.Name, "argoCDSecretNamespace", item.Namespace)
+		}
+	}
+
+	if firstDeletionErr != nil {
+		l.Error(firstDeletionErr, "Deletion of at least one Argo CD Secret failed. First error was: %v", firstDeletionErr)
+		return retry, firstDeletionErr
+	}
+
+	return noRetry, nil
+}
 
 // processOperation_RepositoryCredentials processes the given operation as a RepositoryCredentials operation.
 // It returns true if the operation should be retried, and false otherwise.
@@ -32,47 +95,23 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 	const retry, noRetry = true, false
 
 	if dbOperation.Resource_id == "" {
-		return retry, fmt.Errorf(errOperationIDNotFound, crOperation.Name)
+		return retry, fmt.Errorf("%v: %v", errOperationIDNotFound, crOperation.Name)
 	}
 
 	l = l.WithValues("operationRow", dbOperation.Operation_id)
 
-	// 2) Retrieve the RepositoryCredentials CR from the database.
+	// 2) Retrieve the RepositoryCredentials database row that corresponds to the operation
 	dbRepositoryCredentials, err := dbQueries.GetRepositoryCredentialsByID(ctx, dbOperation.Resource_id)
 	if err != nil {
+		// If the db row is missing, try to delete the related leftovers (ArgoCD Secret)
 		if db.IsResultNotFoundError(err) {
 			l.Error(err, errRowNotFound, "resource-id", dbOperation.Resource_id)
-			// The RepositoryCredentials DB row doesn't exist. This means a RepositoryCredentials CR was deleted and the backend-controller deleted its corresponding DB row.
-			// We have to find if there are any ArgoCD leftovers and delete them (e.g. ArgoCD Secret).
-			// We do this by looking for the ArgoCD Secrets that have the label: "databaseID: <dbRepositoryCredentials Primary Key>"
-
-			// TODO: Delete the corresponding repositoryCredentials CR, if it exists
-			// TODO: Add a finalizer to the CR, to make sure it is deleted only when the corresponding ArgoCD secret has been deleted as well
-			// // 1. Find the associated RepostitoryCredentials CR (How?)
-			// // 2. Find the ArgoCD secret that is associated with the RepositoryCredentials CR.
-			//argoCDSecret := &corev1.Secret{
-			//	ObjectMeta: metav1.ObjectMeta{
-			//		Name:      dbRepositoryCredentials.SecretObj,
-			//		Namespace: argoCDNamespace.Name,
-			//	},
-			//}
-			//if err := eventClient.Get(ctx, client.ObjectKeyFromObject(argoCDSecret), argoCDSecret); err != nil {
-			//	if apierr.IsNotFound(err) {
-			//		l.Error(err, "Argo CD Private Repository secret doesn't exist: "+argoCDSecret.Name)
-			//		// No need to retry, as it's already been deleted.
-			//		return noRetry, nil
-			//	} else {
-			//		l.Error(err, "unexpected error on retrieve Argo CD secret")
-			//		// some other generic error
-			//		return retry, err
-			//	}
-			//}
-			return noRetry, err
-		} else {
-			// some other generic error
-			l.Error(err, errGenericDB, "resource-id", dbOperation.Resource_id)
-			return retry, err
+			return deleteArgoCDSecretLeftovers(ctx, argoCDNamespace, eventClient, l, dbOperation.Resource_id)
 		}
+
+		// Something went wrong with the database connection, just retry
+		l.Error(err, errGenericDB, "resource-id", dbOperation.Resource_id)
+		return retry, err
 	}
 
 	l = l.WithValues("repositoryCredentialsRow", dbRepositoryCredentials.RepositoryCredentialsID)

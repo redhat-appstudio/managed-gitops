@@ -2,6 +2,7 @@ package eventloop
 
 import (
 	"context"
+	"github.com/argoproj/argo-cd/v2/common"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
@@ -272,6 +273,173 @@ var _ = Describe("RepositoryCredentials Operation Tests", func() {
 			Expect(string(secret.Data["password"])).Should(Equal(repositoryCredential.AuthPassword))
 			Expect(secret.Labels["argocd.argoproj.io/secret-type"]).Should(Equal("repository"))
 			Expect(secret.Labels[controllers.RepoCredDatabaseIDLabel]).Should(Equal(repositoryCredential.RepositoryCredentialsID))
+		})
+		It("If RepoCred doesn't exist, then delete the related secret", func() {
+			By("Create the ArgoCD secret with a DatabaseID label")
+			// Setup an ArgoCD Secret
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-fake-secret-obj-2",
+					Namespace: namespace,
+					Labels: map[string]string{
+						common.LabelKeySecretType:           common.LabelValueSecretTypeRepository,
+						controllers.RepoCredDatabaseIDLabel: "cheat",
+					},
+					Annotations: map[string]string{
+						common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+					},
+				},
+			}
+
+			err = task.event.client.Create(ctx, secret, &client.CreateOptions{})
+			Expect(err).To(BeNil())
+
+			By("creating Operation row in database")
+			operationDB := &db.Operation{
+				Operation_id:            "test-operation-3",
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "cheat", // this needs to be unique for this testcase!
+				Resource_type:           db.OperationResourceType_RepositoryCredentials,
+				State:                   db.OperationState_Waiting,
+				Operation_owner_user_id: clusterUser.Clusteruser_id,
+			}
+
+			err = dbq.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+			Expect(err).To(BeNil())
+
+			By("creating Operation CR")
+			operationCR := &operation.Operation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      name,
+					Namespace: namespace,
+				},
+				Spec: operation.OperationSpec{
+					OperationID: operationDB.Operation_id,
+				},
+			}
+
+			err = task.event.client.Create(ctx, operationCR)
+			Expect(err).To(BeNil())
+
+			// Do it
+			retry, err := task.PerformTask(ctx)
+			Expect(err).To(BeNil())
+			Expect(retry).To(BeFalse())
+
+			By("Get the secret")
+			err = task.event.client.Get(ctx, types.NamespacedName{Name: secret.Name, Namespace: namespace}, secret)
+			Expect(err).ToNot(BeNil())
+
+		})
+		It("If RepoCred doesn't exist, then delete the related secrets", func() {
+			By("Create the ArgoCD secret with a DatabaseID label")
+			// Setup an ArgoCD Secret
+			secret1 := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-fake-secret-obj-1",
+					Namespace: namespace,
+					Labels: map[string]string{
+						common.LabelKeySecretType:           common.LabelValueSecretTypeRepository,
+						controllers.RepoCredDatabaseIDLabel: "cheat",
+					},
+					Annotations: map[string]string{
+						common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+					},
+				},
+			}
+
+			secret2 := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-fake-secret-obj-2",
+					Namespace: namespace,
+					Labels: map[string]string{
+						common.LabelKeySecretType:           common.LabelValueSecretTypeRepository,
+						controllers.RepoCredDatabaseIDLabel: "cheat", // <-- it has to have the same with secret1
+					},
+					Annotations: map[string]string{
+						common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+					},
+				},
+			}
+
+			err = task.event.client.Create(ctx, secret1, &client.CreateOptions{})
+			Expect(err).To(BeNil())
+
+			err = task.event.client.Create(ctx, secret2, &client.CreateOptions{})
+			Expect(err).To(BeNil())
+
+			By("creating Operation row in database")
+			operationDB := &db.Operation{
+				Operation_id:            "test-operation-4",
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "cheat", // this needs to be unique for this testcase!
+				Resource_type:           db.OperationResourceType_RepositoryCredentials,
+				State:                   db.OperationState_Waiting,
+				Operation_owner_user_id: clusterUser.Clusteruser_id,
+			}
+
+			err = dbq.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+			Expect(err).To(BeNil())
+
+			By("creating Operation CR")
+			operationCR := &operation.Operation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      name,
+					Namespace: namespace,
+				},
+				Spec: operation.OperationSpec{
+					OperationID: operationDB.Operation_id,
+				},
+			}
+
+			err = task.event.client.Create(ctx, operationCR)
+			Expect(err).To(BeNil())
+
+			// Do it
+			retry, err := task.PerformTask(ctx)
+			Expect(err).To(BeNil())
+			Expect(retry).To(BeFalse())
+
+			By("Get the secrets")
+			err = task.event.client.Get(ctx, types.NamespacedName{Name: secret1.Name, Namespace: namespace}, secret1)
+			Expect(err).ToNot(BeNil())
+			err = task.event.client.Get(ctx, types.NamespacedName{Name: secret2.Name, Namespace: namespace}, secret2)
+			Expect(err).ToNot(BeNil())
+
+		})
+		It("If RepoCred doesn't exist, and no leftovers, then NOP", func() {
+			By("creating Operation row in database")
+			operationDB := &db.Operation{
+				Operation_id:            "test-operation-4",
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "cheat", // this needs to be unique for this testcase!
+				Resource_type:           db.OperationResourceType_RepositoryCredentials,
+				State:                   db.OperationState_Waiting,
+				Operation_owner_user_id: clusterUser.Clusteruser_id,
+			}
+
+			err = dbq.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+			Expect(err).To(BeNil())
+
+			By("creating Operation CR")
+			operationCR := &operation.Operation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      name,
+					Namespace: namespace,
+				},
+				Spec: operation.OperationSpec{
+					OperationID: operationDB.Operation_id,
+				},
+			}
+
+			err = task.event.client.Create(ctx, operationCR)
+			Expect(err).To(BeNil())
+
+			// Do it
+			retry, err := task.PerformTask(ctx)
+			Expect(err).To(BeNil())
+			Expect(retry).To(BeFalse())
+
 		})
 	})
 })

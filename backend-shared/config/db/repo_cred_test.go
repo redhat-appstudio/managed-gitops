@@ -69,6 +69,22 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			Expect(err).To(BeNil())
 			Expect(fetch).Should(Equal(gitopsRepositoryCredentials))
 
+			By("Creating an identical RepositoryCredentials object should fail")
+			gitopsRepositoryCredentials2 := db.RepositoryCredentials{
+				RepositoryCredentialsID: "test-repo-cred-id",
+				UserID:                  clusterUser.Clusteruser_id, // constrain 'fk_clusteruser_id'
+				PrivateURL:              "https://test-private-url",
+				AuthUsername:            "test-auth-username",
+				AuthPassword:            "test-auth-password",
+				AuthSSHKey:              "test-auth-ssh-key",
+				SecretObj:               "test-secret-obj",
+				EngineClusterID:         gitopsEngineInstance.Gitopsengineinstance_id, // constrain 'fk_gitopsengineinstance_id'
+			}
+
+			By("Inserting the identical RepositoryCredentials object to the database")
+			err = dbq.CreateRepositoryCredentials(ctx, &gitopsRepositoryCredentials2)
+			Expect(err).ToNot(BeNil())
+
 			By("Updating the RepositoryCredentials object in the database")
 
 			// copy the fetched object into a new one, so we can modify only the fields we want to update

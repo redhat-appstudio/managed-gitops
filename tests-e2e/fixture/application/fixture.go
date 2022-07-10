@@ -15,6 +15,39 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// This is intentionally NOT exported, for now. Create another function in this file/package that calls this function, and export that.
+func expectedCondition(f func(app appv1alpha1.Application) bool) matcher.GomegaMatcher {
+
+	return WithTransform(func(app appv1alpha1.Application) bool {
+
+		k8sClient, err := fixture.GetKubeClient()
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&app), &app)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		return f(app)
+
+	}, BeTrue())
+
+}
+
+func HasDestinationField(expectedDestination appv1alpha1.ApplicationDestination) matcher.GomegaMatcher {
+
+	return expectedCondition(func(app appv1alpha1.Application) bool {
+
+		fmt.Println("Current destination for", app.Name, "is", app.Spec.Destination)
+
+		return app.Spec.Destination.Equals(expectedDestination)
+	})
+}
+
 // HaveAutomatedSyncPolicy checks if the given Application have automated sync policy with prune, selfHeal and allowEmpty.
 func HaveAutomatedSyncPolicy(syncPolicy appv1alpha1.SyncPolicyAutomated) matcher.GomegaMatcher {
 

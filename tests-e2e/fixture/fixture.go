@@ -8,9 +8,9 @@ import (
 	"time"
 
 	argocdoperator "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	appstudiosharedv1 "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
-	appstudiosharedv1 "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
 
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -63,6 +63,24 @@ func EnsureCleanSlate() error {
 
 	if err := cleanUpOldKubeSystemResources(); err != nil {
 		return err
+	}
+
+	// Delete all Argo CD Cluster Secrets from the default Argo CD Namespace
+	secretList := &corev1.SecretList{}
+	k8sClient, err := GetKubeClient()
+	if err != nil {
+		return err
+	}
+	if err := k8sClient.List(context.Background(), secretList, &client.ListOptions{Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace}); err != nil {
+		return err
+	}
+	for idx := range secretList.Items {
+		secret := secretList.Items[idx]
+		if strings.HasPrefix(secret.Name, "managed-env") {
+			if err := k8sClient.Delete(context.Background(), &secret); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -241,6 +259,43 @@ func DeleteNamespace(namespaceParam string) error {
 		return err
 	}
 
+	k8sClient, err := GetKubeClient()
+	if err != nil {
+		return err
+	}
+
+	// Remove finalizers from any Argo CD Applications in the namespace
+	if err := wait.Poll(time.Second*1, time.Minute*2, func() (done bool, err error) {
+
+		argoCDApplicationList := appv1alpha1.ApplicationList{}
+		if err = k8sClient.List(context.Background(), &argoCDApplicationList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
+			fmt.Println("unable to list "+namespaceParam, err)
+			return false, nil
+		}
+
+		for idx := range argoCDApplicationList.Items {
+
+			app := argoCDApplicationList.Items[idx]
+			if len(app.Finalizers) > 0 {
+				err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&app), &app)
+				if err != nil {
+					fmt.Println("unable to get "+app.Name, err)
+					return false, nil
+				}
+				app.Finalizers = []string{}
+				k8sClient.Update(context.Background(), &app)
+				if err != nil {
+					fmt.Println("unable to update "+app.Name, err)
+					return false, nil
+				}
+			}
+		}
+
+		return true, nil
+	}); err != nil {
+		return fmt.Errorf("unable to remove finalizes from Argo CD Applications in namespace '%s': %v", namespaceParam, err)
+	}
+
 	// Delete the namespace, if it exists
 	err = kubeClientSet.CoreV1().Namespaces().Delete(context.Background(), namespaceParam, metav1.DeleteOptions{PropagationPolicy: &policy})
 	if err != nil && !apierr.IsNotFound(err) {
@@ -261,7 +316,7 @@ func DeleteNamespace(namespaceParam string) error {
 
 		return false, nil
 	}); err != nil {
-		return err
+		return fmt.Errorf("namespace was never deleted, after delete was issued. '%s':%v", namespaceParam, err)
 	}
 
 	return nil

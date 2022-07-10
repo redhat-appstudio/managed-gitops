@@ -1,0 +1,24 @@
+
+# This file is an example .kube/config file, for a cluster.
+# All values in this file have been sanitized to ensure they are not a leaked secret.
+
+apiVersion: v1
+clusters:
+- cluster:
+    insecure-skip-tls-verify: true
+    server: https://api.ci-ln-ab6cd1e-76543.origin-ci-int-gce.dev.rhcloud.com:6443
+  name: api-ci-ln-ab6cd1e-76543-origin-ci-int-gce-dev-rhcloud-com:6443
+contexts:
+- context:
+    cluster: api-ci-ln-ab6cd1e-76543-origin-ci-int-gce-dev-rhcloud-com:6443
+    namespace: default
+    user: kube:admin/api-ci-ln-ab6cd1e-76543-origin-ci-int-gce-dev-rhcloud-com:6443
+  name: default/api-ci-ln-ab6cd1e-76543-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin
+current-context: default/api-ci-ln-ab6cd1e-76543-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin
+kind: Config
+preferences: {}
+users:
+- name: kube:admin/api-ci-ln-ab6cd1e-76543-origin-ci-int-gce-dev-rhcloud-com:6443
+  user:
+    token: sha256~ABCdEF1gHiJKlMnoP-Q19qrTuv1_W9X2YZABCDefGH4
+

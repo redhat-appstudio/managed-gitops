@@ -129,6 +129,11 @@ KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
 	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v4@v4.5.5)
 
+GO_SEC = $(shell pwd)/bin/gosec
+go_sec: ## Download gosec locally if necessary.
+	$(call go-get-tool,$(GO_SEC),github.com/securego/gosec/v2/cmd/gosec@latest)
+
+
 ENVTEST = $(shell pwd)/bin/setup-envtest
 envtest: ## Download envtest-setup locally if necessary.
 	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
@@ -209,10 +214,8 @@ lint:
 # 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
 .PHONY: gosec
-gosec: 
-	# Run this command, to install gosec, if not installed:
-	# go install github.com/securego/gosec/v2/cmd/gosec
-	gosec ./...
+gosec: go_sec
+	$(GO_SEC) ./...
 
 
 # Remove the vendor and bin folders

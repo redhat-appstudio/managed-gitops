@@ -565,7 +565,9 @@ func deleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 
 	// 6) For each Argo CD instance that was involved, create a new Operation to delete the managed environment
 	//    (the Argo CD Cluster Secret) of that Argo CD instance.
-	for _, gitopsEngineInstance := range gitopsEngineInstances {
+	for idx := range gitopsEngineInstances {
+
+		gitopsEngineInstance := gitopsEngineInstances[idx]
 
 		client, err := k8sClientFactory.GetK8sClientForGitOpsEngineInstance(&gitopsEngineInstance)
 		if err != nil {

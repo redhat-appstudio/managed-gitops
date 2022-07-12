@@ -283,7 +283,7 @@ func DeleteNamespace(namespaceParam string) error {
 					return false, nil
 				}
 				app.Finalizers = []string{}
-				k8sClient.Update(context.Background(), &app)
+				err = k8sClient.Update(context.Background(), &app)
 				if err != nil {
 					fmt.Println("unable to update "+app.Name, err)
 					return false, nil

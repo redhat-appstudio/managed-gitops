@@ -34,7 +34,8 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("deleting the namespace before the test starts, so that the code can create it")
-			fixture.DeleteNamespace(argocdNamespace)
+			err := fixture.DeleteNamespace(argocdNamespace)
+			Expect(err).To(BeNil())
 
 		})
 

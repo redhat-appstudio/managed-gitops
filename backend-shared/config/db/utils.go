@@ -103,20 +103,6 @@ func validateQueryParamsEntity(entity interface{}, dbq *PostgreSQLDatabaseQuerie
 	return nil
 }
 
-// validateUnsafeQueryParams is common, simple validation logic shared by most entities
-func validateUnsafeQueryParamsEntity(entity interface{}, dbq *PostgreSQLDatabaseQueries) error {
-
-	if err := validateQueryParamsEntity(entity, dbq); err != nil {
-		return err
-	}
-
-	if !dbq.allowUnsafe {
-		return fmt.Errorf("unsafe operation is not allowed in this context")
-	}
-
-	return nil
-}
-
 // validateGenericEntity is common, simple validation logic shared by most entities
 func validateUnsafeQueryParamsNoPK(dbq *PostgreSQLDatabaseQueries) error {
 

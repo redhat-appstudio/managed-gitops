@@ -1,0 +1,9 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeploymentManagedEnvironment
+metadata:
+  name: my-managed-environment
+spec:
+  apiURL: "https://(API url of a valid k8s cluster defined within your kube config)"
+# example:
+# apiURL: "https://api.ci-ln-vtdzzjb-72292.origin-ci-int-gce.dev.rhcloud.com:6443"  
+  credentialsSecret: "my-managed-environment-secret"

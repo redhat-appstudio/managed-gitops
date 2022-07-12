@@ -407,7 +407,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 				// Delete all Argo CD applications with the corresponding database label (but, there should be only one)
 				err := controllers.DeleteArgoCDApplication(ctx, item, eventClient, log)
 				if err != nil {
-					log.Error(err, "error on deleting Argo CD Application: %v", item.Name)
+					log.Error(err, "error on deleting Argo CD Application")
 
 					if firstDeletionErr == nil {
 						firstDeletionErr = err
@@ -416,7 +416,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 			}
 
 			if firstDeletionErr != nil {
-				log.Error(firstDeletionErr, "Deletion of at least one Argo CD application failed. First error was: %v", firstDeletionErr)
+				log.Error(firstDeletionErr, "Deletion of at least one Argo CD application failed.", "firstError", firstDeletionErr)
 				return true, firstDeletionErr
 			}
 

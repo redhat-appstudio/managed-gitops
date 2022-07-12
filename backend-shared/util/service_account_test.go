@@ -37,9 +37,11 @@ var _ = Describe("Service Account Tests", func() {
 			Expect(err).To(BeNil())
 
 			k8sClient, err = client.New(config, client.Options{Scheme: scheme.Scheme})
-			if strings.Contains(err.Error(), "no such host") {
-				Skip("Skipping K8s test because there is no accessible K8s cluster")
-				return
+			if err != nil {
+				if strings.Contains(err.Error(), "no such host") {
+					Skip("Skipping K8s test because there is no accessible K8s cluster")
+					return
+				}
 			}
 			Expect(err).To(BeNil())
 

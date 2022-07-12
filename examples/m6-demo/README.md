@@ -23,7 +23,7 @@ cd managed-gitops/examples/m6-demo
 
 6) Run `setup-on-openshift.sh` from `m6-demo` directory.
     - After a few minutes, verify that:
-        - OpenShift GitOps (Argo CD) is successfully running in `managed-gitops-argocd` namespace.
+        - OpenShift GitOps (Argo CD) is successfully running in `gitops-service-argocd` namespace.
         - 'managed-gitops-postgres'  Docker container is running successfully on your local machine (do a `docker ps` and look for this container)
         - The GitOps Service controller processes start without error, and continue to run on your terminal.
             - Note: the `go vet`, `go get`, and `go: downloading`  steps may take a while to download/compile dependencies (this only occurs on first run, and only if you have never built the GitOps service before)
@@ -51,7 +51,7 @@ echo `kubectl -n gitops-service-argocd get secret gitops-service-argocd-cluster 
 
 This demo will walk through two GitOps Service API Resources: 
 
-The `GitOpsDeployment` custom resource (CR) describes an active continous deployment from a GitOps repository, to a namespace (workspace):
+The `GitOpsDeployment` custom resource (CR) describes an active continuous deployment from a GitOps repository, to a namespace (workspace):
 
 ```yaml
 apiVersion: managed-gitops.redhat.com/v1alpha1
@@ -199,6 +199,11 @@ kubectl create secret generic my-managed-environment-secret \
        --type="managed-gitops.redhat.com/managed-environment" \
        -n jane
 ````
+
+**Note**: This command will pick up ALL the cluster contexts that are specified in your kubeconfig file. Ensure you are specifying the `apiURL` of the correct context in the `GitOpsDeploymentManagedEnvironment` below.
+- If you wish to simplify your configuration file, you can `rm $HOME/.kube/config`, and then `oc login` to the cluster agent. This ensures that only the appropriate cluster context is contained in your `.kube/config` file.
+    - Warning: This will erase any other context and credentials you have defined in this file. You may wish to make a backup first, e.g. `cp $HOME/.kube/config $HOME/.kube/config.bak`
+
 
 Create a `GitOpsDeploymentManagedEnvironment` pointing to the `Secret` resource:
 ```bash

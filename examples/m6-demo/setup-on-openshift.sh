@@ -5,15 +5,14 @@ echo
 M6_DEMO_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 
-GITOPS_TEMP_DIR=`mktemp -d`
+GITOPS_TEMP_DIR=$(mktemp -d)
 
-cd "$GITOPS_TEMP_DIR"
+cd "$GITOPS_TEMP_DIR" || exit
 
 # NOTE: Update this to redhat-appstudio once the PR merges
 
-git clone https://github.com/jgwest/managed-gitops
-cd managed-gitops
-git checkout managed-environment-87-june-2022
+git clone https://github.com/redhat-appstudio/managed-gitops
+cd managed-gitops || exit
 
 echo "* Installing Argo CD to OpenShift cluster, and setting up dev environment-"
 echo

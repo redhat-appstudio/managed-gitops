@@ -116,6 +116,35 @@ func getOrCreateServiceAccountBearerToken(ctx context.Context, k8sClient client.
 	return getServiceAccountBearerToken(ctx, k8sClient, serviceAccountName, serviceAccountNS)
 }
 
+// getOrCreateServiceAccountBearerToken returns a token if there is an existing token secret for a service account.
+// If the token secret is missing, it creates a new secret and attach it to the service account
+// func getOrCreateServiceAccountBearerTokenNew(ctx context.Context, k8sClient client.Client, serviceAccountName string,
+// 	serviceAccountNS string, log logr.Logger) (string, error) {
+
+// 	tokenSecret, err := createServiceAccountTokenSecret(ctx, k8sClient, serviceAccountName, serviceAccountNS)
+// 	if err != nil {
+// 		return "", fmt.Errorf("failed to create a token secret for service account %s: %w", serviceAccountName, err)
+// 	}
+
+// 	if err := wait.Poll(time.Second*1, time.Second*120, func() (bool, error) {
+
+// 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(tokenSecret), tokenSecret); err != nil {
+// 			log.Error(err, "unable to retrieve token secret for service account", "serviceAccountName", serviceAccountName)
+// 		}
+
+// 		// Exit the loop if the token has been set by k8s, continue otherwise.
+// 		_, exists := tokenSecret.Data["token"]
+// 		return exists, nil
+
+// 	}); err != nil {
+// 		return "", fmt.Errorf("unable to create service account token secret: %v", err)
+// 	}
+
+// 	tokenSecretValue := tokenSecret.Data["token"]
+// 	return string(tokenSecretValue), nil
+
+// }
+
 // GetServiceAccountBearerToken will attempt to get the provided service account until it
 // exists, iterate the secrets associated with it looking for one of type
 // kubernetes.io/service-account-token, and return it's token if found.

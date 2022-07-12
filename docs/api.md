@@ -1,11 +1,15 @@
 
 # GitOps Service API
 
+This document describes the APIs supported by the GitOps Service. The examples provided here *might* differ slightly from their current form (but let us know if they do, so we can update this doc). 
+
+The K8s resource structs defined in the `managed-gitops` repository, and the corresponding CustomResourceDefinitions (CRDs), are the canonical representation of the current state of this API.
+
 ## Core GitOps Service API
 
 ### GitOpsDeployment
 
-The `GitOpsDeployment` custom resource (CR) describes an active continous deployment from a GitOps repository, to a namespace (workspace).
+The `GitOpsDeployment` custom resource (CR) describes an active continuous deployment from a GitOps repository, to a namespace (workspace).
 
 ```yaml
 apiVersion: managed-gitops.redhat.com/v1alpha1
@@ -124,25 +128,21 @@ The `GitOpsDeploymentSyncRun` resource is not required when the `GitOpsDeploymen
 
 ```yaml
 apiVersion: managed-gitops.redhat.com/v1alpha1
-kind: GitOpsDeploymentRepositoryCredentials
-metadata:
-  Name: private-repo-creds
+kind: GitOpsDeploymentSyncRun
 spec:
-  url: https://github.com/jgwest/app
-  secret: private-repo-creds-secret
+  gitopsDeploymentName: jgwest-app # ref to GitOpsDeployment CR
+  revisionId: (...)  # GitOps repo GitHub commit SHA
 
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: private-repo-creds-secret
-stringData:
-  url: https://github.com/jgwest/app
-  # and:
-  username: jgwest
-  password: (my password)
-  # or:
-  sshPrivateKey: (...)
+status: 
+  health: Healthy # (enum from Argo CD Application health field: Healthy / Progressing / Degraded / Suspended / Missing / Unknown)
+  syncStatus: Synced # (enum from Argo CD status: Synced / OutOfSync)
+  conditions:
+    - lastTransitionTime: "2022-10-04T02:19:14Z"
+      message: "Successfully completed synchronize operation."
+      reason: Succeeded
+      status: true
+      type: Succeeded
+    # (Other useful conditions)
 ```
 
 Behind the scenes, this will trigger a manual sync of the corresponding Argo CD `Application`. The manual sync will cause Argo CD to ensure that the K8s resources described in the GitOps repository are consistent with what is on the target cluster.
@@ -223,30 +223,51 @@ status:
 
 ```yaml
 apiVersion: appstudio.redhat.com/v1alpha1
-kind: ApplicationSnapshotEnvironmentBinding
+kind: ApplicationPromotionRun  # better name suggestions welcome
 metadata:
-  name: appa-staging-binding
-  labels:
-    appstudio.application: new-demo-app
-    appstudio.environment: staging
+  name: appA-manual-promotion
+  # labels for application/environment
+
 spec:
-  application: new-demo-app
-  environment: staging
-  snapshot: my-snapshot
-  components:
-    - name: component-a
-      configuration:
-        env:
-          - name: My_STG_ENV
-            value: "200"
-        replicas: 3
+  snapshot: my-snapshot # reference to snapshot to promote between environments.
+  application: appA  # application to target
+
+  # Fields specific to manual promotion.
+  # Only one field should be defined: either 'manualPromotion' or 'automatedPromotion', but not both.
+  manualPromotion:
+    targetEnvironment: staging # promote TO this environment
+    
+  # Fields specific to automated promotion
+  # Only one field should be defined: either 'manualPromotion' or 'automatedPromotion', but not both.  
+  automatedPromotion:
+    initialEnvironment: staging # start iterating through the digraph, beginning with the value specified in 'initialEnvironment'
+
 status:
-  components:
-    - name: component-a
-      gitopsRepository:
-        url: "https://github.com/redhat-appstudio/gitops-repository-template"
-        branch: main
-        path: components/componentA/overlays/staging
-        generatedResources:
-          - abc.yaml
+
+  # Whether or not the overall promotion (either manual or automated is complete)
+  state: Active # Waiting (not yet scheduled) / Active (in progress) / Completed (either successfully/unsuccessfully)
+
+  # on completion:
+  completionResult: Success / Failure
+
+  # For an automated promotion, there will be multiple steps (one for each promotion within the promotion process, beginning with targetEnvironment)
+  # For a manual promotion, there will only be the first step (the promotion to the targetEnvironment)
+  environmentStatus:
+    - step: 1
+      environmentName: poc
+      status: success
+    - step: 2
+      environmentName: dev
+      status: success
+    - step: 3
+      environmentName: stage
+      status: in-progress
+    - (...)
+
+  # For an automated promotion, there can be multiple active bindings at a time (one for each env at a particular tree depth)
+  # For a manual promotion, there will be only one.
+  activeBindings:
+    - appA-staging1
+    - appA-staging2
+    - appA-staging3
 ```

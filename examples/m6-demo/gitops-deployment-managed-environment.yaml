@@ -1,0 +1,21 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeployment
+
+metadata:
+  name: managed-environment-gitops-depl
+  namespace: jane 
+
+spec:
+
+  # Application/component to deploy
+  source:
+    repoURL: https://github.com/redhat-appstudio/gitops-repository-template
+    path: environments/overlays/dev
+
+  destination:  # destination is user workspace if empty
+    environment: my-managed-environment
+    namespace: jane # NOTE: namespace must exist on remote cluster
+
+  # Only 'automated' type is currently supported: changes to the GitOps repo immediately take effect (as soon as Argo CD detects them).
+  type: automated
+

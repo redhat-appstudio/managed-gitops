@@ -1,0 +1,14 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeployment
+metadata:
+  name: gitops-depl
+  namespace: jgw
+spec:
+  source:
+    repoURL: https://github.com/redhat-appstudio/gitops-repository-template
+    path: environments/overlays/dev
+
+#  destination: {}
+
+  type: automated
+

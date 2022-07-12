@@ -18,7 +18,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -134,6 +133,7 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 	// Verify that we are able to connect to the cluster using the service account token we stored
 	validClusterCreds, err := verifyClusterCredentials(ctx, *clusterCreds, managedEnvironmentCR, k8sClientFactory)
 	if !validClusterCreds || err != nil {
+		log.Info("was unable to connect using provided cluster credentials, so acquiring new ones.", "clusterCreds", clusterCreds.Clustercredentials_cred_id)
 		// D) If the cluster credentials appear to no longer be valid (we're no longer able to connect), then reacquire using the
 		// Secret.
 		return replaceExistingManagedEnv(ctx, workspaceClient, *clusterUser, isNewUser, managedEnvironmentCR, secretCR, *managedEnv,
@@ -724,14 +724,18 @@ func locateContextThatMatchesAPIURL(config *clientcmdapi.Config, apiURL string) 
 func verifyClusterCredentials(ctx context.Context, clusterCreds db.ClusterCredentials, managedEnvCR managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment,
 	k8sClientFactory SRLK8sClientFactory) (bool, error) {
 
-	configParam, err := ctrl.GetConfig()
-	if err != nil {
-		return false, fmt.Errorf("unable to retrieve config: %v", err)
+	// Sanity test the fields we are using in rest.Config
+	if clusterCreds.Host == "" {
+		return false, fmt.Errorf("cluster credentials is missing host")
+	}
+	if clusterCreds.Serviceaccount_bearer_token == "" {
+		return false, fmt.Errorf("cluster credentials is missing service account bearer token")
 	}
 
-	var bearerToken string
-	configParam.Host = clusterCreds.Host
-	configParam.BearerToken = bearerToken
+	configParam := &rest.Config{
+		Host:        clusterCreds.Host,
+		BearerToken: clusterCreds.Serviceaccount_bearer_token,
+	}
 
 	configParam.Insecure = true // TODO: GITOPSRVCE-178: Once we have TLS validation enabled, the TLS validation value should be used here.
 	configParam.ServerName = ""

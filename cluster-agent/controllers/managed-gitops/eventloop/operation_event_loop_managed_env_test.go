@@ -220,7 +220,8 @@ var _ = Describe("Managed Environment Operation Tests", func() {
 			err = task.event.client.Get(ctx, client.ObjectKeyFromObject(secret), secret)
 			Expect(apierr.IsNotFound(err)).To(BeTrue(), "the Argo CD cluster secret should have been deleted.")
 
-			expectOperationIsComplete(ctx, operationDB.Operation_id, dbQueries)
+			err = expectOperationIsComplete(ctx, operationDB.Operation_id, dbQueries)
+			Expect(err).To(BeNil())
 		})
 	})
 
@@ -354,7 +355,8 @@ var _ = Describe("Managed Environment Operation Tests", func() {
 			err = task.event.client.Get(ctx, client.ObjectKeyFromObject(secret), secret)
 			Expect(err).To(BeNil(), "The Argo CD Cluster secret for the managed environment should exist")
 
-			expectOperationIsComplete(ctx, operationDB.Operation_id, dbQueries)
+			err = expectOperationIsComplete(ctx, operationDB.Operation_id, dbQueries)
+			Expect(err).To(BeNil())
 		})
 
 		It("Reconciling a application pointing to a new managed environment, to ensure the corresponding Argo CD cluster secret is created", func() {
@@ -423,7 +425,8 @@ var _ = Describe("Managed Environment Operation Tests", func() {
 			err = task.event.client.Get(ctx, client.ObjectKeyFromObject(secret), secret)
 			Expect(err).To(BeNil(), "The Argo CD Cluster secret for the managed environment should exist")
 
-			expectOperationIsComplete(ctx, operationDB.Operation_id, dbQueries)
+			err = expectOperationIsComplete(ctx, operationDB.Operation_id, dbQueries)
+			Expect(err).To(BeNil())
 		})
 
 		It("Reconciling a application pointing to a managed environment, with an out-of-date Argo CD cluster secret, to ensure the cluster secret is updated", func() {
@@ -500,7 +503,8 @@ var _ = Describe("Managed Environment Operation Tests", func() {
 			retry, err := task.PerformTask(ctx)
 			Expect(err).To(BeNil())
 			Expect(retry).To(BeFalse())
-			expectOperationIsComplete(ctx, operationDB.Operation_id, dbQueries)
+			err = expectOperationIsComplete(ctx, operationDB.Operation_id, dbQueries)
+			Expect(err).To(BeNil())
 
 			err = task.event.client.Get(ctx, client.ObjectKeyFromObject(secret), secret)
 			Expect(err).To(BeNil())

@@ -1,4 +1,4 @@
-package appstudioredhatcom_test
+package appstudioredhatcom
 
 import (
 	"context"
@@ -13,42 +13,62 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	appstudiocontrollers "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 	appstudiosharedv1 "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
 	apibackend "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 )
 
-var _ = Describe("Application Snapshot Environment Binding Reconciler Tests", func() {
+var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func() {
 
 	Context("Testing ApplicationSnapshotEnvironmentBindingReconciler.", func() {
 		var ctx context.Context
 		var request reconcile.Request
 		var binding *appstudiosharedv1.ApplicationSnapshotEnvironmentBinding
-		var bindingReconciler appstudiocontrollers.ApplicationSnapshotEnvironmentBindingReconciler
+		var bindingReconciler ApplicationSnapshotEnvironmentBindingReconciler
+
+		var environment appstudiosharedv1.Environment
 
 		BeforeEach(func() {
+			ctx = context.Background()
+
 			scheme,
 				argocdNamespace,
 				kubesystemNamespace,
-				workspace,
+				apiNamespace,
 				err := eventlooptypes.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			// Create fake client
 			k8sClient := fake.NewClientBuilder().
 				WithScheme(scheme).
-				WithObjects(workspace, argocdNamespace, kubesystemNamespace).
+				WithObjects(apiNamespace, argocdNamespace, kubesystemNamespace).
 				Build()
 
-			bindingReconciler = appstudiocontrollers.ApplicationSnapshotEnvironmentBindingReconciler{
-				Client: k8sClient, Scheme: scheme}
+			// Create placeholder environment
+			environment = appstudiosharedv1.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "staging",
+					Namespace: apiNamespace.Name,
+				},
+				Spec: appstudiosharedv1.EnvironmentSpec{
+					DisplayName:        "my-environment",
+					Type:               appstudiosharedv1.EnvironmentType_POC,
+					DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
+					ParentEnvironment:  "",
+					Tags:               []string{},
+					Configuration:      appstudiosharedv1.EnvironmentConfiguration{},
+				},
+			}
+			err = k8sClient.Create(ctx, &environment)
+			Expect(err).To(BeNil())
+
+			bindingReconciler = ApplicationSnapshotEnvironmentBindingReconciler{Client: k8sClient, Scheme: scheme}
 
 			// Create ApplicationSnapshotEnvironmentBinding CR.
 			binding = &appstudiosharedv1.ApplicationSnapshotEnvironmentBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "appa-staging-binding",
-					Namespace: kubesystemNamespace.Name,
+					Namespace: apiNamespace.Name,
 					Labels: map[string]string{
 						"appstudio.application": "new-demo-app",
 						"appstudio.environment": "staging",
@@ -84,10 +104,8 @@ var _ = Describe("Application Snapshot Environment Binding Reconciler Tests", fu
 				},
 			}
 
-			ctx = context.Background()
-
 			// Create request object for Reconciler
-			request = newRequest(kubesystemNamespace.Name, binding.Name)
+			request = newRequest(apiNamespace.Name, binding.Name)
 		})
 
 		It("Should set the status field of Binding.", func() {
@@ -132,10 +150,8 @@ var _ = Describe("Application Snapshot Environment Binding Reconciler Tests", fu
 			// Fetch GitOpsDeployment object before calling Reconciler
 			gitopsDeploymentKey := client.ObjectKey{
 				Namespace: binding.Namespace,
-				Name: binding.Name + "-" +
-					binding.Spec.Application + "-" +
-					binding.Spec.Environment + "-" +
-					binding.Spec.Components[0].Name}
+				Name:      GenerateBindingGitOpsDeploymentName(*binding, binding.Spec.Components[0].Name),
+			}
 
 			gitopsDeploymentFirst := &apibackend.GitOpsDeployment{}
 			err = bindingReconciler.Get(ctx, gitopsDeploymentKey, gitopsDeploymentFirst)
@@ -165,10 +181,8 @@ var _ = Describe("Application Snapshot Environment Binding Reconciler Tests", fu
 
 			gitopsDeploymentKey := client.ObjectKey{
 				Namespace: binding.Namespace,
-				Name: binding.Name + "-" +
-					binding.Spec.Application + "-" +
-					binding.Spec.Environment + "-" +
-					binding.Spec.Components[0].Name}
+				Name:      GenerateBindingGitOpsDeploymentName(*binding, binding.Spec.Components[0].Name),
+			}
 
 			// Fetch GitOpsDeployment object
 			gitopsDeployment := &apibackend.GitOpsDeployment{}
@@ -247,6 +261,108 @@ var _ = Describe("Application Snapshot Environment Binding Reconciler Tests", fu
 			// Trigger Reconciler
 			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).To(BeNil())
+		})
+
+		It("should return an error if there are duplicate components in binding.Status.Components", func() {
+
+			By("creating an ApplicationSnapshotEnvironmentBinding with duplicate component names")
+
+			binding.Status.Components = []appstudiosharedv1.ComponentStatus{
+				{
+					Name: "componentA",
+					GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{
+						URL:                "https://url",
+						Branch:             "branch",
+						Path:               "path",
+						GeneratedResources: []string{},
+					},
+				},
+				{
+					Name: "componentA",
+					GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{
+						URL:                "https://url2",
+						Branch:             "branch2",
+						Path:               "path2",
+						GeneratedResources: []string{},
+					},
+				},
+			}
+
+			// Create ApplicationSnapshotEnvironmentBinding CR in cluster.
+			err := bindingReconciler.Create(ctx, binding)
+			Expect(err).To(BeNil())
+
+			// Trigger Reconciler
+			_, err = bindingReconciler.Reconcile(ctx, request)
+			Expect(err).ToNot(BeNil())
+			Expect(strings.Contains(err.Error(), Error_DuplicateKeysFound)).To(BeTrue(),
+				"duplicate components should be detected by the reconciler")
+
+		})
+
+		It("should verify that if the Environment contains configuration information, that it is included in the generate GitOpsDeployment", func() {
+
+			By("creating an Environment with valid configuration fields")
+			environment.Spec.UnstableConfigurationFields = &appstudiosharedv1.UnstableEnvironmentConfiguration{
+				KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
+					TargetNamespace:          "my-target-namespace",
+					APIURL:                   "my-api-url",
+					ClusterCredentialsSecret: "secret",
+				},
+			}
+			err := bindingReconciler.Client.Update(ctx, &environment)
+			Expect(err).To(BeNil())
+
+			By("creating default Binding")
+			err = bindingReconciler.Client.Create(ctx, binding)
+			Expect(err).To(BeNil())
+
+			By("calling Reconcile")
+			request = newRequest(binding.Namespace, binding.Name)
+			_, err = bindingReconciler.Reconcile(ctx, request)
+			Expect(err).To(BeNil())
+
+			By("ensuring that the GitOpsDeployment was created using values from ConfigurationFields")
+
+			gitopsDeploymentKey := client.ObjectKey{
+				Namespace: binding.Namespace,
+				Name:      GenerateBindingGitOpsDeploymentName(*binding, binding.Spec.Components[0].Name),
+			}
+			gitopsDeployment := &apibackend.GitOpsDeployment{}
+			err = bindingReconciler.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
+			Expect(err).To(BeNil())
+
+			Expect(gitopsDeployment.Spec.Destination.Namespace).To(Equal(environment.Spec.UnstableConfigurationFields.TargetNamespace))
+
+			By("removing the field from Environment, and ensuring the GitOpsDeployment is updated")
+			environment.Spec.UnstableConfigurationFields = nil
+			err = bindingReconciler.Client.Update(ctx, &environment)
+			Expect(err).To(BeNil())
+
+			By("reconciling again")
+			_, err = bindingReconciler.Reconcile(ctx, request)
+			Expect(err).To(BeNil())
+
+			err = bindingReconciler.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
+			Expect(err).To(BeNil())
+			Expect(gitopsDeployment.Spec.Destination.Namespace).To(Equal(""))
+			Expect(gitopsDeployment.Spec.Destination.Environment).To(Equal(""))
+
+			By("testing with a missing TargetNamespace, which should return an error")
+			environment.Spec.UnstableConfigurationFields = &appstudiosharedv1.UnstableEnvironmentConfiguration{
+				KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
+					APIURL:                   "my-api-url",
+					ClusterCredentialsSecret: "secret",
+				},
+			}
+			err = bindingReconciler.Client.Update(ctx, &environment)
+			Expect(err).To(BeNil())
+
+			By("reconciling again, and expecting an TargetNamespace missing error")
+			_, err = bindingReconciler.Reconcile(ctx, request)
+			Expect(err).ToNot(BeNil())
+			Expect(strings.Contains(err.Error(), Error_MissingTargetNamespace)).To(BeTrue())
+
 		})
 	})
 })

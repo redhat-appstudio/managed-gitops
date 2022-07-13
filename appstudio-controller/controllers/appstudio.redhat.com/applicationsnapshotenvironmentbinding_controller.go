@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"time"
 
 	appstudioshared "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
@@ -58,8 +59,17 @@ func (r *ApplicationSnapshotEnvironmentBindingReconciler) Reconcile(ctx context.
 	if err := r.Client.Get(ctx, req.NamespacedName, binding); err != nil {
 		// Binding doesn't exist: it was deleted.
 		// Owner refs will ensure the GitOpsDeployments are deleted, so no work to do.
-		log.Error(err, "Binding not found in namespace.")
 		return ctrl.Result{}, nil
+	}
+
+	environment := appstudioshared.Environment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      binding.Spec.Environment,
+			Namespace: req.Namespace,
+		},
+	}
+	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&environment), &environment); err != nil {
+		return ctrl.Result{}, fmt.Errorf("unable to retrieve Environment '%s' referenced by Binding: %v", environment.Name, err)
 	}
 
 	// Don't reconcile the binding if the HAS component indicated via the binding.status field
@@ -76,13 +86,25 @@ func (r *ApplicationSnapshotEnvironmentBindingReconciler) Reconcile(ctx context.
 	} else if len(binding.Status.Components) == 0 {
 		// if length of the Binding component status is 0 and there is no issue with the GitOps Repo Conditions;
 		// the Application Service controller has not synced the GitOps repository yet, return and requeue.
-		return ctrl.Result{}, fmt.Errorf("ApplicationSnapshotEventBinding Component status is required to "+
+		return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("ApplicationSnapshotEventBinding Component status is required to "+
 			"generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding %s", binding.Name)
 	}
 
-	expectedDeployments := []apibackend.GitOpsDeployment{}
+	// map: componentName (string) -> expected GitOpsDeployment for that component name
+	expectedDeployments := map[string]apibackend.GitOpsDeployment{}
+
 	for _, component := range binding.Status.Components {
-		expectedDeployments = append(expectedDeployments, generateExpectedGitOpsDeployment(component, *binding))
+
+		// sanity test that there are no duplicate components by name
+		if _, exists := expectedDeployments[component.Name]; exists {
+			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("%s: %s", Error_DuplicateKeysFound, component.Name)
+		}
+
+		var err error
+		expectedDeployments[component.Name], err = generateExpectedGitOpsDeployment(component, *binding, environment)
+		if err != nil {
+			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("invalid target namespace: %v", err)
+		}
 	}
 
 	statusField := []appstudioshared.BindingStatusGitOpsDeployment{}
@@ -90,22 +112,24 @@ func (r *ApplicationSnapshotEnvironmentBindingReconciler) Reconcile(ctx context.
 
 	// For each deployment, check if it exists, and if it has the expected content.
 	// - If not, create/update it.
-	for i, expectedGitOpsDeployment := range expectedDeployments {
+	for componentName, expectedGitOpsDeployment := range expectedDeployments {
 
 		if err := processExpectedGitOpsDeployment(ctx, expectedGitOpsDeployment, *binding, r.Client); err != nil {
-			errorMessage := fmt.Sprintf("Error occurred while processing expected GitOpsDeployment %s for Binding %s", expectedGitOpsDeployment.Name, binding.Name)
+
+			errorMessage := fmt.Sprintf("Error occurred while processing expected GitOpsDeployment '%s' for Binding '%s'",
+				expectedGitOpsDeployment.Name, binding.Name)
 			log.Error(err, errorMessage)
 
-			// Combine all errors occurred in loop
+			// Combine all errors that occurred in the loop
 			if allErrors == nil {
-				allErrors = fmt.Errorf("%s Error: %w", errorMessage, err)
+				allErrors = fmt.Errorf("%s, error: %w", errorMessage, err)
 			} else {
-				allErrors = fmt.Errorf("%s\n%s Error: %w", allErrors.Error(), errorMessage, err)
+				allErrors = fmt.Errorf("%s.\n%s, error: %w", allErrors.Error(), errorMessage, err)
 			}
 		} else {
 			// No error: add to status
 			statusField = append(statusField, appstudioshared.BindingStatusGitOpsDeployment{
-				ComponentName:    binding.Status.Components[i].Name,
+				ComponentName:    componentName,
 				GitOpsDeployment: expectedGitOpsDeployment.Name,
 			})
 		}
@@ -119,11 +143,16 @@ func (r *ApplicationSnapshotEnvironmentBindingReconciler) Reconcile(ctx context.
 	}
 
 	if allErrors != nil {
-		return ctrl.Result{}, fmt.Errorf("unable to process expected GitOpsDeployment: %w", allErrors)
+		return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("unable to process expected GitOpsDeployment: %w", allErrors)
 	}
 
 	return ctrl.Result{}, nil
 }
+
+const (
+	Error_DuplicateKeysFound     = "duplicate component keys found in status field"
+	Error_MissingTargetNamespace = "TargetNamespace field of Environment was empty"
+)
 
 // processExpectedGitOpsDeployment processed the GitOpsDeployment that is expected for a particular Component
 func processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployment apibackend.GitOpsDeployment,
@@ -141,7 +170,7 @@ func processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployme
 		}
 
 		if err := k8sClient.Create(ctx, &expectedGitopsDeployment); err != nil {
-			log.Error(err, "unable to create expectedGitopsDeployment: "+expectedGitopsDeployment.Name+" for Binding: "+binding.Name)
+			log.Error(err, "unable to create expectedGitopsDeployment: '"+expectedGitopsDeployment.Name+"' for Binding: '"+binding.Name+"'")
 			return err
 		}
 
@@ -165,11 +194,26 @@ func processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployme
 	return nil
 }
 
-func generateExpectedGitOpsDeployment(component appstudioshared.ComponentStatus, binding appstudioshared.ApplicationSnapshotEnvironmentBinding) apibackend.GitOpsDeployment {
+// GenerateBindingGitOpsDeploymentName generates the name that will be used for a given GitOpsDeployment of a binding
+func GenerateBindingGitOpsDeploymentName(binding appstudioshared.ApplicationSnapshotEnvironmentBinding, componentName string) string {
+
+	expectedName := binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + componentName
+
+	// If the length of the GitOpsDeployment exceeds the K8s maximum, shorten it to just binding+component
+	if len(expectedName) > 250 {
+		expectedName = binding.Name + "-" + componentName
+	}
+
+	return expectedName
+
+}
+
+func generateExpectedGitOpsDeployment(component appstudioshared.ComponentStatus,
+	binding appstudioshared.ApplicationSnapshotEnvironmentBinding, environment appstudioshared.Environment) (apibackend.GitOpsDeployment, error) {
 
 	res := apibackend.GitOpsDeployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + component.Name,
+			Name:      GenerateBindingGitOpsDeploymentName(binding, component.Name),
 			Namespace: binding.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				{
@@ -191,12 +235,22 @@ func generateExpectedGitOpsDeployment(component appstudioshared.ComponentStatus,
 		},
 	}
 
-	// If the length of the GitOpsDeployment exceeds the K8s maximum, shorten it to just binding+component
-	if len(res.Name) > 250 {
-		res.Name = binding.Name + "-" + component.Name
+	// If the environment has a target cluster field defined, then set the destination to that managed environment
+	if environment.Spec.UnstableConfigurationFields != nil {
+
+		managedEnvironmentName := generateEmptyManagedEnvironment(environment.Name, environment.Namespace).Name
+
+		if environment.Spec.UnstableConfigurationFields.TargetNamespace == "" {
+			return apibackend.GitOpsDeployment{}, fmt.Errorf("%s: '%s'", Error_MissingTargetNamespace, environment.Name)
+		}
+
+		res.Spec.Destination = apibackend.ApplicationDestination{
+			Environment: managedEnvironmentName,
+			Namespace:   environment.Spec.UnstableConfigurationFields.TargetNamespace,
+		}
 	}
 
-	return res
+	return res, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

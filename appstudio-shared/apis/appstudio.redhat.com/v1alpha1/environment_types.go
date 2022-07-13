@@ -44,6 +44,10 @@ type EnvironmentSpec struct {
 	// Configuration contains environment-specific details for Applications/Components that are deployed to
 	// the Environment.
 	Configuration EnvironmentConfiguration `json:"configuration,omitempty"`
+
+	// UnstableConfigurationFields are experimental/prototype: the API has not been finalized here, and is subject to breaking changes.
+	// See comment on UnstableEnvironmentConfiguration for details.
+	UnstableConfigurationFields *UnstableEnvironmentConfiguration `json:"unstableConfigurationFields,omitempty"`
 }
 
 // EnvironmentType currently indicates whether an environment is POC/Non-POC, see API doc for details.
@@ -67,6 +71,38 @@ const (
 	// See Environment API doc for details.
 	DeploymentStrategy_AppStudioAutomated DeploymentStrategyType = "AppStudioAutomated"
 )
+
+// UnstableEnvironmentConfiguration contains fields that are related to configuration of the target environment:
+// - credentials for connecting to the cluster (if connecting to a non-KCP cluster)
+// - KCP workspace configuration credentials (TBD)
+//
+// Note: as of this writing (Jul 2022), I expect the contents of this struct to undergo major changes, and the API should not be considered
+// complete, or even a reflection of final desired state.
+type UnstableEnvironmentConfiguration struct {
+	KubernetesClusterCredentials `json:"kubernetesCredentials,omitempty"`
+}
+
+// KubernetesClusterCredentials allows you to specify cluster credentials for stanadard K8s cluster (e.g. non-KCP workspace).
+//
+// See this temporary URL for details on what values to provide for the APIURL and Secret:
+// https://github.com/jgwest/managed-gitops/tree/managed-environment-87-june-2022/examples/m6-demo#gitopsdeploymentmanagedenvironment-resource
+type KubernetesClusterCredentials struct {
+
+	// TargetNamespace is the default destination target on the cluster for deployments. This Namespace will be used
+	// for any GitOps repository K8s resources where the `.metadata.Namespace` field is not specified.
+	TargetNamespace string `json:"targetNamespace"`
+
+	// APIURL is a reference to a cluster API url defined within the kube config file of the cluster credentials secret.
+	APIURL string `json:"apiURL"`
+
+	// ClusterCredentialsSecret is a reference to the name of k8s Secret, defined within the same namespace as the Environment resource,
+	// that contains a kubeconfig.
+	// The Secret must be of type 'managed-gitops.redhat.com/managed-environment'
+	//
+	// See this temporary URL for details:
+	// https://github.com/jgwest/managed-gitops/tree/managed-environment-87-june-2022/examples/m6-demo#gitopsdeploymentmanagedenvironment-resource
+	ClusterCredentialsSecret string `json:"clusterCredentialsSecret"`
+}
 
 // EnvironmentConfiguration contains Environment-specific configurations details, to be used when generating
 // Component/Application GitOps repository resources.

@@ -610,6 +610,40 @@ spec:
               type:
                 description: Type is whether the Environment is a POC or non-POC environment
                 type: string
+              unstableConfigurationFields:
+                description: 'UnstableConfigurationFields are experimental/prototype:
+                  the API has not been finalized here, and is subject to breaking
+                  changes. See comment on UnstableEnvironmentConfiguration for details.'
+                properties:
+                  kubernetesCredentials:
+                    description: "KubernetesClusterCredentials allows you to specify
+                      cluster credentials for stanadard K8s cluster (e.g. non-KCP
+                      workspace). \n See this temporary URL for details on what values
+                      to provide for the APIURL and Secret: https://github.com/jgwest/managed-gitops/tree/managed-environment-87-june-2022/examples/m6-demo#gitopsdeploymentmanagedenvironment-resource"
+                    properties:
+                      apiURL:
+                        description: APIURL is a reference to a cluster API url defined
+                          within the kube config file of the cluster credentials secret.
+                        type: string
+                      clusterCredentialsSecret:
+                        description: "ClusterCredentialsSecret is a reference to the
+                          name of k8s Secret, defined within the same namespace as
+                          the Environment resource, that contains a kubeconfig. The
+                          Secret must be of type 'managed-gitops.redhat.com/managed-environment'
+                          \n See this temporary URL for details: https://github.com/jgwest/managed-gitops/tree/managed-environment-87-june-2022/examples/m6-demo#gitopsdeploymentmanagedenvironment-resource"
+                        type: string
+                      targetNamespace:
+                        description: TargetNamespace is the default destination target
+                          on the cluster for deployments. This Namespace will be used
+                          for any GitOps repository K8s resources where the `.metadata.Namespace`
+                          field is not specified.
+                        type: string
+                    required:
+                    - apiURL
+                    - clusterCredentialsSecret
+                    - targetNamespace
+                    type: object
+                type: object
             required:
             - deploymentStrategy
             - displayName

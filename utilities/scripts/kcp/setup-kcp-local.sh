@@ -36,7 +36,7 @@ check_if_go_v_compatibility() {
 check_if_go_v_compatibility
 
 # install-kcp-binaries will install and build kcp in a temporary enviroment
-# since, we are working on a stable branch current KCP stable version is `release-0.5`
+# since, we are working on a stable branch current KCP stable version is `v0.5.0-alpha.1`
 # make build target of KCP will build the controller of KCP
 KCP_DIR="${KCP_DIR:-}"
 install-build-kcp-binaries() {
@@ -48,7 +48,7 @@ install-build-kcp-binaries() {
     git clone https://github.com/kcp-dev/kcp.git
     KCP_DIR="${KCP_PARENT_DIR}/kcp"
     pushd kcp
-    KCP_STABLE_BRANCH="release-0.5"
+    KCP_STABLE_BRANCH="v0.5.0-alpha.1"
     git checkout "${KCP_STABLE_BRANCH}"
     make build
     popd
@@ -109,27 +109,27 @@ CR_TOSYNC=(
             rolebindings
             clusterroles
             clusterrolebindings
-            # requirement of gitops service
-            gitopsdeployments
           )
 
 # Adds a workload cluster to KCP
 add-workload-cluster() {
   exit_if_binary_not_installed "kubectl-kcp"
+
   # First, we need to add a workloadcluster to the kcp in order to sync resources
   cat $(kubectl -v 99 config current-context 2>&1 | grep file: | awk -F ': ' '{print $2}' | xargs) > ${TMP_DIR}/local_kubeconfig
-  printf "Current Directory:" pwd
-  KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig sed -e 's/^/    /' ${TMP_DIR}/local_kubeconfig | cat ./utilities/scripts/kcp/manifests/workloadcluster.yaml - | kubectl apply -f -
-
+  printf "Current Directory:" pwd "\n"
+  # KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig sed -e 's/^/    /' ${TMP_DIR}/local_kubeconfig | cat ./utilities/scripts/kcp/manifests/workloadcluster.yaml - | kubectl apply -f -
+  
+  # get the cluster name to add a workspace and deploy syncer
+  clustername="$(kubectl config current-context | cut -d"/" -f2 | cut -d":" -f1)"
+  
   # Then we add a syncer to kcp to sync the given resources to sync
   cr_string="$(IFS=,; echo "${CR_TOSYNC[*]}")"
   # kubectl kcp workload sync <workload-cluster-name> --syncer-image <kcp-syncer-image>
-  KUBECONFIG="$KUBECONFIG_KCP" kubectl kcp workload sync local \
-  --syncer-image ghcr.io/kcp-dev/kcp/syncer:release-0.5 \ # we are using the stable release-0.5 tag for this
-  --resources "$cr_string" > "${TMP_DIR}/syncer.yaml"
+  KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl kcp workload sync $clustername --syncer-image ghcr.io/kcp-dev/kcp/syncer:v0.5.0-alpha.1 --resources "$cr_string" > "${TMP_DIR}/syncer.yaml"
   kubectl apply -f "${TMP_DIR}/syncer.yaml" >/dev/null 2>&1
 
-  printf "Add workload cluster ran successfully!"
+  printf "Add workload cluster ran successfully!\n\n"
 }
 
 # install ArgoCD manifests in the argocd namespace
@@ -151,22 +151,35 @@ install-gitops-service-in-kcp() {
     make devenv-docker
     popd
     popd
-    printf "\nThe dev enviroment for gitops service is setup successfully ...\n"
+    printf "\nThe dev enviroment for gitops service is setup successfully ...\n\n"
   fi
 }
 
 test-gitops-service-e2e-in-kcp() {
   export KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig 
+  kubectl port-forward --namespace gitops svc/gitops-postgresql-staging 5432:5432 &
   make start-e2e
   make test-e2e
 }
 
 # creates a development workspace (ex: dev-work)
 create-workspace() {
-    printf "Creating a org dev workspace: dev-work"
+    printf "Creating a org dev workspace: dev-work \n\n"
     kcp_ws="dev-work"
     exit_if_binary_not_installed "kubectl-kcp"
     KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl kcp workspaces create $kcp_ws --enter
+
+    # gitops deployment CRs
+    KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl apply -f backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentrepositorycredentials.yaml
+    KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl apply -f backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentsyncruns.yaml
+    KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl apply -f backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeployments.yaml
+
+    # appstudio-shared CRs
+	  KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl apply -f appstudio-shared/manifests/appstudio-shared-customresourcedefinitions.yaml
+	  # Application CR from AppStudio HAS
+	  KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-service/7a1a14b575dc725a46ea2ab175692f464122f0f8/config/crd/bases/appstudio.redhat.com_applications.yaml
+	  KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-service/7a1a14b575dc725a46ea2ab175692f464122f0f8/config/crd/bases/appstudio.redhat.com_components.yaml
+
 }
 
 cleanup() {
@@ -183,12 +196,15 @@ printf "Temporary directory created: %s\n" "${TMP_DIR}"
 kcp-init $TMP_DIR $KCP_DIR
 wait_for 100 check_if_kcp_is_ready $TMP_DIR
 
-# Once, KCP is up and running add a workloadcluster to it
-  add-workload-cluster $TMP_DIR
 # Create a workspace for development purposes
 create-workspace $TMP_DIR
+
+# Once, KCP is up and running add a workloadcluster to it
+add-workload-cluster $TMP_DIR
+
 # install argocd in KCP workspace
-install-argocd-in-kcp $TMP_DIR
+# install-argocd-in-kcp $TMP_DIR
+
 # install gitops-service in KCP workspace
 install-gitops-service-in-kcp $TMP_DIR
 

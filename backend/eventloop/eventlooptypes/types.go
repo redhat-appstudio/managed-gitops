@@ -13,7 +13,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	sharedv1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -147,9 +147,35 @@ const (
 
 func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationParam db.Operation, clusterUserID string,
 	operationNamespace string, dbQueries db.ApplicationScopedQueries, gitopsEngineClient client.Client,
-	log logr.Logger) (*operation.Operation, *db.Operation, error) {
+	log logr.Logger) (*sharedv1.Operation, *db.Operation, error) {
 
 	var err error
+
+	var dbOperationList []db.Operation
+	if err = dbQueries.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, dbOperationParam.Resource_id, dbOperationParam.Resource_type, &dbOperationList, clusterUserID); err != nil {
+		log.Error(err, "unable to fetch List of Operations for ResourceId: "+dbOperationParam.Resource_id+", Type: "+dbOperationParam.Resource_type+", OwnerId: "+clusterUserID)
+	}
+	// Iterate through existing DB entries for given resource
+	for _, dbOperation := range dbOperationList {
+
+		// Do not create new Operation and return existing one, if it is still unfinished.
+		if dbOperation.State != db.OperationState_Completed && dbOperation.State != db.OperationState_Failed {
+			k8sOperation := sharedv1.Operation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "operation-" + dbOperation.Operation_id,
+					Namespace: operationNamespace,
+				},
+			}
+
+			if err = gitopsEngineClient.Get(ctx, client.ObjectKeyFromObject(&k8sOperation), &k8sOperation); err != nil {
+				log.Error(err, "unable to fetch existing Operation "+k8sOperation.Name+" from cluster.")
+			} else {
+				log.Info("Operation already exists for resource" + dbOperationParam.Resource_id + ", it is in " + string(dbOperation.State) + " state.")
+				return &k8sOperation, &dbOperation, nil
+			}
+		}
+	}
+
 	dbOperation := db.Operation{
 		Instance_id:             dbOperationParam.Instance_id,
 		Resource_id:             dbOperationParam.Resource_id,
@@ -169,12 +195,12 @@ func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationPara
 	log.Info("Created database operation", "operation", dbOperation.ShortString())
 
 	// Create K8s operation
-	operation := operation.Operation{
+	operation := sharedv1.Operation{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "operation-" + dbOperation.Operation_id,
 			Namespace: operationNamespace,
 		},
-		Spec: operation.OperationSpec{
+		Spec: sharedv1.OperationSpec{
 			OperationID: dbOperation.Operation_id,
 		},
 	}
@@ -253,7 +279,7 @@ func GetK8sClientForGitOpsEngineInstance(gitopsEngineInstance *db.GitopsEngineIn
 	if err != nil {
 		return nil, err
 	}
-	err = operation.AddToScheme(scheme)
+	err = sharedv1.AddToScheme(scheme)
 	if err != nil {
 		return nil, err
 	}

@@ -175,7 +175,7 @@ if [ "$1" = "kube-auto" ]; then
 
 
   # Port forward the PostgreSQL service locally, so we can access it
-	kubectl port-forward --namespace gitops svc/gitops-postgresql-staging 5432:5432 &
+	kubectl port-forward --namespace gitops svc/gitops-postgresql-staging 5432:5432 &>/dev/null &
   KUBE_PID=$!
 
   # Checks if 5432 is occupied

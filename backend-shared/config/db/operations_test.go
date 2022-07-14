@@ -136,6 +136,7 @@ var _ = Describe("Operations Test", func() {
 		Expect(err).To(BeNil())
 
 		By("operation in waiting state shouldn't be returned")
+		Expect(sampleOperation.State).Should(Equal(db.OperationState_Waiting))
 		var validOperations []db.Operation
 		err = dbq.ListOperationsToBeGarbageCollected(ctx, &validOperations)
 		Expect(err).To(BeNil())

@@ -148,7 +148,6 @@ install-gitops-service-in-kcp() {
     git clone https://github.com/redhat-appstudio/managed-gitops.git
     KCP_DIR="${TMP_DIR}/managed-gitops"
     pushd managed-gitops
-    make devenv-docker
     popd
     popd
     printf "\nThe dev enviroment for gitops service is setup successfully ...\n\n"
@@ -156,10 +155,13 @@ install-gitops-service-in-kcp() {
 }
 
 test-gitops-service-e2e-in-kcp() {
-  export KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig 
   kubectl port-forward --namespace gitops svc/gitops-postgresql-staging 5432:5432 &
-  make start-e2e
+  export KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig
+  printf "The Kubeconfig being used for this is:" $KUBECONFIG
+  ./create-dev-env.sh
+  make start-e2e &
   make test-e2e
+  cleanup $TMP_DIR $KCP_DIR
 }
 
 # creates a development workspace (ex: dev-work)
@@ -169,13 +171,23 @@ create-workspace() {
     exit_if_binary_not_installed "kubectl-kcp"
     KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl kcp workspaces create $kcp_ws --enter
 
+    KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl create namespace gitops 2> /dev/null || true
+
+    # operation CRs
+    KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl -n gitops apply -f  backend-shared/config/crd/bases/managed-gitops.redhat.com_operations.yaml
+
     # gitops deployment CRs
-    KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl apply -f backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentrepositorycredentials.yaml
-    KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl apply -f backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentsyncruns.yaml
-    KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl apply -f backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeployments.yaml
+    KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl -n gitops apply -f backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentrepositorycredentials.yaml
+    KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl -n gitops apply -f backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentsyncruns.yaml
+    KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl -n gitops apply -f backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeployments.yaml
+
+    # argocd application-crd definations
+    KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl create ns "gitops-service-argocd" 2> /dev/null || true
+    KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/release-2.3/manifests/crds/application-crd.yaml
 
     # appstudio-shared CRs
 	  KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl apply -f appstudio-shared/manifests/appstudio-shared-customresourcedefinitions.yaml
+
 	  # Application CR from AppStudio HAS
 	  KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-service/7a1a14b575dc725a46ea2ab175692f464122f0f8/config/crd/bases/appstudio.redhat.com_applications.yaml
 	  KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-service/7a1a14b575dc725a46ea2ab175692f464122f0f8/config/crd/bases/appstudio.redhat.com_components.yaml
@@ -183,6 +195,7 @@ create-workspace() {
 }
 
 cleanup() {
+  pkill go
   pkill kcp
   rm -rf ${TMP_DIR}
   rm -rf ${KCP_DIR}
@@ -202,6 +215,13 @@ create-workspace $TMP_DIR
 # Once, KCP is up and running add a workloadcluster to it
 add-workload-cluster $TMP_DIR
 
+# KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig  kubectl create namespace gitops 2> /dev/null || true
+# KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig  kubectl -n gitops apply -f  /home/samjain/gitops-service-team/kc-script/managed-gitops/manifests/backend-rbac/
+# KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig  kubectl create namespace gitops 2> /dev/null || true
+# KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig  kubectl -n gitops apply -f  /home/samjain/gitops-service-team/kc-script/managed-gitops/manifests/cluster-agent-rbac/
+# KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig  kubectl create namespace gitops 2> /dev/null || true
+# KUBECONFIG=${TMP_DIR}/.kcp/admin.kubeconfig  kubectl -n gitops apply -f  /home/samjain/gitops-service-team/kc-script/managed-gitops/manifests/appstudio-controller-rbac/
+
 # install argocd in KCP workspace
 # install-argocd-in-kcp $TMP_DIR
 
@@ -211,5 +231,5 @@ install-gitops-service-in-kcp $TMP_DIR
 # run the service and test e2e against the cluster
 test-gitops-service-e2e-in-kcp $TMP_DIR
 
-# cleanup directories and process once the script is ran successfully
+# cleanup directories and process once the script runs successfully
 cleanup $TMP_DIR $KCP_DIR

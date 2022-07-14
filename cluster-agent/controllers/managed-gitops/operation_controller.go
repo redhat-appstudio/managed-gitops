@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,6 +31,7 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/managed-gitops/eventloop"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -72,15 +74,17 @@ func (r *OperationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 type garbageCollector struct {
-	db        db.DatabaseQueries
-	k8sClient client.Client
+	db            db.DatabaseQueries
+	k8sClient     client.Client
+	taskRetryLoop *sharedutil.TaskRetryLoop
 }
 
 // NewGarbageCollector creates a new instance of garbageCollector for Operations
 func NewGarbageCollector(dbQueries db.DatabaseQueries, client client.Client) *garbageCollector {
 	return &garbageCollector{
-		db:        dbQueries,
-		k8sClient: client,
+		db:            dbQueries,
+		k8sClient:     client,
+		taskRetryLoop: sharedutil.NewTaskRetryLoop("garbage-collect-operations"),
 	}
 }
 
@@ -128,12 +132,30 @@ func (g *garbageCollector) garbageCollectOperations(ctx context.Context, operati
 					Namespace: util.GetGitOpsEngineSingleInstanceNamespace(),
 				},
 			}
-			err = g.k8sClient.Delete(ctx, operationCR)
-			if err != nil {
-				log.Error(err, "failed to delete operation from the cluster", "operation_id", operation.Operation_id)
-			}
 
-			log.Info("successfully garbage collected operation", "operation_id", operation.Operation_id)
+			// retry until the Operation resource is removed from the cluster
+			taskName := fmt.Sprintf("garbage-collect-operation-%s", operation.Operation_id)
+			gcOperationCR := &removeOperationCR{g.k8sClient, log, operationCR}
+			g.taskRetryLoop.AddTaskIfNotPresent(taskName, gcOperationCR, sharedutil.ExponentialBackoff{Factor: 2, Min: time.Millisecond * 200, Max: time.Second * 10, Jitter: true})
 		}
 	}
+}
+
+type removeOperationCR struct {
+	client.Client
+	log       logr.Logger
+	operation *managedgitopsv1alpha1.Operation
+}
+
+func (r *removeOperationCR) PerformTask(ctx context.Context) (bool, error) {
+	if err := r.Delete(ctx, r.operation); err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
+		}
+		r.log.Error(err, "failed to delete operation from the cluster", "operation_id", r.operation.Spec.OperationID)
+		return true, err
+	}
+
+	r.log.Info("successfully garbage collected operation", "operation_id", r.operation.Spec.OperationID)
+	return false, nil
 }

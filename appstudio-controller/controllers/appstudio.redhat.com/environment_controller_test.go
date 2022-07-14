@@ -35,7 +35,8 @@ var _ = Describe("Environment controller tests", func() {
 				err := eventlooptypes.GenericTestSetup()
 			Expect(err).To(BeNil())
 
-			appstudioshared.AddToScheme(scheme)
+			err = appstudioshared.AddToScheme(scheme)
+			Expect(err).To(BeNil())
 
 			apiNamespace = *namespace
 

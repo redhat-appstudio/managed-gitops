@@ -166,21 +166,21 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 		}
 	}
 
-	secretLabelsAndAnnotations := getSecretLabelsAndAnnotations(argoCDSecret)
+	// 5. Check if the Argo CD secret has the correct data, and if not, update it with the data from the database.
 	labelDatabaseIDPrivateRepoSecret := fmt.Sprintf("%s: %s", controllers.RepoCredDatabaseIDLabel, dbRepositoryCredentials.RepositoryCredentialsID)
 	labelArgoCDPrivateRepoSecret := fmt.Sprintf("%s: %s", common.LabelKeySecretType, common.LabelValueSecretTypeRepository)
 	annotationArgoCDPrivateRepoSecret := fmt.Sprintf("%s: %s", common.AnnotationKeyManagedBy, common.AnnotationValueManagedByArgoCD)
 	var argoCDLabelFound, repoCredLabelFound, repoCredAnnotationFound bool
-	for _, v := range secretLabelsAndAnnotations {
-		if v == labelArgoCDPrivateRepoSecret {
-			argoCDLabelFound = true
-		}
-		if v == labelDatabaseIDPrivateRepoSecret {
-			repoCredLabelFound = true
-		}
-		if v == annotationArgoCDPrivateRepoSecret {
-			repoCredAnnotationFound = true
-		}
+	if keyValue, isKeyExists := argoCDSecret.Labels[common.LabelKeySecretType]; isKeyExists && keyValue == common.LabelValueSecretTypeRepository {
+		argoCDLabelFound = true
+	}
+
+	if keyValue, isKeyExists := argoCDSecret.Annotations[common.AnnotationKeyManagedBy]; isKeyExists && keyValue == common.AnnotationValueManagedByArgoCD {
+		repoCredAnnotationFound = true
+	}
+
+	if keyValue, isKeyExists := argoCDSecret.Labels[controllers.RepoCredDatabaseIDLabel]; isKeyExists && keyValue == dbRepositoryCredentials.RepositoryCredentialsID {
+		repoCredLabelFound = true
 	}
 
 	if !argoCDLabelFound {
@@ -322,18 +322,4 @@ func secretToRepoCred(secret *corev1.Secret) (repoCred *db.RepositoryCredentials
 		AuthSSHKey:   string(secret.Data["sshPrivateKey"]),
 		SecretObj:    secret.Name,
 	}
-}
-
-func getSecretLabelsAndAnnotations(secret *corev1.Secret) []string {
-	var s string
-	var arr []string
-	for key, val := range secret.Labels {
-		s = fmt.Sprintf("%s=\"%s\"", key, val)
-		arr = append(arr, s)
-	}
-	for key, val := range secret.Annotations {
-		s = fmt.Sprintf("%s=\"%s\"", key, val)
-		arr = append(arr, s)
-	}
-	return arr
 }

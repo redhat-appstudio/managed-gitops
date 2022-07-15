@@ -2,8 +2,6 @@ package eventloop
 
 import (
 	"context"
-	"time"
-
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -18,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"time"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
@@ -86,7 +85,7 @@ var _ = Describe("Operation Controller", func() {
 			}
 
 		})
-		It("Ensure that calling perform task on an operation CR that doesn't exist, it doesn't return an error, and retry is false", func() {
+		It("Ensure that calling perform task on an operation CR for Application that doesn't exist, it doesn't return an error, and retry is false", func() {
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
 
@@ -236,7 +235,6 @@ var _ = Describe("Operation Controller", func() {
 			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
 			Expect(err).To(BeNil())
 
-			By("creating Operation CR")
 			operationCR := &operation.Operation{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
@@ -247,6 +245,7 @@ var _ = Describe("Operation Controller", func() {
 				},
 			}
 
+			By("creating Operation CR")
 			err = task.event.client.Create(ctx, operationCR)
 			Expect(err).To(BeNil())
 

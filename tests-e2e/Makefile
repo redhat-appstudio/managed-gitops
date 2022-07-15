@@ -33,7 +33,7 @@ help: ## Display this help.
 
 .PHONY: test
 test: # Run tests.
-	go test -v -p=1 -race -count=1 -coverprofile=coverage.out ./...
+	go test -v -p=1 -timeout=30m -race -count=1 -coverprofile=coverage.out ./...
 	
 
 # go-get-tool will 'go install' any package $2 and install it to $1.

@@ -49,7 +49,8 @@ type EnvironmentReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
 func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+
+	log := log.FromContext(ctx).WithValues("request", req)
 
 	// The goal of this function is to ensure that if an Environment exists, and that Environment
 	// has the 'kubernetesCredentials' field defined, that a corresponding
@@ -63,6 +64,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(environment), environment); err != nil {
 
 		if apierr.IsNotFound(err) {
+			log.Info("Environment resource no longer exists")
 			// A) The Environment resource could not be found: the owner reference on the GitOpsDeploymentManagedEnvironment
 			// should ensure that it is cleaned up, so no more work is required.
 			return ctrl.Result{}, nil
@@ -85,6 +87,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		if apierr.IsNotFound(err) {
 			// B) The GitOpsDeploymentManagedEnvironment doesn't exist, so needs to be created.
 
+			log.Info("Creating GitOpsDeploymentManagedEnvironment", "managedEnv", desiredManagedEnv.Name)
 			if err := r.Client.Create(ctx, desiredManagedEnv); err != nil {
 				return ctrl.Result{}, fmt.Errorf("unable to create new GitOpsDeploymentManagedEnvironment: %v", err)
 			}
@@ -105,6 +108,8 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, nil
 	}
 
+	log.Info("Updating GitOpsDeploymentManagedEnvironment as a change was detected", "managedEnv", desiredManagedEnv.Name)
+
 	// Update the current object to the desired state
 	currentManagedEnv.Spec = desiredManagedEnv.Spec
 	if err := r.Client.Update(ctx, &currentManagedEnv); err != nil {
@@ -114,6 +119,8 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	return ctrl.Result{}, nil
 }
+
+// TODO: GITOPSRVCE-182: Uncomment this code and use it to implement conditions.
 
 // const EnvironmentStatus_ConditionErrorOccurred = "ErrorOccurred"
 

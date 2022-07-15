@@ -174,7 +174,7 @@ var _ = Describe("Environment controller tests", func() {
 			err = k8sClient.Create(ctx, &env)
 			Expect(err).To(BeNil())
 
-			By("creating an managed environment containing outdated values, versus what's in the environment")
+			By("creating a managed environment containing outdated values, versus what's in the environment")
 
 			previouslyReconciledManagedEnv := generateEmptyManagedEnvironment(env.Name, env.Namespace)
 			previouslyReconciledManagedEnv.Spec = managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{

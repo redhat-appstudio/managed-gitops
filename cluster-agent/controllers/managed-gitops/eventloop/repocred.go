@@ -138,16 +138,18 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 
 			// The problem with the secret is now resolved, so we can proceed with the operation.
 			l.Info("Argo CD Private Repository secret has been successfully created",
-				"URL", string(argoCDSecret.Data["url"]), "username", string(argoCDSecret.Data["username"]),
-				"password", string(argoCDSecret.Data["password"]), "SSH Key", string(argoCDSecret.Data["ssh"]))
+				"URL", string(argoCDSecret.Data["url"]),
+				"username", string(argoCDSecret.Data["username"]),
+				"SSH Key", string(argoCDSecret.Data["ssh"]))
 		} else {
 			l.Error(err, errGetPrivateSecret)
 			return retry, err
 		}
 	} else {
 		l.Info("A corresponding Argo CD Private Repository secret has already been existing",
-			"URL", string(argoCDSecret.Data["url"]), "username", string(argoCDSecret.Data["username"]),
-			"password", string(argoCDSecret.Data["password"]), "SSH Key", string(argoCDSecret.Data["ssh"]))
+			"URL", string(argoCDSecret.Data["url"]),
+			"username", string(argoCDSecret.Data["username"]),
+			"SSH Key", string(argoCDSecret.Data["ssh"]))
 	}
 
 	// 4. Check if the Argo CD secret has the correct data, and if not, update it with the data from the database.
@@ -218,7 +220,7 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 	}
 
 	if decodedSecret.AuthPassword != dbRepositoryCredentials.AuthPassword {
-		l.Info("Secret has wrong Password! Syncing with database...", "UpdateFrom", decodedSecret.AuthPassword, "UpdateTo", dbRepositoryCredentials.AuthPassword)
+		l.Info("Secret has wrong Password! Syncing with database...")
 		argoCDSecret.Data["password"] = []byte(dbRepositoryCredentials.AuthPassword)
 		if err = eventClient.Update(ctx, argoCDSecret); err != nil {
 			l.Error(err, errUpdatePrivateSecret)

@@ -285,8 +285,13 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 		if err != nil {
 			log.Error(err, "error occurred on processing the application operation")
+		}
+
+		return &dbOperation, shouldRetry, err
+
 	} else if dbOperation.Resource_type == db.OperationResourceType_RepositoryCredentials {
 		shouldRetry, err := processOperation_RepositoryCredentials(taskContext, dbOperation, *operationCR, dbQueries, *argoCDNamespace, eventClient, log)
+
 		if err != nil {
 			log.Error(err, "error occurred on processing the repository credentials operation")
 		}

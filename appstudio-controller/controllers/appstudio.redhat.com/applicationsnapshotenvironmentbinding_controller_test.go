@@ -235,7 +235,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 				To(Equal(binding.Name + "-" + binding.Spec.Components[0].Name))
 		})
 
-		It("Should return error if Status.Components is not available in Binding object.", func() {
+		It("Should not return error if Status.Components is not available in Binding object.", func() {
 			binding.Status.Components = []appstudiosharedv1.ComponentStatus{}
 			// Create ApplicationSnapshotEnvironmentBinding CR in cluster.
 			err := bindingReconciler.Create(ctx, binding)
@@ -243,8 +243,11 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 
 			// Trigger Reconciler
 			_, err = bindingReconciler.Reconcile(ctx, request)
-			Expect(err).NotTo(BeNil())
-			Expect(err.Error()).To(Equal("ApplicationSnapshotEventBinding Component status is required to generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding appa-staging-binding"))
+			Expect(err).To(BeNil())
+			// Expect(err.Error()).To(Equal("ApplicationSnapshotEventBinding Component status is required to generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding appa-staging-binding"))
+
+			// TODO: GITOPSRVCE-182: Once GITOPSRVCE-182 is implemented, check for the above message in the condition.
+
 		})
 
 		It("Should return error if Status.GitOpsRepoConditions Status is set to False in Binding object.", func() {
@@ -263,7 +266,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			Expect(err).To(BeNil())
 		})
 
-		It("should return an error if there are duplicate components in binding.Status.Components", func() {
+		It("should not return an error if there are duplicate components in binding.Status.Components", func() {
 
 			By("creating an ApplicationSnapshotEnvironmentBinding with duplicate component names")
 
@@ -294,9 +297,11 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 
 			// Trigger Reconciler
 			_, err = bindingReconciler.Reconcile(ctx, request)
-			Expect(err).ToNot(BeNil())
-			Expect(strings.Contains(err.Error(), Error_DuplicateKeysFound)).To(BeTrue(),
-				"duplicate components should be detected by the reconciler")
+			Expect(err).To(BeNil())
+
+			// Expect(strings.Contains(err.Error(), errDuplicateKeysFound)).To(BeTrue(),
+			// 	"duplicate components should be detected by the reconciler")
+			// TODO: GITOPSRVCE-182: Once GITOPSRVCE-182 is implemented, check for the above message in the condition.
 
 		})
 
@@ -361,7 +366,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			By("reconciling again, and expecting an TargetNamespace missing error")
 			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).ToNot(BeNil())
-			Expect(strings.Contains(err.Error(), Error_MissingTargetNamespace)).To(BeTrue())
+			Expect(strings.Contains(err.Error(), errMissingTargetNamespace)).To(BeTrue())
 
 		})
 	})

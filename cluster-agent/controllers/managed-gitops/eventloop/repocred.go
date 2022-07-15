@@ -152,21 +152,24 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 			"SSH Key", string(argoCDSecret.Data["ssh"]))
 	}
 
-	// 4. Check if the Argo CD secret has the correct data, and if not, update it with the data from the database.
+	// 4. Check if the Argo CD secret has the correct name, and if not, update it with the name from the database.
 	// https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#repositories
 
-	decodedSecret := secretToRepoCred(argoCDSecret) // helpful function to decode []byte to string
+	decodedSecret := secretToRepoCred(argoCDSecret) // helpful function to decode []byte to string for easier comparison
+	isUpdateNeeded := compareClusterResourceWithDatabaseRow(dbRepositoryCredentials, argoCDSecret, l, decodedSecret)
 
-	if decodedSecret.SecretObj != dbRepositoryCredentials.SecretObj {
-		l.Info("Secret has wrong name! Syncing with database...", "UpdateFrom", decodedSecret.SecretObj, "UpdateTo", dbRepositoryCredentials.SecretObj)
-		argoCDSecret.Data["name"] = []byte(dbRepositoryCredentials.SecretObj)
+	if isUpdateNeeded {
+		l.Info("Syncing with database...")
 		if err = eventClient.Update(ctx, argoCDSecret); err != nil {
 			l.Error(err, errUpdatePrivateSecret)
 			return retry, err
 		}
 	}
 
-	// 5. Check if the Argo CD secret has the correct data, and if not, update it with the data from the database.
+	return noRetry, nil
+}
+
+func compareClusterResourceWithDatabaseRow(dbRepositoryCredentials db.RepositoryCredentials, argoCDSecret *corev1.Secret, l logr.Logger, decodedSecret *db.RepositoryCredentials) bool {
 	labelDatabaseIDPrivateRepoSecret := fmt.Sprintf("%s: %s", controllers.RepoCredDatabaseIDLabel, dbRepositoryCredentials.RepositoryCredentialsID)
 	labelArgoCDPrivateRepoSecret := fmt.Sprintf("%s: %s", common.LabelKeySecretType, common.LabelValueSecretTypeRepository)
 	annotationArgoCDPrivateRepoSecret := fmt.Sprintf("%s: %s", common.AnnotationKeyManagedBy, common.AnnotationValueManagedByArgoCD)
@@ -183,70 +186,68 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 		repoCredLabelFound = true
 	}
 
+	var isArgoCDLabelUpdateNeeded bool
 	if !argoCDLabelFound {
 		l.Info("Secret is missing ArgoCD label! Syncing with database...", "AddLabel", labelArgoCDPrivateRepoSecret)
 		addSecretArgoCDMetadata(argoCDSecret, common.LabelValueSecretTypeRepository)
-		if err = eventClient.Update(ctx, argoCDSecret); err != nil {
-			l.Error(err, errUpdatePrivateSecret)
-			return retry, err
-		}
+		isArgoCDLabelUpdateNeeded = true
 	}
 
+	var isRepoCredLabelUpdateNeeded bool
 	if !repoCredLabelFound {
 		l.Info("Secret is missing DatabaseID label! Syncing with database...", "AddLabel", labelDatabaseIDPrivateRepoSecret)
 		addSecretRepoCredMetadata(argoCDSecret, dbRepositoryCredentials.RepositoryCredentialsID)
-		if err = eventClient.Update(ctx, argoCDSecret); err != nil {
-			l.Error(err, errUpdatePrivateSecret)
-			return retry, err
-		}
+		isRepoCredLabelUpdateNeeded = true
 	}
 
+	var isRepoCredAnnotationUpdateNeeded bool
 	if !repoCredAnnotationFound {
 		l.Info("Secret is missing ArgoCD annotation! Syncing with database...", "AddAnnotation", annotationArgoCDPrivateRepoSecret)
 		addSecretArgoCDAnnotation(argoCDSecret)
-		if err = eventClient.Update(ctx, argoCDSecret); err != nil {
-			l.Error(err, errUpdatePrivateSecret)
-			return retry, err
-		}
+		isRepoCredAnnotationUpdateNeeded = true
 	}
 
+	var isSecretNameUpdateNeeded bool
+	if decodedSecret.SecretObj != dbRepositoryCredentials.SecretObj {
+		l.Info("Secret has wrong name! Syncing with database...", "UpdateFrom", decodedSecret.SecretObj, "UpdateTo", dbRepositoryCredentials.SecretObj)
+		argoCDSecret.Data["name"] = []byte(dbRepositoryCredentials.SecretObj)
+		isSecretNameUpdateNeeded = true
+	}
+
+	var isPrivateURLUpdateNeeded bool
 	if decodedSecret.PrivateURL != dbRepositoryCredentials.PrivateURL {
 		l.Info("Secret has wrong URL! Syncing with database...", "UpdateFrom", string(argoCDSecret.Data["url"]), "UpdateTo", dbRepositoryCredentials.PrivateURL)
 		argoCDSecret.Data["url"] = []byte(dbRepositoryCredentials.PrivateURL)
-		if err = eventClient.Update(ctx, argoCDSecret); err != nil {
-			l.Error(err, errUpdatePrivateSecret)
-			return retry, err
-		}
+		isPrivateURLUpdateNeeded = true
 	}
 
+	var isPasswordUpdateNeeded bool
 	if decodedSecret.AuthPassword != dbRepositoryCredentials.AuthPassword {
 		l.Info("Secret has wrong Password! Syncing with database...")
 		argoCDSecret.Data["password"] = []byte(dbRepositoryCredentials.AuthPassword)
-		if err = eventClient.Update(ctx, argoCDSecret); err != nil {
-			l.Error(err, errUpdatePrivateSecret)
-			return retry, err
-		}
+		isPasswordUpdateNeeded = true
 	}
 
+	var isUsernameUpdateNeeded bool
 	if decodedSecret.AuthUsername != dbRepositoryCredentials.AuthUsername {
 		l.Info("Secret has wrong Username! Syncing with database...", "UpdateFrom", decodedSecret.AuthUsername, "UpdateTo", dbRepositoryCredentials.AuthUsername)
 		argoCDSecret.Data["username"] = []byte(dbRepositoryCredentials.AuthUsername)
-		if err = eventClient.Update(ctx, argoCDSecret); err != nil {
-			l.Error(err, errUpdatePrivateSecret)
-			return retry, err
-		}
+		isUsernameUpdateNeeded = true
 	}
 
+	var isSSHKeyUpdateNeeded bool
 	if decodedSecret.AuthSSHKey != dbRepositoryCredentials.AuthSSHKey {
 		l.Info("Secret has wrong SSH key! Syncing with database...", "UpdateFrom", decodedSecret.AuthSSHKey, "UpdateTo", dbRepositoryCredentials.AuthSSHKey)
 		argoCDSecret.Data["ssh"] = []byte(dbRepositoryCredentials.AuthSSHKey)
-		if err = eventClient.Update(ctx, argoCDSecret); err != nil {
-			l.Error(err, errUpdatePrivateSecret)
-			return retry, err
-		}
+		isSSHKeyUpdateNeeded = true
 	}
 
-	return noRetry, nil
+	// If any of the above steps have been performed, then we need to update the cluster secret resource.
+	isUpdateNeeded := isArgoCDLabelUpdateNeeded || isRepoCredLabelUpdateNeeded || isRepoCredAnnotationUpdateNeeded ||
+		isPrivateURLUpdateNeeded || isPasswordUpdateNeeded || isUsernameUpdateNeeded || isSSHKeyUpdateNeeded ||
+		isSecretNameUpdateNeeded
+
+	return isUpdateNeeded
 }
 
 func convertRepoCredToSecret(repoCred db.RepositoryCredentials, secret *corev1.Secret) {

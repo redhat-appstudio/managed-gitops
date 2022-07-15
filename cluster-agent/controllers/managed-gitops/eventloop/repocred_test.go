@@ -11,6 +11,7 @@ import (
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -173,10 +174,12 @@ var _ = Describe("RepositoryCredentials Operation Tests", func() {
 			Expect(secret.Data).Should(HaveKey("username"))
 			Expect(secret.Data).Should(HaveKey("password"))
 			Expect(secret.Labels).Should(HaveKey("argocd.argoproj.io/secret-type"))
+			Expect(secret.Labels).Should(HaveKey(controllers.RepoCredDatabaseIDLabel))
 			Expect(string(secret.Data["url"])).Should(Equal(repositoryCredential.PrivateURL))
 			Expect(string(secret.Data["username"])).Should(Equal(repositoryCredential.AuthUsername))
 			Expect(string(secret.Data["password"])).Should(Equal(repositoryCredential.AuthPassword))
 			Expect(secret.Labels["argocd.argoproj.io/secret-type"]).Should(Equal("repository"))
+			Expect(secret.Labels[controllers.RepoCredDatabaseIDLabel]).Should(Equal(repositoryCredential.RepositoryCredentialsID))
 		})
 		It("If there is a valid Operation ID for a problematic ArgoCD secret, fix the secret", func() {
 			By("Create the ArgoCD secret with wrong values and argocd labels")
@@ -263,10 +266,12 @@ var _ = Describe("RepositoryCredentials Operation Tests", func() {
 			Expect(secret.Data).Should(HaveKey("username"))
 			Expect(secret.Data).Should(HaveKey("password"))
 			Expect(secret.Labels).Should(HaveKey("argocd.argoproj.io/secret-type"))
+			Expect(secret.Labels).Should(HaveKey(controllers.RepoCredDatabaseIDLabel))
 			Expect(string(secret.Data["url"])).Should(Equal(repositoryCredential.PrivateURL))
 			Expect(string(secret.Data["username"])).Should(Equal(repositoryCredential.AuthUsername))
 			Expect(string(secret.Data["password"])).Should(Equal(repositoryCredential.AuthPassword))
 			Expect(secret.Labels["argocd.argoproj.io/secret-type"]).Should(Equal("repository"))
+			Expect(secret.Labels[controllers.RepoCredDatabaseIDLabel]).Should(Equal(repositoryCredential.RepositoryCredentialsID))
 		})
 	})
 })

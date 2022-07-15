@@ -7,6 +7,7 @@ import (
 	"github.com/go-logr/logr"
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -133,18 +134,32 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 	// Check if the secret has the correct Labels
 	l.Info("Checking if the Label of the Argo CD Private Repository secret needs to be updated")
 	secretLabels := getSecretLabels(argoCDSecret)
-	var labelFound = false
+	var argoCDLabelFound, repoCredLabelFound = false, false
 	for _, v := range secretLabels {
 		if v == "argocd.argoproj.io/secret-type: repository" {
-			labelFound = true
+			argoCDLabelFound = true
+		}
+		if v == fmt.Sprintf("%s: %s", controllers.RepoCredDatabaseIDLabel, dbRepositoryCredentials.RepositoryCredentialsID) {
+			repoCredLabelFound = true
 		}
 	}
 
-	if labelFound {
-		l.Info("Re: No need the Label of the Argo CD Private Repository secret is the same with the respective RepositoryCredentials db entry")
+	if argoCDLabelFound {
+		l.Info("Re: No need the ArgoCD Label of the Argo CD Private Repository secret is the same with the respective RepositoryCredentials db entry")
 	} else {
-		l.Info("Updating Argo CD Private Repository secret label", "secret name", argoCDSecret.Name)
-		addSecretMetadata(argoCDSecret, common.LabelValueSecretTypeRepository)
+		l.Info("Updating Argo CD Private Repository secret ArgoCD label", "secret name", argoCDSecret.Name)
+		addSecretArgoCDMetadata(argoCDSecret, common.LabelValueSecretTypeRepository)
+		if err = eventClient.Update(ctx, argoCDSecret); err != nil {
+			l.Error(err, errUpdatePrivateSecret, "label")
+			return retry, err
+		}
+	}
+
+	if repoCredLabelFound {
+		l.Info("Re: No need the DatabaseID Label of the Argo CD Private Repository secret is the same with the respective RepositoryCredentials db entry")
+	} else {
+		l.Info("Updating Argo CD Private Repository secret DatabaseID label", "secret name", argoCDSecret.Name)
+		addSecretRepoCredMetadata(argoCDSecret, dbRepositoryCredentials.RepositoryCredentialsID)
 		if err = eventClient.Update(ctx, argoCDSecret); err != nil {
 			l.Error(err, errUpdatePrivateSecret, "label")
 			return retry, err
@@ -214,7 +229,8 @@ func repoCredToSecret(repoCred db.RepositoryCredentials, secret *corev1.Secret) 
 	updateSecretString(secret, "username", repoCred.AuthUsername)
 	updateSecretString(secret, "password", repoCred.AuthPassword)
 	updateSecretString(secret, "sshPrivateKey", repoCred.AuthSSHKey)
-	addSecretMetadata(secret, common.LabelValueSecretTypeRepository)
+	addSecretArgoCDMetadata(secret, common.LabelValueSecretTypeRepository) // adds the ArgoCD Label
+	addSecretRepoCredMetadata(secret, repoCred.RepositoryCredentialsID)    // adds the DatabaseID Label
 
 	// Values Supported by ArgoCD but not yet part of GitOps Repository Credentials as part of the MVP
 	// -----------------------------------------------------------------------------------------------
@@ -240,7 +256,7 @@ func updateSecretString(secret *corev1.Secret, key, value string) {
 	}
 }
 
-func addSecretMetadata(secret *corev1.Secret, secretType string) {
+func addSecretArgoCDMetadata(secret *corev1.Secret, secretType string) {
 	if secret.Annotations == nil {
 		secret.Annotations = map[string]string{}
 	}
@@ -250,7 +266,14 @@ func addSecretMetadata(secret *corev1.Secret, secretType string) {
 		secret.Labels = map[string]string{}
 	}
 	secret.Labels[common.LabelKeySecretType] = secretType
+}
 
+// addSecretRepoCredMetadata adds the DatabaseID label to the ArgoCD secret, so we can find it later
+func addSecretRepoCredMetadata(secret *corev1.Secret, secretType string) {
+	if secret.Labels == nil {
+		secret.Labels = map[string]string{}
+	}
+	secret.Labels[controllers.RepoCredDatabaseIDLabel] = secretType
 }
 
 // secretToRepoCred converts a Secret to a RepositoryCredentials

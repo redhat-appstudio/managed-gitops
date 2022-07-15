@@ -17,17 +17,17 @@ import (
 )
 
 const (
-	errOperationIDNotFound   = "resource ID was nil while processing operation"
-	errGenericDB             = "unable to retrieve database row from database"
-	errRowNotFound           = "row no longer exists in the database"
-	errPrivateSecretNotFound = "Argo CD Private Repository secret doesn't exist"
-	errPrivateSecretCreate   = "unable to create Argo CD Repository secret"
-	errGetPrivateSecret      = "unexpected error on retrieve Argo CD secret"
-	errUpdatePrivateSecret   = "unable to update Argo CD Private Repository secret"
-	errDeletePrivateSecret   = "unable to delete Argo CD Private Repository secret"
-	errLabelNotFound         = "SEVERE: invalid label requirement"
-	errSecretLabelList       = "unable to complete Argo CD Secret list"
-	errNumOfItemsInList      = "SEVERE: unexpected number (more than one) of related ArgoCD secrets"
+	errOperationIDNotFound    = "resource ID was nil while processing operation"
+	errGenericDB              = "unable to retrieve database row from database"
+	errRowNotFound            = "row no longer exists in the database"
+	errPrivateSecretNotFound  = "Argo CD Private Repository secret doesn't exist"
+	errPrivateSecretCreate    = "unable to create Argo CD Repository secret"
+	errGetPrivateSecret       = "unexpected error on retrieve Argo CD secret"
+	errUpdatePrivateSecret    = "unable to update Argo CD Private Repository secret"
+	errDeletePrivateSecret    = "unable to delete Argo CD Private Repository secret"
+	errSevereLabelNotFound    = "SEVERE: invalid label requirement"
+	errSecretLabelList        = "unable to complete Argo CD Secret list"
+	errSevereNumOfItemsInList = "SEVERE: unexpected number (more than one) of related ArgoCD secrets"
 )
 
 // deleteArgoCDSecretLeftovers best effort attempt to clean up ArgoCD Secret leftovers.
@@ -38,7 +38,7 @@ func deleteArgoCDSecretLeftovers(ctx context.Context, argoCDNamespace corev1.Nam
 	labelSelector := labels.NewSelector()
 	req, err := labels.NewRequirement(controllers.RepoCredDatabaseIDLabel, selection.Equals, []string{databaseID})
 	if err != nil {
-		l.Error(err, errLabelNotFound)
+		l.Error(err, errSevereLabelNotFound)
 		return noRetry, err
 	}
 	labelSelector = labelSelector.Add(*req)
@@ -52,7 +52,7 @@ func deleteArgoCDSecretLeftovers(ctx context.Context, argoCDNamespace corev1.Nam
 
 	if len(list.Items) > 1 {
 		// Sanity test: should really only ever be 0 or 1
-		l.Error(nil, errNumOfItemsInList, "length", len(list.Items))
+		l.Error(nil, errSevereNumOfItemsInList, "length", len(list.Items))
 	}
 
 	var firstDeletionErr error

@@ -31,7 +31,7 @@ const (
 )
 
 // deleteArgoCDSecretLeftovers best effort attempt to clean up ArgoCD Secret leftovers.
-func deleteArgoCDSecretLeftovers(ctx context.Context, argoCDNamespace corev1.Namespace, eventClient client.Client, l logr.Logger, databaseID string) (bool, error) {
+func deleteArgoCDSecretLeftovers(ctx context.Context, databaseID string, argoCDNamespace corev1.Namespace, eventClient client.Client, l logr.Logger) (bool, error) {
 	const retry, noRetry = true, false
 
 	list := corev1.SecretList{}
@@ -104,7 +104,7 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 		// If the db row is missing, try to delete the related leftovers (ArgoCD Secret)
 		if db.IsResultNotFoundError(err) {
 			l.Error(err, errRowNotFound, "resource-id", dbOperation.Resource_id)
-			return deleteArgoCDSecretLeftovers(ctx, argoCDNamespace, eventClient, l, dbOperation.Resource_id)
+			return deleteArgoCDSecretLeftovers(ctx, dbOperation.Resource_id, argoCDNamespace, eventClient, l)
 		}
 
 		// Something went wrong with the database connection, just retry

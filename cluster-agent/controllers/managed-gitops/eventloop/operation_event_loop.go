@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/common"
 	"reflect"
 	"time"
 
@@ -285,6 +286,10 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 		if err != nil {
 			log.Error(err, "error occurred on processing the application operation")
+	} else if dbOperation.Resource_type == db.OperationResourceType_RepositoryCredentials {
+		shouldRetry, err := processOperation_RepositoryCredentials(taskContext, dbOperation, *operationCR, dbQueries, *argoCDNamespace, eventClient, log)
+		if err != nil {
+			log.Error(err, "error occurred on processing the repository credentials operation")
 		}
 
 		return &dbOperation, shouldRetry, err

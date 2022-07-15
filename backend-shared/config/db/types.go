@@ -150,9 +150,10 @@ const (
 )
 
 const (
-	OperationResourceType_SyncOperation      = "SyncOperation"
-	OperationResourceType_Application        = "Application"
-	OperationResourceType_ManagedEnvironment = "ManagedEnvironment"
+	OperationResourceType_ManagedEnvironment    = "ManagedEnvironment"
+	OperationResourceType_SyncOperation         = "SyncOperation"
+	OperationResourceType_Application           = "Application"
+	OperationResourceType_RepositoryCredentials = "RepositoryCredentials"
 )
 
 // Operation

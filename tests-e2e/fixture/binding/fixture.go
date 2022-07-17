@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -15,6 +16,31 @@ import (
 )
 
 func HaveStatusGitOpsDeployments(gitOpsDeployments []appstudiosharedv1.BindingStatusGitOpsDeployment) matcher.GomegaMatcher {
+
+	// compare compares two slices, returning true if the contents are equal regardless of the order of elements in the slices
+	compare := func(a []appstudiosharedv1.BindingStatusGitOpsDeployment, b []appstudiosharedv1.BindingStatusGitOpsDeployment) string {
+		if len(a) != len(b) {
+			return "lengths don't match"
+		}
+
+		for _, aVal := range a {
+
+			match := false
+			for _, bVal := range b {
+
+				if reflect.DeepEqual(aVal, bVal) {
+					match = true
+					break
+				}
+			}
+
+			if !match {
+				return fmt.Sprintf("no match for %v", aVal)
+			}
+		}
+
+		return ""
+	}
 
 	return WithTransform(func(binding appstudiosharedv1.ApplicationSnapshotEnvironmentBinding) bool {
 
@@ -30,10 +56,10 @@ func HaveStatusGitOpsDeployments(gitOpsDeployments []appstudiosharedv1.BindingSt
 			return false
 		}
 
-		res := reflect.DeepEqual(gitOpsDeployments, binding.Status.GitOpsDeployments)
+		compareContents := compare(gitOpsDeployments, binding.Status.GitOpsDeployments)
 
-		fmt.Println("HaveStatusGitOpsDeployments:", res, "/ Expected:", gitOpsDeployments, "/ Actual:", binding.Status.GitOpsDeployments)
+		GinkgoWriter.Println("HaveStatusGitOpsDeployments:", compareContents, "/ Expected:", gitOpsDeployments, "/ Actual:", binding.Status.GitOpsDeployments)
 
-		return res
+		return compareContents == ""
 	}, BeTrue())
 }

@@ -2,6 +2,9 @@ package core
 
 import (
 	"context"
+	"fmt"
+	"io/ioutil"
+	"os"
 
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
@@ -18,6 +21,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -125,6 +129,64 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 		})
 	})
 })
+
+// extractKubeConfigValues returns contents of k8s config from $KUBE_CONFIG, plus server api url (and error)
+func extractKubeConfigValues() (string, string, error) {
+
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+
+	config, err := loadingRules.Load()
+	if err != nil {
+		return "", "", err
+	}
+
+	context, ok := config.Contexts[config.CurrentContext]
+	if !ok || context == nil {
+		return "", "", fmt.Errorf("no context")
+	}
+
+	cluster, ok := config.Clusters[context.Cluster]
+	if !ok || cluster == nil {
+		return "", "", fmt.Errorf("no cluster")
+	}
+
+	var kubeConfigDefault string
+
+	paths := loadingRules.Precedence
+	{
+
+		for _, path := range paths {
+
+			GinkgoWriter.Println("Attempting to read kube config from", path)
+
+			// homeDir, err := os.UserHomeDir()
+			// if err != nil {
+			// 	return "", "", err
+			// }
+
+			_, err = os.Stat(path)
+			if err != nil {
+				GinkgoWriter.Println("Unable to resolve path", path, err)
+			} else {
+				// Success
+				kubeConfigDefault = path
+				break
+			}
+
+		}
+
+		if kubeConfigDefault == "" {
+			return "", "", fmt.Errorf("unable to retrieve kube config path")
+		}
+	}
+
+	kubeConfigContents, err := ioutil.ReadFile(kubeConfigDefault)
+	if err != nil {
+		return "", "", err
+	}
+
+	return string(kubeConfigContents), cluster.Server, nil
+}
 
 func buildManagedEnvironment(apiServerURL string, kubeConfigContents string) (managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, corev1.Secret) {
 	secret := &corev1.Secret{

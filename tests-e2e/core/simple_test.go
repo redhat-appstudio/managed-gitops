@@ -1,10 +1,6 @@
 package core
 
 import (
-	"fmt"
-	"io/ioutil"
-	"os"
-
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -14,7 +10,6 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	apps "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 var _ = Describe("GitOpsDeployment E2E tests", func() {
@@ -65,43 +60,6 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 		})
 	})
 })
-
-// extractKubeConfigValues returns contents of ~/.kube/config, server api url, error
-func extractKubeConfigValues() (string, string, error) {
-	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	config, err := loadingRules.Load()
-	if err != nil {
-		return "", "", err
-	}
-
-	context, ok := config.Contexts[config.CurrentContext]
-	if !ok || context == nil {
-		return "", "", fmt.Errorf("no context")
-	}
-
-	cluster, ok := config.Clusters[context.Cluster]
-	if !ok || cluster == nil {
-		return "", "", fmt.Errorf("no cluster")
-	}
-
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", "", err
-	}
-
-	kubeConfigDefault := homeDir + "/.kube/config"
-	_, err = os.Stat(kubeConfigDefault)
-	if err != nil {
-		return "", "", err
-	}
-
-	kubeConfigContents, err := ioutil.ReadFile(kubeConfigDefault)
-	if err != nil {
-		return "", "", err
-	}
-
-	return string(kubeConfigContents), cluster.Server, nil
-}
 
 // buildGitOpsDeploymentResource builds a GitOpsDeployment with 'opinionated' default values, which is self-contained to
 // the GitGitOpsServiceE2ENamespace. This makes it easy to clean up after tests using EnsureCleanSlate.

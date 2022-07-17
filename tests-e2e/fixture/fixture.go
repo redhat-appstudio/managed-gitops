@@ -13,6 +13,7 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	. "github.com/onsi/ginkgo/v2"
 	routev1 "github.com/openshift/api/route/v1"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	apps "k8s.io/api/apps/v1"
@@ -40,14 +41,22 @@ const (
 )
 
 // EnsureCleanSlate should be called before every E2E tests:
-// it ensures that the state of the GitOpsServiceE2ENamespace namespace is reset to scratch before each test, including:
+// it ensures that the state of the GitOpsServiceE2ENamespace namespace (and other resources on the cluster) is reset
+// to scratch before each test, including:
+// - Removing any old GitOps Service API resources in GitOpsServiceE2ENamespace
 // - Removing any old resources in GitOpsServiceE2ENamespace, by deleting the namespace
 // - Recreating the GitOpsServiceE2ENamespace with the expected settings
 // - Waiting for Argo CD to watch the namespace before exiting (to prevent race conditions)
+// - Remove the second Argo CD namespace, for the limited # of tests that create a new Argo CD instance.
 //
 // This ensures that previous E2E tests runs do not interfere with the results of current test runs.
 // This function can also be called after a test, in order to clean up any resources it create in the GitOpsServiceE2ENamespace.
 func EnsureCleanSlate() error {
+
+	// Clean up after tests that target the non-default Argo CD instance (only used by a few E2E tests)
+	if err := cleanUpOldArgoCDApplications(NewArgoCDInstanceDestNamespace, NewArgoCDInstanceDestNamespace); err != nil {
+		return err
+	}
 
 	if err := DeleteNamespace(NewArgoCDInstanceNamespace); err != nil {
 		return err
@@ -57,7 +66,12 @@ func EnsureCleanSlate() error {
 		return err
 	}
 
-	if err := ensureDestinationNamespaceExists(GitOpsServiceE2ENamespace, dbutil.DefaultGitOpsEngineSingleInstanceNamespace); err != nil {
+	// Clean up after tests that target the default Argo CD E2E instance (used by most E2E tests)
+	if err := cleanUpOldArgoCDApplications(dbutil.GetGitOpsEngineSingleInstanceNamespace(), GitOpsServiceE2ENamespace); err != nil {
+		return err
+	}
+
+	if err := ensureDestinationNamespaceExists(GitOpsServiceE2ENamespace, dbutil.GetGitOpsEngineSingleInstanceNamespace()); err != nil {
 		return err
 	}
 
@@ -71,7 +85,7 @@ func EnsureCleanSlate() error {
 	if err != nil {
 		return err
 	}
-	if err := k8sClient.List(context.Background(), secretList, &client.ListOptions{Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace}); err != nil {
+	if err := k8sClient.List(context.Background(), secretList, &client.ListOptions{Namespace: dbutil.GetGitOpsEngineSingleInstanceNamespace()}); err != nil {
 		return err
 	}
 	for idx := range secretList.Items {
@@ -79,6 +93,35 @@ func EnsureCleanSlate() error {
 		if strings.HasPrefix(secret.Name, "managed-env") {
 			if err := k8sClient.Delete(context.Background(), &secret); err != nil {
 				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// cleanUpOldArgoCDApplications issues a Delete request to k8s, for any Argo CD Applications in 'namespaceParam' that
+// have a .Spec.Destination of 'destNamespace'
+func cleanUpOldArgoCDApplications(namespaceParam string, destNamespace string) error {
+	k8sClient, err := GetKubeClient()
+	if err != nil {
+		return err
+	}
+	argoCDApplicationList := appv1alpha1.ApplicationList{}
+	if err = k8sClient.List(context.Background(), &argoCDApplicationList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
+		return fmt.Errorf("unable to list '%s': %v ", namespaceParam, err)
+	}
+
+	// Delete an Argo CD Application resources that reference the destination namespace
+	for idx := range argoCDApplicationList.Items {
+
+		app := argoCDApplicationList.Items[idx]
+		if app.Spec.Destination.Namespace == destNamespace {
+			GinkgoWriter.Println("Deleting Argo CD Application:", app.Name)
+			if err := k8sClient.Delete(context.Background(), &app); err != nil {
+				if !apierr.IsNotFound(err) {
+					return fmt.Errorf("unable to delete '%s': %v", namespaceParam, err)
+				}
 			}
 		}
 	}
@@ -147,35 +190,46 @@ func cleanUpOldKubeSystemResources() error {
 	return nil
 }
 
+// cleanUpOldGitOpsServiceAPIs deletes old GitOpsDeployment* APIs
+func cleanUpOldGitOpsServiceAPIs(namespace string, k8sClient client.Client) error {
+
+	gitopsDeploymentList := managedgitopsv1alpha1.GitOpsDeploymentList{}
+	if err := k8sClient.List(context.Background(), &gitopsDeploymentList, &client.ListOptions{Namespace: namespace}); err != nil {
+		return fmt.Errorf("unable to cleanup old GitOpsDeployments: %v", err)
+	}
+
+	for idx := range gitopsDeploymentList.Items {
+		gitopsDeployment := gitopsDeploymentList.Items[idx]
+		if err := k8sClient.Delete(context.Background(), &gitopsDeployment); err != nil {
+			return err
+		}
+	}
+
+	gitopsManagedEnvironments := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentList{}
+	if err := k8sClient.List(context.Background(), &gitopsManagedEnvironments, &client.ListOptions{Namespace: namespace}); err != nil {
+		return fmt.Errorf("unable to cleanup old GitOpsDeployments: %v", err)
+	}
+
+	for idx := range gitopsManagedEnvironments.Items {
+		gitopsManagedEnv := gitopsManagedEnvironments.Items[idx]
+		if err := k8sClient.Delete(context.Background(), &gitopsManagedEnv); err != nil {
+			return err
+		}
+	}
+
+	return nil
+
+}
+
 func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespaceParam string) error {
-	policy := metav1.DeletePropagationForeground
 
 	kubeClientSet, err := GetKubeClientSet()
 	if err != nil {
 		return err
 	}
 
-	// Delete the e2e namespace, if it exists
-	err = kubeClientSet.CoreV1().Namespaces().Delete(context.Background(), namespaceParam, metav1.DeleteOptions{PropagationPolicy: &policy})
-	if err != nil && !apierr.IsNotFound(err) {
-		return err
-	}
-
-	// Wait for namespace to delete
-	if err := wait.Poll(time.Second*1, time.Minute*2, func() (done bool, err error) {
-
-		_, err = kubeClientSet.CoreV1().Namespaces().Get(context.Background(), namespaceParam, metav1.GetOptions{})
-		if err != nil {
-			if apierr.IsNotFound(err) {
-				return true, nil
-			} else {
-				return false, err
-			}
-		}
-
-		return false, nil
-	}); err != nil {
-		return err
+	if err := DeleteNamespace(namespaceParam); err != nil {
+		return fmt.Errorf("unable to delete namespace '%s': %v", namespaceParam, err)
 	}
 
 	// Create the namespace again
@@ -244,7 +298,7 @@ func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 
 		return false, nil
 	}); err != nil {
-		return err
+		return fmt.Errorf("argo CD never setup rolebindings for namespace '%s': %v", namespaceParam, err)
 	}
 
 	return nil
@@ -252,65 +306,83 @@ func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 
 // DeleteNamespace deletes a namespace, and waits for it to be reported as deleted.
 func DeleteNamespace(namespaceParam string) error {
-	policy := metav1.DeletePropagationForeground
-
-	kubeClientSet, err := GetKubeClientSet()
-	if err != nil {
-		return err
-	}
 
 	k8sClient, err := GetKubeClient()
 	if err != nil {
 		return err
 	}
 
-	// Remove finalizers from any Argo CD Applications in the namespace
-	if err := wait.Poll(time.Second*1, time.Minute*2, func() (done bool, err error) {
+	// Delete the namespace:
+	// - First, we do a bunch of clean up in the namespace (and in the Argo CD namespace), to ensure the namespace
+	//   can be successfully clean.ed
+	// - Next, we issue a request to Delete the namespace
+	// - Finally, we check if it has been deleted.
+	if err := wait.Poll(time.Second*5, time.Minute*6, func() (done bool, err error) {
 
-		argoCDApplicationList := appv1alpha1.ApplicationList{}
-		if err = k8sClient.List(context.Background(), &argoCDApplicationList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
-			fmt.Println("unable to list "+namespaceParam, err)
+		// Deletes old GitOpsDeployment* APIs in this namespace
+		if err := cleanUpOldGitOpsServiceAPIs(namespaceParam, k8sClient); err != nil {
+			GinkgoWriter.Printf("unable to delete old GitOps Service APIs in '%s': %v\n", namespaceParam, err)
 			return false, nil
 		}
 
-		for idx := range argoCDApplicationList.Items {
+		// Delete any Argo CD Applications in the Argo CD namespace that target this namespace
+		if err := cleanUpOldArgoCDApplications(dbutil.GetGitOpsEngineSingleInstanceNamespace(), namespaceParam); err != nil {
+			GinkgoWriter.Printf("unable to clean up old Argo CD Applications targetting '%s': %v'\n", namespaceParam, err)
+			return false, nil
+		}
 
-			app := argoCDApplicationList.Items[idx]
-			if len(app.Finalizers) > 0 {
-				err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&app), &app)
-				if err != nil {
-					fmt.Println("unable to get "+app.Name, err)
-					return false, nil
+		// Remove finalizers from any Argo CD Applications in this Namespace
+		if err := wait.Poll(time.Second*1, time.Minute*2, func() (done bool, err error) {
+
+			argoCDApplicationList := appv1alpha1.ApplicationList{}
+			if err = k8sClient.List(context.Background(), &argoCDApplicationList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
+				GinkgoWriter.Println("unable to list Argo CD Applications in '"+namespaceParam+"'", err)
+				return false, nil
+			}
+
+			for idx := range argoCDApplicationList.Items {
+
+				app := argoCDApplicationList.Items[idx]
+				if len(app.Finalizers) > 0 {
+					err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&app), &app)
+					if err != nil {
+						GinkgoWriter.Println("unable to get Application '"+app.Name+"'", err)
+						return false, nil
+					}
+					app.Finalizers = []string{}
+					err = k8sClient.Update(context.Background(), &app)
+					if err != nil {
+						GinkgoWriter.Println("unable to update Application '"+app.Name+"'", err)
+						return false, nil
+					}
 				}
-				app.Finalizers = []string{}
-				err = k8sClient.Update(context.Background(), &app)
-				if err != nil {
-					fmt.Println("unable to update "+app.Name, err)
-					return false, nil
-				}
+			}
+
+			return true, nil
+		}); err != nil {
+			GinkgoWriter.Printf("unable to remove finalizer from Argo CD Applications in namespace '%s': %v\n", namespaceParam, err)
+			return false, nil
+		}
+
+		// Delete the namespace, if it exists
+		namespace := corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: namespaceParam,
+			},
+		}
+		if err := k8sClient.Delete(context.Background(), &namespace); err != nil {
+			if !apierr.IsNotFound(err) {
+				GinkgoWriter.Printf("unable to delete namespace '%s': %v\n", namespaceParam, err)
+				return false, nil
 			}
 		}
 
-		return true, nil
-	}); err != nil {
-		return fmt.Errorf("unable to remove finalizes from Argo CD Applications in namespace '%s': %v", namespaceParam, err)
-	}
-
-	// Delete the namespace, if it exists
-	err = kubeClientSet.CoreV1().Namespaces().Delete(context.Background(), namespaceParam, metav1.DeleteOptions{PropagationPolicy: &policy})
-	if err != nil && !apierr.IsNotFound(err) {
-		return err
-	}
-
-	// Wait for namespace to delete
-	if err := wait.Poll(time.Second*1, time.Minute*2, func() (done bool, err error) {
-
-		_, err = kubeClientSet.CoreV1().Namespaces().Get(context.Background(), namespaceParam, metav1.GetOptions{})
-		if err != nil {
+		if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&namespace), &namespace); err != nil {
 			if apierr.IsNotFound(err) {
 				return true, nil
 			} else {
-				return false, err
+				GinkgoWriter.Printf("unable to Get namespace '%s': %v\n", namespaceParam, err)
+				return false, nil
 			}
 		}
 
@@ -333,12 +405,14 @@ func GetKubeConfig() (*rest.Config, error) {
 	restConfig, err := clientConfig.ClientConfig()
 
 	if restConfig != nil {
+		// Prevent rate limiting of our requests
+		restConfig.QPS = 100
+		restConfig.Burst = 250
+
 		// Sanity check that we're not running on a known staging system: don't want to accidentally break staging :|
 		if strings.Contains(restConfig.Host, "x99m.p1.openshiftapps.com") {
 			return nil, fmt.Errorf("E2E tests should not be run on staging server")
 		}
-
-		// fmt.Println("Using Kube Config, targeting host:", restConfig.Host)
 	}
 
 	return restConfig, err

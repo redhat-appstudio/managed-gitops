@@ -30,7 +30,7 @@ var _ = Describe("Argo CD Application", func() {
 			Expect(err).To(Succeed())
 
 			By("GitOpsDeployment should have expected health and status")
-			Eventually(gitOpsDeployment, "2m", "1s").Should(
+			Eventually(gitOpsDeployment, "4m", "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)))

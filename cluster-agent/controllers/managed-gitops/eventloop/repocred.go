@@ -3,6 +3,7 @@ package eventloop
 import (
 	"context"
 	"fmt"
+
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/go-logr/logr"
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
@@ -140,7 +141,7 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 			l.Info("Argo CD Private Repository secret has been successfully created",
 				"URL", string(argoCDSecret.Data["url"]),
 				"username", string(argoCDSecret.Data["username"]),
-				"SSH Key", string(argoCDSecret.Data["ssh"]))
+				"SSH Key (length)", len(string(argoCDSecret.Data["ssh"])))
 		} else {
 			l.Error(err, errGetPrivateSecret)
 			return retry, err
@@ -149,7 +150,7 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 		l.Info("A corresponding Argo CD Private Repository secret has already been existing",
 			"URL", string(argoCDSecret.Data["url"]),
 			"username", string(argoCDSecret.Data["username"]),
-			"SSH Key", string(argoCDSecret.Data["ssh"]))
+			"SSH Key (length)", len(string(argoCDSecret.Data["ssh"])))
 	}
 
 	// 4. Check if the Argo CD secret has the correct name, and if not, update it with the name from the database.
@@ -174,6 +175,7 @@ func compareClusterResourceWithDatabaseRow(dbRepositoryCredentials db.Repository
 	labelArgoCDPrivateRepoSecret := fmt.Sprintf("%s: %s", common.LabelKeySecretType, common.LabelValueSecretTypeRepository)
 	annotationArgoCDPrivateRepoSecret := fmt.Sprintf("%s: %s", common.AnnotationKeyManagedBy, common.AnnotationValueManagedByArgoCD)
 	var argoCDLabelFound, repoCredLabelFound, repoCredAnnotationFound bool
+
 	if keyValue, isKeyExists := argoCDSecret.Labels[common.LabelKeySecretType]; isKeyExists && keyValue == common.LabelValueSecretTypeRepository {
 		argoCDLabelFound = true
 	}
@@ -237,7 +239,7 @@ func compareClusterResourceWithDatabaseRow(dbRepositoryCredentials db.Repository
 
 	var isSSHKeyUpdateNeeded bool
 	if decodedSecret.AuthSSHKey != dbRepositoryCredentials.AuthSSHKey {
-		l.Info("Secret has wrong SSH key! Syncing with database...", "UpdateFrom", decodedSecret.AuthSSHKey, "UpdateTo", dbRepositoryCredentials.AuthSSHKey)
+		l.Info("Secret has wrong SSH key! Syncing with database...", "UpdateFrom (len)", len(decodedSecret.AuthSSHKey), "UpdateTo (len)", len(dbRepositoryCredentials.AuthSSHKey))
 		argoCDSecret.Data["ssh"] = []byte(dbRepositoryCredentials.AuthSSHKey)
 		isSSHKeyUpdateNeeded = true
 	}

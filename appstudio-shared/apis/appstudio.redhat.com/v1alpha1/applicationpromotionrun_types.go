@@ -122,6 +122,7 @@ const (
 //+kubebuilder:subresource:status
 
 // ApplicationPromotionRun is the Schema for the applicationpromotionruns API
+// +kubebuilder:resource:path=applicationpromotionruns,shortName=apr;promotion
 type ApplicationPromotionRun struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

@@ -119,6 +119,7 @@ type EnvironmentStatus struct {
 //+kubebuilder:subresource:status
 
 // Environment is the Schema for the environments API
+// +kubebuilder:resource:path=environments,shortName=env;environment
 type Environment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

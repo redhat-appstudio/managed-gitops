@@ -12,6 +12,9 @@ spec:
     kind: ApplicationPromotionRun
     listKind: ApplicationPromotionRunList
     plural: applicationpromotionruns
+    shortNames:
+    - apr
+    - promotion
     singular: applicationpromotionrun
   scope: Namespaced
   versions:

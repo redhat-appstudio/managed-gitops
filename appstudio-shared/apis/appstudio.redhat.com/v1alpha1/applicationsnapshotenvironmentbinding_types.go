@@ -145,6 +145,7 @@ type BindingStatusGitOpsDeployment struct {
 //+kubebuilder:subresource:status
 
 // ApplicationSnapshotEnvironmentBinding is the Schema for the applicationsnapshotenvironmentbindings API
+// +kubebuilder:resource:path=applicationsnapshotenvironmentbindings,shortName=aseb;binding
 type ApplicationSnapshotEnvironmentBinding struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

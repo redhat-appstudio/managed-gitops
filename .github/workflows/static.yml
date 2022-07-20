@@ -22,6 +22,39 @@ jobs:
         run: |
           make fmt
           git diff --exit-code -- .
+  
+  duplimport:
+    name: Ensure there are no duplicate package imports
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Setup Golang
+        uses: actions/setup-go@v3.2.0
+        with:
+          go-version-file: './backend/go.mod'
+      - name: "Install dupimport"
+        run: |
+          go install github.com/gostaticanalysis/dupimport/cmd/dupimport
+      - name: "Ensure 'backend' has no duplicate imports"
+        run: |
+          cd $GITHUB_WORKSPACE/backend
+          go vet -vettool=`which dupimport` ./...
+      - name: "Ensure 'cluster-agent' has no duplicate imports"
+        run: |
+          cd $GITHUB_WORKSPACE/cluster-agent
+          go vet -vettool=`which dupimport` ./...
+      - name: "Ensure 'backend-shared' has no duplicate imports"
+        run: |
+          cd $GITHUB_WORKSPACE/backend-shared
+          go vet -vettool=`which dupimport` ./...
+      - name: "Ensure 'appstudio-controller' has no duplicate imports"
+        run: |
+          cd $GITHUB_WORKSPACE/appstudio-controller
+          go vet -vettool=`which dupimport` ./...
+      - name: "Ensure 'appstudio-shared' has no duplicate imports"
+        run: |
+          cd $GITHUB_WORKSPACE/appstudio-shared
+          go vet -vettool=`which dupimport` ./...
 
   gosec:
     name: Ensure that code passes gosec and golint

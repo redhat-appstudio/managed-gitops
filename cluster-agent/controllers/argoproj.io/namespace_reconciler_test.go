@@ -36,12 +36,13 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			k8sClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 			reconciler := ApplicationReconciler{Client: k8sClient}
 
-			var argoApplications []appv1.Application
-			argoApplications = append(argoApplications, appv1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"databaseID": "test-my-application-1"}}})
-			argoApplications = append(argoApplications, appv1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"databaseID": "test-my-application-2"}}})
-			argoApplications = append(argoApplications, appv1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"databaseID": "test-my-application-3"}}})
-			argoApplications = append(argoApplications, appv1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"databaseID": "test-my-application-4"}}})
-			argoApplications = append(argoApplications, appv1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"databaseID": "test-my-application-5"}}})
+			argoApplications := []appv1.Application{
+				{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"databaseID": "test-my-application-1"}}},
+				{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"databaseID": "test-my-application-2"}}},
+				{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"databaseID": "test-my-application-3"}}},
+				{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"databaseID": "test-my-application-4"}}},
+				{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"databaseID": "test-my-application-5"}}},
+			}
 
 			processedApplicationIds := map[string]interface{}{"test-my-application-3": false, "test-my-application-5": false}
 

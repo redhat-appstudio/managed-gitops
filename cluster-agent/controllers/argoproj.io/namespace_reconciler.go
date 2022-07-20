@@ -3,6 +3,7 @@ package argoprojio
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"time"
 
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -13,7 +14,6 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	cache "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	appEventLoop "github.com/redhat-appstudio/managed-gitops/backend/eventloop/application_event_loop"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
@@ -44,13 +44,13 @@ func (r *ApplicationReconciler) startTimerForNextCycle() {
 		ctx := context.Background()
 		log := log.FromContext(ctx).WithValues("component", "namespace-reconciler")
 
-		_, _ = util.CatchPanic(func() error {
+		_, _ = sharedutil.CatchPanic(func() error {
 			runNamespaceReconcile(ctx, r.DB, r.Client, log)
 			return nil
 		})
 
 		// Kick off the timer again, once the old task runs.
-		// This ensures that at least 'namespaceReconcilerInterval' time elapses from the end of one rum to the beginning of another.
+		// This ensures that at least 'namespaceReconcilerInterval' time elapses from the end of one run to the beginning of another.
 		r.startTimerForNextCycle()
 	}()
 
@@ -156,11 +156,12 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 				continue
 			}
 
-			// At this point application from ArgoCD and DB are not in Sync, so need to update ArgoCD application according to DB entry
+			// At this point application from ArgoCD and DB are not in Sync, so need to update Argo CD Application resource
+			// according to DB entry
 
 			// ArgoCD application and DB entry are not in Sync,
 			// ArgoCD should use the state of resources present in the database should
-			// Create Operation to inform ArgoCD to get in Sync with database entry.
+			// Create Operation to inform Argo CD to get in Sync with database entry.
 			dbOperationInput := db.Operation{
 				Instance_id:   applicationRowFromDB.Engine_instance_inst_id,
 				Resource_id:   applicationRowFromDB.Application_id,
@@ -327,7 +328,9 @@ func cleanK8sOperations(ctx context.Context, dbq db.DatabaseQueries, client clie
 		log.Info("Deleting Operation created by Namespace Reconciler." + string(k8sOperation.UID))
 
 		// Delete the k8s operation now.
-		if err := appEventLoop.CleanupOperation(ctx, dbOperation, k8sOperation, cache.GetGitOpsEngineSingleInstanceNamespace(), dbq, client, log); err != nil {
+		if err := appEventLoop.CleanupOperation(ctx, dbOperation, k8sOperation, cache.GetGitOpsEngineSingleInstanceNamespace(),
+			dbq, client, log); err != nil {
+
 			log.Error(err, "Unable to Delete k8s Operation"+string(k8sOperation.UID)+" for DbOperation: "+string(k8sOperation.Spec.OperationID))
 		} else {
 			log.Info("Deleted k8s Operation: " + string(k8sOperation.UID) + " for DbOperation: " + string(k8sOperation.Spec.OperationID))
@@ -336,18 +339,31 @@ func cleanK8sOperations(ctx context.Context, dbq db.DatabaseQueries, client clie
 	log.V(sharedutil.LogLevel_Debug).Info("Cleaned all Operations created by Namespace Reconciler.")
 }
 
-func deleteOrphanedApplications(argoApplications []appv1.Application, processedApplicationIds map[string]interface{}, ctx context.Context, client client.Client, log logr.Logger) []appv1.Application {
-	log.V(sharedutil.LogLevel_Debug).Info("Looking for any orphaned ArgoCD application to delete.")
-	var deletedOrphanedApplications []appv1.Application
+func deleteOrphanedApplications(argoApplications []appv1.Application, processedApplicationIds map[string]interface{},
+	ctx context.Context, client client.Client, log logr.Logger) []appv1.Application {
 
-	// Iterate through all ArgoCD applications and delete applications which are not having entry in DB.
-	for _, application := range argoApplications {
+	if len(argoApplications) == 0 {
+		return []appv1.Application{}
+	}
+
+	shuffledList := argoApplications
+
+	// Shuffle the list of Argo Applications, so that we are not always deleting in the same order.
+	// - This is beneficial when we have a long list of Applications to delete, that take longer than namespaceReconcilerInterval.
+	rand.Shuffle(len(shuffledList), func(i, j int) {
+		shuffledList[i], shuffledList[j] = shuffledList[j], shuffledList[i]
+	})
+
+	// Iterate through all Argo CD applications and delete applications which are not having entry in DB.
+	log.V(sharedutil.LogLevel_Debug).Info("Deleting orphaned Argo CD Aplications")
+	var deletedOrphanedApplications []appv1.Application
+	for _, application := range shuffledList {
 		if _, ok := processedApplicationIds[application.Labels["databaseID"]]; !ok {
 			if err := controllers.DeleteArgoCDApplication(ctx, application, client, log); err != nil {
-				log.Error(err, "unable to delete an orphaned ArgoCD application "+application.Name)
+				log.Error(err, "unable to delete an orphaned Argo CD Application "+application.Name)
 			} else {
 				deletedOrphanedApplications = append(deletedOrphanedApplications, application)
-				log.Info("Deleted orphaned ArgoCD application " + application.Name)
+				log.Info("Deleting orphaned Argo CD Application " + application.Name)
 			}
 		}
 	}

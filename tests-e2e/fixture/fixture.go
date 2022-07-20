@@ -2,6 +2,7 @@ package fixture
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -489,4 +490,27 @@ func GetKubeClient() (client.Client, error) {
 
 	return k8sClient, nil
 
+}
+
+// reportRemainingArgoCDApplications outputs the current contents of all Argo CD Applications. This can be useful while debugging failing tests,
+// to determine what the final state of an Argo CD Application was at the end of a test.
+func ReportRemainingArgoCDApplications(k8sClient client.Client) error {
+	argoCDApplicationList := appv1alpha1.ApplicationList{}
+	if err := k8sClient.List(context.Background(), &argoCDApplicationList); err != nil {
+		return err
+	}
+
+	GinkgoWriter.Println("Argo CD Applications present at end of test:")
+
+	for idx, application := range argoCDApplicationList.Items {
+		jsonStr, err := json.Marshal(application)
+		if err != nil {
+			return err
+		}
+
+		GinkgoWriter.Printf("- %d) %s\n", idx+1, (string)(jsonStr))
+	}
+	GinkgoWriter.Println()
+
+	return nil
 }

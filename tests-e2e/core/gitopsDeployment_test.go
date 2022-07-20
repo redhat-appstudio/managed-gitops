@@ -5,10 +5,14 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	routev1 "github.com/openshift/api/route/v1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	fixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	typed "k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -16,6 +20,12 @@ import (
 const (
 	name    = "my-gitops-depl"
 	repoURL = "https://github.com/redhat-appstudio/gitops-repository-template"
+
+	// ArgoCDReconcileWaitTime is the length of time to watch for Argo CD/GitOps Service to deploy the resources
+	// of an Application (e.g. to reconcile the Application resource)
+	// We set this to be at least twice the default reconciliation time (3 minutes) to avoid a race condition in updating ConfigMaps
+	// in Argo CD. This is an imperfect solution.
+	ArgoCDReconcileWaitTime = "7m"
 )
 
 var _ = Describe("GitOpsDeployment E2E tests", func() {
@@ -25,7 +35,121 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 		Expect(err).To(BeNil())
 		ctx := context.Background()
 
-		It("Should ensure succesfull creation of GitOpsDeployment, by creating the GitOpsDeployment", func() {
+		AfterEach(func() {
+			// At end of a test, output the state of Argo CD Application, for post-mortem debuggign
+			err := fixture.ReportRemainingArgoCDApplications(k8sClient)
+			Expect(err).To(BeNil())
+		})
+
+		// Generate expected resources for "https://github.com/redhat-appstudio/gitops-repository-template"
+		getResourceStatusList_GitOpsRepositoryTemplateRepo := func(name string) []managedgitopsv1alpha1.ResourceStatus {
+			return []managedgitopsv1alpha1.ResourceStatus{
+				{
+					Group:     "apps",
+					Version:   "v1",
+					Kind:      "Deployment",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+					Name:      name,
+					Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
+					Health: &managedgitopsv1alpha1.HealthStatus{
+						Status: managedgitopsv1alpha1.HeathStatusCodeHealthy,
+					},
+				},
+				{
+					Group:     "route.openshift.io",
+					Version:   "v1",
+					Kind:      "Route",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+					Name:      name,
+					Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
+					Health: &managedgitopsv1alpha1.HealthStatus{
+						Status:  managedgitopsv1alpha1.HeathStatusCodeHealthy,
+						Message: "Route is healthy",
+					},
+				},
+				{
+					Group:     "",
+					Version:   "v1",
+					Kind:      "Service",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+					Name:      name,
+					Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
+					Health: &managedgitopsv1alpha1.HealthStatus{
+						Status: managedgitopsv1alpha1.HeathStatusCodeHealthy,
+					},
+				},
+			}
+		}
+
+		// Generate  expected resource from "https://github.com/managed-gitops-test-data/deployment-permutations-*" using name
+		getResourceStatusList_deploymentPermutations := func(name string) []managedgitopsv1alpha1.ResourceStatus {
+			return []managedgitopsv1alpha1.ResourceStatus{
+				{
+					Group:     "",
+					Version:   "v1",
+					Kind:      "ConfigMap",
+					Name:      name,
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+					Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
+				},
+			}
+		}
+
+		// Generate expected identifier configmap for "https://github.com/managed-gitops-test-data/deployment-permutations-*"
+		createResourceStatusListFunction_deploymentPermutations := func() []managedgitopsv1alpha1.ResourceStatus {
+			return []managedgitopsv1alpha1.ResourceStatus{
+				{
+					Group:     "",
+					Version:   "v1",
+					Kind:      "ConfigMap",
+					Name:      "identifier",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+					Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
+				},
+			}
+		}
+
+		// Returns true if the all param resources no longer exist (have been deleted), and false otherwise.
+		expectAllResourcesToBeDeleted := func(expectedResourceStatusList []managedgitopsv1alpha1.ResourceStatus) {
+
+			Eventually(func() bool {
+
+				k8sclient, err := fixture.GetKubeClient()
+				Expect(err).To(BeNil())
+
+				for _, resourceValue := range expectedResourceStatusList {
+					ns := typed.NamespacedName{
+						Namespace: resourceValue.Namespace,
+						Name:      resourceValue.Name,
+					}
+
+					var obj client.Object
+
+					if resourceValue.Kind == "ConfigMap" {
+						obj = &corev1.ConfigMap{}
+					} else if resourceValue.Kind == "Deployment" {
+						obj = &appsv1.Deployment{}
+					} else if resourceValue.Kind == "Route" {
+						obj = &routev1.Route{}
+					} else if resourceValue.Kind == "Service" {
+						obj = &corev1.Service{}
+					} else {
+						GinkgoWriter.Println("unrecognize kind:", resourceValue.Kind)
+						return false
+					}
+					err := k8sclient.Get(context.Background(), ns, obj)
+					if !apierr.IsNotFound(err) {
+						return false
+					}
+				}
+
+				// If all the resources were found, return true
+				return true
+			}, "2m", "1s").Should(BeTrue())
+
+		}
+
+		It("Should ensure succesful creation of GitOpsDeployment, by creating the GitOpsDeployment", func() {
 
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 			gitOpsDeploymentResource := buildGitOpsDeploymentResource(name,
@@ -35,50 +159,12 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err := k8s.Create(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
-			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
+			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
 				),
 			)
-			getResourceStatusList := func(name string) []managedgitopsv1alpha1.ResourceStatus {
-				return []managedgitopsv1alpha1.ResourceStatus{
-					{
-						Group:     "apps",
-						Version:   "v1",
-						Kind:      "Deployment",
-						Namespace: fixture.GitOpsServiceE2ENamespace,
-						Name:      name,
-						Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
-						Health: &managedgitopsv1alpha1.HealthStatus{
-							Status: managedgitopsv1alpha1.HeathStatusCodeHealthy,
-						},
-					},
-					{
-						Group:     "route.openshift.io",
-						Version:   "v1",
-						Kind:      "Route",
-						Namespace: fixture.GitOpsServiceE2ENamespace,
-						Name:      name,
-						Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
-						Health: &managedgitopsv1alpha1.HealthStatus{
-							Status:  managedgitopsv1alpha1.HeathStatusCodeHealthy,
-							Message: "Route is healthy",
-						},
-					},
-					{
-						Group:     "",
-						Version:   "v1",
-						Kind:      "Service",
-						Namespace: fixture.GitOpsServiceE2ENamespace,
-						Name:      name,
-						Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
-						Health: &managedgitopsv1alpha1.HealthStatus{
-							Status: managedgitopsv1alpha1.HeathStatusCodeHealthy,
-						},
-					},
-				}
-			}
 			expectedResourceStatusList := []managedgitopsv1alpha1.ResourceStatus{
 				{
 					Group:     "",
@@ -89,32 +175,22 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 					Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
 				},
 			}
-			expectedResourceStatusList = append(expectedResourceStatusList, getResourceStatusList("component-a")...)
-			expectedResourceStatusList = append(expectedResourceStatusList, getResourceStatusList("component-b")...)
+			expectedResourceStatusList = append(expectedResourceStatusList, getResourceStatusList_GitOpsRepositoryTemplateRepo("component-a")...)
+			expectedResourceStatusList = append(expectedResourceStatusList, getResourceStatusList_GitOpsRepositoryTemplateRepo("component-b")...)
 
-			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
+			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
 					gitopsDeplFixture.HaveResources(expectedResourceStatusList),
 				),
 			)
-			By("deleting the GitOpsDeployment resource")
+			By("deleting the GitOpsDeployment resource and waiting for the resources to be deleted")
 
 			err = k8s.Delete(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
-			err = k8s.Get(&gitOpsDeploymentResource)
-			Expect(err).ToNot(Succeed())
-
-			for _, resourceValue := range expectedResourceStatusList {
-				ns := typed.NamespacedName{
-					Namespace: resourceValue.Namespace,
-					Name:      resourceValue.Name,
-				}
-				err := k8sClient.Get(ctx, ns, &gitOpsDeploymentResource)
-				Expect(err).ToNot(Succeed())
-			}
+			expectAllResourcesToBeDeleted(expectedResourceStatusList)
 
 		})
 
@@ -127,7 +203,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			err := k8s.Create(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
-			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
+			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
@@ -142,11 +218,14 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.Update(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
+			// TODO: GITOPSRVCE-181: When we have comparedTo functionality fom Argo CD, add a check for it here as an Eventually.
+
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&gitOpsDeploymentResource), &gitOpsDeploymentResource)
+			Expect(err).To(BeNil())
 			Expect(gitOpsDeploymentResource.Spec.Source.RepoURL).To(Equal(repoURL))
 			Expect(gitOpsDeploymentResource.Spec.Source.Path).To(Equal("environments/overlays/dev"))
 
-			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
+			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
@@ -161,8 +240,6 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			err = k8s.Delete(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
-			err = k8s.Get(&gitOpsDeploymentResource)
-			Expect(err).ToNot(Succeed())
 		})
 
 		It("Should ensure synchronicity of create and update of GitOpsDeployment, by ensuring GitOpsDeployment should update successfully on changing value(s) within Spec", func() {
@@ -174,8 +251,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err := k8s.Create(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
-			Expect(err).To(Succeed())
-			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
+			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
@@ -189,10 +265,13 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.Update(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
+			// TODO: GITOPSRVCE-181: When we have comparedTo functionality fom Argo CD, add a check for it here as an Eventually.
+
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&gitOpsDeploymentResource), &gitOpsDeploymentResource)
+			Expect(err).To(BeNil())
 			Expect(gitOpsDeploymentResource.Spec.Source.Path).To(Equal("environments/overlays/staging"))
 
-			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
+			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
@@ -201,9 +280,6 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			err = k8s.Delete(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
-			err = k8s.Get(&gitOpsDeploymentResource)
-			Expect(err).ToNot(Succeed())
-
 		})
 
 		It("Checks whether a change in repo URL is reflected within the cluster", func() {
@@ -218,47 +294,25 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err := k8s.Create(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
-			getResourceStatusList := func(name string) []managedgitopsv1alpha1.ResourceStatus {
-				return []managedgitopsv1alpha1.ResourceStatus{
-					{
-						Group:   "",
-						Version: "v1",
-						Kind:    "ConfigMap",
-						Name:    name,
-						Status:  managedgitopsv1alpha1.SyncStatusCodeSynced,
-						Health: &managedgitopsv1alpha1.HealthStatus{
-							Status:  managedgitopsv1alpha1.HeathStatusCodeHealthy,
-							Message: "healthy",
-						},
-					},
-				}
-			}
-			createResourceStatusList := []managedgitopsv1alpha1.ResourceStatus{
-				{
-					Group:   "",
-					Version: "v1",
-					Kind:    "ConfigMap",
-					Name:    "identifier",
-					Status:  managedgitopsv1alpha1.SyncStatusCodeSynced,
-					Health: &managedgitopsv1alpha1.HealthStatus{
-						Status:  managedgitopsv1alpha1.HeathStatusCodeHealthy,
-						Message: "healthy",
-					},
-				},
-			}
-			createResourceStatusList = append(createResourceStatusList, getResourceStatusList("deployment-permutations-a-branchA-pathB")...)
+			createResourceStatusList_deploymentPermutations := createResourceStatusListFunction_deploymentPermutations()
+
+			createResourceStatusList_deploymentPermutations = append(createResourceStatusList_deploymentPermutations,
+				getResourceStatusList_deploymentPermutations("deployment-permutations-a-brancha-pathb")...)
 			err = k8s.Get(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
-			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
+			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
-					gitopsDeplFixture.HaveResources(createResourceStatusList),
+					gitopsDeplFixture.HaveResources(createResourceStatusList_deploymentPermutations),
 				),
 			)
 
 			By("ensuring changes in repo URL deploys the resources that are a part of the latest modification")
+
+			err = k8s.Get(&gitOpsDeploymentResource)
+			Expect(err).To(Succeed())
 
 			gitOpsDeploymentResource.Spec.Source.RepoURL = "https://github.com/managed-gitops-test-data/deployment-permutations-b"
 
@@ -266,22 +320,15 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.Update(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
-			expectedResourceStatusList := []managedgitopsv1alpha1.ResourceStatus{
-				{
-					Group:   "",
-					Version: "v1",
-					Kind:    "ConfigMap",
-					Name:    "identifier",
-					Status:  managedgitopsv1alpha1.SyncStatusCodeSynced,
-					Health: &managedgitopsv1alpha1.HealthStatus{
-						Status:  managedgitopsv1alpha1.HeathStatusCodeHealthy,
-						Message: "healthy",
-					},
-				},
-			}
-			expectedResourceStatusList = append(expectedResourceStatusList, getResourceStatusList("deployment-permutations-b-branchA-pathB")...)
+			// TODO: GITOPSRVCE-181: When we have comparedTo functionality fom Argo CD, add a check for it here as an Eventually.
 
-			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
+			expectedResourceStatusList := createResourceStatusListFunction_deploymentPermutations()
+			expectedResourceStatusList = append(expectedResourceStatusList,
+				getResourceStatusList_deploymentPermutations("deployment-permutations-b-brancha-pathb")...)
+
+			// There is an Argo CD race condition where the ConfigMaps are updated before Argo CD can detect the event, which causes
+			// the Argo CD sync to hang. Thus we need to use this large '10m' wait time here - jgwest, Jul 2022.
+			Eventually(gitOpsDeploymentResource, "10m", "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
@@ -295,15 +342,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.Get(&gitOpsDeploymentResource)
 			Expect(err).ToNot(Succeed())
 
-			for _, resourceValue := range expectedResourceStatusList {
-				ns := typed.NamespacedName{
-					Namespace: resourceValue.Namespace,
-					Name:      resourceValue.Name,
-				}
-
-				err := k8sClient.Get(ctx, ns, &gitOpsDeploymentResource)
-				Expect(err).ToNot(Succeed())
-			}
+			expectAllResourcesToBeDeleted(expectedResourceStatusList)
 
 		})
 
@@ -319,39 +358,13 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err := k8s.Create(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
-			getResourceStatusList := func(name string) []managedgitopsv1alpha1.ResourceStatus {
-				return []managedgitopsv1alpha1.ResourceStatus{
-					{
-						Group:   "",
-						Version: "v1",
-						Kind:    "ConfigMap",
-						Name:    name,
-						Status:  managedgitopsv1alpha1.SyncStatusCodeSynced,
-						Health: &managedgitopsv1alpha1.HealthStatus{
-							Status:  managedgitopsv1alpha1.HeathStatusCodeHealthy,
-							Message: "healthy",
-						},
-					},
-				}
-			}
-			createResourceStatusList := []managedgitopsv1alpha1.ResourceStatus{
-				{
-					Group:   "",
-					Version: "v1",
-					Kind:    "ConfigMap",
-					Name:    "identifier",
-					Status:  managedgitopsv1alpha1.SyncStatusCodeSynced,
-					Health: &managedgitopsv1alpha1.HealthStatus{
-						Status:  managedgitopsv1alpha1.HeathStatusCodeHealthy,
-						Message: "healthy",
-					},
-				},
-			}
-			createResourceStatusList = append(createResourceStatusList, getResourceStatusList("deployment-permutations-a-branchA-pathB")...)
+			createResourceStatusList := createResourceStatusListFunction_deploymentPermutations()
+			createResourceStatusList = append(createResourceStatusList,
+				getResourceStatusList_deploymentPermutations("deployment-permutations-a-brancha-pathb")...)
 			err = k8s.Get(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
-			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
+			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
@@ -361,28 +374,22 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			By("ensuring changes in repo URL deploys the resources that are a part of the latest modification")
 
+			err = k8s.Get(&gitOpsDeploymentResource)
+			Expect(err).To(Succeed())
+
 			gitOpsDeploymentResource.Spec.Source.Path = "pathC"
 
 			//updating the CR with changes in repoURL
 			err = k8s.Update(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
-			expectedResourceStatusList := []managedgitopsv1alpha1.ResourceStatus{
-				{
-					Group:   "",
-					Version: "v1",
-					Kind:    "ConfigMap",
-					Name:    "identifier",
-					Status:  managedgitopsv1alpha1.SyncStatusCodeSynced,
-					Health: &managedgitopsv1alpha1.HealthStatus{
-						Status:  managedgitopsv1alpha1.HeathStatusCodeHealthy,
-						Message: "healthy",
-					},
-				},
-			}
-			expectedResourceStatusList = append(expectedResourceStatusList, getResourceStatusList("deployment-permutations-a-branchA-pathC")...)
+			// TODO: GITOPSRVCE-181: When we have comparedTo functionality fom Argo CD, add a check for it here as an Eventually.
 
-			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
+			expectedResourceStatusList := createResourceStatusListFunction_deploymentPermutations()
+			expectedResourceStatusList = append(expectedResourceStatusList,
+				getResourceStatusList_deploymentPermutations("deployment-permutations-a-brancha-pathc")...)
+
+			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
@@ -397,15 +404,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.Get(&gitOpsDeploymentResource)
 			Expect(err).ToNot(Succeed())
 
-			for _, resourceValue := range expectedResourceStatusList {
-				ns := typed.NamespacedName{
-					Namespace: resourceValue.Namespace,
-					Name:      resourceValue.Name,
-				}
-
-				err := k8sClient.Get(ctx, ns, &gitOpsDeploymentResource)
-				Expect(err).ToNot(Succeed())
-			}
+			expectAllResourcesToBeDeleted(expectedResourceStatusList)
 
 		})
 
@@ -421,39 +420,12 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err := k8s.Create(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
-			getResourceStatusList := func(name string) []managedgitopsv1alpha1.ResourceStatus {
-				return []managedgitopsv1alpha1.ResourceStatus{
-					{
-						Group:   "",
-						Version: "v1",
-						Kind:    "ConfigMap",
-						Name:    name,
-						Status:  managedgitopsv1alpha1.SyncStatusCodeSynced,
-						Health: &managedgitopsv1alpha1.HealthStatus{
-							Status:  managedgitopsv1alpha1.HeathStatusCodeHealthy,
-							Message: "healthy",
-						},
-					},
-				}
-			}
-			createResourceStatusList := []managedgitopsv1alpha1.ResourceStatus{
-				{
-					Group:   "",
-					Version: "v1",
-					Kind:    "ConfigMap",
-					Name:    "identifier",
-					Status:  managedgitopsv1alpha1.SyncStatusCodeSynced,
-					Health: &managedgitopsv1alpha1.HealthStatus{
-						Status:  managedgitopsv1alpha1.HeathStatusCodeHealthy,
-						Message: "healthy",
-					},
-				},
-			}
-			createResourceStatusList = append(createResourceStatusList, getResourceStatusList("deployment-permutations-a-branchA-pathB")...)
+			createResourceStatusList := createResourceStatusListFunction_deploymentPermutations()
+			createResourceStatusList = append(createResourceStatusList, getResourceStatusList_deploymentPermutations("deployment-permutations-a-brancha-pathb")...)
 			err = k8s.Get(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
-			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
+			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
@@ -463,35 +435,27 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			By("ensuring changes in repo URL deploys the resources that are a part of the latest modification")
 
+			err = k8s.Get(&gitOpsDeploymentResource)
+			Expect(err).To(Succeed())
+
 			gitOpsDeploymentResource.Spec.Source.TargetRevision = "branchB"
 
 			//updating the CR with changes in repoURL
 			err = k8s.Update(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
-			expectedResourceStatusList := []managedgitopsv1alpha1.ResourceStatus{
-				{
-					Group:   "",
-					Version: "v1",
-					Kind:    "ConfigMap",
-					Name:    "identifier",
-					Status:  managedgitopsv1alpha1.SyncStatusCodeSynced,
-					Health: &managedgitopsv1alpha1.HealthStatus{
-						Status:  managedgitopsv1alpha1.HeathStatusCodeHealthy,
-						Message: "healthy",
-					},
-				},
-			}
-			expectedResourceStatusList = append(expectedResourceStatusList, getResourceStatusList("deployment-permutations-a-branchB-pathB")...)
+			expectedResourceStatusList := createResourceStatusListFunction_deploymentPermutations()
+			expectedResourceStatusList = append(expectedResourceStatusList,
+				getResourceStatusList_deploymentPermutations("deployment-permutations-a-branchb-pathb")...)
 
-			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
+			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
 					gitopsDeplFixture.HaveResources(expectedResourceStatusList),
 				),
 			)
-			By("delete the GitOpsDeployment resource")
+			By("deleting the GitOpsDeployment resource")
 
 			err = k8s.Delete(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
@@ -499,15 +463,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.Get(&gitOpsDeploymentResource)
 			Expect(err).ToNot(Succeed())
 
-			for _, resourceValue := range expectedResourceStatusList {
-				ns := typed.NamespacedName{
-					Namespace: resourceValue.Namespace,
-					Name:      resourceValue.Name,
-				}
-
-				err := k8sClient.Get(ctx, ns, &gitOpsDeploymentResource)
-				Expect(err).ToNot(Succeed())
-			}
+			expectAllResourcesToBeDeleted(expectedResourceStatusList)
 
 		})
 
@@ -531,45 +487,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.Update(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
-			getResourceStatusList := func(name string) []managedgitopsv1alpha1.ResourceStatus {
-				return []managedgitopsv1alpha1.ResourceStatus{
-					{
-						Group:     "apps",
-						Version:   "v1",
-						Kind:      "Deployment",
-						Namespace: fixture.GitOpsServiceE2ENamespace,
-						Name:      name,
-						Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
-						Health: &managedgitopsv1alpha1.HealthStatus{
-							Status: managedgitopsv1alpha1.HeathStatusCodeHealthy,
-						},
-					},
-					{
-						Group:     "route.openshift.io",
-						Version:   "v1",
-						Kind:      "Route",
-						Namespace: fixture.GitOpsServiceE2ENamespace,
-						Name:      name,
-						Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
-						Health: &managedgitopsv1alpha1.HealthStatus{
-							Status:  managedgitopsv1alpha1.HeathStatusCodeHealthy,
-							Message: "Route is healthy",
-						},
-					},
-					{
-						Group:     "",
-						Version:   "v1",
-						Kind:      "Service",
-						Namespace: fixture.GitOpsServiceE2ENamespace,
-						Name:      name,
-						Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
-						Health: &managedgitopsv1alpha1.HealthStatus{
-							Status: managedgitopsv1alpha1.HeathStatusCodeHealthy,
-						},
-					},
-				}
-			}
-			expectedResourceStatusList := []managedgitopsv1alpha1.ResourceStatus{
+			expectedResourceStatusList_GitOpsRepositoryTemplateRepo := []managedgitopsv1alpha1.ResourceStatus{
 				{
 					Group:     "",
 					Version:   "v1",
@@ -579,14 +497,14 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 					Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
 				},
 			}
-			expectedResourceStatusList = append(expectedResourceStatusList, getResourceStatusList("component-a")...)
-			expectedResourceStatusList = append(expectedResourceStatusList, getResourceStatusList("component-b")...)
+			expectedResourceStatusList_GitOpsRepositoryTemplateRepo = append(expectedResourceStatusList_GitOpsRepositoryTemplateRepo, getResourceStatusList_GitOpsRepositoryTemplateRepo("component-a")...)
+			expectedResourceStatusList_GitOpsRepositoryTemplateRepo = append(expectedResourceStatusList_GitOpsRepositoryTemplateRepo, getResourceStatusList_GitOpsRepositoryTemplateRepo("component-b")...)
 
-			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
+			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
-					gitopsDeplFixture.HaveResources(expectedResourceStatusList),
+					gitopsDeplFixture.HaveResources(expectedResourceStatusList_GitOpsRepositoryTemplateRepo),
 				),
 			)
 			By("delete the GitOpsDeployment resource")
@@ -597,15 +515,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.Get(&gitOpsDeploymentResource)
 			Expect(err).ToNot(Succeed())
 
-			for _, resourceValue := range expectedResourceStatusList {
-				ns := typed.NamespacedName{
-					Namespace: resourceValue.Namespace,
-					Name:      resourceValue.Name,
-				}
-
-				err := k8sClient.Get(ctx, ns, &gitOpsDeploymentResource)
-				Expect(err).ToNot(Succeed())
-			}
+			expectAllResourcesToBeDeleted(expectedResourceStatusList_GitOpsRepositoryTemplateRepo)
 
 		})
 
@@ -623,44 +533,6 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			By("populating the resource list")
 
-			getResourceStatusList := func(name string) []managedgitopsv1alpha1.ResourceStatus {
-				return []managedgitopsv1alpha1.ResourceStatus{
-					{
-						Group:     "apps",
-						Version:   "v1",
-						Kind:      "Deployment",
-						Namespace: fixture.GitOpsServiceE2ENamespace,
-						Name:      name,
-						Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
-						Health: &managedgitopsv1alpha1.HealthStatus{
-							Status: managedgitopsv1alpha1.HeathStatusCodeHealthy,
-						},
-					},
-					{
-						Group:     "route.openshift.io",
-						Version:   "v1",
-						Kind:      "Route",
-						Namespace: fixture.GitOpsServiceE2ENamespace,
-						Name:      name,
-						Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
-						Health: &managedgitopsv1alpha1.HealthStatus{
-							Status:  managedgitopsv1alpha1.HeathStatusCodeHealthy,
-							Message: "Route is healthy",
-						},
-					},
-					{
-						Group:     "",
-						Version:   "v1",
-						Kind:      "Service",
-						Namespace: fixture.GitOpsServiceE2ENamespace,
-						Name:      name,
-						Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
-						Health: &managedgitopsv1alpha1.HealthStatus{
-							Status: managedgitopsv1alpha1.HeathStatusCodeHealthy,
-						},
-					},
-				}
-			}
 			expectedResourceStatusList := []managedgitopsv1alpha1.ResourceStatus{
 				{
 					Group:     "",
@@ -671,10 +543,10 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 					Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
 				},
 			}
-			expectedResourceStatusList = append(expectedResourceStatusList, getResourceStatusList("component-a")...)
-			expectedResourceStatusList = append(expectedResourceStatusList, getResourceStatusList("component-b")...)
+			expectedResourceStatusList = append(expectedResourceStatusList, getResourceStatusList_GitOpsRepositoryTemplateRepo("component-a")...)
+			expectedResourceStatusList = append(expectedResourceStatusList, getResourceStatusList_GitOpsRepositoryTemplateRepo("component-b")...)
 
-			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
+			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
@@ -689,15 +561,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.Get(&gitOpsDeploymentResource)
 			Expect(err).ToNot(Succeed())
 
-			for _, resourceValue := range expectedResourceStatusList {
-				ns := typed.NamespacedName{
-					Namespace: resourceValue.Namespace,
-					Name:      resourceValue.Name,
-				}
-				err := k8sClient.Get(ctx, ns, &gitOpsDeploymentResource)
-				Expect(err).ToNot(Succeed())
-			}
-
+			expectAllResourcesToBeDeleted(expectedResourceStatusList)
 		})
 
 		It("Checks for failure of deployment when an invalid input is provided", func() {
@@ -710,9 +574,9 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			err := k8s.Create(&gitOpsDeploymentResource)
-			Expect(err).ToNot(Succeed())
+			Expect(err).To(Succeed())
 
-			Eventually(gitOpsDeploymentResource, "2m", "1s").ShouldNot(
+			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").ShouldNot(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
@@ -724,9 +588,6 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
 				),
 			)
-
-			err = k8s.Get(&gitOpsDeploymentResource)
-			Expect(err).ToNot(Succeed())
 
 		})
 

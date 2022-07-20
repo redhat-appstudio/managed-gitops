@@ -9,10 +9,9 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
-	argocdutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend/condition"
@@ -205,7 +204,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		return false, nil, nil, deploymentModifiedResult_Failed, fmt.Errorf("unable to locate managed environment for new application")
 	}
 
-	appName := argocdutil.GenerateArgoCDApplicationName(string(gitopsDeployment.UID))
+	appName := argosharedutil.GenerateArgoCDApplicationName(string(gitopsDeployment.UID))
 
 	// If the user specified a value, always use it. If not, use the API resource namespace (but only in the workspace target case)
 	destinationNamespace := gitopsDeployment.Spec.Destination.Namespace

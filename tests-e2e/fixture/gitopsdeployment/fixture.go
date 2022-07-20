@@ -106,6 +106,7 @@ func HaveResources(resourceStatusList []managedgitopsv1alpha1.ResourceStatus) ma
 			}
 			if !resourceExists {
 				fmt.Println("HaveResources:", resourceExists, "/ Expected:", resourceStatusList, "/ Actual:", gitopsDeployment.Status.Resources)
+				fmt.Println("- missing: ", resourceStatus)
 				break
 			}
 		}

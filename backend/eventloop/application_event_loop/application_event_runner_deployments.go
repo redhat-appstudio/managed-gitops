@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-logr/logr"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
@@ -179,10 +179,10 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 // Finally, we need to inform the cluster-agent component (via Operation), so that it configures Argo CD.
 //
 // Returns:
-// - true if the goroutine responsible for this application can shutdown (e.g. because the GitOpsDeployment
-//   no longer exists, so no longer needs to be processed), false otherwise.
-// - references to the Application and GitOpsEngineInstance database fields.
-// - error is non-nil, if an error occurred
+//   - true if the goroutine responsible for this application can shutdown (e.g. because the GitOpsDeployment
+//     no longer exists, so no longer needs to be processed), false otherwise.
+//   - references to the Application and GitOpsEngineInstance database fields.
+//   - error is non-nil, if an error occurred
 func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.Context,
 	gitopsDeployment *managedgitopsv1alpha1.GitOpsDeployment, clusterUser *db.ClusterUser, operationNamespace string,
 	dbQueries db.ApplicationScopedQueries) (bool, *db.Application, *db.GitopsEngineInstance, deploymentModifiedResult, error) {

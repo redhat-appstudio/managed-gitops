@@ -34,7 +34,7 @@ jobs:
           go-version-file: './backend/go.mod'
       - name: "Install dupimport"
         run: |
-          go install github.com/gostaticanalysis/dupimport/cmd/dupimport
+          go install github.com/gostaticanalysis/dupimport/cmd/dupimport@latest
       - name: "Ensure 'backend' has no duplicate imports"
         run: |
           cd $GITHUB_WORKSPACE/backend

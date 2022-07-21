@@ -5,6 +5,7 @@ metadata:
   creationTimestamp: null
   name: managed-gitops-backend-manager-role
 rules:
+
 - apiGroups:
   - managed-gitops.redhat.com
   resources:
@@ -31,6 +32,34 @@ rules:
   - get
   - patch
   - update
+
+- apiGroups:
+  - managed-gitops.redhat.com
+  resources:
+  - gitopsdeploymentmanagedenvironments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - managed-gitops.redhat.com
+  resources:
+  - gitopsdeploymentmanagedenvironments/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - managed-gitops.redhat.com
+  resources:
+  - gitopsdeploymentmanagedenvironments/status
+  verbs:
+  - get
+  - patch
+  - update
+
 - apiGroups:
   - ""
   resources:

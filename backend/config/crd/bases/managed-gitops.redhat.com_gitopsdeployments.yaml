@@ -48,8 +48,6 @@ spec:
                     description: The namespace will only be set for namespace-scoped
                       resources that have not set a value for .metadata.namespace
                     type: string
-                required:
-                - environment
                 type: object
               source:
                 description: ApplicationSource contains all required information about

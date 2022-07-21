@@ -53,7 +53,7 @@ type ApplicationSource struct {
 
 // ApplicationDestination holds information about the application's destination
 type ApplicationDestination struct {
-	Environment string `json:"environment"`
+	Environment string `json:"environment,omitempty"`
 
 	// The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
 	Namespace string `json:"namespace,omitempty"`

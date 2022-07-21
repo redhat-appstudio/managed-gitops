@@ -169,7 +169,15 @@ spec:
     env:
       - name: My_STG_ENV
         value: "100"
+  unstableConfigurationFields:
+    kubernetesCredentials:
+      apiURL: https://api.ci-ln-a1b2c3d4e5-76543.origin-ci-int-gce.dev.rhcloud.com:6443
+      targetNamespace: my-namespace
+      # See GitOpsDeploymentManagedEnvironment above for secret above:
+      clusterCredentialsSecret: secret-containing-cluster-credential
+
 ```
+
 
 ### ApplicationSnapshot  (*in-progress*)
 

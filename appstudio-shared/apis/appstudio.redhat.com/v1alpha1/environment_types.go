@@ -85,7 +85,7 @@ type UnstableEnvironmentConfiguration struct {
 // KubernetesClusterCredentials allows you to specify cluster credentials for stanadard K8s cluster (e.g. non-KCP workspace).
 //
 // See this temporary URL for details on what values to provide for the APIURL and Secret:
-// https://github.com/jgwest/managed-gitops/tree/managed-environment-87-june-2022/examples/m6-demo#gitopsdeploymentmanagedenvironment-resource
+// https://github.com/redhat-appstudio/managed-gitops/tree/main/examples/m6-demo#gitopsdeploymentmanagedenvironment-resource
 type KubernetesClusterCredentials struct {
 
 	// TargetNamespace is the default destination target on the cluster for deployments. This Namespace will be used
@@ -100,7 +100,7 @@ type KubernetesClusterCredentials struct {
 	// The Secret must be of type 'managed-gitops.redhat.com/managed-environment'
 	//
 	// See this temporary URL for details:
-	// https://github.com/jgwest/managed-gitops/tree/managed-environment-87-june-2022/examples/m6-demo#gitopsdeploymentmanagedenvironment-resource
+	// https://github.com/redhat-appstudio/managed-gitops/tree/main/examples/m6-demo#gitopsdeploymentmanagedenvironment-resource
 	ClusterCredentialsSecret string `json:"clusterCredentialsSecret"`
 }
 

@@ -16,8 +16,8 @@ It contains various tools and services that you can use to deploy, as well as th
 ## Documentation
 
 ### ⚡ Project Info
-
-* 👉 **[Component Index](./docs/components.md)** 👈 - directory structure of this repo
+* [Public Kubernetes/KCP API](./docs/api.md) - The Kubernetes-resource-based API that is used to interact with the GitOps Service.
+* 👉 **[Component Index](./docs/components.md)** 👈 - Directory structure of this repo
 * Roadmap - Planning ahead
 * [Design] - High-level architecture of the GitOps Managed Service and its components
 * [Google Drive] - Lot's of information for new people to the project
@@ -43,7 +43,6 @@ If you like to contribute to GitOps Managed Service, please be so kind to read o
 [Backend Shared]: https://github.com/redhat-appstudio/managed-gitops/tree/main/backend-shared
 [Backend]: https://github.com/redhat-appstudio/managed-gitops/tree/main/backend
 [Cluster-Agent]: https://github.com/redhat-appstudio/managed-gitops/tree/main/cluster-agent
-[Frontend]: https://github.com/redhat-appstudio/managed-gitops/tree/main/frontend
 [Load Test]: https://github.com/redhat-appstudio/managed-gitops/tree/main/utilities/load-test#argo-cd-load-test-utility
 [Manifests]: https://github.com/redhat-appstudio/managed-gitops/tree/main/manifests
 [KinD]: https://kind.sigs.k8s.io/docs/user/quick-start/

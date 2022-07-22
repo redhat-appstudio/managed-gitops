@@ -66,7 +66,6 @@ docker run --rm -it gitops-service:latest # to get /bin/bash
 [Backend Shared]: https://github.com/redhat-appstudio/managed-gitops/tree/main/backend-shared
 [Backend]: https://github.com/redhat-appstudio/managed-gitops/tree/main/backend
 [Cluster-Agent]: https://github.com/redhat-appstudio/managed-gitops/tree/main/cluster-agent
-[Frontend]: https://github.com/redhat-appstudio/managed-gitops/tree/main/frontend
 [Load Test]: https://github.com/redhat-appstudio/managed-gitops/tree/main/utilities/load-test#argo-cd-load-test-utility
 [Manifests]: https://github.com/redhat-appstudio/managed-gitops/tree/main/manifests
 [KinD]: https://kind.sigs.k8s.io/docs/user/quick-start/

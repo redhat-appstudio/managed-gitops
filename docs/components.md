@@ -7,7 +7,6 @@ There are 4 separated, tightly-coupled components:
 - [App Studio Controller]: Responsible for interfacing with other components of App Studio, including watching them and creating corresponding API objects in the GitOps Serice. For example: When an Argo CD `Application` resource is created, we might create a corresponding `GitOpsDeployment` resource.
 - [App Studio Shared]: Go types and CRDs for the AppStudio Environment API.
 - [Backend Shared]: group of libraries shared among the rest of the components.
-The frontend code is merely a mock collection of react pages created using [PatternFly](https://www.patternfly.org/) which is using dummy data to portray a very basic idea of how UI might look like. The actual UI for the same will differ.
 
 For detailed step-by-step guide on how each component works, check the `README` file of each individual component.
 
@@ -22,6 +21,9 @@ For detailed step-by-step guide on how each component works, check the `README` 
 
 **NOTE**: See also, the targets in `Makefile` for additional available operations.
 Plus, within each of the components there is a `Makefile`, which can be used for local development of that component.
+
+## Retired components
+- GitOps Service Frontend: The 'frontend' component of the GitOps Service was an early UI prototype for interfacing with the GitOps Service via a Web UI based on PatternFly. The contents of this prototype can be found [under this commit](https://github.com/redhat-appstudio/managed-gitops/tree/52696fbb48070bf43170687a6a775ff80dfb13be/frontend).
 
 [App Studio Controller]: https://github.com/redhat-appstudio/managed-gitops/tree/main/appstudio-controller
 [App Studio Shared]: https://github.com/redhat-appstudio/managed-gitops/tree/main/appstudio-shared

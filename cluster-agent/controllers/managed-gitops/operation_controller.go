@@ -135,19 +135,19 @@ func (g *garbageCollector) garbageCollectOperations(ctx context.Context, operati
 
 			// retry until the Operation resource is removed from the cluster
 			taskName := fmt.Sprintf("garbage-collect-operation-%s", operation.Operation_id)
-			gcOperationCR := &removeOperationCR{g.k8sClient, log, operationCR}
-			g.taskRetryLoop.AddTaskIfNotPresent(taskName, gcOperationCR, sharedutil.ExponentialBackoff{Factor: 2, Min: time.Millisecond * 200, Max: time.Second * 10, Jitter: true})
+			gcOperationCRTask := &removeOperationCRTask{g.k8sClient, log, operationCR}
+			g.taskRetryLoop.AddTaskIfNotPresent(taskName, gcOperationCRTask, sharedutil.ExponentialBackoff{Factor: 2, Min: time.Millisecond * 200, Max: time.Second * 10, Jitter: true})
 		}
 	}
 }
 
-type removeOperationCR struct {
+type removeOperationCRTask struct {
 	client.Client
 	log       logr.Logger
 	operation *managedgitopsv1alpha1.Operation
 }
 
-func (r *removeOperationCR) PerformTask(ctx context.Context) (bool, error) {
+func (r *removeOperationCRTask) PerformTask(ctx context.Context) (bool, error) {
 	if err := r.Delete(ctx, r.operation); err != nil {
 		if errors.IsNotFound(err) {
 			return false, nil

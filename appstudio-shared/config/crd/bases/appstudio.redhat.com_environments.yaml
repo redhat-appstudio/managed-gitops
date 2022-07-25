@@ -12,6 +12,8 @@ spec:
     kind: Environment
     listKind: EnvironmentList
     plural: environments
+    shortNames:
+    - env
     singular: environment
   scope: Namespaced
   versions:

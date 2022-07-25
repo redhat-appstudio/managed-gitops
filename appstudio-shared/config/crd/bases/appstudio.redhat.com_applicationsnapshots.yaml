@@ -12,6 +12,9 @@ spec:
     kind: ApplicationSnapshot
     listKind: ApplicationSnapshotList
     plural: applicationsnapshots
+    shortNames:
+    - as
+    - snapshot
     singular: applicationsnapshot
   scope: Namespaced
   versions:

@@ -11,6 +11,9 @@ spec:
     kind: ApplicationPromotionRun
     listKind: ApplicationPromotionRunList
     plural: applicationpromotionruns
+    shortNames:
+    - apr
+    - promotion
     singular: applicationpromotionrun
   scope: Namespaced
   versions:
@@ -152,6 +155,9 @@ spec:
     kind: ApplicationSnapshotEnvironmentBinding
     listKind: ApplicationSnapshotEnvironmentBindingList
     plural: applicationsnapshotenvironmentbindings
+    shortNames:
+    - aseb
+    - binding
     singular: applicationsnapshotenvironmentbinding
   scope: Namespaced
   versions:
@@ -441,6 +447,9 @@ spec:
     kind: ApplicationSnapshot
     listKind: ApplicationSnapshotList
     plural: applicationsnapshots
+    shortNames:
+    - as
+    - snapshot
     singular: applicationsnapshot
   scope: Namespaced
   versions:
@@ -540,6 +549,8 @@ spec:
     kind: Environment
     listKind: EnvironmentList
     plural: environments
+    shortNames:
+    - env
     singular: environment
   scope: Namespaced
   versions:

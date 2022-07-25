@@ -74,6 +74,7 @@ type ApplicationSnapshotStatus struct {
 //+kubebuilder:subresource:status
 
 // ApplicationSnapshot is the Schema for the applicationsnapshots API
+// +kubebuilder:resource:path=applicationsnapshots,shortName=as;snapshot
 type ApplicationSnapshot struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

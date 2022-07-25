@@ -12,6 +12,9 @@ spec:
     kind: ApplicationSnapshotEnvironmentBinding
     listKind: ApplicationSnapshotEnvironmentBindingList
     plural: applicationsnapshotenvironmentbindings
+    shortNames:
+    - aseb
+    - binding
     singular: applicationsnapshotenvironmentbinding
   scope: Namespaced
   versions:

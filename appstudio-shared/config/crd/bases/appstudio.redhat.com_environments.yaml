@@ -93,7 +93,7 @@ spec:
                     description: "KubernetesClusterCredentials allows you to specify
                       cluster credentials for stanadard K8s cluster (e.g. non-KCP
                       workspace). \n See this temporary URL for details on what values
-                      to provide for the APIURL and Secret: https://github.com/jgwest/managed-gitops/tree/managed-environment-87-june-2022/examples/m6-demo#gitopsdeploymentmanagedenvironment-resource"
+                      to provide for the APIURL and Secret: https://github.com/redhat-appstudio/managed-gitops/tree/main/examples/m6-demo#gitopsdeploymentmanagedenvironment-resource"
                     properties:
                       apiURL:
                         description: APIURL is a reference to a cluster API url defined
@@ -104,7 +104,7 @@ spec:
                           name of k8s Secret, defined within the same namespace as
                           the Environment resource, that contains a kubeconfig. The
                           Secret must be of type 'managed-gitops.redhat.com/managed-environment'
-                          \n See this temporary URL for details: https://github.com/jgwest/managed-gitops/tree/managed-environment-87-june-2022/examples/m6-demo#gitopsdeploymentmanagedenvironment-resource"
+                          \n See this temporary URL for details: https://github.com/redhat-appstudio/managed-gitops/tree/main/examples/m6-demo#gitopsdeploymentmanagedenvironment-resource"
                         type: string
                       targetNamespace:
                         description: TargetNamespace is the default destination target

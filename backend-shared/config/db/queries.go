@@ -172,6 +172,8 @@ type ApplicationScopedQueries interface {
 	ListOperationsByResourceIdAndTypeAndOwnerId(ctx context.Context, resourceID string, resourceType string, operations *[]Operation, ownerId string) error
 	CheckedDeleteOperationById(ctx context.Context, id string, ownerId string) (int, error)
 	DeleteOperationById(ctx context.Context, id string) (int, error)
+
+	// ListOperationsToBeGarbageCollected returns 'Failed'/'Completed' operations with a non-zero garbage collection expiration time
 	ListOperationsToBeGarbageCollected(ctx context.Context, operations *[]Operation) error
 
 	CreateSyncOperation(ctx context.Context, obj *SyncOperation) error

@@ -275,6 +275,7 @@ func (operation *Operation) DisposeAppScoped(ctx context.Context, dbq Applicatio
 	return err
 }
 
+// ListOperationsToBeGarbageCollected returns 'Failed'/'Completed' operations with a non-zero garbage collection expiration time
 func (dbq *PostgreSQLDatabaseQueries) ListOperationsToBeGarbageCollected(ctx context.Context, operations *[]Operation) error {
 
 	if err := validateQueryParamsEntity(operations, dbq); err != nil {

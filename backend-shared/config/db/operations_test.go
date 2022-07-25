@@ -121,63 +121,78 @@ var _ = Describe("Operations Test", func() {
 
 	})
 
-	It("list all operations to be garbage collected", func() {
-		By("create a sample operation")
-		sampleOperation := &db.Operation{
-			Operation_id:            "test-operation-1",
-			Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-			Resource_id:             "test-fake-resource-id",
-			Resource_type:           "GitopsEngineInstance",
-			Operation_owner_user_id: testClusterUser.Clusteruser_id,
-			Last_state_update:       time.Now(),
-		}
-
-		err := dbq.CreateOperation(ctx, sampleOperation, sampleOperation.Operation_owner_user_id)
-		Expect(err).To(BeNil())
-
-		By("operation in waiting state shouldn't be returned")
-		Expect(sampleOperation.State).Should(Equal(db.OperationState_Waiting))
+	Context("list all operations to be garbage collected", func() {
+		var sampleOperation *db.Operation
 		var validOperations []db.Operation
-		err = dbq.ListOperationsToBeGarbageCollected(ctx, &validOperations)
-		Expect(err).To(BeNil())
 
-		Expect(len(validOperations)).Should(Equal(0))
+		BeforeEach(func() {
+			By("create a sample operation")
+			sampleOperation = &db.Operation{
+				Operation_id:            "test-operation-1",
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "test-fake-resource-id",
+				Resource_type:           "GitopsEngineInstance",
+				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				Last_state_update:       time.Now(),
+			}
 
-		err = dbq.GetOperationById(ctx, sampleOperation)
-		Expect(err).To(BeNil())
+			err := dbq.CreateOperation(ctx, sampleOperation, sampleOperation.Operation_owner_user_id)
+			Expect(err).To(BeNil())
+		})
 
-		By("operation without gc time shouldn't be returned")
-		sampleOperation.State = db.OperationState_Completed
-		err = dbq.UpdateOperation(ctx, sampleOperation)
-		Expect(err).To(BeNil())
+		It("operation in waiting state shouldn't be returned", func() {
+			Expect(sampleOperation.State).Should(Equal(db.OperationState_Waiting))
+			err := dbq.ListOperationsToBeGarbageCollected(ctx, &validOperations)
+			Expect(err).To(BeNil())
 
-		err = dbq.ListOperationsToBeGarbageCollected(ctx, &validOperations)
-		Expect(err).To(BeNil())
+			Expect(len(validOperations)).Should(Equal(0))
+		})
 
-		Expect(len(validOperations)).Should(Equal(0))
+		It("operation without gc time shouldn't be returned", func() {
+			err := dbq.GetOperationById(ctx, sampleOperation)
+			Expect(err).To(BeNil())
 
-		By("operation in completed state and non-zero gc time should be returned")
-		sampleOperation.State = db.OperationState_Completed
-		sampleOperation.GC_expiration_time = 100
-		err = dbq.UpdateOperation(ctx, sampleOperation)
-		Expect(err).To(BeNil())
+			sampleOperation.State = db.OperationState_Completed
+			err = dbq.UpdateOperation(ctx, sampleOperation)
+			Expect(err).To(BeNil())
 
-		err = dbq.ListOperationsToBeGarbageCollected(ctx, &validOperations)
-		Expect(err).To(BeNil())
+			err = dbq.ListOperationsToBeGarbageCollected(ctx, &validOperations)
+			Expect(err).To(BeNil())
 
-		Expect(len(validOperations)).Should(Equal(1))
-		Expect(sampleOperation).Should(readyForGarbageCollection())
+			Expect(len(validOperations)).Should(Equal(0))
+		})
 
-		By("operation in failed state and non-zero gc time should be returned")
-		sampleOperation.State = db.OperationState_Failed
-		err = dbq.UpdateOperation(ctx, sampleOperation)
-		Expect(err).To(BeNil())
+		It("operation in completed state and non-zero gc time should be returned", func() {
+			err := dbq.GetOperationById(ctx, sampleOperation)
+			Expect(err).To(BeNil())
 
-		err = dbq.ListOperationsToBeGarbageCollected(ctx, &validOperations)
-		Expect(err).To(BeNil())
+			sampleOperation.State = db.OperationState_Completed
+			sampleOperation.GC_expiration_time = 100
+			err = dbq.UpdateOperation(ctx, sampleOperation)
+			Expect(err).To(BeNil())
 
-		Expect(len(validOperations)).Should(Equal(1))
-		Expect(sampleOperation).Should(readyForGarbageCollection())
+			err = dbq.ListOperationsToBeGarbageCollected(ctx, &validOperations)
+			Expect(err).To(BeNil())
+
+			Expect(len(validOperations)).Should(Equal(1))
+			Expect(sampleOperation).Should(readyForGarbageCollection())
+		})
+
+		It("operation in failed state and non-zero gc time should be returned", func() {
+			err := dbq.GetOperationById(ctx, sampleOperation)
+			Expect(err).To(BeNil())
+
+			sampleOperation.State = db.OperationState_Failed
+			err = dbq.UpdateOperation(ctx, sampleOperation)
+			Expect(err).To(BeNil())
+
+			err = dbq.ListOperationsToBeGarbageCollected(ctx, &validOperations)
+			Expect(err).To(BeNil())
+
+			Expect(len(validOperations)).Should(Equal(1))
+			Expect(sampleOperation).Should(readyForGarbageCollection())
+		})
+
 	})
 })
 

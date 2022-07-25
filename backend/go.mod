@@ -10,7 +10,6 @@ require (
 	github.com/hashicorp/golang-lru v0.5.1
 	github.com/onsi/ginkgo/v2 v2.1.3
 	github.com/onsi/gomega v1.19.0
-	github.com/redhat-appstudio/managed-gitops/appstudio-shared v0.0.0
 	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0
 	github.com/redhat-appstudio/managed-gitops/utilities/db-migration v0.0.0
 	github.com/stretchr/testify v1.7.0
@@ -66,6 +65,7 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.30.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
+	github.com/redhat-appstudio/managed-gitops/appstudio-shared v0.0.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
 	github.com/vmihailenco/bufpool v0.1.11 // indirect

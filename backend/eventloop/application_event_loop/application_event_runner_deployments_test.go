@@ -3,7 +3,7 @@ package application_event_loop
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/redhat-appstudio/managed-gitops/backend/util/fauxargocd"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
 	"gopkg.in/yaml.v2"
 )
 

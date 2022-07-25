@@ -9,15 +9,17 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
+	appEventLoop "github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/application_event_loop"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
+
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
-	argocdutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
+
 	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
-	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
 	"github.com/redhat-appstudio/managed-gitops/backend/condition"
-	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
-	"github.com/redhat-appstudio/managed-gitops/backend/util/fauxargocd"
 	goyaml "gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -205,7 +207,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		return false, nil, nil, deploymentModifiedResult_Failed, fmt.Errorf("unable to locate managed environment for new application")
 	}
 
-	appName := argocdutil.GenerateArgoCDApplicationName(string(gitopsDeployment.UID))
+	appName := argosharedutil.GenerateArgoCDApplicationName(string(gitopsDeployment.UID))
 
 	// If the user specified a value, always use it. If not, use the API resource namespace (but only in the workspace target case)
 	destinationNamespace := gitopsDeployment.Spec.Destination.Namespace
@@ -292,7 +294,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		return false, nil, nil, deploymentModifiedResult_Failed, err
 	}
 
-	if err := CleanupOperation(ctx, *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, a.log); err != nil {
+	if err := appEventLoop.CleanupOperation(ctx, *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, a.log); err != nil {
 		return false, nil, nil, deploymentModifiedResult_Failed, err
 	}
 
@@ -531,7 +533,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		return false, nil, nil, deploymentModifiedResult_Failed, err
 	}
 
-	if err := CleanupOperation(ctx, *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, log); err != nil {
+	if err := appEventLoop.CleanupOperation(ctx, *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, log); err != nil {
 		return false, nil, nil, deploymentModifiedResult_Failed, err
 	}
 
@@ -652,7 +654,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		return false, err
 	}
 
-	if err := CleanupOperation(ctx, *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, log); err != nil {
+	if err := appEventLoop.CleanupOperation(ctx, *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, log); err != nil {
 		log.Error(err, "unable to cleanup operation", "operation", dbOperationInput.ShortString())
 		return false, err
 	}

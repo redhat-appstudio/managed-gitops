@@ -8,13 +8,14 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
+
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
-	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1/mocks"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventloop_test_util"
-	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	corev1 "k8s.io/api/core/v1"

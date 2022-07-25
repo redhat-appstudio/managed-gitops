@@ -29,21 +29,23 @@ port-forward-postgress-manual: ## Port forward postgresql manually
 port-forward-postgress-auto: ## Port forward postgresql automatically
 	$(MAKEFILE_ROOT)/create-dev-env.sh kube-auto
 	
+### --- B a c k e n d  S h a r e d--- ###
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+deploy-backend-shared-crd: ## Deploy backend related CRDs
+	kubectl create namespace gitops 2> /dev/null || true
+	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_gitopsdeployments.yaml
+	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentsyncruns.yaml
+	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentrepositorycredentials.yaml
+	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentmanagedenvironments.yaml
+
+undeploy-backend-shared-crd: ## Remove backend related CRDs
+	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_gitopsdeployments.yaml
+	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentsyncruns.yaml
+	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentrepositorycredentials.yaml
+	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentmanagedenvironments.yaml
+
 ### --- B a c k e n d --- ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~ #
-deploy-backend-crd: ## Deploy backend related CRDs
-	kubectl create namespace gitops 2> /dev/null || true
-	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeployments.yaml
-	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentsyncruns.yaml
-	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentrepositorycredentials.yaml
-	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentmanagedenvironments.yaml
-
-undeploy-backend-crd: ## Remove backend related CRDs
-	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeployments.yaml
-	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentsyncruns.yaml
-	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentrepositorycredentials.yaml
-	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/backend/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentmanagedenvironments.yaml
-
 deploy-backend-rbac: ## Deploy backend related RBAC resouces
 	kubectl create namespace gitops 2> /dev/null || true
 	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/manifests/backend-rbac/
@@ -51,11 +53,11 @@ deploy-backend-rbac: ## Deploy backend related RBAC resouces
 undeploy-backend-rbac: ## Remove backend related RBAC resouces
 	kubectl delete -f  $(MAKEFILE_ROOT)/manifests/backend-rbac/
 
-deploy-backend: deploy-backend-crd deploy-backend-rbac ## Deploy backend operator into Kubernetes -- e.g. make deploy-backend IMG=quay.io/pgeorgia/gitops-service:latest
+deploy-backend: deploy-backend-shared-crd deploy-backend-rbac ## Deploy backend operator into Kubernetes -- e.g. make deploy-backend IMG=quay.io/pgeorgia/gitops-service:latest
 	kubectl create namespace gitops 2> /dev/null || true
 	ARGO_CD_NAMESPACE=${ARGO_CD_NAMESPACE} COMMON_IMAGE=${IMG} envsubst < $(MAKEFILE_ROOT)/manifests/managed-gitops-backend-deployment.yaml | kubectl apply -f -
 
-undeploy-backend: undeploy-backend-rbac undeploy-backend-crd ## Undeploy backend from Kubernetes
+undeploy-backend: undeploy-backend-rbac undeploy-backend-shared-crd ## Undeploy backend from Kubernetes
 	kubectl delete -f $(MAKEFILE_ROOT)/manifests/managed-gitops-backend-deployment.yaml
 
 build-backend: ## Build backend only
@@ -159,12 +161,12 @@ uninstall-argocd: ## Uninstall Argo CD from gitops-service-argocd namespace (fro
 	kubectl delete namespace "$(ARGO_CD_NAMESPACE)" || true
 	kubectl delete -f manifests/openshift-argo-deploy/openshift-gitops-subscription.yaml || true
 
-devenv-docker: deploy-backend-crd deploy-cluster-agent-crd deploy-appstudio-controller-crd deploy-backend-rbac deploy-cluster-agent-rbac deploy-appstudio-controller-rbac ## Setup local development environment (Postgres via Docker & local operators)
+devenv-docker: deploy-backend-shared-crd deploy-cluster-agent-crd deploy-appstudio-controller-crd deploy-backend-rbac deploy-cluster-agent-rbac deploy-appstudio-controller-rbac ## Setup local development environment (Postgres via Docker & local operators)
 	$(MAKEFILE_ROOT)/create-dev-env.sh
 
-devenv-k8s: deploy-backend-crd deploy-cluster-agent-crd deploy-backend-rbac deploy-cluster-agent-rbac deploy-postgresql port-forward-postgress-manual deploy-appstudio-controller ## Setup local development environment (Postgres via k8s & local operators)
+devenv-k8s: deploy-backend-shared-crd deploy-cluster-agent-crd deploy-backend-rbac deploy-cluster-agent-rbac deploy-postgresql port-forward-postgress-manual deploy-appstudio-controller ## Setup local development environment (Postgres via k8s & local operators)
 
-devenv-k8s-e2e: deploy-backend-crd deploy-cluster-agent-crd deploy-backend-rbac deploy-cluster-agent-rbac deploy-postgresql port-forward-postgress-auto deploy-appstudio-controller ## Setup local development environment (Postgres via k8s & local operators)
+devenv-k8s-e2e: deploy-backend-shared-crd deploy-cluster-agent-crd deploy-backend-rbac deploy-cluster-agent-rbac deploy-postgresql port-forward-postgress-auto deploy-appstudio-controller ## Setup local development environment (Postgres via k8s & local operators)
 
 install-all-k8s: deploy-postgresql port-forward-postgress-manual deploy-backend deploy-cluster-agent deploy-appstudio-controller ## Installs e.g. make deploy-k8s IMG=quay.io/pgeorgia/gitops-service:latest
 

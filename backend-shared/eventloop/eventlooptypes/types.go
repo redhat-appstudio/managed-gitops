@@ -6,14 +6,13 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
-	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -147,7 +146,7 @@ const (
 
 func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationParam db.Operation, clusterUserID string,
 	operationNamespace string, dbQueries db.ApplicationScopedQueries, gitopsEngineClient client.Client,
-	log logr.Logger) (*operation.Operation, *db.Operation, error) {
+	log logr.Logger) (*managedgitopsv1alpha1.Operation, *db.Operation, error) {
 
 	var err error
 
@@ -203,12 +202,12 @@ func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationPara
 	log.Info("Created database operation", "operation", dbOperation.ShortString())
 
 	// Create K8s operation
-	operation := operation.Operation{
+	operation := managedgitopsv1alpha1.Operation{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "operation-" + dbOperation.Operation_id,
 			Namespace: operationNamespace,
 		},
-		Spec: operation.OperationSpec{
+		Spec: managedgitopsv1alpha1.OperationSpec{
 			OperationID: dbOperation.Operation_id,
 		},
 	}
@@ -286,7 +285,7 @@ func GetK8sClientForGitOpsEngineInstance(gitopsEngineInstance *db.GitopsEngineIn
 	if err != nil {
 		return nil, err
 	}
-	err = operation.AddToScheme(scheme)
+	err = managedgitopsv1alpha1.AddToScheme(scheme)
 	if err != nil {
 		return nil, err
 	}

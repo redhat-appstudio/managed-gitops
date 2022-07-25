@@ -18,12 +18,13 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
+
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
-	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	testStructs "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1/mocks/structs"
-	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -1246,7 +1247,7 @@ var _ = Describe("GitOpsDeployment Conditions", func() {
 })
 
 type OperationCheck struct {
-	operationEvents []operation.Operation
+	operationEvents []managedgitopsv1alpha1.Operation
 }
 
 func (oc *OperationCheck) ReceiveEvent(event util.ProxyClientEvent) {
@@ -1255,7 +1256,7 @@ func (oc *OperationCheck) ReceiveEvent(event util.ProxyClientEvent) {
 		return
 	}
 
-	operation, ok := (*event.Obj).(*operation.Operation)
+	operation, ok := (*event.Obj).(*managedgitopsv1alpha1.Operation)
 	if ok {
 		oc.operationEvents = append(oc.operationEvents, *operation)
 	}

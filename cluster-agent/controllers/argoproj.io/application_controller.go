@@ -23,16 +23,13 @@ import (
 	"fmt"
 	"time"
 
-	appEventLoop "github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/application_event_loop"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	cache "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/runtime"

@@ -8,7 +8,7 @@ import (
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
@@ -84,7 +84,7 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 		err = appv1.AddToScheme(scheme)
 		Expect(err).To(BeNil())
 
-		gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
+		gitopsDepl := &operation.GitOpsDeployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "my-gitops-depl",
 				Namespace: workspace.Name,

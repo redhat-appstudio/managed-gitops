@@ -208,7 +208,7 @@ type Operation struct {
 
 	SeqID int64 `pg:"seq_id"`
 
-	// -- Amount of time to wait in seconds before a completed/failed operation can be garbage collected.
+	// -- Amount of time to wait in seconds after last_state_update for a completed/failed operation to be garbage collected.
 	GC_expiration_time int `pg:"gc_expiration_time"`
 }
 

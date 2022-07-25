@@ -183,6 +183,7 @@ var _ = Describe("Operations Test", func() {
 			Expect(err).To(BeNil())
 
 			sampleOperation.State = db.OperationState_Failed
+			sampleOperation.GC_expiration_time = 100
 			err = dbq.UpdateOperation(ctx, sampleOperation)
 			Expect(err).To(BeNil())
 

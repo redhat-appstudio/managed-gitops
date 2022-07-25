@@ -5,11 +5,11 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 )
 
-var _ = Describe("GuardRow test", func() {
-	Context("It creates database unit tests which guard against missing WHERE clauses of UPDATE/DELETE operations to the database ", func() {
+var _ = Describe("Test to verify update/delete operations are not globally scoped", func() {
+	FContext("It creates database unit tests which guard against missing WHERE clauses of UPDATE/DELETE operations to the database ", func() {
 
 		It("Should test guard row against delete for ApiCRtoDBmapping", func() {
 			err := db.SetupForTestingDBGinkgo()
@@ -20,7 +20,7 @@ var _ = Describe("GuardRow test", func() {
 			Expect(err).To(BeNil())
 			defer dbq.CloseDatabase()
 
-			Apicrtodatabasemappingfirst := db.APICRToDatabaseMapping{
+			ApicrtodatabasemappingFirst := db.APICRToDatabaseMapping{
 				APIResourceType:      db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
 				APIResourceUID:       "test-k8s-uid",
 				APIResourceName:      "test-k8s-name",
@@ -30,10 +30,10 @@ var _ = Describe("GuardRow test", func() {
 				DBRelationKey:        "test-key",
 			}
 
-			err = dbq.CreateAPICRToDatabaseMapping(ctx, &Apicrtodatabasemappingfirst)
+			err = dbq.CreateAPICRToDatabaseMapping(ctx, &ApicrtodatabasemappingFirst)
 			Expect(err).To(BeNil())
 
-			Apicrtodatabasemappingsecond := db.APICRToDatabaseMapping{
+			ApicrtodatabasemappingSecond := db.APICRToDatabaseMapping{
 				APIResourceType:      "test-GitOpsDeployment",
 				APIResourceUID:       "test-k8s-uid-second",
 				APIResourceName:      "test-k8s-name",
@@ -42,17 +42,17 @@ var _ = Describe("GuardRow test", func() {
 				DBRelationType:       "test-sync-operation",
 				DBRelationKey:        "test-key-second",
 			}
-			err = dbq.CreateAPICRToDatabaseMapping(ctx, &Apicrtodatabasemappingsecond)
+			err = dbq.CreateAPICRToDatabaseMapping(ctx, &ApicrtodatabasemappingSecond)
 			Expect(err).To(BeNil())
 
-			rowsAffected, err := dbq.DeleteAPICRToDatabaseMapping(ctx, &Apicrtodatabasemappingsecond)
+			rowsAffected, err := dbq.DeleteAPICRToDatabaseMapping(ctx, &ApicrtodatabasemappingSecond)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).To(Equal((1)))
 
-			err = dbq.GetDatabaseMappingForAPICR(ctx, &Apicrtodatabasemappingfirst)
+			err = dbq.GetDatabaseMappingForAPICR(ctx, &ApicrtodatabasemappingFirst)
 			Expect(err).To(BeNil())
 
-			err = dbq.GetDatabaseMappingForAPICR(ctx, &Apicrtodatabasemappingsecond)
+			err = dbq.GetDatabaseMappingForAPICR(ctx, &ApicrtodatabasemappingSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
 		})
@@ -69,7 +69,7 @@ var _ = Describe("GuardRow test", func() {
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
 			Expect(err).To(BeNil())
 
-			applicationfirst := db.Application{
+			applicationFirst := db.Application{
 				Application_id:          "test-my-application-1",
 				Name:                    "my-application",
 				Spec_field:              "{}",
@@ -77,41 +77,45 @@ var _ = Describe("GuardRow test", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 
-			err = dbq.CreateApplication(ctx, &applicationfirst)
+			err = dbq.CreateApplication(ctx, &applicationFirst)
 			Expect(err).To(BeNil())
 
-			applicationsecond := db.Application{
+			applicationSecond := db.Application{
 				Application_id:          "test-my-application-2",
 				Name:                    "my-application",
 				Spec_field:              "{}",
 				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
-			err = dbq.CreateApplication(ctx, &applicationsecond)
+			err = dbq.CreateApplication(ctx, &applicationSecond)
 			Expect(err).To(BeNil())
 
-			applicationsecond = db.Application{
-				Application_id:          applicationsecond.Application_id,
+			applicationSecond = db.Application{
+				Application_id:          applicationSecond.Application_id,
 				Name:                    "test-application-update",
 				Spec_field:              "{}",
 				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
-				SeqID:                   applicationsecond.SeqID,
+				SeqID:                   applicationSecond.SeqID,
 			}
 
-			err = dbq.UpdateApplication(ctx, &applicationsecond)
+			err = dbq.UpdateApplication(ctx, &applicationSecond)
 			Expect(err).To(BeNil())
-			Expect(applicationsecond.Name).Should(Equal("test-application-update"))
-			Expect(applicationfirst.Name).ShouldNot(Equal(applicationsecond.Name))
+			err = dbq.GetApplicationById(ctx, &applicationFirst)
+			Expect(err).To(BeNil())
+			err = dbq.GetApplicationById(ctx, &applicationSecond)
+			Expect(err).To(BeNil())
+			Expect(applicationSecond.Name).Should(Equal("test-application-update"))
+			Expect(applicationFirst.Name).ShouldNot(Equal(applicationSecond.Name))
 
-			rowsAffected, err := dbq.DeleteApplicationById(ctx, applicationsecond.Application_id)
+			rowsAffected, err := dbq.DeleteApplicationById(ctx, applicationSecond.Application_id)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))
 
-			err = dbq.GetApplicationById(ctx, &applicationfirst)
+			err = dbq.GetApplicationById(ctx, &applicationFirst)
 			Expect(err).To(BeNil())
 
-			err = dbq.GetApplicationById(ctx, &applicationsecond)
+			err = dbq.GetApplicationById(ctx, &applicationSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
 		})
@@ -128,7 +132,7 @@ var _ = Describe("GuardRow test", func() {
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
 			Expect(err).To(BeNil())
 
-			applicationfirst := db.Application{
+			applicationFirst := db.Application{
 				Application_id:          "test-my-application-1",
 				Name:                    "my-application",
 				Spec_field:              "{}",
@@ -136,58 +140,63 @@ var _ = Describe("GuardRow test", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 
-			err = dbq.CreateApplication(ctx, &applicationfirst)
+			err = dbq.CreateApplication(ctx, &applicationFirst)
 			Expect(err).To(BeNil())
 
-			applicationStatefirst := &db.ApplicationState{
-				Applicationstate_application_id: applicationfirst.Application_id,
+			applicationStateFirst := &db.ApplicationState{
+				Applicationstate_application_id: applicationFirst.Application_id,
 				Health:                          "Progressing",
 				Sync_Status:                     "Unknown",
 				Resources:                       make([]byte, 10),
 			}
 
-			err = dbq.CreateApplicationState(ctx, applicationStatefirst)
+			err = dbq.CreateApplicationState(ctx, applicationStateFirst)
 			Expect(err).To(BeNil())
 
-			applicationsecond := db.Application{
+			applicationSecond := db.Application{
 				Application_id:          "test-my-application-2",
 				Name:                    "my-application",
 				Spec_field:              "{}",
 				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
-			err = dbq.CreateApplication(ctx, &applicationsecond)
+			err = dbq.CreateApplication(ctx, &applicationSecond)
 			Expect(err).To(BeNil())
 
-			applicationStatesecond := &db.ApplicationState{
-				Applicationstate_application_id: applicationsecond.Application_id,
+			applicationStateSecond := &db.ApplicationState{
+				Applicationstate_application_id: applicationSecond.Application_id,
 				Health:                          "Progressing",
 				Sync_Status:                     "Unknown",
 				Resources:                       make([]byte, 10),
 			}
 
-			err = dbq.CreateApplicationState(ctx, applicationStatesecond)
+			err = dbq.CreateApplicationState(ctx, applicationStateSecond)
 			Expect(err).To(BeNil())
-			applicationStatesecond = &db.ApplicationState{
-				Applicationstate_application_id: applicationsecond.Application_id,
+			applicationStateSecond = &db.ApplicationState{
+				Applicationstate_application_id: applicationSecond.Application_id,
 				Health:                          "Progressing",
 				Sync_Status:                     "Sync",
 				Resources:                       make([]byte, 10),
 			}
 
-			err = dbq.UpdateApplicationState(ctx, applicationStatesecond)
+			err = dbq.UpdateApplicationState(ctx, applicationStateSecond)
 			Expect(err).To(BeNil())
-			Expect(applicationStatesecond.Sync_Status).Should(Equal("Sync"))
-			Expect(applicationStatefirst.Sync_Status).ShouldNot(Equal(applicationStatesecond.Sync_Status))
+			err = dbq.GetApplicationStateById(ctx, applicationStateFirst)
+			Expect(err).To(BeNil())
+			err = dbq.GetApplicationStateById(ctx, applicationStateSecond)
+			Expect(err).To(BeNil())
 
-			rowsAffected, err := dbq.DeleteApplicationStateById(ctx, applicationStatesecond.Applicationstate_application_id)
+			Expect(applicationStateSecond.Sync_Status).Should(Equal("Sync"))
+			Expect(applicationStateFirst.Sync_Status).ShouldNot(Equal(applicationStateSecond.Sync_Status))
+
+			rowsAffected, err := dbq.DeleteApplicationStateById(ctx, applicationStateSecond.Applicationstate_application_id)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))
 
-			err = dbq.GetApplicationStateById(ctx, applicationStatefirst)
+			err = dbq.GetApplicationStateById(ctx, applicationStateFirst)
 			Expect(err).To(BeNil())
 
-			err = dbq.GetApplicationStateById(ctx, applicationStatesecond)
+			err = dbq.GetApplicationStateById(ctx, applicationStateSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
 		})
@@ -208,7 +217,7 @@ var _ = Describe("GuardRow test", func() {
 			err = dbq.CreateClusterUser(ctx, clusterUser)
 			Expect(err).To(BeNil())
 
-			clusterCredentialsfirst := db.ClusterCredentials{
+			clusterCredentialsFirst := db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-cluster-creds-test-1",
 				Host:                        "host",
 				Kube_config:                 "kube-config",
@@ -217,43 +226,43 @@ var _ = Describe("GuardRow test", func() {
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 
-			managedEnvironmentfirst := db.ManagedEnvironment{
+			managedEnvironmentFirst := db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env-1",
-				Clustercredentials_id: clusterCredentialsfirst.Clustercredentials_cred_id,
+				Clustercredentials_id: clusterCredentialsFirst.Clustercredentials_cred_id,
 				Name:                  "my env",
 			}
 
-			gitopsEngineClusterfirst := db.GitopsEngineCluster{
+			gitopsEngineClusterFirst := db.GitopsEngineCluster{
 				Gitopsenginecluster_id: "test-fake-cluster-1",
-				Clustercredentials_id:  clusterCredentialsfirst.Clustercredentials_cred_id,
+				Clustercredentials_id:  clusterCredentialsFirst.Clustercredentials_cred_id,
 			}
 
-			gitopsEngineInstancefirst := db.GitopsEngineInstance{
+			gitopsEngineInstanceFirst := db.GitopsEngineInstance{
 				Gitopsengineinstance_id: "test-fake-engine-instance-id-1",
 				Namespace_name:          "test-fake-namespace",
 				Namespace_uid:           "test-fake-namespace-5",
-				EngineCluster_id:        gitopsEngineClusterfirst.Gitopsenginecluster_id,
+				EngineCluster_id:        gitopsEngineClusterFirst.Gitopsenginecluster_id,
 			}
 
-			clusterAccessfirst := db.ClusterAccess{
+			clusterAccessFirst := db.ClusterAccess{
 				Clusteraccess_user_id:                   clusterUser.Clusteruser_id,
-				Clusteraccess_managed_environment_id:    managedEnvironmentfirst.Managedenvironment_id,
-				Clusteraccess_gitops_engine_instance_id: gitopsEngineInstancefirst.Gitopsengineinstance_id,
+				Clusteraccess_managed_environment_id:    managedEnvironmentFirst.Managedenvironment_id,
+				Clusteraccess_gitops_engine_instance_id: gitopsEngineInstanceFirst.Gitopsengineinstance_id,
 			}
 
-			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsfirst)
+			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsFirst)
 			Expect(err).To(BeNil())
 
-			err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentfirst)
+			err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentFirst)
 			Expect(err).To(BeNil())
 
-			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClusterfirst)
+			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClusterFirst)
 			Expect(err).To(BeNil())
 
-			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstancefirst)
+			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstanceFirst)
 			Expect(err).To(BeNil())
 
-			err = dbq.CreateClusterAccess(ctx, &clusterAccessfirst)
+			err = dbq.CreateClusterAccess(ctx, &clusterAccessFirst)
 			Expect(err).To(BeNil())
 
 			clusterUser = &db.ClusterUser{
@@ -263,7 +272,7 @@ var _ = Describe("GuardRow test", func() {
 			err = dbq.CreateClusterUser(ctx, clusterUser)
 			Expect(err).To(BeNil())
 
-			clusterCredentialssecond := db.ClusterCredentials{
+			clusterCredentialsSecond := db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-cluster-creds-test-2",
 				Host:                        "host",
 				Kube_config:                 "kube-config",
@@ -272,53 +281,53 @@ var _ = Describe("GuardRow test", func() {
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 
-			managedEnvironmentsecond := db.ManagedEnvironment{
+			managedEnvironmentSecond := db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env-2",
-				Clustercredentials_id: clusterCredentialssecond.Clustercredentials_cred_id,
+				Clustercredentials_id: clusterCredentialsSecond.Clustercredentials_cred_id,
 				Name:                  "my env",
 			}
 
-			gitopsEngineClustersecond := db.GitopsEngineCluster{
+			gitopsEngineClusterSecond := db.GitopsEngineCluster{
 				Gitopsenginecluster_id: "test-fake-cluster-2",
-				Clustercredentials_id:  clusterCredentialssecond.Clustercredentials_cred_id,
+				Clustercredentials_id:  clusterCredentialsSecond.Clustercredentials_cred_id,
 			}
 
-			gitopsEngineInstancesecond := db.GitopsEngineInstance{
+			gitopsEngineInstanceSecond := db.GitopsEngineInstance{
 				Gitopsengineinstance_id: "test-fake-engine-instance-id-2",
 				Namespace_name:          "test-fake-namespace",
 				Namespace_uid:           "test-fake-namespace-5",
-				EngineCluster_id:        gitopsEngineClustersecond.Gitopsenginecluster_id,
+				EngineCluster_id:        gitopsEngineClusterSecond.Gitopsenginecluster_id,
 			}
 
-			clusterAccesssecond := db.ClusterAccess{
+			clusterAccessSecond := db.ClusterAccess{
 				Clusteraccess_user_id:                   clusterUser.Clusteruser_id,
-				Clusteraccess_managed_environment_id:    managedEnvironmentsecond.Managedenvironment_id,
-				Clusteraccess_gitops_engine_instance_id: gitopsEngineInstancesecond.Gitopsengineinstance_id,
+				Clusteraccess_managed_environment_id:    managedEnvironmentSecond.Managedenvironment_id,
+				Clusteraccess_gitops_engine_instance_id: gitopsEngineInstanceSecond.Gitopsengineinstance_id,
 			}
 
-			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialssecond)
+			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsSecond)
 			Expect(err).To(BeNil())
 
-			err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentsecond)
+			err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentSecond)
 			Expect(err).To(BeNil())
 
-			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClustersecond)
+			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClusterSecond)
 			Expect(err).To(BeNil())
 
-			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstancesecond)
+			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstanceSecond)
 			Expect(err).To(BeNil())
 
-			err = dbq.CreateClusterAccess(ctx, &clusterAccesssecond)
+			err = dbq.CreateClusterAccess(ctx, &clusterAccessSecond)
 			Expect(err).To(BeNil())
 
-			affectedRows, err := dbq.DeleteClusterAccessById(ctx, clusterAccesssecond.Clusteraccess_user_id, clusterAccesssecond.Clusteraccess_managed_environment_id, clusterAccesssecond.Clusteraccess_gitops_engine_instance_id)
+			affectedRows, err := dbq.DeleteClusterAccessById(ctx, clusterAccessSecond.Clusteraccess_user_id, clusterAccessSecond.Clusteraccess_managed_environment_id, clusterAccessSecond.Clusteraccess_gitops_engine_instance_id)
 			Expect(err).To(BeNil())
 			Expect(affectedRows).To(Equal(1))
 
-			err = dbq.GetClusterAccessByPrimaryKey(ctx, &clusterAccessfirst)
+			err = dbq.GetClusterAccessByPrimaryKey(ctx, &clusterAccessFirst)
 			Expect(err).To(BeNil())
 
-			err = dbq.GetClusterAccessByPrimaryKey(ctx, &clusterAccesssecond)
+			err = dbq.GetClusterAccessByPrimaryKey(ctx, &clusterAccessSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
 		})
@@ -332,34 +341,34 @@ var _ = Describe("GuardRow test", func() {
 			Expect(err).To(BeNil())
 			defer dbq.CloseDatabase()
 
-			clusterCredfirst := db.ClusterCredentials{
+			clusterCredFirst := db.ClusterCredentials{
 				Host:                        "test-host",
 				Kube_config:                 "test-kube_config",
 				Kube_config_context:         "test-kube_config_context",
 				Serviceaccount_bearer_token: "test-serviceaccount_bearer_token",
 				Serviceaccount_ns:           "test-serviceaccount_ns",
 			}
-			err = dbq.CreateClusterCredentials(ctx, &clusterCredfirst)
+			err = dbq.CreateClusterCredentials(ctx, &clusterCredFirst)
 			Expect(err).To(BeNil())
 
-			clusterCredsecond := db.ClusterCredentials{
+			clusterCredSecond := db.ClusterCredentials{
 				Host:                        "test-host",
 				Kube_config:                 "test-kube_config",
 				Kube_config_context:         "test-kube_config_context",
 				Serviceaccount_bearer_token: "test-serviceaccount_bearer_token",
 				Serviceaccount_ns:           "test-serviceaccount_ns",
 			}
-			err = dbq.CreateClusterCredentials(ctx, &clusterCredsecond)
+			err = dbq.CreateClusterCredentials(ctx, &clusterCredSecond)
 			Expect(err).To(BeNil())
 
-			rowsAffected, err := dbq.DeleteClusterCredentialsById(ctx, clusterCredsecond.Clustercredentials_cred_id)
+			rowsAffected, err := dbq.DeleteClusterCredentialsById(ctx, clusterCredSecond.Clustercredentials_cred_id)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))
 
-			err = dbq.GetClusterCredentialsById(ctx, &clusterCredfirst)
+			err = dbq.GetClusterCredentialsById(ctx, &clusterCredFirst)
 			Expect(err).To(BeNil())
 
-			err = dbq.GetClusterCredentialsById(ctx, &clusterCredsecond)
+			err = dbq.GetClusterCredentialsById(ctx, &clusterCredSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
 		})
@@ -411,7 +420,7 @@ var _ = Describe("GuardRow test", func() {
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
 			Expect(err).To(BeNil())
 
-			applicationfirst := db.Application{
+			applicationFirst := db.Application{
 				Application_id:          "test-my-application-1",
 				Name:                    "my-application",
 				Spec_field:              "{}",
@@ -419,12 +428,12 @@ var _ = Describe("GuardRow test", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 
-			err = dbq.CreateApplication(ctx, &applicationfirst)
+			err = dbq.CreateApplication(ctx, &applicationFirst)
 			Expect(err).To(BeNil())
 
 			deploymentToApplicationMappingfirst := &db.DeploymentToApplicationMapping{
 				Deploymenttoapplicationmapping_uid_id: "test-" + generateUuid(),
-				Application_id:                        applicationfirst.Application_id,
+				Application_id:                        applicationFirst.Application_id,
 				DeploymentName:                        "test-deployment",
 				DeploymentNamespace:                   "test-namespace",
 				NamespaceUID:                          "demo-namespace",
@@ -433,19 +442,19 @@ var _ = Describe("GuardRow test", func() {
 			err = dbq.CreateDeploymentToApplicationMapping(ctx, deploymentToApplicationMappingfirst)
 			Expect(err).To(BeNil())
 
-			applicationsecond := db.Application{
+			applicationSecond := db.Application{
 				Application_id:          "test-my-application-2",
 				Name:                    "my-application",
 				Spec_field:              "{}",
 				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
-			err = dbq.CreateApplication(ctx, &applicationsecond)
+			err = dbq.CreateApplication(ctx, &applicationSecond)
 			Expect(err).To(BeNil())
 
 			deploymentToApplicationMappingsecond := &db.DeploymentToApplicationMapping{
 				Deploymenttoapplicationmapping_uid_id: "test-" + generateUuid(),
-				Application_id:                        applicationsecond.Application_id,
+				Application_id:                        applicationSecond.Application_id,
 				DeploymentName:                        "test-deployment",
 				DeploymentNamespace:                   "test-namespace",
 				NamespaceUID:                          "demo-namespace",
@@ -475,7 +484,7 @@ var _ = Describe("GuardRow test", func() {
 			Expect(err).To(BeNil())
 			defer dbq.CloseDatabase()
 
-			clusterCredentialsfirst := db.ClusterCredentials{
+			clusterCredentialsFirst := db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-cluster-creds-test-1",
 				Host:                        "host",
 				Kube_config:                 "kube-config",
@@ -484,18 +493,18 @@ var _ = Describe("GuardRow test", func() {
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 
-			gitopsEngineClusterfirst := db.GitopsEngineCluster{
+			gitopsEngineClusterFirst := db.GitopsEngineCluster{
 				Gitopsenginecluster_id: "test-fake-cluster-1",
-				Clustercredentials_id:  clusterCredentialsfirst.Clustercredentials_cred_id,
+				Clustercredentials_id:  clusterCredentialsFirst.Clustercredentials_cred_id,
 			}
 
-			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsfirst)
+			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsFirst)
 			Expect(err).To(BeNil())
 
-			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClusterfirst)
+			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClusterFirst)
 			Expect(err).To(BeNil())
 
-			clusterCredentialssecond := db.ClusterCredentials{
+			clusterCredentialsSecond := db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-cluster-creds-test-2",
 				Host:                        "host",
 				Kube_config:                 "kube-config",
@@ -504,25 +513,25 @@ var _ = Describe("GuardRow test", func() {
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 
-			gitopsEngineClustersecond := db.GitopsEngineCluster{
+			gitopsEngineClusterSecond := db.GitopsEngineCluster{
 				Gitopsenginecluster_id: "test-fake-cluster-2",
-				Clustercredentials_id:  clusterCredentialssecond.Clustercredentials_cred_id,
+				Clustercredentials_id:  clusterCredentialsSecond.Clustercredentials_cred_id,
 			}
 
-			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialssecond)
+			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsSecond)
 			Expect(err).To(BeNil())
 
-			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClustersecond)
+			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClusterSecond)
 			Expect(err).To(BeNil())
 
-			rowsAffected, err := dbq.DeleteGitopsEngineClusterById(ctx, gitopsEngineClustersecond.Gitopsenginecluster_id)
+			rowsAffected, err := dbq.DeleteGitopsEngineClusterById(ctx, gitopsEngineClusterSecond.Gitopsenginecluster_id)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))
 
-			err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineClusterfirst)
+			err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineClusterFirst)
 			Expect(err).To(BeNil())
 
-			err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineClustersecond)
+			err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineClusterSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 		})
 
@@ -535,7 +544,7 @@ var _ = Describe("GuardRow test", func() {
 			Expect(err).To(BeNil())
 			defer dbq.CloseDatabase()
 
-			clusterCredentialsfirst := db.ClusterCredentials{
+			clusterCredentialsFirst := db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-cluster-creds-test-1",
 				Host:                        "host",
 				Kube_config:                 "kube-config",
@@ -544,27 +553,27 @@ var _ = Describe("GuardRow test", func() {
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 
-			gitopsEngineClusterfirst := db.GitopsEngineCluster{
+			gitopsEngineClusterFirst := db.GitopsEngineCluster{
 				Gitopsenginecluster_id: "test-fake-cluster-1",
-				Clustercredentials_id:  clusterCredentialsfirst.Clustercredentials_cred_id,
+				Clustercredentials_id:  clusterCredentialsFirst.Clustercredentials_cred_id,
 			}
 
-			gitopsEngineInstancefirst := db.GitopsEngineInstance{
+			gitopsEngineInstanceFirst := db.GitopsEngineInstance{
 				Gitopsengineinstance_id: "test-fake-engine-instance-id-1",
 				Namespace_name:          "test-fake-namespace",
 				Namespace_uid:           "test-fake-namespace-1",
-				EngineCluster_id:        gitopsEngineClusterfirst.Gitopsenginecluster_id,
+				EngineCluster_id:        gitopsEngineClusterFirst.Gitopsenginecluster_id,
 			}
-			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsfirst)
+			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsFirst)
 			Expect(err).To(BeNil())
 
-			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClusterfirst)
+			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClusterFirst)
 			Expect(err).To(BeNil())
 
-			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstancefirst)
+			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstanceFirst)
 			Expect(err).To(BeNil())
 
-			clusterCredentialssecond := db.ClusterCredentials{
+			clusterCredentialsSecond := db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-cluster-creds-test-2",
 				Host:                        "host",
 				Kube_config:                 "kube-config",
@@ -573,34 +582,34 @@ var _ = Describe("GuardRow test", func() {
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 
-			gitopsEngineClustersecond := db.GitopsEngineCluster{
+			gitopsEngineClusterSecond := db.GitopsEngineCluster{
 				Gitopsenginecluster_id: "test-fake-cluster-2",
-				Clustercredentials_id:  clusterCredentialssecond.Clustercredentials_cred_id,
+				Clustercredentials_id:  clusterCredentialsSecond.Clustercredentials_cred_id,
 			}
 
-			gitopsEngineInstancesecond := db.GitopsEngineInstance{
+			gitopsEngineInstanceSecond := db.GitopsEngineInstance{
 				Gitopsengineinstance_id: "test-fake-engine-instance-id-2",
 				Namespace_name:          "test-fake-namespace",
 				Namespace_uid:           "test-fake-namespace-1",
-				EngineCluster_id:        gitopsEngineClustersecond.Gitopsenginecluster_id,
+				EngineCluster_id:        gitopsEngineClusterSecond.Gitopsenginecluster_id,
 			}
-			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialssecond)
+			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsSecond)
 			Expect(err).To(BeNil())
 
-			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClustersecond)
+			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClusterSecond)
 			Expect(err).To(BeNil())
 
-			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstancesecond)
+			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstanceSecond)
 			Expect(err).To(BeNil())
 
-			rowsAffected, err := dbq.DeleteGitopsEngineInstanceById(ctx, gitopsEngineInstancesecond.Gitopsengineinstance_id)
+			rowsAffected, err := dbq.DeleteGitopsEngineInstanceById(ctx, gitopsEngineInstanceSecond.Gitopsengineinstance_id)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))
 
-			err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstancefirst)
+			err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstanceFirst)
 			Expect(err).To(BeNil())
 
-			err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstancesecond)
+			err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstanceSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 		})
 
@@ -613,32 +622,32 @@ var _ = Describe("GuardRow test", func() {
 			Expect(err).To(BeNil())
 			defer dbq.CloseDatabase()
 
-			kubernetesToDBResourceMappingfirst := db.KubernetesToDBResourceMapping{
+			kubernetesToDBResourceMappingFirst := db.KubernetesToDBResourceMapping{
 				KubernetesResourceType: "test-resource_1",
 				KubernetesResourceUID:  "test-resource_uid",
 				DBRelationType:         "test-relation_type",
 				DBRelationKey:          "test-relation_key",
 			}
-			err = dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMappingfirst)
+			err = dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMappingFirst)
 			Expect(err).To(BeNil())
 
-			kubernetesToDBResourceMappingsecond := db.KubernetesToDBResourceMapping{
+			kubernetesToDBResourceMappingSecond := db.KubernetesToDBResourceMapping{
 				KubernetesResourceType: "test-resource_2",
 				KubernetesResourceUID:  "test-resource_uid",
 				DBRelationType:         "test-relation_type",
 				DBRelationKey:          "test-relation_key",
 			}
-			err = dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMappingsecond)
+			err = dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMappingSecond)
 			Expect(err).To(BeNil())
 
-			rowsAffected, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMappingsecond)
+			rowsAffected, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMappingSecond)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))
 
-			err = dbq.GetDBResourceMappingForKubernetesResource(ctx, &kubernetesToDBResourceMappingfirst)
+			err = dbq.GetDBResourceMappingForKubernetesResource(ctx, &kubernetesToDBResourceMappingFirst)
 			Expect(err).To(BeNil())
 
-			err = dbq.GetDBResourceMappingForKubernetesResource(ctx, &kubernetesToDBResourceMappingsecond)
+			err = dbq.GetDBResourceMappingForKubernetesResource(ctx, &kubernetesToDBResourceMappingSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
 		})
@@ -652,7 +661,7 @@ var _ = Describe("GuardRow test", func() {
 			Expect(err).To(BeNil())
 			defer dbq.CloseDatabase()
 
-			clusterCredentialsfirst := db.ClusterCredentials{
+			clusterCredentialsFirst := db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-cluster-creds-test-1",
 				Host:                        "host",
 				Kube_config:                 "kube-config",
@@ -661,19 +670,19 @@ var _ = Describe("GuardRow test", func() {
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 
-			managedEnvironmentfirst := db.ManagedEnvironment{
+			managedEnvironmentFirst := db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env-1",
-				Clustercredentials_id: clusterCredentialsfirst.Clustercredentials_cred_id,
+				Clustercredentials_id: clusterCredentialsFirst.Clustercredentials_cred_id,
 				Name:                  "my env101",
 			}
 
-			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsfirst)
+			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsFirst)
 			Expect(err).To(BeNil())
 
-			err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentfirst)
+			err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentFirst)
 			Expect(err).To(BeNil())
 
-			clusterCredentialssecond := db.ClusterCredentials{
+			clusterCredentialsSecond := db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-cluster-creds-test-2",
 				Host:                        "host",
 				Kube_config:                 "kube-config",
@@ -682,26 +691,26 @@ var _ = Describe("GuardRow test", func() {
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 
-			managedEnvironmentsecond := db.ManagedEnvironment{
+			managedEnvironmentSecond := db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env-2",
-				Clustercredentials_id: clusterCredentialssecond.Clustercredentials_cred_id,
+				Clustercredentials_id: clusterCredentialsSecond.Clustercredentials_cred_id,
 				Name:                  "my env101",
 			}
 
-			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialssecond)
+			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsSecond)
 			Expect(err).To(BeNil())
 
-			err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentsecond)
+			err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentSecond)
 			Expect(err).To(BeNil())
 
-			rowsAffected, err := dbq.DeleteManagedEnvironmentById(ctx, managedEnvironmentsecond.Managedenvironment_id)
+			rowsAffected, err := dbq.DeleteManagedEnvironmentById(ctx, managedEnvironmentSecond.Managedenvironment_id)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))
 
-			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentfirst)
+			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentFirst)
 			Expect(err).To(BeNil())
 
-			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentsecond)
+			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
 		})
@@ -721,7 +730,7 @@ var _ = Describe("GuardRow test", func() {
 				Clusteruser_id: "test-user-1",
 				User_name:      "test-user-1",
 			}
-			operationfirst := db.Operation{
+			operationFirst := db.Operation{
 				Operation_id:            "test-operation-1",
 				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
 				Resource_id:             "test-fake-resource-id",
@@ -732,14 +741,14 @@ var _ = Describe("GuardRow test", func() {
 			err = dbq.CreateClusterUser(ctx, testClusterUser)
 			Expect(err).To(BeNil())
 
-			err = dbq.CreateOperation(ctx, &operationfirst, operationfirst.Operation_owner_user_id)
+			err = dbq.CreateOperation(ctx, &operationFirst, operationFirst.Operation_owner_user_id)
 			Expect(err).To(BeNil())
 
 			testClusterUser = &db.ClusterUser{
 				Clusteruser_id: "test-user-2",
 				User_name:      "test-user-2",
 			}
-			operationsecond := db.Operation{
+			operationSecond := db.Operation{
 				Operation_id:            "test-operation-2",
 				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
 				Resource_id:             "test-fake-resource-id",
@@ -750,34 +759,39 @@ var _ = Describe("GuardRow test", func() {
 			err = dbq.CreateClusterUser(ctx, testClusterUser)
 			Expect(err).To(BeNil())
 
-			err = dbq.CreateOperation(ctx, &operationsecond, operationsecond.Operation_owner_user_id)
+			err = dbq.CreateOperation(ctx, &operationSecond, operationSecond.Operation_owner_user_id)
 			Expect(err).To(BeNil())
 
-			operationsecond = db.Operation{
+			operationSecond = db.Operation{
 				Operation_id:            "test-operation-2",
 				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
 				Resource_id:             "test-fake-resource-id-update",
 				Resource_type:           "GitopsEngineInstance",
 				State:                   db.OperationState_Waiting,
 				Operation_owner_user_id: testClusterUser.Clusteruser_id,
-				SeqID:                   operationsecond.SeqID,
-				Created_on:              operationsecond.Created_on,
-				Last_state_update:       operationsecond.Last_state_update,
+				SeqID:                   operationSecond.SeqID,
+				Created_on:              operationSecond.Created_on,
+				Last_state_update:       operationSecond.Last_state_update,
 			}
 
-			err = dbq.UpdateOperation(ctx, &operationsecond)
+			err = dbq.UpdateOperation(ctx, &operationSecond)
 			Expect(err).To(BeNil())
-			Expect(operationsecond.Resource_id).Should(Equal("test-fake-resource-id-update"))
-			Expect(operationfirst.Resource_id).ShouldNot(Equal(operationsecond.Resource_id))
+			err = dbq.GetOperationById(ctx, &operationFirst)
+			Expect(err).To(BeNil())
+			err = dbq.GetOperationById(ctx, &operationSecond)
+			Expect(err).To(BeNil())
 
-			rowsAffected, err := dbq.DeleteOperationById(ctx, operationsecond.Operation_id)
+			Expect(operationSecond.Resource_id).Should(Equal("test-fake-resource-id-update"))
+			Expect(operationFirst.Resource_id).ShouldNot(Equal(operationSecond.Resource_id))
+
+			rowsAffected, err := dbq.DeleteOperationById(ctx, operationSecond.Operation_id)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))
 
-			err = dbq.GetOperationById(ctx, &operationfirst)
+			err = dbq.GetOperationById(ctx, &operationFirst)
 			Expect(err).To(BeNil())
 
-			err = dbq.GetOperationById(ctx, &operationsecond)
+			err = dbq.GetOperationById(ctx, &operationSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
 		})
@@ -800,7 +814,7 @@ var _ = Describe("GuardRow test", func() {
 			}
 			err = dbq.CreateClusterUser(ctx, testClusterUser)
 			Expect(err).To(BeNil())
-			applicationfirst := db.Application{
+			applicationFirst := db.Application{
 				Application_id:          "test-my-application-1",
 				Name:                    "my-application",
 				Spec_field:              "{}",
@@ -808,10 +822,10 @@ var _ = Describe("GuardRow test", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 
-			err = dbq.CreateApplication(ctx, &applicationfirst)
+			err = dbq.CreateApplication(ctx, &applicationFirst)
 			Expect(err).To(BeNil())
 
-			operationfirst := &db.Operation{
+			operationFirst := &db.Operation{
 				Operation_id:            "test-operation-1",
 				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
 				Resource_id:             "fake resource id",
@@ -820,18 +834,18 @@ var _ = Describe("GuardRow test", func() {
 				Operation_owner_user_id: testClusterUser.Clusteruser_id,
 			}
 
-			err = dbq.CreateOperation(ctx, operationfirst, operationfirst.Operation_owner_user_id)
+			err = dbq.CreateOperation(ctx, operationFirst, operationFirst.Operation_owner_user_id)
 			Expect(err).To(BeNil())
 
-			syncoperationfirst := db.SyncOperation{
+			syncoperationFirst := db.SyncOperation{
 				SyncOperation_id:    "test-sync-1",
-				Application_id:      applicationfirst.Application_id,
+				Application_id:      applicationFirst.Application_id,
 				DeploymentNameField: "testDeployment",
 				Revision:            "testRev",
 				DesiredState:        "Terminated",
 			}
 
-			err = dbq.CreateSyncOperation(ctx, &syncoperationfirst)
+			err = dbq.CreateSyncOperation(ctx, &syncoperationFirst)
 			Expect(err).To(BeNil())
 
 			testClusterUser = &db.ClusterUser{
@@ -841,7 +855,7 @@ var _ = Describe("GuardRow test", func() {
 			err = dbq.CreateClusterUser(ctx, testClusterUser)
 			Expect(err).To(BeNil())
 
-			applicationsecond := db.Application{
+			applicationSecond := db.Application{
 				Application_id:          "test-my-application-2",
 				Name:                    "my-application",
 				Spec_field:              "{}",
@@ -849,10 +863,10 @@ var _ = Describe("GuardRow test", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 
-			err = dbq.CreateApplication(ctx, &applicationsecond)
+			err = dbq.CreateApplication(ctx, &applicationSecond)
 			Expect(err).To(BeNil())
 
-			operationsecond := &db.Operation{
+			operationSecond := &db.Operation{
 				Operation_id:            "test-operation-2",
 				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
 				Resource_id:             "fake resource id",
@@ -861,28 +875,28 @@ var _ = Describe("GuardRow test", func() {
 				Operation_owner_user_id: testClusterUser.Clusteruser_id,
 			}
 
-			err = dbq.CreateOperation(ctx, operationsecond, operationsecond.Operation_owner_user_id)
+			err = dbq.CreateOperation(ctx, operationSecond, operationSecond.Operation_owner_user_id)
 			Expect(err).To(BeNil())
 
-			syncoperationsecond := db.SyncOperation{
+			syncoperationSecond := db.SyncOperation{
 				SyncOperation_id:    "test-sync-2",
-				Application_id:      applicationfirst.Application_id,
+				Application_id:      applicationFirst.Application_id,
 				DeploymentNameField: "testDeployment",
 				Revision:            "testRev",
 				DesiredState:        "Terminated",
 			}
 
-			err = dbq.CreateSyncOperation(ctx, &syncoperationsecond)
+			err = dbq.CreateSyncOperation(ctx, &syncoperationSecond)
 			Expect(err).To(BeNil())
 
-			rowsAffected, err := dbq.DeleteSyncOperationById(ctx, syncoperationsecond.SyncOperation_id)
+			rowsAffected, err := dbq.DeleteSyncOperationById(ctx, syncoperationSecond.SyncOperation_id)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))
 
-			err = dbq.GetSyncOperationById(ctx, &syncoperationfirst)
+			err = dbq.GetSyncOperationById(ctx, &syncoperationFirst)
 			Expect(err).To(BeNil())
 
-			err = dbq.GetSyncOperationById(ctx, &syncoperationsecond)
+			err = dbq.GetSyncOperationById(ctx, &syncoperationSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
 		})

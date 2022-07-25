@@ -99,17 +99,20 @@ func (g *garbageCollector) startGarbageCollectionCycle() {
 			// garbage collect the operations after a specified interval
 			<-time.After(garbageCollectionInterval)
 
-			ctx := context.Background()
-			log := log.FromContext(ctx)
+			_, _ = sharedutil.CatchPanic(func() error {
+				ctx := context.Background()
+				log := log.FromContext(ctx)
 
-			// get failed/completed operations with non-zero gc interval
-			operations := []db.Operation{}
-			err := g.db.ListOperationsToBeGarbageCollected(ctx, &operations)
-			if err != nil {
-				log.Error(err, "failed to list operations ready for garbage collection")
-			}
+				// get failed/completed operations with non-zero gc interval
+				operations := []db.Operation{}
+				err := g.db.ListOperationsToBeGarbageCollected(ctx, &operations)
+				if err != nil {
+					log.Error(err, "failed to list operations ready for garbage collection")
+				}
 
-			g.garbageCollectOperations(ctx, operations, log)
+				g.garbageCollectOperations(ctx, operations, log)
+				return nil
+			})
 		}
 	}()
 }

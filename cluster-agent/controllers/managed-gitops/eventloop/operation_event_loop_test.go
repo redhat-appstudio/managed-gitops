@@ -19,10 +19,9 @@ import (
 	"time"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
-	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -138,12 +137,12 @@ var _ = Describe("Operation Controller", func() {
 			Expect(err).To(BeNil())
 
 			By("Operation row(test-wrong-operation) doesn't exists")
-			operationCR := &operation.Operation{
+			operationCR := &managedgitopsv1alpha1.Operation{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
 					Namespace: namespace,
 				},
-				Spec: operation.OperationSpec{
+				Spec: managedgitopsv1alpha1.OperationSpec{
 					OperationID: "test-wrong-operation",
 				},
 			}
@@ -184,12 +183,12 @@ var _ = Describe("Operation Controller", func() {
 			Expect(err).To(BeNil())
 
 			By("Operation CR exists")
-			operationCR := &operation.Operation{
+			operationCR := &managedgitopsv1alpha1.Operation{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
 					Namespace: namespace,
 				},
-				Spec: operation.OperationSpec{
+				Spec: managedgitopsv1alpha1.OperationSpec{
 					OperationID: operationDB.Operation_id,
 				},
 			}
@@ -235,12 +234,13 @@ var _ = Describe("Operation Controller", func() {
 			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
 			Expect(err).To(BeNil())
 
-			operationCR := &operation.Operation{
+			By("creating Operation CR")
+			operationCR := &managedgitopsv1alpha1.Operation{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
 					Namespace: namespace,
 				},
-				Spec: operation.OperationSpec{
+				Spec: managedgitopsv1alpha1.OperationSpec{
 					OperationID: operationDB.Operation_id,
 				},
 			}
@@ -348,12 +348,12 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 
 				By("Creating Operation CR")
-				operationCR := &operation.Operation{
+				operationCR := &managedgitopsv1alpha1.Operation{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      name,
 						Namespace: namespace,
 					},
-					Spec: operation.OperationSpec{
+					Spec: managedgitopsv1alpha1.OperationSpec{
 						OperationID: operationDB.Operation_id,
 					},
 				}
@@ -447,12 +447,12 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 
 				By("Creating Operation CR")
-				operationCR := &operation.Operation{
+				operationCR := &managedgitopsv1alpha1.Operation{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      name,
 						Namespace: namespace,
 					},
-					Spec: operation.OperationSpec{
+					Spec: managedgitopsv1alpha1.OperationSpec{
 						OperationID: operationDB.Operation_id,
 					},
 				}
@@ -553,12 +553,12 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 
 				By("Creating Operation CR")
-				operationCR := &operation.Operation{
+				operationCR := &managedgitopsv1alpha1.Operation{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      name,
 						Namespace: namespace,
 					},
-					Spec: operation.OperationSpec{
+					Spec: managedgitopsv1alpha1.OperationSpec{
 						OperationID: operationDB.Operation_id,
 					},
 				}
@@ -606,12 +606,12 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 
 				By("Create new operation CR")
-				operationCR = &operation.Operation{
+				operationCR = &managedgitopsv1alpha1.Operation{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "operation-1",
 						Namespace: namespace,
 					},
-					Spec: operation.OperationSpec{
+					Spec: managedgitopsv1alpha1.OperationSpec{
 						OperationID: operationDB2.Operation_id,
 					},
 				}

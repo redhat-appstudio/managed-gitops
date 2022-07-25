@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 
+	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
+	appEventLoop "github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/application_event_loop"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
+
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
-	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -246,7 +248,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		// TODO: GITOPSRVCE-82 - STUB - Remove the 'false' in createOperation above, once cluster agent handling of operation is implemented.
 		log.Info("STUB: Not waiting for create Sync Run operation to complete, in handleNewSyncRunModified")
 
-		if err := CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log); err != nil {
+		if err := appEventLoop.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log); err != nil {
 			return false, err
 		}
 
@@ -307,7 +309,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		}
 
 		// 4) Clean up the operation and database table entries
-		if err := CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log); err != nil {
+		if err := appEventLoop.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log); err != nil {
 			return false, err
 		}
 

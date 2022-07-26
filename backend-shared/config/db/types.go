@@ -207,6 +207,9 @@ type Operation struct {
 	Human_readable_state string `pg:"human_readable_state"`
 
 	SeqID int64 `pg:"seq_id"`
+
+	// -- Amount of time to wait in seconds after last_state_update for a completed/failed operation to be garbage collected.
+	GC_expiration_time int `pg:"gc_expiration_time"`
 }
 
 // Application represents an Argo CD Application CR within an Argo CD namespace.
@@ -465,4 +468,8 @@ func (rc *RepositoryCredentials) hasEmptyValues() error {
 		}
 	}
 	return nil
+}
+
+func (o Operation) GetGCExpirationTime() time.Duration {
+	return time.Duration(o.GC_expiration_time) * time.Second
 }

@@ -1,0 +1,1 @@
+ALTER TABLE OPERATION ADD COLUMN gc_expiration_time INT;

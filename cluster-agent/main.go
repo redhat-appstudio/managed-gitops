@@ -94,6 +94,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	dbQueries, err := db.NewProductionPostgresDBQueries(true)
+	if err != nil {
+		setupLog.Error(err, "never able to connect to database")
+		os.Exit(1)
+	}
+
 	if err = (&controllers.OperationReconciler{
 		Client:              mgr.GetClient(),
 		Scheme:              mgr.GetScheme(),
@@ -103,16 +109,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	applicationReconcileDB, err := db.NewProductionPostgresDBQueries(true)
-	if err != nil {
-		setupLog.Error(err, "never able to connect to database")
-		os.Exit(1)
-	}
+	operationsGC := controllers.NewGarbageCollector(dbQueries, mgr.GetClient())
+	operationsGC.StartGarbageCollector()
 
 	if err = (&argoprojiocontrollers.ApplicationReconciler{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
-		DB:            applicationReconcileDB,
+		DB:            dbQueries,
 		TaskRetryLoop: sharedutil.NewTaskRetryLoop("application-reconciler"),
 		Cache:         dbutil.NewApplicationInfoCache(),
 	}).SetupWithManager(mgr); err != nil {
@@ -128,11 +131,11 @@ func main() {
 	// because we need ClusterUser for creating Operation and we don't have one.
 	// Hence created a dummy Cluster User for internal purpose.
 	var specialClusterUser db.ClusterUser
-	if err = applicationReconcileDB.GetOrCreateSpecialClusterUser(context.Background(), &specialClusterUser); err != nil {
+	if err = dbQueries.GetOrCreateSpecialClusterUser(context.Background(), &specialClusterUser); err != nil {
 		setupLog.Error(err, "unable to create special cluster user")
 	}
 	namespacesReconciler := argoprojiocontrollers.ApplicationReconciler{
-		DB:     applicationReconcileDB,
+		DB:     dbQueries,
 		Client: mgr.GetClient(),
 	}
 

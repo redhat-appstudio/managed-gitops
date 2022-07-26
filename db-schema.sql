@@ -200,9 +200,12 @@ CREATE TABLE Operation (
 	-- * Completed
 	-- * Failed
 	state VARCHAR ( 30 ) NOT NULL,
-	
+
 	-- If there is an error message from the operation, it is passed via this field.
-	human_readable_state VARCHAR ( 1024 )
+	human_readable_state VARCHAR ( 1024 ),
+
+	-- Amount of time to wait in seconds after last_state_update for a completed/failed operation to be garbage collected.
+	gc_expiration_time INT
 
 );
 

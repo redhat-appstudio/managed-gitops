@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/go-pg/pg/v10/orm"
 )
 
 // Unsafe: Should only be used in test code.
@@ -271,4 +273,25 @@ func (operation *Operation) DisposeAppScoped(ctx context.Context, dbq Applicatio
 	_, err := dbq.DeleteOperationById(ctx, operation.Operation_id)
 
 	return err
+}
+
+// ListOperationsToBeGarbageCollected returns 'Failed'/'Completed' operations with a non-zero garbage collection expiration time
+func (dbq *PostgreSQLDatabaseQueries) ListOperationsToBeGarbageCollected(ctx context.Context, operations *[]Operation) error {
+
+	if err := validateQueryParamsEntity(operations, dbq); err != nil {
+		return err
+	}
+
+	err := dbq.dbConnection.ModelContext(ctx, operations).
+		Where("gc_expiration_time != ?", 0).
+		WhereGroup(func(q *orm.Query) (*orm.Query, error) {
+			return q.WhereOr("state = ?", OperationState_Completed).
+				WhereOr("state = ?", OperationState_Failed), nil
+		}).
+		Select()
+	if err != nil {
+		return fmt.Errorf("error on listing operations to be garbage collected: %w", err)
+	}
+
+	return nil
 }

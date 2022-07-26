@@ -1,0 +1,1 @@
+ALTER TABLE OPERATION DROP COLUMN gc_expiration_time;

@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	appstudiosharedv1 "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
-	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
-	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
+
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -39,7 +39,7 @@ func GenericTestSetup() (*runtime.Scheme, *corev1.Namespace, *corev1.Namespace, 
 		return nil, nil, nil, nil, err
 	}
 
-	err = operation.AddToScheme(scheme)
+	err = managedgitopsv1alpha1.AddToScheme(scheme)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}

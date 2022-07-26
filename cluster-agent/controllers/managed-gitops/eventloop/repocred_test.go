@@ -2,16 +2,17 @@ package eventloop
 
 import (
 	"context"
+
 	"github.com/argoproj/argo-cd/v2/common"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
-	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -83,7 +84,7 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 		err = appv1.AddToScheme(scheme)
 		Expect(err).To(BeNil())
 
-		gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
+		gitopsDepl := &operation.GitOpsDeployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "my-gitops-depl",
 				Namespace: workspace.Name,

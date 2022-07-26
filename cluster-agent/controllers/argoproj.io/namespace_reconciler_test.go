@@ -5,11 +5,11 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+
+	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
-	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -241,7 +241,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			operationList = append(operationList, *dbOperation)
 
 			// Get list of Operations before cleanup.
-			listOfK8sOperationFirst := v1alpha1.OperationList{}
+			listOfK8sOperationFirst := managedgitopsv1alpha1.OperationList{}
 			err = reconciler.List(ctx, &listOfK8sOperationFirst)
 			Expect(err).To(BeNil())
 			Expect(len(listOfK8sOperationFirst.Items)).NotTo(Equal(0))
@@ -250,7 +250,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			cleanK8sOperations(ctx, dbQueries, reconciler.Client, log)
 
 			// Get list of Operations after cleanup.
-			listOfK8sOperationSecond := v1alpha1.OperationList{}
+			listOfK8sOperationSecond := managedgitopsv1alpha1.OperationList{}
 			err = reconciler.List(ctx, &listOfK8sOperationSecond)
 			Expect(err).To(BeNil())
 			Expect(len(listOfK8sOperationSecond.Items)).To(Equal(0))
@@ -274,7 +274,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			operationList = append(operationList, *dbOperation)
 
 			// Get list of Operations before cleanup.
-			listOfK8sOperationFirst := v1alpha1.OperationList{}
+			listOfK8sOperationFirst := managedgitopsv1alpha1.OperationList{}
 			err = reconciler.List(ctx, &listOfK8sOperationFirst)
 			Expect(err).To(BeNil())
 			Expect(len(listOfK8sOperationFirst.Items)).NotTo(Equal(0))
@@ -283,7 +283,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			cleanK8sOperations(ctx, dbQueries, reconciler.Client, log)
 
 			// Get list of Operations after cleanup.
-			listOfK8sOperationSecond := v1alpha1.OperationList{}
+			listOfK8sOperationSecond := managedgitopsv1alpha1.OperationList{}
 			err = reconciler.List(ctx, &listOfK8sOperationSecond)
 			Expect(err).To(BeNil())
 			Expect(len(listOfK8sOperationSecond.Items)).NotTo(Equal(0))

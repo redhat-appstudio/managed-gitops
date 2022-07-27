@@ -5,10 +5,10 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
-	fake "sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -17,9 +17,9 @@ var _ = Describe("Testing CreateOperation function.", func() {
 		var ctx context.Context
 		var dbq db.AllDatabaseQueries
 		var dbOperationFirst *db.Operation
-		var k8sOperationFirst *v1alpha1.Operation
+		var k8sOperationFirst *operation.Operation
 		var dbOperationSecond *db.Operation
-		var k8sOperationSecond *v1alpha1.Operation
+		var k8sOperationSecond *operation.Operation
 
 		AfterEach(func() {
 			defer dbq.CloseDatabase()

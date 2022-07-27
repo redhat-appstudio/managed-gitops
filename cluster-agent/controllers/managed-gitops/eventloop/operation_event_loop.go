@@ -186,6 +186,8 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		}
 	}
 
+	log = log.WithValues("operationID", operationCR.Spec.OperationID)
+
 	// 2) Retrieve the database entry that corresponds to the Operation CR.
 	dbOperation := db.Operation{
 		Operation_id: operationCR.Spec.OperationID,
@@ -194,19 +196,30 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 		if db.IsResultNotFoundError(err) {
 			// no corresponding db operation, so no work to do
-			log.V(sharedutil.LogLevel_Warn).Info("Received operation requested for operation DB entry that doesn't exist: " + dbOperation.Operation_id)
+			log.V(sharedutil.LogLevel_Warn).Info("Received operation requested for operation DB entry that doesn't exist")
 			return nil, false, nil
 		} else {
 			// some other generic error
-			log.Error(err, "Unable to retrieve operation due to generic error: "+dbOperation.Operation_id)
+			log.Error(err, "Unable to retrieve operation due to generic error")
 			return nil, true, err
 		}
 	}
 
 	// If the operation has already completed (e.g. we previously ran it), then just ignore it and return
 	if dbOperation.State == db.OperationState_Completed || dbOperation.State == db.OperationState_Failed {
-		log.V(sharedutil.LogLevel_Debug).Info("Skipping Operation with state of completed/failed", "operationId", dbOperation.Operation_id)
+		log.V(sharedutil.LogLevel_Debug).Info("Skipping Operation with state of completed/failed")
 		return &dbOperation, false, nil
+	}
+
+	// If the operation is in waiting state, update it to in-progress before we start processing it.
+	if dbOperation.State == db.OperationState_Waiting {
+		log.V(sharedutil.LogLevel_Debug).Info("Updating OperationState to InProgress")
+		dbOperation.State = db.OperationState_In_Progress
+
+		if err := dbQueries.UpdateOperation(taskContext, &dbOperation); err != nil {
+			log.Error(err, "unable to update Operation state")
+			return nil, true, fmt.Errorf("unable to update Operation '%s' state: %v", dbOperation.Resource_id, err)
+		}
 	}
 
 	// 3) Find the Argo CD instance that is targeted by this operation.
@@ -217,7 +230,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 		if db.IsResultNotFoundError(err) {
 			// log as warning
-			log.Error(err, "Receive operation on gitops engine instance that doesn't exist: "+dbOperation.Operation_id)
+			log.Error(err, "Receive operation on gitops engine instance that doesn't exist")
 
 			// no corresponding db operation, so no work to do
 			return &dbOperation, false, nil

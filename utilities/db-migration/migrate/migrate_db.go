@@ -2,6 +2,7 @@ package migrate
 
 import (
 	"fmt"
+	"strings"
 
 	migrate "github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -12,6 +13,10 @@ import (
 func Migrate(opType string, migrationPath string) error {
 	addr, password := db.GetAddrAndPassword()
 	port := 5432
+
+	// Base64 strings can contain '/' characters, which mess up URL parsing.
+	// So we substitute it with a URL-friendly character.
+	password = strings.ReplaceAll(password, "/", "%2f")
 
 	m, err := migrate.New(
 		migrationPath,

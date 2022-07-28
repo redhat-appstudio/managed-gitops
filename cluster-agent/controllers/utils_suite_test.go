@@ -1,4 +1,4 @@
-package eventloop
+package controllers
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestEventloop(t *testing.T) {
+func TestUtils(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Eventloop Suite")
+	RunSpecs(t, "cluster-agent controllers Suite")
 }

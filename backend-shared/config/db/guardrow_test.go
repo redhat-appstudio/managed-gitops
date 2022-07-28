@@ -652,7 +652,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 
 		})
 
-		It("Should test guard row against delete on managedenvironment", func() {
+		It("Should test guard row against update and delete on managedenvironment", func() {
 			err := db.SetupForTestingDBGinkgo()
 			Expect(err).To(BeNil())
 
@@ -702,6 +702,23 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 
 			err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentSecond)
 			Expect(err).To(BeNil())
+
+			managedEnvironmentSecond = db.ManagedEnvironment{
+				Managedenvironment_id: "test-managed-env-2",
+				Clustercredentials_id: clusterCredentialsSecond.Clustercredentials_cred_id,
+				SeqID:                 managedEnvironmentSecond.SeqID,
+				Name:                  "my-env101-update",
+			}
+
+			err = dbq.UpdateManagedEnvironment(ctx, &managedEnvironmentSecond)
+			Expect(err).To(BeNil())
+			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentFirst)
+			Expect(err).To(BeNil())
+			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentSecond)
+			Expect(err).To(BeNil())
+
+			Expect(managedEnvironmentSecond.Name).Should(Equal("my-env101-update"))
+			Expect(managedEnvironmentFirst.Name).ShouldNot(Equal(managedEnvironmentSecond.Name))
 
 			rowsAffected, err := dbq.DeleteManagedEnvironmentById(ctx, managedEnvironmentSecond.Managedenvironment_id)
 			Expect(err).To(BeNil())
@@ -897,6 +914,87 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			Expect(err).To(BeNil())
 
 			err = dbq.GetSyncOperationById(ctx, &syncoperationSecond)
+			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
+
+		})
+
+		FIt("Should test guard row against delete for repo creds", func() {
+			err := db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
+
+			ctx := context.Background()
+			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).To(BeNil())
+			defer dbq.CloseDatabase()
+
+			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
+			Expect(err).To(BeNil())
+
+			var testClusterUser = &db.ClusterUser{
+				Clusteruser_id: "test-user-1",
+				User_name:      "test-user-1",
+			}
+			err = dbq.CreateClusterUser(ctx, testClusterUser)
+			Expect(err).To(BeNil())
+
+			gitopsRepositoryCredentialsFirst := db.RepositoryCredentials{
+				RepositoryCredentialsID: "test-repo-cred-id",
+				UserID:                  testClusterUser.Clusteruser_id, // constrain 'fk_clusteruser_id'
+				PrivateURL:              "https://test-private-url",
+				AuthUsername:            "test-auth-username",
+				AuthPassword:            "test-auth-password",
+				AuthSSHKey:              "test-auth-ssh-key",
+				SecretObj:               "test-secret-obj",
+				EngineClusterID:         gitopsEngineInstance.Gitopsengineinstance_id, // constrain 'fk_gitopsengineinstance_id'
+			}
+			err = dbq.CreateRepositoryCredentials(ctx, &gitopsRepositoryCredentialsFirst)
+			Expect(err).To(BeNil())
+
+			testClusterUser = &db.ClusterUser{
+				Clusteruser_id: "test-user-2",
+				User_name:      "test-user-2",
+			}
+			err = dbq.CreateClusterUser(ctx, testClusterUser)
+			Expect(err).To(BeNil())
+
+			gitopsRepositoryCredentialsSecond := db.RepositoryCredentials{
+				RepositoryCredentialsID: "test-repo-cred-id-2",
+				UserID:                  testClusterUser.Clusteruser_id, // constrain 'fk_clusteruser_id'
+				PrivateURL:              "https://test-private-url-2",
+				AuthUsername:            "test-auth-username-2",
+				AuthPassword:            "test-auth-password-2",
+				AuthSSHKey:              "test-auth-ssh-key-2",
+				SecretObj:               "test-secret-obj-2",
+				EngineClusterID:         gitopsEngineInstance.Gitopsengineinstance_id, // constrain 'fk_gitopsengineinstance_id'
+			}
+			err = dbq.CreateRepositoryCredentials(ctx, &gitopsRepositoryCredentialsSecond)
+			Expect(err).To(BeNil())
+
+			fetch, err := dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsSecond.RepositoryCredentialsID)
+			Expect(err).To(BeNil())
+
+			gitopsRepositoryCredentialsSecond = fetch
+			gitopsRepositoryCredentialsSecond.AuthUsername = "updated-auth-username"
+
+			err = dbq.UpdateRepositoryCredentials(ctx, &gitopsRepositoryCredentialsSecond)
+			Expect(err).To(BeNil())
+
+			gitopsRepositoryCredentialsFirst, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsFirst.RepositoryCredentialsID)
+			Expect(err).To(BeNil())
+			gitopsRepositoryCredentialsSecond, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsSecond.RepositoryCredentialsID)
+			Expect(err).To(BeNil())
+
+			Expect(gitopsRepositoryCredentialsSecond.AuthUsername).Should(Equal("updated-auth-username"))
+			Expect(gitopsRepositoryCredentialsSecond.AuthUsername).ShouldNot(Equal(gitopsRepositoryCredentialsFirst.AuthUsername))
+
+			rowsAffected, err := dbq.DeleteRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsSecond.RepositoryCredentialsID)
+			Expect(err).To(BeNil())
+			Expect(rowsAffected).Should(Equal(1))
+
+			_, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsFirst.RepositoryCredentialsID)
+			Expect(err).To(BeNil())
+
+			_, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsSecond.RepositoryCredentialsID)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
 		})

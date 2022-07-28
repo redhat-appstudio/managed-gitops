@@ -32,7 +32,7 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 
 	log = log.WithValues("name", appFromList.Name, "namespace", appFromList.Namespace, "uid", string(appFromList.UID))
 
-	log.Info("Attempting to delete Argo CD Application CR " + appFromList.Name)
+	log.Info("Attempting to delete Argo CD Application CR")
 
 	app := &appv1.Application{
 		ObjectMeta: metav1.ObjectMeta{
@@ -44,12 +44,17 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 	if err := eventClient.Get(ctx, client.ObjectKeyFromObject(app), app); err != nil {
 
 		if apierr.IsNotFound(err) {
-			log.Info("unable to locate application which previously existed: " + appFromList.Name)
+			log.Info("unable to locate application which previously existed")
 			return nil
 		}
 
-		log.Error(err, "unable to retrieve application which previously existed: "+appFromList.Name)
+		log.Error(err, "unable to retrieve application which previously existed")
 		return err
+	}
+
+	if value, exists := app.Labels[ArgoCDApplicationDatabaseIDLabel]; !exists || value == "" {
+		log.V(sharedutil.LogLevel_Debug).Info("skipping non-GitOps Service application")
+		return nil
 	}
 
 	if app.DeletionTimestamp == nil {
@@ -68,7 +73,7 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 				app.Finalizers = append(app.Finalizers, argoCDResourcesFinalizer)
 
 				if err := eventClient.Update(ctx, app); err != nil {
-					log.Error(err, "unable to update application with finalizer: "+app.Name)
+					log.Error(err, "unable to update application with finalizer")
 					return err
 				}
 			}
@@ -77,7 +82,7 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 		// Tell K8s to start deleting the Application, which triggers Argo CD to delete children
 		policy := metav1.DeletePropagationForeground
 		if err := eventClient.Delete(ctx, app, &client.DeleteOptions{PropagationPolicy: &policy}); err != nil {
-			log.Error(err, "unable to delete application with finalizer: "+app.Name)
+			log.Error(err, "unable to delete application with finalizer")
 			return err
 		}
 	}
@@ -114,7 +119,7 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 				// Success! The Application (and its resources) have been deleted.
 				break
 			} else {
-				log.Error(err, "unable to retrieve application being deleted: "+app.Name)
+				log.Error(err, "unable to retrieve application being deleted")
 			}
 
 		}
@@ -155,9 +160,10 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 
 				if len(app.Finalizers) != 0 {
 					// If the application exists, and it has a finalizer, remove it finalizer and try again
+					log.Info("removing finalizer from Application")
 					app.Finalizers = []string{}
 					if err := eventClient.Update(ctx, app); err != nil {
-						log.Error(err, "unable to remove finalizer from app: "+app.Name)
+						log.Error(err, "unable to remove finalizer from Application")
 						continue
 					}
 
@@ -169,9 +175,9 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 	}
 
 	if !success {
-		log.Info("Application was not successfully deleted: " + app.Name)
+		log.Info("Application was not successfully deleted")
 	} else {
-		log.Info("Application was successfully deleted: " + app.Name)
+		log.Info("Application was successfully deleted")
 	}
 
 	return nil

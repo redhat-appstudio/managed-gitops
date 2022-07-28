@@ -918,7 +918,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 
 		})
 
-		FIt("Should test guard row against delete for repo creds", func() {
+		It("Should test guard row against delete for repo creds", func() {
 			err := db.SetupForTestingDBGinkgo()
 			Expect(err).To(BeNil())
 

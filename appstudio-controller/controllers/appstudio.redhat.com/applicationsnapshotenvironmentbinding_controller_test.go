@@ -44,6 +44,9 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 				WithObjects(apiNamespace, argocdNamespace, kubesystemNamespace).
 				Build()
 
+			err = appstudiosharedv1.AddToScheme(scheme)
+			Expect(err).To(BeNil())
+
 			// Create placeholder environment
 			environment = appstudiosharedv1.Environment{
 				ObjectMeta: metav1.ObjectMeta{

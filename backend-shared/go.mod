@@ -17,8 +17,6 @@ require (
 	sigs.k8s.io/controller-runtime v0.11.0
 )
 
-require github.com/redhat-appstudio/managed-gitops/appstudio-shared v0.0.0-20220713230344-99ce94fcfc42
-
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect

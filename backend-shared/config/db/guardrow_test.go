@@ -918,7 +918,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 
 		})
 
-		It("Should test guard row against delete for repo creds", func() {
+		It("Should test guard row against update and delete for repo creds", func() {
 			err := db.SetupForTestingDBGinkgo()
 			Expect(err).To(BeNil())
 
@@ -985,7 +985,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			Expect(err).To(BeNil())
 
 			Expect(gitopsRepositoryCredentialsSecond.AuthUsername).Should(Equal("updated-auth-username"))
-			Expect(gitopsRepositoryCredentialsSecond.AuthUsername).ShouldNot(Equal(gitopsRepositoryCredentialsFirst.AuthUsername))
+			Expect(gitopsRepositoryCredentialsFirst.AuthUsername).ShouldNot(Equal(gitopsRepositoryCredentialsSecond.AuthUsername))
 
 			rowsAffected, err := dbq.DeleteRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsSecond.RepositoryCredentialsID)
 			Expect(err).To(BeNil())

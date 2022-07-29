@@ -165,7 +165,7 @@ func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationPara
 			continue
 		}
 
-		k8sOperation := operation.Operation{
+		k8sOperation := managedgitopsv1alpha1.Operation{
 			// TODO: GITOPSRVCE-195: Update this when standardizing operation CRs
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "operation-" + dbOperation.Operation_id,

@@ -71,6 +71,9 @@ CREATE TABLE GitopsEngineInstance (
 	namespace_name VARCHAR (48) NOT NULL,
 	namespace_uid VARCHAR (48) NOT NULL,
 
+	-- A single Argo CD Namespace should have a single GitOpsEngineInstance
+	UNIQUE (namespace_name, namespace_uid, enginecluster_id),
+
 	-- Reference to the Argo CD cluster containing the instance
 	-- Foreign key to: GitopsEngineCluster.gitopsenginecluster_id
 	enginecluster_id VARCHAR(48) NOT NULL,
@@ -337,6 +340,14 @@ CREATE TABLE KubernetesToDBResourceMapping  (
 	-- primary key of database table
 	db_relation_key  VARCHAR(64) NOT NULL,
 
+	-- At most a single entry should exist from DB -> Kubernetes resource of a particular type.
+	-- For example, only one ManagedEnvironment DB row should map to a particular K8s namespace 
+	UNIQUE ( db_relation_type, db_relation_key, kubernetes_resource_type ),
+
+	-- At most a single Kubernetes resources should map to a particular database row of a given type.
+	-- For example, a single Namespace K8s resource should only map to one Managed Environment.
+	UNIQUE ( kubernetes_resource_type, kubernetes_resource_uid, db_relation_type ),
+
 	seq_id serial,
 
 	PRIMARY KEY(kubernetes_resource_type, kubernetes_resource_uid, db_relation_type, db_relation_key)
@@ -379,6 +390,14 @@ CREATE TABLE APICRToDatabaseMapping  (
 
 	-- The primary key of the row in the database table being referenced.
 	db_relation_key VARCHAR(64) NOT NULL,
+
+	-- Only a database row should exist for each API resource of a given type
+	-- Example: Only one (or zero) SyncOperation row should exist for each GitOpsDeploymentSyncRun API resource
+	UNIQUE ( api_resource_type, api_resource_uid, db_relation_type ),
+
+	-- Only a API resource should exist for each DB row of a given type.
+	-- Example: Only one (or zero) GitOpsDeploymentSyncRun API should exist for a single SyncOperation row
+	UNIQUE ( db_relation_type, db_relation_key, api_resource_type ),
 
 	seq_id serial,
 

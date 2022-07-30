@@ -190,7 +190,7 @@ func applicationInfoCacheLoop(inputChan chan applicationInfoCacheRequest) {
 	cacheAppState := map[string]applicationStateCacheEntry{}
 	cacheApp := map[string]applicationCacheEntry{}
 
-	dbQueries, err := db.NewProductionPostgresDBQueries(false)
+	dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
 	if err != nil {
 		log.Error(err, "SEVERE: unexpected error in calling dbQueries")
 		return

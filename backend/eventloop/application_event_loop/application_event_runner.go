@@ -133,7 +133,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 
 				var err error
 
-				dbQueriesUnscoped, err := db.NewProductionPostgresDBQueries(false)
+				dbQueriesUnscoped, err := db.NewSharedProductionPostgresDBQueries(false)
 				if err != nil {
 					return fmt.Errorf("unable to access database in workspaceEventLoopRunner: %v", err)
 				}

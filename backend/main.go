@@ -194,7 +194,7 @@ func createPrimaryGitOpsEngineInstance(k8sclient client.Client, log logr.Logger)
 
 	ctx := context.Background()
 
-	dbQueries, err := db.NewProductionPostgresDBQueries(true)
+	dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
 	if err != nil {
 		return err
 	}

@@ -247,7 +247,7 @@ func internalSharedResourceEventLoop(inputChan chan sharedResourceLoopMessage) {
 
 	ctx := context.Background()
 	log := log.FromContext(ctx)
-	dbQueries, err := db.NewProductionPostgresDBQueries(false)
+	dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
 	if err != nil {
 		log.Error(err, "SEVERE: internalSharedResourceEventLoop exiting before startup")
 		return

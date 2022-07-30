@@ -94,7 +94,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	dbQueries, err := db.NewProductionPostgresDBQueries(true)
+	dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
 	if err != nil {
 		setupLog.Error(err, "never able to connect to database")
 		os.Exit(1)

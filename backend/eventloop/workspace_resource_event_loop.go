@@ -87,7 +87,7 @@ func internalWorkspaceResourceEventLoop(inputChan chan workspaceResourceLoopMess
 	ctx := context.Background()
 	log := log.FromContext(ctx).WithValues("component", "workspace_resource_event_loop")
 
-	dbQueries, err := db.NewProductionPostgresDBQueries(false)
+	dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
 	if err != nil {
 		log.Error(err, "SEVERE: internalSharedResourceEventLoop exiting before startup")
 		return

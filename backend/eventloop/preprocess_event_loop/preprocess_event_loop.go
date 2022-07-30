@@ -71,7 +71,7 @@ func preprocessEventLoopRouter(input chan eventlooptypes.EventLoopEvent, nextSte
 
 	taskRetryLoop := sharedutil.NewTaskRetryLoop("event-loop-router-retry-loop")
 
-	dbQueries, err := db.NewProductionPostgresDBQueries(false)
+	dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
 	if err != nil {
 		log.Error(err, "SEVERE: preProcessEventLoopRouter exiting before startup")
 		os.Exit(1)

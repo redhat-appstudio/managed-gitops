@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-pg/pg/v10"
@@ -241,13 +242,60 @@ type PostgreSQLDatabaseQueries struct {
 	//
 	// This should be false in all cases, with the only exception being test code.
 	allowUnsafe bool
+
+	// allowClose: if true, calling Close on PostgreSQLDatabaseQueries will close the connection pool; if false,
+	// the close operation will be ignored.
+	allowClose bool
 }
 
-func NewProductionPostgresDBQueries(verbose bool) (DatabaseQueries, error) {
-	return NewProductionPostgresDBQueriesWithPort(verbose, DEFAULT_PORT)
+var internalSharedDBEntity internalSharedDBConnectionPool
+
+const (
+	sharedDBPoolMapKey_standard = "standard"
+	sharedDBPoolMapKey_verbose  = "verbose"
+)
+
+type internalSharedDBConnectionPool struct {
+	mutex sync.Mutex
+
+	// At present, we maintain two separate pools: one for verbose output, and one for non-verbose output
+	// key is 'sharedDBPoolMapKey_*'
+	pools map[string]DatabaseQueries
 }
 
-func NewProductionPostgresDBQueriesWithPort(verbose bool, port int) (DatabaseQueries, error) {
+// NewSharedProductionPostgresDBQueries returns a connection to the database using go-pg's built-in connection pooling
+// functionality.
+func NewSharedProductionPostgresDBQueries(verbose bool) (DatabaseQueries, error) {
+
+	internalSharedDBEntity.mutex.Lock()
+	defer internalSharedDBEntity.mutex.Unlock()
+
+	// At present, we maintain two pools: one for verbose output, and one for non-verbose output
+	mapKey := sharedDBPoolMapKey_standard
+	if verbose {
+		mapKey = sharedDBPoolMapKey_verbose
+	}
+
+	if internalSharedDBEntity.pools == nil {
+		// Ensure the pools map is intialized
+		internalSharedDBEntity.pools = map[string]DatabaseQueries{}
+	}
+
+	dbQueries, exists := internalSharedDBEntity.pools[mapKey]
+	if !exists {
+		// If we haven't created a database connection pool for this mapKey yes, then create one.
+		var err error
+		dbQueries, err = internalNewProductionPostgresDBQueriesWithPort(verbose, DEFAULT_PORT, false)
+		if err != nil {
+			return nil, fmt.Errorf("unable to connect to database using shared function: %v", err)
+		}
+		internalSharedDBEntity.pools[mapKey] = dbQueries
+	}
+
+	return dbQueries, nil
+}
+
+func internalNewProductionPostgresDBQueriesWithPort(verbose bool, port int, allowClose bool) (DatabaseQueries, error) {
 
 	backoff := &sharedutil.ExponentialBackoff{
 		Factor: 2,
@@ -279,6 +327,7 @@ func NewProductionPostgresDBQueriesWithPort(verbose bool, port int) (DatabaseQue
 		dbConnection:   db,
 		allowTestUuids: false,
 		allowUnsafe:    false,
+		allowClose:     allowClose,
 	}
 
 	return dbq, nil
@@ -303,6 +352,7 @@ func NewUnsafePostgresDBQueriesWithPort(verbose bool, allowTestUuids bool, port 
 		dbConnection:   db,
 		allowTestUuids: allowTestUuids,
 		allowUnsafe:    true,
+		allowClose:     true,
 	}
 
 	fmt.Printf("* WARNING: Unsafe PostgreSQLDB object was created. You should never see this outside of test suites, or personal development.\n")
@@ -312,9 +362,9 @@ func NewUnsafePostgresDBQueriesWithPort(verbose bool, allowTestUuids bool, port 
 
 func (dbq *PostgreSQLDatabaseQueries) CloseDatabase() {
 
-	log := log.FromContext(context.Background())
+	if dbq.dbConnection != nil && dbq.allowClose {
+		log := log.FromContext(context.Background())
 
-	if dbq.dbConnection != nil {
 		// Close closes the database client, releasing any open resources.
 		//
 		// It is rare to Close a DB, as the DB handle is meant to be

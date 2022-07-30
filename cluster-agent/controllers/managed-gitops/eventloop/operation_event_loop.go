@@ -112,7 +112,7 @@ type processOperationEventTask struct {
 // NOTE: 'error' value does not affect whether the task will be retried, this error is only used for
 // error reporting.
 func (task *processOperationEventTask) PerformTask(taskContext context.Context) (bool, error) {
-	dbQueries, err := db.NewProductionPostgresDBQueries(true)
+	dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
 	if err != nil {
 		return true, fmt.Errorf("unable to instantiate database in operation controller loop: %v", err)
 	}

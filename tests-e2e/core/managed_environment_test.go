@@ -68,7 +68,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8sClient.List(context.Background(), &secretList, &client.ListOptions{Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace})
 			Expect(err).To(BeNil())
 
-			dbQueries, err := db.NewProductionPostgresDBQueries(false)
+			dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
 			Expect(err).To(BeNil())
 			defer dbQueries.CloseDatabase()
 

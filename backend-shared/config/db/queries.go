@@ -255,10 +255,11 @@ const (
 	sharedDBPoolMapKey_verbose  = "verbose"
 )
 
+// internalSharedDBConnectionPool maintains a list of DatabaseQueries, at present, one for verbose log output, and one for non-verbose log output
 type internalSharedDBConnectionPool struct {
 	mutex sync.Mutex
 
-	// At present, we maintain two separate pools: one for verbose output, and one for non-verbose output
+	// At present, we maintain two separate pools: one for verbose log output, and one for non-verbose log output
 	// key is 'sharedDBPoolMapKey_*'
 	pools map[string]DatabaseQueries
 }
@@ -270,15 +271,15 @@ func NewSharedProductionPostgresDBQueries(verbose bool) (DatabaseQueries, error)
 	internalSharedDBEntity.mutex.Lock()
 	defer internalSharedDBEntity.mutex.Unlock()
 
+	if internalSharedDBEntity.pools == nil {
+		// Ensure the pools map is intialized
+		internalSharedDBEntity.pools = map[string]DatabaseQueries{}
+	}
+
 	// At present, we maintain two pools: one for verbose output, and one for non-verbose output
 	mapKey := sharedDBPoolMapKey_standard
 	if verbose {
 		mapKey = sharedDBPoolMapKey_verbose
-	}
-
-	if internalSharedDBEntity.pools == nil {
-		// Ensure the pools map is intialized
-		internalSharedDBEntity.pools = map[string]DatabaseQueries{}
 	}
 
 	dbQueries, exists := internalSharedDBEntity.pools[mapKey]

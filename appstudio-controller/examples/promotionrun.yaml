@@ -1,0 +1,9 @@
+apiVersion: appstudio.redhat.com/v1alpha1
+kind: ApplicationPromotionRun
+metadata:
+  name: new-demo-app-manual-promotion
+spec:
+  snapshot: my-snapshot
+  application: new-demo-app
+  manualPromotion:
+    targetEnvironment: prod

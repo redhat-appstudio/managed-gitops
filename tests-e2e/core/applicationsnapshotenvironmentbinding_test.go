@@ -64,7 +64,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			// Update Status field
 			err = k8s.Get(&binding)
 			Expect(err).To(Succeed())
-			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", []string{"components/componentA/overlays/staging", "components/componentB/overlays/staging"})
+			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging", "components/componentB/overlays/staging"})
 			err = k8s.UpdateStatus(&binding)
 			Expect(err).To(Succeed())
 
@@ -130,7 +130,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			// Update Status field
 			err = k8s.Get(&binding)
 			Expect(err).To(Succeed())
-			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", []string{"components/componentA/overlays/staging"})
+			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging"})
 			err = k8s.UpdateStatus(&binding)
 			Expect(err).To(Succeed())
 
@@ -197,7 +197,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			// Update the Status field
 			err = k8s.Get(&binding)
 			Expect(err).To(Succeed())
-			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", []string{"components/componentA/overlays/staging"})
+			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging"})
 			err = k8s.UpdateStatus(&binding)
 			Expect(err).To(Succeed())
 
@@ -260,7 +260,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			err = k8s.Get(&binding)
 			Expect(err).To(Succeed())
 			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template",
-				"main", []string{"components/componentA/overlays/staging"})
+				"main", "fdhyqtw", []string{"components/componentA/overlays/staging"})
 			err = k8s.UpdateStatus(&binding)
 			Expect(err).To(Succeed())
 
@@ -333,7 +333,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			// Update the status field
 			err = k8s.Get(&binding)
 			Expect(err).To(Succeed())
-			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", []string{"components/componentA/overlays/staging"})
+			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging"})
 			err = k8s.UpdateStatus(&binding)
 			Expect(err).To(Succeed())
 
@@ -402,7 +402,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			Expect(err).To(BeNil())
 
 			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components,
-				"https://github.com/redhat-appstudio/gitops-repository-template", "main",
+				"https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw",
 				[]string{"components/componentA/overlays/staging"})
 
 			err = k8s.UpdateStatus(&binding)
@@ -462,7 +462,7 @@ func buildApplicationSnapshotEnvironmentBindingResource(name, appName, envName, 
 }
 
 func buildApplicationSnapshotEnvironmentBindingStatus(components []appstudiosharedv1.BindingComponent, url,
-	branch string, path []string) appstudiosharedv1.ApplicationSnapshotEnvironmentBindingStatus {
+	branch, commitID string, path []string) appstudiosharedv1.ApplicationSnapshotEnvironmentBindingStatus {
 
 	// Create ApplicationSnapshotEnvironmentBindingStatus object.
 	status := appstudiosharedv1.ApplicationSnapshotEnvironmentBindingStatus{}
@@ -473,7 +473,7 @@ func buildApplicationSnapshotEnvironmentBindingStatus(components []appstudioshar
 		componentStatus = append(componentStatus, appstudiosharedv1.ComponentStatus{
 			Name: component.Name,
 			GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{
-				URL: url, Branch: branch, Path: path[i], GeneratedResources: []string{},
+				URL: url, Branch: branch, Path: path[i], GeneratedResources: []string{}, CommitID: commitID,
 			},
 		})
 	}

@@ -25,3 +25,4 @@ status:
         path: components/componentA/overlays/staging
         generatedResources:
           - abc.yaml
+        commitID: fdhyqtw

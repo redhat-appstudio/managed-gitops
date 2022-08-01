@@ -71,6 +71,11 @@ type ApplicationPromotionRunStatus struct {
 	// - For an automated promotion, there can be multiple active bindings at a time (one for each env at a particular tree depth)
 	// - For a manual promotion, there will be only one.
 	ActiveBindings []string `json:"activeBindings,omitempty"`
+
+	// PromotionStartTime is set to the value when the ApplicationPromotionRun Reconciler first started the promotion.
+	PromotionStartTime metav1.Time `json:"promotionStartTime,omitempty"`
+
+	Conditions []PromotionRunCondition `json:"conditions,omitempty"`
 }
 
 // PromotionRunState defines the 3 states of an ApplicationPromotion resource.
@@ -143,3 +148,54 @@ type ApplicationPromotionRunList struct {
 func init() {
 	SchemeBuilder.Register(&ApplicationPromotionRun{}, &ApplicationPromotionRunList{})
 }
+
+// PromotionRunCondition contains details about an PromotionRun condition, which is usually an error or warning
+type PromotionRunCondition struct {
+	// Type is a PromotionRun condition type
+	Type PromotionRunConditionType `json:"type"`
+
+	// Message contains human-readable message indicating details about the last condition.
+	// +optional
+	Message string `json:"message"`
+
+	// LastProbeTime is the last time the condition was observed.
+	// +optional
+	LastProbeTime metav1.Time `json:"lastProbeTime,omitempty"`
+
+	// LastTransitionTime is the last time the condition transitioned from one status to another.
+	// +optional
+	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty"`
+
+	// Status is the status of the condition.
+	Status PromotionRunConditionStatus `json:"status"`
+
+	// Reason is a unique, one-word, CamelCase reason for the condition's last transition.
+	// +optional
+	Reason PromotionRunReasonType `json:"reason"`
+}
+
+// PromotionRunConditionType represents type of GitOpsDeployment condition.
+type PromotionRunConditionType string
+
+const (
+	PromotionRunConditionErrorOccurred PromotionRunConditionType = "ErrorOccurred"
+)
+
+// PromotionRunConditionStatus is a type which represents possible comparison results
+type PromotionRunConditionStatus string
+
+// PromotionRun Condition Status
+const (
+	// PromotionRunConditionStatusTrue indicates that a condition type is true
+	PromotionRunConditionStatusTrue PromotionRunConditionStatus = "True"
+	// PromotionRunConditionStatusFalse indicates that a condition type is false
+	PromotionRunConditionStatusFalse PromotionRunConditionStatus = "False"
+	// PromotionRunConditionStatusUnknown indicates that the condition status could not be reliably determined
+	PromotionRunConditionStatusUnknown PromotionRunConditionStatus = "Unknown"
+)
+
+type PromotionRunReasonType string
+
+const (
+	PromotionRunReasonErrorOccurred PromotionRunReasonType = "ErrorOccurred"
+)

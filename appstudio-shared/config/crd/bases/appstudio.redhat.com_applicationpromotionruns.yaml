@@ -92,6 +92,40 @@ spec:
                   has completed all work. CompletionResult will only have a value
                   if State field is 'Complete'.
                 type: string
+              conditions:
+                items:
+                  description: PromotionRunCondition contains details about an PromotionRun
+                    condition, which is usually an error or warning
+                  properties:
+                    lastProbeTime:
+                      description: LastProbeTime is the last time the condition was
+                        observed.
+                      format: date-time
+                      type: string
+                    lastTransitionTime:
+                      description: LastTransitionTime is the last time the condition
+                        transitioned from one status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: Message contains human-readable message indicating
+                        details about the last condition.
+                      type: string
+                    reason:
+                      description: Reason is a unique, one-word, CamelCase reason
+                        for the condition's last transition.
+                      type: string
+                    status:
+                      description: Status is the status of the condition.
+                      type: string
+                    type:
+                      description: Type is a PromotionRun condition type
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
               environmentStatus:
                 description: EnvironmentStatus represents the set of steps taken during
                   the  current promotion
@@ -124,6 +158,11 @@ spec:
                   - step
                   type: object
                 type: array
+              promotionStartTime:
+                description: PromotionStartTime is set to the value when the ApplicationPromotionRun
+                  Reconciler first started the promotion.
+                format: date-time
+                type: string
               state:
                 description: State indicates whether or not the overall promotion
                   (either manual or automated is complete)

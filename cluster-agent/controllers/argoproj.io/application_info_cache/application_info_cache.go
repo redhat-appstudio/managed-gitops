@@ -1,4 +1,4 @@
-package util
+package application_info_cache
 
 import (
 	"context"
@@ -10,6 +10,20 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
+
+// The cache exists because we do want to overwhelm the controller (or the database) with various operations frequently: most
+// of the time these reconciliations are changes that might not be useful for us.
+//
+// To avoid unnecessary read/write to the database, the cache is being implemented in backend-shared which will be used
+// by cluster-agent's Application contrller reconciliation.
+//
+// The cache should only be used by 'application_controller.go'.
+//
+// The cache:
+// - will always return the most recent ApplicationState value from the database
+// - in constrast, the cache will return a value for Application that is at most 60 seconds old
+//   (the Application in the cache state will be eventually consistent with the database)
+//     - since it is eventually consistent, the calling code needs to be aware of this in its logic.
 
 // A wrapper over the ApplicationStateCache entries of the database
 // Note: This should only be used by cluster-agent's application controller.

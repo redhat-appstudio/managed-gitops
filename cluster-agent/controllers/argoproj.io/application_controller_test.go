@@ -10,6 +10,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
+	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/argoproj.io/application_info_cache"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -18,7 +19,6 @@ import (
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
-	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -104,11 +104,11 @@ var _ = Describe("Application Controller", func() {
 			}
 
 			reconciler = ApplicationReconciler{
-				Client:        k8sClient,
-				Scheme:        scheme,
-				DB:            dbQueries,
-				TaskRetryLoop: sharedutil.NewTaskRetryLoop("application-reconciler"),
-				Cache:         dbutil.NewApplicationInfoCache(),
+				Client:                k8sClient,
+				Scheme:                scheme,
+				DB:                    dbQueries,
+				DeletionTaskRetryLoop: sharedutil.NewTaskRetryLoop("application-reconciler"),
+				Cache:                 application_info_cache.NewApplicationInfoCache(),
 			}
 		})
 
@@ -516,7 +516,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			reconciler = ApplicationReconciler{
 				Client: k8sClient,
 				DB:     dbQueries,
-				Cache:  dbutil.NewApplicationInfoCache(),
+				Cache:  application_info_cache.NewApplicationInfoCache(),
 			}
 
 			err = reconciler.Create(ctx, &argoCdApp)

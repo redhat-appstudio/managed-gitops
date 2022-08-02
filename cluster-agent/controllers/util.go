@@ -28,6 +28,10 @@ const (
 	RepoCredDatabaseIDLabel            = "databaseID"
 )
 
+// DeleteArgoCDApplication attempts to gracefully delete an Argo CD application:
+// - Issue a Delete to K8s API
+// - If the Application is not deleted after X minutes, remove the finalizer
+// - If the Application is not deleted after X+2 minutes, return an error
 func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application, eventClient client.Client, log logr.Logger) error {
 
 	log = log.WithValues("name", appFromList.Name, "namespace", appFromList.Namespace, "uid", string(appFromList.UID))
@@ -133,13 +137,13 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 
 		backoff.Reset()
 
-		// Add up to X minutes (eg 2 minutes) to wait for the deletion
-		expirationTime = expirationTime.Add(WaitForArgoCDToPerformNonfinalizerDeleteTimeout)
+		// Wait 2 minutes from the current time for the application to delete, before reporting an error.
+		expirationTime = time.Now().Add(WaitForArgoCDToPerformNonfinalizerDeleteTimeout)
 
 		for {
 
 			if time.Now().After(expirationTime) {
-				log.Error(nil, "Argo CD application non-finalizer-based delete expired in deleteArgoCDApplication")
+				log.Error(nil, "Argo CD Application finalizer was removed, but the delete wait expired in deleteArgoCDApplication")
 				success = false
 				break
 			}
@@ -159,7 +163,7 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 			} else {
 
 				if len(app.Finalizers) != 0 {
-					// If the application exists, and it has a finalizer, remove it finalizer and try again
+					// If the application exists, and it has a finalizer, remove the finalizer and try again
 					log.Info("removing finalizer from Application")
 					app.Finalizers = []string{}
 					if err := eventClient.Update(ctx, app); err != nil {

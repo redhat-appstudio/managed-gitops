@@ -21,6 +21,7 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -28,9 +29,9 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
-	cache "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
+	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/argoproj.io/application_info_cache"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -41,10 +42,15 @@ import (
 // ApplicationReconciler reconciles a Application object
 type ApplicationReconciler struct {
 	client.Client
-	Scheme        *runtime.Scheme
-	TaskRetryLoop *sharedutil.TaskRetryLoop
-	Cache         *cache.ApplicationInfoCache
-	DB            db.DatabaseQueries
+	Scheme *runtime.Scheme
+
+	// DeletionTaskRetryLoop maintains a list of active goroutines that are queued to delete Argo CD Applications
+	DeletionTaskRetryLoop *sharedutil.TaskRetryLoop
+
+	// Cache maintains an in-memory cache of the Application/ApplicationState database resources
+	Cache *application_info_cache.ApplicationInfoCache
+
+	DB db.DatabaseQueries
 }
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -71,7 +77,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// 2) Retrieve the Application DB entry, using the 'databaseID' field of the Application.
 	// - This is a field we add ourselves to every Application we create, which references the
-	//   corresponding an Application table primary key.
+	//   corresponding Application row primary key.
 	applicationDB := &db.Application{}
 	if databaseID, exists := app.Labels[controllers.ArgoCDApplicationDatabaseIDLabel]; !exists {
 		log.V(sharedutil.LogLevel_Warn).Info("Application CR was missing 'databaseID' label")
@@ -92,7 +98,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			}
 
 			// Add the Application to the task loop, so that it can be deleted.
-			r.TaskRetryLoop.AddTaskIfNotPresent(app.Namespace+"/"+app.Name, &adt,
+			r.DeletionTaskRetryLoop.AddTaskIfNotPresent(app.Namespace+"/"+app.Name, &adt,
 				sharedutil.ExponentialBackoff{Factor: 2, Min: time.Millisecond * 200, Max: time.Second * 10, Jitter: true})
 
 			return ctrl.Result{}, nil
@@ -156,7 +162,13 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	if err := r.Cache.UpdateApplicationState(ctx, *applicationState); err != nil {
-		log.Error(err, "unexpected error on updating existing application state")
+
+		if strings.Contains(err.Error(), db.ErrorUnexpectedNumberOfRowsAffected) {
+			log.V(sharedutil.LogLevel_Warn).Error(err, "unexpected error on updating existing application state (but the Application might have been deleted)")
+		} else {
+			log.Error(err, "unexpected error on updating existing application state")
+		}
+
 		return ctrl.Result{}, err
 	}
 

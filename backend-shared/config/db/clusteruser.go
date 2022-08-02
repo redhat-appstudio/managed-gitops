@@ -168,7 +168,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetOrCreateSpecialClusterUser(ctx context.
 	}
 
 	if len(dbResults) >= 2 {
-		return fmt.Errorf("Multiple users are found is GetOrCreateSpecialClusterUser.")
+		return fmt.Errorf("multiple users are found is GetOrCreateSpecialClusterUser")
 	}
 
 	// If user already exists then return it, else create new.

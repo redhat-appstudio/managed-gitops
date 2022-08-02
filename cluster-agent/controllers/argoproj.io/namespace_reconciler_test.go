@@ -11,6 +11,7 @@ import (
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
+	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/argoproj.io/application_info_cache"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -199,7 +200,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			reconciler = ApplicationReconciler{
 				Client: k8sClient,
 				DB:     dbQueries,
-				Cache:  dbutil.NewApplicationInfoCache(),
+				Cache:  application_info_cache.NewApplicationInfoCache(),
 			}
 
 			err = reconciler.Create(ctx, &argoCdApp)

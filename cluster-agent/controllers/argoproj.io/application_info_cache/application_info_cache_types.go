@@ -1,4 +1,4 @@
-package util
+package application_info_cache
 
 import (
 	"context"

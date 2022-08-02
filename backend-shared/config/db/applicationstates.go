@@ -6,6 +6,10 @@ import (
 	"fmt"
 )
 
+const (
+	ErrorUnexpectedNumberOfRowsAffected = "unexpected number of rows affected"
+)
+
 func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllApplicationStates(ctx context.Context, applicationStates *[]ApplicationState) error {
 
 	if err := validateUnsafeQueryParamsNoPK(dbq); err != nil {
@@ -61,7 +65,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateApplicationState(ctx context.Context
 	noOfBytesInObj := binary.Size(obj.Resources)
 	maxSize := DbFieldMap["ApplicationStateResourcesLength"]
 	if noOfBytesInObj > maxSize {
-		return fmt.Errorf("Resources value exceeds maximum size: max: %d, actual: %d", maxSize, noOfBytesInObj)
+		return fmt.Errorf("resources value exceeds maximum size: max: %d, actual: %d", maxSize, noOfBytesInObj)
 	}
 
 	// Inserting ApplicationState object
@@ -100,7 +104,7 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateApplicationState(ctx context.Context
 	noOfBytesInObj := binary.Size(obj.Resources)
 	maxSize := DbFieldMap["ApplicationStateResourcesLength"]
 	if noOfBytesInObj > maxSize {
-		return fmt.Errorf("Resources value exceeds maximum size: max: %d, actual: %d", maxSize, noOfBytesInObj)
+		return fmt.Errorf("resources value exceeds maximum size: max: %d, actual: %d", maxSize, noOfBytesInObj)
 	}
 
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).
@@ -110,7 +114,7 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateApplicationState(ctx context.Context
 	}
 
 	if result.RowsAffected() != 1 {
-		return fmt.Errorf("unexpected number of rows affected: %d", result.RowsAffected())
+		return fmt.Errorf("%s: %d", ErrorUnexpectedNumberOfRowsAffected, result.RowsAffected())
 	}
 
 	return nil

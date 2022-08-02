@@ -1,4 +1,4 @@
-package util_test
+package application_info_cache
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
-	util "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 )
 
 var _ = Describe("application_info_cache Test", func() {
@@ -18,7 +17,7 @@ var _ = Describe("application_info_cache Test", func() {
 			Expect(err).To(BeNil())
 
 			ctx := context.Background()
-			asc := util.NewApplicationInfoCache()
+			asc := NewApplicationInfoCache()
 			defer asc.DebugOnly_Shutdown(ctx)
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
@@ -87,7 +86,7 @@ var _ = Describe("application_info_cache Test", func() {
 			Expect(err).To(BeNil())
 
 			ctx := context.Background()
-			asc := util.NewApplicationInfoCache()
+			asc := NewApplicationInfoCache()
 			defer asc.DebugOnly_Shutdown(ctx)
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
@@ -152,7 +151,7 @@ var _ = Describe("application_info_cache Test", func() {
 			Expect(err).To(BeNil())
 
 			ctx := context.Background()
-			asc := util.NewApplicationInfoCache()
+			asc := NewApplicationInfoCache()
 			defer asc.DebugOnly_Shutdown(ctx)
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)

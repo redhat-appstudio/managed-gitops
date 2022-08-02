@@ -424,7 +424,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 
 				log := log.WithValues("argoCDApplicationName", item.Name, "argoCDApplicationNmespace", item.Namespace)
 
-				log.Info("Deleting Argo CD Application that is missing a DB Entry")
+				log.Info("Deleting Argo CD Application that is no longer (or not) defined in the Application table.")
 
 				// Delete all Argo CD applications with the corresponding database label (but, there should be only one)
 				err := controllers.DeleteArgoCDApplication(ctx, item, eventClient, log)

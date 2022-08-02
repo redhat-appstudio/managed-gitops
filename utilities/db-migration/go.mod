@@ -29,6 +29,9 @@ require (
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/kcp-dev/apimachinery v0.0.0-20220621200107-3d03cbbc3770 // indirect
+	github.com/kcp-dev/kcp/pkg/apis v0.6.3 // indirect
+	github.com/kcp-dev/logicalcluster v1.1.1-0.20220705215104-8e46328c24a5 // indirect
 	github.com/lib/pq v1.10.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -59,19 +62,22 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
-	k8s.io/api v0.23.0 // indirect
-	k8s.io/apiextensions-apiserver v0.23.0 // indirect
-	k8s.io/apimachinery v0.23.0 // indirect
-	k8s.io/client-go v0.23.0 // indirect
-	k8s.io/component-base v0.23.0 // indirect
-	k8s.io/klog/v2 v2.30.0 // indirect
+	k8s.io/api v0.23.5 // indirect
+	k8s.io/apiextensions-apiserver v0.23.5 // indirect
+	k8s.io/apimachinery v0.23.5 // indirect
+	k8s.io/client-go v0.23.5 // indirect
+	k8s.io/component-base v0.23.5 // indirect
+	k8s.io/klog/v2 v2.60.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20211115234752-e816edb12b65 // indirect
-	k8s.io/utils v0.0.0-20210930125809-cb0fa318a74b // indirect
+	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9 // indirect
 	mellium.im/sasl v0.2.1 // indirect
-	sigs.k8s.io/controller-runtime v0.11.0 // indirect
-	sigs.k8s.io/json v0.0.0-20211020170558-c049b76a60c6 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.2.0 // indirect
+	sigs.k8s.io/controller-runtime v0.11.2 // indirect
+	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
+	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace github.com/redhat-appstudio/managed-gitops/backend-shared => ../../backend-shared
+replace (
+	github.com/redhat-appstudio/managed-gitops/backend-shared => ../../backend-shared
+	sigs.k8s.io/controller-runtime => github.com/kcp-dev/controller-runtime v0.11.3-0.20220624161137-f6e5a2f56683
+)

@@ -1,12 +1,9 @@
-package eventlooptypes
+package tests
 
 import (
-	"testing"
-
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 
-	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,15 +12,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
-
-func GenericTestSetupForTestingT(t *testing.T) (*runtime.Scheme, *corev1.Namespace, *corev1.Namespace, *corev1.Namespace) {
-
-	scheme, argocdNamespace, kubesystemNamespace, workspace, err := GenericTestSetup()
-	assert.NoError(t, err)
-
-	return scheme, argocdNamespace, kubesystemNamespace, workspace
-
-}
 
 func GenericTestSetup() (*runtime.Scheme, *corev1.Namespace, *corev1.Namespace, *corev1.Namespace, error) {
 	scheme := runtime.NewScheme()

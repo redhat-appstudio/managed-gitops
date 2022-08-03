@@ -42,12 +42,11 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/redhat-appstudio/managed-gitops/utilities/db-migration/migrate"
 
-	managedgitopsv1alpha1operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 
+	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
-	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1"
 	managedgitopscontrollers "github.com/redhat-appstudio/managed-gitops/backend/controllers/managed-gitops"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop"
 	"github.com/redhat-appstudio/managed-gitops/backend/routes"
@@ -61,7 +60,6 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(managedgitopsv1alpha1operation.AddToScheme(scheme))
 
 	utilruntime.Must(managedgitopsv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme

@@ -22,8 +22,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -37,6 +37,7 @@ var _ = Describe("GitOpsDeploymentManagedEnvironment Controller Test", func() {
 
 	Context("Generic tests", func() {
 
+		var k8sClient client.Client
 		var namespace *corev1.Namespace
 
 		createSecret := func(name string, validSecret bool) corev1.Secret {
@@ -77,7 +78,7 @@ var _ = Describe("GitOpsDeploymentManagedEnvironment Controller Test", func() {
 		var mockProcessor mockPreprocessEventLoopProcessor
 
 		BeforeEach(func() {
-			scheme, argocdNamespace, kubesystemNamespace, _, err := eventlooptypes.GenericTestSetup()
+			scheme, argocdNamespace, kubesystemNamespace, _, err := tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(argocdNamespace, kubesystemNamespace).Build()

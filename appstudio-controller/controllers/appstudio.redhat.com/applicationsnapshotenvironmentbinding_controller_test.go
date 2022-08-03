@@ -15,7 +15,7 @@ import (
 
 	appstudiosharedv1 "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
 	apibackend "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 )
 
 var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func() {
@@ -35,7 +35,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 				argocdNamespace,
 				kubesystemNamespace,
 				apiNamespace,
-				err := eventlooptypes.GenericTestSetup()
+				err := tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			// Create fake client

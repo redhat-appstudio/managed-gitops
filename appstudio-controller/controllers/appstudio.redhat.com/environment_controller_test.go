@@ -7,7 +7,8 @@ import (
 	. "github.com/onsi/gomega"
 	appstudioshared "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
+
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,7 +33,7 @@ var _ = Describe("Environment controller tests", func() {
 				argocdNamespace,
 				kubesystemNamespace,
 				namespace,
-				err := eventlooptypes.GenericTestSetup()
+				err := tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			err = appstudioshared.AddToScheme(scheme)

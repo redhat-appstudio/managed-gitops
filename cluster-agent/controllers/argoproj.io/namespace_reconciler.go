@@ -14,10 +14,9 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	cache "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
-	appEventLoop "github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/application_event_loop"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	"gopkg.in/yaml.v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -135,7 +134,7 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 						Resource_type: db.OperationResourceType_Application,
 					}
 
-					_, _, err = eventlooptypes.CreateOperation(ctx, false, dbOperationInput,
+					_, _, err = operations.CreateOperation(ctx, false, dbOperationInput,
 						specialClusterUser.Clusteruser_id, cache.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, client, log)
 					if err != nil {
 						log.Error(err, "Namespace Reconciler is unable to create operation: "+dbOperationInput.ShortString())
@@ -168,7 +167,7 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 				Resource_type: db.OperationResourceType_Application,
 			}
 
-			_, _, err = eventlooptypes.CreateOperation(ctx, false, dbOperationInput,
+			_, _, err = operations.CreateOperation(ctx, false, dbOperationInput,
 				specialClusterUser.Clusteruser_id, cache.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, client, log)
 			if err != nil {
 				log.Error(err, "Namespace Reconciler is unable to create operation: "+dbOperationInput.ShortString())
@@ -308,7 +307,7 @@ func cleanK8sOperations(ctx context.Context, dbq db.DatabaseQueries, client clie
 	for _, k8sOperation := range listOfK8sOperation.Items {
 
 		// Skip if Operation was not created by Namespace Reconciler.
-		if k8sOperation.Annotations[eventlooptypes.IdentifierKey] != eventlooptypes.IdentifierValue {
+		if k8sOperation.Annotations[operations.IdentifierKey] != operations.IdentifierValue {
 			continue
 		}
 
@@ -328,7 +327,7 @@ func cleanK8sOperations(ctx context.Context, dbq db.DatabaseQueries, client clie
 		log.Info("Deleting Operation created by Namespace Reconciler." + string(k8sOperation.UID))
 
 		// Delete the k8s operation now.
-		if err := appEventLoop.CleanupOperation(ctx, dbOperation, k8sOperation, cache.GetGitOpsEngineSingleInstanceNamespace(),
+		if err := operations.CleanupOperation(ctx, dbOperation, k8sOperation, cache.GetGitOpsEngineSingleInstanceNamespace(),
 			dbq, client, log); err != nil {
 
 			log.Error(err, "Unable to Delete k8s Operation"+string(k8sOperation.UID)+" for DbOperation: "+string(k8sOperation.Spec.OperationID))

@@ -7,8 +7,8 @@ import (
 
 	"github.com/go-logr/logr"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -105,7 +105,7 @@ func applicationEventQueueLoop(input chan eventlooptypes.EventLoopMessage, gitop
 			continue
 		}
 
-		if newEvent.Event.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentTypeName {
+		if newEvent.Event.ReqResource == eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName {
 			// This is expected: the AssociatedGitopsDeplUID won't match for managedenvironments
 
 		} else if newEvent.Event.AssociatedGitopsDeplUID != gitopsDeplID {
@@ -120,7 +120,7 @@ func applicationEventQueueLoop(input chan eventlooptypes.EventLoopMessage, gitop
 
 			log.V(sharedutil.LogLevel_Debug).Info("applicationEventQueueLoop received event")
 
-			if newEvent.Event.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentTypeName {
+			if newEvent.Event.ReqResource == eventlooptypes.GitOpsDeploymentTypeName {
 
 				if !deploymentEventRunnerShutdown {
 					waitingDeploymentEvents = append(waitingDeploymentEvents, newEvent.Event)
@@ -128,14 +128,14 @@ func applicationEventQueueLoop(input chan eventlooptypes.EventLoopMessage, gitop
 					log.V(sharedutil.LogLevel_Debug).Info("Ignoring post-shutdown deployment event")
 				}
 
-			} else if newEvent.Event.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName {
+			} else if newEvent.Event.ReqResource == eventlooptypes.GitOpsDeploymentSyncRunTypeName {
 
 				if !syncOperationEventRunnerShutdown {
 					waitingSyncOperationEvents = append(waitingSyncOperationEvents, newEvent.Event)
 				} else {
 					log.V(sharedutil.LogLevel_Debug).Info("Ignoring post-shutdown sync operation event")
 				}
-			} else if newEvent.Event.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentTypeName {
+			} else if newEvent.Event.ReqResource == eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName {
 
 				if !deploymentEventRunnerShutdown {
 					waitingDeploymentEvents = append(waitingDeploymentEvents, newEvent.Event)
@@ -168,8 +168,8 @@ func applicationEventQueueLoop(input chan eventlooptypes.EventLoopMessage, gitop
 				activeDeploymentEvent = nil
 				startNewStatusUpdateTimer(ctx, input, gitopsDeplID, log)
 
-			} else if newEvent.Event.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentTypeName ||
-				newEvent.Event.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentTypeName {
+			} else if newEvent.Event.ReqResource == eventlooptypes.GitOpsDeploymentTypeName ||
+				newEvent.Event.ReqResource == eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName {
 
 				if activeDeploymentEvent != newEvent.Event {
 					log.Error(nil, "SEVERE: unmatched deployment event work item", "activeDeploymentEvent", eventlooptypes.StringEventLoopEvent(activeDeploymentEvent))
@@ -181,7 +181,7 @@ func applicationEventQueueLoop(input chan eventlooptypes.EventLoopMessage, gitop
 					log.Info("Deployment signalled shutdown")
 				}
 
-			} else if newEvent.Event.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName {
+			} else if newEvent.Event.ReqResource == eventlooptypes.GitOpsDeploymentSyncRunTypeName {
 
 				if newEvent.Event != activeSyncOperationEvent {
 					log.Error(nil, "SEVERE: unmatched sync operation event work item", "activeSyncOperationEvent", eventlooptypes.StringEventLoopEvent(activeSyncOperationEvent))

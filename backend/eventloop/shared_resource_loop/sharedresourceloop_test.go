@@ -12,7 +12,7 @@ import (
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,7 +45,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			scheme,
 				argocdNamespace,
 				kubesystemNamespace,
-				namespaceTemp, err := eventlooptypes.GenericTestSetup()
+				namespaceTemp, err := tests.GenericTestSetup()
 
 			Expect(err).To(BeNil())
 

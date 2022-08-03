@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop"
 )
 
@@ -59,7 +59,7 @@ func (r *GitOpsDeploymentRepositoryCredentialReconciler) Reconcile(ctx context.C
 		return ctrl.Result{}, err
 	}
 
-	r.PreprocessEventLoop.EventReceived(req, managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialTypeName, r.Client,
+	r.PreprocessEventLoop.EventReceived(req, eventlooptypes.GitOpsDeploymentRepositoryCredentialTypeName, r.Client,
 		eventlooptypes.RepositoryCredentialModified, string(namespace.UID))
 
 	return ctrl.Result{}, nil

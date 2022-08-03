@@ -27,7 +27,7 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -58,7 +58,7 @@ var _ = Describe("Garbage Collect Operations", func() {
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).To(BeNil())
 
-			scheme, _, _, _, err := eventlooptypes.GenericTestSetup()
+			scheme, _, _, _, err := tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 			k8sClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 

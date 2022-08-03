@@ -6,8 +6,9 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -41,7 +42,7 @@ var _ = Describe("Application Controller", func() {
 		var err error
 
 		BeforeEach(func() {
-			scheme, argocdNamespace, kubesystemNamespace, workspace, err := eventlooptypes.GenericTestSetup()
+			scheme, argocdNamespace, kubesystemNamespace, workspace, err := tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			err = appv1.AddToScheme(scheme)
@@ -481,7 +482,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
 			Expect(err).To(BeNil())
 
-			scheme, argocdNamespace, kubesystemNamespace, workspace, err := eventlooptypes.GenericTestSetup()
+			scheme, argocdNamespace, kubesystemNamespace, workspace, err := tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			_, dummyApplicationSpec, argoCdApp, err = createDummyApplicationData()
@@ -533,7 +534,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			for _, k8sOperation := range listOfK8sOperation.Items {
 				// Look for Operation created by Namespace Reconciler.
-				if k8sOperation.Annotations[eventlooptypes.IdentifierKey] == eventlooptypes.IdentifierValue {
+				if k8sOperation.Annotations[operations.IdentifierKey] == operations.IdentifierValue {
 					rowsAffected, err := dbQueries.DeleteOperationById(ctx, k8sOperation.Spec.OperationID)
 					Expect(err).To(BeNil())
 					Expect(rowsAffected).Should((Equal(1)))
@@ -564,7 +565,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			count := 0
 			for _, k8sOperation := range listOfK8sOperation.Items {
 				// Look for Operation created by Namespace Reconciler.
-				if k8sOperation.Annotations[eventlooptypes.IdentifierKey] == eventlooptypes.IdentifierValue {
+				if k8sOperation.Annotations[operations.IdentifierKey] == operations.IdentifierValue {
 					// Fetch corresponding DB entry
 					dbOperation := db.Operation{
 						Operation_id: k8sOperation.Spec.OperationID,
@@ -606,7 +607,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			for _, k8sOperation := range listOfK8sOperation.Items {
 				// Look for Operation created by Namespace Reconciler.
-				if k8sOperation.Annotations[eventlooptypes.IdentifierKey] == eventlooptypes.IdentifierValue {
+				if k8sOperation.Annotations[operations.IdentifierKey] == operations.IdentifierValue {
 					// Fetch corresponding DB entry
 					dbOperation := db.Operation{
 						Operation_id: k8sOperation.Spec.OperationID,
@@ -646,7 +647,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			for _, k8sOperation := range listOfK8sOperation.Items {
 				// Look for Operation created by Namespace Reconciler.
-				if k8sOperation.Annotations[eventlooptypes.IdentifierKey] == eventlooptypes.IdentifierValue {
+				if k8sOperation.Annotations[operations.IdentifierKey] == operations.IdentifierValue {
 					// Fetch corresponding DB entry
 					dbOperation := db.Operation{
 						Operation_id: k8sOperation.Spec.OperationID,

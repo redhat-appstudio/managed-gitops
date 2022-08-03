@@ -29,7 +29,7 @@ port-forward-postgress-manual: ## Port forward postgresql manually
 port-forward-postgress-auto: ## Port forward postgresql automatically
 	$(MAKEFILE_ROOT)/create-dev-env.sh kube-auto
 	
-### --- B a c k e n d  S h a r e d--- ###
+### --- B a c k e n d  -  S h a r e d--- ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 deploy-backend-shared-crd: ## Deploy backend related CRDs
 	kubectl create namespace gitops 2> /dev/null || true

@@ -2,7 +2,7 @@ package preprocess_event_loop
 
 import (
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 )
 
 // gitopsDeplSyncRunCache is a cache of which GitOpsDeploymentSyncRun K8s resources refer to which GitOpsDeployment K8s resources, by UID.

@@ -31,8 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop"
 )
 
@@ -121,7 +121,7 @@ type DefaultPreProcessEventLoopProcessor struct {
 }
 
 func (dppelp *DefaultPreProcessEventLoopProcessor) callPreprocessEventLoopForManagedEnvironment(requestToProcess ctrl.Request, k8sClient client.Client, namespace corev1.Namespace) {
-	dppelp.PreprocessEventLoop.EventReceived(requestToProcess, managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentTypeName,
+	dppelp.PreprocessEventLoop.EventReceived(requestToProcess, eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName,
 		k8sClient,
 		eventlooptypes.ManagedEnvironmentModified, string(namespace.UID))
 }

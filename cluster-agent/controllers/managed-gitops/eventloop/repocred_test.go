@@ -12,7 +12,7 @@ import (
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,7 +51,7 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 		logger = log.FromContext(ctx) // do this, or invalid memory address or nil pointer dereference will occur
 
 		By("Get a clusterEngineInstance")
-		scheme, argocdNamespace, kubesystemNamespace, workspace, err := eventlooptypes.GenericTestSetup()
+		scheme, argocdNamespace, kubesystemNamespace, workspace, err := tests.GenericTestSetup()
 		Expect(err).To(BeNil())
 
 		_, _, _, _, _, err = db.CreateSampleData(dbq)

@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop"
 )
 
@@ -56,7 +56,7 @@ func (r *GitOpsDeploymentSyncRunReconciler) Reconcile(ctx context.Context, req c
 		return ctrl.Result{}, err
 	}
 
-	r.PreprocessEventLoop.EventReceived(req, managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName, r.Client, eventlooptypes.SyncRunModified, string(namespace.UID))
+	r.PreprocessEventLoop.EventReceived(req, eventlooptypes.GitOpsDeploymentSyncRunTypeName, r.Client, eventlooptypes.SyncRunModified, string(namespace.UID))
 
 	return ctrl.Result{}, nil
 }

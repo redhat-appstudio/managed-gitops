@@ -10,8 +10,9 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -518,7 +519,7 @@ func deleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 		log.Info("Creating operation for updated application, of deleted managed environment", "application", app.Application_id)
 
 		// Don't wait for the Operation to complete, just create it and continue with the next.
-		_, _, err = eventlooptypes.CreateOperation(ctx, false, operation, user.Clusteruser_id,
+		_, _, err = operations.CreateOperation(ctx, false, operation, user.Clusteruser_id,
 			dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, client, log)
 		// TODO: GITOPSRVCE-174 - Add garbage collection of this operation once 174 is finished.
 		if err != nil {
@@ -587,7 +588,7 @@ func deleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 		log.Info("Creating operation to update managed environment")
 
 		// TODO: GITOPSRVCE-174 - Add garbage collection of this operation once 174 is finished.
-		_, _, err = eventlooptypes.CreateOperation(ctx, false, operation, user.Clusteruser_id,
+		_, _, err = operations.CreateOperation(ctx, false, operation, user.Clusteruser_id,
 			dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, client, log)
 		if err != nil {
 			return fmt.Errorf("unable to create operation for deleted managed environment: %v", err)

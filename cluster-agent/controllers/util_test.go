@@ -7,7 +7,7 @@ import (
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -89,7 +89,7 @@ var _ = Describe("Tests for the small number of utility functions in cluster-age
 			ctx = context.Background()
 			logger = log.FromContext(ctx)
 
-			scheme, argocdNamespace, kubesystemNamespace, workspace, err = eventlooptypes.GenericTestSetup()
+			scheme, argocdNamespace, kubesystemNamespace, workspace, err = tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			err = appv1.AddToScheme(scheme)

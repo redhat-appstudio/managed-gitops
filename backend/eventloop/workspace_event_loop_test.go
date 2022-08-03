@@ -8,7 +8,8 @@ import (
 	. "github.com/onsi/gomega"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	v1 "k8s.io/api/core/v1"
@@ -42,7 +43,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 				argocdNamespace,
 				kubesystemNamespace,
 				apiNamespace,
-				err = eventlooptypes.GenericTestSetup()
+				err = tests.GenericTestSetup()
 
 			Expect(err).To(BeNil())
 
@@ -85,7 +86,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 						},
 					},
 					Client:                  k8sClient,
-					ReqResource:             managedgitopsv1alpha1.GitOpsDeploymentTypeName,
+					ReqResource:             eventlooptypes.GitOpsDeploymentTypeName,
 					AssociatedGitopsDeplUID: string(gitopsDepl.UID),
 					WorkspaceID:             string(apiNamespace.UID),
 				},
@@ -131,7 +132,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 						},
 					},
 					Client:                  k8sClient,
-					ReqResource:             managedgitopsv1alpha1.GitOpsDeploymentTypeName,
+					ReqResource:             eventlooptypes.GitOpsDeploymentTypeName,
 					AssociatedGitopsDeplUID: string(gitopsDepl.UID),
 					WorkspaceID:             string(apiNamespace.UID),
 				},
@@ -178,7 +179,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 						},
 					},
 					Client:                  k8sClient,
-					ReqResource:             managedgitopsv1alpha1.GitOpsDeploymentTypeName,
+					ReqResource:             eventlooptypes.GitOpsDeploymentTypeName,
 					AssociatedGitopsDeplUID: string(gitopsDepl.UID),
 					WorkspaceID:             string(apiNamespace.UID),
 				},
@@ -226,7 +227,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 						},
 					},
 					Client:                  k8sClient,
-					ReqResource:             managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName,
+					ReqResource:             eventlooptypes.GitOpsDeploymentSyncRunTypeName,
 					AssociatedGitopsDeplUID: "orphaned",
 					WorkspaceID:             string(apiNamespace.UID),
 				},
@@ -285,7 +286,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 						},
 					},
 					Client:                  k8sClient,
-					ReqResource:             managedgitopsv1alpha1.GitOpsDeploymentTypeName,
+					ReqResource:             eventlooptypes.GitOpsDeploymentTypeName,
 					AssociatedGitopsDeplUID: string(gitopsDepl.UID),
 					WorkspaceID:             string(apiNamespace.UID),
 				},
@@ -336,7 +337,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 				argocdNamespace,
 				kubesystemNamespace,
 				apiNamespace,
-				err = eventlooptypes.GenericTestSetup()
+				err = tests.GenericTestSetup()
 
 			Expect(err).To(BeNil())
 		})
@@ -376,7 +377,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 							},
 						},
 						Client:                  k8sClient,
-						ReqResource:             managedgitopsv1alpha1.GitOpsDeploymentTypeName,
+						ReqResource:             eventlooptypes.GitOpsDeploymentTypeName,
 						AssociatedGitopsDeplUID: string(gitopsDepl.UID),
 						WorkspaceID:             string(apiNamespace.UID),
 					},

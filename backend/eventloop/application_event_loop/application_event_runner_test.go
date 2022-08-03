@@ -9,9 +9,10 @@ import (
 	"strings"
 
 	"github.com/golang/mock/gomock"
-	"github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1/mocks"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1/mocks"
 	condition "github.com/redhat-appstudio/managed-gitops/backend/condition/mocks"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventloop_test_util"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	"github.com/redhat-appstudio/managed-gitops/backend/util"
 	"gopkg.in/yaml.v2"
@@ -19,12 +20,12 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 
+	testStructs "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1/mocks/structs"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
-	testStructs "github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1/mocks/structs"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -64,7 +65,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				argocdNamespace,
 				kubesystemNamespace,
 				workspace,
-				err = eventlooptypes.GenericTestSetup()
+				err = tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			workspaceID = string(workspace.UID)
@@ -476,7 +477,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 		It("create an invalid deployment and ensure it fails.", func() {
 			ctx := context.Background()
 
-			scheme, argocdNamespace, kubesystemNamespace, workspace, err := eventlooptypes.GenericTestSetup()
+			scheme, argocdNamespace, kubesystemNamespace, workspace, err := tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
@@ -525,7 +526,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 		It("Ensure the sync run handler can handle a new sync run resource", func() {
 			ctx := context.Background()
 
-			scheme, argocdNamespace, kubesystemNamespace, workspace, err := eventlooptypes.GenericTestSetup()
+			scheme, argocdNamespace, kubesystemNamespace, workspace, err := tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
@@ -603,7 +604,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 		It("Ensure the sync run handler fails when an invalid new sync run resource is passed.", func() {
 			ctx := context.Background()
 
-			scheme, argocdNamespace, kubesystemNamespace, workspace, err := eventlooptypes.GenericTestSetup()
+			scheme, argocdNamespace, kubesystemNamespace, workspace, err := tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
@@ -694,7 +695,8 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				argocdNamespace,
 				kubesystemNamespace,
 				workspace,
-				err = eventlooptypes.GenericTestSetup()
+				err = tests.GenericTestSetup()
+
 			Expect(err).To(BeNil())
 
 			workspaceID = string(workspace.UID)
@@ -1406,7 +1408,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 				argocdNamespace,
 				kubesystemNamespace,
 				namespace,
-				err = eventlooptypes.GenericTestSetup()
+				err = tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(false, true)
@@ -1856,7 +1858,7 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 				argocdNamespace,
 				kubesystemNamespace,
 				namespace,
-				err = eventlooptypes.GenericTestSetup()
+				err = tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(false, true)
@@ -1886,7 +1888,7 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 					NamespacedName: types.NamespacedName{Namespace: namespace.Name, Name: managedEnvCR.Name},
 				},
 				Client:                  k8sClient,
-				ReqResource:             managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentTypeName,
+				ReqResource:             eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName,
 				AssociatedGitopsDeplUID: "",
 				WorkspaceID:             string(namespace.UID),
 			}
@@ -1942,7 +1944,7 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 					NamespacedName: types.NamespacedName{Namespace: namespace.Name, Name: managedEnvCR.Name},
 				},
 				Client:                  k8sClient,
-				ReqResource:             managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentTypeName,
+				ReqResource:             eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName,
 				AssociatedGitopsDeplUID: "",
 				WorkspaceID:             string(namespace.UID),
 			}

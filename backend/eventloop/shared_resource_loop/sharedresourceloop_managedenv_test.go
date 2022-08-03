@@ -11,13 +11,12 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1/mocks"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
-	"github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1/mocks"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventloop_test_util"
 
-	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
@@ -54,7 +53,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			scheme,
 				argocdNamespace,
 				kubesystemNamespace,
-				innerNamespace, err := eventlooptypes.GenericTestSetup()
+				innerNamespace, err := tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			namespace = innerNamespace
@@ -457,7 +456,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 // verifyOperationCRsExist verifies there exists an Operation resource in the Argo CD namespace, for each row in 'expectedOperationRows' param.
 func verifyOperationCRsExist(ctx context.Context, expectedOperationRows []db.Operation, k8sClient client.Client) error {
 
-	operationList := &operation.OperationList{}
+	operationList := &managedgitopsv1alpha1.OperationList{}
 	if err := k8sClient.List(ctx, operationList); err != nil {
 		return err
 	}

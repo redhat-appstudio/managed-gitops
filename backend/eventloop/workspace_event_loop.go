@@ -9,9 +9,9 @@ import (
 	"github.com/go-logr/logr"
 
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/application_event_loop"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -175,18 +175,18 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, workspaceID 
 
 			// Check GitOpsDeployment that come in: if we get an event for GitOpsDeployment that has an orphaned child resource
 			// depending on it, then unorphan the child resource.
-			if event.Event.ReqResource == v1alpha1.GitOpsDeploymentTypeName {
+			if event.Event.ReqResource == eventlooptypes.GitOpsDeploymentTypeName {
 				unorphanResourcesIfPossible(ctx, event, orphanedResources, input, log)
 			}
 
 			// Handle Repository Credentials
-			if event.Event.ReqResource == v1alpha1.GitOpsDeploymentRepositoryCredentialTypeName {
+			if event.Event.ReqResource == eventlooptypes.GitOpsDeploymentRepositoryCredentialTypeName {
 				workspaceResourceLoop.processRepositoryCredential(ctx, event.Event.Request, event.Event.Client)
 				continue
 			}
 
 			// Handle Managed Environment
-			if event.Event.ReqResource == v1alpha1.GitOpsDeploymentManagedEnvironmentTypeName {
+			if event.Event.ReqResource == eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName {
 
 				// Reconcile to managed environment in the workspace resource loop, to ensure it is up-to-date (exists, or is deleted)
 				workspaceResourceLoop.processManagedEnvironment(ctx, event, event.Event.Client)
@@ -271,7 +271,7 @@ var _ applicationEventQueueLoopFactory = defaultApplicationEventLoopFactory{}
 // See https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.8tiycl1h7rns for details.
 func handleOrphaned(ctx context.Context, event eventlooptypes.EventLoopMessage, orphanedResources map[string]map[string]eventlooptypes.EventLoopEvent, log logr.Logger) {
 
-	if event.Event.ReqResource == v1alpha1.GitOpsDeploymentSyncRunTypeName {
+	if event.Event.ReqResource == eventlooptypes.GitOpsDeploymentSyncRunTypeName {
 
 		syncRunCR := &v1alpha1.GitOpsDeploymentSyncRun{
 			ObjectMeta: v1.ObjectMeta{

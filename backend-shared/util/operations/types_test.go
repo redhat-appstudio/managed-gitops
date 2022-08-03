@@ -1,4 +1,4 @@
-package eventlooptypes
+package operations
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -34,7 +35,7 @@ var _ = Describe("Testing CreateOperation function.", func() {
 				argocdNamespace,
 				kubesystemNamespace,
 				workspace,
-				err := GenericTestSetup()
+				err := tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			err = db.SetupForTestingDBGinkgo()

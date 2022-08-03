@@ -9,7 +9,8 @@ import (
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop"
 	corev1 "k8s.io/api/core/v1"
@@ -45,7 +46,7 @@ var _ = Describe("Preprocess Event Loop Test", func() {
 			err = db.SetupForTestingDBGinkgo()
 			Expect(err).To(BeNil())
 
-			scheme, argocdNamespace, kubesystemNamespace, namespace, err = eventlooptypes.GenericTestSetup()
+			scheme, argocdNamespace, kubesystemNamespace, namespace, err = tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
@@ -356,7 +357,7 @@ var _ = Describe("Preprocess Event Loop Test", func() {
 			err = db.SetupForTestingDBGinkgo()
 			Expect(err).To(BeNil())
 
-			scheme, argocdNamespace, kubesystemNamespace, namespace, err = eventlooptypes.GenericTestSetup()
+			scheme, argocdNamespace, kubesystemNamespace, namespace, err = tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
@@ -562,7 +563,7 @@ var _ = Describe("Preprocess Event Loop Test", func() {
 			err = db.SetupForTestingDBGinkgo()
 			Expect(err).To(BeNil())
 
-			scheme, argocdNamespace, kubesystemNamespace, namespace, err = eventlooptypes.GenericTestSetup()
+			scheme, argocdNamespace, kubesystemNamespace, namespace, err = tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
@@ -607,7 +608,7 @@ var _ = Describe("Preprocess Event Loop Test", func() {
 						Namespace: repoCred.Namespace,
 					},
 				},
-				ReqResource: managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialTypeName,
+				ReqResource: eventlooptypes.GitOpsDeploymentRepositoryCredentialTypeName,
 				Client:      k8sClient,
 				WorkspaceID: eventlooptypes.GetWorkspaceIDFromNamespaceID(*namespace),
 			}
@@ -818,7 +819,7 @@ func buildGitOpsDeplSyncRunEventLoopTestEvent(gitopsDeplSyncRun managedgitopsv1a
 				Name:      gitopsDeplSyncRun.Name,
 			},
 		},
-		ReqResource: managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName,
+		ReqResource: eventlooptypes.GitOpsDeploymentSyncRunTypeName,
 		Client:      k8sClient,
 		WorkspaceID: eventlooptypes.GetWorkspaceIDFromNamespaceID(workspace),
 	}
@@ -836,7 +837,7 @@ func buildGitOpsDeplEventLoopTestEvent(gitopsDepl managedgitopsv1alpha1.GitOpsDe
 				Name:      gitopsDepl.Name,
 			},
 		},
-		ReqResource: managedgitopsv1alpha1.GitOpsDeploymentTypeName,
+		ReqResource: eventlooptypes.GitOpsDeploymentTypeName,
 		Client:      k8sClient,
 		WorkspaceID: eventlooptypes.GetWorkspaceIDFromNamespaceID(workspace),
 	}

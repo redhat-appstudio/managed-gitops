@@ -7,8 +7,8 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
-	appEventLoop "github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/application_event_loop"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	corev1 "k8s.io/api/core/v1"
@@ -234,7 +234,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			Resource_type: db.OperationResourceType_SyncOperation,
 		}
 
-		k8sOperation, dbOperation, err := eventlooptypes.CreateOperation(ctx, false && !a.testOnlySkipCreateOperation, dbOperationInput, clusterUser.Clusteruser_id,
+		k8sOperation, dbOperation, err := operations.CreateOperation(ctx, false && !a.testOnlySkipCreateOperation, dbOperationInput, clusterUser.Clusteruser_id,
 			dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log)
 		if err != nil {
 			log.Error(err, "could not create operation", "namespace", dbutil.GetGitOpsEngineSingleInstanceNamespace())
@@ -248,7 +248,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		// TODO: GITOPSRVCE-82 - STUB - Remove the 'false' in createOperation above, once cluster agent handling of operation is implemented.
 		log.Info("STUB: Not waiting for create Sync Run operation to complete, in handleNewSyncRunModified")
 
-		if err := appEventLoop.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log); err != nil {
+		if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log); err != nil {
 			return false, err
 		}
 
@@ -300,7 +300,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		}
 
 		waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
-		k8sOperation, dbOperation, err := eventlooptypes.CreateOperation(ctx, waitForOperation, dbOperationInput, clusterUser.Clusteruser_id,
+		k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput, clusterUser.Clusteruser_id,
 			dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log)
 		if err != nil {
 			log.Error(err, "could not create operation, when resource was deleted", "namespace", dbutil.GetGitOpsEngineSingleInstanceNamespace())
@@ -309,7 +309,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		}
 
 		// 4) Clean up the operation and database table entries
-		if err := appEventLoop.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log); err != nil {
+		if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log); err != nil {
 			return false, err
 		}
 

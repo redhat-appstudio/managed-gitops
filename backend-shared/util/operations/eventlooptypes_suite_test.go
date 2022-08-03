@@ -1,4 +1,4 @@
-package eventlooptypes_test
+package operations
 
 import (
 	"testing"

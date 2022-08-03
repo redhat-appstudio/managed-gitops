@@ -9,7 +9,8 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -26,7 +27,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			ctx := context.Background()
 			log := log.FromContext(ctx)
 
-			scheme, _, _, _, err := eventlooptypes.GenericTestSetup()
+			scheme, _, _, _, err := tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			err = appv1.AddToScheme(scheme)
@@ -164,7 +165,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
 			Expect(err).To(BeNil())
 
-			scheme, argocdNamespace, kubesystemNamespace, workspace, err := eventlooptypes.GenericTestSetup()
+			scheme, argocdNamespace, kubesystemNamespace, workspace, err := tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			_, dummyApplicationSpec, argoCdApp, err = createDummyApplicationData()
@@ -230,7 +231,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 				Resource_type: db.OperationResourceType_Application,
 			}
 
-			_, dbOperation, err := eventlooptypes.CreateOperation(ctx, false, dbOperationInput,
+			_, dbOperation, err := operations.CreateOperation(ctx, false, dbOperationInput,
 				db.SpecialClusterUserName, dbutil.GetGitOpsEngineSingleInstanceNamespace(), reconciler.DB, reconciler.Client, log)
 			Expect(err).To(BeNil())
 
@@ -267,7 +268,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 				Resource_type: db.OperationResourceType_Application,
 			}
 
-			_, dbOperation, err := eventlooptypes.CreateOperation(ctx, false, dbOperationInput,
+			_, dbOperation, err := operations.CreateOperation(ctx, false, dbOperationInput,
 				db.SpecialClusterUserName, dbutil.GetGitOpsEngineSingleInstanceNamespace(), reconciler.DB, reconciler.Client, log)
 			Expect(err).To(BeNil())
 

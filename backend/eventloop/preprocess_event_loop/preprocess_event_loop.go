@@ -8,11 +8,10 @@ import (
 
 	"github.com/go-logr/logr"
 
-	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/eventloop/eventlooptypes"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,7 +32,7 @@ import (
 // - The cache should only ever use values from the database. It should be eventually consistent with the database.
 
 // EventReceived is called by controllers to inform of it changes to API CRs
-func (evl *PreprocessEventLoop) EventReceived(req ctrl.Request, reqResource managedgitopsv1alpha1.GitOpsResourceType,
+func (evl *PreprocessEventLoop) EventReceived(req ctrl.Request, reqResource eventlooptypes.GitOpsResourceType,
 	client client.Client, eventType eventlooptypes.EventLoopEventType, namespaceID string) {
 
 	event := eventlooptypes.EventLoopEvent{Request: req, EventType: eventType, WorkspaceID: namespaceID,
@@ -150,14 +149,14 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventlo
 	log.V(sharedutil.LogLevel_Debug).Info("preprocess event loop router received event:", "event", eventlooptypes.StringEventLoopEvent(&newEvent))
 
 	// Repository credentials are workspace-scoped, and thus do not need to go through this preprocess-event processing.
-	if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialTypeName {
+	if newEvent.ReqResource == eventlooptypes.GitOpsDeploymentRepositoryCredentialTypeName {
 		newEvent.AssociatedGitopsDeplUID = eventlooptypes.NoAssociatedGitOpsDeploymentUID
 		emitEvent(newEvent, nextStep, "repo cred", log)
 		return false
 	}
 
 	// Managed environments are passed to all gitopsdeployments of a workspace, and thus do not need to go through this preprocess-event processing.
-	if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentTypeName {
+	if newEvent.ReqResource == eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName {
 		newEvent.AssociatedGitopsDeplUID = eventlooptypes.NoAssociatedGitOpsDeploymentUID
 		emitEvent(newEvent, nextStep, "managed env", log)
 		return false
@@ -211,7 +210,7 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventlo
 func (task *processEventTask) handleEventFromDatabase(ctx context.Context, newEvent eventlooptypes.EventLoopEvent, resource client.Object,
 	nextStep *eventloop.ControllerEventLoop, dbQueries db.DatabaseQueries, log logr.Logger) bool {
 
-	if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName {
+	if newEvent.ReqResource == eventlooptypes.GitOpsDeploymentSyncRunTypeName {
 
 		// Retrieve all of the SyncRun resources that were previously associated with this name/namespace/namespace uid
 		associatedResources, err := getAssociatedResourcesForSyncRunAPINamespaceAndNameFromDB(ctx, newEvent, dbQueries, log)
@@ -262,7 +261,7 @@ func (task *processEventTask) handleEventFromDatabase(ctx context.Context, newEv
 
 		return false
 
-	} else if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentTypeName {
+	} else if newEvent.ReqResource == eventlooptypes.GitOpsDeploymentTypeName {
 
 		var items []db.DeploymentToApplicationMapping
 
@@ -319,7 +318,7 @@ func (task *processEventTask) handleEventIfCached(ctx context.Context, newEvent 
 	}
 
 	// if previousGitopsDeplUIDFromCache != "" && previousResourceUIDFromCache != "" {
-	if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentTypeName {
+	if newEvent.ReqResource == eventlooptypes.GitOpsDeploymentTypeName {
 		if previousResourceUIDFromCache != string(resource.GetUID()) {
 			// emit for the old resource
 
@@ -332,7 +331,7 @@ func (task *processEventTask) handleEventIfCached(ctx context.Context, newEvent 
 		emitEvent(newEvent, nextStep, "new event", log)
 		return false, true
 
-	} else if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName {
+	} else if newEvent.ReqResource == eventlooptypes.GitOpsDeploymentSyncRunTypeName {
 		if previousResourceUIDFromCache != string(resource.GetUID()) {
 			// emit for both new and existing, using previousGitOpsDeplUID for existing
 
@@ -398,8 +397,8 @@ func processResourceThatDoesntExistInNamespace(ctx context.Context, newEvent eve
 
 	// Check the local cache, to see if we have seen this resource before
 	// - only check resources which we cache: GitOpsDeployment and GitOpsDeplomentSyncRun
-	if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentTypeName ||
-		newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName {
+	if newEvent.ReqResource == eventlooptypes.GitOpsDeploymentTypeName ||
+		newEvent.ReqResource == eventlooptypes.GitOpsDeploymentSyncRunTypeName {
 
 		recentUIDForResource, gitopsDeplUID, err := retrieveCacheValuesForResource(ctx, newEvent, lastUIDCache, gitopsDeplSyncRunCache, dbQueries, log)
 		if err != nil {
@@ -427,7 +426,7 @@ func processResourceThatDoesntExistInNamespace(ctx context.Context, newEvent eve
 
 		// Otherwise, not found in the cache, so exit the 'if' block, and next check the db...
 
-	} else if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialTypeName {
+	} else if newEvent.ReqResource == eventlooptypes.GitOpsDeploymentRepositoryCredentialTypeName {
 
 		lastUIDCache.deleteMostRecentUIDForResourceFromEvent(newEvent)
 
@@ -445,7 +444,7 @@ func processResourceThatDoesntExistInNamespace(ctx context.Context, newEvent eve
 
 	// Next: If the item wasn't found in the local cache above, check the database.
 
-	if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName {
+	if newEvent.ReqResource == eventlooptypes.GitOpsDeploymentSyncRunTypeName {
 
 		associatedResources, err := getAssociatedResourcesForSyncRunAPINamespaceAndNameFromDB(ctx, newEvent, dbQueries, log)
 		if err != nil {
@@ -471,7 +470,7 @@ func processResourceThatDoesntExistInNamespace(ctx context.Context, newEvent eve
 
 		return false
 
-	} else if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentTypeName {
+	} else if newEvent.ReqResource == eventlooptypes.GitOpsDeploymentTypeName {
 
 		// Look for a corresponding DeploymentoApplicationMapping for the GitOpsDeployment CR in the namespace
 		var items []db.DeploymentToApplicationMapping
@@ -712,7 +711,7 @@ func retrieveCacheValuesForResource(ctx context.Context,
 		return "", "", nil
 	}
 
-	if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentSyncRunTypeName {
+	if newEvent.ReqResource == eventlooptypes.GitOpsDeploymentSyncRunTypeName {
 		// If the resource is a GitOpsDeploymentSyncRun, we need to do an additional lookup up
 		// to determine what the corresponding GitOpsDeployment is
 		gitopsDeplUID, err := getGitOpsDeplIdFromSyncRunCR(ctx, recentUIDForResource, gitopsDeplSyncRunCache, dbQueries, log)
@@ -722,7 +721,7 @@ func retrieveCacheValuesForResource(ctx context.Context,
 
 		return recentUIDForResource, gitopsDeplUID, nil
 
-	} else if newEvent.ReqResource == managedgitopsv1alpha1.GitOpsDeploymentTypeName {
+	} else if newEvent.ReqResource == eventlooptypes.GitOpsDeploymentTypeName {
 		// If the resource is a GitOpsDeployment, then the value is the UID of the resource, so we are done.
 		return recentUIDForResource, recentUIDForResource, nil
 

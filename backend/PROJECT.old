@@ -1,0 +1,47 @@
+domain: redhat.com
+layout:
+- go.kubebuilder.io/v3
+multigroup: true
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
+projectName: managed-gitops
+repo: github.com/redhat-appstudio/managed-gitops/backend
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: redhat.com
+  group: managed-gitops
+  kind: GitOpsDeployment
+  path: github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: redhat.com
+  group: managed-gitops
+  kind: GitOpsDeploymentSyncRun
+  path: github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: redhat.com
+  group: managed-gitops
+  kind: GitOpsDeploymentRepositoryCredential
+  path: github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: redhat.com
+  group: managed-gitops
+  kind: GitOpsDeploymentManagedEnvironment
+  path: github.com/redhat-appstudio/managed-gitops/backend/apis/managed-gitops/v1alpha1
+  version: v1alpha1
+version: "3"

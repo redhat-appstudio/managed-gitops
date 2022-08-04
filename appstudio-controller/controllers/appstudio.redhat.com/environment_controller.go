@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"reflect"
 
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+
 	appstudioshared "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -88,6 +90,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			// B) The GitOpsDeploymentManagedEnvironment doesn't exist, so needs to be created.
 
 			log.Info("Creating GitOpsDeploymentManagedEnvironment", "managedEnv", desiredManagedEnv.Name)
+			sharedutil.LogAPIResourceChangeEvent(desiredManagedEnv.Namespace, desiredManagedEnv.Name, desiredManagedEnv, sharedutil.ResourceCreated, log)
 			if err := r.Client.Create(ctx, desiredManagedEnv); err != nil {
 				return ctrl.Result{}, fmt.Errorf("unable to create new GitOpsDeploymentManagedEnvironment: %v", err)
 			}
@@ -112,6 +115,8 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// Update the current object to the desired state
 	currentManagedEnv.Spec = desiredManagedEnv.Spec
+
+	sharedutil.LogAPIResourceChangeEvent(currentManagedEnv.Namespace, currentManagedEnv.Name, currentManagedEnv, sharedutil.ResourceModified, log)
 	if err := r.Client.Update(ctx, &currentManagedEnv); err != nil {
 		return ctrl.Result{},
 			fmt.Errorf("unable to update existing GitOpsDeploymentManagedEnvironment '%s': %v", currentManagedEnv.Name, err)

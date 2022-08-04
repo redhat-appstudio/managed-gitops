@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -51,6 +52,7 @@ func getOrCreateServiceAccount(ctx context.Context, k8sClient client.Client, ser
 		return serviceAccount, nil
 	}
 
+	sharedutil.LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, sharedutil.ResourceCreated, log)
 	if err := k8sClient.Create(ctx, serviceAccount); err != nil {
 		return nil, fmt.Errorf("unable to create service account '%s': %v", serviceAccount.Name, err)
 	}

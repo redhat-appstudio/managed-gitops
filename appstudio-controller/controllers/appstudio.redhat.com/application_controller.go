@@ -178,7 +178,7 @@ func processDeleteGitOpsDeployment(ctx context.Context, req ctrl.Request, k8sCli
 			return fmt.Errorf("unable to retrieve gitopsdepl '%s': %v", gitopsDeplName, err)
 		}
 	}
-	
+
 	sharedutil.LogAPIResourceChangeEvent(gitopsDepl.Namespace, gitopsDepl.Name, gitopsDepl, sharedutil.ResourceDeleted, log)
 	if err := k8sClient.Delete(ctx, gitopsDepl); err != nil {
 		return fmt.Errorf("unable to delete gitopsdepl '%s': %v", gitopsDeplName, err)

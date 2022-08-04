@@ -18,18 +18,38 @@ import (
 	apisv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apis/v1alpha1"
 )
 
-// GetControllerManager returns the controller-runtime manager for creating controllers
-func GetControllerManager(ctx context.Context, restConfig *rest.Config, log *logr.Logger, apiExportName string, opts ctrl.Options) (ctrl.Manager, error) {
+// GetControllerManager returns a manager for running controllers
+func GetControllerManager(ctx context.Context, cfg *rest.Config, log *logr.Logger, apiExportName string, opts ctrl.Options) (ctrl.Manager, error) {
+	scheme := runtime.NewScheme()
+	if err := apisv1alpha1.AddToScheme(scheme); err != nil {
+		return nil, fmt.Errorf("error adding apis.kcp.dev/v1alpha1 to scheme: %w", err)
+	}
+
+	apiExportClient, err := client.New(cfg, client.Options{Scheme: scheme})
+	if err != nil {
+		return nil, fmt.Errorf("error creating APIExport client: %w", err)
+	}
+
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create discovery client: %w", err)
+	}
+
+	return getControllerManager(ctx, cfg, apiExportClient, discoveryClient, log, apiExportName, opts)
+}
+
+// getControllerManager returns a standard controller-runtime manager in a non-KCP environment and a KCP workspace aware manager in the presence of KCP APIs
+func getControllerManager(ctx context.Context, restConfig *rest.Config, apiExportClient client.Client, discoveryClient discovery.DiscoveryInterface, log *logr.Logger, apiExportName string, opts ctrl.Options) (ctrl.Manager, error) {
 	var mgr ctrl.Manager
 
-	isKCPAPIsPresent, err := kcpAPIsGroupPresent(restConfig)
+	isKCPEnvironment, err := kcpAPIsGroupPresent(discoveryClient)
 	if err != nil {
 		return nil, err
 	}
 
-	if isKCPAPIsPresent {
+	if isKCPEnvironment {
 		log.Info("Looking up virtual workspace URL")
-		cfg, err := restConfigForAPIExport(ctx, restConfig, apiExportName)
+		cfg, err := restConfigForAPIExport(ctx, restConfig, apiExportClient, apiExportName)
 		if err != nil {
 			log.Error(err, "error looking up virtual workspace URL")
 		}
@@ -54,16 +74,7 @@ func GetControllerManager(ctx context.Context, restConfig *rest.Config, log *log
 
 // restConfigForAPIExport returns a *rest.Config properly configured to communicate with the endpoint for the
 // APIExport's virtual workspace.
-func restConfigForAPIExport(ctx context.Context, cfg *rest.Config, apiExportName string) (*rest.Config, error) {
-	scheme := runtime.NewScheme()
-	if err := apisv1alpha1.AddToScheme(scheme); err != nil {
-		return nil, fmt.Errorf("error adding apis.kcp.dev/v1alpha1 to scheme: %w", err)
-	}
-
-	apiExportClient, err := client.New(cfg, client.Options{Scheme: scheme})
-	if err != nil {
-		return nil, fmt.Errorf("error creating APIExport client: %w", err)
-	}
+func restConfigForAPIExport(ctx context.Context, cfg *rest.Config, apiExportClient client.Client, apiExportName string) (*rest.Config, error) {
 
 	var apiExport apisv1alpha1.APIExport
 
@@ -96,11 +107,7 @@ func restConfigForAPIExport(ctx context.Context, cfg *rest.Config, apiExportName
 	return cfg, nil
 }
 
-func kcpAPIsGroupPresent(restConfig *rest.Config) (bool, error) {
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
-	if err != nil {
-		return false, fmt.Errorf("failed to create discovery client: %w", err)
-	}
+func kcpAPIsGroupPresent(discoveryClient discovery.DiscoveryInterface) (bool, error) {
 	apiGroupList, err := discoveryClient.ServerGroups()
 	if err != nil {
 		return false, fmt.Errorf("failed to get server groups: %w", err)

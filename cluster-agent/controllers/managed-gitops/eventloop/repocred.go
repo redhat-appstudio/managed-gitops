@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -35,7 +36,7 @@ const (
 // deleteArgoCDSecretLeftovers best effort attempt to clean up ArgoCD Secret leftovers.
 func deleteArgoCDSecretLeftovers(ctx context.Context, databaseID string, argoCDNamespace corev1.Namespace, eventClient client.Client, l logr.Logger) (bool, error) {
 	const retry, noRetry = true, false
-	log := l.log
+	log := log.FromContext(ctx)
 	list := corev1.SecretList{}
 	labelSelector := labels.NewSelector()
 	req, err := labels.NewRequirement(controllers.RepoCredDatabaseIDLabel, selection.Equals, []string{databaseID})
@@ -95,7 +96,7 @@ func deleteArgoCDSecretLeftovers(ctx context.Context, databaseID string, argoCDN
 func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.Operation, crOperation operation.Operation, dbQueries db.DatabaseQueries,
 	argoCDNamespace corev1.Namespace, eventClient client.Client, l logr.Logger) (bool, error) {
 	const retry, noRetry = true, false
-	log := l.log
+	log := log.FromContext(ctx)
 	if dbOperation.Resource_id == "" {
 		return retry, fmt.Errorf("%v: %v", errOperationIDNotFound, crOperation.Name)
 	}

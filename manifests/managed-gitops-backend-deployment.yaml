@@ -50,15 +50,15 @@ spec:
           httpGet:
             path: /healthz
             port: 18081
-          initialDelaySeconds: 15
-          periodSeconds: 20
+          initialDelaySeconds: 120
+          periodSeconds: 60
         name: manager
         readinessProbe:
           httpGet:
             path: /readyz
             port: 18081
-          initialDelaySeconds: 5
-          periodSeconds: 10
+          initialDelaySeconds: 120
+          periodSeconds: 30
         resources:
           limits:
             cpu: 300m

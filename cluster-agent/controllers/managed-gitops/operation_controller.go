@@ -151,6 +151,8 @@ type removeOperationCRTask struct {
 }
 
 func (r *removeOperationCRTask) PerformTask(ctx context.Context) (bool, error) {
+	log := r.log
+	sharedutil.LogAPIResourceChangeEvent(r.operation.Namespace, r.operation.Name, r.operation, sharedutil.ResourceDeleted, log)
 	if err := r.Delete(ctx, r.operation); err != nil {
 		if errors.IsNotFound(err) {
 			return false, nil

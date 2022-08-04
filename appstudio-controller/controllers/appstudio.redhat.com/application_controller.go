@@ -117,6 +117,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
+	sharedutil.LogAPIResourceChangeEvent(asApplication.Namespace, asApplication.Name, asApplication, sharedutil.ResourceCreated, log)
 	gopFromApplication, err := generateNewGitOpsDeploymentFromApplication(asApplication)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to convert Application to GitOpsDeployment: %v", err)
@@ -148,6 +149,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			gitopsDeployment.Namespace+"/"+gitopsDeployment.Name))
 	}
 
+	sharedutil.LogAPIResourceChangeEvent(gitopsDeployment.Namespace, gitopsDeployment.Name, gitopsDeployment, sharedutil.ResourceModified, log)
 	if err := r.Client.Update(ctx, gitopsDeployment); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -176,7 +178,8 @@ func processDeleteGitOpsDeployment(ctx context.Context, req ctrl.Request, k8sCli
 			return fmt.Errorf("unable to retrieve gitopsdepl '%s': %v", gitopsDeplName, err)
 		}
 	}
-
+	
+	sharedutil.LogAPIResourceChangeEvent(gitopsDepl.Namespace, gitopsDepl.Name, gitopsDepl, sharedutil.ResourceDeleted, log)
 	if err := k8sClient.Delete(ctx, gitopsDepl); err != nil {
 		return fmt.Errorf("unable to delete gitopsdepl '%s': %v", gitopsDeplName, err)
 	}
@@ -195,6 +198,7 @@ func processCreateGitOpsDeployment(ctx context.Context, asApplication applicatio
 		return err
 	}
 
+	sharedutil.LogAPIResourceChangeEvent(asApplication.Namespace, asApplication.Name, asApplication, sharedutil.ResourceCreated, log)
 	gitopsDepl, err := generateNewGitOpsDeploymentFromApplication(asApplication)
 	if err != nil {
 		return fmt.Errorf("unable to convert Application to GitOpsDeployment: %v", err)
@@ -202,6 +206,7 @@ func processCreateGitOpsDeployment(ctx context.Context, asApplication applicatio
 
 	log.Info("creating new GitOpsDeployment '" + gitopsDepl.Name + "' (" + string(gitopsDepl.UID) + ")")
 
+	sharedutil.LogAPIResourceChangeEvent(gitopsDepl.Namespace, gitopsDepl.Name, gitopsDepl, sharedutil.ResourceCreated, log)
 	if err := client.Create(ctx, &gitopsDepl); err != nil {
 		return fmt.Errorf("unable to create GitOpsDeployment '%s': %v", gitopsDepl.Name, err)
 	}

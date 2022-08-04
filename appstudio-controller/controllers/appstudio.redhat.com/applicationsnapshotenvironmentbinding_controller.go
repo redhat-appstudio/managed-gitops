@@ -149,6 +149,7 @@ func (r *ApplicationSnapshotEnvironmentBindingReconciler) Reconcile(ctx context.
 
 	// Update the status field with statusField vars (even if an error occurred)
 	binding.Status.GitOpsDeployments = statusField
+	sharedutil.LogAPIResourceChangeEvent(binding.Namespace, binding.Name, binding, sharedutil.ResourceModified, log)
 	if err := r.Client.Status().Update(ctx, binding); err != nil {
 		if apierr.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -184,7 +185,7 @@ func processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployme
 			log.Error(err, "expectedGitopsDeployment: "+expectedGitopsDeployment.Name+" not found for Binding "+binding.Name)
 			return fmt.Errorf("expectedGitopsDeployment: %s not found for Binding: %s: Error: %w", expectedGitopsDeployment.Name, binding.Name, err)
 		}
-
+		sharedutil.LogAPIResourceChangeEvent(expectedGitopsDeployment.Namespace, expectedGitopsDeployment.Name, expectedGitopsDeployment, sharedutil.ResourceCreated, log)
 		if err := k8sClient.Create(ctx, &expectedGitopsDeployment); err != nil {
 			log.Error(err, "unable to create expectedGitopsDeployment: '"+expectedGitopsDeployment.Name+"' for Binding: '"+binding.Name+"'")
 			return err
@@ -201,7 +202,7 @@ func processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployme
 
 	// C) The GitOpsDeployment should be updated to be consistent with what we expect
 	actualGitOpsDeployment.Spec = expectedGitopsDeployment.Spec
-
+	sharedutil.LogAPIResourceChangeEvent(expectedGitopsDeployment.Namespace, expectedGitopsDeployment.Name, expectedGitopsDeployment, sharedutil.ResourceModified, log)
 	if err := k8sClient.Update(ctx, &actualGitOpsDeployment); err != nil {
 		log.Error(err, "unable to update actualGitOpsDeployment: "+actualGitOpsDeployment.Name+" for Binding: "+binding.Name)
 		return fmt.Errorf("unable to update actualGitOpsDeployment '%s', for Binding:%s, Error: %w", actualGitOpsDeployment.Name, binding.Name, err)

@@ -80,7 +80,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, gitopsDeplUID string, namespaceID string, debugContext string) {
 
 	outerContext := context.Background()
-	log := log.FromContext(outerContext)
+	log := log.FromContext(outerContext).WithName("application-event-loop-runner")
 
 	log = log.WithValues("gitopsDeplUID", gitopsDeplUID, "namespaceID", namespaceID, "debugContext", debugContext)
 

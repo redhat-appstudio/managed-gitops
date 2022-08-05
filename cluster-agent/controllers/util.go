@@ -48,11 +48,11 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 	if err := eventClient.Get(ctx, client.ObjectKeyFromObject(app), app); err != nil {
 
 		if apierr.IsNotFound(err) {
-			log.Info("unable to locate application which previously existed")
+			// The Application no longer exists: no work to do.
 			return nil
 		}
 
-		log.Error(err, "unable to retrieve application which previously existed")
+		log.Error(err, "Unable to retrieve Argo CD Application which we are attempting to delete")
 		return err
 	}
 

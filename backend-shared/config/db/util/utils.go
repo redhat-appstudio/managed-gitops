@@ -111,7 +111,12 @@ func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, namespace 
 	if err := dbq.CreateClusterCredentials(ctx, &clusterCreds); err != nil {
 		return nil, false, fmt.Errorf("unable to create cluster creds for managed env: %v", err)
 	} else {
-		log.Info("Created Cluster Credentials: " + clusterCreds.Clustercredentials_cred_id)
+
+		// We avoid logging the bearer_token or kube_config, as these container sensitive user data.
+		log.Info("Created Cluster Credentials for ManagedEnvironment: "+clusterCreds.Clustercredentials_cred_id,
+			"host", clusterCreds.Host, "kube-config-length", len(clusterCreds.Kube_config),
+			"kube-config-context", len(clusterCreds.Kube_config_context), "serviceaccount_ns", clusterCreds.Serviceaccount_ns,
+			"serviceaccount-bearer-token-length", len(clusterCreds.Serviceaccount_bearer_token))
 	}
 
 	managedEnvironment := db.ManagedEnvironment{
@@ -386,7 +391,7 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 	}
 
 	if dbResourceMapping == nil && gitopsEngineCluster == nil {
-		// Scenario A) neither mapping row, nor engine cluste row exists in the db: so create both
+		// Scenario A) neither mapping row, nor engine cluster row exists in the db: so create both
 
 		// Create cluster credentials for the managed env
 		// TODO: GITOPSRVCE-66 - Cluster credentials placeholder values - we will need to create a service account on the target cluster, which we can store in the database.
@@ -400,7 +405,12 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 		if err := dbq.CreateClusterCredentials(ctx, &clusterCreds); err != nil {
 			return nil, false, fmt.Errorf("unable to create cluster creds for managed env: %v", err)
 		}
-		log.Info("Created Cluster Credentials: " + clusterCreds.Clustercredentials_cred_id)
+
+		// We avoid logging the bearer_token or kube_config, as these container sensitive user data.
+		log.Info("Created Cluster Credentials for GitOpsEngineCluster: "+clusterCreds.Clustercredentials_cred_id,
+			"host", clusterCreds.Host, "kube-config-length", len(clusterCreds.Kube_config),
+			"kube-config-context", len(clusterCreds.Kube_config_context), "serviceaccount_ns", clusterCreds.Serviceaccount_ns,
+			"serviceaccount-bearer-token-length", len(clusterCreds.Serviceaccount_bearer_token))
 
 		gitopsEngineCluster = &db.GitopsEngineCluster{
 			Clustercredentials_id: clusterCreds.Clustercredentials_cred_id,
@@ -467,24 +477,29 @@ func GetOrCreateDeploymentToApplicationMapping(ctx context.Context, createDeplTo
 		return false, nil
 	}
 
+	log = log.WithValues("Application_id", createDeplToAppMapping.Application_id,
+		"DeploymentK8sUID", createDeplToAppMapping.Deploymenttoapplicationmapping_uid_id,
+		"DeploymentName", createDeplToAppMapping.DeploymentName, "DeploymentNamespace", createDeplToAppMapping.DeploymentNamespace,
+		"NamespaceUID", createDeplToAppMapping.NamespaceUID)
+
 	// At this point in the function, the database row necessarily does not exist.
 
 	// Ensure that there isn't an old depltoappmapping hanging around with matching name/namespace, before we create a new one.
+	log.Info("Deleting old DeploymentToApplicationMapping, by Namespace and Name")
+
 	if _, err := dbq.DeleteDeploymentToApplicationMappingByNamespaceAndName(ctx,
 		createDeplToAppMapping.DeploymentName,
 		createDeplToAppMapping.DeploymentNamespace,
 		createDeplToAppMapping.NamespaceUID); err != nil {
-		log.Error(err, "unable to delete old deployment to application mapping for name '"+
-			createDeplToAppMapping.DeploymentName+"', namespace '"+createDeplToAppMapping.DeploymentNamespace+"'")
+		log.Error(err, "unable to delete old deployment to application mapping")
 		return false, err
 	}
-	log.Info(fmt.Sprintf("Deleted DeploymentToApplicationMappingByNamespaceAndName with namespace: %s and name: %s", createDeplToAppMapping.DeploymentNamespace, createDeplToAppMapping.DeploymentName))
+	log.Info("Creating DeploymentToApplicationMapping")
 
 	if err := dbq.CreateDeploymentToApplicationMapping(ctx, createDeplToAppMapping); err != nil {
-		log.Error(err, "unable to create deplToApp mapping", "createDeplToAppMapping", createDeplToAppMapping)
+		log.Error(err, "unable to create deplToApp mapping")
 		return false, err
 	}
-	log.Info("Created DeploymentToApplicationMapping: " + createDeplToAppMapping.Deploymenttoapplicationmapping_uid_id)
 
 	return true, nil
 }

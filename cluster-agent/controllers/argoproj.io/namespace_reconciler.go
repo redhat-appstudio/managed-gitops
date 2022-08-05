@@ -354,9 +354,14 @@ func deleteOrphanedApplications(argoApplications []appv1.Application, processedA
 	})
 
 	// Iterate through all Argo CD applications and delete applications which are not having entry in DB.
-	log.V(sharedutil.LogLevel_Debug).Info("Deleting orphaned Argo CD Aplications")
 	var deletedOrphanedApplications []appv1.Application
 	for _, application := range shuffledList {
+
+		// Skip Applications not created by the GitOps Service
+		if value, exists := application.Labels[controllers.ArgoCDApplicationDatabaseIDLabel]; !exists || value == "" {
+			continue
+		}
+
 		if _, ok := processedApplicationIds[application.Labels["databaseID"]]; !ok {
 			if err := controllers.DeleteArgoCDApplication(ctx, application, client, log); err != nil {
 				log.Error(err, "unable to delete an orphaned Argo CD Application "+application.Name)

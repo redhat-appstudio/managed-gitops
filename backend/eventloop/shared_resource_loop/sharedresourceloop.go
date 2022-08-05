@@ -43,11 +43,12 @@ type SharedResourceEventLoop struct {
 
 // The bool return value is 'true' if ClusterUser is created; 'false' if it already exists in DB or in case of failure.
 func (srEventLoop *SharedResourceEventLoop) GetOrCreateClusterUserByNamespaceUID(ctx context.Context, workspaceClient client.Client,
-	workspaceNamespace corev1.Namespace) (*db.ClusterUser, bool, error) {
+	workspaceNamespace corev1.Namespace, log logr.Logger) (*db.ClusterUser, bool, error) {
 
 	responseChannel := make(chan any)
 
 	msg := sharedResourceLoopMessage{
+		log:                log,
 		workspaceClient:    workspaceClient,
 		workspaceNamespace: workspaceNamespace,
 		messageType:        sharedResourceLoopMessage_getOrCreateClusterUserByNamespaceUID,
@@ -74,11 +75,12 @@ func (srEventLoop *SharedResourceEventLoop) GetOrCreateClusterUserByNamespaceUID
 }
 
 func (srEventLoop *SharedResourceEventLoop) GetGitopsEngineInstanceById(ctx context.Context, id string, workspaceClient client.Client,
-	workspaceNamespace corev1.Namespace) (*db.GitopsEngineInstance, error) {
+	workspaceNamespace corev1.Namespace, log logr.Logger) (*db.GitopsEngineInstance, error) {
 
 	responseChannel := make(chan any)
 
 	msg := sharedResourceLoopMessage{
+		log:                log,
 		workspaceClient:    workspaceClient,
 		workspaceNamespace: workspaceNamespace,
 		messageType:        sharedResourceLoopMessage_getGitopsEngineInstanceById,
@@ -112,7 +114,7 @@ func (srEventLoop *SharedResourceEventLoop) GetGitopsEngineInstanceById(ctx cont
 func (srEventLoop *SharedResourceEventLoop) ReconcileSharedManagedEnv(ctx context.Context,
 	workspaceClient client.Client, workspaceNamespace corev1.Namespace,
 	managedEnvironmentCRName string, managedEnvironmentCRNamespace string, isWorkspaceTarget bool,
-	k8sClientFactory SRLK8sClientFactory) (SharedResourceManagedEnvContainer, error) {
+	k8sClientFactory SRLK8sClientFactory, log logr.Logger) (SharedResourceManagedEnvContainer, error) {
 
 	res := newSharedResourceManagedEnvContainer()
 
@@ -131,6 +133,7 @@ func (srEventLoop *SharedResourceEventLoop) ReconcileSharedManagedEnv(ctx contex
 	responseChannel := make(chan any)
 
 	msg := sharedResourceLoopMessage{
+		log:                log,
 		workspaceClient:    workspaceClient,
 		workspaceNamespace: workspaceNamespace,
 		messageType:        sharedResourceLoopMessage_getOrCreateSharedManagedEnv,
@@ -178,6 +181,7 @@ const (
 )
 
 type sharedResourceLoopMessage struct {
+	log                logr.Logger
 	workspaceClient    client.Client
 	workspaceNamespace corev1.Namespace
 
@@ -257,7 +261,7 @@ func internalSharedResourceEventLoop(inputChan chan sharedResourceLoopMessage) {
 		msg := <-inputChan
 
 		_, err = sharedutil.CatchPanic(func() error {
-			processSharedResourceMessage(ctx, msg, dbQueries, log)
+			processSharedResourceMessage(ctx, msg, dbQueries, msg.log)
 			return nil
 		})
 		if err != nil {
@@ -513,7 +517,7 @@ func internalGetOrCreateClusterUserByNamespaceUID(ctx context.Context, namespace
 			if err := dbq.CreateClusterUser(ctx, &clusterUser); err != nil {
 				return nil, false, err
 			}
-			log.Info("Cluster User Created with User ID: " + clusterUser.Clusteruser_id)
+			log.Info("Cluster User Created", "clusterUserID", clusterUser.Clusteruser_id, "username", clusterUser.User_name)
 
 		} else {
 			return nil, false, err

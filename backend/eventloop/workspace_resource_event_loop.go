@@ -259,7 +259,8 @@ func internalProcessWorkspaceResourceMessage(ctx context.Context, msg workspaceR
 		}
 
 		// Ask the shared resource loop to ensure the managed environment is reconciled
-		_, err := sharedResourceLoop.ReconcileSharedManagedEnv(ctx, msg.apiNamespaceClient, *namespace, req.Name, req.Namespace, false, shared_resource_loop.DefaultK8sClientFactory{})
+		_, err := sharedResourceLoop.ReconcileSharedManagedEnv(ctx, msg.apiNamespaceClient, *namespace, req.Name, req.Namespace,
+			false, shared_resource_loop.DefaultK8sClientFactory{}, log)
 		if err != nil {
 			return true, fmt.Errorf("unable to reconcile shared managed env: %v", err)
 		}

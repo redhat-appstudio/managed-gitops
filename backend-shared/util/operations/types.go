@@ -28,9 +28,15 @@ func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationPara
 
 	var err error
 
+	log = log.WithValues("Operation GitOpsEngineInstanceID", dbOperationParam.Instance_id,
+		"Operation ResourceID", dbOperationParam.Resource_id,
+		"Operation ResourceType", dbOperationParam.Resource_type,
+		"Operation OwnerUserID", clusterUserID,
+	)
 	var dbOperationList []db.Operation
 	if err = dbQueries.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, dbOperationParam.Resource_id, dbOperationParam.Resource_type, &dbOperationList, clusterUserID); err != nil {
-		log.Error(err, "unable to fetch List of Operations for ResourceId: "+dbOperationParam.Resource_id+", Type: "+dbOperationParam.Resource_type+", OwnerId: "+clusterUserID)
+		log.Error(err, "unable to fetch list of Operations")
+		return nil, nil, fmt.Errorf("unable to fetch list of operations: %v", err)
 	}
 
 	// Iterate through existing DB entries for a given resource: look to see if there is already an Operation
@@ -52,11 +58,12 @@ func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationPara
 		}
 
 		if err = gitopsEngineClient.Get(ctx, client.ObjectKeyFromObject(&k8sOperation), &k8sOperation); err != nil {
-			log.Error(err, "unable to fetch existing Operation "+k8sOperation.Name+" from cluster.")
+			log.Error(err, "unable to fetch existing Operation from cluster.", "Operation k8s Name", k8sOperation.Name)
+			return nil, nil, fmt.Errorf("unable to fetch operation from cluster: %v", err)
 		} else {
 			// An operation already exists in waiting state, and the Operation CR for it still exists, so we don't need to create
 			// a new operation.
-			log.Info("Skipping Operation creation, as it already exists for resource" + dbOperationParam.Resource_id + ", it is in " + string(dbOperation.State) + " state.")
+			log.Info("Skipping Operation creation, as it already exists for resource.", "existingOperationState", string(dbOperation.State))
 			return &k8sOperation, &dbOperation, nil
 		}
 	}
@@ -72,12 +79,12 @@ func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationPara
 		Human_readable_state:    "",
 	}
 
+	log.Info("Creating Operation database row")
+
 	if err := dbQueries.CreateOperation(ctx, &dbOperation, clusterUserID); err != nil {
-		log.Error(err, "unable to create operation", "operation", dbOperation.LongString())
+		log.Error(err, "unable to create operation")
 		return nil, nil, err
 	}
-
-	log.Info("Created database operation", "operation", dbOperation.ShortString())
 
 	// Create K8s operation
 	operation := managedgitopsv1alpha1.Operation{
@@ -90,20 +97,20 @@ func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationPara
 		},
 	}
 
-	// Set annotation as an identifier for Operations created by NameSpace Reconciler.
+	// Set annotation as an identifier for Operations created by Namespace Reconciler.
 	if clusterUserID == db.SpecialClusterUserName {
 		operation.Annotations = map[string]string{IdentifierKey: IdentifierValue}
 	}
-	log.Info("Creating K8s Operation CR", "operation", fmt.Sprintf("%v", operation.Spec.OperationID))
+	log.Info("Creating K8s Operation CR")
 
 	if err := gitopsEngineClient.Create(ctx, &operation, &client.CreateOptions{}); err != nil {
-		log.Error(err, "unable to create K8s Operation in namespace", "operation", dbOperation.Operation_id, "namespace", operation.Namespace)
+		log.Error(err, "unable to create K8s Operation in namespace")
 		return nil, nil, err
 	}
 
 	// Wait for operation to complete.
 	if waitForOperation {
-		log.Info("Waiting for Operation to complete", "operation", fmt.Sprintf("%v", operation.Spec.OperationID))
+		log.V(sharedutil.LogLevel_Debug).Info("Waiting for Operation to complete")
 
 		if err = waitForOperationToComplete(ctx, &dbOperation, dbQueries, log); err != nil {
 			log.Error(err, "operation did not complete", "operation", dbOperation.Operation_id, "namespace", operation.Namespace)

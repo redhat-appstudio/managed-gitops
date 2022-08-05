@@ -57,9 +57,6 @@ type OperationReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.9.2/pkg/reconcile
 func (r *OperationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	contextLog := log.FromContext(ctx)
-
-	contextLog.Info("Operation event seen in reconciler: " + req.NamespacedName.String())
 
 	r.ControllerEventLoop.EventReceived(req, r.Client)
 

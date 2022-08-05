@@ -29,7 +29,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		return false, fmt.Errorf("unable to retrieve namespace '%s': %v", a.eventResourceNamespace, err)
 	}
 
-	clusterUser, _, err := a.sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, a.workspaceClient, namespace)
+	clusterUser, _, err := a.sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, a.workspaceClient, namespace, log)
 	if err != nil {
 		return false, fmt.Errorf("unable to retrieve cluster user in handleDeploymentModified, '%s': %v", string(namespace.UID), err)
 	}
@@ -149,7 +149,9 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			return false, err
 		}
 
-		if gitopsEngineInstance, err = a.sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, application.Engine_instance_inst_id, a.workspaceClient, namespace); err != nil {
+		if gitopsEngineInstance, err = a.sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, application.Engine_instance_inst_id,
+			a.workspaceClient, namespace, a.log); err != nil {
+
 			log.Error(err, "unable to retrieve gitopsengineinstance, on sync run modified", "instanceId", string(application.Engine_instance_inst_id))
 			return false, err
 		}

@@ -151,10 +151,11 @@ func (task *processOperationEventTask) PerformTask(taskContext context.Context) 
 
 		// Update the Operation row of the database, based on the new state.
 		if err := dbQueries.UpdateOperation(taskContext, dbOperation); err != nil {
-			task.log.Error(err, "unable to update operation state", "operation", dbOperation.Operation_id)
+			task.log.Error(err, "unable to update operation state", "operationID", dbOperation.Operation_id)
 			return true, err
 		}
-		task.log.Info("Updated Operation state for '" + dbOperation.Operation_id + "', state is: " + string(dbOperation.State))
+
+		task.log.Info("Updated Operation state.", "operationID", dbOperation.Operation_id, "new operationState", string(dbOperation.State))
 	}
 
 	return shouldRetry, err
@@ -164,7 +165,14 @@ func (task *processOperationEventTask) PerformTask(taskContext context.Context) 
 func (task *processOperationEventTask) internalPerformTask(taskContext context.Context, dbQueries db.DatabaseQueries) (*db.Operation, bool, error) {
 	log := log.FromContext(taskContext)
 
+	const (
+		shouldRetryTrue  = true
+		shouldRetryFalse = false
+	)
+
 	eventClient := task.event.client
+
+	log = log.WithValues("namespace", task.event.request.Namespace, "name", task.event.request.Name)
 
 	// 1) Retrieve an up-to-date copy of the Operation CR that we want to process.
 	operationCR := &operation.Operation{
@@ -175,13 +183,14 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	}
 	if err := eventClient.Get(taskContext, client.ObjectKeyFromObject(operationCR), operationCR); err != nil {
 		if apierr.IsNotFound(err) {
-			// If the resource doesn't exist, our job is done.
-			log.V(sharedutil.LogLevel_Debug).Info("Received a request for an operation CR that doesn't exist: " + operationCR.Namespace + "/" + operationCR.Name)
-			return nil, false, nil
+			// If the resource doesn't exist, so our job is done.
+			log.V(sharedutil.LogLevel_Debug).Info("Received a request for an operation CR that doesn't exist")
+
+			return nil, shouldRetryFalse, nil
 
 		} else {
 			// generic error
-			return nil, true, fmt.Errorf("unable to retrieve operation CR: %v", err)
+			return nil, shouldRetryTrue, fmt.Errorf("unable to retrieve operation CR: %v", err)
 		}
 	}
 
@@ -196,18 +205,18 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		if db.IsResultNotFoundError(err) {
 			// no corresponding db operation, so no work to do
 			log.V(sharedutil.LogLevel_Warn).Info("Received operation requested for operation DB entry that doesn't exist")
-			return nil, false, nil
+			return nil, shouldRetryFalse, nil
 		} else {
 			// some other generic error
 			log.Error(err, "Unable to retrieve operation due to generic error")
-			return nil, true, err
+			return nil, shouldRetryTrue, err
 		}
 	}
 
 	// If the operation has already completed (e.g. we previously ran it), then just ignore it and return
 	if dbOperation.State == db.OperationState_Completed || dbOperation.State == db.OperationState_Failed {
-		log.V(sharedutil.LogLevel_Debug).Info("Skipping Operation with state of completed/failed")
-		return &dbOperation, false, nil
+		log.V(sharedutil.LogLevel_Debug).Info("Skipping Operation with state of Completed/Dailed")
+		return &dbOperation, shouldRetryFalse, nil
 	}
 
 	// If the operation is in waiting state, update it to in-progress before we start processing it.
@@ -217,7 +226,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 		if err := dbQueries.UpdateOperation(taskContext, &dbOperation); err != nil {
 			log.Error(err, "unable to update Operation state")
-			return nil, true, fmt.Errorf("unable to update Operation '%s' state: %v", dbOperation.Resource_id, err)
+			return nil, shouldRetryTrue, fmt.Errorf("unable to update Operation, err: %v", err)
 		}
 	}
 
@@ -232,11 +241,11 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 			log.Error(err, "Receive operation on gitops engine instance that doesn't exist")
 
 			// no corresponding db operation, so no work to do
-			return &dbOperation, false, nil
+			return &dbOperation, shouldRetryFalse, nil
 		} else {
 			// some other generic error
 			log.Error(err, "Unexpected error on retrieving GitOpsEngineInstance in internalPerformTask")
-			return &dbOperation, true, err
+			return &dbOperation, shouldRetryTrue, err
 		}
 	}
 
@@ -245,17 +254,17 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	kubeSystemNamespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system", Namespace: "kube-system"}}
 	if err := eventClient.Get(taskContext, client.ObjectKeyFromObject(kubeSystemNamespace), kubeSystemNamespace); err != nil {
 		log.Error(err, "SEVERE: Unable to retrieve kube-system namespace")
-		return &dbOperation, true, fmt.Errorf("unable to retrieve kube-system namespace in internalPerformTask")
+		return &dbOperation, shouldRetryTrue, fmt.Errorf("unable to retrieve kube-system namespace in internalPerformTask")
 	}
 	if thisCluster, err := dbutil.GetGitopsEngineClusterByKubeSystemNamespaceUID(taskContext, string(kubeSystemNamespace.UID), dbQueries, log); err != nil {
 		log.Error(err, "Unable to retrieve GitOpsEngineCluster when processing Operation")
-		return &dbOperation, true, err
+		return &dbOperation, shouldRetryTrue, err
 	} else if thisCluster == nil {
 		log.Error(err, "GitOpsEngineCluster could not be found when processing Operation")
-		return &dbOperation, true, nil
+		return &dbOperation, shouldRetryTrue, nil
 	} else if thisCluster.Gitopsenginecluster_id != dbGitopsEngineInstance.EngineCluster_id {
 		log.Error(nil, "SEVERE: The gitops engine cluster that the cluster-agent is running on did not match the operation's target argo cd instance id.")
-		return &dbOperation, true, nil
+		return &dbOperation, shouldRetryTrue, nil
 	}
 
 	// 4) Find the namespace for the targeted Argo CD instance
@@ -267,18 +276,18 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	}
 	if err := eventClient.Get(taskContext, client.ObjectKeyFromObject(argoCDNamespace), argoCDNamespace); err != nil {
 		if apierr.IsNotFound(err) {
-			log.Error(err, "Argo CD namespace doesn't exist: "+argoCDNamespace.Name)
+			log.Error(err, "Argo CD namespace doesn't exist", "argoCDNamespaceName", argoCDNamespace.Name)
 			// Return retry as true, as it's possible it may exist in the future.
-			return &dbOperation, true, fmt.Errorf("argo CD namespace doesn't exist: %s", argoCDNamespace.Name)
+			return &dbOperation, shouldRetryTrue, fmt.Errorf("argo CD namespace doesn't exist: %s", argoCDNamespace.Name)
 		} else {
 			log.Error(err, "unexpected error on retrieve Argo CD namespace")
 			// some other generic error
-			return &dbOperation, true, err
+			return &dbOperation, shouldRetryTrue, err
 		}
 	}
 	if string(argoCDNamespace.UID) != dbGitopsEngineInstance.Namespace_uid {
 		log.Error(nil, "SEVERE: Engine instance did not match Argo CD namespace uid, while processing operation")
-		return &dbOperation, false, nil
+		return &dbOperation, shouldRetryFalse, nil
 	}
 
 	// Finally, call the corresponding method for processing the particular type of Operation.
@@ -312,7 +321,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 	} else {
 		log.Error(nil, "SEVERE: unrecognized resource type: "+dbOperation.Resource_type)
-		return &dbOperation, false, nil
+		return &dbOperation, shouldRetryFalse, nil
 	}
 
 }
@@ -390,7 +399,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		Application_id: dbOperation.Resource_id,
 	}
 
-	log = log.WithValues("applicationRow", dbApplication.Application_id)
+	log = log.WithValues("applicationID", dbApplication.Application_id, "argoCDApplicationName", dbApplication.Name)
 
 	if err := dbQueries.GetApplicationById(ctx, dbApplication); err != nil {
 
@@ -422,7 +431,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 			var firstDeletionErr error
 			for _, item := range list.Items {
 
-				log := log.WithValues("argoCDApplicationName", item.Name, "argoCDApplicationNmespace", item.Namespace)
+				log := log.WithValues("argoCDApplicationName", item.Name, "argoCDApplicationNamespace", item.Namespace)
 
 				log.Info("Deleting Argo CD Application that is no longer (or not) defined in the Application table.")
 
@@ -459,7 +468,6 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 	}
 
 	// Retrieve the Argo CD Application from the namespace
-	log = log.WithValues("argoCDApplicationName", app.Name)
 	if err := eventClient.Get(ctx, client.ObjectKeyFromObject(app), app); err != nil {
 
 		if apierr.IsNotFound(err) {
@@ -467,7 +475,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 
 			// Copy the contents of the Spec_field database column, into the Spec field of the Argo CD Application CR
 			if err := yaml.Unmarshal([]byte(dbApplication.Spec_field), app); err != nil {
-				log.Error(err, "SEVERE: unable to unmarshal application spec field on creating Application CR: "+app.Name)
+				log.Error(err, "SEVERE: unable to unmarshal application spec field on creating Application CR.")
 				// We return nil here, because there's likely nothing else that can be done to fix this.
 				// Thus there is no need to keep retrying.
 				return false, nil
@@ -484,14 +492,14 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 				}
 			}
 			if err := eventClient.Create(ctx, app, &client.CreateOptions{}); err != nil {
-				log.Error(err, "unable to create Argo CD Application CR: "+app.Name)
+				log.Error(err, "unable to create Argo CD Application CR")
 				// This may or may not be salvageable depending on the error; ultimately we should figure out which
 				// error messages mean unsalvageable, and not wait for them.
 				return true, err
 			}
 			sharedutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, sharedutil.ResourceCreated, log)
 
-			log.Info("Created Argo CD Application CR: " + app.Name)
+			log.Info("Created Argo CD Application CR")
 
 			// Success
 			return false, nil
@@ -535,13 +543,13 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		app.Spec.Project = specFieldApp.Spec.Project
 		app.Spec.SyncPolicy = specFieldApp.Spec.SyncPolicy
 		if err := eventClient.Update(ctx, app); err != nil {
-			log.Error(err, "unable to update application after difference detected: "+app.Name)
+			log.Error(err, "unable to update application after difference detected.")
 			// Retry if we were unable to update the Application, for example due to a conflict
 			return true, err
 		}
 		sharedutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, sharedutil.ResourceModified, log)
 
-		log.Info("Updated Argo CD Application CR: " + app.Name + ", diff was: " + specDiff)
+		log.Info("Updated Argo CD Application CR", "specDiff", specDiff)
 
 	} else {
 		log.Info("no changes detected in application, so no update needed")

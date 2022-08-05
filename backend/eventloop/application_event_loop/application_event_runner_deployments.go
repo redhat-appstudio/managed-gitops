@@ -71,7 +71,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 		return false, nil, nil, deploymentModifiedResult_Failed, fmt.Errorf("unable to retrieve namespace '%s': %v", deplNamespace, err)
 	}
 
-	clusterUser, _, err := a.sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, workspaceClient, gitopsDeplNamespace)
+	clusterUser, _, err := a.sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, workspaceClient, gitopsDeplNamespace, log)
 	if err != nil {
 		return false, nil, nil, deploymentModifiedResult_Failed, fmt.Errorf("unable to retrieve cluster user in handleDeploymentModified, '%s': %v", string(gitopsDeplNamespace.UID), err)
 	}
@@ -254,7 +254,9 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		Spec_field:              specFieldText,
 	}
 
-	a.log.Info("Creating new Application in DB: " + application.Application_id)
+	a.log.Info("Creating new Application in DB: "+application.Application_id, "appName", appName,
+		"gitopsEngineInstanceID", application.Engine_instance_inst_id, "managedEnvID", application.Managed_environment_id,
+		"spec_field", application.Spec_field)
 
 	if err := dbQueries.CreateApplication(ctx, &application); err != nil {
 		a.log.Error(err, "unable to create application", "application", application, "ownerId", clusterUser.Clusteruser_id)
@@ -269,8 +271,6 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		DeploymentNamespace:                   gitopsDeployment.Namespace,
 		NamespaceUID:                          eventlooptypes.GetWorkspaceIDFromNamespaceID(gitopsDeplNamespace),
 	}
-
-	a.log.Info("Upserting new DeploymentToApplicationMapping in DB: " + requiredDeplToAppMapping.Deploymenttoapplicationmapping_uid_id)
 
 	if _, err := dbutil.GetOrCreateDeploymentToApplicationMapping(ctx, requiredDeplToAppMapping, dbQueries, a.log); err != nil {
 		a.log.Error(err, "unable to create deplToApp mapping", "deplToAppMapping", requiredDeplToAppMapping)
@@ -362,7 +362,7 @@ func (a applicationEventLoopRunner_Action) reconcileManagedEnvironmentOfGitOpsDe
 	// Ask the event loop to ensure that the managed environment exists, is up-to-date, and is valid (can be connected to using k8s client)
 	sharedResourceRes, err := a.sharedResourceEventLoop.ReconcileSharedManagedEnv(ctx, a.workspaceClient, gitopsDeplNamespace,
 		gitopsDeployment.Spec.Destination.Environment, a.eventResourceNamespace, isWorkspaceTarget,
-		a.k8sClientFactory)
+		a.k8sClientFactory, a.log)
 
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("unable to get or create managed environment when reconciling for GitOpsDeployment: %v", err)
@@ -625,7 +625,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		log.V(sharedutil.LogLevel_Warn).Error(nil, "unexpected number of rows deleted for application", "rowsDeleted", rowsDeleted, "appId", deplToAppMapping.Application_id)
 	}
 
-	gitopsEngineInstance, err := a.sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, dbApplication.Engine_instance_inst_id, a.workspaceClient, workspaceNamespace)
+	gitopsEngineInstance, err := a.sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, dbApplication.Engine_instance_inst_id, a.workspaceClient, workspaceNamespace, a.log)
 	if err != nil {
 		log := log.WithValues("id", dbApplication.Engine_instance_inst_id)
 

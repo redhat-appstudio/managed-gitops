@@ -68,6 +68,9 @@ type SnapshotArtifacts struct {
 
 // ApplicationSnapshotStatus defines the observed state of ApplicationSnapshot
 type ApplicationSnapshotStatus struct {
+	// Conditions represent the latest available observations for the Snapshot
+	// +optional
+	Conditions []metav1.Condition `json:"conditions"`
 }
 
 //+kubebuilder:object:root=true

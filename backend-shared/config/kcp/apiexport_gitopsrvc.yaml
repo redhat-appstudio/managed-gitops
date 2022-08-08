@@ -1,0 +1,14 @@
+# This file is generated from CRDs by ./hack/generate-kcp-api.sh script.
+# Please do not modify!
+
+apiVersion: apis.kcp.dev/v1alpha1
+kind: APIExport
+metadata:
+  name: gitopsrvc
+spec:
+  latestResourceSchemas:
+    - v202208080634.gitopsdeploymentmanagedenvironments.managed-gitops.redhat.com
+    - v202208080634.gitopsdeploymentrepositorycredentials.managed-gitops.redhat.com
+    - v202208080634.gitopsdeployments.managed-gitops.redhat.com
+    - v202208080634.gitopsdeploymentsyncruns.managed-gitops.redhat.com
+    - v202208080634.operations.managed-gitops.redhat.com

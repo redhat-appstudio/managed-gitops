@@ -67,7 +67,7 @@ const (
 func preprocessEventLoopRouter(input chan eventlooptypes.EventLoopEvent, nextStep *eventloop.ControllerEventLoop) {
 
 	ctx := context.Background()
-	log := log.FromContext(ctx)
+	log := log.FromContext(ctx).WithName("preprocess-event-loop")
 
 	taskRetryLoop := sharedutil.NewTaskRetryLoop("event-loop-router-retry-loop")
 

@@ -195,3 +195,13 @@ func (obj *ClusterUser) Dispose(ctx context.Context, dbq DatabaseQueries) error 
 	_, err := dbq.DeleteClusterUserById(ctx, obj.Clusteruser_id)
 	return err
 }
+
+// GetAsLogKeyValues return a []interface that can be passed to log.Info(...).
+// e.g. log.Info("Creating database resource", obj.GetAsLogKeyValues()...)
+func (obj *ClusterUser) GetAsLogKeyValues() []interface{} {
+	if obj == nil {
+		return []interface{}{}
+	}
+
+	return []interface{}{"clusteruser_id", obj.Clusteruser_id, "user_name", obj.User_name}
+}

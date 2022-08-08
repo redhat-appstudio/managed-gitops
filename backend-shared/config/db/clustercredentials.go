@@ -275,3 +275,16 @@ func (obj *ClusterCredentials) Dispose(ctx context.Context, dbq DatabaseQueries)
 	_, err := dbq.DeleteClusterCredentialsById(ctx, obj.Clustercredentials_cred_id)
 	return err
 }
+
+// GetAsLogKeyValues return a []interface that can be passed to log.Info(...).
+// e.g. log.Info("Creating database resource", obj.GetAsLogKeyValues()...)
+func (obj *ClusterCredentials) GetAsLogKeyValues() []interface{} {
+	if obj == nil {
+		return []interface{}{}
+	}
+
+	// We avoid logging the bearer_token or kube_config, as these container sensitive user data.
+	return []interface{}{"host", obj.Host, "kube-config-length", len(obj.Kube_config),
+		"kube-config-context", len(obj.Kube_config_context), "serviceaccount_ns", obj.Serviceaccount_ns,
+		"serviceaccount-bearer-token-length", len(obj.Serviceaccount_bearer_token)}
+}

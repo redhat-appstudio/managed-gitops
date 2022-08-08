@@ -132,7 +132,7 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, workspaceID 
 
 	ctx := context.Background()
 
-	log := log.FromContext(ctx).WithValues("workspaceID", workspaceID)
+	log := log.FromContext(ctx).WithValues("workspaceID", workspaceID).WithName("workspace-event-loop")
 
 	log.Info("workspaceEventLoopRouter started")
 	defer log.Info("workspaceEventLoopRouter ended.")

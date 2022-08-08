@@ -317,3 +317,15 @@ func (obj *DeploymentToApplicationMapping) Dispose(ctx context.Context, dbq Data
 	_, err := dbq.DeleteDeploymentToApplicationMappingByDeplId(ctx, obj.Deploymenttoapplicationmapping_uid_id)
 	return err
 }
+
+// GetAsLogKeyValues return a []interface that can be passed to log.Info(...).
+// e.g. log.Info("Creating database resource", obj.GetAsLogKeyValues()...)
+func (obj *DeploymentToApplicationMapping) GetAsLogKeyValues() []interface{} {
+	if obj == nil {
+		return []interface{}{}
+	}
+
+	return []interface{}{"dtamApplicationID", obj.Application_id, "dtamDeploymentName", obj.DeploymentName,
+		"dtamNamespace", obj.DeploymentNamespace, "dtamUID", obj.Deploymenttoapplicationmapping_uid_id,
+		"dtamNamespaceUID", obj.NamespaceUID}
+}

@@ -212,5 +212,20 @@ func (dbq *PostgreSQLDatabaseQueries) GetAPICRForDatabaseUID(ctx context.Context
 	*obj = result[0]
 
 	return nil
+}
 
+// GetAsLogKeyValues return a []interface that can be passed to log.Info(...).
+// e.g. log.Info("Creating database resource", obj.GetAsLogKeyValues()...)
+func (obj *APICRToDatabaseMapping) GetAsLogKeyValues() []interface{} {
+	if obj == nil {
+		return []interface{}{}
+	}
+
+	return []interface{}{"apiResourceName", obj.APIResourceName,
+		"apiResourceNamespace", obj.APIResourceNamespace,
+		"apiResourceType", obj.APIResourceType,
+		"apiResourceUID", obj.APIResourceUID,
+		"dbRelationKey", obj.DBRelationKey,
+		"dbRelationType", obj.DBRelationType,
+		"namespaceUID", obj.NamespaceUID}
 }

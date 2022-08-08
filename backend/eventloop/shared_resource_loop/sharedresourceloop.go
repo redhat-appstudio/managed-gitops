@@ -373,11 +373,11 @@ func internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx context.Con
 		if db.IsResultNotFoundError(err) {
 			isNewUser = true
 
+			log.Info("Creating Cluster User with User ID: "+clusterUser.Clusteruser_id, clusterUser.GetAsLogKeyValues()...)
+
 			if err := dbq.CreateClusterUser(ctx, &clusterUser); err != nil {
 				return nil, false, err
 			}
-			log.Info("Cluster User Created with User ID: " + clusterUser.Clusteruser_id)
-
 		} else {
 			return nil, false, err
 		}
@@ -395,16 +395,18 @@ const (
 // The bool return value is 'true' if respective resource is created; 'false' if it already exists in DB or in case of failure.
 func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, workspaceClient client.Client,
 	workspaceNamespace corev1.Namespace, dbQueries db.DatabaseQueries,
-	log logr.Logger) /* (*db.ClusterUser, bool, *db.ManagedEnvironment, bool, *db.GitopsEngineInstance, bool, *db.ClusterAccess, bool, *db.GitopsEngineCluster, error) */ (SharedResourceManagedEnvContainer, error) {
+	log logr.Logger) (SharedResourceManagedEnvContainer, error) {
 
 	clusterUser, isNewUser, err := internalGetOrCreateClusterUserByNamespaceUID(ctx, string(workspaceNamespace.UID), dbQueries, log)
 	if err != nil {
-		return SharedResourceManagedEnvContainer{}, fmt.Errorf("unable to retrieve cluster user in processMessage, '%s': %v", string(workspaceNamespace.UID), err)
+		return SharedResourceManagedEnvContainer{},
+			fmt.Errorf("unable to retrieve cluster user in processMessage, '%s': %v", string(workspaceNamespace.UID), err)
 	}
 
 	managedEnv, isNewManagedEnv, err := dbutil.GetOrCreateManagedEnvironmentByNamespaceUID(ctx, workspaceNamespace, dbQueries, log)
 	if err != nil {
-		return SharedResourceManagedEnvContainer{}, fmt.Errorf("unable to get or created managed env on deployment modified event: %v", err)
+		return SharedResourceManagedEnvContainer{},
+			fmt.Errorf("unable to get or created managed env on deployment modified event: %v", err)
 	}
 
 	engineInstance, isNewInstance, gitopsEngineCluster, err := internalDetermineGitOpsEngineInstanceForNewApplication(ctx, *clusterUser, *managedEnv, workspaceClient, dbQueries, log)
@@ -494,10 +496,12 @@ func internalGetOrCreateClusterAccess(ctx context.Context, ca *db.ClusterAccess,
 		return nil, false
 	}
 
+	log.Info(fmt.Sprintf("Creating ClusterAccess for UserID: %s, for ManagedEnvironment: %s", ca.Clusteraccess_user_id,
+		ca.Clusteraccess_managed_environment_id), ca.GetAsLogKeyValues()...)
+
 	if err := dbq.CreateClusterAccess(ctx, ca); err != nil {
 		return err, false
 	}
-	log.Info(fmt.Sprintf("Cluster Access Created for UserID: %s, for ManagedEnvironment: %s", ca.Clusteraccess_user_id, ca.Clusteraccess_managed_environment_id))
 
 	return nil, true
 }
@@ -514,10 +518,11 @@ func internalGetOrCreateClusterUserByNamespaceUID(ctx context.Context, namespace
 		if db.IsResultNotFoundError(err) {
 			isNewUser = true
 
+			log.Info("Creating ClusterUser", clusterUser.GetAsLogKeyValues()...)
+
 			if err := dbq.CreateClusterUser(ctx, &clusterUser); err != nil {
 				return nil, false, err
 			}
-			log.Info("Cluster User Created", "clusterUserID", clusterUser.Clusteruser_id, "username", clusterUser.User_name)
 
 		} else {
 			return nil, false, err

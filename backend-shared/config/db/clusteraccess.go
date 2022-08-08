@@ -151,3 +151,15 @@ func (obj *ClusterAccess) Dispose(ctx context.Context, dbq DatabaseQueries) erro
 	_, err := dbq.DeleteClusterAccessById(ctx, obj.Clusteraccess_user_id, obj.Clusteraccess_managed_environment_id, obj.Clusteraccess_gitops_engine_instance_id)
 	return err
 }
+
+// GetAsLogKeyValues return a []interface that can be passed to log.Info(...).
+// e.g. log.Info("Creating database resource", obj.GetAsLogKeyValues()...)
+func (obj *ClusterAccess) GetAsLogKeyValues() []interface{} {
+	if obj == nil {
+		return []interface{}{}
+	}
+
+	return []interface{}{"engineInstance", obj.Clusteraccess_gitops_engine_instance_id,
+		"managedEnvironment", obj.Clusteraccess_managed_environment_id,
+		"userID", obj.Clusteraccess_user_id}
+}

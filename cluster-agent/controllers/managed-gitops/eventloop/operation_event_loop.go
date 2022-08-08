@@ -72,7 +72,7 @@ func operationEventLoopRouter(input chan operationEventLoopEvent) {
 
 	ctx := context.Background()
 
-	log := log.FromContext(ctx)
+	log := log.FromContext(ctx).WithName("operation-event-loop")
 
 	taskRetryLoop := sharedutil.NewTaskRetryLoop("cluster-agent")
 
@@ -155,7 +155,7 @@ func (task *processOperationEventTask) PerformTask(taskContext context.Context) 
 			return true, err
 		}
 
-		task.log.Info("Updated Operation state.", "operationID", dbOperation.Operation_id, "new operationState", string(dbOperation.State))
+		task.log.Info("Updated Operation state", "operationID", dbOperation.Operation_id, "new operationState", string(dbOperation.State))
 	}
 
 	return shouldRetry, err
@@ -163,7 +163,6 @@ func (task *processOperationEventTask) PerformTask(taskContext context.Context) 
 }
 
 func (task *processOperationEventTask) internalPerformTask(taskContext context.Context, dbQueries db.DatabaseQueries) (*db.Operation, bool, error) {
-	log := log.FromContext(taskContext)
 
 	const (
 		shouldRetryTrue  = true
@@ -172,7 +171,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 	eventClient := task.event.client
 
-	log = log.WithValues("namespace", task.event.request.Namespace, "name", task.event.request.Name)
+	log := task.log.WithValues("namespace", task.event.request.Namespace, "name", task.event.request.Name)
 
 	// 1) Retrieve an up-to-date copy of the Operation CR that we want to process.
 	operationCR := &operation.Operation{
@@ -399,7 +398,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		Application_id: dbOperation.Resource_id,
 	}
 
-	log = log.WithValues("applicationID", dbApplication.Application_id, "argoCDApplicationName", dbApplication.Name)
+	log = log.WithValues("applicationID", dbApplication.Application_id)
 
 	if err := dbQueries.GetApplicationById(ctx, dbApplication); err != nil {
 
@@ -460,6 +459,8 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		}
 	}
 
+	log = log.WithValues("argoCDApplicationName", dbApplication.Name)
+
 	app := &appv1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      dbApplication.Name,
@@ -491,6 +492,8 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 					return true, err
 				}
 			}
+
+			log.Info("Creating Argo CD Application CR")
 			if err := eventClient.Create(ctx, app, &client.CreateOptions{}); err != nil {
 				log.Error(err, "unable to create Argo CD Application CR")
 				// This may or may not be salvageable depending on the error; ultimately we should figure out which
@@ -498,8 +501,6 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 				return true, err
 			}
 			sharedutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, sharedutil.ResourceCreated, log)
-
-			log.Info("Created Argo CD Application CR")
 
 			// Success
 			return false, nil

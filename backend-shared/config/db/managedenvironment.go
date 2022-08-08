@@ -233,3 +233,15 @@ func (obj *ManagedEnvironment) Dispose(ctx context.Context, dbq DatabaseQueries)
 	_, err := dbq.DeleteManagedEnvironmentById(ctx, obj.Managedenvironment_id)
 	return err
 }
+
+// GetAsLogKeyValues return a []interface that can be passed to log.Info(...).
+// e.g. log.Info("Creating database resource", obj.GetAsLogKeyValues()...)
+func (obj *ManagedEnvironment) GetAsLogKeyValues() []interface{} {
+	if obj == nil {
+		return []interface{}{}
+	}
+
+	return []interface{}{"clusterCredentialsID", obj.Clustercredentials_id,
+		"managedEnvironmentID", obj.Managedenvironment_id,
+		"managedEnvironmentName", obj.Name}
+}

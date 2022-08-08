@@ -127,3 +127,15 @@ func (obj *KubernetesToDBResourceMapping) Dispose(ctx context.Context, dbq Datab
 	_, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, obj)
 	return err
 }
+
+// GetAsLogKeyValues return a []interface that can be passed to log.Info(...).
+// e.g. log.Info("Creating database resource", obj.GetAsLogKeyValues()...)
+func (obj *KubernetesToDBResourceMapping) GetAsLogKeyValues() []interface{} {
+	if obj == nil {
+		return []interface{}{}
+	}
+
+	return []interface{}{
+		"k8sResourceType", obj.KubernetesResourceType, "k8sResourceUID", obj.KubernetesResourceUID,
+		"dbRelationType", obj.DBRelationType, "dbRelationKey", obj.DBRelationKey}
+}

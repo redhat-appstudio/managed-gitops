@@ -64,7 +64,8 @@ func applicationEventQueueLoop(input chan eventlooptypes.EventLoopMessage, gitop
 
 	ctx := context.Background()
 
-	log := log.FromContext(ctx).WithValues("workspaceID", workspaceID).WithValues("gitOpsDeplID", gitopsDeplID)
+	log := log.FromContext(ctx).WithValues("workspaceID", workspaceID).WithValues("gitOpsDeplID", gitopsDeplID).
+		WithName("application-event-loop")
 
 	log.Info("applicationEventQueueLoop started.")
 	defer log.Info("applicationEventQueueLoop ended.")

@@ -489,14 +489,14 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		}
 
 		if specFieldResult == application.Spec_field {
-			log.Info("No spec change detected between Application DB entry and GitOpsDeployment CR")
+			log.Info("Processed GitOpsDeployment event: No spec change detected between Application DB entry and GitOpsDeployment CR")
 			// No change required: the application database entry is consistent with the gitopsdepl CR
 		} else {
 
 			shouldUpdateApplication = true
 			application.Spec_field = specFieldResult
 
-			log.Info("Spec change detected between Application DB entry and GitOpsDeployment CR")
+			log.Info("Processed GitOpsDeployment event: Spec change detected between Application DB entry and GitOpsDeployment CR")
 		}
 
 		// If the managed environment changed from what is in the database, we should update the environment
@@ -508,12 +508,11 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 			application.Managed_environment_id = newManagedEnvId
 			shouldUpdateApplication = true
 		}
-
 	}
 
 	// If neither the managed environment, nor the spec field changed, then no need to update the database, so exit.
 	if !shouldUpdateApplication {
-		log.Info("No Application row change detected")
+		log.Info("Processed GitOpsDeployment event: No Application row change detected")
 		return false, application, engineInstance, deploymentModifiedResult_NoChange, nil
 	}
 
@@ -522,12 +521,12 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 
 		return false, nil, nil, deploymentModifiedResult_Failed, err
 	}
-	log.Info("Application updated with ID: " + application.Application_id)
+	log.Info("Processed GitOpsDeployment event: Application updated in database from latest API changes")
 
 	// Create the operation
 	gitopsEngineClient, err := a.getK8sClientForGitOpsEngineInstance(engineInstance)
 	if err != nil {
-		log.Error(err, "unable to retrieve gitopsengineinstance for updated gitopsdepl", "gitopsEngineIstance", engineInstance.EngineCluster_id)
+		log.Error(err, "unable to retrieve gitopsengineinstance for updated gitopsdepl", "gitopsEngineInstance", engineInstance.EngineCluster_id)
 		return false, nil, nil, deploymentModifiedResult_Failed, err
 	}
 
@@ -541,7 +540,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput, clusterUser.Clusteruser_id,
 		operationNamespace, dbQueries, gitopsEngineClient, log)
 	if err != nil {
-		log.Error(err, "could not create operation", "operation", dbOperation.Operation_id, "namespace", operationNamespace)
+		log.Error(err, "could not create operation")
 		return false, nil, nil, deploymentModifiedResult_Failed, err
 	}
 

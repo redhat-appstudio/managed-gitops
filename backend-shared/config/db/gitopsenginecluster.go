@@ -216,3 +216,12 @@ func (obj *GitopsEngineCluster) Dispose(ctx context.Context, dbq DatabaseQueries
 	_, err := dbq.DeleteGitopsEngineClusterById(ctx, obj.Gitopsenginecluster_id)
 	return err
 }
+
+// GetAsLogKeyValues return a []interface that can be passed to log.Info(...).
+// e.g. log.Info("Creating database resource", obj.GetAsLogKeyValues()...)
+func (obj *GitopsEngineCluster) GetAsLogKeyValues() []interface{} {
+	if obj == nil {
+		return []interface{}{}
+	}
+	return []interface{}{"clustercredentials_id", obj.Clustercredentials_id, "gitopsenginecluster_id", obj.Gitopsenginecluster_id}
+}

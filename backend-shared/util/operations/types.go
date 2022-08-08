@@ -36,7 +36,8 @@ func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationPara
 	var dbOperationList []db.Operation
 	if err = dbQueries.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, dbOperationParam.Resource_id, dbOperationParam.Resource_type, &dbOperationList, clusterUserID); err != nil {
 		log.Error(err, "unable to fetch list of Operations")
-		return nil, nil, fmt.Errorf("unable to fetch list of operations: %v", err)
+		// We intentionally don't return here: if we were unable to fetch the list,
+		// then we will create an Operation as usual (and it might be duplicate, but that's fine)
 	}
 
 	// Iterate through existing DB entries for a given resource: look to see if there is already an Operation
@@ -59,7 +60,8 @@ func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationPara
 
 		if err = gitopsEngineClient.Get(ctx, client.ObjectKeyFromObject(&k8sOperation), &k8sOperation); err != nil {
 			log.Error(err, "unable to fetch existing Operation from cluster.", "Operation k8s Name", k8sOperation.Name)
-			return nil, nil, fmt.Errorf("unable to fetch operation from cluster: %v", err)
+			// We intentionally don't return here: we keep going through the list, even if an error occurs.
+			// Only one needs to match.
 		} else {
 			// An operation already exists in waiting state, and the Operation CR for it still exists, so we don't need to create
 			// a new operation.

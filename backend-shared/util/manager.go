@@ -51,7 +51,7 @@ func getControllerManager(ctx context.Context, restConfig *rest.Config, apiExpor
 		log.Info("Looking up virtual workspace URL")
 		cfg, err := restConfigForAPIExport(ctx, restConfig, apiExportClient, apiExportName)
 		if err != nil {
-			log.Error(err, "error looking up virtual workspace URL")
+			return nil, fmt.Errorf("error looking up virtual workspace URL: %w", err)
 		}
 
 		log.Info("Using virtual workspace URL", "url", cfg.Host)

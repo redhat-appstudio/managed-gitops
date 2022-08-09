@@ -137,3 +137,46 @@ func HaveSpecSource(source managedgitopsv1alpha1.ApplicationSource) matcher.Gome
 		return res
 	}, BeTrue())
 }
+
+func HaveConditions(conditions []managedgitopsv1alpha1.GitOpsDeploymentCondition) matcher.GomegaMatcher {
+
+	return WithTransform(func(gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment) bool {
+
+		k8sClient, err := fixture.GetKubeClient()
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitopsDeployment), &gitopsDeployment)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		conditionExists := false
+		existingConditionList := gitopsDeployment.Status.Conditions
+
+		if len(conditions) != len(existingConditionList) {
+			fmt.Println("HaveConditions:", conditionExists, "/ Expected:", conditions, "/ Actual:", gitopsDeployment.Status.Conditions)
+			return false
+		}
+
+		for _, resourceCondition := range conditions {
+			conditionExists = false
+			for _, existingCondition := range existingConditionList {
+				if reflect.DeepEqual(resourceCondition, existingCondition) {
+					conditionExists = true
+					break
+				}
+			}
+			if !conditionExists {
+				fmt.Println("GitOpsDeploymentCondition:", conditionExists, "/ Expected:", conditions, "/ Actual:", gitopsDeployment.Status.Conditions)
+				break
+			}
+		}
+		return conditionExists
+
+	}, BeTrue())
+
+}

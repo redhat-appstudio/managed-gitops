@@ -243,6 +243,10 @@ func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 		return err
 	}
 
+	if err = addMissingPermissions(kubeClientSet, namespaceParam, argoCDNamespaceParam); err != nil {
+		return nil
+	}
+
 	// Wait for Argo CD to process the namespace, before we exit:
 	// - This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
 	//   set up proper roles for it.
@@ -299,6 +303,33 @@ func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 		return false, nil
 	}); err != nil {
 		return fmt.Errorf("argo CD never setup rolebindings for namespace '%s': %v", namespaceParam, err)
+	}
+
+	// allow argocd to manage the target namespace
+	err = wait.Poll(time.Second*1, time.Minute*2, func() (done bool, err error) {
+		secretList, err := kubeClientSet.CoreV1().Secrets(argoCDNamespaceParam).List(context.Background(), metav1.ListOptions{
+			LabelSelector: "argocd.argoproj.io/secret-type=cluster",
+		})
+		if err != nil {
+			return false, err
+		}
+
+		if len(secretList.Items) > 0 {
+			clusterSecret := secretList.Items[0]
+
+			ns := []string{argoCDNamespaceParam, namespaceParam}
+			clusterSecret.Data["namespaces"] = []byte(strings.Join(ns, ","))
+
+			_, err = kubeClientSet.CoreV1().Secrets(argoCDNamespaceParam).Update(context.Background(), &clusterSecret, metav1.UpdateOptions{})
+			if err != nil {
+				return false, err
+			}
+		}
+
+		return true, nil
+	})
+	if err != nil {
+
 	}
 
 	return nil
@@ -361,6 +392,105 @@ func DeleteNamespace(namespaceParam string) error {
 			return true, nil
 		}); err != nil {
 			GinkgoWriter.Printf("unable to remove finalizer from Argo CD Applications in namespace '%s': %v\n", namespaceParam, err)
+			return false, nil
+		}
+
+		// Remove KCP finalizers from secrets in this namespace
+		if err := wait.Poll(time.Second*1, time.Minute*2, func() (done bool, err error) {
+
+			secretList := corev1.SecretList{}
+			if err = k8sClient.List(context.Background(), &secretList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
+				GinkgoWriter.Println("unable to list secrets in '"+namespaceParam+"'", err)
+				return false, nil
+			}
+
+			for idx := range secretList.Items {
+
+				secret := secretList.Items[idx]
+				if len(secret.Finalizers) > 0 {
+					err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&secret), &secret)
+					if err != nil {
+						GinkgoWriter.Println("unable to get Secret '"+secret.Name+"'", err)
+						return false, nil
+					}
+					secret.Finalizers = []string{}
+					err = k8sClient.Update(context.Background(), &secret)
+					if err != nil {
+						GinkgoWriter.Println("unable to update Secret '"+secret.Name+"'", err)
+						return false, nil
+					}
+				}
+			}
+
+			return true, nil
+		}); err != nil {
+			GinkgoWriter.Printf("unable to remove finalizer from  in namespace '%s': %v\n", namespaceParam, err)
+			return false, nil
+		}
+
+		// Remove KCP finalizers from service accounts in this namespace
+		if err := wait.Poll(time.Second*1, time.Minute*2, func() (done bool, err error) {
+
+			saList := corev1.ServiceAccountList{}
+			if err = k8sClient.List(context.Background(), &saList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
+				GinkgoWriter.Println("unable to list service accounts in '"+namespaceParam+"'", err)
+				return false, nil
+			}
+
+			for idx := range saList.Items {
+
+				sa := saList.Items[idx]
+				if len(sa.Finalizers) > 0 {
+					err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&sa), &sa)
+					if err != nil {
+						GinkgoWriter.Println("unable to get service account '"+sa.Name+"'", err)
+						return false, nil
+					}
+					sa.Finalizers = []string{}
+					err = k8sClient.Update(context.Background(), &sa)
+					if err != nil {
+						GinkgoWriter.Println("unable to update service account '"+sa.Name+"'", err)
+						return false, nil
+					}
+				}
+			}
+
+			return true, nil
+		}); err != nil {
+			GinkgoWriter.Printf("unable to remove finalizer from service account in namespace '%s': %v\n", namespaceParam, err)
+			return false, nil
+		}
+
+		// Remove KCP finalizers from configmaps in this namespace
+		if err := wait.Poll(time.Second*1, time.Minute*2, func() (done bool, err error) {
+
+			cmList := corev1.ConfigMapList{}
+			if err = k8sClient.List(context.Background(), &cmList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
+				GinkgoWriter.Println("unable to list configmaps in '"+namespaceParam+"'", err)
+				return false, nil
+			}
+
+			for idx := range cmList.Items {
+
+				cm := cmList.Items[idx]
+				if len(cm.Finalizers) > 0 {
+					err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&cm), &cm)
+					if err != nil {
+						GinkgoWriter.Println("unable to get configmap '"+cm.Name+"'", err)
+						return false, nil
+					}
+					cm.Finalizers = []string{}
+					err = k8sClient.Update(context.Background(), &cm)
+					if err != nil {
+						GinkgoWriter.Println("unable to update configmap '"+cm.Name+"'", err)
+						return false, nil
+					}
+				}
+			}
+
+			return true, nil
+		}); err != nil {
+			GinkgoWriter.Printf("unable to remove finalizer from configmap in namespace '%s': %v\n", namespaceParam, err)
 			return false, nil
 		}
 
@@ -510,6 +640,72 @@ func ReportRemainingArgoCDApplications(k8sClient client.Client) error {
 		GinkgoWriter.Printf("- %d) %s\n", idx+1, (string)(jsonStr))
 	}
 	GinkgoWriter.Println()
+
+	return nil
+}
+
+func addMissingPermissions(kubeClientSet *kubernetes.Clientset, namespace, argocdNamespace string) error {
+
+	addNamespacePrefix := func(name string) string {
+		return fmt.Sprintf("%s-%s", argocdNamespace, name)
+	}
+
+	getAdminRole := func(name string) *rbacv1.Role {
+		return &rbacv1.Role{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      addNamespacePrefix(name),
+				Namespace: namespace,
+			},
+			Rules: []rbacv1.PolicyRule{
+				{
+					Verbs:     []string{"*"},
+					Resources: []string{"*"},
+					APIGroups: []string{"*"},
+				},
+			},
+		}
+	}
+
+	getRolebinding := func(name string) *rbacv1.RoleBinding {
+		return &rbacv1.RoleBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      addNamespacePrefix(name),
+				Namespace: namespace,
+			},
+			Subjects: []rbacv1.Subject{
+				{
+					Name:      name,
+					Namespace: argocdNamespace,
+					Kind:      "ServiceAccount",
+				},
+			},
+			RoleRef: rbacv1.RoleRef{
+				APIGroup: "rbac.authorization.k8s.io",
+				Name:     addNamespacePrefix(name),
+				Kind:     "Role",
+			},
+		}
+	}
+
+	_, err := kubeClientSet.RbacV1().Roles(namespace).Create(context.Background(), getAdminRole("argocd-server"), metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+
+	_, err = kubeClientSet.RbacV1().Roles(namespace).Create(context.Background(), getAdminRole("argocd-application-controller"), metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+
+	_, err = kubeClientSet.RbacV1().RoleBindings(namespace).Create(context.Background(), getRolebinding("argocd-server"), metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+
+	_, err = kubeClientSet.RbacV1().RoleBindings(namespace).Create(context.Background(), getRolebinding("argocd-application-controller"), metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

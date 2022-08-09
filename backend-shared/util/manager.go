@@ -101,7 +101,7 @@ func restConfigForAPIExport(ctx context.Context, cfg *rest.Config, apiExportClie
 	}
 
 	cfg = rest.CopyConfig(cfg)
-	// TODO(ncdc): sharding support
+	// TODO: GITOPSRVCE-204 - implement sharding of virtual workspaces
 	cfg.Host = apiExport.Status.VirtualWorkspaces[0].URL
 
 	return cfg, nil

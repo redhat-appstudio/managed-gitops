@@ -1,3 +1,3 @@
 resources:
-  - apiexport_gitopsrvc_backendshared.yaml.yaml
+  - apiexport_gitopsrvc_backendshared.yaml
   - apiresourceschema_gitopsrvc_backendshared.yaml

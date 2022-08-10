@@ -354,7 +354,6 @@ func processOperation_ManagedEnvironment(ctx context.Context, dbOperation db.Ope
 			Namespace: argoCDNamespace.Name,
 		},
 	}
-	sharedutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, sharedutil.ResourceDeleted, log)
 	if err := eventClient.Delete(ctx, secret); err != nil {
 		if apierr.IsNotFound(err) {
 			// The cluster secret doesn't exist, so our work is done.
@@ -363,6 +362,7 @@ func processOperation_ManagedEnvironment(ctx context.Context, dbOperation db.Ope
 			return true, fmt.Errorf("unable to retrieve Argo CD Cluster Secret '%s' in '%s': %v", secret.Name, secret.Namespace, err)
 		}
 	}
+	sharedutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, sharedutil.ResourceDeleted, log)
 
 	// Argo CD cluster secret corresponding to environment is successfully deleted.
 	return false, nil
@@ -483,13 +483,13 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 					return true, err
 				}
 			}
-			sharedutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, sharedutil.ResourceCreated, log)
 			if err := eventClient.Create(ctx, app, &client.CreateOptions{}); err != nil {
 				log.Error(err, "unable to create Argo CD Application CR: "+app.Name)
 				// This may or may not be salvageable depending on the error; ultimately we should figure out which
 				// error messages mean unsalvageable, and not wait for them.
 				return true, err
 			}
+			sharedutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, sharedutil.ResourceCreated, log)
 
 			log.Info("Created Argo CD Application CR: " + app.Name)
 
@@ -534,12 +534,12 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		app.Spec.Source = specFieldApp.Spec.Source
 		app.Spec.Project = specFieldApp.Spec.Project
 		app.Spec.SyncPolicy = specFieldApp.Spec.SyncPolicy
-		sharedutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, sharedutil.ResourceModified, log)
 		if err := eventClient.Update(ctx, app); err != nil {
 			log.Error(err, "unable to update application after difference detected: "+app.Name)
 			// Retry if we were unable to update the Application, for example due to a conflict
 			return true, err
 		}
+		sharedutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, sharedutil.ResourceModified, log)
 
 		log.Info("Updated Argo CD Application CR: " + app.Name + ", diff was: " + specDiff)
 
@@ -583,7 +583,6 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 			},
 		}
 
-		sharedutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, sharedutil.ResourceDeleted, log)
 		if err := eventClient.Delete(ctx, secret); err != nil {
 			if apierr.IsNotFound(err) {
 				// The secret doesn't exist, so no more work to do.
@@ -592,6 +591,7 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 				return fmt.Errorf("unable to delete secret of deleted managed environment: %v", err)
 			}
 		}
+		sharedutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, sharedutil.ResourceDeleted, log)
 
 		return nil
 	}
@@ -613,10 +613,10 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 		}
 
 		// A) Secret doesn't exist, so create it
-		sharedutil.LogAPIResourceChangeEvent(expectedSecret.Namespace, expectedSecret.Name, expectedSecret, sharedutil.ResourceCreated, log)
 		if err := eventClient.Create(ctx, &expectedSecret); err != nil {
 			return fmt.Errorf("unable to create expected Argo CD Cluster secret '%s' in '%s'", expectedSecret.Name, expectedSecret.Namespace)
 		}
+		sharedutil.LogAPIResourceChangeEvent(expectedSecret.Namespace, expectedSecret.Name, expectedSecret, sharedutil.ResourceCreated, log)
 
 		return nil
 	}
@@ -629,10 +629,10 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 	existingSecret.Data = expectedSecret.Data
 
 	// C) Secret exists, but is different from what is expected, so update it.
-	sharedutil.LogAPIResourceChangeEvent(existingSecret.Namespace, existingSecret.Name, existingSecret, sharedutil.ResourceModified, log)
 	if err := eventClient.Update(ctx, existingSecret); err != nil {
 		return fmt.Errorf("unable to update existing secret '%s' in '%s'", existingSecret.Name, existingSecret.Namespace)
 	}
+	sharedutil.LogAPIResourceChangeEvent(existingSecret.Namespace, existingSecret.Name, existingSecret, sharedutil.ResourceModified, log)
 
 	return nil
 

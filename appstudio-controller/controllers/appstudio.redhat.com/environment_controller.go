@@ -90,10 +90,10 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			// B) The GitOpsDeploymentManagedEnvironment doesn't exist, so needs to be created.
 
 			log.Info("Creating GitOpsDeploymentManagedEnvironment", "managedEnv", desiredManagedEnv.Name)
-			sharedutil.LogAPIResourceChangeEvent(desiredManagedEnv.Namespace, desiredManagedEnv.Name, desiredManagedEnv, sharedutil.ResourceCreated, log)
 			if err := r.Client.Create(ctx, desiredManagedEnv); err != nil {
 				return ctrl.Result{}, fmt.Errorf("unable to create new GitOpsDeploymentManagedEnvironment: %v", err)
 			}
+			sharedutil.LogAPIResourceChangeEvent(desiredManagedEnv.Namespace, desiredManagedEnv.Name, desiredManagedEnv, sharedutil.ResourceCreated, log)
 
 			// Success: the resource has been created.
 			return ctrl.Result{}, nil
@@ -116,11 +116,11 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// Update the current object to the desired state
 	currentManagedEnv.Spec = desiredManagedEnv.Spec
 
-	sharedutil.LogAPIResourceChangeEvent(currentManagedEnv.Namespace, currentManagedEnv.Name, currentManagedEnv, sharedutil.ResourceModified, log)
 	if err := r.Client.Update(ctx, &currentManagedEnv); err != nil {
 		return ctrl.Result{},
 			fmt.Errorf("unable to update existing GitOpsDeploymentManagedEnvironment '%s': %v", currentManagedEnv.Name, err)
 	}
+	sharedutil.LogAPIResourceChangeEvent(currentManagedEnv.Namespace, currentManagedEnv.Name, currentManagedEnv, sharedutil.ResourceModified, log)
 
 	return ctrl.Result{}, nil
 }

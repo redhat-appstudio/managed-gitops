@@ -71,21 +71,23 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 
 			if !containsFinalizer {
 				app.Finalizers = append(app.Finalizers, argoCDResourcesFinalizer)
-				sharedutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, sharedutil.ResourceModified, log)
 				if err := eventClient.Update(ctx, app); err != nil {
 					log.Error(err, "unable to update application with finalizer")
 					return err
 				}
+				sharedutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, sharedutil.ResourceModified, log)
+
 			}
 		}
 
 		// Tell K8s to start deleting the Application, which triggers Argo CD to delete children
 		policy := metav1.DeletePropagationForeground
-		sharedutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, sharedutil.ResourceDeleted, log)
 		if err := eventClient.Delete(ctx, app, &client.DeleteOptions{PropagationPolicy: &policy}); err != nil {
 			log.Error(err, "unable to delete application with finalizer")
 			return err
 		}
+		sharedutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, sharedutil.ResourceDeleted, log)
+
 	}
 
 	backoff := sharedutil.ExponentialBackoff{
@@ -163,11 +165,11 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 					// If the application exists, and it has a finalizer, remove it finalizer and try again
 					log.Info("removing finalizer from Application")
 					app.Finalizers = []string{}
-					sharedutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, sharedutil.ResourceModified, log)
 					if err := eventClient.Update(ctx, app); err != nil {
 						log.Error(err, "unable to remove finalizer from Application")
 						continue
 					}
+					sharedutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, sharedutil.ResourceModified, log)
 
 				}
 			}

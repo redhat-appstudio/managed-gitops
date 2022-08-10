@@ -65,7 +65,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			// Update Status field
 			err = k8s.Get(&binding)
 			Expect(err).To(Succeed())
-			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/chetan-rns/gitops-repository-template", "main", []string{"components/componentA/overlays/staging", "components/componentB/overlays/staging"})
+			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", []string{"components/componentA/overlays/staging", "components/componentB/overlays/staging"})
 			err = k8s.UpdateStatus(&binding)
 			Expect(err).To(Succeed())
 
@@ -131,7 +131,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			// Update Status field
 			err = k8s.Get(&binding)
 			Expect(err).To(Succeed())
-			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/chetan-rns/gitops-repository-template", "main", []string{"components/componentA/overlays/staging"})
+			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", []string{"components/componentA/overlays/staging"})
 			err = k8s.UpdateStatus(&binding)
 			Expect(err).To(Succeed())
 
@@ -198,7 +198,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			// Update the Status field
 			err = k8s.Get(&binding)
 			Expect(err).To(Succeed())
-			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/chetan-rns/gitops-repository-template", "main", []string{"components/componentA/overlays/staging"})
+			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", []string{"components/componentA/overlays/staging"})
 			err = k8s.UpdateStatus(&binding)
 			Expect(err).To(Succeed())
 
@@ -260,7 +260,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			// Update the Status field
 			err = k8s.Get(&binding)
 			Expect(err).To(Succeed())
-			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/chetan-rns/gitops-repository-template",
+			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template",
 				"main", []string{"components/componentA/overlays/staging"})
 			err = k8s.UpdateStatus(&binding)
 			Expect(err).To(Succeed())
@@ -334,7 +334,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			// Update the status field
 			err = k8s.Get(&binding)
 			Expect(err).To(Succeed())
-			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/chetan-rns/gitops-repository-template", "main", []string{"components/componentA/overlays/staging"})
+			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", []string{"components/componentA/overlays/staging"})
 			err = k8s.UpdateStatus(&binding)
 			Expect(err).To(Succeed())
 
@@ -398,7 +398,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			Expect(err).To(BeNil())
 
 			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components,
-				"https://github.com/chetan-rns/gitops-repository-template", "main",
+				"https://github.com/redhat-appstudio/gitops-repository-template", "main",
 				[]string{"components/componentA/overlays/staging"})
 
 			err = k8s.UpdateStatus(&binding)

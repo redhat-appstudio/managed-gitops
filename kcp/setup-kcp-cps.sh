@@ -8,6 +8,8 @@ WORKSPACE="gitops-service"
 SYNCER_IMAGE="${SYNCER_IMAGE:-ghcr.io/kcp-dev/kcp/syncer:v0.7.1}"
 SYNCER_MANIFESTS=$(mktemp -d)/cps-syncer.yaml
 
+export GITOPS_IN_KCP="true"
+
 ARGOCD_MANIFEST="https://gist.githubusercontent.com/chetan-rns/91d0b56af152f3ebb7c10df8e82b459d/raw/99429ff5ac68cb78a4fc70f1ac2d673ad7ba192a/install-argocd.yaml"
 ARGOCD_NAMESPACE="gitops-service-argocd"
 
@@ -157,14 +159,16 @@ cleanup_workspace() {
     KUBECONFIG="${CPS_KUBECONFIG}" kubectl delete workspace "$WORKSPACE"
     
     kill $E2E_SERVER_PID
-    ./stop-dev-env.sh
-    ./delete-dev-env.sh
 } 
 
 echo "Argo CD is successfully installed in namespace $ARGOCD_NAMESPACE"
 
-echo "Running gitops service controllers"
+echo "Preparing to run gitops service against KCP"
+./stop-dev-env.sh
+./delete-dev-env.sh
 KUBECONFIG="${CPS_KUBECONFIG}" make devenv-docker
+
+echo "Running gitops service controllers"
 KUBECONFIG="${CPS_KUBECONFIG}" make start-e2e &
 E2E_SERVER_PID=$!
 

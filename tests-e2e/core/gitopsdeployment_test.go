@@ -481,6 +481,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			By("ensuring changes in target revision deploys the resources that are a part of the latest modification")
 
+			err = k8s.Get(&gitOpsDeploymentResource)
+			Expect(err).To(Succeed())
 			gitOpsDeploymentResource.Spec.Source.TargetRevision = "HEAD"
 
 			//updating the CR with changes in target revision

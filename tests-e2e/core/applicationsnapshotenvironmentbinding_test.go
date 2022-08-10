@@ -19,7 +19,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/retry"
 )
 
 var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", func() {
@@ -377,6 +376,9 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			err := k8s.Create(&secret)
 			Expect(err).To(BeNil())
 
+			err = k8s.Get(&environment)
+			Expect(err).To(BeNil())
+
 			environment.Spec.UnstableConfigurationFields = &appstudiosharedv1.UnstableEnvironmentConfiguration{
 				KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
 					TargetNamespace:          fixture.GitOpsServiceE2ENamespace,
@@ -385,10 +387,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 				},
 			}
 
-			// retry updating the Environment if there is a conflict error
-			err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-				return k8s.Update(&environment)
-			})
+			err = k8s.Update(&environment)
 			Expect(err).To(BeNil())
 
 			By("generating the Binding, and waiting for the corresponding GitOpsDeployment to exist")

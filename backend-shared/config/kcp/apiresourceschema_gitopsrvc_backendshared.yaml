@@ -1,11 +1,11 @@
-# This file is generated from CRDs by ./hack/generate-kcp-api.sh script.
+# This file is generated from CRDs by ./utilities/generate-kcp-api-backend-shared.sh script.
 # Please do not modify!
 
 apiVersion: apis.kcp.dev/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v202208080634.gitopsdeploymentmanagedenvironments.managed-gitops.redhat.com
+  name: v202208100611.gitopsdeploymentmanagedenvironments.managed-gitops.redhat.com
 spec:
   group: managed-gitops.redhat.com
   names:
@@ -59,7 +59,7 @@ apiVersion: apis.kcp.dev/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v202208080634.gitopsdeploymentrepositorycredentials.managed-gitops.redhat.com
+  name: v202208100611.gitopsdeploymentrepositorycredentials.managed-gitops.redhat.com
 spec:
   group: managed-gitops.redhat.com
   names:
@@ -119,7 +119,7 @@ apiVersion: apis.kcp.dev/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v202208080634.gitopsdeployments.managed-gitops.redhat.com
+  name: v202208100611.gitopsdeployments.managed-gitops.redhat.com
 spec:
   group: managed-gitops.redhat.com
   names:
@@ -308,7 +308,7 @@ apiVersion: apis.kcp.dev/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v202208080634.gitopsdeploymentsyncruns.managed-gitops.redhat.com
+  name: v202208100611.gitopsdeploymentsyncruns.managed-gitops.redhat.com
 spec:
   group: managed-gitops.redhat.com
   names:
@@ -392,7 +392,7 @@ apiVersion: apis.kcp.dev/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v202208080634.operations.managed-gitops.redhat.com
+  name: v202208100611.operations.managed-gitops.redhat.com
 spec:
   group: managed-gitops.redhat.com
   names:

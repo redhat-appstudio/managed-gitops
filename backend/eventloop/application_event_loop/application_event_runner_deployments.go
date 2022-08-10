@@ -890,6 +890,9 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 				SelfHeal:   true,
 				AllowEmpty: true,
 			},
+			SyncOptions: fauxargocd.SyncOptions{
+				"PrunePropagationPolicy=background",
+			},
 		}
 	}
 

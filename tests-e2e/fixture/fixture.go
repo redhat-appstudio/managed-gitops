@@ -329,7 +329,7 @@ func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 		return true, nil
 	})
 	if err != nil {
-
+		return err
 	}
 
 	return nil

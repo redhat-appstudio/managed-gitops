@@ -203,6 +203,8 @@ setup-e2e-local: install-argocd-openshift devenv-docker reset-db ## Setup steps 
 
 start-e2e: start ## Start the managed gitops processes for E2E tests. At the moment this is just a wrapper over 'start' target
 
+gen-kcp-api-all: gen-kcp-api-appstudio-shared gen-kcp-api-backend-shared ## Creates all the KCP API Resources for all comfig/crds
+
 test-e2e: ## Kick off the E2E tests. Ensure that 'start-e2e' and 'setup-e2e-openshift' have run.
 	cd $(MAKEFILE_ROOT)/tests-e2e && make test
 
@@ -266,3 +268,10 @@ db-migrate-upgrade:
 
 db-schema: ## Run db-schema varchar tests
 	cd $(MAKEFILE_ROOT)/backend-shared && go run ./hack/db-schema-sync-check
+
+gen-kcp-api-backend-shared: ## Runs utilities/generate-kcp-api-backend-shared.sh to generate kcp api resource schema and export
+	cd $(MAKEFILE_ROOT)/utilities && ./generate-kcp-api-backend-shared.sh
+
+gen-kcp-api-appstudio-shared: ## Runs utilities/generate-kcp-api-appstudio-shared.sh to generate kcp api resource schema and export
+	cd $(MAKEFILE_ROOT)/utilities && ./generate-kcp-api-appstudio-shared.sh
+

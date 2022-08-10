@@ -5,7 +5,7 @@ set -ex
 CPS_KUBECONFIG="${CPS_KUBECONFIG:-$(realpath kcp/cps-kubeconfig)}"
 WORKLOAD_KUBECONFIG="${WORKLOAD_KUBECONFIG:-$HOME/.kube/config}"
 WORKSPACE="gitops-service"
-SYNCER_IMAGE="${SYNCER_IMAGE:-ghcr.io/kcp-dev/kcp/syncer:v0.6.4}"
+SYNCER_IMAGE="${SYNCER_IMAGE:-ghcr.io/kcp-dev/kcp/syncer:v0.7.1}"
 SYNCER_MANIFESTS=$(mktemp -d)/cps-syncer.yaml
 
 ARGOCD_MANIFEST="https://gist.githubusercontent.com/chetan-rns/91d0b56af152f3ebb7c10df8e82b459d/raw/99429ff5ac68cb78a4fc70f1ac2d673ad7ba192a/install-argocd.yaml"
@@ -30,8 +30,9 @@ KUBECONFIG="$CPS_KUBECONFIG" kubectl config use-context kcp-stable
 KUBECONFIG="$CPS_KUBECONFIG" kubectl api-resources
 
 # Create a new workspace if it doesn't exist
-KUBECONFIG="$CPS_KUBECONFIG" kubectl get workspaces | grep "${WORKSPACE}"
-if [ $? -eq 1 ]; then 
+if KUBECONFIG="$CPS_KUBECONFIG" kubectl get workspaces "${WORKSPACE}"; then
+    echo "Workspace $WORKSPACE already exists"
+else 
     KUBECONFIG="$CPS_KUBECONFIG" kubectl kcp ws create "$WORKSPACE"
 fi
 
@@ -123,6 +124,26 @@ do
         exit 1
     fi
 done
+
+cat <<EOF | kubectl apply -n $ARGOCD_NAMESPACE -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-cluster-config
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+type: Opaque
+stringData:
+  name: in-cluster
+  namespace: "$ARGOCD_NAMESPACE"
+  server: https://kubernetes.default.svc
+  config: |
+    {
+      "tlsClientConfig": {
+        "insecure": true
+      }
+    }
+EOF
 
 cleanup_workspace() {
     echo "Deleting argocd resources from $ARGOCD_NAMESPACE"

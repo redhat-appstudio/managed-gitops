@@ -16,7 +16,7 @@ var _ = Describe("GitOpsDeployment Status Tests", func() {
 
 			By("create a new GitOpsDeployment resource")
 			gitOpsDeploymentResource := buildGitOpsDeploymentResource("gitops-depl-test-status",
-				"https://github.com/redhat-appstudio/gitops-repository-template", "environments/overlays/dev",
+				"https://github.com/chetan-rns/gitops-repository-template", "environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			err := k8s.Create(&gitOpsDeploymentResource)

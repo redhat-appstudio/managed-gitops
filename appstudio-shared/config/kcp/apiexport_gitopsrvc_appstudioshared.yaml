@@ -6,6 +6,11 @@ kind: APIExport
 metadata:
   name: gitopsrvc
 spec:
+  permissionClaims:
+  - group: ""
+    resource: "secrets"
+  - group: ""
+    resource: "namespaces"
   latestResourceSchemas:
     - v202208100610.applicationpromotionruns.appstudio.redhat.com
     - v202208100610.applicationsnapshotenvironmentbindings.appstudio.redhat.com

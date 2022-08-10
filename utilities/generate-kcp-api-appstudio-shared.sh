@@ -52,6 +52,11 @@ kind: APIExport
 metadata:
   name: gitopsrvc
 spec:
+  permissionClaims:
+  - group: ""
+    resource: "secrets"
+  - group: ""
+    resource: "namespaces"
   latestResourceSchemas:
 EOF
 

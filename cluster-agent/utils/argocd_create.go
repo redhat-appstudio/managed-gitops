@@ -212,10 +212,12 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, names
 	if err := k8sClient.Create(ctx, namespaceToCreate); err != nil {
 		return fmt.Errorf("namespace could not be created: %v", err)
 	}
+	sharedutil.LogAPIResourceChangeEvent(namespaceToCreate.Namespace, namespaceToCreate.Name, namespaceToCreate, sharedutil.ResourceCreated, log)
 
 	if errk8s := k8sClient.Create(ctx, argoCDOperand); errk8s != nil {
 		return fmt.Errorf("error on creating: %s, %v ", argoCDOperand.GetName(), errk8s)
 	}
+	sharedutil.LogAPIResourceChangeEvent(argoCDOperand.Namespace, argoCDOperand.Name, argoCDOperand, sharedutil.ResourceCreated, log)
 
 	// Wait for Argo CD to be installed by gitops operator.
 	err := wait.Poll(1*time.Second, 3*time.Minute, func() (bool, error) {
@@ -259,10 +261,14 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 			if err := k8sClient.Update(ctx, serviceAccount); err != nil {
 				return fmt.Errorf("error on Update %v", err)
 			}
+			sharedutil.LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, sharedutil.ResourceModified, log)
+
 		} else {
 			return fmt.Errorf("error on Create %v", err)
 		}
 	}
+	sharedutil.LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, sharedutil.ResourceCreated, log)
+
 	log.Info(fmt.Sprintf("serviceAccount %q created in namespace %q", serviceAccount.Name, serviceAccount.Namespace))
 
 	secret := &corev1.Secret{
@@ -281,11 +287,13 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 			if err := k8sClient.Update(ctx, secret); err != nil {
 				return fmt.Errorf("error on Update %v", err)
 			}
+			sharedutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, sharedutil.ResourceModified, log)
+
 		} else {
 			return fmt.Errorf("error on Create %v", err)
 		}
 	}
-
+	sharedutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, sharedutil.ResourceCreated, log)
 	log.Info(fmt.Sprintf("secret %q created in namespace %q", secret.Name, secret.Namespace))
 
 	clusterRole := rbac.ClusterRole{
@@ -308,10 +316,13 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 			if err := k8sClient.Update(ctx, &clusterRole); err != nil {
 				return fmt.Errorf("error on Update %v", err)
 			}
+			sharedutil.LogAPIResourceChangeEvent(clusterRole.Namespace, clusterRole.Name, clusterRole, sharedutil.ResourceModified, log)
+
 		} else {
 			return fmt.Errorf("error on Create %v", err)
 		}
 	}
+	sharedutil.LogAPIResourceChangeEvent(clusterRole.Namespace, clusterRole.Name, clusterRole, sharedutil.ResourceCreated, log)
 	log.Info(fmt.Sprintf("clusterRole %q created in namespace %q", clusterRole.Name, clusterRole.Namespace))
 
 	clusterRoleBinding := rbac.ClusterRoleBinding{
@@ -338,10 +349,13 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 			if err := k8sClient.Update(ctx, &clusterRoleBinding); err != nil {
 				return fmt.Errorf("error on Update %v", err)
 			}
+			sharedutil.LogAPIResourceChangeEvent(clusterRoleBinding.Namespace, clusterRoleBinding.Name, clusterRoleBinding, sharedutil.ResourceModified, log)
+
 		} else {
 			return fmt.Errorf("error on Create %v", err)
 		}
 	}
+	sharedutil.LogAPIResourceChangeEvent(clusterRoleBinding.Namespace, clusterRoleBinding.Name, clusterRoleBinding, sharedutil.ResourceCreated, log)
 	log.Info(fmt.Sprintf("clusterRoleBinding %q created in namespace %q", clusterRoleBinding.Name, clusterRoleBinding.Namespace))
 
 	// Wait for Secret to contain a bearer token
@@ -418,10 +432,13 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 			if err := k8sClient.Update(ctx, clusterSecret); err != nil {
 				return fmt.Errorf("error on Update %v", err)
 			}
+			sharedutil.LogAPIResourceChangeEvent(clusterSecret.Namespace, clusterSecret.Name, clusterSecret, sharedutil.ResourceCreated, log)
+
 		} else {
 			return fmt.Errorf("error on Create %v", err)
 		}
 	}
+	sharedutil.LogAPIResourceChangeEvent(clusterSecret.Namespace, clusterSecret.Name, clusterSecret, sharedutil.ResourceCreated, log)
 
 	log.Info(fmt.Sprintf("cluster secret %q created ", clusterSecret.Name))
 	return nil

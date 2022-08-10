@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -52,10 +53,10 @@ func getOrCreateServiceAccount(ctx context.Context, k8sClient client.Client, ser
 		return serviceAccount, nil
 	}
 
-	LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, ResourceCreated, log)
 	if err := k8sClient.Create(ctx, serviceAccount); err != nil {
 		return nil, fmt.Errorf("unable to create service account '%s': %v", serviceAccount.Name, err)
 	}
+	LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, ResourceCreated, log)
 
 	log.Info(fmt.Sprintf("serviceAccount %s created in namespace %s", serviceAccountName, serviceAccountNS))
 
@@ -213,6 +214,7 @@ func getServiceAccountTokenSecret(ctx context.Context, k8sClient client.Client, 
 }
 
 func createServiceAccountTokenSecret(ctx context.Context, k8sClient client.Client, serviceAccountName, serviceAccountNS string) (*corev1.Secret, error) {
+	log := log.FromContext(ctx)
 	tokenSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: serviceAccountName,
@@ -226,11 +228,13 @@ func createServiceAccountTokenSecret(ctx context.Context, k8sClient client.Clien
 	if err := k8sClient.Create(ctx, tokenSecret); err != nil {
 		return nil, err
 	}
+	LogAPIResourceChangeEvent(tokenSecret.Namespace, tokenSecret.Name, tokenSecret, ResourceCreated, log)
 
 	return tokenSecret, nil
 }
 
 func addSecretToServiceAccount(ctx context.Context, k8sClient client.Client, secret *corev1.Secret, serviceAccountName, serviceAccountNS string) error {
+	log := log.FromContext(ctx)
 	serviceAccount := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      serviceAccountName,
@@ -245,12 +249,13 @@ func addSecretToServiceAccount(ctx context.Context, k8sClient client.Client, sec
 		Namespace: secret.Namespace,
 		Name:      secret.Name,
 	})
-
+	LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, ResourceCreated, log)
 	return k8sClient.Update(ctx, serviceAccount)
 }
 
 func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k8sClient client.Client,
 	serviceAccountName string, serviceAccountNamespace string) error {
+	log := log.FromContext(ctx)
 
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
@@ -267,12 +272,14 @@ func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k
 		if err := k8sClient.Create(ctx, clusterRole); err != nil {
 			return fmt.Errorf("unable to create clusterrole: %v", err)
 		}
+		LogAPIResourceChangeEvent(clusterRole.Namespace, clusterRole.Name, clusterRole, ResourceCreated, log)
 
 	} else {
 		clusterRole.Rules = ArgoCDManagerNamespacePolicyRules
 		if err := k8sClient.Update(ctx, clusterRole); err != nil {
 			return fmt.Errorf("unable to update cluster role: %v", err)
 		}
+		LogAPIResourceChangeEvent(clusterRole.Namespace, clusterRole.Name, clusterRole, ResourceModified, log)
 	}
 
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
@@ -304,10 +311,12 @@ func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k
 		if err := k8sClient.Update(ctx, clusterRoleBinding); err != nil {
 			return fmt.Errorf("unable to create clusterrole: %v", err)
 		}
+		LogAPIResourceChangeEvent(clusterRoleBinding.Namespace, clusterRoleBinding.Name, clusterRoleBinding, ResourceModified, log)
 	} else {
 		if err := k8sClient.Create(ctx, clusterRoleBinding); err != nil {
 			return fmt.Errorf("unable to create clusterrole: %v", err)
 		}
+		LogAPIResourceChangeEvent(clusterRoleBinding.Namespace, clusterRoleBinding.Name, clusterRoleBinding, ResourceCreated, log)
 	}
 
 	return nil

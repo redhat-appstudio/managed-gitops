@@ -152,7 +152,6 @@ type removeOperationCRTask struct {
 
 func (r *removeOperationCRTask) PerformTask(ctx context.Context) (bool, error) {
 	log := r.log
-	sharedutil.LogAPIResourceChangeEvent(r.operation.Namespace, r.operation.Name, r.operation, sharedutil.ResourceDeleted, log)
 	if err := r.Delete(ctx, r.operation); err != nil {
 		if errors.IsNotFound(err) {
 			return false, nil
@@ -160,7 +159,7 @@ func (r *removeOperationCRTask) PerformTask(ctx context.Context) (bool, error) {
 		r.log.Error(err, "failed to delete operation from the cluster", "operation_id", r.operation.Spec.OperationID)
 		return true, err
 	}
-
+	sharedutil.LogAPIResourceChangeEvent(r.operation.Namespace, r.operation.Name, r.operation, sharedutil.ResourceDeleted, log)
 	r.log.Info("successfully garbage collected operation", "operation_id", r.operation.Spec.OperationID)
 	return false, nil
 }

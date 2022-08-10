@@ -105,10 +105,11 @@ func (r *ApplicationPromotionRunReconciler) ReconcilePOC(ctx context.Context, re
 	if promotionRun.Status.State != appstudioshared.PromotionRunState_Active {
 		promotionRun.Status.State = appstudioshared.PromotionRunState_Active
 
-		sharedutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, sharedutil.ResourceModified, log)
 		if err := r.Client.Update(ctx, promotionRun); err != nil {
 			return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun state: %v", err)
 		}
+		sharedutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, sharedutil.ResourceModified, log)
+
 		// TODO: GITOPSRVCE-157 - log this action as debug
 	}
 
@@ -133,17 +134,18 @@ func (r *ApplicationPromotionRunReconciler) ReconcilePOC(ctx context.Context, re
 	// 2) Set the Binding to target the expected snapshot, if not already done
 	if binding.Spec.Snapshot != promotionRun.Spec.Snapshot || len(promotionRun.Status.ActiveBindings) == 0 {
 		binding.Spec.Snapshot = promotionRun.Spec.Snapshot
-		sharedutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, sharedutil.ResourceModified, log)
 		if err := r.Client.Update(ctx, promotionRun); err != nil {
 			return ctrl.Result{}, fmt.Errorf("unable to update Binding '%s' snapshot: %v", binding.Name, err)
 		}
+		sharedutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, sharedutil.ResourceModified, log)
+
 		// TODO: GITOPSRVCE-157 - log this action
 
 		promotionRun.Status.ActiveBindings = []string{binding.Name}
-		sharedutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, sharedutil.ResourceModified, log)
 		if err := r.Client.Update(ctx, promotionRun); err != nil {
 			return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun active binding: %v", err)
 		}
+		sharedutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, sharedutil.ResourceModified, log)
 
 		return ctrl.Result{}, nil
 	}
@@ -204,10 +206,10 @@ func (r *ApplicationPromotionRunReconciler) ReconcilePOC(ctx context.Context, re
 	promotionRun.Status.CompletionResult = appstudioshared.PromotionRunCompleteResult_Success
 	promotionRun.Status.State = appstudioshared.PromotionRunState_Complete
 	promotionRun.Status.ActiveBindings = []string{binding.Name}
-	sharedutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, sharedutil.ResourceModified, log)
 	if err := r.Client.Update(ctx, promotionRun); err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun on successful completion: %v", err)
 	}
+	sharedutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, sharedutil.ResourceModified, log)
 
 	// TODO: GITOPSRVCE-157 - Update promotionRun.Status.EnvironmentStatus to indicate which GitOpsDeployments we are still waiting for
 

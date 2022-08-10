@@ -441,13 +441,13 @@ func CleanupOperation(ctx context.Context, dbOperation db.Operation, k8sOperatio
 	log.V(sharedutil.LogLevel_Debug).Info("Deleting operation CR: " + k8sOperation.Name)
 
 	// Optional: Delete the Operation CR
-	sharedutil.LogAPIResourceChangeEvent(k8sOperation.Namespace, k8sOperation.Name, k8sOperation, sharedutil.ResourceModified, log)
 	if err := gitopsEngineClient.Delete(ctx, &k8sOperation); err != nil {
 		if !apierr.IsNotFound(err) {
 			// Log the error, but don't return it: it's the responsibility of the cluster agent to delete the operation cr
 			log.Error(err, "Unable to delete operation")
 		}
 	}
+	sharedutil.LogAPIResourceChangeEvent(k8sOperation.Namespace, k8sOperation.Name, k8sOperation, sharedutil.ResourceModified, log)
 
 	return nil
 

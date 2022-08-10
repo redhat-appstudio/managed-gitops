@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -25,12 +26,29 @@ const (
 
 func LogAPIResourceChangeEvent(resourceNamespace string, resourceName string, resource interface{}, resourceChangeType ResourceChangeType, log logr.Logger) {
 
+	// if log == nil {
+	// 	log.Error(nil, "log passed to LogAPIResourceChangeEvent was nil")
+	// 	return
+	// }
+
+	if resource == nil {
+		log.Error(nil, "resource passed to LogAPIResourceChangeEvent was nil")
+		return
+	}
+	secret, isSecret := (resource).(*corev1.Secret)
+	if isSecret {
+		// Make a copy of the resource, before we modify it
+		secret = secret.DeepCopy()
+		// Remove the data field, as this contains data that should not be logged.
+		secret.Data = map[string][]byte{}
+		resource = secret
+	}
 	jsonRepresentation, err := json.Marshal(resource)
+
 	if err != nil {
 		fmt.Println("Log Marshal error :", err)
 	}
 
-	log.Info(fmt.Sprintf("API Resource changed: %s", string(resourceChangeType)),
-		"namespace", resourceNamespace, "name", resourceName, "object", jsonRepresentation)
-
+	log.Info(fmt.Sprintf("API Resource changed: %s", string(resourceChangeType)), "namespace",
+		resourceNamespace, "name", resourceName, "object", string(jsonRepresentation))
 }

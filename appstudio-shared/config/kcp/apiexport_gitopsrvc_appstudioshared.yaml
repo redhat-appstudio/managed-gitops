@@ -1,0 +1,13 @@
+# This file is generated from CRDs by ./utilities/generate-kcp-api-appstudio-shared.sh script.
+# Please do not modify!
+
+apiVersion: apis.kcp.dev/v1alpha1
+kind: APIExport
+metadata:
+  name: gitopsrvc
+spec:
+  latestResourceSchemas:
+    - v202208100610.applicationpromotionruns.appstudio.redhat.com
+    - v202208100610.applicationsnapshotenvironmentbindings.appstudio.redhat.com
+    - v202208100610.applicationsnapshots.appstudio.redhat.com
+    - v202208100610.environments.appstudio.redhat.com

@@ -13,10 +13,10 @@ THIS_DIR="$(dirname "$(realpath "$0")")"
 CRD_DIR="$(realpath ${THIS_DIR}/../backend-shared/config/crd/bases)"
 KCP_API_DIR="$(realpath ${THIS_DIR}/../backend-shared/config/kcp)"
 
-KCP_API_SCHEMA_FILE_CURRENT="${KCP_API_DIR}/apiresourceschema_gitopsrvc.yaml"
-KCP_API_SCHEMA_FILE_NEW="${KCP_API_DIR}/apiresourceschema_gitopsrvc.yaml_new"
+KCP_API_SCHEMA_FILE_CURRENT="${KCP_API_DIR}/apiresourceschema_gitopsrvc_backendshared.yaml"
+KCP_API_SCHEMA_FILE_NEW="${KCP_API_DIR}/apiresourceschema_gitopsrvc_backendshared.yaml_new"
 cat << EOF > ${KCP_API_SCHEMA_FILE_NEW}
-# This file is generated from CRDs by ./hack/generate-kcp-api.sh script.
+# This file is generated from CRDs by ./utilities/generate-kcp-api-backend-shared.sh script.
 # Please do not modify!
 
 EOF
@@ -37,7 +37,7 @@ done
 # '  name: v202206151654.applications.managed-gitops.redhat.com'
 if ! diff -I '^  name: v[0-9]\{12\}\..*\.managed-gitops\.redhat\.com$' ${KCP_API_SCHEMA_FILE_CURRENT} ${KCP_API_SCHEMA_FILE_NEW} > /dev/null; then
   mv ${KCP_API_SCHEMA_FILE_NEW} ${KCP_API_SCHEMA_FILE_CURRENT}
-  echo "updated KCP APIResourceSchema for GitOps Service saved at '${KCP_API_SCHEMA_FILE_CURRENT}'"
+  echo "updated KCP APIResourceSchema for GitOps Service backend-shared saved at '${KCP_API_SCHEMA_FILE_CURRENT}'"
 else
   echo "no changes in KCP API"
   rm ${KCP_API_SCHEMA_FILE_NEW}
@@ -45,7 +45,7 @@ fi
 
 
 # now create APIExport and link all created APIResourceSchemas there
-KCP_API_EXPORT_FILE="${KCP_API_DIR}/apiexport_gitopsrvc.yaml"
+KCP_API_EXPORT_FILE="${KCP_API_DIR}/apiexport_gitopsrvc_backendshared.yaml"
 cat << EOF > ${KCP_API_EXPORT_FILE}
 apiVersion: apis.kcp.dev/v1alpha1
 kind: APIExport
@@ -61,7 +61,7 @@ for SCHEMA in $( cat ${KCP_API_SCHEMA_FILE_CURRENT} | grep -o "v[0-9]\{12\}\..*\
 done
 
 cat << EOF > ${KCP_API_EXPORT_FILE}
-# This file is generated from CRDs by ./hack/generate-kcp-api.sh script.
+# This file is generated from CRDs by ./utilities/generate-kcp-api-backend-shared.sh script.
 # Please do not modify!
 
 $( cat ${KCP_API_EXPORT_FILE} )

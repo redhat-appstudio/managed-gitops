@@ -6,6 +6,11 @@ kind: APIExport
 metadata:
   name: gitopsrvc
 spec:
+  permissionClaims:
+  - group: ""
+    resource: "secrets"
+  - group: ""
+    resource: "namespaces"
   latestResourceSchemas:
     - v202208100611.gitopsdeploymentmanagedenvironments.managed-gitops.redhat.com
     - v202208100611.gitopsdeploymentrepositorycredentials.managed-gitops.redhat.com

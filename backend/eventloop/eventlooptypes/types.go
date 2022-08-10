@@ -143,7 +143,6 @@ func GetWorkspaceIDFromNamespaceID(namespace corev1.Namespace) string {
 	return string(namespace.UID)
 }
 
->>>>>>> 80cdf6a (misc changes to k8sClient calls)
 func GetK8sClientForGitOpsEngineInstance(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 
 	// TODO: GITOPSRVCE-73: When we support multiple Argo CD instances (and multiple instances on separate clusters), this logic should be updated.

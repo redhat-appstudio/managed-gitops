@@ -420,8 +420,6 @@ type applicationEventLoopRunner_Action struct {
 
 	k8sClientFactory shared_resource_loop.SRLK8sClientFactory
 }
-<<<<<<< HEAD
-=======
 
 // cleanupOperation cleans up the database entry and (optionally) the CR, once an operation has concluded.
 func CleanupOperation(ctx context.Context, dbOperation db.Operation, k8sOperation operation.Operation, operationNamespace string,

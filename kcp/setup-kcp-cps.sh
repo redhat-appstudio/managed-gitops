@@ -13,6 +13,12 @@ export GITOPS_IN_KCP="true"
 ARGOCD_MANIFEST="https://gist.githubusercontent.com/chetan-rns/91d0b56af152f3ebb7c10df8e82b459d/raw/99429ff5ac68cb78a4fc70f1ac2d673ad7ba192a/install-argocd.yaml"
 ARGOCD_NAMESPACE="gitops-service-argocd"
 
+cleanup_workspace() {
+    pkill go
+}
+
+trap cleanup_workspace EXIT
+
 # Checks if a binary is present on the local system
 exit_if_binary_not_installed() {
     for binary in "$@"; do
@@ -146,20 +152,6 @@ stringData:
       }
     }
 EOF
-
-cleanup_workspace() {
-    echo "Deleting argocd resources from $ARGOCD_NAMESPACE"
-    KUBECONFIG="${CPS_KUBECONFIG}" kubectl delete -f $ARGOCD_MANIFEST -n gitops-service-argocd    
-
-    echo "Deleting syncer resources from the SyncTarget cluster"
-    KUBECONFIG="${WORKLOAD_KUBECONFIG}" kubectl delete -f "$SYNCER_MANIFESTS"
-    
-    echo "Deleting KCP workspace $WORKSPACE"
-    KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws ..
-    KUBECONFIG="${CPS_KUBECONFIG}" kubectl delete workspace "$WORKSPACE"
-    
-    kill $E2E_SERVER_PID
-} 
 
 echo "Argo CD is successfully installed in namespace $ARGOCD_NAMESPACE"
 

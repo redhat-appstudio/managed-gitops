@@ -36,6 +36,8 @@ const (
 	deploymentModifiedResult_Created  deploymentModifiedResult = "createdNewApp"
 	deploymentModifiedResult_Updated  deploymentModifiedResult = "updatedApp"
 	deploymentModifiedResult_NoChange deploymentModifiedResult = "noChangeInApp"
+
+	prunePropagationPolicy = "PrunePropagationPolicy=background"
 )
 
 // This file is responsible for processing events related to GitOpsDeployment CR.
@@ -891,7 +893,7 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 				AllowEmpty: true,
 			},
 			SyncOptions: fauxargocd.SyncOptions{
-				"PrunePropagationPolicy=background",
+				prunePropagationPolicy,
 			},
 		}
 	}

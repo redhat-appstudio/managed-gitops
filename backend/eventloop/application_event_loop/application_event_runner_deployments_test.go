@@ -58,6 +58,9 @@ var _ = Describe("Application Event Runner Deployments", func() {
 						AllowEmpty: true,
 						SelfHeal:   true,
 					},
+					SyncOptions: fauxargocd.SyncOptions{
+						prunePropagationPolicy,
+					},
 				}
 			}
 

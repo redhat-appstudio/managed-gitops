@@ -24,7 +24,7 @@ var _ = Describe("Argo CD Application", func() {
 
 			By("create a new GitOpsDeployment CR")
 			gitOpsDeployment := buildGitOpsDeploymentResource("my-gitops-depl-automated",
-				"https://github.com/chetan-rns/gitops-repository-template", "environments/overlays/dev",
+				"https://github.com/redhat-appstudio/gitops-repository-template", "environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			err := k8s.Create(&gitOpsDeployment)
 			Expect(err).To(Succeed())

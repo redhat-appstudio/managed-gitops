@@ -31,6 +31,10 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 		It("should be healthy and have synced status, and resources should be deployed, when deployed with a ManagedEnv", func() {
 
+			if isRunningAgainstKCP() {
+				Skip("Skipping this test until we support running gitops operator with KCP")
+			}
+
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("creating the GitOpsDeploymentManagedEnvironment")
@@ -47,12 +51,33 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			Expect(err).To(BeNil())
 
 			gitOpsDeploymentResource := buildGitOpsDeploymentResource("my-gitops-depl",
-				"https://github.com/redhat-appstudio/gitops-repository-template", "environments/overlays/dev",
+				"https://github.com/chetan-rns/gitops-repository-template", "environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
 			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 			err = k8s.Create(&gitOpsDeploymentResource)
 			Expect(err).To(BeNil())
+
+			// By("Allow argocd to manage the environment")
+			// Eventually(func() bool {
+			// 	secretList := &corev1.SecretList{}
+			// 	if err = k8s.List(secretList, dbutil.DefaultGitOpsEngineSingleInstanceNamespace); err != nil {
+			// 		return false
+			// 	}
+			// 	GinkgoT().Log("found secret list", len(secretList.Items))
+			// 	for _, secret := range secretList.Items {
+			// 		if strings.Contains(secret.Name, "managed-env") {
+			// 			GinkgoT().Log("found secret", secret.Name)
+			// 			secret.Data["namespaces"] = []byte(strings.Join([]string{secret.Namespace, fixture.GitOpsServiceE2ENamespace}, ","))
+			// 			if err = k8s.Update(&secret); err != nil {
+			// 				return false
+			// 			}
+			// 			return true
+			// 		}
+			// 	}
+
+			// 	return false
+			// }, "60s", "1s").Should(BeTrue())
 
 			By("ensuring GitOpsDeployment should have expected health and status")
 

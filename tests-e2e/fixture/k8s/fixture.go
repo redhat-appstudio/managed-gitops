@@ -50,6 +50,24 @@ func Get(obj client.Object) error {
 	return nil
 }
 
+// List instances of a given K8s resource, returning an error on failure, or nil otherwise.
+func List(obj client.ObjectList, namespace string) error {
+
+	k8sClient, err := fixture.GetKubeClient()
+	if err != nil {
+		return err
+	}
+
+	if err := k8sClient.List(context.Background(), obj, &client.ListOptions{
+		Namespace: namespace,
+	}); err != nil {
+		fmt.Println(K8sClientError, "Unable to List ", err)
+		return err
+	}
+
+	return nil
+}
+
 // ExistByName checks if the given resource exists, when retrieving it by name/namespace.
 // Does NOT check if the resource content matches.
 func ExistByName() matcher.GomegaMatcher {

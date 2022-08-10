@@ -19,7 +19,7 @@ import (
 
 const (
 	name    = "my-gitops-depl"
-	repoURL = "https://github.com/redhat-appstudio/gitops-repository-template"
+	repoURL = "https://github.com/chetan-rns/gitops-repository-template"
 
 	// ArgoCDReconcileWaitTime is the length of time to watch for Argo CD/GitOps Service to deploy the resources
 	// of an Application (e.g. to reconcile the Application resource)
@@ -473,7 +473,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			By("creating a new GitOpsDeployment resource")
 			gitOpsDeploymentResource := buildTargetRevisionGitOpsDeploymentResource("gitops-depl-test-status",
-				"https://github.com/redhat-appstudio/gitops-repository-template", "environments/overlays/dev", "xyz",
+				"https://github.com/chetan-rns/gitops-repository-template", "environments/overlays/dev", "xyz",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			err := k8s.Create(&gitOpsDeploymentResource)
@@ -525,7 +525,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			By("creating a new GitOpsDeployment resource")
 			gitOpsDeploymentResource := buildGitOpsDeploymentResource("gitops-depl-test-status",
-				"https://github.com/redhat-appstudio/gitops-repository-template", "environments/overlays/dev",
+				"https://github.com/chetan-rns/gitops-repository-template", "environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			err = k8s.Create(&gitOpsDeploymentResource)

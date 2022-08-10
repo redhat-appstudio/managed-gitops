@@ -18,7 +18,7 @@ const (
 )
 
 const (
-	argoCDResourcesFinalizer = "resources-finalizer.argocd.argoproj.io"
+	argoCDResourcesFinalizer = "resources-finalizer.argocd.argoproj.io/background"
 )
 
 const (

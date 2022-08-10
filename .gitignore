@@ -1,3 +1,5 @@
 .stfolder
 .idea/
 .vscode/
+
+kcp/cps-kubeconfig

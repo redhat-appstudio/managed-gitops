@@ -1,6 +1,7 @@
 package core
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -9,6 +10,11 @@ import (
 	"go.uber.org/zap/zapcore"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+)
+
+var (
+	// GITOPS_IN_KCP is an environment variable that is set when running our e2e tests against KCP
+	ENVGitOpsInKCP = "GITOPS_IN_KCP"
 )
 
 var _ = BeforeSuite(func() {
@@ -22,4 +28,8 @@ func TestCore(t *testing.T) {
 
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Core Suite", reporterConfig)
+}
+
+func isRunningAgainstKCP() bool {
+	return os.Getenv(ENVGitOpsInKCP) == "true"
 }

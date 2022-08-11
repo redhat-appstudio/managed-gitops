@@ -21,7 +21,7 @@ import (
 //
 // The cache:
 // - will always return the most recent ApplicationState value from the database
-// - in constrast, the cache will return a value for Application that is at most 60 seconds old
+// - in contrast, the cache will return a value for an Application that is at most 60 seconds old
 //   (the Application in the cache state will be eventually consistent with the database)
 //     - since it is eventually consistent, the calling code needs to be aware of this in its logic.
 

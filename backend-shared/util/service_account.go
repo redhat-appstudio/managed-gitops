@@ -52,9 +52,10 @@ func getOrCreateServiceAccount(ctx context.Context, k8sClient client.Client, ser
 		return serviceAccount, nil
 	}
 
-	log.Info("ServiceAccount created", "serviceAccount", serviceAccountName, "namespace", serviceAccountNS)
+	log = log.WithValues("serviceAccount", serviceAccountName, "namespace", serviceAccountNS)
 
 	if err := k8sClient.Create(ctx, serviceAccount); err != nil {
+		log.Error(err, "Unable to create ServiceAccount")
 		return nil, fmt.Errorf("unable to create service account '%s': %v", serviceAccount.Name, err)
 	}
 	LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, ResourceCreated, log)
@@ -152,8 +153,10 @@ func createServiceAccountTokenSecret(ctx context.Context, k8sClient client.Clien
 		Type: corev1.SecretTypeServiceAccountToken,
 	}
 
-	log.Info("Creating ServiceAccountToken Secret", "name", tokenSecret.Name, "namespace", tokenSecret.Namespace)
+	log = log.WithValues("name", tokenSecret.Name, "namespace", tokenSecret.Namespace)
+
 	if err := k8sClient.Create(ctx, tokenSecret); err != nil {
+		log.Error(err, "Unable to create ServiceAccountToken Secret")
 		return nil, err
 	}
 	LogAPIResourceChangeEvent(tokenSecret.Namespace, tokenSecret.Name, tokenSecret, ResourceCreated, log)
@@ -175,18 +178,21 @@ func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k
 			return fmt.Errorf("unable to get cluster role: %v", err)
 		}
 
-		clusterRole.Rules = ArgoCDManagerNamespacePolicyRules
+		log := log.WithValues("name", clusterRole.Name)
 
-		log.Info("Creating ClusterRole", "name", clusterRole.Name)
+		clusterRole.Rules = ArgoCDManagerNamespacePolicyRules
 		if err := k8sClient.Create(ctx, clusterRole); err != nil {
+			log.Error(err, "Unable to create ClusterRole")
 			return fmt.Errorf("unable to create clusterrole: %v", err)
 		}
 		LogAPIResourceChangeEvent(clusterRole.Namespace, clusterRole.Name, clusterRole, ResourceCreated, log)
 
 	} else {
-		log.Info("Updating ClusterRole", "name", clusterRole.Name)
+		log := log.WithValues("name", clusterRole.Name)
+
 		clusterRole.Rules = ArgoCDManagerNamespacePolicyRules
 		if err := k8sClient.Update(ctx, clusterRole); err != nil {
+			log.Error(err, "Unable to update ClusterRole")
 			return fmt.Errorf("unable to update cluster role: %v", err)
 		}
 		LogAPIResourceChangeEvent(clusterRole.Namespace, clusterRole.Name, clusterRole, ResourceModified, log)
@@ -220,14 +226,14 @@ func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k
 	log = log.WithValues("name", clusterRoleBinding.Name)
 
 	if update {
-		log.Info("Updating ClusterRoleBinding")
 		if err := k8sClient.Update(ctx, clusterRoleBinding); err != nil {
+			log.Error(err, "Unable to update ClusterRoleBinding")
 			return fmt.Errorf("unable to create clusterrole: %v", err)
 		}
 		LogAPIResourceChangeEvent(clusterRoleBinding.Namespace, clusterRoleBinding.Name, clusterRoleBinding, ResourceModified, log)
 	} else {
-		log.Info("Creating ClusterRoleBinding")
 		if err := k8sClient.Create(ctx, clusterRoleBinding); err != nil {
+			log.Error(err, "Unable to create ClusterRoleBinding")
 			return fmt.Errorf("unable to create clusterrole: %v", err)
 		}
 		LogAPIResourceChangeEvent(clusterRoleBinding.Namespace, clusterRoleBinding.Name, clusterRoleBinding, ResourceCreated, log)

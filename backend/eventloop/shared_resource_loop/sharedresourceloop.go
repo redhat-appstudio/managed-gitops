@@ -373,11 +373,12 @@ func internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx context.Con
 		if db.IsResultNotFoundError(err) {
 			isNewUser = true
 
-			log.Info("Creating Cluster User with User ID: "+clusterUser.Clusteruser_id, clusterUser.GetAsLogKeyValues()...)
-
 			if err := dbq.CreateClusterUser(ctx, &clusterUser); err != nil {
+				log.Error(err, "Unable to create ClusterUser with User ID: "+clusterUser.Clusteruser_id, clusterUser.GetAsLogKeyValues()...)
 				return nil, false, err
 			}
+			log.Info("Created Cluster User with User ID: "+clusterUser.Clusteruser_id, clusterUser.GetAsLogKeyValues()...)
+
 		} else {
 			return nil, false, err
 		}
@@ -496,12 +497,14 @@ func internalGetOrCreateClusterAccess(ctx context.Context, ca *db.ClusterAccess,
 		return nil, false
 	}
 
-	log.Info(fmt.Sprintf("Creating ClusterAccess for UserID: %s, for ManagedEnvironment: %s", ca.Clusteraccess_user_id,
-		ca.Clusteraccess_managed_environment_id), ca.GetAsLogKeyValues()...)
-
 	if err := dbq.CreateClusterAccess(ctx, ca); err != nil {
+		log.Error(err, fmt.Sprintf("Unable to create ClusterAccess for UserID: %s, for ManagedEnvironment: %s", ca.Clusteraccess_user_id,
+			ca.Clusteraccess_managed_environment_id), ca.GetAsLogKeyValues()...)
+
 		return err, false
 	}
+	log.Info(fmt.Sprintf("Created ClusterAccess for UserID: %s, for ManagedEnvironment: %s", ca.Clusteraccess_user_id,
+		ca.Clusteraccess_managed_environment_id), ca.GetAsLogKeyValues()...)
 
 	return nil, true
 }
@@ -518,11 +521,11 @@ func internalGetOrCreateClusterUserByNamespaceUID(ctx context.Context, namespace
 		if db.IsResultNotFoundError(err) {
 			isNewUser = true
 
-			log.Info("Creating ClusterUser", clusterUser.GetAsLogKeyValues()...)
-
 			if err := dbq.CreateClusterUser(ctx, &clusterUser); err != nil {
+				log.Error(err, "Unable to create ClusterUser", clusterUser.GetAsLogKeyValues()...)
 				return nil, false, err
 			}
+			log.Info("Created ClusterUser", clusterUser.GetAsLogKeyValues()...)
 
 		} else {
 			return nil, false, err

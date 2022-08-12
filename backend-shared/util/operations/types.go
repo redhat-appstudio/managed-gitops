@@ -81,12 +81,11 @@ func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationPara
 		Human_readable_state:    "",
 	}
 
-	log.Info("Creating Operation database row")
-
 	if err := dbQueries.CreateOperation(ctx, &dbOperation, clusterUserID); err != nil {
-		log.Error(err, "unable to create operation")
+		log.Error(err, "Unable to create Operation database row")
 		return nil, nil, err
 	}
+	log.Info("Created Operation database row")
 
 	// Create K8s operation
 	operation := managedgitopsv1alpha1.Operation{
@@ -103,12 +102,12 @@ func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationPara
 	if clusterUserID == db.SpecialClusterUserName {
 		operation.Annotations = map[string]string{IdentifierKey: IdentifierValue}
 	}
-	log.Info("Creating K8s Operation CR")
 
 	if err := gitopsEngineClient.Create(ctx, &operation, &client.CreateOptions{}); err != nil {
-		log.Error(err, "unable to create K8s Operation in namespace")
+		log.Error(err, "Unable to create K8s Operation")
 		return nil, nil, err
 	}
+	log.Info("Created K8s Operation CR")
 
 	// Wait for operation to complete.
 	if waitForOperation {
@@ -141,15 +140,14 @@ func CleanupOperation(ctx context.Context, dbOperation db.Operation, k8sOperatio
 	// 	log.V(sharedutil.LogLevel_Warn).Error(err, "unexpected number of operation rows deleted", "operation-id", dbOperation.Operation_id, "rows", rowsDeleted)
 	// }
 
-	log.V(sharedutil.LogLevel_Debug).Info("Deleting operation CR: " + k8sOperation.Name)
-
 	// Optional: Delete the Operation CR
 	if err := gitopsEngineClient.Delete(ctx, &k8sOperation); err != nil {
 		if !apierr.IsNotFound(err) {
 			// Log the error, but don't return it: it's the responsibility of the cluster agent to delete the operation cr
-			log.Error(err, "Unable to delete operation")
+			log.Error(err, "Unable to delete Operation CR")
 		}
 	}
+	log.V(sharedutil.LogLevel_Debug).Info("Deleted operation CR: " + k8sOperation.Name)
 
 	return nil
 

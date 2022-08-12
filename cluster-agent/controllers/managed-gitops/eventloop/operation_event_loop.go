@@ -220,13 +220,14 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 	// If the operation is in waiting state, update it to in-progress before we start processing it.
 	if dbOperation.State == db.OperationState_Waiting {
-		log.V(sharedutil.LogLevel_Debug).Info("Updating OperationState to InProgress")
 		dbOperation.State = db.OperationState_In_Progress
 
 		if err := dbQueries.UpdateOperation(taskContext, &dbOperation); err != nil {
-			log.Error(err, "unable to update Operation state")
+			log.Error(err, "Unable to update Operation state")
 			return nil, shouldRetryTrue, fmt.Errorf("unable to update Operation, err: %v", err)
 		}
+		log.V(sharedutil.LogLevel_Debug).Info("Updated OperationState to InProgress")
+
 	}
 
 	// 3) Find the Argo CD instance that is targeted by this operation.
@@ -492,10 +493,8 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 					return true, err
 				}
 			}
-
-			log.Info("Creating Argo CD Application CR")
 			if err := eventClient.Create(ctx, app, &client.CreateOptions{}); err != nil {
-				log.Error(err, "unable to create Argo CD Application CR")
+				log.Error(err, "Unable to create Argo CD Application CR")
 				// This may or may not be salvageable depending on the error; ultimately we should figure out which
 				// error messages mean unsalvageable, and not wait for them.
 				return true, err

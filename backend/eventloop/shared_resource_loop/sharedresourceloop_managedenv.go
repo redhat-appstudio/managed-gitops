@@ -286,10 +286,11 @@ func deleteManagedEnvironmentByAPINameAndNamespace(ctx context.Context, workspac
 		}
 
 		// 2c) On successful cleanup of managed env, clean up the APICRToDatabaseMapping for the managed env
-		log.Info("Deleting APICRToDatabaseMapping", mapping.GetAsLogKeyValues()...)
 		if _, err := dbQueries.DeleteAPICRToDatabaseMapping(ctx, &mapping); err != nil {
+			log.Error(err, "Unable to delete APICRToDatabaseMapping", mapping.GetAsLogKeyValues()...)
 			return fmt.Errorf("unable to delete api cr to database mapping: %v", err)
 		}
+		log.Info("Deleted APICRToDatabaseMapping", mapping.GetAsLogKeyValues()...)
 	}
 
 	return nil
@@ -320,15 +321,17 @@ func replaceExistingManagedEnv(ctx context.Context,
 	// 2) Update the existing managed environment to point to the new credentials
 	managedEnvironmentDB.Clustercredentials_id = clusterCredentials.Clustercredentials_cred_id
 
-	log.Info("Updating ManagedEnvironment with new cluster credentials ID", managedEnvironmentDB.GetAsLogKeyValues()...)
 	if err := dbQueries.UpdateManagedEnvironment(ctx, &managedEnvironmentDB); err != nil {
+		log.Error(err, "Unable to update ManagedEnvironment with new cluster credentials ID", managedEnvironmentDB.GetAsLogKeyValues()...)
+
 		return SharedResourceManagedEnvContainer{}, fmt.Errorf("unable to update managed environment with new credentials: %v", err)
 	}
+	log.Info("Updated ManagedEnvironment with new cluster credentials ID", managedEnvironmentDB.GetAsLogKeyValues()...)
 
 	// 3) Delete the old credentials
-	log.Info("Deleting old ClusterCredentials row which is no longer used by ManagedEnv", "clusterCredentials", oldClusterCredentialsPrimaryKey)
 	rowsDeleted, err := dbQueries.DeleteClusterCredentialsById(ctx, oldClusterCredentialsPrimaryKey)
 	if err != nil {
+		log.Info("Unable to delete old ClusterCredentials row which is no longer used by ManagedEnv", "clusterCredentials", oldClusterCredentialsPrimaryKey)
 		return SharedResourceManagedEnvContainer{},
 			fmt.Errorf("unable to delete old cluster credentials '%s': %v", oldClusterCredentialsPrimaryKey, err)
 	}
@@ -337,6 +340,7 @@ func replaceExistingManagedEnv(ctx context.Context,
 			"clusterCredentialsID", oldClusterCredentialsPrimaryKey)
 		return SharedResourceManagedEnvContainer{}, nil
 	}
+	log.Info("Deleted old ClusterCredentials row which is no longer used by ManagedEnv", "clusterCredentials", oldClusterCredentialsPrimaryKey)
 
 	// 4) Retrieve/create the other env vars for the managed env, and return
 	engineInstance, isNewEngineInstance, clusterAccess,
@@ -453,10 +457,12 @@ func createNewManagedEnv(ctx context.Context, managedEnvironment managedgitopsv1
 		Name:                  managedEnvironment.Name,
 		Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
 	}
-	log.Info("Creating new ManagedEnvironment", managedEnv.GetAsLogKeyValues()...)
+
 	if err := dbQueries.CreateManagedEnvironment(ctx, managedEnv); err != nil {
+		log.Error(err, "Unabled to create new ManagedEnvironment", managedEnv.GetAsLogKeyValues()...)
 		return nil, fmt.Errorf("unable to create managed environment for env obj '%s': %v", managedEnvironment.UID, err)
 	}
+	log.Info("Created new ManagedEnvironment", managedEnv.GetAsLogKeyValues()...)
 
 	apiCRToDBMapping := &db.APICRToDatabaseMapping{
 		APIResourceType:      db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentManagedEnvironment,
@@ -467,10 +473,11 @@ func createNewManagedEnv(ctx context.Context, managedEnvironment managedgitopsv1
 		DBRelationType:       db.APICRToDatabaseMapping_DBRelationType_ManagedEnvironment,
 		DBRelationKey:        managedEnv.Managedenvironment_id,
 	}
-	log.Info("Creating new APICRToDatabaseMapping", apiCRToDBMapping.GetAsLogKeyValues()...)
 	if err := dbQueries.CreateAPICRToDatabaseMapping(ctx, apiCRToDBMapping); err != nil {
+		log.Error(err, "Unable to create new APICRToDatabaseMapping", apiCRToDBMapping.GetAsLogKeyValues()...)
 		return nil, fmt.Errorf("unable to create APICRToDatabaseMapping for managed environment: %v", err)
 	}
+	log.Info("Created new APICRToDatabaseMapping", apiCRToDBMapping.GetAsLogKeyValues()...)
 
 	return managedEnv, nil
 }
@@ -497,11 +504,12 @@ func deleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 		log := log.WithValues("applicationID", app.Application_id)
 
 		// Nil the managed environment field of the Application (since we are deleting the managed environment itself, and we have a foreign key here)
-		log.Info("Updating Application row: nil-ing the managed environment field of Application that uses deleted managed environment")
 		app.Managed_environment_id = ""
 		if err := dbQueries.UpdateApplication(ctx, &app); err != nil {
+			log.Error(err, "Unable to update Application row: nil-ing the managed environment field of Application that uses deleted managed environment")
 			return fmt.Errorf("unable to nil managed environment of applicaton '%s': %v", app.Application_id, err)
 		}
+		log.Info("Updated Application row: nil-ing the managed environment field of Application that uses deleted managed environment")
 
 		gitopsEngineInstance := &db.GitopsEngineInstance{
 			Gitopsengineinstance_id: app.Engine_instance_inst_id,
@@ -546,10 +554,9 @@ func deleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 	for idx := range clusterAccesses {
 		clusterAccess := clusterAccesses[idx]
 
-		log.Info("Deleting ClusterAccess row that referenced ManagedEnvironment", "userID", clusterAccess.Clusteraccess_user_id, "gitopsEngineInstanceID", clusterAccess.Clusteraccess_gitops_engine_instance_id)
-
 		rowsDeleted, err := dbQueries.DeleteClusterAccessById(ctx, clusterAccess.Clusteraccess_user_id, managedEnvID, clusterAccess.Clusteraccess_gitops_engine_instance_id)
 		if err != nil {
+			log.Error(err, "Unable to delete ClusterAccess row that referenced to ManagedEnvironment", "userID", clusterAccess.Clusteraccess_user_id, "gitopsEngineInstanceID", clusterAccess.Clusteraccess_gitops_engine_instance_id)
 			return fmt.Errorf("unable to delete cluster access while deleting managed environment '%s': %v", clusterAccess.Clusteraccess_managed_environment_id, err)
 		}
 		if rowsDeleted != 1 {
@@ -557,23 +564,28 @@ func deleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 			log.V(sharedutil.LogLevel_Warn).Info("Unexpected number of cluster accesses rows deleted, when deleting managed env.",
 				"rowsDeleted", rowsDeleted, "cluster-access", clusterAccess)
 		}
+		log.Info("Deleted ClusterAccess row that referenced to ManagedEnvironment", "userID", clusterAccess.Clusteraccess_user_id, "gitopsEngineInstanceID", clusterAccess.Clusteraccess_gitops_engine_instance_id)
+
 	}
 
 	// 4) Delete the ManagedEnvironment entry
-	log.Info("Deleting ManagedEnvironment row")
 	rowsDeleted, err := dbQueries.DeleteManagedEnvironmentById(ctx, managedEnvID)
 	if err != nil || rowsDeleted != 1 {
+		log.Error(err, "Unable to delete ManagedEnvironment row")
 		return fmt.Errorf("unable to deleted managed environment '%s': %v (%v)", managedEnvID, err, rowsDeleted)
 	}
+	log.Info("Deleted ManagedEnvironment row")
 
 	// 5) Delete the cluster credentials row of the managed environment
 	if managedEnvCR != nil {
 		log := log.WithValues("clusterCredentialsId", managedEnvCR.Clustercredentials_id)
-		log.Info("Deleting ClusterCredentials of the managed environment")
+
 		rowsDeleted, err = dbQueries.DeleteClusterCredentialsById(ctx, managedEnvCR.Clustercredentials_id)
 		if err != nil || rowsDeleted != 1 {
+			log.Error(err, "Unable to delete ClusterCredentials of the managed environment")
 			return fmt.Errorf("unable to delete cluster credentials '%s' for managed environment: %v (%v)", managedEnvCR.Clustercredentials_id, err, rowsDeleted)
 		}
+		log.Info("Deleted ClusterCredentials of the managed environment")
 	}
 
 	// 6) For each Argo CD instances that was involved, create a new Operation to delete the managed environment
@@ -689,11 +701,11 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 		Serviceaccount_ns:           serviceAccountNamespaceKubeSystem,
 	}
 
-	log.Info("Creating ClusterCredentials for ManagedEnvironment", clusterCredentials.GetAsLogKeyValues()...)
-
 	if err := dbQueries.CreateClusterCredentials(ctx, &clusterCredentials); err != nil {
+		log.Error(err, "Unable to create ClusterCredentials for ManagedEnvironment", clusterCredentials.GetAsLogKeyValues()...)
 		return db.ClusterCredentials{}, fmt.Errorf("unable to create cluster credentials for host '%s': %v", clusterCredentials.Host, err)
 	}
+	log.Info("Created ClusterCredentials for ManagedEnvironment", clusterCredentials.GetAsLogKeyValues()...)
 
 	return clusterCredentials, nil
 

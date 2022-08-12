@@ -254,15 +254,12 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		Spec_field:              specFieldText,
 	}
 
-	a.log.Info("Creating new Application in DB: "+application.Application_id, "appName", appName,
-		"gitopsEngineInstanceID", application.Engine_instance_inst_id, "managedEnvID", application.Managed_environment_id,
-		"spec_field", application.Spec_field)
-
 	if err := dbQueries.CreateApplication(ctx, &application); err != nil {
-		a.log.Error(err, "unable to create application", "application", application, "ownerId", clusterUser.Clusteruser_id)
+		a.log.Error(err, "Unable to create application", application.GetAsLogKeyValues()...)
 
 		return false, nil, nil, deploymentModifiedResult_Failed, err
 	}
+	a.log.Info("Created new Application in DB: "+application.Application_id, application.GetAsLogKeyValues()...)
 
 	requiredDeplToAppMapping := &db.DeploymentToApplicationMapping{
 		Deploymenttoapplicationmapping_uid_id: string(gitopsDeployment.UID),

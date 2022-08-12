@@ -338,3 +338,18 @@ func (app *Application) DisposeAppScoped(ctx context.Context, dbq ApplicationSco
 
 	return err
 }
+
+// GetAsLogKeyValues return a []interface that can be passed to log.Info(...).
+// e.g. log.Info("Creating database resource", obj.GetAsLogKeyValues()...)
+func (obj *Application) GetAsLogKeyValues() []interface{} {
+	if obj == nil {
+		return []interface{}{}
+	}
+
+	return []interface{}{"applicationID", obj.Application_id,
+		"engineInstanceID", obj.Engine_instance_inst_id,
+		"managedEnvironmentID", obj.Managed_environment_id,
+		"applicationName", obj.Name,
+		"applicationSpecField", obj.Spec_field}
+
+}

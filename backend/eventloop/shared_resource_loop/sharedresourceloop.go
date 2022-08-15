@@ -36,7 +36,7 @@ import (
 //   - But this is bad: the database now contains _two different_ managed environment database entries for the same environment A.
 //   - Thus, without mutexes/locking, there is a race condition.
 //   - However, the shared resource event loop prevents this issue, by ensuring that threads are never able to
-//     concurrently create API-namespace database resources at the same time.
+//     concurrently create API-namespace-scoped database resources at the same time.
 type SharedResourceEventLoop struct {
 	inputChannel chan sharedResourceLoopMessage
 }

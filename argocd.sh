@@ -35,7 +35,7 @@ if [ "$1" = "install" ]; then
     until kubectl -n "$ARGO_CD_NAMESPACE" get secret | grep argocd-initial-admin-secret; do
         ((counter++))
         sleep 1
-        if [ "$counter" -gt 60 ]; then
+        if [ "$counter" -gt 180 ]; then
             echo " --> Error: Cannot find argocd-initial-admin-secret secret."
             exit 1
         fi

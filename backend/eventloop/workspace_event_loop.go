@@ -14,7 +14,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -274,7 +274,7 @@ func handleOrphaned(ctx context.Context, event eventlooptypes.EventLoopMessage, 
 	if event.Event.ReqResource == eventlooptypes.GitOpsDeploymentSyncRunTypeName {
 
 		syncRunCR := &v1alpha1.GitOpsDeploymentSyncRun{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Name:      event.Event.Request.Name,
 				Namespace: event.Event.Request.Namespace,
 			},
@@ -316,7 +316,7 @@ func unorphanResourcesIfPossible(ctx context.Context, event eventlooptypes.Event
 
 		// Retrieve the gitopsdepl
 		gitopsDeplCR := &v1alpha1.GitOpsDeployment{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Name:      event.Event.Request.Name,
 				Namespace: event.Event.Request.Namespace,
 			},

@@ -26,7 +26,7 @@ import (
 // - detecting cases where the user deletes/creates a resource with the same name, before we have have processed the delete
 // - ensures that 'associatedGitopsDeplUID' field is set for all requests that are processed by the GitOps service.
 //     - if the event is for a GitOpsDeployment, then this field matches the UID of the resource (but for deleted resources, we need to retrieve the uid from the database)
-//     - if the event is for a GitOpsDeploymentSyncRun, then this field matches the UID of the GitOp
+//     - if the event is for a GitOpsDeploymentSyncRun, then this field matches the UID of the GitOpsDeployment that it references
 //
 // Invariants:
 // - The cache should only ever use values from the database. It should be eventually consistent with the database.

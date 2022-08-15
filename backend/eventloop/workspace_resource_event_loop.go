@@ -20,7 +20,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// workspaceResourceEventLoop is responsible for handling workspace-scoped events, like events for RepositoryCredentials resources.
+// workspaceResourceEventLoop is responsible for handling events for API-namespaced-scoped resources, like events for RepositoryCredentials resources.
+// An api-namespace-scoped resources are resources that can be used by (and reference from) multiple GitOpsDeployments.
+//
+// For example, a ManagedEnvironment could be referenced by 2 separate GitOpsDeployments in a namespace.
+//
 // NOTE: workspaceResourceEventLoop should only be called from workspace_event_loop.go.
 type workspaceResourceEventLoop struct {
 	inputChannel chan workspaceResourceLoopMessage

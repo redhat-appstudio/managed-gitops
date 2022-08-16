@@ -205,6 +205,11 @@ start-e2e: start ## Start the managed gitops processes for E2E tests. At the mom
 
 gen-kcp-api-all: gen-kcp-api-appstudio-shared gen-kcp-api-backend-shared ## Creates all the KCP API Resources for all comfig/crds
 
+apply-kcp-api-all: ## Apply all APIExport to the cluster
+	kubectl apply -f manifests/dependencies/kcp/apiexport_gitopsrvc_dependencies.yaml
+	kubectl apply -f appstudio-shared/config/kcp/apiexport_gitopsrvc_appstudioshared.yaml
+	kubectl apply -f backend-shared/config/kcp/apiexport_gitopsrvc_backendshared.yaml
+
 test-e2e: ## Kick off the E2E tests. Ensure that 'start-e2e' and 'setup-e2e-openshift' have run.
 	cd $(MAKEFILE_ROOT)/tests-e2e && make test
 

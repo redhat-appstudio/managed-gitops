@@ -25,11 +25,7 @@ const (
 )
 
 func LogAPIResourceChangeEvent(resourceNamespace string, resourceName string, resource interface{}, resourceChangeType ResourceChangeType, log logr.Logger) {
-
-	// if log == nil {
-	// 	log.Error(nil, "log passed to LogAPIResourceChangeEvent was nil")
-	// 	return
-	// }
+	log = log.WithValues("audit", "true")
 
 	if resource == nil {
 		log.Error(nil, "resource passed to LogAPIResourceChangeEvent was nil")

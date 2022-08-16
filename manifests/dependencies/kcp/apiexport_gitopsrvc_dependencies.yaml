@@ -1,0 +1,16 @@
+# This file is generated from CRDs by ./utilities/generate-kcp-api-depedencies.sh script.
+# Please do not modify!
+
+apiVersion: apis.kcp.dev/v1alpha1
+kind: APIExport
+metadata:
+  name: gitopsrvc
+spec:
+  permissionClaims:
+  - group: ""
+    resource: "secrets"
+  - group: ""
+    resource: "namespaces"
+  latestResourceSchemas:
+    - v202208161213.applications.argoproj.io
+    - v202208161213.applications.appstudio.redhat.com

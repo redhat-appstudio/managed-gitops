@@ -16,7 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -96,7 +95,7 @@ func deleteArgoCDSecretLeftovers(ctx context.Context, databaseID string, argoCDN
 func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.Operation, crOperation operation.Operation, dbQueries db.DatabaseQueries,
 	argoCDNamespace corev1.Namespace, eventClient client.Client, l logr.Logger) (bool, error) {
 	const retry, noRetry = true, false
-	log := log.FromContext(ctx)
+
 	if dbOperation.Resource_id == "" {
 		return retry, fmt.Errorf("%v: %v", errOperationIDNotFound, crOperation.Name)
 	}
@@ -139,7 +138,7 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 				l.Error(errCreateArgoCDSecret, errPrivateSecretCreate)
 				return retry, errCreateArgoCDSecret
 			}
-			sharedutil.LogAPIResourceChangeEvent(argoCDSecret.Namespace, argoCDSecret.Name, argoCDSecret, sharedutil.ResourceCreated, log)
+			sharedutil.LogAPIResourceChangeEvent(argoCDSecret.Namespace, argoCDSecret.Name, argoCDSecret, sharedutil.ResourceCreated, l)
 
 			// The problem with the secret is now resolved, so we can proceed with the operation.
 			l.Info("Argo CD Private Repository secret has been successfully created",
@@ -169,7 +168,7 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 			l.Error(err, errUpdatePrivateSecret)
 			return retry, err
 		}
-		sharedutil.LogAPIResourceChangeEvent(argoCDSecret.Namespace, argoCDSecret.Name, argoCDSecret, sharedutil.ResourceModified, log)
+		sharedutil.LogAPIResourceChangeEvent(argoCDSecret.Namespace, argoCDSecret.Name, argoCDSecret, sharedutil.ResourceModified, l)
 
 	}
 

@@ -249,8 +249,13 @@ func addSecretToServiceAccount(ctx context.Context, k8sClient client.Client, sec
 		Namespace: secret.Namespace,
 		Name:      secret.Name,
 	})
-	LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, ResourceCreated, log)
-	return k8sClient.Update(ctx, serviceAccount)
+
+	if err := k8sClient.Update(ctx, serviceAccount); err != nil {
+		return err
+	} else {
+		LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, ResourceModified, log)
+		return nil
+	}
 }
 
 func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k8sClient client.Client,

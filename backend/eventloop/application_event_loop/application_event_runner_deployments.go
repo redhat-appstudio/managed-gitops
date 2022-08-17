@@ -666,7 +666,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 // applicationEventRunner_handleUpdateDeploymentStatusTick updates the status field of all the GitOpsDeploymentCRs in the workspace.
 func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateDeploymentStatusTick(ctx context.Context,
 	gitopsDeplID string, dbQueries db.ApplicationScopedQueries) error {
-	log := a.log
+
 	// TODO: GITOPSRVCE-68 - PERF - In general, polling for all GitOpsDeployments in a workspace will scale poorly with large number of applications in the workspace. We should switch away from polling in the future.
 
 	// 1) Retrieve the mapping for the CR we are processing
@@ -735,11 +735,10 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	}
 
 	// Update the actual object in Kubernetes
-
 	if err := a.workspaceClient.Status().Update(ctx, gitopsDeployment, &client.UpdateOptions{}); err != nil {
 		return err
 	}
-	sharedutil.LogAPIResourceChangeEvent(gitopsDeployment.Namespace, gitopsDeployment.Name, gitopsDeployment, sharedutil.ResourceModified, log)
+	sharedutil.LogAPIResourceChangeEvent(gitopsDeployment.Namespace, gitopsDeployment.Name, gitopsDeployment, sharedutil.ResourceModified, a.log)
 
 	// NOTE: make sure to preserve the existing conditions fields that are in the status field of the CR, when updating the status!
 

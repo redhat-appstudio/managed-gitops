@@ -2,6 +2,7 @@ package eventloop
 
 import (
 	"context"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -97,7 +98,7 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 		task = processOperationEventTask{
 			log: logger,
 			event: operationEventLoopEvent{
-				request: newRequest(namespace, name),
+				request: newRequest(namespace, name), // NOTE: Make sure you replace the name with the name of the operation, later in the tests
 				client:  k8sClient,
 			},
 		}
@@ -118,8 +119,8 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 			var repositoryCredential db.RepositoryCredentials
 
 			BeforeEach(func() {
-				By(" --- creating an Operation DB row with a valid Resource_id ---")
-				operationDB = &db.Operation{
+				By(" --- creating an Operation DB row and CR with a valid Resource_id ---")
+				dbOperationInput := db.Operation{
 					Operation_id:            "test-operation",
 					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
 					Resource_id:             "test-my-repo-creds", // this needs to be unique for this testcase!
@@ -128,22 +129,12 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 					Operation_owner_user_id: clusterUser.Clusteruser_id,
 				}
 
-				err = dbq.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+				// Create an Operation DB Row and a corresponding Operation CR
+				operationCR, operationDB, err = operations.CreateOperation(ctx, false, dbOperationInput, clusterUser.Clusteruser_id, namespace, dbq, k8sClient, logger)
 				Expect(err).To(BeNil())
-
-				By(" --- creating corresponding Operation CR ---")
-				operationCR = &operation.Operation{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      name,
-						Namespace: namespace,
-					},
-					Spec: operation.OperationSpec{
-						OperationID: operationDB.Operation_id,
-					},
-				}
-
-				err = task.event.client.Create(ctx, operationCR)
-				Expect(err).To(BeNil())
+				task.event.request.Name = operationCR.Name // Correct the task's Operation CR name request
+				logger.Info("operationCR", "operationCR", operationCR)
+				logger.Info("operationDB", "operationDB", operationDB)
 
 				By(" --- creating a RepositoryCredentials DB row with Resource_id as its PrimaryKey ---")
 				repositoryCredential = db.RepositoryCredentials{
@@ -233,8 +224,8 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 				err = task.event.client.Create(ctx, secret)
 				Expect(err).To(BeNil())
 
-				By(" --- creating an Operation DB row with a valid Resource_id ---")
-				operationDB = &db.Operation{
+				By(" --- creating an Operation DB row and CR with a valid Resource_id ---")
+				dbOperationInput := db.Operation{
 					Operation_id:            "test-operation-2",
 					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
 					Resource_id:             "test-my-repo-creds-2", // this needs to be unique for this testcase!
@@ -243,22 +234,9 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 					Operation_owner_user_id: clusterUser.Clusteruser_id,
 				}
 
-				err = dbq.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+				operationCR, operationDB, err = operations.CreateOperation(ctx, false, dbOperationInput, clusterUser.Clusteruser_id, namespace, dbq, k8sClient, logger)
 				Expect(err).To(BeNil())
-
-				By(" --- creating corresponding Operation CR ---")
-				operationCR = &operation.Operation{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      name,
-						Namespace: namespace,
-					},
-					Spec: operation.OperationSpec{
-						OperationID: operationDB.Operation_id,
-					},
-				}
-
-				err = task.event.client.Create(ctx, operationCR)
-				Expect(err).To(BeNil())
+				task.event.request.Name = operationCR.Name // Correct the task's Operation CR name request
 
 				By(" --- creating a RepositoryCredentials DB row with Resource_id as its PrimaryKey ---")
 				repositoryCredential = db.RepositoryCredentials{
@@ -354,8 +332,8 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 				err = task.event.client.Create(ctx, secret)
 				Expect(err).To(BeNil())
 
-				By(" --- creating an Operation DB row with a valid Resource_id ---")
-				operationDB = &db.Operation{
+				By(" --- creating an Operation DB row and CR with a valid Resource_id ---")
+				dbOperationInput := db.Operation{
 					Operation_id:            "test-operation-3",
 					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
 					Resource_id:             "test-my-repo-creds-3", // this needs to be unique for this testcase!
@@ -364,22 +342,9 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 					Operation_owner_user_id: clusterUser.Clusteruser_id,
 				}
 
-				err = dbq.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+				operationCR, operationDB, err = operations.CreateOperation(ctx, false, dbOperationInput, clusterUser.Clusteruser_id, namespace, dbq, k8sClient, logger)
 				Expect(err).To(BeNil())
-
-				By(" --- creating corresponding Operation CR ---")
-				operationCR = &operation.Operation{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      name,
-						Namespace: namespace,
-					},
-					Spec: operation.OperationSpec{
-						OperationID: operationDB.Operation_id,
-					},
-				}
-
-				err = task.event.client.Create(ctx, operationCR)
-				Expect(err).To(BeNil())
+				task.event.request.Name = operationCR.Name // Correct the task's Operation CR name request
 			})
 
 			It("Should delete the existing related ArgoCD Secret for Private Repository", func() {
@@ -463,8 +428,8 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 				err = task.event.client.Create(ctx, secret2)
 				Expect(err).To(BeNil())
 
-				By(" --- creating an Operation DB row with a valid Resource_id ---")
-				operationDB = &db.Operation{
+				By(" --- creating an Operation DB row and CR with a valid Resource_id ---")
+				dbOperationInput := db.Operation{
 					Operation_id:            "test-operation-4",
 					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
 					Resource_id:             "test-my-repo-creds-4", // this needs to be unique for this testcase!
@@ -473,22 +438,9 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 					Operation_owner_user_id: clusterUser.Clusteruser_id,
 				}
 
-				err = dbq.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+				operationCR, operationDB, err = operations.CreateOperation(ctx, false, dbOperationInput, clusterUser.Clusteruser_id, namespace, dbq, k8sClient, logger)
 				Expect(err).To(BeNil())
-
-				By(" --- creating corresponding Operation CR ---")
-				operationCR = &operation.Operation{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      name,
-						Namespace: namespace,
-					},
-					Spec: operation.OperationSpec{
-						OperationID: operationDB.Operation_id,
-					},
-				}
-
-				err = task.event.client.Create(ctx, operationCR)
-				Expect(err).To(BeNil())
+				task.event.request.Name = operationCR.Name // Correct the task's Operation CR name request
 			})
 
 			It("Should delete all the existing related ArgoCD Secrets for Private Repository", func() {
@@ -522,8 +474,8 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 
 			BeforeEach(func() {
 
-				By(" --- creating an Operation DB row with a valid Resource_id ---")
-				operationDB = &db.Operation{
+				By(" --- creating an Operation DB row and a CR with a valid Resource_id ---")
+				dbOperationInput := db.Operation{
 					Operation_id:            "test-operation-5",
 					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
 					Resource_id:             "test-my-repo-creds-5", // this needs to be unique for this testcase!
@@ -532,22 +484,9 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 					Operation_owner_user_id: clusterUser.Clusteruser_id,
 				}
 
-				err = dbq.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+				operationCR, operationDB, err = operations.CreateOperation(ctx, false, dbOperationInput, clusterUser.Clusteruser_id, namespace, dbq, k8sClient, logger)
 				Expect(err).To(BeNil())
-
-				By(" --- creating corresponding Operation CR ---")
-				operationCR = &operation.Operation{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      name,
-						Namespace: namespace,
-					},
-					Spec: operation.OperationSpec{
-						OperationID: operationDB.Operation_id,
-					},
-				}
-
-				err = task.event.client.Create(ctx, operationCR)
-				Expect(err).To(BeNil())
+				task.event.request.Name = operationCR.Name // Correct the task's Operation CR name request
 			})
 
 			It("Should do nothing (NOP)", func() {

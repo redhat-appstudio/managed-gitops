@@ -284,8 +284,8 @@ spec:
                   description: ComponentStatus contains the status of the components
                   properties:
                     gitopsRepository:
-                      description: GitOpsRepository contains the Git URL, path, and
-                        branch, for the component
+                      description: GitOpsRepository contains the Git URL, path, branch,
+                        and most recent commit id for the component
                       properties:
                         branch:
                           description: Branch is the branch to use when accessing

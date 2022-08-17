@@ -99,6 +99,9 @@ type BindingComponentGitOpsRepository struct {
 	// in the overlays/<environment> dir, for example, 'deployment-patch.yaml'. This is stored to differentiate between
 	// application-service controller generated resources vs resources added by a user
 	GeneratedResources []string `json:"generatedResources"`
+
+	// CommitID contains the most recent commit ID for the component in the GitOps repository
+	CommitID string `json:"commitID"`
 }
 
 // ComponentStatus contains the status of the components
@@ -107,7 +110,7 @@ type ComponentStatus struct {
 	// Name is the name of the component.
 	Name string `json:"name"`
 
-	// GitOpsRepository contains the Git URL, path, and branch, for the component
+	// GitOpsRepository contains the Git URL, path, branch, and most recent commit id for the component
 	GitOpsRepository BindingComponentGitOpsRepository `json:"gitopsRepository"`
 }
 

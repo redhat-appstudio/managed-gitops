@@ -17,8 +17,8 @@ var _ = Describe("application_info_cache Test", func() {
 			Expect(err).To(BeNil())
 
 			ctx := context.Background()
-			asc := NewApplicationInfoCache()
-			defer asc.DebugOnly_Shutdown(ctx)
+			aic := NewApplicationInfoCache()
+			defer aic.DebugOnly_Shutdown(ctx)
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 
@@ -45,7 +45,7 @@ var _ = Describe("application_info_cache Test", func() {
 				Health:                          "Healthy",
 				Sync_Status:                     "Synced",
 			}
-			errCreate := asc.CreateApplicationState(ctx, testAppState)
+			errCreate := aic.CreateApplicationState(ctx, testAppState)
 			Expect(errCreate).To(BeNil())
 
 			dbAppStateObj := db.ApplicationState{
@@ -55,15 +55,15 @@ var _ = Describe("application_info_cache Test", func() {
 			Expect(errGet).To(BeNil())
 			Expect(testAppState).To(Equal(dbAppStateObj))
 
-			_, fromCache, err := asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
+			_, fromCache, err := aic.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
 			Expect(err).To(BeNil())
 			Expect(fromCache).To(BeTrue())
 
 			testAppState.Health = "Unhealthy"
-			errUpdate := asc.UpdateApplicationState(ctx, testAppState)
+			errUpdate := aic.UpdateApplicationState(ctx, testAppState)
 			Expect(errUpdate).To(BeNil())
 
-			appState, isFromCache, errGet := asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
+			appState, isFromCache, errGet := aic.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
 			Expect(errGet).To(BeNil())
 			Expect(isFromCache).To(BeTrue())
 			Expect(testAppState).To(Equal(appState))
@@ -72,7 +72,7 @@ var _ = Describe("application_info_cache Test", func() {
 				Applicationstate_application_id: testAppState.Applicationstate_application_id,
 			}
 
-			rowsAffected, errDelete := asc.DeleteApplicationStateById(ctx, testDeleteAppState.Applicationstate_application_id)
+			rowsAffected, errDelete := aic.DeleteApplicationStateById(ctx, testDeleteAppState.Applicationstate_application_id)
 			Expect(errDelete).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))
 
@@ -86,8 +86,8 @@ var _ = Describe("application_info_cache Test", func() {
 			Expect(err).To(BeNil())
 
 			ctx := context.Background()
-			asc := NewApplicationInfoCache()
-			defer asc.DebugOnly_Shutdown(ctx)
+			aic := NewApplicationInfoCache()
+			defer aic.DebugOnly_Shutdown(ctx)
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 
@@ -98,7 +98,7 @@ var _ = Describe("application_info_cache Test", func() {
 			testId := "test-get-appState"
 
 			//testId doesn't exist, the test should report an error
-			appState, isFromCache, errGet := asc.GetApplicationStateById(ctx, testId)
+			appState, isFromCache, errGet := aic.GetApplicationStateById(ctx, testId)
 			Expect(errGet).ToNot(BeNil())
 			// since no entry in the valuefromcache should be false, appState should be empty
 			Expect(isFromCache).To(BeFalse())
@@ -128,7 +128,7 @@ var _ = Describe("application_info_cache Test", func() {
 			err = dbq.CreateApplicationState(ctx, &testAppState)
 			Expect(err).To(BeNil())
 
-			getAppState, isFromCache, errGet := asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
+			getAppState, isFromCache, errGet := aic.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
 			// ideally the appState should now report an ApplicationState obj
 			// isFromCache should be false since initially the value will be coming from db
 			Expect(errGet).To(BeNil())
@@ -136,7 +136,7 @@ var _ = Describe("application_info_cache Test", func() {
 			Expect(testAppState).To(Equal(getAppState))
 
 			//calling the same GetApplicationStateById again should come from cache, hence isFromCache should be True
-			_, isFromCache, errGet = asc.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
+			_, isFromCache, errGet = aic.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
 			Expect(errGet).To(BeNil())
 			Expect(isFromCache).To(BeTrue())
 
@@ -151,8 +151,8 @@ var _ = Describe("application_info_cache Test", func() {
 			Expect(err).To(BeNil())
 
 			ctx := context.Background()
-			asc := NewApplicationInfoCache()
-			defer asc.DebugOnly_Shutdown(ctx)
+			aic := NewApplicationInfoCache()
+			defer aic.DebugOnly_Shutdown(ctx)
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 
@@ -163,7 +163,7 @@ var _ = Describe("application_info_cache Test", func() {
 			testId := "test-get-appState"
 
 			//testId doesn't exist, the test should report an error
-			app, valuefromCache, errGet := asc.GetApplicationById(ctx, testId)
+			app, valuefromCache, errGet := aic.GetApplicationById(ctx, testId)
 			Expect(errGet).ToNot(BeNil())
 			// since no entry in the valuefromcache should be false, appState should be empty
 			Expect(valuefromCache).To(BeFalse())
@@ -183,14 +183,14 @@ var _ = Describe("application_info_cache Test", func() {
 			err = dbq.CreateApplication(ctx, &testapplication)
 			Expect(err).To(BeNil())
 
-			getApp, isFromCache, errGet := asc.GetApplicationById(ctx, testapplication.Application_id)
+			getApp, isFromCache, errGet := aic.GetApplicationById(ctx, testapplication.Application_id)
 			// ideally the appState should now report an Application obj
 			Expect(errGet).To(BeNil())
 			Expect(isFromCache).To(BeFalse())
 			Expect(getApp).To(Equal(testapplication))
 
 			//calling the same GetApplicationById again should come from cache, hence ifFromCache should be True
-			_, isFromCache, errGet = asc.GetApplicationById(ctx, testapplication.Application_id)
+			_, isFromCache, errGet = aic.GetApplicationById(ctx, testapplication.Application_id)
 			Expect(errGet).To(BeNil())
 			Expect(isFromCache).To(BeTrue())
 

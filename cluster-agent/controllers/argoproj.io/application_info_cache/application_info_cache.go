@@ -11,7 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// The cache exists because we do want to overwhelm the controller (or the database) with various operations frequently: most
+// The cache exists because we do not want to overwhelm the controller (or the database) with various operations frequently: most
 // of the time these reconciliations are changes that might not be useful for us.
 //
 // To avoid unnecessary read/write to the database, the cache is being implemented in backend-shared which will be used

@@ -58,7 +58,7 @@ cat << EOF > ${KCP_API_EXPORT_FILE}
 apiVersion: apis.kcp.dev/v1alpha1
 kind: APIExport
 metadata:
-  name: gitopsrvc
+  name: gitopsrvc-dependencies
 spec:
   permissionClaims:
   - group: ""
@@ -79,3 +79,6 @@ cat << EOF > ${KCP_API_EXPORT_FILE}
 
 $( cat ${KCP_API_EXPORT_FILE} )
 EOF
+
+rm ${CRD_DIR}/appstudio.redhat.com_applications.yaml
+rm ${CRD_DIR}/application-crd.yaml

@@ -13,6 +13,8 @@ THIS_DIR="$(dirname "$(realpath "$0")")"
 CRD_DIR="$(realpath ${THIS_DIR}/../appstudio-shared/config/crd/bases)"
 KCP_API_DIR="$(realpath ${THIS_DIR}/../appstudio-shared/config/kcp)"
 
+wget -P ${CRD_DIR} https://raw.githubusercontent.com/redhat-appstudio/application-service/7a1a14b575dc725a46ea2ab175692f464122f0f8/config/crd/bases/appstudio.redhat.com_applications.yaml
+cp ${THIS_DIR}/../backend-shared/config/crd/bases/managed-gitops.redhat.com_gitopsdeployments.yaml ${CRD_DIR}/
 KCP_API_SCHEMA_FILE_CURRENT="${KCP_API_DIR}/apiresourceschema_gitopsrvc_appstudioshared.yaml"
 KCP_API_SCHEMA_FILE_NEW="${KCP_API_DIR}/apiresourceschema_gitopsrvc_appstudioshared.yaml_new"
 cat << EOF > ${KCP_API_SCHEMA_FILE_NEW}
@@ -35,7 +37,7 @@ done
 # The regex is there to ignore name change, because we're updating date there so it is expected to change.
 # Ignored line looks like this:
 # '  name: v202206151654.applications.appstudio.redhat.com'
-if ! diff -I '^  name: v[0-9]\{12\}\..*\.appstudio\.redhat\.com$' ${KCP_API_SCHEMA_FILE_CURRENT} ${KCP_API_SCHEMA_FILE_NEW} > /dev/null; then
+if ! diff -I '^  name: v[0-9]\{12\}\..*\..*\.redhat\.com$' ${KCP_API_SCHEMA_FILE_CURRENT} ${KCP_API_SCHEMA_FILE_NEW} > /dev/null; then
   mv ${KCP_API_SCHEMA_FILE_NEW} ${KCP_API_SCHEMA_FILE_CURRENT}
   echo "updated KCP APIResourceSchema for GitOps Service appstudio-shared saved at '${KCP_API_SCHEMA_FILE_CURRENT}'"
 else
@@ -50,7 +52,7 @@ cat << EOF > ${KCP_API_EXPORT_FILE}
 apiVersion: apis.kcp.dev/v1alpha1
 kind: APIExport
 metadata:
-  name: gitopsrvc
+  name: gitopsrvc-appstudio-shared
 spec:
   permissionClaims:
   - group: ""
@@ -61,7 +63,7 @@ spec:
 EOF
 
 # match APIResourceSchema name pattern with date prefix
-for SCHEMA in $( cat ${KCP_API_SCHEMA_FILE_CURRENT} | grep -o "v[0-9]\{12\}\..*\.appstudio\.redhat\.com" ); do
+for SCHEMA in $( cat ${KCP_API_SCHEMA_FILE_CURRENT} | grep -o "v[0-9]\{12\}\..*\..*\.redhat\.com" ); do
   echo "    - ${SCHEMA}" >> ${KCP_API_EXPORT_FILE}
 done
 
@@ -71,3 +73,6 @@ cat << EOF > ${KCP_API_EXPORT_FILE}
 
 $( cat ${KCP_API_EXPORT_FILE} )
 EOF
+
+rm ${CRD_DIR}/appstudio.redhat.com_applications.yaml
+rm ${CRD_DIR}/managed-gitops.redhat.com_gitopsdeployments.yaml

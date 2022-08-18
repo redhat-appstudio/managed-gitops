@@ -4,7 +4,7 @@
 apiVersion: apis.kcp.dev/v1alpha1
 kind: APIExport
 metadata:
-  name: gitopsrvc
+  name: gitopsrvc-appstudio-shared
 spec:
   permissionClaims:
   - group: ""
@@ -12,7 +12,9 @@ spec:
   - group: ""
     resource: "namespaces"
   latestResourceSchemas:
-    - v202208100610.applicationpromotionruns.appstudio.redhat.com
-    - v202208100610.applicationsnapshotenvironmentbindings.appstudio.redhat.com
-    - v202208100610.applicationsnapshots.appstudio.redhat.com
-    - v202208100610.environments.appstudio.redhat.com
+    - v202208180726.applicationpromotionruns.appstudio.redhat.com
+    - v202208180726.applicationsnapshotenvironmentbindings.appstudio.redhat.com
+    - v202208180726.applicationsnapshots.appstudio.redhat.com
+    - v202208180726.applications.appstudio.redhat.com
+    - v202208180726.environments.appstudio.redhat.com
+    - v202208180726.gitopsdeployments.managed-gitops.redhat.com

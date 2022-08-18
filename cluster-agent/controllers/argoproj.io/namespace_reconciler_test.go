@@ -46,7 +46,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 				{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"databaseID": "test-my-application-5"}}},
 			}
 
-			processedApplicationIds := map[string]interface{}{"test-my-application-3": false, "test-my-application-5": false}
+			processedApplicationIds := map[string]any{"test-my-application-3": false, "test-my-application-5": false}
 
 			deletedArgoApplications := deleteOrphanedApplications(argoApplications, processedApplicationIds, ctx, reconciler.Client, log)
 

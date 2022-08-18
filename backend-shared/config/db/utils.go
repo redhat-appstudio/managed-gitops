@@ -20,7 +20,7 @@ import (
 // the amount of boilerplate code.
 //
 // See functions that are calling this one for examples.
-func isEmptyValues(callLocation string, params ...interface{}) error {
+func isEmptyValues(callLocation string, params ...any) error {
 
 	if len(params)%2 == 1 {
 		return fmt.Errorf("invalid number of parameters, expected an even number: %v", len(params))
@@ -91,7 +91,7 @@ func validateUnsafeQueryParams(entityId string, dbq *PostgreSQLDatabaseQueries) 
 }
 
 // validateQueryParams is common, simple validation logic shared by most entities
-func validateQueryParamsEntity(entity interface{}, dbq *PostgreSQLDatabaseQueries) error {
+func validateQueryParamsEntity(entity any, dbq *PostgreSQLDatabaseQueries) error {
 	if dbq.dbConnection == nil {
 		return fmt.Errorf("database connection is nil")
 	}
@@ -191,7 +191,7 @@ func ConvertSnakeCaseToCamelCase(fieldName string) string {
 
 // A generic function to validate length of string values in input provided by users.
 // The max length of string is checked using constant variables defined for each type and field in db_field_constants.go
-func validateFieldLength(obj interface{}) error {
+func validateFieldLength(obj any) error {
 	valuesOfObject := reflect.ValueOf(obj).Elem()
 	typeOfObject := reflect.TypeOf(obj).Elem().Name()
 
@@ -339,7 +339,7 @@ func SetupForTestingDBGinkgo() error {
 
 	// Create a list of gitops engine instance uids that were created by test cases; we
 	// will later use this to delete old Operations rows, that reference these instances.
-	gitopsEngineInstanceUIDsToDelete := map[string]interface{}{}
+	gitopsEngineInstanceUIDsToDelete := map[string]any{}
 	{
 		var engineInstances []GitopsEngineInstance
 		err = dbq.UnsafeListAllGitopsEngineInstances(ctx, &engineInstances)

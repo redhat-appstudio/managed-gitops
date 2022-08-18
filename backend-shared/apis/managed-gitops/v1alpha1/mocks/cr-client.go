@@ -41,7 +41,7 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 // Create mocks base method.
 func (m *MockClient) Create(arg0 context.Context, arg1 client.Object, arg2 ...client.CreateOption) error {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
+	varargs := []any{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
 	}
@@ -51,16 +51,16 @@ func (m *MockClient) Create(arg0 context.Context, arg1 client.Object, arg2 ...cl
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockClientMockRecorder) Create(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) Create(arg0, arg1 any, arg2 ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	varargs := append([]any{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockClient)(nil).Create), varargs...)
 }
 
 // Delete mocks base method.
 func (m *MockClient) Delete(arg0 context.Context, arg1 client.Object, arg2 ...client.DeleteOption) error {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
+	varargs := []any{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
 	}
@@ -70,16 +70,16 @@ func (m *MockClient) Delete(arg0 context.Context, arg1 client.Object, arg2 ...cl
 }
 
 // Delete indicates an expected call of Delete.
-func (mr *MockClientMockRecorder) Delete(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) Delete(arg0, arg1 any, arg2 ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	varargs := append([]any{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockClient)(nil).Delete), varargs...)
 }
 
 // DeleteAllOf mocks base method.
 func (m *MockClient) DeleteAllOf(arg0 context.Context, arg1 client.Object, arg2 ...client.DeleteAllOfOption) error {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
+	varargs := []any{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
 	}
@@ -89,9 +89,9 @@ func (m *MockClient) DeleteAllOf(arg0 context.Context, arg1 client.Object, arg2 
 }
 
 // DeleteAllOf indicates an expected call of DeleteAllOf.
-func (mr *MockClientMockRecorder) DeleteAllOf(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) DeleteAllOf(arg0, arg1 any, arg2 ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	varargs := append([]any{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAllOf", reflect.TypeOf((*MockClient)(nil).DeleteAllOf), varargs...)
 }
 
@@ -104,7 +104,7 @@ func (m *MockClient) Get(arg0 context.Context, arg1 types.NamespacedName, arg2 c
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockClientMockRecorder) Get(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) Get(arg0, arg1, arg2 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockClient)(nil).Get), arg0, arg1, arg2)
 }
@@ -112,7 +112,7 @@ func (mr *MockClientMockRecorder) Get(arg0, arg1, arg2 interface{}) *gomock.Call
 // List mocks base method.
 func (m *MockClient) List(arg0 context.Context, arg1 client.ObjectList, arg2 ...client.ListOption) error {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
+	varargs := []any{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
 	}
@@ -122,16 +122,16 @@ func (m *MockClient) List(arg0 context.Context, arg1 client.ObjectList, arg2 ...
 }
 
 // List indicates an expected call of List.
-func (mr *MockClientMockRecorder) List(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) List(arg0, arg1 any, arg2 ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	varargs := append([]any{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockClient)(nil).List), varargs...)
 }
 
 // Patch mocks base method.
 func (m *MockClient) Patch(arg0 context.Context, arg1 client.Object, arg2 client.Patch, arg3 ...client.PatchOption) error {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1, arg2}
+	varargs := []any{arg0, arg1, arg2}
 	for _, a := range arg3 {
 		varargs = append(varargs, a)
 	}
@@ -141,9 +141,9 @@ func (m *MockClient) Patch(arg0 context.Context, arg1 client.Object, arg2 client
 }
 
 // Patch indicates an expected call of Patch.
-func (mr *MockClientMockRecorder) Patch(arg0, arg1, arg2 interface{}, arg3 ...interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) Patch(arg0, arg1, arg2 any, arg3 ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1, arg2}, arg3...)
+	varargs := append([]any{arg0, arg1, arg2}, arg3...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Patch", reflect.TypeOf((*MockClient)(nil).Patch), varargs...)
 }
 
@@ -192,7 +192,7 @@ func (mr *MockClientMockRecorder) Status() *gomock.Call {
 // Update mocks base method.
 func (m *MockClient) Update(arg0 context.Context, arg1 client.Object, arg2 ...client.UpdateOption) error {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
+	varargs := []any{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
 	}
@@ -202,8 +202,8 @@ func (m *MockClient) Update(arg0 context.Context, arg1 client.Object, arg2 ...cl
 }
 
 // Update indicates an expected call of Update.
-func (mr *MockClientMockRecorder) Update(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) Update(arg0, arg1 any, arg2 ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	varargs := append([]any{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockClient)(nil).Update), varargs...)
 }

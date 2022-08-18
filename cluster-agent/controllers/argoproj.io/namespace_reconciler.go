@@ -59,7 +59,7 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 
 	// Fetch list of ArgoCD applications to be used later
 	// map: applications IDs seen (string) -> (map value not used)
-	processedApplicationIds := make(map[string]interface{})
+	processedApplicationIds := make(map[string]any)
 
 	argoApplicationList := appv1.ApplicationList{}
 	if err := client.List(ctx, &argoApplicationList); err != nil {
@@ -338,7 +338,7 @@ func cleanK8sOperations(ctx context.Context, dbq db.DatabaseQueries, client clie
 	log.V(sharedutil.LogLevel_Debug).Info("Cleaned all Operations created by Namespace Reconciler.")
 }
 
-func deleteOrphanedApplications(argoApplications []appv1.Application, processedApplicationIds map[string]interface{},
+func deleteOrphanedApplications(argoApplications []appv1.Application, processedApplicationIds map[string]any,
 	ctx context.Context, client client.Client, log logr.Logger) []appv1.Application {
 
 	if len(argoApplications) == 0 {

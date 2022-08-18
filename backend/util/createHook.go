@@ -20,11 +20,12 @@ func (t *TokenSource) Token() (*oauth2.Token, error) {
 }
 
 // Parameters:
-// 	personalAccessToken : This points to the personal access token (PAT) assigned from the GitHub with the repo access atleast
-// 	authorUsername 		: The author git username (a/c to the PAT)
-// 	authorName 			: The author full name registered (a/c to the PAT)
-// 	repoName 			: The repository name on which the hook will be defined
-// 	hookURL 			: This points to the payloadURL on which github will POST request
+//
+//	personalAccessToken : This points to the personal access token (PAT) assigned from the GitHub with the repo access atleast
+//	authorUsername 		: The author git username (a/c to the PAT)
+//	authorName 			: The author full name registered (a/c to the PAT)
+//	repoName 			: The repository name on which the hook will be defined
+//	hookURL 			: This points to the payloadURL on which github will POST request
 func CreateWebHook(personalAccessToken string, authorUsername string, authorName string, repoName string, hookURL string) error {
 	// OAuth Authentication
 	tokenSource := &TokenSource{
@@ -44,7 +45,7 @@ func CreateWebHook(personalAccessToken string, authorUsername string, authorName
 		// The webhook name in the parameter is by default set to "web"
 		Name: github.String("web"),
 		URL:  github.String(hookURL),
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"url":          hookURL,
 			"content_type": "json",
 		},

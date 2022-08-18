@@ -19,11 +19,11 @@ type SettingsServiceClient struct {
 
 // Get provides a mock function with given fields: ctx, in, opts
 func (_m *SettingsServiceClient) Get(ctx context.Context, in *settings.SettingsQuery, opts ...grpc.CallOption) (*settings.Settings, error) {
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)

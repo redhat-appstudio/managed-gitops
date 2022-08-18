@@ -38,7 +38,7 @@ func (m *MockStatusWriter) EXPECT() *MockStatusWriterMockRecorder {
 // Patch mocks base method.
 func (m *MockStatusWriter) Patch(arg0 context.Context, arg1 client.Object, arg2 client.Patch, arg3 ...client.PatchOption) error {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1, arg2}
+	varargs := []any{arg0, arg1, arg2}
 	for _, a := range arg3 {
 		varargs = append(varargs, a)
 	}
@@ -48,16 +48,16 @@ func (m *MockStatusWriter) Patch(arg0 context.Context, arg1 client.Object, arg2 
 }
 
 // Patch indicates an expected call of Patch.
-func (mr *MockStatusWriterMockRecorder) Patch(arg0, arg1, arg2 interface{}, arg3 ...interface{}) *gomock.Call {
+func (mr *MockStatusWriterMockRecorder) Patch(arg0, arg1, arg2 any, arg3 ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1, arg2}, arg3...)
+	varargs := append([]any{arg0, arg1, arg2}, arg3...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Patch", reflect.TypeOf((*MockStatusWriter)(nil).Patch), varargs...)
 }
 
 // Update mocks base method.
 func (m *MockStatusWriter) Update(arg0 context.Context, arg1 client.Object, arg2 ...client.UpdateOption) error {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
+	varargs := []any{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
 	}
@@ -67,8 +67,8 @@ func (m *MockStatusWriter) Update(arg0 context.Context, arg1 client.Object, arg2
 }
 
 // Update indicates an expected call of Update.
-func (mr *MockStatusWriterMockRecorder) Update(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+func (mr *MockStatusWriterMockRecorder) Update(arg0, arg1 any, arg2 ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	varargs := append([]any{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockStatusWriter)(nil).Update), varargs...)
 }

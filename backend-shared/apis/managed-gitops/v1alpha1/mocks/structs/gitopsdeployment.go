@@ -61,7 +61,7 @@ func NewGitopsDeploymentMatcher() *GitOpsDeploymentMatcher {
 	}
 }
 
-func (m *GitOpsDeploymentMatcher) Matches(x interface{}) bool {
+func (m *GitOpsDeploymentMatcher) Matches(x any) bool {
 	ref, isCorrectType := x.(*api.GitOpsDeployment)
 	if !isCorrectType {
 		m.FailReason = fmt.Sprintf("Unexpected type passed: want '%T', got '%T'", api.GitOpsDeployment{}, x)

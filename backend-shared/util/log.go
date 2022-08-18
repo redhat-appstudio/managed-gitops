@@ -24,7 +24,7 @@ const (
 	ResourceDeleted  ResourceChangeType = "Deleted"
 )
 
-func LogAPIResourceChangeEvent(resourceNamespace string, resourceName string, resource interface{}, resourceChangeType ResourceChangeType, log logr.Logger) {
+func LogAPIResourceChangeEvent(resourceNamespace string, resourceName string, resource any, resourceChangeType ResourceChangeType, log logr.Logger) {
 	log = log.WithValues("audit", "true")
 
 	if resource == nil {

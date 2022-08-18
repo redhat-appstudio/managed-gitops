@@ -80,7 +80,7 @@ const (
 
 type workspaceEventLoopMessage struct {
 	messageType workspaceEventLoopMessageType
-	payload     interface{}
+	payload     any
 }
 
 // internalStartWorkspaceEventLoopRouter has the primary goal of catching panics from the workspaceEventLoopRouter, and

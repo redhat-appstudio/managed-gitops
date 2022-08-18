@@ -32,16 +32,15 @@ import (
 // Next, these resource changes (events) are then processed within a task retry loop.
 // - Operations are how the backend informs the cluster-agent of database changes.
 // - For example:
-//     - The user updated a field in a GitOpsDeployment in the user's namespace
-//     - The managed-gitops backend updated corresponding field in the Application database row
-//     - Next: an Operation was created to inform the cluster-agent component of the Application row changed
-//     - We are here: now the Operation controller of cluster-agent has been informed of the Operation.
-//     - We need to: Look at the Operation, determine what database entry changed, and ensure that Argo CD
-//                   is reconciled to the contents of the database entry.
+//   - The user updated a field in a GitOpsDeployment in the user's namespace
+//   - The managed-gitops backend updated corresponding field in the Application database row
+//   - Next: an Operation was created to inform the cluster-agent component of the Application row changed
+//   - We are here: now the Operation controller of cluster-agent has been informed of the Operation.
+//   - We need to: Look at the Operation, determine what database entry changed, and ensure that Argo CD
+//     is reconciled to the contents of the database entry.
 //
 // The overall workflow of Operations can be found in the architecture doc:
 // https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.9vyguee8vhow
-//
 type OperationEventLoop struct {
 	eventLoopInputChannel chan operationEventLoopEvent
 }

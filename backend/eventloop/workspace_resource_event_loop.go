@@ -32,7 +32,7 @@ type workspaceResourceLoopMessage struct {
 	messageType workspaceResourceLoopMessageType
 
 	// optional payload
-	payload interface{}
+	payload any
 }
 
 type workspaceResourceLoopMessageType string

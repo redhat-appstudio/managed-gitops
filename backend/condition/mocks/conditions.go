@@ -44,7 +44,7 @@ func (m *MockConditions) FindCondition(conditions *[]v1alpha1.GitOpsDeploymentCo
 }
 
 // FindCondition indicates an expected call of FindCondition.
-func (mr *MockConditionsMockRecorder) FindCondition(conditions, conditionType interface{}) *gomock.Call {
+func (mr *MockConditionsMockRecorder) FindCondition(conditions, conditionType any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindCondition", reflect.TypeOf((*MockConditions)(nil).FindCondition), conditions, conditionType)
 }
@@ -58,7 +58,7 @@ func (m *MockConditions) HasCondition(conditions *[]v1alpha1.GitOpsDeploymentCon
 }
 
 // HasCondition indicates an expected call of HasCondition.
-func (mr *MockConditionsMockRecorder) HasCondition(conditions, conditionType interface{}) *gomock.Call {
+func (mr *MockConditionsMockRecorder) HasCondition(conditions, conditionType any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasCondition", reflect.TypeOf((*MockConditions)(nil).HasCondition), conditions, conditionType)
 }
@@ -70,7 +70,7 @@ func (m *MockConditions) SetCondition(conditions *[]v1alpha1.GitOpsDeploymentCon
 }
 
 // SetCondition indicates an expected call of SetCondition.
-func (mr *MockConditionsMockRecorder) SetCondition(conditions, conditionType, status, reason, message interface{}) *gomock.Call {
+func (mr *MockConditionsMockRecorder) SetCondition(conditions, conditionType, status, reason, message any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCondition", reflect.TypeOf((*MockConditions)(nil).SetCondition), conditions, conditionType, status, reason, message)
 }

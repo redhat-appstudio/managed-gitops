@@ -116,7 +116,7 @@ const (
 
 type taskRetryLoopMessage struct {
 	msgType taskRetryMessageType
-	payload interface{}
+	payload any
 }
 
 type taskRetryMessage_addTask struct {
@@ -160,7 +160,7 @@ func NewTaskRetryLoop(debugName string) (loop *TaskRetryLoop) {
 }
 
 type waitingTaskContainer struct {
-	waitingTasksByName map[string]interface{}
+	waitingTasksByName map[string]any
 	waitingTasks       []waitingTaskEntry
 }
 
@@ -203,7 +203,7 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string
 
 	// tasks that are waiting to run. We ensure there are no duplicates in either list.
 	waitingTaskContainer := waitingTaskContainer{
-		waitingTasksByName: map[string]interface{}{},
+		waitingTasksByName: map[string]any{},
 		waitingTasks:       []waitingTaskEntry{},
 	}
 

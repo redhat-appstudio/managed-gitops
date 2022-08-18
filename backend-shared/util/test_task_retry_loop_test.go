@@ -107,7 +107,7 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 		It("ensures that calling startTask removes the task from 'waitingTasksByName'", func() {
 
 			waitingTaskContainer := waitingTaskContainer{
-				waitingTasksByName: make(map[string]interface{}),
+				waitingTasksByName: make(map[string]any),
 				waitingTasks:       []waitingTaskEntry{},
 			}
 

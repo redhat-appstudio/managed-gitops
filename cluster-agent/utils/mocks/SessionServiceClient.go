@@ -19,11 +19,11 @@ type SessionServiceClient struct {
 
 // Create provides a mock function with given fields: ctx, in, opts
 func (_m *SessionServiceClient) Create(ctx context.Context, in *session.SessionCreateRequest, opts ...grpc.CallOption) (*session.SessionResponse, error) {
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -49,11 +49,11 @@ func (_m *SessionServiceClient) Create(ctx context.Context, in *session.SessionC
 
 // Delete provides a mock function with given fields: ctx, in, opts
 func (_m *SessionServiceClient) Delete(ctx context.Context, in *session.SessionDeleteRequest, opts ...grpc.CallOption) (*session.SessionResponse, error) {
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -79,11 +79,11 @@ func (_m *SessionServiceClient) Delete(ctx context.Context, in *session.SessionD
 
 // GetUserInfo provides a mock function with given fields: ctx, in, opts
 func (_m *SessionServiceClient) GetUserInfo(ctx context.Context, in *session.GetUserInfoRequest, opts ...grpc.CallOption) (*session.GetUserInfoResponse, error) {
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)

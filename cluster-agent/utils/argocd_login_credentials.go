@@ -78,9 +78,9 @@ func (dcg *defaultClientGenerator) generateClientForServerAddress(server string,
 // NewCredentialService is used to create a new instance of the Credential service.
 //
 // Parameters:
-// - acdClientGenerator: used to specify a custom interface, used to create connections to the Argo CD GRPC client
+//   - acdClientGenerator: used to specify a custom interface, used to create connections to the Argo CD GRPC client
 //     (optional: should usually be 'nil', unless a custom implementation is needed, for example, for mocking)
-// - skipTLSTest: whether to test the GRPC endpoint for TLS, before attempting to use it.
+//   - skipTLSTest: whether to test the GRPC endpoint for TLS, before attempting to use it.
 //     (should be true, unless running within automated tests, which do not simulate TLS)
 func NewCredentialService(acdClientGenerator clientGenerator, skipTLSTest bool) *CredentialService {
 

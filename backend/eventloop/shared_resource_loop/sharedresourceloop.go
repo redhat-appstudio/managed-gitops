@@ -18,10 +18,10 @@ import (
 // created from a single thread, preventing concurrent goroutines from stepping on each others toes.
 //
 // This ensures that:
-// - When multiple 'application event loop' goroutines are attempting to create workspace-scoped resources,
-//   that no duplicates are created (eg it shouldn't be possible to create multiple ClusterUsers for a single user, or multiple
-//   ManagedEnvironments for a single workspace)
-// - There are no race conditions on creation of workspace-scoped resources.
+//   - When multiple 'application event loop' goroutines are attempting to create workspace-scoped resources,
+//     that no duplicates are created (eg it shouldn't be possible to create multiple ClusterUsers for a single user, or multiple
+//     ManagedEnvironments for a single workspace)
+//   - There are no race conditions on creation of workspace-scoped resources.
 //
 // API-namespace-scoped resources are:
 // - managedenv
@@ -31,12 +31,12 @@ import (
 //
 // Ultimately the goal of this file is to avoid this issue:
 // - In the same moment of time, both these actions happen simultaneously:
-//     - thread 1: creates (for example) a managed environment DB row for environment A, while processing a GitOpsDeployment targeting A
-//     - thread 2: creates (for example) a managed environment DB row for environment A, while processing a different GitOpsDeployment targeting A
-// - But this is bad: the database now contains _two different_ managed environment database entries for the same environment A.
-// - Thus, without mutexes/locking, there is a race condition.
-// - However, the shared resource event loop prevents this issue, by ensuring that threads are never able to
-//   concurrently create API-namespace database resources at the same time.
+//   - thread 1: creates (for example) a managed environment DB row for environment A, while processing a GitOpsDeployment targeting A
+//   - thread 2: creates (for example) a managed environment DB row for environment A, while processing a different GitOpsDeployment targeting A
+//   - But this is bad: the database now contains _two different_ managed environment database entries for the same environment A.
+//   - Thus, without mutexes/locking, there is a race condition.
+//   - However, the shared resource event loop prevents this issue, by ensuring that threads are never able to
+//     concurrently create API-namespace database resources at the same time.
 type SharedResourceEventLoop struct {
 	inputChannel chan sharedResourceLoopMessage
 }
@@ -45,7 +45,7 @@ type SharedResourceEventLoop struct {
 func (srEventLoop *SharedResourceEventLoop) GetOrCreateClusterUserByNamespaceUID(ctx context.Context, workspaceClient client.Client,
 	workspaceNamespace corev1.Namespace) (*db.ClusterUser, bool, error) {
 
-	responseChannel := make(chan interface{})
+	responseChannel := make(chan any)
 
 	msg := sharedResourceLoopMessage{
 		workspaceClient:    workspaceClient,
@@ -56,7 +56,7 @@ func (srEventLoop *SharedResourceEventLoop) GetOrCreateClusterUserByNamespaceUID
 
 	srEventLoop.inputChannel <- msg
 
-	var rawResponse interface{}
+	var rawResponse any
 
 	select {
 	case rawResponse = <-responseChannel:
@@ -76,7 +76,7 @@ func (srEventLoop *SharedResourceEventLoop) GetOrCreateClusterUserByNamespaceUID
 func (srEventLoop *SharedResourceEventLoop) GetGitopsEngineInstanceById(ctx context.Context, id string, workspaceClient client.Client,
 	workspaceNamespace corev1.Namespace) (*db.GitopsEngineInstance, error) {
 
-	responseChannel := make(chan interface{})
+	responseChannel := make(chan any)
 
 	msg := sharedResourceLoopMessage{
 		workspaceClient:    workspaceClient,
@@ -90,7 +90,7 @@ func (srEventLoop *SharedResourceEventLoop) GetGitopsEngineInstanceById(ctx cont
 
 	srEventLoop.inputChannel <- msg
 
-	var rawResponse interface{}
+	var rawResponse any
 
 	select {
 	case rawResponse = <-responseChannel:
@@ -128,7 +128,7 @@ func (srEventLoop *SharedResourceEventLoop) ReconcileSharedManagedEnv(ctx contex
 		k8sClientFactory:              k8sClientFactory,
 	}
 
-	responseChannel := make(chan interface{})
+	responseChannel := make(chan any)
 
 	msg := sharedResourceLoopMessage{
 		workspaceClient:    workspaceClient,
@@ -140,7 +140,7 @@ func (srEventLoop *SharedResourceEventLoop) ReconcileSharedManagedEnv(ctx contex
 
 	srEventLoop.inputChannel <- msg
 
-	var rawResponse interface{}
+	var rawResponse any
 
 	select {
 	case rawResponse = <-responseChannel:
@@ -182,10 +182,10 @@ type sharedResourceLoopMessage struct {
 	workspaceNamespace corev1.Namespace
 
 	messageType     sharedResourceLoopMessageType
-	responseChannel chan (interface{})
+	responseChannel chan (any)
 
 	// optional payload
-	payload interface{}
+	payload any
 }
 
 type sharedResourceLoopMessage_getGitopsEngineInstanceByIdResponse struct {

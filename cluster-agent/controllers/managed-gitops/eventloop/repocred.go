@@ -320,7 +320,9 @@ func addSecretRepoCredMetadata(secret *corev1.Secret, secretType string) {
 // secretToRepoCred converts a Secret to a RepositoryCredentials
 // This is the reverse of convertRepoCredToSecret and it's needed because by default the values of the secret are in bytes
 // e.g. Secret.name: [116 101 115 116 45 102 97 107 101 45 115 101 99 114 101 116 45 111 98 106]
-//		Secret password: [116 101 115 116 45 102 97 107 101 45 97 117 116 104 45 112 97 115 115 119 111 114 100]
+//
+//	Secret password: [116 101 115 116 45 102 97 107 101 45 97 117 116 104 45 112 97 115 115 119 111 114 100]
+//
 // that is why we need this function. To typecast the bytes to string.
 func secretToRepoCred(secret *corev1.Secret) (repoCred *db.RepositoryCredentials) {
 	return &db.RepositoryCredentials{

@@ -138,7 +138,24 @@ func HaveSpecSource(source managedgitopsv1alpha1.ApplicationSource) matcher.Gome
 	}, BeTrue())
 }
 
+// HaveConditions will return a matcher that will check whether a GitOpsDeployment has the expected conditons.
+// - When comparing conditions, it will ignore the LastProbeTime/LastTransitionTime fields.
 func HaveConditions(conditions []managedgitopsv1alpha1.GitOpsDeploymentCondition) matcher.GomegaMatcher {
+
+	// sanitizeCondition removes ephemeral fields from the GitOpsDeploymentCondition which should not be compared using
+	// reflect.DeepEqual
+	sanitizeCondition := func(cond managedgitopsv1alpha1.GitOpsDeploymentCondition) managedgitopsv1alpha1.GitOpsDeploymentCondition {
+
+		res := managedgitopsv1alpha1.GitOpsDeploymentCondition{
+			Type:    cond.Type,
+			Message: cond.Message,
+			Status:  cond.Status,
+			Reason:  cond.Reason,
+		}
+
+		return res
+
+	}
 
 	return WithTransform(func(gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment) bool {
 
@@ -165,7 +182,7 @@ func HaveConditions(conditions []managedgitopsv1alpha1.GitOpsDeploymentCondition
 		for _, resourceCondition := range conditions {
 			conditionExists = false
 			for _, existingCondition := range existingConditionList {
-				if reflect.DeepEqual(resourceCondition, existingCondition) {
+				if reflect.DeepEqual(sanitizeCondition(resourceCondition), sanitizeCondition(existingCondition)) {
 					conditionExists = true
 					break
 				}

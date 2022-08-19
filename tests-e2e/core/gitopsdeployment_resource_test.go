@@ -11,8 +11,11 @@ import (
 )
 
 var _ = Describe("GitOpsDeployment Condition Tests", func() {
+
 	Context("Errors are set properly in Status.Conditions field of GitOpsDeployment", func() {
-		It("GitOpsDeployment .status.condition field is populated with the right error when an illegal application is deployed", func() {
+
+		It("ensures that GitOpsDeployment .status.condition field is populated with the corrrect error when an illegal GitOpsDeployment is created", func() {
+
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("create an invalid GitOpsDeployment application")
@@ -27,7 +30,7 @@ var _ = Describe("GitOpsDeployment Condition Tests", func() {
 						Path:    "environments/overlays/dev",
 					},
 					Destination: managedgitopsv1alpha1.ApplicationDestination{
-						Environment: "does-not-exist",
+						Environment: "does-not-exist", // This is the invalid value, which should return a condition error
 						Namespace:   "",
 					},
 					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated,
@@ -40,16 +43,14 @@ var _ = Describe("GitOpsDeployment Condition Tests", func() {
 			expectedConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{
 				{
 					Type:    managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred,
-					Message: "",
+					Message: "unable to locate managed environment for new application",
 					Status:  managedgitopsv1alpha1.GitOpsConditionStatusTrue,
-					Reason:  "",
+					Reason:  managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred,
 				},
 			}
 
 			Eventually(gitOpsDeploymentResource, "5m", "1s").Should(
 				SatisfyAll(
-					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeUnknown),
-					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
 					gitopsDeplFixture.HaveConditions(expectedConditions),
 				),
 			)

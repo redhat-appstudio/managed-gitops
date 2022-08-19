@@ -371,7 +371,8 @@ func processOperation_ManagedEnvironment(ctx context.Context, dbOperation db.Ope
 const (
 	// ArgoCDDefaultDestinationInCluster is 'in-cluster' which is the spec destination value that Argo CD recognizes
 	// as indicating that Argo CD should deply to the local cluster (the cluster that Argo CD is installed on).
-	ArgoCDDefaultDestinationInCluster   = "in-cluster"
+	ArgoCDDefaultDestinationInCluster = "in-cluster"
+	// #nosec G101
 	ArgoCDSecretTypeKey                 = "argocd.argoproj.io/secret-type"
 	ArgoCDSecretTypeValue_ClusterSecret = "cluster"
 )

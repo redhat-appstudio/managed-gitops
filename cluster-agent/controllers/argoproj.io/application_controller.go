@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -30,6 +31,8 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/argoproj.io/application_info_cache"
 	"gopkg.in/yaml.v2"
@@ -114,6 +117,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	applicationState := &db.ApplicationState{
 		Applicationstate_application_id: applicationDB.Application_id,
 	}
+
 	if _, _, errGet := r.Cache.GetApplicationStateById(ctx, applicationState.Applicationstate_application_id); errGet != nil {
 		if db.IsResultNotFoundError(errGet) {
 
@@ -132,6 +136,16 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 				log.Error(err, "unable to compress resource data into byte array.")
 				return ctrl.Result{}, err
 			}
+
+			// storeInComparedToFieldInApplicationState will read 'comparedTo' field of an Argo CD Application, and write the
+			// correct value into 'applicationState'.
+			reconciledState, err := storeInComparedToFieldInApplicationState(app, *applicationState)
+			if err != nil {
+				log.Error(err, "unable to store comparedToField in ApplicationState")
+				return ctrl.Result{}, err
+			}
+
+			applicationState.ReconciledState = reconciledState
 
 			if errCreate := r.Cache.CreateApplicationState(ctx, *applicationState); errCreate != nil {
 				log.Error(errCreate, "unexpected error on writing new application state")
@@ -160,6 +174,16 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		log.Error(err, "unable to compress resource data into byte array.")
 		return ctrl.Result{}, err
 	}
+
+	// storeInComparedToFieldInApplicationState will read 'comparedTo' field of an Argo CD Application, and write the
+	// correct value into 'applicationState'.
+	reconciledState, err := storeInComparedToFieldInApplicationState(app, *applicationState)
+	if err != nil {
+		log.Error(err, "unable to store comparedToField in ApplicationState")
+		return ctrl.Result{}, err
+	}
+
+	applicationState.ReconciledState = reconciledState
 
 	if err := r.Cache.UpdateApplicationState(ctx, *applicationState); err != nil {
 
@@ -241,4 +265,53 @@ func compressResourceData(resources []appv1.ResourceStatus) ([]byte, error) {
 	}
 
 	return buffer.Bytes(), nil
+}
+
+// storeInComparedToFieldInApplicationState will read 'comparedTo' field of an Argo CD Application, and write the
+// correct value into 'applicationState'.
+func storeInComparedToFieldInApplicationState(argoCDAppParam appv1.Application, applicationState db.ApplicationState) (string, error) {
+
+	comparedToParam := argoCDAppParam.Status.Sync.ComparedTo
+	// 1) Convert into a non-Argo CD version of this data, so that we can easily store it in the database as JSON
+	comparedTo := fauxargocd.FauxComparedTo{
+		Source: fauxargocd.ApplicationSource{
+			RepoURL:        comparedToParam.Source.RepoURL,
+			Path:           comparedToParam.Source.Path,
+			TargetRevision: comparedToParam.Source.TargetRevision,
+		},
+		Destination: fauxargocd.ApplicationDestination{
+			Namespace: comparedToParam.Destination.Namespace,
+			Name:      comparedToParam.Destination.Name,
+		},
+	}
+
+	// 2) Read the Argo CD Cluster Secret name (which points to an Argo CD Cluster Secret in the Argo CD namespace) from the
+	// Argo CD Application, and extract the managed environment ID from it.
+	managedEnvID, isLocal, err := argosharedutil.ConvertArgoCDClusterSecretNameToManagedIdDatabaseRowId(comparedTo.Destination.Name)
+	if err != nil {
+		return "", fmt.Errorf("unable to convert secret name to managed env: %v", err)
+	}
+
+	// 3) If the Argo CD cluster secret name is a real cluster secret that exists in the Argo CD namespace, then use
+	// the managed environment database ID that we extracted, and store it in comparedTo.
+	if !isLocal {
+		if managedEnvID == "" {
+			return "", fmt.Errorf("managed environment id was empty for '%s'", argoCDAppParam.Name)
+		}
+
+		// Rather than storing the name of the Argo CD cluster secret in the .Destination.Name field, we instead store
+		// the ID of the managed environment in the database.
+		comparedTo.Destination.Name = managedEnvID
+	}
+
+	// 4) Convert the fauxArgoCD object into JSON
+	comparedToBytes, err := json.Marshal(comparedTo)
+	if err != nil {
+		return "", fmt.Errorf("SEVERE: unable to convert comparedTo to JSON")
+	}
+
+	// 5) Finally, store the JSON in the database.
+	applicationState.ReconciledState = (string)(comparedToBytes)
+
+	return applicationState.ReconciledState, nil
 }

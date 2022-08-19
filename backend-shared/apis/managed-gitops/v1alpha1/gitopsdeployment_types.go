@@ -75,6 +75,26 @@ type ResourceStatus struct {
 	Health    *HealthStatus  `json:"health,omitempty"`
 }
 
+// ReconciledState contains lists last thing ArgoCD Controller reconciled
+type ReconciledState struct {
+	Source      GitOpsDeploymentSource      `json:"source"`
+	Destination GitOpsDeploymentDestination `json:"destination"`
+}
+
+// GitOpsDeploymentSource contains the information of .status.Sync.CompareTo.Source field of ArgoCD Application
+type GitOpsDeploymentSource struct {
+	// Path contains path from .status.Sync.CompareTo field of ArgoCD Application
+	Path    string `json:"path"`
+	RepoURL string `json:"repoURL"`
+	Branch  string `json:"branch"`
+}
+
+// GitOpsDeploymentDestination contains the information of .status.Sync.CompareTo.Destination field of ArgoCD Application
+type GitOpsDeploymentDestination struct {
+	Name      string `json:"name"`
+	NameSpace string `json:"namespace"`
+}
+
 // GitOpsDeploymentStatus defines the observed state of GitOpsDeployment
 type GitOpsDeploymentStatus struct {
 	Conditions []GitOpsDeploymentCondition `json:"conditions,omitempty"`
@@ -84,6 +104,9 @@ type GitOpsDeploymentStatus struct {
 
 	// List of Resource created by a deployment
 	Resources []ResourceStatus `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
+
+	// ReconciledState lists last deployment of ArgoCD Application
+	ReconciledState ReconciledState `json:"reconciledState"`
 }
 
 // HealthStatus contains information about the currently observed health state of an application or resource

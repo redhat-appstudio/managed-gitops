@@ -736,6 +736,20 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 		return err
 	}
 
+	var comparedTo fauxargocd.FauxComparedTo
+	comparedTo, err = retrieveComparedToFieldInApplicationState(applicationState.ReconciledState)
+	if err != nil {
+		a.log.Error(err, "unable to retrieve comparedTo field in ApplicationState")
+		return err
+	}
+
+	// Update gitopsDeployment status with reconciledState
+	gitopsDeployment.Status.ReconciledState.Source.Path = comparedTo.Source.Path
+	gitopsDeployment.Status.ReconciledState.Source.RepoURL = comparedTo.Source.RepoURL
+	gitopsDeployment.Status.ReconciledState.Source.Branch = comparedTo.Source.TargetRevision
+	gitopsDeployment.Status.ReconciledState.Destination.Name = comparedTo.Destination.Name
+	gitopsDeployment.Status.ReconciledState.Destination.NameSpace = comparedTo.Destination.Namespace
+
 	// Update the actual object in Kubernetes
 	if err := a.workspaceClient.Status().Update(ctx, gitopsDeployment, &client.UpdateOptions{}); err != nil {
 		return err
@@ -944,4 +958,13 @@ func decompressResourceData(resourceData []byte) ([]managedgitopsv1alpha1.Resour
 	}
 
 	return resourceList, nil
+}
+
+func retrieveComparedToFieldInApplicationState(reconciledState string) (fauxargocd.FauxComparedTo, error) {
+	var comparedTo fauxargocd.FauxComparedTo
+	err := goyaml.Unmarshal([]byte(reconciledState), &comparedTo)
+	if err != nil {
+		return comparedTo, fmt.Errorf("unable to Unmarshal comparedTo field: %v", err)
+	}
+	return comparedTo, err
 }

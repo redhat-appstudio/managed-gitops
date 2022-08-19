@@ -136,11 +136,8 @@ spec:
                     type: string
                 type: object
               reconciledState:
-                description: ReconciledState lists last deployment of ArgoCD Application.
                 properties:
                   destination:
-                    description: GitOpsDeploymentDestination contains the information
-                      of .status.Sync.CompareTo.Destination field of ArgoCD Application
                     properties:
                       name:
                         type: string
@@ -151,14 +148,11 @@ spec:
                     - namespace
                     type: object
                   source:
-                    description: GitOpsDeploymentSource contains the information of
-                      .status.Sync.CompareTo.Source field of ArgoCD Application
                     properties:
                       branch:
                         type: string
                       path:
-                        description: Path contains path from .status.Sync.CompareTo
-                          field of ArgoCD Application
+                        description: string
                         type: string
                       repoURL:
                         type: string
@@ -220,6 +214,8 @@ spec:
                 required:
                 - status
                 type: object
+            required:
+            - reconciledState
             type: object
         type: object
     served: true

@@ -477,7 +477,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 			app.ObjectMeta.Labels = map[string]string{controllers.ArgoCDApplicationDatabaseIDLabel: dbApplication.Application_id}
 
 			// Before we create the application, make sure that the managed environment exists that the application points to
-			if app.Spec.Destination.Name != ArgoCDDefaultDestinationInCluster {
+			if app.Spec.Destination.Name != argosharedutil.ArgoCDDefaultDestinationInCluster {
 				if err := ensureManagedEnvironmentExists(ctx, *dbApplication, dbQueries, argoCDNamespace, eventClient, log); err != nil {
 					log.Error(err, "unable to ensure that managed environment exists")
 					return true, err
@@ -548,7 +548,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 	}
 
 	// Finally, ensure that the managed-environment secret is still up to date
-	if app.Spec.Destination.Name != ArgoCDDefaultDestinationInCluster {
+	if app.Spec.Destination.Name != argosharedutil.ArgoCDDefaultDestinationInCluster {
 		if err := ensureManagedEnvironmentExists(ctx, *dbApplication, dbQueries, argoCDNamespace, eventClient, log); err != nil {
 			log.Error(err, "unable to ensure that managed environment exists")
 			return true, err

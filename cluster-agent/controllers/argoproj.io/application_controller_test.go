@@ -411,6 +411,77 @@ var _ = Describe("Application Controller", func() {
 			Expect(result).ToNot(BeNil())
 
 		})
+
+		It("Test to check whether reconciled state is stored in database", func() {
+			By("Close database connection")
+			defer dbQueries.CloseDatabase()
+			defer testTeardown()
+			Expect(err).To(BeNil())
+
+			ctx = context.Background()
+
+			guestbookApp = &appv1.Application{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Application",
+					APIVersion: "argoproj.io/v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      name,
+					Namespace: namespace,
+					Labels: map[string]string{
+						dbID: "databaseID",
+					},
+				},
+				Status: appv1.ApplicationStatus{
+					Sync: appv1.SyncStatus{
+						ComparedTo: appv1.ComparedTo{
+							Source: appv1.ApplicationSource{
+								Path:           "test-path",
+								RepoURL:        "test-url",
+								TargetRevision: "test-branch",
+							},
+							Destination: appv1.ApplicationDestination{
+								Namespace: "test-namespace",
+								Name:      "managed-env-123",
+							},
+						},
+					},
+				},
+			}
+
+			By("Add databaseID label to applicationID")
+			databaseID := guestbookApp.Labels[dbID]
+			applicationDB := &db.Application{
+				Application_id:          databaseID,
+				Name:                    name,
+				Spec_field:              "{}",
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+
+			applicationStateDB := db.ApplicationState{
+				Applicationstate_application_id: applicationDB.Application_id,
+			}
+
+			By("Verify Application is not present in database")
+			err = reconciler.DB.GetApplicationById(ctx, applicationDB)
+			Expect(err).ToNot(BeNil())
+
+			By("Create a new ArgoCD Application")
+			err = reconciler.Create(ctx, guestbookApp)
+			Expect(err).To(BeNil())
+
+			By("Call reconcile function")
+			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
+			Expect(err).To(BeNil())
+			Expect(result).ToNot(BeNil())
+
+			err = reconciler.DB.GetApplicationStateById(ctx, &applicationStateDB)
+			Expect(err).ToNot(BeNil())
+			By("Verify ReconciledState is stored in db")
+			Expect(applicationStateDB.ReconciledState).ToNot(BeNil())
+
+		})
 	})
 
 	Context("Test compressResourceData function", func() {

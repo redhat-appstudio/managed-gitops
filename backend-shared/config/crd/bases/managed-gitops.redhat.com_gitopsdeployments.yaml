@@ -135,6 +135,42 @@ spec:
                       resource
                     type: string
                 type: object
+              reconciledState:
+                description: ReconciledState lists last deployment of ArgoCD Application.
+                properties:
+                  destination:
+                    description: GitOpsDeploymentDestination contains the information
+                      of .status.Sync.CompareTo.Destination field of ArgoCD Application
+                    properties:
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                    required:
+                    - name
+                    - namespace
+                    type: object
+                  source:
+                    description: GitOpsDeploymentSource contains the information of
+                      .status.Sync.CompareTo.Source field of ArgoCD Application
+                    properties:
+                      branch:
+                        type: string
+                      path:
+                        description: Path contains path from .status.Sync.CompareTo
+                          field of ArgoCD Application
+                        type: string
+                      repoURL:
+                        type: string
+                    required:
+                    - branch
+                    - path
+                    - repoURL
+                    type: object
+                required:
+                - destination
+                - source
+                type: object
               resources:
                 description: List of Resource created by a deployment
                 items:

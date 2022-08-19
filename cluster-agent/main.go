@@ -1,12 +1,9 @@
 /*
 Copyright 2021.
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
     http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -61,8 +58,6 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
-	var apiExportName string
-	flag.StringVar(&apiExportName, "api-export-name", "", "The name of the APIExport.")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8082", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8083", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -76,8 +71,6 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	ctx := ctrl.SetupSignalHandler()
-
 	restConfig, err := sharedutil.GetRESTConfig()
 	if err != nil {
 		setupLog.Error(err, "unable to get kubeconfig")
@@ -85,17 +78,14 @@ func main() {
 		return
 	}
 
-	options := ctrl.Options{
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "11d017ea.redhat.com",
-		LeaderElectionConfig:   restConfig,
-	}
-
-	mgr, err := sharedutil.GetControllerManager(ctx, restConfig, &setupLog, apiExportName, options)
+	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
@@ -136,7 +126,7 @@ func main() {
 
 	// Get Special user created for internal use,
 	// because we need ClusterUser for creating Operation and we don't have one.
-	// Hence created a dummy Cluster User for internal purpose.
+	// Hence created a dummy Cluster User for internal purpose.
 	var specialClusterUser db.ClusterUser
 	if err = dbQueries.GetOrCreateSpecialClusterUser(context.Background(), &specialClusterUser); err != nil {
 		setupLog.Error(err, "unable to create special cluster user")
@@ -161,7 +151,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctx); err != nil {
+	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}

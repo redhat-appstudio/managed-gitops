@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/kcp-dev/kcp/pkg/apis/apis/v1alpha1"
 	apisv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apis/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -106,7 +105,7 @@ var _ = Describe("ControllerManager test", func() {
 
 		When("KCP API groups are present", func() {
 			It("Should return a manager that is KCP aware", func() {
-				apiExport := v1alpha1.APIExport{
+				apiExport := apisv1alpha1.APIExport{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-kcp",
 					},

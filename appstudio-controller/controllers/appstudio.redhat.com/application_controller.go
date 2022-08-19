@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/kcp-dev/logicalcluster"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 
 	"crypto/sha256"
@@ -61,6 +62,7 @@ const deploymentSuffix = "-deployment"
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(req.ClusterName))
 	log := log.FromContext(ctx)
 
 	log.Info("Detected AppStudio Application event:", "request", req)

@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/kcp-dev/logicalcluster/v2"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop"
@@ -45,6 +46,7 @@ type GitOpsDeploymentSyncRunReconciler struct {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *GitOpsDeploymentSyncRunReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(req.ClusterName))
 	_ = log.FromContext(ctx)
 
 	namespace := v1.Namespace{

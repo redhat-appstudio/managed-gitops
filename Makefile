@@ -280,3 +280,5 @@ gen-kcp-api-backend-shared: ## Runs utilities/generate-kcp-api-backend-shared.sh
 gen-kcp-api-appstudio-shared: ## Runs utilities/generate-kcp-api-appstudio-shared.sh to generate kcp api resource schema and export
 	cd $(MAKEFILE_ROOT)/utilities && ./generate-kcp-api-appstudio-shared.sh
 
+kcp-test-local-e2e: ## Initiates a ckcp within openshift cluster and runs e2e test
+	cd $(MAKEFILE_ROOT)/kcp/ckcp && ./setup-ckcp-on-openshift.sh

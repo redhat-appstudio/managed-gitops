@@ -60,7 +60,7 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var apiExportName string
-	flag.StringVar(&apiExportName, "api-export-name", "", "The name of the APIExport.")
+	flag.StringVar(&apiExportName, "api-export-name", "gitopsrvc-appstudio-shared", "The name of the APIExport.")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8084", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8085", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,

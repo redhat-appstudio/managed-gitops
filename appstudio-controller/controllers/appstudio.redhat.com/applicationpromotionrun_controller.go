@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kcp-dev/logicalcluster"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 
 	appstudioshared "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
@@ -59,6 +60,7 @@ func (r *ApplicationPromotionRunReconciler) Reconcile(ctx context.Context, req c
 
 // Proof-of-concept/pseudocode Reconcile. Comment out the above Reconcile, and rename this to Reconcile, when starting working on this.
 func (r *ApplicationPromotionRunReconciler) ReconcilePOC(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(req.ClusterName))
 	log := log.FromContext(ctx)
 
 	promotionRun := &appstudioshared.ApplicationPromotionRun{}

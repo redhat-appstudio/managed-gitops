@@ -67,7 +67,7 @@ func deleteArgoCDSecretLeftovers(ctx context.Context, databaseID string, argoCDN
 		l.Info("Deleting Argo CD Secret (leftover) that is missing a DB Entry", "secret", item.Name, "namespace", item.Namespace)
 
 		// Delete all Argo CD Secret with the corresponding database label (but, there should be only one)
-
+		// #nosec G601
 		err := eventClient.Delete(ctx, &item)
 		sharedutil.LogAPIResourceChangeEvent(item.Namespace, item.Name, item, sharedutil.ResourceDeleted, l)
 		if err != nil {

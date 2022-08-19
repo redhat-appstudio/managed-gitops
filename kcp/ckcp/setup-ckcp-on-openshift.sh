@@ -8,6 +8,8 @@ SCRIPT_DIR="$(
   pwd
 )"
 
+export GITOPS_IN_KCP="true"
+
 ARGOCD_MANIFEST="https://gist.githubusercontent.com/chetan-rns/91d0b56af152f3ebb7c10df8e82b459d/raw/99429ff5ac68cb78a4fc70f1ac2d673ad7ba192a/install-argocd.yaml"
 ARGOCD_NAMESPACE="gitops-service-argocd"
 
@@ -54,7 +56,7 @@ clone-and-setup-ckcp() {
     pushd "${TMP_DIR}"
     git clone https://github.com/openshift-pipelines/pipeline-service.git
     pushd pipeline-service
-    cp ${SCRIPT_DIR}/kcp/ckcp/openshift_dev_setup.sh ./ckcp/openshift_dev_setup.sh
+    cp ${SCRIPT_DIR}/openshift_dev_setup.sh ./ckcp/openshift_dev_setup.sh
 
     sed -i 's/\--resources deployments.apps,services,ingresses.networking.k8s.io,pipelines.tekton.dev,pipelineruns.tekton.dev,tasks.tekton.dev,runs.tekton.dev,networkpolicies.networking.k8s.io/\--resources deployments.apps,services,ingresses.networking.k8s.io,networkpolicies.networking.k8s.io,statefulsets.apps,routes.route.openshift.io/' ./images/kcp-registrar/register.sh
     printf "\nUpdated the resources to sync as needed for gitops-service and ckcp to run...\n\n"
@@ -170,14 +172,14 @@ test-gitops-service-e2e-in-kcp() {
   
   export KUBECONFIG=${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig
   printf "The Kubeconfig being used for this is:" $KUBECONFIG
+  cd ${SCRIPT_DIR}/../../
   ./delete-dev-env.sh
   make devenv-docker
   make start-e2e &
   make test-e2e
 }
 
-kubectl port-forward --namespace gitops svc/gitops-postgresql-staging 5432:5432 &
-test-gitops-service-e2e-in-kcp ${TMP_DIR}
+test-gitops-service-e2e-in-kcp ${TMP_DIR} ${SCRIPT_DIR}
 
 cleanup() {
   pkill go

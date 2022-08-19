@@ -274,6 +274,7 @@ type ApplicationState struct {
 	// -- human_readable_sync ( 512 ) NOT NULL,
 	// -- human_readable_state ( 512 ) NOT NULL,
 
+	ReconciledState string `pg:"reconciled_state"`
 }
 
 // DeploymentToApplicationMapping represents relationship from GitOpsDeployment CR in the namespace, to an Application table row

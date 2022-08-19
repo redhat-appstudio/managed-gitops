@@ -9058,34 +9058,11 @@ metadata:
   name: argocd-application-controller
 rules:
 - apiGroups:
-  - ""
+  - "*"
   resources:
-  - secrets
-  - configmaps
+  - "*"
   verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - argoproj.io
-  resources:
-  - applications
-  - appprojects
-  verbs:
-  - create
-  - get
-  - list
-  - watch
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - list
+  - "*"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -9100,6 +9077,7 @@ rules:
   - argoproj.io
   resources:
   - applications
+  - appprojects
   - applicationsets
   - applicationsets/finalizers
   verbs:
@@ -9110,12 +9088,6 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - argoproj.io
-  resources:
-  - appprojects
-  verbs:
-  - get
 - apiGroups:
   - argoproj.io
   resources:
@@ -9223,90 +9195,13 @@ metadata:
   name: argocd-server
 rules:
 - apiGroups:
-  - ""
+  - "*"
   resources:
-  - secrets
-  - configmaps
+  - "*"
   verbs:
-  - create
-  - get
-  - list
-  - watch
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - argoproj.io
-  resources:
-  - applications
-  - appprojects
-  verbs:
-  - create
-  - get
-  - list
-  - watch
-  - update
-  - delete
-  - patch
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - list
+  - "*"
 ---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  labels:
-    app.kubernetes.io/component: application-controller
-    app.kubernetes.io/name: argocd-application-controller
-    app.kubernetes.io/part-of: argocd
-  name: argocd-application-controller
-rules:
-- apiGroups:
-  - '*'
-  resources:
-  - '*'
-  verbs:
-  - '*'
-- nonResourceURLs:
-  - '*'
-  verbs:
-  - '*'
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  labels:
-    app.kubernetes.io/component: server
-    app.kubernetes.io/name: argocd-server
-    app.kubernetes.io/part-of: argocd
-  name: argocd-server
-rules:
-- apiGroups:
-  - '*'
-  resources:
-  - '*'
-  verbs:
-  - delete
-  - get
-  - patch
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - list
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - pods/log
-  verbs:
-  - get
----
+
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -9398,40 +9293,6 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: argocd-server
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  labels:
-    app.kubernetes.io/component: application-controller
-    app.kubernetes.io/name: argocd-application-controller
-    app.kubernetes.io/part-of: argocd
-  name: argocd-application-controller
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: argocd-application-controller
-subjects:
-- kind: ServiceAccount
-  name: argocd-application-controller
-  namespace: argocd
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  labels:
-    app.kubernetes.io/component: server
-    app.kubernetes.io/name: argocd-server
-    app.kubernetes.io/part-of: argocd
-  name: argocd-server
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: argocd-server
-subjects:
-- kind: ServiceAccount
-  name: argocd-server
-  namespace: argocd
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -9602,6 +9463,7 @@ spec:
   ports:
   - name: tcp-redis
     port: 6379
+    protocol: TCP
     targetPort: 6379
   selector:
     app.kubernetes.io/name: argocd-redis
@@ -9696,8 +9558,10 @@ spec:
         name: argocd-applicationset-controller
         ports:
         - containerPort: 7000
+          protocol: TCP
           name: webhook
         - containerPort: 8080
+          protocol: TCP
           name: metrics
         securityContext:
           allowPrivilegeEscalation: false
@@ -9768,8 +9632,11 @@ spec:
         name: dex
         ports:
         - containerPort: 5556
+          protocol: TCP
         - containerPort: 5557
+          protocol: TCP
         - containerPort: 5558
+          protocol: TCP
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -10065,13 +9932,9 @@ spec:
         name: argocd-repo-server
         ports:
         - containerPort: 8081
+          protocol: TCP
         - containerPort: 8084
-        readinessProbe:
-          httpGet:
-            path: /healthz
-            port: 8084
-          initialDelaySeconds: 5
-          periodSeconds: 10
+          protocol: TCP
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -10182,7 +10045,11 @@ spec:
       containers:
       - command:
         - argocd-server
+        - --kubeconfig
+        - /kcp-kubeconfig/kcp-kubeconfig
         env:
+        - name: KUBECONFIG
+          value: /kcp-kubeconfig/kcp-kubeconfig
         - name: ARGOCD_SERVER_INSECURE
           valueFrom:
             configMapKeyRef:
@@ -10356,13 +10223,9 @@ spec:
         name: argocd-server
         ports:
         - containerPort: 8080
+          protocol: TCP
         - containerPort: 8083
-        readinessProbe:
-          httpGet:
-            path: /healthz
-            port: 8080
-          initialDelaySeconds: 3
-          periodSeconds: 30
+          protocol: TCP
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -10381,12 +10244,22 @@ spec:
           name: plugins-home
         - mountPath: /tmp
           name: tmp
+        - mountPath: /kcp-kubeconfig
+          name: kcp-kubeconfig
       serviceAccountName: argocd-server
       volumes:
+      - name: kcp-kubeconfig
+        secret:
+          secretName: kcp-kubeconfig-server
+          items:
+          - key: kubeconfig
+            path: kcp-kubeconfig
       - emptyDir: {}
         name: plugins-home
       - emptyDir: {}
         name: tmp
+      - emptyDir: {}
+        name: static-files
       - configMap:
           name: argocd-ssh-known-hosts-cm
         name: ssh-known-hosts
@@ -10439,10 +10312,18 @@ spec:
                   app.kubernetes.io/part-of: argocd
               topologyKey: kubernetes.io/hostname
             weight: 5
+      ## Disable auto-mounting SA token 
+      automountServiceAccountToken: false
       containers:
       - command:
         - argocd-application-controller
+        - --kubeconfig
+        - /kcp-kubeconfig/kcp-kubeconfig
         env:
+        - name: ARGOCD_FAKE_IN_CLUSTER
+          value: "true"
+        - name: KUBECONFIG
+          value: /kcp-kubeconfig/kcp-kubeconfig
         - name: ARGOCD_CONTROLLER_REPLICAS
           value: "1"
         - name: ARGOCD_RECONCILIATION_TIMEOUT
@@ -10558,12 +10439,7 @@ spec:
         name: argocd-application-controller
         ports:
         - containerPort: 8082
-        readinessProbe:
-          httpGet:
-            path: /healthz
-            port: 8082
-          initialDelaySeconds: 5
-          periodSeconds: 10
+          protocol: TCP
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -10576,9 +10452,18 @@ spec:
           name: argocd-repo-server-tls
         - mountPath: /home/argocd
           name: argocd-home
+        - mountPath: /kcp-kubeconfig
+          name: kcp-kubeconfig
         workingDir: /home/argocd
-      serviceAccountName: argocd-application-controller
+      # serviceAccountName: argocd-application-controller
       volumes:
+      - name: kcp-kubeconfig
+        
+        secret:
+          secretName: kcp-kubeconfig-controller
+          items:
+          - key: kubeconfig
+            path: kcp-kubeconfig
       - emptyDir: {}
         name: argocd-home
       - name: argocd-repo-server-tls
@@ -10592,112 +10477,3 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: argocd-application-controller-network-policy
-spec:
-  ingress:
-  - from:
-    - namespaceSelector: {}
-    ports:
-    - port: 8082
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: argocd-application-controller
-  policyTypes:
-  - Ingress
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: argocd-dex-server-network-policy
-spec:
-  ingress:
-  - from:
-    - podSelector:
-        matchLabels:
-          app.kubernetes.io/name: argocd-server
-    ports:
-    - port: 5556
-      protocol: TCP
-    - port: 5557
-      protocol: TCP
-  - from:
-    - namespaceSelector: {}
-    ports:
-    - port: 5558
-      protocol: TCP
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: argocd-dex-server
-  policyTypes:
-  - Ingress
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: argocd-redis-network-policy
-spec:
-  ingress:
-  - from:
-    - podSelector:
-        matchLabels:
-          app.kubernetes.io/name: argocd-server
-    - podSelector:
-        matchLabels:
-          app.kubernetes.io/name: argocd-repo-server
-    - podSelector:
-        matchLabels:
-          app.kubernetes.io/name: argocd-application-controller
-    ports:
-    - port: 6379
-      protocol: TCP
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: argocd-redis
-  policyTypes:
-  - Ingress
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: argocd-repo-server-network-policy
-spec:
-  ingress:
-  - from:
-    - podSelector:
-        matchLabels:
-          app.kubernetes.io/name: argocd-server
-    - podSelector:
-        matchLabels:
-          app.kubernetes.io/name: argocd-application-controller
-    - podSelector:
-        matchLabels:
-          app.kubernetes.io/name: argocd-notifications-controller
-    ports:
-    - port: 8081
-      protocol: TCP
-  - from:
-    - namespaceSelector: {}
-    ports:
-    - port: 8084
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: argocd-repo-server
-  policyTypes:
-  - Ingress
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: argocd-server-network-policy
-spec:
-  ingress:
-  - {}
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: argocd-server
-  policyTypes:
-  - Ingress

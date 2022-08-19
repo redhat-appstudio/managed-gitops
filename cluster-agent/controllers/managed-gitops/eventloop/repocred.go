@@ -18,15 +18,18 @@ import (
 )
 
 const (
-	errOperationIDNotFound    = "resource ID was nil while processing operation"
-	errGenericDB              = "unable to retrieve database row from database"
-	errRowNotFound            = "row no longer exists in the database"
-	errPrivateSecretNotFound  = "Argo CD Private Repository secret doesn't exist"
-	errPrivateSecretCreate    = "unable to create Argo CD Repository secret"
-	errGetPrivateSecret       = "unexpected error on retrieve Argo CD secret"
-	errUpdatePrivateSecret    = "unable to update Argo CD Private Repository secret"
-	errDeletePrivateSecret    = "unable to delete Argo CD Private Repository secret"
-	errSevereLabelNotFound    = "SEVERE: invalid label requirement"
+	errOperationIDNotFound = "resource ID was nil while processing operation"
+	errGenericDB           = "unable to retrieve database row from database"
+	errRowNotFound         = "row no longer exists in the database"
+	// #nosec G101
+	errPrivateSecretNotFound = "Argo CD Private Repository secret doesn't exist"
+	errPrivateSecretCreate   = "unable to create Argo CD Repository secret"
+	errGetPrivateSecret      = "unexpected error on retrieve Argo CD secret"
+	errUpdatePrivateSecret   = "unable to update Argo CD Private Repository secret"
+	errDeletePrivateSecret   = "unable to delete Argo CD Private Repository secret"
+	// #nosec G101
+	errSevereLabelNotFound = "SEVERE: invalid label requirement"
+	// #nosec G101
 	errSecretLabelList        = "unable to complete Argo CD Secret list"
 	errSevereNumOfItemsInList = "SEVERE: unexpected number (more than one) of related ArgoCD secrets"
 )
@@ -57,7 +60,9 @@ func deleteArgoCDSecretLeftovers(ctx context.Context, databaseID string, argoCDN
 	}
 
 	var firstDeletionErr error
-	for _, item := range list.Items {
+	for idx := range list.Items {
+
+		item := list.Items[idx]
 
 		l.Info("Deleting Argo CD Secret (leftover) that is missing a DB Entry", "secret", item.Name, "namespace", item.Namespace)
 

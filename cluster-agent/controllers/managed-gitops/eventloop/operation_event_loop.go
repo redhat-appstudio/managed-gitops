@@ -183,7 +183,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	if err := eventClient.Get(taskContext, client.ObjectKeyFromObject(operationCR), operationCR); err != nil {
 		if apierr.IsNotFound(err) {
 			// If the resource doesn't exist, so our job is done.
-			log.V(sharedutil.LogLevel_Debug).Info("Received a request for an operation CR that doesn't exist")
+			log.V(sharedutil.LogLevel_Debug).Info("Received a K8s request for an Operation CR that doesn't exist")
 
 			return nil, shouldRetryFalse, nil
 
@@ -203,7 +203,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 		if db.IsResultNotFoundError(err) {
 			// no corresponding db operation, so no work to do
-			log.V(sharedutil.LogLevel_Warn).Info("Received operation requested for operation DB entry that doesn't exist")
+			log.V(sharedutil.LogLevel_Warn).Info("Received a K8 request for an Operation resource, but the referenced DB Operation Row doesn't exist")
 			return nil, shouldRetryFalse, nil
 		} else {
 			// some other generic error

@@ -199,6 +199,8 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	gitopsDeployment *managedgitopsv1alpha1.GitOpsDeployment, clusterUser *db.ClusterUser, operationNamespace string,
 	dbQueries db.ApplicationScopedQueries) (bool, *db.Application, *db.GitopsEngineInstance, deploymentModifiedResult, error) {
 
+	a.log.Info("Received GitOpsDeployment event for a new GitOpsDeployment resource")
+
 	gitopsDeplNamespace := corev1.Namespace{}
 	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: gitopsDeployment.ObjectMeta.Namespace,
 		Name: gitopsDeployment.ObjectMeta.Namespace}, &gitopsDeplNamespace); err != nil {
@@ -325,9 +327,11 @@ func (a applicationEventLoopRunner_Action) handleDeleteGitOpsDeplEvent(ctx conte
 		return false, fmt.Errorf("required parameter should not be nil in handleDelete: %v %v", deplToAppMappingList, clusterUser)
 	}
 
-	workspaceNamespace := corev1.Namespace{}
-	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: a.eventResourceNamespace, Name: a.eventResourceNamespace}, &workspaceNamespace); err != nil {
-		return false, fmt.Errorf("unable to retrieve workspace namespace")
+	a.log.Info("Received GitOpsDeployment event for a GitOpsDeployment resource that no longer exists (or does not exist)")
+
+	apiNamespace := corev1.Namespace{}
+	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: a.eventResourceNamespace, Name: a.eventResourceNamespace}, &apiNamespace); err != nil {
+		return false, fmt.Errorf("unable to retrieve API namespace")
 	}
 
 	var allErrors error
@@ -340,7 +344,7 @@ func (a applicationEventLoopRunner_Action) handleDeleteGitOpsDeplEvent(ctx conte
 		deplToAppMapping := (*deplToAppMappingList)[idx]
 
 		// Clean up the database entries
-		itemSignalledShutdown, err := a.cleanOldGitOpsDeploymentEntry(ctx, &deplToAppMapping, clusterUser, operationNamespace, workspaceNamespace, dbQueries)
+		itemSignalledShutdown, err := a.cleanOldGitOpsDeploymentEntry(ctx, &deplToAppMapping, clusterUser, operationNamespace, apiNamespace, dbQueries)
 		if err != nil {
 			signalShutdown = false
 
@@ -407,6 +411,8 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 	}
 
 	log := a.log.WithValues("applicationId", deplToAppMapping.Application_id, "gitopsDeplUID", gitopsDeployment.UID)
+
+	a.log.Info("Received GitOpsDeployment event for an existing GitOpsDeployment resource")
 
 	application := &db.Application{Application_id: deplToAppMapping.Application_id}
 	if err := dbQueries.GetApplicationById(ctx, application); err != nil {
@@ -549,8 +555,9 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 
 }
 
-func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx context.Context, deplToAppMapping *db.DeploymentToApplicationMapping,
-	clusterUser *db.ClusterUser, operationNamespace string, workspaceNamespace corev1.Namespace, dbQueries db.ApplicationScopedQueries) (bool, error) {
+func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx context.Context,
+	deplToAppMapping *db.DeploymentToApplicationMapping, clusterUser *db.ClusterUser, operationNamespace string,
+	workspaceNamespace corev1.Namespace, dbQueries db.ApplicationScopedQueries) (bool, error) {
 
 	dbApplicationFound := true
 
@@ -570,7 +577,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		}
 	}
 
-	log := a.log.WithValues("id", dbApplication.Application_id)
+	log := a.log.WithValues("applicationID", deplToAppMapping.Application_id)
 
 	// Remove the ApplicationState from the database
 	rowsDeleted, err := dbQueries.DeleteApplicationStateById(ctx, deplToAppMapping.Application_id)
@@ -581,9 +588,9 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 
 	} else if rowsDeleted == 0 {
 		// Log the warning, but continue
-		log.Info("no application rows deleted for application state", "rowsDeleted", rowsDeleted)
+		log.Info("No ApplicationState rows were found, while cleaning up after deleted GitOpsDeployment", "rowsDeleted", rowsDeleted)
 	} else {
-		log.Info("ApplicationState rows deleted App ID: ", "application_id", deplToAppMapping.Application_id, "rowsDeleted", rowsDeleted)
+		log.Info("ApplicationState rows were successfully deleted, while cleaning up after deleted GitOpsDeployment", "rowsDeleted", rowsDeleted)
 	}
 
 	// Remove DeplToAppMapping
@@ -596,22 +603,23 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		// Log the warning, but continue
 		log.V(sharedutil.LogLevel_Warn).Error(nil, "unexpected number of rows deleted for deplToAppMapping", "rowsDeleted", rowsDeleted)
 	} else {
-		log.Info("Deleted deplToAppMapping by id", "deplToAppMapUid", deplToAppMapping.Deploymenttoapplicationmapping_uid_id)
+		log.Info("While cleaning up after deleted GitOpsDeployment, deleted deplToAppMapping", "deplToAppMapUid", deplToAppMapping.Deploymenttoapplicationmapping_uid_id)
 	}
 
+	// Removed references to Application from all SyncOperations that reference it, to ensure SyncOperation foreign key is nil
 	rowsUpdated, err := dbQueries.UpdateSyncOperationRemoveApplicationField(ctx, deplToAppMapping.Application_id)
 	if err != nil {
-		log.Error(err, "unable to update old sync operations", "applicationId", deplToAppMapping.Application_id)
+		log.Error(err, "unable to update old sync operations")
 		return false, err
 
 	} else if rowsUpdated == 0 {
-		log.Info("no sync operation rows updated, for updating old syncoperations on gitopsdepl deletion")
+		log.Info("no SyncOperation rows updated, for updating old syncoperations on GitOpsDeployment deletion")
 	} else {
-		log.Info("Removed Application Field with ID: " + deplToAppMapping.Application_id)
+		log.Info("Removed references to Application from all SyncOperations that reference it")
 	}
 
 	if !dbApplicationFound {
-		log.Info("While cleaning up old gitopsdepl entries, db application wasn't found, id: " + deplToAppMapping.Application_id)
+		log.Info("While cleaning up old gitopsdepl entries, the Application row wasn't found. No more work to do.")
 		// If the Application CR no longer exists, then our work is done.
 		return true, nil
 	}
@@ -619,19 +627,19 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	// If the Application table entry still exists, finish the cleanup...
 
 	// Remove the Application from the database
-	log.Info("deleting database Application, id: " + deplToAppMapping.Application_id)
+	log.Info("GitOpsDeployment was deleted, so deleting Application row from database")
 	rowsDeleted, err = dbQueries.DeleteApplicationById(ctx, deplToAppMapping.Application_id)
 	if err != nil {
 		// Log the error, but continue
-		log.Error(err, "unable to delete application by id", "appId", deplToAppMapping.Application_id)
+		log.Error(err, "unable to delete application by id")
 	} else if rowsDeleted == 0 {
 		// Log the error, but continue
-		log.V(sharedutil.LogLevel_Warn).Error(nil, "unexpected number of rows deleted for application", "rowsDeleted", rowsDeleted, "appId", deplToAppMapping.Application_id)
+		log.V(sharedutil.LogLevel_Warn).Error(nil, "unexpected number of rows deleted for application", "rowsDeleted", rowsDeleted)
 	}
 
 	gitopsEngineInstance, err := a.sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, dbApplication.Engine_instance_inst_id, a.workspaceClient, workspaceNamespace, a.log)
 	if err != nil {
-		log := log.WithValues("id", dbApplication.Engine_instance_inst_id)
+		log := log.WithValues("gitopsEngineID", dbApplication.Engine_instance_inst_id)
 
 		if db.IsResultNotFoundError(err) {
 			log.Error(err, "GitOpsEngineInstance could not be retrieved during gitopsdepl deletion handling")

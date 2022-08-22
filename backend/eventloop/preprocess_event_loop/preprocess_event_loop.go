@@ -181,7 +181,8 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventlo
 
 		// If the resource we received the event for no longer exists, it has been deleted.
 		// So we will need to use the cache and database values to figure out what resources to clean up.
-		log.Info("CR doesn't exist in namespace, so the resource is likely deleted.", "resource", resource)
+		log.V(sharedutil.LogLevel_Debug).Info("Received event, and CR doesn't exist in namespace, so the resource is likely deleted.",
+			"resource", resource)
 		return processResourceThatDoesntExistInNamespace(ctx, newEvent, nextStep, task.recentUIDCache, task.gitopsDeplSyncRunCache, dbQueries, log)
 	}
 

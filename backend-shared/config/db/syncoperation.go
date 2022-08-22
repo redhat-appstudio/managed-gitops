@@ -110,6 +110,8 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteSyncOperationById(ctx context.Contex
 	return deleteResult.RowsAffected(), nil
 }
 
+// UpdateSyncOperationRemoveApplicationField locates any SyncOperations that reference 'applicationID', and sets the
+// applicationID field to nil.
 func (dbq *PostgreSQLDatabaseQueries) UpdateSyncOperationRemoveApplicationField(ctx context.Context, applicationId string) (int, error) {
 
 	if err := validateQueryParamsNoPK(dbq); err != nil {

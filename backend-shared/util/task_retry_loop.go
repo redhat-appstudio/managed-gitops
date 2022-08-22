@@ -196,7 +196,7 @@ const (
 func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string) {
 
 	ctx := context.Background()
-	log := log.FromContext(ctx).WithValues("task-retry-name", debugName)
+	log := log.FromContext(ctx).WithName("task-retry-loop").WithValues("task-retry-name", debugName)
 
 	// activeTaskMap is the set of tasks currently running in goroutines
 	activeTaskMap := map[string]internalTaskEntry{}
@@ -213,9 +213,12 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string
 
 	for {
 
-		// Every X minutes, report how many tasks are in progress, and how many are waiting
+		// Every X minutes, report how many tasks are in progress, and how many are waiting. This allows us
+		// to identify bottenecks in task retry queues.
 		if time.Now().After(nextReportActiveTasks) {
-			log.Info(fmt.Sprintf("task retry loop status [%v]: waitingTasks: %v, activeTasks: %v ", debugName, len(waitingTaskContainer.waitingTasks), len(activeTaskMap)))
+			log.Info(fmt.Sprintf("task retry loop status [%v]: waitingTasks: %v, activeTasks: %v ", debugName,
+				len(waitingTaskContainer.waitingTasks), len(activeTaskMap)))
+
 			nextReportActiveTasks = time.Now().Add(ReportActiveTasksEveryXMinutes)
 		}
 

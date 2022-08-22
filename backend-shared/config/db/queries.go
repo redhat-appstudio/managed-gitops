@@ -211,6 +211,8 @@ type ApplicationScopedQueries interface {
 	DeleteDeploymentToApplicationMappingByDeplId(ctx context.Context, id string) (int, error)
 	DeleteDeploymentToApplicationMappingByNamespaceAndName(ctx context.Context, deploymentName string, deploymentNamespace string, namespaceUID string) (int, error)
 
+	// UpdateSyncOperationRemoveApplicationField locates any SyncOperations that reference 'applicationID', and sets the
+	// applicationID field to nil.
 	UpdateSyncOperationRemoveApplicationField(ctx context.Context, applicationId string) (int, error)
 
 	GetApplicationStateById(ctx context.Context, obj *ApplicationState) error

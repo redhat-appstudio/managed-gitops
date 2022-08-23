@@ -48,7 +48,9 @@ type ApplicationSnapshotReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
 func (r *ApplicationSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(req.ClusterName))
+	if req.ClusterName != "" {
+		ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(req.ClusterName))
+	}
 	_ = log.FromContext(ctx)
 
 	fmt.Println("ApplicationSnapshot event: ", req)

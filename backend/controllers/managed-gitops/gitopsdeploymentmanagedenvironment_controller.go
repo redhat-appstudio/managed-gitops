@@ -19,6 +19,7 @@ package managedgitops
 import (
 	"context"
 	"fmt"
+	"os"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,7 +55,9 @@ type GitOpsDeploymentManagedEnvironmentReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.2/pkg/reconcile
 func (r *GitOpsDeploymentManagedEnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(req.ClusterName))
+	if req.ClusterName != "" {
+		ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(req.ClusterName))
+	}
 	_ = log.FromContext(ctx)
 
 	namespace := corev1.Namespace{
@@ -63,6 +66,7 @@ func (r *GitOpsDeploymentManagedEnvironmentReconciler) Reconcile(ctx context.Con
 		},
 	}
 	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&namespace), &namespace); err != nil {
+		os.Exit(1)
 		return ctrl.Result{}, fmt.Errorf("unable to retrieve namespace: %v", err)
 	}
 

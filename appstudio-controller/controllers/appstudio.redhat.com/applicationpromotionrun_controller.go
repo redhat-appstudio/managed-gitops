@@ -60,7 +60,9 @@ func (r *ApplicationPromotionRunReconciler) Reconcile(ctx context.Context, req c
 
 // Proof-of-concept/pseudocode Reconcile. Comment out the above Reconcile, and rename this to Reconcile, when starting working on this.
 func (r *ApplicationPromotionRunReconciler) ReconcilePOC(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(req.ClusterName))
+	if req.ClusterName != "" {
+		ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(req.ClusterName))
+	}
 	log := log.FromContext(ctx)
 
 	promotionRun := &appstudioshared.ApplicationPromotionRun{}

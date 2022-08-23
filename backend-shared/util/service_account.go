@@ -2,7 +2,6 @@ package util
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -81,7 +80,7 @@ func InstallServiceAccount(ctx context.Context, k8sClient client.Client, uuid st
 		return "", nil, fmt.Errorf("unable to create or update role and cluster role binding: %v", err)
 	}
 
-	token, err := getOrCreateServiceAccountBearerToken(ctx, k8sClient, serviceAccountName, serviceAccountNS)
+	token, err := getOrCreateServiceAccountBearerToken(ctx, k8sClient, serviceAccountName, serviceAccountNS, log)
 	if err != nil {
 		return "", nil, err
 	}
@@ -91,62 +90,32 @@ func InstallServiceAccount(ctx context.Context, k8sClient client.Client, uuid st
 
 // getOrCreateServiceAccountBearerToken returns a token if there is an existing token secret for a service account.
 // If the token secret is missing, it creates a new secret and attach it to the service account
-func getOrCreateServiceAccountBearerToken(ctx context.Context, k8sClient client.Client, serviceAccountName string, serviceAccountNS string) (string, error) {
-	token, err := getServiceAccountBearerToken(ctx, k8sClient, serviceAccountName, serviceAccountNS)
+func getOrCreateServiceAccountBearerToken(ctx context.Context, k8sClient client.Client, serviceAccountName string,
+	serviceAccountNS string, log logr.Logger) (string, error) {
+
+	tokenSecret, err := createServiceAccountTokenSecret(ctx, k8sClient, serviceAccountName, serviceAccountNS)
 	if err != nil {
+		return "", fmt.Errorf("failed to create a token secret for service account %s: %w", serviceAccountName, err)
+	}
 
-		// If we timed out waiting for service account token secret, assume that the secret is not created.
-		// From k8s 1.24 onwards service accounts will not get a default token secret.
-		// Instead, we need to create a token secret of type "kubernetes.io/service-account-token" and point it to our service account.
-		// Ref: https://kubernetes.io/docs/concepts/configuration/secret/#service-account-token-secrets
-		if errors.Is(err, wait.ErrWaitTimeout) {
-			tokenSecret, err := createServiceAccountTokenSecret(ctx, k8sClient, serviceAccountName, serviceAccountNS)
-			if err != nil {
-				return "", fmt.Errorf("failed to create a token secret for service account %s: %w", serviceAccountName, err)
-			}
+	if err := wait.Poll(time.Second*1, time.Second*120, func() (bool, error) {
 
-			if err = addSecretToServiceAccount(ctx, k8sClient, tokenSecret, serviceAccountName, serviceAccountNS); err != nil {
-				return "", fmt.Errorf("failed to attach the token secret to service account %s: %w", serviceAccountName, err)
-			}
-		} else {
-			return "", err
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(tokenSecret), tokenSecret); err != nil {
+			log.Error(err, "unable to retrieve token secret for service account", "serviceAccountName", serviceAccountName)
 		}
-	}
-	if token != "" {
-		return token, nil
+
+		// Exit the loop if the token has been set by k8s, continue otherwise.
+		_, exists := tokenSecret.Data["token"]
+		return exists, nil
+
+	}); err != nil {
+		return "", fmt.Errorf("unable to create service account token secret: %v", err)
 	}
 
-	return getServiceAccountBearerToken(ctx, k8sClient, serviceAccountName, serviceAccountNS)
+	tokenSecretValue := tokenSecret.Data["token"]
+	return string(tokenSecretValue), nil
+
 }
-
-// getOrCreateServiceAccountBearerToken returns a token if there is an existing token secret for a service account.
-// If the token secret is missing, it creates a new secret and attach it to the service account
-// func getOrCreateServiceAccountBearerTokenNew(ctx context.Context, k8sClient client.Client, serviceAccountName string,
-// 	serviceAccountNS string, log logr.Logger) (string, error) {
-
-// 	tokenSecret, err := createServiceAccountTokenSecret(ctx, k8sClient, serviceAccountName, serviceAccountNS)
-// 	if err != nil {
-// 		return "", fmt.Errorf("failed to create a token secret for service account %s: %w", serviceAccountName, err)
-// 	}
-
-// 	if err := wait.Poll(time.Second*1, time.Second*120, func() (bool, error) {
-
-// 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(tokenSecret), tokenSecret); err != nil {
-// 			log.Error(err, "unable to retrieve token secret for service account", "serviceAccountName", serviceAccountName)
-// 		}
-
-// 		// Exit the loop if the token has been set by k8s, continue otherwise.
-// 		_, exists := tokenSecret.Data["token"]
-// 		return exists, nil
-
-// 	}); err != nil {
-// 		return "", fmt.Errorf("unable to create service account token secret: %v", err)
-// 	}
-
-// 	tokenSecretValue := tokenSecret.Data["token"]
-// 	return string(tokenSecretValue), nil
-
-// }
 
 // GetServiceAccountBearerToken will attempt to get the provided service account until it
 // exists, iterate the secrets associated with it looking for one of type

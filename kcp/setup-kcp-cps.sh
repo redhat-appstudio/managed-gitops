@@ -117,8 +117,8 @@ create_kubeconfig_secret "argocd-server" "kcp-kubeconfig-controller"
 create_kubeconfig_secret "argocd-application-controller" "kcp-kubeconfig-server"
 
 echo "Verifying if argocd components are up and running after mounting kubeconfig secrets"
-KUBECONFIG="${CPS_KUBECONFIG}" kubectl wait --for=condition=available deployments/argocd-server -n $ARGOCD_NAMESPACE
-count=0 --timeout 3m
+KUBECONFIG="${CPS_KUBECONFIG}" kubectl wait --for=condition=available deployments/argocd-server -n $ARGOCD_NAMESPACE --timeout 3m
+count=0
 while [ $count -lt 30 ]
 do
     count=`expr $count + 1`

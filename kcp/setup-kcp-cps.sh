@@ -62,7 +62,7 @@ KUBECONFIG="${WORKLOAD_KUBECONFIG}" kubectl apply -f "$SYNCER_MANIFESTS"
 
 
 echo "Waiting for the SyncTarget resource to reach ready state"
-KUBECONFIG="${CPS_KUBECONFIG}" kubectl wait --for=condition=Ready=true synctarget/"${WORKLOAD_CLUSTER}"
+KUBECONFIG="${CPS_KUBECONFIG}" kubectl wait --for=condition=Ready=true synctarget/"${WORKLOAD_CLUSTER}" --timeout 3m
 
 create_kubeconfig_secret() {
     sa_name=$1
@@ -118,7 +118,7 @@ create_kubeconfig_secret "argocd-application-controller" "kcp-kubeconfig-server"
 
 echo "Verifying if argocd components are up and running after mounting kubeconfig secrets"
 KUBECONFIG="${CPS_KUBECONFIG}" kubectl wait --for=condition=available deployments/argocd-server -n $ARGOCD_NAMESPACE
-count=0
+count=0 --timeout 3m
 while [ $count -lt 30 ]
 do
     count=`expr $count + 1`

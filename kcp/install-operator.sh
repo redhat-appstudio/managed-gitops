@@ -28,7 +28,7 @@ WORKLOAD_CLUSTER=$(KUBECONFIG="${WORKLOAD_KUBECONFIG}" kubectl config view --min
 WORKLOAD_CLUSTER=${WORKLOAD_CLUSTER:22}
 
 echo "Generating syncer manifests for OCP SyncTarget $WORKLOAD_CLUSTER"
-KUBECONFIG="$CPS_KUBECONFIG" kubectl kcp workload sync "$WORKLOAD_CLUSTER"  --resources "services,statefulsets.apps,deployments.apps,routes.route.openshift.io,ingresses.networking.k8s.io,clusterversions.config.openshift.io" --syncer-image "$SYNCER_IMAGE" --output-file "$SYNCER_MANIFESTS" --namespace kcp-syncer
+KUBECONFIG="$CPS_KUBECONFIG" kubectl kcp workload sync "$WORKLOAD_CLUSTER"  --resources "services,pods,statefulsets.apps,deployments.apps,routes.route.openshift.io,ingresses.networking.k8s.io" --syncer-image "$SYNCER_IMAGE" --output-file "$SYNCER_MANIFESTS" --namespace kcp-syncer
 
 
 # Deploy the syncer to the SyncTarget
@@ -88,6 +88,28 @@ KUBECONFIG="${CPS_KUBECONFIG}" kubectl create sa controller-manager -n $GITOPS_O
 
 
 create_kubeconfig_secret "controller-manager" "gitops-operator-kubeconfig"
+
+KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -k ~/gitops-operator/config/crd/
+
+CLUSTER_VERSION_CRD=$(KUBECONFIG="${WORKLOAD_KUBECONFIG}" kubectl get crds clusterversions.config.openshift.io -oyaml)
+echo "${CLUSTER_VERSION_CRD}" | KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f -
+
+CLUSTER_VERSION_CR=$(KUBECONFIG="${WORKLOAD_KUBECONFIG}" kubectl get clusterversions version -oyaml)
+echo "${CLUSTER_VERSION_CR}" | KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f -
+
+CONSOLE_CLI_CRD=$(KUBECONFIG="${WORKLOAD_KUBECONFIG}" kubectl get crd consoleclidownloads.console.openshift.io -oyaml)
+echo "${CONSOLE_CLI_CRD}" | KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f -
+
+cat <<EOF | kubectl apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: admin
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["*"]
+EOF
 
 ## Install CRDs for GitOps and ArgoCD operators
 

@@ -19,7 +19,6 @@ package managedgitops
 import (
 	"context"
 	"fmt"
-	"os"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,7 +65,6 @@ func (r *GitOpsDeploymentManagedEnvironmentReconciler) Reconcile(ctx context.Con
 		},
 	}
 	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&namespace), &namespace); err != nil {
-		os.Exit(1)
 		return ctrl.Result{}, fmt.Errorf("unable to retrieve namespace: %v", err)
 	}
 

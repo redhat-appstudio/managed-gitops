@@ -68,6 +68,7 @@ spec:
             memory: 600Mi
         securityContext:
           allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
       securityContext:
         runAsNonRoot: true
       serviceAccountName: managed-gitops-backend-controller-manager

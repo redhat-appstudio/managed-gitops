@@ -68,6 +68,7 @@ spec:
             memory: 50Mi
         securityContext:
           allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
       securityContext:
         runAsNonRoot: true
       serviceAccountName: managed-gitops-clusteragent-controller-manager

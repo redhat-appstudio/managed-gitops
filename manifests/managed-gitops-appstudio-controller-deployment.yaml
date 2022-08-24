@@ -59,6 +59,7 @@ spec:
             memory: 256Mi
         securityContext:
           allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
       securityContext:
         runAsNonRoot: true
       serviceAccountName: appstudio-controller-controller-manager

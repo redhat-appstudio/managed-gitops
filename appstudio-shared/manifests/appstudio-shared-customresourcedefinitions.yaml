@@ -293,7 +293,8 @@ spec:
                           type: string
                         commitID:
                           description: CommitID contains the most recent commit ID
-                            for the component in the GitOps repository
+                            for which the Kubernetes resources of the Component were
+                            modified.
                           type: string
                         generatedResources:
                           description: GeneratedResources contains the list of GitOps

@@ -100,7 +100,7 @@ type BindingComponentGitOpsRepository struct {
 	// application-service controller generated resources vs resources added by a user
 	GeneratedResources []string `json:"generatedResources"`
 
-	// CommitID contains the most recent commit ID for the component in the GitOps repository
+	// CommitID contains the most recent commit ID for which the Kubernetes resources of the Component were modified.
 	CommitID string `json:"commitID"`
 }
 

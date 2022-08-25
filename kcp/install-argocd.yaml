@@ -9772,6 +9772,7 @@ spec:
         name: redis
         ports:
         - containerPort: 6379
+          protocol: TCP
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:

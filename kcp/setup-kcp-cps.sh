@@ -5,7 +5,7 @@ set -ex
 CPS_KUBECONFIG="${CPS_KUBECONFIG:-$(realpath kcp/cps-kubeconfig)}"
 WORKLOAD_KUBECONFIG="${WORKLOAD_KUBECONFIG:-$HOME/.kube/config}"
 WORKSPACE="gitops-service-$(echo $RANDOM)"
-SYNCER_IMAGE="${SYNCER_IMAGE:-ghcr.io/kcp-dev/kcp/syncer:v0.7.1}"
+SYNCER_IMAGE="${SYNCER_IMAGE:-ghcr.io/kcp-dev/kcp/syncer:v0.7.8}"
 SYNCER_MANIFESTS=$(mktemp -d)/cps-syncer.yaml
 
 export GITOPS_IN_KCP="true"

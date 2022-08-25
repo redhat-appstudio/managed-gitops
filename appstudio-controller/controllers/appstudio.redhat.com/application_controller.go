@@ -62,7 +62,8 @@ const deploymentSuffix = "-deployment"
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	if req.ClusterName != "" {
+
+	if req.ClusterName != "" && !sharedutil.IsKCPVirtualWorkspaceDisabled() {
 		ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(req.ClusterName))
 	}
 	log := log.FromContext(ctx)

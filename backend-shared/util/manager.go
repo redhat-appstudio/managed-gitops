@@ -3,6 +3,9 @@ package util
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
+	"time"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/kcp"
@@ -12,11 +15,16 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/go-logr/logr"
 	apisv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apis/v1alpha1"
 )
+
+func IsKCPVirtualWorkspaceDisabled() bool {
+	return strings.EqualFold(os.Getenv("DISABLE_KCP_VIRTUAL_WORKSPACE"), "true")
+}
 
 // GetControllerManager returns a manager for running controllers
 func GetControllerManager(ctx context.Context, cfg *rest.Config, log *logr.Logger, apiExportName string, opts ctrl.Options) (ctrl.Manager, error) {
@@ -39,19 +47,41 @@ func GetControllerManager(ctx context.Context, cfg *rest.Config, log *logr.Logge
 }
 
 // getControllerManager returns a standard controller-runtime manager in a non-KCP environment and a KCP workspace aware manager in the presence of KCP APIs
-func getControllerManager(ctx context.Context, restConfig *rest.Config, apiExportClient client.Client, discoveryClient discovery.DiscoveryInterface, log *logr.Logger, apiExportName string, opts ctrl.Options) (ctrl.Manager, error) {
+func getControllerManager(ctx context.Context, restConfig *rest.Config, apiExportClient client.Client,
+	discoveryClient discovery.DiscoveryInterface, log *logr.Logger, apiExportName string,
+	opts ctrl.Options) (ctrl.Manager, error) {
+
 	var mgr ctrl.Manager
 
-	isKCPEnvironment, err := kcpAPIsGroupPresent(discoveryClient)
+	isKCPVirtualWorkspaceEnvironment, err := kcpAPIsGroupPresent(discoveryClient)
 	if err != nil {
 		return nil, err
 	}
 
-	if isKCPEnvironment {
-		log.Info("Looking up virtual workspace URL")
-		cfg, err := restConfigForAPIExport(ctx, restConfig, apiExportClient, apiExportName)
+	// If the service is running on KCP, BUT this environment variable is set, then
+	// disable virtual workspace support.
+	if IsKCPVirtualWorkspaceDisabled() {
+		isKCPVirtualWorkspaceEnvironment = false
+	}
+
+	if isKCPVirtualWorkspaceEnvironment {
+
+		var cfg *rest.Config
+
+		// Try up to 120 seconds for the virtual workspace URL to become available.
+		err := wait.PollImmediate(time.Second, time.Second*120, func() (bool, error) {
+			var err error
+			log.Info("Looking up virtual workspace URL")
+			cfg, err = restConfigForAPIExport(ctx, restConfig, apiExportClient, apiExportName)
+			if err != nil {
+				fmt.Printf("error looking up virtual workspace URL: '%v', retrying in 1 second.\n", err)
+				return false, nil
+			}
+			return true, nil
+		})
+
 		if err != nil {
-			return nil, fmt.Errorf("error looking up virtual workspace URL: %w", err)
+			return nil, fmt.Errorf("virtual workspace URL never became available")
 		}
 
 		log.Info("Using virtual workspace URL", "url", cfg.Host)
@@ -61,6 +91,7 @@ func getControllerManager(ctx context.Context, restConfig *rest.Config, apiExpor
 		if err != nil {
 			return nil, fmt.Errorf("unable to start cluster aware manager: %w", err)
 		}
+
 	} else {
 		log.Info("The apis.kcp.dev group is not present - creating standard manager")
 		mgr, err = ctrl.NewManager(restConfig, opts)

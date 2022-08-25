@@ -145,6 +145,13 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 
 				if newEvent.EventType == eventlooptypes.DeploymentModified {
 
+					_, clientError := getMatchingGitOpsDeployment(ctx, newEvent.Request.Name, newEvent.Request.Namespace, newEvent.Client)
+					if clientError != nil {
+						Gitopsdepl.Dec()
+						GitopsdeplFailures.Inc()
+						return fmt.Errorf("couldn't fetch the GitOpsDeployment instance: %v", clientError)
+					}
+
 					// Keep track of the resource name the first time we see it.
 					if expectedResourceName == "" && newEvent.Request.Name != "" {
 						expectedResourceName = newEvent.Request.Name

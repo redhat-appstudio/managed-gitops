@@ -87,12 +87,16 @@ func (cache *recentUIDCache) deleteMostRecentUIDForResourceFromEvent(newEvent ev
 
 	mapKey := lastUIDCache_generateMapKey(newEvent)
 	cache.resourcesSeen.Remove(mapKey)
+	count := len(cache.resourcesSeen.Keys())
+	Gitopsdepl.Set(count)
 }
 
 func (cache *recentUIDCache) putMostRecentUIDForResourceFromEvent(uid string, newEvent eventlooptypes.EventLoopEvent) {
 
 	mapKey := lastUIDCache_generateMapKey(newEvent)
 	cache.resourcesSeen.Add(mapKey, uid)
+	count := len(cache.resourcesSeen.Keys())
+	Gitopsdepl.Set(count)
 
 }
 

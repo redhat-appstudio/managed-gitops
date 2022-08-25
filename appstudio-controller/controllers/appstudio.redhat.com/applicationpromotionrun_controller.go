@@ -60,7 +60,7 @@ func (r *ApplicationPromotionRunReconciler) Reconcile(ctx context.Context, req c
 
 // Proof-of-concept/pseudocode Reconcile. Comment out the above Reconcile, and rename this to Reconcile, when starting working on this.
 func (r *ApplicationPromotionRunReconciler) ReconcilePOC(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	if req.ClusterName != "" {
+	if req.ClusterName != "" && !sharedutil.IsKCPVirtualWorkspaceDisabled() {
 		ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(req.ClusterName))
 	}
 	log := log.FromContext(ctx)

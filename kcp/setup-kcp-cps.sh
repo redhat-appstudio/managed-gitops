@@ -133,7 +133,7 @@ do
     fi
 done
 
-cat <<EOF | kubectl apply -n $ARGOCD_NAMESPACE -f -
+cat <<EOF | KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -n $ARGOCD_NAMESPACE -f -
 apiVersion: v1
 kind: Secret
 metadata:
@@ -158,6 +158,9 @@ echo "Argo CD is successfully installed in namespace $ARGOCD_NAMESPACE"
 echo "Preparing to run gitops service against KCP"
 ./stop-dev-env.sh
 ./delete-dev-env.sh
+
+export DISABLE_KCP_VIRTUAL_WORKSPACE=true
+
 KUBECONFIG="${CPS_KUBECONFIG}" make devenv-docker
 
 echo "Running gitops service controllers"

@@ -99,6 +99,17 @@ var _ = Describe("Application Controller", func() {
 					},
 					Sync: appv1.SyncStatus{
 						Status: "Synced",
+						ComparedTo: appv1.ComparedTo{
+							Source: appv1.ApplicationSource{
+								Path:           "test-path",
+								RepoURL:        "test-url",
+								TargetRevision: "test-branch",
+							},
+							Destination: appv1.ApplicationDestination{
+								Namespace: "test-namespace",
+								Name:      "managed-env-123",
+							},
+						},
 					},
 				},
 			}
@@ -178,10 +189,14 @@ var _ = Describe("Application Controller", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 
+			reconciledStateString, _, err := dummyApplicationComparedToField()
+			Expect(err).To(BeNil())
+
 			applicationState := &db.ApplicationState{
 				Applicationstate_application_id: applicationDB.Application_id,
 				Health:                          "Progressing",
 				Sync_Status:                     "OutOfSync",
+				ReconciledState:                 reconciledStateString,
 			}
 
 			By("Create Application in Database")
@@ -385,6 +400,21 @@ var _ = Describe("Application Controller", func() {
 					},
 					Project: "default",
 				},
+				Status: appv1.ApplicationStatus{
+					Sync: appv1.SyncStatus{
+						ComparedTo: appv1.ComparedTo{
+							Source: appv1.ApplicationSource{
+								Path:           "test-path",
+								RepoURL:        "test-url",
+								TargetRevision: "test-branch",
+							},
+							Destination: appv1.ApplicationDestination{
+								Namespace: "test-namespace",
+								Name:      "managed-env-123",
+							},
+						},
+					},
+				},
 			}
 
 			By("Add databaseID label to applicationID")
@@ -420,35 +450,6 @@ var _ = Describe("Application Controller", func() {
 
 			ctx = context.Background()
 
-			guestbookApp = &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      name,
-					Namespace: namespace,
-					Labels: map[string]string{
-						dbID: "databaseID",
-					},
-				},
-				Status: appv1.ApplicationStatus{
-					Sync: appv1.SyncStatus{
-						ComparedTo: appv1.ComparedTo{
-							Source: appv1.ApplicationSource{
-								Path:           "test-path",
-								RepoURL:        "test-url",
-								TargetRevision: "test-branch",
-							},
-							Destination: appv1.ApplicationDestination{
-								Namespace: "test-namespace",
-								Name:      "managed-env-123",
-							},
-						},
-					},
-				},
-			}
-
 			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
 			applicationDB := &db.Application{
@@ -480,6 +481,63 @@ var _ = Describe("Application Controller", func() {
 			Expect(err).ToNot(BeNil())
 			By("Verify ReconciledState is stored in db")
 			Expect(applicationStateDB.ReconciledState).ToNot(BeNil())
+
+		})
+
+		It("Test to check whether existing value in reconciled state updated to new value ad comparedTo field of ArgoCD Application changes", func() {
+			By("Close database connection")
+			defer dbQueries.CloseDatabase()
+			defer testTeardown()
+
+			ctx = context.Background()
+
+			By("Add databaseID label to applicationID")
+			databaseID := guestbookApp.Labels[dbID]
+			applicationDB := &db.Application{
+				Application_id:          databaseID,
+				Name:                    name,
+				Spec_field:              "{}",
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+
+			reconciledStateString, _, err := dummyApplicationComparedToField()
+			Expect(err).To(BeNil())
+
+			applicationState := &db.ApplicationState{
+				Applicationstate_application_id: applicationDB.Application_id,
+				Health:                          "Healthy",
+				Sync_Status:                     "Synced",
+				ReconciledState:                 reconciledStateString,
+			}
+
+			By("Create a new ArgoCD Application")
+			err = reconciler.Create(ctx, guestbookApp)
+			Expect(err).To(BeNil())
+
+			By("Create Application in Database")
+			err = reconciler.DB.CreateApplication(ctx, applicationDB)
+			Expect(err).To(BeNil())
+
+			By("Create ApplicationState in Database")
+			err = reconciler.DB.CreateApplicationState(ctx, applicationState)
+			Expect(err).To(BeNil())
+
+			By("Call reconcile function")
+			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
+			Expect(err).To(BeNil())
+			Expect(result).ToNot(BeNil())
+
+			applicationStateget := &db.ApplicationState{
+				Applicationstate_application_id: applicationDB.Application_id,
+			}
+
+			By("Verify ReconcidedState in ApplicationState is updated in database")
+			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateget)
+			Expect(err).To(BeNil())
+
+			By("Checking for sync status to verify whether Application CR and database is in sync with each other and it indicates that reconciledState is updated")
+			Expect(applicationStateget.Sync_Status).To(Equal("Synced"))
 
 		})
 	})
@@ -892,4 +950,26 @@ func createDummyApplicationData() (fauxargocd.FauxApplication, string, appv1.App
 	}
 
 	return dummyApplicationSpec, string(dummyApplicationSpecBytes), dummyArgoCdApplication, nil
+}
+
+func dummyApplicationComparedToField() (string, fauxargocd.FauxComparedTo, error) {
+
+	fauxcomparedTo := fauxargocd.FauxComparedTo{
+		Source: fauxargocd.ApplicationSource{
+			RepoURL:        "test-url",
+			Path:           "test-path",
+			TargetRevision: "test-branch",
+		},
+		Destination: fauxargocd.ApplicationDestination{
+			Namespace: "test-namespace-1",
+			Name:      "managed-env-123",
+		},
+	}
+
+	fauxcomparedToBytes, err := yaml.Marshal(fauxcomparedTo)
+	if err != nil {
+		return "", fauxcomparedTo, err
+	}
+
+	return string(fauxcomparedToBytes), fauxcomparedTo, nil
 }

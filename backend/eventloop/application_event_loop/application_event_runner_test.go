@@ -26,6 +26,7 @@ import (
 
 	testStructs "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1/mocks/structs"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -778,6 +779,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			err = gzipWriter.Close()
 			Expect(err).To(BeNil())
 
+			reconciledStateString, _, err := dummyApplicationComparedToField()
+			Expect(err).To(BeNil())
+
 			applicationState := &db.ApplicationState{
 				Applicationstate_application_id: deplToAppMapping.Application_id,
 				Health:                          string(managedgitopsv1alpha1.HeathStatusCodeHealthy),
@@ -785,6 +789,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				Revision:                        "abcdefg",
 				Message:                         "Success",
 				Resources:                       buffer.Bytes(),
+				ReconciledState:                 reconciledStateString,
 			}
 
 			err = dbQueries.CreateApplicationState(ctx, applicationState)
@@ -2003,4 +2008,26 @@ users:
     user:
       token: sha256~abcDef1gHIjkLmNOp-q19QRtUV1_w9x2yzabcdEFgh4
 `
+}
+
+func dummyApplicationComparedToField() (string, fauxargocd.FauxComparedTo, error) {
+
+	fauxcomparedTo := fauxargocd.FauxComparedTo{
+		Source: fauxargocd.ApplicationSource{
+			RepoURL:        "test-url",
+			Path:           "test-path",
+			TargetRevision: "test-branch",
+		},
+		Destination: fauxargocd.ApplicationDestination{
+			Namespace: "test-namespace-1",
+			Name:      "managed-env-123",
+		},
+	}
+
+	fauxcomparedToBytes, err := yaml.Marshal(fauxcomparedTo)
+	if err != nil {
+		return "", fauxcomparedTo, err
+	}
+
+	return string(fauxcomparedToBytes), fauxcomparedTo, nil
 }

@@ -170,3 +170,47 @@ func (dbMapping *APICRToDatabaseMapping) DisposeAppScoped(ctx context.Context, d
 
 	return err
 }
+
+// GetAPICRForDatabaseUID retrieves the name/namespace/uid of an API Resources (such as GitOpsDeploymentManagedEnvironment) based on the
+// primary key of the corresponding database row (for example, ManagedEnvironment)
+func (dbq *PostgreSQLDatabaseQueries) GetAPICRForDatabaseUID(ctx context.Context, obj *APICRToDatabaseMapping) error {
+
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
+		return err
+	}
+
+	if err := isEmptyValues("GetAPICRForDatabaseUID",
+		"APIResourceType", obj.APIResourceType,
+		"DBRelationType", obj.DBRelationType,
+		"DBRelationKey", obj.DBRelationKey); err != nil {
+		return err
+	}
+
+	var result []APICRToDatabaseMapping
+
+	if err := dbq.dbConnection.Model(&result).
+		// TODO: GITOPSRVCE-68 - PERF - Add a DB index for this
+		Where("atdbm.api_resource_type = ?", obj.APIResourceType).
+		Where("atdbm.db_relation_type = ?", obj.DBRelationType).
+		Where("atdbm.db_relation_key = ?", obj.DBRelationKey).
+		Context(ctx).
+		Select(); err != nil {
+
+		return fmt.Errorf("error on retrieving database mapping for APICRToDatabase: %v", err)
+	}
+
+	if len(result) == 0 {
+		return NewResultNotFoundError(fmt.Sprintf("unable to retrieve APICRToDatabase mapping for %s:%s",
+			obj.APIResourceType, obj.DBRelationKey))
+	}
+
+	if len(result) > 1 {
+		return fmt.Errorf("unexpected number of results when retrieving APICRToDatabase mapping for %s:%s",
+			obj.APIResourceType, obj.DBRelationKey)
+	}
+
+	*obj = result[0]
+
+	return nil
+
+}

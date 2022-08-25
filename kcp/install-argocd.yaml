@@ -9697,9 +9697,6 @@ spec:
         - argocd-notifications
         image: quay.io/argoproj/argocd:v2.4.10
         imagePullPolicy: Always
-        livenessProbe:
-          tcpSocket:
-            port: 9001
         name: argocd-notifications-controller
         securityContext:
           allowPrivilegeEscalation: false
@@ -9922,13 +9919,6 @@ spec:
           value: /helm-working-dir
         image: quay.io/argoproj/argocd:v2.4.10
         imagePullPolicy: Always
-        livenessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /healthz?full=true
-            port: 8084
-          initialDelaySeconds: 30
-          periodSeconds: 5
         name: argocd-repo-server
         ports:
         - containerPort: 8081
@@ -10214,12 +10204,6 @@ spec:
               optional: true
         image: quay.io/argoproj/argocd:v2.4.10
         imagePullPolicy: Always
-        livenessProbe:
-          httpGet:
-            path: /healthz?full=true
-            port: 8080
-          initialDelaySeconds: 3
-          periodSeconds: 30
         name: argocd-server
         ports:
         - containerPort: 8080
@@ -10430,12 +10414,6 @@ spec:
               optional: true
         image: quay.io/argoproj/argocd:v2.4.10
         imagePullPolicy: Always
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 8082
-          initialDelaySeconds: 5
-          periodSeconds: 10
         name: argocd-application-controller
         ports:
         - containerPort: 8082

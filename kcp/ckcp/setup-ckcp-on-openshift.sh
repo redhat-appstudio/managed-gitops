@@ -10,9 +10,14 @@ SCRIPT_DIR="$(
 
 export GITOPS_IN_KCP="true"
 
-ARGOCD_MANIFEST="https://gist.githubusercontent.com/chetan-rns/91d0b56af152f3ebb7c10df8e82b459d/raw/99429ff5ac68cb78a4fc70f1ac2d673ad7ba192a/install-argocd.yaml"
+ARGOCD_MANIFEST="$SCRIPT_DIR/../install-argocd.yaml"
 ARGOCD_NAMESPACE="gitops-service-argocd"
 
+cleanup() {
+  pkill go
+}
+
+trap cleanup EXIT
 
 # Checks if a binary is present on the local system
 exit_if_binary_not_installed() {
@@ -128,7 +133,7 @@ create_kubeconfig_secret "argocd-server" "kcp-kubeconfig-controller"
 create_kubeconfig_secret "argocd-application-controller" "kcp-kubeconfig-server"
 
 echo "Verifying if argocd components are up and running after mounting kubeconfig secrets"
-KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl wait --for=condition=available deployments/argocd-server -n $ARGOCD_NAMESPACE
+KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl wait --for=condition=available deployments/argocd-server -n $ARGOCD_NAMESPACE --timeout 3m
 count=0
 while [ $count -lt 30 ]
 do
@@ -181,9 +186,8 @@ test-gitops-service-e2e-in-kcp() {
 
 test-gitops-service-e2e-in-kcp ${TMP_DIR} ${SCRIPT_DIR}
 
-cleanup() {
-  pkill go
-  rm -rf ${TMP_DIR}
-}
 
-cleanup ${TMP_DIR}
+# clean the tmp directory created for the local setup
+rm -rf ${TMP_DIR}
+
+

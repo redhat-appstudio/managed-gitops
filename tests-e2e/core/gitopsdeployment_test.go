@@ -185,6 +185,23 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 					gitopsDeplFixture.HaveResources(expectedResourceStatusList),
 				),
 			)
+
+			expectedReconciledStateField := managedgitopsv1alpha1.ReconciledState{
+				Source: managedgitopsv1alpha1.GitOpsDeploymentSource{
+					RepoURL: gitOpsDeploymentResource.Spec.Source.RepoURL,
+					Path:    gitOpsDeploymentResource.Spec.Source.Path,
+				},
+			}
+
+			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
+					gitopsDeplFixture.HaveResources(expectedResourceStatusList),
+					gitopsDeplFixture.HaveReconciledState(expectedReconciledStateField),
+				),
+			)
+
 			By("deleting the GitOpsDeployment resource and waiting for the resources to be deleted")
 
 			err = k8s.Delete(&gitOpsDeploymentResource)
@@ -225,16 +242,25 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			Expect(gitOpsDeploymentResource.Spec.Source.RepoURL).To(Equal(repoURL))
 			Expect(gitOpsDeploymentResource.Spec.Source.Path).To(Equal("environments/overlays/dev"))
 
+			expectedReconciledStateField := managedgitopsv1alpha1.ReconciledState{
+				Source: managedgitopsv1alpha1.GitOpsDeploymentSource{
+					RepoURL: gitOpsDeploymentResource.Spec.Source.RepoURL,
+					Path:    gitOpsDeploymentResource.Spec.Source.Path,
+				},
+			}
+
 			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
+					gitopsDeplFixture.HaveReconciledState(expectedReconciledStateField),
 				),
 			)
 			Consistently(gitOpsDeploymentResource, "20s", "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
+					gitopsDeplFixture.HaveReconciledState(expectedReconciledStateField),
 				),
 			)
 
@@ -364,11 +390,20 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.Get(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
+
+			expectedReconciledStateField := managedgitopsv1alpha1.ReconciledState{
+				Source: managedgitopsv1alpha1.GitOpsDeploymentSource{
+					RepoURL: gitOpsDeploymentResource.Spec.Source.RepoURL,
+					Path:    gitOpsDeploymentResource.Spec.Source.Path,
+				},
+			}
+
 			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
 					gitopsDeplFixture.HaveResources(createResourceStatusList),
+					gitopsDeplFixture.HaveReconciledState(expectedReconciledStateField),
 				),
 			)
 
@@ -394,6 +429,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
 					gitopsDeplFixture.HaveResources(expectedResourceStatusList),
+					gitopsDeplFixture.HaveReconciledState(expectedReconciledStateField),
 				),
 			)
 			By("delete the GitOpsDeployment resource")

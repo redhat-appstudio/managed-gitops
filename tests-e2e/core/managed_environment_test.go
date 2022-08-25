@@ -79,12 +79,20 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			// 	return false
 			// }, "60s", "1s").Should(BeTrue())
 
-			By("ensuring GitOpsDeployment should have expected health and status")
+			By("ensuring GitOpsDeployment should have expected health and status and reconciledState")
+
+			expectedReconciledStateField := managedgitopsv1alpha1.ReconciledState{
+				Source: managedgitopsv1alpha1.GitOpsDeploymentSource{
+					RepoURL: gitOpsDeploymentResource.Spec.Source.RepoURL,
+					Path:    gitOpsDeploymentResource.Spec.Source.Path,
+				},
+			}
 
 			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
-					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)))
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
+					gitopsDeplFixture.HaveReconciledState(expectedReconciledStateField)))
 
 			secretList := corev1.SecretList{}
 

@@ -148,6 +148,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Health:                          "Progressing",
 				Sync_Status:                     "Unknown",
 				Resources:                       make([]byte, 10),
+				ReconciledState:                 "test-reconciledState",
 			}
 
 			err = dbq.CreateApplicationState(ctx, applicationStateFirst)
@@ -168,6 +169,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Health:                          "Progressing",
 				Sync_Status:                     "Unknown",
 				Resources:                       make([]byte, 10),
+				ReconciledState:                 "test-reconciledStae",
 			}
 
 			err = dbq.CreateApplicationState(ctx, applicationStateSecond)
@@ -177,6 +179,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Health:                          "Progressing",
 				Sync_Status:                     "Sync",
 				Resources:                       make([]byte, 10),
+				ReconciledState:                 "test-reconciledStae",
 			}
 
 			err = dbq.UpdateApplicationState(ctx, applicationStateSecond)

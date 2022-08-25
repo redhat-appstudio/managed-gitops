@@ -197,3 +197,26 @@ func HaveConditions(conditions []managedgitopsv1alpha1.GitOpsDeploymentCondition
 	}, BeTrue())
 
 }
+
+func HaveReconciledState(reconciledState managedgitopsv1alpha1.ReconciledState) matcher.GomegaMatcher {
+
+	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
+
+		k8sClient, err := fixture.GetKubeClient()
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitopsDepl), &gitopsDepl)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		res := reflect.DeepEqual(reconciledState, gitopsDepl.Status.ReconciledState)
+		fmt.Println("HaveSource:", res, "/ Expected:", reconciledState, "/ Actual:", gitopsDepl.Status.ReconciledState)
+
+		return res
+	}, BeTrue())
+}

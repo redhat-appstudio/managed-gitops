@@ -92,7 +92,7 @@ type GitOpsDeploymentSource struct {
 // GitOpsDeploymentDestination contains the information of .status.Sync.CompareTo.Destination field of ArgoCD Application
 type GitOpsDeploymentDestination struct {
 	Name      string `json:"name"`
-	NameSpace string `json:"namespace"`
+	Namespace string `json:"namespace"`
 }
 
 // GitOpsDeploymentStatus defines the observed state of GitOpsDeployment

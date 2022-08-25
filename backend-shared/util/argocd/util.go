@@ -17,7 +17,7 @@ const (
 
 // GenerateArgoCDClusterSecretName generates the name of the Argo CD cluster secret (and the name of the server within Argo CD).
 func GenerateArgoCDClusterSecretName(managedEnv db.ManagedEnvironment) string {
-	return "managedEnvPrefix" + managedEnv.Managedenvironment_id
+	return managedEnvPrefix + managedEnv.Managedenvironment_id
 }
 
 func GenerateArgoCDApplicationName(gitopsDeploymentCRUID string) string {

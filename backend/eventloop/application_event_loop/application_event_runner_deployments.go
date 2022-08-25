@@ -739,8 +739,22 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	var comparedTo fauxargocd.FauxComparedTo
 	comparedTo, err = retrieveComparedToFieldInApplicationState(applicationState.ReconciledState)
 	if err != nil {
-		a.log.Error(err, "unable to retrieve comparedTo field in ApplicationState")
+		a.log.Error(err, "SEVERE: unable to retrieve comparedTo field in ApplicationState")
 		return err
+	}
+
+	if comparedTo.Destination.Name != "" {
+		apiCRToDBMapping := &db.APICRToDatabaseMapping{
+			APIResourceType: db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentManagedEnvironment,
+			DBRelationType:  db.APICRToDatabaseMapping_DBRelationType_ManagedEnvironment,
+			DBRelationKey:   comparedTo.Destination.Name,
+		}
+		err = dbQueries.GetAPICRForDatabaseUID(ctx, apiCRToDBMapping)
+		if err != nil {
+			comparedTo.Destination.Name = ""
+		} else {
+			comparedTo.Destination.Name = apiCRToDBMapping.APIResourceName
+		}
 	}
 
 	// Update gitopsDeployment status with reconciledState
@@ -748,7 +762,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	gitopsDeployment.Status.ReconciledState.Source.RepoURL = comparedTo.Source.RepoURL
 	gitopsDeployment.Status.ReconciledState.Source.Branch = comparedTo.Source.TargetRevision
 	gitopsDeployment.Status.ReconciledState.Destination.Name = comparedTo.Destination.Name
-	gitopsDeployment.Status.ReconciledState.Destination.NameSpace = comparedTo.Destination.Namespace
+	gitopsDeployment.Status.ReconciledState.Destination.Namespace = comparedTo.Destination.Namespace
 
 	// Update the actual object in Kubernetes
 	if err := a.workspaceClient.Status().Update(ctx, gitopsDeployment, &client.UpdateOptions{}); err != nil {

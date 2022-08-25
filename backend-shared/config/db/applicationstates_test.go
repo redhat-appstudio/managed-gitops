@@ -38,6 +38,7 @@ var _ = Describe("ApplicationStates Tests", func() {
 				Health:                          "Progressing",
 				Sync_Status:                     "Unknown",
 				Resources:                       make([]byte, 10),
+				ReconciledState:                 "test-reconciledState",
 			}
 
 			err = dbq.CreateApplicationState(ctx, applicationState)

@@ -22,6 +22,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
+	"reflect"
 	"strings"
 	"time"
 
@@ -285,23 +287,27 @@ func storeInComparedToFieldInApplicationState(argoCDAppParam appv1.Application, 
 		},
 	}
 
-	// 2) Read the Argo CD Cluster Secret name (which points to an Argo CD Cluster Secret in the Argo CD namespace) from the
-	// Argo CD Application, and extract the managed environment ID from it.
-	managedEnvID, isLocal, err := argosharedutil.ConvertArgoCDClusterSecretNameToManagedIdDatabaseRowId(comparedTo.Destination.Name)
-	if err != nil {
-		return "", fmt.Errorf("unable to convert secret name to managed env: %v", err)
-	}
+	// If the comparedToParam is non-empty, then process it
+	if !reflect.DeepEqual(comparedToParam, appv1.ComparedTo{}) {
 
-	// 3) If the Argo CD cluster secret name is a real cluster secret that exists in the Argo CD namespace, then use
-	// the managed environment database ID that we extracted, and store it in comparedTo.
-	if !isLocal {
-		if managedEnvID == "" {
-			return "", fmt.Errorf("managed environment id was empty for '%s'", argoCDAppParam.Name)
+		// 2) Read the Argo CD Cluster Secret name (which points to an Argo CD Cluster Secret in the Argo CD namespace) from the
+		// Argo CD Application, and extract the managed environment ID from it.
+		managedEnvID, isLocal, err := argosharedutil.ConvertArgoCDClusterSecretNameToManagedIdDatabaseRowId(comparedTo.Destination.Name)
+		if err != nil {
+			return "", fmt.Errorf("unable to convert secret name to managed env: %v", err)
 		}
 
-		// Rather than storing the name of the Argo CD cluster secret in the .Destination.Name field, we instead store
-		// the ID of the managed environment in the database.
-		comparedTo.Destination.Name = managedEnvID
+		// 3) If the Argo CD cluster secret name is a real cluster secret that exists in the Argo CD namespace, then use
+		// the managed environment database ID that we extracted, and store it in comparedTo.
+		if !isLocal {
+			if managedEnvID == "" {
+				return "", fmt.Errorf("managed environment id was empty for '%s'", argoCDAppParam.Name)
+			}
+
+			// Rather than storing the name of the Argo CD cluster secret in the .Destination.Name field, we instead store
+			// the ID of the managed environment in the database.
+			comparedTo.Destination.Name = managedEnvID
+		}
 	}
 
 	// 4) Convert the fauxArgoCD object into JSON

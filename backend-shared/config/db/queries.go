@@ -220,6 +220,7 @@ type ApplicationScopedQueries interface {
 
 	GetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment) error
 	GetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance) error
+	GetAPICRForDatabaseUID(ctx context.Context, apiCRToDatabaseMapping *APICRToDatabaseMapping) error
 }
 
 type CloseableQueries interface {

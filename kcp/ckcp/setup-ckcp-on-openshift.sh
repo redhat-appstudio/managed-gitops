@@ -9,6 +9,7 @@ SCRIPT_DIR="$(
 )"
 
 export GITOPS_IN_KCP="true"
+export DISABLE_KCP_VIRTUAL_WORKSPACE="true"
 
 ARGOCD_MANIFEST="$SCRIPT_DIR/../install-argocd.yaml"
 ARGOCD_NAMESPACE="gitops-service-argocd"
@@ -140,6 +141,7 @@ do
     count=`expr $count + 1`
     replicas=$(KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl get statefulsets argocd-application-controller -n $ARGOCD_NAMESPACE -o jsonpath='{.spec.replicas}')
     ready_replicas=$(KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl get statefulsets argocd-application-controller -n $ARGOCD_NAMESPACE -o jsonpath='{.status.readyReplicas}')
+
     if [ "$replicas" -eq "$ready_replicas" ]; then 
         break
     fi
@@ -180,6 +182,7 @@ test-gitops-service-e2e-in-kcp() {
   cd ${SCRIPT_DIR}/../../
   ./delete-dev-env.sh
   make devenv-docker
+  kubectl create ns kube-system || true
   make start-e2e &
   make test-e2e
 }
@@ -189,5 +192,5 @@ test-gitops-service-e2e-in-kcp ${TMP_DIR} ${SCRIPT_DIR}
 
 # clean the tmp directory created for the local setup
 rm -rf ${TMP_DIR}
-
+cleanup
 

@@ -15,7 +15,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
@@ -76,7 +75,7 @@ func InstallServiceAccount(ctx context.Context, k8sClient client.Client, uuid st
 		return "", nil, fmt.Errorf("unable to create or update service account: %v", serviceAccountName)
 	}
 
-	if err := createOrUpdateClusterRoleAndRoleBinding(ctx, uuid, k8sClient, serviceAccountName, serviceAccountNS); err != nil {
+	if err := createOrUpdateClusterRoleAndRoleBinding(ctx, uuid, k8sClient, serviceAccountName, serviceAccountNS, log); err != nil {
 		return "", nil, fmt.Errorf("unable to create or update role and cluster role binding: %v", err)
 	}
 
@@ -93,7 +92,7 @@ func InstallServiceAccount(ctx context.Context, k8sClient client.Client, uuid st
 func getOrCreateServiceAccountBearerToken(ctx context.Context, k8sClient client.Client, serviceAccountName string,
 	serviceAccountNS string, log logr.Logger) (string, error) {
 
-	tokenSecret, err := createServiceAccountTokenSecret(ctx, k8sClient, serviceAccountName, serviceAccountNS)
+	tokenSecret, err := createServiceAccountTokenSecret(ctx, k8sClient, serviceAccountName, serviceAccountNS, log)
 	if err != nil {
 		return "", fmt.Errorf("failed to create a token secret for service account %s: %w", serviceAccountName, err)
 	}
@@ -117,50 +116,6 @@ func getOrCreateServiceAccountBearerToken(ctx context.Context, k8sClient client.
 
 }
 
-// GetServiceAccountBearerToken will attempt to get the provided service account until it
-// exists, iterate the secrets associated with it looking for one of type
-// kubernetes.io/service-account-token, and return it's token if found.
-func getServiceAccountBearerToken(ctx context.Context, k8sClient client.Client, serviceAccountName string, serviceAccountNS string) (string, error) {
-
-	var serviceAccount *corev1.ServiceAccount
-	var secret *corev1.Secret
-	if err := wait.Poll(500*time.Millisecond, 30*time.Second, func() (bool, error) {
-
-		serviceAccount := &corev1.ServiceAccount{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      serviceAccountName,
-				Namespace: serviceAccountNS,
-			},
-		}
-		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(serviceAccount), serviceAccount); err != nil {
-			return false, err
-		}
-
-		innerSecret, err := getServiceAccountTokenSecret(ctx, k8sClient, serviceAccount)
-		if err != nil {
-			return false, err
-		}
-		if innerSecret != nil {
-			secret = innerSecret
-			return true, nil
-		}
-
-		return false, nil
-	}); err != nil {
-		return "", fmt.Errorf("failed to wait for service account secret: %w", err)
-	}
-
-	if secret == nil {
-		return "", fmt.Errorf("unable to locate service account secret")
-	}
-
-	token, ok := secret.Data["token"]
-	if !ok {
-		return "", fmt.Errorf("secret %q for service account %q did not have a token", secret.Name, serviceAccount)
-	}
-	return string(token), nil
-}
-
 func getServiceAccountTokenSecret(ctx context.Context, k8sClient client.Client, serviceAccount *corev1.ServiceAccount) (*corev1.Secret, error) {
 	for _, oRef := range serviceAccount.Secrets {
 		var getErr error
@@ -182,8 +137,7 @@ func getServiceAccountTokenSecret(ctx context.Context, k8sClient client.Client, 
 	return nil, nil
 }
 
-func createServiceAccountTokenSecret(ctx context.Context, k8sClient client.Client, serviceAccountName, serviceAccountNS string) (*corev1.Secret, error) {
-	log := log.FromContext(ctx)
+func createServiceAccountTokenSecret(ctx context.Context, k8sClient client.Client, serviceAccountName, serviceAccountNS string, log logr.Logger) (*corev1.Secret, error) {
 	tokenSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: serviceAccountName,
@@ -202,34 +156,8 @@ func createServiceAccountTokenSecret(ctx context.Context, k8sClient client.Clien
 	return tokenSecret, nil
 }
 
-func addSecretToServiceAccount(ctx context.Context, k8sClient client.Client, secret *corev1.Secret, serviceAccountName, serviceAccountNS string) error {
-	log := log.FromContext(ctx)
-	serviceAccount := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      serviceAccountName,
-			Namespace: serviceAccountNS,
-		},
-	}
-	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(serviceAccount), serviceAccount); err != nil {
-		return err
-	}
-
-	serviceAccount.Secrets = append(serviceAccount.Secrets, corev1.ObjectReference{
-		Namespace: secret.Namespace,
-		Name:      secret.Name,
-	})
-
-	if err := k8sClient.Update(ctx, serviceAccount); err != nil {
-		return err
-	} else {
-		LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, ResourceModified, log)
-		return nil
-	}
-}
-
 func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k8sClient client.Client,
-	serviceAccountName string, serviceAccountNamespace string) error {
-	log := log.FromContext(ctx)
+	serviceAccountName string, serviceAccountNamespace string, log logr.Logger) error {
 
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{

@@ -106,7 +106,7 @@ stringData:
     clusters:
     - name: default-cluster
       cluster:
-        certificate-authority-data: ${ca}
+        insecure-skip-tls-verify: true
         server: ${server}
     contexts:
     - name: default-context

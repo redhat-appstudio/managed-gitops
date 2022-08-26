@@ -54,7 +54,8 @@ type GitOpsDeploymentManagedEnvironmentReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.2/pkg/reconcile
 func (r *GitOpsDeploymentManagedEnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	if req.ClusterName != "" {
+
+	if req.ClusterName != "" && !sharedutil.IsKCPVirtualWorkspaceDisabled() {
 		ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(req.ClusterName))
 	}
 	_ = log.FromContext(ctx)

@@ -19,7 +19,7 @@ package managedgitops
 import (
 	"context"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -28,6 +28,7 @@ import (
 
 	"github.com/kcp-dev/logicalcluster/v2"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop"
 )
@@ -49,12 +50,13 @@ type GitOpsDeploymentRepositoryCredentialReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.9.2/pkg/reconcile
 func (r *GitOpsDeploymentRepositoryCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	if req.ClusterName != "" {
+
+	if req.ClusterName != "" && !sharedutil.IsKCPVirtualWorkspaceDisabled() {
 		ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(req.ClusterName))
 	}
 	_ = log.FromContext(ctx)
 
-	namespace := v1.Namespace{
+	namespace := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: req.Namespace,
 		},

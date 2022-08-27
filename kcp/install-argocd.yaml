@@ -9773,14 +9773,6 @@ spec:
         ports:
         - containerPort: 6379
           protocol: TCP
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - all
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 999
       serviceAccountName: argocd-redis
 ---
 apiVersion: apps/v1

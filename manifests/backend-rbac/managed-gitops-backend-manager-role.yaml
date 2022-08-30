@@ -71,15 +71,30 @@ rules:
 - apiGroups:
   - ""
   resources:
+    - secrets
     - pods
     - services
     - endpoints
     - persistentvolumeclaims
-    - events
-    - configmaps
     - secrets
   verbs:
-    - '*'
+    - get
+    - list
+    - watch
+- apiGroups:
+  - ""
+  resources:
+    - configmaps
+    - events
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - delete
+    - patch
+    - update
+
 - apiGroups:
   - argoproj.io
   resources:

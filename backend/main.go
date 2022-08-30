@@ -44,35 +44,21 @@ import (
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 
-	"github.com/prometheus/client_golang/prometheus"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	managedgitopscontrollers "github.com/redhat-appstudio/managed-gitops/backend/controllers/managed-gitops"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop"
+	"github.com/redhat-appstudio/managed-gitops/backend/metrics"
 	"github.com/redhat-appstudio/managed-gitops/backend/routes"
-	"sigs.k8s.io/controller-runtime/pkg/metrics"
+
+	metric "sigs.k8s.io/controller-runtime/pkg/metrics"
 	//+kubebuilder:scaffold:imports
 )
 
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
-
-	Gitopsdepl = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Name:        "gitopsDeployments",
-			Help:        "Number of gitopsDeployments proccessed",
-			ConstLabels: map[string]string{"gitopsDeployment": "success"},
-		},
-	)
-	GitopsdeplFailures = prometheus.NewGauge(
-		prometheus.GaugeOpts{
-			Name:        "gitopsDeployments_failures",
-			Help:        "Number of failed gitopsDeployments",
-			ConstLabels: map[string]string{"gitopsDeployment": "fail"},
-		},
-	)
 )
 
 func init() {
@@ -80,7 +66,7 @@ func init() {
 
 	utilruntime.Must(managedgitopsv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
-	metrics.Registry.MustRegister(Gitopsdepl, GitopsdeplFailures)
+	metric.Registry.MustRegister(metrics.Gitopsdepl, metrics.GitopsdeplFailures)
 }
 
 func main() {

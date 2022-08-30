@@ -13,6 +13,7 @@ import (
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend/metrics"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -147,8 +148,8 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 
 					_, clientError := getMatchingGitOpsDeployment(ctx, newEvent.Request.Name, newEvent.Request.Namespace, newEvent.Client)
 					if clientError != nil {
-						Gitopsdepl.Dec()
-						GitopsdeplFailures.Inc()
+						metrics.Gitopsdepl.Dec()
+						metrics.GitopsdeplFailures.Inc()
 						return fmt.Errorf("couldn't fetch the GitOpsDeployment instance: %v", clientError)
 					}
 

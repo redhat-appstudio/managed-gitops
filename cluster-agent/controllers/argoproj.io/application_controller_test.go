@@ -2,10 +2,12 @@ package argoprojio
 
 import (
 	"context"
+	"encoding/json"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
@@ -14,8 +16,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
@@ -460,13 +460,18 @@ var _ = Describe("Application Controller", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 
-			applicationStateDB := db.ApplicationState{
+			applicationStateDB := &db.ApplicationState{
 				Applicationstate_application_id: applicationDB.Application_id,
 			}
 
-			By("Verify Application is not present in database")
-			err = reconciler.DB.GetApplicationById(ctx, applicationDB)
+			By("Create Application in Database")
+			err = reconciler.DB.CreateApplication(ctx, applicationDB)
+			Expect(err).To(BeNil())
+
+			By("Verify ApplicationState is not present in database")
+			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateDB)
 			Expect(err).ToNot(BeNil())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 			By("Create a new ArgoCD Application")
 			err = reconciler.Create(ctx, guestbookApp)
@@ -477,14 +482,28 @@ var _ = Describe("Application Controller", func() {
 			Expect(err).To(BeNil())
 			Expect(result).ToNot(BeNil())
 
-			err = reconciler.DB.GetApplicationStateById(ctx, &applicationStateDB)
-			Expect(err).ToNot(BeNil())
-			By("Verify ReconciledState is stored in db")
+			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateDB)
 			Expect(applicationStateDB.ReconciledState).ToNot(BeNil())
+			Expect(err).To(BeNil())
+
+			By("Verify ReconciledState is stored in db")
+			comparedTo := fauxargocd.FauxComparedTo{}
+
+			err = json.Unmarshal([]byte(applicationStateDB.ReconciledState), &comparedTo)
+			Expect(err).To(BeNil())
+
+			reconciledStateObj, err := convertReconsiledStateStringToObject(applicationStateDB.ReconciledState)
+			Expect(err).To(BeNil())
+
+			// Checking for new values in database object
+			Expect(reconciledStateObj.Source.Path).To(Equal(guestbookApp.Status.Sync.ComparedTo.Source.Path))
+			Expect(reconciledStateObj.Source.RepoURL).To(Equal(guestbookApp.Status.Sync.ComparedTo.Source.RepoURL))
+			Expect(reconciledStateObj.Source.TargetRevision).To(Equal(guestbookApp.Status.Sync.ComparedTo.Source.TargetRevision))
+			Expect(reconciledStateObj.Destination.Namespace).To(Equal(guestbookApp.Status.Sync.ComparedTo.Destination.Namespace))
 
 		})
 
-		It("Test to check whether existing value in reconciled state updated to new value ad comparedTo field of ArgoCD Application changes", func() {
+		It("Test to check whether existing value in reconciled state updated to new value when comparedTo field of ArgoCD Application changes", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
@@ -501,9 +520,11 @@ var _ = Describe("Application Controller", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 
-			reconciledStateString, _, err := dummyApplicationComparedToField()
+			reconciledStateString, reconciledObj, err := dummyApplicationComparedToField()
+			Expect(reconciledObj.Destination.Namespace).ToNot(Equal(guestbookApp.Status.Sync.ComparedTo.Destination.Namespace))
 			Expect(err).To(BeNil())
 
+			// applicationState which already exists in database
 			applicationState := &db.ApplicationState{
 				Applicationstate_application_id: applicationDB.Application_id,
 				Health:                          "Healthy",
@@ -536,9 +557,14 @@ var _ = Describe("Application Controller", func() {
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateget)
 			Expect(err).To(BeNil())
 
-			By("Checking for sync status to verify whether Application CR and database is in sync with each other and it indicates that reconciledState is updated")
-			Expect(applicationStateget.Sync_Status).To(Equal("Synced"))
+			reconciledStateObj, err := convertReconsiledStateStringToObject(applicationStateget.ReconciledState)
+			Expect(err).To(BeNil())
 
+			// Checking for new values in database object
+			Expect(reconciledStateObj.Source.Path).To(Equal(guestbookApp.Status.Sync.ComparedTo.Source.Path))
+			Expect(reconciledStateObj.Source.RepoURL).To(Equal(guestbookApp.Status.Sync.ComparedTo.Source.RepoURL))
+			Expect(reconciledStateObj.Source.TargetRevision).To(Equal(guestbookApp.Status.Sync.ComparedTo.Source.TargetRevision))
+			Expect(reconciledStateObj.Destination.Namespace).To(Equal(guestbookApp.Status.Sync.ComparedTo.Destination.Namespace))
 		})
 	})
 
@@ -972,4 +998,15 @@ func dummyApplicationComparedToField() (string, fauxargocd.FauxComparedTo, error
 	}
 
 	return string(fauxcomparedToBytes), fauxcomparedTo, nil
+}
+
+// Unmarshal the reconciledState stored in db
+func convertReconsiledStateStringToObject(reconciledState string) (fauxargocd.FauxComparedTo, error) {
+	comparedTo := fauxargocd.FauxComparedTo{}
+
+	err := json.Unmarshal([]byte(reconciledState), &comparedTo)
+	if err != nil {
+		return comparedTo, err
+	}
+	return comparedTo, nil
 }

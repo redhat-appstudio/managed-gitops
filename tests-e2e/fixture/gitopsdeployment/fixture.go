@@ -198,6 +198,7 @@ func HaveConditions(conditions []managedgitopsv1alpha1.GitOpsDeploymentCondition
 
 }
 
+//  HaveReconciledState checks the GitOpsDeployment resource's '.status.reconciledState' field, to ensure the expected value matches the actual value.
 func HaveReconciledState(reconciledState managedgitopsv1alpha1.ReconciledState) matcher.GomegaMatcher {
 
 	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
@@ -215,7 +216,7 @@ func HaveReconciledState(reconciledState managedgitopsv1alpha1.ReconciledState) 
 		}
 
 		res := reflect.DeepEqual(reconciledState, gitopsDepl.Status.ReconciledState)
-		fmt.Println("HaveSource:", res, "/ Expected:", reconciledState, "/ Actual:", gitopsDepl.Status.ReconciledState)
+		fmt.Println("HaveReconciledState:", res, "/ Expected:", reconciledState, "/ Actual:", gitopsDepl.Status.ReconciledState)
 
 		return res
 	}, BeTrue())

@@ -155,6 +155,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			gitOpsDeploymentResource := buildGitOpsDeploymentResource(name,
 				repoURL, "environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+			gitOpsDeploymentResource.Spec.Destination.Environment = ""
+			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
 			err := k8s.Create(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
@@ -178,18 +180,14 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			expectedResourceStatusList = append(expectedResourceStatusList, getResourceStatusList_GitOpsRepositoryTemplateRepo("component-a")...)
 			expectedResourceStatusList = append(expectedResourceStatusList, getResourceStatusList_GitOpsRepositoryTemplateRepo("component-b")...)
 
-			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
-				SatisfyAll(
-					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
-					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
-					gitopsDeplFixture.HaveResources(expectedResourceStatusList),
-				),
-			)
-
 			expectedReconciledStateField := managedgitopsv1alpha1.ReconciledState{
 				Source: managedgitopsv1alpha1.GitOpsDeploymentSource{
-					RepoURL: gitOpsDeploymentResource.Spec.Source.RepoURL,
 					Path:    gitOpsDeploymentResource.Spec.Source.Path,
+					RepoURL: gitOpsDeploymentResource.Spec.Source.RepoURL,
+				},
+				Destination: managedgitopsv1alpha1.GitOpsDeploymentDestination{
+					Name:      gitOpsDeploymentResource.Spec.Destination.Environment,
+					Namespace: gitOpsDeploymentResource.Spec.Destination.Namespace,
 				},
 			}
 
@@ -217,6 +215,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			gitOpsDeploymentResource := buildGitOpsDeploymentResource(name,
 				repoURL, "environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+			gitOpsDeploymentResource.Spec.Destination.Environment = ""
+			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
 			err := k8s.Create(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
@@ -246,6 +246,10 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				Source: managedgitopsv1alpha1.GitOpsDeploymentSource{
 					RepoURL: gitOpsDeploymentResource.Spec.Source.RepoURL,
 					Path:    gitOpsDeploymentResource.Spec.Source.Path,
+				},
+				Destination: managedgitopsv1alpha1.GitOpsDeploymentDestination{
+					Name:      gitOpsDeploymentResource.Spec.Destination.Environment,
+					Namespace: gitOpsDeploymentResource.Spec.Destination.Namespace,
 				},
 			}
 
@@ -380,6 +384,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			gitOpsDeploymentResource := buildTargetRevisionGitOpsDeploymentResource("gitops-depl-test",
 				"https://github.com/managed-gitops-test-data/deployment-permutations-a", "pathB", "branchA",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+			gitOpsDeploymentResource.Spec.Destination.Environment = ""
+			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
 			err := k8s.Create(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
@@ -390,11 +396,15 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.Get(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
-
 			expectedReconciledStateField := managedgitopsv1alpha1.ReconciledState{
 				Source: managedgitopsv1alpha1.GitOpsDeploymentSource{
-					RepoURL: gitOpsDeploymentResource.Spec.Source.RepoURL,
 					Path:    gitOpsDeploymentResource.Spec.Source.Path,
+					RepoURL: gitOpsDeploymentResource.Spec.Source.RepoURL,
+					Branch:  gitOpsDeploymentResource.Spec.Source.TargetRevision,
+				},
+				Destination: managedgitopsv1alpha1.GitOpsDeploymentDestination{
+					Name:      gitOpsDeploymentResource.Spec.Destination.Environment,
+					Namespace: gitOpsDeploymentResource.Spec.Destination.Namespace,
 				},
 			}
 
@@ -423,6 +433,18 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			expectedResourceStatusList := createResourceStatusListFunction_deploymentPermutations()
 			expectedResourceStatusList = append(expectedResourceStatusList,
 				getResourceStatusList_deploymentPermutations("deployment-permutations-a-brancha-pathc")...)
+
+			expectedReconciledStateField = managedgitopsv1alpha1.ReconciledState{
+				Source: managedgitopsv1alpha1.GitOpsDeploymentSource{
+					Path:    gitOpsDeploymentResource.Spec.Source.Path,
+					RepoURL: gitOpsDeploymentResource.Spec.Source.RepoURL,
+					Branch:  gitOpsDeploymentResource.Spec.Source.TargetRevision,
+				},
+				Destination: managedgitopsv1alpha1.GitOpsDeploymentDestination{
+					Name:      gitOpsDeploymentResource.Spec.Destination.Environment,
+					Namespace: gitOpsDeploymentResource.Spec.Destination.Namespace,
+				},
+			}
 
 			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(

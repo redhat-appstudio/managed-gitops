@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -21,6 +22,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend/condition"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	goyaml "gopkg.in/yaml.v2"
+
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -743,12 +745,15 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 		return err
 	}
 
+	// If the `comparedTo` value from Argo CD has a non-empty destination name field, then retrieve the corresponding `GitOpsDeploymentManagedEnvironment` resource that has that name,
+	// and include the name of that resource in what we return in this API.
 	if comparedTo.Destination.Name != "" {
 		apiCRToDBMapping := &db.APICRToDatabaseMapping{
 			APIResourceType: db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentManagedEnvironment,
 			DBRelationType:  db.APICRToDatabaseMapping_DBRelationType_ManagedEnvironment,
 			DBRelationKey:   comparedTo.Destination.Name,
 		}
+
 		err = dbQueries.GetAPICRForDatabaseUID(ctx, apiCRToDBMapping)
 		if err != nil {
 			comparedTo.Destination.Name = ""
@@ -975,10 +980,13 @@ func decompressResourceData(resourceData []byte) ([]managedgitopsv1alpha1.Resour
 }
 
 func retrieveComparedToFieldInApplicationState(reconciledState string) (fauxargocd.FauxComparedTo, error) {
-	var comparedTo fauxargocd.FauxComparedTo
-	err := goyaml.Unmarshal([]byte(reconciledState), &comparedTo)
+	comparedTo := &fauxargocd.FauxComparedTo{}
+
+	// converting reconciledState string to lowercase because unmarshal struct is case-sensitive
+	err := json.Unmarshal([]byte(reconciledState), comparedTo)
 	if err != nil {
-		return comparedTo, fmt.Errorf("unable to Unmarshal comparedTo field: %v", err)
+		return *comparedTo, fmt.Errorf("unable to Unmarshal comparedTo field: %v", err)
 	}
-	return comparedTo, err
+
+	return *comparedTo, err
 }

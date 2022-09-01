@@ -86,6 +86,10 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 					RepoURL: gitOpsDeploymentResource.Spec.Source.RepoURL,
 					Path:    gitOpsDeploymentResource.Spec.Source.Path,
 				},
+				Destination: managedgitopsv1alpha1.GitOpsDeploymentDestination{
+					Name:      gitOpsDeploymentResource.Spec.Destination.Environment,
+					Namespace: gitOpsDeploymentResource.Spec.Destination.Namespace,
+				},
 			}
 
 			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(

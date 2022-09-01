@@ -2,17 +2,18 @@ package metrics
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 var (
-	Gitopsdepl = prometheus.NewGauge(
+	Gitopsdepl = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Name:        "active_gitopsDeployments",
 			Help:        "Total Number of gitopsDeployments active",
 			ConstLabels: map[string]string{"gitopsDeployment": "success"},
 		},
 	)
-	GitopsdeplFailures = prometheus.NewGauge(
+	GitopsdeplFailures = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Name:        "gitopsDeployments_failures",
 			Help:        "Total Number of failed gitopsDeployments",
@@ -20,3 +21,9 @@ var (
 		},
 	)
 )
+
+// func init() {
+// 	r := prometheus.NewRegistry()
+// 	r.MustRegister(Gitopsdepl)
+// 	r.MustRegister(GitopsdeplFailures)
+// }

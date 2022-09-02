@@ -51,7 +51,7 @@ func terminateOperation(ctx context.Context, appName string, argocdNamespace cor
 
 	expireTime := time.Now().Add(expireDuration)
 
-	backoff := sharedutil.ExponentialBackoff{Factor: 2, Min: time.Duration(100 * time.Microsecond), Max: time.Duration(5 * time.Second), Jitter: true}
+	backoff := sharedutil.ExponentialBackoff{Factor: 2, Min: time.Duration(500 * time.Microsecond), Max: time.Duration(5 * time.Second), Jitter: true}
 	for {
 
 		if time.Now().After(expireTime) {

@@ -185,10 +185,27 @@ test-gitops-service-e2e-in-kcp() {
   kubectl create ns kube-system || true
   make start-e2e &
   make test-e2e
+} 
+
+test-gitops-service-e2e-in-kcp-in-ci() {
+  
+  export KUBECONFIG=${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig
+  printf "The Kubeconfig being used for this is:" $KUBECONFIG
+  cd ${SCRIPT_DIR}/../../
+  make devenv-k8s
+  kubectl create ns kube-system || true
+  make start-e2e &
+  make test-e2e
 }
 
-test-gitops-service-e2e-in-kcp ${TMP_DIR} ${SCRIPT_DIR}
-
+if [[ $OPENSHIFT_CI != "" ]]
+then
+    echo "running tests in openshift ci mode"
+    test-gitops-service-e2e-in-kcp-in-ci ${TMP_DIR} ${SCRIPT_DIR}
+else
+    echo "running tests in non openshift-ci mode"
+    test-gitops-service-e2e-in-kcp ${TMP_DIR} ${SCRIPT_DIR}
+fi
 
 # clean the tmp directory created for the local setup
 rm -rf ${TMP_DIR}

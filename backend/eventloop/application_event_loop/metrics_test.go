@@ -100,9 +100,11 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 
 			By("passing the invalid GitOpsDeployment into application event reconciler, and expecting an error")
 
-			_, _, _, _, err = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			var message deploymentModifiedResult
+			_, _, _, message, err = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(BeNil())
+			Expect(message).To(Equal(deploymentModifiedResult_Created))
 
 			newTotalNumberOfGitOpsDeploymentMetrics := testutil.ToFloat64(metrics.Gitopsdepl)
 			newNumberOfGitOpsDeploymentsInErrorState := testutil.ToFloat64(metrics.GitopsdeplFailures)

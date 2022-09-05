@@ -25,7 +25,7 @@ import (
 
 var _ = Describe("Preprocess Event Loop Test", func() {
 
-	Context("Preprocess event loop responds to GitOpsDeployment channel events", func() {
+	FContext("Preprocess event loop responds to GitOpsDeployment channel events", func() {
 
 		var err error
 		var ctx context.Context
@@ -54,8 +54,6 @@ var _ = Describe("Preprocess Event Loop Test", func() {
 			Expect(err).To(BeNil())
 
 			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(namespace, argocdNamespace, kubesystemNamespace).Build()
-
-			err = nil
 
 		})
 

@@ -25,7 +25,7 @@ import (
 
 var _ = Describe("Preprocess Event Loop Test", func() {
 
-	FContext("Preprocess event loop responds to GitOpsDeployment channel events", func() {
+	Context("Preprocess event loop responds to GitOpsDeployment channel events", func() {
 
 		var err error
 		var ctx context.Context

@@ -21,19 +21,19 @@ import (
 //
 // Imagine that we are implementing a task that deletes all the objects in a namespace.
 //
-// taskRetryLoop := NewTaskRetry("")
+// taskRetryLoop := NewTaskRetryLoop("(...)")
 //
 // deleteAllObjs := DeleteAllObjectsInNamespaceTask{}
 //
-// // 1) This will cause the 'DeleteAllObjects' task to start running, on namespace a
-// taskRetryLoopAddTaskIfNotPresent("delete-namespace-A", deleteAllObjs, ...)
+// // 1) This will cause the 'DeleteAllObjects' task to start running, on namespace 'a'
+// taskRetryLoop.AddTaskIfNotPresent("delete-namespace-A", deleteAllObjs, ...)
 //
-// // 2) This will cause the 'DeleteAllObjects' task to start running, on namespace b
-// taskRetryLoopAddTaskIfNotPresent("delete-namespace-B", deleteAllObjs, ...)
+// // 2) This will cause the 'DeleteAllObjects' task to start running, on namespace 'b'
+// taskRetryLoop.AddTaskIfNotPresent("delete-namespace-B", deleteAllObjs, ...)
 //
-// Both the tasks in step 1 and step 2 will run concurrently, because the task name if
+// Both the tasks in step 1 and step 2 will run concurrently, because the task name is
 // different ("delete-namespace-A" vs "delete-namespace-B"). If the task name was the
-// same, only one task would be allows to run concurrently.
+// same, only one task would be allowed to run concurrently.
 //
 // In order to run code as a task, the calling function must implement the 'RetryableTask' interface.
 //
@@ -46,13 +46,13 @@ import (
 // deleteAllObjs := DeleteAllObjectsInNamespaceTask{}
 //
 // // 1) This will cause the 'DeleteAllObjects' task to start running, on namespace a
-// AddTaskIfNotPresent("delete-namespace-A", deleteAllObjs, ...)
+// taskRetryLoop.AddTaskIfNotPresent("delete-namespace-A", deleteAllObjs, ...)
 //
 // // 2) This will cause the 'DeleteAllObjects' task to start running, on namespace B
-// AddTaskIfNotPresent("delete-namespace-B", deleteAllObjs, ...)
+// taskRetryLoop.AddTaskIfNotPresent("delete-namespace-B", deleteAllObjs, ...)
 
 // // 3) But what if AddTaskIfNotPresent is called on namespace A, before the task has finished with namespace A?
-// AddTaskIfNotPresent("delete-namespace-A", deleteAllObjs, ...)
+// taskRetryLoop.AddTaskIfNotPresent("delete-namespace-A", deleteAllObjs, ...)
 //
 // In this case, if 'delete-namespace-A' from step 1 has not started yet, then the task from step 3) will
 // not run (it will be de-duplicated/ignored).

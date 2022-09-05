@@ -1,6 +1,8 @@
 package metrics
 
 import (
+	metric "sigs.k8s.io/controller-runtime/pkg/metrics"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -22,8 +24,6 @@ var (
 	)
 )
 
-// func init() {
-// 	r := prometheus.NewRegistry()
-// 	r.MustRegister(Gitopsdepl)
-// 	r.MustRegister(GitopsdeplFailures)
-// }
+func Callinit() {
+	metric.Registry.MustRegister(Gitopsdepl, GitopsdeplFailures)
+}

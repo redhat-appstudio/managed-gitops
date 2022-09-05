@@ -113,7 +113,8 @@ func operationEventLoopRouter(input chan operationEventLoopEvent) {
 				return nil
 			}
 
-			// Only concurrently process one Application/SyncOperation at a time
+			// If multiple operations exist that target the same Application/SyncOperation, we should only process those
+			// operations one at a time (i.e. non-concurrently)
 			mapKey = dbOperation.Instance_id + "-" + string(dbOperation.Resource_type) + "-" + dbOperation.Resource_id
 
 			return nil

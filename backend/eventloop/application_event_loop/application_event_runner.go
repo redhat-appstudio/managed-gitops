@@ -148,7 +148,6 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 
 					_, clientError := getMatchingGitOpsDeployment(ctx, newEvent.Request.Name, newEvent.Request.Namespace, newEvent.Client)
 					if clientError != nil {
-						metrics.Gitopsdepl.Dec()
 						metrics.GitopsdeplFailures.Inc()
 						return fmt.Errorf("couldn't fetch the GitOpsDeployment instance: %v", clientError)
 					}

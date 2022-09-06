@@ -18,3 +18,6 @@ kubectl apply -f postgresql-staging-secret.yaml
 ```
 
 The installation yaml could also be checked into a GitOps respository, subject to careful handling of credentials.
+
+
+Note: kcp (till release-0.7) has no knowledge of default protocols, and hence we need to explicitly define them. In this case, make sure to run `.addProtocol.sh` if any changes are made to the postgres-staging.yaml. 

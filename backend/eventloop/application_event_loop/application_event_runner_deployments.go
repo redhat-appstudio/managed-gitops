@@ -982,7 +982,6 @@ func decompressResourceData(resourceData []byte) ([]managedgitopsv1alpha1.Resour
 func retrieveComparedToFieldInApplicationState(reconciledState string) (fauxargocd.FauxComparedTo, error) {
 	comparedTo := &fauxargocd.FauxComparedTo{}
 
-	// converting reconciledState string to lowercase because unmarshal struct is case-sensitive
 	err := json.Unmarshal([]byte(reconciledState), comparedTo)
 	if err != nil {
 		return *comparedTo, fmt.Errorf("unable to Unmarshal comparedTo field: %v", err)

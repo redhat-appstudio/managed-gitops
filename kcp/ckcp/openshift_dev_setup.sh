@@ -8,17 +8,25 @@ SCRIPT_DIR="$(
   pwd
 )"
 
+# shellcheck source=ckcp/hack/util/update-git-reference.sh
+source "$SCRIPT_DIR/hack/util/update-git-reference.sh"
+
+# shellcheck source=images/cluster-setup/bin/utils.sh
+source "$SCRIPT_DIR/../images/cluster-setup/bin/utils.sh"
+
 GITOPS_DIR="$(dirname "$SCRIPT_DIR")/gitops"
 CKCP_DIR="$(dirname "$SCRIPT_DIR")/ckcp"
+CONFIG="$CKCP_DIR/config.yaml"
+
 KUBECONFIG=${KUBECONFIG:-$HOME/.kube/config}
-CR_TO_SYNC=(
-            deployments.apps
-            services
-            ingresses.networking.k8s.io
-            networkpolicies.networking.k8s.io
-            statefulsets.apps
-            routes.route.openshift.io
-          )
+# CR_TO_SYNC=(
+#             deployments.apps
+#             services
+#             ingresses.networking.k8s.io
+#             networkpolicies.networking.k8s.io
+#             statefulsets.apps
+#             routes.route.openshift.io
+#           )
 
 usage() {
   TMPDIR=$(dirname "$(mktemp -u)")
@@ -73,9 +81,48 @@ parse_args() {
   done
 }
 
+# Checks if a binary is present on the local system
+precheck_binary() {
+  for binary in "$@"; do
+    command -v "$binary" >/dev/null 2>&1 || {
+      echo >&2 "openshift_dev_setup.sh requires '$binary' command-line utility to be installed on your local machine. Aborting..."
+      exit 1
+    }
+  done
+}
+
 init() {
-  APP_LIST="openshift-gitops compute ckcp register-compute"
-  cluster_type="openshift"
+  APP_LIST=(
+            "openshift-gitops"
+            "cert-manager"
+            "ckcp"
+           )
+
+  # get the list of APPS to be installed
+  read -ra APPS <<< "$(yq eval '.APPS | join(" ")' "$CONFIG")"
+  for app in  "${APPS[@]}"
+  do
+    APP_LIST+=("$app")
+  done
+
+  # get cluster type
+  cluster_type=$(yq '.CLUSTER_TYPE // "openshift"' "$CONFIG")
+
+  GIT_URL=$(yq '.GIT_URL // "https://github.com/openshift-pipelines/pipeline-service.git"' "$CONFIG")
+  GIT_REF=$(yq '.GIT_REF // "main"' "$CONFIG")
+
+  # get list of CRs to sync
+  read -ra CR_TO_SYNC <<< "$(yq eval '.CR_TO_SYNC | join(" ")' "$CONFIG")"
+  if (( "${#CR_TO_SYNC[@]}" <= 0 )); then
+    CR_TO_SYNC=(
+            "deployments.apps"
+            "services"
+            "ingresses.networking.k8s.io"
+            "networkpolicies.networking.k8s.io"
+            "statefulsets.apps"
+            "routes.route.openshift.io"
+            )
+  fi
 
   # Create SRE repository folder
   WORK_DIR="${WORK_DIR:-}"
@@ -127,13 +174,13 @@ install_openshift_gitops() {
   # Install the gitops operator
   #############################################################################
   echo -n "  - OpenShift-GitOps: "
-  kubectl apply -k "$CKCP_DIR/openshift-operators/$APP" >/dev/null 2>&1
+  kubectl apply -k "$CKCP_DIR/openshift-operators/$APP" >/dev/null
   echo "OK"
 
   #############################################################################
   # Wait for the URL to be available
   #############################################################################
-  echo -n "  - ArgoCD dashboard: "
+  echo -n "  - Argo CD dashboard: "
   test_cmd="kubectl get route/openshift-gitops-server --ignore-not-found -n $ns -o jsonpath={.spec.host}"
   ARGOCD_HOSTNAME="$(${test_cmd})"
   until curl --fail --insecure --output /dev/null --silent "https://$ARGOCD_HOSTNAME"; do
@@ -142,43 +189,40 @@ install_openshift_gitops() {
     ARGOCD_HOSTNAME="$(${test_cmd})"
   done
   echo "OK"
-  echo "  - ArgoCD URL: https://$ARGOCD_HOSTNAME"
+  echo "  - Argo CD URL: https://$ARGOCD_HOSTNAME"
 
   #############################################################################
   # Post install
   #############################################################################
-  # Log into ArgoCD
-  echo -n "  - ArgoCD Login: "
+  # Log into Argo CD
+  echo -n "  - Argo CD Login: "
   local argocd_password
   argocd_password="$(kubectl get secret openshift-gitops-cluster -n $ns -o jsonpath="{.data.admin\.password}" | base64 --decode)"
-  argocd login "$ARGOCD_HOSTNAME" --grpc-web --insecure --username admin --password "$argocd_password" >/dev/null 2>&1
+  argocd login "$ARGOCD_HOSTNAME" --grpc-web --insecure --username admin --password "$argocd_password" >/dev/null
   echo "OK"
 
   # Register the host cluster as pipeline-cluster
   local cluster_name="plnsvc"
-  echo -n "  - Register host cluster to ArgoCD as '$cluster_name': "
+  echo -n "  - Register host cluster to Argo CD as '$cluster_name': "
   if ! KUBECONFIG="$KUBECONFIG_MERGED" argocd cluster get "$cluster_name" >/dev/null 2>&1; then
-    argocd cluster add "$(yq e ".current-context" <"$KUBECONFIG")" --name="$cluster_name" --upsert --yes >/dev/null 2>&1
+    argocd cluster add "$(yq e ".current-context" <"$KUBECONFIG")" --name="$cluster_name" --upsert --yes >/dev/null
   fi
   echo "OK"
 }
 
+install_cert_manager(){
+  APP="cert-manager-operator"
+  echo "  - OpenShift-Cert-Manager: "
+  kubectl apply -f "$GITOPS_DIR/argocd/argo-apps/$APP.yaml" >/dev/null
+  check_cert_manager
+}
+
 check_cert_manager() {
-  # perform a dry-run create of a cert-manager
-  # Certificate resource in order to verify that CRDs are installed and all the
-  # required webhooks are reachable by the K8S API server.
-  echo -n "  - openshift-cert-manager-operator: "
-  until kubectl create -f "$CKCP_DIR/openshift/base/certs.yaml" --dry-run=client >/dev/null 2>&1; do
-    echo -n "."
-    sleep 5
-  done
-  echo "OK"
+  certManagerDeployments=("cert-manager" "cert-manager-cainjector" "cert-manager-webhook")
+  check_deployments "openshift-cert-manager" "${certManagerDeployments[@]}"
 }
 
 install_ckcp() {
-  # Install cert manager operator
-  check_cert_manager
-
   APP="ckcp"
 
   local ns="$APP"
@@ -227,9 +271,18 @@ patches:
         value: $ckcp_route " >>"$ckcp_temp_dir/kustomization.yaml"
 
   echo -n "  - kcp $kcp_version: "
-  kubectl apply -k "$ckcp_temp_dir" >/dev/null 2>&1
-  # Check if ckcp pod status is Ready
-  kubectl wait --for=condition=Ready -n $ns pod -l=app=kcp-in-a-pod --timeout=90s >/dev/null 2>&1
+  # Deploy ckcp until all resources are successfully appied to OCP cluster 
+  local i=0
+  while ! error_msg=$(kubectl apply -k "$ckcp_temp_dir" 2>&1 1>/dev/null); do
+    sleep 10
+    i=$((i+1))
+    if [ $i -gt 12 ]; then
+      printf "\n Failed to deploy ckcp \n"
+      exit_error "$error_msg"
+    fi
+  done
+   # Check if ckcp pod status is Ready
+  kubectl wait --for=condition=Ready -n $ns pod -l=app=kcp-in-a-pod --timeout=90s >/dev/null
   # Clean up kustomize temp dir
   rm -rf "$ckcp_temp_dir"
 
@@ -244,7 +297,7 @@ patches:
     echo -n "."
     sleep 5
   done
-  kubectl cp "$ns/$podname:/etc/kcp/config/admin.kubeconfig" "$KUBECONFIG_KCP" >/dev/null 2>&1
+  kubectl cp "$ns/$podname:/etc/kcp/config/admin.kubeconfig" "$KUBECONFIG_KCP" >/dev/null
   echo "OK"
 
   # Check if external ip is assigned and replace kcp's external IP in the kubeconfig file
@@ -262,24 +315,28 @@ patches:
   done
   KUBECONFIG="$KUBECONFIG_KCP" kubectl kcp workspace use "$ws_name"
 
-  echo "  - Setup kcp access:"
+ echo "  - Setup kcp access:"
   "$SCRIPT_DIR/../images/access-setup/content/bin/setup_kcp.sh" \
     --kubeconfig "$KUBECONFIG_KCP" \
     --kcp-org "$kcp_org" \
     --kcp-workspace "$kcp_workspace" \
-    --work-dir "$WORK_DIR"
+    --work-dir "$WORK_DIR" \
+    --kustomization "$GIT_URL/gitops/kcp/pac-manager?ref=$GIT_REF"
   KUBECONFIG_KCP="$WORK_DIR/credentials/kubeconfig/kcp/ckcp-ckcp.${ws_name}.${kcp_workspace}.kubeconfig"
   cp $WORK_DIR/credentials/kubeconfig/kcp/ckcp-ckcp.${ws_name}.${kcp_workspace}.kubeconfig ${TMP_DIR}
 }
 
-install_compute() {
+install_pipeline_service() {
   echo "  - Setup compute access:"
   "$SCRIPT_DIR/../images/access-setup/content/bin/setup_compute.sh" \
     --kubeconfig "$KUBECONFIG" \
-    --work-dir "$WORK_DIR"
+    --work-dir "$WORK_DIR" \
+    --kustomization "$GIT_URL/gitops/compute/pac-manager?ref=$GIT_REF" \
+    --git-remote-url "$GIT_URL" \
+    --git-remote-ref "$GIT_REF"
 
   echo "  - Deploy compute:"
-  "$SCRIPT_DIR/../images/cluster-setup/install.sh" --workspace-dir "$WORK_DIR"
+  "$SCRIPT_DIR/../images/cluster-setup/bin/install.sh" --workspace-dir "$WORK_DIR"
 
   echo "  - Install Pipelines as Code:"
   # Passing dummy values to the parameters of the pac/setup.sh script
@@ -290,7 +347,7 @@ install_compute() {
 
 }
 
-install_register_compute() {
+register_compute() {
   echo "  - Register compute to KCP"
   "$(dirname "$SCRIPT_DIR")/images/kcp-registrar/register.sh" \
     --kcp-org "root:default" \
@@ -331,14 +388,16 @@ check_cr_sync() {
 
 main() {
   parse_args "$@"
+  precheck_binary "kubectl" "yq" "curl" "argocd"
   init
   precheck
   check_cluster_role
-  for APP in $APP_LIST; do
+  for APP in "${APP_LIST[@]}"; do
     echo "[$APP]"
     install_"$(echo "$APP" | tr '-' '_')"
     echo
   done
+  register_compute
 }
 
 if [ "${BASH_SOURCE[0]}" == "$0" ]; then

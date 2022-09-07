@@ -15,7 +15,8 @@ ARGOCD_MANIFEST="$SCRIPT_DIR/../install-argocd.yaml"
 ARGOCD_NAMESPACE="gitops-service-argocd"
 
 cleanup() {
-  pkill go
+  pkill goreman
+  pkill kubectl
 }
 
 trap cleanup EXIT
@@ -63,6 +64,7 @@ clone-and-setup-ckcp() {
     git clone https://github.com/openshift-pipelines/pipeline-service.git
     pushd pipeline-service
     cp ${SCRIPT_DIR}/openshift_dev_setup.sh ./ckcp/openshift_dev_setup.sh
+    cp ${SCRIPT_DIR}/config.yaml ./ckcp/config.yaml
 
     sed -i 's/\--resources deployments.apps,services,ingresses.networking.k8s.io,pipelines.tekton.dev,pipelineruns.tekton.dev,tasks.tekton.dev,runs.tekton.dev,networkpolicies.networking.k8s.io/\--resources deployments.apps,services,ingresses.networking.k8s.io,networkpolicies.networking.k8s.io,statefulsets.apps,routes.route.openshift.io/' ./images/kcp-registrar/register.sh
     printf "\nUpdated the resources to sync as needed for gitops-service and ckcp to run...\n\n"
@@ -197,6 +199,8 @@ test-gitops-service-e2e-in-kcp-in-ci() {
   make start-e2e &
   make test-e2e
 }
+
+OPENSHIFT_CI="${OPENSHIFT_CI:-false}"
 
 if [[ $OPENSHIFT_CI != "" ]]
 then

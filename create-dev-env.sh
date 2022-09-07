@@ -147,7 +147,7 @@ if [ "$1" = "kube-auto" ]; then
   echo " * Postgres secret has been created."
 
   # Wait until postgres pod is running
-  if [[ $OPENSHIFT_CI != "true" ]] || [[ $GITOPS_IN_KCP != "true" ]]
+  if [[ $OPENSHIFT_CI == "" ]] || [[ $GITOPS_IN_KCP != "true" ]]
   then
     echo " * Wait until Postgres pod is running"
     counter=0
@@ -211,8 +211,6 @@ if [ "$1" = "kube-auto" ]; then
     # Decode the password from the secret
     POSTGRES_PASSWORD=$(kubectl get -n gitops secret gitops-postgresql-staging -o jsonpath="{.data.postgresql-password}" | base64 --decode)
 
-    # Call the migration binary to migrate the database to the latest version
-    make db-migrate
     echo "Port-forwarding is yet not supported in kcp, skipping ..."
     echo "The pods under this scenario will be running on your workload end, hence 'pods' as a resource is not available with current kubeconfig, skipping ..."
   fi

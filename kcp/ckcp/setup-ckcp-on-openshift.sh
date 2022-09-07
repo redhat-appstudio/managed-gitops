@@ -63,6 +63,7 @@ clone-and-setup-ckcp() {
     pushd "${TMP_DIR}"
     git clone https://github.com/openshift-pipelines/pipeline-service.git
     pushd pipeline-service
+    git checkout edacf0348b2ae693eeb62b940dd618c05b34df62
     cp ${SCRIPT_DIR}/openshift_dev_setup.sh ./ckcp/openshift_dev_setup.sh
     cp ${SCRIPT_DIR}/config.yaml ./ckcp/config.yaml
 

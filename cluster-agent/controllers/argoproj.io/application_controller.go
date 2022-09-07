@@ -149,6 +149,14 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 			applicationState.ReconciledState = reconciledState
 
+			// Update applicationState.SyncError with the ArgoCD application syncError message
+			for _, syncError := range app.Status.Conditions {
+				// Update syncError field of appliactionState only if type is syncError
+				if syncError.Type == "SyncError" {
+					applicationState.SyncError = syncError.Message
+				}
+			}
+
 			if errCreate := r.Cache.CreateApplicationState(ctx, *applicationState); errCreate != nil {
 				log.Error(errCreate, "unexpected error on writing new application state")
 				return ctrl.Result{}, errCreate
@@ -186,6 +194,14 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	applicationState.ReconciledState = reconciledState
+
+	// Update applicationState.SyncError with the ArgoCD application syncError message
+	for _, syncError := range app.Status.Conditions {
+		// Update syncError field of appliactionState only if type is syncError
+		if syncError.Type == "SyncError" {
+			applicationState.SyncError = syncError.Message
+		}
+	}
 
 	if err := r.Cache.UpdateApplicationState(ctx, *applicationState); err != nil {
 

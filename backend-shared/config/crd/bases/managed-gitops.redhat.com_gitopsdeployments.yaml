@@ -217,8 +217,11 @@ spec:
                   status:
                     description: Status is the sync state of the comparison
                     type: string
+                  syncError:
+                    type: string
                 required:
                 - status
+                - syncError
                 type: object
             required:
             - reconciledState

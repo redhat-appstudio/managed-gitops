@@ -792,6 +792,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				Message:                         "Success",
 				Resources:                       buffer.Bytes(),
 				ReconciledState:                 reconciledStateString,
+				SyncError:                       "test-sync-error",
 			}
 
 			err = dbQueries.CreateApplicationState(ctx, applicationState)
@@ -813,6 +814,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(gitopsDeployment.Status.Health.Message).To(BeEmpty())
 			Expect(gitopsDeployment.Status.ReconciledState.Destination.Namespace).To(BeEmpty())
 			Expect(gitopsDeployment.Status.ReconciledState.Destination.Name).To(BeEmpty())
+			Expect(gitopsDeployment.Status.Sync.SyncError).To(BeEmpty())
 
 			// ----------------------------------------------------------------------------
 			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status.")
@@ -837,6 +839,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(gitopsDeployment.Status.ReconciledState.Source.RepoURL).To(Equal(reconciledobj.Source.RepoURL))
 			Expect(gitopsDeployment.Status.ReconciledState.Source.Branch).To(Equal(reconciledobj.Source.TargetRevision))
 			Expect(gitopsDeployment.Status.ReconciledState.Destination.Namespace).To(Equal(reconciledobj.Destination.Namespace))
+			Expect(gitopsDeployment.Status.Sync.SyncError).To(Equal(applicationState.SyncError))
 
 			// ----------------------------------------------------------------------------
 			By("Delete GitOpsDepl to clean resources.")
@@ -1037,6 +1040,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				Message:                         "Success",
 				Resources:                       buffer.Bytes(),
 				ReconciledState:                 string(fauxcomparedToBytes),
+				SyncError:                       "test-sync-error",
 			}
 
 			err = dbQueries.CreateApplicationState(ctx, applicationState)

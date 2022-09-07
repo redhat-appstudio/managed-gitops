@@ -51,7 +51,8 @@ func (dbq *PostgreSQLDatabaseQueries) CreateApplicationState(ctx context.Context
 		"Applicationstate_application_id", obj.Applicationstate_application_id,
 		"Health", obj.Health,
 		"Sync_Status", obj.Sync_Status,
-		"ReconciledState", obj.ReconciledState); err != nil {
+		"ReconciledState", obj.ReconciledState,
+		"SyncError", obj.SyncError); err != nil {
 		return err
 	}
 
@@ -91,7 +92,8 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateApplicationState(ctx context.Context
 		"Applicationstate_application_id", obj.Applicationstate_application_id,
 		"Health", obj.Health,
 		"Sync_Status", obj.Sync_Status,
-		"ReconciledState", obj.ReconciledState); err != nil {
+		"ReconciledState", obj.ReconciledState,
+		"SyncError", obj.SyncError); err != nil {
 		return err
 	}
 

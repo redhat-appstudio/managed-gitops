@@ -769,6 +769,9 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	gitopsDeployment.Status.ReconciledState.Destination.Name = comparedTo.Destination.Name
 	gitopsDeployment.Status.ReconciledState.Destination.Namespace = comparedTo.Destination.Namespace
 
+	// Update gitopsDeployment status with syncError
+	gitopsDeployment.Status.Sync.SyncError = applicationState.SyncError
+
 	// Update the actual object in Kubernetes
 	if err := a.workspaceClient.Status().Update(ctx, gitopsDeployment, &client.UpdateOptions{}); err != nil {
 		return err

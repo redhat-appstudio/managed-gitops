@@ -10,6 +10,7 @@ import (
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	"github.com/redhat-appstudio/managed-gitops/backend/metrics"
 	corev1 "k8s.io/api/core/v1"
@@ -37,6 +38,8 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 		var informer sharedutil.ListEventReceiver
 		var gitopsDepl *managedgitopsv1alpha1.GitOpsDeployment
 		var appEventLoopRunnerAction applicationEventLoopRunner_Action
+		var sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop
+		var debugContext string
 		BeforeEach(func() {
 			ctx = context.Background()
 			informer = sharedutil.ListEventReceiver{}
@@ -102,12 +105,19 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 
 			By("passing the invalid GitOpsDeployment into application event reconciler, and expecting an error")
 
-			var message deploymentModifiedResult
+			inputChannel := make(chan *eventlooptypes.EventLoopEvent)
+			informWorkCompleteChan := make(chan eventlooptypes.EventLoopMessage)
+			signalledShutdown := false
 
-			_, _, _, message, err := appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			// _, _, _, _, err := appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			// Expect(err).ToNot(BeNil())
 
+			// _, err := sharedutil.CatchPanic(func() error {
+			// 	return processMessage(inputChannel, informWorkCompleteChan, sharedResourceEventLoop, string(gitopsDepl.UID), gitopsDepl.Namespace, debugContext, signalledShutdown)
+			// })
+
+			err = processMessage(inputChannel, informWorkCompleteChan, sharedResourceEventLoop, string(gitopsDepl.UID), "", debugContext, signalledShutdown)
 			Expect(err).ToNot(BeNil())
-			Expect(message).To(Equal(deploymentModifiedResult_Failed))
 
 			newNumberOfGitOpsDeploymentsInErrorState := testutil.ToFloat64(metrics.GitopsdeplFailures)
 

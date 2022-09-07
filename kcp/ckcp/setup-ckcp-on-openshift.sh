@@ -192,7 +192,7 @@ test-gitops-service-e2e-in-kcp-in-ci() {
   export KUBECONFIG=${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig
   printf "The Kubeconfig being used for this is:" $KUBECONFIG
   cd ${SCRIPT_DIR}/../../
-  make devenv-k8s
+  make devenv-k8s-e2e
   kubectl create ns kube-system || true
   make start-e2e &
   make test-e2e

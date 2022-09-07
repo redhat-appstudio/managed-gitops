@@ -362,6 +362,11 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 
 		It("should create a GitOpsDeployment that references cluster credentials specified in Environment", func() {
 
+			// ToDo: solve GITOPSRVC-217, and remove this constraint
+			if fixture.IsRunningAgainstKCP() {
+				Skip("Skipping this test because of race condition when running on KCP based env")
+			}
+
 			By("creating second managed environment Secret")
 			secret := corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{

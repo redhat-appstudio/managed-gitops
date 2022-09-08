@@ -15,8 +15,8 @@ ARGOCD_MANIFEST="$SCRIPT_DIR/../install-argocd.yaml"
 ARGOCD_NAMESPACE="gitops-service-argocd"
 
 cleanup() {
-  pkill goreman
-  pkill kubectl
+  killall goreman
+  killall kubectl
 }
 
 trap cleanup EXIT

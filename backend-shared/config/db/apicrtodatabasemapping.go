@@ -171,8 +171,8 @@ func (dbMapping *APICRToDatabaseMapping) DisposeAppScoped(ctx context.Context, d
 	return err
 }
 
-// GetAPICRForDatabaseUID retrieves the name/namespace/uid of an API Resources (such as GitOpsDeploymentManagedEnvironment) based on the
-// primary key of the corresponding database row (for example, ManagedEnvironment)
+// GetAPICRForDatabaseUID retrieves the name/namespace/uid of an API Resources (such as GitOpsDeploymentManagedEnvironment)
+// based on the primary key of the corresponding database row (for example, ManagedEnvironment)
 func (dbq *PostgreSQLDatabaseQueries) GetAPICRForDatabaseUID(ctx context.Context, obj *APICRToDatabaseMapping) error {
 
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {

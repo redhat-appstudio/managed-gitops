@@ -11,7 +11,7 @@ const (
 	managedEnvPrefix = "managed-env-"
 
 	// ArgoCDDefaultDestinationInCluster is 'in-cluster' which is the spec destination value that Argo CD recognizes
-	// as indicating that Argo CD should deply to the local cluster (the cluster that Argo CD is installed on).
+	// as indicating that Argo CD should deploy to the local cluster (the cluster that Argo CD is installed on).
 	ArgoCDDefaultDestinationInCluster = "in-cluster"
 )
 

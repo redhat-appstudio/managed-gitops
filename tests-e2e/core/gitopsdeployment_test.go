@@ -235,8 +235,6 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.Update(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
-			// TODO: GITOPSRVCE-181: When we have comparedTo functionality fom Argo CD, add a check for it here as an Eventually.
-
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&gitOpsDeploymentResource), &gitOpsDeploymentResource)
 			Expect(err).To(BeNil())
 			Expect(gitOpsDeploymentResource.Spec.Source.RepoURL).To(Equal(repoURL))
@@ -295,8 +293,6 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.Update(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
-			// TODO: GITOPSRVCE-181: When we have comparedTo functionality fom Argo CD, add a check for it here as an Eventually.
-
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&gitOpsDeploymentResource), &gitOpsDeploymentResource)
 			Expect(err).To(BeNil())
 			Expect(gitOpsDeploymentResource.Spec.Source.Path).To(Equal("environments/overlays/staging"))
@@ -349,8 +345,6 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			//updating the CR with changes in repoURL
 			err = k8s.Update(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
-
-			// TODO: GITOPSRVCE-181: When we have comparedTo functionality fom Argo CD, add a check for it here as an Eventually.
 
 			expectedResourceStatusList := createResourceStatusListFunction_deploymentPermutations()
 			expectedResourceStatusList = append(expectedResourceStatusList,
@@ -427,8 +421,6 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			//updating the CR with changes in repoURL
 			err = k8s.Update(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
-
-			// TODO: GITOPSRVCE-181: When we have comparedTo functionality fom Argo CD, add a check for it here as an Eventually.
 
 			expectedResourceStatusList := createResourceStatusListFunction_deploymentPermutations()
 			expectedResourceStatusList = append(expectedResourceStatusList,

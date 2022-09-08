@@ -273,6 +273,9 @@ CREATE TABLE ApplicationState (
 	-- resources field comes directly from Argo CD Application CR's .Status.Resources field
 	resources bytea,
 
+	-- reconciled_state is a JSON string, which contains the contents of the Argo CD Application's .status.sync.comparedTo, but
+	-- with the 'destination' feild adjusted to refer to the database's ManagedEnvironment primary key, rather than to the name 
+	-- of the Argo CD cluster secret.
 	reconciled_state VARCHAR (4096)
 );
 

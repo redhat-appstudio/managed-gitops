@@ -492,7 +492,7 @@ var _ = Describe("Application Controller", func() {
 			err = json.Unmarshal([]byte(applicationStateDB.ReconciledState), &comparedTo)
 			Expect(err).To(BeNil())
 
-			reconciledStateObj, err := convertReconsiledStateStringToObject(applicationStateDB.ReconciledState)
+			reconciledStateObj, err := convertReconciledStateStringToObject(applicationStateDB.ReconciledState)
 			Expect(err).To(BeNil())
 
 			// Checking for new values in database object
@@ -557,7 +557,7 @@ var _ = Describe("Application Controller", func() {
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateget)
 			Expect(err).To(BeNil())
 
-			reconciledStateObj, err := convertReconsiledStateStringToObject(applicationStateget.ReconciledState)
+			reconciledStateObj, err := convertReconciledStateStringToObject(applicationStateget.ReconciledState)
 			Expect(err).To(BeNil())
 
 			// Checking for new values in database object
@@ -1001,7 +1001,7 @@ func dummyApplicationComparedToField() (string, fauxargocd.FauxComparedTo, error
 }
 
 // Unmarshal the reconciledState stored in db
-func convertReconsiledStateStringToObject(reconciledState string) (fauxargocd.FauxComparedTo, error) {
+func convertReconciledStateStringToObject(reconciledState string) (fauxargocd.FauxComparedTo, error) {
 	comparedTo := fauxargocd.FauxComparedTo{}
 
 	err := json.Unmarshal([]byte(reconciledState), &comparedTo)

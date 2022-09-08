@@ -3,7 +3,6 @@ package preprocess_event_loop
 import (
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
-	"github.com/redhat-appstudio/managed-gitops/backend/metrics"
 )
 
 // gitopsDeplSyncRunCache is a cache of which GitOpsDeploymentSyncRun K8s resources refer to which GitOpsDeployment K8s resources, by UID.
@@ -88,18 +87,12 @@ func (cache *recentUIDCache) deleteMostRecentUIDForResourceFromEvent(newEvent ev
 
 	mapKey := lastUIDCache_generateMapKey(newEvent)
 	cache.resourcesSeen.Remove(mapKey)
-	count := cache.resourcesSeen.Len()
-	metrics.Gitopsdepl.Set(float64(count))
-
 }
 
 func (cache *recentUIDCache) putMostRecentUIDForResourceFromEvent(uid string, newEvent eventlooptypes.EventLoopEvent) {
 
 	mapKey := lastUIDCache_generateMapKey(newEvent)
 	cache.resourcesSeen.Add(mapKey, uid)
-	count := cache.resourcesSeen.Len()
-	metrics.Gitopsdepl.Set(float64(count))
-
 }
 
 func (cache *recentUIDCache) getMostRecentUIDForResourceFromEvent(newEvent eventlooptypes.EventLoopEvent) string {

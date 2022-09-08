@@ -21,6 +21,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/backend/condition"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend/metrics"
 	goyaml "gopkg.in/yaml.v2"
 
 	corev1 "k8s.io/api/core/v1"
@@ -140,6 +141,13 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 		"gitopsDeploymentExists", gitopsDeploymentCRExists, "deplToAppMapExists", deplToAppMapExistsInDB)
 
 	// 3) Next, the work that we need below depends on how the CR differs from the DB entry
+
+	// Update the list of GitOpsDeployments that we use to generate metrics
+	if gitopsDeploymentCRExists {
+		metrics.AddOrUpdateGitOpsDeployment(deplName, deplNamespace, string(gitopsDeplNamespace.UID))
+	} else {
+		metrics.RemoveGitOpsDeployment(deplName, deplNamespace, string(gitopsDeplNamespace.UID))
+	}
 
 	if !gitopsDeploymentCRExists && !deplToAppMapExistsInDB {
 		// 3a) if neither exists, our work is done

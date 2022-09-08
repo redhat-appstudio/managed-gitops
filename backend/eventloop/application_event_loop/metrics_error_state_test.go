@@ -16,10 +16,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
@@ -38,9 +40,12 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 		var informer sharedutil.ListEventReceiver
 		var gitopsDepl *managedgitopsv1alpha1.GitOpsDeployment
 		var appEventLoopRunnerAction applicationEventLoopRunner_Action
-		var sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop
-		var debugContext string
+		// var sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop
+		// var debugContext string
 		BeforeEach(func() {
+
+			metrics.ClearMetrics()
+
 			ctx = context.Background()
 			informer = sharedutil.ListEventReceiver{}
 
@@ -96,7 +101,6 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 				workspaceID:                 workspaceID,
 				testOnlySkipCreateOperation: true,
 			}
-			metrics.Callinit()
 		})
 
 		It("Should update existing deployment, instead of creating new.", func() {
@@ -105,19 +109,34 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 
 			By("passing the invalid GitOpsDeployment into application event reconciler, and expecting an error")
 
-			inputChannel := make(chan *eventlooptypes.EventLoopEvent)
-			informWorkCompleteChan := make(chan eventlooptypes.EventLoopMessage)
-			signalledShutdown := false
+			// inputChannel := make(chan *eventlooptypes.EventLoopEvent)
+			// informWorkCompleteChan := make(chan eventlooptypes.EventLoopMessage)
+			// signalledShutdown := false
+
+			eventLoopEvent := eventlooptypes.EventLoopEvent{
+				EventType: eventlooptypes.DeploymentModified,
+				Request: reconcile.Request{NamespacedName: types.NamespacedName{
+					Namespace: gitopsDepl.Namespace,
+					Name:      gitopsDepl.Name,
+				}},
+				Client:                  k8sClient,
+				ReqResource:             eventlooptypes.GitOpsDeploymentTypeName,
+				AssociatedGitopsDeplUID: string(gitopsDepl.UID),
+				WorkspaceID:             workspaceID,
+			}
+
+			shutdownSignalled, err := handleDeploymentModified(ctx, &eventLoopEvent, appEventLoopRunnerAction, dbQueries, log.FromContext(context.Background()))
+			Expect(shutdownSignalled).To(BeFalse())
 
 			// _, _, _, _, err := appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
-			// Expect(err).ToNot(BeNil())
+			Expect(err).ToNot(BeNil())
 
 			// _, err := sharedutil.CatchPanic(func() error {
 			// 	return processMessage(inputChannel, informWorkCompleteChan, sharedResourceEventLoop, string(gitopsDepl.UID), gitopsDepl.Namespace, debugContext, signalledShutdown)
 			// })
 
-			err = processMessage(inputChannel, informWorkCompleteChan, sharedResourceEventLoop, string(gitopsDepl.UID), "", debugContext, signalledShutdown)
-			Expect(err).ToNot(BeNil())
+			// err = processMessage(inputChannel, informWorkCompleteChan, sharedResourceEventLoop, string(gitopsDepl.UID), "", debugContext, signalledShutdown)
+			// Expect(err).ToNot(BeNil())
 
 			newNumberOfGitOpsDeploymentsInErrorState := testutil.ToFloat64(metrics.GitopsdeplFailures)
 

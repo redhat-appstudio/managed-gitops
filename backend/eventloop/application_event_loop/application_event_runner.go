@@ -7,13 +7,13 @@ import (
 
 	"github.com/redhat-appstudio/managed-gitops/backend/condition"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
+	"github.com/redhat-appstudio/managed-gitops/backend/metrics"
 
 	"github.com/go-logr/logr"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
-	"github.com/redhat-appstudio/managed-gitops/backend/metrics"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -88,6 +88,9 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 
 	signalledShutdown := false
 
+	// The name of the resource (GitOpsDeployment/SyncRun) being handled by this runner.
+	var expectedResourceName string
+
 	for {
 		// Read from input channel: wait for an event on this application
 		newEvent := <-inputChannel
@@ -116,7 +119,66 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 			}
 
 			_, err := sharedutil.CatchPanic(func() error {
-				return processMessage(inputChannel, informWorkCompleteChan, sharedResourceEventLoop, gitopsDeplUID, namespaceID, debugContext, signalledShutdown)
+
+				action := applicationEventLoopRunner_Action{
+					getK8sClientForGitOpsEngineInstance: eventlooptypes.GetK8sClientForGitOpsEngineInstance,
+					eventResourceName:                   newEvent.Request.Name,
+					eventResourceNamespace:              newEvent.Request.Namespace,
+					workspaceClient:                     newEvent.Client,
+					sharedResourceEventLoop:             sharedResourceEventLoop,
+					log:                                 log,
+					workspaceID:                         namespaceID,
+					k8sClientFactory:                    shared_resource_loop.DefaultK8sClientFactory{},
+				}
+
+				var err error
+
+				dbQueriesUnscoped, err := db.NewSharedProductionPostgresDBQueries(false)
+				if err != nil {
+					return fmt.Errorf("unable to access database in workspaceEventLoopRunner: %v", err)
+				}
+				defer dbQueriesUnscoped.CloseDatabase()
+
+				scopedDBQueries, ok := dbQueriesUnscoped.(db.ApplicationScopedQueries)
+				if !ok {
+					return fmt.Errorf("SEVERE: unexpected cast failure")
+				}
+
+				if newEvent.EventType == eventlooptypes.DeploymentModified {
+
+					// Keep track of the resource name the first time we see it.
+					if expectedResourceName == "" && newEvent.Request.Name != "" {
+						expectedResourceName = newEvent.Request.Name
+					}
+					if expectedResourceName != "" && newEvent.Request.Name != expectedResourceName {
+						return fmt.Errorf("SEVERE: Application event runner received. Expected: " + expectedResourceName + ", actual: " + newEvent.Request.Name)
+					}
+
+					signalledShutdown, err = handleDeploymentModified(ctx, newEvent, action, scopedDBQueries, log)
+
+				} else if newEvent.EventType == eventlooptypes.SyncRunModified {
+					// Handle all SyncRun related events
+					signalledShutdown, err = action.applicationEventRunner_handleSyncRunModified(ctx, scopedDBQueries)
+
+				} else if newEvent.EventType == eventlooptypes.UpdateDeploymentStatusTick {
+					err = action.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, newEvent.AssociatedGitopsDeplUID, scopedDBQueries)
+
+				} else if newEvent.EventType == eventlooptypes.ManagedEnvironmentModified {
+
+					if expectedResourceName == "" {
+						// If this runner hasn't processed a GitOpsDeployment yet, then no work is required for the managed environment.
+						return nil
+					}
+					signalledShutdown, err = handleManagedEnvironmentModified(ctx, expectedResourceName, newEvent, action, dbQueriesUnscoped, log)
+
+				} else {
+					log.Error(nil, "SEVERE: Unrecognized event type", "event type", newEvent.EventType)
+				}
+
+				// TODO: GITOPSRVCE-85: Implement detection of workspace/api proxy delete, here, and handle cleanup
+
+				return err
+
 			})
 
 			if err == nil {
@@ -139,82 +201,6 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 	}
 
 	log.Info("ApplicationEventLoopRunner goroutine terminated.", "signalledShutdown", signalledShutdown)
-}
-func processMessage(inputChannel chan *eventlooptypes.EventLoopEvent, informWorkCompleteChan chan eventlooptypes.EventLoopMessage,
-	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, gitopsDeplUID string, namespaceID string, debugContext string, signalledShutdown bool) error {
-
-	ctx := context.Background()
-	log := log.FromContext(ctx)
-	newEvent := <-inputChannel
-	var expectedResourceName string
-
-	//does not print :
-	fmt.Println("M E T R I C S ---------------------------->")
-
-	action := applicationEventLoopRunner_Action{
-		getK8sClientForGitOpsEngineInstance: eventlooptypes.GetK8sClientForGitOpsEngineInstance,
-		eventResourceName:                   newEvent.Request.Name,
-		eventResourceNamespace:              newEvent.Request.Namespace,
-		workspaceClient:                     newEvent.Client,
-		sharedResourceEventLoop:             sharedResourceEventLoop,
-		log:                                 log,
-		workspaceID:                         namespaceID,
-		k8sClientFactory:                    shared_resource_loop.DefaultK8sClientFactory{},
-	}
-
-	var err error
-
-	dbQueriesUnscoped, err := db.NewSharedProductionPostgresDBQueries(false)
-	if err != nil {
-		return fmt.Errorf("unable to access database in workspaceEventLoopRunner: %v", err)
-	}
-	defer dbQueriesUnscoped.CloseDatabase()
-
-	scopedDBQueries, ok := dbQueriesUnscoped.(db.ApplicationScopedQueries)
-	if !ok {
-		return fmt.Errorf("SEVERE: unexpected cast failure")
-	}
-
-	if newEvent.EventType == eventlooptypes.DeploymentModified {
-
-		_, clientError := getMatchingGitOpsDeployment(ctx, newEvent.Request.Name, newEvent.Request.Namespace, newEvent.Client)
-		if clientError != nil {
-			metrics.GitopsdeplFailures.Inc()
-			return fmt.Errorf("couldn't fetch the GitOpsDeployment instance: %v", clientError)
-		}
-
-		// Keep track of the resource name the first time we see it.
-		if expectedResourceName == "" && newEvent.Request.Name != "" {
-			expectedResourceName = newEvent.Request.Name
-		}
-		if expectedResourceName != "" && newEvent.Request.Name != expectedResourceName {
-			return fmt.Errorf("SEVERE: Application event runner received. Expected: " + expectedResourceName + ", actual: " + newEvent.Request.Name)
-		}
-
-		signalledShutdown, err = handleDeploymentModified(ctx, newEvent, action, scopedDBQueries, log)
-
-	} else if newEvent.EventType == eventlooptypes.SyncRunModified {
-		// Handle all SyncRun related events
-		signalledShutdown, err = action.applicationEventRunner_handleSyncRunModified(ctx, scopedDBQueries)
-
-	} else if newEvent.EventType == eventlooptypes.UpdateDeploymentStatusTick {
-		err = action.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, newEvent.AssociatedGitopsDeplUID, scopedDBQueries)
-
-	} else if newEvent.EventType == eventlooptypes.ManagedEnvironmentModified {
-
-		if expectedResourceName == "" {
-			// If this runner hasn't processed a GitOpsDeployment yet, then no work is required for the managed environment.
-			return nil
-		}
-		signalledShutdown, err = handleManagedEnvironmentModified(ctx, expectedResourceName, newEvent, action, dbQueriesUnscoped, log)
-
-	} else {
-		log.Error(nil, "SEVERE: Unrecognized event type", "event type", newEvent.EventType)
-	}
-
-	// TODO: GITOPSRVCE-85: Implement detection of workspace/api proxy delete, here, and handle cleanup
-
-	return err
 }
 
 // handleManagedEnvironmentModified_shouldInformGitOpsDeployment returns true if the GitOpsDeployment CR references
@@ -387,12 +373,16 @@ func handleDeploymentModified(ctx context.Context, newEvent *eventlooptypes.Even
 		return false, nil
 	}
 
+	// If the GitOpsDeployment had an error, ensure the metrics is updated.
+	metrics.SetErrorState(newEvent.Request.Name, newEvent.Request.Namespace, action.workspaceID, err != nil)
+
 	// Create a gitOpsDeploymentAdapter to plug any conditions
 	conditionManager := condition.NewConditionManager()
 	adapter := newGitOpsDeploymentAdapter(gitopsDepl, log, newEvent.Client, conditionManager, ctx)
 
 	// Plug any conditions based on the "err" msg
-	if setConditionError := adapter.setGitOpsDeploymentCondition(managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred, managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred, err); setConditionError != nil {
+	if setConditionError := adapter.setGitOpsDeploymentCondition(managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred,
+		managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred, err); setConditionError != nil {
 		return false, setConditionError
 	}
 

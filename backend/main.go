@@ -49,10 +49,7 @@ import (
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	managedgitopscontrollers "github.com/redhat-appstudio/managed-gitops/backend/controllers/managed-gitops"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop"
-	"github.com/redhat-appstudio/managed-gitops/backend/metrics"
 	"github.com/redhat-appstudio/managed-gitops/backend/routes"
-
-	metric "sigs.k8s.io/controller-runtime/pkg/metrics"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -66,7 +63,8 @@ func init() {
 
 	utilruntime.Must(managedgitopsv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
-	metric.Registry.MustRegister(metrics.Gitopsdepl, metrics.GitopsdeplFailures)
+
+	// metric.Registry.MustRegister(metrics.Gitopsdepl, metrics.GitopsdeplFailures)
 }
 
 func main() {

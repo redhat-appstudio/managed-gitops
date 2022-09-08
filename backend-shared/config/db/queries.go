@@ -220,6 +220,9 @@ type ApplicationScopedQueries interface {
 
 	GetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment) error
 	GetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance) error
+
+	// GetAPICRForDatabaseUID retrieves the name/namespace/uid of an API Resources (such as GitOpsDeploymentManagedEnvironment)
+	// based on the primary key of the corresponding database row (for example, ManagedEnvironment)
 	GetAPICRForDatabaseUID(ctx context.Context, apiCRToDatabaseMapping *APICRToDatabaseMapping) error
 }
 

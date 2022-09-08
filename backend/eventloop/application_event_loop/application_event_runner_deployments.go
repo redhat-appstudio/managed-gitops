@@ -756,6 +756,8 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 
 		err = dbQueries.GetAPICRForDatabaseUID(ctx, apiCRToDBMapping)
 		if err != nil {
+			// If any error occurs while we're trying to retrieve the value of this field, we just report the
+			// value as empty: if necessary, it will be updated on the next tick.
 			comparedTo.Destination.Name = ""
 		} else {
 			comparedTo.Destination.Name = apiCRToDBMapping.APIResourceName

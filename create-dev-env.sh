@@ -147,8 +147,7 @@ if [ "$1" = "kube-auto" ]; then
   echo " * Postgres secret has been created."
 
   # Wait until postgres pod is running
-  if [[ $OPENSHIFT_CI == "" ]] || [[ $GITOPS_IN_KCP != "true" ]]
-  then
+  if [ "$GITOPS_IN_KCP" != "true" ]; then
     echo " * Wait until Postgres pod is running"
     counter=0
     until kubectl -n gitops get pods | grep postgres | grep '1/1' | grep 'Running' &> /dev/null
@@ -205,7 +204,6 @@ if [ "$1" = "kube-auto" ]; then
     # Do not stop port-forwarding
     echo "Port-forwarding is active. You can stop it with 'kill $KUBE_PID'"
     echo "Or you can find the process with typing: 'sudo lsof -i:5432'"
-    exit 0
   else
     # This else scenario mainly focus on running e2e test with kcp on Openshift CI or in local KCP/CKCP/CPS setups
     # Decode the password from the secret
@@ -214,6 +212,7 @@ if [ "$1" = "kube-auto" ]; then
     echo "Port-forwarding is yet not supported in kcp, skipping ..."
     echo "The pods under this scenario will be running on your workload end, hence 'pods' as a resource is not available with current kubeconfig, skipping ..."
   fi
+  exit 0
 fi
 
 # Binary requirements

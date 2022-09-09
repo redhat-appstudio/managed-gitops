@@ -26,7 +26,7 @@ import (
 
 var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 
-	Context("Prometheus metrics responds to count of active/failed GitopsDeployments", func() {
+	FContext("Prometheus metrics responds to count of active/failed GitopsDeployments", func() {
 		var err error
 		var workspaceID string
 		var ctx context.Context
@@ -40,8 +40,7 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 		var informer sharedutil.ListEventReceiver
 		var gitopsDepl *managedgitopsv1alpha1.GitOpsDeployment
 		var appEventLoopRunnerAction applicationEventLoopRunner_Action
-		// var sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop
-		// var debugContext string
+
 		BeforeEach(func() {
 
 			metrics.ClearMetrics()
@@ -60,7 +59,7 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 
 			gitopsDepl = &managedgitopsv1alpha1.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "my-gitops-depl",
+					Name:      "gitops-depl",
 					Namespace: workspace.Name,
 					UID:       uuid.NewUUID(),
 				},
@@ -71,7 +70,8 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 						TargetRevision: "abc-commit"},
 					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated,
 					Destination: managedgitopsv1alpha1.ApplicationDestination{
-						Namespace: "abc-namespace",
+						Namespace:   "abc-namespace",
+						Environment: "does-not-exist",
 					},
 				},
 			}
@@ -94,7 +94,7 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 					return k8sClient, nil
 				},
 				eventResourceName:           gitopsDepl.Name,
-				eventResourceNamespace:      "",
+				eventResourceNamespace:      gitopsDepl.Namespace,
 				workspaceClient:             k8sClient,
 				log:                         log.FromContext(context.Background()),
 				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
@@ -106,12 +106,9 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 		It("Should update existing deployment, instead of creating new.", func() {
 
 			numberOfGitOpsDeploymentsInErrorState := testutil.ToFloat64(metrics.GitopsdeplFailures)
+			totalNumberOfGitOpsDeploymentMetrics := testutil.ToFloat64(metrics.Gitopsdepl)
 
 			By("passing the invalid GitOpsDeployment into application event reconciler, and expecting an error")
-
-			// inputChannel := make(chan *eventlooptypes.EventLoopEvent)
-			// informWorkCompleteChan := make(chan eventlooptypes.EventLoopMessage)
-			// signalledShutdown := false
 
 			eventLoopEvent := eventlooptypes.EventLoopEvent{
 				EventType: eventlooptypes.DeploymentModified,
@@ -128,28 +125,21 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 			shutdownSignalled, err := handleDeploymentModified(ctx, &eventLoopEvent, appEventLoopRunnerAction, dbQueries, log.FromContext(context.Background()))
 			Expect(shutdownSignalled).To(BeFalse())
 
-			// _, _, _, _, err := appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(err).ToNot(BeNil())
-
-			// _, err := sharedutil.CatchPanic(func() error {
-			// 	return processMessage(inputChannel, informWorkCompleteChan, sharedResourceEventLoop, string(gitopsDepl.UID), gitopsDepl.Namespace, debugContext, signalledShutdown)
-			// })
-
-			// err = processMessage(inputChannel, informWorkCompleteChan, sharedResourceEventLoop, string(gitopsDepl.UID), "", debugContext, signalledShutdown)
-			// Expect(err).ToNot(BeNil())
-
+			newTotalNumberOfGitOpsDeploymentMetrics := testutil.ToFloat64(metrics.Gitopsdepl)
 			newNumberOfGitOpsDeploymentsInErrorState := testutil.ToFloat64(metrics.GitopsdeplFailures)
-
+			Expect(newTotalNumberOfGitOpsDeploymentMetrics).To(Equal(totalNumberOfGitOpsDeploymentMetrics + 1))
 			Expect(newNumberOfGitOpsDeploymentsInErrorState).To(Equal(numberOfGitOpsDeploymentsInErrorState + 1))
 
 			By("deleting the invalid GitOpsDeployment and calling deploymentModified again")
 
 			err = k8sClient.Delete(ctx, gitopsDepl)
 			Expect(err).To(BeNil())
-			_, _, _, _, err = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			shutdownSignalled, err = handleDeploymentModified(ctx, &eventLoopEvent, appEventLoopRunnerAction, dbQueries, log.FromContext(context.Background()))
+			Expect(shutdownSignalled).To(BeFalse())
+			Expect(err).To(BeNil())
 
 			newNumberOfGitOpsDeploymentsInErrorState = testutil.ToFloat64(metrics.GitopsdeplFailures)
-
 			Expect(newNumberOfGitOpsDeploymentsInErrorState).To(Equal(numberOfGitOpsDeploymentsInErrorState))
 
 		})

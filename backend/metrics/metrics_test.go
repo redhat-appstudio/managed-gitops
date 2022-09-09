@@ -11,7 +11,7 @@ import (
 
 var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 
-	FContext("Prometheus metrics responds to count of active/failed GitopsDeployments", func() {
+	Context("Prometheus metrics responds to count of active/failed GitopsDeployments", func() {
 		It("tests Add/Update, Remove, SetError function on a gitops deployment", func() {
 
 			ClearMetrics()

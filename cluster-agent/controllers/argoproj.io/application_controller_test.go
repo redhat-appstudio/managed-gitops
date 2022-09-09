@@ -3,6 +3,7 @@ package argoprojio
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -114,6 +115,13 @@ var _ = Describe("Application Controller", func() {
 				},
 			}
 
+			app := appv1.ApplicationCondition{
+				Type:               "SyncError",
+				Message:            "Failed to sync",
+				LastTransitionTime: &metav1.Time{Time: time.Now()},
+			}
+			guestbookApp.Status.Conditions = append(guestbookApp.Status.Conditions, app)
+
 			reconciler = ApplicationReconciler{
 				Client:                k8sClient,
 				Scheme:                scheme,
@@ -197,6 +205,7 @@ var _ = Describe("Application Controller", func() {
 				Health:                          "Progressing",
 				Sync_Status:                     "OutOfSync",
 				ReconciledState:                 reconciledStateString,
+				SyncError:                       "test-sync-error",
 			}
 
 			By("Create Application in Database")
@@ -417,6 +426,13 @@ var _ = Describe("Application Controller", func() {
 				},
 			}
 
+			app := appv1.ApplicationCondition{
+				Type:               "SyncError",
+				Message:            "Failed to sync",
+				LastTransitionTime: &metav1.Time{Time: time.Now()},
+			}
+			guestbookApp.Status.Conditions = append(guestbookApp.Status.Conditions, app)
+
 			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
 			applicationDB := &db.Application{
@@ -565,6 +581,229 @@ var _ = Describe("Application Controller", func() {
 			Expect(reconciledStateObj.Source.RepoURL).To(Equal(guestbookApp.Status.Sync.ComparedTo.Source.RepoURL))
 			Expect(reconciledStateObj.Source.TargetRevision).To(Equal(guestbookApp.Status.Sync.ComparedTo.Source.TargetRevision))
 			Expect(reconciledStateObj.Destination.Namespace).To(Equal(guestbookApp.Status.Sync.ComparedTo.Destination.Namespace))
+		})
+
+		It("Test to check whether syncError field is stored in database", func() {
+			By("Close database connection")
+			defer dbQueries.CloseDatabase()
+			defer testTeardown()
+			Expect(err).To(BeNil())
+
+			ctx = context.Background()
+
+			app := appv1.ApplicationCondition{
+				Type:               "SyncError",
+				Message:            "Failed to sync",
+				LastTransitionTime: &metav1.Time{Time: time.Now()},
+			}
+			guestbookApp.Status.Conditions = append(guestbookApp.Status.Conditions, app)
+
+			By("Add databaseID label to applicationID")
+			databaseID := guestbookApp.Labels[dbID]
+			applicationDB := &db.Application{
+				Application_id:          databaseID,
+				Name:                    name,
+				Spec_field:              "{}",
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+
+			applicationStateDB := &db.ApplicationState{
+				Applicationstate_application_id: applicationDB.Application_id,
+			}
+
+			By("Create Application in Database")
+			err = reconciler.DB.CreateApplication(ctx, applicationDB)
+			Expect(err).To(BeNil())
+
+			By("Verify SyncError is not present in database")
+			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateDB)
+			Expect(err).ToNot(BeNil())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+
+			By("Create a new ArgoCD Application")
+			err = reconciler.Create(ctx, guestbookApp)
+			Expect(err).To(BeNil())
+
+			By("Call reconcile function")
+			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
+			Expect(err).To(BeNil())
+			Expect(result).ToNot(BeNil())
+
+			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateDB)
+			Expect(applicationStateDB.ReconciledState).ToNot(BeNil())
+			Expect(err).To(BeNil())
+
+			// Checking for new values in database object
+			for _, syncError := range guestbookApp.Status.Conditions {
+				Expect(applicationStateDB.SyncError).To(Equal(syncError.Message))
+				Expect(syncError.Type).To(Equal("SyncError"))
+			}
+		})
+
+		It("Test to verify the conditions.Type is not equal to 'SyncError' then db field should be empty", func() {
+			By("Close database connection")
+			defer dbQueries.CloseDatabase()
+			defer testTeardown()
+			Expect(err).To(BeNil())
+
+			ctx = context.Background()
+
+			guestbookApp := &appv1.Application{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Application",
+					APIVersion: "argoproj.io/v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      name,
+					Namespace: namespace,
+					Labels: map[string]string{
+						dbID: "test-my-application",
+					},
+				},
+				Spec: appv1.ApplicationSpec{
+					Source: appv1.ApplicationSource{
+						Path:           "guestbook",
+						TargetRevision: "HEAD",
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+					},
+					Destination: appv1.ApplicationDestination{
+						Namespace: "guestbook",
+						Server:    "https://kubernetes.default.svc",
+					},
+					Project: "default",
+				},
+				Status: appv1.ApplicationStatus{
+					Health: appv1.HealthStatus{
+						Status: "Healthy",
+					},
+					Sync: appv1.SyncStatus{
+						Status: "Synced",
+						ComparedTo: appv1.ComparedTo{
+							Source: appv1.ApplicationSource{
+								Path:           "test-path",
+								RepoURL:        "test-url",
+								TargetRevision: "test-branch",
+							},
+							Destination: appv1.ApplicationDestination{
+								Namespace: "test-namespace",
+								Name:      "managed-env-123",
+							},
+						},
+					},
+				},
+			}
+
+			app := appv1.ApplicationCondition{
+				Type:               "test-error",
+				Message:            "Failed to sync",
+				LastTransitionTime: &metav1.Time{Time: time.Now()},
+			}
+			guestbookApp.Status.Conditions = append(guestbookApp.Status.Conditions, app)
+
+			By("Add databaseID label to applicationID")
+			databaseID := guestbookApp.Labels[dbID]
+			applicationDB := &db.Application{
+				Application_id:          databaseID,
+				Name:                    name,
+				Spec_field:              "{}",
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+
+			applicationStateDB := &db.ApplicationState{
+				Applicationstate_application_id: applicationDB.Application_id,
+			}
+
+			By("Create Application in Database")
+			err = reconciler.DB.CreateApplication(ctx, applicationDB)
+			Expect(err).To(BeNil())
+
+			By("Verify SyncError is not present in database")
+			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateDB)
+			Expect(err).ToNot(BeNil())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+
+			By("Create a new ArgoCD Application")
+			err = reconciler.Create(ctx, guestbookApp)
+			Expect(err).To(BeNil())
+
+			By("Call reconcile function")
+			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
+			Expect(err).To(BeNil())
+			Expect(result).ToNot(BeNil())
+
+			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateDB)
+			Expect(applicationStateDB.ReconciledState).ToNot(BeNil())
+			Expect(err).To(BeNil())
+
+			// Checking for syncError value in database object
+			for _, syncError := range guestbookApp.Status.Conditions {
+				Expect(applicationStateDB.SyncError).To(BeEmpty())
+				Expect(syncError.Type).ToNot(Equal("SyncError"))
+			}
+		})
+
+		It("Test to check whether existing value in syncError field is updated to new value when conditions.Message of ArgoCD Application changes", func() {
+			By("Close database connection")
+			defer dbQueries.CloseDatabase()
+			defer testTeardown()
+
+			ctx = context.Background()
+
+			By("Add databaseID label to applicationID")
+			databaseID := guestbookApp.Labels[dbID]
+			applicationDB := &db.Application{
+				Application_id:          databaseID,
+				Name:                    name,
+				Spec_field:              "{}",
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+
+			reconciledStateString, reconciledObj, err := dummyApplicationComparedToField()
+			Expect(reconciledObj.Destination.Namespace).ToNot(Equal(guestbookApp.Status.Sync.ComparedTo.Destination.Namespace))
+			Expect(err).To(BeNil())
+
+			// applicationState which already exists in database
+			applicationState := &db.ApplicationState{
+				Applicationstate_application_id: applicationDB.Application_id,
+				Health:                          "Healthy",
+				Sync_Status:                     "Synced",
+				ReconciledState:                 reconciledStateString,
+				SyncError:                       "test-sync-error",
+			}
+
+			By("Create a new ArgoCD Application")
+			err = reconciler.Create(ctx, guestbookApp)
+			Expect(err).To(BeNil())
+
+			By("Create Application in Database")
+			err = reconciler.DB.CreateApplication(ctx, applicationDB)
+			Expect(err).To(BeNil())
+
+			By("Create ApplicationState in Database")
+			err = reconciler.DB.CreateApplicationState(ctx, applicationState)
+			Expect(err).To(BeNil())
+
+			By("Call reconcile function")
+			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
+			Expect(err).To(BeNil())
+			Expect(result).ToNot(BeNil())
+
+			applicationStateget := &db.ApplicationState{
+				Applicationstate_application_id: applicationDB.Application_id,
+			}
+
+			By("Verify ReconcidedState in ApplicationState is updated in database")
+			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateget)
+			Expect(err).To(BeNil())
+
+			// Checking for new values in database object
+			for _, syncError := range guestbookApp.Status.Conditions {
+				Expect(applicationStateget.SyncError).To(Equal(syncError.Message))
+				Expect(syncError.Type).To(Equal("SyncError"))
+			}
 		})
 	})
 

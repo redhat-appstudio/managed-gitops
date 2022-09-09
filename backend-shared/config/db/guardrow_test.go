@@ -149,6 +149,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Sync_Status:                     "Unknown",
 				Resources:                       make([]byte, 10),
 				ReconciledState:                 "test-reconciledState",
+				SyncError:                       "test-sync-error",
 			}
 
 			err = dbq.CreateApplicationState(ctx, applicationStateFirst)
@@ -170,6 +171,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Sync_Status:                     "Unknown",
 				Resources:                       make([]byte, 10),
 				ReconciledState:                 "test-reconciledState",
+				SyncError:                       "test-sync-error",
 			}
 
 			err = dbq.CreateApplicationState(ctx, applicationStateSecond)
@@ -180,6 +182,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Sync_Status:                     "Sync",
 				Resources:                       make([]byte, 10),
 				ReconciledState:                 "test-reconciledState",
+				SyncError:                       "test-sync-error",
 			}
 
 			err = dbq.UpdateApplicationState(ctx, applicationStateSecond)

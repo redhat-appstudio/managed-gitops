@@ -742,6 +742,9 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	gitopsDeployment.Status.Sync.Status = managedgitopsv1alpha1.SyncStatusCode(applicationState.Sync_Status)
 	gitopsDeployment.Status.Sync.Revision = applicationState.Revision
 
+	// Update gitopsDeployment status with syncError
+	gitopsDeployment.Status.Sync.SyncError = applicationState.SyncError
+
 	// Fetch the list of resources created by deployment from table and update local gitopsDeployment instance.
 	var err error
 	gitopsDeployment.Status.Resources, err = decompressResourceData(applicationState.Resources)

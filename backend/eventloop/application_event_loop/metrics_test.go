@@ -26,7 +26,7 @@ import (
 
 var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 
-	FContext("Prometheus metrics responds to count of active/failed GitopsDeployments", func() {
+	Context("Prometheus metrics responds to count of active/failed GitopsDeployments", func() {
 		var err error
 		var workspaceID string
 		var ctx context.Context

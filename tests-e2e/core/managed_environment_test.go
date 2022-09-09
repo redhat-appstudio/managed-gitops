@@ -31,10 +31,6 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 		It("should be healthy and have synced status, and resources should be deployed, when deployed with a ManagedEnv", func() {
 
-			if fixture.IsRunningAgainstKCP() {
-				Skip("Skipping this test until we support running gitops operator with KCP")
-			}
-
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("creating the GitOpsDeploymentManagedEnvironment")

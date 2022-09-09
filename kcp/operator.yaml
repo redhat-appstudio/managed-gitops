@@ -28,9 +28,9 @@ spec:
       containers:
       - command:
         - /manager
-        args:
-        - --leader-elect
+        # Disabled leader election arg --leader-elect
         image: quay.io/cbanavik/gitops-operator:v1.6
+        imagePullPolicy: Always
         name: manager
         securityContext:
           allowPrivilegeEscalation: false
@@ -58,6 +58,16 @@ spec:
           value: gitops-operator
         - name: DISABLE_DEX
           value: "false" 
+        - name: DISABLE_DEFAULT_ARGOCD_INSTANCE
+          value: "true"
+        # Environment variables to disable functionalities that are 
+        # incompatible with KCP
+        - name: DISABLE_FULLY_QUALIFIED_SERVICE
+          value: "true"
+        - name: DISABLE_HPA
+          value: "true"
+        - name: DISABLE_REDIS_SCC
+          value: "true"
       volumes:
       - name: kcp-kubeconfig
         secret:

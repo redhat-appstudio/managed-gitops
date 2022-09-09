@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: gitops-service-argocd
+spec:
+  server:
+    route:
+      enabled: true
+    env:
+    - name: KUBECONFIG
+      value: /kcp-kubeconfig/kcp-kubeconfig
+    volumes:
+    - name: kcp-kubeconfig   
+      secret:
+        secretName: kcp-kubeconfig-server
+        items:
+        - key: kubeconfig
+          path: kcp-kubeconfig
+    volumeMounts:
+    - mountPath: /kcp-kubeconfig
+      name: kcp-kubeconfig
+  controller:
+    env:
+    - name: ARGOCD_FAKE_IN_CLUSTER
+      value: "true"
+    - name: KUBECONFIG
+      value: /kcp-kubeconfig/kcp-kubeconfig
+    volumes:
+    - name: kcp-kubeconfig   
+      secret:
+        secretName: kcp-kubeconfig-controller
+        items:
+        - key: kubeconfig
+          path: kcp-kubeconfig
+    volumeMounts:
+    - mountPath: /kcp-kubeconfig
+      name: kcp-kubeconfig

@@ -19,6 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 )
 
 var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", func() {
@@ -396,11 +397,15 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			err = k8s.Create(&binding)
 			Expect(err).To(BeNil())
 
-			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components,
-				"https://github.com/redhat-appstudio/gitops-repository-template", "main",
-				[]string{"components/componentA/overlays/staging"})
-
-			err = k8s.UpdateStatus(&binding)
+			err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+				if err := k8s.Get(&binding); err != nil {
+					return err
+				}
+				binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components,
+					"https://github.com/redhat-appstudio/gitops-repository-template", "main",
+					[]string{"components/componentA/overlays/staging"})
+				return k8s.UpdateStatus(&binding)
+			})
 			Expect(err).To(BeNil())
 
 			By("waiting for the the controller to Reconcile the GitOpsDeplyoment")

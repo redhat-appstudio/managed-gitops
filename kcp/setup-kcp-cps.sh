@@ -19,6 +19,13 @@ cleanup_workspace() {
 
 trap cleanup_workspace EXIT
 
+# Please reach out to the GitOps Service team at #forum-gitops-service to get access to CPS KUBECONFIG
+read -p "Please enter path to CPS KUBECONFIG: " CPS_KUBECONFIG
+if [ ! -f "$CPS_KUBECONFIG" ]; then
+  echo "unable to find KUBECONFIG file at path: $CPS_KUBECONFIG"
+  exit 1
+fi
+
 # Checks if a binary is present on the local system
 exit_if_binary_not_installed() {
     for binary in "$@"; do

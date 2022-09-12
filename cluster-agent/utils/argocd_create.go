@@ -11,6 +11,7 @@ import (
 	argocdoperator "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	routev1 "github.com/openshift/api/route/v1"
+	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	corev1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
@@ -82,17 +83,33 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, names
 					},
 				},
 				Sharding: argocdoperator.ArgoCDApplicationControllerShardSpec{},
-			},
-			Dex: argocdoperator.ArgoCDDexSpec{
-				OpenShiftOAuth: false,
-				Resources: &corev1.ResourceRequirements{
-					Limits: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("500m"),
-						corev1.ResourceMemory: resource.MustParse("256Mi"),
+				Env: []corev1.EnvVar{
+					{
+						Name:  "ARGOCD_FAKE_IN_CLUSTER",
+						Value: "true",
 					},
-					Requests: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("250m"),
-						corev1.ResourceMemory: resource.MustParse("128Mi"),
+					{
+						Name:  "KUBECONFIG",
+						Value: "/kcp-kubeconfig/kcp-kubeconfig",
+					},
+				},
+				Volumes: []corev1.Volume{
+					{
+						Name: "kcp-kubeconfig",
+						VolumeSource: corev1.VolumeSource{
+							Secret: &corev1.SecretVolumeSource{
+								SecretName: "kcp-kubeconfig-controller",
+								Items: []corev1.KeyToPath{
+									{Key: "kubeconfig", Path: "kcp-kubeconfig"},
+								},
+							},
+						},
+					},
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      "kcp-kubeconfig",
+						MountPath: "/kcp-kubeconfig",
 					},
 				},
 			},
@@ -197,6 +214,31 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, names
 				Service: argocdoperator.ArgoCDServerServiceSpec{
 					Type: "",
 				},
+				Env: []corev1.EnvVar{
+					{
+						Name:  "KUBECONFIG",
+						Value: "/kcp-kubeconfig/kcp-kubeconfig",
+					},
+				},
+				Volumes: []corev1.Volume{
+					{
+						Name: "kcp-kubeconfig",
+						VolumeSource: corev1.VolumeSource{
+							Secret: &corev1.SecretVolumeSource{
+								SecretName: "kcp-kubeconfig-server",
+								Items: []corev1.KeyToPath{
+									{Key: "kubeconfig", Path: "kcp-kubeconfig"},
+								},
+							},
+						},
+					},
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      "kcp-kubeconfig",
+						MountPath: "/kcp-kubeconfig",
+					},
+				},
 			},
 			TLS: argocdoperator.ArgoCDTLSSpec{
 				CA: argocdoperator.ArgoCDCASpec{},
@@ -213,6 +255,42 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, names
 		return fmt.Errorf("namespace could not be created: %v", err)
 	}
 	sharedutil.LogAPIResourceChangeEvent(namespaceToCreate.Namespace, namespaceToCreate.Name, namespaceToCreate, sharedutil.ResourceCreated, log)
+
+	copyKubeconfigSecret := func(name string) error {
+		existingKubeSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+			},
+		}
+		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(existingKubeSecret), existingKubeSecret)
+		if err != nil {
+			return err
+		}
+
+		newKubeSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+			},
+			Data: existingKubeSecret.Data,
+		}
+
+		err = k8sClient.Create(ctx, newKubeSecret)
+		if !apierr.IsAlreadyExists(err) {
+			return err
+		}
+
+		return nil
+	}
+
+	if err := copyKubeconfigSecret("kcp-kubeconfig-server"); err != nil {
+		return err
+	}
+
+	if err := copyKubeconfigSecret("kcp-kubeconfig-controller"); err != nil {
+		return err
+	}
 
 	if errk8s := k8sClient.Create(ctx, argoCDOperand); errk8s != nil {
 		return fmt.Errorf("error on creating: %s, %v ", argoCDOperand.GetName(), errk8s)

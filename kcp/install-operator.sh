@@ -16,7 +16,7 @@ cleanup_workspace() {
 
 trap cleanup_workspace EXIT
 
-KUBECONFIG="$CPS_KUBECONFIG" kubectl config use-context kcp-stable
+KUBECONFIG="$CPS_KUBECONFIG" kubectl kcp ws
 
 # Create a new workspace if it doesn't exist
 if KUBECONFIG="$CPS_KUBECONFIG" kubectl get workspaces "${WORKSPACE}"; then
@@ -32,7 +32,7 @@ KUBECONFIG="$CPS_KUBECONFIG" kubectl create ns kube-system || true
 # Extract the Workload Cluster name from the KUBECONFIG
 WORKLOAD_CLUSTER=$(KUBECONFIG="${WORKLOAD_KUBECONFIG}" kubectl config view --minify -o jsonpath='{.clusters[].name}' | awk -F[:] '{print $1}')
 
-WORKLOAD_CLUSTER=${WORKLOAD_CLUSTER:0:18}
+WORKLOAD_CLUSTER=${WORKLOAD_CLUSTER:0:19}
 
 echo "Generating syncer manifests for OCP SyncTarget $WORKLOAD_CLUSTER"
 KUBECONFIG="$CPS_KUBECONFIG" kubectl kcp workload sync "$WORKLOAD_CLUSTER"  --resources "services,pods,statefulsets.apps,deployments.apps,routes.route.openshift.io,ingresses.networking.k8s.io,servicemonitors.monitoring.coreos.com,prometheusrules.monitoring.coreos.com,prometheuses.monitoring.coreos.com" --syncer-image "$SYNCER_IMAGE" --output-file "$SYNCER_MANIFESTS" --namespace kcp-syncer
@@ -97,9 +97,9 @@ KUBECONFIG="${CPS_KUBECONFIG}" kubectl create sa controller-manager -n $GITOPS_O
 
 create_kubeconfig_secret "controller-manager" "gitops-operator-kubeconfig" "$GITOPS_OPERATOR_NAMESPACE"
 
-KUBECONFIG="${CPS_KUBECONFIG}" kubectl delete crds --all
+KUBECONFIG="${CPS_KUBECONFIG}" kubectl delete crds clusterversions.config.openshift.io consoleclidownloads.console.openshift.io || true
 
-KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -k https://github.com/redhat-developer/gitops-operator/tree/master/config/crd --server-side --force-conflicts
+KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -k https://github.com/chetan-rns/gitops-operator/config/crd?ref=argocd-operator-kcp --server-side --force-conflicts
 
 CLUSTER_VERSION_CRD=$(KUBECONFIG="${WORKLOAD_KUBECONFIG}" kubectl get crds clusterversions.config.openshift.io -oyaml)
 echo "${CLUSTER_VERSION_CRD}" | KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f -

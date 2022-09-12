@@ -82,10 +82,10 @@ func appSync(ctx context.Context, acdClient argocdclient.Client, appName string,
 
 	syncReq := applicationpkg.ApplicationSyncRequest{
 		Name:        &appName,
-		DryRun:      dryRun,
-		Revision:    revision,
+		DryRun:      &dryRun,
+		Revision:    &revision,
 		Resources:   nil,
-		Prune:       prune,
+		Prune:       &prune,
 		Manifests:   nil,
 		Infos:       []*argoappv1.Info{},
 		SyncOptions: syncOptionsFactory(),

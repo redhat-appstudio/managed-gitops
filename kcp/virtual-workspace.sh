@@ -2,41 +2,78 @@
 
 set -ex
 
-source utils.sh
+source ./kcp/utils.sh
 
-SERVICE_WS="service-provider-$(echo $RANDOM)"
+SERVICE_WS="service-$(echo $RANDOM)"
 USER_WS="user-$(echo $RANDOM)"
 
 export GITOPS_IN_KCP="true"
 
+cleanup_workspace() {
+    kubectl kcp ws
+    kubectl delete workspace $SERVICE_WS || true
+    kubectl delete workspace $USER_WS || true
+    pkill go
+}
+
+trap cleanup_workspace EXIT
+
 readKUBECONFIGPath
 
-# Create and initialize server provide namespace
-createAndEnterWorkspace SERVICE_WS
+echo "Initializing service provider workspace"
+createAndEnterWorkspace "$SERVICE_WS"
 
-registerSyncTarget
-
-# Install Argo CD and GitOps Service components in service provider workspace
-installArgoCD
-
+echo "Creating APIExports and APIResourceSchemas in workspace $SERVICE_WS"
 KUBECONFIG="${CPS_KUBECONFIG}" make apply-kcp-api-all
 
-runGitOpsService
+KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws
+bindingName=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get clusterrolebinding | grep $SERVICE_WS | awk '{print $1}')
+echo $bindingName
+userName=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get clusterrolebindings $bindingName -o jsonpath='{.subjects[0].name}')
+echo $userName
 
-createAndEnterWorkspace USER_WS
+KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws use $SERVICE_WS
+cat <<EOF | KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: bind-apiexport
+rules:
+- apiGroups:
+  - apis.kcp.dev
+  resourceNames:
+  - gitopsrvc-backend-shared
+  - gitopsrvc-appstudio-shared
+  resources:
+  - apiexports
+  verbs:
+  - bind
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: bind-apiexport
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: bind-apiexport
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: "$userName"
+EOF
 
-switchToWorkspace() {
-    kubectl config use-context kcp-stable
-    kubectl kcp ws use $1
-}
+echo "Initializing user workspace"
+createAndEnterWorkspace "$USER_WS"
 
 createAPIBinding() {
     exportName=$1
-    switchToWorkspace SERVICE_WS
-    url=$(kubectl get workspaces sample -o jsonpath='{.status.URL}')
-    path=$($url\#\#*/)
+    KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws
+    url=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get workspace $SERVICE_WS -o jsonpath='{.status.URL}')
+    path=$(basename $url)
+    KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws use $USER_WS
 
-cat <<EOF | kubectl apply -n -f -
+cat <<EOF | KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f -
 apiVersion: apis.kcp.dev/v1alpha1
 kind: APIBinding
 metadata:
@@ -55,5 +92,16 @@ EOF
 
 }
 
+echo "Creating APIBindings in workspace $USER_wS"
 createAPIBinding gitopsrvc-backend-shared
 createAPIBinding gitopsrvc-appstudio-shared
+
+KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws
+KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws use $SERVICE_WS
+
+registerSyncTarget
+
+# Install Argo CD and GitOps Service components in service provider workspace
+installArgoCD
+
+runGitOpsService

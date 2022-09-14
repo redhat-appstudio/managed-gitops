@@ -8,6 +8,7 @@ SCRIPT_DIR="$(
   pwd
 )"
 
+ADMIN_KUBECONFIG="$KUBECONFIG"
 export GITOPS_IN_KCP="true"
 export DISABLE_KCP_VIRTUAL_WORKSPACE="true"
 
@@ -193,11 +194,12 @@ test-gitops-service-e2e-in-kcp() {
 test-gitops-service-e2e-in-kcp-in-ci() {
   
   export KUBECONFIG=${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig
-  printf "The Kubeconfig being used for this is:" $KUBECONFIG
+  printf "The Kubeconfig being used for testing e2e tests is:" $KUBECONFIG
   cd ${SCRIPT_DIR}/../../
   make devenv-k8s-e2e
-  KUBECONFIG="" dbnamespace=$(kubectl get pods --selector=app.kubernetes.io/instance=gitops-postgresql-staging --all-namespaces -o yaml | yq e '.items[0].metadata.namespace')
-  KUBECONFIG="" kubectl port-forward -n $dbnamespace svc/gitops-postgresql-staging 5432:5432 &
+  printf "The Kubeconfig being used for port-forwarding is:" $ADMIN_KUBECONFIG
+  KUBECONFIG="${ADMIN_KUBECONFIG}" dbnamespace=$(kubectl get pods --selector=app.kubernetes.io/instance=gitops-postgresql-staging --all-namespaces -o yaml | yq e '.items[0].metadata.namespace')
+  KUBECONFIG="${ADMIN_KUBECONFIG}" kubectl port-forward -n $dbnamespace svc/gitops-postgresql-staging 5432:5432 &
   kubectl create ns kube-system || true
   make start-e2e &
   make test-e2e

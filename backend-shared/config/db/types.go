@@ -149,11 +149,13 @@ const (
 	OperationState_Failed      OperationState = "Failed"
 )
 
+type OperationResourceType string
+
 const (
-	OperationResourceType_ManagedEnvironment    = "ManagedEnvironment"
-	OperationResourceType_SyncOperation         = "SyncOperation"
-	OperationResourceType_Application           = "Application"
-	OperationResourceType_RepositoryCredentials = "RepositoryCredentials"
+	OperationResourceType_ManagedEnvironment    OperationResourceType = "ManagedEnvironment"
+	OperationResourceType_SyncOperation         OperationResourceType = "SyncOperation"
+	OperationResourceType_Application           OperationResourceType = "Application"
+	OperationResourceType_RepositoryCredentials OperationResourceType = "RepositoryCredentials"
 )
 
 // Operation
@@ -182,7 +184,7 @@ type Operation struct {
 	// -- The user that initiated the operation.
 	Operation_owner_user_id string `pg:"operation_owner_user_id"`
 
-	// Resource type of the the resoutce that was updated.
+	// Resource type of the the resource that was updated.
 	// This value lets the operation know which table contains the resource.
 	//
 	// Possible values:
@@ -190,7 +192,7 @@ type Operation struct {
 	// * GitopsEngineInstance (specified to CRUD an Argo instance, for example to create a new namespace and put Argo CD in it, then signal when it's done)
 	// * Application (user creates a new Application via service/web UI)
 	// * RepositoryCredentials (user provides private repository credentials via web UI)
-	Resource_type string `pg:"resource_type"`
+	Resource_type OperationResourceType `pg:"resource_type"`
 
 	// -- When the operation was created. Used for garbage collection, as operations should be short lived.
 	Created_on time.Time `pg:"created_on"`
@@ -287,8 +289,6 @@ type ApplicationState struct {
 // (https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.45brv1rx6wmo)
 type DeploymentToApplicationMapping struct {
 
-	// TODO: GITOPSRVCE-67 - DEBT - PK should be (mapping uid, application_id), rather than just mapping uid?
-
 	//lint:ignore U1000 used by go-pg
 	tableName struct{} `pg:"deploymenttoapplicationmapping,alias:dta"` //nolint
 
@@ -313,17 +313,22 @@ type DeploymentToApplicationMapping struct {
 	SeqID int64 `pg:"seq_id"`
 }
 
+// APICRToDatabaseMapping_ResourceType: see 'db-schema.sql' for a description of these values.
+type APICRToDatabaseMapping_ResourceType string
+
 const (
+	APICRToDatabaseMapping_ResourceType_GitOpsDeploymentManagedEnvironment   APICRToDatabaseMapping_ResourceType = "GitOpsDeploymentManagedEnvironment"
+	APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun              APICRToDatabaseMapping_ResourceType = "GitOpsDeploymentSyncRun"
+	APICRToDatabaseMapping_ResourceType_GitOpsDeploymentRepositoryCredential APICRToDatabaseMapping_ResourceType = "GitOpsDeploymentRepositoryCredential"
+)
 
-	// TODO: GITOPSRVCE-67: Convert these into typed constants
+// APICRToDatabaseMapping_DBRelationType: see 'db-schema.sql' for a description of these values.
+type APICRToDatabaseMapping_DBRelationType string
 
-	APICRToDatabaseMapping_ResourceType_GitOpsDeploymentManagedEnvironment   = "GitOpsDeploymentManagedEnvironment"
-	APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun              = "GitOpsDeploymentSyncRun"
-	APICRToDatabaseMapping_ResourceType_GitOpsDeploymentRepositoryCredential = "GitOpsDeploymentRepositoryCredential"
-
-	APICRToDatabaseMapping_DBRelationType_ManagedEnvironment   = "ManagedEnvironment"
-	APICRToDatabaseMapping_DBRelationType_SyncOperation        = "SyncOperation"
-	APICRToDatabaseMapping_DBRelationType_RepositoryCredential = "RepositoryCredential"
+const (
+	APICRToDatabaseMapping_DBRelationType_ManagedEnvironment   APICRToDatabaseMapping_DBRelationType = "ManagedEnvironment"
+	APICRToDatabaseMapping_DBRelationType_SyncOperation        APICRToDatabaseMapping_DBRelationType = "SyncOperation"
+	APICRToDatabaseMapping_DBRelationType_RepositoryCredential APICRToDatabaseMapping_DBRelationType = "RepositoryCredential"
 )
 
 // APICRToDatabaseMapping maps API custom resources on the workspace (such as GitOpsDeploymentSyncRun), to a corresponding entry in the database.
@@ -338,15 +343,15 @@ type APICRToDatabaseMapping struct {
 	//lint:ignore U1000 used by go-pg
 	tableName struct{} `pg:"apicrtodatabasemapping,alias:atdbm"` //nolint
 
-	APIResourceType string `pg:"api_resource_type"`
-	APIResourceUID  string `pg:"api_resource_uid"`
+	APIResourceType APICRToDatabaseMapping_ResourceType `pg:"api_resource_type"`
+	APIResourceUID  string                              `pg:"api_resource_uid"`
 
 	APIResourceName      string `pg:"api_resource_name"`
 	APIResourceNamespace string `pg:"api_resource_namespace"`
 	NamespaceUID         string `pg:"api_resource_namespace_uid"`
 
-	DBRelationType string `pg:"db_relation_type"`
-	DBRelationKey  string `pg:"db_relation_key"`
+	DBRelationType APICRToDatabaseMapping_DBRelationType `pg:"db_relation_type"`
+	DBRelationKey  string                                `pg:"db_relation_key"`
 
 	SeqID int64 `pg:"seq_id"`
 }
@@ -401,11 +406,18 @@ type SyncOperation struct {
 	DesiredState string `pg:"desired_state"`
 }
 
-// TODO: GITOPSRVCE-67 - DEBT - Add comment.
+// DisposableResource can be implemented by a type, such that calling Dispose(...) on an instance of that type will delete
+// the corresponding row from the database.
+//
+// This is an optional interface, for convenience purposes.
 type DisposableResource interface {
 	Dispose(ctx context.Context, dbq DatabaseQueries) error
 }
 
+// AppScopedDisposableResource can be implemented by an application-scoped type, such they calling Dispose() on an instance
+// of that type will delete the row from the database.
+//
+// This is an optional interface, for convenience purposes.
 type AppScopedDisposableResource interface {
 	DisposeAppScoped(ctx context.Context, dbq ApplicationScopedQueries) error
 }

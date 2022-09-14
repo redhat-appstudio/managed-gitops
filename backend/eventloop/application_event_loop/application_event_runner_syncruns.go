@@ -425,7 +425,9 @@ func (a *applicationEventLoopRunner_Action) cleanupOldSyncDBEntry(ctx context.Co
 	}
 
 	var operations []db.Operation
-	if err := dbQueries.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, apiCRToDB.DBRelationKey, apiCRToDB.DBRelationType, &operations, clusterUser.Clusteruser_id); err != nil {
+	if err := dbQueries.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, apiCRToDB.DBRelationKey, db.OperationResourceType_SyncOperation,
+		&operations, clusterUser.Clusteruser_id); err != nil {
+
 		log.Error(err, "unable to retrieve operations pointing to sync operation", "key", apiCRToDB.DBRelationKey)
 		return err
 	} else {

@@ -320,7 +320,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		return &dbOperation, shouldRetry, err
 
 	} else {
-		log.Error(nil, "SEVERE: unrecognized resource type: "+dbOperation.Resource_type)
+		log.Error(nil, "SEVERE: unrecognized resource type: "+string(dbOperation.Resource_type))
 		return &dbOperation, shouldRetryFalse, nil
 	}
 

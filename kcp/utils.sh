@@ -12,6 +12,9 @@ ARGOCD_NAMESPACE="gitops-service-argocd"
 
 
 readKUBECONFIGPath() {
+    if [ "$CPS_KUBECONFIG" != "" ]; then
+      return
+    fi
     read -p "Please enter path to CPS KUBECONFIG: " CPS_KUBECONFIG
     if [ ! -f "$CPS_KUBECONFIG" ]; then
       echo "unable to find KUBECONFIG file at path: $CPS_KUBECONFIG"
@@ -21,7 +24,7 @@ readKUBECONFIGPath() {
 
 createAndEnterWorkspace() {
     WORKSPACE=$1
-    KUBECONFIG="$CPS_KUBECONFIG" kubectl config use-context kcp-stable
+    KUBECONFIG="$CPS_KUBECONFIG" kubectl kcp ws
 
     # Opens a web browser to authenticate to your RH SSO acount
     KUBECONFIG="$CPS_KUBECONFIG" kubectl api-resources
@@ -138,7 +141,7 @@ runGitOpsService() {
     KUBECONFIG="${CPS_KUBECONFIG}" make devenv-docker
 
     echo "Running gitops service controllers"
-    KUBECONFIG="${CPS_KUBECONFIG}" make start-e2e
+    KUBECONFIG="${CPS_KUBECONFIG}" make start-e2e &
 }
 
 registerSyncTarget() {

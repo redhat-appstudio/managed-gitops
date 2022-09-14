@@ -629,5 +629,37 @@ func removeKCPFinalizers(k8sClient client.Client, namespaceParam string) (bool, 
 		return false, fmt.Errorf("unable to remove finalizer from configmap in namespace '%s': %v", namespaceParam, err)
 	}
 
+	// Remove KCP finalizers from deployments in this namespace
+	if err := wait.Poll(time.Second*1, time.Minute*2, func() (done bool, err error) {
+
+		dpList := &apps.DeploymentList{}
+		if err = k8sClient.List(context.Background(), dpList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
+			GinkgoWriter.Println("unable to list configmaps in '"+namespaceParam+"'", err)
+			return false, nil
+		}
+
+		for idx := range dpList.Items {
+
+			dp := dpList.Items[idx]
+			if len(dp.Finalizers) > 0 {
+				err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&dp), &dp)
+				if err != nil {
+					GinkgoWriter.Println("unable to get configmap '"+dp.Name+"'", err)
+					return false, nil
+				}
+				dp.Finalizers = []string{}
+				err = k8sClient.Update(context.Background(), &dp)
+				if err != nil {
+					GinkgoWriter.Println("unable to update configmap '"+dp.Name+"'", err)
+					return false, nil
+				}
+			}
+		}
+
+		return true, nil
+	}); err != nil {
+		return false, fmt.Errorf("unable to remove finalizer from deployment in namespace '%s': %v", namespaceParam, err)
+	}
+
 	return true, nil
 }

@@ -131,10 +131,10 @@ func (e *APICRToDatabaseMapping) ShortString() string {
 	res := ""
 	res += "name: " + e.APIResourceName + ", "
 	res += "namespace: " + e.APIResourceNamespace + ", "
-	res += "resource-type: : " + e.APIResourceType + ", "
+	res += "resource-type: : " + string(e.APIResourceType) + ", "
 	res += "namespace-uid: " + e.NamespaceUID + ", "
 	res += "db-relation-key: " + e.DBRelationKey + ", "
-	res += "db-relation-type: " + e.DBRelationType
+	res += "db-relation-type: " + string(e.DBRelationType)
 
 	return res
 }
@@ -145,7 +145,7 @@ func (o *Operation) ShortString() string {
 	res += "instance-id: " + o.Instance_id + ", "
 	res += "owner: " + o.Operation_owner_user_id + ", "
 	res += "resource: " + o.Resource_id + ", "
-	res += "resource-type: " + o.Resource_type + ", "
+	res += "resource-type: " + string(o.Resource_type) + ", "
 	return res
 }
 
@@ -155,7 +155,7 @@ func (o *Operation) LongString() string {
 	res += "operation-id: " + o.Operation_id + ", "
 	res += "owner: " + o.Operation_owner_user_id + ", "
 	res += "resource: " + o.Resource_id + ", "
-	res += "resource-type: " + o.Resource_type + ", "
+	res += "resource-type: " + string(o.Resource_type) + ", "
 
 	res += "human-readable-state: " + o.Human_readable_state + ", "
 	res += "state: " + string(o.State) + ", "

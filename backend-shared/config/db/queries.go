@@ -78,7 +78,6 @@ type DatabaseQueries interface {
 
 	CheckedDeleteDeploymentToApplicationMappingByDeplId(ctx context.Context, id string, ownerId string) (int, error)
 
-	// TODO: GITOPSRVCE-67 - DEBT - I think this should still have an owner, even if it presumed that it is user id:
 	DeleteClusterAccessById(ctx context.Context, userId string, managedEnvironmentId string, gitopsEngineInstanceId string) (int, error)
 	CheckedDeleteGitopsEngineInstanceById(ctx context.Context, id string, ownerId string) (int, error)
 	CheckedDeleteManagedEnvironmentById(ctx context.Context, id string, ownerId string) (int, error)
@@ -170,7 +169,8 @@ type ApplicationScopedQueries interface {
 
 	CreateOperation(ctx context.Context, obj *Operation, ownerId string) error
 	GetOperationById(ctx context.Context, operation *Operation) error
-	ListOperationsByResourceIdAndTypeAndOwnerId(ctx context.Context, resourceID string, resourceType string, operations *[]Operation, ownerId string) error
+	ListOperationsByResourceIdAndTypeAndOwnerId(ctx context.Context, resourceID string, resourceType OperationResourceType,
+		operations *[]Operation, ownerId string) error
 	CheckedDeleteOperationById(ctx context.Context, id string, ownerId string) (int, error)
 	DeleteOperationById(ctx context.Context, id string) (int, error)
 
@@ -196,7 +196,9 @@ type ApplicationScopedQueries interface {
 	CreateAPICRToDatabaseMapping(ctx context.Context, obj *APICRToDatabaseMapping) error
 
 	// ListAPICRToDatabaseMappingByAPINamespaceAndName returns the DBRelationKey for a given type/name/namespace/namespace uid/db-relation-type query
-	ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx context.Context, apiCRResourceType string, crName string, crNamespace string, crNamespaceUID string, dbRelationType string, apiCRToDBMappingParam *[]APICRToDatabaseMapping) error
+	ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx context.Context, apiCRResourceType APICRToDatabaseMapping_ResourceType,
+		crName string, crNamespace string, crNamespaceUID string, dbRelationType APICRToDatabaseMapping_DBRelationType,
+		apiCRToDBMappingParam *[]APICRToDatabaseMapping) error
 
 	GetDatabaseMappingForAPICR(ctx context.Context, obj *APICRToDatabaseMapping) error
 	DeleteAPICRToDatabaseMapping(ctx context.Context, obj *APICRToDatabaseMapping) (int, error)

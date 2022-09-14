@@ -233,7 +233,8 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedDeleteOperationById(ctx context.Con
 	return deleteResult.RowsAffected(), nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) ListOperationsByResourceIdAndTypeAndOwnerId(ctx context.Context, resourceID string, resourceType string, operations *[]Operation, ownerId string) error {
+func (dbq *PostgreSQLDatabaseQueries) ListOperationsByResourceIdAndTypeAndOwnerId(ctx context.Context, resourceID string,
+	resourceType OperationResourceType, operations *[]Operation, ownerId string) error {
 
 	if err := validateQueryParamsEntity(operations, dbq); err != nil {
 		return err

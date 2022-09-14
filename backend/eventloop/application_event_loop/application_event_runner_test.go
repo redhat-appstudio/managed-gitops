@@ -1638,7 +1638,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 			return managedEnvRow, application, nil
 		}
 
-		listOperationRowsForResource := func(resourceId string, resourceType string) ([]db.Operation, error) {
+		listOperationRowsForResource := func(resourceId string, resourceType db.OperationResourceType) ([]db.Operation, error) {
 			operations := []db.Operation{}
 			if err := dbQueries.UnsafeListAllOperations(ctx, &operations); err != nil {
 				return []db.Operation{}, err

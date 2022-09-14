@@ -108,8 +108,9 @@ func (dbq *PostgreSQLDatabaseQueries) GetDatabaseMappingForAPICR(ctx context.Con
 }
 
 // ListAPICRToDatabaseMappingByAPINamespaceAndName returns the DBRelationKey and APIResourceUID for a given type/name/namespace/namespace uid/db-relation-type query
-func (dbq *PostgreSQLDatabaseQueries) ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx context.Context, apiCRResourceType string,
-	crName string, crNamespace string, crNamespaceUID string, dbRelationType string, apiCRToDBMappingParam *[]APICRToDatabaseMapping) error {
+func (dbq *PostgreSQLDatabaseQueries) ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx context.Context,
+	apiCRResourceType APICRToDatabaseMapping_ResourceType, crName string, crNamespace string, crNamespaceUID string,
+	dbRelationType APICRToDatabaseMapping_DBRelationType, apiCRToDBMappingParam *[]APICRToDatabaseMapping) error {
 
 	if err := validateQueryParamsEntity(apiCRToDBMappingParam, dbq); err != nil {
 		return err

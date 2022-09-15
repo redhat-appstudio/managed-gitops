@@ -26,6 +26,8 @@ createAndEnterWorkspace "$SERVICE_WS"
 echo "Creating APIExports and APIResourceSchemas in workspace $SERVICE_WS"
 KUBECONFIG="${CPS_KUBECONFIG}" make apply-kcp-api-all
 
+## Add identityHash for the exports
+
 KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws
 bindingName=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get clusterrolebinding | grep $SERVICE_WS | awk '{print $1}')
 echo $bindingName
@@ -95,6 +97,10 @@ EOF
 echo "Creating APIBindings in workspace $USER_wS"
 createAPIBinding gitopsrvc-backend-shared
 createAPIBinding gitopsrvc-appstudio-shared
+
+# Checking if the bindings are in Ready state
+KUBECONFIG="${CPS_KUBECONFIG}" kubectl wait --for=condition=Ready apibindings/gitopsrvc-appstudio-shared
+KUBECONFIG="${CPS_KUBECONFIG}" kubectl wait --for=condition=Ready apibindings/gitopsrvc-backend-shared
 
 KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws
 KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws use $SERVICE_WS

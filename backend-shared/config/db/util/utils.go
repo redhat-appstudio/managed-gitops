@@ -112,7 +112,7 @@ func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, namespace 
 
 	// We avoid logging the bearer_token or kube_config, as these container sensitive user data.
 	if err := dbq.CreateClusterCredentials(ctx, &clusterCreds); err != nil {
-		log.Error(err, "Unable to create Cluster Credentials for ManagedEnvironment: "+clusterCreds.Clustercredentials_cred_id,
+		log.Error(err, "Unable to create Cluster Credentials for ManagedEnvironment",
 			clusterCreds.GetAsLogKeyValues()...)
 
 		return nil, false, fmt.Errorf("unable to create cluster creds for managed env: %v", err)
@@ -126,7 +126,7 @@ func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, namespace 
 	}
 
 	if err := dbq.CreateManagedEnvironment(ctx, &managedEnvironment); err != nil {
-		log.Error(err, "Unable to create Managed Environment: "+managedEnvironment.Managedenvironment_id)
+		log.Error(err, "Unable to create Managed Environment: "+managedEnvironment.Managedenvironment_id, managedEnvironment.GetAsLogKeyValues()...)
 		return nil, false, fmt.Errorf("unable to create managed env: %v", err)
 	}
 	log.Info("Created Managed Environment: " + managedEnvironment.Managedenvironment_id)
@@ -139,7 +139,7 @@ func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, namespace 
 	}
 
 	if err := dbq.CreateKubernetesResourceToDBResourceMapping(ctx, dbResourceMapping); err != nil {
-		log.Info("Unable to create KubernetesResourceToDBResourceMapping for ManagedEnvironment: "+dbResourceMapping.KubernetesResourceUID,
+		log.Info("Unable to create KubernetesResourceToDBResourceMapping for ManagedEnvironment",
 			dbResourceMapping.GetAsLogKeyValues()...)
 
 		return nil, false, fmt.Errorf("unable to create KubernetesResourceToDBResourceMapping: %v", err)
@@ -398,15 +398,16 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 
 			// We have found a mapping without the corresponding mapped entity, so delete the mapping.
 			// (We will recreate the mapping below)
-			log.V(util.LogLevel_Warn).Error(nil, "GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID found a resource mapping, but no engine cluster.")
+			log.V(util.LogLevel_Warn).Error(nil, "GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID found a resource mapping, "+
+				"but no engine cluster.")
 
 			if _, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, dbResourceMapping); err != nil {
-				log.Error(err, "Unable to delete KubernetesResourceToDBResourceMapping (while the engine cluster was not found): "+fmt.Sprintf("%v", dbResourceMapping),
+				log.Error(err, "Unable to delete KubernetesResourceToDBResourceMapping (while the engine cluster was not found)",
 					dbResourceMapping.GetAsLogKeyValues()...)
 
 				return nil, false, err
 			}
-			log.Info("Deleted KubernetesResourceToDBResourceMapping, as the engine cluster was not found: "+fmt.Sprintf("%v", dbResourceMapping),
+			log.Info("Deleted KubernetesResourceToDBResourceMapping, as the engine cluster was not found",
 				dbResourceMapping.GetAsLogKeyValues()...)
 
 			gitopsEngineCluster = nil
@@ -421,7 +422,8 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 		// Scenario A) neither mapping row, nor engine cluster row exists in the db: so create both
 
 		// Create cluster credentials for the managed env
-		// TODO: GITOPSRVCE-66 - Cluster credentials placeholder values - we will need to create a service account on the target cluster, which we can store in the database.
+		// TODO: GITOPSRVCE-66 - Cluster credentials placeholder values - we will need to create a service account on the
+		// target cluster, which we can store in the database.
 		clusterCreds := db.ClusterCredentials{
 			Host:                        "host",
 			Kube_config:                 "kube_config",
@@ -430,7 +432,7 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 			Serviceaccount_ns:           "serviceaccount_ns",
 		}
 		if err := dbq.CreateClusterCredentials(ctx, &clusterCreds); err != nil {
-			log.Error(err, "Unable to create Cluster Credentials for GitOpsEngineCluster: "+clusterCreds.Clustercredentials_cred_id,
+			log.Error(err, "Unable to create Cluster Credentials for GitOpsEngineCluster",
 				clusterCreds.GetAsLogKeyValues()...)
 
 			return nil, false, fmt.Errorf("unable to create cluster creds for managed env: %v", err)
@@ -442,14 +444,14 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 			Clustercredentials_id: clusterCreds.Clustercredentials_cred_id,
 		}
 		if err := dbq.CreateGitopsEngineCluster(ctx, gitopsEngineCluster); err != nil {
-			log.Error(err, "Unable to create GitopsEngineCluster: "+gitopsEngineCluster.Gitopsenginecluster_id, gitopsEngineCluster.GetAsLogKeyValues()...)
+			log.Error(err, "Unable to create GitopsEngineCluster", gitopsEngineCluster.GetAsLogKeyValues()...)
 			return nil, false, fmt.Errorf("unable to create engine cluster, when neither existed: %v", err)
 		}
 		log.Info("Created GitopsEngineCluster: "+gitopsEngineCluster.Gitopsenginecluster_id, gitopsEngineCluster.GetAsLogKeyValues()...)
 
 		expectedDBResourceMapping.DBRelationKey = gitopsEngineCluster.Gitopsenginecluster_id
 		if err := dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &expectedDBResourceMapping); err != nil {
-			log.Error(err, "Unable to create KubernetesResourceToDBResourceMapping with DBRelationKey: "+expectedDBResourceMapping.DBRelationKey, expectedDBResourceMapping.GetAsLogKeyValues()...)
+			log.Error(err, "Unable to create KubernetesResourceToDBResourceMapping", expectedDBResourceMapping.GetAsLogKeyValues()...)
 			return nil, false, fmt.Errorf("unable to create mapping when neither existed: %v", err)
 		}
 		log.Info("Created KubernetesResourceToDBResourceMapping with DBRelationKey: "+expectedDBResourceMapping.DBRelationKey, expectedDBResourceMapping.GetAsLogKeyValues()...)
@@ -469,8 +471,7 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 
 		expectedDBResourceMapping.DBRelationKey = gitopsEngineCluster.Gitopsenginecluster_id
 		if err := dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &expectedDBResourceMapping); err != nil {
-			log.Error(err, "Unable to create KubernetesResourceToDBResourceMapping with DBRelationKey: "+
-				expectedDBResourceMapping.DBRelationKey, expectedDBResourceMapping.GetAsLogKeyValues()...)
+			log.Error(err, "Unable to create KubernetesResourceToDBResourceMapping", expectedDBResourceMapping.GetAsLogKeyValues()...)
 
 			return nil, false, fmt.Errorf("unable to create mapping when dbResourceMapping didn't exist: %v", err)
 		}

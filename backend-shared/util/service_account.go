@@ -60,6 +60,8 @@ func getOrCreateServiceAccount(ctx context.Context, k8sClient client.Client, ser
 	}
 	LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, ResourceCreated, log)
 
+	log.Info(fmt.Sprintf("ServiceAccount %s created in namespace %s", serviceAccountName, serviceAccountNS))
+
 	return serviceAccount, nil
 }
 

@@ -498,8 +498,7 @@ func internalGetOrCreateClusterAccess(ctx context.Context, ca *db.ClusterAccess,
 	}
 
 	if err := dbq.CreateClusterAccess(ctx, ca); err != nil {
-		log.Error(err, fmt.Sprintf("Unable to create ClusterAccess for UserID: %s, for ManagedEnvironment: %s", ca.Clusteraccess_user_id,
-			ca.Clusteraccess_managed_environment_id), ca.GetAsLogKeyValues()...)
+		log.Error(err, "Unable to create ClusterAccess", ca.GetAsLogKeyValues()...)
 
 		return err, false
 	}

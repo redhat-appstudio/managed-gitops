@@ -141,7 +141,7 @@ runGitOpsService() {
     KUBECONFIG="${CPS_KUBECONFIG}" make devenv-docker
 
     echo "Running gitops service controllers"
-    KUBECONFIG="${CPS_KUBECONFIG}" make start-e2e &
+    KUBECONFIG="${CPS_KUBECONFIG}" make start &
 }
 
 registerSyncTarget() {

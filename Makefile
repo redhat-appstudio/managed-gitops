@@ -206,7 +206,6 @@ start-e2e: start ## Start the managed gitops processes for E2E tests. At the mom
 gen-kcp-api-all: gen-kcp-api-appstudio-shared gen-kcp-api-backend-shared ## Creates all the KCP API Resources for all comfig/crds
 
 apply-kcp-api-all: ## Apply all APIExport to the cluster
-	kubectl apply -f manifests/dependencies/kcp
 	kubectl apply -k appstudio-shared/config/kcp
 	kubectl apply -k backend-shared/config/kcp
 

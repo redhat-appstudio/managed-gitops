@@ -456,7 +456,13 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		}
 	}
 
-	// TODO: GITOPSRVCE-67 - Sanity check that the application.name matches the expected value set in handleCreateGitOpsEvent
+	// Sanity check that the application.name matches the expected value set in handleCreateGitOpsEvent
+	expectedAppName := argosharedutil.GenerateArgoCDApplicationName(string(gitopsDeployment.UID))
+	if expectedAppName != application.Name {
+		log.Error(nil, "SEVERE: The name of the Argo CD Application CR should remain constant")
+		return false, nil, nil, deploymentModifiedResult_Failed,
+			fmt.Errorf("name of the Argo CD Application should not change:'%s' '%s'", expectedAppName, application.Name)
+	}
 
 	// If the user specified a value, always use it. If not, use the API resource namespace (but only in the workspace target case)
 	destinationNamespace := gitopsDeployment.Spec.Destination.Namespace

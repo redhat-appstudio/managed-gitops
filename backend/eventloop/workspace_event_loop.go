@@ -289,7 +289,7 @@ func handleOrphaned(ctx context.Context, event eventlooptypes.EventLoopMessage, 
 			}
 		}
 
-		// TODO: GITOPSRVCE-67 - DEBT - Make sure it's not still orphaned before adding it to orphanedResources
+		// TODO: GITOPSRVCE-224: Make sure it's not still orphaned before adding it to orphanedResources.
 
 		gitopsDeplMap, exists := orphanedResources[syncRunCR.Spec.GitopsDeploymentName]
 		if !exists {

@@ -194,12 +194,40 @@ test-gitops-service-e2e-in-kcp() {
 test-gitops-service-e2e-in-kcp-in-ci() {
   
   export KUBECONFIG=${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig
-  printf "The Kubeconfig being used for testing e2e tests is:" $KUBECONFIG
+  printf "The Kubeconfig being used for testing e2e tests is: ${KUBECONFIG}\n"
   cd ${SCRIPT_DIR}/../../
   make devenv-k8s-e2e
-  printf "The Kubeconfig being used for port-forwarding is:" $ADMIN_KUBECONFIG
+  printf "The Kubeconfig being used for port-forwarding is: ${ADMIN_KUBECONFIG}\n"
   KUBECONFIG="${ADMIN_KUBECONFIG}" dbnamespace=$(kubectl get pods --selector=app.kubernetes.io/instance=gitops-postgresql-staging --all-namespaces -o yaml | yq e '.items[0].metadata.namespace')
-  KUBECONFIG="${ADMIN_KUBECONFIG}" kubectl port-forward -n $dbnamespace svc/gitops-postgresql-staging 5432:5432 &
+  
+  # Wait until postgres pod is running
+  echo " * Wait until Postgres pod is running"
+  counter=0
+  until KUBECONFIG="${ADMIN_KUBECONFIG}" kubectl -n $dbnamespace get pods | grep postgres | grep '1/1' | grep 'Running' &> /dev/null
+  do
+    ((counter++))
+    sleep 1
+    if [ "$counter" -gt 150 ]; then
+      echo " --> Error: PostgreSQL pod cannot start. Quitting ..."
+      echo ""
+      echo "Namespace events:"
+      KUBECONFIG="${ADMIN_KUBECONFIG}" kubectl get events -n $dbnamespace
+      exit 1
+    fi
+  done
+  echo " * Postgres Pod is running."
+  
+  # Checks if 5432 is occupied
+  if lsof -i:5432 | grep LISTEN; then
+    echo " --> Error: Your local port TCP 5432 is already in use. Quit port-forward."
+    exit 1
+  fi
+  echo " * Start port-fowarding PostgreSQL to localhost:5432 ..."
+
+  # Port forward the PostgreSQL service locally, so we can access it
+	KUBECONFIG="${ADMIN_KUBECONFIG}" kubectl port-forward -n $dbnamespace svc/gitops-postgresql-staging 5432:5432 &
+  echo " * Port-Forwarding worked"
+
   kubectl create ns kube-system || true
   make start-e2e &
   make test-e2e

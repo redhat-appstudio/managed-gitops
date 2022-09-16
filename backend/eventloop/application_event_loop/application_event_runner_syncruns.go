@@ -394,7 +394,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			return false, err
 		}
 
-		// TODO: GITOPSRVCE-67 - DEBT - Include test case to check that the various goroutines are terminated when the CR is deleted.
+		// TODO: GITOPSRVCE-166 - DEBT - Include test case to check that the various goroutines are terminated when the CR is deleted.
 
 		return false, nil
 	}

@@ -14,7 +14,6 @@ CRD_DIR="$(realpath ${THIS_DIR}/../appstudio-shared/config/crd/bases)"
 KCP_API_DIR="$(realpath ${THIS_DIR}/../appstudio-shared/config/kcp)"
 
 wget -P ${CRD_DIR} https://raw.githubusercontent.com/redhat-appstudio/application-service/7a1a14b575dc725a46ea2ab175692f464122f0f8/config/crd/bases/appstudio.redhat.com_applications.yaml
-cp ${THIS_DIR}/../backend-shared/config/crd/bases/managed-gitops.redhat.com_gitopsdeployments.yaml ${CRD_DIR}/
 KCP_API_SCHEMA_FILE_CURRENT="${KCP_API_DIR}/apiresourceschema_gitopsrvc_appstudioshared.yaml"
 KCP_API_SCHEMA_FILE_NEW="${KCP_API_DIR}/apiresourceschema_gitopsrvc_appstudioshared.yaml_new"
 cat << EOF > ${KCP_API_SCHEMA_FILE_NEW}
@@ -59,6 +58,8 @@ spec:
     resource: "secrets"
   - group: ""
     resource: "namespaces"
+  - group: managed-gitops.redhat.com
+    resource: gitopsdeployments
   latestResourceSchemas:
 EOF
 
@@ -75,4 +76,3 @@ $( cat ${KCP_API_EXPORT_FILE} )
 EOF
 
 rm ${CRD_DIR}/appstudio.redhat.com_applications.yaml
-rm ${CRD_DIR}/managed-gitops.redhat.com_gitopsdeployments.yaml

@@ -139,7 +139,7 @@ func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, namespace 
 	}
 
 	if err := dbq.CreateKubernetesResourceToDBResourceMapping(ctx, dbResourceMapping); err != nil {
-		log.Info("Unable to create KubernetesResourceToDBResourceMapping for ManagedEnvironment",
+		log.Error(err, "Unable to create KubernetesResourceToDBResourceMapping for ManagedEnvironment",
 			dbResourceMapping.GetAsLogKeyValues()...)
 
 		return nil, false, fmt.Errorf("unable to create KubernetesResourceToDBResourceMapping: %v", err)

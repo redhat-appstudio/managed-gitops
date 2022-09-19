@@ -214,7 +214,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetAPICRForDatabaseUID(ctx context.Context
 	return nil
 }
 
-// GetAsLogKeyValues return a []interface that can be passed to log.Info(...).
+// GetAsLogKeyValues returns an []interface that can be passed to log.Info(...).
 // e.g. log.Info("Creating database resource", obj.GetAsLogKeyValues()...)
 func (obj *APICRToDatabaseMapping) GetAsLogKeyValues() []interface{} {
 	if obj == nil {

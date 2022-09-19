@@ -217,7 +217,7 @@ func (obj *GitopsEngineCluster) Dispose(ctx context.Context, dbq DatabaseQueries
 	return err
 }
 
-// GetAsLogKeyValues return a []interface that can be passed to log.Info(...).
+// GetAsLogKeyValues returns an []interface that can be passed to log.Info(...).
 // e.g. log.Info("Creating database resource", obj.GetAsLogKeyValues()...)
 func (obj *GitopsEngineCluster) GetAsLogKeyValues() []interface{} {
 	if obj == nil {

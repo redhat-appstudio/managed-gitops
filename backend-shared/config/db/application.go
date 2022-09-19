@@ -339,7 +339,7 @@ func (app *Application) DisposeAppScoped(ctx context.Context, dbq ApplicationSco
 	return err
 }
 
-// GetAsLogKeyValues return a []interface that can be passed to log.Info(...).
+// GetAsLogKeyValues returns an []interface that can be passed to log.Info(...).
 // e.g. log.Info("Creating database resource", obj.GetAsLogKeyValues()...)
 func (obj *Application) GetAsLogKeyValues() []interface{} {
 	if obj == nil {

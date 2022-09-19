@@ -25,16 +25,6 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 					Namespace: "gitops-depl-namespace",
 					UID:       uuid.NewUUID(),
 				},
-				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
-					Source: managedgitopsv1alpha1.ApplicationSource{
-						RepoURL:        "https://github.com/abc-org/abc-repo",
-						Path:           "/abc-path",
-						TargetRevision: "abc-commit"},
-					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated,
-					Destination: managedgitopsv1alpha1.ApplicationDestination{
-						Namespace: "abc-namespace",
-					},
-				},
 			}
 
 			AddOrUpdateGitOpsDeployment(gitopsDepl.Name, gitopsDepl.Namespace, string(gitopsDepl.UID))

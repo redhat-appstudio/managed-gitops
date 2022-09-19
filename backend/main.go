@@ -63,8 +63,6 @@ func init() {
 
 	utilruntime.Must(managedgitopsv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
-
-	// metric.Registry.MustRegister(metrics.Gitopsdepl, metrics.GitopsdeplFailures)
 }
 
 func main() {

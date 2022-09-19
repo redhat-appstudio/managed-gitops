@@ -331,7 +331,7 @@ func replaceExistingManagedEnv(ctx context.Context,
 	// 3) Delete the old credentials
 	rowsDeleted, err := dbQueries.DeleteClusterCredentialsById(ctx, oldClusterCredentialsPrimaryKey)
 	if err != nil {
-		log.Info("Unable to delete old ClusterCredentials row which is no longer used by ManagedEnv", "clusterCredentials", oldClusterCredentialsPrimaryKey)
+		log.Error(err, "Unable to delete old ClusterCredentials row which is no longer used by ManagedEnv", "clusterCredentials", oldClusterCredentialsPrimaryKey)
 		return SharedResourceManagedEnvContainer{},
 			fmt.Errorf("unable to delete old cluster credentials '%s': %v", oldClusterCredentialsPrimaryKey, err)
 	}

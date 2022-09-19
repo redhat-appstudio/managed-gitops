@@ -152,14 +152,14 @@ func (obj *ClusterAccess) Dispose(ctx context.Context, dbq DatabaseQueries) erro
 	return err
 }
 
-// GetAsLogKeyValues return a []interface that can be passed to log.Info(...).
+// GetAsLogKeyValues returns an []interface that can be passed to log.Info(...).
 // e.g. log.Info("Creating database resource", obj.GetAsLogKeyValues()...)
 func (obj *ClusterAccess) GetAsLogKeyValues() []interface{} {
 	if obj == nil {
 		return []interface{}{}
 	}
 
-	return []interface{}{"engineInstance", obj.Clusteraccess_gitops_engine_instance_id,
-		"managedEnvironment", obj.Clusteraccess_managed_environment_id,
+	return []interface{}{"engineInstanceID", obj.Clusteraccess_gitops_engine_instance_id,
+		"managedEnvironmentID", obj.Clusteraccess_managed_environment_id,
 		"userID", obj.Clusteraccess_user_id}
 }

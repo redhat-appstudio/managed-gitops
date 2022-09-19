@@ -196,7 +196,7 @@ func (obj *ClusterUser) Dispose(ctx context.Context, dbq DatabaseQueries) error 
 	return err
 }
 
-// GetAsLogKeyValues return a []interface that can be passed to log.Info(...).
+// GetAsLogKeyValues returns an []interface that can be passed to log.Info(...).
 // e.g. log.Info("Creating database resource", obj.GetAsLogKeyValues()...)
 func (obj *ClusterUser) GetAsLogKeyValues() []interface{} {
 	if obj == nil {

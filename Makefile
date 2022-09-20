@@ -1,6 +1,6 @@
 MAKEFILE_ROOT=$(shell pwd)
 GOBIN=$(shell go env GOPATH)/bin
-TAG ?= fdda9052c90216d1094ae8bd4805800212cf04c1
+TAG ?= latest
 BASE_IMAGE ?= gitops-service
 USERNAME ?= redhat-appstudio
 IMG ?= quay.io/${USERNAME}/${BASE_IMAGE}:${TAG}

@@ -193,7 +193,7 @@ test-gitops-service-e2e-in-kcp-in-ci() {
   export KUBECONFIG=${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig
   printf "The Kubeconfig being used for testing e2e tests is: ${KUBECONFIG}\n"
   cd ${SCRIPT_DIR}/../../
-  make devenv-k8s-e2e
+  KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" make devenv-k8s-e2e
   printf "The Kubeconfig being used for port-forwarding is: ${ADMIN_KUBECONFIG}\n"
   KUBECONFIG="${ADMIN_KUBECONFIG}" dbnamespace=$(kubectl get pods --selector=app.kubernetes.io/instance=gitops-postgresql-staging --all-namespaces -o yaml | yq e '.items[0].metadata.namespace')
   printf "Postgres pod is running in ${dbnamespace} namespace in synctarget."
@@ -201,7 +201,9 @@ test-gitops-service-e2e-in-kcp-in-ci() {
   # Wait until postgres pod is running
   printf " * Wait until Postgres pod is running"
   counter=0
+  sleep 2m
   until KUBECONFIG="${ADMIN_KUBECONFIG}" kubectl -n $dbnamespace get pods | grep postgres | grep '1/1' | grep 'Running' &> /dev/null
+  printf "Comes here"
   do
     ((counter++))
     sleep 1
@@ -215,20 +217,13 @@ test-gitops-service-e2e-in-kcp-in-ci() {
   done
   printf " * Postgres Pod is running."
   
-  # Checks if 5432 is occupied
-  # if lsof -i:5432 | grep LISTEN; then
-  #   printf " --> Error: Your local port TCP 5432 is already in use. Quit port-forward."
-  #   exit 1
-  # fi
-  # printf " * Start port-fowarding PostgreSQL to localhost:5432 ..."
-
   # Port forward the PostgreSQL service locally, so we can access it
 	KUBECONFIG="${ADMIN_KUBECONFIG}" kubectl port-forward -n $dbnamespace svc/gitops-postgresql-staging 5432:5432 &
   echo " * Port-Forwarding worked"
 
-  kubectl create ns kube-system || true
-  make start-e2e &
-  make test-e2e
+  KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl create ns kube-system || true
+  KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" make start-e2e &
+  KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" make test-e2e
 }
 
 OPENSHIFT_CI="${OPENSHIFT_CI:-false}"

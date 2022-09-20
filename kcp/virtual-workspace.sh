@@ -26,7 +26,7 @@ createAndEnterWorkspace "$SERVICE_WS"
 echo "Creating APIExports and APIResourceSchemas in workspace $SERVICE_WS"
 KUBECONFIG="${CPS_KUBECONFIG}" make apply-kcp-api-all
 
-## Add identityHash for the exports
+identityHash=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get apiexports.apis.kcp.dev gitopsrvc-backend-shared -o jsonpath='{.status.identityHash}')
 
 KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws
 bindingName=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get clusterrolebinding | grep $SERVICE_WS | awk '{print $1}')
@@ -75,23 +75,35 @@ createAPIBinding() {
     path=$(basename $url)
     KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws use $USER_WS
 
+    permissionClaims='
+  permissionClaims:
+  - group: ""
+    resource: "secrets"
+    state: "Accepted"
+  - group: ""
+    resource: "namespaces"
+    state: "Accepted"'
+
+  if [ exportName == "gitopsrvc-appstudio-shared" ]; then
+    permissionClaims="${acceptedPermissionClaims}
+  - group: \"managed-gitops.redhat.com\"
+    resource: \"gitopsdeployments\"
+    state: \"Accepted\"
+    identityHash: ${identityHash}"
+  fi
+
 cat <<EOF | KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f -
 apiVersion: apis.kcp.dev/v1alpha1
 kind: APIBinding
 metadata:
   name: ${exportName}
 spec:
-  acceptedPermissionClaims:
-  - group: ""
-    resource: "secrets"
-  - group: ""
-    resource: "namespaces"
+${permissionClaims}
   reference:
     workspace:
       path: ${path}
       exportName: ${exportName}
 EOF
-
 }
 
 echo "Creating APIBindings in workspace $USER_wS"

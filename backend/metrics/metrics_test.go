@@ -26,25 +26,28 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 					UID:       uuid.NewUUID(),
 				},
 			}
-
+			By("simulating a new valid GitOpsDeployment being processed")
 			AddOrUpdateGitOpsDeployment(gitopsDepl.Name, gitopsDepl.Namespace, string(gitopsDepl.UID))
 			newTotalNumberOfGitOpsDeploymentMetrics := testutil.ToFloat64(Gitopsdepl)
 			newNumberOfGitOpsDeploymentsInErrorState := testutil.ToFloat64(GitopsdeplFailures)
 			Expect(newTotalNumberOfGitOpsDeploymentMetrics).To(Equal(totalNumberOfGitOpsDeploymentMetrics + 1))
 			Expect(newNumberOfGitOpsDeploymentsInErrorState).To(Equal(numberOfGitOpsDeploymentsInErrorState))
 
+			By("setting the GitOpsDeployment to an error state")
 			SetErrorState(gitopsDepl.Name, gitopsDepl.Namespace, string(gitopsDepl.UID), true)
 			newTotalNumberOfGitOpsDeploymentMetrics = testutil.ToFloat64(Gitopsdepl)
 			newNumberOfGitOpsDeploymentsInErrorState = testutil.ToFloat64(GitopsdeplFailures)
 			Expect(newTotalNumberOfGitOpsDeploymentMetrics).To(Equal(totalNumberOfGitOpsDeploymentMetrics + 1))
 			Expect(newNumberOfGitOpsDeploymentsInErrorState).To(Equal(numberOfGitOpsDeploymentsInErrorState + 1))
 
+			By("setting the GitOpsDeployment to a non-error state")
 			SetErrorState(gitopsDepl.Name, gitopsDepl.Namespace, string(gitopsDepl.UID), false)
 			newTotalNumberOfGitOpsDeploymentMetrics = testutil.ToFloat64(Gitopsdepl)
 			newNumberOfGitOpsDeploymentsInErrorState = testutil.ToFloat64(GitopsdeplFailures)
 			Expect(newTotalNumberOfGitOpsDeploymentMetrics).To(Equal(totalNumberOfGitOpsDeploymentMetrics + 1))
 			Expect(newNumberOfGitOpsDeploymentsInErrorState).To(Equal(numberOfGitOpsDeploymentsInErrorState))
 
+			By("removing the simulated GitOpsDeployment from prometheus")
 			RemoveGitOpsDeployment(gitopsDepl.Name, gitopsDepl.Namespace, string(gitopsDepl.UID))
 			newTotalNumberOfGitOpsDeploymentMetrics = testutil.ToFloat64(Gitopsdepl)
 			newNumberOfGitOpsDeploymentsInErrorState = testutil.ToFloat64(GitopsdeplFailures)

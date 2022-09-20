@@ -41,8 +41,7 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 		var gitopsDepl *managedgitopsv1alpha1.GitOpsDeployment
 		var appEventLoopRunnerAction applicationEventLoopRunner_Action
 
-		BeforeEach(func() {
-
+		It("Should update existing deployment, instead of creating new.", func() {
 			metrics.ClearMetrics()
 
 			ctx = context.Background()
@@ -101,9 +100,6 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 				workspaceID:                 workspaceID,
 				testOnlySkipCreateOperation: true,
 			}
-		})
-
-		It("Should update existing deployment, instead of creating new.", func() {
 
 			numberOfGitOpsDeploymentsInErrorState := testutil.ToFloat64(metrics.GitopsdeplFailures)
 			totalNumberOfGitOpsDeploymentMetrics := testutil.ToFloat64(metrics.Gitopsdepl)
@@ -140,8 +136,109 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 			Expect(err).To(BeNil())
 
 			newNumberOfGitOpsDeploymentsInErrorState = testutil.ToFloat64(metrics.GitopsdeplFailures)
+			newTotalNumberOfGitOpsDeploymentMetrics = testutil.ToFloat64(metrics.Gitopsdepl)
+			Expect(newNumberOfGitOpsDeploymentsInErrorState).To(Equal(numberOfGitOpsDeploymentsInErrorState))
+			Expect(newTotalNumberOfGitOpsDeploymentMetrics).To(Equal(numberOfGitOpsDeploymentsInErrorState))
+
+		})
+
+		It("Should succeed in creating a valid GitOpsDeployment", func() {
+			metrics.ClearMetrics()
+
+			ctx = context.Background()
+			informer = sharedutil.ListEventReceiver{}
+
+			scheme,
+				argocdNamespace,
+				kubesystemNamespace,
+				workspace,
+				err = tests.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			workspaceID = string(workspace.UID)
+
+			gitopsDepl = &managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "gitops-depl",
+					Namespace: workspace.Name,
+					UID:       uuid.NewUUID(),
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/abc-org/abc-repo",
+						Path:           "/abc-path",
+						TargetRevision: "abc-commit"},
+					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated,
+					Destination: managedgitopsv1alpha1.ApplicationDestination{
+						Namespace: "abc-namespace",
+					},
+				},
+			}
+
+			k8sClientOuter = fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).
+				Build()
+
+			k8sClient = &sharedutil.ProxyClient{
+				InnerClient: k8sClientOuter,
+				Informer:    &informer,
+			}
+
+			dbQueries, err = db.NewUnsafePostgresDBQueries(false, false)
+			Expect(err).To(BeNil())
+
+			appEventLoopRunnerAction = applicationEventLoopRunner_Action{
+				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+					return k8sClient, nil
+				},
+				eventResourceName:           gitopsDepl.Name,
+				eventResourceNamespace:      gitopsDepl.Namespace,
+				workspaceClient:             k8sClient,
+				log:                         log.FromContext(context.Background()),
+				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
+				workspaceID:                 workspaceID,
+				testOnlySkipCreateOperation: true,
+			}
+
+			numberOfGitOpsDeploymentsInErrorState := testutil.ToFloat64(metrics.GitopsdeplFailures)
+			totalNumberOfGitOpsDeploymentMetrics := testutil.ToFloat64(metrics.Gitopsdepl)
+
+			By("passing a valid GitOpsDeployment into application event reconciler, and expecting it to not give an error")
+
+			eventLoopEvent := eventlooptypes.EventLoopEvent{
+				EventType: eventlooptypes.DeploymentModified,
+				Request: reconcile.Request{NamespacedName: types.NamespacedName{
+					Namespace: gitopsDepl.Namespace,
+					Name:      gitopsDepl.Name,
+				}},
+				Client:                  k8sClient,
+				ReqResource:             eventlooptypes.GitOpsDeploymentTypeName,
+				AssociatedGitopsDeplUID: string(gitopsDepl.UID),
+				WorkspaceID:             workspaceID,
+			}
+
+			shutdownSignalled, err := handleDeploymentModified(ctx, &eventLoopEvent, appEventLoopRunnerAction, dbQueries, log.FromContext(context.Background()))
+			Expect(shutdownSignalled).To(BeFalse())
+
+			Expect(err).To(BeNil())
+			newTotalNumberOfGitOpsDeploymentMetrics := testutil.ToFloat64(metrics.Gitopsdepl)
+			newNumberOfGitOpsDeploymentsInErrorState := testutil.ToFloat64(metrics.GitopsdeplFailures)
+			Expect(newTotalNumberOfGitOpsDeploymentMetrics).To(Equal(totalNumberOfGitOpsDeploymentMetrics + 1))
 			Expect(newNumberOfGitOpsDeploymentsInErrorState).To(Equal(numberOfGitOpsDeploymentsInErrorState))
 
+			By("deleting the GitOpsDeployment and calling deploymentModified again")
+
+			err = k8sClient.Delete(ctx, gitopsDepl)
+			Expect(err).To(BeNil())
+			shutdownSignalled, err = handleDeploymentModified(ctx, &eventLoopEvent, appEventLoopRunnerAction, dbQueries, log.FromContext(context.Background()))
+			Expect(shutdownSignalled).To(BeFalse())
+			Expect(err).To(BeNil())
+
+			newTotalNumberOfGitOpsDeploymentMetrics = testutil.ToFloat64(metrics.Gitopsdepl)
+			newNumberOfGitOpsDeploymentsInErrorState = testutil.ToFloat64(metrics.GitopsdeplFailures)
+			Expect(newTotalNumberOfGitOpsDeploymentMetrics).To(Equal(totalNumberOfGitOpsDeploymentMetrics))
+			Expect(newNumberOfGitOpsDeploymentsInErrorState).To(Equal(numberOfGitOpsDeploymentsInErrorState))
 		})
 	})
 })

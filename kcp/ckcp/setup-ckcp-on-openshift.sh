@@ -8,7 +8,6 @@ SCRIPT_DIR="$(
   pwd
 )"
 
-ADMIN_KUBECONFIG="$KUBECONFIG"
 export GITOPS_IN_KCP="true"
 export DISABLE_KCP_VIRTUAL_WORKSPACE="true"
 
@@ -19,8 +18,6 @@ cleanup() {
   killall goreman
   killall kubectl
 }
-
-trap cleanup EXIT
 
 # Checks if a binary is present on the local system
 exit_if_binary_not_installed() {
@@ -199,30 +196,31 @@ test-gitops-service-e2e-in-kcp-in-ci() {
   make devenv-k8s-e2e
   printf "The Kubeconfig being used for port-forwarding is: ${ADMIN_KUBECONFIG}\n"
   KUBECONFIG="${ADMIN_KUBECONFIG}" dbnamespace=$(kubectl get pods --selector=app.kubernetes.io/instance=gitops-postgresql-staging --all-namespaces -o yaml | yq e '.items[0].metadata.namespace')
-  
+  printf "Postgres pod is running in ${dbnamespace} namespace in synctarget."
+
   # Wait until postgres pod is running
-  echo " * Wait until Postgres pod is running"
+  printf " * Wait until Postgres pod is running"
   counter=0
   until KUBECONFIG="${ADMIN_KUBECONFIG}" kubectl -n $dbnamespace get pods | grep postgres | grep '1/1' | grep 'Running' &> /dev/null
   do
     ((counter++))
     sleep 1
     if [ "$counter" -gt 150 ]; then
-      echo " --> Error: PostgreSQL pod cannot start. Quitting ..."
-      echo ""
-      echo "Namespace events:"
+      printf " --> Error: PostgreSQL pod cannot start. Quitting ..."
+      printf ""
+      printf "Namespace events:"
       KUBECONFIG="${ADMIN_KUBECONFIG}" kubectl get events -n $dbnamespace
       exit 1
     fi
   done
-  echo " * Postgres Pod is running."
+  printf " * Postgres Pod is running."
   
   # Checks if 5432 is occupied
-  if lsof -i:5432 | grep LISTEN; then
-    echo " --> Error: Your local port TCP 5432 is already in use. Quit port-forward."
-    exit 1
-  fi
-  echo " * Start port-fowarding PostgreSQL to localhost:5432 ..."
+  # if lsof -i:5432 | grep LISTEN; then
+  #   printf " --> Error: Your local port TCP 5432 is already in use. Quit port-forward."
+  #   exit 1
+  # fi
+  # printf " * Start port-fowarding PostgreSQL to localhost:5432 ..."
 
   # Port forward the PostgreSQL service locally, so we can access it
 	KUBECONFIG="${ADMIN_KUBECONFIG}" kubectl port-forward -n $dbnamespace svc/gitops-postgresql-staging 5432:5432 &

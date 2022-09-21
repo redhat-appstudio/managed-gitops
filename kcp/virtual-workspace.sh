@@ -18,6 +18,7 @@ cleanup_workspace() {
 
 trap cleanup_workspace EXIT
 
+# Read the CPS KUBECONFIG path if it's not set already
 readKUBECONFIGPath
 
 echo "Initializing service provider workspace"
@@ -26,8 +27,10 @@ createAndEnterWorkspace "$SERVICE_WS"
 echo "Creating APIExports and APIResourceSchemas in workspace $SERVICE_WS"
 KUBECONFIG="${CPS_KUBECONFIG}" make apply-kcp-api-all
 
+# Copy the identity hash from the backend APIExport in the service workspace so we can reference it later in the appstudio APIBinding
 identityHash=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get apiexports.apis.kcp.dev gitopsrvc-backend-shared -o jsonpath='{.status.identityHash}')
 
+# Create permissions to bind APIExports. We need this workaround until KCP fixes the bug in their admission logic. Ref: https://github.com/kcp-dev/kcp/issues/1939  
 KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws
 bindingName=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get clusterrolebinding | grep $SERVICE_WS | awk '{print $1}')
 echo $bindingName

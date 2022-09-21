@@ -7,6 +7,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var _ = Describe("GitOpsDeployment Status Tests", func() {
@@ -79,6 +80,68 @@ var _ = Describe("GitOpsDeployment Status Tests", func() {
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
 					gitopsDeplFixture.HaveResources(expectedResourceStatusList),
+				),
+			)
+
+			By("delete the GitOpsDeployment resource")
+			err = k8s.Delete(&gitOpsDeploymentResource)
+			Expect(err).To(Succeed())
+		})
+	})
+})
+
+var _ = Describe("GitOpsDeployment SyncError test", func() {
+
+	Context("Errors are set properly in Status.Sync.SyncError field of GitOpsDeployment", func() {
+
+		It("ensures that GitOpsDeployment .status.sync.syncError field contains the syncError if Application is not synced and error type is SyncError ", func() {
+
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			By("creating the GitOpsDeploymentManagedEnvironment")
+
+			kubeConfigContents, apiServerURL, err := extractKubeConfigValues()
+			Expect(err).To(BeNil())
+
+			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents)
+
+			err = k8s.Create(&secret)
+			Expect(err).To(BeNil())
+
+			err = k8s.Create(&managedEnv)
+			Expect(err).To(BeNil())
+
+			By("create an invalid GitOpsDeployment application")
+			gitOpsDeploymentResource := managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "managed-environment-gitops-depl",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						RepoURL: "https://github.com/redhat-appstudio/gitops-repository-template",
+						Path:    "environments/overlays/dev",
+					},
+					Destination: managedgitopsv1alpha1.ApplicationDestination{
+						Environment: managedEnv.Name,
+						Namespace:   "",
+					},
+					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated,
+				},
+			}
+
+			err = k8s.Create(&gitOpsDeploymentResource)
+			Expect(err).To(Succeed())
+
+			expectedConditions := managedgitopsv1alpha1.GitOpsDeploymentStatus{
+				Sync: managedgitopsv1alpha1.SyncStatus{
+					// Will add syncError once we reproduce sync error
+					SyncError: "sync error",
+				},
+			}
+			Eventually(gitOpsDeploymentResource, "5m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveSyncError(expectedConditions),
 				),
 			)
 

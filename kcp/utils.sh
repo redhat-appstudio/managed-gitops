@@ -141,14 +141,14 @@ runGitOpsService() {
     KUBECONFIG="${CPS_KUBECONFIG}" make devenv-docker
 
     echo "Running gitops service controllers"
-    KUBECONFIG="${CPS_KUBECONFIG}" make start &
+    KUBECONFIG="${CPS_KUBECONFIG}" make start
 }
 
 registerSyncTarget() {
     # Extract the Workload Cluster name from the KUBECONFIG
     WORKLOAD_CLUSTER=$(KUBECONFIG="${WORKLOAD_KUBECONFIG}" kubectl config view --minify -o jsonpath='{.clusters[].name}' | awk -F[:] '{print $1}')
 
-    WORKLOAD_CLUSTER=${WORKLOAD_CLUSTER:22}
+    WORKLOAD_CLUSTER=${WORKLOAD_CLUSTER:0:22}
 
     echo "Generating syncer manifests for OCP SyncTarget $WORKLOAD_CLUSTER"
     KUBECONFIG="$CPS_KUBECONFIG" kubectl kcp workload sync "$WORKLOAD_CLUSTER"  --resources "services,statefulsets.apps,deployments.apps,routes.route.openshift.io" --syncer-image "$SYNCER_IMAGE" --output-file "$SYNCER_MANIFESTS" --namespace kcp-syncer

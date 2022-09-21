@@ -33,9 +33,7 @@ identityHash=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get apiexports.apis.kcp.de
 # Create permissions to bind APIExports. We need this workaround until KCP fixes the bug in their admission logic. Ref: https://github.com/kcp-dev/kcp/issues/1939  
 KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws
 bindingName=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get clusterrolebinding | grep $SERVICE_WS | awk '{print $1}')
-echo $bindingName
 userName=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get clusterrolebindings $bindingName -o jsonpath='{.subjects[0].name}')
-echo $userName
 
 KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws use $SERVICE_WS
 cat <<EOF | KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f -

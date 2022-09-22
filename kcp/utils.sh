@@ -150,6 +150,14 @@ registerSyncTarget() {
 
     WORKLOAD_CLUSTER=${WORKLOAD_CLUSTER:0:22}
 
+    if [ "${WORKLOAD_CLUSTER: -1}" == "-" ]; then
+      WORKLOAD_CLUSTER="${WORKLOAD_CLUSTER%?}"
+    fi
+
+    if [ "${WORKLOAD_CLUSTER:0:1}" == "-" ]; then
+      WORKLOAD_CLUSTER="${WORKLOAD_CLUSTER#?}"
+    fi
+
     echo "Generating syncer manifests for OCP SyncTarget $WORKLOAD_CLUSTER"
     KUBECONFIG="$CPS_KUBECONFIG" kubectl kcp workload sync "$WORKLOAD_CLUSTER"  --resources "services,statefulsets.apps,deployments.apps,routes.route.openshift.io" --syncer-image "$SYNCER_IMAGE" --output-file "$SYNCER_MANIFESTS" --namespace kcp-syncer
 

@@ -129,7 +129,7 @@ func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, namespace 
 		log.Error(err, "Unable to create Managed Environment: "+managedEnvironment.Managedenvironment_id, managedEnvironment.GetAsLogKeyValues()...)
 		return nil, false, fmt.Errorf("unable to create managed env: %v", err)
 	}
-	log.Info("Created Managed Environment: " + managedEnvironment.Managedenvironment_id)
+	log.Info("Created Managed Environment: "+managedEnvironment.Managedenvironment_id, managedEnvironment.GetAsLogKeyValues()...)
 
 	dbResourceMapping = &db.KubernetesToDBResourceMapping{
 		KubernetesResourceType: db.K8sToDBMapping_Namespace,
@@ -216,7 +216,7 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 				log.Error(err, "Unable to delete KubernetesResourceToDBResourceMapping", dbResourceMapping.GetAsLogKeyValues()...)
 				return nil, false, nil, err
 			}
-			log.Info("Deleted KubernetesResourceToDBResourceMappingm due to missing engine instance", dbResourceMapping.GetAsLogKeyValues()...)
+			log.Info("Deleted KubernetesResourceToDBResourceMapping due to missing engine instance", dbResourceMapping.GetAsLogKeyValues()...)
 
 			gitopsEngineInstance = nil
 			dbResourceMapping = nil

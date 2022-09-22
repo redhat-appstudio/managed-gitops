@@ -459,7 +459,7 @@ func createNewManagedEnv(ctx context.Context, managedEnvironment managedgitopsv1
 	}
 
 	if err := dbQueries.CreateManagedEnvironment(ctx, managedEnv); err != nil {
-		log.Error(err, "Unabled to create new ManagedEnvironment", managedEnv.GetAsLogKeyValues()...)
+		log.Error(err, "Unable to create new ManagedEnvironment", managedEnv.GetAsLogKeyValues()...)
 		return nil, fmt.Errorf("unable to create managed environment for env obj '%s': %v", managedEnvironment.UID, err)
 	}
 	log.Info("Created new ManagedEnvironment", managedEnv.GetAsLogKeyValues()...)

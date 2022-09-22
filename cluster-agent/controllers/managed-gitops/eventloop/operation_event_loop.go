@@ -214,7 +214,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 	// If the operation has already completed (e.g. we previously ran it), then just ignore it and return
 	if dbOperation.State == db.OperationState_Completed || dbOperation.State == db.OperationState_Failed {
-		log.V(sharedutil.LogLevel_Debug).Info("Skipping Operation with state of Completed/Dailed")
+		log.V(sharedutil.LogLevel_Debug).Info("Skipping Operation with state of Completed/Failed")
 		return &dbOperation, shouldRetryFalse, nil
 	}
 

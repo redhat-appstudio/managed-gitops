@@ -10,9 +10,9 @@ USER_WS="user-$(echo $RANDOM)"
 export GITOPS_IN_KCP="true"
 
 cleanup_workspace() {
-    kubectl kcp ws
-    kubectl delete workspace $SERVICE_WS || true
-    kubectl delete workspace $USER_WS || true
+    KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws
+    KUBECONFIG="${CPS_KUBECONFIG}" kubectl delete workspace $SERVICE_WS || true
+    KUBECONFIG="${CPS_KUBECONFIG}" kubectl delete workspace $USER_WS || true
     pkill go
 }
 

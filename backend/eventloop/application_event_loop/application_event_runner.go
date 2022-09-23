@@ -44,7 +44,6 @@ import (
 //     - the type of the resource that changed: Either GitOpsDeployment or GitOpsDeploymentSyncRun (as of this writing, Feb 2022).
 //     - name of the resource: for example, 'my-gitops-deployment'
 //     - the namespace that contains the resource, which corresponds to the user: for example, a 'jane' namespace, for a user with user ID 'jane'.
-//     - the uid of the associated GitOpsDeployment resource (from the ‘associatedGitopsDeplUID’ field).
 // - Finds the correspondings K8s resource (GitOpsDeployment/GitOpsDeploymentSyncRun) of the event
 // - Compares that resource contents with what's in the database
 // - Updates (creates/modifies/deletes) the corresponding database entries,
@@ -63,12 +62,12 @@ import (
 
 func startNewApplicationEventLoopRunner(informWorkCompleteChan chan eventlooptypes.EventLoopMessage,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop,
-	gitopsDeplUID string, workspaceID string, debugContext string) chan *eventlooptypes.EventLoopEvent {
+	gitopsDeplName string, gitopsDeplNamespace, workspaceID string, debugContext string) chan *eventlooptypes.EventLoopEvent {
 
 	inputChannel := make(chan *eventlooptypes.EventLoopEvent)
 
 	go func() {
-		applicationEventLoopRunner(inputChannel, informWorkCompleteChan, sharedResourceEventLoop, gitopsDeplUID,
+		applicationEventLoopRunner(inputChannel, informWorkCompleteChan, sharedResourceEventLoop, gitopsDeplName, gitopsDeplNamespace,
 			workspaceID, debugContext)
 	}()
 
@@ -76,20 +75,19 @@ func startNewApplicationEventLoopRunner(informWorkCompleteChan chan eventlooptyp
 
 }
 
-func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent, informWorkCompleteChan chan eventlooptypes.EventLoopMessage,
-	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, gitopsDeplUID string, namespaceID string, debugContext string) {
+func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent,
+	informWorkCompleteChan chan eventlooptypes.EventLoopMessage,
+	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, gitopsDeploymentName string,
+	gitopsDeploymentNamespace string, namespaceID string, debugContext string) {
 
 	outerContext := context.Background()
 	log := log.FromContext(outerContext).WithName("application-event-loop-runner")
 
-	log = log.WithValues("gitopsDeplUID", gitopsDeplUID, "namespaceID", namespaceID, "debugContext", debugContext)
+	log = log.WithValues("namespaceID", namespaceID, "debugContext", debugContext)
 
 	log.V(sharedutil.LogLevel_Debug).Info("applicationEventLoopRunner started")
 
 	signalledShutdown := false
-
-	// The name of the resource (GitOpsDeployment/SyncRun) being handled by this runner.
-	var expectedResourceName string
 
 	for {
 		// Read from input channel: wait for an event on this application
@@ -148,30 +146,27 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 
 				if newEvent.EventType == eventlooptypes.DeploymentModified {
 
-					// Keep track of the resource name the first time we see it.
-					if expectedResourceName == "" && newEvent.Request.Name != "" {
-						expectedResourceName = newEvent.Request.Name
+					if newEvent.Request.Name != gitopsDeploymentName {
+						return fmt.Errorf("SEVERE: request name does not match expected gitopsdeployment name")
 					}
-					if expectedResourceName != "" && newEvent.Request.Name != expectedResourceName {
-						return fmt.Errorf("SEVERE: Application event runner received. Expected: " + expectedResourceName + ", actual: " + newEvent.Request.Name)
+
+					if newEvent.Request.Namespace != gitopsDeploymentNamespace {
+						return fmt.Errorf("SEVERE: request namespace does not match expected gitopsdeployment namespace")
 					}
 
 					signalledShutdown, err = handleDeploymentModified(ctx, newEvent, action, scopedDBQueries, log)
 
 				} else if newEvent.EventType == eventlooptypes.SyncRunModified {
+
 					// Handle all SyncRun related events
-					signalledShutdown, err = action.applicationEventRunner_handleSyncRunModified(ctx, scopedDBQueries)
+					_, err = action.applicationEventRunner_handleSyncRunModified(ctx, scopedDBQueries)
 
 				} else if newEvent.EventType == eventlooptypes.UpdateDeploymentStatusTick {
-					err = action.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, newEvent.AssociatedGitopsDeplUID, scopedDBQueries)
+					err = action.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDeploymentName, gitopsDeploymentNamespace, scopedDBQueries)
 
 				} else if newEvent.EventType == eventlooptypes.ManagedEnvironmentModified {
 
-					if expectedResourceName == "" {
-						// If this runner hasn't processed a GitOpsDeployment yet, then no work is required for the managed environment.
-						return nil
-					}
-					signalledShutdown, err = handleManagedEnvironmentModified(ctx, expectedResourceName, newEvent, action, dbQueriesUnscoped, log)
+					signalledShutdown, err = handleManagedEnvironmentModified(ctx, gitopsDeploymentName, newEvent, action, dbQueriesUnscoped, log)
 
 				} else {
 					log.Error(nil, "SEVERE: Unrecognized event type", "event type", newEvent.EventType)

@@ -349,6 +349,8 @@ var _ = Describe("Test utility functions.", func() {
 
 		It("Should delete existing DeploymentToApplicationMapping, if a resource is passed having same name/namespace, so there is be only one resource per name and namespace.", func() {
 
+			Skip("Unsupported")
+
 			// ----------------------------------------------------------------------------
 			By("Create first DeploymentToApplicationMapping resource.")
 			// ----------------------------------------------------------------------------

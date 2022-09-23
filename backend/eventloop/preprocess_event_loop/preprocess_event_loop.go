@@ -152,20 +152,20 @@ func (task *processEventTask) processEvent(ctx context.Context, newEvent eventlo
 
 	// Repository credentials are workspace-scoped, and thus do not need to go through this preprocess-event processing.
 	if newEvent.ReqResource == eventlooptypes.GitOpsDeploymentRepositoryCredentialTypeName {
-		newEvent.AssociatedGitopsDeplUID = eventlooptypes.NoAssociatedGitOpsDeploymentUID
+		newEvent.AssociatedGitopsDeplUID2 = eventlooptypes.NoAssociatedGitOpsDeploymentUID
 		emitEvent(newEvent, nextStep, "repo cred", log)
 		return false
 	}
 
 	// Managed environments are passed to all gitopsdeployments of a workspace, and thus do not need to go through this preprocess-event processing.
 	if newEvent.ReqResource == eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName {
-		newEvent.AssociatedGitopsDeplUID = eventlooptypes.NoAssociatedGitOpsDeploymentUID
+		newEvent.AssociatedGitopsDeplUID2 = eventlooptypes.NoAssociatedGitOpsDeploymentUID
 		emitEvent(newEvent, nextStep, "managed env", log)
 		return false
 	}
 
 	// GitOpsDeployment, and GitOpsDeploymentSyncRun need to be processed separately from other resources, below, because
-	// they are sharded via the 'newEvent.AssociatedGitopsDeplUID' value. Thus we need to determine the 'AssociatedGitopsDeplUID'
+	// they are sharded via the 'newEvent.AssociatedGitopsDeplUID2' value. Thus we need to determine the 'AssociatedGitopsDeplUID'
 	// for every GitOpsDeployment/SyncRun event that we process, and store it in that field, before emitting the event.
 
 	// Retrieve the event object
@@ -231,7 +231,7 @@ func (task *processEventTask) handleEventFromDatabase(ctx context.Context, newEv
 
 				// For any old resources that don't match the current resource, emit them as old events
 				var oldEvent eventlooptypes.EventLoopEvent = newEvent
-				oldEvent.AssociatedGitopsDeplUID = associatedResource.deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id
+				oldEvent.AssociatedGitopsDeplUID2 = associatedResource.deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id
 				emitEvent(oldEvent, nextStep, "old sync run from db", log)
 			}
 
@@ -254,10 +254,10 @@ func (task *processEventTask) handleEventFromDatabase(ctx context.Context, newEv
 				currentUID.deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id)
 
 			// If we found the associated gitopsdeployment, set it
-			newEvent.AssociatedGitopsDeplUID = currentUID.deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id
+			newEvent.AssociatedGitopsDeplUID2 = currentUID.deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id
 		} else {
 			// Otherwise, it's orphaned
-			newEvent.AssociatedGitopsDeplUID = eventlooptypes.OrphanedResourceGitopsDeplUID
+			newEvent.AssociatedGitopsDeplUID2 = eventlooptypes.OrphanedResourceGitopsDeplUID
 		}
 
 		emitEvent(newEvent, nextStep, "new sync run from db", log)
@@ -279,13 +279,13 @@ func (task *processEventTask) handleEventFromDatabase(ctx context.Context, newEv
 			if item.Deploymenttoapplicationmapping_uid_id != string(resource.GetUID()) {
 
 				var oldEvent eventlooptypes.EventLoopEvent = newEvent
-				oldEvent.AssociatedGitopsDeplUID = item.Deploymenttoapplicationmapping_uid_id
+				oldEvent.AssociatedGitopsDeplUID2 = item.Deploymenttoapplicationmapping_uid_id
 				emitEvent(oldEvent, nextStep, "old gitopsdepl", log)
 			}
 		}
 
 		// Finally, emit the new event
-		newEvent.AssociatedGitopsDeplUID = string(resource.GetUID())
+		newEvent.AssociatedGitopsDeplUID2 = string(resource.GetUID())
 		emitEvent(newEvent, nextStep, "new gitopsdepl", log)
 
 		return false
@@ -326,11 +326,11 @@ func (task *processEventTask) handleEventIfCached(ctx context.Context, newEvent 
 			// emit for the old resource
 
 			var oldEvent eventlooptypes.EventLoopEvent = newEvent
-			oldEvent.AssociatedGitopsDeplUID = previousGitopsDeplUIDFromCache
+			oldEvent.AssociatedGitopsDeplUID2 = previousGitopsDeplUIDFromCache
 			emitEvent(oldEvent, nextStep, "old event", log)
 
 		}
-		newEvent.AssociatedGitopsDeplUID = string(resource.GetUID())
+		newEvent.AssociatedGitopsDeplUID2 = string(resource.GetUID())
 		emitEvent(newEvent, nextStep, "new event", log)
 		return false, true
 
@@ -344,7 +344,7 @@ func (task *processEventTask) handleEventIfCached(ctx context.Context, newEvent 
 			//
 			// So, first emit an event for the previous GitOpsDeploymentSyncRun object.
 			var oldEvent eventlooptypes.EventLoopEvent = newEvent
-			oldEvent.AssociatedGitopsDeplUID = previousGitopsDeplUIDFromCache
+			oldEvent.AssociatedGitopsDeplUID2 = previousGitopsDeplUIDFromCache
 			emitEvent(oldEvent, nextStep, "old event", log)
 
 			// Next, we attempt to determine the current GitOpsDeployment that should be associated with the
@@ -357,18 +357,18 @@ func (task *processEventTask) handleEventIfCached(ctx context.Context, newEvent 
 			}
 
 			if associatedGitOpsDepl != "" {
-				newEvent.AssociatedGitopsDeplUID = associatedGitOpsDepl
+				newEvent.AssociatedGitopsDeplUID2 = associatedGitOpsDepl
 				emitEvent(newEvent, nextStep, "new event", log)
 
 			} else {
-				newEvent.AssociatedGitopsDeplUID = eventlooptypes.OrphanedResourceGitopsDeplUID
+				newEvent.AssociatedGitopsDeplUID2 = eventlooptypes.OrphanedResourceGitopsDeplUID
 				emitEvent(newEvent, nextStep, "new orphaned event", log)
 			}
 			return false, true
 
 		} else {
 			// emit for new
-			newEvent.AssociatedGitopsDeplUID = previousGitopsDeplUIDFromCache
+			newEvent.AssociatedGitopsDeplUID2 = previousGitopsDeplUIDFromCache
 			emitEvent(newEvent, nextStep, "existing syncrun from cache", log)
 			return false, true
 		}
@@ -421,7 +421,7 @@ func processResourceThatDoesntExistInNamespace(ctx context.Context, newEvent eve
 
 		// If the GitOpsDeployment CR UID was found in the cache, then tag the event and emit it.
 		if gitopsDeplUID != "" {
-			newEvent.AssociatedGitopsDeplUID = gitopsDeplUID
+			newEvent.AssociatedGitopsDeplUID2 = gitopsDeplUID
 			// Emit delete with uid found in local cache
 			emitEvent(newEvent, nextStep, "found in local cache", log)
 			return false
@@ -435,7 +435,7 @@ func processResourceThatDoesntExistInNamespace(ctx context.Context, newEvent eve
 
 		// GitOpsDeploymentRepositoryCredentials doesn't have an associated GitOpsDeployment, so we use
 		// the 'noAssociatedGitOpsDeploymentUID' and emit the delete event to the next layer.
-		newEvent.AssociatedGitopsDeplUID = eventlooptypes.NoAssociatedGitOpsDeploymentUID
+		newEvent.AssociatedGitopsDeplUID2 = eventlooptypes.NoAssociatedGitOpsDeploymentUID
 		emitEvent(newEvent, nextStep, "repo creds deleted", log)
 		return false
 
@@ -466,7 +466,7 @@ func processResourceThatDoesntExistInNamespace(ctx context.Context, newEvent eve
 			// For any old resources that don't match the current resource, emit them as old events
 			if associatedResource.deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id != "" {
 				var oldEvent eventlooptypes.EventLoopEvent = newEvent
-				oldEvent.AssociatedGitopsDeplUID = associatedResource.deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id
+				oldEvent.AssociatedGitopsDeplUID2 = associatedResource.deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id
 				emitEvent(oldEvent, nextStep, "old sync run from db, on deleted resource", log)
 			}
 		}
@@ -486,7 +486,7 @@ func processResourceThatDoesntExistInNamespace(ctx context.Context, newEvent eve
 		for _, item := range items {
 
 			var event eventlooptypes.EventLoopEvent = newEvent
-			event.AssociatedGitopsDeplUID = item.Deploymenttoapplicationmapping_uid_id
+			event.AssociatedGitopsDeplUID2 = item.Deploymenttoapplicationmapping_uid_id
 
 			// Emit delete, with UID from database
 			emitEvent(event, nextStep, "found with uid from database", log)

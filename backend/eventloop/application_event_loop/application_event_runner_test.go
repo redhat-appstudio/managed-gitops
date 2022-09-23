@@ -877,7 +877,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status.")
 			// ----------------------------------------------------------------------------
 
-			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, string(gitopsDepl.UID), dbQueries)
+			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
 			Expect(err).To(BeNil())
 
 			// ----------------------------------------------------------------------------
@@ -921,7 +921,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			By("Verify whether status condition of syncError is true")
 			Expect(gitopsDeployment.Status.Conditions[0].Status).To(Equal(managedgitopsv1alpha1.GitOpsConditionStatusTrue))
 
-			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, string(gitopsDepl.UID), dbQueries)
+			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
 			Expect(err).To(BeNil())
 
 			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
@@ -1160,7 +1160,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status and reconciledState")
 			// ----------------------------------------------------------------------------
 
-			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, string(gitopsDepl.UID), dbQueries)
+			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDeployment.Name, gitopsDeployment.Namespace, dbQueries)
 			Expect(err).To(BeNil())
 
 			// ----------------------------------------------------------------------------
@@ -1200,44 +1200,42 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 		})
 
-		It("Should not return any error, if deploymentToApplicationMapping doesn't exist for given gitopsdeployment.", func() {
-			// Don't create Deployment and resources by calling applicationEventRunner_handleDeploymentModified function,
-			// but check for Health/Sync status of deployment which doesn't exist.
-			k8sClientOuter := fake.NewClientBuilder().Build()
-			k8sClient := &sharedutil.ProxyClient{
-				InnerClient: k8sClientOuter,
-			}
+		// It("Should not return any error, if deploymentToApplicationMapping doesn't exist for given gitopsdeployment.", func() {
+		// 	// Don't create Deployment and resources by calling applicationEventRunner_handleDeploymentModified function,
+		// 	// but check for Health/Sync status of deployment which doesn't exist.
+		// 	k8sClientOuter := fake.NewClientBuilder().Build()
+		// 	k8sClient := &sharedutil.ProxyClient{
+		// 		InnerClient: k8sClientOuter,
+		// 	}
 
-			a := applicationEventLoopRunner_Action{
-				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
-					return k8sClient, nil
-				},
-				eventResourceName:           "dummy-deployment",
-				eventResourceNamespace:      workspace.Namespace,
-				workspaceClient:             k8sClient,
-				log:                         log.FromContext(context.Background()),
-				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
-				workspaceID:                 workspaceID,
-				testOnlySkipCreateOperation: true,
-				k8sClientFactory: MockSRLK8sClientFactory{
-					fakeClient: k8sClient,
-				},
-			}
+		// a := applicationEventLoopRunner_Action{
+		// 	getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+		// 		return k8sClient, nil
+		// 	},
+		// 	eventResourceName:           "dummy-deployment",
+		// 	eventResourceNamespace:      workspace.Namespace,
+		// 	workspaceClient:             k8sClient,
+		// 	log:                         log.FromContext(context.Background()),
+		// 	sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
+		// 	workspaceID:                 workspaceID,
+		// 	testOnlySkipCreateOperation: true,
+		// 	k8sClientFactory: MockSRLK8sClientFactory{
+		// 		fakeClient: k8sClient,
+		// 	},
+		// }
 
-			// ----------------------------------------------------------------------------
-			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status of a deployment which doesn't exist.")
-			// ----------------------------------------------------------------------------
-			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, "dummy-deployment", dbQueries)
-			Expect(err).To(BeNil())
-		})
+		// 	// ----------------------------------------------------------------------------
+		// 	By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status of a deployment which doesn't exist.")
+		// 	// ----------------------------------------------------------------------------
+		// 	err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, "dummy-deployment", dbQueries)
+		// 	Expect(err).To(BeNil())
+		// })
 
-		It("Should return error, if deploymentToApplicationMapping object is invalid.", func() {
+		It("Should not return an error, if the GitOpsDeployment resource with name/namespace doesn't exist", func() {
+
 			// Don't create Deployment and resources by calling applicationEventRunner_handleDeploymentModified function,
 			// But check for Health/Sync status of a deployment having invalid name.
-			k8sClientOuter := fake.NewClientBuilder().Build()
-			k8sClient := &sharedutil.ProxyClient{
-				InnerClient: k8sClientOuter,
-			}
+			k8sClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 
 			a := applicationEventLoopRunner_Action{
 				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
@@ -1256,12 +1254,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			}
 
 			// ----------------------------------------------------------------------------
-			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status of a deployment having invalid name.")
+			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status of a deployment that doesn't exist.")
 			// ----------------------------------------------------------------------------
 
-			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, "", dbQueries)
-			Expect(err).NotTo(BeNil())
-			Expect(strings.Contains(err.Error(), "field should not be empty string")).To(BeTrue())
+			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, a.eventResourceName, a.eventResourceNamespace, dbQueries)
+			Expect(err).To(BeNil())
 		})
 
 		It("Should not return error, if GitOpsDeployment doesn't exist in given namespace.", func() {
@@ -1315,7 +1312,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			// ----------------------------------------------------------------------------
 			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status for a deployment which doesn'r exist in given namespace.")
 			// ----------------------------------------------------------------------------
-			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, string(gitopsDepl.UID), dbQueries)
+			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
 			Expect(err).To(BeNil())
 
 			// ----------------------------------------------------------------------------
@@ -1371,7 +1368,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status for deployment which is missing ApplicationState entries.")
 			// ----------------------------------------------------------------------------
 
-			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, string(gitopsDepl.UID), dbQueries)
+			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
 			Expect(err).To(BeNil())
 
 			// ----------------------------------------------------------------------------
@@ -2268,10 +2265,10 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 				Request: reconcile.Request{
 					NamespacedName: types.NamespacedName{Namespace: namespace.Name, Name: managedEnvCR.Name},
 				},
-				Client:                  k8sClient,
-				ReqResource:             eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName,
-				AssociatedGitopsDeplUID: "",
-				WorkspaceID:             string(namespace.UID),
+				Client:                   k8sClient,
+				ReqResource:              eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName,
+				AssociatedGitopsDeplUID2: "",
+				WorkspaceID:              string(namespace.UID),
 			}
 
 			By("calling the function with a ManagedEnvironment event")
@@ -2324,10 +2321,10 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 				Request: reconcile.Request{
 					NamespacedName: types.NamespacedName{Namespace: namespace.Name, Name: managedEnvCR.Name},
 				},
-				Client:                  k8sClient,
-				ReqResource:             eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName,
-				AssociatedGitopsDeplUID: "",
-				WorkspaceID:             string(namespace.UID),
+				Client:                   k8sClient,
+				ReqResource:              eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName,
+				AssociatedGitopsDeplUID2: "",
+				WorkspaceID:              string(namespace.UID),
 			}
 
 			informGitOpsDepl, err := handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx, *gitopsDepl, &newEvent, dbQueries)

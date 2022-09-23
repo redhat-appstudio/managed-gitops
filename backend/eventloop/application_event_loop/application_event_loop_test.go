@@ -21,17 +21,17 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				mockChannel: make(chan *eventlooptypes.EventLoopEvent),
 			}
 
-			inputChan := startApplicationEventQueueLoopWithFactory(context.Background(), "", "", nil, &mockApplicationEventLoopRunnerFactory)
+			inputChan := startApplicationEventQueueLoopWithFactory(context.Background(), "", "", "", nil, &mockApplicationEventLoopRunnerFactory)
 
 			inputChan <- eventlooptypes.EventLoopMessage{
 				MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
 				Event: &eventlooptypes.EventLoopEvent{
-					EventType:               eventlooptypes.DeploymentModified,
-					Request:                 reconcile.Request{NamespacedName: types.NamespacedName{Namespace: "", Name: ""}},
-					Client:                  nil,
-					ReqResource:             eventlooptypes.GitOpsDeploymentTypeName,
-					AssociatedGitopsDeplUID: "",
-					WorkspaceID:             "",
+					EventType:                eventlooptypes.DeploymentModified,
+					Request:                  reconcile.Request{NamespacedName: types.NamespacedName{Namespace: "", Name: ""}},
+					Client:                   nil,
+					ReqResource:              eventlooptypes.GitOpsDeploymentTypeName,
+					AssociatedGitopsDeplUID2: "",
+					WorkspaceID:              "",
 				},
 				ShutdownSignalled: false,
 			}
@@ -41,7 +41,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(outputEvent.EventType).To(Equal(outputEvent.EventType))
 			Expect(outputEvent.Request).To(Equal(outputEvent.Request))
 			Expect(outputEvent.ReqResource).To(Equal(outputEvent.ReqResource))
-			Expect(outputEvent.AssociatedGitopsDeplUID).To(Equal(outputEvent.AssociatedGitopsDeplUID))
+			Expect(outputEvent.AssociatedGitopsDeplUID2).To(Equal(outputEvent.AssociatedGitopsDeplUID2))
 			Expect(outputEvent.WorkspaceID).To(Equal(outputEvent.WorkspaceID))
 
 		})
@@ -57,8 +57,8 @@ type mockApplicationEventLoopRunnerFactory struct {
 var _ applicationEventRunnerFactory = &mockApplicationEventLoopRunnerFactory{}
 
 func (fact *mockApplicationEventLoopRunnerFactory) createNewApplicationEventLoopRunner(informWorkCompleteChan chan eventlooptypes.EventLoopMessage,
-	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop,
-	gitopsDeplUID string, workspaceID string, debugContext string) chan *eventlooptypes.EventLoopEvent {
+	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, gitopsDeplName string, gitopsDeplNamespace string,
+	workspaceID string, debugContext string) chan *eventlooptypes.EventLoopEvent {
 
 	return fact.mockChannel
 

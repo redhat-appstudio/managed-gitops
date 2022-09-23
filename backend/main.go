@@ -48,7 +48,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	managedgitopscontrollers "github.com/redhat-appstudio/managed-gitops/backend/controllers/managed-gitops"
-	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop2"
 	"github.com/redhat-appstudio/managed-gitops/backend/routes"
 	//+kubebuilder:scaffold:imports
 )
@@ -124,7 +124,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	preprocessEventLoop := preprocess_event_loop.NewPreprocessEventLoop()
+	preprocessEventLoop := preprocess_event_loop2.NewPreprocessEventLoop()
 
 	if err = (&managedgitopscontrollers.GitOpsDeploymentReconciler{
 		PreprocessEventLoop: preprocessEventLoop,

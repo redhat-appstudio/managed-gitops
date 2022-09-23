@@ -45,7 +45,9 @@ type EventLoopEvent struct {
 	// AssociatedGitopsDeplUID is the UID of the GitOpsDeployment resource that
 	// - if 'request' is a GitOpsDeployment, then this field matches the UID of the resoruce
 	// - if 'request' is a GitOpsDeploymentSyncRun, then this field matches the UID of the GitOpsDeployment referenced by the sync run's 'gitopsDeploymentName' field.
-	AssociatedGitopsDeplUID string
+	AssociatedGitopsDeplUID2 string
+
+	// AssociatedGitopsDeplNameNamespaceNamespaceUID string
 
 	// WorkspaceID is the UID of the namespace that contains the request
 	WorkspaceID string
@@ -124,8 +126,8 @@ func StringEventLoopEvent(obj *EventLoopEvent) string {
 		return "(nil)"
 	}
 
-	return fmt.Sprintf("[%s] %s/%s/%s, for workspace '%s', gitopsdepluid: '%s'", obj.EventType, obj.Request.Namespace,
-		obj.Request.Name, string(obj.ReqResource), obj.WorkspaceID, obj.AssociatedGitopsDeplUID)
+	return fmt.Sprintf("[%s] %s/%s/%s, for workspace '%s'", obj.EventType, obj.Request.Namespace,
+		obj.Request.Name, string(obj.ReqResource), obj.WorkspaceID)
 
 }
 

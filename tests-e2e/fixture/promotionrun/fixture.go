@@ -36,6 +36,8 @@ func HaveStatusComplete(expectedPromotionRunStatus appstudiosharedv1.Application
 		promotionRun.Status.PromotionStartTime = now
 		expectedPromotionRunStatus.PromotionStartTime = now
 
+		GinkgoWriter.Println("HaveStatusComplete: / Expected:", expectedPromotionRunStatus, "/ Actual:", promotionRun.Status)
+
 		// To validate Status.Conditions field if available.
 		if len(promotionRun.Status.Conditions) > 0 {
 			for i := 0; i < len(promotionRun.Status.Conditions); i++ {
@@ -48,7 +50,7 @@ func HaveStatusComplete(expectedPromotionRunStatus appstudiosharedv1.Application
 
 		res := reflect.DeepEqual(promotionRun.Status, expectedPromotionRunStatus)
 
-		GinkgoWriter.Println("HaveStatusComplete:", res, "/ Expected:", expectedPromotionRunStatus, "/ Actual:", promotionRun.Status)
+		//GinkgoWriter.Println("HaveStatusComplete:", res, "/ Expected:", expectedPromotionRunStatus, "/ Actual:", promotionRun.Status)
 		return res
 	}, BeTrue())
 }

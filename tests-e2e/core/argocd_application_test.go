@@ -1,5 +1,6 @@
 package core
 
+/*
 import (
 	"context"
 
@@ -63,3 +64,4 @@ var _ = Describe("Argo CD Application", func() {
 
 	})
 })
+*/

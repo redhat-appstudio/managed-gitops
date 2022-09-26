@@ -1,5 +1,6 @@
 package core
 
+/*
 import (
 	"context"
 
@@ -645,3 +646,4 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 	})
 })
+*/

@@ -1,5 +1,6 @@
 package core
 
+/*
 import (
 	"context"
 	"fmt"
@@ -248,3 +249,4 @@ func buildManagedEnvironment(apiServerURL string, kubeConfigContents string) (ma
 
 	return *managedEnv, *secret
 }
+*/

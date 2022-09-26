@@ -1,5 +1,6 @@
 package core
 
+/*
 import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 
@@ -90,3 +91,4 @@ func buildTargetRevisionGitOpsDeploymentResource(name, repoURL, path, target, de
 	gitOpsDeploymentResource.Spec.Source.TargetRevision = target
 	return gitOpsDeploymentResource
 }
+*/

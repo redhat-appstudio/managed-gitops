@@ -1,14 +1,11 @@
 package core
 
 import (
-	"context"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appstudiocontroller "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	appstudiosharedv1 "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
@@ -124,109 +121,110 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 
 			Eventually(promotionRun, "3m", "1s").Should(promotionRunFixture.HaveStatusComplete(expectedPromotionRunStatus))
 		})
+		/*
+			It("Should not support Auto Promotion.", func() {
 
-		It("Should not support Auto Promotion.", func() {
+				By("Create PromotionRun CR.")
+				promotionRun.Spec.ManualPromotion = appstudiosharedv1.ManualPromotionConfiguration{}
+				promotionRun.Spec.AutomatedPromotion = appstudiosharedv1.AutomatedPromotionConfiguration{
+					InitialEnvironment: "staging",
+				}
+				err := k8s.Create(&promotionRun)
+				Expect(err).To(Succeed())
 
-			By("Create PromotionRun CR.")
-			promotionRun.Spec.ManualPromotion = appstudiosharedv1.ManualPromotionConfiguration{}
-			promotionRun.Spec.AutomatedPromotion = appstudiosharedv1.AutomatedPromotionConfiguration{
-				InitialEnvironment: "staging",
-			}
-			err := k8s.Create(&promotionRun)
-			Expect(err).To(Succeed())
-
-			expectedPromotionRunStatusConditions := appstudiosharedv1.ApplicationPromotionRunStatus{
-				Conditions: []appstudiosharedv1.PromotionRunCondition{
-					{
-						Type:    appstudiosharedv1.PromotionRunConditionErrorOccurred,
-						Message: appstudiocontroller.ErrMessageAutomatedPromotionNotSupported,
-						Status:  appstudiosharedv1.PromotionRunConditionStatusTrue,
-						Reason:  appstudiosharedv1.PromotionRunReasonErrorOccurred,
+				expectedPromotionRunStatusConditions := appstudiosharedv1.ApplicationPromotionRunStatus{
+					Conditions: []appstudiosharedv1.PromotionRunCondition{
+						{
+							Type:    appstudiosharedv1.PromotionRunConditionErrorOccurred,
+							Message: appstudiocontroller.ErrMessageAutomatedPromotionNotSupported,
+							Status:  appstudiosharedv1.PromotionRunConditionStatusTrue,
+							Reason:  appstudiosharedv1.PromotionRunReasonErrorOccurred,
+						},
 					},
-				},
-			}
+				}
 
-			Eventually(promotionRun, "3m", "1s").Should(promotionRunFixture.HaveStatusConditions(expectedPromotionRunStatusConditions))
-		})
+				Eventually(promotionRun, "3m", "1s").Should(promotionRunFixture.HaveStatusConditions(expectedPromotionRunStatusConditions))
+			})
 
-		It("Should not support invalid value for Target Environment.", func() {
+			It("Should not support invalid value for Target Environment.", func() {
 
-			By("Create PromotionRun CR.")
-			promotionRun.Spec.ManualPromotion.TargetEnvironment = ""
-			err := k8s.Create(&promotionRun)
-			Expect(err).To(Succeed())
+				By("Create PromotionRun CR.")
+				promotionRun.Spec.ManualPromotion.TargetEnvironment = ""
+				err := k8s.Create(&promotionRun)
+				Expect(err).To(Succeed())
 
-			expectedPromotionRunStatusConditions := appstudiosharedv1.ApplicationPromotionRunStatus{
-				Conditions: []appstudiosharedv1.PromotionRunCondition{
-					{
-						Type:    appstudiosharedv1.PromotionRunConditionErrorOccurred,
-						Message: appstudiocontroller.ErrMessageTargetEnvironmentHasInvalidValue,
-						Status:  appstudiosharedv1.PromotionRunConditionStatusTrue,
-						Reason:  appstudiosharedv1.PromotionRunReasonErrorOccurred,
+				expectedPromotionRunStatusConditions := appstudiosharedv1.ApplicationPromotionRunStatus{
+					Conditions: []appstudiosharedv1.PromotionRunCondition{
+						{
+							Type:    appstudiosharedv1.PromotionRunConditionErrorOccurred,
+							Message: appstudiocontroller.ErrMessageTargetEnvironmentHasInvalidValue,
+							Status:  appstudiosharedv1.PromotionRunConditionStatusTrue,
+							Reason:  appstudiosharedv1.PromotionRunReasonErrorOccurred,
+						},
 					},
-				},
-			}
+				}
 
-			Eventually(promotionRun, "3m", "1s").Should(promotionRunFixture.HaveStatusConditions(expectedPromotionRunStatusConditions))
-		})
+				Eventually(promotionRun, "3m", "1s").Should(promotionRunFixture.HaveStatusConditions(expectedPromotionRunStatusConditions))
+			})
 
-		It("Should reset the Status.Conditions field if error is resolved.", func() {
+			It("Should reset the Status.Conditions field if error is resolved.", func() {
 
-			By("Create PromotionRun CR with invalid value.")
-			promotionRun.Spec.ManualPromotion.TargetEnvironment = ""
-			err := k8s.Create(&promotionRun)
-			Expect(err).To(Succeed())
+				By("Create PromotionRun CR with invalid value.")
+				promotionRun.Spec.ManualPromotion.TargetEnvironment = ""
+				err := k8s.Create(&promotionRun)
+				Expect(err).To(Succeed())
 
-			expectedPromotionRunStatusConditions := appstudiosharedv1.ApplicationPromotionRunStatus{
-				Conditions: []appstudiosharedv1.PromotionRunCondition{
-					{
-						Type:    appstudiosharedv1.PromotionRunConditionErrorOccurred,
-						Message: appstudiocontroller.ErrMessageTargetEnvironmentHasInvalidValue,
-						Status:  appstudiosharedv1.PromotionRunConditionStatusTrue,
-						Reason:  appstudiosharedv1.PromotionRunReasonErrorOccurred,
+				expectedPromotionRunStatusConditions := appstudiosharedv1.ApplicationPromotionRunStatus{
+					Conditions: []appstudiosharedv1.PromotionRunCondition{
+						{
+							Type:    appstudiosharedv1.PromotionRunConditionErrorOccurred,
+							Message: appstudiocontroller.ErrMessageTargetEnvironmentHasInvalidValue,
+							Status:  appstudiosharedv1.PromotionRunConditionStatusTrue,
+							Reason:  appstudiosharedv1.PromotionRunReasonErrorOccurred,
+						},
 					},
-				},
-			}
+				}
 
-			By("Verify that error is updated in Status.conditions field.")
-			Eventually(promotionRun, "3m", "1s").Should(promotionRunFixture.HaveStatusConditions(expectedPromotionRunStatusConditions))
+				By("Verify that error is updated in Status.conditions field.")
+				Eventually(promotionRun, "3m", "1s").Should(promotionRunFixture.HaveStatusConditions(expectedPromotionRunStatusConditions))
 
-			k8sClient, err := fixture.GetKubeClient()
-			Expect(err).To(Succeed())
+				k8sClient, err := fixture.GetKubeClient()
+				Expect(err).To(Succeed())
 
-			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&promotionRun), &promotionRun)
-			Expect(err).To(Succeed())
+				err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&promotionRun), &promotionRun)
+				Expect(err).To(Succeed())
 
-			By("Update PromotionRun CR with invalid value.")
-			promotionRun.Spec.ManualPromotion.TargetEnvironment = "prod"
-			err = k8s.Update(&promotionRun)
-			Expect(err).To(Succeed())
+				By("Update PromotionRun CR with invalid value.")
+				promotionRun.Spec.ManualPromotion.TargetEnvironment = "prod"
+				err = k8s.Update(&promotionRun)
+				Expect(err).To(Succeed())
 
-			expectedPromotionRunStatus := appstudiosharedv1.ApplicationPromotionRunStatus{
-				State:            appstudiosharedv1.PromotionRunState_Complete,
-				CompletionResult: appstudiosharedv1.PromotionRunCompleteResult_Success,
-				ActiveBindings:   []string{bindingProd.Name},
-				EnvironmentStatus: []appstudiosharedv1.PromotionRunEnvironmentStatus{
-					{
-						Step:            1,
-						EnvironmentName: environmentProd.Name,
-						Status:          appstudiosharedv1.ApplicationPromotionRunEnvironmentStatus_Success,
-						DisplayStatus:   appstudiocontroller.StatusMessageAllGitOpsDeploymentsAreSyncedHealthy,
+				expectedPromotionRunStatus := appstudiosharedv1.ApplicationPromotionRunStatus{
+					State:            appstudiosharedv1.PromotionRunState_Complete,
+					CompletionResult: appstudiosharedv1.PromotionRunCompleteResult_Success,
+					ActiveBindings:   []string{bindingProd.Name},
+					EnvironmentStatus: []appstudiosharedv1.PromotionRunEnvironmentStatus{
+						{
+							Step:            1,
+							EnvironmentName: environmentProd.Name,
+							Status:          appstudiosharedv1.ApplicationPromotionRunEnvironmentStatus_Success,
+							DisplayStatus:   appstudiocontroller.StatusMessageAllGitOpsDeploymentsAreSyncedHealthy,
+						},
 					},
-				},
-				Conditions: []appstudiosharedv1.PromotionRunCondition{
-					{
-						Type:    appstudiosharedv1.PromotionRunConditionErrorOccurred,
-						Message: "",
-						Status:  appstudiosharedv1.PromotionRunConditionStatusFalse,
-						Reason:  "",
+					Conditions: []appstudiosharedv1.PromotionRunCondition{
+						{
+							Type:    appstudiosharedv1.PromotionRunConditionErrorOccurred,
+							Message: "",
+							Status:  appstudiosharedv1.PromotionRunConditionStatusFalse,
+							Reason:  "",
+						},
 					},
-				},
-			}
+				}
 
-			By("Verify that error is removed from Status.conditions field.")
-			Eventually(promotionRun, "3m", "1s").Should(promotionRunFixture.HaveStatusComplete(expectedPromotionRunStatus))
-		})
+				By("Verify that error is removed from Status.conditions field.")
+				Eventually(promotionRun, "3m", "1s").Should(promotionRunFixture.HaveStatusComplete(expectedPromotionRunStatus))
+			})
+		*/
 	})
 })
 

@@ -1,26 +1,18 @@
 package core
 
 import (
-	"strings"
-
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	//. "github.com/onsi/ginkgo/v2"
+	//. "github.com/onsi/gomega"
 
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
-	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 
-	appstudiocontroller "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 	appstudiosharedv1 "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
-	bindingFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/binding"
-	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 
-	corev1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+/*
 var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 	Context("Testing ApplicationSnapshotEnvironmentBinding Reconciler.", func() {
@@ -434,7 +426,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 	})
 
 })
-
+*/
 func buildApplicationSnapshotEnvironmentBindingResource(name, appName, envName, snapShotName string, replica int, componentNames []string) appstudiosharedv1.ApplicationSnapshotEnvironmentBinding {
 	// Create ApplicationSnapshotEnvironmentBinding CR.
 	binding := appstudiosharedv1.ApplicationSnapshotEnvironmentBinding{

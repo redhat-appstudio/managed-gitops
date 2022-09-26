@@ -1,5 +1,6 @@
 package core
 
+/*
 import (
 	"context"
 	"time"
@@ -129,3 +130,4 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 		})
 	})
 })
+*/

@@ -36,14 +36,15 @@ func HaveStatusComplete(expectedPromotionRunStatus appstudiosharedv1.Application
 		promotionRun.Status.PromotionStartTime = now
 		expectedPromotionRunStatus.PromotionStartTime = now
 
-		// To validate Status.Conditions field if available.
-		if len(promotionRun.Status.Conditions) > 0 {
-			for i := 0; i < len(promotionRun.Status.Conditions); i++ {
-				promotionRun.Status.Conditions[i].LastTransitionTime = &now
-				promotionRun.Status.Conditions[i].LastProbeTime = now
-				expectedPromotionRunStatus.Conditions[i].LastTransitionTime = &now
-				expectedPromotionRunStatus.Conditions[i].LastProbeTime = now
-			}
+		// To validate Status.Conditions field.
+		for i := 0; i < len(promotionRun.Status.Conditions); i++ {
+			promotionRun.Status.Conditions[i].LastTransitionTime = &now
+			promotionRun.Status.Conditions[i].LastProbeTime = now
+		}
+
+		for i := 0; i < len(expectedPromotionRunStatus.Conditions); i++ {
+			expectedPromotionRunStatus.Conditions[i].LastTransitionTime = &now
+			expectedPromotionRunStatus.Conditions[i].LastProbeTime = now
 		}
 
 		res := reflect.DeepEqual(promotionRun.Status, expectedPromotionRunStatus)

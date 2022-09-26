@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"os"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -102,28 +103,30 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			promotionRun = buildPromotionRunResource("new-demo-app-manual-promotion", "new-demo-app", "my-snapshot", "prod")
 		})
 
-		/*It("Should create GitOpsDeployments and it should be Synced/Healthy.", func() {
+		It("Should create GitOpsDeployments and it should be Synced/Healthy.", func() {
+			// Temporarily skipping it for OpenShift CI.
+			if os.Getenv("OPENSHIFT_CI") != "true" {
+				By("Create PromotionRun CR.")
+				err := k8s.Create(&promotionRun)
+				Expect(err).To(Succeed())
 
-			By("Create PromotionRun CR.")
-			err := k8s.Create(&promotionRun)
-			Expect(err).To(Succeed())
-
-			expectedPromotionRunStatus := appstudiosharedv1.ApplicationPromotionRunStatus{
-				State:            appstudiosharedv1.PromotionRunState_Complete,
-				CompletionResult: appstudiosharedv1.PromotionRunCompleteResult_Success,
-				ActiveBindings:   []string{bindingProd.Name},
-				EnvironmentStatus: []appstudiosharedv1.PromotionRunEnvironmentStatus{
-					{
-						Step:            1,
-						EnvironmentName: environmentProd.Name,
-						Status:          appstudiosharedv1.ApplicationPromotionRunEnvironmentStatus_Success,
-						DisplayStatus:   appstudiocontroller.StatusMessageAllGitOpsDeploymentsAreSyncedHealthy,
+				expectedPromotionRunStatus := appstudiosharedv1.ApplicationPromotionRunStatus{
+					State:            appstudiosharedv1.PromotionRunState_Complete,
+					CompletionResult: appstudiosharedv1.PromotionRunCompleteResult_Success,
+					ActiveBindings:   []string{bindingProd.Name},
+					EnvironmentStatus: []appstudiosharedv1.PromotionRunEnvironmentStatus{
+						{
+							Step:            1,
+							EnvironmentName: environmentProd.Name,
+							Status:          appstudiosharedv1.ApplicationPromotionRunEnvironmentStatus_Success,
+							DisplayStatus:   appstudiocontroller.StatusMessageAllGitOpsDeploymentsAreSyncedHealthy,
+						},
 					},
-				},
-			}
+				}
 
-			Eventually(promotionRun, "3m", "1s").Should(promotionRunFixture.HaveStatusComplete(expectedPromotionRunStatus))
-		})*/
+				Eventually(promotionRun, "3m", "1s").Should(promotionRunFixture.HaveStatusComplete(expectedPromotionRunStatus))
+			}
+		})
 
 		It("Should not support Auto Promotion.", func() {
 

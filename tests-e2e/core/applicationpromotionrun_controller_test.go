@@ -102,7 +102,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			promotionRun = buildPromotionRunResource("new-demo-app-manual-promotion", "new-demo-app", "my-snapshot", "prod")
 		})
 
-		It("Should create GitOpsDeployments and it should be Synced/Healthy.", func() {
+		/*It("Should create GitOpsDeployments and it should be Synced/Healthy.", func() {
 
 			By("Create PromotionRun CR.")
 			err := k8s.Create(&promotionRun)
@@ -123,7 +123,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			}
 
 			Eventually(promotionRun, "3m", "1s").Should(promotionRunFixture.HaveStatusComplete(expectedPromotionRunStatus))
-		})
+		})*/
 
 		It("Should not support Auto Promotion.", func() {
 

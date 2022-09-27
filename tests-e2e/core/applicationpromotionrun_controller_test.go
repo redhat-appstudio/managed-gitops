@@ -104,6 +104,11 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 		})
 
 		It("Should create GitOpsDeployments and it should be Synced/Healthy.", func() {
+			// ToDo: https://issues.redhat.com/browse/GITOPSRVCE-234
+			if fixture.IsRunningAgainstKCP() {
+				Skip("Skipping this test in KCP until we fix the race condition")
+			}
+
 			// Temporarily skipping it for OpenShift CI.
 			if os.Getenv("OPENSHIFT_CI") != "true" {
 				By("Create PromotionRun CR.")

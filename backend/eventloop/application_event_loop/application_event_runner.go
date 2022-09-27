@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kcp-dev/logicalcluster/v2"
 	"github.com/redhat-appstudio/managed-gitops/backend/condition"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	"github.com/redhat-appstudio/managed-gitops/backend/metrics"
@@ -96,6 +97,10 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 		newEvent := <-inputChannel
 
 		ctx, cancel := context.WithCancel(outerContext)
+
+		if newEvent.Request.ClusterName != "" && !sharedutil.IsKCPVirtualWorkspaceDisabled() {
+			ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(newEvent.Request.ClusterName))
+		}
 
 		defer cancel()
 
@@ -403,8 +408,11 @@ type applicationEventLoopRunner_Action struct {
 	// The namespace containing the API resource (for example, a GitOpsDeployment in namespace 'my-deployments')
 	eventResourceNamespace string
 
-	// The K8s client that can be used to read/write objects on the workspace cluster
+	// The K8s client that can be used to read/write objects on the workspace cluster. This client is aware of virtual workspaces.
 	workspaceClient client.Client
+
+	// The K8s client that can be used to read/write objects on the service provider workspace.This client is unaware of virtual workspaces.
+	serviceProviderClient client.Client
 
 	// The UID of the API namespace (namespace containing GitOps API types)
 	workspaceID string

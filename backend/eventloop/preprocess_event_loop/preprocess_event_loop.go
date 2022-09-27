@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/kcp-dev/logicalcluster/v2"
 
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
@@ -143,6 +144,10 @@ func (task *processEventTask) PerformTask(taskContext context.Context) (bool, er
 // processEvent returns true if the task should be retried (for example, because it failed), false otherwise.
 func (task *processEventTask) processEvent(ctx context.Context, newEvent eventlooptypes.EventLoopEvent,
 	nextStep *eventloop.ControllerEventLoop, dbQueries db.DatabaseQueries, log logr.Logger) bool {
+
+	if newEvent.Request.ClusterName != "" && !sharedutil.IsKCPVirtualWorkspaceDisabled() {
+		ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(newEvent.Request.ClusterName))
+	}
 
 	log = log.WithValues("namespaceID", newEvent.WorkspaceID, "name", newEvent.Request.Name, "namespace", newEvent.Request.Namespace)
 

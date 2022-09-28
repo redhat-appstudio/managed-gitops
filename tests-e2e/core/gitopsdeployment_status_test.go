@@ -1,13 +1,20 @@
 package core
 
 import (
+	"context"
+
+	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
+	appFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/application"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("GitOpsDeployment Status Tests", func() {
@@ -94,54 +101,124 @@ var _ = Describe("GitOpsDeployment SyncError test", func() {
 
 	Context("Errors are set properly in Status.Sync.SyncError field of GitOpsDeployment", func() {
 
-		It("ensures that GitOpsDeployment .status.sync.syncError field contains the syncError if Application is not synced and error type is SyncError ", func() {
+		It("ensures that GitOpsDeployment .status.sync.syncError field contains the syncError if Application is not synced and error type of the error is SyncError ", func() {
 
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
-
-			By("creating the GitOpsDeploymentManagedEnvironment")
-
-			kubeConfigContents, apiServerURL, err := extractKubeConfigValues()
-			Expect(err).To(BeNil())
-
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents)
-
-			err = k8s.Create(&secret)
-			Expect(err).To(BeNil())
-
-			err = k8s.Create(&managedEnv)
-			Expect(err).To(BeNil())
 
 			By("create an invalid GitOpsDeployment application")
 			gitOpsDeploymentResource := managedgitopsv1alpha1.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "managed-environment-gitops-depl",
+					Name:      "managed-gitops-depl",
 					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
 				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
 					Source: managedgitopsv1alpha1.ApplicationSource{
-						RepoURL: "https://github.com/redhat-appstudio/gitops-repository-template",
-						Path:    "environments/overlays/dev",
-					},
-					Destination: managedgitopsv1alpha1.ApplicationDestination{
-						Environment: managedEnv.Name,
-						Namespace:   "",
+						RepoURL: "https://github.com/managed-gitops-test-data/gitops-repositories",
+						Path:    "invalid-repository",
 					},
 					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated,
 				},
 			}
 
-			err = k8s.Create(&gitOpsDeploymentResource)
+			err := k8s.Create(&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
-			expectedConditions := managedgitopsv1alpha1.GitOpsDeploymentStatus{
-				Sync: managedgitopsv1alpha1.SyncStatus{
-					// Will add syncError once we reproduce sync error
-					SyncError: "sync error",
+			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeOutOfSync),
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
+				),
+			)
+
+			By("Get the Application name created by the GitOpsDeployment resource")
+			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
+			Expect(err).To(BeNil())
+
+			appMapping := &db.DeploymentToApplicationMapping{
+				Deploymenttoapplicationmapping_uid_id: string(gitOpsDeploymentResource.UID),
+			}
+			err = dbQueries.GetDeploymentToApplicationMappingByDeplId(context.Background(), appMapping)
+			Expect(err).To(BeNil())
+
+			dbApplication := &db.Application{
+				Application_id: appMapping.Application_id,
+			}
+			err = dbQueries.GetApplicationById(context.Background(), dbApplication)
+			Expect(err).To(BeNil())
+
+			app := appv1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      dbApplication.Name,
+					Namespace: dbutil.GetGitOpsEngineSingleInstanceNamespace(),
 				},
 			}
+
+			By("Wait for Argo CD to reconcile and set the conditions.Message field on the Application with the syncError")
+			expectedConditionsOfApplication := appv1alpha1.ApplicationStatus{
+				Conditions: []appv1alpha1.ApplicationCondition{
+					{
+						Message: "Failed sync attempt to 5ce3833a57c1582f93ea49c2947a5b4b4992ef6f: one or more synchronization tasks are not valid (retried 5 times).",
+					},
+				},
+			}
+
+			Eventually(app, "5m", "1s").Should(
+				SatisfyAll(
+					appFixture.HaveApplicationSyncError(expectedConditionsOfApplication),
+				),
+			)
+
+			By("Wait for GitopsDeploymentResource to see the syncError and update the syncError field of GitopsDeployment")
+			expectedSyncError := managedgitopsv1alpha1.GitOpsDeploymentStatus{
+				Sync: managedgitopsv1alpha1.SyncStatus{
+					SyncError: "Failed sync attempt to 5ce3833a57c1582f93ea49c2947a5b4b4992ef6f: one or more synchronization tasks are not valid (retried 5 times).",
+				},
+			}
+
 			Eventually(gitOpsDeploymentResource, "5m", "1s").Should(
 				SatisfyAll(
-					gitopsDeplFixture.HaveSyncError(expectedConditions),
+					gitopsDeplFixture.HaveSyncError(expectedSyncError),
+				),
+			)
+
+			k8sClient, err := fixture.GetKubeClient()
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitOpsDeploymentResource), &gitOpsDeploymentResource)
+			Expect(err).To(Succeed())
+
+			By("Update the gitOpsDeploymentResource to fix the failure")
+			gitOpsDeploymentResource.Spec.Source.RepoURL = "https://github.com/redhat-appstudio/gitops-repository-template"
+			gitOpsDeploymentResource.Spec.Source.Path = "environments/overlays/dev"
+
+			err = k8s.Update(&gitOpsDeploymentResource)
+			Expect(err).To(Succeed())
+
+			By("Wait until ArgoCD Application .conditions.Message value is cleared")
+			updateExpectedConditionsOfApplication := appv1alpha1.ApplicationStatus{
+				Conditions: []appv1alpha1.ApplicationCondition{
+					{
+						Message: "",
+					},
+				},
+			}
+
+			Eventually(app, "5m", "1s").Should(
+				SatisfyAll(
+					appFixture.HaveApplicationSyncError(updateExpectedConditionsOfApplication),
+				),
+			)
+
+			By("Wait until GitopsDeployment to clear the syncError")
+			updateExpectedSyncError := managedgitopsv1alpha1.GitOpsDeploymentStatus{
+				Sync: managedgitopsv1alpha1.SyncStatus{
+					SyncError: "",
+				},
+			}
+
+			Eventually(gitOpsDeploymentResource, "5m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveSyncError(updateExpectedSyncError),
 				),
 			)
 

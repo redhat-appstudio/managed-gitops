@@ -222,7 +222,7 @@ func HaveReconciledState(reconciledState managedgitopsv1alpha1.ReconciledState) 
 	}, BeTrue())
 }
 
-//  HaveSyncError checks the GitOpsDeployment resource's '.status.reconciledState' field, to ensure the expected value matches the actual value.
+// HaveSyncError checks the GitOpsDeployment syncError field is set  with the SyncError of Application
 func HaveSyncError(syncError managedgitopsv1alpha1.GitOpsDeploymentStatus) matcher.GomegaMatcher {
 
 	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {

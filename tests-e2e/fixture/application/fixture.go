@@ -2,6 +2,7 @@ package application
 
 import (
 	"fmt"
+	"reflect"
 
 	. "github.com/onsi/gomega"
 
@@ -120,6 +121,39 @@ func HaveSyncStatusCode(status appv1alpha1.ApplicationStatus) matcher.GomegaMatc
 
 		res := status.Sync.Status == app.Status.Sync.Status
 		fmt.Println("HaveSyncStatusCode:", res, "/ Expected:", status, "/ Actual:", app.Status.Sync.Status)
+
+		return res
+	}, BeTrue())
+}
+
+//  HaveApplicationSyncError checks the Application .status.conditions.Message fiels is set with syncError.
+func HaveApplicationSyncError(syncError appv1alpha1.ApplicationStatus) matcher.GomegaMatcher {
+
+	return WithTransform(func(app appv1alpha1.Application) bool {
+
+		k8sClient, err := fixture.GetKubeClient()
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&app), &app)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		var existingConditionMessage string
+		var res bool
+
+		for _, msg := range app.Status.Conditions {
+			existingConditionMessage = msg.Message
+		}
+
+		for _, syncError := range syncError.Conditions {
+			res = reflect.DeepEqual(syncError.Message, existingConditionMessage)
+			fmt.Println("HaveApplicationSyncError:", res, "/ Expected:", syncError, "/ Actual:", existingConditionMessage)
+		}
 
 		return res
 	}, BeTrue())

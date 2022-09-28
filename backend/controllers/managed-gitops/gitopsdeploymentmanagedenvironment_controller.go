@@ -20,6 +20,11 @@ import (
 	"context"
 	"fmt"
 
+	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/errors"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,11 +34,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
-	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
-	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop"
 )
 
 // GitOpsDeploymentManagedEnvironmentReconciler reconciles a GitOpsDeploymentManagedEnvironment object
@@ -129,11 +129,13 @@ func (dppelp *DefaultPreProcessEventLoopProcessor) callPreprocessEventLoopForMan
 		eventlooptypes.ManagedEnvironmentModified, string(namespace.UID))
 }
 
-func processSecret(ctx context.Context, secret corev1.Secret, k8sClient client.Client) ([]managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, error) {
+func processSecret(ctx context.Context, secret corev1.Secret, k8sClient client.Client) ([]managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, errors.UserError) {
 	managedEnvList := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentList{}
 
 	if err := k8sClient.List(ctx, &managedEnvList, &client.ListOptions{Namespace: secret.Namespace}); err != nil {
-		return nil, fmt.Errorf("unable to list Managed Environment resources in namespace '%s': %v", secret.Namespace, err)
+		userError := fmt.Sprintf("unable to retrieve list of managed resources in the namespace: %v", secret.Namespace)
+		devError := fmt.Errorf("unable to list Managed Environment resources in namespace '%s': %v", secret.Namespace, err)
+		return nil, errors.NewUserDevError(userError, devError)
 	}
 
 	listOfManagedEnvCRsThatReferenceSecret := []managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{}

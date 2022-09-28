@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/redhat-appstudio/managed-gitops/backend/condition"
-	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
-	"github.com/redhat-appstudio/managed-gitops/backend/metrics"
-
 	"github.com/go-logr/logr"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/errors"
+	"github.com/redhat-appstudio/managed-gitops/backend/condition"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
+	"github.com/redhat-appstudio/managed-gitops/backend/metrics"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -134,6 +134,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 				}
 
 				var err error
+				// var userDevErr errors.UserError
 
 				dbQueriesUnscoped, err := db.NewSharedProductionPostgresDBQueries(false)
 				if err != nil {
@@ -160,6 +161,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 
 				} else if newEvent.EventType == eventlooptypes.SyncRunModified {
 					// Handle all SyncRun related events
+					// ERROR :
 					signalledShutdown, err = action.applicationEventRunner_handleSyncRunModified(ctx, scopedDBQueries)
 
 				} else if newEvent.EventType == eventlooptypes.UpdateDeploymentStatusTick {
@@ -171,6 +173,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 						// If this runner hasn't processed a GitOpsDeployment yet, then no work is required for the managed environment.
 						return nil
 					}
+					// ERROR :
 					signalledShutdown, err = handleManagedEnvironmentModified(ctx, expectedResourceName, newEvent, action, dbQueriesUnscoped, log)
 
 				} else {
@@ -208,7 +211,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 // handleManagedEnvironmentModified_shouldInformGitOpsDeployment returns true if the GitOpsDeployment CR references
 // the ManagedEnvironment resource that changed, false otherwise.
 func handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx context.Context, gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment,
-	managedEnvEvent *eventlooptypes.EventLoopEvent, dbQueries db.DatabaseQueries) (bool, error) {
+	managedEnvEvent *eventlooptypes.EventLoopEvent, dbQueries db.DatabaseQueries) (bool, errors.UserError) {
 
 	informGitOpsDeployment := false // whether or not this gitopsdeployment references the managed environment that changed
 
@@ -234,7 +237,9 @@ func handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx context.C
 				// Namespace doesn't exist, so no work to do.
 				return false, nil
 			} else {
-				return false, fmt.Errorf("unable to retrieve namespace '%s': %v", gitopsDeplNamespace.Name, err)
+				userError := fmt.Sprintf("unable to retrieve namespace '%s'", gitopsDeplNamespace.Name)
+				devError := fmt.Errorf("unable to retrieve namespace '%s': %v", gitopsDeplNamespace.Name, err)
+				return false, errors.NewUserDevError(userError, devError)
 			}
 		}
 
@@ -248,7 +253,7 @@ func handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx context.C
 				db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentManagedEnvironment,
 				managedEnvEvent.Request.Name, managedEnvEvent.Request.Namespace, string(gitopsDeplNamespace.UID),
 				db.APICRToDatabaseMapping_DBRelationType_ManagedEnvironment, &apiCRs); err != nil {
-				return false, fmt.Errorf("unable to retrieve API CRs for managed env '%s': %v", managedEnvEvent.Request.Name, err)
+				return false, errors.NewDevOnlyError(fmt.Errorf("unable to retrieve API CRs for managed env '%s': %v", managedEnvEvent.Request.Name, err))
 			}
 
 			for _, apiCR := range apiCRs {
@@ -263,8 +268,8 @@ func handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx context.C
 
 			if err := dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(ctx,
 				gitopsDeployment.Name, managedEnvEvent.Request.Namespace, string(gitopsDeplNamespace.UID), &dtams); err != nil {
-				return false, fmt.Errorf("unable to list DeploymentToApplicationMappings for namespace '%s': %v",
-					managedEnvEvent.Request.Namespace, managedEnvEvent.Request.Name)
+				return false, errors.NewDevOnlyError(fmt.Errorf("unable to list DeploymentToApplicationMappings for namespace '%s': %v",
+					managedEnvEvent.Request.Namespace, managedEnvEvent.Request.Name))
 			}
 
 			for _, deplToAppMapping := range dtams {
@@ -277,7 +282,7 @@ func handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx context.C
 					if db.IsResultNotFoundError(err) {
 						continue
 					} else {
-						return false, fmt.Errorf("unable to retrieve application '%s': %v", appl.Application_id, err)
+						return false, errors.NewDevOnlyError(fmt.Errorf("unable to retrieve application '%s': %v", appl.Application_id, err))
 					}
 				}
 
@@ -308,7 +313,7 @@ func handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx context.C
 //
 // returns true if shutdown was signalled by 'handleDeploymentModified', false otherwise.
 func handleManagedEnvironmentModified(ctx context.Context, expectedResourceName string, newEvent *eventlooptypes.EventLoopEvent,
-	action applicationEventLoopRunner_Action, dbQueries db.DatabaseQueries, log logr.Logger) (bool, error) {
+	action applicationEventLoopRunner_Action, dbQueries db.DatabaseQueries, log logr.Logger) (bool, errors.UserError) {
 
 	// 1) Retrieve the GitOpsDeployment that the runner is handling events for
 	gitopsDeployment := &managedgitopsv1alpha1.GitOpsDeployment{
@@ -322,7 +327,9 @@ func handleManagedEnvironmentModified(ctx context.Context, expectedResourceName 
 			// gitopsdeployment doesn't exist; no work for us to do here.
 			return false, nil
 		} else {
-			return false, fmt.Errorf("unable to retrieve gitopsdeployment: %v", err)
+			userError := fmt.Sprintf("GitopsDeployment does not exist")
+			devError := fmt.Errorf("unable to retrieve gitopsdeployment: %v", err)
+			return false, errors.NewUserDevError(userError, devError)
 		}
 	}
 
@@ -350,7 +357,7 @@ func handleManagedEnvironmentModified(ctx context.Context, expectedResourceName 
 		}
 
 		signalledShutdown, err := handleDeploymentModified(ctx, newEvent, newAction, dbQueries, log)
-		return signalledShutdown, err
+		return signalledShutdown, errors.NewDevOnlyError(err)
 	}
 
 	return false, nil
@@ -388,7 +395,11 @@ func handleDeploymentModified(ctx context.Context, newEvent *eventlooptypes.Even
 		return false, setConditionError
 	}
 
-	return signalledShutdown, err
+	if err == nil {
+		return signalledShutdown, nil
+	} else {
+		return signalledShutdown, err.DevError()
+	}
 
 }
 

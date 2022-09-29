@@ -152,8 +152,8 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			// Update applicationState.SyncError with the ArgoCD application syncError message
 			for _, syncError := range app.Status.Conditions {
 				// Update syncError field of appliactionState only if type is SyncError
-				if syncError.Type == "SyncError" {
-					applicationState.SyncError = syncError.Message
+				if syncError.Type == appv1.ApplicationConditionSyncError {
+					applicationState.SyncError = db.TruncateVarchar(syncError.Message, db.ApplicationStateSyncErrorLength)
 				}
 			}
 
@@ -198,8 +198,8 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// Update applicationState.SyncError with the ArgoCD application syncError message
 	for _, syncError := range app.Status.Conditions {
 		// Update syncError field of appliactionState only if type is syncError
-		if syncError.Type == "SyncError" {
-			applicationState.SyncError = syncError.Message
+		if syncError.Type == appv1.ApplicationConditionSyncError {
+			applicationState.SyncError = db.TruncateVarchar(syncError.Message, db.ApplicationStateSyncErrorLength)
 		}
 	}
 

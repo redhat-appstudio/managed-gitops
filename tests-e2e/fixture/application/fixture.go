@@ -147,7 +147,9 @@ func HaveApplicationSyncError(syncError appv1alpha1.ApplicationStatus) matcher.G
 		var res bool
 
 		for _, msg := range app.Status.Conditions {
-			existingConditionMessage = msg.Message
+			if msg.Type == appv1alpha1.ApplicationConditionSyncError {
+				existingConditionMessage = msg.Message
+			}
 		}
 
 		for _, syncError := range syncError.Conditions {

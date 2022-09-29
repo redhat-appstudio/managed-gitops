@@ -354,8 +354,8 @@ func (a applicationEventLoopRunner_Action) handleDeleteGitOpsDeplEvent(ctx conte
 		return false, errors.NewDevOnlyError(fmt.Errorf("required parameter should not be nil in handleDelete: %v %v", deplToAppMappingList, clusterUser))
 	}
 
-	workspaceNamespace := corev1.Namespace{}
-	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: a.eventResourceNamespace, Name: a.eventResourceNamespace}, &workspaceNamespace); err != nil {
+	apiNamespace := corev1.Namespace{}
+	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: a.eventResourceNamespace, Name: a.eventResourceNamespace}, &apiNamespace); err != nil {
 		userError := "unable to retrieve the namespace containing the GitOpsDeployment"
 		devError := fmt.Errorf("unable to retrieve workspace namespace")
 

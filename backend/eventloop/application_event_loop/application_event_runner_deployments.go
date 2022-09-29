@@ -297,7 +297,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	}
 
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
-	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput,
+	k8sOperation, dbOperation, err := operations.CreateOperation(context.Background(), waitForOperation, dbOperationInput,
 		clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, a.log)
 	if err != nil {
 		a.log.Error(err, "could not create operation", "namespace", operationNamespace)
@@ -305,7 +305,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		return false, nil, nil, deploymentModifiedResult_Failed, err
 	}
 
-	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, a.log); err != nil {
+	if err := operations.CleanupOperation(context.Background(), *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, a.log); err != nil {
 		return false, nil, nil, deploymentModifiedResult_Failed, err
 	}
 
@@ -540,14 +540,14 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 	}
 
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
-	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput, clusterUser.Clusteruser_id,
+	k8sOperation, dbOperation, err := operations.CreateOperation(context.Background(), waitForOperation, dbOperationInput, clusterUser.Clusteruser_id,
 		operationNamespace, dbQueries, gitopsEngineClient, log)
 	if err != nil {
 		log.Error(err, "could not create operation")
 		return false, nil, nil, deploymentModifiedResult_Failed, err
 	}
 
-	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, log); err != nil {
+	if err := operations.CleanupOperation(context.Background(), *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, log); err != nil {
 		return false, nil, nil, deploymentModifiedResult_Failed, err
 	}
 
@@ -663,14 +663,14 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	}
 
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
-	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput,
+	k8sOperation, dbOperation, err := operations.CreateOperation(context.Background(), waitForOperation, dbOperationInput,
 		clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, log)
 	if err != nil {
 		log.Error(err, "unable to create operation", "operation", dbOperationInput.ShortString())
 		return false, err
 	}
 
-	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, log); err != nil {
+	if err := operations.CleanupOperation(context.Background(), *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, log); err != nil {
 		log.Error(err, "unable to cleanup operation", "operation", dbOperationInput.ShortString())
 		return false, err
 	}

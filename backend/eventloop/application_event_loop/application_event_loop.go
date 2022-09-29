@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/kcp-dev/logicalcluster/v2"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
@@ -100,6 +101,10 @@ func applicationEventQueueLoop(input chan eventlooptypes.EventLoopMessage, gitop
 
 		// Block on waiting for more events for this application
 		newEvent := <-input
+
+		if newEvent.Event.Request.ClusterName != "" && !sharedutil.IsKCPVirtualWorkspaceDisabled() {
+			ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(newEvent.Event.Request.ClusterName))
+		}
 
 		if newEvent.Event == nil {
 			log.Error(nil, "SEVERE: applicationEventQueueLoop event was nil", "messageType", newEvent.MessageType)
@@ -276,8 +281,9 @@ func startNewStatusUpdateTimer(ctx context.Context, input chan eventlooptypes.Ev
 		<-statusUpdateTimer.C
 		tickMessage := eventlooptypes.EventLoopMessage{
 			Event: &eventlooptypes.EventLoopEvent{
-				EventType:               eventlooptypes.UpdateDeploymentStatusTick,
-				Request:                 reconcile.Request{},
+				EventType: eventlooptypes.UpdateDeploymentStatusTick,
+				Request:   reconcile.Request{},
+				// an empty request is being sent here
 				AssociatedGitopsDeplUID: gitopsDeplID,
 				Client:                  k8sClient,
 			},

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/kcp-dev/logicalcluster/v2"
 
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
@@ -149,8 +150,12 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, workspaceID 
 	for {
 		wrapperEvent := <-input
 
+		event := (wrapperEvent.payload).(eventlooptypes.EventLoopMessage)
+		if event.Event.Request.ClusterName != "" && !sharedutil.IsKCPVirtualWorkspaceDisabled() {
+			ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(event.Event.Request.ClusterName))
+		}
+
 		if wrapperEvent.messageType == workspaceEventLoopMessageType_Event {
-			event := (wrapperEvent.payload).(eventlooptypes.EventLoopMessage)
 			// First, sanity check the event
 			if event.MessageType == eventlooptypes.ApplicationEventLoopMessageType_WorkComplete {
 				log.Error(nil, "SEVERE: invalid message type received in applicationEventLooRouter")
@@ -215,7 +220,6 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, workspaceID 
 			}
 
 		} else if wrapperEvent.messageType == managedEnvProcessed_Event {
-			event := (wrapperEvent.payload).(eventlooptypes.EventLoopMessage)
 
 			log.V(sharedutil.LogLevel_Debug).Info(fmt.Sprintf("received ManagedEnvironment event, passed event to %d applications",
 				len(applicationMap)))

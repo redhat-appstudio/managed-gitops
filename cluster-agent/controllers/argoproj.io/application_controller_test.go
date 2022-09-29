@@ -426,13 +426,6 @@ var _ = Describe("Application Controller", func() {
 				},
 			}
 
-			app := appv1.ApplicationCondition{
-				Type:               "SyncError",
-				Message:            "Failed to sync",
-				LastTransitionTime: &metav1.Time{Time: time.Now()},
-			}
-			guestbookApp.Status.Conditions = append(guestbookApp.Status.Conditions, app)
-
 			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
 			applicationDB := &db.Application{
@@ -691,15 +684,15 @@ var _ = Describe("Application Controller", func() {
 							},
 						},
 					},
+					Conditions: []appv1.ApplicationCondition{
+						{
+							Type:               "test-error",
+							Message:            "testing error",
+							LastTransitionTime: &metav1.Time{Time: time.Now()},
+						},
+					},
 				},
 			}
-
-			app := appv1.ApplicationCondition{
-				Type:               "test-error",
-				Message:            "Failed to sync",
-				LastTransitionTime: &metav1.Time{Time: time.Now()},
-			}
-			guestbookApp.Status.Conditions = append(guestbookApp.Status.Conditions, app)
 
 			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]

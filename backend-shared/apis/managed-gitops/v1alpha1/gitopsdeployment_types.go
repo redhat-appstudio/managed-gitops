@@ -134,8 +134,8 @@ type SyncStatus struct {
 	Status SyncStatusCode `json:"status"`
 	// Revision contains information about the revision the comparison has been performed to
 	Revision string `json:"revision,omitempty"`
-
-	SyncError string `json:"syncError"`
+	// SyncError contains the information about the syncError from the ArgoCD Application
+	SyncError string `json:"syncError,omitempty"`
 }
 
 // SyncStatusCode is a type which represents possible comparison results

@@ -218,10 +218,11 @@ spec:
                     description: Status is the sync state of the comparison
                     type: string
                   syncError:
+                    description: SyncError contains the information about the syncError
+                      from the ArgoCD Application
                     type: string
                 required:
                 - status
-                - syncError
                 type: object
             required:
             - reconciledState

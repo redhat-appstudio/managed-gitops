@@ -47,7 +47,7 @@ func ConvertArgoCDClusterSecretNameToManagedIdDatabaseRowId(argoCDClusterSecretN
 	}
 
 	if !strings.HasPrefix(argoCDClusterSecretName, managedEnvPrefix) {
-		return "", isLocalEnv_false, fmt.Errorf("secret name is not an GitOps Service Argo CD cluster secret")
+		return "", isLocalEnv_false, fmt.Errorf("secret name is not an GitOps Service Argo CD cluster secret: %s", argoCDClusterSecretName)
 	}
 
 	managedEnvID := argoCDClusterSecretName[len(managedEnvPrefix):]

@@ -42,28 +42,9 @@ type EventLoopEvent struct {
 	// ReqResource indicates whether the event is for a GitOpsDeployment, or DeploymentSyncRun (or other resources)
 	ReqResource GitOpsResourceType
 
-	// AssociatedGitopsDeplUID is the UID of the GitOpsDeployment resource that
-	// - if 'request' is a GitOpsDeployment, then this field matches the UID of the resoruce
-	// - if 'request' is a GitOpsDeploymentSyncRun, then this field matches the UID of the GitOpsDeployment referenced by the sync run's 'gitopsDeploymentName' field.
-	AssociatedGitopsDeplUID2 string
-
-	// AssociatedGitopsDeplNameNamespaceNamespaceUID string
-
 	// WorkspaceID is the UID of the namespace that contains the request
 	WorkspaceID string
 }
-
-const (
-	// orphanedResourceGitopsDeplUID indicates that a GitOpsDeploymentSyncRunCR is orphaned, which means
-	// we do not know which GitOpsDeployment it should belong to. This is usually because the deployment name
-	// field of the SyncRun refers to a K8s resource that doesn't (or no longer) exists.
-	// See https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.8tiycl1h7rns for details.
-	OrphanedResourceGitopsDeplUID = "orphaned"
-
-	// noAssociatedGitOpsDeploymentUID: if a resource does not have an orphanedResourceDeplUID, this constant should be set.
-	// For example: GitOpsDeploymentRepositoryCredentials might be associated with multiple (or zero) GitOpsDeployments.
-	NoAssociatedGitOpsDeploymentUID = "none"
-)
 
 // GetReqResourceAsClientObject converts the resource into a simple client.Object: it will be of
 // the expected type (GitOpsDeployment/SyncRun/etc), but only contain the name and namespace.

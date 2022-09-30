@@ -2265,10 +2265,9 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 				Request: reconcile.Request{
 					NamespacedName: types.NamespacedName{Namespace: namespace.Name, Name: managedEnvCR.Name},
 				},
-				Client:                   k8sClient,
-				ReqResource:              eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName,
-				AssociatedGitopsDeplUID2: "",
-				WorkspaceID:              string(namespace.UID),
+				Client:      k8sClient,
+				ReqResource: eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName,
+				WorkspaceID: string(namespace.UID),
 			}
 
 			By("calling the function with a ManagedEnvironment event")
@@ -2321,10 +2320,9 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 				Request: reconcile.Request{
 					NamespacedName: types.NamespacedName{Namespace: namespace.Name, Name: managedEnvCR.Name},
 				},
-				Client:                   k8sClient,
-				ReqResource:              eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName,
-				AssociatedGitopsDeplUID2: "",
-				WorkspaceID:              string(namespace.UID),
+				Client:      k8sClient,
+				ReqResource: eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName,
+				WorkspaceID: string(namespace.UID),
 			}
 
 			informGitOpsDepl, err := handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx, *gitopsDepl, &newEvent, dbQueries)

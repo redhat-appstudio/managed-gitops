@@ -90,13 +90,12 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 					Request: reconcile.Request{
 						NamespacedName: types.NamespacedName{
 							Namespace: apiNamespace.Name,
-							Name:      apiNamespace.Name,
+							Name:      gitopsDepl.Name,
 						},
 					},
-					Client:                   k8sClient,
-					ReqResource:              eventlooptypes.GitOpsDeploymentTypeName,
-					AssociatedGitopsDeplUID2: string(gitopsDepl.UID),
-					WorkspaceID:              string(apiNamespace.UID),
+					Client:      k8sClient,
+					ReqResource: eventlooptypes.GitOpsDeploymentTypeName,
+					WorkspaceID: string(apiNamespace.UID),
 				},
 			}
 
@@ -131,14 +130,13 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 					EventType: eventlooptypes.DeploymentModified,
 					Request: reconcile.Request{
 						NamespacedName: types.NamespacedName{
-							Namespace: apiNamespace.Name,
-							Name:      apiNamespace.Name,
+							Namespace: gitopsDepl.Namespace,
+							Name:      gitopsDepl.Name,
 						},
 					},
-					Client:                   k8sClient,
-					ReqResource:              eventlooptypes.GitOpsDeploymentTypeName,
-					AssociatedGitopsDeplUID2: string(gitopsDepl.UID),
-					WorkspaceID:              string(apiNamespace.UID),
+					Client:      k8sClient,
+					ReqResource: eventlooptypes.GitOpsDeploymentTypeName,
+					WorkspaceID: string(apiNamespace.UID),
 				},
 			}
 
@@ -182,13 +180,12 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 					Request: reconcile.Request{
 						NamespacedName: types.NamespacedName{
 							Namespace: apiNamespace.Name,
-							Name:      apiNamespace.Name,
+							Name:      gitopsDepl.Name,
 						},
 					},
-					Client:                   k8sClient,
-					ReqResource:              eventlooptypes.GitOpsDeploymentTypeName,
-					AssociatedGitopsDeplUID2: string(gitopsDepl.UID),
-					WorkspaceID:              string(apiNamespace.UID),
+					Client:      k8sClient,
+					ReqResource: eventlooptypes.GitOpsDeploymentTypeName,
+					WorkspaceID: string(apiNamespace.UID),
 				},
 			}
 
@@ -232,10 +229,9 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 							Name:      "my-gitops-depl-sync",
 						},
 					},
-					Client:                   k8sClient,
-					ReqResource:              eventlooptypes.GitOpsDeploymentSyncRunTypeName,
-					AssociatedGitopsDeplUID2: "orphaned",
-					WorkspaceID:              string(apiNamespace.UID),
+					Client:      k8sClient,
+					ReqResource: eventlooptypes.GitOpsDeploymentSyncRunTypeName,
+					WorkspaceID: string(apiNamespace.UID),
 				},
 			}
 
@@ -290,10 +286,9 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 							Name:      gitopsDepl.Name,
 						},
 					},
-					Client:                   k8sClient,
-					ReqResource:              eventlooptypes.GitOpsDeploymentTypeName,
-					AssociatedGitopsDeplUID2: string(gitopsDepl.UID),
-					WorkspaceID:              string(apiNamespace.UID),
+					Client:      k8sClient,
+					ReqResource: eventlooptypes.GitOpsDeploymentTypeName,
+					WorkspaceID: string(apiNamespace.UID),
 				},
 			}
 
@@ -381,10 +376,9 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 								Name:      gitopsDepl.Name,
 							},
 						},
-						Client:                   k8sClient,
-						ReqResource:              eventlooptypes.GitOpsDeploymentTypeName,
-						AssociatedGitopsDeplUID2: string(gitopsDepl.UID),
-						WorkspaceID:              string(apiNamespace.UID),
+						Client:      k8sClient,
+						ReqResource: eventlooptypes.GitOpsDeploymentTypeName,
+						WorkspaceID: string(apiNamespace.UID),
 					},
 				}
 

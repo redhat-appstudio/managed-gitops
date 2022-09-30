@@ -140,10 +140,14 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, namespaceID 
 
 	workspaceResourceLoop := newWorkspaceResourceLoop(sharedResourceEventLoop, input)
 
-	// orphanedResources: gitops depl name -> (name field of CR -> event depending on it)
+	// orphanedResources:
+	// - key: gitops depl name
+	// - value: map: name field of orphaned syncrun CR -> last event that referenced it
 	orphanedResources := map[string]map[string]eventlooptypes.EventLoopEvent{}
 
-	// applicationMap: gitopsDepl UID -> channel for go routine responsible for handling it
+	// applicationMap: maintains a list of which which GitOpsDeployment resources (1-1 relationship) are handled by which Go Routines
+	// - key: string, of format "(namespace UID)-(namespace name)-(GitOpsDeployment name)"
+	// - value:  channel for the go routine responsible for handling events for this GitOpsDeployment
 	applicationMap := map[string]workspaceEventLoop_applicationEventLoopEntry{}
 	for {
 		wrapperEvent := <-input

@@ -8,10 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// The controller event loop receives events from the pre-process event loop. Events received here will necessarily:
-// - Have the 'associatedGitopsDeplUID' field set. This field references either a GitOpsDeployment, or
-//   contains 'orphaned-resource' string (indicating that a corresponding GitOpsDeployment doesn't exist, usually
-//   this is an error.)
+// The controller event loop receives events from the pre-process event loop.
 
 // The controller event loop maintains a list of active API namespaces, which contain GitOps Service API resources.
 

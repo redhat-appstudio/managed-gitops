@@ -26,12 +26,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			inputChan <- eventlooptypes.EventLoopMessage{
 				MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
 				Event: &eventlooptypes.EventLoopEvent{
-					EventType:                eventlooptypes.DeploymentModified,
-					Request:                  reconcile.Request{NamespacedName: types.NamespacedName{Namespace: "", Name: ""}},
-					Client:                   nil,
-					ReqResource:              eventlooptypes.GitOpsDeploymentTypeName,
-					AssociatedGitopsDeplUID2: "",
-					WorkspaceID:              "",
+					EventType:   eventlooptypes.DeploymentModified,
+					Request:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: "", Name: ""}},
+					Client:      nil,
+					ReqResource: eventlooptypes.GitOpsDeploymentTypeName,
+					WorkspaceID: "",
 				},
 				ShutdownSignalled: false,
 			}
@@ -41,7 +40,6 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(outputEvent.EventType).To(Equal(outputEvent.EventType))
 			Expect(outputEvent.Request).To(Equal(outputEvent.Request))
 			Expect(outputEvent.ReqResource).To(Equal(outputEvent.ReqResource))
-			Expect(outputEvent.AssociatedGitopsDeplUID2).To(Equal(outputEvent.AssociatedGitopsDeplUID2))
 			Expect(outputEvent.WorkspaceID).To(Equal(outputEvent.WorkspaceID))
 
 		})

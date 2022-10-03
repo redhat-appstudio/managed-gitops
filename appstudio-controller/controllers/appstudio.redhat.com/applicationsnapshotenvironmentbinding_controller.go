@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	appstudioshared "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
@@ -266,6 +267,16 @@ func generateExpectedGitOpsDeployment(component appstudioshared.ComponentStatus,
 		res.Spec.Destination = apibackend.ApplicationDestination{
 			Environment: managedEnvironmentName,
 			Namespace:   environment.Spec.UnstableConfigurationFields.TargetNamespace,
+		}
+	}
+
+	bindingLabel := make(map[string]string)
+	res.ObjectMeta.Labels = bindingLabel
+
+	// Append ASEB labels with prefix "appstudio.openshift.io" to the gitopsDeployment labels
+	for bindingKey, bindingLabels := range binding.Labels {
+		if strings.HasPrefix(bindingKey, "appstudio.openshift.io") {
+			res.ObjectMeta.Labels[bindingKey] = bindingLabels
 		}
 	}
 

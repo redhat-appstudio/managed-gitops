@@ -19,7 +19,7 @@ spec:
     resource: applications
   - group: appstudio.redhat.com
     identityHash: application-api
-    resource: applicationsnapshotenvironmentbindings
+    resource: snapshotenvironmentbindings
   - group: appstudio.redhat.com
     identityHash: application-api
     resource: components

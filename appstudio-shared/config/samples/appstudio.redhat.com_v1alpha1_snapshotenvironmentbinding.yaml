@@ -1,6 +1,6 @@
 apiVersion: appstudio.redhat.com/v1alpha1
-kind: ApplicationPromotionRun
+kind: SnapshotEnvironmentBinding
 metadata:
-  name: applicationpromotionrun-sample
+  name: snapshotenvironmentbinding-sample
 spec:
   # TODO(user): Add fields here

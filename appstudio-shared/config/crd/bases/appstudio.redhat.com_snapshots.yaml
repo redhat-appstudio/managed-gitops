@@ -5,24 +5,23 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
-  name: applicationsnapshots.appstudio.redhat.com
+  name: snapshots.appstudio.redhat.com
 spec:
   group: appstudio.redhat.com
   names:
-    kind: ApplicationSnapshot
-    listKind: ApplicationSnapshotList
-    plural: applicationsnapshots
+    kind: Snapshot
+    listKind: SnapshotList
+    plural: snapshots
     shortNames:
     - as
     - snapshot
-    singular: applicationsnapshot
+    singular: snapshot
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ApplicationSnapshot is the Schema for the applicationsnapshots
-          API
+        description: Snapshot is the Schema for the snapshots API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -37,7 +36,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: ApplicationSnapshotSpec defines the desired state of ApplicationSnapshot
+            description: SnapshotSpec defines the desired state of Snapshot
             properties:
               application:
                 description: Application is a reference to the name of an Application
@@ -60,7 +59,7 @@ spec:
                 description: Components field contains the sets of components to deploy
                   as part of this snapshot.
                 items:
-                  description: ApplicationSnapshotComponent
+                  description: SnapshotComponent
                   properties:
                     containerImage:
                       description: ContainerImage is the container image to use when
@@ -87,7 +86,7 @@ spec:
             - application
             type: object
           status:
-            description: ApplicationSnapshotStatus defines the observed state of ApplicationSnapshot
+            description: SnapshotStatus defines the observed state of Snapshot
             properties:
               conditions:
                 description: Conditions represent the latest available observations

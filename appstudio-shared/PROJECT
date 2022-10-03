@@ -21,7 +21,7 @@ resources:
     namespaced: true
   domain: redhat.com
   group: appstudio.redhat.com
-  kind: ApplicationSnapshotEnvironmentBinding
+  kind: SnapshotEnvironmentBinding
   path: github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1
   version: v1alpha1
 - api:
@@ -29,7 +29,7 @@ resources:
     namespaced: true
   domain: redhat.com
   group: appstudio.redhat.com
-  kind: ApplicationSnapshot
+  kind: Snapshot
   path: github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1
   version: v1alpha1
 - api:
@@ -37,7 +37,7 @@ resources:
     namespaced: true
   domain: redhat.com
   group: appstudio.redhat.com
-  kind: ApplicationPromotionRun
+  kind: PromotionRun
   path: github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1
   version: v1alpha1
 version: "3"

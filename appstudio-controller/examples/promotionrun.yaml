@@ -1,5 +1,5 @@
 apiVersion: appstudio.redhat.com/v1alpha1
-kind: ApplicationPromotionRun
+kind: PromotionRun
 metadata:
   name: new-demo-app-manual-promotion
 spec:

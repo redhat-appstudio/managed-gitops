@@ -179,11 +179,11 @@ spec:
 ```
 
 
-### ApplicationSnapshot  (*in-progress*)
+### Snapshot  (*in-progress*)
 
 ```yaml
 apiVersion: appstudio.redhat.com/v1alpha1
-kind: ApplicationSnapshot
+kind: Snapshot
 metadata:
   name: my-snapshot
 spec:
@@ -195,11 +195,11 @@ spec:
       containerImage: quay.io/jgwest-redhat/sample-workload:latest
 ```
 
-### ApplicationSnapshotEnvironmentBinding  (*in-progress*)
+### SnapshotEnvironmentBinding  (*in-progress*)
 
 ```yaml
 apiVersion: appstudio.redhat.com/v1alpha1
-kind: ApplicationSnapshotEnvironmentBinding
+kind: SnapshotEnvironmentBinding
 metadata:
   name: appa-staging-binding
   labels:
@@ -227,11 +227,11 @@ status:
           - abc.yaml
 ``` 
 
-### ApplicationPromotionRun  (*in-progress*)
+### PromotionRun  (*in-progress*)
 
 ```yaml
 apiVersion: appstudio.redhat.com/v1alpha1
-kind: ApplicationPromotionRun  # better name suggestions welcome
+kind: PromotionRun  # better name suggestions welcome
 metadata:
   name: appA-manual-promotion
   # labels for application/environment

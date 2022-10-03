@@ -106,25 +106,25 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Application")
 		os.Exit(1)
 	}
-	if err = (&appstudioredhatcomcontrollers.ApplicationSnapshotReconciler{
+	if err = (&appstudioredhatcomcontrollers.SnapshotReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "ApplicationSnapshot")
+		setupLog.Error(err, "unable to create controller", "controller", "Snapshot")
 		os.Exit(1)
 	}
-	if err = (&appstudioredhatcomcontrollers.ApplicationPromotionRunReconciler{
+	if err = (&appstudioredhatcomcontrollers.PromotionRunReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "ApplicationPromotionRun")
+		setupLog.Error(err, "unable to create controller", "controller", "PromotionRun")
 		os.Exit(1)
 	}
-	if err = (&appstudioredhatcomcontrollers.ApplicationSnapshotEnvironmentBindingReconciler{
+	if err = (&appstudioredhatcomcontrollers.SnapshotEnvironmentBindingReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "ApplicationSnapshotEnvironmentBinding")
+		setupLog.Error(err, "unable to create controller", "controller", "SnapshotEnvironmentBinding")
 		os.Exit(1)
 	}
 	if err = (&appstudioredhatcomcontrollers.EnvironmentReconciler{

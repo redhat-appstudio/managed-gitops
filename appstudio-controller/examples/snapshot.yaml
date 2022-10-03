@@ -1,5 +1,5 @@
 apiVersion: appstudio.redhat.com/v1alpha1
-kind: ApplicationSnapshot
+kind: Snapshot
 metadata:
   name: my-snapshot
 spec:

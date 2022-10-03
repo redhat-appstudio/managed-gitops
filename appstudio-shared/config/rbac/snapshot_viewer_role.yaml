@@ -1,13 +1,13 @@
-# permissions for end users to view applicationsnapshotenvironmentbindings.
+# permissions for end users to view snapshots.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: applicationsnapshotenvironmentbinding-viewer-role
+  name: snapshot-viewer-role
 rules:
 - apiGroups:
   - appstudio.redhat.com
   resources:
-  - applicationsnapshotenvironmentbindings
+  - snapshots
   verbs:
   - get
   - list
@@ -15,6 +15,6 @@ rules:
 - apiGroups:
   - appstudio.redhat.com
   resources:
-  - applicationsnapshotenvironmentbindings/status
+  - snapshots/status
   verbs:
   - get

@@ -21,9 +21,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", func() {
+var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
-	Context("Testing ApplicationSnapshotEnvironmentBinding Reconciler.", func() {
+	Context("Testing SnapshotEnvironmentBinding Reconciler.", func() {
 
 		var environment appstudiosharedv1.Environment
 		BeforeEach(func() {
@@ -51,20 +51,20 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 
 		})
 
-		// This test is to verify the scenario when a user creates an ApplicationSnapshotEnvironmentBinding CR in Cluster.
+		// This test is to verify the scenario when a user creates an SnapshotEnvironmentBinding CR in Cluster.
 		// Then GitOps-Service should create GitOpsDeployment CR based on data given in Binding and update details of GitOpsDeployment in Status field of Binding.
 		It("Should update Status of Binding and create new GitOpsDeployment CR.", func() {
 
 			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
 
-			binding := buildApplicationSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a", "component-b"})
+			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a", "component-b"})
 			err := k8s.Create(&binding)
 			Expect(err).To(Succeed())
 
 			// Update Status field
 			err = k8s.Get(&binding)
 			Expect(err).To(Succeed())
-			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging", "components/componentB/overlays/staging"})
+			binding.Status = buildSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging", "components/componentB/overlays/staging"})
 			err = k8s.UpdateStatus(&binding)
 			Expect(err).To(Succeed())
 
@@ -117,20 +117,20 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			Expect(gitOpsDeploymentSecond.OwnerReferences[0].UID).To(Equal(binding.UID))
 		})
 
-		//This test is to verify the scenario when a user creates an ApplicationSnapshotEnvironmentBinding CR in Cluster and after GitOpsDeployment CR is created by GitOps-Service,
+		//This test is to verify the scenario when a user creates an SnapshotEnvironmentBinding CR in Cluster and after GitOpsDeployment CR is created by GitOps-Service,
 		// user does modification in Binding CR. In this case GitOps-Service should also update GitOpsDeployment CR accordingly.
 		It("Should update GitOpsDeployment CR if Binding CR is updated.", func() {
 
 			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
 
-			binding := buildApplicationSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
+			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			err := k8s.Create(&binding)
 			Expect(err).To(Succeed())
 
 			// Update Status field
 			err = k8s.Get(&binding)
 			Expect(err).To(Succeed())
-			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging"})
+			binding.Status = buildSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging"})
 			err = k8s.UpdateStatus(&binding)
 			Expect(err).To(Succeed())
 
@@ -184,20 +184,20 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			}))
 		})
 
-		// This test is to verify the scenario when a user creates an ApplicationSnapshotEnvironmentBinding CR in Cluster and then GitOps-Service creates GitOpsDeployment CR,
+		// This test is to verify the scenario when a user creates an SnapshotEnvironmentBinding CR in Cluster and then GitOps-Service creates GitOpsDeployment CR,
 		// but the user does modification directly in the GitOpsDeployment CR. In this case GitOps-Service service should revert changes done by the user in GitOpsDeployment CR.
 		It("Should revert GitOpsDeployment, if modification are done directly for it, without updating Binding CR.", func() {
 
 			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
 
-			binding := buildApplicationSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
+			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			err := k8s.Create(&binding)
 			Expect(err).To(Succeed())
 
 			// Update the Status field
 			err = k8s.Get(&binding)
 			Expect(err).To(Succeed())
-			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging"})
+			binding.Status = buildSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging"})
 			err = k8s.UpdateStatus(&binding)
 			Expect(err).To(Succeed())
 
@@ -245,13 +245,13 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			}))
 		})
 
-		// This test is to verify the scenario when a user creates an ApplicationSnapshotEnvironmentBinding CR in Cluster and then GitOps-Service creates GitOpsDeployment CR.
+		// This test is to verify the scenario when a user creates an SnapshotEnvironmentBinding CR in Cluster and then GitOps-Service creates GitOpsDeployment CR.
 		// Now user deletes GitOpsDeployment from Cluster but Binding is still present in Cluster. In this case GitOps-Service should recreate GitOpsDeployment CR as given in Binding.
 		It("Should recreate GitOpsDeployment, if Binding still exists but GitOpsDeployment is deleted.", func() {
 
 			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
 
-			binding := buildApplicationSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app",
+			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app",
 				"staging", "my-snapshot", 3, []string{"component-a"})
 			err := k8s.Create(&binding)
 			Expect(err).To(Succeed())
@@ -259,7 +259,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			// Update the Status field
 			err = k8s.Get(&binding)
 			Expect(err).To(Succeed())
-			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template",
+			binding.Status = buildSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template",
 				"main", "fdhyqtw", []string{"components/componentA/overlays/staging"})
 			err = k8s.UpdateStatus(&binding)
 			Expect(err).To(Succeed())
@@ -318,14 +318,14 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			}))
 		})
 
-		// This test is to verify the scenario when a user creates an ApplicationSnapshotEnvironmentBinding CR in Cluster but GitOpsDeployment CR default name is too long.
+		// This test is to verify the scenario when a user creates an SnapshotEnvironmentBinding CR in Cluster but GitOpsDeployment CR default name is too long.
 		// By default the naming convention used for GitOpsDeployment is <Binding Name>-<Application Name>-<Environment Name>-<Components Name> and If name exceeds the max limit then GitOps-Service should follow short name <Binding Name>-<Components Name>.
 		// In this test GitOps-Service should use short naming convention instead of default one.
 		It("Should use short name for GitOpsDeployment, if Name field length is more than max length.", func() {
 
 			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
 
-			binding := buildApplicationSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
+			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			binding.Spec.Application = strings.Repeat("abcde", 45)
 			err := k8s.Create(&binding)
 			Expect(err).To(Succeed())
@@ -333,7 +333,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			// Update the status field
 			err = k8s.Get(&binding)
 			Expect(err).To(Succeed())
-			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging"})
+			binding.Status = buildSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging"})
 			err = k8s.UpdateStatus(&binding)
 			Expect(err).To(Succeed())
 
@@ -397,11 +397,11 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 
 			By("generating the Binding, and waiting for the corresponding GitOpsDeployment to exist")
 
-			binding := buildApplicationSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
+			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			err = k8s.Create(&binding)
 			Expect(err).To(BeNil())
 
-			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components,
+			binding.Status = buildSnapshotEnvironmentBindingStatus(binding.Spec.Components,
 				"https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw",
 				[]string{"components/componentA/overlays/staging"})
 
@@ -432,16 +432,16 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 		})
 
 		It("Should append ASEB labels with key `appstudio.openshift.io` to GitopsDeployment label", func() {
-			By("Create ApplicationSnapshotEnvironmentBindingResource")
-			binding := buildApplicationSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
+			By("Create SnapshotEnvironmentBindingResource")
+			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			binding.ObjectMeta.Labels = map[string]string{"appstudio.openshift.io": "testing"}
 			err := k8s.Create(&binding)
 			Expect(err).To(Succeed())
 
-			By("Update Status field of ApplicationSnapshotEnvironmentBindingResource")
+			By("Update Status field of SnapshotEnvironmentBindingResource")
 			err = k8s.Get(&binding)
 			Expect(err).To(Succeed())
-			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging"})
+			binding.Status = buildSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging"})
 			err = k8s.UpdateStatus(&binding)
 			Expect(err).To(Succeed())
 
@@ -469,15 +469,15 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 		})
 
 		It("Should not append ASEB label without appstudio.openshift.io label into the GitopsDeployment Label", func() {
-			By("Create ApplicationSnapshotEnvironmentBindingResource")
-			binding := buildApplicationSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
+			By("Create SnapshotEnvironmentBindingResource")
+			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			err := k8s.Create(&binding)
 			Expect(err).To(Succeed())
 
-			By("Update Status field of ApplicationSnapshotEnvironmentBindingResource")
+			By("Update Status field of SnapshotEnvironmentBindingResource")
 			err = k8s.Get(&binding)
 			Expect(err).To(Succeed())
-			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging"})
+			binding.Status = buildSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging"})
 			err = k8s.UpdateStatus(&binding)
 			Expect(err).To(Succeed())
 
@@ -504,16 +504,16 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 		})
 
 		It("Should update gitopsDeployment label if ASEB label gets updated", func() {
-			By("Create ApplicationSnapshotEnvironmentBindingResource")
-			binding := buildApplicationSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
+			By("Create SnapshotEnvironmentBindingResource")
+			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			binding.ObjectMeta.Labels = map[string]string{"appstudio.openshift.io": "testing"}
 			err := k8s.Create(&binding)
 			Expect(err).To(Succeed())
 
-			By("Update Status field of ApplicationSnapshotEnvironmentBindingResource")
+			By("Update Status field of SnapshotEnvironmentBindingResource")
 			err = k8s.Get(&binding)
 			Expect(err).To(Succeed())
-			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging"})
+			binding.Status = buildSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging"})
 			err = k8s.UpdateStatus(&binding)
 			Expect(err).To(Succeed())
 
@@ -569,14 +569,14 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 
 })
 
-func buildApplicationSnapshotEnvironmentBindingResource(name, appName, envName, snapShotName string, replica int, componentNames []string) appstudiosharedv1.ApplicationSnapshotEnvironmentBinding {
-	// Create ApplicationSnapshotEnvironmentBinding CR.
-	binding := appstudiosharedv1.ApplicationSnapshotEnvironmentBinding{
+func buildSnapshotEnvironmentBindingResource(name, appName, envName, snapShotName string, replica int, componentNames []string) appstudiosharedv1.SnapshotEnvironmentBinding {
+	// Create SnapshotEnvironmentBinding CR.
+	binding := appstudiosharedv1.SnapshotEnvironmentBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: fixture.GitOpsServiceE2ENamespace,
 		},
-		Spec: appstudiosharedv1.ApplicationSnapshotEnvironmentBindingSpec{
+		Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 			Application: appName,
 			Environment: envName,
 			Snapshot:    snapShotName,
@@ -595,11 +595,11 @@ func buildApplicationSnapshotEnvironmentBindingResource(name, appName, envName, 
 	return binding
 }
 
-func buildApplicationSnapshotEnvironmentBindingStatus(components []appstudiosharedv1.BindingComponent, url,
-	branch, commitID string, path []string) appstudiosharedv1.ApplicationSnapshotEnvironmentBindingStatus {
+func buildSnapshotEnvironmentBindingStatus(components []appstudiosharedv1.BindingComponent, url,
+	branch, commitID string, path []string) appstudiosharedv1.SnapshotEnvironmentBindingStatus {
 
-	// Create ApplicationSnapshotEnvironmentBindingStatus object.
-	status := appstudiosharedv1.ApplicationSnapshotEnvironmentBindingStatus{}
+	// Create SnapshotEnvironmentBindingStatus object.
+	status := appstudiosharedv1.SnapshotEnvironmentBindingStatus{}
 
 	componentStatus := []appstudiosharedv1.ComponentStatus{}
 

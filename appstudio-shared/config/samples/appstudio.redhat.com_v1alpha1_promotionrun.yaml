@@ -1,6 +1,6 @@
 apiVersion: appstudio.redhat.com/v1alpha1
-kind: ApplicationSnapshot
+kind: PromotionRun
 metadata:
-  name: applicationsnapshot-sample
+  name: promotionrun-sample
 spec:
   # TODO(user): Add fields here

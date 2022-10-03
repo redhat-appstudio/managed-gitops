@@ -1,13 +1,13 @@
-# permissions for end users to view applicationsnapshots.
+# permissions for end users to view promotionruns.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: applicationsnapshot-viewer-role
+  name: promotionrun-viewer-role
 rules:
 - apiGroups:
   - appstudio.redhat.com
   resources:
-  - applicationsnapshots
+  - promotionruns
   verbs:
   - get
   - list
@@ -15,6 +15,6 @@ rules:
 - apiGroups:
   - appstudio.redhat.com
   resources:
-  - applicationsnapshots/status
+  - promotionruns/status
   verbs:
   - get

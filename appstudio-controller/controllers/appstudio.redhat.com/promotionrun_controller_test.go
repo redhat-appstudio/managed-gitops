@@ -18,14 +18,14 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 )
 
-var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func() {
-	Context("Testing ApplicationSnapshotEnvironmentBindingReconciler.", func() {
+var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
+	Context("Testing SnapshotEnvironmentBindingReconciler.", func() {
 
 		var ctx context.Context
 		var request reconcile.Request
 		var environment appstudiosharedv1.Environment
-		var promotionRun *appstudiosharedv1.ApplicationPromotionRun
-		var promotionRunReconciler ApplicationPromotionRunReconciler
+		var promotionRun *appstudiosharedv1.PromotionRun
+		var promotionRunReconciler PromotionRunReconciler
 
 		BeforeEach(func() {
 			ctx = context.Background()
@@ -64,14 +64,14 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			err = k8sClient.Create(ctx, &environment)
 			Expect(err).To(BeNil())
 
-			promotionRunReconciler = ApplicationPromotionRunReconciler{Client: k8sClient, Scheme: scheme}
+			promotionRunReconciler = PromotionRunReconciler{Client: k8sClient, Scheme: scheme}
 
-			promotionRun = &appstudiosharedv1.ApplicationPromotionRun{
+			promotionRun = &appstudiosharedv1.PromotionRun{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "new-demo-app-manual-promotion",
 					Namespace: apiNamespace.Name,
 				},
-				Spec: appstudiosharedv1.ApplicationPromotionRunSpec{
+				Spec: appstudiosharedv1.PromotionRunSpec{
 					Snapshot:    "my-snapshot",
 					Application: "new-demo-app",
 					ManualPromotion: appstudiosharedv1.ManualPromotionConfiguration{
@@ -91,7 +91,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 
 		It("Should do nothing as status is complete.", func() {
 			By("setting the Status.State to Complete.")
-			promotionRun.Status = appstudiosharedv1.ApplicationPromotionRunStatus{
+			promotionRun.Status = appstudiosharedv1.PromotionRunStatus{
 				State: appstudiosharedv1.PromotionRunState_Complete,
 			}
 			err := promotionRunReconciler.Create(ctx, promotionRun)
@@ -108,19 +108,19 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			Expect(err).To(BeNil())
 
 			By("Create another PromotionRun CR.")
-			promotionRunTemp := &appstudiosharedv1.ApplicationPromotionRun{
+			promotionRunTemp := &appstudiosharedv1.PromotionRun{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "new-demo-app-auto-promotion",
 					Namespace: promotionRun.Namespace,
 				},
-				Spec: appstudiosharedv1.ApplicationPromotionRunSpec{
+				Spec: appstudiosharedv1.PromotionRunSpec{
 					Snapshot:    "my-snapshot",
 					Application: "new-demo-app",
 					ManualPromotion: appstudiosharedv1.ManualPromotionConfiguration{
 						TargetEnvironment: "prod",
 					},
 				},
-				Status: appstudiosharedv1.ApplicationPromotionRunStatus{
+				Status: appstudiosharedv1.PromotionRunStatus{
 					State: appstudiosharedv1.PromotionRunState_Complete,
 				},
 			}
@@ -138,12 +138,12 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			Expect(err).To(BeNil())
 
 			By("Create another PromotionRun CR.")
-			promotionRunTemp := &appstudiosharedv1.ApplicationPromotionRun{
+			promotionRunTemp := &appstudiosharedv1.PromotionRun{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "new-demo-app-auto-promotion",
 					Namespace: promotionRun.Namespace,
 				},
-				Spec: appstudiosharedv1.ApplicationPromotionRunSpec{
+				Spec: appstudiosharedv1.PromotionRunSpec{
 					Snapshot:    "my-snapshot",
 					Application: "new-demo-app-v1",
 					ManualPromotion: appstudiosharedv1.ManualPromotionConfiguration{
@@ -166,13 +166,13 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			Expect(err).To(BeNil())
 
 			By("Create another PromotionRun CR.")
-			promotionRunTemp := &appstudiosharedv1.ApplicationPromotionRun{
+			promotionRunTemp := &appstudiosharedv1.PromotionRun{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "new-demo-app-auto-promotion",
 					Namespace:         promotionRun.Namespace,
 					CreationTimestamp: metav1.NewTime(time.Date(2022, 7, 20, 20, 34, 58, 651387237, time.UTC)),
 				},
-				Spec: appstudiosharedv1.ApplicationPromotionRunSpec{
+				Spec: appstudiosharedv1.PromotionRunSpec{
 					Snapshot:    "my-snapshot",
 					Application: "new-demo-app",
 					ManualPromotion: appstudiosharedv1.ManualPromotionConfiguration{
@@ -239,28 +239,28 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 		})
 
 		It("PromotionRun Reconciler should successfully locate and use the Binding CR created for given PromotionRun CR.", func() {
-			By("Create ApplicationSnapshot CR.")
-			applicationSnapshot := appstudiosharedv1.ApplicationSnapshot{
+			By("Create Snapshot CR.")
+			snapshot := appstudiosharedv1.Snapshot{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      promotionRun.Spec.Snapshot,
 					Namespace: promotionRun.Namespace,
 				},
-				Spec: appstudiosharedv1.ApplicationSnapshotSpec{
+				Spec: appstudiosharedv1.SnapshotSpec{
 					Application: promotionRun.Spec.Application,
 					DisplayName: promotionRun.Spec.Application,
 				},
 			}
 
-			err := promotionRunReconciler.Create(ctx, &applicationSnapshot)
+			err := promotionRunReconciler.Create(ctx, &snapshot)
 			Expect(err).To(BeNil())
 
-			By("Create ApplicationSnapshotEnvironmentBinding CR.")
-			binding := &appstudiosharedv1.ApplicationSnapshotEnvironmentBinding{
+			By("Create SnapshotEnvironmentBinding CR.")
+			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "appa-staging-binding",
 					Namespace: promotionRun.Namespace,
 				},
-				Spec: appstudiosharedv1.ApplicationSnapshotEnvironmentBindingSpec{
+				Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 					Application: promotionRun.Spec.Application,
 					Environment: promotionRun.Spec.ManualPromotion.TargetEnvironment,
 					Snapshot:    promotionRun.Spec.Snapshot,
@@ -296,28 +296,28 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 		})
 
 		It("Should return error if PromotionRun.Status.ActiveBindings do not match with Binding given in PromotionRun CR.", func() {
-			By("Create ApplicationSnapshot CR.")
-			applicationSnapshot := appstudiosharedv1.ApplicationSnapshot{
+			By("Create Snapshot CR.")
+			snapshot := appstudiosharedv1.Snapshot{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      promotionRun.Spec.Snapshot,
 					Namespace: promotionRun.Namespace,
 				},
-				Spec: appstudiosharedv1.ApplicationSnapshotSpec{
+				Spec: appstudiosharedv1.SnapshotSpec{
 					Application: promotionRun.Spec.Application,
 					DisplayName: promotionRun.Spec.Application,
 				},
 			}
 
-			err := promotionRunReconciler.Create(ctx, &applicationSnapshot)
+			err := promotionRunReconciler.Create(ctx, &snapshot)
 			Expect(err).To(BeNil())
 
-			By("Create ApplicationSnapshotEnvironmentBinding CR.")
-			binding := &appstudiosharedv1.ApplicationSnapshotEnvironmentBinding{
+			By("Create SnapshotEnvironmentBinding CR.")
+			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "appa-staging-binding",
 					Namespace: promotionRun.Namespace,
 				},
-				Spec: appstudiosharedv1.ApplicationSnapshotEnvironmentBindingSpec{
+				Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 					Application: promotionRun.Spec.Application,
 					Environment: promotionRun.Spec.ManualPromotion.TargetEnvironment,
 					Snapshot:    promotionRun.Spec.Snapshot,
@@ -351,13 +351,13 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 		})
 
 		It("Should return error if SnapShot given in PromotionRun CR does not exist.", func() {
-			By("Create ApplicationSnapshotEnvironmentBinding CR.")
-			binding := &appstudiosharedv1.ApplicationSnapshotEnvironmentBinding{
+			By("Create SnapshotEnvironmentBinding CR.")
+			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "appa-staging-binding",
 					Namespace: promotionRun.Namespace,
 				},
-				Spec: appstudiosharedv1.ApplicationSnapshotEnvironmentBindingSpec{
+				Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 					Application: promotionRun.Spec.Application,
 					Environment: promotionRun.Spec.ManualPromotion.TargetEnvironment,
 					Snapshot:    promotionRun.Spec.Snapshot,
@@ -389,28 +389,28 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 		})
 
 		It("Should wait for the environment binding to create all of the expected GitOpsDeployments.", func() {
-			By("Create ApplicationSnapshot CR.")
-			applicationSnapshot := appstudiosharedv1.ApplicationSnapshot{
+			By("Create Snapshot CR.")
+			snapshot := appstudiosharedv1.Snapshot{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      promotionRun.Spec.Snapshot,
 					Namespace: promotionRun.Namespace,
 				},
-				Spec: appstudiosharedv1.ApplicationSnapshotSpec{
+				Spec: appstudiosharedv1.SnapshotSpec{
 					Application: promotionRun.Spec.Application,
 					DisplayName: promotionRun.Spec.Application,
 				},
 			}
 
-			err := promotionRunReconciler.Create(ctx, &applicationSnapshot)
+			err := promotionRunReconciler.Create(ctx, &snapshot)
 			Expect(err).To(BeNil())
 
-			By("Create ApplicationSnapshotEnvironmentBinding CR.")
-			binding := &appstudiosharedv1.ApplicationSnapshotEnvironmentBinding{
+			By("Create SnapshotEnvironmentBinding CR.")
+			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "appa-staging-binding",
 					Namespace: promotionRun.Namespace,
 				},
-				Spec: appstudiosharedv1.ApplicationSnapshotEnvironmentBindingSpec{
+				Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 					Application: promotionRun.Spec.Application,
 					Environment: promotionRun.Spec.ManualPromotion.TargetEnvironment,
 					Snapshot:    promotionRun.Spec.Snapshot,
@@ -445,33 +445,33 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			Expect(len(promotionRun.Status.EnvironmentStatus) > 0).To(BeTrue())
 			Expect(promotionRun.Status.EnvironmentStatus[0].Step).To(Equal(1))
 			Expect(promotionRun.Status.EnvironmentStatus[0].DisplayStatus).To(Equal("Waiting for the environment binding to create all of the expected GitOpsDeployments."))
-			Expect(promotionRun.Status.EnvironmentStatus[0].Status).To(Equal(appstudiosharedv1.ApplicationPromotionRunEnvironmentStatus_InProgress))
+			Expect(promotionRun.Status.EnvironmentStatus[0].Status).To(Equal(appstudiosharedv1.PromotionRunEnvironmentStatus_InProgress))
 			Expect(promotionRun.Status.EnvironmentStatus[0].EnvironmentName).To(Equal(environment.Name))
 		})
 
 		It("Should wait for GitOpsDeployments to have expected commit/sync/health: Scenario 2.", func() {
-			By("Create ApplicationSnapshot CR.")
-			applicationSnapshot := appstudiosharedv1.ApplicationSnapshot{
+			By("Create Snapshot CR.")
+			snapshot := appstudiosharedv1.Snapshot{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      promotionRun.Spec.Snapshot,
 					Namespace: promotionRun.Namespace,
 				},
-				Spec: appstudiosharedv1.ApplicationSnapshotSpec{
+				Spec: appstudiosharedv1.SnapshotSpec{
 					Application: promotionRun.Spec.Application,
 					DisplayName: promotionRun.Spec.Application,
 				},
 			}
 
-			err := promotionRunReconciler.Create(ctx, &applicationSnapshot)
+			err := promotionRunReconciler.Create(ctx, &snapshot)
 			Expect(err).To(BeNil())
 
-			By("Create ApplicationSnapshotEnvironmentBinding CR.")
-			binding := &appstudiosharedv1.ApplicationSnapshotEnvironmentBinding{
+			By("Create SnapshotEnvironmentBinding CR.")
+			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "appa-staging-binding",
 					Namespace: promotionRun.Namespace,
 				},
-				Spec: appstudiosharedv1.ApplicationSnapshotEnvironmentBindingSpec{
+				Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 					Application: promotionRun.Spec.Application,
 					Environment: promotionRun.Spec.ManualPromotion.TargetEnvironment,
 					Snapshot:    promotionRun.Spec.Snapshot,
@@ -487,7 +487,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 						},
 					},
 				},
-				Status: appstudiosharedv1.ApplicationSnapshotEnvironmentBindingStatus{
+				Status: appstudiosharedv1.SnapshotEnvironmentBindingStatus{
 					GitOpsDeployments: []appstudiosharedv1.BindingStatusGitOpsDeployment{
 						{
 							ComponentName:    "component-a",
@@ -547,33 +547,33 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			Expect(len(promotionRun.Status.EnvironmentStatus) > 0).To(BeTrue())
 			Expect(promotionRun.Status.EnvironmentStatus[0].Step).To(Equal(1))
 			Expect(promotionRun.Status.EnvironmentStatus[0].DisplayStatus).To(Equal("Waiting for following GitOpsDeployments to be Synced/Healthy: " + gitOpsDeployment.Name))
-			Expect(promotionRun.Status.EnvironmentStatus[0].Status).To(Equal(appstudiosharedv1.ApplicationPromotionRunEnvironmentStatus_InProgress))
+			Expect(promotionRun.Status.EnvironmentStatus[0].Status).To(Equal(appstudiosharedv1.PromotionRunEnvironmentStatus_InProgress))
 			Expect(promotionRun.Status.EnvironmentStatus[0].EnvironmentName).To(Equal(environment.Name))
 		})
 
 		It("Should create GitOpsDeployments and it should be Synced/Healthy.", func() {
-			By("Create ApplicationSnapshot CR.")
-			applicationSnapshot := appstudiosharedv1.ApplicationSnapshot{
+			By("Create Snapshot CR.")
+			snapshot := appstudiosharedv1.Snapshot{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      promotionRun.Spec.Snapshot,
 					Namespace: promotionRun.Namespace,
 				},
-				Spec: appstudiosharedv1.ApplicationSnapshotSpec{
+				Spec: appstudiosharedv1.SnapshotSpec{
 					Application: promotionRun.Spec.Application,
 					DisplayName: promotionRun.Spec.Application,
 				},
 			}
 
-			err := promotionRunReconciler.Create(ctx, &applicationSnapshot)
+			err := promotionRunReconciler.Create(ctx, &snapshot)
 			Expect(err).To(BeNil())
 
-			By("Create ApplicationSnapshotEnvironmentBinding CR.")
-			binding := &appstudiosharedv1.ApplicationSnapshotEnvironmentBinding{
+			By("Create SnapshotEnvironmentBinding CR.")
+			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "appa-staging-binding",
 					Namespace: promotionRun.Namespace,
 				},
-				Spec: appstudiosharedv1.ApplicationSnapshotEnvironmentBindingSpec{
+				Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 					Application: promotionRun.Spec.Application,
 					Environment: promotionRun.Spec.ManualPromotion.TargetEnvironment,
 					Snapshot:    promotionRun.Spec.Snapshot,
@@ -589,7 +589,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 						},
 					},
 				},
-				Status: appstudiosharedv1.ApplicationSnapshotEnvironmentBindingStatus{
+				Status: appstudiosharedv1.SnapshotEnvironmentBindingStatus{
 					GitOpsDeployments: []appstudiosharedv1.BindingStatusGitOpsDeployment{
 						{
 							ComponentName:    "component-a",
@@ -644,33 +644,33 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			Expect(len(promotionRun.Status.EnvironmentStatus) > 0).To(BeTrue())
 			Expect(promotionRun.Status.EnvironmentStatus[0].Step).To(Equal(1))
 			Expect(promotionRun.Status.EnvironmentStatus[0].DisplayStatus).To(Equal(StatusMessageAllGitOpsDeploymentsAreSyncedHealthy))
-			Expect(promotionRun.Status.EnvironmentStatus[0].Status).To(Equal(appstudiosharedv1.ApplicationPromotionRunEnvironmentStatus_Success))
+			Expect(promotionRun.Status.EnvironmentStatus[0].Status).To(Equal(appstudiosharedv1.PromotionRunEnvironmentStatus_Success))
 			Expect(promotionRun.Status.EnvironmentStatus[0].EnvironmentName).To(Equal(environment.Name))
 		})
 
 		It("Should fail if GitOpsDeployments are not Synced/Healthy in given time limit.", func() {
-			By("Create ApplicationSnapshot CR.")
-			applicationSnapshot := appstudiosharedv1.ApplicationSnapshot{
+			By("Create Snapshot CR.")
+			snapshot := appstudiosharedv1.Snapshot{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      promotionRun.Spec.Snapshot,
 					Namespace: promotionRun.Namespace,
 				},
-				Spec: appstudiosharedv1.ApplicationSnapshotSpec{
+				Spec: appstudiosharedv1.SnapshotSpec{
 					Application: promotionRun.Spec.Application,
 					DisplayName: promotionRun.Spec.Application,
 				},
 			}
 
-			err := promotionRunReconciler.Create(ctx, &applicationSnapshot)
+			err := promotionRunReconciler.Create(ctx, &snapshot)
 			Expect(err).To(BeNil())
 
-			By("Create ApplicationSnapshotEnvironmentBinding CR.")
-			binding := &appstudiosharedv1.ApplicationSnapshotEnvironmentBinding{
+			By("Create SnapshotEnvironmentBinding CR.")
+			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "appa-staging-binding",
 					Namespace: promotionRun.Namespace,
 				},
-				Spec: appstudiosharedv1.ApplicationSnapshotEnvironmentBindingSpec{
+				Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 					Application: promotionRun.Spec.Application,
 					Environment: promotionRun.Spec.ManualPromotion.TargetEnvironment,
 					Snapshot:    promotionRun.Spec.Snapshot,
@@ -686,7 +686,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 						},
 					},
 				},
-				Status: appstudiosharedv1.ApplicationSnapshotEnvironmentBindingStatus{
+				Status: appstudiosharedv1.SnapshotEnvironmentBindingStatus{
 					GitOpsDeployments: []appstudiosharedv1.BindingStatusGitOpsDeployment{
 						{
 							ComponentName:    "component-a",
@@ -746,7 +746,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 	})
 })
 
-func checkStatusCondition(ctx context.Context, rClient client.Client, promotionRun *appstudiosharedv1.ApplicationPromotionRun, message string) {
+func checkStatusCondition(ctx context.Context, rClient client.Client, promotionRun *appstudiosharedv1.PromotionRun, message string) {
 	err := rClient.Get(ctx, client.ObjectKeyFromObject(promotionRun), promotionRun)
 	Expect(err).To(BeNil())
 	Expect(len(promotionRun.Status.Conditions) > 0)

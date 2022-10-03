@@ -18,13 +18,13 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 )
 
-var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func() {
+var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
-	Context("Testing ApplicationSnapshotEnvironmentBindingReconciler.", func() {
+	Context("Testing SnapshotEnvironmentBindingReconciler.", func() {
 		var ctx context.Context
 		var request reconcile.Request
-		var binding *appstudiosharedv1.ApplicationSnapshotEnvironmentBinding
-		var bindingReconciler ApplicationSnapshotEnvironmentBindingReconciler
+		var binding *appstudiosharedv1.SnapshotEnvironmentBinding
+		var bindingReconciler SnapshotEnvironmentBindingReconciler
 
 		var environment appstudiosharedv1.Environment
 
@@ -65,10 +65,10 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			err = k8sClient.Create(ctx, &environment)
 			Expect(err).To(BeNil())
 
-			bindingReconciler = ApplicationSnapshotEnvironmentBindingReconciler{Client: k8sClient, Scheme: scheme}
+			bindingReconciler = SnapshotEnvironmentBindingReconciler{Client: k8sClient, Scheme: scheme}
 
-			// Create ApplicationSnapshotEnvironmentBinding CR.
-			binding = &appstudiosharedv1.ApplicationSnapshotEnvironmentBinding{
+			// Create SnapshotEnvironmentBinding CR.
+			binding = &appstudiosharedv1.SnapshotEnvironmentBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "appa-staging-binding",
 					Namespace: apiNamespace.Name,
@@ -77,7 +77,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 						"appstudio.environment": "staging",
 					},
 				},
-				Spec: appstudiosharedv1.ApplicationSnapshotEnvironmentBindingSpec{
+				Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 					Application: "new-demo-app",
 					Environment: "staging",
 					Snapshot:    "my-snapshot",
@@ -93,7 +93,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 						},
 					},
 				},
-				Status: appstudiosharedv1.ApplicationSnapshotEnvironmentBindingStatus{
+				Status: appstudiosharedv1.SnapshotEnvironmentBindingStatus{
 					Components: []appstudiosharedv1.ComponentStatus{
 						{
 							Name: "component-a",
@@ -112,12 +112,12 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 		})
 
 		It("Should set the status field of Binding.", func() {
-			// Create ApplicationSnapshotEnvironmentBinding CR in cluster.
+			// Create SnapshotEnvironmentBinding CR in cluster.
 			err := bindingReconciler.Create(ctx, binding)
 			Expect(err).To(BeNil())
 
 			// Check status field before calling Reconciler
-			bindingFirst := &appstudiosharedv1.ApplicationSnapshotEnvironmentBinding{}
+			bindingFirst := &appstudiosharedv1.SnapshotEnvironmentBinding{}
 			err = bindingReconciler.Client.Get(ctx, request.NamespacedName, bindingFirst)
 			Expect(err).To(BeNil())
 			Expect(len(bindingFirst.Status.GitOpsDeployments)).To(Equal(0))
@@ -127,7 +127,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			Expect(err).To(BeNil())
 
 			// Check status field after calling Reconciler
-			bindingSecond := &appstudiosharedv1.ApplicationSnapshotEnvironmentBinding{}
+			bindingSecond := &appstudiosharedv1.SnapshotEnvironmentBinding{}
 			err = bindingReconciler.Client.Get(ctx, request.NamespacedName, bindingSecond)
 
 			Expect(err).To(BeNil())
@@ -142,7 +142,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 
 		It("Should not update GitOpsDeployment if same Binding is created again.", func() {
 
-			// Create ApplicationSnapshotEnvironmentBinding CR in cluster.
+			// Create SnapshotEnvironmentBinding CR in cluster.
 			err := bindingReconciler.Create(ctx, binding)
 			Expect(err).To(BeNil())
 
@@ -174,7 +174,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 		})
 
 		It("Should revert GitOpsDeploymentObject if it's spec is different than Binding Component.", func() {
-			// Create ApplicationSnapshotEnvironmentBinding CR in cluster.
+			// Create SnapshotEnvironmentBinding CR in cluster.
 			err := bindingReconciler.Create(ctx, binding)
 			Expect(err).To(BeNil())
 
@@ -217,7 +217,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			binding.Spec.Application = strings.Repeat("abcde", 45)
 			request = newRequest(binding.Namespace, binding.Name)
 
-			// Create ApplicationSnapshotEnvironmentBinding CR in cluster.
+			// Create SnapshotEnvironmentBinding CR in cluster.
 			err := bindingReconciler.Create(ctx, binding)
 			Expect(err).To(BeNil())
 
@@ -226,7 +226,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			Expect(err).To(BeNil())
 
 			// Check status field after calling Reconciler
-			binding := &appstudiosharedv1.ApplicationSnapshotEnvironmentBinding{}
+			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{}
 			err = bindingReconciler.Client.Get(ctx, request.NamespacedName, binding)
 
 			Expect(err).To(BeNil())
@@ -240,14 +240,14 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 
 		It("Should not return error if Status.Components is not available in Binding object.", func() {
 			binding.Status.Components = []appstudiosharedv1.ComponentStatus{}
-			// Create ApplicationSnapshotEnvironmentBinding CR in cluster.
+			// Create SnapshotEnvironmentBinding CR in cluster.
 			err := bindingReconciler.Create(ctx, binding)
 			Expect(err).To(BeNil())
 
 			// Trigger Reconciler
 			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).To(BeNil())
-			// Expect(err.Error()).To(Equal("ApplicationSnapshotEventBinding Component status is required to generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding appa-staging-binding"))
+			// Expect(err.Error()).To(Equal("SnapshotEventBinding Component status is required to generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding appa-staging-binding"))
 
 			// TODO: GITOPSRVCE-182: Once GITOPSRVCE-182 is implemented, check for the above message in the condition.
 
@@ -260,7 +260,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 				},
 			}
 
-			// Create ApplicationSnapshotEnvironmentBinding CR in cluster.
+			// Create SnapshotEnvironmentBinding CR in cluster.
 			err := bindingReconciler.Create(ctx, binding)
 			Expect(err).To(BeNil())
 
@@ -271,7 +271,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 
 		It("should not return an error if there are duplicate components in binding.Status.Components", func() {
 
-			By("creating an ApplicationSnapshotEnvironmentBinding with duplicate component names")
+			By("creating an SnapshotEnvironmentBinding with duplicate component names")
 
 			binding.Status.Components = []appstudiosharedv1.ComponentStatus{
 				{
@@ -294,7 +294,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 				},
 			}
 
-			// Create ApplicationSnapshotEnvironmentBinding CR in cluster.
+			// Create SnapshotEnvironmentBinding CR in cluster.
 			err := bindingReconciler.Create(ctx, binding)
 			Expect(err).To(BeNil())
 
@@ -377,7 +377,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			By("updating binding.ObjectMeta.Labels with appstudio.openshift.io label")
 			binding.ObjectMeta.Labels[appstudioLabelKey] = "testing"
 
-			By("creating ApplicationSnapshotEnvironmentBinding CR in cluster.")
+			By("creating SnapshotEnvironmentBinding CR in cluster.")
 			err := bindingReconciler.Create(ctx, binding)
 			Expect(err).To(BeNil())
 
@@ -399,7 +399,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 		})
 
 		It("should not append ASEB label without key appstudio.openshift.io into the GitopsDeployment Label", func() {
-			By("creating ApplicationSnapshotEnvironmentBinding CR in cluster.")
+			By("creating SnapshotEnvironmentBinding CR in cluster.")
 			err := bindingReconciler.Create(ctx, binding)
 			Expect(err).To(BeNil())
 
@@ -424,7 +424,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			By("updating binding.ObjectMeta.Labels with appstudio.openshift.io label")
 			binding.ObjectMeta.Labels[appstudioLabelKey] = "testing"
 
-			By("creating ApplicationSnapshotEnvironmentBinding CR in cluster.")
+			By("creating SnapshotEnvironmentBinding CR in cluster.")
 			err := bindingReconciler.Create(ctx, binding)
 			Expect(err).To(BeNil())
 
@@ -489,7 +489,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			binding.ObjectMeta.Labels[appstudioLabelKey] = "testing"
 			binding.ObjectMeta.Labels["non-appstudio-label"] = "should-not-be-copied"
 
-			By("creating ApplicationSnapshotEnvironmentBinding")
+			By("creating SnapshotEnvironmentBinding")
 			err := bindingReconciler.Create(ctx, binding)
 			Expect(err).To(BeNil())
 

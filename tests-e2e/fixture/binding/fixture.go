@@ -42,7 +42,7 @@ func HaveStatusGitOpsDeployments(gitOpsDeployments []appstudiosharedv1.BindingSt
 		return ""
 	}
 
-	return WithTransform(func(binding appstudiosharedv1.ApplicationSnapshotEnvironmentBinding) bool {
+	return WithTransform(func(binding appstudiosharedv1.SnapshotEnvironmentBinding) bool {
 
 		k8sClient, err := fixture.GetKubeClient()
 		if err != nil {

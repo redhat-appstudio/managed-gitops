@@ -3,26 +3,26 @@
 # It should be run by config/default
 resources:
 - bases/appstudio.redhat.com_environments.yaml
-- bases/appstudio.redhat.com_applicationsnapshotenvironmentbindings.yaml
-- bases/appstudio.redhat.com_applicationsnapshots.yaml
-- bases/appstudio.redhat.com_applicationpromotionruns.yaml
+- bases/appstudio.redhat.com_snapshotenvironmentbindings.yaml
+- bases/appstudio.redhat.com_snapshots.yaml
+- bases/appstudio.redhat.com_promotionruns.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix.
 # patches here are for enabling the conversion webhook for each CRD
 #- patches/webhook_in_environments.yaml
-#- patches/webhook_in_applicationsnapshotenvironmentbindings.yaml
-#- patches/webhook_in_applicationsnapshots.yaml
-#- patches/webhook_in_applicationpromotionruns.yaml
+#- patches/webhook_in_snapshotenvironmentbindings.yaml
+#- patches/webhook_in_snapshots.yaml
+#- patches/webhook_in_promotionruns.yaml
 #+kubebuilder:scaffold:crdkustomizewebhookpatch
 
 # [CERTMANAGER] To enable cert-manager, uncomment all the sections with [CERTMANAGER] prefix.
 # patches here are for enabling the CA injection for each CRD
 #- patches/cainjection_in_environments.yaml
-#- patches/cainjection_in_applicationsnapshotenvironmentbindings.yaml
-#- patches/cainjection_in_applicationsnapshots.yaml
-#- patches/cainjection_in_applicationpromotionruns.yaml
+#- patches/cainjection_in_snapshotenvironmentbindings.yaml
+#- patches/cainjection_in_snapshots.yaml
+#- patches/cainjection_in_promotionruns.yaml
 #+kubebuilder:scaffold:crdkustomizecainjectionpatch
 
 # the following config is for teaching kustomize how to do kustomization for CRDs.

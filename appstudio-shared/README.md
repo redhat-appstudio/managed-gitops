@@ -7,8 +7,7 @@ The APIs defined in this module is based on the [Environment API discussions](ht
 
 ⚠️ Until these APIs are stabilized, they are subject to change with limited notice. Best efforts will be made to inform API consumers of how to migrate when the changes are breaking. ⚠️
 
-### Expected upcoming changes, as of this writing (May 2022):
-- Drop the `Application-` prefix for prefixed resources
+### Expected upcoming changes, as of this writing (Oct 2022):
 - Move away from using the `Snapshot` noun (replacement TBD)
 - Consider moving this module out of the GitOps Service monorepo and into its own Git repository
 
@@ -27,9 +26,9 @@ To generate a controller for one or more of these APIs, run these commands in yo
 ```bash
 # Tested on operator-sdk v1.17 - the commands may require minor adjustment if you are using a different version:
 
-operator-sdk create api --group appstudio --version v1alpha1 --kind ApplicationSnapshot --controller
-operator-sdk create api --group appstudio --version v1alpha1 --kind ApplicationPromotionRun --controller
-operator-sdk create api --group appstudio --version v1alpha1 --kind ApplicationSnapshotEnvironmentBinding --controller
+operator-sdk create api --group appstudio --version v1alpha1 --kind Snapshot --controller
+operator-sdk create api --group appstudio --version v1alpha1 --kind PromotionRun --controller
+operator-sdk create api --group appstudio --version v1alpha1 --kind SnapshotEnvironmentBinding --controller
 operator-sdk create api --group appstudio --version v1alpha1 --kind Environment --controller
 
 # In all cases, answer `N` to the `Create Resource [y/n]` prompt from operator-sdk CLI.

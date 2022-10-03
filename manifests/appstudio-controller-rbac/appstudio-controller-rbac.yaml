@@ -51,7 +51,7 @@ rules:
 - apiGroups:
   - appstudio.redhat.com
   resources:
-  - applicationpromotionruns
+  - promotionruns
   verbs:
   - create
   - delete
@@ -63,13 +63,13 @@ rules:
 - apiGroups:
   - appstudio.redhat.com
   resources:
-  - applicationpromotionruns/finalizers
+  - promotionruns/finalizers
   verbs:
   - update
 - apiGroups:
   - appstudio.redhat.com
   resources:
-  - applicationpromotionruns/status
+  - promotionruns/status
   verbs:
   - get
   - patch
@@ -103,7 +103,7 @@ rules:
 - apiGroups:
   - appstudio.redhat.com
   resources:
-  - applicationsnapshotenvironmentbindings
+  - snapshotenvironmentbindings
   verbs:
   - create
   - delete
@@ -115,13 +115,13 @@ rules:
 - apiGroups:
   - appstudio.redhat.com
   resources:
-  - applicationsnapshotenvironmentbindings/finalizers
+  - snapshotenvironmentbindings/finalizers
   verbs:
   - update
 - apiGroups:
   - appstudio.redhat.com
   resources:
-  - applicationsnapshotenvironmentbindings/status
+  - snapshotenvironmentbindings/status
   verbs:
   - get
   - patch
@@ -129,7 +129,7 @@ rules:
 - apiGroups:
   - appstudio.redhat.com
   resources:
-  - applicationsnapshots
+  - snapshots
   verbs:
   - create
   - delete
@@ -141,13 +141,13 @@ rules:
 - apiGroups:
   - appstudio.redhat.com
   resources:
-  - applicationsnapshots/finalizers
+  - snapshots/finalizers
   verbs:
   - update
 - apiGroups:
   - appstudio.redhat.com
   resources:
-  - applicationsnapshots/status
+  - snapshots/status
   verbs:
   - get
   - patch

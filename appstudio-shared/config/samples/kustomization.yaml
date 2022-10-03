@@ -1,7 +1,7 @@
 ## Append samples you want in your CSV to this file as resources ##
 resources:
 - appstudio.redhat.com_v1alpha1_environment.yaml
-- appstudio.redhat.com_v1alpha1_applicationsnapshotenvironmentbinding.yaml
-- appstudio.redhat.com_v1alpha1_applicationsnapshot.yaml
-- appstudio.redhat.com_v1alpha1_applicationpromotionrun.yaml
+- appstudio.redhat.com_v1alpha1_snapshotenvironmentbinding.yaml
+- appstudio.redhat.com_v1alpha1_snapshot.yaml
+- appstudio.redhat.com_v1alpha1_promotionrun.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

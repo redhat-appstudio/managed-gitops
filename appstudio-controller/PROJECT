@@ -16,17 +16,17 @@ resources:
 - controller: true
   domain: redhat.com
   group: appstudio.redhat.com
-  kind: ApplicationSnapshot
+  kind: Snapshot
   version: v1alpha1
 - controller: true
   domain: redhat.com
   group: appstudio.redhat.com
-  kind: ApplicationPromotionRun
+  kind: PromotionRun
   version: v1alpha1
 - controller: true
   domain: redhat.com
   group: appstudio.redhat.com
-  kind: ApplicationSnapshotEnvironmentBinding
+  kind: SnapshotEnvironmentBinding
   version: v1alpha1
 - controller: true
   domain: redhat.com

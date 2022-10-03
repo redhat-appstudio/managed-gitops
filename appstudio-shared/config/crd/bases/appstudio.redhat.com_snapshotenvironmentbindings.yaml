@@ -5,23 +5,23 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
-  name: applicationsnapshotenvironmentbindings.appstudio.redhat.com
+  name: snapshotenvironmentbindings.appstudio.redhat.com
 spec:
   group: appstudio.redhat.com
   names:
-    kind: ApplicationSnapshotEnvironmentBinding
-    listKind: ApplicationSnapshotEnvironmentBindingList
-    plural: applicationsnapshotenvironmentbindings
+    kind: SnapshotEnvironmentBinding
+    listKind: SnapshotEnvironmentBindingList
+    plural: snapshotenvironmentbindings
     shortNames:
     - aseb
     - binding
-    singular: applicationsnapshotenvironmentbinding
+    singular: snapshotenvironmentbinding
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ApplicationSnapshotEnvironmentBinding is the Schema for the applicationsnapshotenvironmentbindings
+        description: SnapshotEnvironmentBinding is the Schema for the snapshotenvironmentbindings
           API
         properties:
           apiVersion:
@@ -37,8 +37,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: ApplicationSnapshotEnvironmentBindingSpec defines the desired
-              state of ApplicationSnapshotEnvironmentBinding
+            description: SnapshotEnvironmentBindingSpec defines the desired state
+              of SnapshotEnvironmentBinding
             properties:
               application:
                 description: Application is a reference to the Application resource
@@ -131,8 +131,8 @@ spec:
             - snapshot
             type: object
           status:
-            description: ApplicationSnapshotEnvironmentBindingStatus defines the observed
-              state of ApplicationSnapshotEnvironmentBinding
+            description: SnapshotEnvironmentBindingStatus defines the observed state
+              of SnapshotEnvironmentBinding
             properties:
               components:
                 description: Components describes a component's GitOps repository

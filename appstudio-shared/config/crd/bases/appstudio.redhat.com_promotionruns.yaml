@@ -5,24 +5,23 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
-  name: applicationpromotionruns.appstudio.redhat.com
+  name: promotionruns.appstudio.redhat.com
 spec:
   group: appstudio.redhat.com
   names:
-    kind: ApplicationPromotionRun
-    listKind: ApplicationPromotionRunList
-    plural: applicationpromotionruns
+    kind: PromotionRun
+    listKind: PromotionRunList
+    plural: promotionruns
     shortNames:
     - apr
     - promotion
-    singular: applicationpromotionrun
+    singular: promotionrun
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ApplicationPromotionRun is the Schema for the applicationpromotionruns
-          API
+        description: PromotionRun is the Schema for the promotionruns API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -37,8 +36,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: ApplicationPromotionRunSpec defines the desired state of
-              ApplicationPromotionRun
+            description: PromotionRunSpec defines the desired state of PromotionRun
             properties:
               application:
                 description: Application is the name of an Application resource defined
@@ -76,8 +74,7 @@ spec:
             - snapshot
             type: object
           status:
-            description: ApplicationPromotionRunStatus defines the observed state
-              of ApplicationPromotionRun
+            description: PromotionRunStatus defines the observed state of PromotionRun
             properties:
               activeBindings:
                 description: 'ActiveBindings is the list of active bindings currently
@@ -159,7 +156,7 @@ spec:
                   type: object
                 type: array
               promotionStartTime:
-                description: PromotionStartTime is set to the value when the ApplicationPromotionRun
+                description: PromotionStartTime is set to the value when the PromotionRun
                   Reconciler first started the promotion.
                 format: date-time
                 type: string

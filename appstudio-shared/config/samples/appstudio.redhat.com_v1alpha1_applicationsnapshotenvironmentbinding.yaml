@@ -1,6 +1,0 @@
-apiVersion: appstudio.redhat.com/v1alpha1
-kind: ApplicationSnapshotEnvironmentBinding
-metadata:
-  name: applicationsnapshotenvironmentbinding-sample
-spec:
-  # TODO(user): Add fields here

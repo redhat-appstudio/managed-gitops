@@ -21,8 +21,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ApplicationSnapshotEnvironmentBindingSpec defines the desired state of ApplicationSnapshotEnvironmentBinding
-type ApplicationSnapshotEnvironmentBindingSpec struct {
+// SnapshotEnvironmentBindingSpec defines the desired state of SnapshotEnvironmentBinding
+type SnapshotEnvironmentBindingSpec struct {
 
 	// Application is a reference to the Application resource (defined in the namespace) involved in the binding
 	Application string `json:"application"`
@@ -114,8 +114,8 @@ type ComponentStatus struct {
 	GitOpsRepository BindingComponentGitOpsRepository `json:"gitopsRepository"`
 }
 
-// ApplicationSnapshotEnvironmentBindingStatus defines the observed state of ApplicationSnapshotEnvironmentBinding
-type ApplicationSnapshotEnvironmentBindingStatus struct {
+// SnapshotEnvironmentBindingStatus defines the observed state of SnapshotEnvironmentBinding
+type SnapshotEnvironmentBindingStatus struct {
 
 	// GitOpsDeployments describes the set of GitOpsDeployment resources that correspond to the binding.
 	// To determine the health/sync status of a binding, you can look at the GitOpsDeployments decribed here.
@@ -147,25 +147,25 @@ type BindingStatusGitOpsDeployment struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// ApplicationSnapshotEnvironmentBinding is the Schema for the applicationsnapshotenvironmentbindings API
-// +kubebuilder:resource:path=applicationsnapshotenvironmentbindings,shortName=aseb;binding
-type ApplicationSnapshotEnvironmentBinding struct {
+// SnapshotEnvironmentBinding is the Schema for the snapshotenvironmentbindings API
+// +kubebuilder:resource:path=snapshotenvironmentbindings,shortName=aseb;binding
+type SnapshotEnvironmentBinding struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ApplicationSnapshotEnvironmentBindingSpec   `json:"spec,omitempty"`
-	Status ApplicationSnapshotEnvironmentBindingStatus `json:"status,omitempty"`
+	Spec   SnapshotEnvironmentBindingSpec   `json:"spec,omitempty"`
+	Status SnapshotEnvironmentBindingStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// ApplicationSnapshotEnvironmentBindingList contains a list of ApplicationSnapshotEnvironmentBinding
-type ApplicationSnapshotEnvironmentBindingList struct {
+// SnapshotEnvironmentBindingList contains a list of SnapshotEnvironmentBinding
+type SnapshotEnvironmentBindingList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []ApplicationSnapshotEnvironmentBinding `json:"items"`
+	Items           []SnapshotEnvironmentBinding `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&ApplicationSnapshotEnvironmentBinding{}, &ApplicationSnapshotEnvironmentBindingList{})
+	SchemeBuilder.Register(&SnapshotEnvironmentBinding{}, &SnapshotEnvironmentBindingList{})
 }

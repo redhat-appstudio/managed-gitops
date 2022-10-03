@@ -2,7 +2,7 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: applicationpromotionruns.appstudio.redhat.com
+  name: promotionruns.appstudio.redhat.com
 spec:
   conversion:
     strategy: Webhook

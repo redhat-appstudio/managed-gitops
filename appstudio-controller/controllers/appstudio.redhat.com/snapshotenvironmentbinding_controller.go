@@ -40,28 +40,28 @@ const (
 	appstudioLabelKey = "appstudio.openshift.io"
 )
 
-// ApplicationSnapshotEnvironmentBindingReconciler reconciles a ApplicationSnapshotEnvironmentBinding object
-type ApplicationSnapshotEnvironmentBindingReconciler struct {
+// SnapshotEnvironmentBindingReconciler reconciles a SnapshotEnvironmentBinding object
+type SnapshotEnvironmentBindingReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=appstudio.redhat.com,resources=applicationsnapshotenvironmentbindings,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=appstudio.redhat.com,resources=applicationsnapshotenvironmentbindings/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=appstudio.redhat.com,resources=applicationsnapshotenvironmentbindings/finalizers,verbs=update
+//+kubebuilder:rbac:groups=appstudio.redhat.com,resources=snapshotenvironmentbindings,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=appstudio.redhat.com,resources=snapshotenvironmentbindings/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=appstudio.redhat.com,resources=snapshotenvironmentbindings/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
-func (r *ApplicationSnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 
 	log := log.FromContext(ctx).WithValues("name", req.Name, "namespace", req.Namespace)
-	defer log.V(sharedutil.LogLevel_Debug).Info("Application Snapshot Environment Binding Reconcile() complete.")
+	defer log.V(sharedutil.LogLevel_Debug).Info("Snapshot Environment Binding Reconcile() complete.")
 
-	binding := &appstudioshared.ApplicationSnapshotEnvironmentBinding{}
+	binding := &appstudioshared.SnapshotEnvironmentBinding{}
 
 	if err := r.Client.Get(ctx, req.NamespacedName, binding); err != nil {
 		// Binding doesn't exist: it was deleted.
@@ -89,7 +89,7 @@ func (r *ApplicationSnapshotEnvironmentBindingReconciler) Reconcile(ctx context.
 
 	if len(binding.Status.GitOpsRepoConditions) > 0 &&
 		binding.Status.GitOpsRepoConditions[len(binding.Status.GitOpsRepoConditions)-1].Status == metav1.ConditionFalse {
-		// if the ApplicationSnapshotEventBinding GitOps Repo Conditions status is false - return;
+		// if the SnapshotEventBinding GitOps Repo Conditions status is false - return;
 		// since there was an unexpected issue with refreshing/syncing the GitOps repository
 		log.V(sharedutil.LogLevel_Debug).Info("Can not Reconcile Binding '" + binding.Name + "', since GitOps Repo Conditions status is false.")
 		// TODO: GITOPSRVCE-182: Add this to .status.conditions field once it is implemented.
@@ -97,7 +97,7 @@ func (r *ApplicationSnapshotEnvironmentBindingReconciler) Reconcile(ctx context.
 
 	} else if len(binding.Status.Components) == 0 {
 
-		log.V(sharedutil.LogLevel_Debug).Info("ApplicationSnapshotEventBinding Component status is required to "+
+		log.V(sharedutil.LogLevel_Debug).Info("SnapshotEventBinding Component status is required to "+
 			"generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding", "bindingName", binding.Name)
 
 		// TODO: GITOPSRVCE-182: Add this to .status.conditions field once it is implemented.
@@ -180,7 +180,7 @@ const (
 
 // processExpectedGitOpsDeployment processed the GitOpsDeployment that is expected for a particular Component
 func processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployment apibackend.GitOpsDeployment,
-	binding appstudioshared.ApplicationSnapshotEnvironmentBinding, k8sClient client.Client) error {
+	binding appstudioshared.SnapshotEnvironmentBinding, k8sClient client.Client) error {
 
 	log := log.FromContext(ctx).WithValues("binding", binding.Name, "gitOpsDeployment", expectedGitopsDeployment.Name, "namespace", binding.Namespace)
 	actualGitOpsDeployment := apibackend.GitOpsDeployment{}
@@ -225,7 +225,7 @@ func processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployme
 }
 
 // GenerateBindingGitOpsDeploymentName generates the name that will be used for a given GitOpsDeployment of a binding
-func GenerateBindingGitOpsDeploymentName(binding appstudioshared.ApplicationSnapshotEnvironmentBinding, componentName string) string {
+func GenerateBindingGitOpsDeploymentName(binding appstudioshared.SnapshotEnvironmentBinding, componentName string) string {
 
 	expectedName := binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + componentName
 
@@ -240,7 +240,7 @@ func GenerateBindingGitOpsDeploymentName(binding appstudioshared.ApplicationSnap
 }
 
 func generateExpectedGitOpsDeployment(component appstudioshared.ComponentStatus,
-	binding appstudioshared.ApplicationSnapshotEnvironmentBinding,
+	binding appstudioshared.SnapshotEnvironmentBinding,
 	environment appstudioshared.Environment) (apibackend.GitOpsDeployment, error) {
 
 	res := apibackend.GitOpsDeployment{
@@ -302,10 +302,10 @@ func generateExpectedGitOpsDeployment(component appstudioshared.ComponentStatus,
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *ApplicationSnapshotEnvironmentBindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *SnapshotEnvironmentBindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		// Uncomment the following line adding a pointer to an instance of the controlled resource as an argument
-		For(&appstudioshared.ApplicationSnapshotEnvironmentBinding{}).
+		For(&appstudioshared.SnapshotEnvironmentBinding{}).
 		Owns(&apibackend.GitOpsDeployment{}).
 		Complete(r)
 }

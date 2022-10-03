@@ -5,22 +5,22 @@ apiVersion: apis.kcp.dev/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v202209151420.applicationpromotionruns.appstudio.redhat.com
+  name: v202209151420.promotionruns.appstudio.redhat.com
 spec:
   group: appstudio.redhat.com
   names:
-    kind: ApplicationPromotionRun
-    listKind: ApplicationPromotionRunList
-    plural: applicationpromotionruns
+    kind: PromotionRun
+    listKind: PromotionRunList
+    plural: promotionruns
     shortNames:
     - apr
     - promotion
-    singular: applicationpromotionrun
+    singular: promotionrun
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
-      description: ApplicationPromotionRun is the Schema for the applicationpromotionruns
+      description: PromotionRun is the Schema for the promotionruns
         API
       properties:
         apiVersion:
@@ -36,7 +36,7 @@ spec:
         metadata:
           type: object
         spec:
-          description: ApplicationPromotionRunSpec defines the desired state of ApplicationPromotionRun
+          description: PromotionRunSpec defines the desired state of PromotionRun
           properties:
             application:
               description: Application is the name of an Application resource defined
@@ -74,8 +74,8 @@ spec:
           - snapshot
           type: object
         status:
-          description: ApplicationPromotionRunStatus defines the observed state of
-            ApplicationPromotionRun
+          description: PromotionRunStatus defines the observed state of
+            PromotionRun
           properties:
             activeBindings:
               description: 'ActiveBindings is the list of active bindings currently
@@ -140,22 +140,22 @@ apiVersion: apis.kcp.dev/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v202209151420.applicationsnapshotenvironmentbindings.appstudio.redhat.com
+  name: v202209151420.snapshotenvironmentbindings.appstudio.redhat.com
 spec:
   group: appstudio.redhat.com
   names:
-    kind: ApplicationSnapshotEnvironmentBinding
-    listKind: ApplicationSnapshotEnvironmentBindingList
-    plural: applicationsnapshotenvironmentbindings
+    kind: SnapshotEnvironmentBinding
+    listKind: SnapshotEnvironmentBindingList
+    plural: snapshotenvironmentbindings
     shortNames:
     - aseb
     - binding
-    singular: applicationsnapshotenvironmentbinding
+    singular: snapshotenvironmentbinding
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
-      description: ApplicationSnapshotEnvironmentBinding is the Schema for the applicationsnapshotenvironmentbindings
+      description: SnapshotEnvironmentBinding is the Schema for the snapshotenvironmentbindings
         API
       properties:
         apiVersion:
@@ -171,8 +171,8 @@ spec:
         metadata:
           type: object
         spec:
-          description: ApplicationSnapshotEnvironmentBindingSpec defines the desired
-            state of ApplicationSnapshotEnvironmentBinding
+          description: SnapshotEnvironmentBindingSpec defines the desired
+            state of SnapshotEnvironmentBinding
           properties:
             application:
               description: Application is a reference to the Application resource
@@ -265,8 +265,8 @@ spec:
           - snapshot
           type: object
         status:
-          description: ApplicationSnapshotEnvironmentBindingStatus defines the observed
-            state of ApplicationSnapshotEnvironmentBinding
+          description: SnapshotEnvironmentBindingStatus defines the observed
+            state of SnapshotEnvironmentBinding
           properties:
             components:
               description: Components describes a component's GitOps repository information.
@@ -429,22 +429,22 @@ apiVersion: apis.kcp.dev/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v202209151420.applicationsnapshots.appstudio.redhat.com
+  name: v202209151420.snapshots.appstudio.redhat.com
 spec:
   group: appstudio.redhat.com
   names:
-    kind: ApplicationSnapshot
-    listKind: ApplicationSnapshotList
-    plural: applicationsnapshots
+    kind: Snapshot
+    listKind: SnapshotList
+    plural: snapshots
     shortNames:
     - as
     - snapshot
-    singular: applicationsnapshot
+    singular: snapshot
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
-      description: ApplicationSnapshot is the Schema for the applicationsnapshots
+      description: Snapshot is the Schema for the snapshots
         API
       properties:
         apiVersion:
@@ -460,7 +460,7 @@ spec:
         metadata:
           type: object
         spec:
-          description: ApplicationSnapshotSpec defines the desired state of ApplicationSnapshot
+          description: SnapshotSpec defines the desired state of Snapshot
           properties:
             application:
               description: Application is a reference to the name of an Application
@@ -483,7 +483,7 @@ spec:
               description: Components field contains the sets of components to deploy
                 as part of this snapshot.
               items:
-                description: ApplicationSnapshotComponent
+                description: SnapshotComponent
                 properties:
                   containerImage:
                     description: ContainerImage is the container image to use when
@@ -509,7 +509,7 @@ spec:
           - application
           type: object
         status:
-          description: ApplicationSnapshotStatus defines the observed state of ApplicationSnapshot
+          description: SnapshotStatus defines the observed state of Snapshot
           properties:
             conditions:
               description: Conditions represent the latest available observations

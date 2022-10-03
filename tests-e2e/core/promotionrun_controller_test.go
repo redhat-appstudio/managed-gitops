@@ -21,9 +21,9 @@ import (
 var _ = Describe("Application Promotion Run E2E Tests.", func() {
 	Context("Testing Application Promotion Run Reconciler.", func() {
 		var environmentProd appstudiosharedv1.Environment
-		var bindingStage appstudiosharedv1.ApplicationSnapshotEnvironmentBinding
-		var bindingProd appstudiosharedv1.ApplicationSnapshotEnvironmentBinding
-		var promotionRun appstudiosharedv1.ApplicationPromotionRun
+		var bindingStage appstudiosharedv1.SnapshotEnvironmentBinding
+		var bindingProd appstudiosharedv1.SnapshotEnvironmentBinding
+		var promotionRun appstudiosharedv1.PromotionRun
 
 		BeforeEach(func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
@@ -39,31 +39,31 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			Expect(err).To(Succeed())
 
 			By("Create Snapshot.")
-			applicationSnapshot := buildApplicationSnapshotResource("my-snapshot", "new-demo-app", "Staging Snapshot", "Staging Snapshot", "component-a", "quay.io/jgwest-redhat/sample-workload:latest")
-			err = k8s.Create(&applicationSnapshot)
+			snapshot := buildSnapshotResource("my-snapshot", "new-demo-app", "Staging Snapshot", "Staging Snapshot", "component-a", "quay.io/jgwest-redhat/sample-workload:latest")
+			err = k8s.Create(&snapshot)
 			Expect(err).To(Succeed())
 
 			By("Create Staging Binding.")
-			bindingStage = buildApplicationSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
+			bindingStage = buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			err = k8s.Create(&bindingStage)
 			Expect(err).To(Succeed())
 
 			By("Update Status field.")
 			err = k8s.Get(&bindingStage)
 			Expect(err).To(Succeed())
-			bindingStage.Status = buildApplicationSnapshotEnvironmentBindingStatus(bindingStage.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging", "components/componentB/overlays/staging"})
+			bindingStage.Status = buildSnapshotEnvironmentBindingStatus(bindingStage.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging", "components/componentB/overlays/staging"})
 			err = k8s.UpdateStatus(&bindingStage)
 			Expect(err).To(Succeed())
 
 			By("Create Production Binding.")
-			bindingProd = buildApplicationSnapshotEnvironmentBindingResource("appa-prod-binding", "new-demo-app", "prod", "my-snapshot", 3, []string{"component-a"})
+			bindingProd = buildSnapshotEnvironmentBindingResource("appa-prod-binding", "new-demo-app", "prod", "my-snapshot", 3, []string{"component-a"})
 			err = k8s.Create(&bindingProd)
 			Expect(err).To(Succeed())
 
 			By("Update Status field.")
 			err = k8s.Get(&bindingProd)
 			Expect(err).To(Succeed())
-			bindingProd.Status = buildApplicationSnapshotEnvironmentBindingStatus(bindingProd.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging", "components/componentB/overlays/staging"})
+			bindingProd.Status = buildSnapshotEnvironmentBindingStatus(bindingProd.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging", "components/componentB/overlays/staging"})
 			err = k8s.UpdateStatus(&bindingProd)
 			Expect(err).To(Succeed())
 
@@ -114,7 +114,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			Expect(err).To(Succeed())
 
 			now := v1.Now()
-			expectedPromotionRunStatus := appstudiosharedv1.ApplicationPromotionRunStatus{
+			expectedPromotionRunStatus := appstudiosharedv1.PromotionRunStatus{
 				State:            appstudiosharedv1.PromotionRunState_Complete,
 				CompletionResult: appstudiosharedv1.PromotionRunCompleteResult_Success,
 				ActiveBindings:   []string{bindingProd.Name},
@@ -122,7 +122,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 					{
 						Step:            1,
 						EnvironmentName: environmentProd.Name,
-						Status:          appstudiosharedv1.ApplicationPromotionRunEnvironmentStatus_Success,
+						Status:          appstudiosharedv1.PromotionRunEnvironmentStatus_Success,
 						DisplayStatus:   appstudiocontroller.StatusMessageAllGitOpsDeploymentsAreSyncedHealthy,
 					},
 				},
@@ -151,7 +151,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			err := k8s.Create(&promotionRun)
 			Expect(err).To(Succeed())
 
-			expectedPromotionRunStatusConditions := appstudiosharedv1.ApplicationPromotionRunStatus{
+			expectedPromotionRunStatusConditions := appstudiosharedv1.PromotionRunStatus{
 				Conditions: []appstudiosharedv1.PromotionRunCondition{
 					{
 						Type:    appstudiosharedv1.PromotionRunConditionErrorOccurred,
@@ -172,7 +172,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			err := k8s.Create(&promotionRun)
 			Expect(err).To(Succeed())
 
-			expectedPromotionRunStatusConditions := appstudiosharedv1.ApplicationPromotionRunStatus{
+			expectedPromotionRunStatusConditions := appstudiosharedv1.PromotionRunStatus{
 				Conditions: []appstudiosharedv1.PromotionRunCondition{
 					{
 						Type:    appstudiosharedv1.PromotionRunConditionErrorOccurred,
@@ -193,7 +193,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			err := k8s.Create(&promotionRun)
 			Expect(err).To(Succeed())
 
-			expectedPromotionRunStatusConditions := appstudiosharedv1.ApplicationPromotionRunStatus{
+			expectedPromotionRunStatusConditions := appstudiosharedv1.PromotionRunStatus{
 				Conditions: []appstudiosharedv1.PromotionRunCondition{
 					{
 						Type:    appstudiosharedv1.PromotionRunConditionErrorOccurred,
@@ -218,7 +218,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			err = k8s.Update(&promotionRun)
 			Expect(err).To(Succeed())
 
-			expectedPromotionRunStatus := appstudiosharedv1.ApplicationPromotionRunStatus{
+			expectedPromotionRunStatus := appstudiosharedv1.PromotionRunStatus{
 				State:            appstudiosharedv1.PromotionRunState_Complete,
 				CompletionResult: appstudiosharedv1.PromotionRunCompleteResult_Success,
 				ActiveBindings:   []string{bindingProd.Name},
@@ -226,7 +226,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 					{
 						Step:            1,
 						EnvironmentName: environmentProd.Name,
-						Status:          appstudiosharedv1.ApplicationPromotionRunEnvironmentStatus_Success,
+						Status:          appstudiosharedv1.PromotionRunEnvironmentStatus_Success,
 						DisplayStatus:   appstudiocontroller.StatusMessageAllGitOpsDeploymentsAreSyncedHealthy,
 					},
 				},
@@ -267,17 +267,17 @@ func buildEnvironmentResource(name, displayName, parentEnvironment string, envTy
 	return environment
 }
 
-func buildApplicationSnapshotResource(name, appName, displayName, displayDescription, componentName, containerImage string) appstudiosharedv1.ApplicationSnapshot {
-	applicationSnapshot := appstudiosharedv1.ApplicationSnapshot{
+func buildSnapshotResource(name, appName, displayName, displayDescription, componentName, containerImage string) appstudiosharedv1.Snapshot {
+	snapshot := appstudiosharedv1.Snapshot{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: fixture.GitOpsServiceE2ENamespace,
 		},
-		Spec: appstudiosharedv1.ApplicationSnapshotSpec{
+		Spec: appstudiosharedv1.SnapshotSpec{
 			Application:        appName,
 			DisplayName:        displayName,
 			DisplayDescription: displayDescription,
-			Components: []appstudiosharedv1.ApplicationSnapshotComponent{
+			Components: []appstudiosharedv1.SnapshotComponent{
 				{
 					Name:           componentName,
 					ContainerImage: containerImage,
@@ -285,17 +285,17 @@ func buildApplicationSnapshotResource(name, appName, displayName, displayDescrip
 			},
 		},
 	}
-	return applicationSnapshot
+	return snapshot
 }
 
-func buildPromotionRunResource(name, appName, snapshotName, targetEnvironment string) appstudiosharedv1.ApplicationPromotionRun {
+func buildPromotionRunResource(name, appName, snapshotName, targetEnvironment string) appstudiosharedv1.PromotionRun {
 
-	promotionRun := appstudiosharedv1.ApplicationPromotionRun{
+	promotionRun := appstudiosharedv1.PromotionRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: fixture.GitOpsServiceE2ENamespace,
 		},
-		Spec: appstudiosharedv1.ApplicationPromotionRunSpec{
+		Spec: appstudiosharedv1.PromotionRunSpec{
 			Snapshot:    snapshotName,
 			Application: appName,
 			ManualPromotion: appstudiosharedv1.ManualPromotionConfiguration{

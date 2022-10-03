@@ -29,14 +29,14 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
-	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop2"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop"
 )
 
 // GitOpsDeploymentRepositoryCredentialReconciler reconciles a GitOpsDeploymentRepositoryCredential object
 type GitOpsDeploymentRepositoryCredentialReconciler struct {
 	client.Client
 	Scheme              *runtime.Scheme
-	PreprocessEventLoop *preprocess_event_loop2.PreprocessEventLoop2
+	PreprocessEventLoop *preprocess_event_loop.PreprocessEventLoop
 }
 
 //+kubebuilder:rbac:groups=managed-gitops.redhat.com,resources=gitopsdeploymentrepositorycredentials,verbs=get;list;watch;create;update;patch;delete

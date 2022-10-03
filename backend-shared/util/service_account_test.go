@@ -139,8 +139,6 @@ var _ = Describe("Service Account Tests", func() {
 		When("Token secret is not found", func() {
 			It("Should create a new token secret and attach to service account", func() {
 
-				Skip("Hmmm")
-
 				const (
 					uuid               = "my-uuid"
 					serviceAccountName = ArgoCDManagerServiceAccountPrefix + "my-uuid"

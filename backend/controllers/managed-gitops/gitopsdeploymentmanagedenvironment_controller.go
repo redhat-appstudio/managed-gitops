@@ -33,7 +33,7 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
-	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop2"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop"
 )
 
 // GitOpsDeploymentManagedEnvironmentReconciler reconciles a GitOpsDeploymentManagedEnvironment object
@@ -111,7 +111,7 @@ type PreprocessEventLoopProcessor interface {
 	callPreprocessEventLoopForManagedEnvironment(requestToProcess ctrl.Request, k8sClient client.Client, namespace corev1.Namespace)
 }
 
-func NewDefaultPreProcessEventLoopProcessor(preprocessEventLoop *preprocess_event_loop2.PreprocessEventLoop2) PreprocessEventLoopProcessor {
+func NewDefaultPreProcessEventLoopProcessor(preprocessEventLoop *preprocess_event_loop.PreprocessEventLoop) PreprocessEventLoopProcessor {
 	return &DefaultPreProcessEventLoopProcessor{
 		PreprocessEventLoop: preprocessEventLoop,
 	}
@@ -120,7 +120,7 @@ func NewDefaultPreProcessEventLoopProcessor(preprocessEventLoop *preprocess_even
 var _ PreprocessEventLoopProcessor = &DefaultPreProcessEventLoopProcessor{}
 
 type DefaultPreProcessEventLoopProcessor struct {
-	PreprocessEventLoop *preprocess_event_loop2.PreprocessEventLoop2
+	PreprocessEventLoop *preprocess_event_loop.PreprocessEventLoop
 }
 
 func (dppelp *DefaultPreProcessEventLoopProcessor) callPreprocessEventLoopForManagedEnvironment(requestToProcess ctrl.Request, k8sClient client.Client, namespace corev1.Namespace) {

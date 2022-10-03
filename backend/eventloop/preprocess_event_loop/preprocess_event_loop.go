@@ -1,4 +1,4 @@
-package preprocess_event_loop2
+package preprocess_event_loop
 
 import (
 	"context"
@@ -20,7 +20,7 @@ import (
 // - pass the events to the next layer, which is controller_event_loop
 
 // EventReceived is called by controllers to inform of it changes to API CRs
-func (evl *PreprocessEventLoop2) EventReceived(req ctrl.Request, reqResource eventlooptypes.GitOpsResourceType,
+func (evl *PreprocessEventLoop) EventReceived(req ctrl.Request, reqResource eventlooptypes.GitOpsResourceType,
 	client client.Client, eventType eventlooptypes.EventLoopEventType, namespaceID string) {
 
 	event := eventlooptypes.EventLoopEvent{Request: req, EventType: eventType, WorkspaceID: namespaceID,
@@ -29,15 +29,15 @@ func (evl *PreprocessEventLoop2) EventReceived(req ctrl.Request, reqResource eve
 	evl.eventLoopInputChannel <- event
 }
 
-type PreprocessEventLoop2 struct {
+type PreprocessEventLoop struct {
 	eventLoopInputChannel chan eventlooptypes.EventLoopEvent
 	nextStep              *eventloop.ControllerEventLoop
 }
 
-func NewPreprocessEventLoop() *PreprocessEventLoop2 {
+func NewPreprocessEventLoop() *PreprocessEventLoop {
 	channel := make(chan eventlooptypes.EventLoopEvent)
 
-	res := &PreprocessEventLoop2{}
+	res := &PreprocessEventLoop{}
 	res.eventLoopInputChannel = channel
 	res.nextStep = eventloop.NewControllerEventLoop()
 

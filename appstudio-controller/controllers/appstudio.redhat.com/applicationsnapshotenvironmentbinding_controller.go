@@ -273,8 +273,7 @@ func generateExpectedGitOpsDeployment(component appstudioshared.ComponentStatus,
 		}
 	}
 
-	bindingLabel := make(map[string]string)
-	res.ObjectMeta.Labels = bindingLabel
+	res.ObjectMeta.Labels = make(map[string]string)
 
 	// Append ASEB labels with prefix "appstudio.openshift.io" to the gitopsDeployment labels
 	for bindingKey, bindingLabels := range binding.Labels {

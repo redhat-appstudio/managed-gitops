@@ -24,7 +24,6 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 		var ctx context.Context
 		var request reconcile.Request
 		var binding *appstudiosharedv1.ApplicationSnapshotEnvironmentBinding
-		var bindingSecond *appstudiosharedv1.ApplicationSnapshotEnvironmentBinding
 		var bindingReconciler ApplicationSnapshotEnvironmentBindingReconciler
 
 		var environment appstudiosharedv1.Environment
@@ -70,47 +69,6 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 
 			// Create ApplicationSnapshotEnvironmentBinding CR.
 			binding = &appstudiosharedv1.ApplicationSnapshotEnvironmentBinding{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "appa-staging-binding",
-					Namespace: apiNamespace.Name,
-					Labels: map[string]string{
-						"appstudio.application":  "new-demo-app",
-						"appstudio.environment":  "staging",
-						"appstudio.openshift.io": "testing",
-					},
-				},
-				Spec: appstudiosharedv1.ApplicationSnapshotEnvironmentBindingSpec{
-					Application: "new-demo-app",
-					Environment: "staging",
-					Snapshot:    "my-snapshot",
-					Components: []appstudiosharedv1.BindingComponent{
-						{
-							Name: "component-a",
-							Configuration: appstudiosharedv1.BindingComponentConfiguration{
-								Env: []appstudiosharedv1.EnvVarPair{
-									{Name: "My_STG_ENV", Value: "1000"},
-								},
-								Replicas: 3,
-							},
-						},
-					},
-				},
-				Status: appstudiosharedv1.ApplicationSnapshotEnvironmentBindingStatus{
-					Components: []appstudiosharedv1.ComponentStatus{
-						{
-							Name: "component-a",
-							GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{
-								URL:    "https://github.com/redhat-appstudio/gitops-repository-template",
-								Branch: "main",
-								Path:   "components/componentA/overlays/staging",
-							},
-						},
-					},
-				},
-			}
-
-			// Create ApplicationSnapshotEnvironmentBinding CR without `appstudio.openshift.io` label
-			bindingSecond = &appstudiosharedv1.ApplicationSnapshotEnvironmentBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "appa-staging-binding",
 					Namespace: apiNamespace.Name,
@@ -415,7 +373,13 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 
 		})
 
-		It("Should test whether ASEB label with prefix `appstudio.openshift.io` is appended to the gitopsDeployment label", func() {
+		It("Should append ASEB label with prefix `appstudio.openshift.io` into the GitopsDeployment Label", func() {
+			// Update binding.ObjectMeta.Labels with appstudio.openshift.io label
+			binding.ObjectMeta.Labels = map[string]string{
+				"appstudio.openshift.io": "testing",
+			}
+			request = newRequest(binding.Namespace, binding.Name)
+
 			// Create ApplicationSnapshotEnvironmentBinding CR in cluster.
 			err := bindingReconciler.Create(ctx, binding)
 			Expect(err).To(BeNil())
@@ -437,9 +401,9 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{"appstudio.openshift.io": "testing"}))
 		})
 
-		It("Should test whether ASEB label with prefix `appstudio.openshift.io` is not present then gitopsDeployment label is not updated", func() {
+		It("Should not append ASEB label without prefix appstudio.openshift.io into the GitopsDeployment Label", func() {
 			// Create ApplicationSnapshotEnvironmentBinding CR in cluster.
-			err := bindingReconciler.Create(ctx, bindingSecond)
+			err := bindingReconciler.Create(ctx, binding)
 			Expect(err).To(BeNil())
 
 			// Trigger Reconciler
@@ -449,7 +413,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			// Fetch GitOpsDeployment object to check whether GitOpsDeployment label field is not updated
 			gitopsDeploymentKey := client.ObjectKey{
 				Namespace: binding.Namespace,
-				Name:      GenerateBindingGitOpsDeploymentName(*bindingSecond, bindingSecond.Spec.Components[0].Name),
+				Name:      GenerateBindingGitOpsDeploymentName(*binding, binding.Spec.Components[0].Name),
 			}
 
 			gitopsDeployment := &apibackend.GitOpsDeployment{}

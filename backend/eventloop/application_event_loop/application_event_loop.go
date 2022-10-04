@@ -2,7 +2,6 @@ package application_event_loop
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"time"
 
@@ -328,29 +327,29 @@ func getK8sClientForWorkspace() (client.Client, errors.UserError) {
 
 	config, err := sharedutil.GetRESTConfig()
 	if err != nil {
-		userError := fmt.Sprintf("unable to retrieve kubernetes client due to an unknown error")
+		userError := "unable to retrieve kubernetes client due to an unknown error"
 		return nil, errors.NewUserDevError(userError, err)
 	}
 
 	scheme := runtime.NewScheme()
 	err = managedgitopsv1alpha1.AddToScheme(scheme)
 	if err != nil {
-		userError := fmt.Sprintf("unable to retrieve kubernetes client due to an unknown error")
+		userError := "unable to retrieve kubernetes client due to an unknown error"
 		return nil, errors.NewUserDevError(userError, err)
 	}
 	err = managedgitopsv1alpha1.AddToScheme(scheme)
 	if err != nil {
-		userError := fmt.Sprintf("unable to retrieve kubernetes client due to an unknown error")
+		userError := "unable to retrieve kubernetes client due to an unknown error"
 		return nil, errors.NewUserDevError(userError, err)
 	}
 	err = corev1.AddToScheme(scheme)
 	if err != nil {
-		userError := fmt.Sprintf("unable to retrieve kubernetes client due to an unknown error")
+		userError := "unable to retrieve kubernetes client due to an unknown error"
 		return nil, errors.NewUserDevError(userError, err)
 	}
 	k8sClient, err := client.New(config, client.Options{Scheme: scheme})
 	if err != nil {
-		userError := fmt.Sprintf("unable to retrieve kubernetes client due to an unknown error")
+		userError := "unable to retrieve kubernetes client due to an unknown error"
 		return nil, errors.NewUserDevError(userError, err)
 	}
 

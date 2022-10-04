@@ -253,7 +253,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		}
 	}
 	if destinationNamespace == "" {
-		userError := fmt.Sprintf("the namespace specified in the destination field is invalid")
+		userError := "the namespace specified in the destination field is invalid"
 		devError := fmt.Errorf("invalid destination namespace: %s", destinationNamespace)
 
 		return false, nil, nil, deploymentModifiedResult_Failed, errors.NewUserDevError(userError, devError)

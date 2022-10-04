@@ -370,7 +370,7 @@ func handleManagedEnvironmentModified(ctx context.Context, expectedResourceName 
 			// gitopsdeployment doesn't exist; no work for us to do here.
 			return false, nil
 		} else {
-			userError := fmt.Sprintf("GitopsDeployment does not exist")
+			userError := "GitopsDeployment does not exist"
 			devError := fmt.Errorf("unable to retrieve gitopsdeployment: %v", err)
 			return false, errors.NewUserDevError(userError, devError)
 		}

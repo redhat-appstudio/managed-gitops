@@ -31,6 +31,7 @@ import (
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop"
+	"github.com/redhat-appstudio/managed-gitops/backend/util"
 )
 
 // GitOpsDeploymentReconciler reconciles a GitOpsDeployment object
@@ -61,6 +62,8 @@ func (r *GitOpsDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&namespace), &namespace); err != nil {
 		return ctrl.Result{}, err
 	}
+
+	util.SetVirtualWorkspaceClient(r.Client)
 
 	r.PreprocessEventLoop.EventReceived(req, eventlooptypes.GitOpsDeploymentTypeName, r.Client, eventlooptypes.DeploymentModified, string(namespace.UID))
 

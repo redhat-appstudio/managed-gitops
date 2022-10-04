@@ -134,7 +134,6 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 				}
 
 				var err error
-				// var userDevErr errors.UserError
 
 				dbQueriesUnscoped, err := db.NewSharedProductionPostgresDBQueries(false)
 				if err != nil {
@@ -159,22 +158,25 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 
 					signalledShutdown, err = handleDeploymentModified(ctx, newEvent, action, scopedDBQueries, log)
 
-				} else if newEvent.EventType == eventlooptypes.SyncRunModified {
-					// Handle all SyncRun related events
-					// ERROR :
-					signalledShutdown, err = action.applicationEventRunner_handleSyncRunModified(ctx, scopedDBQueries)
+					// }
+					// else if newEvent.EventType == eventlooptypes.SyncRunModified {
+					// 	// Handle all SyncRun related events
+					// 	// ERROR :
+					// 	signalledShutdown, err = action.applicationEventRunner_handleSyncRunModified(ctx, scopedDBQueries)
 
 				} else if newEvent.EventType == eventlooptypes.UpdateDeploymentStatusTick {
 					err = action.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, newEvent.AssociatedGitopsDeplUID, scopedDBQueries)
 
-				} else if newEvent.EventType == eventlooptypes.ManagedEnvironmentModified {
+					// }
 
-					if expectedResourceName == "" {
-						// If this runner hasn't processed a GitOpsDeployment yet, then no work is required for the managed environment.
-						return nil
-					}
-					// ERROR :
-					signalledShutdown, err = handleManagedEnvironmentModified(ctx, expectedResourceName, newEvent, action, dbQueriesUnscoped, log)
+					// else if newEvent.EventType == eventlooptypes.ManagedEnvironmentModified {
+
+					// 	if expectedResourceName == "" {
+					// 		// If this runner hasn't processed a GitOpsDeployment yet, then no work is required for the managed environment.
+					// 		return nil
+					// 	}
+					// 	// ERROR :
+					// 	signalledShutdown, err = handleManagedEnvironmentModified(ctx, expectedResourceName, newEvent, action, dbQueriesUnscoped, log)
 
 				} else {
 					log.Error(nil, "SEVERE: Unrecognized event type", "event type", newEvent.EventType)
@@ -185,8 +187,49 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 				return err
 
 			})
+			var userDevErr errors.UserError
+			_, userDevErr = sharedutil.CatchUserDevPanic(func() errors.UserError {
+				action := applicationEventLoopRunner_Action{
+					getK8sClientForGitOpsEngineInstance: eventlooptypes.GetK8sClientForGitOpsEngineInstance,
+					eventResourceName:                   newEvent.Request.Name,
+					eventResourceNamespace:              newEvent.Request.Namespace,
+					workspaceClient:                     newEvent.Client,
+					sharedResourceEventLoop:             sharedResourceEventLoop,
+					log:                                 log,
+					workspaceID:                         namespaceID,
+					k8sClientFactory:                    shared_resource_loop.DefaultK8sClientFactory{},
+				}
 
-			if err == nil {
+				var userDevErr errors.UserError
+
+				dbQueriesUnscoped, err := db.NewSharedProductionPostgresDBQueries(false)
+				if err != nil {
+					return errors.NewDevOnlyError(fmt.Errorf("unable to access database in workspaceEventLoopRunner: %v", err))
+				}
+				defer dbQueriesUnscoped.CloseDatabase()
+
+				scopedDBQueries, ok := dbQueriesUnscoped.(db.ApplicationScopedQueries)
+				if !ok {
+					return errors.NewDevOnlyError(fmt.Errorf("SEVERE: unexpected cast failure"))
+				}
+				if newEvent.EventType == eventlooptypes.SyncRunModified {
+					// Handle all SyncRun related events
+					signalledShutdown, userDevErr = action.applicationEventRunner_handleSyncRunModified(ctx, scopedDBQueries)
+				} else if newEvent.EventType == eventlooptypes.ManagedEnvironmentModified {
+
+					if expectedResourceName == "" {
+						// If this runner hasn't processed a GitOpsDeployment yet, then no work is required for the managed environment.
+						return nil
+					}
+					signalledShutdown, userDevErr = handleManagedEnvironmentModified(ctx, expectedResourceName, newEvent, action, dbQueriesUnscoped, log)
+				} else {
+					log.Error(nil, "SEVERE: Unrecognized event type", "event type", newEvent.EventType)
+				}
+
+				return userDevErr
+			})
+
+			if err == nil || userDevErr == nil {
 				break inner_for
 			} else {
 				log.Error(err, "error from inner event handler in applicationEventLoopRunner", "event", eventlooptypes.StringEventLoopEvent(newEvent))

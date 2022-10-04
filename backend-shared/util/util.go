@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/errors"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -125,6 +126,31 @@ func CatchPanic(f func() error) (isPanic bool, err error) {
 		if recoverRes != nil {
 			err = fmt.Errorf("panic: %v", recoverRes)
 			panicLog.Error(err, "SEVERE: Panic occurred")
+			isPanic = true
+		}
+
+	}
+
+	defer doRecover()
+
+	err = f()
+
+	return isPanic, err
+}
+
+func CatchUserDevPanic(f func() errors.UserError) (isPanic bool, err errors.UserError) {
+
+	panicLog := log.FromContext(context.Background())
+
+	isPanic = false
+
+	doRecover := func() {
+		recoverRes := recover()
+
+		if recoverRes != nil {
+			// userError := fmt.Sprintf("An unknown error occured")
+			devError := fmt.Errorf("panic: %v", recoverRes)
+			panicLog.Error(devError, "SEVERE: Panic occurred")
 			isPanic = true
 		}
 

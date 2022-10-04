@@ -11,6 +11,7 @@ import (
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
+	"github.com/redhat-appstudio/managed-gitops/backend/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -255,37 +256,19 @@ func startNewStatusUpdateTimer(ctx context.Context, input chan eventlooptypes.Ev
 
 	statusUpdateTimer := time.NewTimer(deploymentStatusTickRate + jitter)
 	go func() {
-
-		var err error
-		var k8sClient client.Client
-
-		// Keep trying to create k8s client, until we succeed
-		backoff := sharedutil.ExponentialBackoff{Factor: 2, Min: time.Millisecond * 200, Max: time.Second * 10, Jitter: true}
-		for {
-			k8sClient, err = getK8sClientForWorkspace()
-			if err == nil {
-				break
-			} else {
-				backoff.DelayOnFail(ctx)
-			}
-
-			// Exit if the context is cancelled
-			select {
-			case <-ctx.Done():
-				log.V(sharedutil.LogLevel_Debug).Info("Deployment status ticker cancelled, for " + gitopsDeplID)
-				return
-			default:
-			}
-		}
+		clusterName, _ := logicalcluster.ClusterFromContext(ctx)
 
 		<-statusUpdateTimer.C
 		tickMessage := eventlooptypes.EventLoopMessage{
 			Event: &eventlooptypes.EventLoopEvent{
 				EventType: eventlooptypes.UpdateDeploymentStatusTick,
-				Request:   reconcile.Request{},
-				// an empty request is being sent here
+				Request: reconcile.Request{
+					ClusterName: clusterName.String(),
+				},
+				// an empty request was being sent here
 				AssociatedGitopsDeplUID: gitopsDeplID,
-				Client:                  k8sClient,
+				// service provider client is being used here. Instead we need workspace client
+				Client: util.GetVirtualWorkspaceClient(),
 			},
 			MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
 		}

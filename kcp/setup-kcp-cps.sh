@@ -10,7 +10,7 @@ SYNCER_MANIFESTS=$(mktemp -d)/cps-syncer.yaml
 
 export GITOPS_IN_KCP="true"
 
-ARGOCD_MANIFEST="$(realpath kcp/install-argocd.yaml)"
+ARGOCD_MANIFEST="$(realpath manifests/kcp/argocd/install-argocd.yaml)"
 ARGOCD_NAMESPACE="gitops-service-argocd"
 
 cleanup_workspace() {

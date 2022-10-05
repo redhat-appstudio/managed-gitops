@@ -11,7 +11,7 @@ SCRIPT_DIR="$(
 export GITOPS_IN_KCP="true"
 export DISABLE_KCP_VIRTUAL_WORKSPACE="true"
 
-ARGOCD_MANIFEST="$SCRIPT_DIR/../install-argocd.yaml"
+ARGOCD_MANIFEST="$SCRIPT_DIR/../../manifests/kcp/argocd/install-argocd.yaml"
 ARGOCD_NAMESPACE="gitops-service-argocd"
 
 cleanup() {

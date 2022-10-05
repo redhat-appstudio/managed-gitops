@@ -7,7 +7,7 @@ WORKLOAD_KUBECONFIG="${WORKLOAD_KUBECONFIG:-$HOME/.kube/config}"
 SYNCER_IMAGE="${SYNCER_IMAGE:-ghcr.io/kcp-dev/kcp/syncer:v0.8.2}"
 SYNCER_MANIFESTS=$(mktemp -d)/cps-syncer.yaml
 
-ARGOCD_MANIFEST="$(realpath kcp/install-argocd.yaml)"
+ARGOCD_MANIFEST="$(realpath manifests/kcp/argocd/install-argocd.yaml)"
 ARGOCD_NAMESPACE="gitops-service-argocd"
 
 

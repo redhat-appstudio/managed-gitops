@@ -53,6 +53,7 @@ func (srEventLoop *SharedResourceEventLoop) GetOrCreateClusterUserByNamespaceUID
 		workspaceNamespace: workspaceNamespace,
 		messageType:        sharedResourceLoopMessage_getOrCreateClusterUserByNamespaceUID,
 		responseChannel:    responseChannel,
+		ctx:                ctx,
 	}
 
 	srEventLoop.inputChannel <- msg
@@ -88,6 +89,7 @@ func (srEventLoop *SharedResourceEventLoop) GetGitopsEngineInstanceById(ctx cont
 		payload: sharedResourceLoopMessage_getOrCreateClusterUserByNamespaceUIDRequest{
 			gitopsEngineInstanceID: id,
 		},
+		ctx: ctx,
 	}
 
 	srEventLoop.inputChannel <- msg
@@ -134,6 +136,7 @@ func (srEventLoop *SharedResourceEventLoop) ReconcileSharedManagedEnv(ctx contex
 
 	msg := sharedResourceLoopMessage{
 		log:                log,
+		ctx:                ctx,
 		workspaceClient:    workspaceClient,
 		workspaceNamespace: workspaceNamespace,
 		messageType:        sharedResourceLoopMessage_getOrCreateSharedManagedEnv,
@@ -182,6 +185,7 @@ const (
 
 type sharedResourceLoopMessage struct {
 	log                logr.Logger
+	ctx                context.Context
 	workspaceClient    client.Client
 	workspaceNamespace corev1.Namespace
 
@@ -261,7 +265,7 @@ func internalSharedResourceEventLoop(inputChan chan sharedResourceLoopMessage) {
 		msg := <-inputChan
 
 		_, err = sharedutil.CatchPanic(func() error {
-			processSharedResourceMessage(ctx, msg, dbQueries, msg.log)
+			processSharedResourceMessage(msg.ctx, msg, dbQueries, msg.log)
 			return nil
 		})
 		if err != nil {

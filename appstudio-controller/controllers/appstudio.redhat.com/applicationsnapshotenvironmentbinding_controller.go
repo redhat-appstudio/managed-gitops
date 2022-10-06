@@ -197,13 +197,14 @@ func processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployme
 	}
 
 	// GitOpsDeployment already exists, so compare it with what we expect
-	if reflect.DeepEqual(expectedGitopsDeployment.Spec, actualGitOpsDeployment.Spec) {
+	if reflect.DeepEqual(expectedGitopsDeployment.Spec, actualGitOpsDeployment.Spec) && checkForMapEquality(expectedGitopsDeployment.ObjectMeta.Labels, actualGitOpsDeployment.ObjectMeta.Labels) {
 		// B) The GitOpsDeployment is exactly as expected, so return
 		return nil
 	}
 
 	// C) The GitOpsDeployment should be updated to be consistent with what we expect
 	actualGitOpsDeployment.Spec = expectedGitopsDeployment.Spec
+	actualGitOpsDeployment.ObjectMeta.Labels = expectedGitopsDeployment.ObjectMeta.Labels
 	if err := k8sClient.Update(ctx, &actualGitOpsDeployment); err != nil {
 		log.Error(err, "unable to update actualGitOpsDeployment: "+actualGitOpsDeployment.Name+" for Binding: "+binding.Name)
 		return fmt.Errorf("unable to update actualGitOpsDeployment '%s', for Binding:%s, Error: %w", actualGitOpsDeployment.Name, binding.Name, err)
@@ -289,4 +290,16 @@ func (r *ApplicationSnapshotEnvironmentBindingReconciler) SetupWithManager(mgr c
 		For(&appstudioshared.ApplicationSnapshotEnvironmentBinding{}).
 		Owns(&apibackend.GitOpsDeployment{}).
 		Complete(r)
+}
+
+func checkForMapEquality(x, y map[string]string) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	for k, xv := range x {
+		if yv, ok := y[k]; !ok || yv != xv {
+			return false
+		}
+	}
+	return true
 }

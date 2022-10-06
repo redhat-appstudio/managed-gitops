@@ -10,6 +10,17 @@ SYNCER_MANIFESTS=$(mktemp -d)/cps-syncer.yaml
 ARGOCD_MANIFEST="$(realpath manifests/kcp/argocd/install-argocd.yaml)"
 ARGOCD_NAMESPACE="gitops-service-argocd"
 
+# Checks if a binary is present on the local system
+# need yammlint utility to validate the yaml file
+exit_if_binary_not_installed() {
+  for binary in "$@"; do
+    command -v "$binary" >/dev/null 2>&1 || {
+      echo >&2 "Script requires '$binary' command-line utility to be installed on your local machine. Aborting..."
+      exit 1
+    }
+  done
+}
+
 
 readKUBECONFIGPath() {
     if [ "$CPS_KUBECONFIG" != "" ]; then
@@ -176,6 +187,8 @@ registerSyncTarget() {
 }
 
 createAPIBinding() {
+    exit_if_binary_not_installed "yamllint"
+
     if [ -z "$1" ]; then 
       exportName=$1
     else
@@ -215,7 +228,8 @@ createAPIBinding() {
     identityHash: ${identityHash}"
   fi
 
-cat <<EOF | KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f -
+cat <<EOF > createAPIBinding.yaml
+---
 apiVersion: apis.kcp.dev/v1alpha1
 kind: APIBinding
 metadata:
@@ -227,9 +241,18 @@ ${permissionClaims}
       path: ${path}
       exportName: ${exportName}
 EOF
+
+yamllint -c ../utilities/yamllint.yaml ./createAPIBinding.yaml
+
+echo "APIBinding yaml for ${1} \n"
+cat createAPIBinding.yaml
+
+KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f createAPIBinding.yaml
+rm createAPIBinding.yaml
 }
 
 permissionToBindAPIExport() {
+    exit_if_binary_not_installed "yamllint"
   # Create permissions to bind APIExports. We need this workaround until KCP fixes the bug in their admission logic. Ref: https://github.com/kcp-dev/kcp/issues/1939    
     if [ -z "$CPS_KUBECONFIG" ]; then
       KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws
@@ -243,9 +266,10 @@ permissionToBindAPIExport() {
     else 
       echo "--> Error: CPS_KUBECONFIG not found. Exiting ...s"
       exit 1
-  KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws use $SERVICE_WS &> /dev/null
+    KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws use $SERVICE_WS &> /dev/null
 
-cat <<EOF | KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f -
+cat <<EOF > permissionToBindAPIExport.yaml
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -274,4 +298,12 @@ subjects:
   kind: User
   name: "$userName"
 EOF
+
+yamllint -c ../utilities/yamllint.yaml ./permissionToBindAPIExport
+
+echo "permissionToBindAPIExport yaml: \n"
+cat permissionToBindAPIExport
+
+KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f permissionToBindAPIExport
+rm permissionToBindAPIExport
 }

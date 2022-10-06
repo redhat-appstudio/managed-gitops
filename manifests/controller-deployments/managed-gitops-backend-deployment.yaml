@@ -39,7 +39,7 @@ spec:
           - name: ARGO_CD_NAMESPACE
             value: ${ARGO_CD_NAMESPACE}
           - name: DB_ADDR
-            value: gitops-postgresql-staging.gitops
+            value: gitops-postgresql-staging
           - name: DB_PASS
             valueFrom:
               secretKeyRef:

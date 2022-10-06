@@ -468,7 +468,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{"appstudio.openshift.io": "testing"}))
 		})
 
-		It("Should verify if ASEB labels with prefix `appstudio.openshift.io` is not present then GitopsDeployment labels should not get updated", func() {
+		It("Should not append ASEB label without prefix appstudio.openshift.io into the GitopsDeployment Label", func() {
 			By("Create ApplicationSnapshotEnvironmentBindingResource")
 			binding := buildApplicationSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			err := k8s.Create(&binding)
@@ -501,6 +501,57 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			err = k8s.Get(&gitopsDeployment)
 			Expect(err).To(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).To(BeNil())
+			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(Equal(map[string]string{"appstudio.openshift.io": "testing"}))
+		})
+
+		It("Should update gitopsDeployment label if ASEB label gets updated", func() {
+			By("Create ApplicationSnapshotEnvironmentBindingResource")
+			binding := buildApplicationSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
+			binding.ObjectMeta.Labels = map[string]string{"appstudio.openshift.io": "testing"}
+			err := k8s.Create(&binding)
+			Expect(err).To(Succeed())
+
+			By("Update Status field of ApplicationSnapshotEnvironmentBindingResource")
+			err = k8s.Get(&binding)
+			Expect(err).To(Succeed())
+			binding.Status = buildApplicationSnapshotEnvironmentBindingStatus(binding.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging"})
+			err = k8s.UpdateStatus(&binding)
+			Expect(err).To(Succeed())
+
+			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
+			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
+
+			expectedGitOpsDeployments := []appstudiosharedv1.BindingStatusGitOpsDeployment{{
+				ComponentName: binding.Spec.Components[0].Name, GitOpsDeployment: gitOpsDeploymentName,
+			}}
+
+			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments))
+
+			By("Verify whether `gitopsDeployment.ObjectMeta.Labels` is not updated with ASEB labels")
+			gitopsDeployment := managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      gitOpsDeploymentName,
+					Namespace: binding.Namespace,
+				},
+			}
+
+			err = k8s.Get(&gitopsDeployment)
+			Expect(err).To(BeNil())
+			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeNil())
+			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{"appstudio.openshift.io": "testing"}))
+
+			err = k8s.Get(&binding)
+			Expect(err).To(Succeed())
+
+			// Update binding label
+			binding.ObjectMeta.Labels["appstudio.openshift.io"] = "testing-update"
+			err = k8s.Update(&binding)
+			Expect(err).To(Succeed())
+
+			By("Verify whether `gitopsDeployment.ObjectMeta.Labels` is updated with ASEB labels")
+			err = k8s.Get(&gitopsDeployment)
+			Expect(err).To(BeNil())
+			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(Equal(map[string]string{"appstudio.openshift.io": "testing"}))
 		})
 

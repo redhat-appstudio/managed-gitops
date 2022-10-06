@@ -375,10 +375,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 
 		It("Should append ASEB label with prefix `appstudio.openshift.io` into the GitopsDeployment Label", func() {
 			// Update binding.ObjectMeta.Labels with appstudio.openshift.io label
-			binding.ObjectMeta.Labels = map[string]string{
-				"appstudio.openshift.io": "testing",
-			}
-			request = newRequest(binding.Namespace, binding.Name)
+			binding.ObjectMeta.Labels["appstudio.openshift.io"] = "testing"
 
 			// Create ApplicationSnapshotEnvironmentBinding CR in cluster.
 			err := bindingReconciler.Create(ctx, binding)
@@ -422,6 +419,51 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 
 			Expect(gitopsDeployment.ObjectMeta.Labels).To(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(Equal(map[string]string{"appstudio.openshift.io": "testing"}))
+		})
+
+		It("Should update gitopsDeployment label if ASEB label gets updated", func() {
+			// Update binding.ObjectMeta.Labels with appstudio.openshift.io label
+			binding.ObjectMeta.Labels["appstudio.openshift.io"] = "testing"
+
+			// Create ApplicationSnapshotEnvironmentBinding CR in cluster.
+			err := bindingReconciler.Create(ctx, binding)
+			Expect(err).To(BeNil())
+
+			// Trigger Reconciler
+			_, err = bindingReconciler.Reconcile(ctx, request)
+			Expect(err).To(BeNil())
+
+			// Fetch GitOpsDeployment object to check whether GitOpsDeployment label field has been updated
+			gitopsDeploymentKey := client.ObjectKey{
+				Namespace: binding.Namespace,
+				Name:      GenerateBindingGitOpsDeploymentName(*binding, binding.Spec.Components[0].Name),
+			}
+
+			gitopsDeployment := &apibackend.GitOpsDeployment{}
+			err = bindingReconciler.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
+			Expect(err).To(BeNil())
+			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeNil())
+			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{"appstudio.openshift.io": "testing"}))
+
+			err = bindingReconciler.Get(ctx, types.NamespacedName{Namespace: binding.Namespace, Name: binding.Name}, binding)
+			Expect(err).To(Succeed())
+
+			// Update appstudio.openshift.io label
+			binding.ObjectMeta.Labels["appstudio.openshift.io"] = "testing-update"
+
+			err = bindingReconciler.Update(ctx, binding)
+			Expect(err).To(BeNil())
+
+			// Trigger Reconciler
+			_, err = bindingReconciler.Reconcile(ctx, request)
+			Expect(err).To(BeNil())
+
+			//Verify GitopsDeployment is updated as binding CR is updated
+			err = bindingReconciler.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
+			Expect(err).To(BeNil())
+			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeNil())
+			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{"appstudio.openshift.io": "testing-update"}))
+
 		})
 
 	})

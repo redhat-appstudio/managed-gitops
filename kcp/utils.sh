@@ -23,7 +23,14 @@ readKUBECONFIGPath() {
 }
 
 createAndEnterWorkspace() {
-    WORKSPACE=$1
+    if [ -z "$1" ]; then 
+      echo "Workspace request: ${1}"
+      WORKSPACE=$1
+    else
+      echo "--> Error: Workspace name not found. Exiting ..."
+      exit 1
+    fi
+
     KUBECONFIG="$CPS_KUBECONFIG" kubectl kcp ws
 
     # Opens a web browser to authenticate to your RH SSO acount
@@ -169,12 +176,28 @@ registerSyncTarget() {
 }
 
 createAPIBinding() {
-    exportName=$1
-    KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws
-    url=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get workspace $SERVICE_WS -o jsonpath='{.status.URL}')
-    path=$(basename $url)
-    KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws use $USER_WS
+    if [ -z "$1" ]; then 
+      exportName=$1
+    else
+      echo "--> Error: No APIExport found, can't create an APIBinding. Exiting ..."
+      exit 1
+    fi
 
+    if [ -z "$CPS_KUBECONFIG" ]; then
+      KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws
+      url=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get workspace $SERVICE_WS -o jsonpath='{.status.URL}')
+      if [ -z "$url" ]; then
+        echo "url path should not be null, check service ws. Exiting ..."
+        exit 1
+      else
+        path=$(basename $url)
+      fi
+    else 
+      echo "--> Error: CPS_KUBECONFIG not found. Exiting ...s"
+      exit 1
+    fi
+
+    KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws use $USER_WS &> /dev/null
     permissionClaims='
   permissionClaims:
   - group: ""
@@ -207,12 +230,20 @@ EOF
 }
 
 permissionToBindAPIExport() {
-  # Create permissions to bind APIExports. We need this workaround until KCP fixes the bug in their admission logic. Ref: https://github.com/kcp-dev/kcp/issues/1939  
-  KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws
-  bindingName=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get clusterrolebinding | grep $SERVICE_WS | awk '{print $1}')
-  userName=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get clusterrolebindings $bindingName -o jsonpath='{.subjects[0].name}')
-
-  KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws use $SERVICE_WS
+  # Create permissions to bind APIExports. We need this workaround until KCP fixes the bug in their admission logic. Ref: https://github.com/kcp-dev/kcp/issues/1939    
+    if [ -z "$CPS_KUBECONFIG" ]; then
+      KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws
+      bindingName=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get clusterrolebinding | grep $SERVICE_WS | awk '{print $1}')
+      if [ -z "$bindingName" ]; then
+        echo "bindingName should not be empty, check service ws. Exiting ..."
+        exit 1
+      else
+        userName=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get clusterrolebindings $bindingName -o jsonpath='{.subjects[0].name}')
+      fi
+    else 
+      echo "--> Error: CPS_KUBECONFIG not found. Exiting ...s"
+      exit 1
+  KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws use $SERVICE_WS &> /dev/null
 
 cat <<EOF | KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f -
 apiVersion: rbac.authorization.k8s.io/v1

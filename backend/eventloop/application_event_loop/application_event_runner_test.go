@@ -116,6 +116,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
 				workspaceID:                 workspaceID,
 				testOnlySkipCreateOperation: true,
+				k8sClientFactory: MockSRLK8sClientFactory{
+					fakeClient: k8sClient,
+				},
 			}
 		})
 
@@ -178,6 +181,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
 				workspaceID:                 workspaceID,
 				testOnlySkipCreateOperation: true,
+				k8sClientFactory: MockSRLK8sClientFactory{
+					fakeClient: k8sClient,
+				},
 			}
 
 			// ----------------------------------------------------------------------------
@@ -273,6 +279,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
 				workspaceID:                 workspaceID,
 				testOnlySkipCreateOperation: true,
+				k8sClientFactory: MockSRLK8sClientFactory{
+					fakeClient: k8sClient,
+				},
 			}
 
 			// This should fail while creating new application
@@ -334,6 +343,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
 				workspaceID:                 workspaceID,
 				testOnlySkipCreateOperation: true,
+				k8sClientFactory: MockSRLK8sClientFactory{
+					fakeClient: k8sClient,
+				},
 			}
 
 			//--------------------------------------------------------------------------------------
@@ -514,6 +526,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
 				workspaceID:                 workspaceID,
 				testOnlySkipCreateOperation: true,
+				k8sClientFactory: MockSRLK8sClientFactory{
+					fakeClient: k8sClient,
+				},
 			}
 
 			// ------
@@ -608,6 +623,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				sharedResourceEventLoop:     sharedResourceLoop,
 				workspaceID:                 string(workspace.UID),
 				testOnlySkipCreateOperation: true,
+				k8sClientFactory: MockSRLK8sClientFactory{
+					fakeClient: k8sClient,
+				},
 			}
 			_, _, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(err).To(BeNil())
@@ -624,6 +642,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				log:                     log.FromContext(context.Background()),
 				sharedResourceEventLoop: sharedResourceLoop,
 				workspaceID:             a.workspaceID,
+				k8sClientFactory: MockSRLK8sClientFactory{
+					fakeClient: k8sClient,
+				},
 			}
 			_, err = a.applicationEventRunner_handleSyncRunModified(ctx, dbQueries)
 			Expect(err).To(BeNil())
@@ -683,6 +704,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				sharedResourceEventLoop:     sharedResourceLoop,
 				workspaceID:                 string(workspace.UID),
 				testOnlySkipCreateOperation: true,
+				k8sClientFactory: MockSRLK8sClientFactory{
+					fakeClient: k8sClient,
+				},
 			}
 			_, _, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(err).To(BeNil())
@@ -699,6 +723,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				log:                     log.FromContext(context.Background()),
 				sharedResourceEventLoop: sharedResourceLoop,
 				workspaceID:             a.workspaceID,
+				k8sClientFactory: MockSRLK8sClientFactory{
+					fakeClient: k8sClient,
+				},
 			}
 			_, err = a.applicationEventRunner_handleSyncRunModified(ctx, dbQueries)
 			Expect(err).NotTo(BeNil())
@@ -765,6 +792,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
 				workspaceID:                 workspaceID,
 				testOnlySkipCreateOperation: true,
+				k8sClientFactory: MockSRLK8sClientFactory{
+					fakeClient: k8sClient,
+				},
 			}
 
 			_, _, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
@@ -1188,6 +1218,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
 				workspaceID:                 workspaceID,
 				testOnlySkipCreateOperation: true,
+				k8sClientFactory: MockSRLK8sClientFactory{
+					fakeClient: k8sClient,
+				},
 			}
 
 			// ----------------------------------------------------------------------------
@@ -1216,6 +1249,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
 				workspaceID:                 workspaceID,
 				testOnlySkipCreateOperation: true,
+				k8sClientFactory: MockSRLK8sClientFactory{
+					fakeClient: k8sClient,
+				},
 			}
 
 			// ----------------------------------------------------------------------------
@@ -1261,6 +1297,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
 				workspaceID:                 workspaceID,
 				testOnlySkipCreateOperation: true,
+				k8sClientFactory: MockSRLK8sClientFactory{
+					fakeClient: k8sClient,
+				},
 			}
 
 			_, _, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
@@ -1319,6 +1358,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
 				workspaceID:                 workspaceID,
 				testOnlySkipCreateOperation: true,
+				k8sClientFactory: MockSRLK8sClientFactory{
+					fakeClient: k8sClient,
+				},
 			}
 
 			_, _, _, _, err = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)

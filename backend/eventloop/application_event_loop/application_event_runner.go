@@ -411,9 +411,6 @@ type applicationEventLoopRunner_Action struct {
 	// The K8s client that can be used to read/write objects on the workspace cluster. This client is aware of virtual workspaces.
 	workspaceClient client.Client
 
-	// The K8s client that can be used to read/write objects on the service provider workspace.This client is unaware of virtual workspaces.
-	serviceProviderClient client.Client
-
 	// The UID of the API namespace (namespace containing GitOps API types)
 	workspaceID string
 

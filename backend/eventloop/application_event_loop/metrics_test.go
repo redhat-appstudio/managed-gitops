@@ -99,6 +99,9 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
 				workspaceID:                 workspaceID,
 				testOnlySkipCreateOperation: true,
+				k8sClientFactory: MockSRLK8sClientFactory{
+					fakeClient: k8sClient,
+				},
 			}
 
 			numberOfGitOpsDeploymentsInErrorState := testutil.ToFloat64(metrics.GitopsdeplFailures)
@@ -199,6 +202,9 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
 				workspaceID:                 workspaceID,
 				testOnlySkipCreateOperation: true,
+				k8sClientFactory: MockSRLK8sClientFactory{
+					fakeClient: k8sClient,
+				},
 			}
 
 			numberOfGitOpsDeploymentsInErrorState := testutil.ToFloat64(metrics.GitopsdeplFailures)

@@ -46,12 +46,12 @@ undeploy-backend-shared-crd: ## Remove backend related CRDs
 
 ### --- B a c k e n d --- ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~ #
-deploy-backend-rbac: ## Deploy backend related RBAC resouces
+deploy-backend-rbac: kustomize ## Deploy backend related RBAC resouces
 	kubectl create namespace gitops 2> /dev/null || true
-	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/manifests/backend-rbac/
+	$(KUSTOMIZE) build  $(MAKEFILE_ROOT)/manifests/backend-rbac/ | kubectl -n gitops apply -f -
 
 undeploy-backend-rbac: ## Remove backend related RBAC resouces
-	kubectl delete -f  $(MAKEFILE_ROOT)/manifests/backend-rbac/
+	$(KUSTOMIZE) build  $(MAKEFILE_ROOT)/manifests/backend-rbac/ | kubectl -n gitops delete -f -
 
 deploy-backend: deploy-backend-shared-crd deploy-backend-rbac ## Deploy backend operator into Kubernetes -- e.g. make deploy-backend IMG=quay.io/pgeorgia/gitops-service:latest
 	kubectl create namespace gitops 2> /dev/null || true
@@ -79,12 +79,12 @@ undeploy-cluster-agent-crd: ## Remove cluster-agent related CRDs
 	kubectl delete -f https://raw.githubusercontent.com/argoproj/argo-cd/$(ARGO_CD_VERSION)/manifests/crds/application-crd.yaml
 	kubectl delete ns "${ARGO_CD_NAMESPACE}" 2> /dev/null || true
 
-deploy-cluster-agent-rbac: ## Deploy cluster-agent related RBAC resouces
-	kubectl create namespace gitops 2> /dev/null || true
-	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/manifests/cluster-agent-rbac/
+deploy-cluster-agent-rbac: kustomize ## Deploy cluster-agent related RBAC resouces
+	kubectl create namespace gitops 2> /dev/null || true	
+	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/cluster-agent-rbac/ | kubectl -n gitops apply -f -
 
-undeploy-cluster-agent-rbac: ## Remove cluster-agent related RBAC resouces
-	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/manifests/cluster-agent-rbac/
+undeploy-cluster-agent-rbac: kustomize ## Remove cluster-agent related RBAC resouces
+	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/cluster-agent-rbac/ | kubectl -n gitops delete -f -
 
 deploy-cluster-agent: deploy-cluster-agent-crd deploy-cluster-agent-rbac ## Deploy cluster-agent operator into Kubernetes -- e.g. make deploy-cluster-agent IMG=quay.io/pgeorgia/gitops-service:latest
 	kubectl create namespace gitops 2> /dev/null || true
@@ -112,12 +112,13 @@ undeploy-appstudio-controller-crd: ## Remove appstudio-controller related CRDs
 	kubectl delete -f https://raw.githubusercontent.com/redhat-appstudio/application-service/7a1a14b575dc725a46ea2ab175692f464122f0f8/config/crd/bases/appstudio.redhat.com_applications.yaml
 	kubectl delete -f https://raw.githubusercontent.com/redhat-appstudio/application-service/7a1a14b575dc725a46ea2ab175692f464122f0f8/config/crd/bases/appstudio.redhat.com_components.yaml
 
-deploy-appstudio-controller-rbac: ## Deploy appstudio-controller related RBAC resouces
+deploy-appstudio-controller-rbac: kustomize ## Deploy appstudio-controller related RBAC resouces
 	kubectl create namespace gitops 2> /dev/null || true
-	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/manifests/appstudio-controller-rbac/
+	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/appstudio-controller-rbac/ | kubectl -n gitops apply -f -
 
-undeploy-appstudio-controller-rbac: ## Remove appstudio-controller related RBAC resouces
+undeploy-appstudio-controller-rbac: kustomize ## Remove appstudio-controller related RBAC resouces
 	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/manifests/appstudio-controller-rbac/
+	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/appstudio-controller-rbac/ | kubectl -n gitops delete -f -
 
 deploy-appstudio-controller: deploy-appstudio-controller-crd deploy-appstudio-controller-rbac ## Deploy appstudio-controller operator into Kubernetes -- e.g. make appstudio-controller IMG=quay.io/pgeorgia/gitops-service:latest
 	kubectl create namespace gitops 2> /dev/null || true
@@ -280,3 +281,24 @@ gen-kcp-api-appstudio-shared: ## Runs utilities/generate-kcp-api-appstudio-share
 
 kcp-test-local-e2e: ## Initiates a ckcp within openshift cluster and runs e2e test
 	cd $(MAKEFILE_ROOT)/kcp && ./ckcp/setup-ckcp-on-openshift.sh
+	
+	
+	
+KUSTOMIZE = $(shell pwd)/bin/kustomize
+kustomize: ## Download kustomize locally if necessary.
+	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v4@v4.5.5)
+
+# go-get-tool will 'go install' any package $2 and install it to $1.
+PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
+define go-get-tool
+@[ -f $(1) ] || { \
+set -e ;\
+TMP_DIR=$$(mktemp -d) ;\
+cd $$TMP_DIR ;\
+go mod init tmp ;\
+echo "Downloading $(2)" ;\
+GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
+rm -rf $$TMP_DIR ;\
+}
+endef
+

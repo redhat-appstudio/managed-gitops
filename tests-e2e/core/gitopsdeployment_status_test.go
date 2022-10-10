@@ -168,16 +168,18 @@ var _ = Describe("GitOpsDeployment SyncError test", func() {
 				),
 			)
 
-			By("Wait for GitopsDeploymentResource to see the syncError and update the syncError field of GitopsDeployment")
-			expectedSyncError := managedgitopsv1alpha1.GitOpsDeploymentStatus{
-				Sync: managedgitopsv1alpha1.SyncStatus{
-					SyncError: "Failed sync attempt to 5ce3833a57c1582f93ea49c2947a5b4b4992ef6f: one or more synchronization tasks are not valid (retried 5 times).",
+			expectedConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{
+				{
+					Type:    managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError,
+					Message: "Failed sync attempt to 5ce3833a57c1582f93ea49c2947a5b4b4992ef6f: one or more synchronization tasks are not valid (retried 5 times).",
+					Status:  managedgitopsv1alpha1.GitOpsConditionStatusTrue,
+					Reason:  managedgitopsv1alpha1.GitopsDeploymentReasonSyncError,
 				},
 			}
 
 			Eventually(gitOpsDeploymentResource, "5m", "1s").Should(
 				SatisfyAll(
-					gitopsDeplFixture.HaveSyncError(expectedSyncError),
+					gitopsDeplFixture.HaveConditions(expectedConditions),
 				),
 			)
 
@@ -209,16 +211,19 @@ var _ = Describe("GitOpsDeployment SyncError test", func() {
 				),
 			)
 
-			By("Wait until GitopsDeployment to clear the syncError")
-			updateExpectedSyncError := managedgitopsv1alpha1.GitOpsDeploymentStatus{
-				Sync: managedgitopsv1alpha1.SyncStatus{
-					SyncError: "",
+			By("Wait until GitopsDeployment condition statis is false")
+			expectedConditionsUpdate := []managedgitopsv1alpha1.GitOpsDeploymentCondition{
+				{
+					Type:    managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError,
+					Message: "Failed sync attempt to 5ce3833a57c1582f93ea49c2947a5b4b4992ef6f: one or more synchronization tasks are not valid (retried 5 times).",
+					Status:  managedgitopsv1alpha1.GitOpsConditionStatusFalse,
+					Reason:  "SyncErrorResolved",
 				},
 			}
 
 			Eventually(gitOpsDeploymentResource, "5m", "1s").Should(
 				SatisfyAll(
-					gitopsDeplFixture.HaveSyncError(updateExpectedSyncError),
+					gitopsDeplFixture.HaveConditions(expectedConditionsUpdate),
 				),
 			)
 

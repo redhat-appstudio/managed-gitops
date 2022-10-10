@@ -154,6 +154,9 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 				// Update syncError field of appliactionState only if type is SyncError
 				if syncError.Type == appv1.ApplicationConditionSyncError {
 					applicationState.SyncError = db.TruncateVarchar(syncError.Message, db.ApplicationStateSyncErrorLength)
+				} else if syncError.Type != appv1.ApplicationConditionSyncError {
+					// If ApplicationConditionSyncError doesn't exist set applicationState.SyncError to ""
+					applicationState.SyncError = ""
 				}
 			}
 
@@ -200,6 +203,9 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		// Update syncError field of appliactionState only if type is syncError
 		if syncError.Type == appv1.ApplicationConditionSyncError {
 			applicationState.SyncError = db.TruncateVarchar(syncError.Message, db.ApplicationStateSyncErrorLength)
+		} else if syncError.Type != appv1.ApplicationConditionSyncError {
+			// If ApplicationConditionSyncError doesn't exist set applicationState.SyncError to ""
+			applicationState.SyncError = ""
 		}
 	}
 

@@ -134,8 +134,6 @@ type SyncStatus struct {
 	Status SyncStatusCode `json:"status"`
 	// Revision contains information about the revision the comparison has been performed to
 	Revision string `json:"revision,omitempty"`
-	// SyncError contains the information about the syncError from the ArgoCD Application
-	SyncError string `json:"syncError,omitempty"`
 }
 
 // SyncStatusCode is a type which represents possible comparison results
@@ -180,6 +178,7 @@ type GitOpsDeploymentCondition struct {
 type GitOpsDeploymentConditionType string
 
 const (
+	GitOpsDeploymentConditionSyncError     GitOpsDeploymentConditionType = "SyncError"
 	GitOpsDeploymentConditionErrorOccurred GitOpsDeploymentConditionType = "ErrorOccurred"
 )
 
@@ -199,6 +198,7 @@ const (
 type GitOpsDeploymentReasonType string
 
 const (
+	GitopsDeploymentReasonSyncError     GitOpsDeploymentReasonType = "SyncError"
 	GitopsDeploymentReasonErrorOccurred GitOpsDeploymentReasonType = "ErrorOccurred"
 )
 

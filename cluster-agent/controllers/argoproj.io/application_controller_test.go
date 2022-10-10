@@ -609,10 +609,11 @@ var _ = Describe("Application Controller", func() {
 			err = reconciler.DB.CreateApplication(ctx, applicationDB)
 			Expect(err).To(BeNil())
 
-			By("Verify SyncError is not present in database")
+			By("GetApplicationStateById to verify SyncError field is empty in database")
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateDB)
 			Expect(err).ToNot(BeNil())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+			Expect(applicationStateDB.SyncError).To(BeEmpty())
 
 			By("Create a new ArgoCD Application")
 			err = reconciler.Create(ctx, guestbookApp)
@@ -627,11 +628,8 @@ var _ = Describe("Application Controller", func() {
 			Expect(applicationStateDB.ReconciledState).ToNot(BeNil())
 			Expect(err).To(BeNil())
 
-			// Checking for new values in database object
-			for _, syncError := range guestbookApp.Status.Conditions {
-				Expect(applicationStateDB.SyncError).To(Equal(syncError.Message))
-				Expect(syncError.Type).To(Equal("SyncError"))
-			}
+			By("Verifying that the ApplicationState DB row has been updated to match the Application SyncError")
+			Expect(applicationStateDB.SyncError).To(Equal("Failed to sync"))
 		})
 
 		It("Test to verify the conditions.Type is not equal to 'SyncError' then db field should be empty", func() {
@@ -686,7 +684,7 @@ var _ = Describe("Application Controller", func() {
 					},
 					Conditions: []appv1.ApplicationCondition{
 						{
-							Type:               "test-error",
+							Type:               appv1.ApplicationConditionUnknownError,
 							Message:            "testing error",
 							LastTransitionTime: &metav1.Time{Time: time.Now()},
 						},
@@ -712,10 +710,11 @@ var _ = Describe("Application Controller", func() {
 			err = reconciler.DB.CreateApplication(ctx, applicationDB)
 			Expect(err).To(BeNil())
 
-			By("Verify SyncError is not present in database")
+			By("GetApplicationStateById to verify SyncError field is empty in database")
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateDB)
 			Expect(err).ToNot(BeNil())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+			Expect(applicationStateDB.SyncError).To(BeEmpty())
 
 			By("Create a new ArgoCD Application")
 			err = reconciler.Create(ctx, guestbookApp)
@@ -730,11 +729,8 @@ var _ = Describe("Application Controller", func() {
 			Expect(applicationStateDB.ReconciledState).ToNot(BeNil())
 			Expect(err).To(BeNil())
 
-			// Checking for syncError value in database object
-			for _, syncError := range guestbookApp.Status.Conditions {
-				Expect(applicationStateDB.SyncError).To(BeEmpty())
-				Expect(syncError.Type).ToNot(Equal("SyncError"))
-			}
+			By("Verifying that the ApplicationState DB row has been updated to match the Application SyncError")
+			Expect(applicationStateDB.SyncError).To(BeEmpty())
 		})
 
 		It("Test to check whether existing value in syncError field is updated to new value when conditions.Message of ArgoCD Application changes", func() {
@@ -792,11 +788,8 @@ var _ = Describe("Application Controller", func() {
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateget)
 			Expect(err).To(BeNil())
 
-			// Checking for new values in database object
-			for _, syncError := range guestbookApp.Status.Conditions {
-				Expect(applicationStateget.SyncError).To(Equal(syncError.Message))
-				Expect(syncError.Type).To(Equal("SyncError"))
-			}
+			By("Verifying that the ApplicationState DB row has been updated to match the Application SyncError")
+			Expect(applicationStateget.SyncError).To(Equal("Failed to sync"))
 		})
 	})
 

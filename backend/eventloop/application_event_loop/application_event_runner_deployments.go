@@ -742,8 +742,16 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	gitopsDeployment.Status.Sync.Status = managedgitopsv1alpha1.SyncStatusCode(applicationState.Sync_Status)
 	gitopsDeployment.Status.Sync.Revision = applicationState.Revision
 
-	// Update gitopsDeployment status with syncError
-	gitopsDeployment.Status.Sync.SyncError = applicationState.SyncError
+	// Update gitopsDeployment status with syncError if applicationState.SyncError field in database is non empty
+	if applicationState.SyncError != "" {
+		condition.NewConditionManager().SetCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError, managedgitopsv1alpha1.GitOpsConditionStatusTrue, managedgitopsv1alpha1.GitopsDeploymentReasonSyncError, applicationState.SyncError)
+	} else {
+		// Update syncError Condition as false if applicationState.SyncError field in database is empty
+		reason := managedgitopsv1alpha1.GitopsDeploymentReasonSyncError + "Resolved"
+		if cond, _ := condition.NewConditionManager().FindCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError); cond.Reason != reason {
+			condition.NewConditionManager().SetCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError, managedgitopsv1alpha1.GitOpsConditionStatusFalse, reason, "")
+		}
+	}
 
 	// Fetch the list of resources created by deployment from table and update local gitopsDeployment instance.
 	var err error

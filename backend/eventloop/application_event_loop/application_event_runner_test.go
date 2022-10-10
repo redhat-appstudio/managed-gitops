@@ -814,7 +814,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(gitopsDeployment.Status.Health.Message).To(BeEmpty())
 			Expect(gitopsDeployment.Status.ReconciledState.Destination.Namespace).To(BeEmpty())
 			Expect(gitopsDeployment.Status.ReconciledState.Destination.Name).To(BeEmpty())
-			Expect(gitopsDeployment.Status.Sync.SyncError).To(BeEmpty())
+			Expect(gitopsDeployment.Status.Conditions).To(BeNil())
 
 			// ----------------------------------------------------------------------------
 			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status.")
@@ -839,7 +839,36 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(gitopsDeployment.Status.ReconciledState.Source.RepoURL).To(Equal(reconciledobj.Source.RepoURL))
 			Expect(gitopsDeployment.Status.ReconciledState.Source.Branch).To(Equal(reconciledobj.Source.TargetRevision))
 			Expect(gitopsDeployment.Status.ReconciledState.Destination.Namespace).To(Equal(reconciledobj.Destination.Namespace))
-			Expect(gitopsDeployment.Status.Sync.SyncError).To(Equal(applicationState.SyncError))
+			Expect(gitopsDeployment.Status.Conditions[0].Message).To(Equal(applicationState.SyncError))
+			Expect(gitopsDeployment.Status.Conditions[0].Status).To(Equal(managedgitopsv1alpha1.GitOpsConditionStatusTrue))
+			Expect(gitopsDeployment.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError))
+
+			By("Update SyncError in ApplicationState to be empty")
+			applicationState = &db.ApplicationState{
+				Applicationstate_application_id: deplToAppMapping.Application_id,
+				Health:                          string(managedgitopsv1alpha1.HeathStatusCodeHealthy),
+				Sync_Status:                     string(managedgitopsv1alpha1.SyncStatusCodeSynced),
+				Revision:                        "abcdefg",
+				Message:                         "Success",
+				Resources:                       buffer.Bytes(),
+				ReconciledState:                 reconciledStateString,
+				SyncError:                       "",
+			}
+
+			err = dbQueries.UpdateApplicationState(ctx, applicationState)
+			Expect(err).To(BeNil())
+
+			By("Verify whether status condition of syncError is true")
+			Expect(gitopsDeployment.Status.Conditions[0].Status).To(Equal(managedgitopsv1alpha1.GitOpsConditionStatusTrue))
+
+			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, string(gitopsDepl.UID), dbQueries)
+			Expect(err).To(BeNil())
+
+			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
+			Expect(clientErr).To(BeNil())
+
+			By("Verify status condition of syncError is false as applicationState.SyncError is empty and gitopsDeployment syncError condition is true and updated from true to false after calling deploymentStatusTick")
+			Expect(gitopsDeployment.Status.Conditions[0].Status).To(Equal(managedgitopsv1alpha1.GitOpsConditionStatusFalse))
 
 			// ----------------------------------------------------------------------------
 			By("Delete GitOpsDepl to clean resources.")

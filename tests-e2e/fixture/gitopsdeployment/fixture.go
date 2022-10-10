@@ -221,27 +221,3 @@ func HaveReconciledState(reconciledState managedgitopsv1alpha1.ReconciledState) 
 		return res
 	}, BeTrue())
 }
-
-// HaveSyncError checks the GitOpsDeployment syncError field is set  with the SyncError of Application
-func HaveSyncError(syncError managedgitopsv1alpha1.GitOpsDeploymentStatus) matcher.GomegaMatcher {
-
-	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
-
-		k8sClient, err := fixture.GetKubeClient()
-		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
-			return false
-		}
-
-		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitopsDepl), &gitopsDepl)
-		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
-			return false
-		}
-
-		res := reflect.DeepEqual(syncError.Sync.SyncError, gitopsDepl.Status.Sync.SyncError)
-		fmt.Println("HaveSyncError:", res, "/ Expected:", syncError, "/ Actual:", gitopsDepl.Status.Sync.SyncError)
-
-		return res
-	}, BeTrue())
-}

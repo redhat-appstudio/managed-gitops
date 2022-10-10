@@ -1,6 +1,8 @@
 package application_event_loop
 
 import (
+	"context"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
@@ -19,7 +21,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				mockChannel: make(chan *eventlooptypes.EventLoopEvent),
 			}
 
-			inputChan := startApplicationEventQueueLoopWithFactory("", "", nil, &mockApplicationEventLoopRunnerFactory)
+			inputChan := startApplicationEventQueueLoopWithFactory(context.Background(), "", "", nil, &mockApplicationEventLoopRunnerFactory)
 
 			inputChan <- eventlooptypes.EventLoopMessage{
 				MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,

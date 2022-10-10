@@ -1,6 +1,7 @@
 package eventloop
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -538,7 +539,7 @@ var _ applicationEventQueueLoopFactory = &testApplicationEventLoopFactory{}
 
 // Instead of starting a new application event queue loop (like the default implementation of applictionEventQueueLoopFactory)
 // we instead just return a previously provided channel.
-func (ta *testApplicationEventLoopFactory) startApplicationEventQueueLoop(gitopsDeplID string, workspaceID string,
+func (ta *testApplicationEventLoopFactory) startApplicationEventQueueLoop(ctx context.Context, gitopsDeplID string, workspaceID string,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop) chan eventlooptypes.EventLoopMessage {
 
 	ta.mutex.Lock()
@@ -560,7 +561,7 @@ var _ applicationEventQueueLoopFactory = &managedEnvironmentTestApplicationEvent
 
 // Instead of starting a new application event queue loop (like the default implementation of applictionEventQueueLoopFactory)
 // we instead just return a previously provided channel.
-func (ta *managedEnvironmentTestApplicationEventLoopFactory) startApplicationEventQueueLoop(gitopsDeplID string, workspaceID string,
+func (ta *managedEnvironmentTestApplicationEventLoopFactory) startApplicationEventQueueLoop(ctx context.Context, gitopsDeplID string, workspaceID string,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop) chan eventlooptypes.EventLoopMessage {
 
 	ta.mutex.Lock()

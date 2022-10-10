@@ -10,7 +10,6 @@ import (
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
-	"github.com/redhat-appstudio/managed-gitops/backend/util"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -37,30 +36,28 @@ var (
 	deploymentStatusTickRate = 15 * time.Second
 )
 
-func StartApplicationEventQueueLoop(gitopsDeplID string, workspaceID string,
+func StartApplicationEventQueueLoop(ctx context.Context, gitopsDeplID string, workspaceID string,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop) chan eventlooptypes.EventLoopMessage {
 
 	res := make(chan eventlooptypes.EventLoopMessage)
 
-	go applicationEventQueueLoop(res, gitopsDeplID, workspaceID, sharedResourceEventLoop, defaultApplicationEventRunnerFactory{})
+	go applicationEventQueueLoop(ctx, res, gitopsDeplID, workspaceID, sharedResourceEventLoop, defaultApplicationEventRunnerFactory{})
 
 	return res
 }
 
-func startApplicationEventQueueLoopWithFactory(gitopsDeplID string, workspaceID string,
+func startApplicationEventQueueLoopWithFactory(ctx context.Context, gitopsDeplID string, workspaceID string,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, aerFactory applicationEventRunnerFactory) chan eventlooptypes.EventLoopMessage {
 
 	res := make(chan eventlooptypes.EventLoopMessage)
 
-	go applicationEventQueueLoop(res, gitopsDeplID, workspaceID, sharedResourceEventLoop, aerFactory)
+	go applicationEventQueueLoop(ctx, res, gitopsDeplID, workspaceID, sharedResourceEventLoop, aerFactory)
 
 	return res
 }
 
-func applicationEventQueueLoop(input chan eventlooptypes.EventLoopMessage, gitopsDeplID string, workspaceID string,
+func applicationEventQueueLoop(ctx context.Context, input chan eventlooptypes.EventLoopMessage, gitopsDeplID string, workspaceID string,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, aerFactory applicationEventRunnerFactory) {
-
-	ctx := context.Background()
 
 	log := log.FromContext(ctx).WithValues("workspaceID", workspaceID).WithValues("gitOpsDeplID", gitopsDeplID).
 		WithName("application-event-loop")
@@ -99,9 +96,9 @@ func applicationEventQueueLoop(input chan eventlooptypes.EventLoopMessage, gitop
 		// Block on waiting for more events for this application
 		newEvent := <-input
 
-		if newEvent.Event.Request.ClusterName != "" && !sharedutil.IsKCPVirtualWorkspaceDisabled() {
-			ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(newEvent.Event.Request.ClusterName))
-		}
+		// if newEvent.Event.Request.ClusterName != "" && !sharedutil.IsKCPVirtualWorkspaceDisabled() {
+		// 	ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(newEvent.Event.Request.ClusterName))
+		// }
 
 		if newEvent.Event == nil {
 			log.Error(nil, "SEVERE: applicationEventQueueLoop event was nil", "messageType", newEvent.MessageType)
@@ -251,6 +248,13 @@ func startNewStatusUpdateTimer(ctx context.Context, input chan eventlooptypes.Ev
 	jitter := time.Duration(int64(time.Millisecond) * int64(rand.Float64()*1000))
 
 	statusUpdateTimer := time.NewTimer(deploymentStatusTickRate + jitter)
+
+	workspaceClient, err := sharedutil.NewVirtualWorkspaceClient()
+	if err != nil {
+		log.Error(err, "failed to create virtual workspace client")
+		return
+	}
+
 	go func() {
 		clusterName, _ := logicalcluster.ClusterFromContext(ctx)
 
@@ -264,7 +268,7 @@ func startNewStatusUpdateTimer(ctx context.Context, input chan eventlooptypes.Ev
 				// an empty request was being sent here
 				AssociatedGitopsDeplUID: gitopsDeplID,
 				// service provider client is being used here. Instead we need workspace client
-				Client: util.GetVirtualWorkspaceClient(),
+				Client: workspaceClient,
 			},
 			MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
 		}

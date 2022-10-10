@@ -204,7 +204,7 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, workspaceID 
 				// Start the application event queue go-routine, if it's not already started.
 
 				// Start the application event loop's goroutine
-				inputChan := applEventLoopFactory.startApplicationEventQueueLoop(event.Event.AssociatedGitopsDeplUID,
+				inputChan := applEventLoopFactory.startApplicationEventQueueLoop(ctx, event.Event.AssociatedGitopsDeplUID,
 					event.Event.WorkspaceID, sharedResourceEventLoop)
 
 				applicationEntryVal = workspaceEventLoop_applicationEventLoopEntry{
@@ -252,7 +252,7 @@ type workspaceEventLoop_applicationEventLoopEntry struct {
 //
 // The defaultApplicationEventLoopFactory should be used in all cases, except for when writing mocks for unit tests.
 type applicationEventQueueLoopFactory interface {
-	startApplicationEventQueueLoop(gitopsDeplID string, workspaceID string,
+	startApplicationEventQueueLoop(ctx context.Context, gitopsDeplID string, workspaceID string,
 		sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop) chan eventlooptypes.EventLoopMessage
 }
 
@@ -261,10 +261,10 @@ type defaultApplicationEventLoopFactory struct {
 
 // The default implementation of startApplicationEventQueueLoop is just a simple wrapper around a call to
 // StartApplicationEventQueueLoop
-func (defaultApplicationEventLoopFactory) startApplicationEventQueueLoop(gitopsDeplID string, workspaceID string,
+func (defaultApplicationEventLoopFactory) startApplicationEventQueueLoop(ctx context.Context, gitopsDeplID string, workspaceID string,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop) chan eventlooptypes.EventLoopMessage {
 
-	res := application_event_loop.StartApplicationEventQueueLoop(gitopsDeplID, workspaceID, sharedResourceEventLoop)
+	res := application_event_loop.StartApplicationEventQueueLoop(ctx, gitopsDeplID, workspaceID, sharedResourceEventLoop)
 
 	return res
 }

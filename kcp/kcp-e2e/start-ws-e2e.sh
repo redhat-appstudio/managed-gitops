@@ -2,7 +2,14 @@
 
 set -ex
 
-source ./kcp/utils.sh
+SCRIPTPATH="$(
+  cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit
+  pwd -P
+)"
+
+REPO_ROOT="$SCRIPTPATH/.."
+echo "$SCRIPTPATH"
+source "${REPO_ROOT}/../kcp/utils.sh"
 
 SERVICE_WS="gitops-service-provider"
 

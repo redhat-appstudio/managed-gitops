@@ -27,9 +27,6 @@ createAndEnterWorkspace "$SERVICE_WS"
 echo "Creating APIExports and APIResourceSchemas in workspace $SERVICE_WS"
 KUBECONFIG="${CPS_KUBECONFIG}" make apply-kcp-api-all
 
-# Copy the identity hash from the backend APIExport in the service workspace so we can reference it later in the appstudio APIBinding
-identityHash=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get apiexports.apis.kcp.dev gitopsrvc-backend-shared -o jsonpath='{.status.identityHash}')
-
 permissionToBindAPIExport 
 
 echo "Initializing user workspace"

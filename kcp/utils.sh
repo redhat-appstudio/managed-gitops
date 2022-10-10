@@ -2,6 +2,11 @@
 
 set -ex
 
+SCRIPTPATH="$(
+  cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit
+  pwd -P
+)"
+
 CPS_KUBECONFIG="${CPS_KUBECONFIG:-$(realpath kcp/cps-kubeconfig)}"
 WORKLOAD_KUBECONFIG="${WORKLOAD_KUBECONFIG:-$HOME/.kube/config}"
 SYNCER_IMAGE="${SYNCER_IMAGE:-ghcr.io/kcp-dev/kcp/syncer:v0.8.2}"
@@ -34,15 +39,13 @@ readKUBECONFIGPath() {
 }
 
 createAndEnterWorkspace() {
-    if [ -z "$1" ]; then 
+    if [ -n "$1" ]; then
       echo "Workspace request: ${1}"
       WORKSPACE=$1
     else
       echo "--> Error: Workspace name not found. Exiting ..."
       exit 1
     fi
-
-    KUBECONFIG="$CPS_KUBECONFIG" kubectl kcp ws
 
     # Opens a web browser to authenticate to your RH SSO acount
     KUBECONFIG="$CPS_KUBECONFIG" kubectl api-resources
@@ -60,11 +63,11 @@ createAndEnterWorkspace() {
 
 create_kubeconfig_secret() {
     sa_name=$1
-    sa_secret_name=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get sa $sa_name -n $ARGOCD_NAMESPACE -o=jsonpath='{.secrets[0].name}')
+    sa_secret_name=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get sa "${sa_name}" -n $ARGOCD_NAMESPACE -o=jsonpath='{.secrets[0].name}')
 
-    ca=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get secret/$sa_secret_name -n $ARGOCD_NAMESPACE -o jsonpath='{.data.ca\.crt}')
-    token=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get secret/$sa_secret_name -n $ARGOCD_NAMESPACE -o jsonpath='{.data.token}' | base64 --decode)
-    namespace=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get secret/$sa_secret_name -n $ARGOCD_NAMESPACE -o jsonpath='{.data.namespace}' | base64 --decode)
+    ca=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get secret/"${sa_secret_name}" -n $ARGOCD_NAMESPACE -o jsonpath='{.data.ca\.crt}')
+    token=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get secret/"${sa_secret_name}" -n $ARGOCD_NAMESPACE -o jsonpath='{.data.token}' | base64 --decode)
+    # namespace=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get secret/"${sa_secret_name}" -n $ARGOCD_NAMESPACE -o jsonpath='{.data.namespace}' | base64 --decode)
 
     server=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl config view -o jsonpath='{.clusters[?(@.name == "workspace.kcp.dev/current")].cluster.server}')
 
@@ -105,7 +108,7 @@ stringData:
 installArgoCD() {
     echo "Installing Argo CD resources in workspace $WORKSPACE and namespace $ARGOCD_NAMESPACE"
     KUBECONFIG="${CPS_KUBECONFIG}" kubectl create ns $ARGOCD_NAMESPACE || true
-    KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f $ARGOCD_MANIFEST -n $ARGOCD_NAMESPACE
+    KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f "${ARGOCD_MANIFEST}" -n $ARGOCD_NAMESPACE
 
     echo "Creating KUBECONFIG secrets for argocd server and argocd application controller service accounts"
     create_kubeconfig_secret "argocd-server" "kcp-kubeconfig-controller"
@@ -116,7 +119,7 @@ installArgoCD() {
     count=0
     while [ $count -lt 30 ]
     do
-        count=`expr $count + 1`
+        count=$((count + 1))
         replicas=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get statefulsets argocd-application-controller -n $ARGOCD_NAMESPACE -o jsonpath='{.spec.replicas}')
         ready_replicas=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get statefulsets argocd-application-controller -n $ARGOCD_NAMESPACE -o jsonpath='{.status.readyReplicas}')
         if [ "$replicas" -eq "$ready_replicas" ]; then 
@@ -189,29 +192,51 @@ registerSyncTarget() {
 createAPIBinding() {
     exit_if_binary_not_installed "yamllint"
 
-    if [ -z "$1" ]; then 
+    if [ -n "$1" ]; then 
       exportName=$1
     else
       echo "--> Error: No APIExport found, can't create an APIBinding. Exiting ..."
       exit 1
     fi
 
-    if [ -z "$CPS_KUBECONFIG" ]; then
+    if [ -n "$CPS_KUBECONFIG" ]; then
       KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws
-      url=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get workspace $SERVICE_WS -o jsonpath='{.status.URL}')
+      # Pass the parent workspace in which the service provider workspace is set, otherwise use root ws
+      if [ -n "$2" ]; then 
+        echo "Parent Workspace: " "${2}"
+        KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws use "${2}"
+      else
+        echo "Parent workspace is set in the root:org:user workspace itself..."
+      fi
+      
+      # Copy the identity hash from the backend APIExport in the service workspace so we can reference it later in the appstudio APIBinding
+      # Getting into service ws, to fetch apiexport identity hash and then switching back to parent ws
+      if [ -n "$3" ]; then 
+        echo "Service Provider Workspace: " "${3}"
+        KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws use "${3}"
+        identityHash=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get apiexports.apis.kcp.dev gitopsrvc-backend-shared -o jsonpath='{.status.identityHash}')
+        echo "Identity Hash for gitopsrvc-backend-shared APIExport: " "${identityHash}"
+        KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws -
+      else
+        echo "----> Error: Can't retrieve identity hash for gitopsrvc-backend-shared"
+        exit 1
+      fi
+
+
+      url=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get workspace "${SERVICE_WS}" -o jsonpath='{.status.URL}')
       if [ -z "$url" ]; then
         echo "url path should not be null, check service ws. Exiting ..."
         exit 1
       else
-        path=$(basename $url)
+        path=$(basename "${url}")
       fi
     else 
       echo "--> Error: CPS_KUBECONFIG not found. Exiting ...s"
       exit 1
     fi
 
-    KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws use $USER_WS &> /dev/null
-    permissionClaims='
+    KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws use "${USER_WS}" &> /dev/null
+    acceptedPermissionClaims='
   permissionClaims:
   - group: ""
     resource: "secrets"
@@ -220,13 +245,13 @@ createAPIBinding() {
     resource: "namespaces"
     state: "Accepted"'
 
-  if [ exportName == "gitopsrvc-appstudio-shared" ]; then
-    permissionClaims="${acceptedPermissionClaims}
+    if [ "${exportName}" == "gitopsrvc-appstudio-shared" ]; then
+      permissionClaims="${acceptedPermissionClaims}
   - group: \"managed-gitops.redhat.com\"
     resource: \"gitopsdeployments\"
     state: \"Accepted\"
     identityHash: ${identityHash}"
-  fi
+    fi
 
 cat <<EOF > createAPIBinding.yaml
 ---
@@ -242,31 +267,40 @@ ${permissionClaims}
       exportName: ${exportName}
 EOF
 
-yamllint -c ../utilities/yamllint.yaml ./createAPIBinding.yaml
+    yamllint -c "${SCRIPTPATH}"/../../utilities/yamllint.yaml "${SCRIPTPATH}"/../../createAPIBinding.yaml
 
-echo "APIBinding yaml for ${1} \n"
-cat createAPIBinding.yaml
+    printf "APIBinding yaml for %s \n" "${1}"
+    cat createAPIBinding.yaml
 
-KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f createAPIBinding.yaml
-rm createAPIBinding.yaml
+    KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f "${SCRIPTPATH}"/../../createAPIBinding.yaml
+    rm createAPIBinding.yaml
 }
 
 permissionToBindAPIExport() {
     exit_if_binary_not_installed "yamllint"
   # Create permissions to bind APIExports. We need this workaround until KCP fixes the bug in their admission logic. Ref: https://github.com/kcp-dev/kcp/issues/1939    
-    if [ -z "$CPS_KUBECONFIG" ]; then
+    if [ -n "$CPS_KUBECONFIG" ]; then
       KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws
-      bindingName=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get clusterrolebinding | grep $SERVICE_WS | awk '{print $1}')
+      # Pass the parent workspace in which the service provider workspace is set, otherwise use root ws
+      if [ -n "$1" ]; then 
+        KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws use ${1}
+      else
+        echo "Service Provider workspace is set in the root:org:user workspace itself..."
+      fi
+      
+      bindingName=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get clusterrolebinding | grep "${SERVICE_WS}" | awk '{print $1}')
+
       if [ -z "$bindingName" ]; then
         echo "bindingName should not be empty, check service ws. Exiting ..."
         exit 1
       else
-        userName=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get clusterrolebindings $bindingName -o jsonpath='{.subjects[0].name}')
+        userName=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get clusterrolebindings "${bindingName}" -o jsonpath='{.subjects[0].name}')
       fi
     else 
       echo "--> Error: CPS_KUBECONFIG not found. Exiting ...s"
       exit 1
-    KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws use $SERVICE_WS &> /dev/null
+    fi
+    KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws use "${SERVICE_WS}" &> /dev/null
 
 cat <<EOF > permissionToBindAPIExport.yaml
 ---
@@ -299,11 +333,11 @@ subjects:
   name: "$userName"
 EOF
 
-yamllint -c ../utilities/yamllint.yaml ./permissionToBindAPIExport
+    yamllint -c "${SCRIPTPATH}"/../../utilities/yamllint.yaml "${SCRIPTPATH}"/../../permissionToBindAPIExport.yaml
 
-echo "permissionToBindAPIExport yaml: \n"
-cat permissionToBindAPIExport
+    printf "permissionToBindAPIExport yaml: \n"
+    cat permissionToBindAPIExport.yaml
 
-KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f permissionToBindAPIExport
-rm permissionToBindAPIExport
+    KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f "${SCRIPTPATH}"/../../permissionToBindAPIExport.yaml
+    rm permissionToBindAPIExport.yaml
 }

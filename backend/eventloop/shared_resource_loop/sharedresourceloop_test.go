@@ -165,7 +165,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			// At first assuming there are no existing resources, hence creating new.
 			sharedResourceOld, err := sharedResourceEventLoop.ReconcileSharedManagedEnv(ctx, k8sClient, *namespace, "", "",
-				true, DefaultK8sClientFactory{}, log)
+				true, MockSRLK8sClientFactory{fakeClient: k8sClient}, log)
 
 			Expect(err).To(BeNil())
 			Expect(sharedResourceOld.ClusterUser).NotTo(BeNil())
@@ -180,7 +180,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			// Resources are created in previous call, then same resources should be returned instead of creating new.
 			sharedResourceNew, err := sharedResourceEventLoop.ReconcileSharedManagedEnv(ctx, k8sClient, *namespace, "", "",
-				true, DefaultK8sClientFactory{}, log)
+				true, MockSRLK8sClientFactory{fakeClient: k8sClient}, log)
 
 			Expect(err).To(BeNil())
 			Expect(sharedResourceNew.ClusterUser).NotTo(BeNil())

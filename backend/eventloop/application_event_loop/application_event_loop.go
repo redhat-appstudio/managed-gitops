@@ -265,10 +265,8 @@ func startNewStatusUpdateTimer(ctx context.Context, input chan eventlooptypes.Ev
 				Request: reconcile.Request{
 					ClusterName: clusterName.String(),
 				},
-				// an empty request was being sent here
 				AssociatedGitopsDeplUID: gitopsDeplID,
-				// service provider client is being used here. Instead we need workspace client
-				Client: workspaceClient,
+				Client:                  workspaceClient,
 			},
 			MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
 		}

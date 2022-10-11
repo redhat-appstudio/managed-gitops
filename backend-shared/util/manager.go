@@ -13,13 +13,20 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
 
+	gitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/go-logr/logr"
+
+	datav1alpha1 "github.com/kcp-dev/controller-runtime-example/api/v1alpha1"
 	apisv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apis/v1alpha1"
+	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 )
 
 func IsKCPVirtualWorkspaceDisabled() bool {
@@ -154,4 +161,85 @@ func kcpAPIsGroupPresent(discoveryClient discovery.DiscoveryInterface) (bool, er
 		}
 	}
 	return false, nil
+}
+
+// NewVirtualWorkspaceClient returns a client that can access a workspace pointed by KUBECONFIG via Virtual Workspace
+func NewVirtualWorkspaceClient() (client.Client, error) {
+	restConfig, err := GetRESTConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	scheme := runtime.NewScheme()
+	if err := registerSchemes(scheme); err != nil {
+		return nil, fmt.Errorf("failed to register scheme: %v", err)
+	}
+
+	apiExportClient, err := newClusterAwareClient(restConfig, scheme, false)
+	if err != nil {
+		return nil, fmt.Errorf("error creating APIExport client: %w", err)
+	}
+
+	// Try up to 120 seconds for the virtual workspace URL to become available.
+	err = wait.PollImmediate(time.Second, time.Second*120, func() (bool, error) {
+		var err error
+		restConfig, err = restConfigForAPIExport(context.Background(), restConfig, apiExportClient, "gitopsrvc-backend-shared")
+		if err != nil {
+			fmt.Printf("error looking up virtual workspace URL: '%v', retrying in 1 second.\n", err)
+			return false, nil
+		}
+		return true, nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("virtual workspace URL never became available")
+	}
+
+	return newClusterAwareClient(restConfig, scheme, true)
+}
+
+func newClusterAwareClient(restConfig *rest.Config, scheme *runtime.Scheme, withMapper bool) (client.Client, error) {
+	httpClient, err := kcp.ClusterAwareHTTPClient(restConfig)
+	if err != nil {
+		fmt.Printf("error creating HTTP client: %v\n", err)
+		return nil, err
+	}
+
+	var restMapper meta.RESTMapper
+	if withMapper {
+		restMapper, err = kcp.NewClusterAwareMapperProvider(restConfig)
+		if err != nil {
+			return nil, fmt.Errorf("error creating Cluster Aware Mapper: %v", err)
+		}
+	}
+
+	return client.New(restConfig, client.Options{
+		Scheme:     scheme,
+		HTTPClient: httpClient,
+		Mapper:     restMapper,
+	})
+}
+
+func registerSchemes(scheme *runtime.Scheme) error {
+	if err := clientgoscheme.AddToScheme(scheme); err != nil {
+		return fmt.Errorf("failed to add client go to scheme: %v", err)
+	}
+
+	if err := tenancyv1alpha1.AddToScheme(scheme); err != nil {
+		return fmt.Errorf("failed to add %s to scheme: %v", tenancyv1alpha1.SchemeGroupVersion, err)
+	}
+
+	if err := datav1alpha1.AddToScheme(scheme); err != nil {
+		return fmt.Errorf("failed to add %s to scheme: %v", datav1alpha1.GroupVersion, err)
+	}
+
+	if err := apisv1alpha1.AddToScheme(scheme); err != nil {
+		return fmt.Errorf("failed to add %s to scheme: %v", apisv1alpha1.SchemeGroupVersion, err)
+	}
+
+	if err := gitopsv1alpha1.AddToScheme(scheme); err != nil {
+		return fmt.Errorf("failed to add %s to scheme: %v", gitopsv1alpha1.GroupVersion, err)
+	}
+
+	return nil
 }

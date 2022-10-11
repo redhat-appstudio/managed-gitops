@@ -7,9 +7,13 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/kcp-dev/logicalcluster/v2"
+	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -249,13 +253,29 @@ func startNewStatusUpdateTimer(ctx context.Context, input chan eventlooptypes.Ev
 
 	statusUpdateTimer := time.NewTimer(deploymentStatusTickRate + jitter)
 
-	workspaceClient, err := sharedutil.NewVirtualWorkspaceClient()
-	if err != nil {
-		log.Error(err, "failed to create virtual workspace client")
-		return
-	}
-
 	go func() {
+		var err error
+		var workspaceClient client.Client
+
+		// Keep trying to create k8s client, until we succeed
+		backoff := sharedutil.ExponentialBackoff{Factor: 2, Min: time.Millisecond * 200, Max: time.Second * 10, Jitter: true}
+		for {
+			workspaceClient, err = getk8sClient()
+			if err == nil {
+				break
+			} else {
+				backoff.DelayOnFail(ctx)
+			}
+
+			// Exit if the context is cancelled
+			select {
+			case <-ctx.Done():
+				log.V(sharedutil.LogLevel_Debug).Info("Deployment status ticker cancelled, for " + gitopsDeplID)
+				return
+			default:
+			}
+		}
+
 		clusterName, _ := logicalcluster.ClusterFromContext(ctx)
 
 		<-statusUpdateTimer.C
@@ -273,6 +293,14 @@ func startNewStatusUpdateTimer(ctx context.Context, input chan eventlooptypes.Ev
 		log.V(sharedutil.LogLevel_Debug).Info("Sending tick message for " + tickMessage.Event.AssociatedGitopsDeplUID)
 		input <- tickMessage
 	}()
+}
+
+func getk8sClient() (client.Client, error) {
+	if sharedutil.IsKCPVirtualWorkspaceDisabled() {
+		return getK8sClientForWorkspace()
+	}
+
+	return sharedutil.NewVirtualWorkspaceClient()
 }
 
 // applicationEventRunnerFactory is used to start an application loop runner. It is a lightweight wrapper
@@ -296,4 +324,33 @@ func (defaultApplicationEventRunnerFactory) createNewApplicationEventLoopRunner(
 	gitopsDeplUID string, workspaceID string, debugContext string) chan *eventlooptypes.EventLoopEvent {
 
 	return startNewApplicationEventLoopRunner(informWorkCompleteChan, sharedResourceEventLoop, gitopsDeplUID, workspaceID, debugContext)
+}
+
+func getK8sClientForWorkspace() (client.Client, error) {
+
+	config, err := sharedutil.GetRESTConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	scheme := runtime.NewScheme()
+	err = managedgitopsv1alpha1.AddToScheme(scheme)
+	if err != nil {
+		return nil, err
+	}
+	err = managedgitopsv1alpha1.AddToScheme(scheme)
+	if err != nil {
+		return nil, err
+	}
+	err = corev1.AddToScheme(scheme)
+	if err != nil {
+		return nil, err
+	}
+	k8sClient, err := client.New(config, client.Options{Scheme: scheme})
+	if err != nil {
+		return nil, err
+	}
+
+	return k8sClient, nil
+
 }

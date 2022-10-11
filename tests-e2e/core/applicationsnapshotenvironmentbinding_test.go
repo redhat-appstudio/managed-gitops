@@ -431,7 +431,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 
 		})
 
-		It("Should append ASEB labels with prefix `appstudio.openshift.io` to GitopsDeployment", func() {
+		It("Should append ASEB labels with key `appstudio.openshift.io` to GitopsDeployment label", func() {
 			By("Create ApplicationSnapshotEnvironmentBindingResource")
 			binding := buildApplicationSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			binding.ObjectMeta.Labels = map[string]string{"appstudio.openshift.io": "testing"}
@@ -468,7 +468,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{"appstudio.openshift.io": "testing"}))
 		})
 
-		It("Should not append ASEB label without prefix appstudio.openshift.io into the GitopsDeployment Label", func() {
+		It("Should not append ASEB label without appstudio.openshift.io label into the GitopsDeployment Label", func() {
 			By("Create ApplicationSnapshotEnvironmentBindingResource")
 			binding := buildApplicationSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			err := k8s.Create(&binding)
@@ -553,6 +553,19 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler E2E tests", f
 			Expect(err).To(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(Equal(map[string]string{"appstudio.openshift.io": "testing"}))
+			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{"appstudio.openshift.io": "testing-update"}))
+
+			By("Remove ASEB label `appstudio.openshift.io` label and verify whether it is removed from gitopsDeployment label")
+			delete(binding.ObjectMeta.Labels, "appstudio.openshift.io")
+			err = k8s.Update(&binding)
+			Expect(err).To(Succeed())
+
+			By("Verify whether gitopsDeployment.ObjectMeta.Label `appstudio.openshift.io` is removed from gitopsDeployment")
+			err = k8s.Get(&gitopsDeployment)
+			Expect(err).To(BeNil())
+			Expect(gitopsDeployment.ObjectMeta.Labels).To(BeNil())
+			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(Equal(map[string]string{"appstudio.openshift.io": "testing-update"}))
+
 		})
 
 	})

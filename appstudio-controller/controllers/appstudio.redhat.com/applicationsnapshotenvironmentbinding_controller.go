@@ -35,6 +35,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+const (
+	bindingLabel = "appstudio.openshift.io"
+)
+
 // ApplicationSnapshotEnvironmentBindingReconciler reconciles a ApplicationSnapshotEnvironmentBinding object
 type ApplicationSnapshotEnvironmentBindingReconciler struct {
 	client.Client
@@ -273,10 +277,10 @@ func generateExpectedGitOpsDeployment(component appstudioshared.ComponentStatus,
 
 	res.ObjectMeta.Labels = make(map[string]string)
 
-	// Append ASEB labels with prefix "appstudio.openshift.io" to the gitopsDeployment labels
-	for bindingKey, bindingLabels := range binding.Labels {
-		if strings.HasPrefix(bindingKey, "appstudio.openshift.io") {
-			res.ObjectMeta.Labels[bindingKey] = bindingLabels
+	// Append ASEB labels with key "appstudio.openshift.io" to the gitopsDeployment labels
+	for bindingKey, bindingLabelValue := range binding.Labels {
+		if strings.Contains(bindingKey, bindingLabel) {
+			res.ObjectMeta.Labels[bindingKey] = bindingLabelValue
 		}
 	}
 
@@ -292,6 +296,7 @@ func (r *ApplicationSnapshotEnvironmentBindingReconciler) SetupWithManager(mgr c
 		Complete(r)
 }
 
+// checkForMapEquality to check the equality between actual map data with expected map data
 func checkForMapEquality(x, y map[string]string) bool {
 	if len(x) != len(y) {
 		return false

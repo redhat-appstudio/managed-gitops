@@ -86,6 +86,7 @@ func (r *GitOpsDeploymentManagedEnvironmentReconciler) Reconcile(ctx context.Con
 			// add the ManagedEnv to the list of requests to process.
 			for _, managedEnv := range managedEnvList {
 				newReq := ctrl.Request{
+					ClusterName: req.ClusterName,
 					NamespacedName: types.NamespacedName{
 						Namespace: managedEnv.Namespace,
 						Name:      managedEnv.Name,

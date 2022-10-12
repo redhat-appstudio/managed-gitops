@@ -33,6 +33,10 @@ func IsKCPVirtualWorkspaceDisabled() bool {
 	return strings.EqualFold(os.Getenv("DISABLE_KCP_VIRTUAL_WORKSPACE"), "true")
 }
 
+func IsRunningAgainstKCP() bool {
+	return strings.EqualFold(os.Getenv("GITOPS_IN_KCP"), "true")
+}
+
 // GetControllerManager returns a manager for running controllers
 func GetControllerManager(ctx context.Context, cfg *rest.Config, log *logr.Logger, apiExportName string, opts ctrl.Options) (ctrl.Manager, error) {
 	scheme := runtime.NewScheme()

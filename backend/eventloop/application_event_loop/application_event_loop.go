@@ -296,11 +296,11 @@ func startNewStatusUpdateTimer(ctx context.Context, input chan eventlooptypes.Ev
 }
 
 func getk8sClient() (client.Client, error) {
-	if sharedutil.IsKCPVirtualWorkspaceDisabled() {
-		return getK8sClientForWorkspace()
+	if sharedutil.IsRunningAgainstKCP() && !sharedutil.IsKCPVirtualWorkspaceDisabled() {
+		return sharedutil.NewVirtualWorkspaceClient()
 	}
 
-	return sharedutil.NewVirtualWorkspaceClient()
+	return getK8sClientForWorkspace()
 }
 
 // applicationEventRunnerFactory is used to start an application loop runner. It is a lightweight wrapper

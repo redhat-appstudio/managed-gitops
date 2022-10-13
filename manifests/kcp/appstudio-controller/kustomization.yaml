@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+#- gitops-namespace.yaml
+
+# APIExport(s) / APIResourceSchema(s)
+- ../../../appstudio-shared/config/kcp-new
+#- ../../backend-shared/config/kcp-new
+
+# AppStudio-controller RBAC
+- ../../appstudio-controller-rbac
+
+# Backend RBAC
+#- ../backend-rbac
+
+# Cluster-agent RBAC
+#- ../cluster-agent-rbac
+
+# Workloads
+- ../../controller-deployments/appstudio-controller
+#- ../postgresql-staging
+
+# Route(s)
+#- ../routes
+
+# Argo CD 
+#- argocd
+

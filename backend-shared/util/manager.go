@@ -174,7 +174,7 @@ func kcpAPIsGroupPresent(discoveryClient discovery.DiscoveryInterface) (bool, er
 }
 
 // NewVirtualWorkspaceClient returns a client that can access a workspace pointed by KUBECONFIG via Virtual Workspace
-func NewVirtualWorkspaceClient() (client.Client, error) {
+func NewVirtualWorkspaceClient(apiExportName string) (client.Client, error) {
 	restConfig, err := GetRESTConfig()
 	if err != nil {
 		return nil, err
@@ -193,7 +193,7 @@ func NewVirtualWorkspaceClient() (client.Client, error) {
 	// Try up to 120 seconds for the virtual workspace URL to become available.
 	err = wait.PollImmediate(time.Second, time.Second*120, func() (bool, error) {
 		var err error
-		restConfig, err = restConfigForAPIExport(context.Background(), restConfig, apiExportClient, "gitopsrvc-backend-shared")
+		restConfig, err = restConfigForAPIExport(context.Background(), restConfig, apiExportClient, apiExportName)
 		if err != nil {
 			fmt.Printf("error looking up virtual workspace URL: '%v', retrying in 1 second.\n", err)
 			return false, nil

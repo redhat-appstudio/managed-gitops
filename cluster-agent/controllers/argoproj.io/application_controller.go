@@ -149,16 +149,15 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 			applicationState.ReconciledState = reconciledState
 
-			// Update applicationState.SyncError with the ArgoCD application syncError message
-			for _, syncError := range app.Status.Conditions {
-				// Update syncError field of appliactionState only if type is SyncError
-				if syncError.Type == appv1.ApplicationConditionSyncError {
-					applicationState.SyncError = db.TruncateVarchar(syncError.Message, db.ApplicationStateSyncErrorLength)
-				} else if syncError.Type != appv1.ApplicationConditionSyncError {
-					// If ApplicationConditionSyncError doesn't exist set applicationState.SyncError to ""
-					applicationState.SyncError = ""
+			// Look for SyncError condition in the Argo CD Application status field, and if found, update the database row
+			syncErrorMessageFromArgoApplication := ""
+			for _, argoAppCondition := range app.Status.Conditions {
+				if argoAppCondition.Type == appv1.ApplicationConditionSyncError {
+					// Update syncError field of appliactionState only if type is SyncError
+					syncErrorMessageFromArgoApplication = db.TruncateVarchar(argoAppCondition.Message, db.ApplicationStateSyncErrorLength)
 				}
 			}
+			applicationState.SyncError = syncErrorMessageFromArgoApplication
 
 			if errCreate := r.Cache.CreateApplicationState(ctx, *applicationState); errCreate != nil {
 				log.Error(errCreate, "unexpected error on writing new application state")
@@ -198,16 +197,15 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	applicationState.ReconciledState = reconciledState
 
-	// Update applicationState.SyncError with the ArgoCD application syncError message
-	for _, syncError := range app.Status.Conditions {
-		// Update syncError field of appliactionState only if type is syncError
-		if syncError.Type == appv1.ApplicationConditionSyncError {
-			applicationState.SyncError = db.TruncateVarchar(syncError.Message, db.ApplicationStateSyncErrorLength)
-		} else if syncError.Type != appv1.ApplicationConditionSyncError {
-			// If ApplicationConditionSyncError doesn't exist set applicationState.SyncError to ""
-			applicationState.SyncError = ""
+	// Look for SyncError condition in the Argo CD Application status field, and if found, update the database row
+	syncErrorMessageFromArgoApplication := ""
+	for _, argoAppCondition := range app.Status.Conditions {
+		if argoAppCondition.Type == appv1.ApplicationConditionSyncError {
+			// Update syncError field of appliactionState only if type is SyncError
+			syncErrorMessageFromArgoApplication = db.TruncateVarchar(argoAppCondition.Message, db.ApplicationStateSyncErrorLength)
 		}
 	}
+	applicationState.SyncError = syncErrorMessageFromArgoApplication
 
 	if err := r.Cache.UpdateApplicationState(ctx, *applicationState); err != nil {
 

@@ -28,6 +28,8 @@ import (
 	testStructs "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1/mocks/structs"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
+
+	conditions "github.com/redhat-appstudio/managed-gitops/backend/condition"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -839,9 +841,12 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(gitopsDeployment.Status.ReconciledState.Source.RepoURL).To(Equal(reconciledobj.Source.RepoURL))
 			Expect(gitopsDeployment.Status.ReconciledState.Source.Branch).To(Equal(reconciledobj.Source.TargetRevision))
 			Expect(gitopsDeployment.Status.ReconciledState.Destination.Namespace).To(Equal(reconciledobj.Destination.Namespace))
-			Expect(gitopsDeployment.Status.Conditions[0].Message).To(Equal(applicationState.SyncError))
-			Expect(gitopsDeployment.Status.Conditions[0].Status).To(Equal(managedgitopsv1alpha1.GitOpsConditionStatusTrue))
-			Expect(gitopsDeployment.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError))
+
+			matchingCondition, _ := conditions.NewConditionManager().FindCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError)
+			Expect(matchingCondition).ToNot(BeNil())
+			Expect(matchingCondition.Message).To(Equal(applicationState.SyncError))
+			Expect(matchingCondition.Status).To(Equal(managedgitopsv1alpha1.GitOpsConditionStatusTrue))
+			Expect(matchingCondition.Type).To(Equal(managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError))
 
 			By("Update SyncError in ApplicationState to be empty")
 			applicationState = &db.ApplicationState{
@@ -868,7 +873,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(clientErr).To(BeNil())
 
 			By("Verify status condition of syncError is false as applicationState.SyncError is empty and gitopsDeployment syncError condition is true and updated from true to false after calling deploymentStatusTick")
-			Expect(gitopsDeployment.Status.Conditions[0].Status).To(Equal(managedgitopsv1alpha1.GitOpsConditionStatusFalse))
+			matchingCondition, _ = conditions.NewConditionManager().FindCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError)
+			Expect(matchingCondition).ToNot(BeNil())
+			Expect(matchingCondition.Status).To(Equal(managedgitopsv1alpha1.GitOpsConditionStatusFalse))
 
 			// ----------------------------------------------------------------------------
 			By("Delete GitOpsDepl to clean resources.")

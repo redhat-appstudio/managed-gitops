@@ -124,7 +124,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	preprocessEventLoop := preprocess_event_loop.NewPreprocessEventLoop()
+	preprocessEventLoop := preprocess_event_loop.NewPreprocessEventLoop(apiExportName)
 
 	if err = (&managedgitopscontrollers.GitOpsDeploymentReconciler{
 		PreprocessEventLoop: preprocessEventLoop,

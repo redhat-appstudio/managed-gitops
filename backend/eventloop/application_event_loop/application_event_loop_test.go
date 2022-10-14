@@ -21,7 +21,8 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				mockChannel: make(chan *eventlooptypes.EventLoopEvent),
 			}
 
-			inputChan := startApplicationEventQueueLoopWithFactory(context.Background(), "", "", "", nil, &mockApplicationEventLoopRunnerFactory)
+			inputChan := startApplicationEventQueueLoopWithFactory(context.Background(), "", "", "", nil,
+				&mockApplicationEventLoopRunnerFactory, "gitops-api")
 
 			inputChan <- eventlooptypes.EventLoopMessage{
 				MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,

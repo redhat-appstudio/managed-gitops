@@ -38,27 +38,27 @@ var (
 )
 
 func StartApplicationEventQueueLoop(ctx context.Context, gitopsDeploymentName string, gitopsDeploymentNamespace string, workspaceID string,
-	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop) chan eventlooptypes.EventLoopMessage {
+	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, vwsAPIExportName string) chan eventlooptypes.EventLoopMessage {
 
 	res := make(chan eventlooptypes.EventLoopMessage)
 
-	go applicationEventQueueLoop(ctx, res, gitopsDeploymentName, gitopsDeploymentNamespace, workspaceID, sharedResourceEventLoop, defaultApplicationEventRunnerFactory{})
+	go applicationEventQueueLoop(ctx, res, gitopsDeploymentName, gitopsDeploymentNamespace, workspaceID, sharedResourceEventLoop, defaultApplicationEventRunnerFactory{}, vwsAPIExportName)
 
 	return res
 }
 
 func startApplicationEventQueueLoopWithFactory(ctx context.Context, gitopsDeploymentName string, gitopsDeploymentNamespace string, workspaceID string,
-	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, aerFactory applicationEventRunnerFactory) chan eventlooptypes.EventLoopMessage {
+	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, aerFactory applicationEventRunnerFactory, vwsAPIExportName string) chan eventlooptypes.EventLoopMessage {
 
 	res := make(chan eventlooptypes.EventLoopMessage)
 
-	go applicationEventQueueLoop(ctx, res, gitopsDeploymentName, gitopsDeploymentNamespace, workspaceID, sharedResourceEventLoop, aerFactory)
+	go applicationEventQueueLoop(ctx, res, gitopsDeploymentName, gitopsDeploymentNamespace, workspaceID, sharedResourceEventLoop, aerFactory, vwsAPIExportName)
 
 	return res
 }
 
 func applicationEventQueueLoop(ctx context.Context, input chan eventlooptypes.EventLoopMessage, gitopsDeploymentName string, gitopsDeploymentNamespace string,
-	workspaceID string, sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, aerFactory applicationEventRunnerFactory) {
+	workspaceID string, sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, aerFactory applicationEventRunnerFactory, vwsAPIExportName string) {
 
 	log := log.FromContext(ctx).WithValues("workspaceID", workspaceID, "gitOpsDeplName", gitopsDeploymentName,
 		"gitopsDeplNamespace", gitopsDeploymentNamespace).WithName("application-event-loop")
@@ -86,7 +86,7 @@ func applicationEventQueueLoop(ctx context.Context, input chan eventlooptypes.Ev
 	syncOperationEventRunnerShutdown := false
 
 	// Start the ticker, which will -- every X seconds -- instruct the GitOpsDeployment CR fields to update
-	startNewStatusUpdateTimer(ctx, input, log)
+	startNewStatusUpdateTimer(ctx, input, vwsAPIExportName, log)
 
 	for {
 
@@ -157,7 +157,7 @@ func applicationEventQueueLoop(ctx context.Context, input chan eventlooptypes.Ev
 				// After we finish processing a previous status tick, start the timer to queue up a new one.
 				// This ensures we are always reminded to do a status update.
 				activeDeploymentEvent = nil
-				startNewStatusUpdateTimer(ctx, input, log)
+				startNewStatusUpdateTimer(ctx, input, vwsAPIExportName, log)
 
 			} else if newEvent.Event.ReqResource == eventlooptypes.GitOpsDeploymentTypeName ||
 				newEvent.Event.ReqResource == eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName {
@@ -232,7 +232,7 @@ func applicationEventQueueLoop(ctx context.Context, input chan eventlooptypes.Ev
 
 // startNewStatusUpdateTimer will send a timer tick message to the application event loop in X seconds.
 // This tick informs the runner that it needs to update the status field of the Deployment.
-func startNewStatusUpdateTimer(ctx context.Context, input chan eventlooptypes.EventLoopMessage, log logr.Logger) {
+func startNewStatusUpdateTimer(ctx context.Context, input chan eventlooptypes.EventLoopMessage, vwsAPIExportName string, log logr.Logger) {
 
 	// Up to 1 second of jitter
 	// #nosec
@@ -247,7 +247,7 @@ func startNewStatusUpdateTimer(ctx context.Context, input chan eventlooptypes.Ev
 		// Keep trying to create k8s client, until we succeed
 		backoff := sharedutil.ExponentialBackoff{Factor: 2, Min: time.Millisecond * 200, Max: time.Second * 10, Jitter: true}
 		for {
-			workspaceClient, err = getk8sClient()
+			workspaceClient, err = getk8sClient(vwsAPIExportName)
 			if err == nil {
 				break
 			} else {
@@ -280,9 +280,9 @@ func startNewStatusUpdateTimer(ctx context.Context, input chan eventlooptypes.Ev
 	}()
 }
 
-func getk8sClient() (client.Client, error) {
+func getk8sClient(apiExportName string) (client.Client, error) {
 	if sharedutil.IsRunningAgainstKCP() && !sharedutil.IsKCPVirtualWorkspaceDisabled() {
-		return sharedutil.NewVirtualWorkspaceClient()
+		return sharedutil.NewVirtualWorkspaceClient(apiExportName)
 	}
 
 	return eventlooptypes.GetK8sClientForServiceWorkspace()

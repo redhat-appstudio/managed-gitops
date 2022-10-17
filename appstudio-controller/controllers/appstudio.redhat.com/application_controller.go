@@ -85,79 +85,8 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	}
 
-	// Convert the app name to corresponding GitOpsDeployment name, ensuring that the GitOpsDeployment name fits within 64 chars
-	gitopsDeplName := sanitizeAppNameWithSuffix(asApplication.Name, deploymentSuffix)
-
-	gitopsDeployment := &gitopsdeploymentv1alpha1.GitOpsDeployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      gitopsDeplName,
-			Namespace: asApplication.Namespace,
-		},
-	}
-
-	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(gitopsDeployment), gitopsDeployment); err != nil {
-
-		if apierrors.IsNotFound(err) {
-			// B) GitOpsDeployment doesn't exist, but Application does, so create the GitOpsDeployment
-
-			// Sanity check the application before we do anything more with it
-			if err := validateApplication(asApplication); err != nil {
-				return ctrl.Result{}, err
-			}
-
-			err := processCreateGitOpsDeployment(ctx, asApplication, r.Client, log)
-
-			return ctrl.Result{}, err
-
-		} else {
-			log.Error(err, "unexpected error on retrieving GitOpsDeployment", "req", req)
-			return ctrl.Result{}, err
-		}
-	}
-
-	// C) GitOpsDeployment exists, and Application exists, so check if they differ. If so, update the old one.
-
-	// Sanity check the application before we do anything more with it
-	if err := validateApplication(asApplication); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	sharedutil.LogAPIResourceChangeEvent(asApplication.Namespace, asApplication.Name, asApplication, sharedutil.ResourceCreated, log)
-	gopFromApplication, err := generateNewGitOpsDeploymentFromApplication(asApplication)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("unable to convert Application to GitOpsDeployment: %v", err)
-	}
-
-	if reflect.DeepEqual(gopFromApplication.Spec, gitopsDeployment.Spec) {
-		// D) Both exist, but there is no different, so no-op.
-		log.V(sharedutil.LogLevel_Debug).Info(fmt.Sprintf("GitOpsDeployment '%s' is unchanged from Application, so did not require an update.",
-			gitopsDeployment.Namespace+"/"+gitopsDeployment.Name))
-
-		return ctrl.Result{}, nil
-	}
-
-	// Replace the old spec field with the new spec field
-	gitopsDeployment.Spec = gopFromApplication.Spec
-
-	if log.V(sharedutil.LogLevel_Debug).Enabled() {
-
-		jsonStr, err := json.Marshal(gitopsDeployment.Spec)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		log.V(sharedutil.LogLevel_Debug).
-			Info(fmt.Sprintf("updating GitOpsDeployment '%s' with new spec: '%s'",
-				gitopsDeployment.Namespace+"/"+gitopsDeployment.Name, string(jsonStr)))
-
-	} else {
-		log.Info(fmt.Sprintf("updating GitOpsDeployment '%s' with new spec",
-			gitopsDeployment.Namespace+"/"+gitopsDeployment.Name))
-	}
-
-	if err := r.Client.Update(ctx, gitopsDeployment); err != nil {
-		return ctrl.Result{}, err
-	}
-	sharedutil.LogAPIResourceChangeEvent(gitopsDeployment.Namespace, gitopsDeployment.Name, gitopsDeployment, sharedutil.ResourceModified, log)
+	// Moved the code which was creating GitopsDeployment CR to `GitOpsDeploymentCreation` function
+	// to disable the logic which create a GitOpsDeployment for every AppStudio Application
 
 	return ctrl.Result{}, nil
 }
@@ -194,6 +123,7 @@ func processDeleteGitOpsDeployment(ctx context.Context, req ctrl.Request, k8sCli
 }
 
 // processCreateGitOpsDeployment creates the GitOpsDeployment that corresponds to 'asApplication'
+//nolint
 func processCreateGitOpsDeployment(ctx context.Context, asApplication applicationv1alpha1.Application, client client.Client, log logr.Logger) error {
 
 	// Since the GitOpsDeployment doesn't exist, we create it.
@@ -219,6 +149,7 @@ func processCreateGitOpsDeployment(ctx context.Context, asApplication applicatio
 }
 
 // Sanity test the application
+//nolint
 func validateApplication(asApplication applicationv1alpha1.Application) error {
 
 	if strings.TrimSpace(asApplication.Name) == "" {
@@ -238,6 +169,7 @@ func validateApplication(asApplication applicationv1alpha1.Application) error {
 
 }
 
+//nolint
 func getGitOpsRepoData(asApplication applicationv1alpha1.Application) (string, string, string, error) {
 
 	var err error
@@ -295,6 +227,7 @@ func getGitOpsRepoData(asApplication applicationv1alpha1.Application) (string, s
 
 // generateNewGitOpsDeploymentFromApplication converts the Application into a corresponding GitOpsDeployment, by
 // matching their corresponding fields.
+//nolint
 func generateNewGitOpsDeploymentFromApplication(asApplication applicationv1alpha1.Application) (gitopsdeploymentv1alpha1.GitOpsDeployment, error) {
 
 	url, branch, context, err := getGitOpsRepoData(asApplication)
@@ -357,4 +290,85 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&applicationv1alpha1.Application{}).
 		Complete(r)
+}
+
+//gitOpsDeploymentCreation consits of gitopsDeployment creation code to disable appstudio logic which create a GitOpsDeployment for every AppStudio Application by adding the logic in this function
+//and this function `GitOpsDeploymentCreation` will exist, but nothing should call it, Will remove this logic completely once requirement is fullfilled
+//nolint
+func gitOpsDeploymentCreation(asApplication applicationv1alpha1.Application, ctx context.Context, req ctrl.Request, k8sClient client.Client, log logr.Logger) (ctrl.Result, error) {
+	// Convert the app name to corresponding GitOpsDeployment name, ensuring that the GitOpsDeployment name fits within 64 chars
+	gitopsDeplName := sanitizeAppNameWithSuffix(asApplication.Name, deploymentSuffix)
+
+	gitopsDeployment := &gitopsdeploymentv1alpha1.GitOpsDeployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      gitopsDeplName,
+			Namespace: asApplication.Namespace,
+		},
+	}
+
+	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsDeployment), gitopsDeployment); err != nil {
+
+		if apierrors.IsNotFound(err) {
+			// B) GitOpsDeployment doesn't exist, but Application does, so create the GitOpsDeployment
+
+			// Sanity check the application before we do anything more with it
+			if err := validateApplication(asApplication); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			err := processCreateGitOpsDeployment(ctx, asApplication, k8sClient, log)
+
+			return ctrl.Result{}, err
+
+		} else {
+			log.Error(err, "unexpected error on retrieving GitOpsDeployment", "req", req)
+			return ctrl.Result{}, err
+		}
+	}
+
+	// C) GitOpsDeployment exists, and Application exists, so check if they differ. If so, update the old one.
+
+	// Sanity check the application before we do anything more with it
+	if err := validateApplication(asApplication); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	sharedutil.LogAPIResourceChangeEvent(asApplication.Namespace, asApplication.Name, asApplication, sharedutil.ResourceCreated, log)
+	gopFromApplication, err := generateNewGitOpsDeploymentFromApplication(asApplication)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("unable to convert Application to GitOpsDeployment: %v", err)
+	}
+
+	if reflect.DeepEqual(gopFromApplication.Spec, gitopsDeployment.Spec) {
+		// D) Both exist, but there is no different, so no-op.
+		log.V(sharedutil.LogLevel_Debug).Info(fmt.Sprintf("GitOpsDeployment '%s' is unchanged from Application, so did not require an update.",
+			gitopsDeployment.Namespace+"/"+gitopsDeployment.Name))
+
+		return ctrl.Result{}, nil
+	}
+
+	// Replace the old spec field with the new spec field
+	gitopsDeployment.Spec = gopFromApplication.Spec
+
+	if log.V(sharedutil.LogLevel_Debug).Enabled() {
+
+		jsonStr, err := json.Marshal(gitopsDeployment.Spec)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		log.V(sharedutil.LogLevel_Debug).
+			Info(fmt.Sprintf("updating GitOpsDeployment '%s' with new spec: '%s'",
+				gitopsDeployment.Namespace+"/"+gitopsDeployment.Name, string(jsonStr)))
+
+	} else {
+		log.Info(fmt.Sprintf("updating GitOpsDeployment '%s' with new spec",
+			gitopsDeployment.Namespace+"/"+gitopsDeployment.Name))
+	}
+
+	if err := k8sClient.Update(ctx, gitopsDeployment); err != nil {
+		return ctrl.Result{}, err
+	}
+	sharedutil.LogAPIResourceChangeEvent(gitopsDeployment.Namespace, gitopsDeployment.Name, gitopsDeployment, sharedutil.ResourceModified, log)
+
+	return ctrl.Result{}, nil
 }

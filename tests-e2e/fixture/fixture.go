@@ -3,8 +3,10 @@ package fixture
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -437,6 +439,20 @@ func DeleteNamespace(namespaceParam string) error {
 	return nil
 }
 
+func rateLimitSanityCheck(restConfig *rest.Config) error {
+	if restConfig != nil {
+		// Prevent rate limiting of our requests
+		restConfig.QPS = 100
+		restConfig.Burst = 250
+
+		// Sanity check that we're not running on a known staging system: don't want to accidentally break staging :|
+		if strings.Contains(restConfig.Host, "x99m.p1.openshiftapps.com") {
+			return fmt.Errorf("E2E tests should not be run on staging server")
+		}
+	}
+	return nil
+}
+
 // Retrieve the system-level Kubernetes config (e.g. ~/.kube/config)
 func GetKubeConfig() (*rest.Config, error) {
 
@@ -446,19 +462,55 @@ func GetKubeConfig() (*rest.Config, error) {
 	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
 
 	restConfig, err := clientConfig.ClientConfig()
+	if err != nil {
+		panic(err)
+	}
 
-	if restConfig != nil {
-		// Prevent rate limiting of our requests
-		restConfig.QPS = 100
-		restConfig.Burst = 250
-
-		// Sanity check that we're not running on a known staging system: don't want to accidentally break staging :|
-		if strings.Contains(restConfig.Host, "x99m.p1.openshiftapps.com") {
-			return nil, fmt.Errorf("E2E tests should not be run on staging server")
-		}
+	err = rateLimitSanityCheck(restConfig)
+	if err != nil {
+		panic(err)
 	}
 
 	return restConfig, err
+}
+
+// GetE2ETestUserWorkspaceKubeConfig retrieves the E2ETest User workspace Kubernetes config
+func GetE2ETestUserWorkspaceKubeConfig() (*rest.Config, error) {
+
+	var kubeconfig *string
+	kubeconfig = flag.String("kubeconfig", filepath.Join("/tmp", "gitops-service-provider-ws.config"), "(optional) absolute path to the kubeconfig file")
+	flag.Parse()
+
+	restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	if err != nil {
+		fmt.Errorf("could not fund the config")
+	}
+	flag.Parse()
+
+	err = rateLimitSanityCheck(restConfig)
+	if err != nil {
+		panic(err)
+	}
+
+	return restConfig, nil
+}
+
+// GetServiceProviderWorkspaceKubeConfig retrieves the Service Provider workspace Kubernetes config
+func GetServiceProviderWorkspaceKubeConfig() (*rest.Config, error) {
+
+	return nil, nil
+}
+
+// GetVirtualWorkspaceKubeConfig retrieves the GetVirtualWorkspaceKubeConfig Kubernetes config
+func GetVirtualWorkspaceKubeConfig() (*rest.Config, error) {
+
+	return nil, nil
+}
+
+// GetGitOpsEngineInstanceKubeConfig retrieves the GetGitOpsEngineInstanceKubeConfig Kubernetes config
+func GetGitOpsEngineInstanceKubeConfig() (*rest.Config, error) {
+
+	return nil, nil
 }
 
 // GetKubeClientSet returns a Clientset for accesing K8s API resources.

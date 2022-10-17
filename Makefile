@@ -122,10 +122,10 @@ undeploy-appstudio-controller-rbac: kustomize ## Remove appstudio-controller rel
 
 deploy-appstudio-controller: deploy-appstudio-controller-crd deploy-appstudio-controller-rbac ## Deploy appstudio-controller operator into Kubernetes -- e.g. make appstudio-controller IMG=quay.io/pgeorgia/gitops-service:latest
 	kubectl create namespace gitops 2> /dev/null || true
-	COMMON_IMAGE=${IMG} envsubst < $(MAKEFILE_ROOT)/manifests/controller-deployments/managed-gitops-appstudio-controller-deployment.yaml | kubectl apply -f -
+	COMMON_IMAGE=${IMG} envsubst < $(MAKEFILE_ROOT)/manifests/controller-deployments/appstudio-controller/managed-gitops-appstudio-controller-deployment.yaml | kubectl apply -f -
 
 undeploy-appstudio-controller: undeploy-appstudio-controller-rbac undeploy-appstudio-controller-crd ## Undeploy appstudio-controller from Kubernetes
-	kubectl delete -f $(MAKEFILE_ROOT)/manifests/controller-deployments/managed-gitops-appstudio-controller-deployment.yaml
+	kubectl delete -f $(MAKEFILE_ROOT)/manifests/controller-deployments/appstudio-controller/managed-gitops-appstudio-controller-deployment.yaml
 
 build-appstudio-controller: ## Build only
 	cd $(MAKEFILE_ROOT)/appstudio-controller && make build

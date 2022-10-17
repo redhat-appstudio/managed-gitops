@@ -36,6 +36,7 @@ import (
 )
 
 const (
+	// If the 'bindingLabel' string is present in a label of the SnapshotEnvironmentBinding, that label is copied to child GitOpsDeployments of the SnapshotEnvironmentBinding
 	bindingLabel = "appstudio.openshift.io"
 )
 

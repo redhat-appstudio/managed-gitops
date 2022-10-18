@@ -153,10 +153,10 @@ e2e-reset: ## Kills the port-forwarding and the controllers
 	pkill kubectl
 
 install-argocd-openshift: ## Using OpenShift GitOps, install Argo CD to the gitops-service-argocd namespace
-	manifests/openshift-argo-deploy/deploy.sh
+	timeout 5m bash manifests/openshift-argo-deploy/deploy.sh
 
 install-argocd-k8s: ## (Non-OpenShift): Install Argo CD to the gitops-service-argocd namespace
-	ARGO_CD_VERSION=$(ARGO_CD_VERSION) manifests/k8s-argo-deploy/deploy.sh
+	ARGO_CD_VERSION=$(ARGO_CD_VERSION) timeout 5m bash manifests/k8s-argo-deploy/deploy.sh
 
 uninstall-argocd: ## Uninstall Argo CD from gitops-service-argocd namespace (from either OpenShift or K8s)
 	kubectl delete namespace "$(ARGO_CD_NAMESPACE)" || true

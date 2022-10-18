@@ -285,5 +285,6 @@ fi
 
 # clean the tmp directory created for the local setup
 echo "e2e tests on kcp ran successfully, cleanup initiated ..."
-rm -rf ${TMP_DIR}
-cleanup
+exit 0
+#rm -rf ${TMP_DIR}
+#cleanup

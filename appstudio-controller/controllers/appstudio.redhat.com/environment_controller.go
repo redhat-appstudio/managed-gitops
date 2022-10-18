@@ -25,9 +25,9 @@ import (
 
 	appstudioshared "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/errors"
-	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
+
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -74,7 +74,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 		return ctrl.Result{}, fmt.Errorf("unable to retrieve Environment: %v", err)
 	}
-	var err errors.UserError
+
 	desiredManagedEnv, err := generateDesiredResource(ctx, *environment, r.Client)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to generate expected GitOpsDeploymentManagedEnvironment resource: %v", err)
@@ -148,7 +148,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 // 	}
 // }
 
-func generateDesiredResource(ctx context.Context, env appstudioshared.Environment, k8sClient client.Client) (*managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, errors.UserError) {
+func generateDesiredResource(ctx context.Context, env appstudioshared.Environment, k8sClient client.Client) (*managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, error) {
 
 	// Don't process the Environment configuration fields if they are empty
 	if env.Spec.UnstableConfigurationFields == nil {
@@ -164,11 +164,9 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 	}
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(secret), secret); err != nil {
 		if apierr.IsNotFound(err) {
-			userError := fmt.Sprintf("unable to retrieve secret: %v", secret.Name)
-			devError := fmt.Errorf("the secret '%s' referenced by the Environment resource was not found: %v", secret.Name, err)
-			return nil, errors.NewUserDevError(userError, devError)
+			return nil, fmt.Errorf("the secret '%s' referenced by the Environment resource was not found: %v", secret.Name, err)
 		}
-		return nil, errors.NewDevOnlyError(err)
+		return nil, err
 	}
 
 	// 2) Generate (but don't apply) the corresponding GitOpsDeploymentManagedEnvironment resource

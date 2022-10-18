@@ -648,8 +648,8 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 					fakeClient: k8sClient,
 				},
 			}
-			_, userDevErr = a.applicationEventRunner_handleSyncRunModified(ctx, dbQueries)
-			Expect(userDevErr).To(BeNil())
+			_, err = a.applicationEventRunner_handleSyncRunModified(ctx, dbQueries)
+			Expect(err).To(BeNil())
 		})
 
 		It("Ensure the sync run handler fails when an invalid new sync run resource is passed.", func() {
@@ -729,8 +729,8 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 					fakeClient: k8sClient,
 				},
 			}
-			_, userDevErr = a.applicationEventRunner_handleSyncRunModified(ctx, dbQueries)
-			Expect(userDevErr).NotTo(BeNil())
+			_, err = a.applicationEventRunner_handleSyncRunModified(ctx, dbQueries)
+			Expect(err).NotTo(BeNil())
 
 		})
 	})
@@ -1992,7 +1992,8 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 				k8sClientFactory:            mockK8sClientFactory,
 			}
 
-			canShutdown, originalAppFromCall, engineInstanceFromCall, _, userDevErr := appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			canShutdown, originalAppFromCall, engineInstanceFromCall, _, userDevErr := appEventLoopRunnerAction.
+				applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 
 			Expect(canShutdown).To(BeFalse())
 			Expect(originalAppFromCall).ToNot(BeNil())
@@ -2009,7 +2010,8 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 
 			By("calling handleDeploymentModified again, now that we have updated the GitOpsDeployment")
 
-			canShutdown, appFromCall, engineInstanceFromCall, _, userDevErr := appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			canShutdown, appFromCall, engineInstanceFromCall, _, userDevErr := appEventLoopRunnerAction.
+				applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(canShutdown).To(BeFalse())
 			Expect(appFromCall).ToNot(BeNil())
 			Expect(appFromCall.Application_id).To(Equal(originalAppFromCall.Application_id))
@@ -2328,8 +2330,8 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 				WorkspaceID:             string(namespace.UID),
 			}
 
-			informGitOpsDepl, userDevError := handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx, *gitopsDepl, &newEvent, dbQueries)
-			Expect(userDevError).To(BeNil())
+			informGitOpsDepl, err := handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx, *gitopsDepl, &newEvent, dbQueries)
+			Expect(err).To(BeNil())
 			Expect(informGitOpsDepl).To(BeTrue(), "when the Application DB row references the corresponding ManagedEnv row, it should return true")
 
 			By("deleting the connection from the ManagedEnv CR to the ManagedEnv row")
@@ -2338,8 +2340,8 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 			Expect(rowsDeleted).To(Equal(1))
 
 			By("calling the function with a ManagedEnvironment event, but this time we expect a different result")
-			informGitOpsDepl, userDevError = handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx, *gitopsDepl, &newEvent, dbQueries)
-			Expect(userDevError).To(BeNil())
+			informGitOpsDepl, err = handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx, *gitopsDepl, &newEvent, dbQueries)
+			Expect(err).To(BeNil())
 			Expect(informGitOpsDepl).To(BeFalse(), "when function can't locate the ManagedEnvironment row from the CR, it should return false")
 
 		})

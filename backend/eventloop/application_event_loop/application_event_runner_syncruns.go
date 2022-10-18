@@ -21,11 +21,32 @@ import (
 
 // This file is responsible for processing events related to GitOpsDeploymentSyncRun CR.
 
-func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRunModified(ctx context.Context, dbQueries db.ApplicationScopedQueries) (bool, errors.UserError) {
+func (action *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRunModified(ctx context.Context, dbQueries db.ApplicationScopedQueries) (bool, error) {
+
+	// Handle all GitOpsDeployment related events
+	signalledShutdown, err := action.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
+
+	// TODO: GITOPSRVCE-44: Get the SyncRunModified object from k8s, so we can update it if necessary
+
+	// TODO: GITOPSRVCE-44: Add the ErrorOccurred condition to the syncRunModified
+
+	// TODO: GITOPSRVCE-44: If no user error (just dev error), then output generic error occurred
+
+	if err == nil {
+		return signalledShutdown, nil
+	} else {
+		return signalledShutdown, err.DevError()
+	}
+
+}
+
+func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRunModifiedInternal(ctx context.Context,
+	dbQueries db.ApplicationScopedQueries) (bool, errors.UserError) {
+
+	log := a.log
 
 	deplName := a.eventResourceName
 	deplNamespace := a.eventResourceNamespace
-	log := a.log
 
 	namespace := corev1.Namespace{}
 	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: a.eventResourceNamespace, Name: a.eventResourceNamespace}, &namespace); err != nil {
@@ -38,7 +59,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 	clusterUser, _, err := a.sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, a.workspaceClient, namespace, log)
 	if err != nil {
 		userError := "unable to identify the identify of the user"
-		devError := fmt.Errorf("unable to retrieve cluster user in handleDeploymentModified, '%s': %v",
+		devError := fmt.Errorf("unable to retrieve cluster user in applicationEventRunner_handleSyncRunModifiedInternal, '%s': %v",
 			string(namespace.UID), err)
 		return false, errors.NewUserDevError(userError, devError)
 	}
@@ -76,7 +97,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 				dbEntryExists = false
 			} else {
 				// A generic error occured, so just return
-				userError := "unable to retrieve GitOpsDeploymentSyncRun metadata from the database, due to an unknown error"
+				userError := "unable to retrieve GitOpsDeploymentSyncRun metadata from the internal database, due to an unknown error"
 				log.Error(err, "unable to resource APICRToDatabaseMapping", "uid", string(syncRunCR.UID))
 				return false, errors.NewUserDevError(userError, err)
 			}
@@ -136,7 +157,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 				err := fmt.Errorf("unable to retrieve gitopsdeployment referenced in syncrun: %v", err)
 				// TODO: GITOPSRVCE-44 - ENHANCEMENT - If the gitopsDepl isn't referenced, update the status of the GitOpsDeplomentSyncRun condition as an error and return
 				// TODO: GITOPSRVCE-44 - ENHANCEMENT - implement status conditions on GitOpsDeploymentSyncRun
-				userError := fmt.Sprintf("unable to retrieve gitopsdeployment: %v", gitopsDepl)
+				userError := fmt.Sprintf("Unable to retrieve GitOpsDeployment '%s' referenced by the GitOpsDeploymentSyncRun", gitopsDepl.Name)
 				log.Error(err, "handleSyncRunModified error")
 				return false, errors.NewUserDevError(userError, err)
 
@@ -152,20 +173,20 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 
 		if err = dbQueries.GetDeploymentToApplicationMappingByDeplId(ctx, deplToAppMapping); err != nil {
 			log.Error(err, "unable to retrieve deployment to application mapping, on sync run modified", "uid", string(gitopsDepl.UID))
-			return false, errors.NewDevOnlyError(fmt.Errorf("SEVERE - All cases should be handled by above if statements"))
+			return false, errors.NewDevOnlyError(err)
 		}
 
 		application = &db.Application{Application_id: deplToAppMapping.Application_id}
 		if err := dbQueries.GetApplicationById(ctx, application); err != nil {
 			log.Error(err, "unable to retrieve application, on sync run modified", "applicationId", string(deplToAppMapping.Application_id))
-			return false, errors.NewDevOnlyError(fmt.Errorf("SEVERE - All cases should be handled by above if statements"))
+			return false, errors.NewDevOnlyError(err)
 		}
 
 		if gitopsEngineInstance, err = a.sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, application.Engine_instance_inst_id,
 			a.workspaceClient, namespace, a.log); err != nil {
 
 			log.Error(err, "unable to retrieve gitopsengineinstance, on sync run modified", "instanceId", string(application.Engine_instance_inst_id))
-			return false, errors.NewDevOnlyError(fmt.Errorf("SEVERE - All cases should be handled by above if statements"))
+			return false, errors.NewDevOnlyError(err)
 		}
 
 	}
@@ -347,7 +368,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			err := a.cleanupOldSyncDBEntry(ctx, &apiCRToDB, *clusterUser, dbQueries)
 			if err != nil {
 				if allErrors == nil {
-					allErrors = fmt.Errorf("(error: %v)", err)
+					allErrors = err
 				} else {
 					allErrors = fmt.Errorf("error: %v error: %v", err, allErrors)
 				}
@@ -395,15 +416,17 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		}
 
 		if syncOperation.DeploymentNameField != syncRunCR.Spec.GitopsDeploymentName {
-			err := fmt.Errorf("deployment name field is immutable: changing it from its initial value is not supported")
-			log.Error(err, "deployment name field change is not supported")
-			return false, errors.NewDevOnlyError(err)
+			userErrorText := "deployment name field is immutable: changing it from its initial value is not supported"
+			err := fmt.Errorf(userErrorText)
+			log.Error(err, userErrorText)
+			return false, errors.NewUserDevError(userErrorText, err)
 		}
 
 		if syncOperation.Revision != syncRunCR.Spec.RevisionID {
-			err := fmt.Errorf("revision change is not supported: changing it from its initial value is not supported")
+			userErrorText := "revision change is not supported: changing it from its initial value is not supported"
+			err := fmt.Errorf(userErrorText)
 			log.Error(err, "revision field change is not supported")
-			return false, errors.NewDevOnlyError(err)
+			return false, errors.NewUserDevError(userErrorText, err)
 		}
 
 		// TODO: GITOPSRVCE-166 - DEBT - Include test case to check that the various goroutines are terminated when the CR is deleted.
@@ -416,20 +439,20 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 }
 
 func (a *applicationEventLoopRunner_Action) cleanupOldSyncDBEntry(ctx context.Context, apiCRToDB *db.APICRToDatabaseMapping,
-	clusterUser db.ClusterUser, dbQueries db.ApplicationScopedQueries) errors.UserError {
+	clusterUser db.ClusterUser, dbQueries db.ApplicationScopedQueries) error {
 
 	log := a.log
 
 	if apiCRToDB.DBRelationType != db.APICRToDatabaseMapping_DBRelationType_SyncOperation {
 		err := fmt.Errorf("SEVERE: unexpected DBRelationKey, should be SyncOperation")
 		log.Error(err, err.Error())
-		return errors.NewDevOnlyError(err)
+		return err
 	}
 
 	rowsDeleted, err := dbQueries.DeleteSyncOperationById(ctx, apiCRToDB.DBRelationKey)
 	if err != nil {
 		log.Error(err, "unable to delete sync operation db entry on sync operation delete", "key", apiCRToDB.DBRelationKey)
-		return errors.NewDevOnlyError(err)
+		return err
 	} else if rowsDeleted == 0 {
 		log.V(sharedutil.LogLevel_Warn).Error(err, "unexpected number of rows deleted on sync db entry delete", "key", apiCRToDB.DBRelationKey)
 	} else {
@@ -441,7 +464,7 @@ func (a *applicationEventLoopRunner_Action) cleanupOldSyncDBEntry(ctx context.Co
 		&operations, clusterUser.Clusteruser_id); err != nil {
 
 		log.Error(err, "unable to retrieve operations pointing to sync operation", "key", apiCRToDB.DBRelationKey)
-		return errors.NewDevOnlyError(err)
+		return err
 	} else {
 		// Delete the operations that reference this SyncOperation
 		for idx := range operations {
@@ -452,7 +475,7 @@ func (a *applicationEventLoopRunner_Action) cleanupOldSyncDBEntry(ctx context.Co
 			rowsDeleted, err := dbQueries.CheckedDeleteOperationById(ctx, operationId, clusterUser.Clusteruser_id)
 			if err != nil {
 				log.Error(err, "unable to delete old operation")
-				return errors.NewDevOnlyError(err)
+				return err
 			} else if rowsDeleted == 0 {
 				log.V(sharedutil.LogLevel_Warn).Error(err, "unexpected number of deleted rows when deleting old operation")
 			} else {
@@ -464,7 +487,7 @@ func (a *applicationEventLoopRunner_Action) cleanupOldSyncDBEntry(ctx context.Co
 	rowsDeleted, err = dbQueries.DeleteAPICRToDatabaseMapping(ctx, apiCRToDB)
 	if err != nil {
 		log.Error(err, "unable to delete apiCRToDBmapping", "mapping", apiCRToDB.APIResourceUID)
-		return errors.NewDevOnlyError(err)
+		return err
 
 	} else if rowsDeleted == 0 {
 		log.V(sharedutil.LogLevel_Warn).Error(err, "unexpected number of rows deleted of apiCRToDBmapping", "mapping", apiCRToDB.APIResourceUID)

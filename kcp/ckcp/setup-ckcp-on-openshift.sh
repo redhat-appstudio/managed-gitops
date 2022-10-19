@@ -125,17 +125,46 @@ clone-and-setup-ckcp() {
 
 create_kubeconfig_secret() {
   echo "=== create_kubeconfig_secret ==="
-    sa_name="$1"
-    sa_secret_name=$(KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl get sa $sa_name -n $ARGOCD_NAMESPACE -o=jsonpath='{.secrets[0].name}')
 
-    ca=$(KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl get secret/$sa_secret_name -n $ARGOCD_NAMESPACE -o jsonpath='{.data.ca\.crt}')
-    token=$(KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl get secret/$sa_secret_name -n $ARGOCD_NAMESPACE -o jsonpath='{.data.token}' | base64 --decode)
-    namespace=$(KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl get secret/$sa_secret_name -n $ARGOCD_NAMESPACE -o jsonpath='{.data.namespace}' | base64 --decode)
+  sa_name="$1"
+  secret_name="$2"
+  TMP_KUBE_CONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig"
 
-    server=$(KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl config view -o jsonpath='{.clusters[?(@.name == "workspace.kcp.dev/current")].cluster.server}')
+  [ -z "$secret_name" ] && (echo "[FAIL] You forgot to pass 2nd parameter for create_kubeconfig_secret() function"; exit 1)
+  [ -z "$sa_name" ] && (echo "[FAIL] You forgot to pass 1st parameter for create_kubeconfig_secret() function"; exit 1)
+  [ ! -f "$TMP_KUBE_CONFIG" ] && (echo "[FAIL] $TMP_KUBE_CONFIG does not exist."; exit 1)
 
-    secret_name="$2"
-    kubeconfig_secret="
+  # 1. Get the secret name
+  echo "[INFO] Get the secret name for Service Account into $ARGOCD_NAMESPACE namespace"
+  sa_secret_name=$(KUBECONFIG="${TMP_KUBE_CONFIG}" kubectl get sa $sa_name -n $ARGOCD_NAMESPACE -o=jsonpath='{.secrets[0].name}')
+  [ -z "$sa_secret_name" ] && (echo "[FAIL] Cannot get the secret name"; exit 1)
+  echo "[PASS] SA_SECRET_NAME=$sa_secret_name"
+
+  # 2. Get the Certificate Authority (CA)
+  echo "[INFO] Getting CA for that secret"
+  ca=$(KUBECONFIG="${TMP_KUBE_CONFIG}" kubectl get secret/$sa_secret_name -n $ARGOCD_NAMESPACE -o jsonpath='{.data.ca\.crt}')
+  [ -z "$ca" ] && (echo "[FAIL] Cannot get the certificate authority for $sa_secret_name secret"; exit 1)
+  echo "[PASS] CA: $ca"
+
+  # 3. Get the Data Token
+  echo "[INFO] Getting the Data Token for that secret"
+  token=$(KUBECONFIG="${TMP_KUBE_CONFIG}" kubectl get secret/$sa_secret_name -n $ARGOCD_NAMESPACE -o jsonpath='{.data.token}' | base64 --decode)
+  [ -z "$token" ] && (echo "[FAIL] Cannot get the data token for $sa_secret_name secret"; exit 1)
+  echo "[PASS] Data Token: $token"
+
+  # 4. Get the Data Namespace
+  echo "[INFO] Getting the Data Namespace for that secret"
+  namespace=$(KUBECONFIG="${TMP_KUBE_CONFIG}" kubectl get secret/$sa_secret_name -n $ARGOCD_NAMESPACE -o jsonpath='{.data.namespace}' | base64 --decode)
+  [ -z "$namespace" ] && (echo "[FAIL] Cannot get the data namespace for $sa_secret_name secret"; exit 1)
+  echo "[PASS] Data Namespace: $namespace"
+
+  # 5. Get the Server
+  echo "[INFO] Getting the server json section"
+  server=$(KUBECONFIG="${TMP_KUBE_CONFIG}" kubectl config view -o jsonpath='{.clusters[?(@.name == "workspace.kcp.dev/current")].cluster.server}')
+  [ -z "$server" ] && (echo "[FAIL] Cannot get the server section"; exit 1)
+  echo "[PASS] Server JSON section: $server"
+
+  kubeconfig_secret="
 apiVersion: v1
 kind: Secret
 metadata:
@@ -164,7 +193,9 @@ stringData:
         token: ${token}
 "
 
-    echo "${kubeconfig_secret}" | KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl apply -f -
+  echo "[INFO] Applying the kubeconfig secret"
+  echo "${kubeconfig_secret}" | KUBECONFIG="${TMP_KUBE_CONFIG}" kubectl apply -f -
+  if KUBECONFIG="${TMP_KUBE_CONFIG}" kubectl -n ${ARGOCD_NAMESPACE} get secret  ${secret_name} | grep  ${secret_name}; then echo "[PASS] Kubeconfig Secret created"; else echo "[FAIL] Kubeconfig Secret cannot be created"; fi
 }
 
 
@@ -242,10 +273,7 @@ install-argocd-kcp() {
 
  echo "[INFO] Creating KUBECONFIG secrets for argocd server and argocd application controller service accounts"
  create_kubeconfig_secret "argocd-server" "kcp-kubeconfig-controller"
- if KUBECONFIG="$TMP_KUBE_CONFIG" kubectl -n kcp-kubeconfig-controller get secret argocd-server | grep argocd-server; then echo "[PASS] argocd-server secret applied"; else echo "[FAIL] Cannot apply argocd-server secret"; exit 1; fi
-
  create_kubeconfig_secret "argocd-application-controller" "kcp-kubeconfig-server"
-if KUBECONFIG="$TMP_KUBE_CONFIG" kubectl -n argocd-application-controller get secret argocd-application-controller | grep argocd-application-controller; then echo "[PASS] argocd-application-controller secret applied"; else echo "[FAIL] Cannot apply argocd-application-controller secret"; exit 1; fi
 
 
 echo "[INFO] Verifying if argocd components are up and running after mounting kubeconfig secrets within 3 minutes"

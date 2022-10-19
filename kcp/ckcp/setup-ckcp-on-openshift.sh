@@ -232,9 +232,9 @@ install-argocd-kcp() {
   echo "[INFO] Installing Argo CD resources in workspace $WORKSPACE and namespace $ARGOCD_NAMESPACE"
   TMP_KUBE_CONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig"
  [ ! -f "$TMP_KUBE_CONFIG" ] && (echo "[FAIL] $TMP_KUBE_CONFIG does not exist."; exit 1)
-  echo "[INFO] Create $$ARGOCD_NAMESPACE namespace"
-  KUBECONFIG="$TMP_KUBE_CONFIG" kubectl create ns $ARGOCD_NAMESPACE || true
-  if kubectl get ns $ARGOCD_NAMESPACE | grep $ARGOCD_NAMESPACE ; then echo "[PASS] Namespace created"; else echo "[FAIL] Namespace failed to be created"; exit 1; fi
+  echo "[INFO] Create $ARGOCD_NAMESPACE namespace"
+  KUBECONFIG="$TMP_KUBE_CONFIG" kubectl create namespace $ARGOCD_NAMESPACE
+  if KUBECONFIG="$TMP_KUBE_CONFIG" kubectl get namespace $ARGOCD_NAMESPACE | grep $ARGOCD_NAMESPACE ; then echo "[PASS] Namespace created"; else echo "[FAIL] Namespace failed to be created"; exit 1; fi
   echo "[INFO] Apply the manifest $ARGOCD_MANIFEST"
   KUBECONFIG="$TMP_KUBE_CONFIG" kubectl apply -f $ARGOCD_MANIFEST -n $ARGOCD_NAMESPACE
 
@@ -242,10 +242,10 @@ install-argocd-kcp() {
 
  echo "[INFO] Creating KUBECONFIG secrets for argocd server and argocd application controller service accounts"
  create_kubeconfig_secret "argocd-server" "kcp-kubeconfig-controller"
- if kubectl -n kcp-kubeconfig-controller get secret argocd-server | grep argocd-server; then echo "[PASS] argocd-server secret applied"; else echo "[FAIL] Cannot apply argocd-server secret"; exit 1; fi
+ if KUBECONFIG="$TMP_KUBE_CONFIG" kubectl -n kcp-kubeconfig-controller get secret argocd-server | grep argocd-server; then echo "[PASS] argocd-server secret applied"; else echo "[FAIL] Cannot apply argocd-server secret"; exit 1; fi
 
  create_kubeconfig_secret "argocd-application-controller" "kcp-kubeconfig-server"
-if kubectl -n argocd-application-controller get secret argocd-application-controller | grep argocd-application-controller; then echo "[PASS] argocd-application-controller secret applied"; else echo "[FAIL] Cannot apply argocd-application-controller secret"; exit 1; fi
+if KUBECONFIG="$TMP_KUBE_CONFIG" kubectl -n argocd-application-controller get secret argocd-application-controller | grep argocd-application-controller; then echo "[PASS] argocd-application-controller secret applied"; else echo "[FAIL] Cannot apply argocd-application-controller secret"; exit 1; fi
 
 
 echo "[INFO] Verifying if argocd components are up and running after mounting kubeconfig secrets within 3 minutes"
@@ -287,7 +287,7 @@ stringData:
     }
 EOF
 
-if kubectl -n "$ARGOCD_NAMESPACE" get secret  argocd-cluster-config | grep  argocd-cluster-config; then echo "[PASS]  argocd-cluster-config secret applied"; else echo "[FAIL] Cannot apply  argocd-cluster-config secret"; exit 1; fi
+if KUBECONFIG="$TMP_KUBE_CONFIG" kubectl -n "$ARGOCD_NAMESPACE" get secret  argocd-cluster-config | grep  argocd-cluster-config; then echo "[PASS]  argocd-cluster-config secret applied"; else echo "[FAIL] Cannot apply  argocd-cluster-config secret"; exit 1; fi
 
 echo "[PASS] Argo CD is successfully installed in namespace $ARGOCD_NAMESPACE"
 

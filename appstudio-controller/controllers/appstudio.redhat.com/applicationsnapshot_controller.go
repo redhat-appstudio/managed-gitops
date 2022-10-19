@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kcp-dev/logicalcluster/v2"
 	appstudioshared "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -49,9 +48,7 @@ type ApplicationSnapshotReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
 func (r *ApplicationSnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	if req.ClusterName != "" && !sharedutil.IsKCPVirtualWorkspaceDisabled() {
-		ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(req.ClusterName))
-	}
+	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 	_ = log.FromContext(ctx)
 
 	fmt.Println("ApplicationSnapshot event: ", req)

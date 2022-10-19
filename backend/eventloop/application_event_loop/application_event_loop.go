@@ -100,10 +100,6 @@ func applicationEventQueueLoop(ctx context.Context, input chan eventlooptypes.Ev
 		// Block on waiting for more events for this application
 		newEvent := <-input
 
-		// if newEvent.Event.Request.ClusterName != "" && !sharedutil.IsKCPVirtualWorkspaceDisabled() {
-		// 	ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(newEvent.Event.Request.ClusterName))
-		// }
-
 		if newEvent.Event == nil {
 			log.Error(nil, "SEVERE: applicationEventQueueLoop event was nil", "messageType", newEvent.MessageType)
 			continue

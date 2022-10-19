@@ -543,23 +543,23 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 		It("should return an error if the Argo CD Application name field changed between when the GitOpsDeployment was created, and when it was updated", func() {
 
 			By("calling handleDeploymentModified to simulate a new GitOpsDeployment")
-			_, applicationDBRow, _, result, err := appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
-			Expect(err).To(BeNil())
+			_, applicationDBRow, _, result, userDevErr := appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(userDevErr).To(BeNil())
 			Expect(result).To(Equal(deploymentModifiedResult_Created))
 
 			By("calling handleDeploymentModified again, to simulate an unchanged GitOpsDeployment")
-			_, _, _, result, err = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
-			Expect(err).To(BeNil())
+			_, _, _, result, userDevErr = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(userDevErr).To(BeNil())
 			Expect(result).To(Equal(deploymentModifiedResult_NoChange))
 
 			By("updating the Application name field, simulating the case where a different name was set in the Create logic of handleDeploymentModified")
 			applicationDBRow.Name = "a-different-name-than-the-one-set-by-create"
-			err = dbQueries.UpdateApplication(ctx, applicationDBRow)
+			err := dbQueries.UpdateApplication(ctx, applicationDBRow)
 			Expect(err).To(BeNil())
 
 			By("calling handleDeploymentModified again, and expected an error")
-			_, _, _, result, err = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
-			Expect(err).ToNot(BeNil())
+			_, _, _, result, userDevErr = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(userDevErr).ToNot(BeNil())
 			Expect(result).To(Equal(deploymentModifiedResult_Failed))
 
 		})

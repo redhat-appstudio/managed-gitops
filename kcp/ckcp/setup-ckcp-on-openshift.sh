@@ -251,11 +251,11 @@ test-gitops-service-e2e-in-kcp-in-ci() {
 }
 
 delete-gitops-namespace() {
-  echo "=== delete-gitops-namespace() ==="
+  echo "=== delete-gitops-namespac  e() ==="
   # delete openshift-gitops ns to clear out the resources
   echo "[INFO] Delete openshift-gitops namespace to clear our the resources within 1 minute"
   timeout 1m kubectl delete ns openshift-gitops
-  if kubectl get ns openshift-gitop | grep openshift-gitops; then echo '[FAIL] openshift-gitops namespace stil exists'; exit 1; else echo '[PASSED] openshift-gitops namespace has been deleted'; fi
+  if kubectl get ns openshift-gitos | grep openshift-gitops; then echo '[FAIL] openshift-gitops namespace stil exists'; exit 1; else echo '[PASSED] openshift-gitops namespace has been deleted'; fi
 }
 
 install-argocd-kcp() {
@@ -339,8 +339,9 @@ run-tests() {
 # ~~~~
 
 check_if_go_v_compatibility
-clone-and-setup-ckcp
+clone-and-setup-ckcp # This one is running another script as well!
 delete-gitops-namespace
 install-argocd-kcp
 run-tests
 cleanup
+exit 0 # It should have exited long ago in case of problem

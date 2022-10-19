@@ -8,11 +8,53 @@ SCRIPT_DIR="$(
   pwd
 )"
 
-export GITOPS_IN_KCP="true"
-export DISABLE_KCP_VIRTUAL_WORKSPACE="true"
-
 ARGOCD_MANIFEST="$SCRIPT_DIR/../../manifests/kcp/argocd/install-argocd.yaml"
 ARGOCD_NAMESPACE="gitops-service-argocd"
+export TMP_DIR="$(mktemp -d -t kcp-gitops-service.XXXXXXXXX)"
+export GITOPS_IN_KCP="true"
+export DISABLE_KCP_VIRTUAL_WORKSPACE="true"
+export COMPATIBLE_GO_VERSION="1.18"
+export OPENSHIFT_PIPELINES_REPO="https://github.com/openshift-pipelines/pipeline-service.git"
+export OPENSHIFT_PIPELINES_COMMIT_HASH="edacf0348b2ae693eeb62b940dd618c05b34df62"
+export OPENSHIFT_DEV_SCRIPT="${SCRIPT_DIR}/openshift_dev_setup.sh"
+export CONFIG_YAML="${SCRIPT_DIR}/config.yaml"
+export WORKSPACE="gitops-service-compute"
+
+
+[ ! -f "$ARGOCD_MANIFEST" ] && echo "$ARGOCD_MANIFEST does not exist."
+[ ! -f "$TMP_DIR" ] && echo "$TMP_DIR does not exist."
+[ ! -f "$OPENSHIFT_DEV_SCRIPT" ] && echo "$OPENSHIFT_DEV_SCRIPT does not exist."
+[ ! -f "$CONFIG_YAML" ] && echo "$CONFIG_YAML does not exist."
+
+
+echo "Temporary directory: ${TMP_DIR}"
+
+check_if_go_v_compatibility
+clone-and-setup-ckcp
+delete-gitops-namespace
+install-argocd-kcp
+
+
+
+
+OPENSHIFT_CI="${OPENSHIFT_CI:-false}"
+
+if [[ $OPENSHIFT_CI != "" ]]
+then
+    echo "running tests in openshift ci mode"
+    test-gitops-service-e2e-in-kcp-in-ci ${TMP_DIR} ${SCRIPT_DIR}
+else
+    echo "running tests in non openshift-ci mode"
+    test-gitops-service-e2e-in-kcp ${TMP_DIR} ${SCRIPT_DIR}
+fi
+
+# clean the tmp directory created for the local setup
+echo "e2e tests on kcp ran successfully, cleanup initiated ..."
+rm -rf ${TMP_DIR}
+cleanup
+
+# Functions
+# ~~~~~~~~~
 
 cleanup() {
   echo "This is a best effort to stop the controllers."
@@ -41,53 +83,66 @@ version_compatibility() {
 
 # Checks if the go binary exists, and if the go version is suitable to setup KCP env
 check_if_go_v_compatibility() {
-    exit_if_binary_not_installed "go"
-    compatible_v="1.18.0"
-    go_version="$(go version | cut -d " " -f3 | cut -d "o" -f2)"
-    echo "For the KCP local build and setup we need go version equal or greater than: $compatible_v."
-    if version_compatibility $go_version $compatible_v; then
-        echo "$go_version >= $compatible_v, compatibility check success ..."
-    else
-        echo "$go_version is lesser than $compatible_v, exiting ..."
-        exit 1
-    fi
+  echo "=== check_if_go_v_compatibility() ==="
+  echo " [INFO] Checks if the go binary exists, and if the go version is suitable to setup KCP env"
+  exit_if_binary_not_installed "go"
+  go_version="$(go version | cut -d " " -f3 | cut -d "o" -f2)"
+  echo "[INFO] For the KCP local build and setup we need go version equal or greater than: $COMPATIBLE_GO_VERSION."
+  if version_compatibility $go_version $COMPATIBLE_GO_VERSION; then
+    echo "[PASS] $go_version >= $COMPATIBLE_GO_VERSION, compatibility check success ..."
+  else
+    echo "[FAIL] $go_version is lesser than $COMPATIBLE_GO_VERSION, exiting ..."
+    exit 1
+  fi
 }
 
-check_if_go_v_compatibility
 
-TMP_DIR="$(mktemp -d -t kcp-gitops-service.XXXXXXXXX)"
-printf "Temporary directory created: %s\n" "${TMP_DIR}"
-export TMP_DIR=${TMP_DIR}
 
 clone-and-setup-ckcp() {
-    echo $SCRIPT_DIR
-    exit_if_binary_not_installed "git"
-    pushd "${TMP_DIR}"
-    git clone https://github.com/openshift-pipelines/pipeline-service.git
-    pushd pipeline-service
-    git checkout edacf0348b2ae693eeb62b940dd618c05b34df62
-    cp ${SCRIPT_DIR}/openshift_dev_setup.sh ./ckcp/openshift_dev_setup.sh
-    cp ${SCRIPT_DIR}/config.yaml ./ckcp/config.yaml
+  echo "=== clone-and-setup-ckcp() ==="
+  CKCP_OPENSHIFT_DEV_SETUP_SCRIPT="./ckcp/openshift_dev_setup.sh"
+  CKCP_CONFIG_YAML="./ckcp/config.yaml"
+  CKCP_REGISTER_SCRIPT="./images/kcp-registrar/register.sh"
+  exit_if_binary_not_installed "git"
+  pushd "${TMP_DIR}"
+  echo "[INFO] Clogning $OPENSHIFT_PIPELINES_REPO"
+  git clone "$OPENSHIFT_PIPELINES_REPO"
+  pushd pipeline-service
+  echo "[INFO] Checking out a specific cherry-picked commit hash $OPENSHIFT_PIPELINES_COMMIT_HASH"
+  if ! git checkout "$OPENSHIFT_PIPELINES_COMMIT_HASH"; then echo "[FAIL] Problem running git checkout $OPENSHIFT_PIPELINES_COMMIT_HASH"; exit 1; fi
+ 
+  echo "[INFO] Copy "$OPENSHIFT_DEV_SCRIPT" to $CKCP_OPENSHIFT_DEV_SETUP_SCRIPT"
+  cp "$OPENSHIFT_DEV_SCRIPT" "$CKCP_OPENSHIFT_DEV_SETUP_SCRIPT"
+  [ ! -f "$CKCP_OPENSHIFT_DEV_SETUP_SCRIPT" ] && (echo "[FAIL] $CKCP_OPENSHIFT_DEV_SETUP_SCRIPT does not exist."; exit 1)
 
-    sed -i 's/\--resources deployments.apps,services,ingresses.networking.k8s.io,pipelines.tekton.dev,pipelineruns.tekton.dev,tasks.tekton.dev,runs.tekton.dev,networkpolicies.networking.k8s.io/\--resources deployments.apps,services,ingresses.networking.k8s.io,networkpolicies.networking.k8s.io,statefulsets.apps,routes.route.openshift.io/' ./images/kcp-registrar/register.sh
-    printf "\nUpdated the resources to sync as needed for gitops-service and ckcp to run...\n\n"
+
+  echo "[INFO] Copy "$CONFIG_YAML" to $CKCP_CONFIG_YAML"
+  cp "$CONFIG_YAML" "$CKCP_CONFIG_YAML"
+  [ ! -f "$CKCP_CONFIG_YAML" ] && (echo "$CKCP_CONFIG_YAML does not exist."; exit 1)
+
+  [ ! -f "$CKCP_REGISTER_SCRIPT" ] && (echo "[FAIL] $CKCP_REGISTER_SCRIPT does not exist."; exit 1)
+
+  echo "[INFO] Running a crazy sed command against CKCP_REGISTER_SCRIPT"
+  sed -i 's/\--resources deployments.apps,services,ingresses.networking.k8s.io,pipelines.tekton.dev,pipelineruns.tekton.dev,tasks.tekton.dev,runs.tekton.dev,networkpolicies.networking.k8s.io/\--resources deployments.apps,services,ingresses.networking.k8s.io,networkpolicies.networking.k8s.io,statefulsets.apps,routes.route.openshift.io/' "$CKCP_REGISTER_SCRIPT"
+  
+  # TODO Check if sed worked as expected
+
+  echo '[PASS] Updated the resources to sync as needed for gitops-service and ckcp to run...'; echo; echo
     
-    printf "Setting up ckcp in the cluster"
-    ./ckcp/openshift_dev_setup.sh
-    popd
-    popd
+  echo '[INFO] Setting up ckcp in the cluster'
+  bash -x "$CKCP_OPENSHIFT_DEV_SETUP_SCRIPT"
 
-    printf "\nThe pipeline-service repo consisting of ckcp is cloned and setup, ckcp is ready for use...\n\n"
+  #TODO: Check if script worked as expected
+
+  popd
+  popd
+
+  echo '[PASS] The pipeline-service repo consisting of ckcp is cloned and setup, ckcp is ready for use...'; echo; echo
 }
 
-clone-and-setup-ckcp $TMP_DIR
-# delete openshift-gitops ns to clear out the resources
-kubectl delete ns openshift-gitops
-
-WORKSPACE="gitops-service-compute"
-
 create_kubeconfig_secret() {
-    sa_name=$1
+  echo "=== create_kubeconfig_secret ==="
+    sa_name="$1"
     sa_secret_name=$(KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl get sa $sa_name -n $ARGOCD_NAMESPACE -o=jsonpath='{.secrets[0].name}')
 
     ca=$(KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl get secret/$sa_secret_name -n $ARGOCD_NAMESPACE -o jsonpath='{.data.ca\.crt}')
@@ -96,7 +151,7 @@ create_kubeconfig_secret() {
 
     server=$(KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl config view -o jsonpath='{.clusters[?(@.name == "workspace.kcp.dev/current")].cluster.server}')
 
-    secret_name=$2
+    secret_name="$2"
     kubeconfig_secret="
 apiVersion: v1
 kind: Secret
@@ -129,61 +184,12 @@ stringData:
     echo "${kubeconfig_secret}" | KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl apply -f -
 }
 
-echo "Installing Argo CD resources in workspace $WORKSPACE and namespace $ARGOCD_NAMESPACE"
-KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl create ns $ARGOCD_NAMESPACE || true
 
-KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl apply -f $ARGOCD_MANIFEST -n $ARGOCD_NAMESPACE
-
-echo "Creating KUBECONFIG secrets for argocd server and argocd application controller service accounts"
-create_kubeconfig_secret "argocd-server" "kcp-kubeconfig-controller"
-create_kubeconfig_secret "argocd-application-controller" "kcp-kubeconfig-server"
-
-echo "Verifying if argocd components are up and running after mounting kubeconfig secrets"
-KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl wait --for=condition=available deployments/argocd-server -n $ARGOCD_NAMESPACE --timeout 3m
-count=0
-while [ $count -lt 30 ]
-do
-    count=`expr $count + 1`
-    replicas=$(KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl get statefulsets argocd-application-controller -n $ARGOCD_NAMESPACE -o jsonpath='{.spec.replicas}')
-    ready_replicas=$(KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl get statefulsets argocd-application-controller -n $ARGOCD_NAMESPACE -o jsonpath='{.status.readyReplicas}')
-
-    if [ "$replicas" -eq "$ready_replicas" ]; then 
-        break
-    fi
-    if [ $count -eq 30 ]; then 
-        echo "Statefulset argocd-application-controller does not have the required replicas"
-        exit 1
-    fi
-done
-
-cat <<EOF | KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl apply -n $ARGOCD_NAMESPACE -f -
-apiVersion: v1
-kind: Secret
-metadata:
-  name: argocd-cluster-config
-  labels:
-    argocd.argoproj.io/secret-type: cluster
-type: Opaque
-stringData:
-  name: in-cluster
-  namespace: "$ARGOCD_NAMESPACE"
-  server: https://kubernetes.default.svc
-  config: |
-    {
-      "tlsClientConfig": {
-        "insecure": true
-      }
-    }
-EOF
-
-echo "Argo CD is successfully installed in namespace $ARGOCD_NAMESPACE"
-
-KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl get all -n $ARGOCD_NAMESPACE
 
 test-gitops-service-e2e-in-kcp() {
-  
+  echo "=== test-gitops-service-e2e-in-kc() ==="
   export KUBECONFIG=${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig
-  printf "The Kubeconfig being used for this is:" $KUBECONFIG
+  printf "[INFO] The Kubeconfig being used for this is:" $KUBECONFIG
   cd ${SCRIPT_DIR}/../../
   ./delete-dev-env.sh
   make devenv-docker
@@ -193,7 +199,7 @@ test-gitops-service-e2e-in-kcp() {
 } 
 
 test-gitops-service-e2e-in-kcp-in-ci() {
-  
+  echo "=== test-gitops-service-e2e-in-kcp-in-ci ==="
   export KUBECONFIG=${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig
   printf "The Kubeconfig being used for testing e2e tests is: ${KUBECONFIG}\n"
   cd ${SCRIPT_DIR}/../../
@@ -230,18 +236,77 @@ test-gitops-service-e2e-in-kcp-in-ci() {
   KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" make test-e2e
 }
 
-OPENSHIFT_CI="${OPENSHIFT_CI:-false}"
+delete-gitops-namespace() {
+  echo "=== delete-gitops-namespace() ==="
+  # delete openshift-gitops ns to clear out the resources
+  echo "[INFO] Delete openshift-gitops namespace to clear our the resources within 1 minute"
+  timeout 1m kubectl delete ns openshift-gitops
+  if kubectl get ns openshift-gitop | grep openshift-gitops; then echo '[FAIL] openshift-gitops namespace stil exists'; exit 1; else echo '[PASSED] openshift-gitops namespace has been deleted'; fi
+}
 
-if [[ $OPENSHIFT_CI != "" ]]
-then
-    echo "running tests in openshift ci mode"
-    test-gitops-service-e2e-in-kcp-in-ci ${TMP_DIR} ${SCRIPT_DIR}
-else
-    echo "running tests in non openshift-ci mode"
-    test-gitops-service-e2e-in-kcp ${TMP_DIR} ${SCRIPT_DIR}
-fi
+install-argocd-kcp() {
+  echo "=== install-argocd-kcp() ==="
+  echo "[INFO] Installing Argo CD resources in workspace $WORKSPACE and namespace $ARGOCD_NAMESPACE"
+  TMP_KUBE_CONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig"
+ [ ! -f "$TMP_KUBE_CONFIG" ] && (echo "[FAIL] $TMP_KUBE_CONFIG does not exist."; exit 1)
+  echo "[INFO] Create $$ARGOCD_NAMESPACE namespace"
+  KUBECONFIG="$TMP_KUBE_CONFIG" kubectl create ns $ARGOCD_NAMESPACE || true
+  if kubectl get ns $ARGOCD_NAMESPACE | grep $ARGOCD_NAMESPACE ; then echo "[PASS] Namespace created"; else echo "[FAIL] Namespace failed to be created"; exit 1; fi
+  echo "[INFO] Apply the manifest $ARGOCD_MANIFEST"
+  KUBECONFIG="$TMP_KUBE_CONFIG" kubectl apply -f $ARGOCD_MANIFEST -n $ARGOCD_NAMESPACE
 
-# clean the tmp directory created for the local setup
-echo "e2e tests on kcp ran successfully, cleanup initiated ..."
-rm -rf ${TMP_DIR}
-cleanup
+  # TODO: Check if the manifest got applied correctly
+
+ echo "[INFO] Creating KUBECONFIG secrets for argocd server and argocd application controller service accounts"
+ create_kubeconfig_secret "argocd-server" "kcp-kubeconfig-controller"
+ if kubectl -n kcp-kubeconfig-controller get secret argocd-server | grep argocd-server; then echo "[PASS] argocd-server secret applied"; else echo "[FAIL] Cannot apply argocd-server secret"; exit 1; fi
+
+ create_kubeconfig_secret "argocd-application-controller" "kcp-kubeconfig-server"
+if kubectl -n argocd-application-controller get secret argocd-application-controller | grep argocd-application-controller; then echo "[PASS] argocd-application-controller secret applied"; else echo "[FAIL] Cannot apply argocd-application-controller secret"; exit 1; fi
+
+
+echo "[INFO] Verifying if argocd components are up and running after mounting kubeconfig secrets within 3 minutes"
+KUBECONFIG="$TMP_KUBE_CONFIG" kubectl wait --for=condition=available deployments/argocd-server -n $ARGOCD_NAMESPACE --timeout 3m
+count=0
+while [ $count -lt 30 ]
+do
+    count=`expr $count + 1`
+    replicas=$(KUBECONFIG="$TMP_KUBE_CONFIG" kubectl get statefulsets argocd-application-controller -n $ARGOCD_NAMESPACE -o jsonpath='{.spec.replicas}')
+    ready_replicas=$(KUBECONFIG="$TMP_KUBE_CONFIG" kubectl get statefulsets argocd-application-controller -n $ARGOCD_NAMESPACE -o jsonpath='{.status.readyReplicas}')
+
+    if [ "$replicas" -eq "$ready_replicas" ]; then 
+        break
+    fi
+    if [ $count -eq 30 ]; then 
+        echo "Statefulset argocd-application-controller does not have the required replicas. Expected: $replicas. Actual: $ready_replicas"
+        exit 1
+    fi
+done
+
+echo "[INFO]Applying Secret for argocd-cluster-config into $ARGOCD_NAMESPACE"
+cat <<EOF | KUBECONFIG="$TMP_KUBE_CONFIG" kubectl apply -n $ARGOCD_NAMESPACE -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-cluster-config
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+type: Opaque
+stringData:
+  name: in-cluster
+  namespace: "$ARGOCD_NAMESPACE"
+  server: https://kubernetes.default.svc
+  config: |
+    {
+      "tlsClientConfig": {
+        "insecure": true
+      }
+    }
+EOF
+
+if kubectl -n "$ARGOCD_NAMESPACE" get secret  argocd-cluster-config | grep  argocd-cluster-config; then echo "[PASS]  argocd-cluster-config secret applied"; else echo "[FAIL] Cannot apply  argocd-cluster-config secret"; exit 1; fi
+
+echo "[PASS] Argo CD is successfully installed in namespace $ARGOCD_NAMESPACE"
+
+KUBECONFIG="$TMP_KUBE_CONFIG" kubectl get all -n $ARGOCD_NAMESPACE
+}

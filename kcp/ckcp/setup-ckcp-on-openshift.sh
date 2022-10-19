@@ -15,54 +15,12 @@ ARGOCD_MANIFEST="$SCRIPT_DIR/../../manifests/kcp/argocd/install-argocd.yaml"
 ARGOCD_NAMESPACE="gitops-service-argocd"
 
 cleanup() {
+  echo "This is a best effort to stop the controllers."
+  echo "Ignoring any exit codes (expected behavor)"
   echo "Running goreman run stop-all"
-  goreman run stop-all
-  echo "Running goreman run status"
-  goreman run status
-
-  proc=( goreman kubectl )
-  for SERVICE in "${proc[@]}"
-  do
-    echo "Sending SIGTERM and wait for 10 sec"
-    killall "$SERVICE"
-    sleep 10
-    if pgrep -x "$SERVICE" >/dev/null
-    then
-      echo "$SERVICE is still running."
-      echo "Sending SIGKILL"
-      killall -s SIGKILL "$SERVICE"
-    else
-      echo "$SERVICE stopped"
-    fi
-  done
-
-  echo "Check again for running leftovers:"
-  for SERVICE in "${proc[@]}"
-  do
-    if pgrep -x "$SERVICE" >/dev/null
-    then
-      echo "$SERVICE is zombie?"
-      echo "--- DEBUG ---"
-      ps -ef | grep "$SERVICE"
-      echo "--- DEBUG ---"
-
-      # Last effort
-      echo "Killing go processes"
-      pkill -9 go # should kill 'go run ./main.go' procs
-    fi
-  done
-
-  echo "Check for last time"
-  for SERVICE in "${proc[@]}"
-  do
-    if pgrep -x "$SERVICE" >/dev/null
-    then
-      echo "$SERVICE is still running..."
-      echo "Checking for Go processes..."
-      pgrep go
-    fi
-  done
-
+  goreman run stop-all 2>&1 || true
+  echo "Killing kubectl"
+  killall kubectl 2>&1 || true
 }
 
 # Checks if a binary is present on the local system
@@ -285,6 +243,5 @@ fi
 
 # clean the tmp directory created for the local setup
 echo "e2e tests on kcp ran successfully, cleanup initiated ..."
-exit 0
-#rm -rf ${TMP_DIR}
-#cleanup
+rm -rf ${TMP_DIR}
+cleanup

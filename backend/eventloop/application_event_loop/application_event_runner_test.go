@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/errors"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/gitopserrors"
 
 	"github.com/golang/mock/gomock"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1/mocks"
@@ -1582,7 +1582,7 @@ var _ = Describe("GitOpsDeployment Conditions", func() {
 
 	Context("setGitopsDeploymentCondition()", func() {
 		var (
-			userDevErr    = errors.NewUserDevError("reconcile error", fmt.Errorf("reconcile error"))
+			userDevErr    = gitopserrors.NewUserDevError("reconcile error", fmt.Errorf("reconcile error"))
 			reason        = managedgitopsv1alpha1.GitOpsDeploymentReasonType("ReconcileError")
 			conditionType = managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred
 		)

@@ -1,4 +1,4 @@
-package errors
+package gitopserrors
 
 import (
 	"context"
@@ -15,17 +15,17 @@ const (
 	UnknownError = "an unknown error occurred"
 )
 
-// UserError is an error message that contains both:
-// - A GitOps-Service-developer-focused error message
-// - A user-focused error message
-//
-// We differentiate the two, because User Error messages should be sanitized to ensure they do not refer to
-// internal technical details, whereas developed-focused-errors do not have this restriction.
-//
-// Likewise, User Errors tend to contain helpful tips to help the user fix the error. These kind of tips
-// are not (as) useful to GitOps Service developers.
-//
-// A UserError must have both defined. However, if no user error can be provided, use UnknownError as a generic failure message.
+// // UserError is an error message that contains both:
+// // - A GitOps-Service-developer-focused error message
+// // - A user-focused error message
+// //
+// // We differentiate the two, because User Error messages should be sanitized to ensure they do not refer to
+// // internal technical details, whereas developed-focused-errors do not have this restriction.
+// //
+// // Likewise, User Errors tend to contain helpful tips to help the user fix the error. These kind of tips
+// // are not (as) useful to GitOps Service developers.
+// //
+// // A UserError must have both defined. However, if no user error can be provided, use UnknownError as a generic failure message.
 type UserError interface {
 	DevError() error
 	UserError() string
@@ -36,7 +36,16 @@ type userErrorImpl struct {
 	devError  error // may be nil
 }
 
-// DevError returns a non-user-facing error, or nil
+// GitOpsErrorType can be used with Print to output the error message, for debugging purposes
+type GitOpsErrorType int
+
+const (
+	DevOnly  GitOpsErrorType = iota
+	UserOnly GitOpsErrorType = iota
+	All      GitOpsErrorType = iota
+)
+
+// // DevError returns a non-user-facing error, or nil
 func (ue userErrorImpl) DevError() error {
 	if ue.devError != nil {
 		return ue.devError
@@ -45,7 +54,7 @@ func (ue userErrorImpl) DevError() error {
 	return nil
 }
 
-// DevError return a user-facing error string, or ""
+// // DevError return a user-facing error string, or ""
 func (ue userErrorImpl) UserError() string {
 	return ue.userError
 }
@@ -78,5 +87,18 @@ func NewUserDevError(userErrorString string, devError error) UserError {
 	return userErrorImpl{
 		userError: userErrorString,
 		devError:  devError,
+	}
+}
+
+// Print will output the error message, for debugging purposes
+func Print(err UserError, filter GitOpsErrorType) {
+	switch filter {
+	case DevOnly:
+		fmt.Println(err.DevError())
+	case UserOnly:
+		fmt.Println(err.UserError())
+	case All:
+		fmt.Println(err.UserError())
+		fmt.Println(err.DevError())
 	}
 }

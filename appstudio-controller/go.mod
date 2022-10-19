@@ -4,7 +4,6 @@ go 1.18
 
 require (
 	github.com/devfile/api/v2 v2.0.0-20211021164004-dabee4e633ed
-	github.com/kcp-dev/logicalcluster/v2 v2.0.0-alpha.3
 	github.com/onsi/ginkgo/v2 v2.1.3
 	github.com/onsi/gomega v1.19.0
 	github.com/redhat-appstudio/application-service v0.0.0-20220609190313-7a1a14b575dc
@@ -53,6 +52,7 @@ require (
 	github.com/kcp-dev/apimachinery v0.0.0-20220805180221-5b13097793e1 // indirect
 	github.com/kcp-dev/controller-runtime-example v0.0.0-20220902160817-733db4e9d83a // indirect
 	github.com/kcp-dev/kcp/pkg/apis v0.9.0 // indirect
+	github.com/kcp-dev/logicalcluster/v2 v2.0.0-alpha.3 // indirect
 	github.com/kevinburke/ssh_config v0.0.0-20201106050909-4977a11b4351 // indirect
 	github.com/klauspost/compress v1.14.2 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect

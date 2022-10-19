@@ -45,7 +45,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kcp-dev/apimachinery v0.0.0-20220805180221-5b13097793e1 // indirect
 	github.com/kcp-dev/controller-runtime-example v0.0.0-20220902160817-733db4e9d83a
-	github.com/kcp-dev/logicalcluster/v2 v2.0.0-alpha.3 // indirect
+	github.com/kcp-dev/logicalcluster/v2 v2.0.0-alpha.3
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect

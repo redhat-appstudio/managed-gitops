@@ -26,6 +26,7 @@ import (
 	datav1alpha1 "github.com/kcp-dev/controller-runtime-example/api/v1alpha1"
 	apisv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apis/v1alpha1"
 	tenancyv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/tenancy/v1alpha1"
+	"github.com/kcp-dev/logicalcluster/v2"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 )
 
@@ -246,4 +247,23 @@ func registerSchemes(scheme *runtime.Scheme) error {
 	}
 
 	return nil
+}
+
+// AddKCPClusterToContext injects the cluster name into the context when running in a KCP environment with virtual workspaces enabled
+func AddKCPClusterToContext(ctx context.Context, clusterName string) context.Context {
+	if clusterName != "" && !IsKCPVirtualWorkspaceDisabled() {
+		ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(clusterName))
+	}
+	return ctx
+}
+
+// RemoveKCPClusterFromContext removes the cluster name from the context when running in a KCP environment with virtual workspaces enabled
+func RemoveKCPClusterFromContext(ctx context.Context) context.Context {
+	if !IsKCPVirtualWorkspaceDisabled() {
+		clusterName, exists := logicalcluster.ClusterFromContext(ctx)
+		if exists {
+			ctx = context.WithValue(ctx, logicalcluster.New(clusterName.String()), nil)
+		}
+	}
+	return ctx
 }

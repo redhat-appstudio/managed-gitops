@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kcp-dev/logicalcluster/v2"
 	"github.com/redhat-appstudio/managed-gitops/backend/condition"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	"github.com/redhat-appstudio/managed-gitops/backend/metrics"
@@ -98,9 +97,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 
 		ctx, cancel := context.WithCancel(outerContext)
 
-		if newEvent.Request.ClusterName != "" && !sharedutil.IsKCPVirtualWorkspaceDisabled() {
-			ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(newEvent.Request.ClusterName))
-		}
+		ctx = sharedutil.AddKCPClusterToContext(ctx, newEvent.Request.ClusterName)
 
 		defer cancel()
 

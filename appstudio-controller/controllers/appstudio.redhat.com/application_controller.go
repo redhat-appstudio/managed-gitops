@@ -28,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/kcp-dev/logicalcluster/v2"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 
 	"crypto/sha256"
@@ -63,9 +62,7 @@ const deploymentSuffix = "-deployment"
 // move the current state of the cluster closer to the desired state.
 func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
-	if req.ClusterName != "" && !sharedutil.IsKCPVirtualWorkspaceDisabled() {
-		ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(req.ClusterName))
-	}
+	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 	log := log.FromContext(ctx)
 
 	log.Info("Detected AppStudio Application event:", "request", req)

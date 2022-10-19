@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/kcp-dev/logicalcluster/v2"
 
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
@@ -151,9 +150,7 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, workspaceID 
 		wrapperEvent := <-input
 
 		event := (wrapperEvent.payload).(eventlooptypes.EventLoopMessage)
-		if event.Event.Request.ClusterName != "" && !sharedutil.IsKCPVirtualWorkspaceDisabled() {
-			ctx = logicalcluster.WithCluster(ctx, logicalcluster.New(event.Event.Request.ClusterName))
-		}
+		ctx = sharedutil.AddKCPClusterToContext(ctx, event.Event.Request.ClusterName)
 
 		if wrapperEvent.messageType == workspaceEventLoopMessageType_Event {
 			// First, sanity check the event

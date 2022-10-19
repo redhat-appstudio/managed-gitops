@@ -8,6 +8,10 @@ SCRIPT_DIR="$(
   pwd
 )"
 
+echo "========================================="
+echo "Running setup-ckcp-on-openshift.sh script"
+echo "========================================="
+
 ARGOCD_MANIFEST="$SCRIPT_DIR/../../manifests/kcp/argocd/install-argocd.yaml"
 ARGOCD_NAMESPACE="gitops-service-argocd"
 export TMP_DIR="$(mktemp -d -t kcp-gitops-service.XXXXXXXXX)"
@@ -21,10 +25,10 @@ export CONFIG_YAML="${SCRIPT_DIR}/config.yaml"
 export WORKSPACE="gitops-service-compute"
 
 
-[ ! -f "$ARGOCD_MANIFEST" ] && echo "$ARGOCD_MANIFEST does not exist."
-[ ! -f "$TMP_DIR" ] && echo "$TMP_DIR does not exist."
-[ ! -f "$OPENSHIFT_DEV_SCRIPT" ] && echo "$OPENSHIFT_DEV_SCRIPT does not exist."
-[ ! -f "$CONFIG_YAML" ] && echo "$CONFIG_YAML does not exist."
+[ ! -f "$ARGOCD_MANIFEST" ] && (echo "$ARGOCD_MANIFEST does not exist."; exit 1)
+[ ! -d "$TMP_DIR" ] && (echo "$TMP_DIR does not exist."; exit 1)
+[ ! -f "$OPENSHIFT_DEV_SCRIPT" ] && (echo "$OPENSHIFT_DEV_SCRIPT does not exist."; exit 1)
+[ ! -f "$CONFIG_YAML" ] && (echo "$CONFIG_YAML does not exist."; exit 1)
 
 
 echo "Temporary directory: ${TMP_DIR}"
@@ -33,9 +37,6 @@ check_if_go_v_compatibility
 clone-and-setup-ckcp
 delete-gitops-namespace
 install-argocd-kcp
-
-
-
 
 OPENSHIFT_CI="${OPENSHIFT_CI:-false}"
 

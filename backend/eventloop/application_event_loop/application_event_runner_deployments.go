@@ -78,7 +78,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 
 	clusterUser, _, err := a.sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, workspaceClient, gitopsDeplNamespace, log)
 	if err != nil {
-		userError := "unable to identify the identify of the user"
+		userError := "unable to locate managed environment for new application"
 		devError := fmt.Errorf("unable to retrieve cluster user in handleDeploymentModified, '%s': %v",
 			string(gitopsDeplNamespace.UID), err)
 		return false, nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, devError)

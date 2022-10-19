@@ -58,7 +58,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 
 	clusterUser, _, err := a.sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, a.workspaceClient, namespace, log)
 	if err != nil {
-		userError := "unable to identify the identify of the user"
+		userError := "unable to locate managed environment for new application"
 		devError := fmt.Errorf("unable to retrieve cluster user in applicationEventRunner_handleSyncRunModifiedInternal, '%s': %v",
 			string(namespace.UID), err)
 		return false, gitopserrors.NewUserDevError(userError, devError)

@@ -3,18 +3,22 @@
 set -o errexit
 set -o nounset
 
+echo "========================================="
+echo "Running setup-ckcp-on-openshift.sh script"
+echo "========================================="
+
+# Variables
+# ~~~~~~~~~
+
 SCRIPT_DIR="$(
   cd "$(dirname "$0")" >/dev/null
   pwd
 )"
 
-echo "========================================="
-echo "Running setup-ckcp-on-openshift.sh script"
-echo "========================================="
-
 ARGOCD_MANIFEST="$SCRIPT_DIR/../../manifests/kcp/argocd/install-argocd.yaml"
 ARGOCD_NAMESPACE="gitops-service-argocd"
-export TMP_DIR="$(mktemp -d -t kcp-gitops-service.XXXXXXXXX)"
+TMP_DIR="$(mktemp -d -t kcp-gitops-service.XXXXXXXXX)"
+export TMP_DIR
 export GITOPS_IN_KCP="true"
 export DISABLE_KCP_VIRTUAL_WORKSPACE="true"
 export COMPATIBLE_GO_VERSION="1.18"
@@ -23,43 +27,24 @@ export OPENSHIFT_PIPELINES_COMMIT_HASH="edacf0348b2ae693eeb62b940dd618c05b34df62
 export OPENSHIFT_DEV_SCRIPT="${SCRIPT_DIR}/openshift_dev_setup.sh"
 export CONFIG_YAML="${SCRIPT_DIR}/config.yaml"
 export WORKSPACE="gitops-service-compute"
-
+export OPENSHIFT_CI="${OPENSHIFT_CI:-false}"
 
 [ ! -f "$ARGOCD_MANIFEST" ] && (echo "$ARGOCD_MANIFEST does not exist."; exit 1)
 [ ! -d "$TMP_DIR" ] && (echo "$TMP_DIR does not exist."; exit 1)
 [ ! -f "$OPENSHIFT_DEV_SCRIPT" ] && (echo "$OPENSHIFT_DEV_SCRIPT does not exist."; exit 1)
 [ ! -f "$CONFIG_YAML" ] && (echo "$CONFIG_YAML does not exist."; exit 1)
 
-
 echo "Temporary directory: ${TMP_DIR}"
 
-check_if_go_v_compatibility
-clone-and-setup-ckcp
-delete-gitops-namespace
-install-argocd-kcp
 
-OPENSHIFT_CI="${OPENSHIFT_CI:-false}"
-
-if [[ $OPENSHIFT_CI != "" ]]
-then
-    echo "running tests in openshift ci mode"
-    test-gitops-service-e2e-in-kcp-in-ci ${TMP_DIR} ${SCRIPT_DIR}
-else
-    echo "running tests in non openshift-ci mode"
-    test-gitops-service-e2e-in-kcp ${TMP_DIR} ${SCRIPT_DIR}
-fi
-
-# clean the tmp directory created for the local setup
-echo "e2e tests on kcp ran successfully, cleanup initiated ..."
-rm -rf ${TMP_DIR}
-cleanup
-
-# Functions
-# ~~~~~~~~~
+# Helping Functions
+# ~~~~~~~~~~~~~~~~~
 
 cleanup() {
   echo "This is a best effort to stop the controllers."
   echo "Ignoring any exit codes (expected behavor)"
+  echo "[INFO] Removing $TMP_DIR directory"
+  rm -rf ${TMP_DIR}
   echo "Running goreman run stop-all"
   goreman run stop-all 2>&1 || true
   echo "Killing kubectl"
@@ -81,7 +66,6 @@ version_compatibility() {
     test "$(echo "$@" | tr " " "\n" | sort -V | head -n 1)" != "$1";
 }
 
-
 # Checks if the go binary exists, and if the go version is suitable to setup KCP env
 check_if_go_v_compatibility() {
   echo "=== check_if_go_v_compatibility() ==="
@@ -96,8 +80,6 @@ check_if_go_v_compatibility() {
     exit 1
   fi
 }
-
-
 
 clone-and-setup-ckcp() {
   echo "=== clone-and-setup-ckcp() ==="
@@ -311,3 +293,26 @@ echo "[PASS] Argo CD is successfully installed in namespace $ARGOCD_NAMESPACE"
 
 KUBECONFIG="$TMP_KUBE_CONFIG" kubectl get all -n $ARGOCD_NAMESPACE
 }
+
+run-tests() {
+  echo "=== run-tests() =="
+  if [[ $OPENSHIFT_CI != "" ]]
+  then
+    echo "[INFO] Running tests in openshift ci mode"
+    test-gitops-service-e2e-in-kcp-in-ci ${TMP_DIR} ${SCRIPT_DIR}
+  else
+    echo "[INFO] Running tests in non openshift-ci mode"
+    test-gitops-service-e2e-in-kcp ${TMP_DIR} ${SCRIPT_DIR}
+  fi
+}
+
+
+# Main
+# ~~~~
+
+check_if_go_v_compatibility
+clone-and-setup-ckcp
+delete-gitops-namespace
+install-argocd-kcp
+run-tests
+cleanup

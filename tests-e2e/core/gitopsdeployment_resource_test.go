@@ -43,7 +43,7 @@ var _ = Describe("GitOpsDeployment Condition Tests", func() {
 			expectedConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{
 				{
 					Type:    managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred,
-					Message: "unable to locate managed environment for new application",
+					Message: "an unknown error occurred",
 					Status:  managedgitopsv1alpha1.GitOpsConditionStatusTrue,
 					Reason:  managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred,
 				},

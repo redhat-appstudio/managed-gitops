@@ -107,7 +107,7 @@ spec:
     ca: {}
   resourceExclusions: |
     - apiGroups:
-      - tenancy.kcp.dev
+      - *.kcp.dev
       clusters:
       - "*"
       kinds:

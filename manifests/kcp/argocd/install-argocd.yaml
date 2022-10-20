@@ -9304,7 +9304,7 @@ metadata:
 data:
   resource.exclusions: |
     - apiGroups:
-      - "tenancy.kcp.dev"
+      - "*.kcp.dev"
       clusters:
       - "*"
       kinds:

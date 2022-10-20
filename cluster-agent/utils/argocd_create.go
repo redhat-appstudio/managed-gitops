@@ -51,7 +51,7 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, names
 
 	resourceExclusions, err := yaml.Marshal([]settings.FilteredResource{
 		{
-			APIGroups: []string{"tenancy.kcp.dev"},
+			APIGroups: []string{"*.kcp.dev"},
 			Clusters:  []string{"*"},
 			Kinds:     []string{"*"},
 		},

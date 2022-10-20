@@ -15,17 +15,17 @@ const (
 	UnknownError = "an unknown error occurred"
 )
 
-// // UserError is an error message that contains both:
-// // - A GitOps-Service-developer-focused error message
-// // - A user-focused error message
-// //
-// // We differentiate the two, because User Error messages should be sanitized to ensure they do not refer to
-// // internal technical details, whereas developed-focused-errors do not have this restriction.
-// //
-// // Likewise, User Errors tend to contain helpful tips to help the user fix the error. These kind of tips
-// // are not (as) useful to GitOps Service developers.
-// //
-// // A UserError must have both defined. However, if no user error can be provided, use UnknownError as a generic failure message.
+// UserError is an error message that contains both:
+// - A GitOps-Service-developer-focused error message
+// - A user-focused error message
+//
+// We differentiate the two, because User Error messages should be sanitized to ensure they do not refer to
+// internal technical details, whereas developed-focused-errors do not have this restriction.
+//
+// Likewise, User Errors tend to contain helpful tips to help the user fix the error. These kind of tips
+// are not (as) useful to GitOps Service developers.
+//
+// A UserError must have both defined. However, if no user error can be provided, use UnknownError as a generic failure message.
 type UserError interface {
 	DevError() error
 	UserError() string

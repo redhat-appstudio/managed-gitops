@@ -9,7 +9,7 @@ SCRIPTPATH="$(
 
 CPS_KUBECONFIG="${CPS_KUBECONFIG:-$(realpath kcp/cps-kubeconfig)}"
 WORKLOAD_KUBECONFIG="${WORKLOAD_KUBECONFIG:-$HOME/.kube/config}"
-SYNCER_IMAGE="${SYNCER_IMAGE:-ghcr.io/kcp-dev/kcp/syncer:v0.8.2}"
+SYNCER_IMAGE="${SYNCER_IMAGE:-ghcr.io/kcp-dev/kcp/syncer:v0.9.1}"
 SYNCER_MANIFESTS=$(mktemp -d)/cps-syncer.yaml
 
 ARGOCD_MANIFEST="$(realpath manifests/kcp/argocd/install-argocd.yaml)"
@@ -236,7 +236,7 @@ createAPIBinding() {
     fi
 
     KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws use "${USER_WS}" &> /dev/null
-    acceptedPermissionClaims='
+    permissionClaims='
   permissionClaims:
   - group: ""
     resource: "secrets"
@@ -246,7 +246,7 @@ createAPIBinding() {
     state: "Accepted"'
 
     if [ "${exportName}" == "gitopsrvc-appstudio-shared" ]; then
-      permissionClaims="${acceptedPermissionClaims}
+      permissionClaims="${permissionClaims}
   - group: \"managed-gitops.redhat.com\"
     resource: \"gitopsdeployments\"
     state: \"Accepted\"
@@ -267,12 +267,12 @@ ${permissionClaims}
       exportName: ${exportName}
 EOF
 
-    yamllint -c "${SCRIPTPATH}"/../../utilities/yamllint.yaml "${SCRIPTPATH}"/../../createAPIBinding.yaml
+    yamllint -c "${SCRIPTPATH}"/../utilities/yamllint.yaml "${SCRIPTPATH}"/../createAPIBinding.yaml
 
     printf "APIBinding yaml for %s \n" "${1}"
     cat createAPIBinding.yaml
 
-    KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f "${SCRIPTPATH}"/../../createAPIBinding.yaml
+    KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f "${SCRIPTPATH}"/../createAPIBinding.yaml
     rm createAPIBinding.yaml
 }
 
@@ -333,11 +333,11 @@ subjects:
   name: "$userName"
 EOF
 
-    yamllint -c "${SCRIPTPATH}"/../../utilities/yamllint.yaml "${SCRIPTPATH}"/../../permissionToBindAPIExport.yaml
+    yamllint -c "${SCRIPTPATH}"/../utilities/yamllint.yaml "${SCRIPTPATH}"/../permissionToBindAPIExport.yaml
 
     printf "permissionToBindAPIExport yaml: \n"
     cat permissionToBindAPIExport.yaml
 
-    KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f "${SCRIPTPATH}"/../../permissionToBindAPIExport.yaml
+    KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f "${SCRIPTPATH}"/../permissionToBindAPIExport.yaml
     rm permissionToBindAPIExport.yaml
 }

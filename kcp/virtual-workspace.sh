@@ -22,6 +22,7 @@ trap cleanup_workspace EXIT
 readKUBECONFIGPath
 
 echo "Initializing service provider workspace"
+KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp workspace
 createAndEnterWorkspace "$SERVICE_WS"
 
 echo "Creating APIExports and APIResourceSchemas in workspace $SERVICE_WS"
@@ -30,11 +31,12 @@ KUBECONFIG="${CPS_KUBECONFIG}" make apply-kcp-api-all
 permissionToBindAPIExport 
 
 echo "Initializing user workspace"
+KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp workspace
 createAndEnterWorkspace "$USER_WS"
 
 echo "Creating APIBindings in workspace $USER_WS"
-createAPIBinding gitopsrvc-backend-shared
-createAPIBinding gitopsrvc-appstudio-shared
+createAPIBinding gitopsrvc-backend-shared "" $SERVICE_WS
+createAPIBinding gitopsrvc-appstudio-shared "" $SERVICE_WS
 
 # Checking if the bindings are in Ready state
 KUBECONFIG="${CPS_KUBECONFIG}" kubectl wait --for=condition=Ready apibindings/gitopsrvc-appstudio-shared

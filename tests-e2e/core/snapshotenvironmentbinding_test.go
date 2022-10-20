@@ -1,6 +1,7 @@
 package core
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"strings"
 
@@ -388,6 +389,65 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			err = k8s.Delete(&gitOpsDeployment, k8sClient)
 			Expect(err).To(Succeed())
+		})
+
+		// This test is to verify the scenario when a user creates an ApplicationSnapshotEnvironmentBinding CR in Cluster but GitOpsDeployment CR default name is too long.
+		// By default the naming convention used for GitOpsDeployment is <Binding Name>-<Application Name>-<Environment Name>-<Components Name> and If name exceeds the max limit then GitOps-Service should follow short name <Binding Name>-<Components Name>,
+		// but there is a possibility that this short name is still exceeds the max limit then we would shorten it again,
+		// it will use first 210 characters of <Binding Name>-<Components Name> and then append Hash value of atual expected name i.e. <Binding Name>-<Application Name>-<Environment Name>-<Components Name>.
+		// Since we used 210 characters from short name and Hash value will be of 32 characters the length will always be 243.
+		// Ex: 210 (First 210 characters of combination of Binding name and Component name) + 1 ("-") + 32 (length of UUID) = 243 (Total length)
+		It("Should use short name with hash value for GitOpsDeployment, if combination of Binding name and Component name is still longer than 250 characters.", func() {
+
+			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
+
+			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
+			compName := strings.Repeat("abcde", 50)
+			binding.Spec.Components[0].Name = compName
+
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			err = k8s.Create(&binding, k8sClient)
+			Expect(err).To(Succeed())
+
+			// Update the status field
+			err = buildAndUpdateBindingStatus(binding.Spec.Components,
+				"https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw",
+				[]string{"components/componentA/overlays/staging"}, &binding)
+			Expect(err).To(Succeed())
+
+			//====================================================
+			By("Verify that short name is used for GitOpsDeployment CR.")
+
+			// Get the short name with hash value.
+			hashValue := sha256.Sum256([]byte(binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + compName))
+			hashString := fmt.Sprintf("%x", hashValue)
+			expectedName := (binding.Name + "-" + compName)[0:180] + "-" + hashString
+
+			expectedGitOpsDeployments := []appstudiosharedv1.BindingStatusGitOpsDeployment{{
+				ComponentName: binding.Spec.Components[0].Name, GitOpsDeployment: expectedName,
+			}}
+
+			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments))
+
+			// Check no GitOpsDeployment CR found with default name (longer name).
+			gitOpsDeploymentName := binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + binding.Spec.Components[0].Name
+			gitOpsDeployment := buildGitOpsDeploymentObjectMeta(gitOpsDeploymentName, binding.Namespace)
+			err = k8s.Get(&gitOpsDeployment, k8sClient)
+			Expect(apierr.IsNotFound(err)).To(BeTrue())
+
+			// Check GitOpsDeployment is created with short name).
+			gitOpsDeployment.Name = expectedName
+			err = k8s.Get(&gitOpsDeployment, k8sClient)
+			Expect(err).To(Succeed())
+
+			// Check GitOpsDeployment is having repository data as given in Binding.
+			Eventually(gitOpsDeployment, "2m", "1s").Should(gitopsDeplFixture.HaveSpecSource(managedgitopsv1alpha1.ApplicationSource{
+				RepoURL:        binding.Status.Components[0].GitOpsRepository.URL,
+				Path:           binding.Status.Components[0].GitOpsRepository.Path,
+				TargetRevision: binding.Status.Components[0].GitOpsRepository.Branch,
+			}))
 		})
 
 		It("should create a GitOpsDeployment that references cluster credentials specified in Environment", func() {

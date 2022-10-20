@@ -18,6 +18,7 @@ package appstudioredhatcom
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"reflect"
 	"strings"
@@ -248,9 +249,16 @@ func GenerateBindingGitOpsDeploymentName(binding appstudioshared.SnapshotEnviron
 
 	// If the length of the GitOpsDeployment exceeds the K8s maximum, shorten it to just binding+component
 	if len(expectedName) > 250 {
-		expectedName = binding.Name + "-" + componentName
+		expectedShortName := binding.Name + "-" + componentName
+
+		// If the length is still > 250
+		if len(expectedShortName) > 250 {
+			hashValue := sha256.Sum256([]byte(expectedName))
+			hashString := fmt.Sprintf("%x", hashValue)
+			return expectedShortName[0:180] + "-" + hashString
+		}
+		return expectedShortName
 	}
-	// TODO: GITOPSRVCE-183: Improve the logic here; it is not guaranteed that the updated name will be valid (plus add tests).
 
 	return expectedName
 

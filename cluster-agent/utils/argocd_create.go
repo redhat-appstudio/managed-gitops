@@ -10,6 +10,7 @@ import (
 
 	argocdoperator "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 	routev1 "github.com/openshift/api/route/v1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	corev1 "k8s.io/api/core/v1"
@@ -19,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -47,7 +49,18 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, names
 	policy := "g, system:authenticated, role:admin"
 	scopes := "[groups]"
 
-	// The values from manifests/staging-cluster-resources/argo-cd.yaml are conveeted in a Go struct.
+	resourceExclusions, err := yaml.Marshal([]settings.FilteredResource{
+		{
+			APIGroups: []string{"tenancy.kcp.dev"},
+			Clusters:  []string{"*"},
+			Kinds:     []string{"*"},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to marshal resource exclusions: %v", err)
+	}
+
+	// The values from manifests/staging-cluster-resources/argo-cd.yaml are converted in a Go struct.
 
 	argoCDOperand := &argocdoperator.ArgoCD{
 		ObjectMeta: metav1.ObjectMeta{
@@ -201,6 +214,7 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, names
 			TLS: argocdoperator.ArgoCDTLSSpec{
 				CA: argocdoperator.ArgoCDCASpec{},
 			},
+			ResourceExclusions: string(resourceExclusions),
 		},
 	}
 
@@ -220,7 +234,7 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, names
 	sharedutil.LogAPIResourceChangeEvent(argoCDOperand.Namespace, argoCDOperand.Name, argoCDOperand, sharedutil.ResourceCreated, log)
 
 	// Wait for Argo CD to be installed by gitops operator.
-	err := wait.Poll(1*time.Second, 3*time.Minute, func() (bool, error) {
+	err = wait.Poll(1*time.Second, 3*time.Minute, func() (bool, error) {
 
 		// 'default' AppProject will be created by Argo CD if Argo CD is successfully started.
 		appProject := &appv1.AppProject{

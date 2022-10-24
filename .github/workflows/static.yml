@@ -92,7 +92,7 @@ jobs:
 
       - name: "Ensure 'backend' passes 'go-lint' - run 'make lint' to identify issues"
         run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.46.2
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.50.1
           cd $GITHUB_WORKSPACE/backend
           make lint 
 

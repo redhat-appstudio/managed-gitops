@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 )
 
@@ -12,7 +12,7 @@ func GetAPIServerMetrics(routeEndpoint string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -27,7 +27,7 @@ func GetRepoServerMetrics(routeEndpoint string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -42,7 +42,7 @@ func GetApplicationControllerMetrics(routeEndpoint string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}

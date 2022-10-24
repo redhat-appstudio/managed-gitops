@@ -36,8 +36,8 @@ import (
 )
 
 const (
-	// If the 'bindingLabel' string is present in a label of the SnapshotEnvironmentBinding, that label is copied to child GitOpsDeployments of the SnapshotEnvironmentBinding
-	bindingLabel = "appstudio.openshift.io"
+	// If the 'appstudioLabelKey' string is present in a label of the SnapshotEnvironmentBinding, that label is copied to child GitOpsDeployments of the SnapshotEnvironmentBinding
+	appstudioLabelKey = "appstudio.openshift.io"
 )
 
 // ApplicationSnapshotEnvironmentBindingReconciler reconciles a ApplicationSnapshotEnvironmentBinding object
@@ -202,14 +202,19 @@ func processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployme
 	}
 
 	// GitOpsDeployment already exists, so compare it with what we expect
-	if reflect.DeepEqual(expectedGitopsDeployment.Spec, actualGitOpsDeployment.Spec) && checkForMapEquality(expectedGitopsDeployment.ObjectMeta.Labels, actualGitOpsDeployment.ObjectMeta.Labels) {
+	if reflect.DeepEqual(expectedGitopsDeployment.Spec, actualGitOpsDeployment.Spec) &&
+		areAppStudioLabelsEqualBetweenMaps(expectedGitopsDeployment.ObjectMeta.Labels, actualGitOpsDeployment.ObjectMeta.Labels) {
 		// B) The GitOpsDeployment is exactly as expected, so return
 		return nil
 	}
 
-	// C) The GitOpsDeployment should be updated to be consistent with what we expect
+	// C) The GitOpsDeployment is not the same, so it should be updated to be consistent with what we expect
 	actualGitOpsDeployment.Spec = expectedGitopsDeployment.Spec
-	actualGitOpsDeployment.ObjectMeta.Labels = expectedGitopsDeployment.ObjectMeta.Labels
+
+	// Ensure that the appstudio labels in the GitOpsDeployment are the same as in the binding, while
+	// not affecting any of the other user-added, non-appstudio labels on the GitOpDeployment
+	actualGitOpsDeployment.Labels = updateMapWithExpectedAppStudioLabels(actualGitOpsDeployment.Labels, expectedGitopsDeployment.Labels)
+
 	if err := k8sClient.Update(ctx, &actualGitOpsDeployment); err != nil {
 		log.Error(err, "unable to update actualGitOpsDeployment: "+actualGitOpsDeployment.Name+" for Binding: "+binding.Name)
 		return fmt.Errorf("unable to update actualGitOpsDeployment '%s', for Binding:%s, Error: %w", actualGitOpsDeployment.Name, binding.Name, err)
@@ -235,7 +240,8 @@ func GenerateBindingGitOpsDeploymentName(binding appstudioshared.ApplicationSnap
 }
 
 func generateExpectedGitOpsDeployment(component appstudioshared.ComponentStatus,
-	binding appstudioshared.ApplicationSnapshotEnvironmentBinding, environment appstudioshared.Environment) (apibackend.GitOpsDeployment, error) {
+	binding appstudioshared.ApplicationSnapshotEnvironmentBinding,
+	environment appstudioshared.Environment) (apibackend.GitOpsDeployment, error) {
 
 	res := apibackend.GitOpsDeployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -280,10 +286,17 @@ func generateExpectedGitOpsDeployment(component appstudioshared.ComponentStatus,
 
 	// Append ASEB labels with key "appstudio.openshift.io" to the gitopsDeployment labels
 	for bindingKey, bindingLabelValue := range binding.Labels {
-		if strings.Contains(bindingKey, bindingLabel) {
+		if strings.Contains(bindingKey, appstudioLabelKey) {
 			res.ObjectMeta.Labels[bindingKey] = bindingLabelValue
 		}
 	}
+
+	// Ensures that this method only adds 'appstudio.openshift.io' labels
+	// - Note: If you remove this line, you need to search for other uses of 'removeNonAppStudioLabelsFromMap' in the
+	// code, as you may break the logic here.
+	removeNonAppStudioLabelsFromMap(res.ObjectMeta.Labels)
+
+	res.ObjectMeta.Labels = convertToNilIfEmptyMap(res.ObjectMeta.Labels)
 
 	return res, nil
 }
@@ -297,15 +310,79 @@ func (r *ApplicationSnapshotEnvironmentBindingReconciler) SetupWithManager(mgr c
 		Complete(r)
 }
 
-// checkForMapEquality to check the equality between actual map data with expected map data
-func checkForMapEquality(x, y map[string]string) bool {
-	if len(x) != len(y) {
-		return false
+// updateMapWithExpectedAppStudioLabels ensures that the appstudio labels in the generated GitOpsDeployment are the same as defined in
+// the parent binding, while not affecting any other non-appstudio labels that are also on the generated GitOpDeployment
+func updateMapWithExpectedAppStudioLabels(actualLabelsParam map[string]string, expectedLabelsParam map[string]string) map[string]string {
+
+	// 1) Clone the maps so we don't mutate the parameter values
+	actualLabels := cloneMap(actualLabelsParam)
+	expectedLabels := cloneMap(expectedLabelsParam)
+
+	// 2) Remove '*appstudioLabelKey*' labels, we will add them back in the next tep
+	removeAppStudioLabelsFromMap(actualLabels)
+
+	// 3) Add back the appStudio expectedLabels
+	for expectedLabelKey, expectedLabelValue := range expectedLabels {
+		actualLabels[expectedLabelKey] = expectedLabelValue
 	}
-	for k, xv := range x {
-		if yv, ok := y[k]; !ok || yv != xv {
-			return false
+
+	// 4) Convert the map to nil, if it's empty, so that we don't have an empty labels map in the K8s object
+	actualLabels = convertToNilIfEmptyMap(actualLabels)
+
+	return actualLabels
+}
+
+// areAppStudioLabelsEqualBetweenMaps looks only at the map keys that contain appstudioLabelKey:
+// returns true if they are all equal, false otherwise.
+func areAppStudioLabelsEqualBetweenMaps(x map[string]string, y map[string]string) bool {
+	newX := cloneMap(x)
+	newY := cloneMap(y)
+
+	removeNonAppStudioLabelsFromMap(newX)
+	removeNonAppStudioLabelsFromMap(newY)
+
+	return reflect.DeepEqual(newX, newY)
+
+}
+
+func convertToNilIfEmptyMap(m map[string]string) map[string]string {
+	res := m
+	if len(res) == 0 {
+		res = nil
+	}
+	return res
+}
+
+func cloneMap(m map[string]string) map[string]string {
+	res := map[string]string{}
+
+	if m == nil {
+		return res
+	}
+
+	for k, v := range m {
+		res[k] = v
+	}
+
+	return res
+}
+
+func removeNonAppStudioLabelsFromMap(m map[string]string) {
+
+	for key := range m {
+
+		if !strings.Contains(key, appstudioLabelKey) {
+			delete(m, key)
 		}
 	}
-	return true
+}
+
+func removeAppStudioLabelsFromMap(m map[string]string) {
+
+	for key := range m {
+
+		if strings.Contains(key, appstudioLabelKey) {
+			delete(m, key)
+		}
+	}
 }

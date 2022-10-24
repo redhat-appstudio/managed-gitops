@@ -407,7 +407,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).To(BeNil())
 
-			By("fetcing GitOpsDeployment object to check whether GitOpsDeployment label field is not updated")
+			By("fetching GitOpsDeployment object to check whether GitOpsDeployment label field is not updated")
 			gitopsDeploymentKey := client.ObjectKey{
 				Namespace: binding.Namespace,
 				Name:      GenerateBindingGitOpsDeploymentName(*binding, binding.Spec.Components[0].Name),
@@ -418,7 +418,6 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			Expect(err).To(BeNil())
 
 			Expect(gitopsDeployment.ObjectMeta.Labels).To(BeNil())
-			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(Equal(map[string]string{appstudioLabelKey: "testing"}))
 		})
 
 		It("should update gitopsDeployment label if ASEB label gets updated", func() {
@@ -488,7 +487,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 		It("should update gitopsDeployment label if ASEB label gets updated, but not affect non-appstudio labels", func() {
 			By("updating binding.ObjectMeta.Labels with appstudio.openshift.io label, plus a non-appstudio-label")
 			binding.ObjectMeta.Labels[appstudioLabelKey] = "testing"
-			binding.ObjectMeta.Labels["non-appstudio-label"] = "should-not-change"
+			binding.ObjectMeta.Labels["non-appstudio-label"] = "should-not-be-copied"
 
 			By("creating ApplicationSnapshotEnvironmentBinding")
 			err := bindingReconciler.Create(ctx, binding)
@@ -509,9 +508,8 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			Expect(err).To(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{
-				appstudioLabelKey:     "testing",
-				"non-appstudio-label": "should-not-change",
-			}))
+				appstudioLabelKey: "testing",
+			}), "reconciler should only copy appstudio labels to the gitops deployment")
 
 			err = bindingReconciler.Get(ctx, types.NamespacedName{Namespace: binding.Namespace, Name: binding.Name}, binding)
 			Expect(err).To(Succeed())
@@ -531,8 +529,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 			Expect(err).To(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{
-				appstudioLabelKey:     "testing-update",
-				"non-appstudio-label": "should-not-change",
+				appstudioLabelKey: "testing-update",
 			}))
 
 			err = bindingReconciler.Get(ctx, types.NamespacedName{Namespace: binding.Namespace, Name: binding.Name}, binding)
@@ -552,9 +549,7 @@ var _ = Describe("ApplicationSnapshotEnvironmentBinding Reconciler Tests", func(
 				"gitopsDeployment, but the non-appstudio label is still present")
 			err = bindingReconciler.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
 			Expect(err).To(BeNil())
-			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{
-				"non-appstudio-label": "should-not-change",
-			}))
+			Expect(gitopsDeployment.ObjectMeta.Labels).To(BeEmpty())
 
 		})
 

@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -217,7 +216,7 @@ func extractKubeConfigValues() (string, string, error) {
 		}
 	}
 
-	kubeConfigContents, err := ioutil.ReadFile(kubeConfigDefault)
+	kubeConfigContents, err := os.ReadFile(kubeConfigDefault)
 	if err != nil {
 		return "", "", err
 	}

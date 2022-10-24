@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"strings"
 
@@ -31,7 +31,7 @@ func ParseWebhookInfo(request *restful.Request, response *restful.Response) {
 		log.Fatalln(nil, errors.New("No event Id!"))
 	}
 	// assigning payload data
-	payload, err := ioutil.ReadAll(request.Request.Body)
+	payload, err := io.ReadAll(request.Request.Body)
 	if err != nil {
 		log.Printf("error reading request body: err=%s\n", err)
 		return

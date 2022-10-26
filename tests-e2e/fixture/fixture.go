@@ -58,35 +58,41 @@ const (
 // This function can also be called after a test, in order to clean up any resources it create in the GitOpsServiceE2ENamespace.
 func EnsureCleanSlate() error {
 
+	// Service Provider WS is where gitops service is running so we can delete from the same clientset
+	clientconfig, err := GetKubeConfig()
+	if err != nil {
+		panic(err)
+	}
+
 	// Clean up after tests that target the non-default Argo CD instance (only used by a few E2E tests)
-	if err := cleanUpOldArgoCDApplications(NewArgoCDInstanceDestNamespace, NewArgoCDInstanceDestNamespace); err != nil {
+	if err := cleanUpOldArgoCDApplications(clientconfig, NewArgoCDInstanceDestNamespace, NewArgoCDInstanceDestNamespace); err != nil {
 		return err
 	}
 
-	if err := DeleteNamespace(NewArgoCDInstanceNamespace); err != nil {
+	if err := DeleteNamespace(clientconfig, NewArgoCDInstanceNamespace); err != nil {
 		return err
 	}
 
-	if err := DeleteNamespace(NewArgoCDInstanceDestNamespace); err != nil {
+	if err := DeleteNamespace(clientconfig, NewArgoCDInstanceDestNamespace); err != nil {
 		return err
 	}
 
 	// Clean up after tests that target the default Argo CD E2E instance (used by most E2E tests)
-	if err := cleanUpOldArgoCDApplications(dbutil.GetGitOpsEngineSingleInstanceNamespace(), GitOpsServiceE2ENamespace); err != nil {
+	if err := cleanUpOldArgoCDApplications(clientconfig, dbutil.GetGitOpsEngineSingleInstanceNamespace(), GitOpsServiceE2ENamespace); err != nil {
 		return err
 	}
 
-	if err := ensureDestinationNamespaceExists(GitOpsServiceE2ENamespace, dbutil.GetGitOpsEngineSingleInstanceNamespace()); err != nil {
+	if err := ensureDestinationNamespaceExists(clientconfig, GitOpsServiceE2ENamespace, dbutil.GetGitOpsEngineSingleInstanceNamespace()); err != nil {
 		return err
 	}
 
-	if err := cleanUpOldKubeSystemResources(); err != nil {
+	if err := cleanUpOldKubeSystemResources(clientconfig); err != nil {
 		return err
 	}
 
 	// Delete all Argo CD Cluster Secrets from the default Argo CD Namespace
 	secretList := &corev1.SecretList{}
-	k8sClient, err := GetKubeClient()
+	k8sClient, err := GetKubeClient(clientconfig)
 	if err != nil {
 		return err
 	}
@@ -107,8 +113,8 @@ func EnsureCleanSlate() error {
 
 // cleanUpOldArgoCDApplications issues a Delete request to k8s, for any Argo CD Applications in 'namespaceParam' that
 // have a .Spec.Destination of 'destNamespace'
-func cleanUpOldArgoCDApplications(namespaceParam string, destNamespace string) error {
-	k8sClient, err := GetKubeClient()
+func cleanUpOldArgoCDApplications(clientConfig *rest.Config, namespaceParam string, destNamespace string) error {
+	k8sClient, err := GetKubeClient(clientConfig)
 	if err != nil {
 		return err
 	}
@@ -135,8 +141,8 @@ func cleanUpOldArgoCDApplications(namespaceParam string, destNamespace string) e
 }
 
 // cleanUpOldKubeSystemResources cleans up ServiceAccounts, ClusterRoles, and ClusterRoleBindings created by these tests.
-func cleanUpOldKubeSystemResources() error {
-	k8sClient, err := GetKubeClient()
+func cleanUpOldKubeSystemResources(clientConfig *rest.Config) error {
+	k8sClient, err := GetKubeClient(clientConfig)
 	if err != nil {
 		return err
 	}
@@ -226,14 +232,14 @@ func cleanUpOldGitOpsServiceAPIs(namespace string, k8sClient client.Client) erro
 
 }
 
-func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespaceParam string) error {
+func ensureDestinationNamespaceExists(clientConfig *rest.Config, namespaceParam string, argoCDNamespaceParam string) error {
 
 	kubeClientSet, err := GetKubeClientSet()
 	if err != nil {
 		return err
 	}
 
-	if err := DeleteNamespace(namespaceParam); err != nil {
+	if err := DeleteNamespace(clientConfig, namespaceParam); err != nil {
 		return fmt.Errorf("unable to delete namespace '%s': %v", namespaceParam, err)
 	}
 
@@ -343,9 +349,9 @@ func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 }
 
 // DeleteNamespace deletes a namespace, and waits for it to be reported as deleted.
-func DeleteNamespace(namespaceParam string) error {
+func DeleteNamespace(clientConfig *rest.Config, namespaceParam string) error {
 
-	k8sClient, err := GetKubeClient()
+	k8sClient, err := GetKubeClient(clientConfig)
 	if err != nil {
 		return err
 	}
@@ -364,7 +370,7 @@ func DeleteNamespace(namespaceParam string) error {
 		}
 
 		// Delete any Argo CD Applications in the Argo CD namespace that target this namespace
-		if err := cleanUpOldArgoCDApplications(dbutil.GetGitOpsEngineSingleInstanceNamespace(), namespaceParam); err != nil {
+		if err := cleanUpOldArgoCDApplications(clientConfig, dbutil.GetGitOpsEngineSingleInstanceNamespace(), namespaceParam); err != nil {
 			GinkgoWriter.Printf("unable to clean up old Argo CD Applications targetting '%s': %v'\n", namespaceParam, err)
 			return false, nil
 		}
@@ -550,15 +556,10 @@ func GetKubeClientSet() (*kubernetes.Clientset, error) {
 // GetKubeClient returns a controller-runtime Client for accessing K8s API resources.
 // The client returned by this function will, by default, already be aware of all
 // the necessary schemes for interacting with Argo CD/GitOps Service.
-func GetKubeClient() (client.Client, error) {
-
-	config, err := GetKubeConfig()
-	if err != nil {
-		return nil, err
-	}
+func GetKubeClient(config *rest.Config) (client.Client, error) {
 
 	scheme := runtime.NewScheme()
-	err = managedgitopsv1alpha1.AddToScheme(scheme)
+	err := managedgitopsv1alpha1.AddToScheme(scheme)
 	if err != nil {
 		return nil, err
 	}
@@ -832,58 +833,54 @@ func EnsureCleanSlateKCPVirtualWorkspace() error {
 	}
 
 	// Service Provider WS is where gitops service is running so we can delete from the same clientset
-	clientconfig, err := GetServiceProviderWorkspaceKubeConfig()
+	userConfig, err := GetE2ETestUserWorkspaceKubeConfig()
 	if err != nil {
 		panic(err)
 	}
 
-	clientset, err := kubernetes.NewForConfig(clientconfig)
+	if err := DeleteNamespace(userConfig, NewArgoCDInstanceNamespace); err != nil {
+		return err
+	}
+
+	if err := DeleteNamespace(userConfig, NewArgoCDInstanceDestNamespace); err != nil {
+		return err
+	}
+
+	if err := ensureDestinationNamespaceExists(userConfig, GitOpsServiceE2ENamespace, dbutil.GetGitOpsEngineSingleInstanceNamespace()); err != nil {
+		return err
+	}
+
+	if err := cleanUpOldKubeSystemResources(userConfig); err != nil {
+		return err
+	}
+
+	// Service Provider WS is where gitops service is running so we can delete from the same clientset
+	serviceConfig, err := GetServiceProviderWorkspaceKubeConfig()
 	if err != nil {
 		panic(err)
-	}
-
-	// Clean up after tests that target the non-default Argo CD instance (only used by a few E2E tests)
-	if err := cleanUpOldArgoCDApplications(NewArgoCDInstanceDestNamespace, NewArgoCDInstanceDestNamespace); err != nil {
-		return err
-	}
-
-	if err := DeleteNamespace(NewArgoCDInstanceNamespace); err != nil {
-		return err
-	}
-
-	if err := DeleteNamespace(NewArgoCDInstanceDestNamespace); err != nil {
-		return err
-	}
-
-	// Clean up after tests that target the default Argo CD E2E instance (used by most E2E tests)
-	if err := cleanUpOldArgoCDApplications(dbutil.GetGitOpsEngineSingleInstanceNamespace(), GitOpsServiceE2ENamespace); err != nil {
-		return err
-	}
-
-	if err := ensureDestinationNamespaceExists(GitOpsServiceE2ENamespace, dbutil.GetGitOpsEngineSingleInstanceNamespace()); err != nil {
-		return err
-	}
-
-	if err := cleanUpOldKubeSystemResources(); err != nil {
-		return err
 	}
 
 	// Delete all Argo CD Cluster Secrets from the default Argo CD Namespace
 	secretList := &corev1.SecretList{}
-	k8sClient, err := GetKubeClient()
+	serviceWSk8sClient, err := GetKubeClient(serviceConfig)
 	if err != nil {
 		return err
 	}
-	if err := k8sClient.List(context.Background(), secretList, &client.ListOptions{Namespace: dbutil.GetGitOpsEngineSingleInstanceNamespace()}); err != nil {
+	if err := serviceWSk8sClient.List(context.Background(), secretList, &client.ListOptions{Namespace: dbutil.GetGitOpsEngineSingleInstanceNamespace()}); err != nil {
 		return err
 	}
 	for idx := range secretList.Items {
 		secret := secretList.Items[idx]
 		if strings.HasPrefix(secret.Name, "managed-env") {
-			if err := k8sClient.Delete(context.Background(), &secret); err != nil {
+			if err := serviceWSk8sClient.Delete(context.Background(), &secret); err != nil {
 				return err
 			}
 		}
+	}
+
+	// Clean up after tests that target the default Argo CD E2E instance (used by most E2E tests)
+	if err := cleanUpOldArgoCDApplications(serviceConfig, dbutil.GetGitOpsEngineSingleInstanceNamespace(), GitOpsServiceE2ENamespace); err != nil {
+		return err
 	}
 
 	return nil

@@ -7,6 +7,8 @@ SCRIPTPATH="$(
   pwd -P
 )"
 
+export DISABLE_KCP_VIRTUAL_WORKSPACE="false"
+
 source "${SCRIPTPATH}/../utils.sh"
 
 PARENT_E2E_WS="gitops-service-e2e-test"

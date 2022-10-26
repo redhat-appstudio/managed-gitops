@@ -439,6 +439,8 @@ func DeleteNamespace(namespaceParam string) error {
 	return nil
 }
 
+// Prevent rate limiting of our requests
+// Sanity check that we're not running on a known staging system: don't want to accidentally break staging :|
 func rateLimitSanityCheck(restConfig *rest.Config) error {
 	if restConfig != nil {
 		// Prevent rate limiting of our requests
@@ -471,21 +473,25 @@ func GetKubeConfig() (*rest.Config, error) {
 		panic(err)
 	}
 
-	return restConfig, err
+	return restConfig, nil
 }
 
 // GetE2ETestUserWorkspaceKubeConfig retrieves the E2ETest User workspace Kubernetes config
 func GetE2ETestUserWorkspaceKubeConfig() (*rest.Config, error) {
 
 	var kubeconfig *string
-	kubeconfig = flag.String("kubeconfig", filepath.Join("/tmp", "gitops-service-provider-ws.config"), "(optional) absolute path to the kubeconfig file")
-	flag.Parse()
+	userEnv, exists := os.LookupEnv("USER_KUBECONFIG")
+	if exists {
+		kubeconfig = flag.String("kubeconfig", filepath.Join("", userEnv), "(optional) absolute path to the kubeconfig file")
+		flag.Parse()
+	} else {
+		panic("USER_KUBECONFIG env variable not set")
+	}
 
 	restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	if err != nil {
-		fmt.Errorf("could not fund the config")
+		panic(err)
 	}
-	flag.Parse()
 
 	err = rateLimitSanityCheck(restConfig)
 	if err != nil {
@@ -498,20 +504,37 @@ func GetE2ETestUserWorkspaceKubeConfig() (*rest.Config, error) {
 // GetServiceProviderWorkspaceKubeConfig retrieves the Service Provider workspace Kubernetes config
 func GetServiceProviderWorkspaceKubeConfig() (*rest.Config, error) {
 
-	return nil, nil
+	var kubeconfig *string
+	userEnv, exists := os.LookupEnv("SERVICE_PROVIDER_KUBECONFIG")
+	if exists {
+		kubeconfig = flag.String("kubeconfig", filepath.Join("", userEnv), "(optional) absolute path to the kubeconfig file")
+		flag.Parse()
+	} else {
+		panic("SERVICE_PROVIDER_KUBECONFIG env variable not set")
+	}
+
+	restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	if err != nil {
+		panic(err)
+	}
+
+	err = rateLimitSanityCheck(restConfig)
+	if err != nil {
+		panic(err)
+	}
+
+	return restConfig, nil
 }
 
 // GetVirtualWorkspaceKubeConfig retrieves the GetVirtualWorkspaceKubeConfig Kubernetes config
-func GetVirtualWorkspaceKubeConfig() (*rest.Config, error) {
-
-	return nil, nil
-}
+// func GetVirtualWorkspaceKubeConfig() (*rest.Config, error) {
+// 	return nil, nil
+// }
 
 // GetGitOpsEngineInstanceKubeConfig retrieves the GetGitOpsEngineInstanceKubeConfig Kubernetes config
-func GetGitOpsEngineInstanceKubeConfig() (*rest.Config, error) {
-
-	return nil, nil
-}
+// func GetGitOpsEngineInstanceKubeConfig() (*rest.Config, error) {
+//  look into GetK8sClientForGitOpsEngineInstance from eventloop
+// }
 
 // GetKubeClientSet returns a Clientset for accesing K8s API resources.
 // This API has the advantage over `GetKubeClient` in that it is strongly typed, but cannot be used for
@@ -784,4 +807,84 @@ func removeKCPFinalizers(k8sClient client.Client, namespaceParam string) (bool, 
 	}
 
 	return true, nil
+}
+
+// EnsureCleanSlateKCPVirtualWorkspace should be called before every E2E tests:
+// it ensures that in KCP Virtual workspace the state of the GitOpsServiceE2ENamespace namespace
+//	(and other resources on the cluster) is reset to scratch before each test, including:
+// - In user workspace, the function will:
+// 		- Deleting any old namespaces that exists within the user-workspace
+// 		- Deleting any cluster role/rolebindings existing within the user-workspace
+// 		- Delete the e2e namespaces, and create a new e2e namespace for testing
+//		- Clean up old kube system resources from the workspace
+// - In the gitops-service-provider workspace, the function will:
+//		- Delete all Argo CD Cluster Secrets from the Argo CD Namespace
+//		- Clean up old argo cd applications targetting the e2e namespace
+//
+// Need two different client ===> client virtual workspace enabled for workspace
+//
+// This ensures that previous E2E tests runs do not interfere with the results of current test runs.
+// This function can also be called after a test, in order to clean up any resources it creates in respective workspaces.
+func EnsureCleanSlateKCPVirtualWorkspace() error {
+
+	if !IsRunningAgainstKCP() {
+		return fmt.Errorf("Tests are not running in a KCP enviroment")
+	}
+
+	// Service Provider WS is where gitops service is running so we can delete from the same clientset
+	clientconfig, err := GetServiceProviderWorkspaceKubeConfig()
+	if err != nil {
+		panic(err)
+	}
+
+	clientset, err := kubernetes.NewForConfig(clientconfig)
+	if err != nil {
+		panic(err)
+	}
+
+	// Clean up after tests that target the non-default Argo CD instance (only used by a few E2E tests)
+	if err := cleanUpOldArgoCDApplications(NewArgoCDInstanceDestNamespace, NewArgoCDInstanceDestNamespace); err != nil {
+		return err
+	}
+
+	if err := DeleteNamespace(NewArgoCDInstanceNamespace); err != nil {
+		return err
+	}
+
+	if err := DeleteNamespace(NewArgoCDInstanceDestNamespace); err != nil {
+		return err
+	}
+
+	// Clean up after tests that target the default Argo CD E2E instance (used by most E2E tests)
+	if err := cleanUpOldArgoCDApplications(dbutil.GetGitOpsEngineSingleInstanceNamespace(), GitOpsServiceE2ENamespace); err != nil {
+		return err
+	}
+
+	if err := ensureDestinationNamespaceExists(GitOpsServiceE2ENamespace, dbutil.GetGitOpsEngineSingleInstanceNamespace()); err != nil {
+		return err
+	}
+
+	if err := cleanUpOldKubeSystemResources(); err != nil {
+		return err
+	}
+
+	// Delete all Argo CD Cluster Secrets from the default Argo CD Namespace
+	secretList := &corev1.SecretList{}
+	k8sClient, err := GetKubeClient()
+	if err != nil {
+		return err
+	}
+	if err := k8sClient.List(context.Background(), secretList, &client.ListOptions{Namespace: dbutil.GetGitOpsEngineSingleInstanceNamespace()}); err != nil {
+		return err
+	}
+	for idx := range secretList.Items {
+		secret := secretList.Items[idx]
+		if strings.HasPrefix(secret.Name, "managed-env") {
+			if err := k8sClient.Delete(context.Background(), &secret); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

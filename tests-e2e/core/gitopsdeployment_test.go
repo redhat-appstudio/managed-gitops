@@ -31,7 +31,12 @@ const (
 var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 	Context("Create, Update and Delete a GitOpsDeployment ", func() {
-		k8sClient, err := fixture.GetKubeClient()
+
+		// this assumes that service is running on non aware kcp client
+		config, err := fixture.GetKubeConfig()
+		Expect(err).To(BeNil())
+
+		k8sClient, err := fixture.GetKubeClient(config)
 		Expect(err).To(BeNil())
 		ctx := context.Background()
 
@@ -114,7 +119,11 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			Eventually(func() bool {
 
-				k8sclient, err := fixture.GetKubeClient()
+				// this assumes that service is running on non aware kcp client
+				config, err := fixture.GetKubeConfig()
+				Expect(err).To(BeNil())
+
+				k8sclient, err := fixture.GetKubeClient(config)
 				Expect(err).To(BeNil())
 
 				for _, resourceValue := range expectedResourceStatusList {

@@ -22,8 +22,11 @@ const (
 
 // Create creates the given K8s resource, returning an error on failure, or nil otherwise.
 func Create(obj client.Object) error {
+	// this assumes that service is running on non aware kcp client
+	config, err := fixture.GetKubeConfig()
+	Expect(err).To(BeNil())
 
-	k8sClient, err := fixture.GetKubeClient()
+	k8sClient, err := fixture.GetKubeClient(config)
 	if err != nil {
 		return err
 	}
@@ -38,8 +41,11 @@ func Create(obj client.Object) error {
 
 // Get the given K8s resource, returning an error on failure, or nil otherwise.
 func Get(obj client.Object) error {
+	// this assumes that service is running on non aware kcp client
+	config, err := fixture.GetKubeConfig()
+	Expect(err).To(BeNil())
 
-	k8sClient, err := fixture.GetKubeClient()
+	k8sClient, err := fixture.GetKubeClient(config)
 	if err != nil {
 		return err
 	}
@@ -54,8 +60,11 @@ func Get(obj client.Object) error {
 
 // List instances of a given K8s resource, returning an error on failure, or nil otherwise.
 func List(obj client.ObjectList, namespace string) error {
+	// this assumes that service is running on non aware kcp client
+	config, err := fixture.GetKubeConfig()
+	Expect(err).To(BeNil())
 
-	k8sClient, err := fixture.GetKubeClient()
+	k8sClient, err := fixture.GetKubeClient(config)
 	if err != nil {
 		return err
 	}
@@ -75,8 +84,11 @@ func List(obj client.ObjectList, namespace string) error {
 func ExistByName() matcher.GomegaMatcher {
 
 	return WithTransform(func(k8sObject client.Object) bool {
+		// this assumes that service is running on non aware kcp client
+		config, err := fixture.GetKubeConfig()
+		Expect(err).To(BeNil())
 
-		k8sClient, err := fixture.GetKubeClient()
+		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
 			return false
 		}
@@ -93,8 +105,11 @@ func ExistByName() matcher.GomegaMatcher {
 
 // Delete deletes a K8s object from the namespace; it returns an error on failure, or nil otherwise.
 func Delete(obj client.Object) error {
+	// this assumes that service is running on non aware kcp client
+	config, err := fixture.GetKubeConfig()
+	Expect(err).To(BeNil())
 
-	k8sClient, err := fixture.GetKubeClient()
+	k8sClient, err := fixture.GetKubeClient(config)
 	if err != nil {
 		return err
 	}
@@ -145,7 +160,11 @@ func UntilSuccess(f func(k8sClient client.Client) error) error {
 //
 // UpdateStatus updates the status of a K8s resource using the provided object.
 func UpdateStatus(obj client.Object) error {
-	k8sClient, err := fixture.GetKubeClient()
+	// this assumes that service is running on non aware kcp client
+	config, err := fixture.GetKubeConfig()
+	Expect(err).To(BeNil())
+
+	k8sClient, err := fixture.GetKubeClient(config)
 	if err != nil {
 		return err
 	}
@@ -159,7 +178,11 @@ func UpdateStatus(obj client.Object) error {
 }
 
 func Update(obj client.Object) error {
-	k8sClient, err := fixture.GetKubeClient()
+	// this assumes that service is running on non aware kcp client
+	config, err := fixture.GetKubeConfig()
+	Expect(err).To(BeNil())
+
+	k8sClient, err := fixture.GetKubeClient(config)
 	if err != nil {
 		return err
 	}

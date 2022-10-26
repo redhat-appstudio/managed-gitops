@@ -34,7 +34,11 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("deleting the namespace before the test starts, so that the code can create it")
-			err := fixture.DeleteNamespace(argocdNamespace)
+			config, err := fixture.GetKubeConfig()
+			if err != nil {
+				panic(err)
+			}
+			err = fixture.DeleteNamespace(config, argocdNamespace)
 			Expect(err).To(BeNil())
 
 		})
@@ -53,7 +57,7 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 			Expect(err).To(BeNil())
 			apiHost := config.Host
 
-			k8sClient, err := fixture.GetKubeClient()
+			k8sClient, err := fixture.GetKubeClient(config)
 			Expect(err).To(BeNil())
 
 			err = argocdv1.CreateNamespaceScopedArgoCD(ctx, argocdCRName, argocdNamespace, k8sClient, log)

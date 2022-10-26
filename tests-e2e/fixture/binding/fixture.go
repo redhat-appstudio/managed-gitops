@@ -73,7 +73,11 @@ func HaveStatusGitOpsDeployments(gitOpsDeployments []appstudiosharedv1.BindingSt
 
 	return WithTransform(func(binding appstudiosharedv1.SnapshotEnvironmentBinding) bool {
 
-		k8sClient, err := fixture.GetKubeClient()
+		// this assumes that service is running on non aware kcp client
+		config, err := fixture.GetKubeConfig()
+		Expect(err).To(BeNil())
+
+		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
 			fmt.Println(k8sFixture.K8sClientError, err)
 			return false

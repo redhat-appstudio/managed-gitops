@@ -21,7 +21,11 @@ func expectedCondition(f func(app appv1alpha1.Application) bool) matcher.GomegaM
 
 	return WithTransform(func(app appv1alpha1.Application) bool {
 
-		k8sClient, err := fixture.GetKubeClient()
+		// this assumes that service is running on non aware kcp client
+		config, err := fixture.GetKubeConfig()
+		Expect(err).To(BeNil())
+
+		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
 			fmt.Println(k8sFixture.K8sClientError, err)
 			return false
@@ -54,7 +58,11 @@ func HaveAutomatedSyncPolicy(syncPolicy appv1alpha1.SyncPolicyAutomated) matcher
 
 	return WithTransform(func(app appv1alpha1.Application) bool {
 
-		k8sClient, err := fixture.GetKubeClient()
+		// this assumes that service is running on non aware kcp client
+		config, err := fixture.GetKubeConfig()
+		Expect(err).To(BeNil())
+
+		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
 			fmt.Println(k8sFixture.K8sClientError, err)
 			return false
@@ -81,8 +89,11 @@ func HaveAutomatedSyncPolicy(syncPolicy appv1alpha1.SyncPolicyAutomated) matcher
 func HaveHealthStatusCode(status appv1alpha1.ApplicationStatus) matcher.GomegaMatcher {
 
 	return WithTransform(func(app appv1alpha1.Application) bool {
+		// this assumes that service is running on non aware kcp client
+		config, err := fixture.GetKubeConfig()
+		Expect(err).To(BeNil())
 
-		k8sClient, err := fixture.GetKubeClient()
+		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
 			fmt.Println(k8sFixture.K8sClientError, err)
 			return false
@@ -106,8 +117,11 @@ func HaveHealthStatusCode(status appv1alpha1.ApplicationStatus) matcher.GomegaMa
 func HaveSyncStatusCode(status appv1alpha1.ApplicationStatus) matcher.GomegaMatcher {
 
 	return WithTransform(func(app appv1alpha1.Application) bool {
+		// this assumes that service is running on non aware kcp client
+		config, err := fixture.GetKubeConfig()
+		Expect(err).To(BeNil())
 
-		k8sClient, err := fixture.GetKubeClient()
+		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
 			fmt.Println(k8sFixture.K8sClientError, err)
 			return false
@@ -130,8 +144,11 @@ func HaveSyncStatusCode(status appv1alpha1.ApplicationStatus) matcher.GomegaMatc
 func HaveApplicationSyncError(syncError appv1alpha1.ApplicationStatus) matcher.GomegaMatcher {
 
 	return WithTransform(func(app appv1alpha1.Application) bool {
+		// this assumes that service is running on non aware kcp client
+		config, err := fixture.GetKubeConfig()
+		Expect(err).To(BeNil())
 
-		k8sClient, err := fixture.GetKubeClient()
+		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
 			fmt.Println(k8sFixture.K8sClientError, err)
 			return false

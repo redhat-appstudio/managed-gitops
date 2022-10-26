@@ -99,7 +99,11 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			secretList := corev1.SecretList{}
 
-			k8sClient, err := fixture.GetKubeClient()
+			// this assumes that service is running on non aware kcp client
+			config, err := fixture.GetKubeConfig()
+			Expect(err).To(BeNil())
+
+			k8sClient, err := fixture.GetKubeClient(config)
 			Expect(err).To(BeNil())
 			err = k8sClient.List(context.Background(), &secretList, &client.ListOptions{Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace})
 			Expect(err).To(BeNil())

@@ -183,7 +183,11 @@ var _ = Describe("GitOpsDeployment SyncError test", func() {
 				),
 			)
 
-			k8sClient, err := fixture.GetKubeClient()
+			// this assumes that service is running on non aware kcp client
+			config, err := fixture.GetKubeConfig()
+			Expect(err).To(BeNil())
+
+			k8sClient, err := fixture.GetKubeClient(config)
 			Expect(err).To(BeNil())
 
 			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitOpsDeploymentResource), &gitOpsDeploymentResource)

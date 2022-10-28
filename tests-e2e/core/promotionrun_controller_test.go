@@ -207,8 +207,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			By("Verify that error is updated in Status.conditions field.")
 			Eventually(promotionRun, "3m", "1s").Should(promotionRunFixture.HaveStatusConditions(expectedPromotionRunStatusConditions))
 
-			// this assumes that service is running on non aware kcp client
-			config, err := fixture.GetKubeConfig()
+			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
 			Expect(err).To(BeNil())
 
 			k8sClient, err := fixture.GetKubeClient(config)

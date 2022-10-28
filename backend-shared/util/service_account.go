@@ -121,7 +121,18 @@ func getOrCreateServiceAccountBearerToken(ctx context.Context, k8sClient client.
 }
 
 func getServiceAccountTokenSecret(ctx context.Context, k8sClient client.Client, serviceAccount *corev1.ServiceAccount) (*corev1.Secret, error) {
-	for _, oRef := range serviceAccount.Secrets {
+	secrets := &corev1.SecretList{}
+	ns := serviceAccount.Namespace
+	opts := []client.ListOption{
+		client.InNamespace(ns),
+	}
+
+	err := k8sClient.List(ctx, secrets, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve secrets in namespace: %s: %v", ns, err)
+	}
+
+	for _, oRef := range secrets.Items {
 		var getErr error
 		innerSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -133,7 +144,7 @@ func getServiceAccountTokenSecret(ctx context.Context, k8sClient client.Client, 
 			return nil, fmt.Errorf("failed to retrieve secret %q: %v", oRef.Name, getErr)
 		}
 
-		if innerSecret.Type == corev1.SecretTypeServiceAccountToken {
+		if innerSecret.Type == corev1.SecretTypeServiceAccountToken && innerSecret.Annotations["kubernetes.io/service-account.uid"] == string(serviceAccount.UID) {
 			return innerSecret, nil
 		}
 	}

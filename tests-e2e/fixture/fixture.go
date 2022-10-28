@@ -18,6 +18,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	routev1 "github.com/openshift/api/route/v1"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -58,7 +59,6 @@ const (
 // This function can also be called after a test, in order to clean up any resources it create in the GitOpsServiceE2ENamespace.
 func EnsureCleanSlate() error {
 
-	// Service Provider WS is where gitops service is running so we can delete from the same clientset
 	clientconfig, err := GetKubeConfig()
 	if err != nil {
 		panic(err)
@@ -483,53 +483,64 @@ func GetKubeConfig() (*rest.Config, error) {
 }
 
 // GetE2ETestUserWorkspaceKubeConfig retrieves the E2ETest User workspace Kubernetes config
+// Return a k8s config that can be used to access user GitOpsDeployment* APIs or Secrets
+// or just the normal openshift/k8s cluster (when not running in KCP);
 func GetE2ETestUserWorkspaceKubeConfig() (*rest.Config, error) {
 
-	var kubeconfig *string
-	userEnv, exists := os.LookupEnv("USER_KUBECONFIG")
-	if exists {
-		kubeconfig = flag.String("kubeconfig", filepath.Join("", userEnv), "(optional) absolute path to the kubeconfig file")
-		flag.Parse()
-	} else {
-		panic("USER_KUBECONFIG env variable not set")
+	if !sharedutil.IsKCPVirtualWorkspaceDisabled() {
+		var kubeconfig *string
+		userEnv, exists := os.LookupEnv("USER_KUBECONFIG")
+		if exists {
+			kubeconfig = flag.String("kubeconfig", filepath.Join("", userEnv), "(optional) absolute path to the kubeconfig file")
+			flag.Parse()
+		} else {
+			panic("USER_KUBECONFIG env variable not set")
+		}
+
+		restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+		if err != nil {
+			panic(err)
+		}
+
+		err = rateLimitSanityCheck(restConfig)
+		if err != nil {
+			panic(err)
+		}
+
+		return restConfig, nil
 	}
 
-	restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
-	if err != nil {
-		panic(err)
-	}
-
-	err = rateLimitSanityCheck(restConfig)
-	if err != nil {
-		panic(err)
-	}
-
-	return restConfig, nil
+	return GetKubeConfig()
 }
 
-// GetServiceProviderWorkspaceKubeConfig retrieves the Service Provider workspace Kubernetes config
+// GetServiceProviderWorkspaceKubeConfig Return a K8s config that can be used to write to service provider workspace (when running in KCP),
+// or just the normal openshift/k8s cluster (when not running in KCP); For example, to see Argo CD Application CRs
 func GetServiceProviderWorkspaceKubeConfig() (*rest.Config, error) {
 
-	var kubeconfig *string
-	userEnv, exists := os.LookupEnv("SERVICE_PROVIDER_KUBECONFIG")
-	if exists {
-		kubeconfig = flag.String("kubeconfig", filepath.Join("", userEnv), "(optional) absolute path to the kubeconfig file")
-		flag.Parse()
-	} else {
-		panic("SERVICE_PROVIDER_KUBECONFIG env variable not set")
+	if !sharedutil.IsKCPVirtualWorkspaceDisabled() {
+		var kubeconfig *string
+		userEnv, exists := os.LookupEnv("SERVICE_PROVIDER_KUBECONFIG")
+		if exists {
+			kubeconfig = flag.String("kubeconfig", filepath.Join("", userEnv), "(optional) absolute path to the kubeconfig file")
+			flag.Parse()
+		} else {
+			panic("SERVICE_PROVIDER_KUBECONFIG env variable not set")
+		}
+
+		restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+		if err != nil {
+			panic(err)
+		}
+
+		err = rateLimitSanityCheck(restConfig)
+		if err != nil {
+			panic(err)
+		}
+
+		return restConfig, nil
 	}
 
-	restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
-	if err != nil {
-		panic(err)
-	}
-
-	err = rateLimitSanityCheck(restConfig)
-	if err != nil {
-		panic(err)
-	}
-
-	return restConfig, nil
+	return GetKubeConfig()
 }
 
 // GetVirtualWorkspaceKubeConfig retrieves the GetVirtualWorkspaceKubeConfig Kubernetes config

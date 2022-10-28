@@ -69,29 +69,29 @@ test-backend: ## Run tests for backend only
 ### --- c l u s t e r - a g e n t --- ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 deploy-cluster-agent-crd: ## Deploy cluster-agent related CRDs
-	kubectl create namespace gitops 2> /dev/null || true
-	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_operations.yaml
-	kubectl create ns "${ARGO_CD_NAMESPACE}" 2> /dev/null || true
-	kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/$(ARGO_CD_VERSION)/manifests/crds/application-crd.yaml
+	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl create namespace gitops 2> /dev/null || true
+	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_operations.yaml
+	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl create ns "${ARGO_CD_NAMESPACE}" 2> /dev/null || true
+	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/$(ARGO_CD_VERSION)/manifests/crds/application-crd.yaml
 
 undeploy-cluster-agent-crd: ## Remove cluster-agent related CRDs
-	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_operations.yaml
-	kubectl delete -f https://raw.githubusercontent.com/argoproj/argo-cd/$(ARGO_CD_VERSION)/manifests/crds/application-crd.yaml
-	kubectl delete ns "${ARGO_CD_NAMESPACE}" 2> /dev/null || true
+	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_operations.yaml
+	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl delete -f https://raw.githubusercontent.com/argoproj/argo-cd/$(ARGO_CD_VERSION)/manifests/crds/application-crd.yaml
+	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl delete ns "${ARGO_CD_NAMESPACE}" 2> /dev/null || true
 
 deploy-cluster-agent-rbac: kustomize ## Deploy cluster-agent related RBAC resouces
-	kubectl create namespace gitops 2> /dev/null || true	
-	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/cluster-agent-rbac/ | kubectl -n gitops apply -f -
+	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl create namespace gitops 2> /dev/null || true	
+	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/cluster-agent-rbac/ | KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl -n gitops apply -f -
 
 undeploy-cluster-agent-rbac: kustomize ## Remove cluster-agent related RBAC resouces
-	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/cluster-agent-rbac/ | kubectl -n gitops delete -f -
+	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/cluster-agent-rbac/ | KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl -n gitops delete -f -
 
 deploy-cluster-agent: deploy-cluster-agent-crd deploy-cluster-agent-rbac ## Deploy cluster-agent operator into Kubernetes -- e.g. make deploy-cluster-agent IMG=quay.io/pgeorgia/gitops-service:latest
-	kubectl create namespace gitops 2> /dev/null || true
-	ARGO_CD_NAMESPACE=${ARGO_CD_NAMESPACE} COMMON_IMAGE=${IMG} envsubst < $(MAKEFILE_ROOT)/manifests/controller-deployments/managed-gitops-clusteragent-deployment.yaml | kubectl apply -f -
+	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl create namespace gitops 2> /dev/null || true
+	ARGO_CD_NAMESPACE=${ARGO_CD_NAMESPACE} COMMON_IMAGE=${IMG} envsubst < $(MAKEFILE_ROOT)/manifests/controller-deployments/managed-gitops-clusteragent-deployment.yaml | KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl apply -f -
 
 undeploy-cluster-agent: undeploy-cluster-agent-rbac undeploy-cluster-agent-crd ## Undeploy cluster-agent from Kubernetes
-	kubectl delete -f $(MAKEFILE_ROOT)/manifests/controller-deployments/managed-gitops-clusteragent-deployment.yaml
+	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl delete -f $(MAKEFILE_ROOT)/manifests/controller-deployments/managed-gitops-clusteragent-deployment.yaml
 
 build-cluster-agent: ## Build cluster-agent only
 	cd $(MAKEFILE_ROOT)/cluster-agent && make build

@@ -119,8 +119,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			Eventually(func() bool {
 
-				// this assumes that service is running on non aware kcp client
-				config, err := fixture.GetKubeConfig()
+				config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
 				Expect(err).To(BeNil())
 
 				k8sclient, err := fixture.GetKubeClient(config)

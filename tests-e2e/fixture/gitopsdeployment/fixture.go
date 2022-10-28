@@ -24,8 +24,8 @@ import (
 func HaveHealthStatusCode(status managedgitopsv1alpha1.HealthStatusCode) matcher.GomegaMatcher {
 
 	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
-		// this assumes that service is running on non aware kcp client
-		config, err := fixture.GetKubeConfig()
+
+		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
 		Expect(err).To(BeNil())
 
 		k8sClient, err := fixture.GetKubeClient(config)
@@ -55,8 +55,8 @@ func HaveHealthStatusCode(status managedgitopsv1alpha1.HealthStatusCode) matcher
 func HaveSyncStatusCode(status managedgitopsv1alpha1.SyncStatusCode) matcher.GomegaMatcher {
 
 	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
-		// this assumes that service is running on non aware kcp client
-		config, err := fixture.GetKubeConfig()
+
+		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
 		Expect(err).To(BeNil())
 
 		k8sClient, err := fixture.GetKubeClient(config)
@@ -81,8 +81,8 @@ func HaveSyncStatusCode(status managedgitopsv1alpha1.SyncStatusCode) matcher.Gom
 // HaveResources checks if the .status.resources field of GitOpsDeployment have the required resources
 func HaveResources(resourceStatusList []managedgitopsv1alpha1.ResourceStatus) matcher.GomegaMatcher {
 	return WithTransform(func(gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment) bool {
-		// this assumes that service is running on non aware kcp client
-		config, err := fixture.GetKubeConfig()
+
+		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
 		Expect(err).To(BeNil())
 
 		k8sClient, err := fixture.GetKubeClient(config)
@@ -128,8 +128,8 @@ func HaveResources(resourceStatusList []managedgitopsv1alpha1.ResourceStatus) ma
 func HaveSpecSource(source managedgitopsv1alpha1.ApplicationSource) matcher.GomegaMatcher {
 
 	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
-		// this assumes that service is running on non aware kcp client
-		config, err := fixture.GetKubeConfig()
+
+		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
 		Expect(err).To(BeNil())
 
 		k8sClient, err := fixture.GetKubeClient(config)
@@ -218,8 +218,7 @@ func HaveConditions(conditions []managedgitopsv1alpha1.GitOpsDeploymentCondition
 func HaveReconciledState(reconciledState managedgitopsv1alpha1.ReconciledState) matcher.GomegaMatcher {
 
 	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
-		// this assumes that service is running on non aware kcp client
-		config, err := fixture.GetKubeConfig()
+		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
 		Expect(err).To(BeNil())
 
 		k8sClient, err := fixture.GetKubeClient(config)

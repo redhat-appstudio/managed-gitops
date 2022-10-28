@@ -19,6 +19,9 @@ import (
 func HaveStatusComplete(expectedPromotionRunStatus appstudiosharedv1.PromotionRunStatus) matcher.GomegaMatcher {
 	return WithTransform(func(promotionRun appstudiosharedv1.PromotionRun) bool {
 
+		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+		Expect(err).To(BeNil())
+
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
 			fmt.Println(k8sFixture.K8sClientError, err)
@@ -56,6 +59,9 @@ func HaveStatusComplete(expectedPromotionRunStatus appstudiosharedv1.PromotionRu
 
 func HaveStatusConditions(expectedPromotionRunStatusConditions appstudiosharedv1.PromotionRunStatus) matcher.GomegaMatcher {
 	return WithTransform(func(promotionRun appstudiosharedv1.PromotionRun) bool {
+
+		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+		Expect(err).To(BeNil())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {

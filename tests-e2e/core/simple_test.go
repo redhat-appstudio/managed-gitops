@@ -26,7 +26,13 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				"https://github.com/redhat-appstudio/gitops-repository-template", "environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
-			err := k8s.Create(&gitOpsDeploymentResource)
+			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+			Expect(err).To(BeNil())
+
+			k8sClient, err := fixture.GetKubeClient(config)
+			Expect(err).To(BeNil())
+
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("ensuring GitOpsDeployment should have expected health and status")
@@ -44,18 +50,18 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			componentBDepl := &apps.Deployment{
 				ObjectMeta: metav1.ObjectMeta{Name: "component-b", Namespace: fixture.GitOpsServiceE2ENamespace},
 			}
-			Eventually(componentADepl, "60s", "1s").Should(k8s.ExistByName())
-			Eventually(componentBDepl, "60s", "1s").Should(k8s.ExistByName())
+			Eventually(componentADepl, "60s", "1s").Should(k8s.ExistByName(k8sClient))
+			Eventually(componentBDepl, "60s", "1s").Should(k8s.ExistByName(k8sClient))
 
 			By("deleting the GitOpsDeployment")
 
-			err = k8s.Delete(&gitOpsDeploymentResource)
+			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("ensuring the resources of the GitOps repo are successfully deleted")
 
-			Eventually(componentADepl, "60s", "1s").ShouldNot(k8s.ExistByName())
-			Eventually(componentBDepl, "60s", "1s").ShouldNot(k8s.ExistByName())
+			Eventually(componentADepl, "60s", "1s").ShouldNot(k8s.ExistByName(k8sClient))
+			Eventually(componentBDepl, "60s", "1s").ShouldNot(k8s.ExistByName(k8sClient))
 
 		})
 	})

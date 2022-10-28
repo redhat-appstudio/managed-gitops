@@ -27,25 +27,30 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 
 		BeforeEach(func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+			Expect(err).To(BeNil())
+
+			k8sClient, err := fixture.GetKubeClient(config)
+			Expect(err).To(BeNil())
 
 			By("Create Staging Environment.")
 			environmentStage := buildEnvironmentResource("staging", "Staging Environment", "staging", appstudiosharedv1.EnvironmentType_POC)
-			err := k8s.Create(&environmentStage)
+			err = k8s.Create(&environmentStage, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Create Production Environment.")
 			environmentProd = buildEnvironmentResource("prod", "Production Environment", "prod", appstudiosharedv1.EnvironmentType_POC)
-			err = k8s.Create(&environmentProd)
+			err = k8s.Create(&environmentProd, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Create Snapshot.")
 			snapshot := buildSnapshotResource("my-snapshot", "new-demo-app", "Staging Snapshot", "Staging Snapshot", "component-a", "quay.io/jgwest-redhat/sample-workload:latest")
-			err = k8s.Create(&snapshot)
+			err = k8s.Create(&snapshot, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Create Staging Binding.")
 			bindingStage = buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
-			err = k8s.Create(&bindingStage)
+			err = k8s.Create(&bindingStage, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Update Status field.")
@@ -57,7 +62,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			By("Create Production Binding.")
 			bindingProd = buildSnapshotEnvironmentBindingResource("appa-prod-binding", "new-demo-app", "prod",
 				"my-snapshot", 3, []string{"component-a"})
-			err = k8s.Create(&bindingProd)
+			err = k8s.Create(&bindingProd, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Update Status field.")
@@ -87,7 +92,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 					Namespace: bindingStage.Namespace,
 				},
 			}
-			err = k8s.Get(&gitOpsDeploymentStage)
+			err = k8s.Get(&gitOpsDeploymentStage, k8sClient)
 			Expect(err).To(Succeed())
 
 			gitOpsDeploymentProd := v1alpha1.GitOpsDeployment{
@@ -96,7 +101,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 					Namespace: bindingProd.Namespace,
 				},
 			}
-			err = k8s.Get(&gitOpsDeploymentProd)
+			err = k8s.Get(&gitOpsDeploymentProd, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Create PromotionRun CR.")
@@ -108,9 +113,14 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			if fixture.IsRunningAgainstKCP() {
 				Skip("Skipping this test in KCP until we fix the race condition")
 			}
+			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+			Expect(err).To(BeNil())
+
+			k8sClient, err := fixture.GetKubeClient(config)
+			Expect(err).To(BeNil())
 
 			By("Create PromotionRun CR.")
-			err := k8s.Create(&promotionRun)
+			err = k8s.Create(&promotionRun, k8sClient)
 			Expect(err).To(Succeed())
 
 			now := v1.Now()
@@ -148,7 +158,14 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			promotionRun.Spec.AutomatedPromotion = appstudiosharedv1.AutomatedPromotionConfiguration{
 				InitialEnvironment: "staging",
 			}
-			err := k8s.Create(&promotionRun)
+
+			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+			Expect(err).To(BeNil())
+
+			k8sClient, err := fixture.GetKubeClient(config)
+			Expect(err).To(BeNil())
+
+			err = k8s.Create(&promotionRun, k8sClient)
 			Expect(err).To(Succeed())
 
 			expectedPromotionRunStatusConditions := appstudiosharedv1.PromotionRunStatus{
@@ -169,7 +186,14 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 
 			By("Create PromotionRun CR.")
 			promotionRun.Spec.ManualPromotion.TargetEnvironment = ""
-			err := k8s.Create(&promotionRun)
+
+			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+			Expect(err).To(BeNil())
+
+			k8sClient, err := fixture.GetKubeClient(config)
+			Expect(err).To(BeNil())
+
+			err = k8s.Create(&promotionRun, k8sClient)
 			Expect(err).To(Succeed())
 
 			expectedPromotionRunStatusConditions := appstudiosharedv1.PromotionRunStatus{
@@ -190,7 +214,13 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 
 			By("Create PromotionRun CR with invalid value.")
 			promotionRun.Spec.ManualPromotion.TargetEnvironment = ""
-			err := k8s.Create(&promotionRun)
+			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+			Expect(err).To(BeNil())
+
+			k8sClient, err := fixture.GetKubeClient(config)
+			Expect(err).To(BeNil())
+
+			err = k8s.Create(&promotionRun, k8sClient)
 			Expect(err).To(Succeed())
 
 			expectedPromotionRunStatusConditions := appstudiosharedv1.PromotionRunStatus{
@@ -207,18 +237,12 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			By("Verify that error is updated in Status.conditions field.")
 			Eventually(promotionRun, "3m", "1s").Should(promotionRunFixture.HaveStatusConditions(expectedPromotionRunStatusConditions))
 
-			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-			Expect(err).To(BeNil())
-
-			k8sClient, err := fixture.GetKubeClient(config)
-			Expect(err).To(Succeed())
-
 			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&promotionRun), &promotionRun)
 			Expect(err).To(Succeed())
 
 			By("Update PromotionRun CR with invalid value.")
 			promotionRun.Spec.ManualPromotion.TargetEnvironment = "prod"
-			err = k8s.Update(&promotionRun)
+			err = k8s.Update(&promotionRun, k8sClient)
 			Expect(err).To(Succeed())
 
 			expectedPromotionRunStatus := appstudiosharedv1.PromotionRunStatus{

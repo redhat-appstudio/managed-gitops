@@ -67,7 +67,8 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 			argocdInstance := &apps.Deployment{
 				ObjectMeta: metav1.ObjectMeta{Name: argocdCRName + "-server", Namespace: argocdNamespace},
 			}
-			Eventually(argocdInstance, "60s", "5s").Should(k8s.ExistByName())
+
+			Eventually(argocdInstance, "60s", "5s").Should(k8s.ExistByName(k8sClient))
 			Expect(err).To(BeNil())
 
 			By("ensuring ArgoCD resource exists in kube-system namespace")
@@ -103,7 +104,8 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 					},
 				},
 			}
-			err = k8s.Create(&app)
+
+			err = k8s.Create(&app, k8sClient)
 			Expect(err).To(BeNil())
 
 			cs := argocdv1.NewCredentialService(nil, true)

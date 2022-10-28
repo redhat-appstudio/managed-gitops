@@ -37,7 +37,13 @@ var _ = Describe("GitOpsDeployment Condition Tests", func() {
 				},
 			}
 
-			err := k8s.Create(&gitOpsDeploymentResource)
+			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+			Expect(err).To(BeNil())
+
+			k8sClient, err := fixture.GetKubeClient(config)
+			Expect(err).To(BeNil())
+
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			expectedConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{
@@ -56,7 +62,7 @@ var _ = Describe("GitOpsDeployment Condition Tests", func() {
 			)
 
 			By("delete the GitOpsDeployment resource")
-			err = k8s.Delete(&gitOpsDeploymentResource)
+			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 		})
 	})

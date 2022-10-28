@@ -23,11 +23,19 @@ func UpdateStatusWithFunction(binding *appstudiosharedv1.SnapshotEnvironmentBind
 	mutationFn func(binding *appstudiosharedv1.SnapshotEnvironmentBindingStatus)) error {
 
 	GinkgoWriter.Printf("Updating SnapshotEnvironmentBindingStatus for '%v'\n", binding.ObjectMeta)
+	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+	Expect(err).To(BeNil())
 
-	return k8sFixture.UntilSuccess(func(k8sClient client.Client) error {
+	k8sClient, err := fixture.GetKubeClient(config)
+	if err != nil {
+		fmt.Println(k8sFixture.K8sClientError, err)
+		return err
+	}
+
+	return k8sFixture.UntilSuccess(k8sClient, func(k8sClient client.Client) error {
 
 		// Retrieve the latest version of the SnapshotEnvironmentBinding resource
-		err := k8sFixture.Get(binding)
+		err := k8sFixture.Get(binding, k8sClient)
 		if err != nil {
 			return err
 		}
@@ -36,7 +44,7 @@ func UpdateStatusWithFunction(binding *appstudiosharedv1.SnapshotEnvironmentBind
 		mutationFn(&binding.Status)
 
 		// Attempt to update the object with the change made by the mutation function
-		err = k8sFixture.UpdateStatus(binding)
+		err = k8sFixture.UpdateStatus(binding, k8sClient)
 
 		// Report back the error, if we hit one
 		return err

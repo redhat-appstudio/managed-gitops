@@ -27,7 +27,13 @@ var _ = Describe("GitOpsDeployment Status Tests", func() {
 				"https://github.com/redhat-appstudio/gitops-repository-template", "environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
-			err := k8s.Create(&gitOpsDeploymentResource)
+			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+			Expect(err).To(BeNil())
+
+			k8sClient, err := fixture.GetKubeClient(config)
+			Expect(err).To(BeNil())
+
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("ensuring the GitOpsDeployment status field have health, sync and resources fields populated")
@@ -91,7 +97,7 @@ var _ = Describe("GitOpsDeployment Status Tests", func() {
 			)
 
 			By("delete the GitOpsDeployment resource")
-			err = k8s.Delete(&gitOpsDeploymentResource)
+			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 		})
 	})
@@ -120,7 +126,13 @@ var _ = Describe("GitOpsDeployment SyncError test", func() {
 				},
 			}
 
-			err := k8s.Create(&gitOpsDeploymentResource)
+			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+			Expect(err).To(BeNil())
+
+			k8sClient, err := fixture.GetKubeClient(config)
+			Expect(err).To(BeNil())
+
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
@@ -183,12 +195,6 @@ var _ = Describe("GitOpsDeployment SyncError test", func() {
 				),
 			)
 
-			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-			Expect(err).To(BeNil())
-
-			k8sClient, err := fixture.GetKubeClient(config)
-			Expect(err).To(BeNil())
-
 			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitOpsDeploymentResource), &gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
@@ -196,7 +202,7 @@ var _ = Describe("GitOpsDeployment SyncError test", func() {
 			gitOpsDeploymentResource.Spec.Source.RepoURL = "https://github.com/redhat-appstudio/gitops-repository-template"
 			gitOpsDeploymentResource.Spec.Source.Path = "environments/overlays/dev"
 
-			err = k8s.Update(&gitOpsDeploymentResource)
+			err = k8s.Update(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Wait until ArgoCD Application .conditions.Message value is cleared")
@@ -231,7 +237,7 @@ var _ = Describe("GitOpsDeployment SyncError test", func() {
 			)
 
 			By("delete the GitOpsDeployment resource")
-			err = k8s.Delete(&gitOpsDeploymentResource)
+			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 		})
 	})

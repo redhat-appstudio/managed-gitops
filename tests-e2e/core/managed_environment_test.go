@@ -43,10 +43,16 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents)
 
-			err = k8s.Create(&secret)
+			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
 			Expect(err).To(BeNil())
 
-			err = k8s.Create(&managedEnv)
+			k8sClient, err := fixture.GetKubeClient(config)
+			Expect(err).To(BeNil())
+
+			err = k8s.Create(&secret, k8sClient)
+			Expect(err).To(BeNil())
+
+			err = k8s.Create(&managedEnv, k8sClient)
 			Expect(err).To(BeNil())
 
 			gitOpsDeploymentResource := buildGitOpsDeploymentResource("my-gitops-depl",
@@ -54,7 +60,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
 			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
-			err = k8s.Create(&gitOpsDeploymentResource)
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(BeNil())
 
 			// By("Allow argocd to manage the environment")
@@ -99,11 +105,6 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			secretList := corev1.SecretList{}
 
-			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-			Expect(err).To(BeNil())
-
-			k8sClient, err := fixture.GetKubeClient(config)
-			Expect(err).To(BeNil())
 			err = k8sClient.List(context.Background(), &secretList, &client.ListOptions{Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace})
 			Expect(err).To(BeNil())
 
@@ -126,7 +127,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				},
 			}
 
-			Expect(argoCDClusterSecret).To(k8s.ExistByName())
+			Expect(argoCDClusterSecret).To(k8s.ExistByName(k8sClient))
 
 			By("ensuring the resources of the GitOps repo are successfully deployed")
 
@@ -136,17 +137,17 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			componentBDepl := &apps.Deployment{
 				ObjectMeta: metav1.ObjectMeta{Name: "component-b", Namespace: fixture.GitOpsServiceE2ENamespace},
 			}
-			Eventually(componentADepl, "60s", "1s").Should(k8s.ExistByName())
-			Eventually(componentBDepl, "60s", "1s").Should(k8s.ExistByName())
+			Eventually(componentADepl, "60s", "1s").Should(k8s.ExistByName(k8sClient))
+			Eventually(componentBDepl, "60s", "1s").Should(k8s.ExistByName(k8sClient))
 
 			By("deleting the secret and managed environment")
-			err = k8s.Delete(&secret)
+			err = k8s.Delete(&secret, k8sClient)
 			Expect(err).To(BeNil())
 
-			err = k8s.Delete(&managedEnv)
+			err = k8s.Delete(&managedEnv, k8sClient)
 			Expect(err).To(BeNil())
 
-			Eventually(argoCDClusterSecret, "60s", "1s").ShouldNot(k8s.ExistByName(),
+			Eventually(argoCDClusterSecret, "60s", "1s").ShouldNot(k8s.ExistByName(k8sClient),
 				"once the ManagedEnvironment is deleted, the Argo CD cluster secret should be deleted as well.")
 
 			app := appv1alpha1.Application{
@@ -162,7 +163,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			By("deleting the GitOpsDeployment")
 
-			err = k8s.Delete(&gitOpsDeploymentResource)
+			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 		})

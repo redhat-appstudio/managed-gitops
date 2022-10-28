@@ -166,7 +166,13 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			gitOpsDeploymentResource.Spec.Destination.Environment = ""
 			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
-			err := k8s.Create(&gitOpsDeploymentResource)
+			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+			Expect(err).To(BeNil())
+
+			k8sClient, err := fixture.GetKubeClient(config)
+			Expect(err).To(BeNil())
+
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
@@ -210,7 +216,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			By("deleting the GitOpsDeployment resource and waiting for the resources to be deleted")
 
-			err = k8s.Delete(&gitOpsDeploymentResource)
+			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			expectAllResourcesToBeDeleted(expectedResourceStatusList)
@@ -226,7 +232,13 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			gitOpsDeploymentResource.Spec.Destination.Environment = ""
 			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
-			err := k8s.Create(&gitOpsDeploymentResource)
+			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+			Expect(err).To(BeNil())
+
+			k8sClient, err := fixture.GetKubeClient(config)
+			Expect(err).To(BeNil())
+
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
@@ -240,7 +252,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			gitOpsDeploymentResource.Spec.Source.RepoURL = repoURL
 			gitOpsDeploymentResource.Spec.Source.Path = "environments/overlays/dev"
 
-			err = k8s.Update(&gitOpsDeploymentResource)
+			err = k8s.Update(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&gitOpsDeploymentResource), &gitOpsDeploymentResource)
@@ -274,7 +286,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				),
 			)
 
-			err = k8s.Delete(&gitOpsDeploymentResource)
+			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 		})
 
@@ -284,7 +296,13 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				repoURL, "environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
-			err := k8s.Create(&gitOpsDeploymentResource)
+			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+			Expect(err).To(BeNil())
+
+			k8sClient, err := fixture.GetKubeClient(config)
+			Expect(err).To(BeNil())
+
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
@@ -298,7 +316,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			gitOpsDeploymentResource.Spec.Source.Path = "environments/overlays/staging"
 
-			err = k8s.Update(&gitOpsDeploymentResource)
+			err = k8s.Update(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&gitOpsDeploymentResource), &gitOpsDeploymentResource)
@@ -312,7 +330,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				),
 			)
 
-			err = k8s.Delete(&gitOpsDeploymentResource)
+			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 		})
 
@@ -320,19 +338,25 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
+			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+			Expect(err).To(BeNil())
+
+			k8sClient, err := fixture.GetKubeClient(config)
+			Expect(err).To(BeNil())
+
 			By("creating a new GitOpsDeployment resource")
 			gitOpsDeploymentResource := buildTargetRevisionGitOpsDeploymentResource("gitops-depl-test",
 				"https://github.com/managed-gitops-test-data/deployment-permutations-a", "pathB", "branchA",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
-			err := k8s.Create(&gitOpsDeploymentResource)
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			createResourceStatusList_deploymentPermutations := createResourceStatusListFunction_deploymentPermutations()
 
 			createResourceStatusList_deploymentPermutations = append(createResourceStatusList_deploymentPermutations,
 				getResourceStatusList_deploymentPermutations("deployment-permutations-a-brancha-pathb")...)
-			err = k8s.Get(&gitOpsDeploymentResource)
+			err = k8s.Get(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
@@ -345,13 +369,13 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			By("ensuring changes in repo URL deploys the resources that are a part of the latest modification")
 
-			err = k8s.Get(&gitOpsDeploymentResource)
+			err = k8s.Get(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			gitOpsDeploymentResource.Spec.Source.RepoURL = "https://github.com/managed-gitops-test-data/deployment-permutations-b"
 
 			//updating the CR with changes in repoURL
-			err = k8s.Update(&gitOpsDeploymentResource)
+			err = k8s.Update(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			expectedResourceStatusList := createResourceStatusListFunction_deploymentPermutations()
@@ -368,10 +392,10 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				),
 			)
 			By("delete the GitOpsDeployment resource")
-			err = k8s.Delete(&gitOpsDeploymentResource)
+			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
-			err = k8s.Get(&gitOpsDeploymentResource)
+			err = k8s.Get(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).ToNot(Succeed())
 
 			expectAllResourcesToBeDeleted(expectedResourceStatusList)
@@ -381,6 +405,11 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 		It("Checks whether a change in source path is reflected within the cluster", func() {
 
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+			Expect(err).To(BeNil())
+
+			k8sClient, err := fixture.GetKubeClient(config)
+			Expect(err).To(BeNil())
 
 			By("creating a new GitOpsDeployment resource")
 			gitOpsDeploymentResource := buildTargetRevisionGitOpsDeploymentResource("gitops-depl-test",
@@ -389,13 +418,13 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			gitOpsDeploymentResource.Spec.Destination.Environment = ""
 			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
-			err := k8s.Create(&gitOpsDeploymentResource)
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			createResourceStatusList := createResourceStatusListFunction_deploymentPermutations()
 			createResourceStatusList = append(createResourceStatusList,
 				getResourceStatusList_deploymentPermutations("deployment-permutations-a-brancha-pathb")...)
-			err = k8s.Get(&gitOpsDeploymentResource)
+			err = k8s.Get(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			expectedReconciledStateField := managedgitopsv1alpha1.ReconciledState{
@@ -421,13 +450,13 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			By("ensuring changes in repo URL deploys the resources that are a part of the latest modification")
 
-			err = k8s.Get(&gitOpsDeploymentResource)
+			err = k8s.Get(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			gitOpsDeploymentResource.Spec.Source.Path = "pathC"
 
 			//updating the CR with changes in repoURL
-			err = k8s.Update(&gitOpsDeploymentResource)
+			err = k8s.Update(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			expectedResourceStatusList := createResourceStatusListFunction_deploymentPermutations()
@@ -456,10 +485,10 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			)
 			By("delete the GitOpsDeployment resource")
 
-			err = k8s.Delete(&gitOpsDeploymentResource)
+			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
-			err = k8s.Get(&gitOpsDeploymentResource)
+			err = k8s.Get(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).ToNot(Succeed())
 
 			expectAllResourcesToBeDeleted(expectedResourceStatusList)
@@ -475,12 +504,18 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				"https://github.com/managed-gitops-test-data/deployment-permutations-a", "pathB", "branchA",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
-			err := k8s.Create(&gitOpsDeploymentResource)
+			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+			Expect(err).To(BeNil())
+
+			k8sClient, err := fixture.GetKubeClient(config)
+			Expect(err).To(BeNil())
+
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			createResourceStatusList := createResourceStatusListFunction_deploymentPermutations()
 			createResourceStatusList = append(createResourceStatusList, getResourceStatusList_deploymentPermutations("deployment-permutations-a-brancha-pathb")...)
-			err = k8s.Get(&gitOpsDeploymentResource)
+			err = k8s.Get(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
@@ -493,13 +528,13 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			By("ensuring changes in repo URL deploys the resources that are a part of the latest modification")
 
-			err = k8s.Get(&gitOpsDeploymentResource)
+			err = k8s.Get(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			gitOpsDeploymentResource.Spec.Source.TargetRevision = "branchB"
 
 			//updating the CR with changes in repoURL
-			err = k8s.Update(&gitOpsDeploymentResource)
+			err = k8s.Update(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			expectedResourceStatusList := createResourceStatusListFunction_deploymentPermutations()
@@ -515,10 +550,10 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			)
 			By("deleting the GitOpsDeployment resource")
 
-			err = k8s.Delete(&gitOpsDeploymentResource)
+			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
-			err = k8s.Get(&gitOpsDeploymentResource)
+			err = k8s.Get(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).ToNot(Succeed())
 
 			expectAllResourcesToBeDeleted(expectedResourceStatusList)
@@ -534,17 +569,23 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				"https://github.com/redhat-appstudio/gitops-repository-template", "environments/overlays/dev", "xyz",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
-			err := k8s.Create(&gitOpsDeploymentResource)
+			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+			Expect(err).To(BeNil())
+
+			k8sClient, err := fixture.GetKubeClient(config)
+			Expect(err).To(BeNil())
+
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("ensuring changes in target revision deploys the resources that are a part of the latest modification")
 
-			err = k8s.Get(&gitOpsDeploymentResource)
+			err = k8s.Get(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 			gitOpsDeploymentResource.Spec.Source.TargetRevision = "HEAD"
 
 			//updating the CR with changes in target revision
-			err = k8s.Update(&gitOpsDeploymentResource)
+			err = k8s.Update(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			expectedResourceStatusList_GitOpsRepositoryTemplateRepo := []managedgitopsv1alpha1.ResourceStatus{
@@ -569,10 +610,10 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			)
 			By("delete the GitOpsDeployment resource")
 
-			err = k8s.Delete(&gitOpsDeploymentResource)
+			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
-			err = k8s.Get(&gitOpsDeploymentResource)
+			err = k8s.Get(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).ToNot(Succeed())
 
 			expectAllResourcesToBeDeleted(expectedResourceStatusList_GitOpsRepositoryTemplateRepo)
@@ -588,7 +629,13 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				"https://github.com/redhat-appstudio/gitops-repository-template", "environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
-			err = k8s.Create(&gitOpsDeploymentResource)
+			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+			Expect(err).To(BeNil())
+
+			k8sClient, err := fixture.GetKubeClient(config)
+			Expect(err).To(BeNil())
+
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("populating the resource list")
@@ -615,10 +662,10 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			)
 			By("delete the GitOpsDeployment resource")
 
-			err = k8s.Delete(&gitOpsDeploymentResource)
+			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
-			err = k8s.Get(&gitOpsDeploymentResource)
+			err = k8s.Get(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).ToNot(Succeed())
 
 			expectAllResourcesToBeDeleted(expectedResourceStatusList)
@@ -633,7 +680,13 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				"invalid-url", "path/path/path",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
-			err := k8s.Create(&gitOpsDeploymentResource)
+			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+			Expect(err).To(BeNil())
+
+			k8sClient, err := fixture.GetKubeClient(config)
+			Expect(err).To(BeNil())
+
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").ShouldNot(

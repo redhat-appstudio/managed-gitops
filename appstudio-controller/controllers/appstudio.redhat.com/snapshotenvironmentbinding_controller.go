@@ -37,7 +37,9 @@ import (
 
 const (
 	// If the 'appstudioLabelKey' string is present in a label of the SnapshotEnvironmentBinding, that label is copied to child GitOpsDeployments of the SnapshotEnvironmentBinding
-	appstudioLabelKey = "appstudio.openshift.io"
+	appstudioLabelKey                                = "appstudio.openshift.io"
+	snapshotEnvironmentBindingConditionErrorOccurred = "ErrorOccurred"
+	snapshotEnvironmentBindingReasonErrorOccurred    = "ErrorOccurred"
 )
 
 // SnapshotEnvironmentBindingReconciler reconciles a SnapshotEnvironmentBinding object
@@ -92,7 +94,14 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 		// if the SnapshotEventBinding GitOps Repo Conditions status is false - return;
 		// since there was an unexpected issue with refreshing/syncing the GitOps repository
 		log.V(sharedutil.LogLevel_Debug).Info("Can not Reconcile Binding '" + binding.Name + "', since GitOps Repo Conditions status is false.")
-		// TODO: GITOPSRVCE-182: Add this to .status.conditions field once it is implemented.
+
+		// Update Status.Conditions field environmentBinding.
+		err := updateStatusConditionOfEnvironmentBinding(ctx, r.Client, "Can not Reconcile Binding '"+binding.Name+"', since GitOps Repo Conditions status is false.", binding, snapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionFalse, snapshotEnvironmentBindingReasonErrorOccurred)
+		if err != nil {
+			log.Error(err, "unable to update snapshotEnvironmentBinding status condition.")
+			return ctrl.Result{}, fmt.Errorf("unable to update snapshotEnvironmentBinding status condition. %v", err)
+		}
+
 		return ctrl.Result{}, nil
 
 	} else if len(binding.Status.Components) == 0 {
@@ -100,7 +109,14 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 		log.V(sharedutil.LogLevel_Debug).Info("SnapshotEventBinding Component status is required to "+
 			"generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding", "bindingName", binding.Name)
 
-		// TODO: GITOPSRVCE-182: Add this to .status.conditions field once it is implemented.
+		// Update Status.Conditions field of environmentBinding.
+
+		err := updateStatusConditionOfEnvironmentBinding(ctx, r.Client, "SnapshotEventBinding Component status is required to "+
+			"generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding '"+binding.Name+"'", binding, snapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionFalse, snapshotEnvironmentBindingReasonErrorOccurred)
+		if err != nil {
+			log.Error(err, "unable to update snapshotEnvironmentBinding status condition.")
+			return ctrl.Result{}, fmt.Errorf("unable to update snapshotEnvironmentBinding status condition. %v", err)
+		}
 
 		// if length of the Binding component status is 0 and there is no issue with the GitOps Repo Conditions;
 		// the Application Service controller has not synced the GitOps repository yet, return and requeue.
@@ -114,7 +130,13 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 
 		// sanity test that there are no duplicate components by name
 		if _, exists := expectedDeployments[component.Name]; exists {
-			// TODO: GITOPSRVCE-182: Add this to .status.conditions field once it is implemented.
+
+			// Update Status.Conditions field environmentBinding.
+			if err := updateStatusConditionOfEnvironmentBinding(ctx, r.Client, errDuplicateKeysFound+" in "+component.Name, binding, snapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionFalse, snapshotEnvironmentBindingReasonErrorOccurred); err != nil {
+				log.Error(err, "unable to update snapshotEnvironmentBinding status condition.")
+				return ctrl.Result{}, fmt.Errorf("unable to update snapshotEnvironmentBinding status condition. %v", err)
+			}
+
 			log.Error(nil, fmt.Sprintf("%s: %s", errDuplicateKeysFound, component.Name))
 			return ctrl.Result{}, nil
 		}
@@ -385,4 +407,53 @@ func removeAppStudioLabelsFromMap(m map[string]string) {
 			delete(m, key)
 		}
 	}
+}
+
+// Update Status.Condition field of snapshotEnvironmentBinding
+func updateStatusConditionOfEnvironmentBinding(ctx context.Context, client client.Client, message string,
+	binding *appstudioshared.SnapshotEnvironmentBinding, conditionType string,
+	status metav1.ConditionStatus, reason string) error {
+	// Check if condition with same type is already set, if Yes then check if content is same,
+	// if No then update only LastTransitionTime else update all fields in existing element.
+	// If element with same type is not present then append new element.
+	index := -1
+	for i, Condition := range binding.Status.BindingConditions {
+		if Condition.Type == conditionType {
+			index = i
+			break
+		}
+	}
+
+	now := metav1.Now()
+
+	if index == -1 {
+		binding.Status.BindingConditions = append(binding.Status.BindingConditions,
+			metav1.Condition{
+				Type:               conditionType,
+				Message:            message,
+				LastTransitionTime: now,
+				Status:             status,
+				Reason:             reason,
+			})
+		fmt.Println("BINDING -------------- ", binding)
+	} else {
+		if binding.Status.BindingConditions[index].Message != message &&
+			binding.Status.BindingConditions[index].Reason != reason &&
+			binding.Status.BindingConditions[index].Status != status {
+			binding.Status.BindingConditions[index].LastTransitionTime = now
+		} else {
+			binding.Status.BindingConditions[index].Reason = reason
+			binding.Status.BindingConditions[index].Message = message
+			binding.Status.BindingConditions[index].LastTransitionTime = now
+			binding.Status.BindingConditions[index].Status = status
+		}
+	}
+
+	fmt.Println("--------------CONDITION BEFORE UPDATE-----------------", binding.Status.BindingConditions)
+	if err := client.Status().Update(ctx, binding); err != nil {
+		return err
+	}
+	fmt.Println("--------------CONDITION AFTER UPDATE--------------", binding.Status.BindingConditions)
+
+	return nil
 }

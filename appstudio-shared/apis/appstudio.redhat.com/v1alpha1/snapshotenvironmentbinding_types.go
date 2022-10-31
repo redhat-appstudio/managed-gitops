@@ -128,6 +128,8 @@ type SnapshotEnvironmentBindingStatus struct {
 	// Condition describes operations on the GitOps repository, for example, if there were issues with generating/processing the repository.
 	// This status is updated by the Application Service controller.
 	GitOpsRepoConditions []metav1.Condition `json:"gitopsRepoConditions,omitempty"`
+
+	BindingConditions []metav1.Condition `json:"bindingConditions,omitempty"`
 }
 
 // BindingStatusGitOpsDeployment describes an individual reference

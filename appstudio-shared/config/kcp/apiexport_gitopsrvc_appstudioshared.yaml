@@ -14,8 +14,8 @@ spec:
   - group: managed-gitops.redhat.com
     resource: gitopsdeployments
   latestResourceSchemas:
-    - v202209151420.promotionruns.appstudio.redhat.com
-    - v202209151420.snapshotenvironmentbindings.appstudio.redhat.com
-    - v202209151420.snapshots.appstudio.redhat.com
-    - v202209151420.appstudio.redhat.com
-    - v202209151420.environments.appstudio.redhat.com
+    - v202210310605.applications.appstudio.redhat.com
+    - v202210310605.environments.appstudio.redhat.com
+    - v202210310605.promotionruns.appstudio.redhat.com
+    - v202210310605.snapshotenvironmentbindings.appstudio.redhat.com
+    - v202210310605.snapshots.appstudio.redhat.com

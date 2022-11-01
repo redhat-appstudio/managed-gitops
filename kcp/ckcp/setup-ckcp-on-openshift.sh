@@ -56,16 +56,17 @@ printf "Temporary directory created: %s\n" "${TMP_DIR}"
 export TMP_DIR=${TMP_DIR}
 
 clone-and-setup-ckcp() {
-    echo $SCRIPT_DIR
+    echo "$SCRIPT_DIR"
     exit_if_binary_not_installed "git"
     pushd "${TMP_DIR}"
     git clone https://github.com/openshift-pipelines/pipeline-service.git
     pushd pipeline-service
-    git checkout edacf0348b2ae693eeb62b940dd618c05b34df62
-    cp ${SCRIPT_DIR}/openshift_dev_setup.sh ./ckcp/openshift_dev_setup.sh
-    cp ${SCRIPT_DIR}/config.yaml ./ckcp/config.yaml
+    git checkout freeze
+    git checkout e6c308664f817354ea158f1dffd5f62d3d101ec1
+    cp "${SCRIPT_DIR}"/openshift_dev_setup.sh ./ckcp/openshift_dev_setup.sh
+    cp "${SCRIPT_DIR}"/config.yaml ./config/config.yaml
 
-    sed -i 's/\--resources deployments.apps,services,ingresses.networking.k8s.io,pipelines.tekton.dev,pipelineruns.tekton.dev,tasks.tekton.dev,runs.tekton.dev,networkpolicies.networking.k8s.io/\--resources deployments.apps,services,ingresses.networking.k8s.io,networkpolicies.networking.k8s.io,statefulsets.apps,routes.route.openshift.io/' ./images/kcp-registrar/register.sh
+    sed -i 's/\--resources deployments.apps,services,ingresses.networking.k8s.io,pipelines.tekton.dev,pipelineruns.tekton.dev,tasks.tekton.dev,runs.tekton.dev,networkpolicies.networking.k8s.io/\--resources deployments.apps,services,ingresses.networking.k8s.io,networkpolicies.networking.k8s.io,statefulsets.apps,routes.route.openshift.io/' ./images/kcp-registrar/bin/register.sh
     printf "\nUpdated the resources to sync as needed for gitops-service and ckcp to run...\n\n"
     
     printf "Setting up ckcp in the cluster"
@@ -76,7 +77,7 @@ clone-and-setup-ckcp() {
     printf "\nThe pipeline-service repo consisting of ckcp is cloned and setup, ckcp is ready for use...\n\n"
 }
 
-clone-and-setup-ckcp $TMP_DIR
+clone-and-setup-ckcp "$TMP_DIR"
 # delete openshift-gitops ns to clear out the resources
 kubectl delete ns openshift-gitops
 
@@ -84,11 +85,11 @@ WORKSPACE="gitops-service-compute"
 
 create_kubeconfig_secret() {
     sa_name=$1
-    sa_secret_name=$(KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl get sa $sa_name -n $ARGOCD_NAMESPACE -o=jsonpath='{.secrets[0].name}')
+    sa_secret_name=$(KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl get sa "$sa_name" -n $ARGOCD_NAMESPACE -o=jsonpath='{.secrets[0].name}')
 
-    ca=$(KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl get secret/$sa_secret_name -n $ARGOCD_NAMESPACE -o jsonpath='{.data.ca\.crt}')
-    token=$(KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl get secret/$sa_secret_name -n $ARGOCD_NAMESPACE -o jsonpath='{.data.token}' | base64 --decode)
-    namespace=$(KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl get secret/$sa_secret_name -n $ARGOCD_NAMESPACE -o jsonpath='{.data.namespace}' | base64 --decode)
+    ca=$(KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl get secret/"$sa_secret_name" -n $ARGOCD_NAMESPACE -o jsonpath='{.data.ca\.crt}')
+    token=$(KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl get secret/"$sa_secret_name" -n $ARGOCD_NAMESPACE -o jsonpath='{.data.token}' | base64 --decode)
+    namespace=$(KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl get secret/"$sa_secret_name" -n $ARGOCD_NAMESPACE -o jsonpath='{.data.namespace}' | base64 --decode)
 
     server=$(KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kubectl config view -o jsonpath='{.clusters[?(@.name == "workspace.kcp.dev/current")].cluster.server}')
 
@@ -179,7 +180,7 @@ KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" kube
 test-gitops-service-e2e-in-kcp() {
   
   export KUBECONFIG=${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig
-  printf "The Kubeconfig being used for this is:" $KUBECONFIG
+  echo "The Kubeconfig being used for this is:" "$KUBECONFIG"
   cd ${SCRIPT_DIR}/../../
   ./delete-dev-env.sh
   make devenv-docker
@@ -191,7 +192,7 @@ test-gitops-service-e2e-in-kcp() {
 test-gitops-service-e2e-in-kcp-in-ci() {
   
   export KUBECONFIG=${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig
-  printf "The Kubeconfig being used for testing e2e tests is: ${KUBECONFIG}\n"
+  echo "The Kubeconfig being used for testing e2e tests is:" "${KUBECONFIG}"
   cd ${SCRIPT_DIR}/../../
   KUBECONFIG="${TMP_DIR}/ckcp-ckcp.default.managed-gitops-compute.kubeconfig" make devenv-k8s-e2e
   printf "The Kubeconfig being used for port-forwarding is: ${ADMIN_KUBECONFIG}\n"

@@ -668,7 +668,6 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 			l.Info("Created Operation for RepositoryCredential")
 
 			// Create the mapping
-			apiCRToDBList = append(apiCRToDBList, mapping)
 			var operationDB db.Operation
 			var o []db.Operation
 			primaryKey := dbRepoCred.RepositoryCredentialsID

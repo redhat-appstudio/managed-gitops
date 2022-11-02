@@ -126,8 +126,8 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 }
 
 const (
-	snapshotEnvironmentBindingConditionErrorOccurred = "ErrorOccurred"
-	snapshotEnvironmentBindingReasonErrorOccurred    = "ErrorOccurred"
+	SnapshotEnvironmentBindingConditionErrorOccurred = "ErrorOccurred"
+	SnapshotEnvironmentBindingReasonErrorOccurred    = "ErrorOccurred"
 )
 
 // Update Status.Condition field of snapshotEnvironmentBinding

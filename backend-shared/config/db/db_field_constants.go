@@ -13,6 +13,7 @@ const (
 	ClusterCredentialsKubeConfigContextLength                               = 64
 	ClusterCredentialsServiceaccountBearerTokenLength                       = 2048
 	ClusterCredentialsServiceaccountNsLength                                = 128
+	ClusterCredentialsAllowInsecureSkipTLSVerify                            = 5
 	GitopsEngineClusterGitopsengineclusterIDLength                          = 48
 	GitopsEngineInstanceGitopsengineinstanceIDLength                        = 48
 	GitopsEngineInstanceNamespaceNameLength                                 = 48

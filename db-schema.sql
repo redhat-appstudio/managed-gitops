@@ -36,6 +36,9 @@ CREATE TABLE ClusterCredentials (
 	-- State 2) The namespace of the ServiceAccount
 	serviceaccount_ns VARCHAR (128),
 
+	--
+	allowInsecureSkipTLSVerify BOOLEAN,
+
 	seq_id serial
 );
 

@@ -705,12 +705,17 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 		return db.ClusterCredentials{}, fmt.Errorf("unable to install service account from secret '%s': %v", secret.Name, err)
 	}
 
+	insecureVerifyTLS := managedEnvironment.Spec.AllowInsecureSkipTLSVerify
+	if insecureVerifyTLS != true && insecureVerifyTLS != false {
+		insecureVerifyTLS = false
+	}
 	clusterCredentials := db.ClusterCredentials{
 		Host:                        managedEnvironment.Spec.APIURL,
 		Kube_config:                 "",
 		Kube_config_context:         "",
 		Serviceaccount_bearer_token: bearerToken,
 		Serviceaccount_ns:           serviceAccountNamespaceKubeSystem,
+		AllowInsecureSkipTLSVerify:  insecureVerifyTLS,
 	}
 
 	if err := dbQueries.CreateClusterCredentials(ctx, &clusterCredentials); err != nil {
@@ -776,7 +781,7 @@ func verifyClusterCredentials(ctx context.Context, clusterCreds db.ClusterCreden
 		BearerToken: clusterCreds.Serviceaccount_bearer_token,
 	}
 
-	configParam.Insecure = true // TODO: GITOPSRVCE-178: Once we have TLS validation enabled, the TLS validation value should be used here.
+	configParam.Insecure = clusterCreds.AllowInsecureSkipTLSVerify // TODO: GITOPSRVCE-178: Once we have TLS validation enabled, the TLS validation value should be used here.
 	configParam.ServerName = ""
 
 	clientObj, err := k8sClientFactory.BuildK8sClient(configParam)

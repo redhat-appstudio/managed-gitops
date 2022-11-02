@@ -42,9 +42,12 @@ spec:
                 type: string
               credentialsSecret:
                 type: string
+              skipTLSVerify:
+                type: bool
             required:
             - apiURL
             - credentialsSecret
+            - skipTLSVerify
             type: object
           status:
             description: GitOpsDeploymentManagedEnvironmentStatus defines the observed

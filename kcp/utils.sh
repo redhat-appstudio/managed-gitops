@@ -106,50 +106,9 @@ stringData:
 
 
 installArgoCD() {
-    echo "Installing Argo CD resources in workspace $WORKSPACE and namespace $ARGOCD_NAMESPACE"
-    KUBECONFIG="${CPS_KUBECONFIG}" kubectl create ns $ARGOCD_NAMESPACE || true
-    KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f "${ARGOCD_MANIFEST}" -n $ARGOCD_NAMESPACE
+    echo "Installing OpenShift GitOps Operator"
 
-    echo "Creating KUBECONFIG secrets for argocd server and argocd application controller service accounts"
-    create_kubeconfig_secret "argocd-server" "kcp-kubeconfig-controller"
-    create_kubeconfig_secret "argocd-application-controller" "kcp-kubeconfig-server"
-
-    echo "Verifying if argocd components are up and running after mounting kubeconfig secrets"
-    KUBECONFIG="${CPS_KUBECONFIG}" kubectl wait --for=condition=available deployments/argocd-server -n $ARGOCD_NAMESPACE --timeout 3m
-    count=0
-    while [ $count -lt 30 ]
-    do
-        count=$((count + 1))
-        replicas=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get statefulsets argocd-application-controller -n $ARGOCD_NAMESPACE -o jsonpath='{.spec.replicas}')
-        ready_replicas=$(KUBECONFIG="${CPS_KUBECONFIG}" kubectl get statefulsets argocd-application-controller -n $ARGOCD_NAMESPACE -o jsonpath='{.status.readyReplicas}')
-        if [ "$replicas" -eq "$ready_replicas" ]; then 
-            break
-        fi
-        if [ $count -eq 30 ]; then 
-            echo "Statefulset argocd-application-controller does not have the required replicas"
-            exit 1
-        fi
-    done
-
-    cat <<EOF | KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -n $ARGOCD_NAMESPACE -f -
-apiVersion: v1
-kind: Secret
-metadata:
-  name: argocd-cluster-config
-  labels:
-    argocd.argoproj.io/secret-type: cluster
-type: Opaque
-stringData:
-  name: in-cluster
-  namespace: "$ARGOCD_NAMESPACE"
-  server: https://kubernetes.default.svc
-  config: |
-    {
-      "tlsClientConfig": {
-        "insecure": true
-      }
-    }
-EOF
+    KUBECONFIG=${WORKLOAD_KUBECONFIG} make install-argocd-openshift
 
     echo "Argo CD is successfully installed in namespace $ARGOCD_NAMESPACE"
 }
@@ -374,4 +333,34 @@ EOF
 
     KUBECONFIG="${CPS_KUBECONFIG}" kubectl apply -f "${SCRIPTPATH}"/../permissionToBindAPIExport.yaml
     rm permissionToBindAPIExport.yaml
+}
+
+createCredentialsForGitOpsEngineCluster() {
+  KUBECONFIG="${WORKLOAD_KUBECONFIG}" kubectl create ns gitops || true
+  KUBECONFIG="${WORKLOAD_KUBECONFIG}" kubectl create sa gitops-engine-cluster -n gitops || true
+  KUBECONFIG="${WORKLOAD_KUBECONFIG}" kubectl create clusterrole gitops-engine-cluster --verb="*" --resource="*.*" || true
+  KUBECONFIG="${WORKLOAD_KUBECONFIG}" kubectl create clusterrolebinding gitops-engine-cluster --clusterrole=gitops-engine-cluster --serviceaccount gitops:gitops-engine-cluster || true
+
+  KUBECONFIG="${WORKLOAD_KUBECONFIG}" kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gitops-engine-cluster-token
+  namespace: gitops
+  annotations:
+    kubernetes.io/service-account.name: gitops-engine-cluster
+type: kubernetes.io/service-account-token
+EOF
+
+  host=$(KUBECONFIG="${WORKLOAD_KUBECONFIG}" kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
+
+  while ! KUBECONFIG="${WORKLOAD_KUBECONFIG}" kubectl describe secret default-token | grep -E '^token' >/dev/null; do
+    echo "waiting for token..." >&2
+    sleep 1
+  done
+
+  token=$(KUBECONFIG="${WORKLOAD_KUBECONFIG}" kubectl get secret gitops-engine-cluster-token -n gitops -o jsonpath='{.data.token}' | base64 --decode)
+
+  KUBECONFIG="${CPS_KUBECONFIG}" kubectl create ns gitops || true
+  KUBECONFIG="${CPS_KUBECONFIG}" kubectl create secret generic gitops-engine-cluster -n gitops --from-literal=bearer_token="${token}" --from-literal=host="${host}" || true
 }

@@ -41,8 +41,8 @@ createAPIBinding gitopsrvc-appstudio-shared "" $SERVICE_WS
 registerSyncTarget "user"
 
 # Checking if the bindings are in Ready state
-KUBECONFIG="${CPS_KUBECONFIG}" kubectl wait --for=condition=Ready apibindings/gitopsrvc-appstudio-shared
-KUBECONFIG="${CPS_KUBECONFIG}" kubectl wait --for=condition=Ready apibindings/gitopsrvc-backend-shared
+KUBECONFIG="${CPS_KUBECONFIG}" kubectl wait --for=condition=Ready apibindings/gitopsrvc-appstudio-shared --timeout=3m
+KUBECONFIG="${CPS_KUBECONFIG}" kubectl wait --for=condition=Ready apibindings/gitopsrvc-backend-shared --timeout=3m
 
 KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws
 KUBECONFIG="${CPS_KUBECONFIG}" kubectl kcp ws use $SERVICE_WS
@@ -51,5 +51,8 @@ registerSyncTarget "service"
 
 # Install Argo CD and GitOps Service components in service provider workspace
 installArgoCD
+
+# Create credentials for accessing the GitOpsEngine cluster
+createCredentialsForGitOpsEngineCluster
 
 runGitOpsService

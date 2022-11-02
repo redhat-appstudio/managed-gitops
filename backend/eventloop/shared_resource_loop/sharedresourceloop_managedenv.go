@@ -3,6 +3,7 @@ package shared_resource_loop
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -765,7 +766,7 @@ func locateContextThatMatchesAPIURL(config *clientcmdapi.Config, apiURL string) 
 // verifyClusterCredentials returns true if we were able to successfully connect with the credentials, false otherwise.
 func verifyClusterCredentials(ctx context.Context, clusterCreds db.ClusterCredentials, managedEnvCR managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment,
 	k8sClientFactory SRLK8sClientFactory) (bool, error) {
-
+	var err error
 	// Sanity test the fields we are using in rest.Config
 	if clusterCreds.Host == "" {
 		return false, fmt.Errorf("cluster credentials is missing host")
@@ -779,7 +780,10 @@ func verifyClusterCredentials(ctx context.Context, clusterCreds db.ClusterCreden
 		BearerToken: clusterCreds.Serviceaccount_bearer_token,
 	}
 
-	configParam.Insecure = clusterCreds.AllowInsecureSkipTLSVerify // TODO: GITOPSRVCE-178: Once we have TLS validation enabled, the TLS validation value should be used here.
+	configParam.Insecure, err = strconv.ParseBool(clusterCreds.AllowInsecureSkipTLSVerify) // TODO: GITOPSRVCE-178: Once we have TLS validation enabled, the TLS validation value should be used here.
+	if err != nil {
+		return false, fmt.Errorf("Invalid TLSverify value passed. Accepted only boolean values %v", err)
+	}
 	configParam.ServerName = ""
 
 	clientObj, err := k8sClientFactory.BuildK8sClient(configParam)

@@ -1623,12 +1623,6 @@ var _ = Describe("GitOpsDeployment Conditions", func() {
 
 })
 
-func getGitOpsEngineFakeK8sClientFunc(k8sClient client.Client) func(context.Context, *db.GitopsEngineInstance) (client.Client, error) {
-	return func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
-		return k8sClient, nil
-	}
-}
-
 type OperationCheck struct {
 	operationEvents []managedgitopsv1alpha1.Operation
 }

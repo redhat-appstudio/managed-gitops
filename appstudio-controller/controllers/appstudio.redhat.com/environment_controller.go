@@ -125,28 +125,55 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return ctrl.Result{}, nil
 }
 
-// TODO: GITOPSRVCE-182: Uncomment this code and use it to implement conditions.
+const (
+	snapshotEnvironmentBindingConditionErrorOccurred = "ErrorOccurred"
+	snapshotEnvironmentBindingReasonErrorOccurred    = "ErrorOccurred"
+)
 
-// const EnvironmentStatus_ConditionErrorOccurred = "ErrorOccurred"
+// Update Status.Condition field of snapshotEnvironmentBinding
+func updateStatusConditionOfEnvironmentBinding(ctx context.Context, client client.Client, message string,
+	binding *appstudioshared.SnapshotEnvironmentBinding, conditionType string,
+	status metav1.ConditionStatus, reason string) error {
+	// Check if condition with same type is already set, if Yes then check if content is same,
+	// If content is not same update LastTransitionTime
+	index := -1
+	for i, Condition := range binding.Status.BindingConditions {
+		if Condition.Type == conditionType {
+			index = i
+			break
+		}
+	}
 
-// func updateStatusConditions(err error) error {
+	now := metav1.Now()
 
-// 	message := ""
-// 	status := metav1.ConditionFalse
-// 	if err != nil {
-// 		status = metav1.ConditionTrue
-// 		message = err.Error()
-// 	}
+	if index == -1 {
+		binding.Status.BindingConditions = append(binding.Status.BindingConditions,
+			metav1.Condition{
+				Type:               conditionType,
+				Message:            message,
+				LastTransitionTime: now,
+				Status:             status,
+				Reason:             reason,
+			})
+	} else {
+		if binding.Status.BindingConditions[index].Message != message &&
+			binding.Status.BindingConditions[index].Reason != reason &&
+			binding.Status.BindingConditions[index].Status != status {
+			binding.Status.BindingConditions[index].LastTransitionTime = now
+		}
+		binding.Status.BindingConditions[index].Reason = reason
+		binding.Status.BindingConditions[index].Message = message
+		binding.Status.BindingConditions[index].LastTransitionTime = now
+		binding.Status.BindingConditions[index].Status = status
 
-// 	newCondition := metav1.Condition{
-// 		Type:   "ErrorOccurred",
-// 		Status: status,
-// 		// ObservedGeneration: ,
-// 		LastTransitionTime: metav1.NewTime(time.Now()),
-// 		Reason:             EnvironmentStatus_ConditionErrorOccurred,
-// 		Message:            message,
-// 	}
-// }
+	}
+
+	if err := client.Status().Update(ctx, binding); err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func generateDesiredResource(ctx context.Context, env appstudioshared.Environment, k8sClient client.Client) (*managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, error) {
 

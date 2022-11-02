@@ -43,7 +43,7 @@ spec:
               credentialsSecret:
                 type: string
               skipTLSVerify:
-                type: bool
+                type: boolean
             required:
             - apiURL
             - credentialsSecret

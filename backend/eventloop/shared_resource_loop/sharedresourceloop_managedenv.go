@@ -706,9 +706,7 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 	}
 
 	insecureVerifyTLS := managedEnvironment.Spec.AllowInsecureSkipTLSVerify
-	if insecureVerifyTLS != true && insecureVerifyTLS != false {
-		insecureVerifyTLS = false
-	}
+
 	clusterCredentials := db.ClusterCredentials{
 		Host:                        managedEnvironment.Spec.APIURL,
 		Kube_config:                 "",

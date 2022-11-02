@@ -909,10 +909,41 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 		return nil
 	}
 
+	managedEnv := &db.ManagedEnvironment{
+		Managedenvironment_id: application.Managed_environment_id,
+	}
+	clusterCredentials := &db.ClusterCredentials{
+		Clustercredentials_cred_id: managedEnv.Clustercredentials_id,
+	}
+	if err := dbQueries.GetClusterCredentialsById(ctx, clusterCredentials); err != nil {
+		return err
+	}
+
+	bearerToken := clusterCredentials.Serviceaccount_bearer_token
+
+	name := argosharedutil.GenerateArgoCDClusterSecretName(*managedEnv)
+
+	clusterSecretConfigJSON := ClusterSecretConfigJSON{
+		BearerToken: bearerToken,
+		TLSClientConfig: ClusterSecretTLSClientConfigJSON{
+			Insecure: clusterCredentials.AllowInsecureSkipTLSVerify,
+		},
+	}
+
+	jsonString, err := json.Marshal(clusterSecretConfigJSON)
+	if err != nil {
+		return err
+	}
+
 	existingSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      expectedSecret.Name,
 			Namespace: expectedSecret.Namespace,
+		},
+		Data: map[string][]byte{
+			"name":   ([]byte)(name),
+			"server": ([]byte)(clusterCredentials.Host),
+			"config": ([]byte)(string(jsonString)),
 		},
 	}
 	if err := opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(existingSecret), existingSecret); err != nil {
@@ -995,7 +1026,7 @@ func generateExpectedClusterSecret(ctx context.Context, application db.Applicati
 	clusterSecretConfigJSON := ClusterSecretConfigJSON{
 		BearerToken: bearerToken,
 		TLSClientConfig: ClusterSecretTLSClientConfigJSON{
-			Insecure: true, // TODO: GITOPSRVCE-178: Once TLS certification validation configuration is implmented, this value should be updated.
+			Insecure: clusterCredentials.AllowInsecureSkipTLSVerify,
 		},
 	}
 

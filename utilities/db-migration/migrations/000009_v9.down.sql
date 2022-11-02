@@ -1,0 +1,1 @@
+ALTER TABLE ClusterCredentials DROP COLUMN allowInsecureSkipTLSVerify;

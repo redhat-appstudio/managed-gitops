@@ -15,11 +15,18 @@ import (
 // This file is loosely based on the 'argocd login' CLI command (https://github.com/argoproj/argo-cd/blob/0a46d37fc6af9fe0aa963bdd845e3d799aa0320d/cmd/argocd/commands/login.go#L60)
 
 func generateDefaultClientForServerAddress(server string, optionalAuthToken string, skipTLSTest bool) (argocdclient.Client, error) {
+	// managedEnv := &db.ManagedEnvironment{
+	// 	Managedenvironment_id: application.Managed_environment_id,
+	// }
+
+	// clusterCredentials := &db.ClusterCredentials{
+	// 	Clustercredentials_cred_id: managedEnv.Clustercredentials_id,
+	// }
 
 	globalClientOpts := argocdclient.ClientOptions{
 		ConfigPath:           "",
 		ServerAddr:           server,
-		Insecure:             true, // TODO: GITOPSRVCE-178: once support for TLS certification validation is implemented, the value should be used here.
+		Insecure:             true, // clusterCredentials.AllowInsecureSkipTLSVerify TODO: GITOPSRVCE-178: once support for TLS certification validation is implemented, the value should be used here.
 		PlainText:            false,
 		ClientCertFile:       "",
 		ClientCertKeyFile:    "",

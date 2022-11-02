@@ -114,6 +114,7 @@ var DbFieldMap = map[string]int{
 	"ClusterCredentialsKubeConfigContextLength":                               ClusterCredentialsKubeConfigContextLength,
 	"ClusterCredentialsServiceaccountBearerTokenLength":                       ClusterCredentialsServiceaccountBearerTokenLength,
 	"ClusterCredentialsServiceaccountNsLength":                                ClusterCredentialsServiceaccountNsLength,
+	"ClusterCredentialsAllowInsecureSkipTLSVerify":                            ClusterCredentialsAllowInsecureSkipTLSVerify,
 	"GitopsEngineClusterGitopsengineclusterIDLength":                          GitopsEngineClusterGitopsengineclusterIDLength,
 	"GitopsEngineInstanceGitopsengineinstanceIDLength":                        GitopsEngineInstanceGitopsengineinstanceIDLength,
 	"GitopsEngineInstanceNamespaceNameLength":                                 GitopsEngineInstanceNamespaceNameLength,

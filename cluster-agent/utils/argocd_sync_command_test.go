@@ -101,7 +101,7 @@ var _ = Describe("ArgoCD AppSync Command", func() {
 			mockAppClient.On("NewApplicationClient").Return(mockCloser{}, mockAppServiceClient, nil)
 			appName := "my-app"
 			mockAppServiceClient.On("Sync", mock.Anything, mock.MatchedBy(func(asr *applicationpkg.ApplicationSyncRequest) bool {
-				return *asr.Name == appName && asr.Revision == "master" && !asr.Prune
+				return *asr.Name == appName && *asr.Revision == "master" && !*asr.Prune
 			})).Return(nil, nil)
 
 			By(" 3) After Sync, a Get occurs for the app, then a watch is setup to wait for the sync operation to finish. We provide the post-sync version of the app, to both")

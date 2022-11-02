@@ -46,7 +46,7 @@ const (
 	ENVGitOpsInKCP = "GITOPS_IN_KCP"
 )
 
-// EnsureCleanSlate should be called before every E2E tests:
+// EnsureCleanSlateNonKCPVirtualWorkspace should be called before every E2E tests:
 // it ensures that the state of the GitOpsServiceE2ENamespace namespace (and other resources on the cluster) is reset
 // to scratch before each test, including:
 // - Removing any old GitOps Service API resources in GitOpsServiceE2ENamespace
@@ -57,7 +57,7 @@ const (
 //
 // This ensures that previous E2E tests runs do not interfere with the results of current test runs.
 // This function can also be called after a test, in order to clean up any resources it create in the GitOpsServiceE2ENamespace.
-func EnsureCleanSlate() error {
+func EnsureCleanSlateNonKCPVirtualWorkspace() error {
 
 	clientconfig, err := GetKubeConfig()
 	if err != nil {
@@ -487,7 +487,9 @@ func GetKubeConfig() (*rest.Config, error) {
 // or just the normal openshift/k8s cluster (when not running in KCP);
 func GetE2ETestUserWorkspaceKubeConfig() (*rest.Config, error) {
 
-	if !sharedutil.IsKCPVirtualWorkspaceDisabled() {
+	if !IsRunningAgainstKCP() || sharedutil.IsKCPVirtualWorkspaceDisabled() {
+		return GetKubeConfig()
+	} else {
 		var kubeconfig *string
 		userEnv, exists := os.LookupEnv("USER_KUBECONFIG")
 		if exists {
@@ -509,15 +511,15 @@ func GetE2ETestUserWorkspaceKubeConfig() (*rest.Config, error) {
 
 		return restConfig, nil
 	}
-
-	return GetKubeConfig()
 }
 
 // GetServiceProviderWorkspaceKubeConfig Return a K8s config that can be used to write to service provider workspace (when running in KCP),
 // or just the normal openshift/k8s cluster (when not running in KCP); For example, to see Argo CD Application CRs
 func GetServiceProviderWorkspaceKubeConfig() (*rest.Config, error) {
 
-	if !sharedutil.IsKCPVirtualWorkspaceDisabled() {
+	if !IsRunningAgainstKCP() || sharedutil.IsKCPVirtualWorkspaceDisabled() {
+		return GetKubeConfig()
+	} else {
 		var kubeconfig *string
 		userEnv, exists := os.LookupEnv("SERVICE_PROVIDER_KUBECONFIG")
 		if exists {
@@ -539,8 +541,6 @@ func GetServiceProviderWorkspaceKubeConfig() (*rest.Config, error) {
 
 		return restConfig, nil
 	}
-
-	return GetKubeConfig()
 }
 
 // GetVirtualWorkspaceKubeConfig retrieves the GetVirtualWorkspaceKubeConfig Kubernetes config

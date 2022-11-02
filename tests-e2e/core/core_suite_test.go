@@ -1,11 +1,14 @@
 package core
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"go.uber.org/zap/zapcore"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -22,4 +25,15 @@ func TestCore(t *testing.T) {
 
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Core Suite", reporterConfig)
+}
+
+func EnsureCleanSlate() error {
+
+	if !sharedutil.IsKCPVirtualWorkspaceDisabled() {
+		Expect(fixture.EnsureCleanSlateNonKCPVirtualWorkspace()).To(Succeed())
+	} else {
+		Expect(fixture.EnsureCleanSlateKCPVirtualWorkspace()).To(Succeed())
+	}
+
+	return fmt.Errorf("Error in deciding which function to use against EnsureCleanSlate")
 }

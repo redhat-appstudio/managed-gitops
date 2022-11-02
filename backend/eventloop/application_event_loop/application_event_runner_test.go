@@ -108,7 +108,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(err).To(BeNil())
 
 			appEventLoopRunnerAction = applicationEventLoopRunner_Action{
-				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 					return k8sClient, nil
 				},
 				eventResourceName:           gitopsDepl.Name,
@@ -173,7 +173,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			}
 
 			appEventLoopRunnerActionSecond := applicationEventLoopRunner_Action{
-				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 					return k8sClient, nil
 				},
 				eventResourceName:           gitopsDepl.Name,
@@ -272,7 +272,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 		It("Should not deploy application, as request data is not valid.", func() {
 
 			appEventLoopRunnerAction = applicationEventLoopRunner_Action{
-				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 					return k8sClient, nil
 				},
 				eventResourceName:           gitopsDepl.Name,
@@ -335,7 +335,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			}
 
 			appEventLoopRunnerActionSecond := applicationEventLoopRunner_Action{
-				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 					return k8sClient, nil
 				},
 				eventResourceName:           gitopsDepl.Name,
@@ -518,7 +518,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			a := applicationEventLoopRunner_Action{
 				// When the code asks for a new k8s client, give it our fake client
-				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 					return k8sClient, nil
 				},
 				eventResourceName:           gitopsDepl.Name,
@@ -615,7 +615,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			// 1) send a deployment modified event, to ensure the deployment is added to the database, and processed
 			a := applicationEventLoopRunner_Action{
 				// When the code asks for a new k8s client, give it our fake client
-				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 					return k8sClient, nil
 				},
 				eventResourceName:           gitopsDepl.Name,
@@ -635,7 +635,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			// 2) add a sync run modified event, to ensure the sync run is added to the database, and processed
 			a = applicationEventLoopRunner_Action{
 				// When the code asks for a new k8s client, give it our fake client
-				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 					return k8sClient, nil
 				},
 				eventResourceName:       gitopsDeplSyncRun.Name,
@@ -696,7 +696,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			// 1) send a deployment modified event, to ensure the deployment is added to the database, and processed
 			a := applicationEventLoopRunner_Action{
 				// When the code asks for a new k8s client, give it our fake client
-				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 					return k8sClient, nil
 				},
 				eventResourceName:           gitopsDepl.Name,
@@ -716,7 +716,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			// 2) add a sync run modified event, to ensure the sync run is added to the database, and processed
 			a = applicationEventLoopRunner_Action{
 				// When the code asks for a new k8s client, give it our fake client
-				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 					return k8sClient, nil
 				},
 				eventResourceName:       gitopsDeplSyncRun.Name,
@@ -783,7 +783,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			a := applicationEventLoopRunner_Action{
 				// When the code asks for a new k8s client, give it our fake client
-				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 					return k8sClient, nil
 				},
 				eventResourceName:           gitopsDepl.Name,
@@ -1054,7 +1054,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			a := applicationEventLoopRunner_Action{
 				// When the code asks for a new k8s client, give it our fake client
-				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 					return k8sClient, nil
 				},
 				eventResourceName:           gitopsDepl.Name,
@@ -1238,7 +1238,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			k8sClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 
 			a := applicationEventLoopRunner_Action{
-				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 					return k8sClient, nil
 				},
 				eventResourceName:           "dummy-deployment",
@@ -1285,7 +1285,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			a := applicationEventLoopRunner_Action{
 				// When the code asks for a new k8s client, give it our fake client
-				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 					return k8sClient, nil
 				},
 				eventResourceName:           gitopsDepl.Name,
@@ -1346,7 +1346,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			a := applicationEventLoopRunner_Action{
 				// When the code asks for a new k8s client, give it our fake client
-				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 					return k8sClient, nil
 				},
 				eventResourceName:           gitopsDepl.Name,
@@ -1623,6 +1623,12 @@ var _ = Describe("GitOpsDeployment Conditions", func() {
 
 })
 
+func getGitOpsEngineFakeK8sClientFunc(k8sClient client.Client) func(context.Context, *db.GitopsEngineInstance) (client.Client, error) {
+	return func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+		return k8sClient, nil
+	}
+}
+
 type OperationCheck struct {
 	operationEvents []managedgitopsv1alpha1.Operation
 }
@@ -1816,7 +1822,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 			}
 
 			appEventLoopRunnerAction := applicationEventLoopRunner_Action{
-				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 					// TODO: GITOPSRVCE-66: Replace this with the new interface: SRLK8sClientFactory
 					return k8sClient, nil
 				},
@@ -1892,7 +1898,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 			}
 
 			appEventLoopRunnerAction := applicationEventLoopRunner_Action{
-				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 					// TODO: GITOPSRVCE-66: Replace this with new interface: SRLK8sClientFactory
 					return k8sClient, nil
 				},
@@ -1975,7 +1981,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 			}
 
 			appEventLoopRunnerAction := applicationEventLoopRunner_Action{
-				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 					// TODO: GITOPSRVCE-66: Replace this with new interface: SRLK8sClientFactory
 					return k8sClient, nil
 				},
@@ -2042,7 +2048,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 			}
 
 			appEventLoopRunnerAction := applicationEventLoopRunner_Action{
-				getK8sClientForGitOpsEngineInstance: func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 					// TODO: GITOPSRVCE-66: Replace this with new interface: SRLK8sClientFactory
 					return k8sClient, nil
 				},
@@ -2143,7 +2149,11 @@ func (f MockSRLK8sClientFactory) BuildK8sClient(restConfig *rest.Config) (client
 	return f.fakeClient, nil
 }
 
-func (f MockSRLK8sClientFactory) GetK8sClientForGitOpsEngineInstance(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+func (f MockSRLK8sClientFactory) GetK8sClientForGitOpsEngineInstance(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+	return f.fakeClient, nil
+}
+
+func (f MockSRLK8sClientFactory) GetK8sClientForServiceWorkspace() (client.Client, error) {
 	return f.fakeClient, nil
 }
 

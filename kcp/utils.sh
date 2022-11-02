@@ -354,7 +354,7 @@ EOF
 
   host=$(KUBECONFIG="${WORKLOAD_KUBECONFIG}" kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
 
-  while ! KUBECONFIG="${WORKLOAD_KUBECONFIG}" kubectl describe secret default-token | grep -E '^token' >/dev/null; do
+  while ! KUBECONFIG="${WORKLOAD_KUBECONFIG}" kubectl describe secret gitops-engine-cluster-token | grep -E '^token' >/dev/null; do
     echo "waiting for token..." >&2
     sleep 1
   done

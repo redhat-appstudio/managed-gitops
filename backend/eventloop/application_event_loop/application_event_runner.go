@@ -413,7 +413,7 @@ type applicationEventLoopRunner_Action struct {
 	// getK8sClientForGitOpsEngineInstance returns the K8s client that corresponds to the gitops engine instance.
 	// As of this writing, only one Argo CD instance is supported, so this is trivial, but should have
 	// more complex logic in the future.
-	getK8sClientForGitOpsEngineInstance func(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error)
+	getK8sClientForGitOpsEngineInstance func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error)
 
 	// sharedResourceEventLoop can be used to invoke the shared resource event loop, in order to
 	// create or retrieve shared database resources.

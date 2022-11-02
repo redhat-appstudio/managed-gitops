@@ -7,12 +7,9 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/kcp-dev/logicalcluster/v2"
-	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -288,7 +285,7 @@ func getk8sClient() (client.Client, error) {
 		return sharedutil.NewVirtualWorkspaceClient()
 	}
 
-	return getK8sClientForWorkspace()
+	return eventlooptypes.GetK8sClientForServiceWorkspace()
 }
 
 // applicationEventRunnerFactory is used to start an application loop runner. It is a lightweight wrapper
@@ -313,33 +310,4 @@ func (defaultApplicationEventRunnerFactory) createNewApplicationEventLoopRunner(
 
 	return startNewApplicationEventLoopRunner(informWorkCompleteChan, sharedResourceEventLoop, gitopsDeplName, gitopsDeplNamespace,
 		workspaceID, debugContext)
-}
-
-func getK8sClientForWorkspace() (client.Client, error) {
-
-	config, err := sharedutil.GetRESTConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	scheme := runtime.NewScheme()
-	err = managedgitopsv1alpha1.AddToScheme(scheme)
-	if err != nil {
-		return nil, err
-	}
-	err = managedgitopsv1alpha1.AddToScheme(scheme)
-	if err != nil {
-		return nil, err
-	}
-	err = corev1.AddToScheme(scheme)
-	if err != nil {
-		return nil, err
-	}
-	k8sClient, err := client.New(config, client.Options{Scheme: scheme})
-	if err != nil {
-		return nil, err
-	}
-
-	return k8sClient, nil
-
 }

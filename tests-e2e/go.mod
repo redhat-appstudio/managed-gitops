@@ -212,7 +212,6 @@ require (
 )
 
 replace (
-
 	// All the rest replacements are related to ArgoCD
 	// See: https://github.com/argoproj/argo-cd/blob/81630e6d5075ac53ac60457b51343c2a09a666f4/go.mod#L251)
 	//

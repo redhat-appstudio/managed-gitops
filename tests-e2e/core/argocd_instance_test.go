@@ -34,11 +34,11 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 			Expect(EnsureCleanSlate()).To(Succeed())
 
 			By("deleting the namespace before the test starts, so that the code can create it")
-			config, err := fixture.GetKubeConfig()
+			config, err := fixture.GetSystemKubeConfig()
 			if err != nil {
 				panic(err)
 			}
-			err = fixture.DeleteNamespace(config, argocdNamespace)
+			err = fixture.DeleteNamespace(argocdNamespace, config)
 			Expect(err).To(BeNil())
 
 		})
@@ -53,7 +53,7 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 			ctx := context.Background()
 			log := log.FromContext(ctx)
 
-			config, err := fixture.GetKubeConfig()
+			config, err := fixture.GetSystemKubeConfig()
 			Expect(err).To(BeNil())
 			apiHost := config.Host
 

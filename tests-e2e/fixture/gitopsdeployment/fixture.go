@@ -171,8 +171,8 @@ func HaveConditions(conditions []managedgitopsv1alpha1.GitOpsDeploymentCondition
 	}
 
 	return WithTransform(func(gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment) bool {
-		// this assumes that service is running on non aware kcp client
-		config, err := fixture.GetKubeConfig()
+
+		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
 		Expect(err).To(BeNil())
 
 		k8sClient, err := fixture.GetKubeClient(config)

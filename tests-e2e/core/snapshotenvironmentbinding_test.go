@@ -47,13 +47,10 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 					},
 				},
 			}
-			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-			Expect(err).To(BeNil())
 
-			k8sClient, err := fixture.GetKubeClient(config)
-			Expect(err).To(BeNil())
+			k8sClient := GetE2ETestUserWorkspaceKubeClient()
 
-			err = k8s.Create(&environment, k8sClient)
+			err := k8s.Create(&environment, k8sClient)
 			Expect(err).To(Succeed())
 
 		})
@@ -64,15 +61,11 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
 
-			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-			Expect(err).To(BeNil())
-
-			k8sClient, err := fixture.GetKubeClient(config)
-			Expect(err).To(BeNil())
+			k8sClient := GetE2ETestUserWorkspaceKubeClient()
 
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a", "component-b"})
 
-			err = k8s.Create(&binding, k8sClient)
+			err := k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
 			// Update Status field
@@ -136,14 +129,10 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
 
-			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-			Expect(err).To(BeNil())
-
-			k8sClient, err := fixture.GetKubeClient(config)
-			Expect(err).To(BeNil())
+			k8sClient := GetE2ETestUserWorkspaceKubeClient()
 
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
-			err = k8s.Create(&binding, k8sClient)
+			err := k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
 			// Update Status field
@@ -208,14 +197,10 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
 
-			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-			Expect(err).To(BeNil())
-
-			k8sClient, err := fixture.GetKubeClient(config)
-			Expect(err).To(BeNil())
+			k8sClient := GetE2ETestUserWorkspaceKubeClient()
 
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
-			err = k8s.Create(&binding, k8sClient)
+			err := k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
 			// Update the Status field
@@ -273,14 +258,10 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
 
-			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-			Expect(err).To(BeNil())
-
-			k8sClient, err := fixture.GetKubeClient(config)
-			Expect(err).To(BeNil())
+			k8sClient := GetE2ETestUserWorkspaceKubeClient()
 
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
-			err = k8s.Create(&binding, k8sClient)
+			err := k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
 			// Update the Status field
@@ -352,13 +333,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			binding.Spec.Application = strings.Repeat("abcde", 45)
-			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-			Expect(err).To(BeNil())
+			k8sClient := GetE2ETestUserWorkspaceKubeClient()
 
-			k8sClient, err := fixture.GetKubeClient(config)
-			Expect(err).To(BeNil())
-
-			err = k8s.Create(&binding, k8sClient)
+			err := k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
 			// Update the status field
@@ -397,11 +374,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 				Skip("Skipping this test because of race condition when running on KCP based env")
 			}
 
-			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-			Expect(err).To(BeNil())
-
-			k8sClient, err := fixture.GetKubeClient(config)
-			Expect(err).To(BeNil())
+			k8sClient := GetE2ETestUserWorkspaceKubeClient()
 
 			By("creating second managed environment Secret")
 			secret := corev1.Secret{
@@ -414,7 +387,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 					"kubeconfig": ([]byte)("{}"),
 				},
 			}
-			err = k8s.Create(&secret, k8sClient)
+			err := k8s.Create(&secret, k8sClient)
 			Expect(err).To(BeNil())
 
 			err = k8s.Get(&environment, k8sClient)
@@ -469,15 +442,11 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 		It("Should append ASEB labels with key `appstudio.openshift.io` to GitopsDeployment label", func() {
 			By("Create SnapshotEnvironmentBindingResource")
 
-			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-			Expect(err).To(BeNil())
-
-			k8sClient, err := fixture.GetKubeClient(config)
-			Expect(err).To(BeNil())
+			k8sClient := GetE2ETestUserWorkspaceKubeClient()
 
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			binding.ObjectMeta.Labels = map[string]string{"appstudio.openshift.io": "testing"}
-			err = k8s.Create(&binding, k8sClient)
+			err := k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Update Status field of SnapshotEnvironmentBindingResource")
@@ -513,14 +482,10 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 		It("Should not append ASEB label without appstudio.openshift.io label into the GitopsDeployment Label", func() {
 			By("Create SnapshotEnvironmentBindingResource")
 
-			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-			Expect(err).To(BeNil())
-
-			k8sClient, err := fixture.GetKubeClient(config)
-			Expect(err).To(BeNil())
+			k8sClient := GetE2ETestUserWorkspaceKubeClient()
 
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
-			err = k8s.Create(&binding, k8sClient)
+			err := k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Update Status field of SnapshotEnvironmentBindingResource")
@@ -556,14 +521,10 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			By("Create SnapshotEnvironmentBindingResource")
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 
-			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-			Expect(err).To(BeNil())
-
-			k8sClient, err := fixture.GetKubeClient(config)
-			Expect(err).To(BeNil())
+			k8sClient := GetE2ETestUserWorkspaceKubeClient()
 
 			binding.ObjectMeta.Labels = map[string]string{"appstudio.openshift.io": "testing"}
-			err = k8s.Create(&binding, k8sClient)
+			err := k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
 			// Update the status field

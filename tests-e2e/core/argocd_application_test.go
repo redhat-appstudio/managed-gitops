@@ -8,7 +8,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
-	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	appFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/application"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
@@ -27,13 +26,9 @@ var _ = Describe("Argo CD Application", func() {
 				"https://github.com/redhat-appstudio/gitops-repository-template", "environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
-			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-			Expect(err).To(BeNil())
+			k8sClient := GetE2ETestUserWorkspaceKubeClient()
 
-			k8sClient, err := fixture.GetKubeClient(config)
-			Expect(err).To(BeNil())
-
-			err = k8s.Create(&gitOpsDeployment, k8sClient)
+			err := k8s.Create(&gitOpsDeployment, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("GitOpsDeployment should have expected health and status")

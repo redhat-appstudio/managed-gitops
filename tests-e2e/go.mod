@@ -4,8 +4,8 @@ go 1.18
 
 require (
 	github.com/argoproj-labs/argocd-operator v0.3.0
-	github.com/argoproj/argo-cd/v2 v2.3.1
-	github.com/argoproj/gitops-engine v0.7.1-0.20220712234257-67ddccd3cc95
+	github.com/argoproj/argo-cd/v2 v2.5.1
+	github.com/argoproj/gitops-engine v0.7.1-0.20221004132320-98ccd3d43fd9
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
 	github.com/redhat-appstudio/application-service v0.0.0-20220609190313-7a1a14b575dc
 	github.com/redhat-appstudio/managed-gitops/appstudio-controller v0.0.0
@@ -36,7 +36,7 @@ require (
 	github.com/devfile/registry-support/registry-library v0.0.0-20220222194908-7a90a4214f3e // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
-	github.com/emicklei/go-restful v2.15.0+incompatible // indirect
+	github.com/emicklei/go-restful/v3 v3.8.0 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
 	github.com/fatih/camelcase v1.0.0 // indirect
 	github.com/fatih/color v1.13.0 // indirect
@@ -44,6 +44,7 @@ require (
 	github.com/fvbommel/sortorder v1.0.1 // indirect
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32 // indirect
 	github.com/go-errors/errors v1.4.1 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.19.5 // indirect
 	github.com/go-openapi/swag v0.19.15 // indirect
@@ -94,7 +95,7 @@ require (
 	github.com/russross/blackfriday v1.6.0 // indirect
 	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06 // indirect
 	github.com/spf13/afero v1.8.0 // indirect
-	github.com/spf13/cobra v1.4.0 // indirect
+	github.com/spf13/cobra v1.5.0 // indirect
 	github.com/stretchr/testify v1.7.1 // indirect
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
 	github.com/vmihailenco/bufpool v0.1.11 // indirect
@@ -106,6 +107,9 @@ require (
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	github.com/xlab/treeprint v0.0.0-20181112141820-a009c3971eca // indirect
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.31.0 // indirect
+	go.opentelemetry.io/otel v1.6.3 // indirect
+	go.opentelemetry.io/otel/trace v1.6.3 // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
 	golang.org/x/exp v0.0.0-20210901193431-a062eea981d2 // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 // indirect
@@ -179,8 +183,8 @@ require (
 	go.uber.org/multierr v1.7.0 // indirect
 	go.uber.org/zap v1.21.0
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
-	golang.org/x/net v0.0.0-20220420153159-1850ba15e1be // indirect
-	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
+	golang.org/x/net v0.0.0-20220621193019-9d032be2e588 // indirect
+	golang.org/x/oauth2 v0.0.0-20220608161450-d0670ef3b1eb // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.0.0-20220608164250-635b8c9b7f68 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
@@ -199,8 +203,8 @@ require (
 	k8s.io/api v0.24.3
 	k8s.io/apiextensions-apiserver v0.24.3 // indirect
 	k8s.io/component-base v0.24.3 // indirect
-	k8s.io/klog/v2 v2.60.1 // indirect
-	k8s.io/kube-openapi v0.0.0-20220328201542-3ee0da9b0b42 // indirect
+	k8s.io/klog/v2 v2.70.1 // indirect
+	k8s.io/kube-openapi v0.0.0-20220627174259-011e075b9cb8 // indirect
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9 // indirect
 	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
@@ -208,39 +212,57 @@ require (
 )
 
 replace (
+
+	// All the rest replacements are related to ArgoCD
+	// See: https://github.com/argoproj/argo-cd/blob/81630e6d5075ac53ac60457b51343c2a09a666f4/go.mod#L251)
+	//
+	// NOTE: UPDATE THIS WHEN YOU BUMP THE ARGO-CD VERSION
+	// Current version: 2.51
+
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
+
+	github.com/golang/protobuf => github.com/golang/protobuf v1.4.2
+	github.com/gorilla/websocket => github.com/gorilla/websocket v1.4.2
+	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
+	github.com/improbable-eng/grpc-web => github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
+	// Monorepo
 	github.com/redhat-appstudio/managed-gitops/appstudio-controller => ../appstudio-controller
 	github.com/redhat-appstudio/managed-gitops/appstudio-shared => ../appstudio-shared
 	github.com/redhat-appstudio/managed-gitops/backend => ../backend
 	github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
 	github.com/redhat-appstudio/managed-gitops/cluster-agent => ../cluster-agent
 
-	k8s.io/api => k8s.io/api v0.24.3
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.24.3
-	k8s.io/apimachinery => k8s.io/apimachinery v0.24.3
-	k8s.io/apiserver => k8s.io/apiserver v0.24.3
-	k8s.io/cli-runtime => k8s.io/cli-runtime v0.24.3
-	k8s.io/client-go => k8s.io/client-go v0.24.3
-	k8s.io/cloud-provider => k8s.io/cloud-provider v0.24.3
-	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.24.3
-	k8s.io/code-generator => k8s.io/code-generator v0.24.3
-	k8s.io/component-base => k8s.io/component-base v0.24.3
-	k8s.io/component-helpers => k8s.io/component-helpers v0.24.3
-	k8s.io/controller-manager => k8s.io/controller-manager v0.24.3
-	k8s.io/cri-api => k8s.io/cri-api v0.24.3
-	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.24.3
-	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.24.3
-	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.24.3
-	k8s.io/kube-proxy => k8s.io/kube-proxy v0.24.3
-	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.24.3
-	k8s.io/kubectl => k8s.io/kubectl v0.24.3
-	k8s.io/kubelet => k8s.io/kubelet v0.24.3
-	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.24.3
-	k8s.io/metrics => k8s.io/metrics v0.24.3
-	k8s.io/mount-utils => k8s.io/mount-utils v0.24.3
-	k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.24.3
-	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.24.3
+	// Avoid CVE-2022-28948
+	gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.1
 
+	// https://github.com/kubernetes/kubernetes/issues/79384#issuecomment-505627280
+	k8s.io/api => k8s.io/api v0.24.2
+	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.24.2
+	k8s.io/apimachinery => k8s.io/apimachinery v0.24.2
+	k8s.io/apiserver => k8s.io/apiserver v0.24.2
+	k8s.io/cli-runtime => k8s.io/cli-runtime v0.24.2
+	k8s.io/client-go => k8s.io/client-go v0.24.2
+	k8s.io/cloud-provider => k8s.io/cloud-provider v0.24.2
+	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.24.2
+	k8s.io/code-generator => k8s.io/code-generator v0.24.2
+	k8s.io/component-base => k8s.io/component-base v0.24.2
+	k8s.io/component-helpers => k8s.io/component-helpers v0.24.2
+	k8s.io/controller-manager => k8s.io/controller-manager v0.24.2
+	k8s.io/cri-api => k8s.io/cri-api v0.24.2
+	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.24.2
+	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.24.2
+	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.24.2
+	k8s.io/kube-proxy => k8s.io/kube-proxy v0.24.2
+	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.24.2
+	k8s.io/kubectl => k8s.io/kubectl v0.24.2
+	k8s.io/kubelet => k8s.io/kubelet v0.24.2
+	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.24.2
+	k8s.io/metrics => k8s.io/metrics v0.24.2
+	k8s.io/mount-utils => k8s.io/mount-utils v0.24.2
+	k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.24.2
+	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.24.2
+
+	// KCP doesn't work with upstream controller-runtime (yet)
 	sigs.k8s.io/controller-runtime => github.com/kcp-dev/controller-runtime v0.12.2-0.20220808200255-4b60fd66e5de
 )

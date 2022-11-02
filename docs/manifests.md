@@ -55,7 +55,7 @@ These are automatically deployed, when the `make deploy-backend-crd` is triggere
 It requires 2 CRDs:
 
 1. [operations](../backend-shared/config/crd/bases/managed-gitops.redhat.com_operations.yaml) into `gitops` namespace.
-2. [application from ArgoCD](https://raw.githubusercontent.com/argoproj/argo-cd/release-2.2/manifests/crds/application-crd.yaml) into `argocd` namespace.
+2. [application from ArgoCD](https://raw.githubusercontent.com/argoproj/argo-cd/v2.5.1/manifests/crds/application-crd.yaml) into `argocd` namespace.
 
 These are automatically deployed, when the `make deploy-cluster-agent-crd` is triggered as a dependency.
 

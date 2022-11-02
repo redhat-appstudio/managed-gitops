@@ -1,6 +1,7 @@
 package eventlooptypes
 
 import (
+	"context"
 	"fmt"
 
 	gitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
@@ -9,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -126,7 +128,7 @@ func GetWorkspaceIDFromNamespaceID(namespace corev1.Namespace) string {
 	return string(namespace.UID)
 }
 
-func GetK8sClientForGitOpsEngineInstance(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+func GetK8sClientForGitOpsEngineInstance(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 
 	// TODO: GITOPSRVCE-73: When we support multiple Argo CD instances (and multiple instances on separate clusters), this logic should be updated.
 
@@ -136,10 +138,61 @@ func GetK8sClientForGitOpsEngineInstance(gitopsEngineInstance *db.GitopsEngineIn
 	}
 
 	scheme := runtime.NewScheme()
+	err = corev1.AddToScheme(scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	k8sClient, err := client.New(config, client.Options{Scheme: scheme})
+	if err != nil {
+		return nil, err
+	}
+
+	clusterCreds := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "gitops-engine-cluster",
+			Namespace: "gitops",
+		},
+	}
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(clusterCreds), clusterCreds)
+	if err != nil {
+		return nil, fmt.Errorf("unable to find cluster credentials for GitOpsEngine cluster :%v", err)
+	}
+
+	host, ok := clusterCreds.Data["host"]
+	if !ok {
+		return nil, fmt.Errorf("missing host API URL in the GitOpsEngine cluster secret")
+	}
+	bearerToken, ok := clusterCreds.Data["bearer_token"]
+	if !ok {
+		return nil, fmt.Errorf("missing bearer token in the GitOpsEngine cluster secret")
+	}
+
+	config = &rest.Config{
+		Host:        string(host),
+		BearerToken: string(bearerToken),
+		TLSClientConfig: rest.TLSClientConfig{
+			Insecure:   true,
+			ServerName: "",
+		},
+	}
+
 	err = gitopsv1alpha1.AddToScheme(scheme)
 	if err != nil {
 		return nil, err
 	}
+
+	return client.New(config, client.Options{Scheme: scheme})
+}
+
+// GetK8sClientForServiceWorkspace returns a client for service provider workspace
+func GetK8sClientForServiceWorkspace() (client.Client, error) {
+	config, err := sharedutil.GetRESTConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	scheme := runtime.NewScheme()
 	err = gitopsv1alpha1.AddToScheme(scheme)
 	if err != nil {
 		return nil, err

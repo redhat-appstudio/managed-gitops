@@ -31,7 +31,7 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 	dbQueries db.DatabaseQueries,
 	log logr.Logger) (SharedResourceManagedEnvContainer, error) {
 
-	serviceProviderClient, err := k8sClientFactory.GetK8sClientForGitOpsEngineInstance(nil)
+	gitopsEngineClient, err := k8sClientFactory.GetK8sClientForGitOpsEngineInstance(ctx, nil)
 	if err != nil {
 		return newSharedResourceManagedEnvContainer(), err
 	}
@@ -39,7 +39,7 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 	// If the GitOpsDeployment's 'target' field has an empty environment field, indicating it is targetting the same
 	// namespace as the GitOpsDeployment itself, then we use a separate function to process the message.
 	if isWorkspaceTarget {
-		return internalProcessMessage_GetOrCreateSharedResources(ctx, serviceProviderClient, workspaceNamespace, dbQueries, log)
+		return internalProcessMessage_GetOrCreateSharedResources(ctx, gitopsEngineClient, workspaceNamespace, dbQueries, log)
 	}
 
 	clusterUser, isNewUser, err := internalGetOrCreateClusterUserByNamespaceUID(ctx, string(workspaceNamespace.UID), dbQueries, log)
@@ -84,7 +84,7 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 
 		// A) If there exists no APICRToDatabaseMapping for this Managed Environment resource, then just create a new managed environment
 		//    for it, and return that.
-		return constructNewManagedEnv(ctx, serviceProviderClient, *clusterUser, isNewUser, managedEnvironmentCR, secretCR, workspaceNamespace, k8sClientFactory, dbQueries, log)
+		return constructNewManagedEnv(ctx, gitopsEngineClient, *clusterUser, isNewUser, managedEnvironmentCR, secretCR, workspaceNamespace, k8sClientFactory, dbQueries, log)
 	}
 
 	managedEnv := &db.ManagedEnvironment{
@@ -109,7 +109,7 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 			log.V(sharedutil.LogLevel_Warn).Info("unexpected number of rows deleted for APICRToDatabaseMapping", "mapping", apiCRToDBMapping.APIResourceUID)
 		}
 
-		return constructNewManagedEnv(ctx, serviceProviderClient, *clusterUser, isNewUser, managedEnvironmentCR, secretCR, workspaceNamespace, k8sClientFactory, dbQueries, log)
+		return constructNewManagedEnv(ctx, gitopsEngineClient, *clusterUser, isNewUser, managedEnvironmentCR, secretCR, workspaceNamespace, k8sClientFactory, dbQueries, log)
 	}
 
 	clusterCreds := &db.ClusterCredentials{
@@ -133,7 +133,7 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 	// We found the managed env, now verify that the API url of the k8s resources matches what is in the cluster credential
 	if clusterCreds.Host != managedEnvironmentCR.Spec.APIURL {
 		// C) If the API URL defined in the managed env CR has changed, then replace the cluster credentials of the managed environment
-		return replaceExistingManagedEnv(ctx, serviceProviderClient, *clusterUser, isNewUser, managedEnvironmentCR, secretCR, *managedEnv,
+		return replaceExistingManagedEnv(ctx, gitopsEngineClient, *clusterUser, isNewUser, managedEnvironmentCR, secretCR, *managedEnv,
 			workspaceNamespace, k8sClientFactory, dbQueries, log)
 	}
 
@@ -143,7 +143,7 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 		log.Info("was unable to connect using provided cluster credentials, so acquiring new ones.", "clusterCreds", clusterCreds.Clustercredentials_cred_id)
 		// D) If the cluster credentials appear to no longer be valid (we're no longer able to connect), then reacquire using the
 		// Secret.
-		return replaceExistingManagedEnv(ctx, serviceProviderClient, *clusterUser, isNewUser, managedEnvironmentCR, secretCR, *managedEnv,
+		return replaceExistingManagedEnv(ctx, gitopsEngineClient, *clusterUser, isNewUser, managedEnvironmentCR, secretCR, *managedEnv,
 			workspaceNamespace, k8sClientFactory, dbQueries, log)
 	}
 
@@ -152,7 +152,7 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 	// E) We already have an existing managed env from the database, so get or create the remaining items for it
 
 	engineInstance, isNewEngineInstance, clusterAccess, isNewClusterAccess, engineCluster, err := wrapManagedEnv(ctx,
-		*managedEnv, workspaceNamespace, *clusterUser, serviceProviderClient, dbQueries, log)
+		*managedEnv, workspaceNamespace, *clusterUser, gitopsEngineClient, dbQueries, log)
 
 	if err != nil {
 		return newSharedResourceManagedEnvContainer(),
@@ -304,7 +304,7 @@ func deleteManagedEnvironmentByAPINameAndNamespace(ctx context.Context, workspac
 // replaceExistingManagedEnv updates an existing managed environment by creating new credentials, updating the
 // managed environment to point to them, then deleting the old credentials.
 func replaceExistingManagedEnv(ctx context.Context,
-	serviceWorkspaceClient client.Client,
+	gitopsEngineClient client.Client,
 	clusterUser db.ClusterUser, isNewUser bool,
 	managedEnvironmentCR managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment,
 	secret corev1.Secret,
@@ -350,7 +350,7 @@ func replaceExistingManagedEnv(ctx context.Context,
 	// 4) Retrieve/create the other env vars for the managed env, and return
 	engineInstance, isNewEngineInstance, clusterAccess,
 		isNewClusterAccess, engineCluster, err := wrapManagedEnv(ctx,
-		managedEnvironmentDB, workspaceNamespace, clusterUser, serviceWorkspaceClient, dbQueries, log)
+		managedEnvironmentDB, workspaceNamespace, clusterUser, gitopsEngineClient, dbQueries, log)
 
 	if err != nil {
 		return newSharedResourceManagedEnvContainer(),
@@ -375,7 +375,7 @@ func replaceExistingManagedEnv(ctx context.Context,
 // constructNewManagedEnv creates a new ManagedEnvironment using the provided parameters, then creates ClusterAccess/GitOpsEngineInstance,
 // and returns those all created resources in a SharedResourceContainer
 func constructNewManagedEnv(ctx context.Context,
-	serviceProviderClient client.Client,
+	gitopsEngineClient client.Client,
 	clusterUser db.ClusterUser, isNewUser bool,
 	managedEnvironment managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment,
 	secret corev1.Secret,
@@ -392,7 +392,7 @@ func constructNewManagedEnv(ctx context.Context,
 
 	engineInstance, isNewEngineInstance, clusterAccess,
 		isNewClusterAccess, engineCluster, err := wrapManagedEnv(ctx,
-		*managedEnvDB, workspaceNamespace, clusterUser, serviceProviderClient, dbQueries, log)
+		*managedEnvDB, workspaceNamespace, clusterUser, gitopsEngineClient, dbQueries, log)
 
 	if err != nil {
 		return newSharedResourceManagedEnvContainer(),
@@ -416,11 +416,11 @@ func constructNewManagedEnv(ctx context.Context,
 
 // wrapManagedEnv creates (or gets) a GitOpsEngineInstance, GitOpsEngineCluster, and ClusterAccess, for the provided 'managedEnv' param
 func wrapManagedEnv(ctx context.Context, managedEnv db.ManagedEnvironment, workspaceNamespace corev1.Namespace,
-	clusterUser db.ClusterUser, serviceProviderClient client.Client, dbQueries db.DatabaseQueries, log logr.Logger) (*db.GitopsEngineInstance,
+	clusterUser db.ClusterUser, gitopsEngineClient client.Client, dbQueries db.DatabaseQueries, log logr.Logger) (*db.GitopsEngineInstance,
 	bool, *db.ClusterAccess, bool, *db.GitopsEngineCluster, error) {
 
 	engineInstance, isNewInstance, gitopsEngineCluster, err :=
-		internalDetermineGitOpsEngineInstanceForNewApplication(ctx, clusterUser, managedEnv, serviceProviderClient, dbQueries, log)
+		internalDetermineGitOpsEngineInstanceForNewApplication(ctx, clusterUser, managedEnv, gitopsEngineClient, dbQueries, log)
 
 	if err != nil {
 		log.Error(err, "unable to determine gitops engine instance")
@@ -527,7 +527,7 @@ func deleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 		// Add the gitops engine instance key to the map
 		gitopsEngineInstances[app.Engine_instance_inst_id] = *gitopsEngineInstance
 
-		client, err := k8sClientFactory.GetK8sClientForGitOpsEngineInstance(gitopsEngineInstance)
+		client, err := k8sClientFactory.GetK8sClientForGitOpsEngineInstance(ctx, gitopsEngineInstance)
 		if err != nil {
 			return fmt.Errorf("unable to retrieve k8s client for engine instance '%s': %v", gitopsEngineInstance.Gitopsengineinstance_id, err)
 		}
@@ -599,7 +599,7 @@ func deleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 
 		gitopsEngineInstance := gitopsEngineInstances[idx]
 
-		client, err := k8sClientFactory.GetK8sClientForGitOpsEngineInstance(&gitopsEngineInstance)
+		client, err := k8sClientFactory.GetK8sClientForGitOpsEngineInstance(ctx, &gitopsEngineInstance)
 		if err != nil {
 			return fmt.Errorf("unable to retrieve k8s client for engine instance '%s': %v", gitopsEngineInstance.Gitopsengineinstance_id, err)
 		}
@@ -635,7 +635,10 @@ type SRLK8sClientFactory interface {
 	BuildK8sClient(restConfig *rest.Config) (client.Client, error)
 
 	// Create a client.Client which can access the cluster that Argo CD is on
-	GetK8sClientForGitOpsEngineInstance(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error)
+	GetK8sClientForGitOpsEngineInstance(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error)
+
+	// Create a client.Client which can access the cluster where GitOps Service is running
+	GetK8sClientForServiceWorkspace() (client.Client, error)
 }
 
 var _ SRLK8sClientFactory = DefaultK8sClientFactory{}
@@ -644,8 +647,12 @@ var _ SRLK8sClientFactory = DefaultK8sClientFactory{}
 type DefaultK8sClientFactory struct {
 }
 
-func (DefaultK8sClientFactory) GetK8sClientForGitOpsEngineInstance(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
-	return eventlooptypes.GetK8sClientForGitOpsEngineInstance(gitopsEngineInstance)
+func (DefaultK8sClientFactory) GetK8sClientForGitOpsEngineInstance(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+	return eventlooptypes.GetK8sClientForGitOpsEngineInstance(ctx, gitopsEngineInstance)
+}
+
+func (DefaultK8sClientFactory) GetK8sClientForServiceWorkspace() (client.Client, error) {
+	return eventlooptypes.GetK8sClientForServiceWorkspace()
 }
 
 func (DefaultK8sClientFactory) BuildK8sClient(restConfig *rest.Config) (client.Client, error) {

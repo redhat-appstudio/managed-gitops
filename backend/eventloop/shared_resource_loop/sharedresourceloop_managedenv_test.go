@@ -552,7 +552,11 @@ func (f MockSRLK8sClientFactory) BuildK8sClient(restConfig *rest.Config) (client
 	return f.fakeClient, nil
 }
 
-func (f MockSRLK8sClientFactory) GetK8sClientForGitOpsEngineInstance(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+func (f MockSRLK8sClientFactory) GetK8sClientForGitOpsEngineInstance(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+	return f.fakeClient, nil
+}
+
+func (f MockSRLK8sClientFactory) GetK8sClientForServiceWorkspace() (client.Client, error) {
 	return f.fakeClient, nil
 }
 
@@ -571,7 +575,11 @@ func (f *SimulateFailingClientMockSRLK8sClientFactory) BuildK8sClient(restConfig
 	return f.realFakeClient, nil
 }
 
-func (f *SimulateFailingClientMockSRLK8sClientFactory) GetK8sClientForGitOpsEngineInstance(gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+func (f *SimulateFailingClientMockSRLK8sClientFactory) GetK8sClientForGitOpsEngineInstance(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+	return f.realFakeClient, nil
+}
+
+func (f *SimulateFailingClientMockSRLK8sClientFactory) GetK8sClientForServiceWorkspace() (client.Client, error) {
 	return f.realFakeClient, nil
 }
 

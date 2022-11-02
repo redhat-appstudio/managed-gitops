@@ -313,7 +313,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		Resource_type: db.OperationResourceType_Application,
 	}
 
-	gitopsEngineClient, err := a.getK8sClientForGitOpsEngineInstance(engineInstance)
+	gitopsEngineClient, err := a.getK8sClientForGitOpsEngineInstance(ctx, engineInstance)
 	if err != nil {
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 	}
@@ -576,7 +576,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 	log.Info("Processed GitOpsDeployment event: Application updated in database from latest API changes")
 
 	// Create the operation
-	gitopsEngineClient, err := a.getK8sClientForGitOpsEngineInstance(engineInstance)
+	gitopsEngineClient, err := a.getK8sClientForGitOpsEngineInstance(ctx, engineInstance)
 	if err != nil {
 		log.Error(err, "unable to retrieve gitopsengineinstance for updated gitopsdepl", "gitopsEngineInstance", engineInstance.EngineCluster_id)
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
@@ -701,9 +701,8 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		}
 	}
 
-	// 5) Now that we've deleted the Application row, create the operation that will cause the Argo CD application
-	// to be deleted.
-	gitopsEngineClient, err := a.getK8sClientForGitOpsEngineInstance(gitopsEngineInstance)
+	// Create the operation that will delete the Argo CD application
+	gitopsEngineClient, err := a.getK8sClientForGitOpsEngineInstance(ctx, gitopsEngineInstance)
 	if err != nil {
 		log.Error(err, "could not retrieve client for gitops engine instance", "instance", gitopsEngineInstance.Gitopsengineinstance_id)
 		return false, err

@@ -398,7 +398,7 @@ const (
 // Ensure the user's workspace is configured, ensure a GitOpsEngineInstance exists that will target it, and ensure
 // a cluster access exists the give the user permission to target them from the engine.
 // The bool return value is 'true' if respective resource is created; 'false' if it already exists in DB or in case of failure.
-func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, workspaceClient client.Client,
+func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, gitopsEngineClient client.Client,
 	workspaceNamespace corev1.Namespace, dbQueries db.DatabaseQueries,
 	log logr.Logger) (SharedResourceManagedEnvContainer, error) {
 
@@ -414,7 +414,7 @@ func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, work
 			fmt.Errorf("unable to get or created managed env on deployment modified event: %v", err)
 	}
 
-	engineInstance, isNewInstance, gitopsEngineCluster, err := internalDetermineGitOpsEngineInstanceForNewApplication(ctx, *clusterUser, *managedEnv, workspaceClient, dbQueries, log)
+	engineInstance, isNewInstance, gitopsEngineCluster, err := internalDetermineGitOpsEngineInstanceForNewApplication(ctx, *clusterUser, *managedEnv, gitopsEngineClient, dbQueries, log)
 	if err != nil {
 		return SharedResourceManagedEnvContainer{}, fmt.Errorf("unable to determine gitops engine instance: %v", err)
 	}

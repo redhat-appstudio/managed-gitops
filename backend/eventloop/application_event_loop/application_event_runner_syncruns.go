@@ -268,7 +268,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		log.Info(fmt.Sprintf("Created a ApiCRToDBMapping: (APIResourceType: %s, APIResourceUID: %s, DBRelationType: %s)", newApiCRToDBMapping.APIResourceType, newApiCRToDBMapping.APIResourceUID, newApiCRToDBMapping.DBRelationType))
 		createdResources = append(createdResources, &newApiCRToDBMapping)
 
-		operationClient, err := a.getK8sClientForGitOpsEngineInstance(gitopsEngineInstance)
+		operationClient, err := a.getK8sClientForGitOpsEngineInstance(ctx, gitopsEngineInstance)
 		if err != nil {
 			log.Error(err, "unable to retrieve gitopsengine instance from handleSyncRunModified")
 
@@ -344,7 +344,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		}
 
 		// 3) Create the operation, in order to inform the cluster agent it needs to cancel the sync operation
-		operationClient, err := a.getK8sClientForGitOpsEngineInstance(gitopsEngineInstance)
+		operationClient, err := a.getK8sClientForGitOpsEngineInstance(ctx, gitopsEngineInstance)
 		if err != nil {
 			log.Error(err, "unable to retrieve gitopsengine instance from handleSyncRunModified, when resource was deleted")
 			return signalledShutdown_false, gitopserrors.NewDevOnlyError(err)

@@ -247,9 +247,8 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			// Trigger Reconciler
 			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).To(BeNil())
-			// Expect(err.Error()).To(Equal("SnapshotEventBinding Component status is required to generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding appa-staging-binding"))
 
-			// TODO: GITOPSRVCE-182: Once GITOPSRVCE-182 is implemented, check for the above message in the condition.
+			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "SnapshotEventBinding Component status is required to generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding 'appa-staging-binding'")
 
 		})
 
@@ -267,6 +266,8 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			// Trigger Reconciler
 			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).To(BeNil())
+
+			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "Can not Reconcile Binding 'appa-staging-binding', since GitOps Repo Conditions status is false.")
 		})
 
 		It("should not return an error if there are duplicate components in binding.Status.Components", func() {
@@ -302,9 +303,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).To(BeNil())
 
-			// Expect(strings.Contains(err.Error(), errDuplicateKeysFound)).To(BeTrue(),
-			// 	"duplicate components should be detected by the reconciler")
-			// TODO: GITOPSRVCE-182: Once GITOPSRVCE-182 is implemented, check for the above message in the condition.
+			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "duplicate component keys found in status field in componentA")
 
 		})
 
@@ -614,5 +613,20 @@ func newRequest(namespace, name string) reconcile.Request {
 			Name:      name,
 			Namespace: namespace,
 		},
+	}
+}
+
+func checkStatusConditionOfEnvironmentBinding(ctx context.Context, rClient client.Client, binding *appstudiosharedv1.SnapshotEnvironmentBinding, message string) {
+	err := rClient.Get(ctx, client.ObjectKeyFromObject(binding), binding)
+	Expect(err).To(BeNil())
+	Expect(len(binding.Status.BindingConditions) > 0)
+
+	for _, condition := range binding.Status.BindingConditions {
+		if condition.Type == SnapshotEnvironmentBindingConditionErrorOccurred {
+			Expect(condition.Type).To(Equal(SnapshotEnvironmentBindingConditionErrorOccurred))
+			Expect(condition.Message).To(Equal(message))
+			Expect(condition.Status).To(Equal(metav1.ConditionTrue))
+			Expect(condition.Reason).To(Equal(SnapshotEnvironmentBindingReasonErrorOccurred))
+		}
 	}
 }

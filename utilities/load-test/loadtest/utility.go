@@ -73,7 +73,7 @@ type E2EFixtureK8sClient struct {
 func KubectlApply(namespace string, URL string) {
 	prg := "kubectl apply -n %s -f %s"
 	// namespace := "argocd"
-	// URL := "https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml"
+	// URL := "https://raw.githubusercontent.com/argoproj/argo-cd/$ARGO_CD_VERSION/manifests/install.yaml"
 	s := fmt.Sprintf(prg, namespace, URL)
 
 	// To print which command is running

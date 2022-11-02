@@ -26,7 +26,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 		var promotionRun appstudiosharedv1.PromotionRun
 
 		BeforeEach(func() {
-			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+			Expect(EnsureCleanSlate()).To(Succeed())
 			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
 			Expect(err).To(BeNil())
 

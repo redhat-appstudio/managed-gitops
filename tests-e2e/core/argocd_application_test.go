@@ -20,7 +20,7 @@ import (
 var _ = Describe("Argo CD Application", func() {
 	Context("Creating GitOpsDeployment should result in an Argo CD Application", func() {
 		It("Argo CD Application should have has prune, allowEmpty and selfHeal enabled", func() {
-			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+			Expect(EnsureCleanSlate()).To(Succeed())
 
 			By("create a new GitOpsDeployment CR")
 			gitOpsDeployment := buildGitOpsDeploymentResource("my-gitops-depl-automated",

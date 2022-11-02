@@ -7,7 +7,7 @@ IMG ?= quay.io/${USERNAME}/${BASE_IMAGE}:${TAG}
 
 # Default values match the their respective deployments in staging/production environment for GitOps Service, otherwise the E2E will fail.
 ARGO_CD_NAMESPACE ?= gitops-service-argocd
-ARGO_CD_VERSION ?= release-2.3
+ARGO_CD_VERSION ?= v2.5.1
 
 help: ## Display this help menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

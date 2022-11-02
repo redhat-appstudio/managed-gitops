@@ -225,6 +225,7 @@ replace (
 	github.com/gorilla/websocket => github.com/gorilla/websocket v1.4.2
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/improbable-eng/grpc-web => github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
+
 	// Monorepo
 	github.com/redhat-appstudio/managed-gitops/appstudio-controller => ../appstudio-controller
 	github.com/redhat-appstudio/managed-gitops/appstudio-shared => ../appstudio-shared

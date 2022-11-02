@@ -42,7 +42,7 @@ func Get(obj client.Object, k8sClient client.Client) error {
 }
 
 // List instances of a given K8s resource, returning an error on failure, or nil otherwise.
-func List(obj client.ObjectList, k8sClient client.Client, namespace string) error {
+func List(obj client.ObjectList, namespace string, k8sClient client.Client) error {
 
 	if err := k8sClient.List(context.Background(), obj, &client.ListOptions{
 		Namespace: namespace,

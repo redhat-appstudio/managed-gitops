@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"go.uber.org/zap/zapcore"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
@@ -31,9 +31,19 @@ func EnsureCleanSlate() error {
 
 	if !sharedutil.IsKCPVirtualWorkspaceDisabled() {
 		Expect(fixture.EnsureCleanSlateNonKCPVirtualWorkspace()).To(Succeed())
+		return nil
 	} else {
 		Expect(fixture.EnsureCleanSlateKCPVirtualWorkspace()).To(Succeed())
+		return nil
 	}
+}
 
-	return fmt.Errorf("Error in deciding which function to use against EnsureCleanSlate")
+func GetE2ETestUserWorkspaceKubeClient() client.Client {
+	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+	Expect(err).To(BeNil())
+
+	k8sClient, err := fixture.GetKubeClient(config)
+	Expect(err).To(BeNil())
+
+	return k8sClient
 }

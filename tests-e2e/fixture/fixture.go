@@ -59,30 +59,30 @@ const (
 // This function can also be called after a test, in order to clean up any resources it create in the GitOpsServiceE2ENamespace.
 func EnsureCleanSlateNonKCPVirtualWorkspace() error {
 
-	clientconfig, err := GetKubeConfig()
+	clientconfig, err := GetSystemKubeConfig()
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	// Clean up after tests that target the non-default Argo CD instance (only used by a few E2E tests)
-	if err := cleanUpOldArgoCDApplications(clientconfig, NewArgoCDInstanceDestNamespace, NewArgoCDInstanceDestNamespace); err != nil {
+	if err := cleanUpOldArgoCDApplications(NewArgoCDInstanceDestNamespace, NewArgoCDInstanceDestNamespace, clientconfig); err != nil {
 		return err
 	}
 
-	if err := DeleteNamespace(clientconfig, NewArgoCDInstanceNamespace); err != nil {
+	if err := DeleteNamespace(NewArgoCDInstanceNamespace, clientconfig); err != nil {
 		return err
 	}
 
-	if err := DeleteNamespace(clientconfig, NewArgoCDInstanceDestNamespace); err != nil {
+	if err := DeleteNamespace(NewArgoCDInstanceDestNamespace, clientconfig); err != nil {
 		return err
 	}
 
 	// Clean up after tests that target the default Argo CD E2E instance (used by most E2E tests)
-	if err := cleanUpOldArgoCDApplications(clientconfig, dbutil.GetGitOpsEngineSingleInstanceNamespace(), GitOpsServiceE2ENamespace); err != nil {
+	if err := cleanUpOldArgoCDApplications(dbutil.GetGitOpsEngineSingleInstanceNamespace(), GitOpsServiceE2ENamespace, clientconfig); err != nil {
 		return err
 	}
 
-	if err := ensureDestinationNamespaceExists(clientconfig, GitOpsServiceE2ENamespace, dbutil.GetGitOpsEngineSingleInstanceNamespace()); err != nil {
+	if err := ensureDestinationNamespaceExists(GitOpsServiceE2ENamespace, dbutil.GetGitOpsEngineSingleInstanceNamespace(), clientconfig); err != nil {
 		return err
 	}
 
@@ -113,7 +113,7 @@ func EnsureCleanSlateNonKCPVirtualWorkspace() error {
 
 // cleanUpOldArgoCDApplications issues a Delete request to k8s, for any Argo CD Applications in 'namespaceParam' that
 // have a .Spec.Destination of 'destNamespace'
-func cleanUpOldArgoCDApplications(clientConfig *rest.Config, namespaceParam string, destNamespace string) error {
+func cleanUpOldArgoCDApplications(namespaceParam string, destNamespace string, clientConfig *rest.Config) error {
 	k8sClient, err := GetKubeClient(clientConfig)
 	if err != nil {
 		return err
@@ -232,14 +232,14 @@ func cleanUpOldGitOpsServiceAPIs(namespace string, k8sClient client.Client) erro
 
 }
 
-func ensureDestinationNamespaceExists(clientConfig *rest.Config, namespaceParam string, argoCDNamespaceParam string) error {
+func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespaceParam string, clientConfig *rest.Config) error {
 
-	kubeClientSet, err := GetKubeClientSet()
+	kubeClientSet, err := kubernetes.NewForConfig(clientConfig)
 	if err != nil {
 		return err
 	}
 
-	if err := DeleteNamespace(clientConfig, namespaceParam); err != nil {
+	if err := DeleteNamespace(namespaceParam, clientConfig); err != nil {
 		return fmt.Errorf("unable to delete namespace '%s': %v", namespaceParam, err)
 	}
 
@@ -349,7 +349,7 @@ func ensureDestinationNamespaceExists(clientConfig *rest.Config, namespaceParam 
 }
 
 // DeleteNamespace deletes a namespace, and waits for it to be reported as deleted.
-func DeleteNamespace(clientConfig *rest.Config, namespaceParam string) error {
+func DeleteNamespace(namespaceParam string, clientConfig *rest.Config) error {
 
 	k8sClient, err := GetKubeClient(clientConfig)
 	if err != nil {
@@ -370,7 +370,7 @@ func DeleteNamespace(clientConfig *rest.Config, namespaceParam string) error {
 		}
 
 		// Delete any Argo CD Applications in the Argo CD namespace that target this namespace
-		if err := cleanUpOldArgoCDApplications(clientConfig, dbutil.GetGitOpsEngineSingleInstanceNamespace(), namespaceParam); err != nil {
+		if err := cleanUpOldArgoCDApplications(dbutil.GetGitOpsEngineSingleInstanceNamespace(), namespaceParam, clientConfig); err != nil {
 			GinkgoWriter.Printf("unable to clean up old Argo CD Applications targetting '%s': %v'\n", namespaceParam, err)
 			return false, nil
 		}
@@ -445,9 +445,8 @@ func DeleteNamespace(clientConfig *rest.Config, namespaceParam string) error {
 	return nil
 }
 
-// Prevent rate limiting of our requests
-// Sanity check that we're not running on a known staging system: don't want to accidentally break staging :|
-func rateLimitSanityCheck(restConfig *rest.Config) error {
+// setRateLimitOnRestConfig: set the QPS and Burst of the rest config
+func setRateLimitOnRestConfig(restConfig *rest.Config) error {
 	if restConfig != nil {
 		// Prevent rate limiting of our requests
 		restConfig.QPS = 100
@@ -462,7 +461,7 @@ func rateLimitSanityCheck(restConfig *rest.Config) error {
 }
 
 // Retrieve the system-level Kubernetes config (e.g. ~/.kube/config)
-func GetKubeConfig() (*rest.Config, error) {
+func GetSystemKubeConfig() (*rest.Config, error) {
 
 	overrides := clientcmd.ConfigOverrides{}
 
@@ -471,12 +470,12 @@ func GetKubeConfig() (*rest.Config, error) {
 
 	restConfig, err := clientConfig.ClientConfig()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	err = rateLimitSanityCheck(restConfig)
+	err = setRateLimitOnRestConfig(restConfig)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	return restConfig, nil
@@ -488,7 +487,7 @@ func GetKubeConfig() (*rest.Config, error) {
 func GetE2ETestUserWorkspaceKubeConfig() (*rest.Config, error) {
 
 	if !IsRunningAgainstKCP() || sharedutil.IsKCPVirtualWorkspaceDisabled() {
-		return GetKubeConfig()
+		return GetSystemKubeConfig()
 	} else {
 		var kubeconfig *string
 		userEnv, exists := os.LookupEnv("USER_KUBECONFIG")
@@ -496,17 +495,17 @@ func GetE2ETestUserWorkspaceKubeConfig() (*rest.Config, error) {
 			kubeconfig = flag.String("kubeconfig", filepath.Join("", userEnv), "(optional) absolute path to the kubeconfig file")
 			flag.Parse()
 		} else {
-			panic("USER_KUBECONFIG env variable not set")
+			return nil, fmt.Errorf("USER_KUBECONFIG env variable not set")
 		}
 
 		restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 
-		err = rateLimitSanityCheck(restConfig)
+		err = setRateLimitOnRestConfig(restConfig)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 
 		return restConfig, nil
@@ -518,7 +517,7 @@ func GetE2ETestUserWorkspaceKubeConfig() (*rest.Config, error) {
 func GetServiceProviderWorkspaceKubeConfig() (*rest.Config, error) {
 
 	if !IsRunningAgainstKCP() || sharedutil.IsKCPVirtualWorkspaceDisabled() {
-		return GetKubeConfig()
+		return GetSystemKubeConfig()
 	} else {
 		var kubeconfig *string
 		userEnv, exists := os.LookupEnv("SERVICE_PROVIDER_KUBECONFIG")
@@ -526,38 +525,28 @@ func GetServiceProviderWorkspaceKubeConfig() (*rest.Config, error) {
 			kubeconfig = flag.String("kubeconfig", filepath.Join("", userEnv), "(optional) absolute path to the kubeconfig file")
 			flag.Parse()
 		} else {
-			panic("SERVICE_PROVIDER_KUBECONFIG env variable not set")
+			return nil, fmt.Errorf("SERVICE_PROVIDER_KUBECONFIG env variable not set")
 		}
 
 		restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 
-		err = rateLimitSanityCheck(restConfig)
+		err = setRateLimitOnRestConfig(restConfig)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 
 		return restConfig, nil
 	}
 }
 
-// GetVirtualWorkspaceKubeConfig retrieves the GetVirtualWorkspaceKubeConfig Kubernetes config
-// func GetVirtualWorkspaceKubeConfig() (*rest.Config, error) {
-// 	return nil, nil
-// }
-
-// GetGitOpsEngineInstanceKubeConfig retrieves the GetGitOpsEngineInstanceKubeConfig Kubernetes config
-// func GetGitOpsEngineInstanceKubeConfig() (*rest.Config, error) {
-//  look into GetK8sClientForGitOpsEngineInstance from eventloop
-// }
-
 // GetKubeClientSet returns a Clientset for accesing K8s API resources.
 // This API has the advantage over `GetKubeClient` in that it is strongly typed, but cannot be used for
 // custom resources.
 func GetKubeClientSet() (*kubernetes.Clientset, error) {
-	config, err := GetKubeConfig()
+	config, err := GetSystemKubeConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -846,18 +835,18 @@ func EnsureCleanSlateKCPVirtualWorkspace() error {
 	// Service Provider WS is where gitops service is running so we can delete from the same clientset
 	userConfig, err := GetE2ETestUserWorkspaceKubeConfig()
 	if err != nil {
-		panic(err)
-	}
-
-	if err := DeleteNamespace(userConfig, NewArgoCDInstanceNamespace); err != nil {
 		return err
 	}
 
-	if err := DeleteNamespace(userConfig, NewArgoCDInstanceDestNamespace); err != nil {
+	if err := DeleteNamespace(NewArgoCDInstanceNamespace, userConfig); err != nil {
 		return err
 	}
 
-	if err := ensureDestinationNamespaceExists(userConfig, GitOpsServiceE2ENamespace, dbutil.GetGitOpsEngineSingleInstanceNamespace()); err != nil {
+	if err := DeleteNamespace(NewArgoCDInstanceDestNamespace, userConfig); err != nil {
+		return err
+	}
+
+	if err := ensureDestinationNamespaceExists(GitOpsServiceE2ENamespace, dbutil.GetGitOpsEngineSingleInstanceNamespace(), userConfig); err != nil {
 		return err
 	}
 
@@ -868,7 +857,7 @@ func EnsureCleanSlateKCPVirtualWorkspace() error {
 	// Service Provider WS is where gitops service is running so we can delete from the same clientset
 	serviceConfig, err := GetServiceProviderWorkspaceKubeConfig()
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	// Delete all Argo CD Cluster Secrets from the default Argo CD Namespace
@@ -890,7 +879,7 @@ func EnsureCleanSlateKCPVirtualWorkspace() error {
 	}
 
 	// Clean up after tests that target the default Argo CD E2E instance (used by most E2E tests)
-	if err := cleanUpOldArgoCDApplications(serviceConfig, dbutil.GetGitOpsEngineSingleInstanceNamespace(), GitOpsServiceE2ENamespace); err != nil {
+	if err := cleanUpOldArgoCDApplications(dbutil.GetGitOpsEngineSingleInstanceNamespace(), GitOpsServiceE2ENamespace, serviceConfig); err != nil {
 		return err
 	}
 

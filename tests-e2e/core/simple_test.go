@@ -26,13 +26,9 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				"https://github.com/redhat-appstudio/gitops-repository-template", "environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
-			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-			Expect(err).To(BeNil())
+			k8sClient := GetE2ETestUserWorkspaceKubeClient()
 
-			k8sClient, err := fixture.GetKubeClient(config)
-			Expect(err).To(BeNil())
-
-			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
+			err := k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("ensuring GitOpsDeployment should have expected health and status")

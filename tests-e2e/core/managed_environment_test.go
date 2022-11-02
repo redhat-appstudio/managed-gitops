@@ -43,11 +43,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents)
 
-			config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-			Expect(err).To(BeNil())
-
-			k8sClient, err := fixture.GetKubeClient(config)
-			Expect(err).To(BeNil())
+			k8sClient := GetE2ETestUserWorkspaceKubeClient()
 
 			err = k8s.Create(&secret, k8sClient)
 			Expect(err).To(BeNil())

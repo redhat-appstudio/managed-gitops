@@ -36,9 +36,9 @@ CREATE TABLE ClusterCredentials (
 	-- State 2) The namespace of the ServiceAccount
 	serviceaccount_ns VARCHAR (128),
 
-	seq_id serial
+	seq_id serial,
 
-	allowInsecureSkipTLSVerify BOOLEAN,
+	allowInsecureSkipTLSVerify BOOLEAN
 );
 
 -- GitopsEngineCluster

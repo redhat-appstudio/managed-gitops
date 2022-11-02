@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"time"
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
@@ -36,7 +37,8 @@ func generateDefaultClientForServerAddress(server string, optionalAuthToken stri
 	} else if skipTLSTest {
 		// skip test
 	} else {
-		tlsTestResult, err := grpc_util.TestTLS(server)
+		dialTime := 30 * time.Second
+		tlsTestResult, err := grpc_util.TestTLS(server, dialTime)
 		if err != nil {
 			return nil, err
 		}

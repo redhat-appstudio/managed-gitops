@@ -38,7 +38,7 @@ CREATE TABLE ClusterCredentials (
 
 	seq_id serial,
 
-	allowInsecureSkipTLSVerify VARCHAR(5)
+	allowInsecureSkipTLSVerify BOOLEAN
 );
 
 -- GitopsEngineCluster

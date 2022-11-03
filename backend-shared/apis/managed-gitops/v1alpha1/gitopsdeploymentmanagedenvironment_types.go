@@ -24,17 +24,17 @@ import (
 type GitOpsDeploymentManagedEnvironmentSpec struct {
 	APIURL                     string `json:"apiURL"`
 	ClusterCredentialsSecret   string `json:"credentialsSecret"`
-	AllowInsecureSkipTLSVerify string `json:"skipTLSVerify"`
+	AllowInsecureSkipTLSVerify bool   `json:"skipTLSVerify"`
 }
 
-type AllowInsecureSkipTLSVerify string
+type AllowInsecureSkipTLSVerify bool
 
 // Insecure TLS Status types
 const (
 	// TLSVerifyStatusTrue indicates that a Insecure TLS verify type is true
-	TLSVerifyStatusTrue AllowInsecureSkipTLSVerify = "true"
+	TLSVerifyStatusTrue AllowInsecureSkipTLSVerify = true
 	// TLSVerifyStatusFalse indicates that a Insecure TLS verify type is false
-	TLSVerifyStatusFalse AllowInsecureSkipTLSVerify = "false"
+	TLSVerifyStatusFalse AllowInsecureSkipTLSVerify = false
 )
 
 // GitOpsDeploymentManagedEnvironmentStatus defines the observed state of GitOpsDeploymentManagedEnvironment

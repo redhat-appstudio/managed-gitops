@@ -13,7 +13,6 @@ const (
 	ClusterCredentialsKubeConfigContextLength                               = 64
 	ClusterCredentialsServiceaccountBearerTokenLength                       = 2048
 	ClusterCredentialsServiceaccountNsLength                                = 128
-	ClusterCredentialsAllowInsecureSkipTLSVerify                            = 5
 	GitopsEngineClusterGitopsengineclusterIDLength                          = 48
 	GitopsEngineInstanceGitopsengineinstanceIDLength                        = 48
 	GitopsEngineInstanceNamespaceNameLength                                 = 48
@@ -114,7 +113,6 @@ var DbFieldMap = map[string]int{
 	"ClusterCredentialsKubeConfigContextLength":                               ClusterCredentialsKubeConfigContextLength,
 	"ClusterCredentialsServiceaccountBearerTokenLength":                       ClusterCredentialsServiceaccountBearerTokenLength,
 	"ClusterCredentialsServiceaccountNsLength":                                ClusterCredentialsServiceaccountNsLength,
-	"ClusterCredentialsAllowInsecureSkipTLSVerify":                            ClusterCredentialsAllowInsecureSkipTLSVerify,
 	"GitopsEngineClusterGitopsengineclusterIDLength":                          GitopsEngineClusterGitopsengineclusterIDLength,
 	"GitopsEngineInstanceGitopsengineinstanceIDLength":                        GitopsEngineInstanceGitopsengineinstanceIDLength,
 	"GitopsEngineInstanceNamespaceNameLength":                                 GitopsEngineInstanceNamespaceNameLength,

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"strconv"
 	"time"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -923,10 +922,7 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 	bearerToken := clusterCredentials.Serviceaccount_bearer_token
 
 	name := argosharedutil.GenerateArgoCDClusterSecretName(*managedEnv)
-	insecureVerifyTLS, err := strconv.ParseBool(clusterCredentials.AllowInsecureSkipTLSVerify)
-	if err != nil {
-		return fmt.Errorf("Invalid TLSverify value passed. Accepted only boolean values %v", err)
-	}
+	insecureVerifyTLS := clusterCredentials.AllowInsecureSkipTLSVerify
 
 	clusterSecretConfigJSON := ClusterSecretConfigJSON{
 		BearerToken: bearerToken,
@@ -1027,10 +1023,7 @@ func generateExpectedClusterSecret(ctx context.Context, application db.Applicati
 	bearerToken := clusterCredentials.Serviceaccount_bearer_token
 
 	name := argosharedutil.GenerateArgoCDClusterSecretName(*managedEnv)
-	insecureVerifyTLS, err := strconv.ParseBool(clusterCredentials.AllowInsecureSkipTLSVerify)
-	if err != nil {
-		return corev1.Secret{}, deleteSecret_false, fmt.Errorf("Invalid TLSverify value passed. Accepted only boolean values %v", err)
-	}
+	insecureVerifyTLS := clusterCredentials.AllowInsecureSkipTLSVerify
 
 	clusterSecretConfigJSON := ClusterSecretConfigJSON{
 		BearerToken: bearerToken,

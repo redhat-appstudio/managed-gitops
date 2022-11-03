@@ -3,7 +3,6 @@ package shared_resource_loop
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -780,10 +779,8 @@ func verifyClusterCredentials(ctx context.Context, clusterCreds db.ClusterCreden
 		BearerToken: clusterCreds.Serviceaccount_bearer_token,
 	}
 
-	configParam.Insecure, err = strconv.ParseBool(clusterCreds.AllowInsecureSkipTLSVerify) // TODO: GITOPSRVCE-178: Once we have TLS validation enabled, the TLS validation value should be used here.
-	if err != nil {
-		return false, fmt.Errorf("Invalid TLSverify value passed. Accepted only boolean values %v", err)
-	}
+	configParam.Insecure = clusterCreds.AllowInsecureSkipTLSVerify // TODO: GITOPSRVCE-178: Once we have TLS validation enabled, the TLS validation value should be used here.
+
 	configParam.ServerName = ""
 
 	clientObj, err := k8sClientFactory.BuildK8sClient(configParam)

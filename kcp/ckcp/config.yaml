@@ -22,8 +22,13 @@ crs_to_sync:
 
 # Applications to be deployed on the cluster
 apps:
-  - pipeline_service # pipeline_service sets up Pipeline Service on the cluster.
+ - pipeline_service # pipeline_service sets up Pipeline Service on the cluster.
 
 # versions
 version:
   kcp: v0.9.0
+
+# Tekton results database credentials
+tekton_results_db:
+  user:
+  password:

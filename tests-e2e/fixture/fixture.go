@@ -252,7 +252,7 @@ func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 		}
 
 		// allow argocd to manage the target namespace
-		err = wait.Poll(time.Second*1, time.Minute*2, func() (done bool, err error) {
+		err = wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
 			secretList, err := kubeClientSet.CoreV1().Secrets(argoCDNamespaceParam).List(context.Background(), metav1.ListOptions{
 				LabelSelector: "argocd.argoproj.io/secret-type=cluster",
 			})
@@ -283,7 +283,7 @@ func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 	// - This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
 	//   set up proper roles for it.
 
-	if err := wait.Poll(time.Second*1, time.Minute*2, func() (done bool, err error) {
+	if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
 		var roleBindings *rbacv1.RoleBindingList
 		roleBindings, err = kubeClientSet.RbacV1().RoleBindings(namespaceParam).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
@@ -310,7 +310,7 @@ func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 		return err
 	}
 
-	if err := wait.Poll(time.Second*1, time.Minute*2, func() (done bool, err error) {
+	if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
 		var roles *rbacv1.RoleList
 		roles, err = kubeClientSet.RbacV1().Roles(namespaceParam).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
@@ -353,7 +353,7 @@ func DeleteNamespace(namespaceParam string) error {
 	//   can be successfully clean.ed
 	// - Next, we issue a request to Delete the namespace
 	// - Finally, we check if it has been deleted.
-	if err := wait.Poll(time.Second*5, time.Minute*6, func() (done bool, err error) {
+	if err := wait.PollImmediate(time.Second*5, time.Minute*6, func() (done bool, err error) {
 
 		// Deletes old GitOpsDeployment* APIs in this namespace
 		if err := cleanUpOldGitOpsServiceAPIs(namespaceParam, k8sClient); err != nil {
@@ -368,7 +368,7 @@ func DeleteNamespace(namespaceParam string) error {
 		}
 
 		// Remove finalizers from any Argo CD Applications in this Namespace
-		if err := wait.Poll(time.Second*1, time.Minute*2, func() (done bool, err error) {
+		if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
 
 			argoCDApplicationList := appv1alpha1.ApplicationList{}
 			if err = k8sClient.List(context.Background(), &argoCDApplicationList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
@@ -636,7 +636,7 @@ func removeKCPFinalizers(k8sClient client.Client, namespaceParam string) (bool, 
 	}
 
 	// Remove KCP finalizers from secrets in this namespace
-	if err := wait.Poll(time.Second*1, time.Minute*2, func() (done bool, err error) {
+	if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
 
 		secretList := corev1.SecretList{}
 		if err = k8sClient.List(context.Background(), &secretList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
@@ -668,7 +668,7 @@ func removeKCPFinalizers(k8sClient client.Client, namespaceParam string) (bool, 
 	}
 
 	// Remove KCP finalizers from service accounts in this namespace
-	if err := wait.Poll(time.Second*1, time.Minute*2, func() (done bool, err error) {
+	if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
 
 		saList := corev1.ServiceAccountList{}
 		if err = k8sClient.List(context.Background(), &saList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
@@ -700,7 +700,7 @@ func removeKCPFinalizers(k8sClient client.Client, namespaceParam string) (bool, 
 	}
 
 	// Remove KCP finalizers from configmaps in this namespace
-	if err := wait.Poll(time.Second*1, time.Minute*2, func() (done bool, err error) {
+	if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
 
 		cmList := corev1.ConfigMapList{}
 		if err = k8sClient.List(context.Background(), &cmList, &client.ListOptions{Namespace: namespaceParam}); err != nil {

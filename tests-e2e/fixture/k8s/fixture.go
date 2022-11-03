@@ -3,8 +3,10 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/onsi/gomega"
@@ -120,6 +122,28 @@ func Delete(obj client.Object) error {
 
 }
 
+// UntilSuccess will keep trying a K8s operation until it succeeds, or times out.
+func UntilSuccess(f func(k8sClient client.Client) error) error {
+
+	k8sClient, err := fixture.GetKubeClient()
+	if err != nil {
+		return err
+	}
+
+	err = wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
+		funcError := f(k8sClient)
+		return funcError == nil, nil
+	})
+
+	return err
+}
+
+// WARNING: calling this function may lead to race conditions. Strongly consider using 'UntilSuccess' instead.
+//
+// For example of how to do that, see 'UpdateStatusWithFunction' in 'fixture/binding/fixture.go',
+// and 'buildAndUpdateBindingStatus' in 'snapshotenvironmentbinding_test.go'
+//
+// UpdateStatus updates the status of a K8s resource using the provided object.
 func UpdateStatus(obj client.Object) error {
 	k8sClient, err := fixture.GetKubeClient()
 	if err != nil {

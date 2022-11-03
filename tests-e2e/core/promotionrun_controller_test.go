@@ -49,10 +49,9 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			Expect(err).To(Succeed())
 
 			By("Update Status field.")
-			err = k8s.Get(&bindingStage)
-			Expect(err).To(Succeed())
-			bindingStage.Status = buildSnapshotEnvironmentBindingStatus(bindingStage.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging", "components/componentB/overlays/staging"})
-			err = k8s.UpdateStatus(&bindingStage)
+			err = buildAndUpdateBindingStatus(bindingStage.Spec.Components,
+				"https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw",
+				[]string{"components/componentA/overlays/staging", "components/componentB/overlays/staging"}, &bindingStage)
 			Expect(err).To(Succeed())
 
 			By("Create Production Binding.")
@@ -61,10 +60,10 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			Expect(err).To(Succeed())
 
 			By("Update Status field.")
-			err = k8s.Get(&bindingProd)
-			Expect(err).To(Succeed())
-			bindingProd.Status = buildSnapshotEnvironmentBindingStatus(bindingProd.Spec.Components, "https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw", []string{"components/componentA/overlays/staging", "components/componentB/overlays/staging"})
-			err = k8s.UpdateStatus(&bindingProd)
+
+			err = buildAndUpdateBindingStatus(bindingProd.Spec.Components,
+				"https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw",
+				[]string{"components/componentA/overlays/staging", "components/componentB/overlays/staging"}, &bindingStage)
 			Expect(err).To(Succeed())
 
 			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")

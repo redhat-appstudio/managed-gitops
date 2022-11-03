@@ -1,1 +1,1 @@
-ALTER TABLE ClusterCredentials ADD COLUMN allowInsecureSkipTLSVerify VARCHAR(5) DEFAULT 0;
+ALTER TABLE ClusterCredentials ADD COLUMN allowInsecureSkipTLSVerify BOOLEAN DEFAULT FALSE;

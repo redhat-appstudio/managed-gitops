@@ -885,3 +885,14 @@ func EnsureCleanSlateKCPVirtualWorkspace() error {
 
 	return nil
 }
+
+func EnsureCleanSlate() error {
+
+	if !sharedutil.IsKCPVirtualWorkspaceDisabled() {
+		err := EnsureCleanSlateNonKCPVirtualWorkspace()
+		return err
+	} else {
+		err := EnsureCleanSlateNonKCPVirtualWorkspace()
+		return err
+	}
+}

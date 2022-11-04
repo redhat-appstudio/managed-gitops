@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
+	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	appFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/application"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
@@ -19,7 +20,7 @@ import (
 var _ = Describe("Argo CD Application", func() {
 	Context("Creating GitOpsDeployment should result in an Argo CD Application", func() {
 		It("Argo CD Application should have has prune, allowEmpty and selfHeal enabled", func() {
-			Expect(EnsureCleanSlate()).To(Succeed())
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("create a new GitOpsDeployment CR")
 			gitOpsDeployment := buildGitOpsDeploymentResource("my-gitops-depl-automated",

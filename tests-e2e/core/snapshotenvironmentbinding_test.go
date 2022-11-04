@@ -28,7 +28,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 		var environment appstudiosharedv1.Environment
 		BeforeEach(func() {
-			Expect(EnsureCleanSlate()).To(Succeed())
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("creating the 'staging' Environment")
 			environment = appstudiosharedv1.Environment{

@@ -27,9 +27,10 @@ var _ = Describe("Argo CD Application", func() {
 				"https://github.com/redhat-appstudio/gitops-repository-template", "environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
-			k8sClient := GetE2ETestUserWorkspaceKubeClient()
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
 
-			err := k8s.Create(&gitOpsDeployment, k8sClient)
+			err = k8s.Create(&gitOpsDeployment, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("GitOpsDeployment should have expected health and status")

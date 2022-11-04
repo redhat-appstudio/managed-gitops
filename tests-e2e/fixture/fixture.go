@@ -896,3 +896,17 @@ func EnsureCleanSlate() error {
 		return err
 	}
 }
+
+func GetE2ETestUserWorkspaceKubeClient() (client.Client, error) {
+	config, err := GetE2ETestUserWorkspaceKubeConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	k8sClient, err := GetKubeClient(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return k8sClient, nil
+}

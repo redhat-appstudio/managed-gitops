@@ -119,7 +119,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			Eventually(func() bool {
 
-				k8sclient := GetE2ETestUserWorkspaceKubeClient()
+				k8sclient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+				Expect(err).To(Succeed())
 
 				for _, resourceValue := range expectedResourceStatusList {
 					ns := typed.NamespacedName{
@@ -162,7 +163,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			gitOpsDeploymentResource.Spec.Destination.Environment = ""
 			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
-			k8sClient := GetE2ETestUserWorkspaceKubeClient()
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
 
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
@@ -224,7 +226,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			gitOpsDeploymentResource.Spec.Destination.Environment = ""
 			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
-			k8sClient := GetE2ETestUserWorkspaceKubeClient()
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
 
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
@@ -284,7 +287,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				repoURL, "environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
-			k8sClient := GetE2ETestUserWorkspaceKubeClient()
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
 
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
@@ -322,7 +326,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
-			k8sClient := GetE2ETestUserWorkspaceKubeClient()
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
 
 			By("creating a new GitOpsDeployment resource")
 			gitOpsDeploymentResource := buildTargetRevisionGitOpsDeploymentResource("gitops-depl-test",
@@ -386,7 +391,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
-			k8sClient := GetE2ETestUserWorkspaceKubeClient()
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
 
 			By("creating a new GitOpsDeployment resource")
 			gitOpsDeploymentResource := buildTargetRevisionGitOpsDeploymentResource("gitops-depl-test",
@@ -481,7 +487,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				"https://github.com/managed-gitops-test-data/deployment-permutations-a", "pathB", "branchA",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
-			k8sClient := GetE2ETestUserWorkspaceKubeClient()
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
 
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
@@ -542,7 +549,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				"https://github.com/redhat-appstudio/gitops-repository-template", "environments/overlays/dev", "xyz",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
-			k8sClient := GetE2ETestUserWorkspaceKubeClient()
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
 
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
@@ -598,7 +606,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				"https://github.com/redhat-appstudio/gitops-repository-template", "environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
-			k8sClient := GetE2ETestUserWorkspaceKubeClient()
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
 
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
@@ -645,7 +654,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				"invalid-url", "path/path/path",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
-			k8sClient := GetE2ETestUserWorkspaceKubeClient()
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
 
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())

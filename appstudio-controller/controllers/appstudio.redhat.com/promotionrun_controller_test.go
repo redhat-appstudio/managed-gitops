@@ -3,12 +3,15 @@ package appstudioredhatcom
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -26,6 +29,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 		var environment appstudiosharedv1.Environment
 		var promotionRun *appstudiosharedv1.PromotionRun
 		var promotionRunReconciler PromotionRunReconciler
+		var component1, component2, component3 appstudiosharedv1.Component
 
 		BeforeEach(func() {
 			ctx = context.Background()
@@ -37,6 +41,8 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				err := tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
+			err = appstudiosharedv1.AddToScheme(scheme)
+			Expect(err).To(BeNil())
 			err = appstudiosharedv1.AddToScheme(scheme)
 			Expect(err).To(BeNil())
 
@@ -62,6 +68,44 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &environment)
+			Expect(err).To(BeNil())
+
+			By("Create placeholder components")
+			component1 = appstudiosharedv1.Component{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "comp1",
+					Namespace: apiNamespace.Name,
+				},
+				Spec: appstudiosharedv1.ComponentSpec{
+					ComponentName: "component1",
+					Application:   "new-demo-app",
+				},
+			}
+			err = k8sClient.Create(ctx, &component1)
+			Expect(err).To(BeNil())
+			component2 = appstudiosharedv1.Component{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "comp2",
+					Namespace: apiNamespace.Name,
+				},
+				Spec: appstudiosharedv1.ComponentSpec{
+					ComponentName: "component2",
+					Application:   "new-demo-app",
+				},
+			}
+			err = k8sClient.Create(ctx, &component2)
+			Expect(err).To(BeNil())
+			component3 = appstudiosharedv1.Component{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "comp3",
+					Namespace: apiNamespace.Name,
+				},
+				Spec: appstudiosharedv1.ComponentSpec{
+					ComponentName: "component3",
+					Application:   "other-app",
+				},
+			}
+			err = k8sClient.Create(ctx, &component3)
 			Expect(err).To(BeNil())
 
 			promotionRunReconciler = PromotionRunReconciler{Client: k8sClient, Scheme: scheme}
@@ -228,7 +272,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			checkStatusCondition(ctx, promotionRunReconciler.Client, promotionRun, ErrMessageTargetEnvironmentHasInvalidValue)
 		})
 
-		It("Should do nothing as binding for application is not present.", func() {
+		It("Should create the binding for the application if it is not present.", func() {
 			err := promotionRunReconciler.Create(ctx, promotionRun)
 			Expect(err).To(BeNil())
 
@@ -236,6 +280,151 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			_, err = promotionRunReconciler.Reconcile(ctx, request)
 			Expect(err).To(BeNil())
 
+			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{}
+			bindingName := strings.ToLower(promotionRun.Spec.Application + "-" + promotionRun.Spec.ManualPromotion.TargetEnvironment + "-generated-binding")
+			err = promotionRunReconciler.Get(ctx, types.NamespacedName{
+				Name:      bindingName,
+				Namespace: promotionRun.Namespace,
+			}, binding)
+			Expect(err).To(BeNil())
+
+			Expect(binding.Labels).To(Equal(map[string]string{
+				"appstudio.application": promotionRun.Spec.Application,
+				"appstudio.environment": promotionRun.Spec.ManualPromotion.TargetEnvironment,
+			}))
+			Expect(binding.Spec.Application).To(Equal(promotionRun.Spec.Application))
+			Expect(binding.Spec.Environment).To(Equal(promotionRun.Spec.ManualPromotion.TargetEnvironment))
+			Expect(binding.Spec.Snapshot).To(Equal(promotionRun.Spec.Snapshot))
+			Expect(len(binding.Spec.Components)).To(Equal(2))
+			Expect(binding.Spec.Components[0].Name).To(Equal(component1.Spec.ComponentName))
+			Expect(binding.Spec.Components[1].Name).To(Equal(component2.Spec.ComponentName))
+		})
+
+		It("Should not create the binding for the application if one is already present that targets the application and the environment.", func() {
+			err := promotionRunReconciler.Create(ctx, promotionRun)
+			Expect(err).To(BeNil())
+
+			By("Create binding (with non-default name).")
+			existingBinding := appstudiosharedv1.SnapshotEnvironmentBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "existing-binding",
+					Namespace: promotionRun.Namespace,
+					Labels: map[string]string{
+						"appstudio.application": promotionRun.Spec.Application,
+						"appstudio.environment": promotionRun.Spec.ManualPromotion.TargetEnvironment,
+					},
+				},
+				Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
+					Application: promotionRun.Spec.Application,
+					Environment: promotionRun.Spec.ManualPromotion.TargetEnvironment,
+					Snapshot:    promotionRun.Spec.Snapshot,
+				},
+			}
+			err = promotionRunReconciler.Create(ctx, &existingBinding)
+			Expect(err).To(BeNil())
+
+			By("Trigger Reconciler.")
+			_, err = promotionRunReconciler.Reconcile(ctx, request)
+			Expect(err).To(BeNil())
+
+			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{}
+			bindingName := strings.ToLower(promotionRun.Spec.Application + "-" + promotionRun.Spec.ManualPromotion.TargetEnvironment + "-generated-binding")
+			err = promotionRunReconciler.Get(ctx, types.NamespacedName{
+				Name:      bindingName,
+				Namespace: promotionRun.Namespace,
+			}, binding)
+			Expect(err).To(Not(BeNil()))
+			Expect(errors.IsNotFound(err)).To(BeTrue())
+		})
+
+		It("Should create the binding for the application even if there exists a binding that targets the application but NOT the environment.", func() {
+			err := promotionRunReconciler.Create(ctx, promotionRun)
+			Expect(err).To(BeNil())
+
+			existingBinding := appstudiosharedv1.SnapshotEnvironmentBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "existing-binding",
+					Namespace: promotionRun.Namespace,
+					Labels: map[string]string{
+						"appstudio.application": promotionRun.Spec.Application,
+						"appstudio.environment": "abcdefg",
+					},
+				},
+				Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
+					Application: promotionRun.Spec.Application,
+					Environment: "abcdefg",
+					Snapshot:    promotionRun.Spec.Snapshot,
+				},
+			}
+			err = promotionRunReconciler.Create(ctx, &existingBinding)
+			Expect(err).To(BeNil())
+
+			By("Trigger Reconciler.")
+			_, err = promotionRunReconciler.Reconcile(ctx, request)
+			Expect(err).To(BeNil())
+
+			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{}
+			bindingName := strings.ToLower(promotionRun.Spec.Application + "-" + promotionRun.Spec.ManualPromotion.TargetEnvironment + "-generated-binding")
+			err = promotionRunReconciler.Get(ctx, types.NamespacedName{
+				Name:      bindingName,
+				Namespace: promotionRun.Namespace,
+			}, binding)
+			Expect(err).To(BeNil())
+
+			Expect(binding.Labels).To(Equal(map[string]string{
+				"appstudio.application": promotionRun.Spec.Application,
+				"appstudio.environment": promotionRun.Spec.ManualPromotion.TargetEnvironment,
+			}))
+			Expect(binding.Spec.Application).To(Equal(promotionRun.Spec.Application))
+			Expect(binding.Spec.Environment).To(Equal(promotionRun.Spec.ManualPromotion.TargetEnvironment))
+			Expect(binding.Spec.Snapshot).To(Equal(promotionRun.Spec.Snapshot))
+			Expect(binding.Spec.Components[0].Name).To(Equal(component1.Spec.ComponentName))
+			Expect(binding.Spec.Components[1].Name).To(Equal(component2.Spec.ComponentName))
+		})
+
+		It("Should create the binding for the application even if there exists a binding that targets the environment but NOT the application.", func() {
+			err := promotionRunReconciler.Create(ctx, promotionRun)
+			Expect(err).To(BeNil())
+
+			existingBinding := appstudiosharedv1.SnapshotEnvironmentBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "existing-binding",
+					Namespace: promotionRun.Namespace,
+					Labels: map[string]string{
+						"appstudio.application": "abcdefg",
+						"appstudio.environment": promotionRun.Spec.ManualPromotion.TargetEnvironment,
+					},
+				},
+				Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
+					Application: "abcdefg",
+					Environment: promotionRun.Spec.ManualPromotion.TargetEnvironment,
+					Snapshot:    promotionRun.Spec.Snapshot,
+				},
+			}
+			err = promotionRunReconciler.Create(ctx, &existingBinding)
+			Expect(err).To(BeNil())
+
+			By("Trigger Reconciler.")
+			_, err = promotionRunReconciler.Reconcile(ctx, request)
+			Expect(err).To(BeNil())
+
+			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{}
+			bindingName := strings.ToLower(promotionRun.Spec.Application + "-" + promotionRun.Spec.ManualPromotion.TargetEnvironment + "-generated-binding")
+			err = promotionRunReconciler.Get(ctx, types.NamespacedName{
+				Name:      bindingName,
+				Namespace: promotionRun.Namespace,
+			}, binding)
+			Expect(err).To(BeNil())
+
+			Expect(binding.Labels).To(Equal(map[string]string{
+				"appstudio.application": promotionRun.Spec.Application,
+				"appstudio.environment": promotionRun.Spec.ManualPromotion.TargetEnvironment,
+			}))
+			Expect(binding.Spec.Application).To(Equal(promotionRun.Spec.Application))
+			Expect(binding.Spec.Environment).To(Equal(promotionRun.Spec.ManualPromotion.TargetEnvironment))
+			Expect(binding.Spec.Snapshot).To(Equal(promotionRun.Spec.Snapshot))
+			Expect(binding.Spec.Components[0].Name).To(Equal(component1.Spec.ComponentName))
+			Expect(binding.Spec.Components[1].Name).To(Equal(component2.Spec.ComponentName))
 		})
 
 		It("PromotionRun Reconciler should successfully locate and use the Binding CR created for given PromotionRun CR.", func() {

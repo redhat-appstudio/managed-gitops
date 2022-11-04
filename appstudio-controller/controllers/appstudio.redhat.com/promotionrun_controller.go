@@ -49,9 +49,17 @@ const (
 	ErrMessageAutomatedPromotionNotSupported          = "Automated promotion are not yet supported."
 )
 
+//+kubebuilder:rbac:groups=appstudio.redhat.com,resources=components,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=appstudio.redhat.com,resources=components/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=appstudio.redhat.com,resources=components/finalizers,verbs=update
+
 //+kubebuilder:rbac:groups=appstudio.redhat.com,resources=promotionruns,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=appstudio.redhat.com,resources=promotionruns/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=appstudio.redhat.com,resources=promotionruns/finalizers,verbs=update
+
+//+kubebuilder:rbac:groups=appstudio.redhat.com,resources=snapshotenvironmentbindings,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=appstudio.redhat.com,resources=snapshotenvironmentbindings/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=appstudio.redhat.com,resources=snapshotenvironmentbindings/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -122,10 +130,10 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	// 1) Locate the binding that this PromotionRun is targeting
-	binding, err := locateTargetManualBinding(ctx, *promotionRun, r.Client)
+	// 1) Locate or create the binding that this PromotionRun is targeting
+	binding, err := locateOrCreateTargetManualBinding(ctx, *promotionRun, r.Client)
 	if err != nil {
-		log.Error(err, "unable to locate Binding for PromotionRun: "+promotionRun.Name)
+		log.Error(err, "error locating Binding for PromotionRun: "+promotionRun.Name)
 		return ctrl.Result{}, nil
 	}
 
@@ -396,7 +404,7 @@ func checkForExistingActivePromotions(ctx context.Context, reconciledPromotionRu
 	return nil
 }
 
-func locateTargetManualBinding(ctx context.Context, promotionRun appstudioshared.PromotionRun, k8sClient client.Client) (appstudioshared.SnapshotEnvironmentBinding, error) {
+func locateOrCreateTargetManualBinding(ctx context.Context, promotionRun appstudioshared.PromotionRun, k8sClient client.Client) (appstudioshared.SnapshotEnvironmentBinding, error) {
 
 	// Locate the corresponding binding
 
@@ -412,10 +420,42 @@ func locateTargetManualBinding(ctx context.Context, promotionRun appstudioshared
 		}
 	}
 
-	return appstudioshared.SnapshotEnvironmentBinding{},
-		fmt.Errorf("unable to locate binding with application '%s' and target environment '%s'",
-			promotionRun.Spec.Application, promotionRun.Spec.ManualPromotion.TargetEnvironment)
+	// Binding not found, so create it
+	components := []appstudioshared.BindingComponent{}
+	componentList := appstudioshared.ComponentList{}
+	if err := k8sClient.List(ctx, &componentList); err != nil {
+		return appstudioshared.SnapshotEnvironmentBinding{}, fmt.Errorf("unable to list components: %v", err)
+	}
+	for _, component := range componentList.Items {
+		if component.Spec.Application == promotionRun.Spec.Application {
+			components = append(components, appstudioshared.BindingComponent{
+				Name: component.Spec.ComponentName,
+			})
+		}
+	}
+	bindingName := strings.ToLower(promotionRun.Spec.Application + "-" + promotionRun.Spec.ManualPromotion.TargetEnvironment + "-generated-binding")
+	binding := appstudioshared.SnapshotEnvironmentBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      bindingName,
+			Namespace: promotionRun.Namespace,
+			Labels: map[string]string{
+				"appstudio.application": promotionRun.Spec.Application,
+				"appstudio.environment": promotionRun.Spec.ManualPromotion.TargetEnvironment,
+			},
+		},
+		Spec: appstudioshared.SnapshotEnvironmentBindingSpec{
+			Application: promotionRun.Spec.Application,
+			Environment: promotionRun.Spec.ManualPromotion.TargetEnvironment,
+			Snapshot:    promotionRun.Spec.Snapshot,
+			Components:  components,
+		},
+	}
+	err := k8sClient.Create(ctx, &binding)
+	if err != nil {
+		return appstudioshared.SnapshotEnvironmentBinding{}, err
+	}
 
+	return binding, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

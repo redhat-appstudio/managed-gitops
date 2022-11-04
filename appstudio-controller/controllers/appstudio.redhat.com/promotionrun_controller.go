@@ -435,6 +435,9 @@ func locateOrCreateTargetManualBinding(ctx context.Context, promotionRun appstud
 			})
 		}
 	}
+	if len(components) == 0 {
+		return appstudioshared.SnapshotEnvironmentBinding{}, fmt.Errorf("unable to find components for application: %s", promotionRun.Spec.Application)
+	}
 	bindingName := strings.ToLower(promotionRun.Spec.Application + "-" + promotionRun.Spec.ManualPromotion.TargetEnvironment + "-generated-binding")
 	binding := appstudioshared.SnapshotEnvironmentBinding{
 		ObjectMeta: metav1.ObjectMeta{

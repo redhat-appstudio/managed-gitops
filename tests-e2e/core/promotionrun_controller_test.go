@@ -26,7 +26,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 		var promotionRun appstudiosharedv1.PromotionRun
 
 		BeforeEach(func() {
-			Expect(EnsureCleanSlate()).To(Succeed())
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			k8sClient := GetE2ETestUserWorkspaceKubeClient()
 

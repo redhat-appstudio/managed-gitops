@@ -18,7 +18,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 		It("should be healthy and have synced status, and resources should be deployed", func() {
 
-			Expect(EnsureCleanSlate()).To(Succeed())
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("creating the GitOpsDeployment")
 

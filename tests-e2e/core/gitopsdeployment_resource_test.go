@@ -16,7 +16,7 @@ var _ = Describe("GitOpsDeployment Condition Tests", func() {
 
 		It("ensures that GitOpsDeployment .status.condition field is populated with the corrrect error when an illegal GitOpsDeployment is created", func() {
 
-			Expect(EnsureCleanSlate()).To(Succeed())
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("create an invalid GitOpsDeployment application")
 			gitOpsDeploymentResource := managedgitopsv1alpha1.GitOpsDeployment{

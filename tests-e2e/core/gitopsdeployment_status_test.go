@@ -20,7 +20,7 @@ import (
 var _ = Describe("GitOpsDeployment Status Tests", func() {
 	Context("Status field of GitOpsDeployment is updated accurately", func() {
 		It("GitOpsDeployment .status.resources field is populated with the right resources", func() {
-			Expect(EnsureCleanSlate()).To(Succeed())
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("create a new GitOpsDeployment resource")
 			gitOpsDeploymentResource := buildGitOpsDeploymentResource("gitops-depl-test-status",
@@ -105,7 +105,7 @@ var _ = Describe("GitOpsDeployment SyncError test", func() {
 
 		It("ensures that GitOpsDeployment .status.sync.syncError field contains the syncError if Application is not synced and error type of the error is SyncError ", func() {
 
-			Expect(EnsureCleanSlate()).To(Succeed())
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("create an invalid GitOpsDeployment application")
 			gitOpsDeploymentResource := managedgitopsv1alpha1.GitOpsDeployment{

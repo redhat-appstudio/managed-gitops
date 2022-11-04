@@ -34,7 +34,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				Skip("Skipping this test until we support running gitops operator with KCP")
 			}
 
-			Expect(EnsureCleanSlate()).To(Succeed())
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("creating the GitOpsDeploymentManagedEnvironment")
 

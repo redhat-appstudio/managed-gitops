@@ -6,9 +6,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"go.uber.org/zap/zapcore"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
@@ -24,14 +22,4 @@ func TestCore(t *testing.T) {
 
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Core Suite", reporterConfig)
-}
-
-func GetE2ETestUserWorkspaceKubeClient() client.Client {
-	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-	Expect(err).To(BeNil())
-
-	k8sClient, err := fixture.GetKubeClient(config)
-	Expect(err).To(BeNil())
-
-	return k8sClient
 }

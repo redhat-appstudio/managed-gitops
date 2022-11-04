@@ -37,9 +37,10 @@ var _ = Describe("GitOpsDeployment Condition Tests", func() {
 				},
 			}
 
-			k8sClient := GetE2ETestUserWorkspaceKubeClient()
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
 
-			err := k8s.Create(&gitOpsDeploymentResource, k8sClient)
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			expectedConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{

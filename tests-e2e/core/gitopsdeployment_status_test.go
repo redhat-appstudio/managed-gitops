@@ -27,9 +27,10 @@ var _ = Describe("GitOpsDeployment Status Tests", func() {
 				"https://github.com/redhat-appstudio/gitops-repository-template", "environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
-			k8sClient := GetE2ETestUserWorkspaceKubeClient()
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
 
-			err := k8s.Create(&gitOpsDeploymentResource, k8sClient)
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("ensuring the GitOpsDeployment status field have health, sync and resources fields populated")
@@ -122,9 +123,10 @@ var _ = Describe("GitOpsDeployment SyncError test", func() {
 				},
 			}
 
-			k8sClient := GetE2ETestUserWorkspaceKubeClient()
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
 
-			err := k8s.Create(&gitOpsDeploymentResource, k8sClient)
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(

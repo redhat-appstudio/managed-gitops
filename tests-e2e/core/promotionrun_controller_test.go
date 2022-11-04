@@ -55,7 +55,8 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			Expect(err).To(Succeed())
 
 			By("Create Production Binding.")
-			bindingProd = buildSnapshotEnvironmentBindingResource("appa-prod-binding", "new-demo-app", "prod", "my-snapshot", 3, []string{"component-a"})
+			bindingProd = buildSnapshotEnvironmentBindingResource("appa-prod-binding", "new-demo-app", "prod",
+				"my-snapshot", 3, []string{"component-a"})
 			err = k8s.Create(&bindingProd)
 			Expect(err).To(Succeed())
 
@@ -63,7 +64,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 
 			err = buildAndUpdateBindingStatus(bindingProd.Spec.Components,
 				"https://github.com/redhat-appstudio/gitops-repository-template", "main", "fdhyqtw",
-				[]string{"components/componentA/overlays/staging", "components/componentB/overlays/staging"}, &bindingStage)
+				[]string{"components/componentA/overlays/staging", "components/componentB/overlays/staging"}, &bindingProd)
 			Expect(err).To(Succeed())
 
 			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")

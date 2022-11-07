@@ -61,7 +61,7 @@ clone-and-setup-ckcp() {
     pushd "${TMP_DIR}"
     git clone https://github.com/openshift-pipelines/pipeline-service.git
     pushd pipeline-service
-    git checkout 52403fe66fe531b836236774d14b67b69cae7978
+    git checkout feb7a522e7e47af3670bde9a58ddef958e9bff1e
     cp "${SCRIPT_DIR}"/openshift_dev_setup.sh ./developer/ckcp/openshift_dev_setup.sh
     cp "${SCRIPT_DIR}"/config.yaml ./developer/ckcp/config.yaml
 
@@ -231,13 +231,13 @@ OPENSHIFT_CI="${OPENSHIFT_CI:-false}"
 if [[ $OPENSHIFT_CI != "" ]]
 then
     echo "running tests in openshift ci mode"
-    test-gitops-service-e2e-in-kcp-in-ci ${TMP_DIR} ${SCRIPT_DIR}
+    test-gitops-service-e2e-in-kcp-in-ci "${TMP_DIR}" "${SCRIPT_DIR}"
 else
     echo "running tests in non openshift-ci mode"
-    test-gitops-service-e2e-in-kcp ${TMP_DIR} ${SCRIPT_DIR}
+    test-gitops-service-e2e-in-kcp "${TMP_DIR}" "${SCRIPT_DIR}"
 fi
 
 # clean the tmp directory created for the local setup
 echo "e2e tests on kcp ran successfully, cleanup initiated ..."
-rm -rf ${TMP_DIR}
+rm -rf "${TMP_DIR}"
 cleanup

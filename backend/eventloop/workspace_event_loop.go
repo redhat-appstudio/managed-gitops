@@ -296,7 +296,7 @@ var _ applicationEventQueueLoopFactory = defaultApplicationEventLoopFactory{}
 //
 // If the resource is orphaned, or an error occurred, "" is returned.
 //
-//   See https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.8tiycl1h7rns for details.
+//	See https://docs.google.com/document/d/1e1UwCbwK-Ew5ODWedqp_jZmhiZzYWaxEvIL-tqebMzo/edit#heading=h.8tiycl1h7rns for details.
 func checkIfOrphanedGitOpsDeploymentSyncRun(ctx context.Context, event eventlooptypes.EventLoopMessage,
 	orphanedResources map[string]map[string]eventlooptypes.EventLoopEvent, log logr.Logger) string {
 

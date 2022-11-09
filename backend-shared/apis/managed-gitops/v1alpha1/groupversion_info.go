@@ -15,8 +15,8 @@ limitations under the License.
 */
 
 // Package v1alpha1 contains API Schema definitions for the managed-gitops v1alpha1 API group
-//+kubebuilder:object:generate=true
-//+groupName=managed-gitops.redhat.com
+// +kubebuilder:object:generate=true
+// +groupName=managed-gitops.redhat.com
 package v1alpha1
 
 import (

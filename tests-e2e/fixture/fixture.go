@@ -11,11 +11,10 @@ import (
 	"time"
 
 	argocdoperator "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
-	appstudiosharedv1 "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
+	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	. "github.com/onsi/ginkgo/v2"
 	routev1 "github.com/openshift/api/route/v1"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
@@ -812,15 +811,18 @@ func removeKCPFinalizers(k8sClient client.Client, namespaceParam string) (bool, 
 
 // EnsureCleanSlateKCPVirtualWorkspace should be called before every E2E tests:
 // it ensures that in KCP Virtual workspace the state of the GitOpsServiceE2ENamespace namespace
+//
 //	(and other resources on the cluster) is reset to scratch before each test, including:
+//
 // - In user workspace, the function will:
-// 		- Deleting any old namespaces that exists within the user-workspace
-// 		- Deleting any cluster role/rolebindings existing within the user-workspace
-// 		- Delete the e2e namespaces, and create a new e2e namespace for testing
-//		- Clean up old kube system resources from the workspace
+//   - Deleting any old namespaces that exists within the user-workspace
+//   - Deleting any cluster role/rolebindings existing within the user-workspace
+//   - Delete the e2e namespaces, and create a new e2e namespace for testing
+//   - Clean up old kube system resources from the workspace
+//
 // - In the gitops-service-provider workspace, the function will:
-//		- Delete all Argo CD Cluster Secrets from the Argo CD Namespace
-//		- Clean up old argo cd applications targetting the e2e namespace
+//   - Delete all Argo CD Cluster Secrets from the Argo CD Namespace
+//   - Clean up old argo cd applications targetting the e2e namespace
 //
 // Need two different client ===> client virtual workspace enabled for workspace
 //

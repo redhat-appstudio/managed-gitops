@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"reflect"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	matcher "github.com/onsi/gomega/types"
-	appstudiosharedv1 "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
+	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	k8sFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 )
 

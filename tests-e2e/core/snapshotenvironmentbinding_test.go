@@ -665,10 +665,10 @@ func buildSnapshotEnvironmentBindingStatus(components []appstudiosharedv1.Bindin
 	// Create SnapshotEnvironmentBindingStatus object.
 	status := appstudiosharedv1.SnapshotEnvironmentBindingStatus{}
 
-	componentStatus := []appstudiosharedv1.ComponentStatus{}
+	componentStatus := []appstudiosharedv1.BindingBindingComponentStatus{}
 
 	for i, component := range components {
-		componentStatus = append(componentStatus, appstudiosharedv1.ComponentStatus{
+		componentStatus = append(componentStatus, appstudiosharedv1.BindingBindingComponentStatus{
 			Name: component.Name,
 			GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{
 				URL: url, Branch: branch, Path: path[i], GeneratedResources: []string{}, CommitID: commitID,

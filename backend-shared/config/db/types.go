@@ -68,19 +68,20 @@ type ManagedEnvironment struct {
 // ClusterCredentials contains the credentials required to access a K8s cluster.
 // The credentials may be in one of two forms:
 // 1) Kubeconfig state: Kubeconfig file, plus a reference to a specific context within the
-//     - This is the same content as can be found in your local '~/.kube/config' file
-//     - This is what the user would initially provide via the Service/Web UI/CLI
-//     - There may be (likely is) a better way of doing this, but this works for now.
+//   - This is the same content as can be found in your local '~/.kube/config' file
+//   - This is what the user would initially provide via the Service/Web UI/CLI
+//   - There may be (likely is) a better way of doing this, but this works for now.
+//
 // 2) ServiceAccount state: A bearer token for a service account on the target cluster
-//     - Same mechanism Argo CD users for accessing remote clusters
+//   - Same mechanism Argo CD users for accessing remote clusters
 //
 // You can tell which state the credentials are in, based on whether 'serviceaccount_bearer_token' is null.
 //
 // It is the job of the cluster agent to convert state 1 (kubeconfig) into a service account
 // bearer token on the target cluster (state 2).
-//     - This is the same operation as the `argocd cluster add` command, and is the same
-//       technique used by Argo CD to interface with remove clusters.
-//     - See https://github.com/argoproj/argo-cd/blob/a894d4b128c724129752bac9971c903ab6c650ba/cmd/argocd/commands/cluster.go#L116
+//   - This is the same operation as the `argocd cluster add` command, and is the same
+//     technique used by Argo CD to interface with remove clusters.
+//   - See https://github.com/argoproj/argo-cd/blob/a894d4b128c724129752bac9971c903ab6c650ba/cmd/argocd/commands/cluster.go#L116
 type ClusterCredentials struct {
 
 	//lint:ignore U1000 used by go-pg

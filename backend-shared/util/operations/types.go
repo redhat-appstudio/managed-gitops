@@ -154,7 +154,6 @@ func CleanupOperation(ctx context.Context, dbOperation db.Operation, k8sOperatio
 }
 
 // waitForOperationToComplete waits for an Operation database entry to have 'Completed' or 'Failed' status.
-//
 func waitForOperationToComplete(ctx context.Context, dbOperation *db.Operation, dbQueries db.ApplicationScopedQueries, log logr.Logger) error {
 
 	backoff := sharedutil.ExponentialBackoff{Factor: 2, Min: time.Duration(100 * time.Millisecond), Max: time.Duration(10 * time.Second), Jitter: true}

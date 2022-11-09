@@ -265,8 +265,9 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateApplication(ctx context.Context, obj
 // deleting a managed environment.
 //
 // Note: this function is not guaranteed to update all applications: it is possible that another thread
-//       could create an Application after step 1. The logic of calling functions should expect and
-//       handle this behaviour.
+//
+//	could create an Application after step 1. The logic of calling functions should expect and
+//	handle this behaviour.
 func (dbq *PostgreSQLDatabaseQueries) RemoveManagedEnvironmentFromAllApplications(ctx context.Context,
 	managedEnvironmentID string, applications *[]Application) (int, error) {
 

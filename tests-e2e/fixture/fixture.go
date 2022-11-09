@@ -11,6 +11,7 @@ import (
 	"time"
 
 	argocdoperator "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	. "github.com/onsi/ginkgo/v2"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 

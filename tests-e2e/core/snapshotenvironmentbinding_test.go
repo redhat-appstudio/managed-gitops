@@ -7,6 +7,8 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	appstudiocontroller "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
@@ -665,10 +667,10 @@ func buildSnapshotEnvironmentBindingStatus(components []appstudiosharedv1.Bindin
 	// Create SnapshotEnvironmentBindingStatus object.
 	status := appstudiosharedv1.SnapshotEnvironmentBindingStatus{}
 
-	componentStatus := []appstudiosharedv1.BindingBindingComponentStatus{}
+	var componentStatus []appstudiosharedv1.BindingComponentStatus
 
 	for i, component := range components {
-		componentStatus = append(componentStatus, appstudiosharedv1.BindingBindingComponentStatus{
+		componentStatus = append(componentStatus, appstudiosharedv1.BindingComponentStatus{
 			Name: component.Name,
 			GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{
 				URL: url, Branch: branch, Path: path[i], GeneratedResources: []string{}, CommitID: commitID,

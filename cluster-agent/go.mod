@@ -197,7 +197,6 @@ replace (
 	github.com/improbable-eng/grpc-web => github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
 
 	// Monorepo
-	github.com/redhat-appstudio/managed-gitops/appstudio-shared => ../appstudio-shared
 	github.com/redhat-appstudio/managed-gitops/backend => ../backend
 	github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
 	github.com/redhat-appstudio/managed-gitops/utilities/db-migration => ../utilities/db-migration

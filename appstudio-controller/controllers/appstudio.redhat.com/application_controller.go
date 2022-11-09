@@ -120,7 +120,7 @@ func processDeleteGitOpsDeployment(ctx context.Context, req ctrl.Request, k8sCli
 }
 
 // processCreateGitOpsDeployment creates the GitOpsDeployment that corresponds to 'asApplication'
-//nolint
+// nolint
 func processCreateGitOpsDeployment(ctx context.Context, asApplication applicationv1alpha1.Application, client client.Client, log logr.Logger) error {
 
 	// Since the GitOpsDeployment doesn't exist, we create it.
@@ -146,7 +146,7 @@ func processCreateGitOpsDeployment(ctx context.Context, asApplication applicatio
 }
 
 // Sanity test the application
-//nolint
+// nolint
 func validateApplication(asApplication applicationv1alpha1.Application) error {
 
 	if strings.TrimSpace(asApplication.Name) == "" {
@@ -166,7 +166,7 @@ func validateApplication(asApplication applicationv1alpha1.Application) error {
 
 }
 
-//nolint
+// nolint
 func getGitOpsRepoData(asApplication applicationv1alpha1.Application) (string, string, string, error) {
 
 	var err error
@@ -224,7 +224,7 @@ func getGitOpsRepoData(asApplication applicationv1alpha1.Application) (string, s
 
 // generateNewGitOpsDeploymentFromApplication converts the Application into a corresponding GitOpsDeployment, by
 // matching their corresponding fields.
-//nolint
+// nolint
 func generateNewGitOpsDeploymentFromApplication(asApplication applicationv1alpha1.Application) (gitopsdeploymentv1alpha1.GitOpsDeployment, error) {
 
 	url, branch, context, err := getGitOpsRepoData(asApplication)
@@ -289,9 +289,9 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-//gitOpsDeploymentCreation consits of gitopsDeployment creation code to disable appstudio logic which create a GitOpsDeployment for every AppStudio Application by adding the logic in this function
-//and this function `GitOpsDeploymentCreation` will exist, but nothing should call it, Will remove this logic completely once requirement is fullfilled
-//nolint
+// gitOpsDeploymentCreation consits of gitopsDeployment creation code to disable appstudio logic which create a GitOpsDeployment for every AppStudio Application by adding the logic in this function
+// and this function `GitOpsDeploymentCreation` will exist, but nothing should call it, Will remove this logic completely once requirement is fullfilled
+// nolint
 func gitOpsDeploymentCreation(asApplication applicationv1alpha1.Application, ctx context.Context, req ctrl.Request, k8sClient client.Client, log logr.Logger) (ctrl.Result, error) {
 	// Convert the app name to corresponding GitOpsDeployment name, ensuring that the GitOpsDeployment name fits within 64 chars
 	gitopsDeplName := sanitizeAppNameWithSuffix(asApplication.Name, deploymentSuffix)

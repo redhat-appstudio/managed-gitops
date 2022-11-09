@@ -35,7 +35,7 @@ import (
 	gitopsdeploymentv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 
 	appstudioredhatcomcontrollers "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
-	appstudioshared "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
+    appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	//+kubebuilder:scaffold:imports

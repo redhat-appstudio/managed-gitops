@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	appstudioshared "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
+    appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	apibackend "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	apierr "k8s.io/apimachinery/pkg/api/errors"

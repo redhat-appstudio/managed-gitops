@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-    appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"

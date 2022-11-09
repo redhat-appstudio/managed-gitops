@@ -256,7 +256,7 @@ func GenerateBindingGitOpsDeploymentName(binding appstudioshared.SnapshotEnviron
 
 }
 
-func generateExpectedGitOpsDeployment(component appstudioshared.ComponentStatus,
+func generateExpectedGitOpsDeployment(component appstudioshared.BindingComponentStatus,
 	binding appstudioshared.SnapshotEnvironmentBinding,
 	environment appstudioshared.Environment) (apibackend.GitOpsDeployment, error) {
 

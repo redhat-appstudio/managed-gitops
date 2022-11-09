@@ -94,7 +94,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					},
 				},
 				Status: appstudiosharedv1.SnapshotEnvironmentBindingStatus{
-					Components: []appstudiosharedv1.ComponentStatus{
+					Components: []appstudiosharedv1.BindingComponentStatus{
 						{
 							Name: "component-a",
 							GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{
@@ -239,7 +239,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 		})
 
 		It("Should not return error if Status.Components is not available in Binding object.", func() {
-			binding.Status.Components = []appstudiosharedv1.ComponentStatus{}
+			binding.Status.Components = []appstudiosharedv1.BindingComponentStatus{}
 			// Create SnapshotEnvironmentBinding CR in cluster.
 			err := bindingReconciler.Create(ctx, binding)
 			Expect(err).To(BeNil())
@@ -274,7 +274,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 			By("creating an SnapshotEnvironmentBinding with duplicate component names")
 
-			binding.Status.Components = []appstudiosharedv1.ComponentStatus{
+			binding.Status.Components = []appstudiosharedv1.BindingComponentStatus{
 				{
 					Name: "componentA",
 					GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{

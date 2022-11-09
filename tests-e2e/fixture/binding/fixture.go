@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"reflect"
 
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 

@@ -601,6 +601,11 @@ func GetKubeClient(config *rest.Config) (client.Client, error) {
 		return nil, err
 	}
 
+	err = appstudiosharedv1.AddToScheme(scheme)
+	if err != nil {
+		return nil, err
+	}
+
 	k8sClient, err := client.New(config, client.Options{Scheme: scheme})
 	if err != nil {
 		return nil, err

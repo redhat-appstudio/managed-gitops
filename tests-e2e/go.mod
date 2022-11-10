@@ -7,8 +7,7 @@ require (
 	github.com/argoproj/argo-cd/v2 v2.5.1
 	github.com/argoproj/gitops-engine v0.7.1-0.20221004132320-98ccd3d43fd9
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
-	github.com/redhat-appstudio/application-api v0.0.0-20221109215303-817b858c8161
-	github.com/redhat-appstudio/application-service v0.0.0-20220609190313-7a1a14b575dc
+	github.com/redhat-appstudio/application-api v0.0.0-20221110070312-2a23d78f7f04
 	github.com/redhat-appstudio/managed-gitops/appstudio-controller v0.0.0
 	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0
 	github.com/redhat-appstudio/managed-gitops/cluster-agent v0.0.0
@@ -90,6 +89,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/pquerna/cachecontrol v0.1.0 // indirect
 	github.com/r3labs/diff v1.1.0 // indirect
+	github.com/redhat-appstudio/application-service v0.0.0-20220609190313-7a1a14b575dc // indirect
 	github.com/redhat-developer/alizer/go v0.0.0-20220609125305-b292b0edb1b0 // indirect
 	github.com/robfig/cron v1.2.0 // indirect
 	github.com/russross/blackfriday v1.6.0 // indirect

@@ -1,4 +1,5 @@
 vendor
+appstudio-controller
 
 # Binaries for programs and plugins
 *.exe

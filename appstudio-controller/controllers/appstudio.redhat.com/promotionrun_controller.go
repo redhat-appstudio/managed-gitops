@@ -133,7 +133,7 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// 1) Locate or create the binding that this PromotionRun is targeting
 	binding, err := locateOrCreateTargetManualBinding(ctx, *promotionRun, r.Client)
 	if err != nil {
-		log.Error(err, "error locating Binding for PromotionRun: "+promotionRun.Name)
+		log.Error(err, "error locating or creating Binding for PromotionRun: "+promotionRun.Name)
 		return ctrl.Result{}, nil
 	}
 
@@ -436,10 +436,9 @@ func locateOrCreateTargetManualBinding(ctx context.Context, promotionRun appstud
 	if len(components) == 0 {
 		return appstudioshared.SnapshotEnvironmentBinding{}, fmt.Errorf("unable to find components for application: %s", promotionRun.Spec.Application)
 	}
-	bindingName := strings.ToLower(promotionRun.Spec.Application + "-" + promotionRun.Spec.ManualPromotion.TargetEnvironment + "-generated-binding")
 	binding := appstudioshared.SnapshotEnvironmentBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      bindingName,
+			Name:      createBindingName(&promotionRun),
 			Namespace: promotionRun.Namespace,
 			Labels: map[string]string{
 				"appstudio.application": promotionRun.Spec.Application,
@@ -459,6 +458,10 @@ func locateOrCreateTargetManualBinding(ctx context.Context, promotionRun appstud
 	}
 
 	return binding, nil
+}
+
+func createBindingName(promotionRun *appstudioshared.PromotionRun) string {
+	return strings.ToLower(promotionRun.Spec.Application + "-" + promotionRun.Spec.ManualPromotion.TargetEnvironment + "-generated-binding")
 }
 
 // SetupWithManager sets up the controller with the Manager.

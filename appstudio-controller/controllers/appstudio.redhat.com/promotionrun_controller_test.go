@@ -3,7 +3,6 @@ package appstudioredhatcom
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -281,9 +280,8 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(err).To(BeNil())
 
 			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{}
-			bindingName := strings.ToLower(promotionRun.Spec.Application + "-" + promotionRun.Spec.ManualPromotion.TargetEnvironment + "-generated-binding")
 			err = promotionRunReconciler.Get(ctx, types.NamespacedName{
-				Name:      bindingName,
+				Name:      createBindingName(promotionRun),
 				Namespace: promotionRun.Namespace,
 			}, binding)
 			Expect(err).To(BeNil())
@@ -328,9 +326,8 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(err).To(BeNil())
 
 			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{}
-			bindingName := strings.ToLower(promotionRun.Spec.Application + "-" + promotionRun.Spec.ManualPromotion.TargetEnvironment + "-generated-binding")
 			err = promotionRunReconciler.Get(ctx, types.NamespacedName{
-				Name:      bindingName,
+				Name:      createBindingName(promotionRun),
 				Namespace: promotionRun.Namespace,
 			}, binding)
 			Expect(err).To(Not(BeNil()))
@@ -364,9 +361,8 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(err).To(BeNil())
 
 			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{}
-			bindingName := strings.ToLower(promotionRun.Spec.Application + "-" + promotionRun.Spec.ManualPromotion.TargetEnvironment + "-generated-binding")
 			err = promotionRunReconciler.Get(ctx, types.NamespacedName{
-				Name:      bindingName,
+				Name:      createBindingName(promotionRun),
 				Namespace: promotionRun.Namespace,
 			}, binding)
 			Expect(err).To(BeNil())
@@ -409,9 +405,8 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(err).To(BeNil())
 
 			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{}
-			bindingName := strings.ToLower(promotionRun.Spec.Application + "-" + promotionRun.Spec.ManualPromotion.TargetEnvironment + "-generated-binding")
 			err = promotionRunReconciler.Get(ctx, types.NamespacedName{
-				Name:      bindingName,
+				Name:      createBindingName(promotionRun),
 				Namespace: promotionRun.Namespace,
 			}, binding)
 			Expect(err).To(BeNil())

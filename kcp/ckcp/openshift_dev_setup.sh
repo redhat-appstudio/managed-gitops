@@ -120,11 +120,11 @@ init() {
            )
 
   # get the list of APPS to be installed
-  read -ra APPS <<< "$(yq eval '.apps // [] | join(" ")' "$CONFIG")"
-  for app in  "${APPS[@]}"
-  do
-    APP_LIST+=("$app")
-  done
+  # read -ra APPS <<< "$(yq eval '.apps // [] | join(" ")' "$CONFIG")"
+  # for app in  "${APPS[@]}"
+  # do
+  #   APP_LIST+=("$app")
+  # done
 
   # get cluster type
   cluster_type=$(yq '.cluster_type // "openshift"' "$CONFIG")

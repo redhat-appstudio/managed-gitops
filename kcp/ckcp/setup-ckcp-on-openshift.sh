@@ -68,7 +68,7 @@ clone-and-setup-ckcp() {
     sed -i 's/\--resources deployments.apps,services,ingresses.networking.k8s.io,pipelines.tekton.dev,pipelineruns.tekton.dev,tasks.tekton.dev,runs.tekton.dev,networkpolicies.networking.k8s.io/\--resources deployments.apps,services,ingresses.networking.k8s.io,networkpolicies.networking.k8s.io,statefulsets.apps,routes.route.openshift.io/' ./operator/images/kcp-registrar/content/bin/register.sh
     printf "\nUpdated the resources to sync as needed for gitops-service and ckcp to run...\n\n"
     
-    printf "Setting up ckcp in the cluster"
+    printf "Setting up ckcp in the cluster\n"
     ./developer/ckcp/openshift_dev_setup.sh
     popd
     popd

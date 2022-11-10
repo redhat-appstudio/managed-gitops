@@ -701,7 +701,8 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		}
 	}
 
-	// Create the operation that will delete the Argo CD application
+	// 5) Now that we've deleted the Application row, create the operation that will cause the Argo CD application
+	// to be deleted.
 	gitopsEngineClient, err := a.getK8sClientForGitOpsEngineInstance(ctx, gitopsEngineInstance)
 	if err != nil {
 		log.Error(err, "could not retrieve client for gitops engine instance", "instance", gitopsEngineInstance.Gitopsengineinstance_id)

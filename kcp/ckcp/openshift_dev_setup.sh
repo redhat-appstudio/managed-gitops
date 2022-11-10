@@ -2,6 +2,7 @@
 
 #quit if exit status of any cmd is a non-zero value
 set -euo pipefail
+set -ex
 
 CKCP_DIR="$(
   cd "$(dirname "$0")" >/dev/null
@@ -134,6 +135,16 @@ init() {
 
   # get list of CRs to sync
   read -ra CRS_TO_SYNC <<< "$(yq eval '.kcp.crs_to_sync // [] | join(" ")' "$CONFIG")"
+  if (( "${#CRS_TO_SYNC[@]}" <= 0 )); then
+    CRS_TO_SYNC=(
+            "deployments.apps"
+            "services"
+            "ingresses.networking.k8s.io"
+            "networkpolicies.networking.k8s.io"
+            "statefulsets.apps"
+            "routes.route.openshift.io"
+            )
+  fi
 
   # Get kcp workspace
   kcp_org=$(yq '.kcp.workspace' "$CONFIG" | sed 's/:[^:]*$//')
@@ -413,6 +424,10 @@ register_compute() {
   fi
 
   resources="$(printf '%s,' "${CRS_TO_SYNC[@]}")"
+
+
+  echo "$resources"
+  
   resources=${resources%,}
   echo "- Register compute to KCP"
   "$PROJECT_DIR/operator/images/kcp-registrar/content/bin/register.sh" \

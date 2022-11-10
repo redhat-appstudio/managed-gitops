@@ -51,10 +51,6 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/appstudio-controller
           go vet -vettool=`which dupimport` ./...
-      - name: "Ensure 'appstudio-shared' has no duplicate imports"
-        run: |
-          cd $GITHUB_WORKSPACE/appstudio-shared
-          go vet -vettool=`which dupimport` ./...
 
   gosec:
     name: Ensure that code passes gosec and golint
@@ -85,11 +81,6 @@ jobs:
           cd $GITHUB_WORKSPACE/appstudio-controller
           make gosec
 
-      - name: "Ensure 'appstudio-shared' passes 'go-sec' - run 'make gosec' to identify issues"
-        run: |
-          cd $GITHUB_WORKSPACE/appstudio-shared
-          make gosec
-
       - name: "Ensure 'backend' passes 'go-lint' - run 'make lint' to identify issues"
         run: |
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.50.1
@@ -114,11 +105,6 @@ jobs:
       - name: "Ensure 'appstudio-controller' passes 'go-lint' - run 'make lint' to identify issues"
         run: |
           cd $GITHUB_WORKSPACE/appstudio-controller
-          make lint 
-
-      - name: "Ensure 'appstudio-shared' passes 'go-lint' - run 'make lint' to identify issues"
-        run: |
-          cd $GITHUB_WORKSPACE/appstudio-shared
           make lint 
 
       - name: "Ensure 'db-migration' passes 'go-lint' - run 'make lint' to identify issues"
@@ -175,16 +161,6 @@ jobs:
       - name: "Appstudio-controller: Check for tidyness of go.mod and go.sum: run `go mod tidy` to fix"
         run: |
           cd $GITHUB_WORKSPACE/appstudio-controller
-          go mod tidy
-          git diff --exit-code -- .
-
-      - name: "Appstudio-shared: Download all Go modules"
-        run: |
-          cd $GITHUB_WORKSPACE/appstudio-shared
-          go mod download
-      - name: "Appstudio-shared: Check for tidyness of go.mod and go.sum: run `go mod tidy` to fix"
-        run: |
-          cd $GITHUB_WORKSPACE/appstudio-shared
           go mod tidy
           git diff --exit-code -- .
 

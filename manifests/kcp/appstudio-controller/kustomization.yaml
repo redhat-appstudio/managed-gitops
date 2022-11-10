@@ -5,7 +5,7 @@ resources:
 #- gitops-namespace.yaml
 
 # APIExport(s) / APIResourceSchema(s)
-- ../../../appstudio-shared/config/kcp-new
+- ../../appstudio-controller/config/kcp-new
 #- ../../backend-shared/config/kcp-new
 
 # AppStudio-controller RBAC

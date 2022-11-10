@@ -110,7 +110,7 @@ deploy-appstudio-controller-crd: ## Deploy appstudio-controller related CRDs
 
 undeploy-appstudio-controller-crd: ## Remove appstudio-controller related CRDs
 	kubectl delete -f https://raw.githubusercontent.com/redhat-appstudio/application-api/main/config/crd/bases/appstudio.redhat.com_applications.yaml
-	kubectl delete -f https://raw.githubusercontent.com/redhat-appstudio/application-service/7a1a14b575dc725a46ea2ab175692f464122f0f8/config/crd/bases/appstudio.redhat.com_components.yaml
+	kubectl delete -f https://raw.githubusercontent.com/redhat-appstudio/application-api/main/config/crd/bases/appstudio.redhat.com_components.yaml
 
 deploy-appstudio-controller-rbac: kustomize ## Deploy appstudio-controller related RBAC resouces
 	kubectl create namespace gitops 2> /dev/null || true

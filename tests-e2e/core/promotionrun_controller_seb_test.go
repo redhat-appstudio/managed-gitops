@@ -19,24 +19,27 @@ var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests
 		BeforeEach(func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
 			By("Create Staging Environment.")
 			environmentStage := buildEnvironmentResource("staging", "Staging Environment", "staging", appstudiosharedv1.EnvironmentType_POC)
-			err := k8s.Create(&environmentStage)
+			err = k8s.Create(&environmentStage, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Create Production Environment.")
 			environmentProd = buildEnvironmentResource("prod", "Production Environment", "prod", appstudiosharedv1.EnvironmentType_POC)
-			err = k8s.Create(&environmentProd)
+			err = k8s.Create(&environmentProd, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Create Snapshot.")
 			snapshot := buildSnapshotResource("my-snapshot", "new-demo-app", "Staging Snapshot", "Staging Snapshot", "component-a", "quay.io/jgwest-redhat/sample-workload:latest")
-			err = k8s.Create(&snapshot)
+			err = k8s.Create(&snapshot, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Create Component.")
 			component := buildComponentResource("comp1", "component-a", "new-demo-app")
-			err = k8s.Create(&component)
+			err = k8s.Create(&component, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Create PromotionRun CR.")
@@ -44,8 +47,11 @@ var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests
 		})
 
 		It("Creates a SnapshotEnvironmentBinding if one doesn't exist that targets the application/environment.", func() {
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
 			By("Create PromotionRun CR.")
-			err := k8s.Create(&promotionRun)
+			err = k8s.Create(&promotionRun, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Check binding was created.")
@@ -56,17 +62,20 @@ var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests
 					Namespace: promotionRun.Namespace,
 				},
 			}
-			Eventually(binding, "60s", "5s").Should(k8s.ExistByName())
+			Eventually(binding, "60s", "5s").Should(k8s.ExistByName(k8sClient))
 		})
 
 		It("Creates a SnapshotEnvironmentBinding if one exists that targets the application, but NOT the environment.", func() {
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
 			By("Create binding targeting the application but not the environment.")
 			bindingStage := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
-			err := k8s.Create(&bindingStage)
+			err = k8s.Create(&bindingStage, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Create PromotionRun CR.")
-			err = k8s.Create(&promotionRun)
+			err = k8s.Create(&promotionRun, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Check binding was created.")
@@ -77,17 +86,20 @@ var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests
 					Namespace: promotionRun.Namespace,
 				},
 			}
-			Eventually(binding, "60s", "5s").Should(k8s.ExistByName())
+			Eventually(binding, "60s", "5s").Should(k8s.ExistByName(k8sClient))
 		})
 
 		It("Creates a SnapshotEnvironmentBinding if one exists that targets the environment, but NOT the application.", func() {
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
 			By("Create binding targeting the environment but not the application.")
 			bindingApp := buildSnapshotEnvironmentBindingResource("appx-prod-binding", "app-x", "prod", "my-snapshot", 3, []string{"component-a"})
-			err := k8s.Create(&bindingApp)
+			err = k8s.Create(&bindingApp, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Create PromotionRun CR.")
-			err = k8s.Create(&promotionRun)
+			err = k8s.Create(&promotionRun, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Check binding was created.")
@@ -98,17 +110,20 @@ var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests
 					Namespace: promotionRun.Namespace,
 				},
 			}
-			Eventually(binding, "60s", "5s").Should(k8s.ExistByName())
+			Eventually(binding, "60s", "5s").Should(k8s.ExistByName(k8sClient))
 		})
 
 		It("Does not create a SnapshotEnvironmentBinding if one exists that targets the environment and the application.", func() {
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
 			By("Create binding targeting the environment but not the application.")
 			bindingProd := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "prod", "my-snapshot", 3, []string{"component-a"})
-			err := k8s.Create(&bindingProd)
+			err = k8s.Create(&bindingProd, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Create PromotionRun CR.")
-			err = k8s.Create(&promotionRun)
+			err = k8s.Create(&promotionRun, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Check no binding was created.")
@@ -119,7 +134,7 @@ var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests
 					Namespace: promotionRun.Namespace,
 				},
 			}
-			Consistently(binding, "60s", "5s").ShouldNot(k8s.ExistByName())
+			Consistently(binding, "60s", "5s").ShouldNot(k8s.ExistByName(k8sClient))
 		})
 	})
 })

@@ -30,6 +30,11 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 )
 
+const (
+	// RunningAgainstKCPEnv is an env variable that is set when GitOps service is running against a KCP environment
+	RunningAgainstKCPEnv = "GITOPS_IN_KCP"
+)
+
 func IsKCPVirtualWorkspaceDisabled() bool {
 	return strings.EqualFold(os.Getenv("DISABLE_KCP_VIRTUAL_WORKSPACE"), "true")
 }

@@ -36,7 +36,7 @@ import (
 
 	attributes "github.com/devfile/api/v2/pkg/attributes"
 	"github.com/go-logr/logr"
-	applicationv1alpha1 "github.com/redhat-appstudio/application-service/api/v1alpha1"
+	applicationv1alpha1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	devfile "github.com/redhat-appstudio/application-service/pkg/devfile"
 	gitopsdeploymentv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

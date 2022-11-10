@@ -9,7 +9,11 @@ kubectl wait --for=condition=VirtualWorkspaceURLsReady apiexports/gitopsrvc-back
 
 identityHash=$(kubectl get apiexports.apis.kcp.dev gitopsrvc-backend-shared -o jsonpath='{.status.identityHash}')
 
-kubectl apply -k appstudio-shared/config/kcp
+kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-api/main/config/kcp/apibinding.yaml
+kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-api/main/config/kcp/apiexport.yaml
+kubextl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-api/main/config/kcp/apiresourceschema.yaml
+kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-api/main/config/kcp/kustomization.yaml
+
 
 # Add the Identity hash to the Appstudio APIExport in order to claim GitOpsDeployment from Backend APIExport
 patch='{"spec":{"permissionClaims": [{"group": "", "resource": "secrets"},{"group": "", "resource": "namespaces"},{"group": "managed-gitops.redhat.com", "resource": "gitopsdeployments", "identityHash": '\"${identityHash}\"'}]}}'

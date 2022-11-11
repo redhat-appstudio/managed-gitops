@@ -505,9 +505,9 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 
 			// Something went wrong, retry
 			l.WithValues("Error", err, "DebugErr", errGenericCR, "CR Name", repositoryCredentialCRName, "Namespace", resourceNS)
-			// TODO: PANOS - The l is updated here, but it's not being used for anything. l.WithValues() doesn't log anything.
-
 			vErr := fmt.Errorf("unexpected error in retrieving repository credentials: %v", err)
+			l.Error(vErr, vErr.Error())
+
 			return nil, vErr
 
 		}
@@ -586,8 +586,9 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 					return nil, err
 				}
 				l.Info("Operation created for the deleted RepositoryCredential DB row")
-
-				// TODO: PANOS - need a call to operations.CleanupOperation() here, once the operation is done.
+				if err := cleanRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, l); err != nil {
+					return nil, err
+				}
 			}
 
 			// 4b) Next, we delete the APICRToDBMapping that pointed to the deleted RepositoryCredential DB row
@@ -617,7 +618,10 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 
 	// 5) If gitopsDeploymentRepositoryCredentialCR exists in the cluster, check the DB to see if the related RepositoryCredential row exists as well
 
-	// TODO: PANOS - Sanity test for gitopsDeploymentRepositoryCredentialCR.Spec.Secret to be non-empty value
+	// Sanity test for gitopsDeploymentRepositoryCredentialCR.Spec.Secret to be non-empty value
+	if gitopsDeploymentRepositoryCredentialCR.Spec.Secret == "" {
+		return nil, fmt.Errorf("secret cannot be empty")
+	}
 
 	var privateURL, authUsername, authPassword, authSSHKey, secretObj string
 	secret := &corev1.Secret{
@@ -641,9 +645,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 	} else {
 		// Secret exists, so get its data
 
-		// TODO: PANOS - we had a slack conversation about whether the 'url' field should match the secret, but I forget what we decided the behaviour should be....
-
-		// privateURL = string(secret.Data["url"]) // is this supposed to the same as the CR's Repository?
+		// TODO: Decide if we need to privateURL = string(secret.Data["url"]) or not
 		authUsername = string(secret.Data["username"])
 		authPassword = string(secret.Data["password"])
 		authSSHKey = string(secret.Data["sshPrivateKey"])
@@ -672,8 +674,8 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 		err = dbQueries.CreateRepositoryCredentials(ctx, &dbRepoCred)
 
 		if err != nil {
-			// TODO: PANOS - The l is updated here, but it's not being used for anything. l.WithValues() doesn't log anything.
 			l = l.WithValues("Error", err, "DebugErr", errCreateDBRepoCred, "CR Name", repositoryCredentialCRName, "Namespace", resourceNS)
+			l.V(sharedutil.LogLevel_Debug).Info("Error creating RepositoryCredential row in DB")
 			return nil, fmt.Errorf("unable to create repository credential in the database: %v", err)
 		} else {
 			l.Info("Created RepositoryCredential in the DB", "repositoryCredential", dbRepoCred)
@@ -706,7 +708,9 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 		}
 		l.Info("Created Operation for RepositoryCredential")
 
-		// TODO: PANOS - need a call to operations.CleanupOperation() here, once the operation is done.
+		if err := cleanRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, l); err != nil {
+			return nil, err
+		}
 
 		return &dbRepoCred, nil
 	}
@@ -741,8 +745,8 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 			return nil, fmt.Errorf("APICRToDBMapping pointed to a RepositoryCredential that didn't exist")
 		}
 
-		// TODO: PANOS - The l is updated here, but it's not being used for anything. l.WithValues() doesn't log anything.
 		l = l.WithValues("Error retrieving repository credentials from DB", err, "repositoryCredentialsID", gitopsDeploymentRepositoryCredentialCR.UID)
+		l.V(sharedutil.LogLevel_Debug).Info("Error retrieving repository credentials from DB")
 		err = fmt.Errorf("error retrieving repository credentials from DB: %v", err)
 		return nil, err
 
@@ -755,8 +759,8 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 		if isUpdateNeeded {
 			l.Info("Syncing with database...")
 			if err := dbQueries.UpdateRepositoryCredentials(ctx, &dbRepoCred); err != nil {
-				// TODO: PANOS - The l is updated here, but it's not being used for anything. l.WithValues() doesn't log anything.
 				l = l.WithValues("Error", err, "ErrDebug", errUpdateDBRepoCred)
+				l.Info("Error updating repository credentials in the database")
 				return nil, err
 			}
 
@@ -764,13 +768,72 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 				return nil, err
 			}
 
+			if err := cleanRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, l); err != nil {
+				return nil, err
+			}
+
 			return &dbRepoCred, nil
-			// TODO: PANOS - need a call to operations.CleanupOperation() here, once the operation is done.
 
 		} else {
 			return &dbRepoCred, nil
 		}
 	}
+}
+
+func cleanRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCredentials, clusterUser *db.ClusterUser, ns string,
+	dbQueries db.DatabaseQueries, client client.Client, l logr.Logger) error {
+
+	l.Info("Checking if there is an operation for this RepositoryCredential ready to be cleaned up")
+
+	// Get list of Operations from cluster.
+	listOfK8sOperation := managedgitopsv1alpha1.OperationList{}
+	err := client.List(ctx, &listOfK8sOperation)
+	if err != nil {
+		l.Error(err, "Unable to fetch list of k8s Operation from cluster.")
+		return err
+	}
+
+	for _, k8sOperation := range listOfK8sOperation.Items {
+		// Skip if Operation is not for this RepositoryCredential.
+		if k8sOperation.Spec.OperationID != dbRepoCred.RepositoryCredentialsID {
+			l.Error(err, "Skipping Operation that is not for this RepositoryCredential.")
+			continue
+		}
+
+		// Fetch corresponding DB entry.
+		dbOperation := db.Operation{
+			Operation_id: k8sOperation.Spec.OperationID,
+		}
+
+		// If we cannot fetch the DB entry, then skip.
+		if err := dbQueries.GetOperationById(ctx, &dbOperation); err != nil {
+			l.Error(err, "Unable to fetch Operation from DB.")
+			continue
+		}
+
+		// If Operation is not in a terminal state, then skip.
+		if dbOperation.State != db.OperationState_Completed && dbOperation.State != db.OperationState_Failed {
+			l.V(sharedutil.LogLevel_Debug).Info("K8s Operation is not ready for cleanup : " + string(k8sOperation.UID) + " DbOperation: " + k8sOperation.Spec.OperationID)
+			continue
+		}
+
+		// If Operation is not for the Operation_owner_user_id of the RepositoryCredential, then skip.
+		if dbOperation.Operation_owner_user_id != clusterUser.Clusteruser_id {
+			l.Error(err, "Skipping Operation that is not for this RepositoryCredential's Operation_owner_user_id.")
+			continue
+		}
+
+		l.Info("Deleting Operation from cluster: " + string(k8sOperation.UID) + " DbOperation: " + k8sOperation.Spec.OperationID)
+
+		// Delete the k8s operation now.
+		if err := operations.CleanupOperation(ctx, dbOperation, k8sOperation, ns, dbQueries, client, l); err != nil {
+			l.Error(err, "Unable to Delete k8s Operation"+string(k8sOperation.UID)+" for DbOperation: "+k8sOperation.Spec.OperationID)
+		} else {
+			l.Info("Deleted k8s Operation: " + string(k8sOperation.UID) + " for DbOperation: " + k8sOperation.Spec.OperationID)
+		}
+	}
+
+	return nil
 }
 
 func createRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCredentials, clusterUser *db.ClusterUser, ns string,

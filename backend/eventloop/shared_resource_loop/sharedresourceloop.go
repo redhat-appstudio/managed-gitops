@@ -506,7 +506,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 			// Something went wrong, retry
 			l.WithValues("Error", err, "DebugErr", errGenericCR, "CR Name", repositoryCredentialCRName, "Namespace", resourceNS)
 			vErr := fmt.Errorf("unexpected error in retrieving repository credentials: %v", err)
-			l.Error(vErr, vErr.Error())
+			l.V(sharedutil.LogLevel_Debug).Info(vErr.Error())
 
 			return nil, vErr
 
@@ -529,7 +529,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 		return nil, fmt.Errorf("unable to list APICRs for repository credentials: %v", err)
 	}
 
-	// APICRToDBMapping that matches the current resource UID (or nil if the the current resource UID doesn't exist)
+	// APICRToDBMapping that matches the current resource UID (or nil if the current resource UID doesn't exist)
 	var currentAPICRToDBMapping *db.APICRToDatabaseMapping
 
 	// old APICRToDBMappings that don't match the current resource UID (pointing to previously deleted GitOpsDeploymentRepositoryCredentials)
@@ -555,6 +555,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 	if len(oldAPICRToDBMappings) > 0 {
 
 		for _, oldAPICRToDBMapping := range oldAPICRToDBMappings {
+			oldAPICRToDBMapping := oldAPICRToDBMapping // Fixes G601 (CWE-118): Implicit memory aliasing in for loop. (Confidence: MEDIUM, Severity: MEDIUM)
 
 			repositoryCredentialPrimaryKey := oldAPICRToDBMapping.DBRelationKey
 
@@ -595,7 +596,6 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 
 			// Delete the APICRToDatabaseMapping referenced by 'item'
 			if rowsDeleted, err := dbQueries.DeleteAPICRToDatabaseMapping(ctx, &oldAPICRToDBMapping); err != nil {
-				oldAPICRToDBMapping := oldAPICRToDBMapping // Fixes G601 (CWE-118): Implicit memory aliasing in for loop. (Confidence: MEDIUM, Severity: MEDIUM)
 				l.Info("unable to delete apiCRToDBmapping", "mapping", oldAPICRToDBMapping.APIResourceUID)
 				return nil, err
 			} else if rowsDeleted == 0 {
@@ -761,7 +761,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 			l.Info("Syncing with database...")
 			if err := dbQueries.UpdateRepositoryCredentials(ctx, &dbRepoCred); err != nil {
 				l = l.WithValues("Error", err, "ErrDebug", errUpdateDBRepoCred)
-				l.Info("Error updating repository credentials in the database")
+				l.V(sharedutil.LogLevel_Debug).Info("Error updating repository credentials in the database")
 				return nil, err
 			}
 

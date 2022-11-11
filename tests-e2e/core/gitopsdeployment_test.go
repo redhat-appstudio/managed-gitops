@@ -672,7 +672,6 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
 				),
 			)
-
 		})
 
 	})

@@ -108,6 +108,20 @@ var _ = Describe("GitOpsDeployment SyncError test", func() {
 
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
+			kubeConfigContents, apiServerURL, err := extractKubeConfigValues()
+			Expect(err).To(BeNil())
+
+			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents)
+
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			err = k8s.Create(&secret, k8sClient)
+			Expect(err).To(BeNil())
+
+			err = k8s.Create(&managedEnv, k8sClient)
+			Expect(err).To(BeNil())
+
 			By("create an invalid GitOpsDeployment application")
 			gitOpsDeploymentResource := managedgitopsv1alpha1.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -123,8 +137,8 @@ var _ = Describe("GitOpsDeployment SyncError test", func() {
 				},
 			}
 
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
+			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
+			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
@@ -168,7 +182,7 @@ var _ = Describe("GitOpsDeployment SyncError test", func() {
 				},
 			}
 
-			Eventually(app, "5m", "1s").Should(
+			Eventually(app, "10m", "1s").Should(
 				SatisfyAll(
 					appFixture.HaveApplicationSyncError(expectedConditionsOfApplication),
 				),

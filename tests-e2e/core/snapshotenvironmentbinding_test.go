@@ -334,9 +334,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			gitOpsDeploymentAfter := buildGitOpsDeploymentObjectMeta(gitOpsDeploymentName, binding.Namespace)
 
-			err = k8s.Get(&gitOpsDeploymentAfter, k8sClient)
-			Expect(err).To(Succeed())
-
 			Eventually(gitOpsDeploymentAfter, "2m", "1s").Should(gitopsDeplFixture.HaveSpecSource(managedgitopsv1alpha1.ApplicationSource{
 				RepoURL:        binding.Status.Components[0].GitOpsRepository.URL,
 				Path:           binding.Status.Components[0].GitOpsRepository.Path,
@@ -592,7 +589,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			err = k8s.Get(&gitopsDeployment, k8sClient)
 			Expect(err).To(BeNil())
-			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels["appstudio.openshift.io"]).To(Equal("testing"))
 
 			err = k8s.Get(&binding, k8sClient)
@@ -603,26 +599,20 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			err = k8s.Update(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
-			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments))
-
 			By("Verify whether `gitopsDeployment.ObjectMeta.Labels` is updated with ASEB labels")
 			err = k8s.Get(&gitopsDeployment, k8sClient)
 			Expect(err).To(BeNil())
-			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeNil())
-			Expect(gitopsDeployment.ObjectMeta.Labels["appstudio.openshift.io"]).ToNot(Equal("testing"))
-			Expect(gitopsDeployment.ObjectMeta.Labels["appstudio.openshift.io"]).To(Equal("testing-update"))
+			Expect(gitopsDeployment).To(gitopsDeplFixture.HaveLabel("appstudio.openshift.io", "testing-update"))
 
 			By("Remove ASEB label `appstudio.openshift.io` label and verify whether it is removed from gitopsDeployment label")
 			delete(binding.ObjectMeta.Labels, "appstudio.openshift.io")
 			err = k8s.Update(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
-			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments))
-
 			By("Verify whether gitopsDeployment.ObjectMeta.Label `appstudio.openshift.io` is removed from gitopsDeployment")
 			err = k8s.Get(&gitopsDeployment, k8sClient)
 			Expect(err).To(BeNil())
-			Expect(gitopsDeployment.ObjectMeta.Labels["appstudio.openshift.io"]).ToNot(Equal("testing-update"))
+			Expect(gitopsDeployment).To(gitopsDeplFixture.NotHaveLabel("appstudio.openshift.io", "testing-update"))
 
 			err = k8s.Delete(&gitopsDeployment, k8sClient)
 			Expect(err).To(Succeed())

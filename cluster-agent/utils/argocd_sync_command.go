@@ -123,11 +123,12 @@ func appSync(ctx context.Context, acdClient argocdclient.Client, appName string,
 		}
 
 		if !dryRun {
-			if !app.Status.OperationState.Phase.Successful() {
-				return fmt.Errorf("operation has completed with phase: %s", app.Status.OperationState.Phase)
+			operationState := app.Status.OperationState
+			if !operationState.Phase.Successful() {
+				return fmt.Errorf("operation has completed with phase: %s and message: %s", operationState.Phase, operationState.Message)
 			} else if /*len(selectedResources) == 0 &&*/ app.Status.Sync.Status != argoappv1.SyncStatusCodeSynced {
 				// Only get resources to be pruned if sync was application-wide and final status is not synced
-				pruningRequired := app.Status.OperationState.SyncResult.Resources.PruningRequired()
+				pruningRequired := operationState.SyncResult.Resources.PruningRequired()
 				if pruningRequired > 0 {
 					return fmt.Errorf("%d resources require pruning", pruningRequired)
 				}

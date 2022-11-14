@@ -912,11 +912,27 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 	managedEnv := &db.ManagedEnvironment{
 		Managedenvironment_id: application.Managed_environment_id,
 	}
+
+	if err := opConfig.dbQueries.GetManagedEnvironmentById(ctx, managedEnv); err != nil {
+		if db.IsResultNotFoundError(err) {
+			// Application refers to a managed environment that doesn't exist: no more work to do.
+			// Return true to indicate that the managed environment cluster secret should be deleted.
+			return nil
+		} else {
+			return fmt.Errorf("unable to get managed environment '%s': %v", managedEnv.Managedenvironment_id, err)
+		}
+	}
 	clusterCredentials := &db.ClusterCredentials{
 		Clustercredentials_cred_id: managedEnv.Clustercredentials_id,
 	}
-	if err := dbQueries.GetClusterCredentialsById(ctx, clusterCredentials); err != nil {
-		return err
+	if err := opConfig.dbQueries.GetClusterCredentialsById(ctx, clusterCredentials); err != nil {
+		if db.IsResultNotFoundError(err) {
+			// Managed environment refers to cluster credentials which no longer exist: no more work to do.
+			// Return true to indicate that the managed environment cluster secret should be deleted.
+			return nil
+		} else {
+			return fmt.Errorf("unable to get cluster credentials '%s': %v", clusterCredentials.Clustercredentials_cred_id, err)
+		}
 	}
 
 	bearerToken := clusterCredentials.Serviceaccount_bearer_token

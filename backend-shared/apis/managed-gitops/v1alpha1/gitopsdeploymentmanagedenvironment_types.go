@@ -24,7 +24,7 @@ import (
 type GitOpsDeploymentManagedEnvironmentSpec struct {
 	APIURL                     string `json:"apiURL"`
 	ClusterCredentialsSecret   string `json:"credentialsSecret"`
-	AllowInsecureSkipTLSVerify bool   `json:"skipTLSVerify"`
+	AllowInsecureSkipTLSVerify bool   `json:"allowinsecure_skiptlsverify"`
 }
 
 type AllowInsecureSkipTLSVerify bool

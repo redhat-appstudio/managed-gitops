@@ -2,6 +2,7 @@
 
 set -o errexit
 set -o nounset
+set -ex
 
 SCRIPT_DIR="$(
   cd "$(dirname "$0")" >/dev/null
@@ -61,7 +62,7 @@ clone-and-setup-ckcp() {
     pushd "${TMP_DIR}"
     git clone https://github.com/openshift-pipelines/pipeline-service.git
     pushd pipeline-service
-    git checkout d6fb6a5ff234353e9e4067a63ad0d917abc2caa8
+    git checkout 0d0dda73efe3e053fb36fa39fb82b5866ada12cc
     cp "${SCRIPT_DIR}"/openshift_dev_setup.sh ./developer/ckcp/openshift_dev_setup.sh
     cp "${SCRIPT_DIR}"/config.yaml ./developer/ckcp/config.yaml
 

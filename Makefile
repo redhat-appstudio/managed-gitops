@@ -4,6 +4,7 @@ TAG ?= latest
 BASE_IMAGE ?= gitops-service
 USERNAME ?= redhat-appstudio
 IMG ?= quay.io/${USERNAME}/${BASE_IMAGE}:${TAG}
+APPLICATION_API_COMMIT ?= 54515964769fd6e41dd42e741f8e81ffcd61f3a8
 
 # Default values match the their respective deployments in staging/production environment for GitOps Service, otherwise the E2E will fail.
 ARGO_CD_NAMESPACE ?= gitops-service-argocd
@@ -103,14 +104,14 @@ test-cluster-agent: ## Run test for cluster-agent only
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 deploy-appstudio-controller-crd: ## Deploy appstudio-controller related CRDs
 	# application-api CRDs
-	kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-api/main/manifests/application-api-customresourcedefinitions.yaml
+	kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-api/${APPLICATION_API_COMMIT}/manifests/application-api-customresourcedefinitions.yaml
 	# Application CR from AppStudio HAS
-	kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-api/main/config/crd/bases/appstudio.redhat.com_applications.yaml
-	kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-api/main/config/crd/bases/appstudio.redhat.com_components.yaml
+	kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-api/${APPLICATION_API_COMMIT}/config/crd/bases/appstudio.redhat.com_applications.yaml
+	kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-api/${APPLICATION_API_COMMIT}/config/crd/bases/appstudio.redhat.com_components.yaml
 
 undeploy-appstudio-controller-crd: ## Remove appstudio-controller related CRDs
-	kubectl delete -f https://raw.githubusercontent.com/redhat-appstudio/application-api/main/config/crd/bases/appstudio.redhat.com_applications.yaml
-	kubectl delete -f https://raw.githubusercontent.com/redhat-appstudio/application-api/main/config/crd/bases/appstudio.redhat.com_components.yaml
+	kubectl delete -f https://raw.githubusercontent.com/redhat-appstudio/application-api/${APPLICATION_API_COMMIT}/config/crd/bases/appstudio.redhat.com_applications.yaml
+	kubectl delete -f https://raw.githubusercontent.com/redhat-appstudio/application-api/${APPLICATION_API_COMMIT}/config/crd/bases/appstudio.redhat.com_components.yaml
 
 deploy-appstudio-controller-rbac: kustomize ## Deploy appstudio-controller related RBAC resouces
 	kubectl create namespace gitops 2> /dev/null || true
@@ -277,7 +278,7 @@ kcp-test-local-e2e: ## Initiates a ckcp within openshift cluster and runs e2e te
 gen-kcp-api-all: gen-kcp-api-backend-shared ## Creates all the KCP API Resources for all comfig/crds
 
 apply-kcp-api-all: ## Apply all APIExport to the cluster
-	$(MAKEFILE_ROOT)/utilities/create-apiexports.sh
+	$(MAKEFILE_ROOT)/utilities/create-apiexports.sh "${APPLICATION_API_COMMIT}"
 
 setup-e2e-kcp-virtual-workspace: ## Sets up the necessary KCP virtual workspaces
 	$(MAKEFILE_ROOT)/kcp/kcp-e2e/setup-ws-e2e.sh

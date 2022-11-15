@@ -42,9 +42,8 @@ spec:
                 type: string
               credentialsSecret:
                 type: string
-            required:
-            - apiURL
-            - credentialsSecret
+              subWorkspace:
+                type: string
             type: object
           status:
             description: GitOpsDeploymentManagedEnvironmentStatus defines the observed

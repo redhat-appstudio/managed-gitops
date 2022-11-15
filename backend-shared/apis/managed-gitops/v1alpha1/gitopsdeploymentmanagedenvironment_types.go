@@ -22,8 +22,9 @@ import (
 
 // GitOpsDeploymentManagedEnvironmentSpec defines the desired state of GitOpsDeploymentManagedEnvironment
 type GitOpsDeploymentManagedEnvironmentSpec struct {
-	APIURL                   string `json:"apiURL"`
-	ClusterCredentialsSecret string `json:"credentialsSecret"`
+	APIURL                   string `json:"apiURL,omitempty"`
+	ClusterCredentialsSecret string `json:"credentialsSecret,omitempty"`
+	SubWorkspace             string `json:"subWorkspace,omitempty"`
 }
 
 // GitOpsDeploymentManagedEnvironmentStatus defines the observed state of GitOpsDeploymentManagedEnvironment

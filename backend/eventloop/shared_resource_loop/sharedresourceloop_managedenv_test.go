@@ -220,6 +220,107 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 		})
 
+		It("should test ReconcileSharedManagedEnvironment with sub-workspace: verify create, garbage cleanup, update, and delete, of ManagedEnvironment with sub-workspace", func() {
+
+			managedEnv, secret := buildManagedEnvironmentWithSubWorkspace()
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, &managedEnv)
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Create(ctx, &secret)
+			Expect(err).To(BeNil())
+
+			By("calling managed environment for the first time, and verifying the database rows are created")
+
+			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(err).To(BeNil())
+			Expect(src.ManagedEnv).To(Not(BeNil()))
+
+			verifyResult(managedEnv, src)
+
+			By("updating the sub-workspace and verifying that the database rows are also updated")
+
+			oldClusterCreds := &db.ClusterCredentials{
+				Clustercredentials_cred_id: src.ManagedEnv.Clustercredentials_id,
+			}
+			err = dbQueries.GetClusterCredentialsById(ctx, oldClusterCreds)
+			Expect(err).To(BeNil())
+
+			expectedHost := "https://kcp:6443:clusters/root/users/production"
+			expectedToken := "dbsahbdsdsds"
+			productionSecret := corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "production-secret",
+					Namespace: "gitops",
+					Labels: map[string]string{
+						"workspaceName": "production",
+					},
+				},
+				Data: map[string][]byte{
+					"apiURL":              []byte(expectedHost),
+					"serviceAccountToken": []byte(expectedToken),
+				},
+			}
+
+			err = k8sClient.Create(ctx, &productionSecret)
+			Expect(err).To(BeNil())
+
+			managedEnv.Spec.SubWorkspace = "production"
+			err = k8sClient.Update(ctx, &managedEnv)
+			Expect(err).To(BeNil())
+			src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(err).To(BeNil())
+
+			By("verifying the old cluster credentials have been deleted, after update")
+
+			err = dbQueries.GetClusterCredentialsById(ctx, oldClusterCreds)
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+
+			By("verifying new cluster credentials exist containing the update")
+			err = dbQueries.GetManagedEnvironmentById(ctx, src.ManagedEnv)
+			Expect(err).To(BeNil())
+			Expect(src.ManagedEnv.Clustercredentials_id).ToNot(BeEmpty())
+			newClusterCreds := &db.ClusterCredentials{
+				Clustercredentials_cred_id: src.ManagedEnv.Clustercredentials_id,
+			}
+
+			err = dbQueries.GetClusterCredentialsById(ctx, newClusterCreds)
+			Expect(err).To(BeNil())
+			Expect(newClusterCreds.Host).To(Equal(expectedHost))
+			Expect(newClusterCreds.Serviceaccount_bearer_token).To(Equal(expectedToken))
+
+			By("deleting the managed environment, and verifying that the database rows are also removed")
+
+			err = k8sClient.Delete(ctx, &managedEnv)
+			Expect(err).To(BeNil())
+
+			oldManagedEnv := src.ManagedEnv
+
+			src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(err).To(BeNil())
+
+			err = dbQueries.GetManagedEnvironmentById(ctx, oldManagedEnv)
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+
+			err = dbQueries.GetClusterCredentialsById(ctx, newClusterCreds)
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+
+			mappings := []db.APICRToDatabaseMapping{}
+			err = dbQueries.UnsafeListAllAPICRToDatabaseMappings(ctx, &mappings)
+			Expect(err).To(BeNil())
+
+			By("Verifying that the API CR to database mapping has been removed.")
+			for _, mapping := range mappings {
+				Expect(mapping.APIResourceUID).ToNot(Equal(managedEnv.UID))
+			}
+		})
+
 		It("should test the case where APICRMapping exists, but the managed env doesnt", func() {
 			managedEnv, secret := buildManagedEnvironmentForSRL()
 			managedEnv.UID = "test-" + uuid.NewUUID()
@@ -451,6 +552,113 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 		})
 
 	})
+
+	Context("Test the creation of cluster credentials for sub-workspace", func() {
+		var mockFactory MockSRLK8sClientFactory
+
+		var k8sClient client.WithWatch
+		var dbQueries db.AllDatabaseQueries
+		var log logr.Logger
+		var ctx context.Context
+		var namespace *corev1.Namespace
+		var managedEnvironment managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment
+
+		expectedHost := "https://workspace-url:6443/clusters/root:parent:child"
+		expectedToken := "dadhsadsadas"
+
+		BeforeEach(func() {
+			err := db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
+
+			ctx = context.Background()
+			log = logf.FromContext(ctx)
+
+			ctx = context.Background()
+			scheme,
+				argocdNamespace,
+				kubesystemNamespace,
+				innerNamespace, err := tests.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			namespace = innerNamespace
+
+			managedEnvironment = managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-env",
+					Namespace: "jane",
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+					SubWorkspace: "staging",
+				},
+			}
+
+			k8sClient = fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(namespace, argocdNamespace, kubesystemNamespace, &managedEnvironment).
+				Build()
+
+			mockFactory = MockSRLK8sClientFactory{
+				fakeClient: k8sClient,
+			}
+
+			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).To(BeNil())
+		})
+
+		type opts func(*corev1.Secret)
+		createCustomSecret := func(k8sClient client.Client, option opts) corev1.Secret {
+			secret := corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "workspace-secret",
+					Namespace: "gitops",
+					Labels: map[string]string{
+						"workspaceName": "staging",
+					},
+				},
+			}
+			option(&secret)
+			Expect(k8sClient.Create(ctx, &secret)).To(BeNil())
+			return secret
+		}
+
+		It("should return an error if the workspace API URL is missing", func() {
+			invalidSecret := createCustomSecret(k8sClient, func(secret *corev1.Secret) {
+				secret.Data = map[string][]byte{
+					"serviceAccountToken": []byte(expectedToken),
+				}
+			})
+
+			creds, err := createNewClusterCredentials(ctx, managedEnvironment, invalidSecret, mockFactory, dbQueries, log)
+			Expect(err.Error()).Should(Equal("missing API URL for workspace secret: staging"))
+			Expect(creds).Should(Equal(db.ClusterCredentials{}))
+		})
+
+		It("should return an error if the service account token is empty", func() {
+			invalidSecret := createCustomSecret(k8sClient, func(secret *corev1.Secret) {
+				secret.Data = map[string][]byte{
+					"apiURL": []byte(expectedHost),
+				}
+			})
+
+			creds, err := createNewClusterCredentials(ctx, managedEnvironment, invalidSecret, mockFactory, dbQueries, log)
+			Expect(err.Error()).Should(Equal("missing service account token for workspace secret: staging"))
+			Expect(creds).Should(Equal(db.ClusterCredentials{}))
+		})
+
+		It("should create credentials for an environment with a valid workspace secret", func() {
+			validSecret := createCustomSecret(k8sClient, func(secret *corev1.Secret) {
+				secret.Data = map[string][]byte{
+					"serviceAccountToken": []byte(expectedToken),
+					"apiURL":              []byte(expectedHost),
+				}
+			})
+
+			creds, err := createNewClusterCredentials(ctx, managedEnvironment, validSecret, mockFactory, dbQueries, log)
+			Expect(err).To(BeNil())
+			Expect(creds.Host).Should(Equal(expectedHost))
+			Expect(creds.Serviceaccount_bearer_token).Should(Equal(expectedToken))
+		})
+	})
 })
 
 // verifyOperationCRsExist verifies there exists an Operation resource in the Argo CD namespace, for each row in 'expectedOperationRows' param.
@@ -606,6 +814,35 @@ func buildManagedEnvironmentForSRL() (managedgitopsv1alpha1.GitOpsDeploymentMana
 		Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
 			APIURL:                   "https://api.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443",
 			ClusterCredentialsSecret: secret.Name,
+		},
+	}
+
+	return *managedEnv, *secret
+}
+
+func buildManagedEnvironmentWithSubWorkspace() (managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, corev1.Secret) {
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "staging-workspace-secret",
+			Namespace: "gitops",
+			Labels: map[string]string{
+				"workspaceName": "staging",
+			},
+		},
+		Data: map[string][]byte{
+			"apiURL":              []byte("https://kcp.cps.host/clusters/root:users:ti:rg:rh-sso-user-kcp-redhat-com:user-17606:staging"),
+			"serviceAccountToken": []byte("nkanfkadjsabakdjnsadjksabsakdjsajdbsasasadas"),
+		},
+	}
+
+	managedEnv := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-my-managed-env",
+			Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+		},
+		Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+			SubWorkspace: "staging",
 		},
 	}
 

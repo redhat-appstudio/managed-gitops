@@ -16,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -130,9 +131,16 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 
 	}
 
-	// We found the managed env, now verify that the API url of the k8s resources matches what is in the cluster credential
-	if clusterCreds.Host != managedEnvironmentCR.Spec.APIURL {
-		// C) If the API URL defined in the managed env CR has changed, then replace the cluster credentials of the managed environment
+	var managedEnvHost string
+	if managedEnvironmentCR.Spec.SubWorkspace != "" {
+		managedEnvHost = string(secretCR.Data["apiURL"])
+	} else {
+		managedEnvHost = managedEnvironmentCR.Spec.APIURL
+	}
+
+	// We found the managed env, now verify that the API url/sub-workspace of the k8s resources matches what is in the cluster credential
+	if clusterCreds.Host != managedEnvHost {
+		// C) If the API URL/sub-workspace defined in the managed env CR has changed, then replace the cluster credentials of the managed environment
 		return replaceExistingManagedEnv(ctx, gitopsEngineClient, *clusterUser, isNewUser, managedEnvironmentCR, secretCR, *managedEnv,
 			workspaceNamespace, k8sClientFactory, dbQueries, log)
 	}
@@ -212,6 +220,35 @@ func getManagedEnvironmentCRs(ctx context.Context,
 
 		return managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{}, corev1.Secret{}, resourceExists,
 			fmt.Errorf("managed environment '%s' in '%s', could not be retrieved: %v", managedEnvironmentCR.Name, managedEnvironmentCR.Namespace, err)
+	}
+
+	// if the user has specified a sub-workspace name, fetch the credentials for the sub-workspace from the service provider workspace
+	if managedEnvironmentCR.Spec.SubWorkspace != "" {
+		serviceClient, err := k8sClientFactory.GetK8sClientForServiceWorkspace()
+		if err != nil {
+			return managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{}, corev1.Secret{}, resourceExists, err
+		}
+
+		secretCRList := corev1.SecretList{}
+		err = serviceClient.List(ctx, &secretCRList, &client.ListOptions{
+			Namespace: "gitops",
+			LabelSelector: labels.SelectorFromSet(map[string]string{
+				"workspaceName": managedEnvironmentCR.Spec.SubWorkspace,
+			}),
+		})
+		if err != nil {
+			return managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{}, corev1.Secret{}, resourceExists, fmt.Errorf("unable to list secrets from namespace %s: %v", managedEnvironmentCR.Namespace, err)
+		}
+
+		if len(secretCRList.Items) == 0 {
+			return managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{}, corev1.Secret{}, resourceExists, fmt.Errorf("no credential secret found for workspace %s in service provider workspace", managedEnvironmentCR.Spec.SubWorkspace)
+		}
+
+		if len(secretCRList.Items) > 1 {
+			return managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{}, corev1.Secret{}, resourceExists, fmt.Errorf("more than one credential secret found for workspace: %s", managedEnvironmentCR.Spec.SubWorkspace)
+		}
+
+		return managedEnvironmentCR, secretCRList.Items[0], resourceExists, nil
 	}
 
 	if managedEnvironmentCR.Spec.ClusterCredentialsSecret == "" {
@@ -668,8 +705,35 @@ func (DefaultK8sClientFactory) BuildK8sClient(restConfig *rest.Config) (client.C
 func createNewClusterCredentials(ctx context.Context, managedEnvironment managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment,
 	secret corev1.Secret, k8sClientFactory SRLK8sClientFactory, dbQueries db.DatabaseQueries, log logr.Logger) (db.ClusterCredentials, error) {
 
-	if secret.Type != sharedutil.ManagedEnvironmentSecretType {
+	if managedEnvironment.Spec.SubWorkspace == "" && secret.Type != sharedutil.ManagedEnvironmentSecretType {
 		return db.ClusterCredentials{}, fmt.Errorf("invalid secret type: %s", secret.Type)
+	}
+
+	// if the user has specified a sub-workspace, create the cluster credentials from the sub-workspace secret
+	if managedEnvironment.Spec.SubWorkspace != "" {
+		bearerToken, exists := secret.Data["serviceAccountToken"]
+		if !exists {
+			return db.ClusterCredentials{}, fmt.Errorf("missing service account token for workspace secret: %s", managedEnvironment.Spec.SubWorkspace)
+		}
+
+		apiURL, exists := secret.Data["apiURL"]
+		if !exists {
+			return db.ClusterCredentials{}, fmt.Errorf("missing API URL for workspace secret: %s", managedEnvironment.Spec.SubWorkspace)
+		}
+
+		clusterCredentials := db.ClusterCredentials{
+			Host:                        string(apiURL),
+			Serviceaccount_bearer_token: string(bearerToken),
+			Serviceaccount_ns:           serviceAccountNamespaceKubeSystem,
+		}
+
+		if err := dbQueries.CreateClusterCredentials(ctx, &clusterCredentials); err != nil {
+			log.Error(err, "Unable to create ClusterCredentials for ManagedEnvironment", clusterCredentials.GetAsLogKeyValues()...)
+			return db.ClusterCredentials{}, fmt.Errorf("unable to create cluster credentials for host '%s': %v", clusterCredentials.Host, err)
+		}
+		log.Info("Created ClusterCredentials for ManagedEnvironment", clusterCredentials.GetAsLogKeyValues()...)
+
+		return clusterCredentials, nil
 	}
 
 	kubeconfig, exists := secret.Data["kubeconfig"]
@@ -787,7 +851,7 @@ func verifyClusterCredentials(ctx context.Context, clusterCreds db.ClusterCreden
 	// To verify that the client works, attempt to retrieve the service account
 	serviceAccount := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      sharedutil.GenerateServiceAccountName(string(managedEnvCR.UID)),
+			Name:      "default",
 			Namespace: eventlooptypes.KubeSystemNamespace,
 		},
 	}

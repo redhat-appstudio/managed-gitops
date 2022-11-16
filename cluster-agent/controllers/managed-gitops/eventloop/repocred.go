@@ -97,23 +97,24 @@ func deleteArgoCDSecretLeftovers(ctx context.Context, databaseID string, argoCDN
 // processOperation_RepositoryCredentials processes the given operation as a RepositoryCredentials operation.
 // It returns true if the operation should be retried, and false otherwise.
 // It returns an error if there was an error processing the operation.
-func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.Operation, crOperation operation.Operation, dbQueries db.DatabaseQueries,
-	argoCDNamespace corev1.Namespace, eventClient client.Client, l logr.Logger) (bool, error) {
+func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.Operation, crOperation operation.Operation,
+	opConfig operationConfig) (bool, error) {
+
 	const retry, noRetry = true, false
 
 	if dbOperation.Resource_id == "" {
 		return retry, fmt.Errorf("%v: %v", errOperationIDNotFound, crOperation.Name)
 	}
 
-	l = l.WithValues("operationRow", dbOperation.Operation_id)
+	l := opConfig.log.WithValues("operationRow", dbOperation.Operation_id)
 
 	// 2) Retrieve the RepositoryCredentials database row that corresponds to the operation
-	dbRepositoryCredentials, err := dbQueries.GetRepositoryCredentialsByID(ctx, dbOperation.Resource_id)
+	dbRepositoryCredentials, err := opConfig.dbQueries.GetRepositoryCredentialsByID(ctx, dbOperation.Resource_id)
 	if err != nil {
 		// If the db row is missing, try to delete the related leftovers (ArgoCD Secret)
 		if db.IsResultNotFoundError(err) {
 			l.Error(err, errRowNotFound, "resource-id", dbOperation.Resource_id)
-			return deleteArgoCDSecretLeftovers(ctx, dbOperation.Resource_id, argoCDNamespace, eventClient, l)
+			return deleteArgoCDSecretLeftovers(ctx, dbOperation.Resource_id, opConfig.argoCDNamespace, opConfig.eventClient, l)
 		}
 
 		// Something went wrong with the database connection, just retry
@@ -128,17 +129,17 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 	argoCDSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      dbRepositoryCredentials.SecretObj,
-			Namespace: argoCDNamespace.Name,
+			Namespace: opConfig.argoCDNamespace.Name,
 		},
 	}
 
 	l = l.WithValues("secret", argoCDSecret.Name, "namespace", argoCDSecret.Namespace)
 
-	if err = eventClient.Get(ctx, client.ObjectKeyFromObject(argoCDSecret), argoCDSecret); err != nil {
+	if err = opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(argoCDSecret), argoCDSecret); err != nil {
 		if apierr.IsNotFound(err) {
 			l.Info(errPrivateSecretNotFound)
 			convertRepoCredToSecret(dbRepositoryCredentials, argoCDSecret)
-			errCreateArgoCDSecret := eventClient.Create(ctx, argoCDSecret, &client.CreateOptions{})
+			errCreateArgoCDSecret := opConfig.eventClient.Create(ctx, argoCDSecret, &client.CreateOptions{})
 			if errCreateArgoCDSecret != nil {
 				l.Error(errCreateArgoCDSecret, errPrivateSecretCreate)
 				return retry, errCreateArgoCDSecret
@@ -169,7 +170,7 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 
 	if isUpdateNeeded {
 		l.Info("Syncing with database...")
-		if err = eventClient.Update(ctx, argoCDSecret); err != nil {
+		if err = opConfig.eventClient.Update(ctx, argoCDSecret); err != nil {
 			l.Error(err, errUpdatePrivateSecret)
 			return retry, err
 		}

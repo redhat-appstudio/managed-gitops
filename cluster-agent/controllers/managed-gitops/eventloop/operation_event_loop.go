@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"strings"
 	"time"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -89,7 +88,7 @@ func operationEventLoopRouter(input chan operationEventLoopEvent) {
 
 	dbQueries, err := db.NewSharedProductionPostgresDBQueries(true)
 	if err != nil {
-		log.Error(nil, "SEVERE: Controller event loop exited before startup.")
+		log.Error(err, "SEVERE: Controller event loop exited before startup.")
 		return
 	}
 
@@ -158,6 +157,11 @@ func getDBOperationForEvent(ctx context.Context, newEvent operationEventLoopEven
 
 	outerErr := sharedutil.RunTaskUntilTrue(ctx, backoff, "get DBOperation", log, func() (bool, error) {
 
+		const (
+			taskCompleteTrue  = true
+			taskCompleteFalse = false
+		)
+
 		// 1) Retrieve an up-to-date copy of the Operation CR that we want to process.
 		operationCR := &operation.Operation{
 			ObjectMeta: metav1.ObjectMeta{
@@ -169,12 +173,12 @@ func getDBOperationForEvent(ctx context.Context, newEvent operationEventLoopEven
 		if err := newEvent.client.Get(ctx, client.ObjectKeyFromObject(operationCR), operationCR); err != nil {
 			if apierr.IsNotFound(err) {
 				log.V(sharedutil.LogLevel_Debug).Info("Skipping a request for an operation DB entry that doesn't exist: " + operationCR.Namespace + "/" + operationCR.Name)
-				return true, nil
+				return taskCompleteTrue, nil
 
 			} else {
 				// generic error
 				log.Error(err, err.Error())
-				return false, err
+				return taskCompleteFalse, err
 			}
 		}
 
@@ -185,24 +189,24 @@ func getDBOperationForEvent(ctx context.Context, newEvent operationEventLoopEven
 		if err := dbQueries.GetOperationById(ctx, &dbOperation); err != nil {
 
 			if db.IsResultNotFoundError(err) {
-				return true, nil
+				return taskCompleteTrue, nil
 			} else {
 				// some other generic error
 				log.Error(err, "Unable to retrieve operation due to generic error: "+dbOperation.Operation_id)
-				return false, err
+				return taskCompleteFalse, err
 			}
 		}
 
-		if strings.TrimSpace(dbOperation.Instance_id) == "" && strings.TrimSpace(dbOperation.Resource_id) == "" &&
-			strings.TrimSpace(dbOperation.Resource_id) == "" { // Sanity test the fields
+		// Sanity test: all the fields should have non-empty values, at this step
+		if dbOperation.Instance_id == "" && dbOperation.Resource_id == "" && string(dbOperation.Resource_type) == "" {
 
-			log.Error(nil, "SEVERE: one of the operation's fields was empty, so could not process in cluster agent.")
-			return true, nil
+			log.Error(nil, "SEVERE: at least one of the expected operation's fields was empty, so could not process in cluster agent.")
+			return taskCompleteTrue, nil
 		}
 
 		res = &dbOperation
 
-		return true, nil
+		return taskCompleteTrue, nil
 	})
 
 	return res, outerErr
@@ -397,10 +401,18 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		return &dbOperation, shouldRetryFalse, nil
 	}
 
+	operationConfigParams := operationConfig{
+		dbQueries:         dbQueries,
+		argoCDNamespace:   *argoCDNamespace,
+		eventClient:       eventClient,
+		credentialService: task.credentialService,
+		log:               log,
+	}
+
 	// 5) Finally, call the corresponding method for processing the particular type of Operation.
 
 	if dbOperation.Resource_type == db.OperationResourceType_Application {
-		shouldRetry, err := processOperation_Application(taskContext, dbOperation, *operationCR, dbQueries, *argoCDNamespace, eventClient, log)
+		shouldRetry, err := processOperation_Application(taskContext, dbOperation, *operationCR, operationConfigParams)
 
 		if err != nil {
 			log.Error(err, "error occurred on processing the application operation")
@@ -409,7 +421,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		return &dbOperation, shouldRetry, err
 
 	} else if dbOperation.Resource_type == db.OperationResourceType_ManagedEnvironment {
-		shouldRetry, err := processOperation_ManagedEnvironment(taskContext, dbOperation, *operationCR, dbQueries, *argoCDNamespace, eventClient, log)
+		shouldRetry, err := processOperation_ManagedEnvironment(taskContext, dbOperation, *operationCR, operationConfigParams)
 
 		if err != nil {
 			log.Error(err, "error occurred on processing the application operation")
@@ -418,7 +430,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		return &dbOperation, shouldRetry, err
 
 	} else if dbOperation.Resource_type == db.OperationResourceType_RepositoryCredentials {
-		shouldRetry, err := processOperation_RepositoryCredentials(taskContext, dbOperation, *operationCR, dbQueries, *argoCDNamespace, eventClient, log)
+		shouldRetry, err := processOperation_RepositoryCredentials(taskContext, dbOperation, *operationCR, operationConfigParams)
 
 		if err != nil {
 			log.Error(err, "error occurred on processing the repository credentials operation")
@@ -429,8 +441,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	} else if dbOperation.Resource_type == db.OperationResourceType_SyncOperation {
 
 		// Process a SyncOperation event
-		shouldRetry, err := processOperation_SyncOperation(taskContext, dbOperation, *operationCR, dbQueries, *argoCDNamespace,
-			eventClient, task.credentialService, log)
+		shouldRetry, err := processOperation_SyncOperation(taskContext, dbOperation, *operationCR, operationConfigParams)
 
 		if err != nil {
 			log.Error(err, "error occurred on processing the sync application operation")
@@ -445,10 +456,34 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 }
 
+// operationConfig contains generic parameters used by the operation event loop, but that are not specified to any
+// particular operation type.
+//
+// Because operationConfig only provides general information, it is passed between many different operation event loop functions.
+type operationConfig struct {
+	// dbQueries is the DatabaseQuery object in use by the event loop
+	dbQueries db.DatabaseQueries
+
+	// argoCDNamespace is the namespace of the Argo CD instance we are targeting
+	argoCDNamespace corev1.Namespace
+
+	// eventClient is a K8s client object that can be used to interact with the cluster that Argo CD is on
+	eventClient client.Client
+
+	// credentialService is used to retrieve login credentials for Argo CD
+	credentialService *utils.CredentialService
+
+	// log is the current logger in used
+	log logr.Logger
+}
+
 // Process a SyncOperation database entry, that was pointed to by an Operation CR.
 // returns shouldRetry, error
-func processOperation_SyncOperation(ctx context.Context, dbOperation db.Operation, crOperation operation.Operation, dbQueries db.DatabaseQueries,
-	argoCDNamespace corev1.Namespace, eventClient client.Client, credentialService *utils.CredentialService, log logr.Logger) (bool, error) {
+func processOperation_SyncOperation(ctx context.Context, dbOperation db.Operation, crOperation operation.Operation,
+	opConfig operationConfig) (bool, error) {
+
+	log := opConfig.log
+	dbQueries := opConfig.dbQueries
 
 	// Sanity checks
 	if dbOperation.Resource_id == "" {
@@ -491,11 +526,11 @@ func processOperation_SyncOperation(ctx context.Context, dbOperation db.Operatio
 	// 3) Process the event, based on whether the SyncOperation is requesting an app sync, or a terminate.
 	if dbSyncOperation.DesiredState == db.SyncOperation_DesiredState_Running {
 
-		return runAppSync(ctx, dbOperation, *dbSyncOperation, &dbApplication, argoCDNamespace, credentialService, dbQueries, eventClient, log)
+		return runAppSync(ctx, dbOperation, *dbSyncOperation, &dbApplication, opConfig)
 
 	} else if dbSyncOperation.DesiredState == db.SyncOperation_DesiredState_Terminated {
 
-		return terminateExistingOperation(ctx, &dbApplication, argoCDNamespace, credentialService, eventClient, log)
+		return terminateExistingOperation(ctx, &dbApplication, opConfig)
 
 	} else {
 		log.Error(nil, "SEVERE: unexpected desired state in SyncOperation DB entry")
@@ -504,24 +539,26 @@ func processOperation_SyncOperation(ctx context.Context, dbOperation db.Operatio
 }
 
 // returns shouldRetry, error
-func terminateExistingOperation(ctx context.Context, dbApplication *db.Application, argoCDNamespace corev1.Namespace,
-	credentialService *utils.CredentialService, eventClient client.Client, log logr.Logger) (bool, error) {
+func terminateExistingOperation(ctx context.Context, dbApplication *db.Application, opConfig operationConfig) (bool, error) {
 
-	if err := utils.TerminateOperation(ctx, dbApplication.Name, argoCDNamespace, credentialService, eventClient, time.Duration(5*time.Minute), log); err != nil {
-		log.Error(err, "unable to terminate operation: "+dbApplication.Name)
+	if err := utils.TerminateOperation(ctx, dbApplication.Name, opConfig.argoCDNamespace, opConfig.credentialService,
+		opConfig.eventClient, time.Duration(5*time.Minute), opConfig.log); err != nil {
+
+		opConfig.log.Error(err, "unable to terminate operation: "+dbApplication.Name)
 		return shouldRetryTrue, err
 	}
 
-	log.Info("Successfully terminated operations for application '" + dbApplication.Name + "'")
+	opConfig.log.Info("Successfully terminated operation for application '" + dbApplication.Name + "'")
 
 	return shouldRetryFalse, nil
 
 }
 
 // returns shouldRetry, error
-func runAppSync(ctx context.Context, dbOperation db.Operation, dbSyncOperation db.SyncOperation, dbApplication *db.Application,
-	argoCDNamespace corev1.Namespace, credentialsService *utils.CredentialService, dbQueries db.DatabaseQueries,
-	eventClient client.Client, log logr.Logger) (bool, error) {
+func runAppSync(ctx context.Context, dbOperation db.Operation, dbSyncOperation db.SyncOperation,
+	dbApplication *db.Application, opConfig operationConfig) (bool, error) {
+
+	log := opConfig.log
 
 	completeChan := make(chan bool)
 
@@ -533,15 +570,13 @@ func runAppSync(ctx context.Context, dbOperation db.Operation, dbSyncOperation d
 
 	// Start the AppSync operation in a separate thread.
 	go func() {
-		err = utils.AppSync(cancellableCtx, dbApplication.Name, dbSyncOperation.Revision, argoCDNamespace.Name, eventClient,
-			credentialsService, false)
+		err = utils.AppSync(cancellableCtx, dbApplication.Name, dbSyncOperation.Revision, opConfig.argoCDNamespace.Name, opConfig.eventClient,
+			opConfig.credentialService, false)
 
 		var failed bool
 		if err != nil {
 			log.Error(err, "app sync failed on application '"+dbApplication.Name+"'")
 			failed = true
-		} else {
-			failed = false
 		}
 
 		// signal the AppSync has exited
@@ -559,7 +594,7 @@ outer:
 		dbSyncOperation := &db.SyncOperation{
 			SyncOperation_id: dbOperation.Resource_id,
 		}
-		if innerErr := dbQueries.GetSyncOperationById(ctx, dbSyncOperation); innerErr != nil {
+		if innerErr := opConfig.dbQueries.GetSyncOperationById(ctx, dbSyncOperation); innerErr != nil {
 
 			// If the DB entry no longer exists, then no more work is to be done
 			if db.IsResultNotFoundError(innerErr) {
@@ -596,7 +631,7 @@ outer:
 // processOperation_ManagedEnvironment handles an Operation that targets an Application.
 // Returns true if the task should be retried (eg due to failure), false otherwise.
 func processOperation_ManagedEnvironment(ctx context.Context, dbOperation db.Operation, crOperation operation.Operation,
-	dbQueries db.DatabaseQueries, argoCDNamespace corev1.Namespace, eventClient client.Client, log logr.Logger) (bool, error) {
+	opConfig operationConfig) (bool, error) {
 
 	// The only operation we currently support for managed environment is deletion (creation is handled by Application operations).
 	// Thus, we expect the ManagedEnvironment database entry here to not be found.
@@ -606,7 +641,7 @@ func processOperation_ManagedEnvironment(ctx context.Context, dbOperation db.Ope
 		managedEnv := &db.ManagedEnvironment{
 			Managedenvironment_id: dbOperation.Resource_id, // managed env id referencing managed env row
 		}
-		if err := dbQueries.GetManagedEnvironmentById(ctx, managedEnv); err != nil {
+		if err := opConfig.dbQueries.GetManagedEnvironmentById(ctx, managedEnv); err != nil {
 			if !db.IsResultNotFoundError(err) {
 				return shouldRetryTrue, fmt.Errorf("an unexpected error occcurred on retrieving managed env: %v", err)
 			}
@@ -626,10 +661,10 @@ func processOperation_ManagedEnvironment(ctx context.Context, dbOperation db.Ope
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      expectedSecretName,
-			Namespace: argoCDNamespace.Name,
+			Namespace: opConfig.argoCDNamespace.Name,
 		},
 	}
-	if err := eventClient.Delete(ctx, secret); err != nil {
+	if err := opConfig.eventClient.Delete(ctx, secret); err != nil {
 		if apierr.IsNotFound(err) {
 			// The cluster secret doesn't exist, so our work is done.
 			return shouldRetryFalse, nil
@@ -637,7 +672,7 @@ func processOperation_ManagedEnvironment(ctx context.Context, dbOperation db.Ope
 			return shouldRetryTrue, fmt.Errorf("unable to retrieve Argo CD Cluster Secret '%s' in '%s': %v", secret.Name, secret.Namespace, err)
 		}
 	}
-	sharedutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, sharedutil.ResourceDeleted, log)
+	sharedutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, sharedutil.ResourceDeleted, opConfig.log)
 
 	// Argo CD cluster secret corresponding to environment is successfully deleted.
 	return shouldRetryFalse, nil
@@ -654,8 +689,7 @@ const (
 
 // processOperation_Application handles an Operation that targets an Application.
 // Returns true if the task should be retried (eg due to failure), false otherwise.
-func processOperation_Application(ctx context.Context, dbOperation db.Operation, crOperation operation.Operation, dbQueries db.DatabaseQueries,
-	argoCDNamespace corev1.Namespace, eventClient client.Client, log logr.Logger) (bool, error) {
+func processOperation_Application(ctx context.Context, dbOperation db.Operation, crOperation operation.Operation, opConfig operationConfig) (bool, error) {
 
 	// Sanity check
 	if dbOperation.Resource_id == "" {
@@ -666,9 +700,9 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		Application_id: dbOperation.Resource_id,
 	}
 
-	log = log.WithValues("applicationID", dbApplication.Application_id)
+	log := opConfig.log.WithValues("applicationID", dbApplication.Application_id)
 
-	if err := dbQueries.GetApplicationById(ctx, dbApplication); err != nil {
+	if err := opConfig.dbQueries.GetApplicationById(ctx, dbApplication); err != nil {
 
 		if db.IsResultNotFoundError(err) {
 			// The application db entry no longer exists, so delete the corresponding Application CR
@@ -682,8 +716,8 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 				return shouldRetryFalse, err
 			}
 			labelSelector = labelSelector.Add(*req)
-			if err := eventClient.List(ctx, &list, &client.ListOptions{
-				Namespace:     argoCDNamespace.Name,
+			if err := opConfig.eventClient.List(ctx, &list, &client.ListOptions{
+				Namespace:     opConfig.argoCDNamespace.Name,
 				LabelSelector: labelSelector,
 			}); err != nil {
 				log.Error(err, "unable to complete Argo CD Application list")
@@ -703,7 +737,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 				log.Info("Deleting Argo CD Application that is no longer (or not) defined in the Application table.")
 
 				// Delete all Argo CD applications with the corresponding database label (but, there should be only one)
-				err := controllers.DeleteArgoCDApplication(ctx, item, eventClient, log)
+				err := controllers.DeleteArgoCDApplication(ctx, item, opConfig.eventClient, log)
 				if err != nil {
 					log.Error(err, "error on deleting Argo CD Application")
 
@@ -732,12 +766,12 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 	app := &appv1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      dbApplication.Name,
-			Namespace: argoCDNamespace.Name,
+			Namespace: opConfig.argoCDNamespace.Name,
 		},
 	}
 
 	// Retrieve the Argo CD Application from the namespace
-	if err := eventClient.Get(ctx, client.ObjectKeyFromObject(app), app); err != nil {
+	if err := opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(app), app); err != nil {
 
 		if apierr.IsNotFound(err) {
 			// The Application CR doesn't exist, so we need to create it
@@ -755,12 +789,12 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 
 			// Before we create the application, make sure that the managed environment exists that the application points to
 			if app.Spec.Destination.Name != argosharedutil.ArgoCDDefaultDestinationInCluster {
-				if err := ensureManagedEnvironmentExists(ctx, *dbApplication, dbQueries, argoCDNamespace, eventClient, log); err != nil {
+				if err := ensureManagedEnvironmentExists(ctx, *dbApplication, opConfig); err != nil {
 					log.Error(err, "unable to ensure that managed environment exists")
 					return shouldRetryTrue, err
 				}
 			}
-			if err := eventClient.Create(ctx, app, &client.CreateOptions{}); err != nil {
+			if err := opConfig.eventClient.Create(ctx, app, &client.CreateOptions{}); err != nil {
 				log.Error(err, "Unable to create Argo CD Application CR")
 				// This may or may not be salvageable depending on the error; ultimately we should figure out which
 				// error messages mean unsalvageable, and not wait for them.
@@ -809,7 +843,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		app.Spec.Source = specFieldApp.Spec.Source
 		app.Spec.Project = specFieldApp.Spec.Project
 		app.Spec.SyncPolicy = specFieldApp.Spec.SyncPolicy
-		if err := eventClient.Update(ctx, app); err != nil {
+		if err := opConfig.eventClient.Update(ctx, app); err != nil {
 			log.Error(err, "unable to update application after difference detected.")
 			// Retry if we were unable to update the Application, for example due to a conflict
 			return shouldRetryTrue, err
@@ -824,7 +858,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 
 	// Finally, ensure that the managed-environment secret is still up to date
 	if app.Spec.Destination.Name != argosharedutil.ArgoCDDefaultDestinationInCluster {
-		if err := ensureManagedEnvironmentExists(ctx, *dbApplication, dbQueries, argoCDNamespace, eventClient, log); err != nil {
+		if err := ensureManagedEnvironmentExists(ctx, *dbApplication, opConfig); err != nil {
 			log.Error(err, "unable to ensure that managed environment exists")
 			return shouldRetryTrue, err
 		}
@@ -835,15 +869,14 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 
 // ensureManagedEnvironmentExists ensures that the managed environment described by 'application' is defined as an Argo CD
 // cluster secret, in the Argo CD namespace.
-func ensureManagedEnvironmentExists(ctx context.Context, application db.Application, dbQueries db.DatabaseQueries,
-	argoCDNamespace corev1.Namespace, eventClient client.Client, log logr.Logger) error {
+func ensureManagedEnvironmentExists(ctx context.Context, application db.Application, opConfig operationConfig) error {
 
 	if application.Managed_environment_id == "" {
 		// No work to do
 		return nil
 	}
 
-	expectedSecret, shouldDeleteSecret, err := generateExpectedClusterSecret(ctx, application, dbQueries, argoCDNamespace, eventClient, log)
+	expectedSecret, shouldDeleteSecret, err := generateExpectedClusterSecret(ctx, application, opConfig)
 	if err != nil {
 		return fmt.Errorf("unable to generate expected cluster secret: %v", err)
 	}
@@ -854,11 +887,11 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 		secret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      secretName,
-				Namespace: argoCDNamespace.Name,
+				Namespace: opConfig.argoCDNamespace.Name,
 			},
 		}
 
-		if err := eventClient.Delete(ctx, secret); err != nil {
+		if err := opConfig.eventClient.Delete(ctx, secret); err != nil {
 			if apierr.IsNotFound(err) {
 				// The secret doesn't exist, so no more work to do.
 				return nil
@@ -866,7 +899,7 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 				return fmt.Errorf("unable to delete secret of deleted managed environment: %v", err)
 			}
 		}
-		sharedutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, sharedutil.ResourceDeleted, log)
+		sharedutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, sharedutil.ResourceDeleted, opConfig.log)
 
 		return nil
 	}
@@ -882,16 +915,16 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 			Namespace: expectedSecret.Namespace,
 		},
 	}
-	if err := eventClient.Get(ctx, client.ObjectKeyFromObject(existingSecret), existingSecret); err != nil {
+	if err := opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(existingSecret), existingSecret); err != nil {
 		if !apierr.IsNotFound(err) {
 			return fmt.Errorf("unable to retrieve existing Argo CD Cluster secret '%s' in '%s'", existingSecret.Name, existingSecret.Namespace)
 		}
 
 		// A) Secret doesn't exist, so create it
-		if err := eventClient.Create(ctx, &expectedSecret); err != nil {
+		if err := opConfig.eventClient.Create(ctx, &expectedSecret); err != nil {
 			return fmt.Errorf("unable to create expected Argo CD Cluster secret '%s' in '%s'", expectedSecret.Name, expectedSecret.Namespace)
 		}
-		sharedutil.LogAPIResourceChangeEvent(expectedSecret.Namespace, expectedSecret.Name, expectedSecret, sharedutil.ResourceCreated, log)
+		sharedutil.LogAPIResourceChangeEvent(expectedSecret.Namespace, expectedSecret.Name, expectedSecret, sharedutil.ResourceCreated, opConfig.log)
 
 		return nil
 	}
@@ -904,10 +937,10 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 	existingSecret.Data = expectedSecret.Data
 
 	// C) Secret exists, but is different from what is expected, so update it.
-	if err := eventClient.Update(ctx, existingSecret); err != nil {
+	if err := opConfig.eventClient.Update(ctx, existingSecret); err != nil {
 		return fmt.Errorf("unable to update existing secret '%s' in '%s'", existingSecret.Name, existingSecret.Namespace)
 	}
-	sharedutil.LogAPIResourceChangeEvent(existingSecret.Namespace, existingSecret.Name, existingSecret, sharedutil.ResourceModified, log)
+	sharedutil.LogAPIResourceChangeEvent(existingSecret.Namespace, existingSecret.Name, existingSecret, sharedutil.ResourceModified, opConfig.log)
 
 	return nil
 
@@ -918,8 +951,7 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 // - argo cd cluster secret based on managed environment
 // - bool: true if secret should be deleted false otherwise
 // - error
-func generateExpectedClusterSecret(ctx context.Context, application db.Application, dbQueries db.DatabaseQueries,
-	argoCDNamespace corev1.Namespace, eventClient client.Client, log logr.Logger) (corev1.Secret, bool, error) {
+func generateExpectedClusterSecret(ctx context.Context, application db.Application, opConfig operationConfig) (corev1.Secret, bool, error) {
 
 	const (
 		deleteSecret_true  = true
@@ -930,7 +962,7 @@ func generateExpectedClusterSecret(ctx context.Context, application db.Applicati
 		Managedenvironment_id: application.Managed_environment_id,
 	}
 
-	if err := dbQueries.GetManagedEnvironmentById(ctx, managedEnv); err != nil {
+	if err := opConfig.dbQueries.GetManagedEnvironmentById(ctx, managedEnv); err != nil {
 		if db.IsResultNotFoundError(err) {
 			// Application refers to a managed environment that doesn't exist: no more work to do.
 			// Return true to indicate that the managed environment cluster secret should be deleted.
@@ -945,7 +977,7 @@ func generateExpectedClusterSecret(ctx context.Context, application db.Applicati
 		Clustercredentials_cred_id: managedEnv.Clustercredentials_id,
 	}
 
-	if err := dbQueries.GetClusterCredentialsById(ctx, clusterCredentials); err != nil {
+	if err := opConfig.dbQueries.GetClusterCredentialsById(ctx, clusterCredentials); err != nil {
 		if db.IsResultNotFoundError(err) {
 			// Managed environment refers to cluster credentials which no longer exist: no more work to do.
 			// Return true to indicate that the managed environment cluster secret should be deleted.
@@ -975,7 +1007,7 @@ func generateExpectedClusterSecret(ctx context.Context, application db.Applicati
 	managedEnvironmentSecret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
-			Namespace: argoCDNamespace.Name,
+			Namespace: opConfig.argoCDNamespace.Name,
 			Labels: map[string]string{
 				ArgoCDSecretTypeKey:                            ArgoCDSecretTypeValue_ClusterSecret,
 				controllers.ArgoCDClusterSecretDatabaseIDLabel: managedEnv.Managedenvironment_id,

@@ -559,16 +559,16 @@ outer:
 		dbSyncOperation := &db.SyncOperation{
 			SyncOperation_id: dbOperation.Resource_id,
 		}
-		if err := dbQueries.GetSyncOperationById(ctx, dbSyncOperation); err != nil {
+		if innerErr := dbQueries.GetSyncOperationById(ctx, dbSyncOperation); innerErr != nil {
 
 			// If the DB entry no longer exists, then no more work is to be done
-			if db.IsResultNotFoundError(err) {
+			if db.IsResultNotFoundError(innerErr) {
 				log.V(sharedutil.LogLevel_Debug).Info("SyncOperation '" + dbSyncOperation.SyncOperation_id + "' DB entry was no longer available, during AppSync.")
 				shouldRetry = shouldRetryFalse
 				err = nil
 				break outer
 			} else {
-				log.Error(err, "Unable to retrieve SyncOperation '"+dbSyncOperation.SyncOperation_id+"', during AppSync.")
+				log.Error(innerErr, "Unable to retrieve SyncOperation '"+dbSyncOperation.SyncOperation_id+"', during AppSync.")
 			}
 		}
 

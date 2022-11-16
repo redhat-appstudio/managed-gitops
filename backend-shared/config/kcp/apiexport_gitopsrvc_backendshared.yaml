@@ -12,8 +12,8 @@ spec:
   - group: ""
     resource: "namespaces"
   latestResourceSchemas:
-    - v202208100611.gitopsdeploymentmanagedenvironments.managed-gitops.redhat.com
-    - v202208100611.gitopsdeploymentrepositorycredentials.managed-gitops.redhat.com
-    - v202208100611.gitopsdeployments.managed-gitops.redhat.com
-    - v202208100611.gitopsdeploymentsyncruns.managed-gitops.redhat.com
-    - v202208100611.operations.managed-gitops.redhat.com
+    - v202211140612.gitopsdeploymentmanagedenvironments.managed-gitops.redhat.com
+    - v202211140612.gitopsdeploymentrepositorycredentials.managed-gitops.redhat.com
+    - v202211140612.gitopsdeployments.managed-gitops.redhat.com
+    - v202211140612.gitopsdeploymentsyncruns.managed-gitops.redhat.com
+    - v202211140612.operations.managed-gitops.redhat.com

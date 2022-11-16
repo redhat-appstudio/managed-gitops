@@ -5,7 +5,7 @@ apiVersion: apis.kcp.dev/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v202208100611.gitopsdeploymentmanagedenvironments.managed-gitops.redhat.com
+  name: v202211140612.gitopsdeploymentmanagedenvironments.managed-gitops.redhat.com
 spec:
   group: managed-gitops.redhat.com
   names:
@@ -40,9 +40,8 @@ spec:
               type: string
             credentialsSecret:
               type: string
-          required:
-          - apiURL
-          - credentialsSecret
+            subWorkspace:
+              type: string
           type: object
         status:
           description: GitOpsDeploymentManagedEnvironmentStatus defines the observed
@@ -59,7 +58,7 @@ apiVersion: apis.kcp.dev/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v202208100611.gitopsdeploymentrepositorycredentials.managed-gitops.redhat.com
+  name: v202211140612.gitopsdeploymentrepositorycredentials.managed-gitops.redhat.com
 spec:
   group: managed-gitops.redhat.com
   names:
@@ -119,7 +118,7 @@ apiVersion: apis.kcp.dev/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v202208100611.gitopsdeployments.managed-gitops.redhat.com
+  name: v202211140612.gitopsdeployments.managed-gitops.redhat.com
 spec:
   group: managed-gitops.redhat.com
   names:
@@ -247,6 +246,42 @@ spec:
                     resource
                   type: string
               type: object
+            reconciledState:
+              description: ReconciledState lists last deployment of ArgoCD Application
+              properties:
+                destination:
+                  description: GitOpsDeploymentDestination contains the information
+                    of .status.Sync.CompareTo.Destination field of ArgoCD Application
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                  required:
+                  - name
+                  - namespace
+                  type: object
+                source:
+                  description: GitOpsDeploymentSource contains the information of
+                    .status.Sync.CompareTo.Source field of ArgoCD Application
+                  properties:
+                    branch:
+                      type: string
+                    path:
+                      description: Path contains path from .status.Sync.CompareTo
+                        field of ArgoCD Application
+                      type: string
+                    repoURL:
+                      type: string
+                  required:
+                  - branch
+                  - path
+                  - repoURL
+                  type: object
+              required:
+              - destination
+              - source
+              type: object
             resources:
               description: List of Resource created by a deployment
               items:
@@ -296,6 +331,8 @@ spec:
               required:
               - status
               type: object
+          required:
+          - reconciledState
           type: object
       type: object
     served: true
@@ -308,7 +345,7 @@ apiVersion: apis.kcp.dev/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v202208100611.gitopsdeploymentsyncruns.managed-gitops.redhat.com
+  name: v202211140612.gitopsdeploymentsyncruns.managed-gitops.redhat.com
 spec:
   group: managed-gitops.redhat.com
   names:
@@ -392,7 +429,7 @@ apiVersion: apis.kcp.dev/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v202208100611.operations.managed-gitops.redhat.com
+  name: v202211140612.operations.managed-gitops.redhat.com
 spec:
   group: managed-gitops.redhat.com
   names:

@@ -686,7 +686,7 @@ var _ = Describe("Operation Controller", func() {
 					Kube_config_context:         "test-kube_config_context",
 					Serviceaccount_bearer_token: "test-serviceaccount_bearer_token",
 					Serviceaccount_ns:           "test-serviceaccount_ns",
-					AllowInsecureSkipTLSVerify:  true,
+					AllowInsecureSkipTLSVerify:  bool(managedgitopsv1alpha1.TLSVerifyStatusTrue),
 				}
 
 				managedEnvironment := &db.ManagedEnvironment{

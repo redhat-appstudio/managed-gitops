@@ -12,7 +12,6 @@ import (
 	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"gopkg.in/yaml.v2"
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -749,7 +748,7 @@ var _ = Describe("Operation Controller", func() {
 
 				By("Verifying whether Cluster secret is created and unmarshalling the tls-config byte value")
 				secretName := argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: applicationDB.Managed_environment_id})
-				clusterSecret := &corev1.Secret{
+				clusterSecret := &v1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      secretName,
 						Namespace: gitopsEngineInstance.Namespace_name,

@@ -16,9 +16,15 @@ var (
 
 func (dbq *PostgreSQLDatabaseQueries) CreateRepositoryCredentials(ctx context.Context, obj *RepositoryCredentials) error {
 
+	fmt.Println("DEBUG: CreateRepositoryCredentials")
+	fmt.Println("-----------------------------")
+	fmt.Println("obj.RepositoryCredentialsID: ", obj.RepositoryCredentialsID)
+	fmt.Println("&obj.RepositoryCredentialsID: ", &obj.RepositoryCredentialsID)
+	fmt.Println("dbq.allowTestUuids: ", dbq.allowTestUuids)
+
 	if dbq.allowTestUuids {
 		if IsEmpty(obj.RepositoryCredentialsID) {
-			obj.RepositoryCredentialsID = generateUuid()
+			obj.RepositoryCredentialsID = "test-" + generateUuid()
 		}
 	} else {
 		if !IsEmpty(obj.RepositoryCredentialsID) {

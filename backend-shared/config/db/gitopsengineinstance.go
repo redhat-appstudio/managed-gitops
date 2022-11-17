@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"github.com/go-pg/pg/v10"
 )
 
 func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllGitopsEngineInstances(ctx context.Context, gitopsEngineInstances *[]GitopsEngineInstance) error {
@@ -205,7 +206,8 @@ func (dbq *PostgreSQLDatabaseQueries) internalDeleteGitopsEngineInstanceById(ctx
 
 	deleteResult, err := dbq.dbConnection.Model(result).WherePK().Context(ctx).Delete()
 	if err != nil {
-		return 0, fmt.Errorf("error on deleting operation: %v", err)
+		pgErr := err.(pg.Error)
+		return 0, fmt.Errorf("error on deleting operation: %v\nPGError:%v\n", err, pgErr)
 	}
 
 	return deleteResult.RowsAffected(), nil

@@ -960,7 +960,7 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 		Data: map[string][]byte{
 			"name":   ([]byte)(name),
 			"server": ([]byte)(clusterCredentials.Host),
-			"config": ([]byte)(string(jsonString)),
+			"config": jsonString,
 		},
 	}
 	if err := opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(existingSecret), existingSecret); err != nil {

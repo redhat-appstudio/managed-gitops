@@ -2,14 +2,17 @@ package eventloop
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
+	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -661,6 +664,131 @@ var _ = Describe("Operation Controller", func() {
 
 				deleteTestResources(ctx, dbQueries, resourcesToBeDeleted)
 
+			})
+			It("Checks whether the user updated tls-certificate verification maps correctly from database to cluster secret", func() {
+				By("Close database connection")
+				defer dbQueries.CloseDatabase()
+				defer testTeardown()
+
+				_, dummyApplicationSpecString, err := createDummyApplicationData()
+				Expect(err).To(BeNil())
+
+				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
+				Expect(gitopsEngineCluster).ToNot(BeNil())
+				Expect(err).To(BeNil())
+
+				By("creating a cluster credential with tls-cert-verification set to true")
+
+				clusterCredentials := &db.ClusterCredentials{
+					Clustercredentials_cred_id:  "test-clustercredentials_cred_id-1",
+					Host:                        "test-host",
+					Kube_config:                 "test-kube_config",
+					Kube_config_context:         "test-kube_config_context",
+					Serviceaccount_bearer_token: "test-serviceaccount_bearer_token",
+					Serviceaccount_ns:           "test-serviceaccount_ns",
+					AllowInsecureSkipTLSVerify:  true,
+				}
+
+				managedEnvironment := &db.ManagedEnvironment{
+					Managedenvironment_id: "test-managed-env-1",
+					Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+					Name:                  "test-my-env101",
+				}
+				gitopsEngineInstance := &db.GitopsEngineInstance{
+					Gitopsengineinstance_id: "test-fake-engine-instance",
+					Namespace_name:          workspace.Namespace,
+					Namespace_uid:           string(workspace.UID),
+					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+				}
+
+				err = dbQueries.CreateClusterCredentials(ctx, clusterCredentials)
+				Expect(err).To(BeNil())
+				err = dbQueries.CreateManagedEnvironment(ctx, managedEnvironment)
+				Expect(err).To(BeNil())
+				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
+				Expect(err).To(BeNil())
+
+				applicationDB := &db.Application{
+					Application_id:          "test-my-application-new-1",
+					Name:                    name,
+					Spec_field:              dummyApplicationSpecString,
+					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				}
+
+				By("Create Application in Database")
+				err = dbQueries.CreateApplication(ctx, applicationDB)
+				Expect(err).To(BeNil())
+
+				By("Creating new operation row in database")
+				operationDB := &db.Operation{
+					Operation_id:            "test-operation",
+					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+					Resource_id:             applicationDB.Application_id,
+					Resource_type:           "Application",
+					State:                   db.OperationState_Waiting,
+					Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				}
+
+				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+				Expect(err).To(BeNil())
+
+				By("Creating Operation CR")
+				operationCR := &managedgitopsv1alpha1.Operation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: namespace,
+					},
+					Spec: managedgitopsv1alpha1.OperationSpec{
+						OperationID: operationDB.Operation_id,
+					},
+				}
+
+				err = task.event.client.Create(ctx, operationCR)
+				Expect(err).To(BeNil())
+
+				By("Verifying whether Cluster secret is created and unmarshalling the tls-config byte value")
+				secretName := argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: applicationDB.Managed_environment_id})
+				clusterSecret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      secretName,
+						Namespace: gitopsEngineInstance.Namespace_name,
+					},
+					Data: map[string][]byte{},
+				}
+
+				retry, err := task.PerformTask(ctx)
+				Expect(err).To(BeNil())
+				Expect(retry).To(BeFalse())
+
+				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(clusterSecret), clusterSecret)
+				Expect(err).To(BeNil())
+
+				getClusterSecretData := clusterSecret.Data
+				tlsconfigbyte := getClusterSecretData["config"]
+				var tlsunmarshalled ClusterSecretConfigJSON
+				err = json.Unmarshal(tlsconfigbyte, &tlsunmarshalled)
+				Expect(err).To(BeNil())
+
+				By("The tlsConfig value from cluster-secret should be equal to the tlsVerify value from the database")
+				Expect(tlsunmarshalled.TLSClientConfig.Insecure).To(Equal(clusterCredentials.AllowInsecureSkipTLSVerify))
+
+				By("If no error was returned, and retry is false, then verify that the 'state' field of the Operation row is Completed")
+				err = dbQueries.GetOperationById(ctx, operationDB)
+				Expect(err).To(BeNil())
+				Expect(operationDB.State).To(Equal(db.OperationState_Completed))
+
+				By("deleting resources and cleaning up db entries created by test.")
+
+				resourcesToBeDeleted := testResources{
+					Application_id:          applicationDB.Application_id,
+					Operation_id:            []string{operationDB.Operation_id},
+					Gitopsenginecluster_id:  gitopsEngineCluster.Gitopsenginecluster_id,
+					Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
+					ClusterCredentials_id:   gitopsEngineCluster.Clustercredentials_id,
+				}
+
+				deleteTestResources(ctx, dbQueries, resourcesToBeDeleted)
 			})
 		})
 	})

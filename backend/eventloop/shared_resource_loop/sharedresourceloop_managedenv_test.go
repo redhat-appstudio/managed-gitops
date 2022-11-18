@@ -472,6 +472,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			getClusterCredentials := firstSrc.ManagedEnv.Clustercredentials_id
 			clusterCreds := &db.ClusterCredentials{Clustercredentials_cred_id: getClusterCredentials}
 			err = dbQueries.GetClusterCredentialsById(ctx, clusterCreds)
+			Expect(err).To(BeNil())
 
 			Expect(managedEnv.Spec.AllowInsecureSkipTLSVerify).To(Equal(clusterCreds.AllowInsecureSkipTLSVerify))
 

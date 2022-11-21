@@ -3,8 +3,7 @@ package core
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	applicationv1alpha1 "github.com/redhat-appstudio/application-service/api/v1alpha1"
-	appstudiosharedv1 "github.com/redhat-appstudio/managed-gitops/appstudio-shared/apis/appstudio.redhat.com/v1alpha1"
+	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -143,13 +142,13 @@ func generatedBindingName(promotionRun *appstudiosharedv1.PromotionRun) string {
 	return strings.ToLower(promotionRun.Spec.Application + "-" + promotionRun.Spec.ManualPromotion.TargetEnvironment + "-generated-binding")
 }
 
-func buildComponentResource(name, componentName, appName string) applicationv1alpha1.Component {
-	return applicationv1alpha1.Component{
+func buildComponentResource(name, componentName, appName string) appstudiosharedv1.Component {
+	return appstudiosharedv1.Component{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      name,
 			Namespace: fixture.GitOpsServiceE2ENamespace,
 		},
-		Spec: applicationv1alpha1.ComponentSpec{
+		Spec: appstudiosharedv1.ComponentSpec{
 			ComponentName: componentName,
 			Application:   appName,
 		},

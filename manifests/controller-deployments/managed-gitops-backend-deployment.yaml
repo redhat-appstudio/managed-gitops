@@ -57,15 +57,15 @@ spec:
           httpGet:
             path: /readyz
             port: 18081
-          initialDelaySeconds: 120
+          initialDelaySeconds: 180
           periodSeconds: 30
         resources:
           limits:
-            cpu: 300m
-            memory: 1200Mi
+            cpu: 1000m
+            memory: 2400Mi
           requests:
-            cpu: 200m
-            memory: 600Mi
+            cpu: 300m
+            memory: 1000Mi
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true

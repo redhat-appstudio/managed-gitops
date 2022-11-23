@@ -156,6 +156,7 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 			expectedErr := "deployment name field is immutable: changing it from its initial value is not supported"
 			shutdownSignal, userDevErr := applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
 			Expect(userDevErr.DevError().Error()).Should(Equal(expectedErr))
+			Expect(userDevErr.UserError()).Should(Equal(expectedErr))
 			Expect(shutdownSignal).To(BeFalse())
 
 			By("verify if the field .spec.revisionID of GitOpsDeploymentSyncRun is immutable")
@@ -169,6 +170,7 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 			expectedErr = "deployment name field is immutable: changing it from its initial value is not supported"
 			shutdownSignal, userDevErr = applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
 			Expect(userDevErr.DevError().Error()).Should(Equal(expectedErr))
+			Expect(userDevErr.UserError()).Should(Equal(expectedErr))
 			Expect(shutdownSignal).To(BeFalse())
 		})
 

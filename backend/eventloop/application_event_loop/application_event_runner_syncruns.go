@@ -459,6 +459,18 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 
 }
 
+func (a *applicationEventLoopRunner_Action) handleDeletedGitOpsDeplSynRunEvent(ctx context.Context) {
+
+}
+
+func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSynRunEvent(ctx context.Context) {
+
+}
+
+func (a *applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplSynRunEvent(ctx context.Context) {
+
+}
+
 func (a *applicationEventLoopRunner_Action) cleanupOldSyncDBEntry(ctx context.Context, apiCRToDB *db.APICRToDatabaseMapping,
 	clusterUser db.ClusterUser, dbQueries db.ApplicationScopedQueries) error {
 

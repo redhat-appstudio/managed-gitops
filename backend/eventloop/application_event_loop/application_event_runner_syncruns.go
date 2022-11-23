@@ -32,12 +32,6 @@ func (action *applicationEventLoopRunner_Action) applicationEventRunner_handleSy
 
 	// TODO: GITOPSRVCE-44: If no user error (just dev error), then output generic error occurred
 
-	// if err == nil {
-	// 	return signalledShutdown, nil
-	// } else {
-	// 	return signalledShutdown, err.DevError()
-	// }
-
 	return signalledShutdown, err.DevError()
 
 }
@@ -341,6 +335,19 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			return signalledShutdown_false, gitopserrors.NewDevOnlyError(err)
 		}
 
+		application = &db.Application{Application_id: syncOperation.Application_id}
+		if err := dbQueries.GetApplicationById(ctx, application); err != nil {
+			log.Error(err, "unable to retrieve application, on sync run modified", "applicationId", string(syncOperation.Application_id))
+			return signalledShutdown_false, gitopserrors.NewDevOnlyError(err)
+		}
+
+		if gitopsEngineInstance, err = a.sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, application.Engine_instance_inst_id,
+			a.workspaceClient, namespace, a.log); err != nil {
+
+			log.Error(err, "unable to retrieve gitopsengineinstance, on sync run modified", "instanceId", string(application.Engine_instance_inst_id))
+			return signalledShutdown_false, gitopserrors.NewDevOnlyError(err)
+		}
+
 		dbOperationInput := db.Operation{
 			Instance_id:   gitopsEngineInstance.Gitopsengineinstance_id,
 			Resource_id:   syncOperation.SyncOperation_id,
@@ -375,7 +382,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			log.Error(err, "could not delete sync operation, when resource was deleted", "namespace", dbutil.GetGitOpsEngineSingleInstanceNamespace())
 			return signalledShutdown_false, gitopserrors.NewDevOnlyError(err)
 		} else {
-			log.Info("Sync Operation deleted with ID: ", syncOperation.SyncOperation_id)
+			log.Info("Sync Operation deleted", "syncOperationID", syncOperation.SyncOperation_id)
 		}
 
 		var allErrors error

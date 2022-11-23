@@ -32,11 +32,13 @@ func (action *applicationEventLoopRunner_Action) applicationEventRunner_handleSy
 
 	// TODO: GITOPSRVCE-44: If no user error (just dev error), then output generic error occurred
 
-	if err == nil {
-		return signalledShutdown, nil
-	} else {
-		return signalledShutdown, err.DevError()
-	}
+	// if err == nil {
+	// 	return signalledShutdown, nil
+	// } else {
+	// 	return signalledShutdown, err.DevError()
+	// }
+
+	return signalledShutdown, err.DevError()
 
 }
 
@@ -53,14 +55,11 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 
 	log := a.log
 
-	deplName := a.eventResourceName
-	deplNamespace := a.eventResourceNamespace
-
 	namespace := corev1.Namespace{}
 	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: a.eventResourceNamespace, Name: a.eventResourceNamespace}, &namespace); err != nil {
 		userError := fmt.Sprintf("unable to retrieve the contents of the namespace '%s' containing the API resource '%s'. Does it exist?",
-			deplNamespace, deplName)
-		devError := fmt.Errorf("unable to retrieve namespace '%s': %v", deplNamespace, err)
+			a.eventResourceNamespace, a.eventResourceName)
+		devError := fmt.Errorf("unable to retrieve namespace '%s': %v", a.eventResourceNamespace, err)
 		return signalledShutdown_false, gitopserrors.NewUserDevError(userError, devError)
 	}
 
@@ -114,6 +113,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		} else {
 			// Match found in database
 			apiCRToDBList = append(apiCRToDBList, mapping)
+			dbEntryExists = true
 		}
 
 	} else {
@@ -336,6 +336,10 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 
 		// 2) Update the state of the SyncOperation DB table to say that we want to terminate it, if it is runing
 		syncOperation.DesiredState = db.SyncOperation_DesiredState_Terminated
+		if err := dbQueries.UpdateSyncOperation(ctx, &syncOperation); err != nil {
+			log.Error(err, "unable to update the sync operation as terminated", "syncOperationID", syncOperation.SyncOperation_id)
+			return signalledShutdown_false, gitopserrors.NewDevOnlyError(err)
+		}
 
 		dbOperationInput := db.Operation{
 			Instance_id:   gitopsEngineInstance.Gitopsengineinstance_id,

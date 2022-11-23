@@ -180,6 +180,7 @@ type ApplicationScopedQueries interface {
 	CreateSyncOperation(ctx context.Context, obj *SyncOperation) error
 	GetSyncOperationById(ctx context.Context, syncOperation *SyncOperation) error
 	DeleteSyncOperationById(ctx context.Context, id string) (int, error)
+	UpdateSyncOperation(ctx context.Context, obj *SyncOperation) error
 
 	CreateApplication(ctx context.Context, obj *Application) error
 	CheckedCreateApplication(ctx context.Context, obj *Application, ownerId string) error

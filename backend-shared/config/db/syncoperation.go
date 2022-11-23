@@ -110,6 +110,34 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteSyncOperationById(ctx context.Contex
 	return deleteResult.RowsAffected(), nil
 }
 
+func (dbq *PostgreSQLDatabaseQueries) UpdateSyncOperation(ctx context.Context, obj *SyncOperation) error {
+
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
+		return err
+	}
+
+	if err := isEmptyValues("UpdateSyncOperation",
+		"syncoperation_id", obj.SyncOperation_id,
+		"application_id", obj.Application_id,
+		"deployment_name", obj.DeploymentNameField,
+		"revision", obj.Revision,
+		"desired_state", obj.DesiredState,
+	); err != nil {
+		return err
+	}
+
+	result, err := dbq.dbConnection.Model(obj).WherePK().Context(ctx).Update()
+	if err != nil {
+		return fmt.Errorf("error on updating SyncOperation: %v, %v", err, obj.SyncOperation_id)
+	}
+
+	if result.RowsAffected() != 1 {
+		return fmt.Errorf("unexpected number of rows affected: %d, %v", result.RowsAffected(), obj.SyncOperation_id)
+	}
+
+	return nil
+}
+
 // UpdateSyncOperationRemoveApplicationField locates any SyncOperations that reference 'applicationID', and sets the
 // applicationID field to nil.
 func (dbq *PostgreSQLDatabaseQueries) UpdateSyncOperationRemoveApplicationField(ctx context.Context, applicationId string) (int, error) {

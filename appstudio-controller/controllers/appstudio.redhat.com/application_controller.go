@@ -69,7 +69,9 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	var asApplication applicationv1alpha1.Application
 
-	if err := r.Client.Get(ctx, req.NamespacedName, &asApplication); err != nil {
+	rClient := sharedutil.IfEnabledSimulateUnreliableClient(r.Client)
+
+	if err := rClient.Get(ctx, req.NamespacedName, &asApplication); err != nil {
 
 		if apierrors.IsNotFound(err) {
 			// Application has been deleted, so ensure that GitOps deployment is deleted.

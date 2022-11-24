@@ -51,6 +51,7 @@ func GetControllerManager(ctx context.Context, cfg *rest.Config, log *logr.Logge
 	}
 
 	apiExportClient, err := client.New(cfg, client.Options{Scheme: scheme})
+	apiExportClient = IfEnabledSimulateUnreliableClient(apiExportClient)
 	if err != nil {
 		return nil, fmt.Errorf("error creating APIExport client: %w", err)
 	}

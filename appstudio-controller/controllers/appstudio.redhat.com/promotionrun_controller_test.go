@@ -3,6 +3,7 @@ package appstudioredhatcom
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -40,8 +41,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				err := tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
-			err = appstudiosharedv1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
 			err = appstudiosharedv1.AddToScheme(scheme)
 			Expect(err).To(BeNil())
 
@@ -282,6 +281,53 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{}
 			err = promotionRunReconciler.Get(ctx, types.NamespacedName{
 				Name:      createBindingName(promotionRun),
+				Namespace: promotionRun.Namespace,
+			}, binding)
+			Expect(err).To(BeNil())
+
+			Expect(binding.Labels).To(Equal(map[string]string{
+				"appstudio.application": promotionRun.Spec.Application,
+				"appstudio.environment": promotionRun.Spec.ManualPromotion.TargetEnvironment,
+			}))
+			Expect(binding.Spec.Application).To(Equal(promotionRun.Spec.Application))
+			Expect(binding.Spec.Environment).To(Equal(promotionRun.Spec.ManualPromotion.TargetEnvironment))
+			Expect(binding.Spec.Snapshot).To(Equal(promotionRun.Spec.Snapshot))
+			Expect(len(binding.Spec.Components)).To(Equal(2))
+			Expect(binding.Spec.Components[0].Name).To(Equal(component1.Spec.ComponentName))
+			Expect(binding.Spec.Components[1].Name).To(Equal(component2.Spec.ComponentName))
+		})
+
+		It("Should create a binding name no greater than 250 characters.", func() {
+			promotionRun.Spec.Application = strings.Repeat("a", 126)
+			promotionRun.Spec.ManualPromotion.TargetEnvironment = strings.Repeat("b", 126)
+			expectedBindingName := "generated-environment-binding-c0eb15050e88ad19f905700798974cca"
+
+			By("Testing createBindingName explicitly")
+
+			createdBindingName := createBindingName(promotionRun)
+			Expect(len(createdBindingName) <= 250).To(BeTrue())
+			Expect(createdBindingName).To(Equal(expectedBindingName))
+
+			By("Then testing the binding is actually created with the given name")
+
+			component1.Spec.Application = promotionRun.Spec.Application
+			err := promotionRunReconciler.Update(ctx, &component1)
+			Expect(err).To(BeNil())
+
+			component2.Spec.Application = promotionRun.Spec.Application
+			err = promotionRunReconciler.Update(ctx, &component2)
+			Expect(err).To(BeNil())
+
+			err = promotionRunReconciler.Create(ctx, promotionRun)
+			Expect(err).To(BeNil())
+
+			By("Trigger Reconciler.")
+			_, err = promotionRunReconciler.Reconcile(ctx, request)
+			Expect(err).To(BeNil())
+
+			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{}
+			err = promotionRunReconciler.Get(ctx, types.NamespacedName{
+				Name:      expectedBindingName,
 				Namespace: promotionRun.Namespace,
 			}, binding)
 			Expect(err).To(BeNil())

@@ -18,6 +18,8 @@ package appstudioredhatcom
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -133,7 +135,7 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// 1) Locate or create the binding that this PromotionRun is targeting
-	binding, err := locateOrCreateTargetManualBinding(ctx, *promotionRun, r.Client)
+	binding, err := locateOrCreateTargetManualBinding(ctx, *promotionRun, r.Client, log)
 	if err != nil {
 		log.Error(err, "error locating or creating Binding for PromotionRun: "+promotionRun.Name)
 		return ctrl.Result{}, nil
@@ -406,12 +408,12 @@ func checkForExistingActivePromotions(ctx context.Context, reconciledPromotionRu
 	return nil
 }
 
-func locateOrCreateTargetManualBinding(ctx context.Context, promotionRun appstudioshared.PromotionRun, k8sClient client.Client) (appstudioshared.SnapshotEnvironmentBinding, error) {
+func locateOrCreateTargetManualBinding(ctx context.Context, promotionRun appstudioshared.PromotionRun, k8sClient client.Client, log logr.Logger) (appstudioshared.SnapshotEnvironmentBinding, error) {
 
 	// Locate the corresponding binding
 
 	bindingList := appstudioshared.SnapshotEnvironmentBindingList{}
-	if err := k8sClient.List(ctx, &bindingList); err != nil {
+	if err := k8sClient.List(ctx, &bindingList, &client.ListOptions{Namespace: promotionRun.Namespace}); err != nil {
 		return appstudioshared.SnapshotEnvironmentBinding{}, fmt.Errorf("unable to list bindings: %v", err)
 	}
 
@@ -425,7 +427,7 @@ func locateOrCreateTargetManualBinding(ctx context.Context, promotionRun appstud
 	// Binding not found, so create it
 	components := []appstudioshared.BindingComponent{}
 	componentList := appstudioshared.ComponentList{}
-	if err := k8sClient.List(ctx, &componentList); err != nil {
+	if err := k8sClient.List(ctx, &componentList, &client.ListOptions{Namespace: promotionRun.Namespace}); err != nil {
 		return appstudioshared.SnapshotEnvironmentBinding{}, fmt.Errorf("unable to list components: %v", err)
 	}
 	for _, component := range componentList.Items {
@@ -458,12 +460,23 @@ func locateOrCreateTargetManualBinding(ctx context.Context, promotionRun appstud
 	if err != nil {
 		return appstudioshared.SnapshotEnvironmentBinding{}, err
 	}
+	sharedutil.LogAPIResourceChangeEvent(binding.Namespace, binding.Name, &binding, sharedutil.ResourceCreated, log)
+	log.Info("Created SnapshotEnvironmentBinding",
+		"application", promotionRun.Spec.Application,
+		"environment", promotionRun.Spec.ManualPromotion.TargetEnvironment)
 
 	return binding, nil
 }
 
 func createBindingName(promotionRun *appstudioshared.PromotionRun) string {
-	return strings.ToLower(promotionRun.Spec.Application + "-" + promotionRun.Spec.ManualPromotion.TargetEnvironment + "-generated-binding")
+	name := strings.ToLower(promotionRun.Spec.Application + "-" + promotionRun.Spec.ManualPromotion.TargetEnvironment + "-generated-binding")
+	if len(name) > 250 {
+		// 'suffix' will have a length of 32
+		hash := md5.Sum([]byte(name))
+		suffix := hex.EncodeToString(hash[:])
+		name = "generated-environment-binding-" + suffix
+	}
+	return name
 }
 
 // SetupWithManager sets up the controller with the Manager.

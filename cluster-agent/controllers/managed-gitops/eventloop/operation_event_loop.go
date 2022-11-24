@@ -935,32 +935,15 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 		}
 	}
 
-	bearerToken := clusterCredentials.Serviceaccount_bearer_token
-
-	name := argosharedutil.GenerateArgoCDClusterSecretName(*managedEnv)
-	insecureVerifyTLS := clusterCredentials.AllowInsecureSkipTLSVerify
-
-	clusterSecretConfigJSON := ClusterSecretConfigJSON{
-		BearerToken: bearerToken,
-		TLSClientConfig: ClusterSecretTLSClientConfigJSON{
-			Insecure: insecureVerifyTLS,
-		},
-	}
-
-	jsonString, err := json.Marshal(clusterSecretConfigJSON)
-	if err != nil {
-		return err
-	}
-
 	existingSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      expectedSecret.Name,
 			Namespace: expectedSecret.Namespace,
-		},
-		Data: map[string][]byte{
-			"name":   ([]byte)(name),
-			"server": ([]byte)(clusterCredentials.Host),
-			"config": jsonString,
+			// },
+			// Data: map[string][]byte{
+			// 	"name":   ([]byte)(name),
+			// 	"server": ([]byte)(clusterCredentials.Host),
+			// 	"config": jsonString,
 		},
 	}
 	if err := opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(existingSecret), existingSecret); err != nil {

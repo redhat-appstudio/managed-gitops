@@ -4,9 +4,8 @@ import (
 	"context"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/types"
-
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -390,9 +389,10 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			// Create again the CR
 			// Expected: Since there's no DB entry for the CR, it will create an operation
-			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, l)
+			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, false, l)
 			Expect(err).To(BeNil())
 			Expect(dbRepoCred).NotTo(BeNil())
+
 			var operationDB db.Operation
 			var operations []db.Operation
 
@@ -430,7 +430,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			// Re-running should not error
 			l.Info("Re-running the internalProcessMessage_ReconcileRepositoryCredential()")
-			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, l)
+			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, false, l)
 			Expect(err).To(BeNil())
 			Expect(dbRepoCred).NotTo(BeNil())
 
@@ -460,7 +460,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			err = dbq.UpdateRepositoryCredentials(ctx, dbRepoCred)
 			Expect(err).To(BeNil())
 
-			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, l)
+			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, false, l)
 			Expect(err).To(BeNil())
 			Expect(dbRepoCred).ToNot(BeNil())
 
@@ -490,7 +490,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			// Expected: Since there is no GitOpsDeploymentRepositoryCredential CR, it will delete the DB entry
 			err = k8sClient.Delete(ctx, cr)
 			Expect(err).To(BeNil())
-			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, l)
+			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, false, l)
 			Expect(err).To(BeNil())
 			Expect(dbRepoCred).To(BeNil())
 
@@ -513,7 +513,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			// Negative test: Try again to reconcile the RepositoryCredential
 			// Expected: It should not error (both db row and CR should be deleted). Nothing we can do.
-			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, l)
+			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, false, l)
 			Expect(err).To(BeNil())
 			Expect(dbRepoCred).To(BeNil())
 		})

@@ -2,6 +2,7 @@ package shared_resource_loop
 
 import (
 	"context"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -367,7 +368,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			var k8sClientFactory SRLK8sClientFactory
 
-			dbRepoCred, err := internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, l)
+			dbRepoCred, err := internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, false, l)
 
 			// Negative test (there is no Secret)
 			Expect(err).NotTo(BeNil())

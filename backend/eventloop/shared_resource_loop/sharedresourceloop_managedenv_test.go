@@ -449,36 +449,39 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(createRC.ManagedEnv).To(BeNil())
 
 		})
-		It("Tests whether the tlsConfig value from managedEnv gets maped correctly into the database", func() {
 
-			managedEnv, secret := buildManagedEnvironmentForSRL()
-			managedEnv.UID = "test-" + uuid.NewUUID()
-			managedEnv.Spec.AllowInsecureSkipTLSVerify = bool(managedgitopsv1alpha1.TLSVerifyStatusTrue)
-			secret.UID = "test-" + uuid.NewUUID()
-			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+		DescribeTable("Tests whether the tlsConfig value from managedEnv gets maped correctly into the database",
+			func(tlsVerifyStatus bool) {
+				managedEnv, secret := buildManagedEnvironmentForSRL()
+				managedEnv.UID = "test-" + uuid.NewUUID()
+				managedEnv.Spec.AllowInsecureSkipTLSVerify = tlsVerifyStatus
+				secret.UID = "test-" + uuid.NewUUID()
+				eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
 
-			err := k8sClient.Create(ctx, &managedEnv)
-			Expect(err).To(BeNil())
+				err := k8sClient.Create(ctx, &managedEnv)
+				Expect(err).To(BeNil())
 
-			err = k8sClient.Create(ctx, &secret)
-			Expect(err).To(BeNil())
+				err = k8sClient.Create(ctx, &secret)
+				Expect(err).To(BeNil())
 
-			By("first calling reconcile to create database entries for new managed env")
-			firstSrc, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
-				false, *namespace, mockFactory, dbQueries, log)
-			Expect(err).To(BeNil())
-			Expect(firstSrc.ManagedEnv).ToNot(BeNil())
+				By("first calling reconcile to create database entries for new managed env")
+				firstSrc, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+					false, *namespace, mockFactory, dbQueries, log)
+				Expect(err).To(BeNil())
+				Expect(firstSrc.ManagedEnv).ToNot(BeNil())
 
-			getClusterCredentials := firstSrc.ManagedEnv.Clustercredentials_id
-			clusterCreds := &db.ClusterCredentials{Clustercredentials_cred_id: getClusterCredentials}
-			err = dbQueries.GetClusterCredentialsById(ctx, clusterCreds)
-			Expect(err).To(BeNil())
+				getClusterCredentials := firstSrc.ManagedEnv.Clustercredentials_id
+				clusterCreds := &db.ClusterCredentials{Clustercredentials_cred_id: getClusterCredentials}
+				err = dbQueries.GetClusterCredentialsById(ctx, clusterCreds)
+				Expect(err).To(BeNil())
 
-			Expect(managedEnv.Spec.AllowInsecureSkipTLSVerify).To(Equal(clusterCreds.AllowInsecureSkipTLSVerify))
-
-		})
-
+				Expect(managedEnv.Spec.AllowInsecureSkipTLSVerify).To(Equal(clusterCreds.AllowInsecureSkipTLSVerify))
+			},
+			Entry("TLS status set TRUE", bool(managedgitopsv1alpha1.TLSVerifyStatusTrue)),
+			Entry("TLS status set FALSE", bool(managedgitopsv1alpha1.TLSVerifyStatusFalse)),
+		)
 	})
+
 })
 
 // verifyOperationCRsExist verifies there exists an Operation resource in the Argo CD namespace, for each row in 'expectedOperationRows' param.

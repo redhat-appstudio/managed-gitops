@@ -779,7 +779,7 @@ func verifyClusterCredentials(ctx context.Context, clusterCreds db.ClusterCreden
 		BearerToken: clusterCreds.Serviceaccount_bearer_token,
 	}
 
-	configParam.Insecure = clusterCreds.AllowInsecureSkipTLSVerify // TODO: GITOPSRVCE-178: Once we have TLS validation enabled, the TLS validation value should be used here.
+	configParam.Insecure = clusterCreds.AllowInsecureSkipTLSVerify
 
 	configParam.ServerName = ""
 

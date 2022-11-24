@@ -72,7 +72,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if err := r.Client.Get(ctx, req.NamespacedName, &asApplication); err != nil {
 
 		if apierrors.IsNotFound(err) {
-			// A) Application has been deleted, so ensure that GitOps deployment is deleted.
+			// Application has been deleted, so ensure that GitOps deployment is deleted.
 			err := processDeleteGitOpsDeployment(ctx, req, r.Client, log)
 			return ctrl.Result{}, err
 
@@ -82,10 +82,9 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	}
 
-	// Moved the code which was creating GitopsDeployment CR to `GitOpsDeploymentCreation` function
-	// to disable the logic which create a GitOpsDeployment for every AppStudio Application
-
-	return ctrl.Result{}, nil
+	// gitOpsDeploymentCreation consists of code that creates a GitOpsDeployment for each AppStudio Application resource.
+	// We plan to deprecate/remove this function once the Environment API logic is fully in place.
+	return gitOpsDeploymentCreation(asApplication, ctx, req, r.Client, log)
 }
 
 // processDeleteGitOpsDeployment deletes the GitOpsDeployment that corresponds to req
@@ -289,8 +288,8 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// gitOpsDeploymentCreation consits of gitopsDeployment creation code to disable appstudio logic which create a GitOpsDeployment for every AppStudio Application by adding the logic in this function
-// and this function `GitOpsDeploymentCreation` will exist, but nothing should call it, Will remove this logic completely once requirement is fullfilled
+// gitOpsDeploymentCreation consists of code that creates a GitOpsDeployment for each AppStudio Application resource.
+// We plan to deprecate/remove this function once the Environment API logic is fully in place.
 // nolint
 func gitOpsDeploymentCreation(asApplication applicationv1alpha1.Application, ctx context.Context, req ctrl.Request, k8sClient client.Client, log logr.Logger) (ctrl.Result, error) {
 	// Convert the app name to corresponding GitOpsDeployment name, ensuring that the GitOpsDeployment name fits within 64 chars
@@ -306,7 +305,7 @@ func gitOpsDeploymentCreation(asApplication applicationv1alpha1.Application, ctx
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsDeployment), gitopsDeployment); err != nil {
 
 		if apierrors.IsNotFound(err) {
-			// B) GitOpsDeployment doesn't exist, but Application does, so create the GitOpsDeployment
+			// A) GitOpsDeployment doesn't exist, but Application does, so create the GitOpsDeployment
 
 			// Sanity check the application before we do anything more with it
 			if err := validateApplication(asApplication); err != nil {
@@ -323,7 +322,7 @@ func gitOpsDeploymentCreation(asApplication applicationv1alpha1.Application, ctx
 		}
 	}
 
-	// C) GitOpsDeployment exists, and Application exists, so check if they differ. If so, update the old one.
+	// B) GitOpsDeployment exists, and Application exists, so check if they differ. If so, update the old one.
 
 	// Sanity check the application before we do anything more with it
 	if err := validateApplication(asApplication); err != nil {
@@ -337,7 +336,7 @@ func gitOpsDeploymentCreation(asApplication applicationv1alpha1.Application, ctx
 	}
 
 	if reflect.DeepEqual(gopFromApplication.Spec, gitopsDeployment.Spec) {
-		// D) Both exist, but there is no different, so no-op.
+		// C) Both exist, but there is no different, so no-op.
 		log.V(sharedutil.LogLevel_Debug).Info(fmt.Sprintf("GitOpsDeployment '%s' is unchanged from Application, so did not require an update.",
 			gitopsDeployment.Namespace+"/"+gitopsDeployment.Name))
 

@@ -56,6 +56,8 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 	log := log.FromContext(ctx).WithValues("request", req)
 
+	rClient := sharedutil.IfEnabledSimulateUnreliableClient(r.Client)
+
 	// The goal of this function is to ensure that if an Environment exists, and that Environment
 	// has the 'kubernetesCredentials' field defined, that a corresponding
 	// GitOpsDeploymentManagedEnvironment exists (and is up-to-date).
@@ -65,7 +67,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			Namespace: req.Namespace,
 		},
 	}
-	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(environment), environment); err != nil {
+	if err := rClient.Get(ctx, client.ObjectKeyFromObject(environment), environment); err != nil {
 
 		if apierr.IsNotFound(err) {
 			log.Info("Environment resource no longer exists")
@@ -77,7 +79,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, fmt.Errorf("unable to retrieve Environment: %v", err)
 	}
 
-	desiredManagedEnv, err := generateDesiredResource(ctx, *environment, r.Client)
+	desiredManagedEnv, err := generateDesiredResource(ctx, *environment, rClient)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to generate expected GitOpsDeploymentManagedEnvironment resource: %v", err)
 	}
@@ -86,13 +88,13 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	currentManagedEnv := generateEmptyManagedEnvironment(environment.Name, environment.Namespace)
-	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&currentManagedEnv), &currentManagedEnv); err != nil {
+	if err := rClient.Get(ctx, client.ObjectKeyFromObject(&currentManagedEnv), &currentManagedEnv); err != nil {
 
 		if apierr.IsNotFound(err) {
 			// B) The GitOpsDeploymentManagedEnvironment doesn't exist, so needs to be created.
 
 			log.Info("Creating GitOpsDeploymentManagedEnvironment", "managedEnv", desiredManagedEnv.Name)
-			if err := r.Client.Create(ctx, desiredManagedEnv); err != nil {
+			if err := rClient.Create(ctx, desiredManagedEnv); err != nil {
 				return ctrl.Result{}, fmt.Errorf("unable to create new GitOpsDeploymentManagedEnvironment: %v", err)
 			}
 			sharedutil.LogAPIResourceChangeEvent(desiredManagedEnv.Namespace, desiredManagedEnv.Name, desiredManagedEnv, sharedutil.ResourceCreated, log)
@@ -118,7 +120,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// Update the current object to the desired state
 	currentManagedEnv.Spec = desiredManagedEnv.Spec
 
-	if err := r.Client.Update(ctx, &currentManagedEnv); err != nil {
+	if err := rClient.Update(ctx, &currentManagedEnv); err != nil {
 		return ctrl.Result{},
 			fmt.Errorf("unable to update existing GitOpsDeploymentManagedEnvironment '%s': %v", currentManagedEnv.Name, err)
 	}

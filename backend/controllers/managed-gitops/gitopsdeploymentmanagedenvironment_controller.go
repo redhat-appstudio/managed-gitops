@@ -57,12 +57,14 @@ func (r *GitOpsDeploymentManagedEnvironmentReconciler) Reconcile(ctx context.Con
 	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 	_ = log.FromContext(ctx)
 
+	rClient := sharedutil.IfEnabledSimulateUnreliableClient(r.Client)
+
 	namespace := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: req.Namespace,
 		},
 	}
-	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&namespace), &namespace); err != nil {
+	if err := rClient.Get(ctx, client.ObjectKeyFromObject(&namespace), &namespace); err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to retrieve namespace: %v", err)
 	}
 
@@ -70,11 +72,11 @@ func (r *GitOpsDeploymentManagedEnvironmentReconciler) Reconcile(ctx context.Con
 
 	// Attempt to retrieve the request as a Secret; if it's not a secret, just pass the event as is.
 	secret := &corev1.Secret{}
-	if err := r.Client.Get(ctx, req.NamespacedName, secret); err == nil && secret != nil {
+	if err := rClient.Get(ctx, req.NamespacedName, secret); err == nil && secret != nil {
 		if secret.Type == sharedutil.ManagedEnvironmentSecretType {
 
 			// Locate any managed environments that reference this Secret, in the same Namespace
-			managedEnvList, err := processSecret(ctx, *secret, r.Client)
+			managedEnvList, err := processSecret(ctx, *secret, rClient)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("unable to process secret resource: %v", err)
 			}
@@ -100,7 +102,7 @@ func (r *GitOpsDeploymentManagedEnvironmentReconciler) Reconcile(ctx context.Con
 
 	for idx := range requestsToProcess {
 		requestToProcess := requestsToProcess[idx]
-		r.PreprocessEventLoopProcessor.callPreprocessEventLoopForManagedEnvironment(requestToProcess, r.Client, namespace)
+		r.PreprocessEventLoopProcessor.callPreprocessEventLoopForManagedEnvironment(requestToProcess, rClient, namespace)
 
 	}
 

@@ -657,6 +657,7 @@ func (DefaultK8sClientFactory) GetK8sClientForServiceWorkspace() (client.Client,
 
 func (DefaultK8sClientFactory) BuildK8sClient(restConfig *rest.Config) (client.Client, error) {
 	k8sClient, err := client.New(restConfig, client.Options{Scheme: scheme.Scheme})
+	k8sClient = sharedutil.IfEnabledSimulateUnreliableClient(k8sClient)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create k8s client from RESTConfig: %v", err)
 	}

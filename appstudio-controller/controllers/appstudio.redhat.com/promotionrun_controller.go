@@ -78,7 +78,9 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	defer log.V(sharedutil.LogLevel_Debug).Info("Promotion Run Reconcile() complete.")
 	promotionRun := &appstudioshared.PromotionRun{}
 
-	if err := r.Client.Get(ctx, req.NamespacedName, promotionRun); err != nil {
+	rClient := sharedutil.IfEnabledSimulateUnreliableClient(r.Client)
+
+	if err := rClient.Get(ctx, req.NamespacedName, promotionRun); err != nil {
 		if apierr.IsNotFound(err) {
 			// Nothing more to do!
 			log.Error(err, "No PromotionRun exists in Namespace: "+req.Namespace)
@@ -95,11 +97,11 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	if err := checkForExistingActivePromotions(ctx, *promotionRun, r.Client); err != nil {
+	if err := checkForExistingActivePromotions(ctx, *promotionRun, rClient); err != nil {
 		log.Error(err, "Error occurred while checking for existing active promotions for: "+promotionRun.Name)
 
 		// Update Status.Conditions field.
-		if err = updateStatusConditions(ctx, r.Client, "Error occurred while checking for existing active promotions.", promotionRun, appstudioshared.PromotionRunConditionErrorOccurred,
+		if err = updateStatusConditions(ctx, rClient, "Error occurred while checking for existing active promotions.", promotionRun, appstudioshared.PromotionRunConditionErrorOccurred,
 			appstudioshared.PromotionRunConditionStatusTrue, appstudioshared.PromotionRunReasonErrorOccurred); err != nil {
 			log.Error(err, "unable to update PromotionRun status conditions.")
 			return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun status conditions %v", err)
@@ -113,7 +115,7 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		log.Error(nil, ErrMessageAutomatedPromotionNotSupported+" : "+promotionRun.Name)
 
 		// Update Status.Conditions field.
-		if err := updateStatusConditions(ctx, r.Client, ErrMessageAutomatedPromotionNotSupported, promotionRun, appstudioshared.PromotionRunConditionErrorOccurred,
+		if err := updateStatusConditions(ctx, rClient, ErrMessageAutomatedPromotionNotSupported, promotionRun, appstudioshared.PromotionRunConditionErrorOccurred,
 			appstudioshared.PromotionRunConditionStatusTrue, appstudioshared.PromotionRunReasonErrorOccurred); err != nil {
 			log.Error(err, "unable to update PromotionRun status conditions.")
 			return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun status conditions %v", err)
@@ -126,7 +128,7 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		log.Error(nil, ErrMessageTargetEnvironmentHasInvalidValue+" : "+promotionRun.Name)
 
 		// Update Status.Conditions field.
-		if err := updateStatusConditions(ctx, r.Client, ErrMessageTargetEnvironmentHasInvalidValue, promotionRun, appstudioshared.PromotionRunConditionErrorOccurred,
+		if err := updateStatusConditions(ctx, rClient, ErrMessageTargetEnvironmentHasInvalidValue, promotionRun, appstudioshared.PromotionRunConditionErrorOccurred,
 			appstudioshared.PromotionRunConditionStatusTrue, appstudioshared.PromotionRunReasonErrorOccurred); err != nil {
 			log.Error(err, "unable to update PromotionRun status conditions.")
 			return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun status conditions %v", err)
@@ -144,7 +146,7 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if promotionRun.Status.State != appstudioshared.PromotionRunState_Active {
 		promotionRun.Status.State = appstudioshared.PromotionRunState_Active
 
-		if err := r.Client.Status().Update(ctx, promotionRun); err != nil {
+		if err := rClient.Status().Update(ctx, promotionRun); err != nil {
 			log.Error(err, "unable to update PromotionRun state: "+promotionRun.Name)
 			return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun state: %v", err)
 		}
@@ -163,7 +165,7 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 					"after being created. old-binding: " + existingActiveBinding + ", new-binding: " + binding.Name
 
 				// Update Status.Conditions field.
-				if err = updateStatusConditions(ctx, r.Client, message, promotionRun, appstudioshared.PromotionRunConditionErrorOccurred,
+				if err = updateStatusConditions(ctx, rClient, message, promotionRun, appstudioshared.PromotionRunConditionErrorOccurred,
 					appstudioshared.PromotionRunConditionStatusTrue, appstudioshared.PromotionRunReasonErrorOccurred); err != nil {
 					log.Error(err, "unable to update PromotionRun status conditions.")
 					return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun status conditions %v", err)
@@ -181,12 +183,12 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		},
 	}
 
-	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&snapshot), &snapshot); err != nil {
+	if err := rClient.Get(ctx, client.ObjectKeyFromObject(&snapshot), &snapshot); err != nil {
 		if apierr.IsNotFound(err) {
 			log.Error(err, "Snapshot: "+snapshot.Name+" referred in Binding: "+binding.Name+" does not exist.")
 
 			// Update Status.Conditions field.
-			if err = updateStatusConditions(ctx, r.Client, "Snapshot: "+snapshot.Name+" referred in Binding: "+binding.Name+" does not exist.",
+			if err = updateStatusConditions(ctx, rClient, "Snapshot: "+snapshot.Name+" referred in Binding: "+binding.Name+" does not exist.",
 				promotionRun, appstudioshared.PromotionRunConditionErrorOccurred, appstudioshared.PromotionRunConditionStatusTrue, appstudioshared.PromotionRunReasonErrorOccurred); err != nil {
 				log.Error(err, "unable to update PromotionRun status conditions.")
 				return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun status conditions %v", err)
@@ -197,7 +199,7 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			log.Error(err, "unable to retrieve Snapshot: "+snapshot.Name)
 
 			// Update Status.Conditions field.
-			if err = updateStatusConditions(ctx, r.Client, "unable to retrieve Snapshot: "+snapshot.Name,
+			if err = updateStatusConditions(ctx, rClient, "unable to retrieve Snapshot: "+snapshot.Name,
 				promotionRun, appstudioshared.PromotionRunConditionErrorOccurred, appstudioshared.PromotionRunConditionStatusTrue, appstudioshared.PromotionRunReasonErrorOccurred); err != nil {
 				log.Error(err, "unable to update PromotionRun status conditions.")
 				return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun status conditions %v", err)
@@ -212,11 +214,11 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 		binding.Spec.Snapshot = promotionRun.Spec.Snapshot
 
-		if err := r.Client.Update(ctx, &binding); err != nil {
+		if err := rClient.Update(ctx, &binding); err != nil {
 			log.Error(err, "unable to update Binding: "+binding.Name)
 
 			// Update Status.Conditions field.
-			if err = updateStatusConditions(ctx, r.Client, "unable to update Binding: "+binding.Name,
+			if err = updateStatusConditions(ctx, rClient, "unable to update Binding: "+binding.Name,
 				promotionRun, appstudioshared.PromotionRunConditionErrorOccurred, appstudioshared.PromotionRunConditionStatusTrue, appstudioshared.PromotionRunReasonErrorOccurred); err != nil {
 				log.Error(err, "unable to update PromotionRun status conditions.")
 				return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun status conditions %v", err)
@@ -234,11 +236,11 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 
 		promotionRun.Status.ActiveBindings = []string{binding.Name}
-		if err := r.Client.Status().Update(ctx, promotionRun); err != nil {
+		if err := rClient.Status().Update(ctx, promotionRun); err != nil {
 			log.Error(err, "unable to update PromotionRun active binding: "+promotionRun.Name)
 
 			// Update Status.Conditions field.
-			if err = updateStatusConditions(ctx, r.Client, "unable to update PromotionRun active binding.",
+			if err = updateStatusConditions(ctx, rClient, "unable to update PromotionRun active binding.",
 				promotionRun, appstudioshared.PromotionRunConditionErrorOccurred, appstudioshared.PromotionRunConditionStatusTrue, appstudioshared.PromotionRunReasonErrorOccurred); err != nil {
 				log.Error(err, "unable to update PromotionRun status conditions.")
 				return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun status conditions %v", err)
@@ -252,7 +254,7 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// 3) Wait for the environment binding to create all of the expected GitOpsDeployments
 	if len(binding.Status.GitOpsDeployments) != len(binding.Spec.Components) {
 		// Update Status.Environment.Status field.
-		if err = updateStatusEnvironmentStatus(ctx, r.Client, "Waiting for the environment binding to create all of the expected GitOpsDeployments.",
+		if err = updateStatusEnvironmentStatus(ctx, rClient, "Waiting for the environment binding to create all of the expected GitOpsDeployments.",
 			promotionRun, appstudioshared.PromotionRunEnvironmentStatus_InProgress, log); err != nil {
 			log.Error(err, "unable to update PromotionRun environment status: "+promotionRun.Name)
 			return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun environment status %v", err)
@@ -272,11 +274,11 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				Namespace: binding.Namespace,
 			},
 		}
-		if err := r.Client.Get(ctx, client.ObjectKeyFromObject(gitopsDeployment), gitopsDeployment); err != nil {
+		if err := rClient.Get(ctx, client.ObjectKeyFromObject(gitopsDeployment), gitopsDeployment); err != nil {
 			log.Error(err, "unable to retrieve GitOpsDeployment: "+gitopsDeployment.Name)
 
 			// Update Status.Conditions field.
-			if err = updateStatusConditions(ctx, r.Client, "unable to retrieve GitOpsDeployment: "+gitopsDeployment.Name,
+			if err = updateStatusConditions(ctx, rClient, "unable to retrieve GitOpsDeployment: "+gitopsDeployment.Name,
 				promotionRun, appstudioshared.PromotionRunConditionErrorOccurred, appstudioshared.PromotionRunConditionStatusTrue, appstudioshared.PromotionRunReasonErrorOccurred); err != nil {
 				log.Error(err, "unable to update PromotionRun status conditions.")
 				return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun status conditions %v", err)
@@ -290,7 +292,7 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			promotionRun.Status.State = appstudioshared.PromotionRunState_Waiting
 
 			// Update Status.Environment.Status field.
-			if err = updateStatusEnvironmentStatus(ctx, r.Client, "waiting for GitOpsDeployments to get in Sync/Healthy.",
+			if err = updateStatusEnvironmentStatus(ctx, rClient, "waiting for GitOpsDeployments to get in Sync/Healthy.",
 				promotionRun, appstudioshared.PromotionRunEnvironmentStatus_InProgress, log); err != nil {
 				log.Error(err, "unable to update PromotionRun environment status: "+promotionRun.Name)
 				return ctrl.Result{}, fmt.Errorf("unable to update promotionRun %v", err)
@@ -316,7 +318,7 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Check time limit set for PromotionRun reconcilation, fail if the conditions aren't met in the given time frame.
-	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(promotionRun), promotionRun); err != nil {
+	if err := rClient.Get(ctx, client.ObjectKeyFromObject(promotionRun), promotionRun); err != nil {
 		log.Error(err, "unable to retrieve promotionRun: "+promotionRun.Name)
 		return ctrl.Result{}, fmt.Errorf("unable to retrieve promotionRun '%s', %v", promotionRun.Name, err)
 	}
@@ -327,7 +329,7 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		promotionRun.Status.State = appstudioshared.PromotionRunState_Complete
 
 		// Update Status.Environment.Status field.
-		if err = updateStatusEnvironmentStatus(ctx, r.Client, fmt.Sprintf("Promotion Failed. Could not be completed in %d Minutes.", PromotionRunTimeOutLimit),
+		if err = updateStatusEnvironmentStatus(ctx, rClient, fmt.Sprintf("Promotion Failed. Could not be completed in %d Minutes.", PromotionRunTimeOutLimit),
 			promotionRun, appstudioshared.PromotionRunEnvironmentStatus_Failed, log); err != nil {
 			log.Error(err, "unable to update PromotionRun environment status: "+promotionRun.Name)
 			return ctrl.Result{}, fmt.Errorf("unable to update promotionRun %v", err)
@@ -341,14 +343,14 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		promotionRun.Status.State = appstudioshared.PromotionRunState_Waiting
 
 		// Update Status.Environment.Status field.
-		if err = updateStatusEnvironmentStatus(ctx, r.Client, "Waiting for following GitOpsDeployments to be Synced/Healthy: "+strings.Join(waitingGitOpsDeployments[:], ", "),
+		if err = updateStatusEnvironmentStatus(ctx, rClient, "Waiting for following GitOpsDeployments to be Synced/Healthy: "+strings.Join(waitingGitOpsDeployments[:], ", "),
 			promotionRun, appstudioshared.PromotionRunEnvironmentStatus_InProgress, log); err != nil {
 			log.Error(err, "unable to update PromotionRun environment status: "+promotionRun.Name)
 			return ctrl.Result{}, fmt.Errorf("unable to update promotionRun %v", err)
 		}
 
 		// set ErrorOccurred condition to false:
-		if err = updateStatusConditions(ctx, r.Client, "", promotionRun, appstudioshared.PromotionRunConditionErrorOccurred,
+		if err = updateStatusConditions(ctx, rClient, "", promotionRun, appstudioshared.PromotionRunConditionErrorOccurred,
 			appstudioshared.PromotionRunConditionStatusFalse, ""); err != nil {
 			log.Error(err, "unable to update PromotionRun status conditions.")
 			return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun status conditions %v", err)
@@ -363,14 +365,14 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	promotionRun.Status.ActiveBindings = []string{binding.Name}
 
 	// Update Status.Environment.Status field.
-	if err = updateStatusEnvironmentStatus(ctx, r.Client, StatusMessageAllGitOpsDeploymentsAreSyncedHealthy,
+	if err = updateStatusEnvironmentStatus(ctx, rClient, StatusMessageAllGitOpsDeploymentsAreSyncedHealthy,
 		promotionRun, appstudioshared.PromotionRunEnvironmentStatus_Success, log); err != nil {
 		log.Error(err, "unable to update PromotionRun environment status: "+promotionRun.Name)
 		return ctrl.Result{}, fmt.Errorf("unable to update promotionRun %v", err)
 	}
 
 	// set ErrorOccurred condition to false
-	if err = updateStatusConditions(ctx, r.Client, "", promotionRun, appstudioshared.PromotionRunConditionErrorOccurred,
+	if err = updateStatusConditions(ctx, rClient, "", promotionRun, appstudioshared.PromotionRunConditionErrorOccurred,
 		appstudioshared.PromotionRunConditionStatusFalse, ""); err != nil {
 		log.Error(err, "unable to update PromotionRun status conditions.")
 		return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun status conditions %v", err)

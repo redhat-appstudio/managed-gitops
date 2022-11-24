@@ -213,7 +213,9 @@ func GetK8sClientForServiceWorkspace() (client.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	k8sClient, err := client.New(config, client.Options{Scheme: scheme})
+	k8sClient = sharedutil.IfEnabledSimulateUnreliableClient(k8sClient)
 	if err != nil {
 		return nil, err
 	}

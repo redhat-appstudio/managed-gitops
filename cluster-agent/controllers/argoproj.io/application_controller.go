@@ -66,6 +66,8 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	defer log.V(sharedutil.LogLevel_Debug).Info("Application Reconcile() complete.")
 
+	rClient := sharedutil.IfEnabledSimulateUnreliableClient(r.Client)
+
 	// TODO: GITOPSRVCE-68 - PERF - this is single-threaded only
 
 	// 1) Retrieve the Application CR using the request vals
@@ -98,7 +100,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 			adt := applicationDeleteTask{
 				applicationCR: app,
-				client:        r.Client,
+				client:        rClient,
 				log:           log,
 			}
 

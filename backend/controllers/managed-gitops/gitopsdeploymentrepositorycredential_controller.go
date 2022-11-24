@@ -53,16 +53,18 @@ func (r *GitOpsDeploymentRepositoryCredentialReconciler) Reconcile(ctx context.C
 	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 	_ = log.FromContext(ctx)
 
+	rClient := sharedutil.IfEnabledSimulateUnreliableClient(r.Client)
+
 	namespace := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: req.Namespace,
 		},
 	}
-	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&namespace), &namespace); err != nil {
+	if err := rClient.Get(ctx, client.ObjectKeyFromObject(&namespace), &namespace); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	r.PreprocessEventLoop.EventReceived(req, eventlooptypes.GitOpsDeploymentRepositoryCredentialTypeName, r.Client,
+	r.PreprocessEventLoop.EventReceived(req, eventlooptypes.GitOpsDeploymentRepositoryCredentialTypeName, rClient,
 		eventlooptypes.RepositoryCredentialModified, string(namespace.UID))
 
 	return ctrl.Result{}, nil

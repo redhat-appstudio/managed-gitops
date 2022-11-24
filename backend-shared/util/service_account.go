@@ -261,6 +261,8 @@ func generateClientFromClusterServiceAccount(configParam *rest.Config, bearerTok
 	newConfig.BearerToken = bearerToken
 
 	clientObj, err := client.New(&newConfig, client.Options{Scheme: scheme.Scheme})
+	clientObj = IfEnabledSimulateUnreliableClient(clientObj)
+
 	if err != nil {
 		return nil, err
 	}

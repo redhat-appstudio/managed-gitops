@@ -15,47 +15,29 @@ var (
 )
 
 func (dbq *PostgreSQLDatabaseQueries) CreateRepositoryCredentials(ctx context.Context, obj *RepositoryCredentials) error {
-
-	fmt.Println("DEBUG: CreateRepositoryCredentials")
-	fmt.Println("-----------------------------")
-	fmt.Println("obj.RepositoryCredentialsID: ", obj.RepositoryCredentialsID)
-	fmt.Println("&obj.RepositoryCredentialsID: ", &obj.RepositoryCredentialsID)
-	fmt.Println("dbq.allowTestUuids: ", dbq.allowTestUuids)
-
 	if dbq.allowTestUuids {
 		if IsEmpty(obj.RepositoryCredentialsID) {
 			obj.RepositoryCredentialsID = "test-" + generateUuid()
 		}
 	} else {
 		if !IsEmpty(obj.RepositoryCredentialsID) {
-			fmt.Println("ERROR: obj.RepositoryCredentialsID is not empty")
 			return fmt.Errorf("primary key should be empty")
 		}
 
 		obj.RepositoryCredentialsID = generateUuid()
-		fmt.Println("obj.RepositoryCredentialsID: ", obj.RepositoryCredentialsID)
-
 	}
 
-	fmt.Println("Checking for empty values")
 	if err := obj.hasEmptyValues("RepositoryCredentialsID"); err != nil {
-		fmt.Println("ERROR: obj.hasEmptyValues")
 		return err
 	}
-	fmt.Println("No empty values")
 
-	fmt.Println("Inserting into database")
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
-		fmt.Println("ERROR: dbq.dbConnection.Model(obj).Context(ctx).Insert()")
-		fmt.Println(err)
 		return fmt.Errorf("%v: %w", errCreateRepositoryCredentials, err)
 	}
 	if result.RowsAffected() != 1 {
-		fmt.Println("ERROR: result.RowsAffected() != 1")
 		return fmt.Errorf("%w: %d", errRowsAffected, result.RowsAffected())
 	}
-	fmt.Println("Inserted into database")
 	return nil
 }
 

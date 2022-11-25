@@ -408,7 +408,7 @@ func checkForExistingActivePromotions(ctx context.Context, reconciledPromotionRu
 	return nil
 }
 
-func locateOrCreateTargetManualBinding(ctx context.Context, promotionRun appstudioshared.PromotionRun, k8sClient client.Client, log logr.Logger) (appstudioshared.SnapshotEnvironmentBinding, error) {
+func locateOrCreateTargetManualBinding(ctx context.Context, promotionRun appstudioshared.PromotionRun, k8sClient client.Client, logger logr.Logger) (appstudioshared.SnapshotEnvironmentBinding, error) {
 
 	// Locate the corresponding binding
 
@@ -460,8 +460,8 @@ func locateOrCreateTargetManualBinding(ctx context.Context, promotionRun appstud
 	if err != nil {
 		return appstudioshared.SnapshotEnvironmentBinding{}, err
 	}
-	sharedutil.LogAPIResourceChangeEvent(binding.Namespace, binding.Name, &binding, sharedutil.ResourceCreated, log)
-	log.Info("Created SnapshotEnvironmentBinding",
+	sharedutil.LogAPIResourceChangeEvent(binding.Namespace, binding.Name, &binding, sharedutil.ResourceCreated, logger)
+	logger.Info("Created SnapshotEnvironmentBinding",
 		"application", promotionRun.Spec.Application,
 		"environment", promotionRun.Spec.ManualPromotion.TargetEnvironment)
 

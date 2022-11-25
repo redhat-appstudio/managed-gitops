@@ -495,18 +495,18 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 	gitopsDeploymentRepositoryCredentialCR := &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{}
 
 	// 1) Attempt to get the gitopsDeploymentRepositoryCredentialCR from the namespace
-	l.Info("Attempting to get the CR")
+	l.V(sharedutil.LogLevel_Debug).Info("Attempting to get the CR")
 	if err := apiNamespaceClient.Get(ctx, types.NamespacedName{Namespace: resourceNS, Name: repositoryCredentialCRName},
 		gitopsDeploymentRepositoryCredentialCR); err != nil {
 
-		l.Info("Error getting the CR")
+		l.V(sharedutil.LogLevel_Debug).Info("Error getting the CR")
 
 		if apierr.IsNotFound(err) {
-			l.Info("CR not found")
+			l.V(sharedutil.LogLevel_Debug).Info("CR not found")
 			gitopsDeploymentRepositoryCredentialCR = nil
 
 		} else {
-			l.Info("Some other error with the CR")
+			l.V(sharedutil.LogLevel_Debug).Info("Some other error with the CR")
 
 			// Something went wrong, retry
 			l.WithValues("Error", err, "DebugErr", errGenericCR, "CR Name", repositoryCredentialCRName, "Namespace", resourceNS)
@@ -517,12 +517,12 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 
 		}
 	} else {
-		l.Info("CR found")
+		l.V(sharedutil.LogLevel_Debug).Info("CR found")
 	}
 
 	// 2) Look for any APICRToDBMappings that point(ed) to a K8s resource with the same name and namespace
 	// as this GitOpsDeploymentRespositoryCredential
-	l.Info("Look for DB Row if this exists")
+	l.V(sharedutil.LogLevel_Debug).Info("Look for DB Row if this exists")
 
 	var apiCRToDBMappingList []db.APICRToDatabaseMapping
 	if err := dbQueries.ListAPICRToDatabaseMappingByAPINamespaceAndName(
@@ -544,7 +544,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 
 	// 3) Identify APICRToDBMappings that refer to K8s resources that no longer exist, and find the DTAM that
 	// refers to the resource we got the request for.
-	l.Info("Identify APICRToDBMappings that refer to K8s resources that no longer exist, and find the DTAM that refers to the resource we got the request for.")
+	l.V(sharedutil.LogLevel_Debug).Info("Identify APICRToDBMappings that refer to K8s resources that no longer exist, and find the DTAM that refers to the resource we got the request for.")
 	for idx := range apiCRToDBMappingList {
 
 		apiCRToDBMapping := apiCRToDBMappingList[idx]
@@ -552,17 +552,17 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 		if gitopsDeploymentRepositoryCredentialCR != nil &&
 			apiCRToDBMapping.APIResourceUID == string(gitopsDeploymentRepositoryCredentialCR.UID) {
 
-			l.Info("Found the APICRToDBMapping for this CR")
+			l.V(sharedutil.LogLevel_Debug).Info("Found the APICRToDBMapping for this CR")
 			currentAPICRToDBMapping = &apiCRToDBMapping
 		} else {
-			l.Info("Found an old APICRToDBMapping unrelated to this CR. Adding it to the list of old APICRToDBMappings")
+			l.V(sharedutil.LogLevel_Debug).Info("Found an old APICRToDBMapping unrelated to this CR. Adding it to the list of old APICRToDBMappings")
 			oldAPICRToDBMappings = append(oldAPICRToDBMappings, apiCRToDBMapping)
 		}
 	}
 
 	// 4) Clean up any old GitOpsDeploymentRepositoryCredential DB rows that have the same name/namespace as this resource,
 	// but that no longer exist
-	l.Info("Clean up any old GitOpsDeploymentRepositoryCredential DB rows that have the same name/namespace as this resource, but that no longer exist")
+	l.V(sharedutil.LogLevel_Debug).Info("Clean up any old GitOpsDeploymentRepositoryCredential DB rows that have the same name/namespace as this resource, but that no longer exist")
 	if len(oldAPICRToDBMappings) > 0 {
 
 		for _, oldAPICRToDBMapping := range oldAPICRToDBMappings {
@@ -571,36 +571,36 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 			repositoryCredentialPrimaryKey := oldAPICRToDBMapping.DBRelationKey
 
 			// 4a) Delete the  RepositoryCredential DB row if it exists (and create an operation for it if needed)
-			l.Info("Delete the  RepositoryCredential DB row if it exists (and create an operation for it if needed)")
+			l.V(sharedutil.LogLevel_Debug).Info("Delete the  RepositoryCredential DB row if it exists (and create an operation for it if needed)")
 			if dbRepoCred, err := dbQueries.GetRepositoryCredentialsByID(ctx, repositoryCredentialPrimaryKey); err != nil {
 
-				l.Info("Error getting the DBRepoCred")
+				l.V(sharedutil.LogLevel_Debug).Info("Error getting the DBRepoCred")
 
 				if db.IsResultNotFoundError(err) {
-					l.Info("DB entry not found, so it was already deleted, the mapping is stale, and we can delete it")
+					l.V(sharedutil.LogLevel_Debug).Info("DB entry not found, so it was already deleted, the mapping is stale, and we can delete it")
 					// The CR is not found in the database, so it is already deleted
 				} else {
 					// It's a glitch, so return the error
-					l.Info("Error getting repo cred from DB")
+					l.V(sharedutil.LogLevel_Debug).Info("Error getting repo cred from DB")
 					return nil, fmt.Errorf("unable to retrieve repository credential from the database: %v", err)
 				}
 
 			} else {
-				l.Info("[Leftover] RepositoryCredential row found in DB")
+				l.V(sharedutil.LogLevel_Debug).Info("[Leftover] RepositoryCredential row found in DB")
 				if _, err := deleteRepoCredFromDB(ctx, dbQueries, repositoryCredentialPrimaryKey, l); err != nil {
 					return nil, err
 				}
-				l.Info("RepositoryCredential row deleted from DB")
+				l.V(sharedutil.LogLevel_Debug).Info("RepositoryCredential row deleted from DB")
 
 				// We need to fire-up an Operation as well
-				l.Info("Creating an Operation for the deleted RepositoryCredential DB row")
+				l.V(sharedutil.LogLevel_Debug).Info("Creating an Operation for the deleted RepositoryCredential DB row")
 				if err, operationDBID = createRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries,
 					apiNamespaceClient, shouldWait, l); err != nil {
 
 					l.Info("Error creating an Operation for the deleted RepositoryCredential DB row")
 					return nil, err
 				}
-				l.Info("Operation created for the deleted RepositoryCredential DB row")
+				l.V(sharedutil.LogLevel_Debug).Info("Operation created for the deleted RepositoryCredential DB row")
 				if err := cleanRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, operationDBID, l); err != nil {
 					l.Info("Error cleaning up the Operation for the deleted RepositoryCredential DB row")
 					return nil, err
@@ -608,42 +608,42 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 			}
 
 			// 4b) Next, we delete the APICRToDBMapping that pointed to the deleted RepositoryCredential DB row
-			l.Info("Next, we delete the APICRToDBMapping that pointed to the deleted RepositoryCredential DB row")
+			l.V(sharedutil.LogLevel_Debug).Info("Next, we delete the APICRToDBMapping that pointed to the deleted RepositoryCredential DB row")
 
 			// Delete the APICRToDatabaseMapping referenced by 'item'
 			if rowsDeleted, err := dbQueries.DeleteAPICRToDatabaseMapping(ctx, &oldAPICRToDBMapping); err != nil {
-				l.Info("unable to delete apiCRToDBmapping", "mapping", oldAPICRToDBMapping.APIResourceUID)
+				l.V(sharedutil.LogLevel_Debug).Info("unable to delete apiCRToDBmapping", "mapping", oldAPICRToDBMapping.APIResourceUID)
 				return nil, err
 			} else if rowsDeleted == 0 {
-				l.Info("unexpected number of rows deleted of apiCRToDBmapping", "mapping", oldAPICRToDBMapping.APIResourceUID)
+				l.V(sharedutil.LogLevel_Debug).Info("unexpected number of rows deleted of apiCRToDBmapping", "mapping", oldAPICRToDBMapping.APIResourceUID)
 			} else {
-				l.Info("deleted APICRToDatabaseMapping")
+				l.V(sharedutil.LogLevel_Debug).Info("deleted APICRToDatabaseMapping")
 			}
 		}
 
 		// We've completed cleanup of all the old repo cred CRs
-		l.Info("We've completed cleanup of all the old repo cred CRs")
+		l.V(sharedutil.LogLevel_Debug).Info("We've completed cleanup of all the old repo cred CRs")
 	}
 
 	if gitopsDeploymentRepositoryCredentialCR == nil {
 		// If the GitOpsDeploymentRepositoryCredential doesn't exist, then our work is done.
-		l.Info("If the GitOpsDeploymentRepositoryCredential doesn't exist, then our work is done.")
+		l.V(sharedutil.LogLevel_Debug).Info("If the GitOpsDeploymentRepositoryCredential doesn't exist, then our work is done.")
 		return nil, nil
 	}
 
 	l.Info("CR found", "CR Name", repositoryCredentialCRName, "Namespace", resourceNS)
-	l.Info("gitopsDeploymentRepositoryCredentialCR", "gitopsDeploymentRepositoryCredentialCR", gitopsDeploymentRepositoryCredentialCR)
-	l.Info("UID", "UID", gitopsDeploymentRepositoryCredentialCR.GetUID())
+	l.V(sharedutil.LogLevel_Debug).Info("gitopsDeploymentRepositoryCredentialCR", "gitopsDeploymentRepositoryCredentialCR", gitopsDeploymentRepositoryCredentialCR)
+	l.V(sharedutil.LogLevel_Debug).Info("UID", "UID", gitopsDeploymentRepositoryCredentialCR.GetUID())
 
 	// 5) If gitopsDeploymentRepositoryCredentialCR exists in the cluster, check the DB to see if the related RepositoryCredential row exists as well
-	l.Info("If gitopsDeploymentRepositoryCredentialCR exists in the cluster, check the DB to see if the related RepositoryCredential row exists as well")
+	l.V(sharedutil.LogLevel_Debug).Info("If gitopsDeploymentRepositoryCredentialCR exists in the cluster, check the DB to see if the related RepositoryCredential row exists as well")
 
 	// Sanity test for gitopsDeploymentRepositoryCredentialCR.Spec.Secret to be non-empty value
-	l.Info("Sanity test for gitopsDeploymentRepositoryCredentialCR.Spec.Secret to be non-empty value")
+	l.V(sharedutil.LogLevel_Debug).Info("Sanity test for gitopsDeploymentRepositoryCredentialCR.Spec.Secret to be non-empty value")
 	if gitopsDeploymentRepositoryCredentialCR.Spec.Secret == "" {
 		return nil, fmt.Errorf("secret cannot be empty")
 	}
-	l.Info("CR secret sanity test", "secret Name", gitopsDeploymentRepositoryCredentialCR.Spec.Secret)
+	l.V(sharedutil.LogLevel_Debug).Info("CR secret sanity test", "secret Name", gitopsDeploymentRepositoryCredentialCR.Spec.Secret)
 
 	var privateURL, authUsername, authPassword, authSSHKey, secretObj string
 	secret := &corev1.Secret{
@@ -658,13 +658,11 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 
 	privateURL = gitopsDeploymentRepositoryCredentialCR.Spec.Repository
 
-	l.Info("Fetching the following secret", "Name", secret.Name, "Namespace", secret.Namespace)
+	l.Info("Fetching the secret", "Name", secret.Name, "Namespace", secret.Namespace)
 
 	// Fetch the secret from the cluster
-	l.Info("Fetching the secret from the cluster")
 	if err := apiNamespaceClient.Get(ctx, client.ObjectKey{Name: secret.Name, Namespace: secret.Namespace}, secret); err != nil {
-		l.Info("Error getting secret")
-		l.Info(err.Error())
+		l.V(sharedutil.LogLevel_Debug).Info(err.Error())
 		if apierr.IsNotFound(err) {
 			l.WithValues("secret not found", err, "secret", gitopsDeploymentRepositoryCredentialCR.Spec.Secret, "namespace", resourceNS)
 			return nil, fmt.Errorf("secret not found: %v", err)
@@ -675,7 +673,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 		}
 	} else {
 		// Secret exists, so get its data
-		l.Info("Secret exists, so get its data")
+		l.V(sharedutil.LogLevel_Debug).Info("Secret exists, so get its data")
 
 		// TODO: Decide if we need to privateURL = string(secret.Data["url"]) or not
 		authUsername = string(secret.Data["username"])
@@ -689,13 +687,13 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 	l.Info("If there is no existing APICRToDBMapping for this CR, then let's create one")
 	if currentAPICRToDBMapping == nil {
 
-		l.Info("Error getting mapping for GitOpsDeploymentRepositoryCredential")
-		l.Info("err", "error", err)
+		l.V(sharedutil.LogLevel_Debug).Info("Error getting mapping for GitOpsDeploymentRepositoryCredential")
+		l.V(sharedutil.LogLevel_Debug).Info("err", "error", err)
 
-		l.Info("Since DB was not found, we create the DB Row now")
+		l.V(sharedutil.LogLevel_Debug).Info("Since DB was not found, we create the DB Row now")
 
 		// If the CR exists in the cluster but not in the DB, then create it in the DB and create an Operation.
-		l.Info("If the CR exists in the cluster but not in the DB, then create it in the DB and create an Operation.")
+		l.V(sharedutil.LogLevel_Debug).Info("If the CR exists in the cluster but not in the DB, then create it in the DB and create an Operation.")
 		dbRepoCred := db.RepositoryCredentials{
 			UserID:          clusterUser.Clusteruser_id, // comply with the constraint 'fk_clusteruser_id'
 			PrivateURL:      privateURL,                 // or gitopsDeploymentRepositoryCredentialCR.Spec.Repository?
@@ -712,13 +710,12 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 			l.V(sharedutil.LogLevel_Debug).Info("Error creating RepositoryCredential row in DB")
 			return nil, fmt.Errorf("unable to create repository credential in the database: %v", err)
 		} else {
-			l.Info("Created RepositoryCredential in the DB", "repositoryCredential", dbRepoCred)
+			l.V(sharedutil.LogLevel_Debug).Info("Created RepositoryCredential in the DB", "repositoryCredential", dbRepoCred)
 		}
-
-		l.Info("CreateRepositoryCredentials", "dbRepoCred", dbRepoCred)
+		l.Info("Created RepositoryCredential in the DB", "repositoryCredential", dbRepoCred.RepositoryCredentialsID)
 
 		// Create the mapping
-		l.Info("Create the newApiCRToDBMapping")
+		l.V(sharedutil.LogLevel_Debug).Info("Create the newApiCRToDBMapping")
 		newApiCRToDBMapping := db.APICRToDatabaseMapping{
 			APIResourceType:      db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentRepositoryCredential,
 			APIResourceUID:       string(gitopsDeploymentRepositoryCredentialCR.UID),
@@ -731,70 +728,69 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 		}
 
 		if err := dbQueries.CreateAPICRToDatabaseMapping(ctx, &newApiCRToDBMapping); err != nil {
-			l.Info("Error", "error", err, "Debug:", "unable to create api to db mapping in database")
+			l.V(sharedutil.LogLevel_Debug).Info("Error", "error", err, "Debug:", "unable to create api to db mapping in database")
 
 			// If we were unable to create api to db mapping in database, delete the fresh newly created repository credential from the database
-			l.Info("If we were unable to create api to db mapping in database, delete the fresh newly created repository credential from the database")
+			l.V(sharedutil.LogLevel_Debug).Info("If we were unable to create api to db mapping in database, delete the fresh newly created repository credential from the database")
 			if _, err := dbQueries.DeleteRepositoryCredentialsByID(ctx, dbRepoCred.RepositoryCredentialsID); err != nil {
-				l.Info("Error", "error", err, "Debug:", "unable to delete repository credential from database")
+				l.V(sharedutil.LogLevel_Debug).Info("Error", "error", err, "Debug:", "unable to delete repository credential from database")
 				return nil, fmt.Errorf("unable to delete repository credential from database: %v", err)
 			}
 
-			l.Info("Deleted RepositoryCredential from the DB", "repositoryCredential", dbRepoCred)
+			l.Info("Deleted RepositoryCredential from the DB", "repositoryCredential", dbRepoCred.RepositoryCredentialsID)
 
 			return nil, err
 		}
 
 		l.Info(fmt.Sprintf("Created a ApiCRToDBMapping: (APIResourceType: %s, APIResourceUID: %s, DBRelationType: %s)", newApiCRToDBMapping.APIResourceType, newApiCRToDBMapping.APIResourceUID, newApiCRToDBMapping.DBRelationType))
 
-		l.Info("Create an Operation")
-		// THIS IS WHERE UNIT TEST FAILS
+		l.V(sharedutil.LogLevel_Debug).Info("Create an Operation")
 		err, operationDBID := createRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, shouldWait, l)
 		if err != nil {
 			return nil, err
 		}
-		l.Info("Created Operation for RepositoryCredential")
-		l.Info("Deleting the Operation for RepositoryCredential")
+		l.V(sharedutil.LogLevel_Debug).Info("Created Operation for RepositoryCredential")
+		l.V(sharedutil.LogLevel_Debug).Info("Deleting the Operation for RepositoryCredential")
 		if err := cleanRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, operationDBID, l); err != nil {
-			l.Info("Error", "error", err, "Debug:", "unable to clean up operations")
+			l.V(sharedutil.LogLevel_Debug).Info("Error", "error", err, "Debug:", "unable to clean up operations")
 			return nil, err
 		}
-		l.Info("Deleted Operation for RepositoryCredential")
+		l.V(sharedutil.LogLevel_Debug).Info("Deleted Operation for RepositoryCredential")
 
 		return &dbRepoCred, nil
 	}
 
 	// 7) If the APICRToDBMapping already exists in the database, and already points to the CR, then it is instead an update
-	l.Info("If the APICRToDBMapping already exists in the database, and already points to the CR, then it is instead an update")
+	l.V(sharedutil.LogLevel_Debug).Info("If the APICRToDBMapping already exists in the database, and already points to the CR, then it is instead an update")
 
 	// Match found in database
-	l.Info("Found a match in the database", "APICRToDBMapping", currentAPICRToDBMapping)
+	l.V(sharedutil.LogLevel_Debug).Info("Found a match in the database", "APICRToDBMapping", currentAPICRToDBMapping)
 
 	repositoryCredentialPrimaryKey := currentAPICRToDBMapping.DBRelationKey
 
-	l.Info("Primary Key", "key", repositoryCredentialPrimaryKey)
+	l.V(sharedutil.LogLevel_Debug).Info("Primary Key", "key", repositoryCredentialPrimaryKey)
 
-	l.Info("Get the RepositoryCredential from the DB")
+	l.V(sharedutil.LogLevel_Debug).Info("Get the RepositoryCredential from the DB")
 	if dbRepoCred, err := dbQueries.GetRepositoryCredentialsByID(ctx, repositoryCredentialPrimaryKey); err != nil {
 
-		l.Info("Error getting repo cred from DB")
+		l.V(sharedutil.LogLevel_Debug).Info("Error getting repo cred from DB")
 
 		if db.IsResultNotFoundError(err) {
 			// If the APICRToDBMapping points to a RepositoryCredential that doesn't exist, delete the APICRToDBMapping
 			// and return an error.
 
-			l.Info("Deleting APICRToDBMapping that points to an invalid repository credential")
+			l.V(sharedutil.LogLevel_Debug).Info("Deleting APICRToDBMapping that points to an invalid repository credential")
 
 			// Delete the APICRToDatabaseMapping referenced by 'item'
 			if rowsDeleted, err := dbQueries.DeleteAPICRToDatabaseMapping(ctx, currentAPICRToDBMapping); err != nil {
-				l.Info("unable to delete apiCRToDBmapping", "mapping", currentAPICRToDBMapping.APIResourceUID)
+				l.V(sharedutil.LogLevel_Debug).Info("unable to delete apiCRToDBmapping", "mapping", currentAPICRToDBMapping.APIResourceUID)
 				return nil, err
 			} else if rowsDeleted == 0 {
-				l.Info("unexpected number of rows deleted of apiCRToDBmapping", "mapping", currentAPICRToDBMapping.APIResourceUID)
+				l.V(sharedutil.LogLevel_Debug).Info("unexpected number of rows deleted of apiCRToDBmapping", "mapping", currentAPICRToDBMapping.APIResourceUID)
 			} else {
-				l.Info("deleted APICRToDatabaseMapping")
+				l.V(sharedutil.LogLevel_Debug).Info("deleted APICRToDatabaseMapping")
 			}
-			l.Info("Deleted APICRToDBMapping that points to an invalid repository credential")
+			l.V(sharedutil.LogLevel_Debug).Info("Deleted APICRToDBMapping that points to an invalid repository credential")
 			return nil, fmt.Errorf("APICRToDBMapping pointed to a RepositoryCredential that didn't exist")
 		}
 
@@ -805,17 +801,17 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 
 	} else {
 
-		l.Info("the CR exists in the cluster and in the DB, then check if the data is the same and create an Operation")
+		l.V(sharedutil.LogLevel_Debug).Info("the CR exists in the cluster and in the DB, then check if the data is the same and create an Operation")
 
 		// If the CR exists in the cluster and in the DB, then check if the data is the same and create an Operation
-		l.Info("the CR exists in the cluster and in the DB, then check if the data is the same and create an Operation")
+		l.V(sharedutil.LogLevel_Debug).Info("the CR exists in the cluster and in the DB, then check if the data is the same and create an Operation")
 		isUpdateNeeded := compareAndModifyClusterResourceWithDatabaseRow(*gitopsDeploymentRepositoryCredentialCR, &dbRepoCred, secret, l)
 		if isUpdateNeeded {
 			var operationDBID string
-			l.Info("Update is needed")
-			l.Info("Syncing with database...")
+			l.V(sharedutil.LogLevel_Debug).Info("Update is needed")
+			l.V(sharedutil.LogLevel_Debug).Info("Syncing with database...")
 			if err := dbQueries.UpdateRepositoryCredentials(ctx, &dbRepoCred); err != nil {
-				l.Info("Error updating the database")
+				l.V(sharedutil.LogLevel_Debug).Info("Error updating the database")
 				l = l.WithValues("Error", err, "ErrDebug", errUpdateDBRepoCred)
 				l.V(sharedutil.LogLevel_Debug).Info("Error updating repository credentials in the database")
 				return nil, err
@@ -825,18 +821,18 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 
 			l.Info("Create an Operation due to updated RepositoryCredential")
 			if err, operationDBID = createRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, shouldWait, l); err != nil {
-				l.Info("Error creating an operation")
+				l.V(sharedutil.LogLevel_Debug).Info("Error creating an operation")
 				return nil, err
 			}
 			l.Info("Created Operation for RepositoryCredential")
 			l.Info("Deleting the Operation for RepositoryCredential")
 			if err := cleanRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, operationDBID, l); err != nil {
-				l.Info("Error", "error", err, "Debug:", "unable to clean up operation")
+				l.V(sharedutil.LogLevel_Debug).Info("Error", "error", err, "Debug:", "unable to clean up operation")
 				return nil, err
 			}
-			l.Info("Deleted Operation for RepositoryCredential")
+			l.V(sharedutil.LogLevel_Debug).Info("Deleted Operation for RepositoryCredential")
 
-			l.Info("Synced with database")
+			l.V(sharedutil.LogLevel_Debug).Info("Synced with database")
 			return &dbRepoCred, nil
 
 		} else {
@@ -921,8 +917,8 @@ func createRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCreden
 	operationCR, operationDB, err := operations.CreateOperation(ctx, shouldWait, dbOperationInput, clusterUser.Clusteruser_id, ns, dbQueries,
 		apiNamespaceClient, l)
 	if err != nil {
-		err2 := fmt.Errorf("unable to create operation: %v", err)
-		return err2, ""
+		errV := fmt.Errorf("unable to create operation: %v", err)
+		return errV, ""
 	}
 
 	l.Info("operationCR", "operationCR", operationCR)
@@ -956,21 +952,21 @@ func compareAndModifyClusterResourceWithDatabaseRow(cr managedgitopsv1alpha1.Git
 	// Compare the data from the secret with the data from the DB
 	var isAuthUsernameUpdateNeeded bool
 	if authUsername != dbr.AuthUsername {
-		l.Info("AuthUsername changed", "old", dbr.AuthUsername, "new", authUsername)
+		// l.Info("AuthUsername changed", "old", dbr.AuthUsername, "new", authUsername)
 		dbr.AuthUsername = authUsername
 		isAuthUsernameUpdateNeeded = true
 	}
 
 	var isAuthPasswordUpdateNeeded bool
 	if authPassword != dbr.AuthPassword {
-		l.Info("AuthPassword changed", "old", dbr.AuthPassword, "new", authPassword)
+		// l.Info("AuthPassword changed", "old", dbr.AuthPassword, "new", authPassword)
 		dbr.AuthPassword = authPassword
 		isAuthPasswordUpdateNeeded = true
 	}
 
 	var isAuthSSHKeyUpdateNeeded bool
 	if authSSHKey != dbr.AuthSSHKey {
-		l.Info("AuthSSHKey changed", "old", dbr.AuthSSHKey, "new", authSSHKey)
+		// l.Info("AuthSSHKey changed", "old", dbr.AuthSSHKey, "new", authSSHKey)
 		dbr.AuthSSHKey = authSSHKey
 		isAuthSSHKeyUpdateNeeded = true
 	}

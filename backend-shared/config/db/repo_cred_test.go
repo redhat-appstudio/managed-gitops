@@ -4,7 +4,6 @@ package db_test
 
 import (
 	"context"
-	"fmt"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
@@ -62,7 +61,6 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			}
 
 			By("Inserting the RepositoryCredentials object to the database")
-			fmt.Println("TEST 1")
 			err = dbq.CreateRepositoryCredentials(ctx, &gitopsRepositoryCredentials)
 			Expect(err).To(BeNil())
 
@@ -84,7 +82,6 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			}
 
 			By("Inserting the identical RepositoryCredentials object to the database")
-			fmt.Println("TEST 2")
 			err = dbq.CreateRepositoryCredentials(ctx, &gitopsRepositoryCredentials2)
 			Expect(err).ToNot(BeNil())
 
@@ -123,16 +120,13 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 
 			By("Should create a UUID on the spot if Primary Key is null ")
 			updatedCR.RepositoryCredentialsID = ""
-			fmt.Println("TEST 3")
 			err = dbq.CreateRepositoryCredentials(ctx, &updatedCR)
 			Expect(err).Should(BeNil())
-			// expectedErr := "RepositoryCredentials.RepositoryCredentialsID is empty, but it shouldn't (notnull tag found: `repositorycredentials_id,pk,notnull`)"
-			// Expect(err.Error()).Should(Equal(expectedErr))
+
 			updatedCR.RepositoryCredentialsID = "test-repo-cred-id" // reset the UserID to the original value
 
 			By("Should return error if UserID is null")
 			updatedCR.UserID = ""
-			fmt.Println("TEST 4")
 			err = dbq.CreateRepositoryCredentials(ctx, &updatedCR)
 			Expect(err).ShouldNot(BeNil())
 			expectedErr := "RepositoryCredentials.UserID is empty, but it shouldn't (notnull tag found: `repo_cred_user_id,notnull`)"
@@ -141,7 +135,6 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 
 			By("Should return error if PrivateURL is null")
 			updatedCR.PrivateURL = ""
-			fmt.Println("TEST 5")
 			err = dbq.CreateRepositoryCredentials(ctx, &updatedCR)
 			Expect(err).ShouldNot(BeNil())
 			expectedErr = "RepositoryCredentials.PrivateURL is empty, but it shouldn't (notnull tag found: `repo_cred_url,notnull`)"
@@ -150,7 +143,6 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 
 			By("Should return error if SecretObj is null")
 			updatedCR.SecretObj = ""
-			fmt.Println("TEST 6")
 			err = dbq.CreateRepositoryCredentials(ctx, &updatedCR)
 			Expect(err).ShouldNot(BeNil())
 			expectedErr = "RepositoryCredentials.SecretObj is empty, but it shouldn't (notnull tag found: `repo_cred_secret,notnull`)"
@@ -159,7 +151,6 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 
 			By("Should return error if EngineClusterID is null")
 			updatedCR.EngineClusterID = ""
-			fmt.Println("TEST 7")
 			err = dbq.CreateRepositoryCredentials(ctx, &updatedCR)
 			Expect(err).ShouldNot(BeNil())
 			expectedErr = "RepositoryCredentials.EngineClusterID is empty, but it shouldn't (notnull tag found: `repo_cred_engine_id,notnull`)"

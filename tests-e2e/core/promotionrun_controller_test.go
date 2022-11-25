@@ -15,7 +15,6 @@ import (
 	bindingFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/binding"
 	promotionRunFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/promotionrun"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var _ = Describe("Application Promotion Run E2E Tests.", func() {
@@ -118,7 +117,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			err = k8s.Create(&promotionRun, k8sClient)
 			Expect(err).To(Succeed())
 
-			now := v1.Now()
+			now := metav1.Now()
 			expectedPromotionRunStatus := appstudiosharedv1.PromotionRunStatus{
 				State:            appstudiosharedv1.PromotionRunState_Complete,
 				CompletionResult: appstudiosharedv1.PromotionRunCompleteResult_Success,

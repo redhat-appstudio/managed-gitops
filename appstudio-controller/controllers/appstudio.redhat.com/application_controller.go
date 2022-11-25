@@ -84,6 +84,13 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// gitOpsDeploymentCreation consists of code that creates a GitOpsDeployment for each AppStudio Application resource.
 	// We plan to deprecate/remove this function once the Environment API logic is fully in place.
+
+	// 'skipGitOpsDeploymentCreation' is a temporary annotation which can be added to Applications to trigger the new behaviour.
+	// - If this annotation is not specified, OR the old annotation has any other value, the deprecated behaviour will be used.
+	if asApplication.ObjectMeta.Annotations != nil && asApplication.ObjectMeta.Annotations["skipGitOpsDeploymentCreation"] == "true" {
+		return ctrl.Result{}, nil
+	}
+
 	return gitOpsDeploymentCreation(asApplication, ctx, req, r.Client, log)
 }
 

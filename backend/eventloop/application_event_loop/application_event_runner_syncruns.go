@@ -39,8 +39,6 @@ func (action *applicationEventLoopRunner_Action) applicationEventRunner_handleSy
 func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRunModifiedInternal(ctx context.Context,
 	dbQueries db.ApplicationScopedQueries) (bool, gitopserrors.UserError) {
 
-	// TODO: GITOPSRVCE-166: This function can likely be broken up into a few smaller function, for readability/maintainability.
-
 	log := a.log
 
 	namespace := corev1.Namespace{}
@@ -81,6 +79,12 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 	var apiCRToDBList []db.APICRToDatabaseMapping
 	dbEntryExists := false
 	if syncRunCRExists {
+
+		if syncRunCR == (&managedgitopsv1alpha1.GitOpsDeploymentSyncRun{}) {
+			err := fmt.Errorf("SEVERE - sync run cr is empty")
+			log.Error(err, err.Error())
+			return false, gitopserrors.NewDevOnlyError(err)
+		}
 
 		mapping := db.APICRToDatabaseMapping{
 			APIResourceType: db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
@@ -136,6 +140,35 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		return true, nil
 	}
 
+	// Get the SyncOperation table entry pointed to by the resource
+	var syncOperation db.SyncOperation
+
+	if dbEntryExists {
+
+		if len(apiCRToDBList) != 1 {
+			err := fmt.Errorf("SEVERE - Update only supports one operation parameter")
+			log.Error(err, err.Error())
+			return false, gitopserrors.NewDevOnlyError(err)
+		}
+
+		apiCRToDBMapping := apiCRToDBList[0]
+
+		if apiCRToDBMapping.DBRelationType != db.APICRToDatabaseMapping_DBRelationType_SyncOperation {
+			err := fmt.Errorf("SEVERE - db relation type should be syncoperation")
+			log.Error(err, err.Error())
+			return false, gitopserrors.NewDevOnlyError(err)
+		}
+
+		syncOperation = db.SyncOperation{SyncOperation_id: apiCRToDBMapping.DBRelationKey}
+
+		if err := dbQueries.GetSyncOperationById(ctx, &syncOperation); err != nil {
+
+			log.Error(err, "unable to retrieve sync operation by id on modified", "operationID", syncOperation.SyncOperation_id)
+			return false, gitopserrors.NewDevOnlyError(err)
+		}
+
+	}
+
 	// The applications and gitopsengineinstance pointed to by the gitopsdeployment (if they are non-nil)
 	var application *db.Application
 	var gitopsEngineInstance *db.GitopsEngineInstance
@@ -143,9 +176,6 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 	// TODO: GITOPSRVCE-166: Make sure that the GitOpsDeployment UID doesn't change on us, vs what is in SyncOperation in the database.
 
 	if syncRunCRExists {
-
-		// TODO: GITOPSRVCE-166: It seems like this needs to change: we should retrieve the SyncOperation associated with the GitOpsDeploymentSyncRun, and sanity check it is equal. This can be handled while refactoring this function.
-
 		// Sanity check that the gitopsdeployment resource exists, which is referenced by the syncrun resource
 		gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
 			ObjectMeta: metav1.ObjectMeta{
@@ -193,282 +223,251 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			return false, gitopserrors.NewDevOnlyError(err)
 		}
 
-	}
+		if dbEntryExists {
+			// Handle update:
+			// If both GitOpsDeploymentSyncRun CR and the DB entry exists, then the CR is being updated.
+			// Validate and return an error if the immutable fields are updated.
+			return a.handleUpdatedGitOpsDeplSynRunEvent(ctx, syncRunCR, dbQueries, syncOperation)
+		} else {
+			// Handle create:
+			// If the gitopsdeplsyncrun CR exists, but the database entry doesn't, then this is the first time we
+			// have seen the GitOpsDeplSyncRun CR.
+			// Create it in the DB and create the operation.
 
-	// Create a gitOpsDeploymentAdapter to plug any conditions
-	gitopsDeployment := &managedgitopsv1alpha1.GitOpsDeployment{}
-	gitopsDeploymentKey := client.ObjectKey{Namespace: syncRunCR.Namespace, Name: syncRunCR.Spec.GitopsDeploymentName}
-
-	// Retrieve latest version of GitOpsDeployment object to set status.condition.
-	if clientErr := a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment); clientErr != nil {
-		log.Error(err, "unable to retrieve gitopsDeployment.")
-	}
-
-	if syncRunCRExists && !dbEntryExists {
-		// Handle create:
-		// If the gitopsdeplsyncrun CR exists, but the database entry doesn't, then this is the first time we
-		// have seen the GitOpsDeplSyncRun CR.
-		// Create it in the DB and create the operation.
-
-		if application == nil || gitopsEngineInstance == nil {
-			err := fmt.Errorf("app or engine instance were nil in handleSyncRunModified app: %v, instance: %v", application, gitopsEngineInstance)
-			log.Error(err, "unexpected nil value of required objects")
-			return false, gitopserrors.NewDevOnlyError(err)
+			return a.handleNewGitOpsDeplSynRunEvent(ctx, syncRunCR, dbQueries, application, gitopsEngineInstance, namespace, *clusterUser)
 		}
 
-		// createdResources is a list of database entries created in this function; if an error occurs, we delete them
-		// in reverse order.
-		var createdResources []db.AppScopedDisposableResource
-
-		// Create sync operation
-		syncOperation := &db.SyncOperation{
-			Application_id:      application.Application_id,
-			DeploymentNameField: syncRunCR.Spec.GitopsDeploymentName,
-			Revision:            syncRunCR.Spec.RevisionID,
-			DesiredState:        db.SyncOperation_DesiredState_Running,
-		}
-		if err := dbQueries.CreateSyncOperation(ctx, syncOperation); err != nil {
-			log.Error(err, "unable to create sync operation in database")
-
-			return false, gitopserrors.NewDevOnlyError(err)
-		}
-		createdResources = append(createdResources, syncOperation)
-		log.Info("Created a Sync Operation: " + syncOperation.SyncOperation_id)
-
-		newApiCRToDBMapping := db.APICRToDatabaseMapping{
-			APIResourceType: db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
-			APIResourceUID:  string(syncRunCR.UID),
-			DBRelationType:  db.APICRToDatabaseMapping_DBRelationType_SyncOperation,
-			DBRelationKey:   syncOperation.SyncOperation_id,
-
-			APIResourceName:      syncRunCR.Name,
-			APIResourceNamespace: syncRunCR.Namespace,
-			NamespaceUID:         eventlooptypes.GetWorkspaceIDFromNamespaceID(namespace),
-		}
-		if err := dbQueries.CreateAPICRToDatabaseMapping(ctx, &newApiCRToDBMapping); err != nil {
-			log.Error(err, "unable to create api to db mapping in database")
-
-			// If we were unable to retrieve the client, delete the resources we created in the previous steps
-			dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log)
-
-			return false, gitopserrors.NewDevOnlyError(err)
-		}
-		log.Info(fmt.Sprintf("Created a ApiCRToDBMapping: (APIResourceType: %s, APIResourceUID: %s, DBRelationType: %s)", newApiCRToDBMapping.APIResourceType, newApiCRToDBMapping.APIResourceUID, newApiCRToDBMapping.DBRelationType))
-		createdResources = append(createdResources, &newApiCRToDBMapping)
-
-		operationClient, err := a.getK8sClientForGitOpsEngineInstance(ctx, gitopsEngineInstance)
-		if err != nil {
-			log.Error(err, "unable to retrieve gitopsengine instance from handleSyncRunModified")
-
-			// If we were unable to retrieve the client, delete the resources we created in the previous steps
-			dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log)
-
-			// Return the original error
-			return false, gitopserrors.NewDevOnlyError(err)
-		}
-
-		dbOperationInput := db.Operation{
-			Instance_id:   gitopsEngineInstance.Gitopsengineinstance_id,
-			Resource_id:   syncOperation.SyncOperation_id,
-			Resource_type: db.OperationResourceType_SyncOperation,
-		}
-
-		k8sOperation, dbOperation, err := operations.CreateOperation(ctx, false && !a.testOnlySkipCreateOperation, dbOperationInput, clusterUser.Clusteruser_id,
-			dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log)
-		if err != nil {
-			log.Error(err, "could not create operation", "namespace", dbutil.GetGitOpsEngineSingleInstanceNamespace())
-
-			// If we were unable to create the operation, delete the resources we created in the previous steps
-			dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log)
-
-			return false, gitopserrors.NewDevOnlyError(err)
-		}
-
-		// TODO: GITOPSRVCE-82 - STUB - Remove the 'false' in createOperation above, once cluster agent handling of operation is implemented.
-		log.Info("STUB: Not waiting for create Sync Run operation to complete, in handleNewSyncRunModified")
-
-		if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log); err != nil {
-			return false, gitopserrors.NewDevOnlyError(err)
-		}
-
-		return false, nil
 	}
 
 	if !syncRunCRExists && dbEntryExists {
 		// Handle delete:
 		// If the gitopsdeplsyncrun CR doesn't exist, but database row does, then the CR has been deleted, so handle it.
 
-		// Deleting the CR should terminate a sync operation, if it was previously in progress.
-
-		if len(apiCRToDBList) != 1 {
-			err := fmt.Errorf("SEVERE - Update only supports one operation parameter")
-			log.Error(err, err.Error())
-			return false, gitopserrors.NewDevOnlyError(err)
-		}
-
-		// 1) Get the SyncOperation table entry pointed to by the resource
-		apiCRToDBMapping := apiCRToDBList[0]
-
-		if apiCRToDBMapping.DBRelationType != db.APICRToDatabaseMapping_DBRelationType_SyncOperation {
-			err := fmt.Errorf("SEVERE - db relation type should be syncoperation")
-			log.Error(err, err.Error())
-			return false, gitopserrors.NewDevOnlyError(err)
-		}
-
-		syncOperation := db.SyncOperation{SyncOperation_id: apiCRToDBMapping.DBRelationKey}
-
-		if err := dbQueries.GetSyncOperationById(ctx, &syncOperation); err != nil {
-			log.Error(err, "unable to retrieve sync operation by id on deleted", "operationID", syncOperation.SyncOperation_id)
-			return false, gitopserrors.NewDevOnlyError(err)
-		}
-
-		// 2) Update the state of the SyncOperation DB table to say that we want to terminate it, if it is runing
-		syncOperation.DesiredState = db.SyncOperation_DesiredState_Terminated
-		if err := dbQueries.UpdateSyncOperation(ctx, &syncOperation); err != nil {
-			log.Error(err, "unable to update the sync operation as terminated", "syncOperationID", syncOperation.SyncOperation_id)
-			return false, gitopserrors.NewDevOnlyError(err)
-		}
-
-		application = &db.Application{Application_id: syncOperation.Application_id}
-		if err := dbQueries.GetApplicationById(ctx, application); err != nil {
-			log.Error(err, "unable to retrieve application, on sync run modified", "applicationId", string(syncOperation.Application_id))
-			return false, gitopserrors.NewDevOnlyError(err)
-		}
-
-		if gitopsEngineInstance, err = a.sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, application.Engine_instance_inst_id,
-			a.workspaceClient, namespace, a.log); err != nil {
-
-			log.Error(err, "unable to retrieve gitopsengineinstance, on sync run modified", "instanceId", string(application.Engine_instance_inst_id))
-			return false, gitopserrors.NewDevOnlyError(err)
-		}
-
-		dbOperationInput := db.Operation{
-			Instance_id:   gitopsEngineInstance.Gitopsengineinstance_id,
-			Resource_id:   syncOperation.SyncOperation_id,
-			Resource_type: db.OperationResourceType_SyncOperation,
-		}
-
-		// 3) Create the operation, in order to inform the cluster agent it needs to cancel the sync operation
-		operationClient, err := a.getK8sClientForGitOpsEngineInstance(ctx, gitopsEngineInstance)
-		if err != nil {
-			log.Error(err, "unable to retrieve gitopsengine instance from handleSyncRunModified, when resource was deleted")
-			return false, gitopserrors.NewDevOnlyError(err)
-		}
-
-		waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
-		k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput, clusterUser.Clusteruser_id,
-			dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log)
-		if err != nil {
-			log.Error(err, "could not create operation, when resource was deleted", "namespace", dbutil.GetGitOpsEngineSingleInstanceNamespace())
-
-			return false, gitopserrors.NewDevOnlyError(err)
-		}
-
-		// 4) Clean up the operation and database table entries
-		if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log); err != nil {
-			return false, gitopserrors.NewDevOnlyError(err)
-		}
-
-		// TODO: GITOPSRVCE-82 - STUB - need to implement support for sync operation in cluster agent
-		log.Info("STUB: need to implement sync on cluster side")
-
-		if _, err := dbQueries.DeleteSyncOperationById(ctx, syncOperation.SyncOperation_id); err != nil {
-			log.Error(err, "could not delete sync operation, when resource was deleted", "namespace", dbutil.GetGitOpsEngineSingleInstanceNamespace())
-			return false, gitopserrors.NewDevOnlyError(err)
-		} else {
-			log.Info("Sync Operation deleted", "syncOperationID", syncOperation.SyncOperation_id)
-		}
-
-		var allErrors error
-
-		// Remove the mappings
-		for idx := range apiCRToDBList {
-
-			apiCRToDB := apiCRToDBList[idx]
-
-			err := a.cleanupOldSyncDBEntry(ctx, &apiCRToDB, *clusterUser, dbQueries)
-			if err != nil {
-				if allErrors == nil {
-					allErrors = err
-				} else {
-					allErrors = fmt.Errorf("error: %v error: %v", err, allErrors)
-				}
-			}
-		}
-
-		if allErrors != nil {
-			return false, gitopserrors.NewDevOnlyError(allErrors)
-		}
-
-		// Success: the CR no longer exists, and we have completed cleanup, so signal that the goroutine may be terminated.
-		return true, nil
-	}
-
-	if syncRunCRExists && dbEntryExists {
-
-		// Sanity checks
-		if syncRunCR == (&managedgitopsv1alpha1.GitOpsDeploymentSyncRun{}) {
-			err := fmt.Errorf("SEVERE - vsync run cr is empty")
-			log.Error(err, err.Error())
-			return false, gitopserrors.NewDevOnlyError(err)
-		}
-
-		if len(apiCRToDBList) != 1 {
-			err := fmt.Errorf("SEVERE - Update only supports one operation parameter")
-			log.Error(err, err.Error())
-			return false, gitopserrors.NewDevOnlyError(err)
-		}
-
-		// Get the SyncOperation table entry pointed to by the resource
-		apiCRToDBMapping := apiCRToDBList[0]
-
-		if apiCRToDBMapping.DBRelationType != db.APICRToDatabaseMapping_DBRelationType_SyncOperation {
-			err := fmt.Errorf("SEVERE - db relation type should be syncoperation")
-			log.Error(err, err.Error())
-			return false, gitopserrors.NewDevOnlyError(err)
-		}
-
-		syncOperation := db.SyncOperation{SyncOperation_id: apiCRToDBMapping.DBRelationKey}
-
-		if err := dbQueries.GetSyncOperationById(ctx, &syncOperation); err != nil {
-
-			log.Error(err, "unable to retrieve sync operation by id on modified", "operationID", syncOperation.SyncOperation_id)
-			return false, gitopserrors.NewDevOnlyError(err)
-		}
-
-		if syncOperation.DeploymentNameField != syncRunCR.Spec.GitopsDeploymentName {
-			userErrorText := "deployment name field is immutable: changing it from its initial value is not supported"
-			err := fmt.Errorf(userErrorText)
-			log.Error(err, userErrorText)
-			return false, gitopserrors.NewUserDevError(userErrorText, err)
-		}
-
-		if syncOperation.Revision != syncRunCR.Spec.RevisionID {
-			userErrorText := "revision change is not supported: changing it from its initial value is not supported"
-			err := fmt.Errorf(userErrorText)
-			log.Error(err, "revision field change is not supported")
-			return false, gitopserrors.NewUserDevError(userErrorText, err)
-		}
-
-		// TODO: GITOPSRVCE-166 - DEBT - Include test case to check that the various goroutines are terminated when the CR is deleted.
-
-		return false, nil
+		return a.handleDeletedGitOpsDeplSynRunEvent(ctx, dbQueries, syncOperation, apiCRToDBList, namespace, clusterUser)
 	}
 
 	return false, nil
 
 }
 
-func (a *applicationEventLoopRunner_Action) handleDeletedGitOpsDeplSynRunEvent(ctx context.Context) {
+// handleDeletedGitOpsDeplSynRunEvent handles GitOpsDeploymentSyncRun events where the user has just deleted a GitOpsDeploymentSyncRun resource.
+// In this case, we need to update the state of the SyncOperation DB row to 'Terminated' and inform the cluster-agent component to cancel the sync operation.
+//
+// Finally, delete the SyncOperation and APICRToDBMapping rows in the database for this resource.
+//
+// Returns:
+// - true if the goroutine responsible for this GitOpsDeploymentSyncRun can shutdown (e.g. because the GitOpsDeploymentSyncRun no longer exists, so no longer needs to be processed), false otherwise.
+// - error is non-nil, if an error occurred
+func (a *applicationEventLoopRunner_Action) handleDeletedGitOpsDeplSynRunEvent(ctx context.Context, dbQueries db.ApplicationScopedQueries, syncOperation db.SyncOperation, apiCRToDBList []db.APICRToDatabaseMapping, namespace corev1.Namespace, clusterUser *db.ClusterUser) (bool, gitopserrors.UserError) {
+
+	// Deleting the CR should terminate a sync operation, if it was previously in progress.
+
+	log := a.log
+
+	// 1) Update the state of the SyncOperation DB table to say that we want to terminate it, if it is runing
+	syncOperation.DesiredState = db.SyncOperation_DesiredState_Terminated
+	if err := dbQueries.UpdateSyncOperation(ctx, &syncOperation); err != nil {
+		log.Error(err, "unable to update the sync operation as terminated", "syncOperationID", syncOperation.SyncOperation_id)
+		return false, gitopserrors.NewDevOnlyError(err)
+	}
+
+	application := &db.Application{Application_id: syncOperation.Application_id}
+	if err := dbQueries.GetApplicationById(ctx, application); err != nil {
+		log.Error(err, "unable to retrieve application, on sync run modified", "applicationId", string(syncOperation.Application_id))
+		return false, gitopserrors.NewDevOnlyError(err)
+	}
+
+	gitopsEngineInstance, err := a.sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, application.Engine_instance_inst_id,
+		a.workspaceClient, namespace, a.log)
+	if err != nil {
+
+		log.Error(err, "unable to retrieve gitopsengineinstance, on sync run modified", "instanceId", string(application.Engine_instance_inst_id))
+		return false, gitopserrors.NewDevOnlyError(err)
+	}
+
+	dbOperationInput := db.Operation{
+		Instance_id:   gitopsEngineInstance.Gitopsengineinstance_id,
+		Resource_id:   syncOperation.SyncOperation_id,
+		Resource_type: db.OperationResourceType_SyncOperation,
+	}
+
+	// 2) Create the operation, in order to inform the cluster agent it needs to cancel the sync operation
+	operationClient, err := a.getK8sClientForGitOpsEngineInstance(ctx, gitopsEngineInstance)
+	if err != nil {
+		log.Error(err, "unable to retrieve gitopsengine instance from handleSyncRunModified, when resource was deleted")
+		return false, gitopserrors.NewDevOnlyError(err)
+	}
+
+	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
+	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput, clusterUser.Clusteruser_id,
+		dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log)
+	if err != nil {
+		log.Error(err, "could not create operation, when resource was deleted", "namespace", dbutil.GetGitOpsEngineSingleInstanceNamespace())
+
+		return false, gitopserrors.NewDevOnlyError(err)
+	}
+
+	// 3) Clean up the operation and database table entries
+	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log); err != nil {
+		return false, gitopserrors.NewDevOnlyError(err)
+	}
+
+	// TODO: GITOPSRVCE-82 - STUB - need to implement support for sync operation in cluster agent
+	log.Info("STUB: need to implement sync on cluster side")
+
+	if _, err := dbQueries.DeleteSyncOperationById(ctx, syncOperation.SyncOperation_id); err != nil {
+		log.Error(err, "could not delete sync operation, when resource was deleted", "namespace", dbutil.GetGitOpsEngineSingleInstanceNamespace())
+		return false, gitopserrors.NewDevOnlyError(err)
+	} else {
+		log.Info("Sync Operation deleted", "syncOperationID", syncOperation.SyncOperation_id)
+	}
+
+	var allErrors error
+
+	// Remove the mappings
+	for idx := range apiCRToDBList {
+
+		apiCRToDB := apiCRToDBList[idx]
+
+		err := a.cleanupOldSyncDBEntry(ctx, &apiCRToDB, *clusterUser, dbQueries)
+		if err != nil {
+			if allErrors == nil {
+				allErrors = err
+			} else {
+				allErrors = fmt.Errorf("error: %v error: %v", err, allErrors)
+			}
+		}
+	}
+
+	if allErrors != nil {
+		return false, gitopserrors.NewDevOnlyError(allErrors)
+	}
+
+	// Success: the CR no longer exists, and we have completed cleanup, so signal that the goroutine may be terminated.
+	return true, nil
 
 }
 
-func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSynRunEvent(ctx context.Context) {
+// handleNewGitOpsDeplSynRunEvent handles GitOpsDeploymentSyncRun events where the user has just created a new GitOpsDeploymentSyncRun resource.
+// In this case, we need to create SyncOperation and APICRToDBMapping rows in the database.
+//
+// Finally, we need to inform the cluster-agent component (via Operation), so that it can sync the Argo CD Application.
+//
+// Returns:
+// - true if the goroutine responsible for this GitOpsDeploymentSyncRun can shutdown (e.g. because the GitOpsDeploymentSyncRun no longer exists, so no longer needs to be processed), false otherwise.
+// - error is non-nil, if an error occurred
+func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSynRunEvent(ctx context.Context, syncRunCR *managedgitopsv1alpha1.GitOpsDeploymentSyncRun, dbQueries db.ApplicationScopedQueries, application *db.Application, gitopsEngineInstance *db.GitopsEngineInstance, namespace corev1.Namespace, clusterUser db.ClusterUser) (bool, gitopserrors.UserError) {
 
+	log := a.log
+
+	if application == nil || gitopsEngineInstance == nil {
+		err := fmt.Errorf("app or engine instance were nil in handleSyncRunModified app: %v, instance: %v", application, gitopsEngineInstance)
+		log.Error(err, "unexpected nil value of required objects")
+		return false, gitopserrors.NewDevOnlyError(err)
+	}
+
+	// createdResources is a list of database entries created in this function; if an error occurs, we delete them
+	// in reverse order.
+	var createdResources []db.AppScopedDisposableResource
+
+	// Create sync operation
+	syncOperation := &db.SyncOperation{
+		Application_id:      application.Application_id,
+		DeploymentNameField: syncRunCR.Spec.GitopsDeploymentName,
+		Revision:            syncRunCR.Spec.RevisionID,
+		DesiredState:        db.SyncOperation_DesiredState_Running,
+	}
+	if err := dbQueries.CreateSyncOperation(ctx, syncOperation); err != nil {
+		log.Error(err, "unable to create sync operation in database")
+
+		return false, gitopserrors.NewDevOnlyError(err)
+	}
+	createdResources = append(createdResources, syncOperation)
+	log.Info("Created a Sync Operation: " + syncOperation.SyncOperation_id)
+
+	newApiCRToDBMapping := db.APICRToDatabaseMapping{
+		APIResourceType: db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
+		APIResourceUID:  string(syncRunCR.UID),
+		DBRelationType:  db.APICRToDatabaseMapping_DBRelationType_SyncOperation,
+		DBRelationKey:   syncOperation.SyncOperation_id,
+
+		APIResourceName:      syncRunCR.Name,
+		APIResourceNamespace: syncRunCR.Namespace,
+		NamespaceUID:         eventlooptypes.GetWorkspaceIDFromNamespaceID(namespace),
+	}
+	if err := dbQueries.CreateAPICRToDatabaseMapping(ctx, &newApiCRToDBMapping); err != nil {
+		log.Error(err, "unable to create api to db mapping in database")
+
+		// If we were unable to retrieve the client, delete the resources we created in the previous steps
+		dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log)
+
+		return false, gitopserrors.NewDevOnlyError(err)
+	}
+	log.Info(fmt.Sprintf("Created a ApiCRToDBMapping: (APIResourceType: %s, APIResourceUID: %s, DBRelationType: %s)", newApiCRToDBMapping.APIResourceType, newApiCRToDBMapping.APIResourceUID, newApiCRToDBMapping.DBRelationType))
+	createdResources = append(createdResources, &newApiCRToDBMapping)
+
+	operationClient, err := a.getK8sClientForGitOpsEngineInstance(ctx, gitopsEngineInstance)
+	if err != nil {
+		log.Error(err, "unable to retrieve gitopsengine instance from handleSyncRunModified")
+
+		// If we were unable to retrieve the client, delete the resources we created in the previous steps
+		dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log)
+
+		// Return the original error
+		return false, gitopserrors.NewDevOnlyError(err)
+	}
+
+	dbOperationInput := db.Operation{
+		Instance_id:   gitopsEngineInstance.Gitopsengineinstance_id,
+		Resource_id:   syncOperation.SyncOperation_id,
+		Resource_type: db.OperationResourceType_SyncOperation,
+	}
+
+	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, false && !a.testOnlySkipCreateOperation, dbOperationInput, clusterUser.Clusteruser_id,
+		dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log)
+	if err != nil {
+		log.Error(err, "could not create operation", "namespace", dbutil.GetGitOpsEngineSingleInstanceNamespace())
+
+		// If we were unable to create the operation, delete the resources we created in the previous steps
+		dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log)
+
+		return false, gitopserrors.NewDevOnlyError(err)
+	}
+
+	// TODO: GITOPSRVCE-82 - STUB - Remove the 'false' in createOperation above, once cluster agent handling of operation is implemented.
+	log.Info("STUB: Not waiting for create Sync Run operation to complete, in handleNewSyncRunModified")
+
+	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log); err != nil {
+		return false, gitopserrors.NewDevOnlyError(err)
+	}
+
+	return false, nil
 }
 
-func (a *applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplSynRunEvent(ctx context.Context) {
+// handleUpdatedGitOpsDeplSynRunEvent handles GitOpsDeploymentSyncRun events where the user has just updated an existing GitOpsDeploymentSyncRun resource.
+// In this case, we need to ensure that the immutable fields GitOpsDeploymentName and RevisionID are not updated.
+//
+// Returns:
+// - true if the goroutine responsible for this GitOpsDeploymentSyncRun can shutdown (e.g. because the GitOpsDeploymentSyncRun no longer exists, so no longer needs to be processed), false otherwise.
+// - error is non-nil, if an error occurred
+func (a *applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplSynRunEvent(ctx context.Context, syncRunCR *managedgitopsv1alpha1.GitOpsDeploymentSyncRun, dbQueries db.ApplicationScopedQueries, syncOperation db.SyncOperation) (bool, gitopserrors.UserError) {
+	log := a.log
 
+	if syncOperation.DeploymentNameField != syncRunCR.Spec.GitopsDeploymentName {
+		userErrorText := "deployment name field is immutable: changing it from its initial value is not supported"
+		err := fmt.Errorf(userErrorText)
+		log.Error(err, userErrorText)
+		return false, gitopserrors.NewUserDevError(userErrorText, err)
+	}
+
+	if syncOperation.Revision != syncRunCR.Spec.RevisionID {
+		userErrorText := "revision change is not supported: changing it from its initial value is not supported"
+		err := fmt.Errorf(userErrorText)
+		log.Error(err, "revision field change is not supported")
+		return false, gitopserrors.NewUserDevError(userErrorText, err)
+	}
+
+	return false, nil
 }
 
 func (a *applicationEventLoopRunner_Action) cleanupOldSyncDBEntry(ctx context.Context, apiCRToDB *db.APICRToDatabaseMapping,

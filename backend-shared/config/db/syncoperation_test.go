@@ -71,6 +71,16 @@ var _ = Describe("SyncOperation Tests", func() {
 			Expect(err).To(BeNil())
 			Expect(fetchRow).Should(Equal(insertRow))
 
+			updatedSyncOperation := insertRow
+			updatedSyncOperation.DesiredState = "Running"
+
+			err = dbq.UpdateSyncOperation(ctx, &updatedSyncOperation)
+			Expect(err).To(BeNil())
+
+			err = dbq.GetSyncOperationById(ctx, &fetchRow)
+			Expect(err).To(BeNil())
+			Expect(fetchRow.DesiredState).Should(Equal(updatedSyncOperation.DesiredState))
+
 			rowCount, err := dbq.DeleteSyncOperationById(ctx, insertRow.SyncOperation_id)
 			Expect(err).To(BeNil())
 			Expect(rowCount).Should(Equal(1))

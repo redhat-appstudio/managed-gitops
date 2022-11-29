@@ -3,6 +3,7 @@ package util
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"os"
 	"strconv"
 
@@ -180,14 +181,18 @@ func shouldSimulateFailure() error {
 		return nil
 	}
 
+	// set environment variable(UNRELIABLE_CLIENT_FAILURE_RATE) in your terminal before running e2e tests
 	unreliableClientFailureRate := os.Getenv("UNRELIABLE_CLIENT_FAILURE_RATE")
 	unreliableClientFailureRateValue, err := strconv.Atoi(unreliableClientFailureRate)
 	if err != nil {
 		return err
 	}
 
-	// The % of the time(unreliableClientFailureRateValue) that is fails should be configurable via environment variable
-	if unreliableClientFailureRateValue <= 50 {
+	// Convert it to a decimal point, e.g. 50% to 0.5
+	unreliableClientFailureRateValue = unreliableClientFailureRateValue / 100
+
+	// return an error randomly x% of the time (using math/rand package)
+	if rand.Float64() < float64(unreliableClientFailureRateValue) {
 		return fmt.Errorf("simulated K8s error")
 	}
 

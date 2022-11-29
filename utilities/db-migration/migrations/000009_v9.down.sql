@@ -1,1 +1,1 @@
-ALTER TABLE ClusterCredentials DROP COLUMN allowinsecure_skiptlsverify;
+ALTER TABLE ClusterCredentials DROP COLUMN allowInsecureSkipTLSVerify;

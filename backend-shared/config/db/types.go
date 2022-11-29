@@ -109,7 +109,7 @@ type ClusterCredentials struct {
 	Serviceaccount_ns string `pg:"serviceaccount_ns"`
 
 	// -- Indicates that ArgoCD/GitOps Service should not check the TLS certificate.
-	AllowInsecureSkipTLSVerify bool `pg:"allowinsecure_skiptlsverify"`
+	AllowInsecureSkipTLSVerify bool `pg:"allowInsecureSkipTLSVerify"`
 }
 
 // ClusterUser is an individual user/customer

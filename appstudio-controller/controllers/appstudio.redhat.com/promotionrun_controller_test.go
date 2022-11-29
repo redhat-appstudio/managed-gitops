@@ -300,7 +300,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 		It("Should create a binding name no greater than 250 characters.", func() {
 			promotionRun.Spec.Application = strings.Repeat("a", 126)
 			promotionRun.Spec.ManualPromotion.TargetEnvironment = strings.Repeat("b", 126)
-			expectedBindingName := "generated-environment-binding-c0eb15050e88ad19f905700798974cca"
+			expectedBindingName := "generated-environment-binding-593debab8b0260a4eff2338aa1a896f3f44db24e586378168ab62536e5732fe1"
 
 			By("Testing createBindingName explicitly")
 

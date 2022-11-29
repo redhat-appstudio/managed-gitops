@@ -192,10 +192,10 @@ func shouldSimulateFailure() error {
 	unreliableClientFailureRateValue = unreliableClientFailureRateValue / 100
 
 	// return an error randomly x% of the time (using math/rand package)
+	// #nosec G404 -- not used for cryptographic purposes
 	if rand.Float64() < float64(unreliableClientFailureRateValue) {
 		return fmt.Errorf("simulated K8s error")
 	}
 
 	return nil
-
 }

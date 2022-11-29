@@ -18,7 +18,7 @@ package appstudioredhatcom
 
 import (
 	"context"
-	"crypto/md5" //#nosec G501 -- not used for cryptographic purposes
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"strings"
@@ -469,8 +469,8 @@ func locateOrCreateTargetManualBinding(ctx context.Context, promotionRun appstud
 func createBindingName(promotionRun *appstudioshared.PromotionRun) string {
 	name := strings.ToLower(promotionRun.Spec.Application + "-" + promotionRun.Spec.ManualPromotion.TargetEnvironment + "-generated-binding")
 	if len(name) > 250 {
-		// 'suffix' will have a length of 32
-		hash := md5.Sum([]byte(name)) //#nosec G401 -- not used for cryptographic purposes
+		// 'suffix' will have a length of 64
+		hash := sha256.Sum256([]byte(name))
 		suffix := hex.EncodeToString(hash[:])
 		name = "generated-environment-binding-" + suffix
 	}

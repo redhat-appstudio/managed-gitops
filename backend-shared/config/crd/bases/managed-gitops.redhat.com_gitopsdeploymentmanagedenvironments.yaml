@@ -38,14 +38,14 @@ spec:
             description: GitOpsDeploymentManagedEnvironmentSpec defines the desired
               state of GitOpsDeploymentManagedEnvironment
             properties:
-              allowinsecure_skiptlsverify:
+              allowInsecureSkipTLSVerify:
                 type: boolean
               apiURL:
                 type: string
               credentialsSecret:
                 type: string
             required:
-            - allowinsecure_skiptlsverify
+            - allowInsecureSkipTLSVerify
             - apiURL
             - credentialsSecret
             type: object

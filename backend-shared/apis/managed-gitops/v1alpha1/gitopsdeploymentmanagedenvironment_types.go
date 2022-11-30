@@ -20,6 +20,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	ManagedEnvironmentStatusConnectionInitializationSucceeded = "ConnectionInitializationSucceeded"
+)
+
 // GitOpsDeploymentManagedEnvironmentSpec defines the desired state of GitOpsDeploymentManagedEnvironment
 type GitOpsDeploymentManagedEnvironmentSpec struct {
 	APIURL                     string `json:"apiURL"`
@@ -39,6 +43,7 @@ const (
 
 // GitOpsDeploymentManagedEnvironmentStatus defines the observed state of GitOpsDeploymentManagedEnvironment
 type GitOpsDeploymentManagedEnvironmentStatus struct {
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 //+kubebuilder:object:root=true

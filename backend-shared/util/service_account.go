@@ -45,7 +45,7 @@ func getOrCreateServiceAccount(ctx context.Context, k8sClient client.Client, ser
 
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(serviceAccount), serviceAccount); err != nil {
 		if !apierr.IsNotFound(err) {
-			return nil, fmt.Errorf("unable to retrieve service account '%s': %v", serviceAccount.Name, err)
+			return nil, fmt.Errorf("unable to retrieve service account '%s': %w", serviceAccount.Name, err)
 		}
 	} else {
 		// Found it, so just return it
@@ -56,7 +56,7 @@ func getOrCreateServiceAccount(ctx context.Context, k8sClient client.Client, ser
 
 	if err := k8sClient.Create(ctx, serviceAccount); err != nil {
 		log.Error(err, "Unable to create ServiceAccount")
-		return nil, fmt.Errorf("unable to create service account '%s': %v", serviceAccount.Name, err)
+		return nil, fmt.Errorf("unable to create service account '%s': %w", serviceAccount.Name, err)
 	}
 	LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, ResourceCreated, log)
 
@@ -76,11 +76,11 @@ func InstallServiceAccount(ctx context.Context, k8sClient client.Client, uuid st
 
 	sa, err := getOrCreateServiceAccount(ctx, k8sClient, serviceAccountName, serviceAccountNS, log)
 	if err != nil {
-		return "", nil, fmt.Errorf("unable to create or update service account: %v", serviceAccountName)
+		return "", nil, fmt.Errorf("unable to create or update service account: %v, error: %w", serviceAccountName, err)
 	}
 
 	if err := createOrUpdateClusterRoleAndRoleBinding(ctx, uuid, k8sClient, serviceAccountName, serviceAccountNS, log); err != nil {
-		return "", nil, fmt.Errorf("unable to create or update role and cluster role binding: %v", err)
+		return "", nil, fmt.Errorf("unable to create or update role and cluster role binding: %w", err)
 	}
 
 	token, err := getOrCreateServiceAccountBearerToken(ctx, k8sClient, serviceAccountName, serviceAccountNS, log)
@@ -112,7 +112,7 @@ func getOrCreateServiceAccountBearerToken(ctx context.Context, k8sClient client.
 		return exists, nil
 
 	}); err != nil {
-		return "", fmt.Errorf("unable to create service account token secret: %v", err)
+		return "", fmt.Errorf("unable to create service account token secret: %w", err)
 	}
 
 	tokenSecretValue := tokenSecret.Data["token"]
@@ -188,7 +188,7 @@ func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(clusterRole), clusterRole); err != nil {
 
 		if !apierr.IsNotFound(err) {
-			return fmt.Errorf("unable to get cluster role: %v", err)
+			return fmt.Errorf("unable to get cluster role: %w", err)
 		}
 
 		log := log.WithValues("name", clusterRole.Name)
@@ -196,7 +196,7 @@ func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k
 		clusterRole.Rules = ArgoCDManagerNamespacePolicyRules
 		if err := k8sClient.Create(ctx, clusterRole); err != nil {
 			log.Error(err, "Unable to create ClusterRole")
-			return fmt.Errorf("unable to create clusterrole: %v", err)
+			return fmt.Errorf("unable to create clusterrole: %w", err)
 		}
 		LogAPIResourceChangeEvent(clusterRole.Namespace, clusterRole.Name, clusterRole, ResourceCreated, log)
 
@@ -206,7 +206,7 @@ func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k
 		clusterRole.Rules = ArgoCDManagerNamespacePolicyRules
 		if err := k8sClient.Update(ctx, clusterRole); err != nil {
 			log.Error(err, "Unable to update ClusterRole")
-			return fmt.Errorf("unable to update cluster role: %v", err)
+			return fmt.Errorf("unable to update cluster role: %w", err)
 		}
 		LogAPIResourceChangeEvent(clusterRole.Namespace, clusterRole.Name, clusterRole, ResourceModified, log)
 	}
@@ -219,7 +219,7 @@ func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k
 	update := true
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(clusterRoleBinding), clusterRoleBinding); err != nil {
 		if !apierr.IsNotFound(err) {
-			return fmt.Errorf("unable to get cluster role binding: %v", err)
+			return fmt.Errorf("unable to get cluster role binding: %w", err)
 		}
 		update = false
 	}
@@ -241,13 +241,13 @@ func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k
 	if update {
 		if err := k8sClient.Update(ctx, clusterRoleBinding); err != nil {
 			log.Error(err, "Unable to update ClusterRoleBinding")
-			return fmt.Errorf("unable to create clusterrole: %v", err)
+			return fmt.Errorf("unable to create clusterrole: %w", err)
 		}
 		LogAPIResourceChangeEvent(clusterRoleBinding.Namespace, clusterRoleBinding.Name, clusterRoleBinding, ResourceModified, log)
 	} else {
 		if err := k8sClient.Create(ctx, clusterRoleBinding); err != nil {
 			log.Error(err, "Unable to create ClusterRoleBinding")
-			return fmt.Errorf("unable to create clusterrole: %v", err)
+			return fmt.Errorf("unable to create clusterrole: %w", err)
 		}
 		LogAPIResourceChangeEvent(clusterRoleBinding.Namespace, clusterRoleBinding.Name, clusterRoleBinding, ResourceCreated, log)
 	}

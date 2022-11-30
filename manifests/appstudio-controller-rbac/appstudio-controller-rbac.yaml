@@ -49,6 +49,14 @@ metadata:
   name: appstudio-controller-manager-role
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - appstudio.redhat.com
   resources:
   - promotionruns

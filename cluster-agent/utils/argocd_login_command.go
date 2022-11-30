@@ -26,7 +26,7 @@ func generateDefaultClientForServerAddress(server string, optionalAuthToken stri
 	globalClientOpts := argocdclient.ClientOptions{
 		ConfigPath:           "",
 		ServerAddr:           server,
-		Insecure:             true, // clusterCredentials.AllowInsecureSkipTLSVerify TODO: GITOPSRVCE-178: once support for TLS certification validation is implemented, the value should be used here.
+		Insecure:             true, // clusterCredentials.AllowInsecureSkipTLSVerify (178)
 		PlainText:            false,
 		ClientCertFile:       "",
 		ClientCertKeyFile:    "",

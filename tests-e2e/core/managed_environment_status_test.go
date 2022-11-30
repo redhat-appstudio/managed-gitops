@@ -52,6 +52,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			By("creating the GitOpsDeploymentManagedEnvironment with a secret that is missing the kubeconfig data")
 
 			kubeConfigContents, apiServerURL, err := extractKubeConfigValues()
+			Expect(err).To(BeNil())
 			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents)
 			delete(secret.StringData, "kubeconfig")
 
@@ -81,6 +82,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			By("creating the GitOpsDeploymentManagedEnvironment with a secret that has bad kubeconfig data")
 
 			kubeConfigContents, apiServerURL, err := extractKubeConfigValues()
+			Expect(err).To(BeNil())
 			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents)
 			secret.StringData["kubeconfig"] = "badbadbad"
 
@@ -110,6 +112,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			By("creating the GitOpsDeploymentManagedEnvironment with a secret that lacks a kubeconfig context")
 
 			kubeConfigContents, apiServerURL, err := extractKubeConfigValues()
+			Expect(err).To(BeNil())
 			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents)
 			secret.StringData["kubeconfig"] = "apiVersion: v1\nkind: Config\n"
 

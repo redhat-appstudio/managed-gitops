@@ -10,14 +10,12 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1/mocks"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
-
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1/mocks"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventloop_test_util"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
@@ -164,6 +162,11 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).To(BeNil())
 
+			// Update our copy of the ManagedEnvironment, since the call to reconcile will have added status to it.
+			// This prevents an "object was modified" error when we update it.
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
+			Expect(err).To(BeNil())
+
 			By("updating the managed environment, and verifying that the database rows are also updated")
 
 			oldClusterCreds := &db.ClusterCredentials{
@@ -263,6 +266,195 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 		})
 
+		It("should set the condition ConnectionInitializationSucceeded status to True when the connection succeeded", func() {
+			managedEnv, secret := buildManagedEnvironmentForSRL()
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, &managedEnv)
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Create(ctx, &secret)
+			Expect(err).To(BeNil())
+
+			By("calling ReconcileSharedManagedEnv")
+			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(err).To(BeNil())
+			Expect(src.ManagedEnv).To(Not(BeNil()))
+
+			By("verifying the status condition")
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
+			Expect(err).To(BeNil())
+			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
+			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal("Succeeded"))
+
+			By("ensuring the LastTransitionTime is not updated if nothing has changed")
+			lastTransitionTime := managedEnv.Status.Conditions[0].LastTransitionTime
+			src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(err).To(BeNil())
+			Expect(src.ManagedEnv).To(Not(BeNil()))
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
+			Expect(err).To(BeNil())
+			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
+			Expect(managedEnv.Status.Conditions[0].LastTransitionTime).To(Equal(lastTransitionTime))
+			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal("Succeeded"))
+		})
+
+		It("should ensure the condition ConnectionInitializationSucceeded status is True when reconciling and nothing changed", func() {
+			managedEnv, secret := buildManagedEnvironmentForSRL()
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, &managedEnv)
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Create(ctx, &secret)
+			Expect(err).To(BeNil())
+
+			By("calling ReconcileSharedManagedEnv")
+			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(err).To(BeNil())
+			Expect(src.ManagedEnv).To(Not(BeNil()))
+
+			By("verifying the status condition")
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
+			Expect(err).To(BeNil())
+			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
+			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal("Succeeded"))
+
+			By("removing the status condition and reconciling")
+			managedEnv.Status.Conditions = []metav1.Condition{}
+			err = k8sClient.Update(ctx, &managedEnv)
+			Expect(err).To(BeNil())
+			src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+
+			By("ensuring the status condition is recreated")
+			Expect(err).To(BeNil())
+			Expect(src.ManagedEnv).To(Not(BeNil()))
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
+			Expect(err).To(BeNil())
+			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
+			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal("Succeeded"))
+
+			By("setting the status condition false and reconciling")
+			managedEnv.Status.Conditions[0].Status = metav1.ConditionFalse
+			err = k8sClient.Update(ctx, &managedEnv)
+			Expect(err).To(BeNil())
+			src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+
+			By("ensuring the status condition is recreated")
+			Expect(err).To(BeNil())
+			Expect(src.ManagedEnv).To(Not(BeNil()))
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
+			Expect(err).To(BeNil())
+			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
+			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal("Succeeded"))
+		})
+
+		It("should set the condition ConnectionInitializationSucceeded status to False when the connection fails for new environment", func() {
+			managedEnv, secret := buildManagedEnvironmentForSRL()
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, &managedEnv)
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Create(ctx, &secret)
+			Expect(err).To(BeNil())
+
+			By("simulating a complete failure to connect to the target cluster")
+			mockCtrl := gomock.NewController(GinkgoT())
+			defer mockCtrl.Finish()
+			mockClient := mocks.NewMockClient(mockCtrl)
+
+			mockClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("fake unable to connect"))
+
+			mockFactory := &SimulateFailingClientMockSRLK8sClientFactory{
+				limit:          1,
+				failingClient:  mockClient,
+				realFakeClient: k8sClient,
+			}
+
+			By("calling reconcile to create  new managed env")
+			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(src.ManagedEnv).To(BeNil())
+			Expect(err).ToNot(BeNil())
+			Expect(mockFactory.count).To(Equal(1))
+
+			By("ensuring the .status.condition is set to False")
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
+			Expect(err).To(BeNil())
+			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
+			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionFalse))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal("UnableToInstallServiceAccount"))
+		})
+
+		It("should set the condition ConnectionInitializationSucceeded status to False when the connection fails for existing environment", func() {
+			managedEnv, secret := buildManagedEnvironmentForSRL()
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, &managedEnv)
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Create(ctx, &secret)
+			Expect(err).To(BeNil())
+
+			By("first calling reconcile to create database entries for new managed env")
+			firstSrc, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(err).To(BeNil())
+			Expect(firstSrc.ManagedEnv).ToNot(BeNil())
+
+			By("next simulating a complete failure to connect to the target cluster")
+			mockCtrl := gomock.NewController(GinkgoT())
+			defer mockCtrl.Finish()
+			mockClient := mocks.NewMockClient(mockCtrl)
+
+			mockClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("fake unable to connect"))
+			mockClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("fake unable to connect"))
+
+			mockFactory := &SimulateFailingClientMockSRLK8sClientFactory{
+				limit:          2,
+				failingClient:  mockClient,
+				realFakeClient: k8sClient,
+			}
+			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(src.ManagedEnv).To(BeNil())
+			Expect(err).ToNot(BeNil())
+			Expect(mockFactory.count).To(Equal(2))
+
+			By("ensuring the .status.condition is set to False")
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
+			Expect(err).To(BeNil())
+			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
+			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionFalse))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal("UnableToInstallServiceAccount"))
+		})
+
 		It("should test the case where we are unable to connect to a managed env, so new credentials are acquired, and old ones are deleted", func() {
 			managedEnv, secret := buildManagedEnvironmentForSRL()
 			managedEnv.UID = "test-" + uuid.NewUUID()
@@ -291,6 +483,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			mockClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("fake unable to connect"))
 
 			mockFactory := &SimulateFailingClientMockSRLK8sClientFactory{
+				limit:          1,
 				failingClient:  mockClient,
 				realFakeClient: k8sClient,
 			}
@@ -301,6 +494,14 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(mockFactory.count).To(Equal(1))
 			Expect(firstSrc.ManagedEnv.Managedenvironment_id).To(Equal(src.ManagedEnv.Managedenvironment_id))
 			Expect(src.ManagedEnv.Clustercredentials_id).ToNot(Equal(oldClusterCredentials))
+
+			By("ensuring the .status.condition is set to True")
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
+			Expect(err).To(BeNil())
+			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
+			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal("Succeeded"))
 
 			By("verifying the old credentials have been deleted, since we simulated them being invalid")
 			clusterCreds := &db.ClusterCredentials{Clustercredentials_cred_id: oldClusterCredentials}
@@ -595,6 +796,7 @@ func (f MockSRLK8sClientFactory) GetK8sClientForServiceWorkspace() (client.Clien
 }
 
 type SimulateFailingClientMockSRLK8sClientFactory struct {
+	limit          int
 	count          int
 	failingClient  client.Client
 	realFakeClient client.Client
@@ -602,7 +804,7 @@ type SimulateFailingClientMockSRLK8sClientFactory struct {
 
 func (f *SimulateFailingClientMockSRLK8sClientFactory) BuildK8sClient(restConfig *rest.Config) (client.Client, error) {
 	GinkgoWriter.Println("SimulateFailingClientMockSRLK8sClientFactory call count:", f.count)
-	if f.count == 0 {
+	if f.count < f.limit {
 		f.count++
 		return f.failingClient, nil
 	}

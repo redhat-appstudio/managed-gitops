@@ -204,7 +204,7 @@ func internalProcessWorkspaceResourceMessage(ctx context.Context, msg workspaceR
 		_, err := sharedResourceLoop.ReconcileRepositoryCredential(ctx, msg.apiNamespaceClient, *namespace, req.Name, shared_resource_loop.DefaultK8sClientFactory{})
 
 		if err != nil {
-			return retry, fmt.Errorf("unable to reconcile repository credential")
+			return retry, fmt.Errorf("unable to reconcile repository credential. Error: %v", err)
 		}
 
 		return noRetry, nil

@@ -26,7 +26,7 @@ func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationPara
 	operationNamespace string, dbQueries db.ApplicationScopedQueries, gitopsEngineClient client.Client,
 	l logr.Logger) (*managedgitopsv1alpha1.Operation, *db.Operation, error) {
 	var err error
-	l.WithValues("Operation GitOpsEngineInstanceID", dbOperationParam.Instance_id,
+	l = l.WithValues("Operation GitOpsEngineInstanceID", dbOperationParam.Instance_id,
 		"Operation ResourceID", dbOperationParam.Resource_id,
 		"Operation ResourceType", dbOperationParam.Resource_type,
 		"Operation OwnerUserID", clusterUserID,
@@ -83,7 +83,7 @@ func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationPara
 		l.Error(err, "Unable to create Operation database row")
 		return nil, nil, err
 	}
-	l.Info("Created Operation database row")
+	l.Info("Created Operation database row", "Operation DB ID", dbOperation.Operation_id)
 
 	// Create K8s operation
 	operation := managedgitopsv1alpha1.Operation{
@@ -105,7 +105,9 @@ func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationPara
 		l.Error(err, "Unable to create K8s Operation")
 		return nil, nil, err
 	}
-	l.Info("Created K8s Operation CR")
+	l.Info("Created K8s Operation CR", "Operation CR Name", operation.Name,
+		"Operation CR Namespace", operation.Namespace, "Operation CR ID", operation.Spec.OperationID,
+		"Operation CR State", operation.Status)
 
 	// Wait for operation to complete.
 	if waitForOperation {

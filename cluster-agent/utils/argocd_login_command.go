@@ -15,18 +15,11 @@ import (
 // This file is loosely based on the 'argocd login' CLI command (https://github.com/argoproj/argo-cd/blob/0a46d37fc6af9fe0aa963bdd845e3d799aa0320d/cmd/argocd/commands/login.go#L60)
 
 func generateDefaultClientForServerAddress(server string, optionalAuthToken string, skipTLSTest bool) (argocdclient.Client, error) {
-	// managedEnv := &db.ManagedEnvironment{
-	// 	Managedenvironment_id: application.Managed_environment_id,
-	// }
-
-	// clusterCredentials := &db.ClusterCredentials{
-	// 	Clustercredentials_cred_id: managedEnv.Clustercredentials_id,
-	// }
 
 	globalClientOpts := argocdclient.ClientOptions{
 		ConfigPath:           "",
 		ServerAddr:           server,
-		Insecure:             true, // clusterCredentials.AllowInsecureSkipTLSVerify (178)
+		Insecure:             true, // TODO: GITOPSRVCE-308 - We should only trust an unsigned Argo CD TLS cert with an explicit user override.
 		PlainText:            false,
 		ClientCertFile:       "",
 		ClientCertKeyFile:    "",

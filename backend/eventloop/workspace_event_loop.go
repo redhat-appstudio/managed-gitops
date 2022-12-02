@@ -8,10 +8,12 @@ import (
 	"github.com/go-logr/logr"
 
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/application_event_loop"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
+	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -171,11 +173,6 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, namespaceID 
 			log.V(sharedutil.LogLevel_Debug).Info("workspaceEventLoop received event",
 				"event", eventlooptypes.StringEventLoopEvent(event.Event))
 
-			// If it's a GitOpsDeploymentSyncRun:
-			//   - If the SyncRun exists, use the name that was specified
-			//   - If the Syncrun doesn't exist, retrieve from the database
-			//     - If it's not found in the database, it's orphaned.
-
 			// Check GitOpsDeployment resource events that come in: if we get an event for GitOpsDeployment that has an
 			// orphaned child resource depending on it, then unorphan the child resource.
 			if event.Event.ReqResource == eventlooptypes.GitOpsDeploymentTypeName {
@@ -316,7 +313,21 @@ func checkIfOrphanedGitOpsDeploymentSyncRun(ctx context.Context, event eventloop
 		if err := event.Event.Client.Get(ctx, client.ObjectKeyFromObject(syncRunCR), syncRunCR); err != nil {
 			if apierr.IsNotFound(err) {
 				log.V(sharedutil.LogLevel_Debug).Info("skipping potentially orphaned resource that could no longer be found:", "resource", syncRunCR.ObjectMeta)
-				return ""
+
+				// The SyncRun CR doesn't exist, so try fetching the SyncOperation from the database and extract the name of GitOpsDeployment
+				dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
+				if err != nil {
+					log.Error(err, "failed to get a connection to the databse")
+					return ""
+				}
+
+				syncOperation, err := getDBSyncOperationFromAPIMapping(ctx, dbQueries, event.Event.Client, syncRunCR)
+				if err != nil {
+					log.Error(err, "failed to get SyncOperation using APICRToDBMapping")
+					return ""
+				}
+
+				return syncOperation.DeploymentNameField
 			} else {
 				log.Error(err, "unexpected client error on retrieving syncrun object", "resource", syncRunCR.ObjectMeta)
 				return ""
@@ -368,6 +379,39 @@ func checkIfOrphanedGitOpsDeploymentSyncRun(ctx context.Context, event eventloop
 		return ""
 	}
 
+}
+
+func getDBSyncOperationFromAPIMapping(ctx context.Context, dbQueries db.DatabaseQueries, k8sclient client.Client, syncRunCR *v1alpha1.GitOpsDeploymentSyncRun) (db.SyncOperation, error) {
+	namespace := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: syncRunCR.Namespace,
+		},
+	}
+	if err := k8sclient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace); err != nil {
+		return db.SyncOperation{}, fmt.Errorf("failed to get namespace %s: %v", namespace.Name, err)
+	}
+
+	apiCRToDBMappingList := []db.APICRToDatabaseMapping{}
+	if err := dbQueries.ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx, db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun, syncRunCR.Name, syncRunCR.Namespace, string(namespace.UID), db.APICRToDatabaseMapping_DBRelationType_SyncOperation, &apiCRToDBMappingList); err != nil {
+		return db.SyncOperation{}, fmt.Errorf("failed to list APICRToDBMapping by namespace and name: %v", err)
+	}
+
+	if len(apiCRToDBMappingList) == 0 {
+		return db.SyncOperation{}, fmt.Errorf("no database entry found for GitOpsDeploymentSyncRun %s", syncRunCR.Name)
+	}
+
+	apiCRToDBMapping := apiCRToDBMappingList[0]
+
+	if apiCRToDBMapping.DBRelationType != db.APICRToDatabaseMapping_DBRelationType_SyncOperation {
+		return db.SyncOperation{}, fmt.Errorf("expected db relation type to be 'SyncOperation', but found '%s'", apiCRToDBMapping.DBRelationType)
+	}
+
+	syncOperation := db.SyncOperation{SyncOperation_id: apiCRToDBMapping.DBRelationKey}
+	if err := dbQueries.GetSyncOperationById(ctx, &syncOperation); err != nil {
+		return db.SyncOperation{}, fmt.Errorf("failed to retrieve syncoperation by id: %v", err)
+	}
+
+	return syncOperation, nil
 }
 
 func unorphanResourcesIfPossible(ctx context.Context, event eventlooptypes.EventLoopMessage,

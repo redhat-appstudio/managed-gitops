@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -447,7 +448,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 			log.Error(err, "error occurred on processing the sync application operation")
 		}
 
-		return nil, shouldRetry, err
+		return &dbOperation, shouldRetry, err
 
 	} else {
 		log.Error(nil, "SEVERE: unrecognized resource type: "+string(dbOperation.Resource_type))
@@ -543,6 +544,13 @@ func terminateExistingOperation(ctx context.Context, dbApplication *db.Applicati
 
 	if err := utils.TerminateOperation(ctx, dbApplication.Name, opConfig.argoCDNamespace, opConfig.credentialService,
 		opConfig.eventClient, time.Duration(5*time.Minute), opConfig.log); err != nil {
+
+		// we can return if there are no sync operations in progress
+		terminatedOperationErr := "Unable to terminate operation. No operation is in progress"
+		if strings.Contains(err.Error(), terminatedOperationErr) {
+			opConfig.log.Info("No sync operation in progress for application " + dbApplication.Name)
+			return shouldRetryFalse, nil
+		}
 
 		opConfig.log.Error(err, "unable to terminate operation: "+dbApplication.Name)
 		return shouldRetryTrue, err

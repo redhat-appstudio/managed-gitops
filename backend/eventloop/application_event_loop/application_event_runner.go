@@ -159,7 +159,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 				} else if newEvent.EventType == eventlooptypes.SyncRunModified {
 
 					// Handle all SyncRun related events
-					_, err = action.applicationEventRunner_handleSyncRunModified(ctx, scopedDBQueries)
+					signalledShutdown, err = action.applicationEventRunner_handleSyncRunModified(ctx, scopedDBQueries)
 
 				} else if newEvent.EventType == eventlooptypes.UpdateDeploymentStatusTick {
 					err = action.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDeploymentName, gitopsDeploymentNamespace, scopedDBQueries)

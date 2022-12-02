@@ -221,7 +221,7 @@ func (cs *CredentialService) getCredentialsFromNamespace(req credentialRequest, 
 
 		err := req.k8sClient.List(req.ctx, routeList, &client.ListOptions{Namespace: req.namespaceName})
 		if err != nil {
-			return nil, nil, fmt.Errorf("unable to get Argo CD initial admin password: %v", err)
+			return nil, nil, fmt.Errorf("unable to list Routes in namespace %s : %v", req.namespaceName, err)
 		}
 
 		for _, route := range routeList.Items {
@@ -260,6 +260,15 @@ func (cs *CredentialService) getCredentialsFromNamespace(req credentialRequest, 
 		userToken, err := argoCDLoginCommand("admin", password, acdClient)
 
 		if err == nil && len(userToken) > 0 {
+			acdClient, err := cs.acdClientGenerator.generateClientForServerAddress(serverHostName, userToken, skipTLSTest)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			if acdClient == nil {
+				return nil, nil, fmt.Errorf("argo CD client was nil")
+			}
+
 			return &argoCDCredentials{
 				ServerAddress: serverHostName,
 				Username:      "admin",

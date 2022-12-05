@@ -199,6 +199,7 @@ type Operation struct {
 	// * GitopsEngineInstance (specified to CRUD an Argo instance, for example to create a new namespace and put Argo CD in it, then signal when it's done)
 	// * Application (user creates a new Application via service/web UI)
 	// * RepositoryCredentials (user provides private repository credentials via web UI)
+	// * SyncOperation (specified when user wants to sync an Argo CD Application)
 	Resource_type OperationResourceType `pg:"resource_type"`
 
 	// -- When the operation was created. Used for garbage collection, as operations should be short lived.

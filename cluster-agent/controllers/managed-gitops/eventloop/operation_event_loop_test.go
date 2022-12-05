@@ -3,6 +3,7 @@ package eventloop
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -11,6 +12,7 @@ import (
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
+	"github.com/redhat-appstudio/managed-gitops/cluster-agent/utils"
 	"gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -796,6 +798,242 @@ var _ = Describe("Operation Controller", func() {
 			)
 
 		})
+
+		Context("Process SyncOperation", func() {
+
+			var (
+				applicationDB          *db.Application
+				createOperationDBAndCR func(resourceID string)
+			)
+
+			BeforeEach(func() {
+				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
+				Expect(err).To(BeNil())
+
+				_, dummyApplicationSpecString, err := createDummyApplicationData()
+				Expect(err).To(BeNil())
+
+				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
+				Expect(gitopsEngineCluster).ToNot(BeNil())
+				Expect(err).To(BeNil())
+
+				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
+				gitopsEngineInstance := &db.GitopsEngineInstance{
+					Gitopsengineinstance_id: "test-fake-engine-instance",
+					Namespace_name:          workspace.Namespace,
+					Namespace_uid:           string(workspace.UID),
+					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+				}
+				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
+				Expect(err).To(BeNil())
+
+				applicationDB = &db.Application{
+					Application_id:          "test-my-application",
+					Name:                    name,
+					Spec_field:              dummyApplicationSpecString,
+					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				}
+
+				By("create Application in Database")
+				err = dbQueries.CreateApplication(ctx, applicationDB)
+				Expect(err).To(BeNil())
+
+				createOperationDBAndCR = func(resourceID string) {
+					By("creating new operation row of type SyncOperation in the database")
+					operationDB := &db.Operation{
+						Operation_id:            "test-operation",
+						Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+						Resource_id:             resourceID,
+						Resource_type:           db.OperationResourceType_SyncOperation,
+						State:                   db.OperationState_Waiting,
+						Operation_owner_user_id: testClusterUser.Clusteruser_id,
+					}
+
+					err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+					Expect(err).To(BeNil())
+
+					By("creating Operation CR")
+					operationCR := &managedgitopsv1alpha1.Operation{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      name,
+							Namespace: namespace,
+						},
+						Spec: managedgitopsv1alpha1.OperationSpec{
+							OperationID: operationDB.Operation_id,
+						},
+					}
+
+					err = task.event.client.Create(ctx, operationCR)
+					Expect(err).To(BeNil())
+				}
+			})
+
+			AfterEach(func() {
+				dbQueries.CloseDatabase()
+				testTeardown()
+			})
+
+			It("should handle a valid SyncOperation", func() {
+
+				By("create a SyncOperation in the database")
+				syncOperation := db.SyncOperation{
+					SyncOperation_id:    "test-syncoperation",
+					Application_id:      applicationDB.Application_id,
+					DeploymentNameField: "test",
+					Revision:            "main",
+					DesiredState:        db.SyncOperation_DesiredState_Running,
+				}
+				err = dbQueries.CreateSyncOperation(ctx, &syncOperation)
+				Expect(err).To(BeNil())
+
+				By("create Operation DB row and CR for the SyncOperation")
+				createOperationDBAndCR(syncOperation.SyncOperation_id)
+
+				By("verify there is no retry for a successful sync")
+				task.syncService = &syncService{
+					appSync: func(ctx context.Context, s1, s2, s3 string, c client.Client, cs *utils.CredentialService, b bool) error {
+						return nil
+					},
+				}
+
+				retry, err := task.PerformTask(ctx)
+				Expect(err).Should(BeNil())
+				Expect(retry).To(BeFalse())
+			})
+
+			It("should return an error and retry if the sync fails", func() {
+
+				By("create a SyncOperation in the database")
+				syncOperation := db.SyncOperation{
+					SyncOperation_id:    "test-syncoperation",
+					Application_id:      applicationDB.Application_id,
+					DeploymentNameField: "test",
+					Revision:            "main",
+					DesiredState:        db.SyncOperation_DesiredState_Running,
+				}
+				err = dbQueries.CreateSyncOperation(ctx, &syncOperation)
+				Expect(err).To(BeNil())
+
+				By("create Operation DB row and CR for the SyncOperation")
+				createOperationDBAndCR(syncOperation.SyncOperation_id)
+
+				By("check if the sync failed error is returned with retry")
+				expectedErr := "sync failed due to xyz reason"
+				task.syncService = &syncService{
+					appSync: func(ctx context.Context, s1, s2, s3 string, c client.Client, cs *utils.CredentialService, b bool) error {
+						return fmt.Errorf(expectedErr)
+					},
+				}
+
+				retry, err := task.PerformTask(ctx)
+				Expect(err.Error()).Should(Equal(expectedErr))
+				Expect(retry).To(BeTrue())
+			})
+
+			It("return an error and don't retry if the SyncOperation DB row is not found", func() {
+
+				By("create Operation DB row and CR for the SyncOperation")
+				createOperationDBAndCR("uknown")
+
+				By("check if SyncOperation not found error is handled")
+				task.syncService = &syncService{
+					appSync: func(ctx context.Context, s1, s2, s3 string, c client.Client, cs *utils.CredentialService, b bool) error {
+						return nil
+					},
+				}
+				expectedErr := "no results found for GetSyncOperationById: no rows in result set"
+
+				retry, err := task.PerformTask(ctx)
+				Expect(err.Error()).Should(Equal(expectedErr))
+				Expect(retry).To(BeFalse())
+			})
+
+			It("don't retry if the SyncOperation is neither in Running nor in Terminated state", func() {
+
+				By("create a SyncOperation of unknown state in the database")
+				syncOperation := db.SyncOperation{
+					SyncOperation_id:    "test-syncoperation",
+					Application_id:      applicationDB.Application_id,
+					DeploymentNameField: "test",
+					Revision:            "main",
+					DesiredState:        "uknown",
+				}
+				err = dbQueries.CreateSyncOperation(ctx, &syncOperation)
+				Expect(err).To(BeNil())
+
+				By("create Operation DB row and CR for the SyncOperation")
+				createOperationDBAndCR(syncOperation.SyncOperation_id)
+
+				task.syncService = &syncService{
+					appSync: func(ctx context.Context, s1, s2, s3 string, c client.Client, cs *utils.CredentialService, b bool) error {
+						return nil
+					},
+				}
+
+				retry, err := task.PerformTask(ctx)
+				Expect(err).Should(BeNil())
+				Expect(retry).To(BeFalse())
+			})
+
+			It("don't retry if we can successfully terminate a sync operation", func() {
+
+				By("create a SyncOperation with desired state 'Terminated' in the database")
+				syncOperation := db.SyncOperation{
+					SyncOperation_id:    "test-syncoperation",
+					Application_id:      applicationDB.Application_id,
+					DeploymentNameField: "test",
+					Revision:            "main",
+					DesiredState:        db.SyncOperation_DesiredState_Terminated,
+				}
+				err = dbQueries.CreateSyncOperation(ctx, &syncOperation)
+				Expect(err).To(BeNil())
+
+				By("create Operation DB row and CR for the SyncOperation")
+				createOperationDBAndCR(syncOperation.SyncOperation_id)
+
+				By("verify that there is no retry and error for a successful termination")
+				task.syncService = &syncService{
+					terminateOperation: func(ctx context.Context, s string, n v1.Namespace, cs *utils.CredentialService, c client.Client, d time.Duration, l logr.Logger) error {
+						return nil
+					},
+				}
+
+				retry, err := task.PerformTask(ctx)
+				Expect(err).Should(BeNil())
+				Expect(retry).To(BeFalse())
+			})
+
+			It("should return an error and retry if we can't terminate a sync operation", func() {
+
+				By("create a SyncOperation with desired state 'Terminated' in the database")
+				syncOperation := db.SyncOperation{
+					SyncOperation_id:    "test-syncoperation",
+					Application_id:      applicationDB.Application_id,
+					DeploymentNameField: "test",
+					Revision:            "main",
+					DesiredState:        db.SyncOperation_DesiredState_Terminated,
+				}
+				err = dbQueries.CreateSyncOperation(ctx, &syncOperation)
+				Expect(err).To(BeNil())
+
+				By("create Operation DB row and CR for the SyncOperation")
+				createOperationDBAndCR(syncOperation.SyncOperation_id)
+
+				By("check if an error is returned for the failed termination")
+				expectedErr := "unable to terminate sync due to xyz reason"
+				task.syncService = &syncService{
+					terminateOperation: func(ctx context.Context, s string, n v1.Namespace, cs *utils.CredentialService, c client.Client, d time.Duration, l logr.Logger) error {
+						return fmt.Errorf(expectedErr)
+					},
+				}
+
+				retry, err := task.PerformTask(ctx)
+				Expect(err.Error()).Should(Equal(expectedErr))
+				Expect(retry).To(BeTrue())
+			})
+
+		})
 	})
 })
 
@@ -822,12 +1060,20 @@ type testResources struct {
 	Application_id                string
 	Managedenvironment_id         string
 	kubernetesToDBResourceMapping db.KubernetesToDBResourceMapping
+	SyncOperation_id              string
 }
 
 // Delete resources from table
 func deleteTestResources(ctx context.Context, dbQueries db.AllDatabaseQueries, resourcesToBeDeleted testResources) {
 	var rowsAffected int
 	var err error
+
+	// Delete SyncOperation
+	if resourcesToBeDeleted.SyncOperation_id != "" {
+		rowsAffected, err = dbQueries.DeleteSyncOperationById(ctx, resourcesToBeDeleted.SyncOperation_id)
+		Expect(err).To(BeNil())
+		Expect(rowsAffected).To(Equal(1))
+	}
 
 	// Delete Application
 	if resourcesToBeDeleted.Application_id != "" {

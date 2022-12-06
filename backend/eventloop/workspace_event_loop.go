@@ -219,22 +219,43 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, namespaceID 
 
 			applicationEntryVal, exists := applicationMap[mapKey]
 			if !exists {
-				// Start the application event queue go-routine, if it's not already started.
 
-				// Start the application event loop's goroutine
-				inputChan := applEventLoopFactory.startApplicationEventQueueLoop(ctx, associatedGitOpsDeploymentName, event.Event.Request.Namespace,
-					event.Event.WorkspaceID, sharedResourceEventLoop)
-
-				applicationEntryVal = workspaceEventLoop_applicationEventLoopEntry{
-					input: inputChan,
+				var err error
+				applicationEntryVal, err = startApplicationEventQueueLoop(ctx, associatedGitOpsDeploymentName, event, sharedResourceEventLoop, applEventLoopFactory, log)
+				if err != nil {
+					// We already logged the error in startApplicationEventLoop, no need to log here
+					continue
 				}
+
+				// Add the loop to our map
 				applicationMap[mapKey] = applicationEntryVal
 			}
 
-			// Send the event to the channel/go routine that handles all events for this application/gitopsdepl (non-blocking)
-			applicationEntryVal.input <- eventlooptypes.EventLoopMessage{
-				MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
-				Event:       event.Event,
+			// Send the event to the channel/go routine that handles all events for this application/gitopsdepl
+			// we wait for a response from the channel (on ResponseChan) before continuing.
+			syncResponseChan := make(chan application_event_loop.ApplicationEventLoopResponseMessage)
+			applicationEntryVal.input <- application_event_loop.ApplicationEventLoopRequestMessage{
+				Message: eventlooptypes.EventLoopMessage{
+					MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
+					Event:       event.Event,
+				},
+				ResponseChan: syncResponseChan,
+			}
+
+			responseMessage := <-syncResponseChan
+
+			if !responseMessage.RequestAccepted {
+				// Request was rejected: this means the application event loop has terminated.
+
+				// Remove the terminated application event loop from the map
+				delete(applicationMap, mapKey)
+
+				// Requeue the message on a separate goroutine, so it will be processed again.
+				go func() {
+					input <- wrapperEvent
+				}()
+
+				continue
 			}
 
 		} else if wrapperEvent.messageType == managedEnvProcessed_Event {
@@ -246,10 +267,16 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, namespaceID 
 			for key := range applicationMap {
 				applicationEntryVal := applicationMap[key]
 
+				// TODO: Need to update this as well.
+
 				go func() {
-					applicationEntryVal.input <- eventlooptypes.EventLoopMessage{
-						MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
-						Event:       event.Event,
+
+					applicationEntryVal.input <- application_event_loop.ApplicationEventLoopRequestMessage{
+						Message: eventlooptypes.EventLoopMessage{
+							MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
+							Event:       event.Event,
+						},
+						ResponseChan: nil,
 					}
 				}()
 			}
@@ -260,9 +287,37 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, namespaceID 
 	}
 }
 
+func startApplicationEventQueueLoop(ctx context.Context, associatedGitOpsDeploymentName string, event eventlooptypes.EventLoopMessage,
+	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop,
+	applEventLoopFactory applicationEventQueueLoopFactory, log logr.Logger) (workspaceEventLoop_applicationEventLoopEntry, error) {
+
+	// Start the application event queue go-routine
+
+	aeqlParam := application_event_loop.ApplicationEventQueueLoop{
+		GitopsDeploymentName:      associatedGitOpsDeploymentName,
+		GitopsDeploymentNamespace: event.Event.Request.Namespace,
+		WorkspaceID:               event.Event.WorkspaceID,
+		SharedResourceEventLoop:   sharedResourceEventLoop,
+		VwsAPIExportName:          "", // this value will be replaced in startApplicationEventQueueLoop, so is blank
+		InputChan:                 make(chan application_event_loop.ApplicationEventLoopRequestMessage),
+	}
+
+	// Start the application event loop's goroutine
+	if err := applEventLoopFactory.startApplicationEventQueueLoop(ctx, aeqlParam); err != nil {
+		log.Error(err, "SEVERE: an error occurred when attempting to start application event queue loop")
+		return workspaceEventLoop_applicationEventLoopEntry{}, err
+	}
+
+	applicationEntryVal := workspaceEventLoop_applicationEventLoopEntry{
+		input: aeqlParam.InputChan,
+	}
+
+	return applicationEntryVal, nil
+}
+
 type workspaceEventLoop_applicationEventLoopEntry struct {
 	// input is the channel used to communicate with an application event loop goroutine.
-	input chan eventlooptypes.EventLoopMessage
+	input chan application_event_loop.ApplicationEventLoopRequestMessage
 }
 
 // applicationEventQueueLoopFactory is used to start the application event queue. It is a lightweight wrapper
@@ -270,8 +325,7 @@ type workspaceEventLoop_applicationEventLoopEntry struct {
 //
 // The defaultApplicationEventLoopFactory should be used in all cases, except for when writing mocks for unit tests.
 type applicationEventQueueLoopFactory interface {
-	startApplicationEventQueueLoop(ctx context.Context, gitopsDeplName string, gitopsDeplNamespace string, workspaceID string,
-		sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop) chan eventlooptypes.EventLoopMessage
+	startApplicationEventQueueLoop(ctx context.Context, aeqlParam application_event_loop.ApplicationEventQueueLoop) error
 }
 
 type defaultApplicationEventLoopFactory struct {
@@ -280,13 +334,18 @@ type defaultApplicationEventLoopFactory struct {
 
 // The default implementation of startApplicationEventQueueLoop is just a simple wrapper around a call to
 // StartApplicationEventQueueLoop
-func (d defaultApplicationEventLoopFactory) startApplicationEventQueueLoop(ctx context.Context, gitopsDeplName string, gitopsDeplNamespace string,
-	workspaceID string, sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop) chan eventlooptypes.EventLoopMessage {
+func (d defaultApplicationEventLoopFactory) startApplicationEventQueueLoop(ctx context.Context, aeqlParam application_event_loop.ApplicationEventQueueLoop) error {
 
-	res := application_event_loop.StartApplicationEventQueueLoop(ctx, gitopsDeplName, gitopsDeplNamespace, workspaceID,
-		sharedResourceEventLoop, d.vwsAPIExportName)
+	if aeqlParam.VwsAPIExportName != "" {
+		return fmt.Errorf("vwsAPIExportName must be empty in defaultApplicationEventLoopFactory")
+	}
 
-	return res
+	// We always use the vwsAPIExportName value from the factory
+	aeqlParam.VwsAPIExportName = d.vwsAPIExportName
+
+	application_event_loop.StartApplicationEventQueueLoop(ctx, aeqlParam)
+
+	return nil
 }
 
 var _ applicationEventQueueLoopFactory = defaultApplicationEventLoopFactory{}

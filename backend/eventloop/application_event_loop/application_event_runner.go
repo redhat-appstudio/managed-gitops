@@ -60,7 +60,7 @@ import (
 // For more information on how events are distributed between goroutines by event loop, see:
 // https://miro.com/app/board/o9J_lgiqJAs=/?moveToWidget=3458764514216218600&cot=14
 
-func startNewApplicationEventLoopRunner(informWorkCompleteChan chan eventlooptypes.EventLoopMessage,
+func startNewApplicationEventLoopRunner(informWorkCompleteChan chan ApplicationEventLoopRequestMessage,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop,
 	gitopsDeplName string, gitopsDeplNamespace, workspaceID string, debugContext string) chan *eventlooptypes.EventLoopEvent {
 
@@ -76,7 +76,7 @@ func startNewApplicationEventLoopRunner(informWorkCompleteChan chan eventlooptyp
 }
 
 func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent,
-	informWorkCompleteChan chan eventlooptypes.EventLoopMessage,
+	informWorkCompleteChan chan ApplicationEventLoopRequestMessage,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, gitopsDeploymentName string,
 	gitopsDeploymentNamespace string, namespaceID string, debugContext string) {
 
@@ -188,7 +188,13 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 		}
 
 		// Inform the caller that we have completed a single unit of work
-		informWorkCompleteChan <- eventlooptypes.EventLoopMessage{MessageType: eventlooptypes.ApplicationEventLoopMessageType_WorkComplete, Event: newEvent, ShutdownSignalled: signalledShutdown}
+		informWorkCompleteChan <- ApplicationEventLoopRequestMessage{
+			Message: eventlooptypes.EventLoopMessage{
+				MessageType:       eventlooptypes.ApplicationEventLoopMessageType_WorkComplete,
+				Event:             newEvent,
+				ShutdownSignalled: signalledShutdown},
+			ResponseChan: nil,
+		}
 
 		// If the event processing logic concluded that the goroutine should shutdown, then break out of the outer for loop.
 		// This is usually because the API CR no longer exists.

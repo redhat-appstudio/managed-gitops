@@ -21,19 +21,29 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				mockChannel: make(chan *eventlooptypes.EventLoopEvent),
 			}
 
-			inputChan := startApplicationEventQueueLoopWithFactory(context.Background(), "", "", "", nil,
-				&mockApplicationEventLoopRunnerFactory, "gitops-api")
+			aeqlParam := ApplicationEventQueueLoop{
+				GitopsDeploymentName:      "",
+				GitopsDeploymentNamespace: "",
+				WorkspaceID:               "",
+				SharedResourceEventLoop:   nil,
+				VwsAPIExportName:          "gitops-api",
+				InputChan:                 make(chan ApplicationEventLoopRequestMessage),
+			}
 
-			inputChan <- eventlooptypes.EventLoopMessage{
-				MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
-				Event: &eventlooptypes.EventLoopEvent{
-					EventType:   eventlooptypes.DeploymentModified,
-					Request:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: "", Name: ""}},
-					Client:      nil,
-					ReqResource: eventlooptypes.GitOpsDeploymentTypeName,
-					WorkspaceID: "",
+			startApplicationEventQueueLoopWithFactory(context.Background(), aeqlParam, &mockApplicationEventLoopRunnerFactory)
+
+			aeqlParam.InputChan <- ApplicationEventLoopRequestMessage{
+				Message: eventlooptypes.EventLoopMessage{
+					MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
+					Event: &eventlooptypes.EventLoopEvent{
+						EventType:   eventlooptypes.DeploymentModified,
+						Request:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: "", Name: ""}},
+						Client:      nil,
+						ReqResource: eventlooptypes.GitOpsDeploymentTypeName,
+						WorkspaceID: "",
+					},
+					ShutdownSignalled: false,
 				},
-				ShutdownSignalled: false,
 			}
 
 			outputEvent := <-mockApplicationEventLoopRunnerFactory.mockChannel
@@ -55,7 +65,7 @@ type mockApplicationEventLoopRunnerFactory struct {
 
 var _ applicationEventRunnerFactory = &mockApplicationEventLoopRunnerFactory{}
 
-func (fact *mockApplicationEventLoopRunnerFactory) createNewApplicationEventLoopRunner(informWorkCompleteChan chan eventlooptypes.EventLoopMessage,
+func (fact *mockApplicationEventLoopRunnerFactory) createNewApplicationEventLoopRunner(informWorkCompleteChan chan ApplicationEventLoopRequestMessage,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, gitopsDeplName string, gitopsDeplNamespace string,
 	workspaceID string, debugContext string) chan *eventlooptypes.EventLoopEvent {
 

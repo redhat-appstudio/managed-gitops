@@ -14,6 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	typed "k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -32,13 +33,19 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 	Context("Create, Update and Delete a GitOpsDeployment ", func() {
 
-		// this assumes that service is running on non aware kcp client
-		config, err := fixture.GetSystemKubeConfig()
-		Expect(err).To(BeNil())
-
-		k8sClient, err := fixture.GetKubeClient(config)
-		Expect(err).To(BeNil())
+		var config *rest.Config
+		var k8sClient client.Client
 		ctx := context.Background()
+
+		// this assumes that service is running on non aware kcp client
+		BeforeEach(func() {
+			var err error
+			config, err = fixture.GetSystemKubeConfig()
+			Expect(err).To(BeNil())
+
+			k8sClient, err = fixture.GetKubeClient(config)
+			Expect(err).To(BeNil())
+		})
 
 		AfterEach(func() {
 			// At end of a test, output the state of Argo CD Application, for post-mortem debuggign

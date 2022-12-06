@@ -95,12 +95,18 @@ type EventLoopMessage struct {
 type EventLoopMessageType int
 
 const (
+
 	// ApplicationEventLoopMessageType_WorkComplete indicates the message indicates that a particular task has completed.
 	// For example:
 	ApplicationEventLoopMessageType_WorkComplete EventLoopMessageType = iota
 
 	// ApplicationEventLoopMessageType_Event indicates that the message contains an event
 	ApplicationEventLoopMessageType_Event
+
+	// ApplicationEventLoopMessageType_ShutdownTicker is a periodic ticker that tells the application event loop to
+	// check if it should terminate its goroutine
+	// - the goroutine should be terminated X minutes after the application event loop runners shutdown.
+	ApplicationEventLoopMessageType_ShutdownTicker
 )
 
 // eventlooptypes.StringEventLoopEvent is a utility function for debug purposes.

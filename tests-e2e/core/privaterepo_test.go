@@ -33,15 +33,33 @@ import (
 	"strings"
 )
 
+// Variables and constants used in the tests
+// ------------------------------------------------------------------------------------------------
+// Optionally you can change the following variables to point to a different private repository (e.g. GitLab
+// **NOTE**: The repository must be private and the tests must be able to access it via HTTPS or SSH (see env Variables)
+// **NOTE**: The repository must contain a valid configmap.yaml file in the "$privateRepoPath" directory
+
 const (
 	gitServer       = "https://github.com"
 	privateRepoURL  = "https://github.com/managed-gitops-test-data/private-repo-test.git"
 	privateRepoSSH  = "git@github.com:managed-gitops-test-data/private-repo-test.git"
-	privateRepoPath = "resources" // Path to the resources folder in the private repo
-	secretToken     = "private-repo-secret-token"
-	secretSSHKey    = "private-repo-secret-ssh"
-	repoCredCRToken = "private-repo-https" // Name of the GitOpsDeploymentRepositoryCredential CR for HTTPS token test
-	repoCredCRSSH   = "private-repo-ssh"   // Name of the GitOpsDeploymentRepositoryCredential CR for SSH key test
+	privateRepoPath = "resources" // Path to the resources folder in the private repo, where the configmap.yaml file is located
+)
+
+// Do NOT change any variable or const below this line
+// ------------------------------------------------------------------------------------------------
+
+const (
+	// For HTTPS/Username & Password
+	secretToken     = "private-repo-secret-token" // Name of the secret containing the token for HTTPS access
+	repoCredCRToken = "private-repo-https"        // Name of the GitOpsDeploymentRepositoryCredential CR for HTTPS token test
+
+	// For SSH
+	secretSSHKey  = "private-repo-secret-ssh" // Name of the secret containing the SSH key for SSH access
+	repoCredCRSSH = "private-repo-ssh"        // Name of the GitOpsDeploymentRepositoryCredential CR for SSH key test
+
+	// Artifact to be deployed
+	configMapName = "config-map-in-private-repo" // Name of the config map to be deployed from the private repo
 )
 
 var (
@@ -58,15 +76,15 @@ var (
 var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 
 	const (
-		deploymentCRToken = "private-https-deploy"       // Name of the GitOpsDeployment CR for HTTPS token test
-		deploymentCRSSH   = "private-ssh-deploy"         // Name of the GitOpsDeployment CR for SSH key test
-		configMapName     = "config-map-in-private-repo" // Name of the config map to be deployed from the private repo
+		deploymentCRToken = "private-https-deploy" // Name of the GitOpsDeployment CR for HTTPS token test
+		deploymentCRSSH   = "private-ssh-deploy"   // Name of the GitOpsDeployment CR for SSH key test
 	)
 
 	var (
 		env       envConfig // Environment configuration, e.g. username, password, sshkey
 		err       error
 		k8sClient client.Client // Kubernetes client to interact with the cluster
+		configMap *corev1.ConfigMap
 	)
 
 	BeforeEach(func() {
@@ -88,11 +106,14 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 		// Get a k8s client to use in the tests
 		k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
 		Expect(err).To(Succeed())
+
+		// Get the config map to be deployed from the private repo
+		configMap = getConfigMapYAML()
 	})
 
 	Context("Deploy from a private repository (access via username/password)", func() {
 
-		It("Should work without HTTPS/Token authentication issues", func() {
+		FIt("Should work without HTTPS/Token authentication issues", func() {
 			// --- Tests --- //
 			By("1. Clean the test environment")
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
@@ -120,22 +141,14 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)),
 			)
 
-			// --- Step 6: Check if the ConfigMap is deployed // ---
 			By("6. ConfigMap should be deployed")
-			configMap := &corev1.ConfigMap{
-				TypeMeta: metav1.TypeMeta{},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      configMapName,
-					Namespace: fixture.GitOpsServiceE2ENamespace,
-				},
-			}
 			Eventually(func() error { return k8s.Get(configMap, k8sClient) }, "4m", "1s").Should(Succeed())
 		})
 	})
 
 	Context("Deploy from a private repository (access via SSH Key)", func() {
 
-		It("Should work without SSH authentication issues", func() {
+		FIt("Should work without SSH authentication issues", func() {
 			// --- Tests --- //
 			By("1. Clean the test environment")
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
@@ -146,19 +159,15 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 			}
 			Expect(k8s.CreateSecret(fixture.GitOpsServiceE2ENamespace, secretSSHKey, stringData, k8sClient)).To(Succeed())
 
-			// --- Step 3: Create the GitOpsRepositoryCredentials CR // ---
-			// It has to be in the same namespace with the Secret we created earlier
 			By("3. Create the GitOpsDeploymentRepositoryCredential CR for SSH")
 			CR := gitopsDeploymentRepositoryCredentialCRForSSHTest()
 			Expect(k8s.Create(CR, k8sClient)).To(Succeed())
 
-			// --- Step 4: Create the GitOpsDeployment pointing to the previously created GitOpsRepositoryCredential CR // ---
 			By("4. Create the GitOpsDeployment CR")
 			gitOpsDeployment := buildGitOpsDeploymentResource(deploymentCRSSH, privateRepoSSH, privateRepoPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			Expect(k8s.Create(&gitOpsDeployment, k8sClient)).To(Succeed())
 
-			// --- Step 5: Wait for the GitOpsDeployment to be deployed and be healthy // ---
 			By("5. GitOpsDeployment should have expected health and status")
 			Eventually(gitOpsDeployment, "4m", "1s").Should(
 				SatisfyAll(
@@ -166,15 +175,8 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)),
 			)
 
-			// --- Step 6: Check if the ConfigMap is deployed // ---
 			By("6. ConfigMap should be deployed")
-			configMap := &corev1.ConfigMap{
-				TypeMeta: metav1.TypeMeta{},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      configMapName,
-					Namespace: fixture.GitOpsServiceE2ENamespace,
-				},
-			}
+			configMap := getConfigMapYAML()
 			Eventually(func() error { return k8s.Get(configMap, k8sClient) }, "4m", "1s").Should(Succeed())
 		})
 	})
@@ -294,6 +296,20 @@ func gitopsDeploymentRepositoryCredentialCRForSSHTest() *managedgitopsv1alpha1.G
 		},
 	}
 }
+
+// getConfigMapYAML returns the YAML representation of the ConfigMap
+func getConfigMapYAML() *corev1.ConfigMap {
+	return &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      configMapName,
+			Namespace: fixture.GitOpsServiceE2ENamespace,
+		},
+	}
+}
+
+// Helper Structs
+// ------------------------------------------------------------------------------------------------
 
 // envConfig contains the environment variables needed to run the tests
 // It is used to avoid calling the os.LookupEnv function multiple times

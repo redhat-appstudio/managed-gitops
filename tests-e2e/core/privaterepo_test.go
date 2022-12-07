@@ -9,7 +9,7 @@ package core
 //		e.g. export GITHUB_TOKEN=1234567890
 //
 //		GITHUB_SSH_KEY: The SSH key of the private GitHub repository
-//		e.g. export GITHUB_SSH_KEY=$(echo "-----BEGIN OPENSSH PRIVATE KEY-----\nFOOBAR\nFOOBAR\nFOOBAR\nFOOBAR\nFOOBAR\n-----END OPENSSH PRIVATE KEY-----")
+//		e.g. export GITHUB_SSH_KEY=$(echo "-----BEGIN OPENSSH PRIVATE KEY-----\nFOOBAR\nFOOBAR\nFOOBAR\nFOOBAR\nFOOBAR\n-----END OPENSSH PRIVATE KEY-----") # gitleaks:allow
 */
 
 // To execute them:
@@ -113,7 +113,7 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 
 	Context("Deploy from a private repository (access via username/password)", func() {
 
-		FIt("Should work without HTTPS/Token authentication issues", func() {
+		It("Should work without HTTPS/Token authentication issues", func() {
 			// --- Tests --- //
 			By("1. Clean the test environment")
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
@@ -148,7 +148,7 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 
 	Context("Deploy from a private repository (access via SSH Key)", func() {
 
-		FIt("Should work without SSH authentication issues", func() {
+		It("Should work without SSH authentication issues", func() {
 			// --- Tests --- //
 			By("1. Clean the test environment")
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())

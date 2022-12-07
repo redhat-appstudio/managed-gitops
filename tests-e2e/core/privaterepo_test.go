@@ -15,7 +15,7 @@ package core
 // To execute them:
 // 1. Set the environment variables
 // 2. Run the tests with the following command:
-//		 go test -v -run Core -args -ginkgo.v -ginkgo.progress
+//		 cd tests-e2e/tests-e2e/core/; go test -v -run Core -args -ginkgo.v -ginkgo.progress
 
 import (
 	"errors"
@@ -29,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
 )
 
@@ -39,7 +40,8 @@ const (
 	privateRepoPath = "resources" // Path to the resources folder in the private repo
 	secretToken     = "private-repo-secret-token"
 	secretSSHKey    = "private-repo-secret-ssh"
-	configMapName   = "config-map-in-private-repo" // Name of the config map to be deployed from the private repo
+	repoCredCRToken = "private-repo-https" // Name of the GitOpsDeploymentRepositoryCredential CR for HTTPS token test
+	repoCredCRSSH   = "private-repo-ssh"   // Name of the GitOpsDeploymentRepositoryCredential CR for SSH key test
 )
 
 var (
@@ -50,64 +52,47 @@ var (
 	errGitHubRepoURLNotValid = errors.New("GitHub repo URL is not valid")
 )
 
-func gitopsDeploymentRepositoryCredentialCRForTokenTest() *managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential {
-	return &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "private-repo-https",
-			Namespace: fixture.GitOpsServiceE2ENamespace,
-		},
-		Spec: managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialSpec{
-			Repository: privateRepoURL,
-			Secret:     secretToken,
-		},
-	}
-}
-
-func gitopsDeploymentRepositoryCredentialCRForSSHTest() *managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential {
-	return &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "private-repo-ssh",
-			Namespace: fixture.GitOpsServiceE2ENamespace,
-		},
-		Spec: managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialSpec{
-			Repository: privateRepoSSH,
-			Secret:     secretSSHKey,
-		},
-	}
-}
-
-type envConfig struct {
-	ready    bool
-	username string
-	token    string
-	sshKey   string
-}
+// Main tests
+// ------------------------------------------------------------------------------------------------
 
 var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
+
+	const (
+		deploymentCRToken = "private-https-deploy"       // Name of the GitOpsDeployment CR for HTTPS token test
+		deploymentCRSSH   = "private-ssh-deploy"         // Name of the GitOpsDeployment CR for SSH key test
+		configMapName     = "config-map-in-private-repo" // Name of the config map to be deployed from the private repo
+	)
+
+	var (
+		env       envConfig // Environment configuration, e.g. username, password, sshkey
+		err       error
+		k8sClient client.Client // Kubernetes client to interact with the cluster
+	)
+
+	BeforeEach(func() {
+		// --- Setup --- //
+		// Prepare the test environment by reading appropriate environment variables and reaching out to the git server
+		// or else skip the test if the environment is not properly configured
+		By("0. Get the environment variables required for the test")
+
+		env, err = getEnvironmentConfig()
+		if err != nil {
+			Skip(err.Error())
+		}
+
+		Expect(env.ready).To(BeTrue())        // Skip the test if GitHub is offline (unreachable for some reason)
+		Expect(env.username).NotTo(BeEmpty()) // Skip the test if the GITHUB_USERNAME environment variable is not set
+		Expect(env.token).NotTo(BeEmpty())    // Skip the test if the GITHUB_TOKEN environment variable is not set
+		Expect(env.sshKey).NotTo(BeEmpty())   // Skip the test if the GITHUB_SSH_KEY environment variable is not set
+
+		// Get a k8s client to use in the tests
+		k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+		Expect(err).To(Succeed())
+	})
+
 	Context("Deploy from a private repository (access via username/password)", func() {
-		It("Should work without access authentication issues", func() {
-			// --- Setup --- //
-			// Prepare the test environment by reading appropriate environment variables and reaching out to the git server
-			// or else skip the test if the environment is not properly configured
-			By("0. Get the environment variables required for the test")
 
-			var env envConfig
-			var err error
-
-			env, err = getEnvironmentConfig()
-			if err != nil {
-				Skip(err.Error())
-			}
-
-			Expect(env.ready).To(BeTrue())        // Skip the test if GitHub is offline (unreachable for some reason)
-			Expect(env.username).NotTo(BeEmpty()) // Skip the test if the GITHUB_USERNAME environment variable is not set
-			Expect(env.token).NotTo(BeEmpty())    // Skip the test if the GITHUB_TOKEN environment variable is not set
-			Expect(env.sshKey).NotTo(BeEmpty())   // Skip the test if the GITHUB_SSH_KEY environment variable is not set
-
-			// Get a k8s client to use in the tests
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
+		It("Should work without HTTPS/Token authentication issues", func() {
 			// --- Tests --- //
 			By("1. Clean the test environment")
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
@@ -119,19 +104,15 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 			}
 			Expect(k8s.CreateSecret(fixture.GitOpsServiceE2ENamespace, secretToken, stringData, k8sClient)).To(Succeed())
 
-			// --- Step 3: Create the GitOpsRepositoryCredentials CR // ---
-			// It has to be in the same namespace with the Secret we created earlier
 			By("3. Create the GitOpsDeploymentRepositoryCredential CR for HTTPS")
 			CR := gitopsDeploymentRepositoryCredentialCRForTokenTest()
 			Expect(k8s.Create(CR, k8sClient)).To(Succeed())
 
-			// --- Step 4: Create the GitOpsDeployment pointing to the previously created GitOpsRepositoryCredential CR // ---
 			By("4. Create the GitOpsDeployment CR")
-			gitOpsDeployment := buildGitOpsDeploymentResource("private-https-depl", privateRepoURL, privateRepoPath,
+			gitOpsDeployment := buildGitOpsDeploymentResource(deploymentCRToken, privateRepoURL, privateRepoPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			Expect(k8s.Create(&gitOpsDeployment, k8sClient)).To(Succeed())
 
-			// --- Step 5: Wait for the GitOpsDeployment to be deployed and be healthy // ---
 			By("5. GitOpsDeployment should have expected health and status")
 			Eventually(gitOpsDeployment, "4m", "1s").Should(
 				SatisfyAll(
@@ -153,29 +134,8 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 	})
 
 	Context("Deploy from a private repository (access via SSH Key)", func() {
-		It("Should work without access authentication issues", func() {
-			// --- Setup --- //
-			// Prepare the test environment by reading appropriate environment variables and reaching out to the git server
-			// or else skip the test if the environment is not properly configured
-			By("0. Get the environment variables required for the test")
 
-			var env envConfig
-			var err error
-
-			env, err = getEnvironmentConfig()
-			if err != nil {
-				Skip(err.Error())
-			}
-
-			Expect(env.ready).To(BeTrue())        // Skip the test if GitHub is offline (unreachable for some reason)
-			Expect(env.username).NotTo(BeEmpty()) // Skip the test if the GITHUB_USERNAME environment variable is not set
-			Expect(env.token).NotTo(BeEmpty())    // Skip the test if the GITHUB_TOKEN environment variable is not set
-			Expect(env.sshKey).NotTo(BeEmpty())   // Skip the test if the GITHUB_SSH_KEY environment variable is not set
-
-			// Get a k8s client to use in the tests
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
+		It("Should work without SSH authentication issues", func() {
 			// --- Tests --- //
 			By("1. Clean the test environment")
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
@@ -194,7 +154,7 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 
 			// --- Step 4: Create the GitOpsDeployment pointing to the previously created GitOpsRepositoryCredential CR // ---
 			By("4. Create the GitOpsDeployment CR")
-			gitOpsDeployment := buildGitOpsDeploymentResource("private-ssh-depl", privateRepoSSH, privateRepoPath,
+			gitOpsDeployment := buildGitOpsDeploymentResource(deploymentCRSSH, privateRepoSSH, privateRepoPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			Expect(k8s.Create(&gitOpsDeployment, k8sClient)).To(Succeed())
 
@@ -219,6 +179,9 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 		})
 	})
 })
+
+// Helper functions
+// ------------------------------------------------------------------------------------------------
 
 // getGithubUsername returns the value of the GITHUB_TOKEN environment variable, or an error if it is not set
 func getGithubUsername() (string, error) {
@@ -300,4 +263,44 @@ func getEnvironmentConfig() (envConfig, error) {
 	}
 
 	return env, nil
+}
+
+// gitopsDeploymentRepositoryCredentialCRForTokenTest returns a GitOpsDeploymentRepositoryCredential CR for the HTTPS token test
+// pointing to the private repo (HTTPS URL format) and using the secret containing the username and the token
+func gitopsDeploymentRepositoryCredentialCRForTokenTest() *managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential {
+	return &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      repoCredCRToken,
+			Namespace: fixture.GitOpsServiceE2ENamespace,
+		},
+		Spec: managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialSpec{
+			Repository: privateRepoURL,
+			Secret:     secretToken,
+		},
+	}
+}
+
+// gitopsDeploymentRepositoryCredentialCRForSSHTest returns a GitOpsDeploymentRepositoryCredential CR for the SSH key test
+// pointing to the private repo (SSH URL format) and using the secret containing the SSH key
+func gitopsDeploymentRepositoryCredentialCRForSSHTest() *managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential {
+	return &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      repoCredCRSSH,
+			Namespace: fixture.GitOpsServiceE2ENamespace,
+		},
+		Spec: managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialSpec{
+			Repository: privateRepoSSH,
+			Secret:     secretSSHKey,
+		},
+	}
+}
+
+// envConfig contains the environment variables needed to run the tests
+// It is used to avoid calling the os.LookupEnv function multiple times
+// and to avoid having to pass the environment variables as parameters to the functions that need them
+type envConfig struct {
+	ready    bool
+	username string
+	token    string
+	sshKey   string
 }

@@ -3,6 +3,8 @@ package k8s
 import (
 	"context"
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -131,4 +133,22 @@ func Update(obj client.Object, k8sClient client.Client) error {
 	}
 
 	return nil
+}
+
+// CreateSecret creates a secret with the given stringData.
+func CreateSecret(namespace string, secretName string, stringData map[string]string, k8sClient client.Client) error {
+
+	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: namespace,
+		},
+		Immutable:  nil,
+		Data:       nil,
+		StringData: stringData,
+		Type:       "",
+	}
+
+	return Create(secret, k8sClient)
 }

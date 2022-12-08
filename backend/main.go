@@ -48,6 +48,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	managedgitopscontrollers "github.com/redhat-appstudio/managed-gitops/backend/controllers/managed-gitops"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop"
 	"github.com/redhat-appstudio/managed-gitops/backend/routes"
 	//+kubebuilder:scaffold:imports
@@ -159,6 +160,24 @@ func main() {
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
+
+	//==============================================
+	// Process to trigger Database Reconciler
+
+	dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
+	if err != nil {
+		setupLog.Error(err, "never able to connect to database")
+		os.Exit(1)
+	}
+
+	databaseReconciler := eventloop.DatabaseReconciler{
+		DB:     dbQueries,
+		Client: mgr.GetClient(),
+	}
+
+	// Trigger goroutine for database reconciler
+	databaseReconciler.StartDatabaseReconciler()
+	//==============================================
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")

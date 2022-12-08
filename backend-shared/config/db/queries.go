@@ -114,6 +114,9 @@ type DatabaseQueries interface {
 
 	GetDeploymentToApplicationMappingByApplicationId(ctx context.Context, deplToAppMappingParam *DeploymentToApplicationMapping) error
 
+	// Get DeploymentToApplicationMappings in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+	GetDeploymentToApplicationMappingBatch(ctx context.Context, deploymentToApplicationMappings *[]DeploymentToApplicationMapping, limit, offSet int) error
+
 	UpdateManagedEnvironment(ctx context.Context, obj *ManagedEnvironment) error
 	DeleteGitopsEngineInstanceById(ctx context.Context, id string) (int, error)
 

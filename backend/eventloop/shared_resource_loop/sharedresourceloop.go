@@ -3,6 +3,7 @@ package shared_resource_loop
 import (
 	"context"
 	"fmt"
+
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/go-logr/logr"
@@ -503,9 +504,8 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 
 		} else {
 			// Something went wrong, retry
-			l.WithValues("Error", err, "DebugErr", errGenericCR, "CR Name", repositoryCredentialCRName, "Namespace", resourceNS)
 			vErr := fmt.Errorf("unexpected error in retrieving repository credentials: %v", err)
-			l.Error(err, vErr.Error())
+			l.Error(err, vErr.Error(), "DebugErr", errGenericCR, "CR Name", repositoryCredentialCRName, "Namespace", resourceNS)
 
 			return nil, vErr
 
@@ -570,6 +570,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 
 			} else {
 				if _, err := deleteRepoCredFromDB(ctx, dbQueries, repositoryCredentialPrimaryKey, l); err != nil {
+					l.Error(err, "unable to delete repo cred from DB")
 					return nil, err
 				}
 				l.Info("RepositoryCredential row deleted from DB", "RepositoryCredential ID", repositoryCredentialPrimaryKey)

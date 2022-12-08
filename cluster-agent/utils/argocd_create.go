@@ -2,7 +2,6 @@ package utils
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -409,51 +408,51 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 		return err
 	}
 
-	token := secret.Data["token"]
+	// token := secret.Data["token"]
 
-	// no need to decode token, it is unmarshalled from base64
+	// // no need to decode token, it is unmarshalled from base64
 
-	clusterSecretConfigJSON := ClusterSecretConfigJSON{
-		BearerToken: string(token),
-		TLSClientConfig: ClusterSecretTLSClientConfigJSON{
-			Insecure: true,
-		},
-	}
+	// clusterSecretConfigJSON := ClusterSecretConfigJSON{
+	// 	BearerToken: string(token),
+	// 	TLSClientConfig: ClusterSecretTLSClientConfigJSON{
+	// 		Insecure: true,
+	// 	},
+	// }
 
-	jsonString, err := json.Marshal(clusterSecretConfigJSON)
-	if err != nil {
-		return fmt.Errorf("SEVERE: unable to marshal JSON")
-	}
+	// jsonString, err := json.Marshal(clusterSecretConfigJSON)
+	// if err != nil {
+	// 	return fmt.Errorf("SEVERE: unable to marshal JSON")
+	// }
 
-	clusterSecret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-cluster-secret",
-			Namespace: argoCDNamespace,
-			Labels:    map[string]string{"argocd.argoproj.io/secret-type": "cluster"},
-		},
-		StringData: map[string]string{
-			"name":   ClusterSecretName,
-			"server": apiHost,
-			"config": string(jsonString),
-		},
-		Type: corev1.SecretType("Opaque"),
-	}
+	// clusterSecret := &corev1.Secret{
+	// 	TypeMeta: metav1.TypeMeta{},
+	// 	ObjectMeta: metav1.ObjectMeta{
+	// 		Name:      "my-cluster-secret",
+	// 		Namespace: argoCDNamespace,
+	// 		Labels:    map[string]string{"argocd.argoproj.io/secret-type": "cluster"},
+	// 	},
+	// 	StringData: map[string]string{
+	// 		"name":   ClusterSecretName,
+	// 		"server": apiHost,
+	// 		"config": string(jsonString),
+	// 	},
+	// 	Type: corev1.SecretType("Opaque"),
+	// }
 
-	// Create, or update cluster secret if it already exists
-	if err := k8sClient.Create(context.Background(), clusterSecret); err != nil {
-		if apierr.IsAlreadyExists(err) {
-			if err := k8sClient.Update(ctx, clusterSecret); err != nil {
-				return fmt.Errorf("error on Update %v", err)
-			}
-			sharedutil.LogAPIResourceChangeEvent(clusterSecret.Namespace, clusterSecret.Name, clusterSecret, sharedutil.ResourceCreated, log)
+	// // Create, or update cluster secret if it already exists
+	// if err := k8sClient.Create(context.Background(), clusterSecret); err != nil {
+	// 	if apierr.IsAlreadyExists(err) {
+	// 		if err := k8sClient.Update(ctx, clusterSecret); err != nil {
+	// 			return fmt.Errorf("error on Update %v", err)
+	// 		}
+	// 		sharedutil.LogAPIResourceChangeEvent(clusterSecret.Namespace, clusterSecret.Name, clusterSecret, sharedutil.ResourceCreated, log)
 
-		} else {
-			return fmt.Errorf("error on Create %v", err)
-		}
-	}
-	sharedutil.LogAPIResourceChangeEvent(clusterSecret.Namespace, clusterSecret.Name, clusterSecret, sharedutil.ResourceCreated, log)
+	// 	} else {
+	// 		return fmt.Errorf("error on Create %v", err)
+	// 	}
+	// }
+	// sharedutil.LogAPIResourceChangeEvent(clusterSecret.Namespace, clusterSecret.Name, clusterSecret, sharedutil.ResourceCreated, log)
 
-	log.Info(fmt.Sprintf("cluster secret %q created ", clusterSecret.Name))
+	// log.Info(fmt.Sprintf("cluster secret %q created ", clusterSecret.Name))
 	return nil
 }

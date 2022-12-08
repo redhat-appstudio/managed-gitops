@@ -162,6 +162,49 @@ var _ = Describe("Operation Controller", func() {
 
 		})
 
+		It("ensures that if the operation has a resource-type of GitOpsEngineInstance then the function processOperation_GitOpsEngineInstance() picks it successfully", func() {
+			By("Close database connection")
+			defer dbQueries.CloseDatabase()
+			defer testTeardown()
+
+			err = db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
+
+			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
+			Expect(err).To(BeNil())
+
+			operationDB := &db.Operation{
+				Operation_id:            "test-operation",
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "test-fake-resource-id",
+				Resource_type:           db.OperationResourceType_GitOpsEngineInstance,
+				State:                   db.OperationState_Waiting,
+				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+			}
+
+			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+			Expect(err).To(BeNil())
+
+			By("Operation row(test-wrong-operation) doesn't exists")
+			operationCR := &managedgitopsv1alpha1.Operation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      name,
+					Namespace: namespace,
+				},
+				Spec: managedgitopsv1alpha1.OperationSpec{
+					OperationID: "test-operation-gitopsengineinstance",
+				},
+			}
+
+			err = task.event.client.Create(ctx, operationCR)
+			Expect(err).To(BeNil())
+
+			retry, err := task.PerformTask(ctx)
+			Expect(err).To(BeNil())
+			Expect(retry).To(BeFalse())
+
+		})
+
 		It("ensures that if the kube-system namespace does not having a matching namespace uid, an error is not returned, but retry it true", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()

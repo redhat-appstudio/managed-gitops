@@ -3,6 +3,7 @@ package shared_resource_loop
 import (
 	"context"
 	"fmt"
+
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 <<<<<<< HEAD

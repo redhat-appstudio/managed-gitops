@@ -257,7 +257,11 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 			return nil, false, nil, fmt.Errorf("unable to create mapping when neither existed: %v", err)
 		}
 
+<<<<<<< HEAD
 		log.Info("Created KubernetesResourceToDBResourceMapping with KubernetesResourceUID: "+expectedDBResourceMapping.KubernetesResourceUID, expectedDBResourceMapping.GetAsLogKeyValues()...)
+=======
+		log.Info("Created KubernetesResourceToDBResourceMapping with KubernetesResourceUID: "+ expectedDBResourceMapping.KubernetesResourceUID, expectedDBResourceMapping.GetAsLogKeyValues()...)
+>>>>>>> f5c2ef8 (Comment out only the problematic logs)
 
 		return gitopsEngineInstance, true, gitopsEngineCluster, nil
 
@@ -472,7 +476,11 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 			return nil, false, fmt.Errorf("unable to create mapping when dbResourceMapping didn't exist: %v", err)
 		}
 
+<<<<<<< HEAD
 		log.Info("Created KubernetesResourceToDBResourceMapping with DBRelationKey: "+expectedDBResourceMapping.DBRelationKey, expectedDBResourceMapping.GetAsLogKeyValues()...)
+=======
+		log.Info("Created KubernetesResourceToDBResourceMapping with DBRelationKey: "+ expectedDBResourceMapping.DBRelationKey, expectedDBResourceMapping.GetAsLogKeyValues()...)
+>>>>>>> f5c2ef8 (Comment out only the problematic logs)
 
 		return gitopsEngineCluster, true, nil
 

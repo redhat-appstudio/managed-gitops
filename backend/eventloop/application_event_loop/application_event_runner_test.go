@@ -647,6 +647,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				k8sClientFactory: MockSRLK8sClientFactory{
 					fakeClient: k8sClient,
 				},
+				testOnlySkipCreateOperation: true,
 			}
 			_, err = a.applicationEventRunner_handleSyncRunModified(ctx, dbQueries)
 			Expect(err).To(BeNil())

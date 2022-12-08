@@ -21,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -450,6 +451,17 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		}
 
 		return &dbOperation, shouldRetry, err
+
+	} else if dbOperation.Resource_type == db.OperationResourceType_GitOpsEngineInstance {
+
+		// Process a SyncOperation event
+		shouldRetry, err := processOperation_GitOpsEngineInstance(taskContext, dbOperation, *operationCR, operationConfigParams)
+
+		if err != nil {
+			log.Error(err, "error occurred on processing the gitopsengine instance operation")
+		}
+
+		return nil, shouldRetry, err
 
 	} else {
 		log.Error(nil, "SEVERE: unrecognized resource type: "+string(dbOperation.Resource_type))
@@ -908,6 +920,42 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 	}
 
 	return shouldRetryFalse, nil
+}
+
+func processOperation_GitOpsEngineInstance(ctx context.Context, dbOperation db.Operation, crOperation operation.Operation, opConfig operationConfig) (bool, error) {
+	var config *rest.Config
+	if dbOperation.Resource_id == "" {
+		return shouldRetryTrue, fmt.Errorf("resource id was nil while processing operation: " + crOperation.Name)
+	}
+
+	dbGitopsEngineInstance := &db.GitopsEngineInstance{
+		Gitopsengineinstance_id: dbOperation.Instance_id,
+	}
+
+	log := opConfig.log.WithValues("Gitopsengineinstance_id", dbGitopsEngineInstance.Gitopsengineinstance_id)
+
+	err := opConfig.dbQueries.GetGitopsEngineInstanceById(ctx, dbGitopsEngineInstance)
+	if err != nil {
+		log.Error(err, "Unable to retrieve database GitopsEngineInstance row from database")
+		return shouldRetryTrue, err
+	} else {
+		errfromScopedArgoCD := utils.CreateNamespaceScopedArgoCD(ctx, "argocd", dbGitopsEngineInstance.Namespace_name, opConfig.eventClient, log)
+		if errfromScopedArgoCD != nil {
+			log.Error(err, "Unable to create namespace scoped ArgoCD for GitopsEngineInstance")
+			return shouldRetryTrue, err
+		}
+
+		// APISERVER=$(kubectl config view -o jsonpath="{.clusters[?(@.name==\"$CLUSTER_NAME\")].cluster.server}")
+
+		errfromSetUpArgoCD := utils.SetupArgoCD(ctx, config.Host, dbGitopsEngineInstance.Namespace_name, opConfig.eventClient, log)
+		if errfromSetUpArgoCD != nil {
+			log.Error(err, "Unable to setup ArgoCD for GitopsEngineInstance")
+			return shouldRetryTrue, err
+		}
+	}
+
+	return shouldRetryFalse, nil
+
 }
 
 // ensureManagedEnvironmentExists ensures that the managed environment described by 'application' is defined as an Argo CD

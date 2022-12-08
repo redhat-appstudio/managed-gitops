@@ -163,6 +163,7 @@ const (
 	OperationResourceType_SyncOperation         OperationResourceType = "SyncOperation"
 	OperationResourceType_Application           OperationResourceType = "Application"
 	OperationResourceType_RepositoryCredentials OperationResourceType = "RepositoryCredentials"
+	OperationResourceType_GitOpsEngineInstance  OperationResourceType = "GitOpsEngineInstance"
 )
 
 // Operation

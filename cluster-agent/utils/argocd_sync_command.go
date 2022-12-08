@@ -46,7 +46,8 @@ func AppSync(ctx context.Context, appName string, revision string, namespaceName
 		return err
 	}
 
-	err = appSync(ctx, acdClient, appName, false, false, revision, false, "", false, false, 0, 0, 0, 0, 0)
+	// Setting async to true so that we are not blocked until the app is synced
+	err = appSync(ctx, acdClient, appName, false, false, revision, false, "", false, true, 0, 0, 0, 0, 0)
 	if err != nil {
 		return err
 	}

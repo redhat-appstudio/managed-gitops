@@ -3,6 +3,8 @@ package db_test
 import (
 	"context"
 	"fmt"
+	"time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
@@ -15,6 +17,8 @@ var _ = Describe("Types Test", func() {
 			Clusteruser_id: "test-user",
 			User_name:      "test-user",
 		}
+
+		var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
 
 		It("Should execute select on all the fields of the database.", func() {
 
@@ -182,7 +186,8 @@ var _ = Describe("Types Test", func() {
 
 			err = dbq.CheckedGetManagedEnvironmentById(ctx, result, testClusterUser.Clusteruser_id)
 			Expect(err).To(BeNil())
-
+			Expect(managedEnvironment.Created_on).To(BeAssignableToTypeOf(timestamp))
+			managedEnvironment.Created_on = result.Created_on
 			Expect(managedEnvironment).Should(Equal(result))
 
 			result = &db.ManagedEnvironment{Managedenvironment_id: managedEnvironment.Managedenvironment_id}

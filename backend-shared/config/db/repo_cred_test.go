@@ -4,6 +4,8 @@ package db_test
 
 import (
 	"context"
+	"time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
@@ -17,6 +19,8 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 		gitopsEngineInstance *db.GitopsEngineInstance
 		dbq                  db.AllDatabaseQueries
 	)
+
+	var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
 
 	When("When ClusterUser, ClusterCredentials, GitopsEngine and GitopsInstance exist", func() {
 		BeforeEach(func() {
@@ -67,6 +71,8 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			By("Getting the RepositoryCredentials object from the database")
 			fetch, err := dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentials.RepositoryCredentialsID)
 			Expect(err).To(BeNil())
+			Expect(fetch.Created_on).To(BeAssignableToTypeOf(timestamp))
+			fetch.Created_on = gitopsRepositoryCredentials.Created_on
 			Expect(fetch).Should(Equal(gitopsRepositoryCredentials))
 
 			By("Creating an identical RepositoryCredentials object should fail")
@@ -101,9 +107,13 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			By("Getting the updated RepositoryCredentials object from the database")
 			fetchUpdated, err := dbq.GetRepositoryCredentialsByID(ctx, updatedCR.RepositoryCredentialsID)
 			Expect(err).To(BeNil())
+			Expect(fetchUpdated.Created_on).To(BeAssignableToTypeOf(timestamp))
+			fetchUpdated.Created_on = updatedCR.Created_on
 			Expect(fetchUpdated).Should(Equal(updatedCR))
 
 			By("Comparing the original and updated RepositoryCredentials objects")
+			Expect(fetchUpdated.Created_on).To(BeAssignableToTypeOf(timestamp))
+			fetchUpdated.Created_on = updatedCR.Created_on
 			Expect(fetch).ShouldNot(Equal(fetchUpdated))
 
 			By("Deleting the RepositoryCredentials object from the database")

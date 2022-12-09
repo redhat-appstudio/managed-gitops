@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
 const (
@@ -72,6 +73,8 @@ func (dbq *PostgreSQLDatabaseQueries) CreateSyncOperation(ctx context.Context, o
 	if err := validateFieldLength(obj); err != nil {
 		return err
 	}
+
+	obj.Created_on = time.Now()
 
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {

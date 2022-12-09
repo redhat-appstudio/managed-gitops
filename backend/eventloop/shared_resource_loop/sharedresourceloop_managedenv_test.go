@@ -3,6 +3,7 @@ package shared_resource_loop
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/golang/mock/gomock"
@@ -39,6 +40,8 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 		var log logr.Logger
 		var ctx context.Context
 		var namespace *corev1.Namespace
+
+		var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
 
 		// Create a fake k8s client before each test
 		BeforeEach(func() {
@@ -97,6 +100,8 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			err = dbQueries.GetManagedEnvironmentById(ctx, managedEnvRow)
 			Expect(err).To(BeNil())
 			Expect(managedEnvRow.Clustercredentials_id).ToNot(BeEmpty())
+			Expect(src.ManagedEnv.Created_on).To(BeAssignableToTypeOf(timestamp))
+			src.ManagedEnv.Created_on = managedEnvRow.Created_on
 			Expect(src.ManagedEnv).To(Equal(managedEnvRow))
 
 			clusterCreds := &db.ClusterCredentials{

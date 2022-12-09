@@ -3,6 +3,7 @@ package db_test
 import (
 	"context"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -11,6 +12,7 @@ import (
 
 var _ = Describe("SyncOperation Tests", func() {
 	Context("It should execute all SyncOperation Functions", func() {
+		var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
 		It("Should execute all SyncOperation Functions", func() {
 			var testClusterUser = &db.ClusterUser{
 				Clusteruser_id: "test-user",
@@ -69,6 +71,9 @@ var _ = Describe("SyncOperation Tests", func() {
 			}
 			err = dbq.GetSyncOperationById(ctx, &fetchRow)
 			Expect(err).To(BeNil())
+
+			Expect(fetchRow.Created_on).To(BeAssignableToTypeOf(timestamp))
+			fetchRow.Created_on = insertRow.Created_on
 			Expect(fetchRow).Should(Equal(insertRow))
 
 			rowCount, err := dbq.DeleteSyncOperationById(ctx, insertRow.SyncOperation_id)

@@ -253,7 +253,118 @@ func internalProcessWorkspaceResourceMessage(ctx context.Context, msg workspaceR
 
 		return noRetry, nil
 
+	} else {
+		return noRetry, fmt.Errorf("SEVERE: unrecognized sharedResourceLoopMessageType: %s " + string(msg.messageType))
 	}
 	return noRetry, fmt.Errorf("SEVERE: unrecognized sharedResourceLoopMessageType: %s " + string(msg.messageType))
 
+	return false, nil
+}
+
+func getDBCred(ctx context.Context, dbQueries db.DatabaseQueries, apiCRToDBMapping db.APICRToDatabaseMapping, log logr.Logger) (*db.RepositoryCredentials, bool, error) {
+	const retry, noRetry = true, false
+	dbCred, err := dbQueries.GetRepositoryCredentialsByID(ctx, apiCRToDBMapping.APIResourceUID)
+
+	if err != nil {
+		if db.IsResultNotFoundError(err) {
+			log.V(sharedutil.LogLevel_Warn).Info("Received a message for a repository credential database entry that doesn't exist", "error", err, "ID", apiCRToDBMapping.APIResourceUID)
+
+			return nil, noRetry, err
+		} else {
+			// Looks like random glitch in the database, so we should retry
+
+			return nil, retry, fmt.Errorf("unexpected error in retrieving repo credentials with ID '%v' from the database: %v", err, apiCRToDBMapping.APIResourceUID)
+		}
+	}
+
+	log.V(sharedutil.LogLevel_Warn).Info("The repository credential database entry has been received", "ID", dbCred.RepositoryCredentialsID)
+
+	return &dbCred, noRetry, nil
+}
+
+func deleteAPICRToDatabaseMapping(ctx context.Context, apiCRToDBMappingList []db.APICRToDatabaseMapping, dbQueries db.DatabaseQueries, log logr.Logger) {
+	if len(apiCRToDBMappingList) > 0 {
+		for _, item := range apiCRToDBMappingList {
+			rowsDeleted, err := dbQueries.DeleteAPICRToDatabaseMapping(ctx, &item)
+			if err != nil {
+				// Warn, but continue.
+				log.V(sharedutil.LogLevel_Warn).Info("Unable to delete APICRToDatabaseMapping", "item", item.APIResourceUID)
+			}
+			if rowsDeleted != 1 {
+				// Warn, but continue.
+				log.V(sharedutil.LogLevel_Warn).Info("unexpected number of rows deleted for APICRToDatabaseMapping", "mapping", item.APIResourceUID)
+			}
+
+		}
+	} else {
+		log.V(sharedutil.LogLevel_Debug).Info("No APICRToDatabaseMapping found for the deleted GitOpsDeploymentRepositoryCredential CR")
+	}
+
+	log.V(sharedutil.LogLevel_Debug).Info("APICRToDatabaseMapping deleted successfully")
+}
+
+func deleteRepoCredFromDB(ctx context.Context, dbQueries db.DatabaseQueries, apiCRToDBMapping db.APICRToDatabaseMapping, log logr.Logger) (bool, error) {
+	const retry, noRetry = true, false
+	rowsDeleted, err := dbQueries.DeleteRepositoryCredentialsByID(ctx, apiCRToDBMapping.APIResourceUID)
+
+	if err != nil {
+		// Log the error and retry
+		log.V(sharedutil.LogLevel_Debug).Info("Error deleting Repository Credential from the database", "error", err)
+		return retry, err
+	}
+
+	if rowsDeleted == 0 {
+		// Log the error, but continue to delete the other Repository Credentials (this looks morel like a bug in our code)
+		log.V(sharedutil.LogLevel_Warn).Error(nil, "No rows deleted from the database", "rowsDeleted", rowsDeleted, "repocred id", apiCRToDBMapping.APIResourceUID)
+		return noRetry, err
+	}
+
+	// meaning: err == nil && rowsDeleted > 0
+	log.V(sharedutil.LogLevel_Debug).Info("Deleted Repository Credential from the database", "repocred id", apiCRToDBMapping.APIResourceUID)
+	return noRetry, nil
+}
+
+func getCR(ctx context.Context, msg workspaceResourceLoopMessage, req ctrl.Request, log logr.Logger) (*managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential, bool, error) {
+	const retry, noRetry = true, false
+	repoCreds := &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{}
+
+	if err := msg.apiNamespaceClient.Get(ctx, req.NamespacedName, repoCreds); err != nil {
+
+		if !apierr.IsNotFound(err) {
+			// We don't know what happened, so we'll retry
+			return nil, retry, fmt.Errorf("unexpected error in retrieving repo credentials CR: %v", err)
+		}
+
+		// The CR was deleted, (Note: this is not an error)
+		log.V(sharedutil.LogLevel_Warn).Info("Received a message for a repository credential CR that doesn't exist", "CR", repoCreds)
+		return nil, noRetry, nil
+	}
+
+	// The CR exists
+	return repoCreds, noRetry, nil
+}
+
+func getNamespace(ctx context.Context, msg workspaceResourceLoopMessage, req ctrl.Request, log logr.Logger) (*corev1.Namespace, bool, error) {
+	const retry, noRetry = true, false
+	namespace := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      req.Namespace,
+			Namespace: req.Namespace,
+		},
+	}
+
+	if err := msg.apiNamespaceClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace); err != nil {
+
+		if !apierr.IsNotFound(err) {
+			// We don't know if the namespace exists or not, so we need to retry
+			return namespace, retry, fmt.Errorf("unexpected error in retrieving repo credentials namespace: %v", err)
+		}
+
+		// Namespace doesn't exist (Note: this is not an error)
+		log.V(sharedutil.LogLevel_Warn).Info("Received a message for a repository credential in a namespace that doesn't exist", "namespace", namespace)
+		return namespace, noRetry, nil
+	}
+
+	// The namespace exists
+	return namespace, noRetry, nil
 }

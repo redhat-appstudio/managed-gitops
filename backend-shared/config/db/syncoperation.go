@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
 const (
@@ -68,6 +69,8 @@ func (dbq *PostgreSQLDatabaseQueries) CreateSyncOperation(ctx context.Context, o
 		"DesiredState", obj.DesiredState); err != nil {
 		return err
 	}
+
+	obj.Created_on = time.Now()
 
 	if err := validateFieldLength(obj); err != nil {
 		return err

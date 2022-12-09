@@ -3,6 +3,7 @@ package db_test
 import (
 	"context"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -12,6 +13,8 @@ import (
 
 var _ = Describe("Application Test", func() {
 	var seq = 101
+	var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
+
 	It("Should Create, Get, Update and Delete an Application", func() {
 		err := db.SetupForTestingDBGinkgo()
 		Expect(err).To(BeNil())
@@ -41,6 +44,8 @@ var _ = Describe("Application Test", func() {
 
 		err = dbq.GetApplicationById(ctx, &applicationget)
 		Expect(err).To(BeNil())
+		Expect(applicationput.Created_on).To(BeAssignableToTypeOf(timestamp))
+		applicationput.Created_on = applicationget.Created_on
 		Expect(applicationput).Should(Equal(applicationget))
 
 		applicationupdate := db.Application{
@@ -51,6 +56,7 @@ var _ = Describe("Application Test", func() {
 			Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
 			Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			SeqID:                   int64(seq),
+			Created_on:              applicationget.Created_on,
 		}
 
 		err = dbq.UpdateApplication(ctx, &applicationupdate)

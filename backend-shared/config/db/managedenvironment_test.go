@@ -3,6 +3,7 @@ package db_test
 import (
 	"context"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -11,6 +12,7 @@ import (
 )
 
 var _ = Describe("Managedenvironment Test", func() {
+	var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
 	It("Should Create, Get and Delete a ManagedEnvironment", func() {
 		err := db.SetupForTestingDBGinkgo()
 		Expect(err).To(BeNil())
@@ -49,6 +51,8 @@ var _ = Describe("Managedenvironment Test", func() {
 		}
 		err = dbq.GetManagedEnvironmentById(ctx, &getmanagedEnvironment)
 		Expect(err).To(BeNil())
+		Expect(managedEnvironment.Created_on).To(BeAssignableToTypeOf(timestamp))
+		managedEnvironment.Created_on = getmanagedEnvironment.Created_on
 		Expect(managedEnvironment).Should(Equal(getmanagedEnvironment))
 
 		rowsAffected, err := dbq.DeleteManagedEnvironmentById(ctx, getmanagedEnvironment.Managedenvironment_id)
@@ -111,6 +115,8 @@ var _ = Describe("Managedenvironment Test", func() {
 		err = dbq.ListManagedEnvironmentForClusterCredentialsAndOwnerId(ctx, clusterCredentials.Clustercredentials_cred_id, clusterAccessput.Clusteraccess_user_id, &managedEnvironmentget)
 		Expect(err).To(BeNil())
 
+		Expect(managedEnvironmentget[0].Created_on).To(BeAssignableToTypeOf(timestamp))
+		managedEnvironmentget[0].Created_on = managedEnvironmentput.Created_on
 		Expect(managedEnvironmentget[0]).Should(Equal(managedEnvironmentput))
 		Expect(len(managedEnvironmentget)).Should(Equal(1))
 

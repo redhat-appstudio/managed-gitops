@@ -3,9 +3,12 @@ package shared_resource_loop
 import (
 	"context"
 	"fmt"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/types"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
@@ -42,6 +45,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 	l := log.FromContext(context.Background())
 
 	Context("Shared Resource Event Loop test", func() {
+		var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
 
 		// Create a fake k8s client before each test
 		BeforeEach(func() {
@@ -195,6 +199,8 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(sharedResourceNew.IsNewClusterAccess).To(BeFalse())
 
 			Expect(sharedResourceOld.ClusterUser).To(Equal(sharedResourceNew.ClusterUser))
+			Expect(sharedResourceOld.ManagedEnv.Created_on).To(BeAssignableToTypeOf(timestamp))
+			sharedResourceOld.ManagedEnv.Created_on = sharedResourceNew.ManagedEnv.Created_on
 			Expect(sharedResourceOld.ManagedEnv).To(Equal(sharedResourceNew.ManagedEnv))
 			Expect(sharedResourceOld.GitopsEngineInstance).To(Equal(sharedResourceNew.GitopsEngineInstance))
 			Expect(sharedResourceOld.ClusterAccess).To(Equal(sharedResourceNew.ClusterAccess))
@@ -444,6 +450,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			operationList = &managedgitopsv1alpha1.OperationList{}
 			err = k8sClient.List(ctx, operationList)
 			Expect(err).To(BeNil())
+			Expect(len(operationList.Items)).Should(Equal(1))
 
 			operations = []db.Operation{}
 			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, primaryKey, db.OperationResourceType_RepositoryCredentials, &operations, usrNew.Clusteruser_id)
@@ -579,6 +586,36 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(err).To(BeNil())
 			Expect(dbRepoCred).To(BeNil())
 
+			// Delete the GitOpsDeploymentRepositoryCredential CR and reconcile again
+			// Expected: Since there is no GitOpsDeploymentRepositoryCredential CR, it will delete the DB entry
+			err = k8sClient.Delete(ctx, cr)
+			Expect(err).To(BeNil())
+			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, l)
+			Expect(err).To(BeNil())
+			Expect(dbRepoCred).To(BeNil())
+
+			// Negative test: Get the RepositoryCredential from the DB
+			// Expected: It should not exist
+			_, err = dbq.GetRepositoryCredentialsByID(ctx, cr.Name)
+			Expect(err).ToNot(BeNil())
+
+			// A new Operation should be created
+			// Check if there are any operations left (should be 1)
+			operationList = &managedgitopsv1alpha1.OperationList{}
+			err = k8sClient.List(ctx, operationList)
+			Expect(err).To(BeNil())
+			Expect(len(operationList.Items)).Should(Equal(1))
+			// Fetch the operation db
+			operationDB.Operation_id = operationList.Items[0].Spec.OperationID
+			err = dbq.GetOperationById(ctx, &operationDB)
+			Expect(err).To(BeNil())
+			Expect(operationDB.State).Should(Equal(db.OperationState_Waiting))
+
+			// Negative test: Try again to reconcile the RepositoryCredential
+			// Expected: It should not error (both db row and CR should be deleted). Nothing we can do.
+			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, l)
+			Expect(err).To(BeNil())
+			Expect(dbRepoCred).To(BeNil())
 		})
 
 	})

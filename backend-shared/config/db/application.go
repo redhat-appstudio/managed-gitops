@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
 func (dbq *PostgreSQLDatabaseQueries) CheckedGetApplicationById(ctx context.Context, application *Application, ownerId string) error {
@@ -214,6 +215,8 @@ func (dbq *PostgreSQLDatabaseQueries) CreateApplication(ctx context.Context, obj
 		"Name", obj.Name); err != nil {
 		return err
 	}
+
+	obj.Created_on = time.Now()
 
 	if err := validateFieldLength(obj); err != nil {
 		return err

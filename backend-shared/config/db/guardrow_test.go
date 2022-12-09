@@ -97,6 +97,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 				SeqID:                   applicationSecond.SeqID,
+				Created_on:              applicationFirst.Created_on,
 			}
 
 			err = dbq.UpdateApplication(ctx, &applicationSecond)
@@ -714,6 +715,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Clustercredentials_id: clusterCredentialsSecond.Clustercredentials_cred_id,
 				SeqID:                 managedEnvironmentSecond.SeqID,
 				Name:                  "my-env101-update",
+				Created_on:            managedEnvironmentFirst.Created_on,
 			}
 
 			err = dbq.UpdateManagedEnvironment(ctx, &managedEnvironmentSecond)

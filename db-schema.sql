@@ -98,7 +98,9 @@ CREATE TABLE ManagedEnvironment (
 	-- pointer to credentials for the cluster
 	-- Foreign key to: ClusterCredentials.clustercredentials_cred_id
 	clustercredentials_id VARCHAR (48) NOT NULL,
-	CONSTRAINT fk_cluster_credential FOREIGN KEY (clustercredentials_id) REFERENCES ClusterCredentials(clustercredentials_cred_id) ON DELETE NO ACTION ON UPDATE NO ACTION
+	CONSTRAINT fk_cluster_credential FOREIGN KEY (clustercredentials_id) REFERENCES ClusterCredentials(clustercredentials_cred_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
+
+    created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 
@@ -238,7 +240,9 @@ CREATE TABLE Application (
 	managed_environment_id VARCHAR(48),
 	CONSTRAINT fk_managedenvironment_id FOREIGN KEY (managed_environment_id) REFERENCES ManagedEnvironment(managedenvironment_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 	
-	seq_id serial
+	seq_id serial,
+
+	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 
 );
 
@@ -438,7 +442,9 @@ CREATE TABLE SyncOperation (
 	-- values: Running, Terminated
 	desired_state VARCHAR(16) NOT NULL,	
 
-	seq_id serial
+	seq_id serial,
+
+	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 
 );
 
@@ -475,7 +481,9 @@ CREATE TABLE RepositoryCredentials (
     repo_cred_engine_id VARCHAR(48) NOT NULL,
     CONSTRAINT fk_gitopsengineinstance_id FOREIGN KEY (repo_cred_engine_id) REFERENCES GitopsEngineInstance(gitopsengineinstance_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 
-    seq_id serial
+    seq_id serial,
+
+	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 
 );
 

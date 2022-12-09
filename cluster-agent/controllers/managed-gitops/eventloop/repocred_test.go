@@ -2,6 +2,8 @@ package eventloop
 
 import (
 	"context"
+	"time"
+
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -39,6 +41,8 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 		k8sClient            client.WithWatch
 		logger               logr.Logger
 	)
+
+	var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
 	// Set up the test
 	BeforeEach(func() {
 		By("Connecting to the database")
@@ -155,6 +159,8 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 				By(" --- getting the RepositoryCredentials object from the database ---")
 				fetch, err := dbq.GetRepositoryCredentialsByID(ctx, operationDB.Resource_id)
 				Expect(err).To(BeNil())
+				Expect(fetch.Created_on).To(BeAssignableToTypeOf(timestamp))
+				fetch.Created_on = repositoryCredential.Created_on
 				Expect(fetch).Should(Equal(repositoryCredential))
 			})
 
@@ -257,6 +263,8 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 				By(" --- getting the RepositoryCredentials object from the database ---")
 				fetch, err := dbq.GetRepositoryCredentialsByID(ctx, operationDB.Resource_id)
 				Expect(err).To(BeNil())
+				Expect(fetch.Created_on).To(BeAssignableToTypeOf(timestamp))
+				fetch.Created_on = repositoryCredential.Created_on
 				Expect(fetch).Should(Equal(repositoryCredential))
 			})
 

@@ -3,6 +3,7 @@ package shared_resource_loop
 import (
 	"context"
 	"fmt"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -38,6 +39,8 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 	var ctx context.Context
 	var k8sClient *sharedutil.ProxyClient
 	var namespace *v1.Namespace
+
+	var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
 
 	l := log.FromContext(context.Background())
 
@@ -195,6 +198,8 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(sharedResourceNew.IsNewClusterAccess).To(BeFalse())
 
 			Expect(sharedResourceOld.ClusterUser).To(Equal(sharedResourceNew.ClusterUser))
+			Expect(sharedResourceOld.ManagedEnv.Created_on).To(BeAssignableToTypeOf(timestamp))
+			sharedResourceOld.ManagedEnv.Created_on = sharedResourceNew.ManagedEnv.Created_on
 			Expect(sharedResourceOld.ManagedEnv).To(Equal(sharedResourceNew.ManagedEnv))
 			Expect(sharedResourceOld.GitopsEngineInstance).To(Equal(sharedResourceNew.GitopsEngineInstance))
 			Expect(sharedResourceOld.ClusterAccess).To(Equal(sharedResourceNew.ClusterAccess))
@@ -423,6 +428,8 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			fmt.Println("Get the RepositoryCredential DB row using the operationDB.Resource_id", "operation Resource ID", operationDB.Resource_id)
 			fetch, err := dbq.GetRepositoryCredentialsByID(ctx, operationDB.Resource_id)
 			Expect(err).To(BeNil())
+			Expect(fetch.Created_on).To(BeAssignableToTypeOf(timestamp))
+			fetch.Created_on = dbRepoCred.Created_on
 			Expect(fetch).Should(Equal(*dbRepoCred))
 
 			// Delete the Operation using the CleanRepoCredOperation function

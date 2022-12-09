@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 )
 
 var (
@@ -30,6 +31,8 @@ func (dbq *PostgreSQLDatabaseQueries) CreateRepositoryCredentials(ctx context.Co
 	if err := obj.hasEmptyValues("RepositoryCredentialsID"); err != nil {
 		return err
 	}
+
+	obj.Created_on = time.Now()
 
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {

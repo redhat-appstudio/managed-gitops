@@ -3,6 +3,7 @@ package util
 import (
 	"context"
 	"strings"
+	"time"
 
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
@@ -127,6 +128,7 @@ func initialSetUp() (context.Context, db.AllDatabaseQueries, logr.Logger, types.
 var _ = Describe("Test utility functions.", func() {
 
 	Context("Testing for GetOrCreateManagedEnvironmentByNamespaceUID function.", func() {
+		var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
 
 		It("Should create new managedEnvironment and other resources, if called second time then it should return existing resources.", func() {
 			ctx, dbQueries, log, workSpaceUid, err := initialSetUp()
@@ -179,6 +181,8 @@ var _ = Describe("Test utility functions.", func() {
 			retriveManagedEnvironment, isNew, err := GetOrCreateManagedEnvironmentByNamespaceUID(ctx, workspace, dbQueries, log)
 			Expect(err).To(BeNil())
 			Expect(isNew).To(BeFalse())
+			Expect(retriveManagedEnvironment.Created_on).To(BeAssignableToTypeOf(timestamp))
+			retriveManagedEnvironment.Created_on = managedEnvironment.Created_on
 			Expect(retriveManagedEnvironment).To(Equal(managedEnvironment))
 
 			// ----------------------------------------------------------------------------

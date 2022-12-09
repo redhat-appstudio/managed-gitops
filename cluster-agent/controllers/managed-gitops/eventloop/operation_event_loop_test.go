@@ -590,6 +590,7 @@ var _ = Describe("Operation Controller", func() {
 					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
 					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 					SeqID:                   101,
+					Created_on:              applicationDB.Created_on,
 				}
 
 				err = dbQueries.UpdateApplication(ctx, applicationUpdate)

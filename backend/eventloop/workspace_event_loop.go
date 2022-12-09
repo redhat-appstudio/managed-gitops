@@ -233,8 +233,8 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, namespaceID 
 
 			// Send the event to the channel/go routine that handles all events for this application/gitopsdepl
 			// we wait for a response from the channel (on ResponseChan) before continuing.
-			syncResponseChan := make(chan application_event_loop.ApplicationEventLoopResponseMessage)
-			applicationEntryVal.input <- application_event_loop.ApplicationEventLoopRequestMessage{
+			syncResponseChan := make(chan application_event_loop.ResponseMessage)
+			applicationEntryVal.input <- application_event_loop.RequestMessage{
 				Message: eventlooptypes.EventLoopMessage{
 					MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
 					Event:       event.Event,
@@ -271,7 +271,7 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, namespaceID 
 
 				go func() {
 
-					applicationEntryVal.input <- application_event_loop.ApplicationEventLoopRequestMessage{
+					applicationEntryVal.input <- application_event_loop.RequestMessage{
 						Message: eventlooptypes.EventLoopMessage{
 							MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
 							Event:       event.Event,
@@ -299,7 +299,7 @@ func startApplicationEventQueueLoop(ctx context.Context, associatedGitOpsDeploym
 		WorkspaceID:               event.Event.WorkspaceID,
 		SharedResourceEventLoop:   sharedResourceEventLoop,
 		VwsAPIExportName:          "", // this value will be replaced in startApplicationEventQueueLoop, so is blank
-		InputChan:                 make(chan application_event_loop.ApplicationEventLoopRequestMessage),
+		InputChan:                 make(chan application_event_loop.RequestMessage),
 	}
 
 	// Start the application event loop's goroutine
@@ -317,7 +317,7 @@ func startApplicationEventQueueLoop(ctx context.Context, associatedGitOpsDeploym
 
 type workspaceEventLoop_applicationEventLoopEntry struct {
 	// input is the channel used to communicate with an application event loop goroutine.
-	input chan application_event_loop.ApplicationEventLoopRequestMessage
+	input chan application_event_loop.RequestMessage
 }
 
 // applicationEventQueueLoopFactory is used to start the application event queue. It is a lightweight wrapper

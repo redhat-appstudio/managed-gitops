@@ -105,7 +105,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 			Expect(result).NotTo(BeNil())
 
 			Expect(result.ResponseChan).ToNot(BeNil())
-			result.ResponseChan <- application_event_loop.ApplicationEventLoopResponseMessage{
+			result.ResponseChan <- application_event_loop.ResponseMessage{
 				RequestAccepted: true,
 			}
 
@@ -154,7 +154,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 			Expect(result).NotTo(BeNil())
 
 			Expect(result.ResponseChan).ToNot(BeNil())
-			result.ResponseChan <- application_event_loop.ApplicationEventLoopResponseMessage{
+			result.ResponseChan <- application_event_loop.ResponseMessage{
 				RequestAccepted: true,
 			}
 
@@ -211,7 +211,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 			Expect(result).NotTo(BeNil())
 
 			Expect(result.ResponseChan).ToNot(BeNil())
-			result.ResponseChan <- application_event_loop.ApplicationEventLoopResponseMessage{
+			result.ResponseChan <- application_event_loop.ResponseMessage{
 				RequestAccepted: true,
 			}
 			Expect(result.Message).NotTo(BeNil())
@@ -335,7 +335,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 			// Make sure this is the gitopsdeployment event from above
 			Expect(deploymentModifiedMsg).NotTo(BeNil())
 			Expect(deploymentModifiedMsg.ResponseChan).NotTo(BeNil())
-			deploymentModifiedMsg.ResponseChan <- application_event_loop.ApplicationEventLoopResponseMessage{
+			deploymentModifiedMsg.ResponseChan <- application_event_loop.ResponseMessage{
 				RequestAccepted: true,
 			}
 			Expect(deploymentModifiedMsg.Message).NotTo(BeNil())
@@ -347,7 +347,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 			// Make sure this is the gitopsdeploymentsyncrun event from above
 			Expect(syncRunModifiedMsg).NotTo(BeNil())
 			Expect(syncRunModifiedMsg.ResponseChan).NotTo(BeNil())
-			syncRunModifiedMsg.ResponseChan <- application_event_loop.ApplicationEventLoopResponseMessage{
+			syncRunModifiedMsg.ResponseChan <- application_event_loop.ResponseMessage{
 				RequestAccepted: true,
 			}
 			Expect(syncRunModifiedMsg.Message).NotTo(BeNil())
@@ -423,7 +423,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 				result := <-tAELF.outputChannel2Inner[gitopsDepl.Name]
 				Expect(result).NotTo(BeNil())
 				Expect(result.ResponseChan).NotTo(BeNil())
-				result.ResponseChan <- application_event_loop.ApplicationEventLoopResponseMessage{
+				result.ResponseChan <- application_event_loop.ResponseMessage{
 					RequestAccepted: true,
 				}
 
@@ -440,7 +440,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 
 			By("Starting the workspace event loop with our custom test factory, so that we can capture output")
 			tAELF := &managedEnvironmentTestApplicationEventLoopFactory{
-				outputChannel2Inner: map[string]chan application_event_loop.ApplicationEventLoopRequestMessage{},
+				outputChannel2Inner: map[string]chan application_event_loop.RequestMessage{},
 			}
 			workspaceEventLoopRouter := newWorkspaceEventLoopRouterWithFactory(string(apiNamespace.UID), tAELF)
 
@@ -474,7 +474,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 
 			By("Starting the workspace event loop with our custom test factory, so that we can capture output")
 			tAELF := &managedEnvironmentTestApplicationEventLoopFactory{
-				outputChannel2Inner: map[string]chan application_event_loop.ApplicationEventLoopRequestMessage{},
+				outputChannel2Inner: map[string]chan application_event_loop.RequestMessage{},
 			}
 			workspaceEventLoopRouter := newWorkspaceEventLoopRouterWithFactory(string(apiNamespace.UID), tAELF)
 
@@ -506,14 +506,14 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 
 			By("ensuring that each mock GitOpsDeployment runner was forwarded the managed environment event")
 
-			messagesReceived := map[string][]application_event_loop.ApplicationEventLoopRequestMessage{}
+			messagesReceived := map[string][]application_event_loop.RequestMessage{}
 
 			for idx := range gitopsDeployments {
 				var mutex sync.Mutex
 
 				gitopsDeployment := gitopsDeployments[idx]
 
-				eventLoopMsgsReceived := []application_event_loop.ApplicationEventLoopRequestMessage{}
+				eventLoopMsgsReceived := []application_event_loop.RequestMessage{}
 
 				By("starting a goroutine which writes all received events to eventLoopMsgsReceived for " + string(gitopsDeployment.UID))
 				go func() {
@@ -542,7 +542,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 				}, "500ms", "50ms").Should(BeTrue())
 
 				By("adding all received messages to messagesReceived, for final expect checks")
-				messagesReceived[string(gitopsDeployment.UID)] = []application_event_loop.ApplicationEventLoopRequestMessage{}
+				messagesReceived[string(gitopsDeployment.UID)] = []application_event_loop.RequestMessage{}
 				mutex.Lock()
 				defer mutex.Unlock()
 				for idx := range eventLoopMsgsReceived {
@@ -572,7 +572,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 // testApplicationEventLoopFactory is a mock applicationEventQueueLoopFactory, used for unit tests above.
 type testApplicationEventLoopFactory struct {
 	mutex                     sync.Mutex
-	outputChannelInner        chan application_event_loop.ApplicationEventLoopRequestMessage
+	outputChannelInner        chan application_event_loop.RequestMessage
 	numberOfEventLoopsCreated int
 }
 
@@ -608,7 +608,7 @@ func (ta *testApplicationEventLoopFactory) startApplicationEventQueueLoop(ctx co
 
 // testApplicationEventLoopFactory is a mock applicationEventQueueLoopFactory, used for unit tests above.
 type managedEnvironmentTestApplicationEventLoopFactory struct {
-	outputChannel2Inner       map[string]chan application_event_loop.ApplicationEventLoopRequestMessage
+	outputChannel2Inner       map[string]chan application_event_loop.RequestMessage
 	numberOfEventLoopsCreated int
 	mutex                     sync.Mutex
 }

@@ -27,12 +27,12 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				WorkspaceID:               "",
 				SharedResourceEventLoop:   nil,
 				VwsAPIExportName:          "gitops-api",
-				InputChan:                 make(chan ApplicationEventLoopRequestMessage),
+				InputChan:                 make(chan RequestMessage),
 			}
 
 			startApplicationEventQueueLoopWithFactory(context.Background(), aeqlParam, &mockApplicationEventLoopRunnerFactory)
 
-			aeqlParam.InputChan <- ApplicationEventLoopRequestMessage{
+			aeqlParam.InputChan <- RequestMessage{
 				Message: eventlooptypes.EventLoopMessage{
 					MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
 					Event: &eventlooptypes.EventLoopEvent{
@@ -65,7 +65,7 @@ type mockApplicationEventLoopRunnerFactory struct {
 
 var _ applicationEventRunnerFactory = &mockApplicationEventLoopRunnerFactory{}
 
-func (fact *mockApplicationEventLoopRunnerFactory) createNewApplicationEventLoopRunner(informWorkCompleteChan chan ApplicationEventLoopRequestMessage,
+func (fact *mockApplicationEventLoopRunnerFactory) createNewApplicationEventLoopRunner(informWorkCompleteChan chan RequestMessage,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, gitopsDeplName string, gitopsDeplNamespace string,
 	workspaceID string, debugContext string) chan *eventlooptypes.EventLoopEvent {
 

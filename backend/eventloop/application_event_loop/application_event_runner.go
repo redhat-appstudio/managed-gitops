@@ -60,7 +60,7 @@ import (
 // For more information on how events are distributed between goroutines by event loop, see:
 // https://miro.com/app/board/o9J_lgiqJAs=/?moveToWidget=3458764514216218600&cot=14
 
-func startNewApplicationEventLoopRunner(informWorkCompleteChan chan ApplicationEventLoopRequestMessage,
+func startNewApplicationEventLoopRunner(informWorkCompleteChan chan RequestMessage,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop,
 	gitopsDeplName string, gitopsDeplNamespace, workspaceID string, debugContext string) chan *eventlooptypes.EventLoopEvent {
 
@@ -76,7 +76,7 @@ func startNewApplicationEventLoopRunner(informWorkCompleteChan chan ApplicationE
 }
 
 func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent,
-	informWorkCompleteChan chan ApplicationEventLoopRequestMessage,
+	informWorkCompleteChan chan RequestMessage,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, gitopsDeploymentName string,
 	gitopsDeploymentNamespace string, namespaceID string, debugContext string) {
 
@@ -188,7 +188,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 		}
 
 		// Inform the caller that we have completed a single unit of work
-		informWorkCompleteChan <- ApplicationEventLoopRequestMessage{
+		informWorkCompleteChan <- RequestMessage{
 			Message: eventlooptypes.EventLoopMessage{
 				MessageType:       eventlooptypes.ApplicationEventLoopMessageType_WorkComplete,
 				Event:             newEvent,

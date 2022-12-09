@@ -37,26 +37,50 @@ const (
 	deploymentStatusTickRate = 15 * time.Second
 )
 
-type ApplicationEventLoopRequestMessage struct {
+// RequestMessge is a message sent to the Application Event Loop by the Workspace Event loop.
+type RequestMessage struct {
+	// Message is the primary message contents of the message sent to the Application Event loop
 	Message eventlooptypes.EventLoopMessage
 
-	// ResponseChan may be nil, if no response is needed.
-	ResponseChan chan ApplicationEventLoopResponseMessage
+	// If the sender of the message would like a reply to the message, they may pass a channel as
+	// part of the message. The receiver will reply on this channel.
+	// - ResponseChan may be nil, if no response is needed.
+	ResponseChan chan ResponseMessage
 }
 
-type ApplicationEventLoopResponseMessage struct {
+// RequestMessage is a message sent back on the ResponseChan of the RequestMessage
+type ResponseMessage struct {
+
+	// RequestAccepted is true if the Application Event Loop is actively accepting message, and false
+	// if the request was rejected (because the Application Event Loop has shutdown)
 	RequestAccepted bool
 }
 
+// ApplicationEventQueueLoop contains the variables required to initialize an Application Event Loop. These refer
+// to the particular GitOpsDeployment that a Application Event Loop is responsible for handling.
 type ApplicationEventQueueLoop struct {
-	GitopsDeploymentName      string
+
+	// GitopsDeploymentName is the GitOpsDeployment resource that this Appliction Event Loop is reponsible for handling
+	GitopsDeploymentName string
+
+	// GitopsDeploymentNamespace is the namespace of the above GitOpsDeployment
 	GitopsDeploymentNamespace string
-	WorkspaceID               string
-	SharedResourceEventLoop   *shared_resource_loop.SharedResourceEventLoop
-	VwsAPIExportName          string
-	InputChan                 chan ApplicationEventLoopRequestMessage
+
+	// WorkspaceID is the UID of the namespace
+	WorkspaceID string
+
+	// SharedResourceEventLoop is a reference to the shared resource event loop
+	SharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop
+
+	// VwsAPIExportName is a KCP-only reference to the APIExport related to this API
+	VwsAPIExportName string
+
+	// InputChan is the channel that this Application Event Loop will listen for mesages on.
+	InputChan chan RequestMessage
 }
 
+// StartApplicationEventQueueLoop will start the Application Event Loop for the GitOpsDeployment referenced
+// in the aeqlParam parameter.
 func StartApplicationEventQueueLoop(ctx context.Context, aeqlParam ApplicationEventQueueLoop) {
 
 	go applicationEventQueueLoop(ctx,
@@ -70,6 +94,8 @@ func StartApplicationEventQueueLoop(ctx context.Context, aeqlParam ApplicationEv
 
 }
 
+// startApplicationEventQueueLoopWithFactory allows a custom applicationEventLoop factory to be passed, to replace
+// the default factory. This function should only be called/useful for unit tests.
 func startApplicationEventQueueLoopWithFactory(ctx context.Context, aeqlParam ApplicationEventQueueLoop, aerFactory applicationEventRunnerFactory) {
 
 	go applicationEventQueueLoop(ctx,
@@ -83,8 +109,10 @@ func startApplicationEventQueueLoopWithFactory(ctx context.Context, aeqlParam Ap
 
 }
 
+// applicationEventQueueLoop is the main function of the application event loop: it accepts messages from the
+// workspace event loop, creates runners, and passes them to runners.
 func applicationEventQueueLoop(ctx context.Context,
-	input chan ApplicationEventLoopRequestMessage,
+	input chan RequestMessage,
 	gitopsDeploymentName string, gitopsDeploymentNamespace string,
 	workspaceID string,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop,
@@ -99,14 +127,14 @@ func applicationEventQueueLoop(ctx context.Context,
 
 	// Only one deployment event is processed at a time
 	// These are events that are waiting to be sent to application_event_runner_deployments runner
-	var activeDeploymentEvent *ApplicationEventLoopRequestMessage
-	waitingDeploymentEvents := []*ApplicationEventLoopRequestMessage{}
+	var activeDeploymentEvent *RequestMessage
+	waitingDeploymentEvents := []*RequestMessage{}
 
 	// Only one sync operation event is processed at a time
 	// For example: if the user created multiple GitOpsDeploymentSyncRun CRs, they will be processed to completion, one at a time.
 	// These are events that are waiting to be sent to application_event_runner_syncruns runner
-	var activeSyncOperationEvent *ApplicationEventLoopRequestMessage
-	waitingSyncOperationEvents := []*ApplicationEventLoopRequestMessage{}
+	var activeSyncOperationEvent *RequestMessage
+	waitingSyncOperationEvents := []*RequestMessage{}
 
 	deploymentEventRunner := aerFactory.createNewApplicationEventLoopRunner(input, sharedResourceEventLoop, gitopsDeploymentName,
 		gitopsDeploymentNamespace, workspaceID, "deployment")
@@ -155,7 +183,7 @@ func applicationEventQueueLoop(ctx context.Context,
 				"rejected", workRejected, "event", eventlooptypes.StringEventLoopEvent(eventLoopMessage))
 
 			// Inform the event loop if we have accepted/rejected their message
-			newEvent.ResponseChan <- ApplicationEventLoopResponseMessage{
+			newEvent.ResponseChan <- ResponseMessage{
 				RequestAccepted: !workRejected,
 			}
 		}
@@ -302,14 +330,14 @@ func applicationEventQueueLoop(ctx context.Context,
 // thus the goroutine should exit.
 // - the goroutine should be terminated X minutes after the application event loop runners shutdown.
 // - this function helps us ensure that happens.
-func startShutdownTicker(input chan ApplicationEventLoopRequestMessage) {
+func startShutdownTicker(input chan RequestMessage) {
 
 	go func() {
 		for {
 			ticker := time.NewTicker(time.Minute)
 			<-ticker.C
 
-			input <- ApplicationEventLoopRequestMessage{
+			input <- RequestMessage{
 				ResponseChan: nil,
 				Message: eventlooptypes.EventLoopMessage{
 					MessageType: eventlooptypes.ApplicationEventLoopMessageType_ShutdownTicker,
@@ -318,12 +346,11 @@ func startShutdownTicker(input chan ApplicationEventLoopRequestMessage) {
 
 		}
 	}()
-
 }
 
 // startNewStatusUpdateTimer will send a timer tick message to the application event loop in X seconds.
 // This tick informs the runner that it needs to update the status field of the Deployment.
-func startNewStatusUpdateTimer(ctx context.Context, input chan ApplicationEventLoopRequestMessage, vwsAPIExportName string,
+func startNewStatusUpdateTimer(ctx context.Context, input chan RequestMessage, vwsAPIExportName string,
 	log logr.Logger) {
 
 	// Up to 1 second of jitter
@@ -358,7 +385,7 @@ func startNewStatusUpdateTimer(ctx context.Context, input chan ApplicationEventL
 		clusterName, _ := logicalcluster.ClusterFromContext(ctx)
 
 		<-statusUpdateTimer.C
-		tickMessage := ApplicationEventLoopRequestMessage{
+		tickMessage := RequestMessage{
 			Message: eventlooptypes.EventLoopMessage{
 				Event: &eventlooptypes.EventLoopEvent{
 					EventType: eventlooptypes.UpdateDeploymentStatusTick,
@@ -388,7 +415,7 @@ func getk8sClient(apiExportName string) (client.Client, error) {
 //
 // The defaultApplicationEventRunnerFactory should be used in all cases, except for when writing mocks for unit tests.
 type applicationEventRunnerFactory interface {
-	createNewApplicationEventLoopRunner(informWorkCompleteChan chan ApplicationEventLoopRequestMessage,
+	createNewApplicationEventLoopRunner(informWorkCompleteChan chan RequestMessage,
 		sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop,
 		gitopsDeplName string, gitopsDeplNamespace string, workspaceID string, debugContext string) chan *eventlooptypes.EventLoopEvent
 }
@@ -399,7 +426,7 @@ type defaultApplicationEventRunnerFactory struct {
 var _ applicationEventRunnerFactory = defaultApplicationEventRunnerFactory{}
 
 // createNewApplicationEventLoopRunner is a simple wrapper around the default function.
-func (defaultApplicationEventRunnerFactory) createNewApplicationEventLoopRunner(informWorkCompleteChan chan ApplicationEventLoopRequestMessage,
+func (defaultApplicationEventRunnerFactory) createNewApplicationEventLoopRunner(informWorkCompleteChan chan RequestMessage,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop,
 	gitopsDeplName string, gitopsDeplNamespace string, workspaceID string, debugContext string) chan *eventlooptypes.EventLoopEvent {
 

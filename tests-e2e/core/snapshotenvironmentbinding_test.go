@@ -123,12 +123,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			Expect(err).To(Succeed())
 			Expect(gitOpsDeploymentSecond.OwnerReferences[0].Name).To(Equal(binding.Name))
 			Expect(gitOpsDeploymentSecond.OwnerReferences[0].UID).To(Equal(binding.UID))
-
-			err = k8s.Delete(&gitOpsDeploymentFirst, k8sClient)
-			Expect(err).To(Succeed())
-
-			err = k8s.Delete(&gitOpsDeploymentSecond, k8sClient)
-			Expect(err).To(Succeed())
 		})
 
 		//This test is to verify the scenario when a user creates an SnapshotEnvironmentBinding CR in Cluster and after GitOpsDeployment CR is created by GitOps-Service,
@@ -198,9 +192,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 				Path:           binding.Status.Components[0].GitOpsRepository.Path,
 				TargetRevision: binding.Status.Components[0].GitOpsRepository.Branch,
 			}))
-
-			err = k8s.Delete(&gitOpsDeployment, k8sClient)
-			Expect(err).To(Succeed())
 		})
 
 		// This test is to verify the scenario when a user creates an SnapshotEnvironmentBinding CR in Cluster and then GitOps-Service creates GitOpsDeployment CR,
@@ -263,9 +254,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 				Path:           binding.Status.Components[0].GitOpsRepository.Path,
 				TargetRevision: binding.Status.Components[0].GitOpsRepository.Branch,
 			}))
-
-			err = k8s.Delete(&gitOpsDeploymentAfter, k8sClient)
-			Expect(err).To(Succeed())
 		})
 
 		// This test is to verify the scenario when a user creates an SnapshotEnvironmentBinding CR in Cluster and then GitOps-Service creates GitOpsDeployment CR.
@@ -339,9 +327,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 				Path:           binding.Status.Components[0].GitOpsRepository.Path,
 				TargetRevision: binding.Status.Components[0].GitOpsRepository.Branch,
 			}))
-
-			err = k8s.Delete(&gitOpsDeploymentAfter, k8sClient)
-			Expect(err).To(Succeed())
 		})
 
 		// This test is to verify the scenario when a user creates an SnapshotEnvironmentBinding CR in Cluster but GitOpsDeployment CR default name is too long.
@@ -386,9 +371,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 				Path:           binding.Status.Components[0].GitOpsRepository.Path,
 				TargetRevision: binding.Status.Components[0].GitOpsRepository.Branch,
 			}))
-
-			err = k8s.Delete(&gitOpsDeployment, k8sClient)
-			Expect(err).To(Succeed())
 		})
 
 		// This test is to verify the scenario when a user creates an ApplicationSnapshotEnvironmentBinding CR in Cluster but GitOpsDeployment CR default name is too long.
@@ -520,10 +502,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			Expect(gitopsDeployment.Spec.Destination.Namespace).
 				To(Equal(environment.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.TargetNamespace),
 					"the namespace of the GitOpsDeployment should come from the Environment")
-
-			err = k8s.Delete(&gitopsDeployment, k8sClient)
-			Expect(err).To(Succeed())
-
 		})
 
 		It("Should append ASEB labels with key `appstudio.openshift.io` to GitopsDeployment label", func() {
@@ -565,9 +543,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			Expect(err).To(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels["appstudio.openshift.io"]).To(Equal("testing"))
-
-			err = k8s.Delete(&gitopsDeployment, k8sClient)
-			Expect(err).To(Succeed())
 		})
 
 		It("Should not append ASEB label without appstudio.openshift.io label into the GitopsDeployment Label", func() {
@@ -607,9 +582,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			err = k8s.Get(&gitopsDeployment, k8sClient)
 			Expect(err).To(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels["appstudio.openshift.io"]).ToNot(Equal("testing"))
-
-			err = k8s.Delete(&gitopsDeployment, k8sClient)
-			Expect(err).To(Succeed())
 		})
 
 		It("Should update gitopsDeployment label if ASEB label gets updated", func() {
@@ -672,9 +644,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			err = k8s.Get(&gitopsDeployment, k8sClient)
 			Expect(err).To(BeNil())
 			Expect(gitopsDeployment).To(gitopsDeplFixture.NotHaveLabel("appstudio.openshift.io", "testing-update"))
-
-			err = k8s.Delete(&gitopsDeployment, k8sClient)
-			Expect(err).To(Succeed())
 		})
 
 	})

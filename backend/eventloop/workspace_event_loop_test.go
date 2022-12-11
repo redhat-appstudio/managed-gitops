@@ -456,7 +456,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 				Client:    k8sClient,
 			}
 			workspaceEventLoopRouter.channel <- workspaceEventLoopMessage{
-				messageType: managedEnvProcessed_Event,
+				messageType: workspaceEventLoopMessageType_managedEnvProcessed_Event,
 				payload: eventlooptypes.EventLoopMessage{
 					MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
 					Event:       internalEvent,
@@ -497,7 +497,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 				Client:    k8sClient,
 			}
 			workspaceEventLoopRouter.channel <- workspaceEventLoopMessage{
-				messageType: managedEnvProcessed_Event,
+				messageType: workspaceEventLoopMessageType_managedEnvProcessed_Event,
 				payload: eventlooptypes.EventLoopMessage{
 					MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
 					Event:       internalEvent,

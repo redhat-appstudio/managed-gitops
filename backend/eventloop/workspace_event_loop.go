@@ -77,8 +77,9 @@ type WorkspaceEventLoopRouterStruct struct {
 type workspaceEventLoopMessageType string
 
 const (
-	workspaceEventLoopMessageType_Event workspaceEventLoopMessageType = "event"
-	managedEnvProcessed_Event           workspaceEventLoopMessageType = "managedEnvProcessed"
+	workspaceEventLoopMessageType_Event                     workspaceEventLoopMessageType = "event"
+	workspaceEventLoopMessageType_managedEnvProcessed_Event workspaceEventLoopMessageType = "managedEnvProcessed"
+	workspaceEventLoopMessageType_statusTicker              workspaceEventLoopMessageType = "statusTicker"
 )
 
 type workspaceEventLoopMessage struct {
@@ -128,6 +129,31 @@ func internalStartWorkspaceEventLoopRouter(input chan workspaceEventLoopMessage,
 
 }
 
+const (
+	statusCheckInterval = time.Minute * 10
+)
+
+// startStatusCheckTimer ensures that every X minutes, send a status ticker message to the workspace event loop
+func startStatusCheckTicker(interval time.Duration, input chan workspaceEventLoopMessage) *time.Ticker {
+	ticker := time.NewTicker(interval)
+
+	go func() {
+		for {
+
+			// Every X minutes, send a status ticker message to the workspace event loop
+			<-ticker.C
+
+			input <- workspaceEventLoopMessage{
+				messageType: workspaceEventLoopMessageType_statusTicker,
+				payload:     nil,
+			}
+		}
+
+	}()
+
+	return ticker
+}
+
 // workspaceEventLoopRouter receives all events for the namespace, and passes them to specific goroutine responsible
 // for handling events for individual applications.
 func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, namespaceID string,
@@ -153,6 +179,10 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, namespaceID 
 	// - key: string, of format "(namespace UID)-(namespace name)-(GitOpsDeployment name)"
 	// - value:  channel for the go routine responsible for handling events for this GitOpsDeployment
 	applicationMap := map[string]workspaceEventLoop_applicationEventLoopEntry{}
+
+	statusTicker := startStatusCheckTicker(statusCheckInterval, input)
+	defer statusTicker.Stop()
+
 	for {
 		wrapperEvent := <-input
 
@@ -258,7 +288,8 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, namespaceID 
 				continue
 			}
 
-		} else if wrapperEvent.messageType == managedEnvProcessed_Event {
+			// When the workspace event loop receives this message, it informs all of the applictions event loops about the event
+		} else if wrapperEvent.messageType == workspaceEventLoopMessageType_managedEnvProcessed_Event {
 
 			log.V(sharedutil.LogLevel_Debug).Info(fmt.Sprintf("received ManagedEnvironment event, passed event to %d applications",
 				len(applicationMap)))
@@ -266,8 +297,6 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, namespaceID 
 			// Send a message about this ManagedEnvironment to all of the goroutines currently processing GitOpsDeployment/SyncRuns
 			for key := range applicationMap {
 				applicationEntryVal := applicationMap[key]
-
-				// TODO: Need to update this as well.
 
 				go func() {
 
@@ -279,6 +308,36 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, namespaceID 
 						ResponseChan: nil,
 					}
 				}()
+			}
+
+			// Every X minutes, the workspace event loop will send itself a message, causing it to check the
+			// status of the application event loops it is tracking, and clean them up if needed.
+		} else if wrapperEvent.messageType == workspaceEventLoopMessageType_statusTicker {
+
+			// For each of the Application Event Loops (GitOpsDeployments in the namespace) that we are tracking...
+			for key := range applicationMap {
+				applicationEntryVal := applicationMap[key]
+
+				// Send a synchronous message to each Application Event Loop, asking if it is still active
+				syncResponseChan := make(chan application_event_loop.ResponseMessage)
+
+				applicationEntryVal.input <- application_event_loop.RequestMessage{
+					Message: eventlooptypes.EventLoopMessage{
+						MessageType: eventlooptypes.ApplicationEventLoopMessageType_StatusCheck,
+						Event:       event.Event,
+					},
+					ResponseChan: syncResponseChan,
+				}
+				responseMessage := <-syncResponseChan
+
+				// If the Application Event Loop is not active (it is terminating), then the remove it from
+				// the list of active applications.
+				// - This allows us to clean up old appliction event loops.
+				if !responseMessage.RequestAccepted {
+					// Request was rejected: this means the application event loop has terminated.
+					// Remove the terminated application event loop from the map
+					delete(applicationMap, key)
+				}
 			}
 
 		} else {

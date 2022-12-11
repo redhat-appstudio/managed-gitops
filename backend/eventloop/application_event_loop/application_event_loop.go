@@ -37,7 +37,7 @@ const (
 	deploymentStatusTickRate = 15 * time.Second
 )
 
-// RequestMessge is a message sent to the Application Event Loop by the Workspace Event loop.
+// RequestMessage is a message sent to the Application Event Loop by the Workspace Event loop.
 type RequestMessage struct {
 	// Message is the primary message contents of the message sent to the Application Event loop
 	Message eventlooptypes.EventLoopMessage
@@ -45,6 +45,7 @@ type RequestMessage struct {
 	// If the sender of the message would like a reply to the message, they may pass a channel as
 	// part of the message. The receiver will reply on this channel.
 	// - ResponseChan may be nil, if no response is needed.
+	// - Not all message types support ResponseChan
 	ResponseChan chan ResponseMessage
 }
 
@@ -58,6 +59,7 @@ type ResponseMessage struct {
 
 // ApplicationEventQueueLoop contains the variables required to initialize an Application Event Loop. These refer
 // to the particular GitOpsDeployment that a Application Event Loop is responsible for handling.
+// - All fields are immutable: they should not be changed once first written.
 type ApplicationEventQueueLoop struct {
 
 	// GitopsDeploymentName is the GitOpsDeployment resource that this Appliction Event Loop is reponsible for handling
@@ -144,27 +146,11 @@ func applicationEventQueueLoop(ctx context.Context,
 		gitopsDeploymentNamespace, workspaceID, "sync-operation")
 	syncOperationEventRunnerShutdown := false
 
-	// Whether or not the loop is in the process of shutting down. This should only be true if both
-	// 'deploymentEventRunnerShutdown' and 'syncOperationEventRunnerShutdown' are true.
-	applicationEventLoopShutdownExpireTime := (*time.Time)(nil)
-	applicationEventLoopShuttingDown := false
-
 	// Start the ticker, which will -- every X seconds -- instruct the GitOpsDeployment CR fields to update
 	startNewStatusUpdateTimer(ctx, input, vwsAPIExportName, log)
 
+out:
 	for {
-
-		// If the runners have shutdown, start the shutdown ticker
-		if deploymentEventRunnerShutdown && syncOperationEventRunnerShutdown && !applicationEventLoopShuttingDown {
-			applicationEventLoopShuttingDown = true
-
-			// Set the expiration time of the goroutine to 1 hour from now.
-			oneHourFromNow := time.Now().Add(time.Hour)
-			applicationEventLoopShutdownExpireTime = &oneHourFromNow
-
-			startShutdownTicker(input)
-		}
-
 		// Block on waiting for more events for this application
 		newEvent := <-input
 
@@ -174,22 +160,36 @@ func applicationEventQueueLoop(ctx context.Context,
 			log.Error(nil, "SEVERE: applicationEventQueueLoop event was nil")
 			continue
 		}
-
-		// We reject the message from the event loop if we have already shutdown
-		// - the event loop will receive the rejection, and start up a new event loop
-		workRejected := applicationEventLoopShuttingDown
-		if newEvent.ResponseChan != nil {
-			log.V(sharedutil.LogLevel_Debug).Info("applicationEventQueueLoop received event",
-				"rejected", workRejected, "event", eventlooptypes.StringEventLoopEvent(eventLoopMessage))
-
-			// Inform the event loop if we have accepted/rejected their message
-			newEvent.ResponseChan <- ResponseMessage{
-				RequestAccepted: !workRejected,
-			}
-		}
+		log.V(sharedutil.LogLevel_Debug).Info("applicationEventQueueLoop received event",
+			"event", eventlooptypes.StringEventLoopEvent(eventLoopMessage))
 
 		// If we've received a new event from the workspace event loop
 		if newEvent.Message.MessageType == eventlooptypes.ApplicationEventLoopMessageType_Event {
+
+			// First check if the event loop has shutdown, and therefore we should reject the request
+			workRejected := deploymentEventRunnerShutdown && syncOperationEventRunnerShutdown
+
+			// We reject the message from the workspace event loop if we have already shutdown
+			// - the workspace event loop will receive the rejection, and start up a new event loop
+			if newEvent.ResponseChan != nil {
+
+				// Inform the event loop if we have accepted/rejected their message
+				newEvent.ResponseChan <- ResponseMessage{
+					RequestAccepted: !workRejected,
+				}
+
+				// Terminate this event loop once we inform the workspace event loop that we have shutdown.
+				if workRejected {
+					break out
+				}
+			}
+
+			// Otherwise, if the response chan is nil, but work is rejected, just continue
+			if workRejected {
+				continue
+			}
+
+			// From this point on, the work has been accepted
 
 			log := log.WithValues("event", eventlooptypes.StringEventLoopEvent(eventLoopMessage))
 
@@ -233,6 +233,10 @@ func applicationEventQueueLoop(ctx context.Context,
 			// If we've received a work complete notification...
 		} else if newEvent.Message.MessageType == eventlooptypes.ApplicationEventLoopMessageType_WorkComplete {
 
+			if newEvent.ResponseChan != nil {
+				log.Error(nil, "SEVERE: WorkComplete does not support non-nil ResponseChan")
+			}
+
 			log := log.WithValues("event", eventlooptypes.StringEventLoopEvent(eventLoopMessage))
 
 			log.V(sharedutil.LogLevel_Debug).Info("applicationEventQueueLoop received work complete event")
@@ -273,11 +277,26 @@ func applicationEventQueueLoop(ctx context.Context,
 				log.Error(nil, "SEVERE: unexpected event resource type in applicationEventQueueLoop")
 			}
 
-		} else if newEvent.Message.MessageType == eventlooptypes.ApplicationEventLoopMessageType_ShutdownTicker {
-			if applicationEventLoopShutdownExpireTime != nil && time.Now().After(*applicationEventLoopShutdownExpireTime) {
-				log.V(sharedutil.LogLevel_Debug).Info("Application event loop has elapsed, and the goroutine is now terminating.")
-				break
+			// If the parent workspace event loop is requesting our status...
+		} else if newEvent.Message.MessageType == eventlooptypes.ApplicationEventLoopMessageType_StatusCheck {
+
+			if newEvent.ResponseChan == nil { // sanity check the response chan
+				log.Error(nil, "SEVERE: StatusCheck does not support nil ResponseChan")
+				continue
 			}
+
+			workRejected := deploymentEventRunnerShutdown && syncOperationEventRunnerShutdown
+
+			// Inform the event loop if we have accepted/rejected their message
+			newEvent.ResponseChan <- ResponseMessage{
+				RequestAccepted: !workRejected,
+			}
+
+			// Terminate the event loop once we inform the workspace event loop that we have shutdown.
+			if workRejected {
+				break out
+			}
+
 		} else {
 			log.Error(nil, "SEVERE: Unrecognized workspace event type", "type", newEvent.Message.MessageType)
 		}
@@ -323,29 +342,6 @@ func applicationEventQueueLoop(ctx context.Context,
 			}
 		}
 	}
-}
-
-// startShutdownTicker starts a periodic ticker that sends a message to the application event loop
-// ever minute. The message tells the eventloop to check if it the termination time has expired, and
-// thus the goroutine should exit.
-// - the goroutine should be terminated X minutes after the application event loop runners shutdown.
-// - this function helps us ensure that happens.
-func startShutdownTicker(input chan RequestMessage) {
-
-	go func() {
-		for {
-			ticker := time.NewTicker(time.Minute)
-			<-ticker.C
-
-			input <- RequestMessage{
-				ResponseChan: nil,
-				Message: eventlooptypes.EventLoopMessage{
-					MessageType: eventlooptypes.ApplicationEventLoopMessageType_ShutdownTicker,
-				},
-			}
-
-		}
-	}()
 }
 
 // startNewStatusUpdateTimer will send a timer tick message to the application event loop in X seconds.

@@ -246,7 +246,7 @@ func internalProcessWorkspaceResourceMessage(ctx context.Context, msg workspaceR
 		// - Send it on another go routine to keep from blocking this one
 		go func() {
 			workspaceEventLoopInputChannel <- workspaceEventLoopMessage{
-				messageType: managedEnvProcessed_Event,
+				messageType: workspaceEventLoopMessageType_managedEnvProcessed_Event,
 				payload:     evlMessage,
 			}
 		}()

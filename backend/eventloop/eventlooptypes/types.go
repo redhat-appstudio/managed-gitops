@@ -103,10 +103,9 @@ const (
 	// ApplicationEventLoopMessageType_Event indicates that the message contains an event
 	ApplicationEventLoopMessageType_Event
 
-	// ApplicationEventLoopMessageType_ShutdownTicker is a periodic ticker that tells the application event loop to
+	// ApplicationEventLoopMessageType_StatusCheck is a periodic ticker that tells the application event loop to
 	// check if it should terminate its goroutine
-	// - the goroutine should be terminated X minutes after the application event loop runners shutdown.
-	ApplicationEventLoopMessageType_ShutdownTicker
+	ApplicationEventLoopMessageType_StatusCheck
 )
 
 // eventlooptypes.StringEventLoopEvent is a utility function for debug purposes.

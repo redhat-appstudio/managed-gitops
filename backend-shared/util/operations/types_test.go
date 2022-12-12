@@ -134,7 +134,6 @@ func TestGenerateOperatorCRName(t *testing.T) {
 			assert.Equal(t, tt.expectedString, testOperatorCRName)
 		})
 	}
-
 }
 
 func TestGenerateUniqueOperatorCRName(t *testing.T) {
@@ -144,5 +143,4 @@ func TestGenerateUniqueOperatorCRName(t *testing.T) {
 		})
 		assert.Equal(t, "operation-customtestid", crName)
 	})
-
 }

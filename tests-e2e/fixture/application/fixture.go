@@ -136,6 +136,36 @@ func HaveSyncStatusCode(status appv1alpha1.ApplicationStatus) matcher.GomegaMatc
 	}, BeTrue())
 }
 
+// HaveOperationState checks if the Application has the given OperationState
+func HaveOperationState(opState appv1alpha1.OperationState) matcher.GomegaMatcher {
+
+	return WithTransform(func(app appv1alpha1.Application) bool {
+		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
+		Expect(err).To(BeNil())
+
+		k8sClient, err := fixture.GetKubeClient(config)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&app), &app)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		if app.Status.OperationState == nil {
+			return false
+		}
+
+		res := app.Status.OperationState.Phase == opState.Phase && app.Status.OperationState.Message == opState.Message
+		fmt.Println("HaveOperationState:", res, "/ ExpectedOperationPhase:", opState.Phase, "/ ActualOperationPhase:", app.Status.OperationState.Phase, "/ ExpectedMessage:", opState.Message, "/ ActualMessage:", app.Status.OperationState.Message)
+
+		return res
+	}, BeTrue())
+}
+
 //  HaveApplicationSyncError checks the Application .status.conditions.Message fiels is set with syncError.
 func HaveApplicationSyncError(syncError appv1alpha1.ApplicationStatus) matcher.GomegaMatcher {
 

@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -9,6 +10,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
+	"github.com/stretchr/testify/assert"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -100,3 +102,47 @@ var _ = Describe("Testing CreateOperation function.", func() {
 		})
 	})
 })
+
+// TestGenerateOperatorCRName tests the GetOperatorCRName function
+// with different possible db.Operation
+func TestGenerateOperatorCRName(t *testing.T) {
+	tests := []struct {
+		name           string
+		dbOperation    db.Operation
+		expectedString string
+	}{
+		{
+			"test with a db.Operation having a valid operation id",
+			db.Operation{Operation_id: "1"},
+			"operation-1",
+		},
+		{
+			"test with a db.Operation containing an empty operation id",
+			db.Operation{Operation_id: ""},
+			"operation-",
+		},
+		{
+			"test with a zero value of db.Operation",
+			db.Operation{},
+			"operation-",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testOperatorCRName := GenerateOperationCRName(tt.dbOperation)
+			assert.Equal(t, tt.expectedString, testOperatorCRName)
+		})
+	}
+
+}
+
+func TestGenerateUniqueOperatorCRName(t *testing.T) {
+	t.Run("with a custom unique id generator function", func(t *testing.T) {
+		crName := generateUniqueOperationCRName(db.Operation{Operation_id: "1"}, func(db.Operation) string {
+			return "customtestid"
+		})
+		assert.Equal(t, "operation-customtestid", crName)
+	})
+
+}

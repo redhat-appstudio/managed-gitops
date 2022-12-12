@@ -100,7 +100,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 			// Sending an event to the workspace event loop should cause an event to be sent on the output channel
 			workspaceEventLoopRouter.SendMessage(msg)
 			tAELF.waitForFirstInvocation()
-			result := <-tAELF.outputChannelInner
+			result := <-tAELF.outputChannel
 
 			Expect(result).NotTo(BeNil())
 
@@ -149,7 +149,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 			By("sending an event to the workspace event loop should cause an event to be sent on the output channel")
 			workspaceEventLoopRouter.SendMessage(msg)
 			tAELF.waitForFirstInvocation()
-			result := <-tAELF.outputChannelInner
+			result := <-tAELF.outputChannel
 
 			Expect(result).NotTo(BeNil())
 
@@ -206,7 +206,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 			By("sending an event to the workspace event loop should cause an event to be sent on the output channel")
 			workspaceEventLoopRouter.SendMessage(msg)
 			tAELF.waitForFirstInvocation()
-			result := <-tAELF.outputChannelInner
+			result := <-tAELF.outputChannel
 
 			Expect(result).NotTo(BeNil())
 
@@ -330,7 +330,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 			By("reading the events from the output channel, make sure they are the ones we expect, now that the gitopsdeploymentsyncrun in unorphaned")
 
 			tAELF.waitForFirstInvocation()
-			deploymentModifiedMsg := <-tAELF.outputChannelInner
+			deploymentModifiedMsg := <-tAELF.outputChannel
 
 			// Make sure this is the gitopsdeployment event from above
 			Expect(deploymentModifiedMsg).NotTo(BeNil())
@@ -342,7 +342,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 			Expect(deploymentModifiedMsg.Message.Event).To(Equal(msg.Event))
 			Expect(deploymentModifiedMsg.Message.MessageType).To(Equal(msg.MessageType))
 
-			syncRunModifiedMsg := <-tAELF.outputChannelInner
+			syncRunModifiedMsg := <-tAELF.outputChannel
 
 			// Make sure this is the gitopsdeploymentsyncrun event from above
 			Expect(syncRunModifiedMsg).NotTo(BeNil())
@@ -420,7 +420,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 
 				By("waiting for the responce to be received")
 				tAELF.waitForFirstInvocation(gitopsDepl.Name)
-				result := <-tAELF.outputChannel2Inner[gitopsDepl.Name]
+				result := <-tAELF.outputChannelMap[gitopsDepl.Name]
 				Expect(result).NotTo(BeNil())
 				Expect(result.ResponseChan).NotTo(BeNil())
 				result.ResponseChan <- application_event_loop.ResponseMessage{
@@ -440,7 +440,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 
 			By("Starting the workspace event loop with our custom test factory, so that we can capture output")
 			tAELF := &managedEnvironmentTestApplicationEventLoopFactory{
-				outputChannel2Inner: map[string]chan application_event_loop.RequestMessage{},
+				outputChannelMap: map[string]chan application_event_loop.RequestMessage{},
 			}
 			workspaceEventLoopRouter := newWorkspaceEventLoopRouterWithFactory(string(apiNamespace.UID), tAELF)
 
@@ -474,7 +474,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 
 			By("Starting the workspace event loop with our custom test factory, so that we can capture output")
 			tAELF := &managedEnvironmentTestApplicationEventLoopFactory{
-				outputChannel2Inner: map[string]chan application_event_loop.RequestMessage{},
+				outputChannelMap: map[string]chan application_event_loop.RequestMessage{},
 			}
 			workspaceEventLoopRouter := newWorkspaceEventLoopRouterWithFactory(string(apiNamespace.UID), tAELF)
 
@@ -520,7 +520,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 					for {
 						tAELF.waitForFirstInvocation(gitopsDeployment.Name)
 
-						fromOutputChan := <-tAELF.outputChannel2Inner[gitopsDeployment.Name]
+						fromOutputChan := <-tAELF.outputChannelMap[gitopsDeployment.Name]
 						GinkgoWriter.Println("event received on gofunc", string(gitopsDeployment.UID), fromOutputChan)
 						mutex.Lock()
 						eventLoopMsgsReceived = append(eventLoopMsgsReceived, fromOutputChan)
@@ -572,7 +572,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 // testApplicationEventLoopFactory is a mock applicationEventQueueLoopFactory, used for unit tests above.
 type testApplicationEventLoopFactory struct {
 	mutex                     sync.Mutex
-	outputChannelInner        chan application_event_loop.RequestMessage
+	outputChannel             chan application_event_loop.RequestMessage
 	numberOfEventLoopsCreated int
 }
 
@@ -584,7 +584,7 @@ func (ta *testApplicationEventLoopFactory) waitForFirstInvocation() {
 		ta.mutex.Lock()
 		defer ta.mutex.Unlock()
 
-		return ta.outputChannelInner != nil
+		return ta.outputChannel != nil
 
 	}).Should(BeTrue())
 
@@ -598,7 +598,7 @@ func (ta *testApplicationEventLoopFactory) startApplicationEventQueueLoop(ctx co
 	ta.mutex.Lock()
 	defer ta.mutex.Unlock()
 
-	ta.outputChannelInner = aeqlParam.InputChan
+	ta.outputChannel = aeqlParam.InputChan
 
 	// Increase count by 1 if new application event loop is created
 	ta.numberOfEventLoopsCreated++
@@ -608,7 +608,7 @@ func (ta *testApplicationEventLoopFactory) startApplicationEventQueueLoop(ctx co
 
 // testApplicationEventLoopFactory is a mock applicationEventQueueLoopFactory, used for unit tests above.
 type managedEnvironmentTestApplicationEventLoopFactory struct {
-	outputChannel2Inner       map[string]chan application_event_loop.RequestMessage
+	outputChannelMap          map[string]chan application_event_loop.RequestMessage
 	numberOfEventLoopsCreated int
 	mutex                     sync.Mutex
 }
@@ -623,7 +623,7 @@ func (ta *managedEnvironmentTestApplicationEventLoopFactory) startApplicationEve
 	ta.mutex.Lock()
 	defer ta.mutex.Unlock()
 
-	ta.outputChannel2Inner[aeqlParam.GitopsDeploymentName] = aeqlParam.InputChan
+	ta.outputChannelMap[aeqlParam.GitopsDeploymentName] = aeqlParam.InputChan
 
 	// Increase count by 1 if new application event loop is created
 	ta.numberOfEventLoopsCreated++
@@ -637,7 +637,7 @@ func (ta *managedEnvironmentTestApplicationEventLoopFactory) waitForFirstInvocat
 		ta.mutex.Lock()
 		defer ta.mutex.Unlock()
 
-		return ta.outputChannel2Inner[gitopsDeploymentName] != nil
+		return ta.outputChannelMap[gitopsDeploymentName] != nil
 
 	}).Should(BeTrue())
 

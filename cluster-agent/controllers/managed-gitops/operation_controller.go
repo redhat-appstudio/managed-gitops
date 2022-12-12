@@ -21,19 +21,20 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/go-logr/logr"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	sharedoperations "github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/managed-gitops/eventloop"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -128,7 +129,7 @@ func (g *garbageCollector) garbageCollectOperations(ctx context.Context, operati
 			// remove the Operation resource from the cluster
 			operationCR := &managedgitopsv1alpha1.Operation{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      fmt.Sprintf("operation-%s", operation.Operation_id),
+					Name:      sharedoperations.GenerateOperationCRName(operation),
 					Namespace: util.GetGitOpsEngineSingleInstanceNamespace(),
 				},
 			}

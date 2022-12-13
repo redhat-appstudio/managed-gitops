@@ -4,7 +4,7 @@ TAG ?= latest
 BASE_IMAGE ?= gitops-service
 USERNAME ?= redhat-appstudio
 IMG ?= quay.io/${USERNAME}/${BASE_IMAGE}:${TAG}
-APPLICATION_API_COMMIT ?= 54515964769fd6e41dd42e741f8e81ffcd61f3a8
+APPLICATION_API_COMMIT ?= 8119473cf51efc5c4307a4df43564b6c2fd160ee
 
 # Default values match the their respective deployments in staging/production environment for GitOps Service, otherwise the E2E will fail.
 ARGO_CD_NAMESPACE ?= gitops-service-argocd

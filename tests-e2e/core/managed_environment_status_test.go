@@ -1,17 +1,13 @@
 package core
 
 import (
-	"context"
-	"fmt"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	matcher "github.com/onsi/gomega/types"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
+	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/managedenvironment"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("Managed Environment Status E2E tests", func() {
@@ -36,7 +32,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			Expect(err).To(BeNil())
 
 			By("ensuring the managed environment has a connection status condition of Failed")
-			Eventually(managedEnv, "2m", "1s").Should(HaveStatusCondition(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
+			Eventually(managedEnv, "2m", "1s").Should(managedenvironment.HaveStatusCondition(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			err = k8s.Get(&managedEnv, k8sClient)
 			Expect(err).To(BeNil())
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
@@ -66,7 +62,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			Expect(err).To(BeNil())
 
 			By("ensuring the managed environment connection status condition has a reason of MissingKubeConfigField")
-			Eventually(managedEnv, "2m", "1s").Should(HaveStatusCondition(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
+			Eventually(managedEnv, "2m", "1s").Should(managedenvironment.HaveStatusCondition(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			err = k8s.Get(&managedEnv, k8sClient)
 			Expect(err).To(BeNil())
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
@@ -96,7 +92,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			Expect(err).To(BeNil())
 
 			By("ensuring the managed environment connection status condition has a reason of UnableToParseKubeconfigData")
-			Eventually(managedEnv, "2m", "1s").Should(HaveStatusCondition(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
+			Eventually(managedEnv, "2m", "1s").Should(managedenvironment.HaveStatusCondition(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			err = k8s.Get(&managedEnv, k8sClient)
 			Expect(err).To(BeNil())
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
@@ -126,7 +122,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			Expect(err).To(BeNil())
 
 			By("ensuring the managed environment connection status condition has a reason of UnableToLocateContext")
-			Eventually(managedEnv, "2m", "1s").Should(HaveStatusCondition(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
+			Eventually(managedEnv, "2m", "1s").Should(managedenvironment.HaveStatusCondition(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			err = k8s.Get(&managedEnv, k8sClient)
 			Expect(err).To(BeNil())
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
@@ -156,7 +152,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			Expect(err).To(BeNil())
 
 			By("ensuring the managed environment has a connection status condition of True")
-			Eventually(managedEnv, "2m", "1s").Should(HaveStatusCondition(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
+			Eventually(managedEnv, "2m", "1s").Should(managedenvironment.HaveStatusCondition(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			err = k8s.Get(&managedEnv, k8sClient)
 			Expect(err).To(BeNil())
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
@@ -167,33 +163,6 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 		})
 	})
 })
-
-func HaveStatusCondition(conditionType string) matcher.GomegaMatcher {
-	return WithTransform(func(menv managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment) bool {
-		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
-
-		k8sClient, err := fixture.GetKubeClient(config)
-		if err != nil {
-			fmt.Println(k8s.K8sClientError, err)
-			return false
-		}
-
-		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&menv), &menv)
-		if err != nil {
-			fmt.Println(k8s.K8sClientError, err)
-			return false
-		}
-
-		for _, condition := range menv.Status.Conditions {
-			if condition.Type == conditionType {
-				return true
-			}
-		}
-		return false
-	}, BeTrue())
-
-}
 
 func generateFakeKubeConfig() string {
 	// This config has been sanitized of any real credentials.

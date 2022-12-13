@@ -590,6 +590,229 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 	})
 
+	Context("SnapshotEnvironmentBindingReconciler ComponentDeploymentConditions", func() {
+		var ctx context.Context
+		var request reconcile.Request
+		var binding *appstudiosharedv1.SnapshotEnvironmentBinding
+		var bindingReconciler SnapshotEnvironmentBindingReconciler
+
+		var environment appstudiosharedv1.Environment
+
+		BeforeEach(func() {
+			ctx = context.Background()
+
+			scheme,
+				argocdNamespace,
+				kubesystemNamespace,
+				apiNamespace,
+				err := tests.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			// Create fake client
+			k8sClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(apiNamespace, argocdNamespace, kubesystemNamespace).
+				Build()
+
+			err = appstudiosharedv1.AddToScheme(scheme)
+			Expect(err).To(BeNil())
+
+			// Create placeholder environment
+			environment = appstudiosharedv1.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "staging",
+					Namespace: apiNamespace.Name,
+				},
+				Spec: appstudiosharedv1.EnvironmentSpec{
+					DisplayName:        "my-environment",
+					Type:               appstudiosharedv1.EnvironmentType_POC,
+					DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
+					ParentEnvironment:  "",
+					Tags:               []string{},
+					Configuration:      appstudiosharedv1.EnvironmentConfiguration{},
+				},
+			}
+			err = k8sClient.Create(ctx, &environment)
+			Expect(err).To(BeNil())
+
+			bindingReconciler = SnapshotEnvironmentBindingReconciler{Client: k8sClient, Scheme: scheme}
+
+			// Create SnapshotEnvironmentBinding CR.
+			binding = &appstudiosharedv1.SnapshotEnvironmentBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "appa-staging-binding",
+					Namespace: apiNamespace.Name,
+					Labels: map[string]string{
+						"appstudio.application": "new-demo-app",
+						"appstudio.environment": "staging",
+					},
+				},
+				Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
+					Application: "new-demo-app",
+					Environment: "staging",
+					Snapshot:    "my-snapshot",
+					Components: []appstudiosharedv1.BindingComponent{
+						{
+							Name: "component-a",
+							Configuration: appstudiosharedv1.BindingComponentConfiguration{
+								Env: []appstudiosharedv1.EnvVarPair{
+									{Name: "My_STG_ENV", Value: "1000"},
+								},
+								Replicas: 3,
+							},
+						},
+						{
+							Name: "component-b",
+							Configuration: appstudiosharedv1.BindingComponentConfiguration{
+								Env: []appstudiosharedv1.EnvVarPair{
+									{Name: "My_STG_ENV", Value: "1000"},
+								},
+								Replicas: 3,
+							},
+						},
+					},
+				},
+				Status: appstudiosharedv1.SnapshotEnvironmentBindingStatus{
+					Components: []appstudiosharedv1.BindingComponentStatus{
+						{
+							Name: "component-a",
+							GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{
+								URL:    "https://github.com/redhat-appstudio/managed-gitops",
+								Branch: "main",
+								Path:   "resources/test-data/sample-gitops-repository/components/componentA/overlays/staging",
+							},
+						},
+						{
+							Name: "component-b",
+							GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{
+								URL:    "https://github.com/redhat-appstudio/managed-gitops",
+								Branch: "main",
+								Path:   "resources/test-data/sample-gitops-repository/components/componentB/overlays/staging",
+							},
+						},
+					},
+				},
+			}
+
+			// Create request object for Reconciler
+			request = newRequest(apiNamespace.Name, binding.Name)
+		})
+
+		It("sets the binding's ComponentDeploymentConditions status field when some components are out of sync.", func() {
+			// Create SnapshotEnvironmentBinding CR in cluster.
+			err := bindingReconciler.Create(ctx, binding)
+			Expect(err).To(BeNil())
+
+			// Check status field before calling Reconciler
+			binding = &appstudiosharedv1.SnapshotEnvironmentBinding{}
+			err = bindingReconciler.Client.Get(ctx, request.NamespacedName, binding)
+			Expect(err).To(BeNil())
+			Expect(len(binding.Status.ComponentDeploymentConditions)).To(Equal(0))
+
+			// Trigger Reconciler to create the GitOpsDeployments
+			_, err = bindingReconciler.Reconcile(ctx, request)
+			Expect(err).To(BeNil())
+			binding = &appstudiosharedv1.SnapshotEnvironmentBinding{}
+			err = bindingReconciler.Get(ctx, request.NamespacedName, binding)
+			Expect(err).To(BeNil())
+
+			// Update the first GitOpsDeployment to simulate a successful sync
+			deployment := &apibackend.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      binding.Status.GitOpsDeployments[0].GitOpsDeployment,
+					Namespace: binding.Namespace,
+				},
+			}
+			err = bindingReconciler.Get(ctx, client.ObjectKeyFromObject(deployment), deployment)
+			deployment.Status.Sync.Status = apibackend.SyncStatusCodeSynced
+			err = bindingReconciler.Status().Update(ctx, deployment)
+			Expect(err).To(BeNil())
+
+			// Update the second GitOpsDeployment to simulate a failed sync
+			deployment = &apibackend.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      binding.Status.GitOpsDeployments[1].GitOpsDeployment,
+					Namespace: binding.Namespace,
+				},
+			}
+			err = bindingReconciler.Get(ctx, client.ObjectKeyFromObject(deployment), deployment)
+			deployment.Status.Sync.Status = apibackend.SyncStatusCodeOutOfSync
+			err = bindingReconciler.Status().Update(ctx, deployment)
+			Expect(err).To(BeNil())
+
+			// Trigger Reconciler to update the status ComponentDeploymentConditions field
+			_, err = bindingReconciler.Reconcile(ctx, request)
+			Expect(err).To(BeNil())
+
+			// Check status field after calling Reconciler
+			binding = &appstudiosharedv1.SnapshotEnvironmentBinding{}
+			err = bindingReconciler.Get(ctx, request.NamespacedName, binding)
+			Expect(err).To(BeNil())
+			Expect(len(binding.Status.ComponentDeploymentConditions)).To(Equal(1))
+			Expect(binding.Status.ComponentDeploymentConditions[0].Type).To(Equal(ComponentDeploymentConditionAllComponentsDeployed))
+			Expect(binding.Status.ComponentDeploymentConditions[0].Status).To(Equal(metav1.ConditionFalse))
+			Expect(binding.Status.ComponentDeploymentConditions[0].Reason).To(Equal(ComponentDeploymentConditionCommitsUnsynced))
+			Expect(binding.Status.ComponentDeploymentConditions[0].Message).To(Equal("1 of 2 components deployed"))
+		})
+
+		It("sets the binding's ComponentDeploymentConditions status field when all components deployed successfully.", func() {
+			// Create SnapshotEnvironmentBinding CR in cluster.
+			err := bindingReconciler.Create(ctx, binding)
+			Expect(err).To(BeNil())
+
+			// Check status field before calling Reconciler
+			binding = &appstudiosharedv1.SnapshotEnvironmentBinding{}
+			err = bindingReconciler.Client.Get(ctx, request.NamespacedName, binding)
+			Expect(err).To(BeNil())
+			Expect(len(binding.Status.ComponentDeploymentConditions)).To(Equal(0))
+
+			// Trigger Reconciler to create the GitOpsDeployments
+			_, err = bindingReconciler.Reconcile(ctx, request)
+			Expect(err).To(BeNil())
+			binding = &appstudiosharedv1.SnapshotEnvironmentBinding{}
+			err = bindingReconciler.Get(ctx, request.NamespacedName, binding)
+			Expect(err).To(BeNil())
+
+			// Update the first GitOpsDeployment to simulate a successful sync
+			deployment := &apibackend.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      binding.Status.GitOpsDeployments[0].GitOpsDeployment,
+					Namespace: binding.Namespace,
+				},
+			}
+			err = bindingReconciler.Get(ctx, client.ObjectKeyFromObject(deployment), deployment)
+			deployment.Status.Sync.Status = apibackend.SyncStatusCodeSynced
+			err = bindingReconciler.Status().Update(ctx, deployment)
+			Expect(err).To(BeNil())
+
+			// Update the first GitOpsDeployment to simulate a successful sync
+			deployment = &apibackend.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      binding.Status.GitOpsDeployments[1].GitOpsDeployment,
+					Namespace: binding.Namespace,
+				},
+			}
+			err = bindingReconciler.Get(ctx, client.ObjectKeyFromObject(deployment), deployment)
+			deployment.Status.Sync.Status = apibackend.SyncStatusCodeSynced
+			err = bindingReconciler.Status().Update(ctx, deployment)
+			Expect(err).To(BeNil())
+
+			// Trigger Reconciler to update the status ComponentDeploymentConditions field
+			_, err = bindingReconciler.Reconcile(ctx, request)
+			Expect(err).To(BeNil())
+
+			// Check status field after calling Reconciler
+			binding = &appstudiosharedv1.SnapshotEnvironmentBinding{}
+			err = bindingReconciler.Get(ctx, request.NamespacedName, binding)
+			Expect(err).To(BeNil())
+			Expect(len(binding.Status.ComponentDeploymentConditions)).To(Equal(1))
+			Expect(binding.Status.ComponentDeploymentConditions[0].Type).To(Equal(ComponentDeploymentConditionAllComponentsDeployed))
+			Expect(binding.Status.ComponentDeploymentConditions[0].Status).To(Equal(metav1.ConditionTrue))
+			Expect(binding.Status.ComponentDeploymentConditions[0].Reason).To(Equal(ComponentDeploymentConditionCommitsSynced))
+			Expect(binding.Status.ComponentDeploymentConditions[0].Message).To(Equal("2 of 2 components deployed"))
+		})
+	})
+
 	Context("verify functions that are used to ensure that GitOpsDeployments generated by the Binding controller contain "+
 		"appstudio labels from the parent", func() {
 

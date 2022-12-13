@@ -6,7 +6,7 @@ require (
 	github.com/devfile/api/v2 v2.0.0-20211021164004-dabee4e633ed
 	github.com/onsi/ginkgo/v2 v2.1.4
 	github.com/onsi/gomega v1.20.1
-	github.com/redhat-appstudio/application-api v0.0.0-20221110070312-2a23d78f7f04
+	github.com/redhat-appstudio/application-api v0.0.0-20221128221845-7c860969cbb4
 	github.com/redhat-appstudio/application-service v0.0.0-20220609190313-7a1a14b575dc
 	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0
 	k8s.io/apimachinery v0.24.3

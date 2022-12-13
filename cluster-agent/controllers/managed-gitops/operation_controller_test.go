@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -96,7 +95,7 @@ var _ = Describe("Garbage Collect Operations", func() {
 			By("operation CR should be removed from the cluster")
 			operationCR := &managedgitopsv1alpha1.Operation{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      fmt.Sprintf(sharedoperations.GenerateOperationCRName(validOperation)),
+					Name:      sharedoperations.GenerateOperationCRName(validOperation),
 					Namespace: util.GetGitOpsEngineSingleInstanceNamespace(),
 				},
 			}

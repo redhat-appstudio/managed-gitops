@@ -161,24 +161,7 @@ func main() {
 	}
 	//+kubebuilder:scaffold:builder
 
-	//==============================================
-	// Process to trigger Database Reconciler
-
-	dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
-	if err != nil {
-		setupLog.Error(err, "never able to connect to database")
-		os.Exit(1)
-	}
-
-	databaseReconciler := eventloop.DatabaseReconciler{
-		DB:     dbQueries,
-		Client: mgr.GetClient(),
-	}
-
-	// Trigger goroutine for database reconciler
-	databaseReconciler.StartDatabaseReconciler()
-	//==============================================
-
+	startDBReconciler(mgr)
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
 		os.Exit(1)
@@ -199,6 +182,23 @@ func main() {
 		os.Exit(1)
 	}
 
+}
+
+func startDBReconciler(mgr ctrl.Manager) {
+
+	dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
+	if err != nil {
+		setupLog.Error(err, "never able to connect to database")
+		os.Exit(1)
+	}
+
+	databaseReconciler := eventloop.DatabaseReconciler{
+		DB:     dbQueries,
+		Client: mgr.GetClient(),
+	}
+
+	// Start goroutine for database reconciler
+	databaseReconciler.StartDatabaseReconciler()
 }
 
 func initializeRoutes() {

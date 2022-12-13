@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -24,11 +23,22 @@ const (
 	sleepIntervalsOfBatches    = 1 * time.Second  // Interval in Millisecond between each batch.
 )
 
+// A 'dangling' DeploymentToApplicationMapping (for lack of a better term) is a DeploymentToApplicationMapping (DTAM)
+// row in the database that points to a K8s resource (GitOpsDeployment CR) that no longer exists.
+//
+// This usually shouldn't occur: usually we should get informed by K8 when a GitOpsDeployment is deleted, but this
+// is not guaranteed in all cases (for example, if GitOpsDeployments are deleted while the GitOps service is
+// down/or otherwise not running).
+//
+// Thus, it is useful to have some code that will periodically run to clean up old DTAMs, as as a method of
+// background self-healing.
+//
+// This periodic, background self-healing of DTAMs is the responsibility of this file.
+
 // DatabaseReconciler reconciles Database entries
 type DatabaseReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	DB     db.DatabaseQueries
+	DB db.DatabaseQueries
 }
 
 // This function iterates through each entry present of DeploymentToApplicationMapping table in DB and ensures that the required GitOpsDeployment CR is present in cluster.
@@ -57,8 +67,11 @@ func (r *DatabaseReconciler) startTimerForNextCycle() {
 
 }
 
+// databaseReconcile loops through the DTAMs in a database, and verifies they are still valid. If not, the resources are deleted.
 func databaseReconcile(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, log logr.Logger) {
 	offSet := 0
+
+	log = log.WithValues("job", "databaseReconciler")
 
 	// Continuously iterate and fetch batches until all entries of DeploymentToApplicationMapping table are processed.
 	for {
@@ -77,7 +90,7 @@ func databaseReconcile(ctx context.Context, dbQueries db.DatabaseQueries, client
 
 		// Break the loop if no entries are left in table to be processed.
 		if len(listOfdeplToAppMapping) == 0 {
-			log.Info("All DeploymentToApplicationMapping entries are processed by Database Reconciler.")
+			log.Info("All DeploymentToApplicationMapping entries are processed by Namespace Reconciler.")
 			break
 		}
 
@@ -93,17 +106,28 @@ func databaseReconcile(ctx context.Context, dbQueries db.DatabaseQueries, client
 
 			if err := client.Get(ctx, types.NamespacedName{Name: deplToAppMappingFromDB.DeploymentName, Namespace: deplToAppMappingFromDB.DeploymentNamespace}, &gitOpsDeployment); err != nil {
 				if apierr.IsNotFound(err) {
-					log.Info("GitOpsDeployment " + gitOpsDeployment.Name + " not found in Cluster, probably user deleted it, " +
-						"but it still exists in DB, hence deleting related database entries.")
+					// A) If GitOpsDeployment CR is not found in cluster, delete related entries from table
 
-					// If GitOpsDeployment CR is not found in cluster, delete related entries from table
-					err = cleanEntriesFromDb(ctx, &deplToAppMappingFromDB, dbQueries, log)
-					if err != nil {
-						log.Error(err, "Error occurred in Database Reconciler while cleaning GitOpsDeployment entries from DB: "+gitOpsDeployment.Name)
+					log.Info("GitOpsDeployment " + gitOpsDeployment.Name + " not found in Cluster, probably user deleted it, " +
+						"but It still exists in DB, hence deleteing related database entries.")
+
+					if err := cleanEntriesFromDb(ctx, &deplToAppMappingFromDB, dbQueries, log); err != nil {
+						log.Error(err, "Error occurred in Database Reconciler while cleaning gitOpsDeployment entries from DB: "+gitOpsDeployment.Name)
 					}
 				} else {
+					// B) Some other unexpected error occurred, so we just skip it until next time
 					log.Error(err, "Error occurred in Database Reconciler while fetching GitOpsDeployment from cluster: "+gitOpsDeployment.Name)
 				}
+
+				// C) If the GitOpsDeployment does exist, but the UID doesn't match, then we can delete DTAM and Application
+			} else if string(gitOpsDeployment.UID) != deplToAppMappingFromDB.Deploymenttoapplicationmapping_uid_id {
+
+				// This means that another GitOpsDeployment exists in the namespace with this name.
+
+				if err := cleanEntriesFromDb(ctx, &deplToAppMappingFromDB, dbQueries, log); err != nil {
+					log.Error(err, "Error occurred in Database Reconciler while cleaning gitOpsDeployment entries from DB: "+gitOpsDeployment.Name)
+				}
+
 			}
 
 			log.Info("Database Reconcile processed deploymentToApplicationMapping entry: " + deplToAppMappingFromDB.Deploymenttoapplicationmapping_uid_id)
@@ -114,7 +138,7 @@ func databaseReconcile(ctx context.Context, dbQueries db.DatabaseQueries, client
 	}
 }
 
-// Delete database entries related to a GitOpsDeployment
+// cleanEntriesFromDb deletes database entries related to a given GitOpsDeployment
 func cleanEntriesFromDb(ctx context.Context, deplToAppMapping *db.DeploymentToApplicationMapping,
 	dbQueries db.ApplicationScopedQueries, logger logr.Logger) error {
 	dbApplicationFound := true

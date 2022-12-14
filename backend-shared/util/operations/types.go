@@ -160,13 +160,13 @@ func waitForOperationToComplete(ctx context.Context, dbOperation *db.Operation, 
 
 	for {
 
-		err := dbQueries.GetOperationById(ctx, dbOperation)
+		isComplete, err := IsOperationComplete(ctx, dbOperation, dbQueries)
+
 		if err != nil {
-			// Either the operation couldn't be found (which shouldn't happen here), or some other issue, so return it
-			return err
+			return fmt.Errorf("an error occurred on waiting for operation to complete: %v", err)
 		}
 
-		if err == nil && (dbOperation.State == db.OperationState_Completed || dbOperation.State == db.OperationState_Failed) {
+		if isComplete {
 			break
 		}
 
@@ -182,4 +182,16 @@ func waitForOperationToComplete(ctx context.Context, dbOperation *db.Operation, 
 	}
 
 	return nil
+}
+
+func IsOperationComplete(ctx context.Context, dbOperation *db.Operation, dbQueries db.ApplicationScopedQueries) (bool, error) {
+
+	err := dbQueries.GetOperationById(ctx, dbOperation)
+	if err != nil {
+		// Either the operation couldn't be found (which shouldn't happen here), or some other issue, so return it
+		return false, err
+	}
+
+	// Operation is complete if it exists in the DB, and it is completed/failed
+	return err == nil && (dbOperation.State == db.OperationState_Completed || dbOperation.State == db.OperationState_Failed), nil
 }

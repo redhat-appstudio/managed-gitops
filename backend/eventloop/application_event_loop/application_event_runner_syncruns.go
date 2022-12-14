@@ -3,6 +3,7 @@ package application_event_loop
 import (
 	"context"
 	"fmt"
+	"time"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
@@ -358,7 +359,7 @@ func (a *applicationEventLoopRunner_Action) handleDeletedGitOpsDeplSyncRunEvent(
 // Returns:
 // - true if the goroutine responsible for this GitOpsDeploymentSyncRun can shutdown (e.g. because the GitOpsDeploymentSyncRun no longer exists, so no longer needs to be processed), false otherwise.
 // - error is non-nil, if an error occurred
-func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSyncRunEvent(ctx context.Context, syncRunCR *managedgitopsv1alpha1.GitOpsDeploymentSyncRun, dbQueries db.ApplicationScopedQueries, application *db.Application, gitopsEngineInstance *db.GitopsEngineInstance, namespace corev1.Namespace, clusterUser db.ClusterUser) (bool, gitopserrors.UserError) {
+func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSyncRunEvent(ctx context.Context, syncRunCRParam *managedgitopsv1alpha1.GitOpsDeploymentSyncRun, dbQueries db.ApplicationScopedQueries, application *db.Application, gitopsEngineInstance *db.GitopsEngineInstance, namespace corev1.Namespace, clusterUser db.ClusterUser) (bool, gitopserrors.UserError) {
 
 	log := a.log
 	log.Info("Received GitOpsDeploymentSyncRun event for a new GitOpsDeploymentSyncRun resource")
@@ -376,8 +377,8 @@ func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSyncRunEvent(ctx 
 	// Create sync operation
 	syncOperation := &db.SyncOperation{
 		Application_id:      application.Application_id,
-		DeploymentNameField: syncRunCR.Spec.GitopsDeploymentName,
-		Revision:            syncRunCR.Spec.RevisionID,
+		DeploymentNameField: syncRunCRParam.Spec.GitopsDeploymentName,
+		Revision:            syncRunCRParam.Spec.RevisionID,
 		DesiredState:        db.SyncOperation_DesiredState_Running,
 	}
 	if err := dbQueries.CreateSyncOperation(ctx, syncOperation); err != nil {
@@ -390,12 +391,12 @@ func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSyncRunEvent(ctx 
 
 	newApiCRToDBMapping := db.APICRToDatabaseMapping{
 		APIResourceType: db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
-		APIResourceUID:  string(syncRunCR.UID),
+		APIResourceUID:  string(syncRunCRParam.UID),
 		DBRelationType:  db.APICRToDatabaseMapping_DBRelationType_SyncOperation,
 		DBRelationKey:   syncOperation.SyncOperation_id,
 
-		APIResourceName:      syncRunCR.Name,
-		APIResourceNamespace: syncRunCR.Namespace,
+		APIResourceName:      syncRunCRParam.Name,
+		APIResourceNamespace: syncRunCRParam.Namespace,
 		NamespaceUID:         eventlooptypes.GetWorkspaceIDFromNamespaceID(namespace),
 	}
 	if err := dbQueries.CreateAPICRToDatabaseMapping(ctx, &newApiCRToDBMapping); err != nil {
@@ -426,7 +427,7 @@ func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSyncRunEvent(ctx 
 		Resource_type: db.OperationResourceType_SyncOperation,
 	}
 
-	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, !a.testOnlySkipCreateOperation, dbOperationInput, clusterUser.Clusteruser_id,
+	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, false, dbOperationInput, clusterUser.Clusteruser_id,
 		dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log)
 	if err != nil {
 		log.Error(err, "could not create operation", "namespace", dbutil.GetGitOpsEngineSingleInstanceNamespace())
@@ -435,6 +436,47 @@ func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSyncRunEvent(ctx 
 		dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log)
 
 		return false, gitopserrors.NewDevOnlyError(err)
+	}
+
+	backoff := sharedutil.ExponentialBackoff{Factor: 1.3, Min: time.Millisecond * 1000, Max: time.Second * 10, Jitter: true}
+
+outer_for:
+
+	for {
+		if isComplete, err := operations.IsOperationComplete(ctx, &dbOperationInput, dbQueries); err != nil {
+			log.Error(err, "an error occurred on retrieving operation status")
+
+			break outer_for
+		} else if isComplete {
+			// Our work is done: the operation is complete
+			break outer_for
+		}
+
+		currentSyncRunCR := syncRunCRParam.DeepCopy()
+		if err := a.workspaceClient.Get(ctx, client.ObjectKeyFromObject(currentSyncRunCR), currentSyncRunCR); err != nil {
+
+			if apierr.IsNotFound(err) {
+				log.Info("the SyncRunCR that we were watching is no longer present, exiting the sync process.")
+				break outer_for
+			} else {
+				log.Error(err, "an unexpected error occurred while attempting to retrieve SyncRun CR")
+				// continue for unexpected errors: we expect them to be transient, not permanent
+			}
+		} else {
+			// No error occurred: SyncRun CR still exists in the Namespace
+
+			// Compare the current CR in the namespace, with the CR copy we started this function with
+			if currentSyncRunCR.UID != syncRunCRParam.UID {
+				// The SyncRun UID changed versus the one that we started working on at the beginning of this function.
+				// - This means the original SyncRun CR was deleted, and recreated.
+				// - We should thus exit the current sync operation, to allow the new CR to be processed by the runner.
+				log.Info("The SyncRun CR UID has changed, versus the SyncRun CR that we began with, exiting the sync process")
+				break outer_for
+			}
+		}
+
+		backoff.DelayOnFail(ctx)
+
 	}
 
 	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log); err != nil {

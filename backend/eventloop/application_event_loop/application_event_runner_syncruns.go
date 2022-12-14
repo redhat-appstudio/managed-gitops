@@ -19,6 +19,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	errDeploymentNameIsImmutable = "deployment name field is immutable: changing it from its initial value is not supported"
+
+	errRevisionIsImmutable = "revision change is not supported: changing it from its initial value is not supported"
+)
+
 // This file is responsible for processing events related to GitOpsDeploymentSyncRun CR.
 
 func (action *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRunModified(ctx context.Context, dbQueries db.ApplicationScopedQueries) (bool, error) {
@@ -81,7 +87,10 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 
 	// Retrieve the SyncOperation row that corresponds to the SyncRun resource
 	var apiCRToDBList []db.APICRToDatabaseMapping
+
+	// dbEntryExists is true if there already exists a APICRToDBMapping for the GitOpsDeploymentSyncRun CR
 	dbEntryExists := false
+
 	if syncRunCRExists {
 
 		if syncRunCR == (&managedgitopsv1alpha1.GitOpsDeploymentSyncRun{}) {
@@ -177,8 +186,6 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 	var application *db.Application
 	var gitopsEngineInstance *db.GitopsEngineInstance
 
-	// TODO: GITOPSRVCE-166: Make sure that the GitOpsDeployment UID doesn't change on us, vs what is in SyncOperation in the database.
-
 	if syncRunCRExists {
 		// Sanity check that the gitopsdeployment resource exists, which is referenced by the syncrun resource
 		gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
@@ -231,14 +238,14 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			// Handle update:
 			// If both GitOpsDeploymentSyncRun CR and the DB entry exists, then the CR is being updated.
 			// Validate and return an error if the immutable fields are updated.
-			return a.handleUpdatedGitOpsDeplSynRunEvent(ctx, syncRunCR, dbQueries, syncOperation)
+			return a.handleUpdatedGitOpsDeplSyncRunEvent(ctx, syncRunCR, dbQueries, syncOperation)
 		} else {
 			// Handle create:
 			// If the gitopsdeplsyncrun CR exists, but the database entry doesn't, then this is the first time we
 			// have seen the GitOpsDeplSyncRun CR.
 			// Create it in the DB and create the operation.
 
-			return a.handleNewGitOpsDeplSynRunEvent(ctx, syncRunCR, dbQueries, application, gitopsEngineInstance, namespace, *clusterUser)
+			return a.handleNewGitOpsDeplSyncRunEvent(ctx, syncRunCR, dbQueries, application, gitopsEngineInstance, namespace, *clusterUser)
 		}
 
 	}
@@ -247,14 +254,14 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		// Handle delete:
 		// If the gitopsdeplsyncrun CR doesn't exist, but database row does, then the CR has been deleted, so handle it.
 
-		return a.handleDeletedGitOpsDeplSynRunEvent(ctx, dbQueries, syncOperation, apiCRToDBList, namespace, clusterUser)
+		return a.handleDeletedGitOpsDeplSyncRunEvent(ctx, dbQueries, syncOperation, apiCRToDBList, namespace, clusterUser)
 	}
 
 	return false, nil
 
 }
 
-// handleDeletedGitOpsDeplSynRunEvent handles GitOpsDeploymentSyncRun events where the user has just deleted a GitOpsDeploymentSyncRun resource.
+// handleDeletedGitOpsDeplSyncRunEvent handles GitOpsDeploymentSyncRun events where the user has just deleted a GitOpsDeploymentSyncRun resource.
 // In this case, we need to update the state of the SyncOperation DB row to 'Terminated' and inform the cluster-agent component to cancel the sync operation.
 //
 // Finally, delete the SyncOperation and APICRToDBMapping rows in the database for this resource.
@@ -262,7 +269,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 // Returns:
 // - true if the goroutine responsible for this GitOpsDeploymentSyncRun can shutdown (e.g. because the GitOpsDeploymentSyncRun no longer exists, so no longer needs to be processed), false otherwise.
 // - error is non-nil, if an error occurred
-func (a *applicationEventLoopRunner_Action) handleDeletedGitOpsDeplSynRunEvent(ctx context.Context, dbQueries db.ApplicationScopedQueries, syncOperation db.SyncOperation, apiCRToDBList []db.APICRToDatabaseMapping, namespace corev1.Namespace, clusterUser *db.ClusterUser) (bool, gitopserrors.UserError) {
+func (a *applicationEventLoopRunner_Action) handleDeletedGitOpsDeplSyncRunEvent(ctx context.Context, dbQueries db.ApplicationScopedQueries, syncOperation db.SyncOperation, apiCRToDBList []db.APICRToDatabaseMapping, namespace corev1.Namespace, clusterUser *db.ClusterUser) (bool, gitopserrors.UserError) {
 
 	// Deleting the CR should terminate a sync operation, if it was previously in progress.
 
@@ -343,7 +350,7 @@ func (a *applicationEventLoopRunner_Action) handleDeletedGitOpsDeplSynRunEvent(c
 
 }
 
-// handleNewGitOpsDeplSynRunEvent handles GitOpsDeploymentSyncRun events where the user has just created a new GitOpsDeploymentSyncRun resource.
+// handleNewGitOpsDeplSyncRunEvent handles GitOpsDeploymentSyncRun events where the user has just created a new GitOpsDeploymentSyncRun resource.
 // In this case, we need to create SyncOperation and APICRToDBMapping rows in the database.
 //
 // Finally, we need to inform the cluster-agent component (via Operation), so that it can sync the Argo CD Application.
@@ -351,7 +358,7 @@ func (a *applicationEventLoopRunner_Action) handleDeletedGitOpsDeplSynRunEvent(c
 // Returns:
 // - true if the goroutine responsible for this GitOpsDeploymentSyncRun can shutdown (e.g. because the GitOpsDeploymentSyncRun no longer exists, so no longer needs to be processed), false otherwise.
 // - error is non-nil, if an error occurred
-func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSynRunEvent(ctx context.Context, syncRunCR *managedgitopsv1alpha1.GitOpsDeploymentSyncRun, dbQueries db.ApplicationScopedQueries, application *db.Application, gitopsEngineInstance *db.GitopsEngineInstance, namespace corev1.Namespace, clusterUser db.ClusterUser) (bool, gitopserrors.UserError) {
+func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSyncRunEvent(ctx context.Context, syncRunCR *managedgitopsv1alpha1.GitOpsDeploymentSyncRun, dbQueries db.ApplicationScopedQueries, application *db.Application, gitopsEngineInstance *db.GitopsEngineInstance, namespace corev1.Namespace, clusterUser db.ClusterUser) (bool, gitopserrors.UserError) {
 
 	log := a.log
 	log.Info("Received GitOpsDeploymentSyncRun event for a new GitOpsDeploymentSyncRun resource")
@@ -437,28 +444,26 @@ func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSynRunEvent(ctx c
 	return false, nil
 }
 
-// handleUpdatedGitOpsDeplSynRunEvent handles GitOpsDeploymentSyncRun events where the user has just updated an existing GitOpsDeploymentSyncRun resource.
+// handleUpdatedGitOpsDeplSyncRunEvent handles GitOpsDeploymentSyncRun events where the user has just updated an existing GitOpsDeploymentSyncRun resource.
 // In this case, we need to ensure that the immutable fields GitOpsDeploymentName and RevisionID are not updated.
 //
 // Returns:
 // - true if the goroutine responsible for this GitOpsDeploymentSyncRun can shutdown (e.g. because the GitOpsDeploymentSyncRun no longer exists, so no longer needs to be processed), false otherwise.
 // - error is non-nil, if an error occurred
-func (a *applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplSynRunEvent(ctx context.Context, syncRunCR *managedgitopsv1alpha1.GitOpsDeploymentSyncRun, dbQueries db.ApplicationScopedQueries, syncOperation db.SyncOperation) (bool, gitopserrors.UserError) {
+func (a *applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplSyncRunEvent(ctx context.Context, syncRunCR *managedgitopsv1alpha1.GitOpsDeploymentSyncRun, dbQueries db.ApplicationScopedQueries, syncOperation db.SyncOperation) (bool, gitopserrors.UserError) {
 	log := a.log
 	log.Info("Received GitOpsDeploymentSyncRun event for an existing GitOpsDeploymentSyncRun resource")
 
 	if syncOperation.DeploymentNameField != syncRunCR.Spec.GitopsDeploymentName {
-		userErrorText := "deployment name field is immutable: changing it from its initial value is not supported"
-		err := fmt.Errorf(userErrorText)
-		log.Error(err, userErrorText)
-		return false, gitopserrors.NewUserDevError(userErrorText, err)
+		err := fmt.Errorf(errDeploymentNameIsImmutable)
+		log.Error(err, errDeploymentNameIsImmutable)
+		return false, gitopserrors.NewUserDevError(errDeploymentNameIsImmutable, err)
 	}
 
 	if syncOperation.Revision != syncRunCR.Spec.RevisionID {
-		userErrorText := "revision change is not supported: changing it from its initial value is not supported"
-		err := fmt.Errorf(userErrorText)
-		log.Error(err, "revision field change is not supported")
-		return false, gitopserrors.NewUserDevError(userErrorText, err)
+		err := fmt.Errorf(errRevisionIsImmutable)
+		log.Error(err, errRevisionIsImmutable)
+		return false, gitopserrors.NewUserDevError(errRevisionIsImmutable, err)
 	}
 
 	return false, nil

@@ -153,11 +153,14 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 			err = k8sClient.Update(ctx, gitopsDeplSyncRun)
 			Expect(err).To(BeNil())
 
-			expectedErr := "deployment name field is immutable: changing it from its initial value is not supported"
 			shutdownSignal, userDevErr := applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
-			Expect(userDevErr.DevError().Error()).Should(Equal(expectedErr))
-			Expect(userDevErr.UserError()).Should(Equal(expectedErr))
+			Expect(userDevErr.DevError().Error()).Should(Equal(errDeploymentNameIsImmutable))
+			Expect(userDevErr.UserError()).Should(Equal(errDeploymentNameIsImmutable))
 			Expect(shutdownSignal).To(BeFalse())
+
+			gitopsDeplSyncRun.Spec.GitopsDeploymentName = gitopsDepl.Name
+			err = k8sClient.Update(ctx, gitopsDeplSyncRun)
+			Expect(err).To(BeNil())
 
 			By("verify if the field .spec.revisionID of GitOpsDeploymentSyncRun is immutable")
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsDeplSyncRun), gitopsDeplSyncRun)
@@ -167,10 +170,9 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 			err = k8sClient.Update(ctx, gitopsDeplSyncRun)
 			Expect(err).To(BeNil())
 
-			expectedErr = "deployment name field is immutable: changing it from its initial value is not supported"
 			shutdownSignal, userDevErr = applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
-			Expect(userDevErr.DevError().Error()).Should(Equal(expectedErr))
-			Expect(userDevErr.UserError()).Should(Equal(expectedErr))
+			Expect(userDevErr.DevError().Error()).Should(Equal(errRevisionIsImmutable))
+			Expect(userDevErr.UserError()).Should(Equal(errRevisionIsImmutable))
 			Expect(shutdownSignal).To(BeFalse())
 		})
 

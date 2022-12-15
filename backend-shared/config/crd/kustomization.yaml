@@ -6,6 +6,7 @@ resources:
 - bases/managed-gitops.redhat.com_gitopsdeploymentsyncruns.yaml
 - bases/managed-gitops.redhat.com_gitopsdeploymentrepositorycredentials.yaml
 - bases/managed-gitops.redhat.com_gitopsdeploymentmanagedenvironments.yaml
+- bases/managed-gitops.redhat.com_operations.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:

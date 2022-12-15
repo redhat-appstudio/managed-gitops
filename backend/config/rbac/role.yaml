@@ -7,6 +7,22 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - managed-gitops.redhat.com
   resources:
   - gitopsdeploymentmanagedenvironments
@@ -110,3 +126,15 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - managed-gitops.redhat.com
+  resources:
+  - operations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch

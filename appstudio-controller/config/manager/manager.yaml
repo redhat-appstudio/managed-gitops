@@ -11,18 +11,18 @@ metadata:
   name: controller-manager
   namespace: system
   labels:
-    control-plane: controller-manager
+    control-plane: appstudio-controller-manager
 spec:
   selector:
     matchLabels:
-      control-plane: controller-manager
+      control-plane: appstudio-controller-manager
   replicas: 1
   template:
     metadata:
       annotations:
         kubectl.kubernetes.io/default-container: manager
       labels:
-        control-plane: controller-manager
+        control-plane: appstudio-controller-manager
     spec:
       securityContext:
         runAsNonRoot: true
@@ -31,7 +31,8 @@ spec:
         - appstudio-controller
         args:
         - --leader-elect
-        image: quay.io/redhat-appstudio/gitops-service:latest
+        - --zap-time-encoding=rfc3339nano
+        image: ${COMMON_IMAGE}
         name: manager
         securityContext:
           allowPrivilegeEscalation: false
@@ -39,23 +40,30 @@ spec:
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 8081
+            port: 8085
           initialDelaySeconds: 15
           periodSeconds: 20
         readinessProbe:
           httpGet:
             path: /readyz
-            port: 8081
-          initialDelaySeconds: 5
+            port: 8085
+          initialDelaySeconds: 15
           periodSeconds: 10
-        # TODO(user): Configure the resources accordingly based on the project requirements.
-        # More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
         resources:
           limits:
             cpu: 500m
-            memory: 128Mi
+            memory: 1024Mi
           requests:
-            cpu: 10m
-            memory: 64Mi
-      serviceAccountName: controller-manager
+            cpu: 50m
+            memory: 256Mi
+        volumeMounts:
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: cert
+          readOnly: true
+      serviceAccountName: gitops-appstudio-service-controller-manager
       terminationGracePeriodSeconds: 10
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: webhook-server-cert

@@ -11,25 +11,25 @@ metadata:
   name: controller-manager
   namespace: system
   labels:
-    control-plane: backend-controller-manager
+    control-plane: cluster-agent-controller-manager
 spec:
   selector:
     matchLabels:
-      control-plane: backend-controller-manager
+      control-plane: cluster-agent-controller-manager
   replicas: 1
   template:
     metadata:
       labels:
-        control-plane: backend-controller-manager
+        control-plane: cluster-agent-controller-manager
     spec:
       securityContext:
         runAsNonRoot: true
       containers:
       - command:
-        - gitops-service-backend
+        - gitops-service-cluster-agent
         args:
-        - --health-probe-bind-address=:18081
-        - --metrics-bind-address=127.0.0.1:18080
+        - --health-probe-bind-address=:8083
+        - --metrics-bind-address=127.0.0.1:8082
         - --leader-elect
         - --zap-time-encoding=rfc3339nano
         env:
@@ -45,26 +45,26 @@ spec:
         image: ${COMMON_IMAGE}
         securityContext:
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
+          readOnlyRootFilesystem: true          
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 18081
-          initialDelaySeconds: 120
-          periodSeconds: 60
+            port: 8083
+          initialDelaySeconds: 15
+          periodSeconds: 20
         name: manager
         readinessProbe:
           httpGet:
             path: /readyz
-            port: 18081
-          initialDelaySeconds: 120
-          periodSeconds: 30
+            port: 8083
+          initialDelaySeconds: 5
+          periodSeconds: 10
         resources:
           limits:
             cpu: 300m
-            memory: 1200Mi
+            memory: 200Mi
           requests:
             cpu: 200m
-            memory: 600Mi
+            memory: 50Mi
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10

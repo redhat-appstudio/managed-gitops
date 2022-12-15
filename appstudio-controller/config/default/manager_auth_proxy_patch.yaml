@@ -29,6 +29,8 @@ spec:
             memory: 64Mi
       - name: manager
         args:
-        - "--health-probe-bind-address=:8081"
+        - "--health-probe-bind-address=:8085"
         - "--metrics-bind-address=127.0.0.1:8080"
         - "--leader-elect"
+        - "--zap-time-encoding=rfc3339nano"
+        - "--api-export-name=gitopsrvc-appstudio-shared"

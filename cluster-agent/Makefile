@@ -75,10 +75,26 @@ help: ## Display this help.
 
 ##@ Development
 
-manifests: controller-gen ## Cluster-agent consumes the custom resources from backend-shared, so ensure the manifests are updated there.
+# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
+CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
+
+manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+
+generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+
+
+
+
+
+
+
+
+shared-manifests: controller-gen ## Cluster-agent consumes the custom resources from backend-shared, so ensure the manifests are updated there.
 	cd ../backend-shared; make manifests; cd ../cluster-agent
 
-generate: controller-gen ## Cluster-agent consumes the resource code from backend-shared, so ensure the model code is generate there.
+shared-generate: controller-gen ## Cluster-agent consumes the resource code from backend-shared, so ensure the model code is generate there.
 	cd ../backend-shared; make generate; cd ../cluster-agent
 
 fmt: ## Run go fmt against code.

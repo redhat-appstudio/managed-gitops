@@ -138,7 +138,7 @@ func operationEventLoopRouter(input chan operationEventLoopEvent) {
 			},
 			log:               log,
 			credentialService: credentialService,
-			syncService:       newSyncService(),
+			syncFuncs:         defaultSyncFuncs(),
 		}
 		taskRetryLoop.AddTaskIfNotPresent(mapKey, task, sharedutil.ExponentialBackoff{Factor: 2, Min: time.Millisecond * 200, Max: time.Second * 10, Jitter: true})
 
@@ -219,7 +219,7 @@ type processOperationEventTask struct {
 	event             operationEventLoopEvent
 	log               logr.Logger
 	credentialService *utils.CredentialService
-	syncService       *syncService
+	syncFuncs         *syncFuncs
 }
 
 // PerformTask takes as input an Operation resource event, and processes it based on the contents of that event.
@@ -410,7 +410,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		eventClient:       eventClient,
 		credentialService: task.credentialService,
 		log:               log,
-		syncService:       task.syncService,
+		syncFuncs:         task.syncFuncs,
 	}
 
 	// 5) Finally, call the corresponding method for processing the particular type of Operation.
@@ -480,8 +480,8 @@ type operationConfig struct {
 	// log is the current logger in used
 	log logr.Logger
 
-	// syncService provide methods to sync/terminate an operation
-	syncService *syncService
+	// syncFuncs provide functions to sync/terminate an operation
+	syncFuncs *syncFuncs
 }
 
 // Process a SyncOperation database entry, that was pointed to by an Operation CR.
@@ -548,7 +548,7 @@ func processOperation_SyncOperation(ctx context.Context, dbOperation db.Operatio
 // returns shouldRetry, error
 func terminateExistingOperation(ctx context.Context, dbApplication *db.Application, opConfig operationConfig) (bool, error) {
 
-	if err := opConfig.syncService.terminateOperation(ctx, dbApplication.Name, opConfig.argoCDNamespace, opConfig.credentialService,
+	if err := opConfig.syncFuncs.terminateOperation(ctx, dbApplication.Name, opConfig.argoCDNamespace, opConfig.credentialService,
 		opConfig.eventClient, time.Duration(5*time.Minute), opConfig.log); err != nil {
 
 		// we can return if there are no sync operations in progress
@@ -568,17 +568,14 @@ func terminateExistingOperation(ctx context.Context, dbApplication *db.Applicati
 
 }
 
-type appSync func(context.Context, string, string, string, client.Client, *utils.CredentialService, bool) error
-
-type terminateOperation func(context.Context, string, corev1.Namespace, *utils.CredentialService, client.Client, time.Duration, logr.Logger) error
-
-type syncService struct {
-	appSync            appSync
-	terminateOperation terminateOperation
+// syncFuncs is a wrapper over sync and terminate functions and is used in unit testing different sync scenarios
+type syncFuncs struct {
+	appSync            func(context.Context, string, string, string, client.Client, *utils.CredentialService, bool) error
+	terminateOperation func(context.Context, string, corev1.Namespace, *utils.CredentialService, client.Client, time.Duration, logr.Logger) error
 }
 
-func newSyncService() *syncService {
-	return &syncService{
+func defaultSyncFuncs() *syncFuncs {
+	return &syncFuncs{
 		appSync:            utils.AppSync,
 		terminateOperation: utils.TerminateOperation,
 	}
@@ -600,7 +597,7 @@ func runAppSync(ctx context.Context, dbOperation db.Operation, dbSyncOperation d
 
 	// Start the AppSync operation in a separate thread.
 	go func() {
-		err = opConfig.syncService.appSync(cancellableCtx, dbApplication.Name, dbSyncOperation.Revision, opConfig.argoCDNamespace.Name, opConfig.eventClient,
+		err = opConfig.syncFuncs.appSync(cancellableCtx, dbApplication.Name, dbSyncOperation.Revision, opConfig.argoCDNamespace.Name, opConfig.eventClient,
 			opConfig.credentialService, false)
 
 		var failed bool

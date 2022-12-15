@@ -86,15 +86,13 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 			Expect(userDevErr).To(BeNil())
 
 			applicationAction.eventResourceName = "gitops-syncrun"
-			shutdownSignal, userDevErr := applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
+			userDevErr = applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
-			Expect(shutdownSignal).To(BeFalse())
 		})
 
 		It("should handle a valid GitOpsDeploymentSyncRun by creating a SyncRun Operation", func() {
-			shutdownSignal, userDevErr := applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
+			userDevErr := applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
-			Expect(shutdownSignal).To(BeFalse())
 
 			By("check if the SyncOperation entry is created in the DB")
 			mapping := db.APICRToDatabaseMapping{
@@ -152,11 +150,9 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 			gitopsDeplSyncRun.Spec.GitopsDeploymentName = newGitOpsDepl.Name
 			err = k8sClient.Update(ctx, gitopsDeplSyncRun)
 			Expect(err).To(BeNil())
-
-			shutdownSignal, userDevErr := applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
+			userDevErr = applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
 			Expect(userDevErr.DevError().Error()).Should(Equal(errDeploymentNameIsImmutable))
 			Expect(userDevErr.UserError()).Should(Equal(errDeploymentNameIsImmutable))
-			Expect(shutdownSignal).To(BeFalse())
 
 			gitopsDeplSyncRun.Spec.GitopsDeploymentName = gitopsDepl.Name
 			err = k8sClient.Update(ctx, gitopsDeplSyncRun)
@@ -169,11 +165,9 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 			gitopsDeplSyncRun.Spec.RevisionID = "main"
 			err = k8sClient.Update(ctx, gitopsDeplSyncRun)
 			Expect(err).To(BeNil())
-
-			shutdownSignal, userDevErr = applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
+			userDevErr = applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
 			Expect(userDevErr.DevError().Error()).Should(Equal(errRevisionIsImmutable))
 			Expect(userDevErr.UserError()).Should(Equal(errRevisionIsImmutable))
-			Expect(shutdownSignal).To(BeFalse())
 		})
 
 		It("should terminate the SyncOperation and create an Operation when the SyncRun CR is deleted", func() {
@@ -196,9 +190,8 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 			Expect(err).To(BeNil())
 
 			By("check if the application event runner goroutine can be shutdown")
-			shutdownSignal, userDevErr := applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
+			userDevErr := applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
-			Expect(shutdownSignal).To(BeTrue())
 
 			By("check if the sync operation row is deleted")
 			err = dbQueries.GetSyncOperationById(ctx, &syncOperation)
@@ -240,9 +233,8 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 			expectedErr := "unable to retrieve gitopsdeployment referenced in syncrun: gitopsdeployments.managed-gitops.redhat.com \"unknown-gitops-depl\" not found"
 
 			applicationAction.eventResourceName = "invalid-gitops-syncrun"
-			shutdownSignal, userDevErr := applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
+			userDevErr := applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
 			Expect(userDevErr.DevError().Error()).Should(Equal(expectedErr))
-			Expect(shutdownSignal).To(BeFalse())
 		})
 
 		It("should return true shutdown signal if neither CR nor DB entry exists", func() {
@@ -250,26 +242,23 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 			err := k8sClient.Delete(ctx, gitopsDeplSyncRun)
 			Expect(err).To(BeNil())
 
-			shutdownSignal, userDevErr := applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
+			userDevErr := applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
-			Expect(shutdownSignal).To(BeTrue())
 
 			By("check if the shutdown signal is true")
-			shutdownSignal, userDevErr = applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
+			userDevErr = applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
-			Expect(shutdownSignal).To(BeTrue())
 		})
 
 		It("should throw an error if the namespace doesn't exist", func() {
 			applicationAction.eventResourceNamespace = "unknown-namespace"
-			shutdownSignal, userDevErr := applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
+			userDevErr := applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
 
 			expectedDevError := "unable to retrieve namespace 'unknown-namespace': namespaces \"unknown-namespace\" not found"
 			expectedUserError := "unable to retrieve the contents of the namespace 'unknown-namespace' containing the API resource 'gitops-syncrun'. Does it exist?"
 
 			Expect(userDevErr.DevError().Error()).Should(Equal(expectedDevError))
 			Expect(userDevErr.UserError()).Should(Equal(expectedUserError))
-			Expect(shutdownSignal).To(BeFalse())
 		})
 	})
 })

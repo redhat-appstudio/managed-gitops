@@ -396,8 +396,8 @@ func getDBSyncOperationFromAPIMapping(ctx context.Context, dbQueries db.Database
 		return db.SyncOperation{}, fmt.Errorf("failed to list APICRToDBMapping by namespace and name: %v", err)
 	}
 
-	if len(apiCRToDBMappingList) == 0 {
-		return db.SyncOperation{}, fmt.Errorf("no database entry found for GitOpsDeploymentSyncRun %s", syncRunCR.Name)
+	if len(apiCRToDBMappingList) != 1 {
+		return db.SyncOperation{}, fmt.Errorf("SEVERE: unexpected number of APICRToDBMappings for GitOpsDeploymentSyncRun %s: %d", syncRunCR.Name, len(apiCRToDBMappingList))
 	}
 
 	apiCRToDBMapping := apiCRToDBMappingList[0]

@@ -23,6 +23,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	ConditionReasonSucceeded = "Succeeded"
+
+	ConditionReasonDatabaseError                    = "DatabaseError"
+	ConditionReasonInvalidSecretType                = "InvalidSecretType"
+	ConditionReasonMissingKubeConfigField           = "MissingKubeConfigField"
+	ConditionReasonUnableToCreateClient             = "UnableToCreateClient"
+	ConditionReasonUnableToCreateClusterCredentials = "UnableToCreateClusterCredentials"
+	ConditionReasonUnableToInstallServiceAccount    = "UnableToInstallServiceAccount"
+	ConditionReasonUnableToLocateContext            = "UnableToLocateContext"
+	ConditionReasonUnableToParseKubeconfigData      = "UnableToParseKubeconfigData"
+	ConditionReasonUnableToRetrieveRestConfig       = "UnableToRetrieveRestConfig"
+)
+
 func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, workspaceClient client.Client,
 	managedEnvironmentCRName string,
 	managedEnvironmentCRNamespace string, isWorkspaceTarget bool,
@@ -67,7 +81,7 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 		string(managedEnvironmentCR.UID), workspaceNamespace, k8sClientFactory, dbQueries, *clusterUser, log); err != nil {
 		err2 := fmt.Errorf("unable to delete old managed environments by API name and namespace '%s' in '%s': %w",
 			managedEnvironmentCRName, managedEnvironmentCRNamespace, err)
-		updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, "DatabaseError", err2.Error(), log)
+		updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, ConditionReasonDatabaseError, err2.Error(), log)
 		return SharedResourceManagedEnvContainer{}, err2
 	}
 
@@ -81,7 +95,7 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 
 		if !db.IsResultNotFoundError(err) {
 			err2 := fmt.Errorf("unable to retrieve managed environment APICRToDatabaseMapping for %s: %w", apiCRToDBMapping.APIResourceUID, err)
-			updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, "DatabaseError", err2.Error(), log)
+			updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, ConditionReasonDatabaseError, err2.Error(), log)
 			return newSharedResourceManagedEnvContainer(), err2
 		}
 
@@ -97,7 +111,7 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 
 		if !db.IsResultNotFoundError(err) {
 			err2 := fmt.Errorf("unable to retrieve managed environment '%s", managedEnv.Managedenvironment_id)
-			updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, "DatabaseError", err2.Error(), log)
+			updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, ConditionReasonDatabaseError, err2.Error(), log)
 			return newSharedResourceManagedEnvContainer(), err2
 		}
 
@@ -106,7 +120,7 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 		rowsDeleted, err := dbQueries.DeleteAPICRToDatabaseMapping(ctx, &apiCRToDBMapping)
 		if err != nil {
 			err2 := fmt.Errorf("unable to delete APICRToDatabaseMapping for '%s'", apiCRToDBMapping.APIResourceUID)
-			updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, "DatabaseError", err2.Error(), log)
+			updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, ConditionReasonDatabaseError, err2.Error(), log)
 			return newSharedResourceManagedEnvContainer(), err2
 		}
 		if rowsDeleted != 1 {
@@ -124,7 +138,7 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 
 		if !db.IsResultNotFoundError(err) {
 			err2 := fmt.Errorf("unable to retrieve cluster credentials for '%s': %w", clusterCreds.Clustercredentials_cred_id, err)
-			updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, "DatabaseError", err2.Error(), log)
+			updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, ConditionReasonDatabaseError, err2.Error(), log)
 			return newSharedResourceManagedEnvContainer(), err2
 		}
 
@@ -132,7 +146,7 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 		// Cluster credentials referenced by managed environment doesn't exist.
 		// However, this really shouldn't be possible, since there is a foreign key from managed environment to cluster credentials.
 		err2 := fmt.Errorf("SEVERE: managed environment referenced cluster credentials value which doens't exist: %w", err)
-		updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, "DatabaseError", err2.Error(), log)
+		updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, ConditionReasonDatabaseError, err2.Error(), log)
 		return newSharedResourceManagedEnvContainer(), err2
 
 	}
@@ -163,12 +177,12 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 
 	if err != nil {
 		err2 := fmt.Errorf("unable to wrap managed environment, on existing managed env, for %s: %w", apiCRToDBMapping.APIResourceUID, err)
-		updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, "DatabaseError", err2.Error(), log)
+		updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, ConditionReasonDatabaseError, err2.Error(), log)
 		return newSharedResourceManagedEnvContainer(), err2
 	}
 
-	// Ensure the managed environment CR has a connection status of "Success"
-	updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionTrue, "Succeeded", "", log)
+	// Ensure the managed environment CR has a connection status of "Succeeded"
+	updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionTrue, ConditionReasonSucceeded, "", log)
 
 	res := SharedResourceManagedEnvContainer{
 		ClusterUser:          clusterUser,
@@ -369,7 +383,7 @@ func replaceExistingManagedEnv(ctx context.Context,
 		log.Error(err, "Unable to update ManagedEnvironment with new cluster credentials ID", managedEnvironmentDB.GetAsLogKeyValues()...)
 
 		err2 := fmt.Errorf("unable to update managed environment with new credentials: %w", err)
-		updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, "DatabaseError", err2.Error(), log)
+		updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, ConditionReasonDatabaseError, err2.Error(), log)
 		return SharedResourceManagedEnvContainer{}, err2
 	}
 	log.Info("Updated ManagedEnvironment with new cluster credentials ID", managedEnvironmentDB.GetAsLogKeyValues()...)
@@ -379,14 +393,14 @@ func replaceExistingManagedEnv(ctx context.Context,
 	if err != nil {
 		log.Error(err, "Unable to delete old ClusterCredentials row which is no longer used by ManagedEnv", "clusterCredentials", oldClusterCredentialsPrimaryKey)
 		err2 := fmt.Errorf("unable to delete old cluster credentials '%s': %w", oldClusterCredentialsPrimaryKey, err)
-		updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, "DatabaseError", err2.Error(), log)
+		updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, ConditionReasonDatabaseError, err2.Error(), log)
 		return SharedResourceManagedEnvContainer{}, err2
 	}
 	if rowsDeleted != 1 {
 		msg := "unexpected number of rows deleted when deleting cluster credentials"
 		log.V(sharedutil.LogLevel_Warn).Info(msg,
 			"clusterCredentialsID", oldClusterCredentialsPrimaryKey)
-		updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, "DatabaseError", msg, log)
+		updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, ConditionReasonDatabaseError, msg, log)
 		return SharedResourceManagedEnvContainer{}, nil
 	}
 	log.Info("Deleted old ClusterCredentials row which is no longer used by ManagedEnv", "clusterCredentials", oldClusterCredentialsPrimaryKey)
@@ -398,7 +412,7 @@ func replaceExistingManagedEnv(ctx context.Context,
 
 	if err != nil {
 		err2 := fmt.Errorf("unable to wrap managed environment for %s: %w", managedEnvironmentCR.UID, err)
-		updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, "DatabaseError", err2.Error(), log)
+		updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, ConditionReasonDatabaseError, err2.Error(), log)
 		return newSharedResourceManagedEnvContainer(), err2
 	}
 
@@ -442,7 +456,7 @@ func constructNewManagedEnv(ctx context.Context,
 
 	if err != nil {
 		err2 := fmt.Errorf("unable to wrap managed environment for %s: %w", managedEnvironment.UID, err)
-		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionUnknown, "DatabaseError", err2.Error(), log)
+		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionUnknown, ConditionReasonDatabaseError, err2.Error(), log)
 		return newSharedResourceManagedEnvContainer(), err2
 	}
 
@@ -513,7 +527,7 @@ func createNewManagedEnv(ctx context.Context, managedEnvironment managedgitopsv1
 	if err := dbQueries.CreateManagedEnvironment(ctx, managedEnv); err != nil {
 		log.Error(err, "Unable to create new ManagedEnvironment", managedEnv.GetAsLogKeyValues()...)
 		err2 := fmt.Errorf("unable to create managed environment for env obj '%s': %w", managedEnvironment.UID, err)
-		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionUnknown, "DatabaseError", err2.Error(), log)
+		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionUnknown, ConditionReasonDatabaseError, err2.Error(), log)
 		return nil, err2
 	}
 	log.Info("Created new ManagedEnvironment", managedEnv.GetAsLogKeyValues()...)
@@ -530,7 +544,7 @@ func createNewManagedEnv(ctx context.Context, managedEnvironment managedgitopsv1
 	if err := dbQueries.CreateAPICRToDatabaseMapping(ctx, apiCRToDBMapping); err != nil {
 		log.Error(err, "Unable to create new APICRToDatabaseMapping", apiCRToDBMapping.GetAsLogKeyValues()...)
 		err2 := fmt.Errorf("unable to create APICRToDatabaseMapping for managed environment: %w", err)
-		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionUnknown, "DatabaseError", err2.Error(), log)
+		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionUnknown, ConditionReasonDatabaseError, err2.Error(), log)
 		return nil, err2
 	}
 	log.Info("Created new APICRToDatabaseMapping", apiCRToDBMapping.GetAsLogKeyValues()...)
@@ -722,14 +736,14 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 
 	if secret.Type != sharedutil.ManagedEnvironmentSecretType {
 		err := fmt.Errorf("invalid secret type: %s", secret.Type)
-		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionFalse, "InvalidSecretType", err.Error(), log)
+		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionFalse, ConditionReasonInvalidSecretType, err.Error(), log)
 		return db.ClusterCredentials{}, err
 	}
 
 	kubeconfig, exists := secret.Data["kubeconfig"]
 	if !exists {
 		err := fmt.Errorf("missing kubeConfig field in Secret")
-		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionFalse, "MissingKubeConfigField", err.Error(), log)
+		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionFalse, ConditionReasonMissingKubeConfigField, err.Error(), log)
 		return db.ClusterCredentials{}, err
 	}
 
@@ -737,13 +751,13 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 	config, err := clientcmd.Load(kubeconfig)
 	if err != nil {
 		err2 := fmt.Errorf("unable to parse kubeconfig data: %w", err)
-		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionFalse, "UnableToParseKubeconfigData", err2.Error(), log)
+		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionFalse, ConditionReasonUnableToParseKubeconfigData, err2.Error(), log)
 		return db.ClusterCredentials{}, err2
 	}
 
 	matchingContextName, err := locateContextThatMatchesAPIURL(config, managedEnvironment.Spec.APIURL)
 	if err != nil {
-		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionFalse, "UnableToLocateContext", err.Error(), log)
+		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionFalse, ConditionReasonUnableToLocateContext, err.Error(), log)
 		return db.ClusterCredentials{}, err
 	}
 
@@ -752,21 +766,21 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 	restConfig, err := clientConfig.ClientConfig()
 	if err != nil {
 		err2 := fmt.Errorf("unable to retrive restConfig from managed env secret: %w", err)
-		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionFalse, "UnableToRetrieveRestConfig", err2.Error(), log)
+		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionFalse, ConditionReasonUnableToRetrieveRestConfig, err2.Error(), log)
 		return db.ClusterCredentials{}, err2
 	}
 
 	k8sClient, err := k8sClientFactory.BuildK8sClient(restConfig)
 	if err != nil {
 		err2 := fmt.Errorf("unable to create k8s client from RESTConfig: %w", err)
-		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionFalse, "UnableToCreateClient", err2.Error(), log)
+		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionFalse, ConditionReasonUnableToCreateClient, err2.Error(), log)
 		return db.ClusterCredentials{}, err2
 	}
 
 	bearerToken, _, err := sharedutil.InstallServiceAccount(ctx, k8sClient, string(managedEnvironment.UID), serviceAccountNamespaceKubeSystem, log)
 	if err != nil {
 		err2 := fmt.Errorf("unable to install service account from secret '%s': %w", secret.Name, err)
-		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionFalse, "UnableToInstallServiceAccount", err2.Error(), log)
+		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionFalse, ConditionReasonUnableToInstallServiceAccount, err2.Error(), log)
 		return db.ClusterCredentials{}, err2
 	}
 
@@ -784,12 +798,12 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 	if err := dbQueries.CreateClusterCredentials(ctx, &clusterCredentials); err != nil {
 		log.Error(err, "Unable to create ClusterCredentials for ManagedEnvironment", clusterCredentials.GetAsLogKeyValues()...)
 		err2 := fmt.Errorf("unable to create cluster credentials for host '%s': %w", clusterCredentials.Host, err)
-		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionFalse, "UnableToCreateClusterCredentials", err2.Error(), log)
+		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionFalse, ConditionReasonUnableToCreateClusterCredentials, err2.Error(), log)
 		return db.ClusterCredentials{}, err2
 	}
 	log.Info("Created ClusterCredentials for ManagedEnvironment", clusterCredentials.GetAsLogKeyValues()...)
 
-	updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionTrue, "Succeeded", "", log)
+	updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionTrue, ConditionReasonSucceeded, "", log)
 	return clusterCredentials, nil
 
 }

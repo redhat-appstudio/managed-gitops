@@ -232,6 +232,54 @@ func cleanUpOldGitOpsServiceAPIs(namespace string, k8sClient client.Client) erro
 
 }
 
+func cleanUpOldHASApplicationAPIs(namespace string, k8sClient client.Client) error {
+	applicationList := appstudiosharedv1.ApplicationList{}
+	if err := k8sClient.List(context.Background(), &applicationList, &client.ListOptions{Namespace: namespace}); err != nil {
+		return fmt.Errorf("unable to cleanup old HAS Applications: %w", err)
+	}
+
+	for i := range applicationList.Items {
+		application := applicationList.Items[i]
+		if err := k8sClient.Delete(context.Background(), &application); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func cleanUpOldEnvironmentAPIs(namespace string, k8sClient client.Client) error {
+	environmentList := appstudiosharedv1.EnvironmentList{}
+	if err := k8sClient.List(context.Background(), &environmentList, &client.ListOptions{Namespace: namespace}); err != nil {
+		return fmt.Errorf("unable to cleanup old HAS Applications: %w", err)
+	}
+
+	for i := range environmentList.Items {
+		environment := environmentList.Items[i]
+		if err := k8sClient.Delete(context.Background(), &environment); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func cleanUpOldSnapshotEnvironmentBindingAPIs(namespace string, k8sClient client.Client) error {
+	bindingList := appstudiosharedv1.SnapshotEnvironmentBindingList{}
+	if err := k8sClient.List(context.Background(), &bindingList, &client.ListOptions{Namespace: namespace}); err != nil {
+		return fmt.Errorf("unable to cleanup old HAS Applications: %w", err)
+	}
+
+	for i := range bindingList.Items {
+		binding := bindingList.Items[i]
+		if err := k8sClient.Delete(context.Background(), &binding); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespaceParam string, clientConfig *rest.Config) error {
 
 	kubeClientSet, err := kubernetes.NewForConfig(clientConfig)
@@ -362,6 +410,24 @@ func DeleteNamespace(namespaceParam string, clientConfig *rest.Config) error {
 	// - Next, we issue a request to Delete the namespace
 	// - Finally, we check if it has been deleted.
 	if err := wait.PollImmediate(time.Second*5, time.Minute*6, func() (done bool, err error) {
+
+		// Deletes old HAS Application APIs in this namespace
+		if err := cleanUpOldHASApplicationAPIs(namespaceParam, k8sClient); err != nil {
+			GinkgoWriter.Printf("unable to delete old HAS Application APIs in '%s': %v\n", namespaceParam, err)
+			return false, nil
+		}
+
+		// Deletes old appstudio Environment APIs in this namespace
+		if err := cleanUpOldEnvironmentAPIs(namespaceParam, k8sClient); err != nil {
+			GinkgoWriter.Printf("unable to delete old Environment APIs in '%s': %v\n", namespaceParam, err)
+			return false, nil
+		}
+
+		// Deletes old SnapshotEnvironmentBinding APIs in this namespace
+		if err := cleanUpOldSnapshotEnvironmentBindingAPIs(namespaceParam, k8sClient); err != nil {
+			GinkgoWriter.Printf("unable to delete old Environment APIs in '%s': %v\n", namespaceParam, err)
+			return false, nil
+		}
 
 		// Deletes old GitOpsDeployment* APIs in this namespace
 		if err := cleanUpOldGitOpsServiceAPIs(namespaceParam, k8sClient); err != nil {

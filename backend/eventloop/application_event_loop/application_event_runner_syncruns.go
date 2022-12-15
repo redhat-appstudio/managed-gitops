@@ -441,7 +441,12 @@ func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSyncRunEvent(ctx 
 outer_for:
 
 	for {
-		if isComplete, err := operations.IsOperationComplete(ctx, &dbOperationInput, dbQueries); err != nil {
+
+		if a.testOnlySkipCreateOperation {
+			break outer_for
+		}
+
+		if isComplete, err := operations.IsOperationComplete(ctx, dbOperation, dbQueries); err != nil {
 			log.Error(err, "an error occurred on retrieving operation status")
 
 			break outer_for

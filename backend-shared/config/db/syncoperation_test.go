@@ -11,7 +11,6 @@ import (
 )
 
 var _ = Describe("SyncOperation Tests", func() {
-	var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
 	Context("It should execute all SyncOperation Functions", func() {
 		It("Should execute all SyncOperation Functions", func() {
 			var testClusterUser = &db.ClusterUser{
@@ -71,7 +70,7 @@ var _ = Describe("SyncOperation Tests", func() {
 			}
 			err = dbq.GetSyncOperationById(ctx, &fetchRow)
 			Expect(err).To(BeNil())
-			Expect(fetchRow.Created_on).To(BeAssignableToTypeOf(timestamp))
+			Expect(fetchRow.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 			fetchRow.Created_on = insertRow.Created_on
 			Expect(fetchRow).Should(Equal(insertRow))
 

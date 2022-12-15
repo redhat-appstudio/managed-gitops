@@ -42,7 +42,6 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 		logger               logr.Logger
 	)
 
-	var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
 	// Set up the test
 	BeforeEach(func() {
 		By("Connecting to the database")
@@ -159,7 +158,7 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 				By(" --- getting the RepositoryCredentials object from the database ---")
 				fetch, err := dbq.GetRepositoryCredentialsByID(ctx, operationDB.Resource_id)
 				Expect(err).To(BeNil())
-				Expect(fetch.Created_on).To(BeAssignableToTypeOf(timestamp))
+				Expect(fetch.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 				fetch.Created_on = repositoryCredential.Created_on
 				Expect(fetch).Should(Equal(repositoryCredential))
 			})
@@ -263,7 +262,7 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 				By(" --- getting the RepositoryCredentials object from the database ---")
 				fetch, err := dbq.GetRepositoryCredentialsByID(ctx, operationDB.Resource_id)
 				Expect(err).To(BeNil())
-				Expect(fetch.Created_on).To(BeAssignableToTypeOf(timestamp))
+				Expect(fetch.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 				fetch.Created_on = repositoryCredential.Created_on
 				Expect(fetch).Should(Equal(repositoryCredential))
 			})

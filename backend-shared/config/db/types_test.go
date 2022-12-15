@@ -18,8 +18,6 @@ var _ = Describe("Types Test", func() {
 			User_name:      "test-user",
 		}
 
-		var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
-
 		It("Should execute select on all the fields of the database.", func() {
 
 			err := db.SetupForTestingDBGinkgo()
@@ -186,7 +184,7 @@ var _ = Describe("Types Test", func() {
 
 			err = dbq.CheckedGetManagedEnvironmentById(ctx, result, testClusterUser.Clusteruser_id)
 			Expect(err).To(BeNil())
-			Expect(managedEnvironment.Created_on).To(BeAssignableToTypeOf(timestamp))
+			Expect(managedEnvironment.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 			managedEnvironment.Created_on = result.Created_on
 			Expect(managedEnvironment).Should(Equal(result))
 

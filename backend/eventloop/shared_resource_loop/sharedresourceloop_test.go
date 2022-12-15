@@ -40,8 +40,6 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 	var k8sClient *sharedutil.ProxyClient
 	var namespace *v1.Namespace
 
-	var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
-
 	l := log.FromContext(context.Background())
 
 	Context("Shared Resource Event Loop test", func() {
@@ -198,7 +196,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(sharedResourceNew.IsNewClusterAccess).To(BeFalse())
 
 			Expect(sharedResourceOld.ClusterUser).To(Equal(sharedResourceNew.ClusterUser))
-			Expect(sharedResourceOld.ManagedEnv.Created_on).To(BeAssignableToTypeOf(timestamp))
+			Expect(sharedResourceOld.ManagedEnv.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 			sharedResourceOld.ManagedEnv.Created_on = sharedResourceNew.ManagedEnv.Created_on
 			Expect(sharedResourceOld.ManagedEnv).To(Equal(sharedResourceNew.ManagedEnv))
 			Expect(sharedResourceOld.GitopsEngineInstance).To(Equal(sharedResourceNew.GitopsEngineInstance))
@@ -428,7 +426,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			fmt.Println("Get the RepositoryCredential DB row using the operationDB.Resource_id", "operation Resource ID", operationDB.Resource_id)
 			fetch, err := dbq.GetRepositoryCredentialsByID(ctx, operationDB.Resource_id)
 			Expect(err).To(BeNil())
-			Expect(fetch.Created_on).To(BeAssignableToTypeOf(timestamp))
+			Expect(fetch.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 			fetch.Created_on = dbRepoCred.Created_on
 			Expect(fetch).Should(Equal(*dbRepoCred))
 

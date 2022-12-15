@@ -804,8 +804,37 @@ var _ = Describe("Operation Controller", func() {
 
 			var (
 				applicationDB          *db.Application
-				createOperationDBAndCR func(resourceID string)
+				gitopsEngineInstanceID string
 			)
+
+			createOperationDBAndCR := func(resourceID, gitopsEngineInstanceID string) {
+				By("creating new operation row of type SyncOperation in the database")
+				operationDB := &db.Operation{
+					Operation_id:            "test-operation",
+					Instance_id:             gitopsEngineInstanceID,
+					Resource_id:             resourceID,
+					Resource_type:           db.OperationResourceType_SyncOperation,
+					State:                   db.OperationState_Waiting,
+					Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				}
+
+				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+				Expect(err).To(BeNil())
+
+				By("creating Operation CR")
+				operationCR := &managedgitopsv1alpha1.Operation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: namespace,
+					},
+					Spec: managedgitopsv1alpha1.OperationSpec{
+						OperationID: operationDB.Operation_id,
+					},
+				}
+
+				err = task.event.client.Create(ctx, operationCR)
+				Expect(err).To(BeNil())
+			}
 
 			BeforeEach(func() {
 				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
@@ -828,6 +857,8 @@ var _ = Describe("Operation Controller", func() {
 				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
 				Expect(err).To(BeNil())
 
+				gitopsEngineInstanceID = gitopsEngineInstance.Gitopsengineinstance_id
+
 				applicationDB = &db.Application{
 					Application_id:          "test-my-application",
 					Name:                    name,
@@ -839,35 +870,6 @@ var _ = Describe("Operation Controller", func() {
 				By("create Application in Database")
 				err = dbQueries.CreateApplication(ctx, applicationDB)
 				Expect(err).To(BeNil())
-
-				createOperationDBAndCR = func(resourceID string) {
-					By("creating new operation row of type SyncOperation in the database")
-					operationDB := &db.Operation{
-						Operation_id:            "test-operation",
-						Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-						Resource_id:             resourceID,
-						Resource_type:           db.OperationResourceType_SyncOperation,
-						State:                   db.OperationState_Waiting,
-						Operation_owner_user_id: testClusterUser.Clusteruser_id,
-					}
-
-					err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
-					Expect(err).To(BeNil())
-
-					By("creating Operation CR")
-					operationCR := &managedgitopsv1alpha1.Operation{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      name,
-							Namespace: namespace,
-						},
-						Spec: managedgitopsv1alpha1.OperationSpec{
-							OperationID: operationDB.Operation_id,
-						},
-					}
-
-					err = task.event.client.Create(ctx, operationCR)
-					Expect(err).To(BeNil())
-				}
 			})
 
 			AfterEach(func() {
@@ -889,10 +891,10 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 
 				By("create Operation DB row and CR for the SyncOperation")
-				createOperationDBAndCR(syncOperation.SyncOperation_id)
+				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
 
 				By("verify there is no retry for a successful sync")
-				task.syncService = &syncService{
+				task.syncFuncs = &syncFuncs{
 					appSync: func(ctx context.Context, s1, s2, s3 string, c client.Client, cs *utils.CredentialService, b bool) error {
 						return nil
 					},
@@ -917,11 +919,11 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 
 				By("create Operation DB row and CR for the SyncOperation")
-				createOperationDBAndCR(syncOperation.SyncOperation_id)
+				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
 
 				By("check if the sync failed error is returned with retry")
 				expectedErr := "sync failed due to xyz reason"
-				task.syncService = &syncService{
+				task.syncFuncs = &syncFuncs{
 					appSync: func(ctx context.Context, s1, s2, s3 string, c client.Client, cs *utils.CredentialService, b bool) error {
 						return fmt.Errorf(expectedErr)
 					},
@@ -935,10 +937,10 @@ var _ = Describe("Operation Controller", func() {
 			It("return an error and don't retry if the SyncOperation DB row is not found", func() {
 
 				By("create Operation DB row and CR for the SyncOperation")
-				createOperationDBAndCR("uknown")
+				createOperationDBAndCR("uknown", gitopsEngineInstanceID)
 
 				By("check if SyncOperation not found error is handled")
-				task.syncService = &syncService{
+				task.syncFuncs = &syncFuncs{
 					appSync: func(ctx context.Context, s1, s2, s3 string, c client.Client, cs *utils.CredentialService, b bool) error {
 						return nil
 					},
@@ -964,9 +966,9 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 
 				By("create Operation DB row and CR for the SyncOperation")
-				createOperationDBAndCR(syncOperation.SyncOperation_id)
+				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
 
-				task.syncService = &syncService{
+				task.syncFuncs = &syncFuncs{
 					appSync: func(ctx context.Context, s1, s2, s3 string, c client.Client, cs *utils.CredentialService, b bool) error {
 						return nil
 					},
@@ -991,10 +993,10 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 
 				By("create Operation DB row and CR for the SyncOperation")
-				createOperationDBAndCR(syncOperation.SyncOperation_id)
+				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
 
 				By("verify that there is no retry and error for a successful termination")
-				task.syncService = &syncService{
+				task.syncFuncs = &syncFuncs{
 					terminateOperation: func(ctx context.Context, s string, n v1.Namespace, cs *utils.CredentialService, c client.Client, d time.Duration, l logr.Logger) error {
 						return nil
 					},
@@ -1019,11 +1021,11 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 
 				By("create Operation DB row and CR for the SyncOperation")
-				createOperationDBAndCR(syncOperation.SyncOperation_id)
+				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
 
 				By("check if an error is returned for the failed termination")
 				expectedErr := "unable to terminate sync due to xyz reason"
-				task.syncService = &syncService{
+				task.syncFuncs = &syncFuncs{
 					terminateOperation: func(ctx context.Context, s string, n v1.Namespace, cs *utils.CredentialService, c client.Client, d time.Duration, l logr.Logger) error {
 						return fmt.Errorf(expectedErr)
 					},

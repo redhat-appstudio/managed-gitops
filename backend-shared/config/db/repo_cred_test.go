@@ -20,8 +20,6 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 		dbq                  db.AllDatabaseQueries
 	)
 
-	var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
-
 	When("When ClusterUser, ClusterCredentials, GitopsEngine and GitopsInstance exist", func() {
 		BeforeEach(func() {
 			By("Connecting to the database")
@@ -71,7 +69,7 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			By("Getting the RepositoryCredentials object from the database")
 			fetch, err := dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentials.RepositoryCredentialsID)
 			Expect(err).To(BeNil())
-			Expect(fetch.Created_on).To(BeAssignableToTypeOf(timestamp))
+			Expect(fetch.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 			fetch.Created_on = gitopsRepositoryCredentials.Created_on
 			Expect(fetch).Should(Equal(gitopsRepositoryCredentials))
 
@@ -107,12 +105,12 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			By("Getting the updated RepositoryCredentials object from the database")
 			fetchUpdated, err := dbq.GetRepositoryCredentialsByID(ctx, updatedCR.RepositoryCredentialsID)
 			Expect(err).To(BeNil())
-			Expect(fetchUpdated.Created_on).To(BeAssignableToTypeOf(timestamp))
+			Expect(fetch.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 			fetchUpdated.Created_on = updatedCR.Created_on
 			Expect(fetchUpdated).Should(Equal(updatedCR))
 
 			By("Comparing the original and updated RepositoryCredentials objects")
-			Expect(fetchUpdated.Created_on).To(BeAssignableToTypeOf(timestamp))
+			Expect(fetchUpdated.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 			fetchUpdated.Created_on = updatedCR.Created_on
 			Expect(fetch).ShouldNot(Equal(fetchUpdated))
 

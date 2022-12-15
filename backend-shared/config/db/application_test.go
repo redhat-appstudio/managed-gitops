@@ -13,7 +13,6 @@ import (
 
 var _ = Describe("Application Test", func() {
 	var seq = 101
-	var timestamp = time.Date(2022, time.March, 11, 12, 3, 49, 514935000, time.UTC)
 	It("Should Create, Get, Update and Delete an Application", func() {
 		err := db.SetupForTestingDBGinkgo()
 		Expect(err).To(BeNil())
@@ -43,7 +42,7 @@ var _ = Describe("Application Test", func() {
 
 		err = dbq.GetApplicationById(ctx, &applicationget)
 		Expect(err).To(BeNil())
-		Expect(applicationput.Created_on).To(BeAssignableToTypeOf(timestamp))
+		Expect(applicationput.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 		applicationput.Created_on = applicationget.Created_on
 		Expect(applicationput).Should(Equal(applicationget))
 

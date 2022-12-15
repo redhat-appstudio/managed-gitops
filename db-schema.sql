@@ -100,6 +100,7 @@ CREATE TABLE ManagedEnvironment (
 	clustercredentials_id VARCHAR (48) NOT NULL,
 	CONSTRAINT fk_cluster_credential FOREIGN KEY (clustercredentials_id) REFERENCES ClusterCredentials(clustercredentials_cred_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 
+    -- When ManagedEnvironment was created, which allow us to tell how old the resources are
 	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -241,7 +242,8 @@ CREATE TABLE Application (
 	CONSTRAINT fk_managedenvironment_id FOREIGN KEY (managed_environment_id) REFERENCES ManagedEnvironment(managedenvironment_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 	
 	seq_id serial,
-
+    
+	-- When Application was created, which allow us to tell how old the resources are
 	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 
 );
@@ -444,6 +446,7 @@ CREATE TABLE SyncOperation (
 
 	seq_id serial,
 
+    -- When SyncOperation was created, which allow us to tell how old the resources are
 	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 
 );
@@ -483,6 +486,7 @@ CREATE TABLE RepositoryCredentials (
 
     seq_id serial,
 
+    -- When RepositoryCredentials was created, which allow us to tell how old the resources are
 	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 
 );

@@ -4,6 +4,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/managedenvironment"
@@ -38,7 +39,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
 			condition := managedEnv.Status.Conditions[0]
 			Expect(condition.Status).To(Equal(metav1.ConditionFalse))
-			Expect(condition.Reason).To(Equal("UnableToCreateClient"))
+			Expect(condition.Reason).To(Equal(shared_resource_loop.ConditionReasonUnableToCreateClient))
 			Expect(condition.Message).To(ContainSubstring("no such host"))
 		})
 
@@ -68,7 +69,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
 			condition := managedEnv.Status.Conditions[0]
 			Expect(condition.Status).To(Equal(metav1.ConditionFalse))
-			Expect(condition.Reason).To(Equal("MissingKubeConfigField"))
+			Expect(condition.Reason).To(Equal(shared_resource_loop.ConditionReasonMissingKubeConfigField))
 			Expect(condition.Message).To(ContainSubstring("missing kubeConfig field in Secret"))
 		})
 
@@ -98,7 +99,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
 			condition := managedEnv.Status.Conditions[0]
 			Expect(condition.Status).To(Equal(metav1.ConditionFalse))
-			Expect(condition.Reason).To(Equal("UnableToParseKubeconfigData"))
+			Expect(condition.Reason).To(Equal(shared_resource_loop.ConditionReasonUnableToParseKubeconfigData))
 			Expect(condition.Message).To(ContainSubstring("json parse error"))
 		})
 
@@ -128,7 +129,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
 			condition := managedEnv.Status.Conditions[0]
 			Expect(condition.Status).To(Equal(metav1.ConditionFalse))
-			Expect(condition.Reason).To(Equal("UnableToLocateContext"))
+			Expect(condition.Reason).To(Equal(shared_resource_loop.ConditionReasonUnableToLocateContext))
 			Expect(condition.Message).To(ContainSubstring("the kubeconfig did not have a cluster entry that matched the API URL"))
 		})
 

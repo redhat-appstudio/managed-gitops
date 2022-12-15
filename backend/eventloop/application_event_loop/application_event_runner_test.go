@@ -649,7 +649,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				},
 				testOnlySkipCreateOperation: true,
 			}
-			_, err = a.applicationEventRunner_handleSyncRunModified(ctx, dbQueries)
+			err = a.applicationEventRunner_handleSyncRunModified(ctx, dbQueries)
 			Expect(err).To(BeNil())
 		})
 
@@ -730,7 +730,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 					fakeClient: k8sClient,
 				},
 			}
-			_, err = a.applicationEventRunner_handleSyncRunModified(ctx, dbQueries)
+			err = a.applicationEventRunner_handleSyncRunModified(ctx, dbQueries)
 			Expect(err).NotTo(BeNil())
 
 		})

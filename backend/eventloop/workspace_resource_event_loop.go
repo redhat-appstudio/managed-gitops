@@ -214,6 +214,11 @@ func internalProcessWorkspaceResourceMessage(ctx context.Context, msg workspaceR
 		if !ok {
 			return noRetry, fmt.Errorf("invalid payload in processWorkspaceResourceMessage")
 		}
+
+		if evlMessage.Event == nil { // Sanity test the message
+			log.Error(nil, "SEVERE: process managed env event is nil")
+		}
+
 		req := evlMessage.Event.Request
 
 		ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)

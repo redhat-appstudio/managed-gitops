@@ -12,7 +12,6 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
 	typed "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -119,46 +118,6 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 					Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
 				},
 			}
-		}
-
-		// Returns true if the all param resources no longer exist (have been deleted), and false otherwise.
-		expectAllResourcesToBeDeleted := func(expectedResourceStatusList []managedgitopsv1alpha1.ResourceStatus) {
-
-			Eventually(func() bool {
-
-				k8sclient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-				Expect(err).To(Succeed())
-
-				for _, resourceValue := range expectedResourceStatusList {
-					ns := typed.NamespacedName{
-						Namespace: resourceValue.Namespace,
-						Name:      resourceValue.Name,
-					}
-
-					var obj client.Object
-
-					if resourceValue.Kind == "ConfigMap" {
-						obj = &corev1.ConfigMap{}
-					} else if resourceValue.Kind == "Deployment" {
-						obj = &appsv1.Deployment{}
-					} else if resourceValue.Kind == "Route" {
-						obj = &routev1.Route{}
-					} else if resourceValue.Kind == "Service" {
-						obj = &corev1.Service{}
-					} else {
-						GinkgoWriter.Println("unrecognize kind:", resourceValue.Kind)
-						return false
-					}
-					err := k8sclient.Get(context.Background(), ns, obj)
-					if !apierr.IsNotFound(err) {
-						return false
-					}
-				}
-
-				// If all the resources were found, return true
-				return true
-			}, "2m", "1s").Should(BeTrue())
-
 		}
 
 		It("Should ensure succesful creation of GitOpsDeployment, by creating the GitOpsDeployment", func() {
@@ -681,5 +640,106 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			)
 		})
 
+		It("Create and delete the same GitOpsDeployment 3 times in a row, and make sure each works", func() {
+
+			// The goal of this test is to make sure the GitOpsService properly handles the deletion and
+			// recreation of GitOpsDeployments with the same name/namespace/
+			// - An example of a bug that would be caught by this test: what if the application event loop
+			//   runner failed to cleanup up from an old GitOpsDeployment, and thus the event loop failed
+			//   to process events for new GitOpsDeployments with the same name, in that namesapace.
+
+			for count := 0; count < 3; count++ {
+
+				Expect(fixture.EnsureCleanSlate()).To(Succeed())
+				gitOpsDeploymentResource := buildGitOpsDeploymentResource(name,
+					repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+					managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+				gitOpsDeploymentResource.Spec.Destination.Environment = ""
+				gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
+
+				k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+				Expect(err).To(Succeed())
+
+				err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
+				Expect(err).To(Succeed())
+
+				Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
+					SatisfyAll(
+						gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
+						gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
+					),
+				)
+				expectedResourceStatusList := []managedgitopsv1alpha1.ResourceStatus{
+					{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "ConfigMap",
+						Namespace: fixture.GitOpsServiceE2ENamespace,
+						Name:      "environment-config-map",
+						Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
+					},
+				}
+				expectedResourceStatusList = append(expectedResourceStatusList, getResourceStatusList_GitOpsRepositoryTemplateRepo("component-a")...)
+				expectedResourceStatusList = append(expectedResourceStatusList, getResourceStatusList_GitOpsRepositoryTemplateRepo("component-b")...)
+
+				Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
+					SatisfyAll(
+						gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
+						gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
+						gitopsDeplFixture.HaveResources(expectedResourceStatusList),
+						// gitopsDeplFixture.HaveReconciledState(expectedReconciledStateField),
+					),
+				)
+
+				By("deleting the GitOpsDeployment resource and waiting for the resources to be deleted")
+
+				err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
+				Expect(err).To(Succeed())
+
+				expectAllResourcesToBeDeleted(expectedResourceStatusList)
+
+			}
+
+		})
+
 	})
 })
+
+// Returns true if the all param resources no longer exist (have been deleted), and false otherwise.
+func expectAllResourcesToBeDeleted(expectedResourceStatusList []managedgitopsv1alpha1.ResourceStatus) {
+
+	Eventually(func() bool {
+
+		k8sclient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+		Expect(err).To(Succeed())
+
+		for _, resourceValue := range expectedResourceStatusList {
+			resourceName := typed.NamespacedName{
+				Namespace: resourceValue.Namespace,
+				Name:      resourceValue.Name,
+			}
+
+			var obj client.Object
+
+			if resourceValue.Kind == "ConfigMap" {
+				obj = &corev1.ConfigMap{}
+			} else if resourceValue.Kind == "Deployment" {
+				obj = &appsv1.Deployment{}
+			} else if resourceValue.Kind == "Route" {
+				obj = &routev1.Route{}
+			} else if resourceValue.Kind == "Service" {
+				obj = &corev1.Service{}
+			} else {
+				GinkgoWriter.Println("unrecognize kind:", resourceValue.Kind)
+				return false
+			}
+			if err := k8sclient.Get(context.Background(), resourceName, obj); err != nil {
+				return false
+			}
+		}
+
+		// If all the resources were found, return true
+		return true
+	}, ArgoCDReconcileWaitTime, "1s").Should(BeTrue())
+
+}

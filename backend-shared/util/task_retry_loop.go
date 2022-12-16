@@ -79,6 +79,7 @@ type RetryableTask interface {
 	PerformTask(taskContext context.Context) (bool, error)
 }
 
+// AddTaskIfNotPresent will queue a task to run within the task retry loop
 func (loop *TaskRetryLoop) AddTaskIfNotPresent(name string, task RetryableTask, backoff ExponentialBackoff) {
 
 	loop.inputChan <- taskRetryLoopMessage{
@@ -159,11 +160,20 @@ func NewTaskRetryLoop(debugName string) (loop *TaskRetryLoop) {
 	return res
 }
 
+// waitingTaskContainer contains all waiting tasks
+// - waitingTasksByName and waitingTasks contain the same test of tasks, just organized in different collections
 type waitingTaskContainer struct {
+
+	// waitingTasksByName is a map of tasks, from the name of the task -> the task itself
+	// - used to tell if a task is already present in the waiting tasks list
 	waitingTasksByName map[string]any
-	waitingTasks       []waitingTaskEntry
+
+	// waitingTasks is an ordered list of tasks, ordered in the order in which they were received
+	// - used to tell which task should run next
+	waitingTasks []waitingTaskEntry
 }
 
+// waitingTaskEntry represents a single waiting task
 type waitingTaskEntry struct {
 	name                   string
 	task                   RetryableTask
@@ -175,11 +185,20 @@ func (wte *waitingTaskContainer) isWorkAvailable() bool {
 	return len(wte.waitingTasks) > 0
 }
 
-func (wte *waitingTaskContainer) addTask(entry waitingTaskEntry) {
+func (wte *waitingTaskContainer) addTask(entry waitingTaskEntry, log logr.Logger) {
+
+	// Check if the task already exists in the list (by name)
+	if _, exists := wte.waitingTasksByName[entry.name]; exists {
+		log.V(LogLevel_Debug).Info("skipping duplicate task in addTask", "taskName", entry.name)
+		return
+	}
+
+	// Otherwise, add the task
 	wte.waitingTasks = append(wte.waitingTasks, entry)
 	wte.waitingTasksByName[entry.name] = entry
 }
 
+// internalTaskEntry represents a single active (currently running) task
 type internalTaskEntry struct {
 	name         string
 	task         RetryableTask
@@ -190,6 +209,8 @@ type internalTaskEntry struct {
 }
 
 const (
+	// ReportActiveTasksEveryXMinutes is a ticker interval, which will output a status on how many
+	// tasks are active/waiting. This is useful for ensuring the service is working as expected.
 	ReportActiveTasksEveryXMinutes = 10 * time.Minute
 )
 
@@ -289,19 +310,12 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string
 				continue
 			}
 
-			taskName := addTaskMsg.name
-
-			if _, exists := waitingTaskContainer.waitingTasksByName[taskName]; exists {
-				log.V(LogLevel_Debug).Info("skipping message that is already in the wait queue: " + taskName)
-				continue
-			}
-
 			newWaitingTaskEntry := waitingTaskEntry{
-				name:    taskName,
+				name:    addTaskMsg.name,
 				task:    addTaskMsg.task,
 				backoff: addTaskMsg.backoff}
 
-			waitingTaskContainer.addTask(newWaitingTaskEntry)
+			waitingTaskContainer.addTask(newWaitingTaskEntry, log)
 
 		} else if msg.msgType == taskRetryLoop_removeTask {
 
@@ -361,9 +375,7 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string
 					nextScheduledRetryTime: &nextScheduledRetryTime,
 					backoff:                taskEntry.backoff}
 
-				waitingTaskContainer.addTask(waitingTaskEntry)
-
-				// waitingTasks = append(waitingTasks, waitingTaskEntry)
+				waitingTaskContainer.addTask(waitingTaskEntry, log)
 			}
 			continue
 

@@ -22,9 +22,52 @@ const (
 	IdentifierValue = "periodic-cleanup"
 )
 
+// CreateOperation will create an Operation CR on the target GitOpsEngine cluster, and a corresponding entry in the
+// database. It will then wait for that operatio to complete (if waitForOperation is true)
+// - In order to avoid intermittent issues, the Operation could will keep trying for 60 seconds.
 func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationParam db.Operation, clusterUserID string,
 	operationNamespace string, dbQueries db.ApplicationScopedQueries, gitopsEngineClient client.Client,
 	l logr.Logger) (*managedgitopsv1alpha1.Operation, *db.Operation, error) {
+
+	backoff := sharedutil.ExponentialBackoff{Factor: 1.5, Min: time.Millisecond * 500, Max: time.Second * 5, Jitter: true}
+
+	var (
+		opCR *managedgitopsv1alpha1.Operation
+		opDB *db.Operation
+		err  error
+	)
+
+	// Try for up 1 minute
+	expireTime := time.Now().Add(1 * time.Minute)
+outer_for:
+	for {
+
+		if time.Now().After(expireTime) {
+			// Expired: break out and return error
+			break outer_for
+		}
+
+		opCR, opDB, err = createOperationInternal(ctx, waitForOperation, dbOperationParam, clusterUserID, operationNamespace, dbQueries, gitopsEngineClient, l)
+
+		if err != nil {
+			// Failure: an error occurred, try again in a moment.
+			backoff.DelayOnFail(ctx)
+		} else {
+			// Success! Break out.
+			break outer_for
+		}
+	}
+
+	return opCR, opDB, err
+
+}
+
+// createOperationInternal is called by CreateOperation, and is the function that does the actual work of creating the
+// Operation CR/DB row.
+func createOperationInternal(ctx context.Context, waitForOperation bool, dbOperationParam db.Operation, clusterUserID string,
+	operationNamespace string, dbQueries db.ApplicationScopedQueries, gitopsEngineClient client.Client,
+	l logr.Logger) (*managedgitopsv1alpha1.Operation, *db.Operation, error) {
+
 	var err error
 	l = l.WithValues("Operation GitOpsEngineInstanceID", dbOperationParam.Instance_id,
 		"Operation ResourceID", dbOperationParam.Resource_id,
@@ -57,7 +100,7 @@ func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationPara
 		}
 
 		if err = gitopsEngineClient.Get(ctx, client.ObjectKeyFromObject(&k8sOperation), &k8sOperation); err != nil {
-			l.Error(err, "unable to fetch existing Operation from cluster.", "Operation k8s Name", k8sOperation.Name)
+			l.Error(err, "unable to fetch existing Operation from cluster, skipping.", "Operation k8s Name", k8sOperation.Name)
 			// We intentionally don't return here: we keep going through the list, even if an error occurs.
 			// Only one needs to match.
 		} else {

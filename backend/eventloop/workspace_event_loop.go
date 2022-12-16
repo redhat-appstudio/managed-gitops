@@ -240,7 +240,7 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, namespaceID 
 			// Every X minutes, the workspace event loop will send itself a message, causing it to check the
 			// status of the application event loops it is tracking, and clean them up if needed.
 
-			handleStatusTickerMessage(event, state)
+			handleStatusTickerMessage(state)
 
 		} else {
 			log.Error(nil, "SEVERE: unrecognized workspace event loop message type")
@@ -329,6 +329,10 @@ func handleWorkspaceEventLoopMessage(ctx context.Context, event eventlooptypes.E
 		state.applicationMap[mapKey] = applicationEntryVal
 	}
 
+	if event.Event == nil { // Sanity check the event
+		log.Error(nil, "SEVERE: event was nil in workspace_event loop")
+	}
+
 	// Send the event to the channel/go routine that handles all events for this application/gitopsdepl
 	// we wait for a response from the channel (on ResponseChan) before continuing.
 	syncResponseChan := make(chan application_event_loop.ResponseMessage)
@@ -365,6 +369,10 @@ func handleManagedEnvProcessedMessage(event eventlooptypes.EventLoopMessage, sta
 	state.log.V(sharedutil.LogLevel_Debug).Info(fmt.Sprintf("received ManagedEnvironment event, passed event to %d applications",
 		len(state.applicationMap)))
 
+	if event.Event == nil { // Sanity check the event
+		state.log.Error(nil, "SEVERE: event was nil in handleManagedEnvProcessedMessage")
+	}
+
 	// Send a message about this ManagedEnvironment to all of the goroutines currently processing GitOpsDeployment/SyncRuns
 	for key := range state.applicationMap {
 		applicationEntryVal := state.applicationMap[key]
@@ -385,7 +393,7 @@ func handleManagedEnvProcessedMessage(event eventlooptypes.EventLoopMessage, sta
 
 // handleStatusTickerMessage: every X minutes, the workspace event loop will send itself a message, causing it to
 // check the status of the application event loops it is tracking, and clean them up if needed.
-func handleStatusTickerMessage(event eventlooptypes.EventLoopMessage, state workspaceEventLoopInternalState) {
+func handleStatusTickerMessage(state workspaceEventLoopInternalState) {
 
 	// For each of the Application Event Loops (GitOpsDeployments in the namespace) that we are tracking...
 	for key := range state.applicationMap {
@@ -397,7 +405,7 @@ func handleStatusTickerMessage(event eventlooptypes.EventLoopMessage, state work
 		applicationEntryVal.input <- application_event_loop.RequestMessage{
 			Message: eventlooptypes.EventLoopMessage{
 				MessageType: eventlooptypes.ApplicationEventLoopMessageType_StatusCheck,
-				Event:       event.Event,
+				Event:       nil,
 			},
 			ResponseChan: syncResponseChan,
 		}

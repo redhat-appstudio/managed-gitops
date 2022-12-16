@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"strings"
 	"time"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -548,15 +547,19 @@ func processOperation_SyncOperation(ctx context.Context, dbOperation db.Operatio
 // returns shouldRetry, error
 func terminateExistingOperation(ctx context.Context, dbApplication *db.Application, opConfig operationConfig) (bool, error) {
 
+	isRunning, err := isOperationRunning(ctx, opConfig.eventClient, dbApplication.Name, opConfig.argoCDNamespace.Name)
+	if err != nil {
+		opConfig.log.Error(err, "unable to determine if an Operation is running for Application: "+dbApplication.Name)
+		return shouldRetryTrue, err
+	}
+
+	// nothing to terminate if no sync operation is in progress
+	if !isRunning {
+		return shouldRetryFalse, nil
+	}
+
 	if err := opConfig.syncFuncs.terminateOperation(ctx, dbApplication.Name, opConfig.argoCDNamespace, opConfig.credentialService,
 		opConfig.eventClient, time.Duration(5*time.Minute), opConfig.log); err != nil {
-
-		// we can return if there are no sync operations in progress
-		terminatedOperationErr := "Unable to terminate operation. No operation is in progress"
-		if strings.Contains(err.Error(), terminatedOperationErr) {
-			opConfig.log.Info("No sync operation in progress for application " + dbApplication.Name)
-			return shouldRetryFalse, nil
-		}
 
 		opConfig.log.Error(err, "unable to terminate operation: "+dbApplication.Name)
 		return shouldRetryTrue, err
@@ -566,6 +569,25 @@ func terminateExistingOperation(ctx context.Context, dbApplication *db.Applicati
 
 	return shouldRetryFalse, nil
 
+}
+
+func isOperationRunning(ctx context.Context, k8sClient client.Client, appName, appNS string) (bool, error) {
+	app := &appv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      appName,
+			Namespace: appNS,
+		},
+	}
+
+	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app); err != nil {
+		return false, err
+	}
+
+	if app.Operation == nil || app.Status.OperationState == nil {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 // syncFuncs is a wrapper over sync and terminate functions and is used in unit testing different sync scenarios

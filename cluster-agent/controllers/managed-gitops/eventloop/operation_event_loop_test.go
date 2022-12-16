@@ -803,6 +803,7 @@ var _ = Describe("Operation Controller", func() {
 
 			var (
 				applicationDB          *db.Application
+				applicationCR          *appv1.Application
 				gitopsEngineInstanceID string
 			)
 
@@ -832,6 +833,22 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = task.event.client.Create(ctx, operationCR)
+				Expect(err).To(BeNil())
+			}
+
+			updateApplicationOperationState := func(applicationCR *appv1.Application) {
+				operation := &appv1.Operation{
+					Sync: &appv1.SyncOperation{
+						Revision: "123",
+					},
+				}
+
+				applicationCR.Operation = operation
+				applicationCR.Status.OperationState = &appv1.OperationState{
+					Operation: *operation,
+				}
+
+				err = k8sClient.Update(ctx, applicationCR)
 				Expect(err).To(BeNil())
 			}
 
@@ -868,6 +885,16 @@ var _ = Describe("Operation Controller", func() {
 
 				By("create Application in Database")
 				err = dbQueries.CreateApplication(ctx, applicationDB)
+				Expect(err).To(BeNil())
+
+				By("create Application CR")
+				applicationCR = &appv1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      applicationDB.Name,
+						Namespace: workspace.Name,
+					},
+				}
+				err = k8sClient.Create(ctx, applicationCR)
 				Expect(err).To(BeNil())
 			})
 
@@ -979,6 +1006,8 @@ var _ = Describe("Operation Controller", func() {
 			})
 
 			It("don't retry if we can successfully terminate a sync operation", func() {
+				By("update the Application operation state so it can be terminated later")
+				updateApplicationOperationState(applicationCR)
 
 				By("create a SyncOperation with desired state 'Terminated' in the database")
 				syncOperation := db.SyncOperation{
@@ -1007,6 +1036,8 @@ var _ = Describe("Operation Controller", func() {
 			})
 
 			It("should return an error and retry if we can't terminate a sync operation", func() {
+				By("update the Application operation state so it can be terminated later")
+				updateApplicationOperationState(applicationCR)
 
 				By("create a SyncOperation with desired state 'Terminated' in the database")
 				syncOperation := db.SyncOperation{
@@ -1035,6 +1066,115 @@ var _ = Describe("Operation Controller", func() {
 				Expect(retry).To(BeTrue())
 			})
 
+			It("should not terminate if no sync operation is in progress", func() {
+				By("create a SyncOperation with desired state 'Terminated' in the database")
+				syncOperation := db.SyncOperation{
+					SyncOperation_id:    "test-syncoperation",
+					Application_id:      applicationDB.Application_id,
+					DeploymentNameField: "test",
+					Revision:            "main",
+					DesiredState:        db.SyncOperation_DesiredState_Terminated,
+				}
+				err = dbQueries.CreateSyncOperation(ctx, &syncOperation)
+				Expect(err).To(BeNil())
+
+				By("create Operation DB row and CR for the SyncOperation")
+				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
+
+				By("verify there is no termination and retry should be false")
+				task.syncFuncs = &syncFuncs{
+					terminateOperation: func(ctx context.Context, s string, n v1.Namespace, cs *utils.CredentialService, c client.Client, d time.Duration, l logr.Logger) error {
+						return fmt.Errorf("unable to terminate sync due to xyz reason")
+					},
+				}
+
+				retry, err := task.PerformTask(ctx)
+				Expect(err).Should(BeNil())
+				Expect(retry).To(BeFalse())
+			})
+
+		})
+
+		Context("Test if Operation is running for an Application", func() {
+
+			var (
+				applicationCR *appv1.Application
+			)
+
+			BeforeEach(func() {
+				applicationCR = &appv1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: workspace.Name,
+					},
+				}
+			})
+
+			AfterEach(func() {
+				err = k8sClient.Delete(ctx, applicationCR)
+				if err != nil {
+					Expect(apierr.IsNotFound(err)).To(BeTrue())
+				}
+			})
+
+			It("should return false if the Application doesn't have .status.OperationState set", func() {
+				applicationCR.Operation = &appv1.Operation{
+					Sync: &appv1.SyncOperation{
+						Revision: "123",
+					},
+				}
+
+				err = k8sClient.Create(ctx, applicationCR)
+				Expect(err).To(BeNil())
+
+				isRunning, err := isOperationRunning(ctx, k8sClient, applicationCR.Name, applicationCR.Namespace)
+				Expect(err).To(BeNil())
+				Expect(isRunning).To(BeFalse())
+
+			})
+
+			It("should return false if the Application doesn't have .spec.Operation field set", func() {
+				applicationCR.Status.OperationState = &appv1.OperationState{
+					Operation: appv1.Operation{
+						Sync: &appv1.SyncOperation{
+							Revision: "123",
+						},
+					},
+				}
+
+				err = k8sClient.Create(ctx, applicationCR)
+				Expect(err).To(BeNil())
+
+				isRunning, err := isOperationRunning(ctx, k8sClient, applicationCR.Name, applicationCR.Namespace)
+				Expect(err).To(BeNil())
+				Expect(isRunning).To(BeFalse())
+
+			})
+
+			It("should return true if the Application has both .spec.Operation and .status.OperationState set", func() {
+				operation := appv1.Operation{
+					Sync: &appv1.SyncOperation{Revision: "123"},
+				}
+				applicationCR.Operation = &operation
+				applicationCR.Status.OperationState = &appv1.OperationState{
+					Operation: operation,
+				}
+
+				err = k8sClient.Create(ctx, applicationCR)
+				Expect(err).To(BeNil())
+
+				isRunning, err := isOperationRunning(ctx, k8sClient, applicationCR.Name, applicationCR.Namespace)
+				Expect(err).To(BeNil())
+				Expect(isRunning).To(BeTrue())
+
+			})
+
+			It("should return a missing error if the Application is not found", func() {
+				isRunning, err := isOperationRunning(ctx, k8sClient, applicationCR.Name, applicationCR.Namespace)
+				Expect(err).ToNot(BeNil())
+				Expect(apierr.IsNotFound(err)).Should(BeTrue())
+				Expect(isRunning).To(BeFalse())
+			})
 		})
 	})
 })

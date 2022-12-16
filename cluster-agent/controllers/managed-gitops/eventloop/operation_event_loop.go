@@ -264,7 +264,7 @@ func (task *processOperationEventTask) PerformTask(taskContext context.Context) 
 
 		if err != nil {
 			// TODO: GITOPSRVCE-77 - SECURITY - At some point, we will likely want to sanitize the error value for users
-			dbOperation.Human_readable_state = err.Error()
+			dbOperation.Human_readable_state = db.TruncateVarchar(err.Error(), db.OperationHumanReadableStateLength)
 		}
 
 		// Update the Operation row of the database, based on the new state.
@@ -366,7 +366,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	// gitopsengineinstance matches the gitops engine cluster we are running on.
 	kubeSystemNamespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system", Namespace: "kube-system"}}
 	if err := eventClient.Get(taskContext, client.ObjectKeyFromObject(kubeSystemNamespace), kubeSystemNamespace); err != nil {
-		log.Error(err, "SEVERE: Unable to retrieve kube-system namespace")
+		log.Error(err, "Unable to retrieve kube-system namespace")
 		return &dbOperation, shouldRetryTrue, fmt.Errorf("unable to retrieve kube-system namespace in internalPerformTask")
 	}
 	if thisCluster, err := dbutil.GetGitopsEngineClusterByKubeSystemNamespaceUID(taskContext, string(kubeSystemNamespace.UID), dbQueries, log); err != nil {

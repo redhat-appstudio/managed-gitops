@@ -101,7 +101,9 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 
 		// Process the event
 
-		log.V(sharedutil.LogLevel_Debug).Info("applicationEventLoopRunner - event received", "event", eventlooptypes.StringEventLoopEvent(newEvent))
+		if !(newEvent.EventType == eventlooptypes.UpdateDeploymentStatusTick && disableDeploymentStatusTickLogging == true) {
+			log.V(sharedutil.LogLevel_Debug).Info("applicationEventLoopRunner - event received", "event", eventlooptypes.StringEventLoopEvent(newEvent))
+		}
 
 		// Keep attempting the process the event until no error is returned, or the request is cancelled.
 		attempts := 1
@@ -109,7 +111,9 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 	inner_for:
 		for {
 
-			log.V(sharedutil.LogLevel_Debug).Info("applicationEventLoopRunner - processing event", "event", eventlooptypes.StringEventLoopEvent(newEvent), "attempt", attempts)
+			if !(newEvent.EventType == eventlooptypes.UpdateDeploymentStatusTick && disableDeploymentStatusTickLogging == true) {
+				log.V(sharedutil.LogLevel_Debug).Info("applicationEventLoopRunner - processing event", "event", eventlooptypes.StringEventLoopEvent(newEvent), "attempt", attempts)
+			}
 
 			// Break if the context is cancelled
 			select {

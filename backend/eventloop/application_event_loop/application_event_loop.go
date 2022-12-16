@@ -35,6 +35,10 @@ const (
 	// deploymentStatusTickRate is the rate at which the application event runner will be sent a message
 	// indicating that the GitOpsDeployment status field should be updated.
 	deploymentStatusTickRate = 15 * time.Second
+
+	// disableDeploymentStatusTickLogging disables logging of events related to the deployment status.
+	// - These events tend to be noisy, and this will help reduce this noise when debugging.
+	disableDeploymentStatusTickLogging = false
 )
 
 // RequestMessage is a message sent to the Application Event Loop by the Workspace Event loop.
@@ -156,15 +160,21 @@ out:
 
 		eventLoopMessage := newEvent.Message.Event
 
-		if eventLoopMessage == nil {
-			log.Error(nil, "SEVERE: applicationEventQueueLoop event was nil")
-			continue
+		if eventLoopMessage != nil {
+			if !(eventLoopMessage.EventType == eventlooptypes.UpdateDeploymentStatusTick && disableDeploymentStatusTickLogging) {
+				log.V(sharedutil.LogLevel_Debug).Info("applicationEventQueueLoop received event",
+					"event", eventlooptypes.StringEventLoopEvent(eventLoopMessage))
+
+			}
 		}
-		log.V(sharedutil.LogLevel_Debug).Info("applicationEventQueueLoop received event",
-			"event", eventlooptypes.StringEventLoopEvent(eventLoopMessage))
 
 		// If we've received a new event from the workspace event loop
 		if newEvent.Message.MessageType == eventlooptypes.ApplicationEventLoopMessageType_Event {
+
+			if eventLoopMessage == nil {
+				log.Error(nil, "SEVERE: applicationEventQueueLoop event was nil", "thing", newEvent.Message.MessageType)
+				continue
+			}
 
 			// First check if the event loop has shutdown, and therefore we should reject the request
 			workRejected := deploymentEventRunnerShutdown && syncOperationEventRunnerShutdown
@@ -192,8 +202,6 @@ out:
 			// From this point on, the work has been accepted
 
 			log := log.WithValues("event", eventlooptypes.StringEventLoopEvent(eventLoopMessage))
-
-			log.V(sharedutil.LogLevel_Debug).Info("applicationEventQueueLoop received event")
 
 			if eventLoopMessage.ReqResource == eventlooptypes.GitOpsDeploymentTypeName {
 
@@ -233,13 +241,21 @@ out:
 			// If we've received a work complete notification...
 		} else if newEvent.Message.MessageType == eventlooptypes.ApplicationEventLoopMessageType_WorkComplete {
 
+			if eventLoopMessage == nil {
+				log.Error(nil, "SEVERE: applicationEventQueueLoop event was nil", "thing", newEvent.Message.MessageType)
+				continue
+			}
+
 			if newEvent.ResponseChan != nil {
 				log.Error(nil, "SEVERE: WorkComplete does not support non-nil ResponseChan")
 			}
 
 			log := log.WithValues("event", eventlooptypes.StringEventLoopEvent(eventLoopMessage))
 
-			log.V(sharedutil.LogLevel_Debug).Info("applicationEventQueueLoop received work complete event")
+			if !(eventLoopMessage.EventType == eventlooptypes.UpdateDeploymentStatusTick && disableDeploymentStatusTickLogging) {
+
+				log.V(sharedutil.LogLevel_Debug).Info("applicationEventQueueLoop received work complete event")
+			}
 
 			if eventLoopMessage.EventType == eventlooptypes.UpdateDeploymentStatusTick {
 				// After we finish processing a previous status tick, start the timer to queue up a new one.
@@ -308,14 +324,21 @@ out:
 			waitingDeploymentEvents = waitingDeploymentEvents[1:]
 
 			// Send the work to the runner
-			log.V(sharedutil.LogLevel_Debug).Info("About to send work to depl event runner",
-				"event", eventlooptypes.StringEventLoopEvent(activeDeploymentEvent.Message.Event))
+			if !(activeDeploymentEvent.Message.Event.EventType == eventlooptypes.UpdateDeploymentStatusTick &&
+				disableDeploymentStatusTickLogging == true) {
+				log.V(sharedutil.LogLevel_Debug).Info("About to send work to depl event runner",
+					"event", eventlooptypes.StringEventLoopEvent(activeDeploymentEvent.Message.Event))
+			}
 
 			deploymentEventRunner <- activeDeploymentEvent.Message.Event
 
-			log.V(sharedutil.LogLevel_Debug).Info("Sent work to depl event runner",
-				"event", eventlooptypes.StringEventLoopEvent(activeDeploymentEvent.Message.Event))
+			if !(activeDeploymentEvent.Message.Event.EventType == eventlooptypes.UpdateDeploymentStatusTick &&
+				disableDeploymentStatusTickLogging == true) {
 
+				log.V(sharedutil.LogLevel_Debug).Info("Sent work to depl event runner",
+					"event", eventlooptypes.StringEventLoopEvent(activeDeploymentEvent.Message.Event))
+
+			}
 		}
 
 		// If we are not currently doing any sync operation work, and there are events waiting, then send the next event to the runner

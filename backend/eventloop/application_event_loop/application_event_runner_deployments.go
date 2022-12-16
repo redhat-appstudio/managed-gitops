@@ -234,7 +234,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	}
 
 	if engineInstance == nil {
-		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(fmt.Errorf("unable to locate managed environment for new application"))
+		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(fmt.Errorf("engine instance is nil when reconciling new GitOpsDeployment"))
 	}
 
 	appName := argosharedutil.GenerateArgoCDApplicationName(string(gitopsDeployment.UID))

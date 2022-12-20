@@ -318,6 +318,8 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		if db.IsResultNotFoundError(err) {
 			// no corresponding db operation, so no work to do
 			log.V(sharedutil.LogLevel_Warn).Info("Received a K8 request for an Operation resource, but the referenced DB Operation Row doesn't exist")
+			fmt.Println("C H E C K - 3.1")
+
 			return nil, shouldRetryFalse, nil
 		} else {
 			// some other generic error
@@ -331,6 +333,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		log.V(sharedutil.LogLevel_Debug).Info("Skipping Operation with state of Completed/Failed")
 		return &dbOperation, shouldRetryFalse, nil
 	}
+	fmt.Println("C H E C K - 4")
 
 	// If the operation is in waiting state, update it to in-progress before we start processing it.
 	if dbOperation.State == db.OperationState_Waiting {
@@ -343,6 +346,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		log.V(sharedutil.LogLevel_Debug).Info("Updated OperationState to InProgress")
 
 	}
+	fmt.Println("C H E C K - 5")
 
 	// 3) Find the Argo CD instance that is targeted by this operation.
 	dbGitopsEngineInstance := &db.GitopsEngineInstance{
@@ -362,6 +366,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 			return &dbOperation, shouldRetryTrue, err
 		}
 	}
+	fmt.Println("C H E C K - 6")
 
 	// Sanity test: find the gitops engine cluster, by kube-system, and ensure that the
 	// gitopsengineinstance matches the gitops engine cluster we are running on.
@@ -380,6 +385,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		log.Error(nil, "SEVERE: The gitops engine cluster that the cluster-agent is running on did not match the operation's target argo cd instance id.")
 		return &dbOperation, shouldRetryTrue, nil
 	}
+	fmt.Println("C H E C K - 7")
 
 	// 4) Find the namespace for the targeted Argo CD instance
 	argoCDNamespace := &corev1.Namespace{
@@ -411,6 +417,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		log:               log,
 		syncFuncs:         task.syncFuncs,
 	}
+	fmt.Println("C H E C K - 8")
 
 	// 5) Finally, call the corresponding method for processing the particular type of Operation.
 
@@ -454,6 +461,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	} else if dbOperation.Resource_type == db.OperationResourceType_GitOpsEngineInstance {
 
 		// Process a SyncOperation event
+		fmt.Println("INNNSSSTTTAANNCCEEEE")
 		shouldRetry, err := processOperation_GitOpsEngineInstance(taskContext, dbOperation, *operationCR, operationConfigParams)
 
 		if err != nil {
@@ -935,7 +943,7 @@ func processOperation_GitOpsEngineInstance(ctx context.Context, dbOperation db.O
 	if dbOperation.Resource_id == "" {
 		return shouldRetryTrue, fmt.Errorf("resource id was nil while processing operation: " + crOperation.Name)
 	}
-
+	fmt.Println("CCCCCCCCCCLLLUUUSSTTEEEERRRRRRRR-1")
 	dbGitopsEngineInstance := &db.GitopsEngineInstance{
 		Gitopsengineinstance_id: dbOperation.Instance_id,
 	}
@@ -947,20 +955,22 @@ func processOperation_GitOpsEngineInstance(ctx context.Context, dbOperation db.O
 		log.Error(err, "Unable to retrieve database GitopsEngineInstance row from database")
 		return shouldRetryTrue, err
 	} else {
-		errfromScopedArgoCD := utils.CreateNamespaceScopedArgoCD(ctx, "argocd", dbGitopsEngineInstance.Namespace_name, opConfig.eventClient, log)
+		errfromScopedArgoCD := utils.CreateNamespaceScopedArgoCD(ctx, crOperation.Name, dbGitopsEngineInstance.Namespace_name, opConfig.eventClient, log)
 		if errfromScopedArgoCD != nil {
-			log.Error(err, "Unable to create namespace scoped ArgoCD for GitopsEngineInstance")
-			return shouldRetryTrue, err
+			log.Error(errfromScopedArgoCD, "Unable to create namespace scoped ArgoCD for GitopsEngineInstance")
+			return shouldRetryTrue, errfromScopedArgoCD
 		}
+		fmt.Println("CCCCCCCCCCLLLUUUSSTTEEEERRRRRRRR-2")
 
 		// APISERVER=$(kubectl config view -o jsonpath="{.clusters[?(@.name==\"$CLUSTER_NAME\")].cluster.server}")
 
 		errfromSetUpArgoCD := utils.SetupArgoCD(ctx, config.Host, dbGitopsEngineInstance.Namespace_name, opConfig.eventClient, log)
 		if errfromSetUpArgoCD != nil {
-			log.Error(err, "Unable to setup ArgoCD for GitopsEngineInstance")
-			return shouldRetryTrue, err
+			log.Error(errfromScopedArgoCD, "Unable to setup ArgoCD for GitopsEngineInstance")
+			return shouldRetryTrue, errfromScopedArgoCD
 		}
 	}
+	fmt.Println("CCCCCCCCCCLLLUUUSSTTEEEERRRRRRRR-3")
 
 	return shouldRetryFalse, nil
 

@@ -14,7 +14,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var _ = Describe("Test for creating opeartion with resource-type as Gitopsengineinstance ", func() {
+var _ = FDescribe("Test for creating opeartion with resource-type as Gitopsengineinstance ", func() {
 
 	Context("New Argo Instance test", func() {
 

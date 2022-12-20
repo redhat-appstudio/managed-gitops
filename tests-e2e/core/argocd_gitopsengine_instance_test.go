@@ -15,11 +15,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", func() {
+var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", func() {
 
 	const (
 		argocdNamespace      = fixture.NewArgoCDInstanceNamespace
-		argocdCRName         = "argocd-gitopsengine-test"
+		argocdCRName         = "argocd"
 		destinationNamespace = fixture.NewArgoCDInstanceDestNamespace
 	)
 
@@ -66,7 +66,7 @@ var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", fun
 			}
 			err = k8s.Create(namespaceCR, k8sClient)
 			Expect(err).To(BeNil())
-			clusterUser := db.ClusterUser{User_name: "test-gitops-service-user"}
+			clusterUser := db.ClusterUser{User_name: "test-gitops-service-user-3"}
 			dbq.CreateClusterUser(ctx, &clusterUser)
 
 			err = util.CreateNewArgoCDInstance(namespaceCR, clusterUser, k8sClient, log, dbq)
@@ -74,7 +74,7 @@ var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", fun
 
 			By("ensuring ArgoCD service resource exists")
 			argocdInstance := &apps.Deployment{
-				ObjectMeta: metav1.ObjectMeta{Name: argocdCRName + "-server", Namespace: argocdNamespace},
+				ObjectMeta: metav1.ObjectMeta{Name: argocdCRName + "-server", Namespace: argocdCRName},
 			}
 
 			Eventually(argocdInstance, "60s", "5s").Should(k8s.ExistByName(k8sClient))

@@ -19,6 +19,7 @@ func CreateNewArgoCDInstance(namespace *corev1.Namespace, user db.ClusterUser, k
 	if err := k8sclient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace); err != nil {
 		return fmt.Errorf("unable to retrieve gitopsengine namespace: %v", err)
 	}
+	fmt.Println("BBBBBAAACCCKKKEENNNDDD -1")
 
 	kubeSystemNamespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -30,6 +31,7 @@ func CreateNewArgoCDInstance(namespace *corev1.Namespace, user db.ClusterUser, k
 	if err != nil {
 		return err
 	}
+	fmt.Println("BBBBBAAACCCKKKEENNNDDD -2")
 
 	operation := db.Operation{
 		Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
@@ -45,5 +47,7 @@ func CreateNewArgoCDInstance(namespace *corev1.Namespace, user db.ClusterUser, k
 	if err != nil {
 		return fmt.Errorf("unable to create operation for gitopsEngineInstance '%s': %v", gitopsEngineInstance.Gitopsengineinstance_id, err)
 	}
+	fmt.Println("BBBBBAAACCCKKKEENNNDDD -3")
+
 	return nil
 }

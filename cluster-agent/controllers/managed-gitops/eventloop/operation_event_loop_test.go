@@ -162,7 +162,7 @@ var _ = Describe("Operation Controller", func() {
 
 		})
 
-		It("ensures that if the operation has a resource-type of GitOpsEngineInstance then the function processOperation_GitOpsEngineInstance() picks it successfully", func() {
+		FIt("ensures that if the operation has a resource-type of GitOpsEngineInstance then the function processOperation_GitOpsEngineInstance() picks it successfully", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
@@ -170,11 +170,30 @@ var _ = Describe("Operation Controller", func() {
 			err = db.SetupForTestingDBGinkgo()
 			Expect(err).To(BeNil())
 
-			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
+			// gitopsEngineCluster := db.GitopsEngineCluster{
+			// 	Gitopsenginecluster_id: "test-fake-cluster-1",
+			// 	Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+			// }
+
+			gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
+			Expect(gitopsEngineCluster).ToNot(BeNil())
+			Expect(err).To(BeNil())
+
+			gitopsEngineInstance := db.GitopsEngineInstance{
+				Gitopsengineinstance_id: "test-fake-engine-instance-id",
+				Namespace_name:          workspace.Namespace,
+				Namespace_uid:           string(workspace.UID),
+				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+			}
+
+			// err = dbQueries.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
+			// Expect(err).To(BeNil())
+
+			err = dbQueries.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
 			Expect(err).To(BeNil())
 
 			operationDB := &db.Operation{
-				Operation_id:            "test-operation",
+				Operation_id:            "test-operation-gitopsengineinstance",
 				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
 				Resource_id:             "test-fake-resource-id",
 				Resource_type:           db.OperationResourceType_GitOpsEngineInstance,
@@ -185,7 +204,7 @@ var _ = Describe("Operation Controller", func() {
 			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
 			Expect(err).To(BeNil())
 
-			By("Operation row(test-wrong-operation) doesn't exists")
+			By("Operation CR creation")
 			operationCR := &managedgitopsv1alpha1.Operation{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,

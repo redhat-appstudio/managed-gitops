@@ -77,9 +77,17 @@ var _ = Describe("Operation Controller", func() {
 					UID:       uuid.NewUUID(),
 				},
 			}
+			defaultProject := &appv1.AppProject{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "default",
+					Namespace: workspace.Name,
+				},
+			}
 
-			By("Initialize fake kube client")
-			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).Build()
+			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace, defaultProject).Build()
+
+			// By("Initialize fake kube client")
+			// k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).Build()
 
 			task = processOperationEventTask{
 				log: logger,

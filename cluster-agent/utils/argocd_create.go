@@ -259,7 +259,8 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, names
 
 }
 
-func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8sClient client.Client, log logr.Logger) error {
+// removed 'apiHost string' parameter
+func SetupArgoCD(ctx context.Context, argoCDNamespace string, k8sClient client.Client, log logr.Logger) error {
 
 	serviceAccount := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{

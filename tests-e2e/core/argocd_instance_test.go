@@ -55,7 +55,7 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 
 			config, err := fixture.GetSystemKubeConfig()
 			Expect(err).To(BeNil())
-			apiHost := config.Host
+			// apiHost := config.Host
 
 			k8sClient, err := fixture.GetKubeClient(config)
 			Expect(err).To(BeNil())
@@ -72,7 +72,7 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 			Expect(err).To(BeNil())
 
 			By("ensuring ArgoCD resource exists in kube-system namespace")
-			err = argocdv1.SetupArgoCD(ctx, apiHost, argocdNamespace, k8sClient, log)
+			err = argocdv1.SetupArgoCD(ctx, argocdNamespace, k8sClient, log)
 			Expect(err).To(BeNil())
 
 			destinationNamespace := &corev1.Namespace{

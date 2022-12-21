@@ -2,21 +2,19 @@ package core
 
 import (
 	"context"
-	"time"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
-	"github.com/redhat-appstudio/managed-gitops/cluster-agent/utils"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	appFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/application"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	corev1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
@@ -27,6 +25,13 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			k8sClient                client.Client
 			gitOpsDeploymentResource managedgitopsv1alpha1.GitOpsDeployment
 		)
+
+		argocdCM := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argocd-cm",
+				Namespace: "gitops-service-argocd",
+			},
+		}
 
 		BeforeEach(func() {
 			ctx = context.Background()
@@ -55,6 +60,13 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeMissing),
 				),
 			)
+		})
+
+		AfterEach(func() {
+			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(argocdCM), argocdCM)
+			Expect(err == nil || apierr.IsNotFound(err)).To(BeTrue())
+
+			removeCustomHealthCheckForDeployment(ctx, k8sClient, argocdCM)
 		})
 
 		It("creating a new GitOpsDeploymentSyncRun should sync an Argo CD Application", func() {
@@ -168,17 +180,11 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			)
 
 			By("configure the Application to get stuck in 'Syncing' state")
-			argocdCM := corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "argocd-cm",
-					Namespace: "gitops-service-argocd",
-				},
-			}
 
-			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&argocdCM), &argocdCM)
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(argocdCM), argocdCM)
 			Expect(err).To(BeNil())
 
-			addCustomHealthCheckForDeployment(ctx, k8sClient, &argocdCM)
+			addCustomHealthCheckForDeployment(ctx, k8sClient, argocdCM)
 
 			By("create a GitOpsDeploymentSyncRun")
 			syncRunCR := buildGitOpsDeploymentSyncRunResource("test-syncrun", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
@@ -227,7 +233,7 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			)
 
 			By("revert the changes done to the argocd-cm configmap")
-			removeCustomHealthCheckForDeployment(ctx, k8sClient, &argocdCM)
+			removeCustomHealthCheckForDeployment(ctx, k8sClient, argocdCM)
 		})
 
 		It("deleting the GitOpsDeploymentSyncRun CR should not terminate if no Sync operation is in progress", func() {
@@ -275,11 +281,7 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 
 		})
 
-		It("should retry if the sync operation failed", func() {
-
-			// When the Application is already stuck in 'Syncing' state, creating new GitOpsDeploymentSyncRuns
-			// will fail, since there is an operation in progress. In this scenario, the service should retry
-			// syncing the Application with exponential backoff
+		It("should sync if the previous sync operation is terminated", func() {
 
 			gitOpsDeploymentResource = buildGitOpsDeploymentResource("test-deply-with-presync",
 				"https://github.com/managed-gitops-test-data/deployment-presync-hook", "guestbook",
@@ -299,17 +301,11 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			)
 
 			By("configure the Application to get stuck in 'Syncing' state")
-			argocdCM := corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "argocd-cm",
-					Namespace: "gitops-service-argocd",
-				},
-			}
 
-			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&argocdCM), &argocdCM)
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(argocdCM), argocdCM)
 			Expect(err).To(BeNil())
 
-			addCustomHealthCheckForDeployment(ctx, k8sClient, &argocdCM)
+			addCustomHealthCheckForDeployment(ctx, k8sClient, argocdCM)
 
 			By("create a GitOpsDeploymentSyncRun")
 			syncRunCR := buildGitOpsDeploymentSyncRunResource("test-syncrun", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
@@ -343,37 +339,19 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 				),
 			)
 
+			By("terminate the running sync operation by deleting the old sync run CR")
+			removeCustomHealthCheckForDeployment(ctx, k8sClient, argocdCM)
+
+			err = k8sClient.Delete(ctx, &syncRunCR)
+			Expect(err).To(BeNil())
+
 			By("create a new GitOpsDeploymentSyncRun and ensure that the sync status hasn't changed")
 			newSyncRunCR := buildGitOpsDeploymentSyncRunResource("test-syncrun-1", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
 
 			err = k8sClient.Create(ctx, &newSyncRunCR)
 			Expect(err).To(BeNil())
 
-			Consistently(app, "20s", "1s").Should(
-				SatisfyAll(
-					appFixture.HaveSyncStatusCode(syncState),
-					appFixture.HaveOperationState(opState),
-				),
-			)
-
-			By("terminate the running sync operation")
-			removeCustomHealthCheckForDeployment(ctx, k8sClient, &argocdCM)
-
-			argocdNS := corev1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: app.Namespace,
-				},
-			}
-
-			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&argocdNS), &argocdNS)
-			Expect(err).To(BeNil())
-
-			cs := utils.NewCredentialService(nil, false)
-
-			err = utils.TerminateOperation(ctx, app.Name, argocdNS, cs, k8sClient, 5*time.Minute, log.FromContext(ctx))
-			Expect(err).To(BeNil())
-
-			By("since the operation is terminated, ensure that the service has retried syncing the previous GitOpsDeploymentSyncRun")
+			By("ensure that the new SyncRun CR is processed successfully")
 			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),

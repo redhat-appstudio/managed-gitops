@@ -3,7 +3,7 @@ module github.com/redhat-appstudio/managed-gitops/tests-e2e
 go 1.18
 
 require (
-	github.com/argoproj-labs/argocd-operator v0.3.0
+	github.com/argoproj-labs/argocd-operator v0.5.0
 	github.com/argoproj/argo-cd/v2 v2.5.5
 	github.com/argoproj/gitops-engine v0.7.1-0.20221004132320-98ccd3d43fd9
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible

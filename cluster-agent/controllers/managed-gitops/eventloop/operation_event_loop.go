@@ -21,7 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -931,7 +930,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 }
 
 func processOperation_GitOpsEngineInstance(ctx context.Context, dbOperation db.Operation, crOperation operation.Operation, opConfig operationConfig) (bool, error) {
-	var config *rest.Config
+	// var config *rest.Config
 	if dbOperation.Resource_id == "" {
 		return shouldRetryTrue, fmt.Errorf("resource id was nil while processing operation: " + crOperation.Name)
 	}
@@ -954,12 +953,12 @@ func processOperation_GitOpsEngineInstance(ctx context.Context, dbOperation db.O
 		}
 		fmt.Println("CCCCCCCCCCLLLUUUSSTTEEEERRRRRRRR-2")
 
-		// APISERVER=$(kubectl config view -o jsonpath="{.clusters[?(@.name==\"$CLUSTER_NAME\")].cluster.server}")
+		// APISERVER:=$(kubectl config view -o jsonpath="{.clusters[?(@.name==\"$CLUSTER_NAME\")].cluster.server}")
 
-		errfromSetUpArgoCD := utils.SetupArgoCD(ctx, config.Host, dbGitopsEngineInstance.Namespace_name, opConfig.eventClient, log)
+		errfromSetUpArgoCD := utils.SetupArgoCD(ctx, dbGitopsEngineInstance.Namespace_name, opConfig.eventClient, log)
 		if errfromSetUpArgoCD != nil {
 			log.Error(errfromScopedArgoCD, "Unable to setup ArgoCD for GitopsEngineInstance")
-			return shouldRetryTrue, errfromScopedArgoCD
+			return shouldRetryTrue, errfromSetUpArgoCD
 		}
 	}
 	fmt.Println("CCCCCCCCCCLLLUUUSSTTEEEERRRRRRRR-3")

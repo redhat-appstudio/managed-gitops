@@ -95,7 +95,7 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, names
 				},
 				Sharding: argocdoperator.ArgoCDApplicationControllerShardSpec{},
 			},
-			Dex: argocdoperator.ArgoCDDexSpec{
+			Dex: &argocdoperator.ArgoCDDexSpec{
 				OpenShiftOAuth: false,
 				Resources: &corev1.ResourceRequirements{
 					Limits: corev1.ResourceList{

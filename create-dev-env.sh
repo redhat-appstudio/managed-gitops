@@ -21,7 +21,7 @@ wait-until() {
     ((i++))
 
     if [ "${i}" -gt "${timeout}" ]; then
-      echo "postgress server never replied back, aborting due to ${timeout}s timeout!"
+      echo "postgres server never replied back, aborting due to ${timeout}s timeout!"
       exit 1
     fi
 
@@ -301,7 +301,7 @@ if ! docker ps | grep "$PGADMIN_CONTAINER" >/dev/null 2>&1; then
 fi
 
 echo
-echo "* Waiting $RETRIES seconds until postgress server is up..."
+echo "* Waiting $RETRIES seconds until postgres server is up..."
 wait-until "$POSTGRES_SERVER_IS_UP" "${RETRIES}"
 echo "  Done"
 echo

@@ -58,9 +58,10 @@ var _ = FDescribe("Test for creating opeartion with resource-type as Gitopsengin
 		It("tests whether the operation pointing to gitopsengineinstance resource type gets created successfully", func() {
 
 			clusterUser := db.ClusterUser{User_name: "gitops-service-user"}
-			dbQueries.CreateClusterUser(ctx, &clusterUser)
+			err := dbQueries.CreateClusterUser(ctx, &clusterUser)
+			Expect(err).To(BeNil())
 
-			err := CreateNewArgoCDInstance(namespace, clusterUser, k8sClient, log, dbQueries)
+			err = CreateNewArgoCDInstance(namespace, clusterUser, k8sClient, log, dbQueries)
 			Expect(err).To(BeNil())
 
 		})

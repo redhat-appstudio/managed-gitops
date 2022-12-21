@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"os"
+	"strings"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -133,10 +134,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	setupLog.Info("setting up webhooks")
-	if err = (&applicationv1alpha1.Snapshot{}).SetupWebhookWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create webhook", "webhook", "Snapshot")
-		os.Exit(1)
+	// If the webhook is not disabled, start listening on the webhook URL
+	if !strings.EqualFold(os.Getenv("DISABLE_APPSTUDIO_WEBHOOK"), "true") {
+
+		setupLog.Info("setting up webhooks")
+		if err = (&applicationv1alpha1.Snapshot{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Snapshot")
+			os.Exit(1)
+		}
+
 	}
 
 	//+kubebuilder:scaffold:builder

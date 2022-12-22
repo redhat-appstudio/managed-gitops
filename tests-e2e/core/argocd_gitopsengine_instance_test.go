@@ -5,8 +5,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
-	util "github.com/redhat-appstudio/managed-gitops/backend/util"
+	"github.com/redhat-appstudio/managed-gitops/backend/util"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	apps "k8s.io/api/apps/v1"
@@ -35,14 +36,17 @@ var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", fu
 			if err != nil {
 				panic(err)
 			}
+			// err = db.SetupForTestingDBGinkgo()
+			// Expect(err).To(BeNil())
 			err = fixture.DeleteNamespace(argocdNamespace, config)
 			Expect(err).To(BeNil())
-			err = fixture.DeleteNamespace(argocdCRName, config)
-			Expect(err).To(BeNil())
+			// err = fixture.DeleteNamespace(argocdCRName, config)
+			// Expect(err).To(BeNil())
 
 		})
 
 		It("ensures that a standalone ArgoCD gets created successfully when an operation CR of resource-type GitOpsEngineInstance is created", func() {
+			// var logger logr.Logger
 
 			if fixture.IsRunningAgainstKCP() {
 				Skip("Skipping this test until we support running gitops operator with KCP")
@@ -51,30 +55,76 @@ var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", fu
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).To(BeNil())
 			defer dbq.CloseDatabase()
+
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
+			testClusterUser := &db.ClusterUser{
+				Clusteruser_id: "test-user",
+				User_name:      "test-user",
+			}
+			// task := eventloop.processOperationEventTask{
+			// 	log: logger,
+			// 	event: eventloop.operationEventLoopEvent{
+			// 		request: newRequest(argocdNamespace, argocdNamespace),
+			// 		client:  k8sClient,
+			// 	},
+			// }
 
 			By("create a clusterUser and namespace for GitOpsEngineInstance where ArgoCD will be created")
 			ctx := context.Background()
 			log := log.FromContext(ctx)
 
-			namespaceCR := &corev1.Namespace{
+			// _, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
+			Expect(err).To(BeNil())
+			namespaceCR := corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      argocdCRName,
+					Name:      argocdNamespace,
 					Namespace: argocdNamespace,
 				},
 			}
-			err = k8s.Create(namespaceCR, k8sClient)
+			err = k8sClient.Create(ctx, &namespaceCR)
 			Expect(err).To(BeNil())
-			clusterUser := db.ClusterUser{User_name: "test-gitops-service-user-3"}
-			dbq.CreateClusterUser(ctx, &clusterUser)
 
-			err = util.CreateNewArgoCDInstance(namespaceCR, clusterUser, k8sClient, log, dbq)
+			err = util.CreateNewArgoCDInstance(&namespaceCR, *testClusterUser, k8sClient, log, dbq)
 			Expect(err).To(BeNil())
+
+			By("creating Operation row in database")
+			// operationDB := &db.Operation{
+			// 	Operation_id:            "test-operation",
+			// 	Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+			// 	Resource_id:             "test-fake-resource-id",
+			// 	Resource_type:           db.OperationResourceType_GitOpsEngineInstance,
+			// 	State:                   db.OperationState_Waiting,
+			// 	Operation_owner_user_id: testClusterUser.Clusteruser_id,
+			// }
+
+			// err = dbq.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+			// Expect(err).To(BeNil())
+
+			By("Operation row(test-wrong-operation) doesn't exists")
+			operationCR := &managedgitopsv1alpha1.Operation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      argocdNamespace,
+					Namespace: argocdNamespace,
+				},
+				Spec: managedgitopsv1alpha1.OperationSpec{
+					OperationID: "test-wrong-operation",
+				},
+			}
+
+			err = k8s.Create(operationCR, k8sClient)
+			Expect(err).To(BeNil())
+
+			// clusterUser := db.ClusterUser{User_name: "test-gitops-service-user-3"}
+			// dbq.CreateClusterUser(ctx, &clusterUser)
+
+			// retry, err := task.PerformTask(ctx)
+			// Expect(err).To(BeNil())
+			// Expect(retry).To(BeFalse())
 
 			By("ensuring ArgoCD service resource exists")
 			argocdInstance := &apps.Deployment{
-				ObjectMeta: metav1.ObjectMeta{Name: argocdCRName + "-server", Namespace: argocdCRName},
+				ObjectMeta: metav1.ObjectMeta{Name: argocdNamespace + "-server", Namespace: argocdNamespace},
 			}
 
 			Eventually(argocdInstance, "60s", "5s").Should(k8s.ExistByName(k8sClient))

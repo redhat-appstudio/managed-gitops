@@ -6,6 +6,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	matcher "github.com/onsi/gomega/types"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
@@ -306,6 +307,140 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 
 			Expect(userDevErr.DevError().Error()).Should(Equal(expectedDevError))
 			Expect(userDevErr.UserError()).Should(Equal(expectedUserError))
+		})
+	})
+
+	Context("Set GitOpsDeploymentSyncRun conditions", func() {
+		// condition already present and no update
+		// condition not found
+		// condition difference
+
+		var (
+			ctx           context.Context
+			k8sClient     client.Client
+			syncRunCR     *managedgitopsv1alpha1.GitOpsDeploymentSyncRun
+			conditionType managedgitopsv1alpha1.GitOpsDeploymentConditionType
+		)
+
+		BeforeEach(func() {
+			scheme, _, _, workspace, err := tests.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			ctx = context.Background()
+
+			syncRunCR = &managedgitopsv1alpha1.GitOpsDeploymentSyncRun{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-syncrun",
+					Namespace: workspace.Name,
+				},
+			}
+
+			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(syncRunCR).Build()
+
+			conditionType = managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred
+		})
+
+		var haveErrOccurredConditionSet = func(expectedSyncRunStatus managedgitopsv1alpha1.GitOpsDeploymentSyncRunStatus) matcher.GomegaMatcher {
+
+			return WithTransform(func(syncRun *managedgitopsv1alpha1.GitOpsDeploymentSyncRun) bool {
+
+				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(syncRun), syncRun); err != nil {
+					GinkgoWriter.Println(err)
+					return false
+				}
+
+				if len(expectedSyncRunStatus.Conditions) != len(syncRun.Status.Conditions) {
+					return false
+				}
+
+				for i := 0; i < len(syncRun.Status.Conditions); i++ {
+					condition := syncRun.Status.Conditions[i]
+					expectedCondition := expectedSyncRunStatus.Conditions[i]
+
+					res := condition.Message == expectedCondition.Message &&
+						condition.Reason == expectedCondition.Reason &&
+						condition.Status == expectedCondition.Status &&
+						condition.Type == expectedCondition.Type
+
+					if !res {
+						GinkgoWriter.Println(condition, expectedCondition)
+						return false
+					}
+				}
+
+				return true
+
+			}, BeTrue())
+		}
+
+		It("should set a new condition if it is absent", func() {
+			expectedSyncRunStatus := managedgitopsv1alpha1.GitOpsDeploymentSyncRunStatus{
+				Conditions: []managedgitopsv1alpha1.GitOpsDeploymentSyncRunCondition{
+					{
+						Type:   managedgitopsv1alpha1.GitOpsDeploymentSyncRunConditionErrorOccurred,
+						Reason: managedgitopsv1alpha1.SyncRunReasonType(""),
+						Status: managedgitopsv1alpha1.GitOpsConditionStatusFalse,
+					},
+				},
+			}
+
+			err := setGitOpsDeploymentSyncRunCondition(ctx, k8sClient, syncRunCR, managedgitopsv1alpha1.SyncRunConditionType(conditionType), managedgitopsv1alpha1.SyncRunReasonType(""), managedgitopsv1alpha1.GitOpsConditionStatusFalse, "")
+			Expect(err).To(BeNil())
+
+			Expect(syncRunCR).Should(SatisfyAll(haveErrOccurredConditionSet(expectedSyncRunStatus)))
+		})
+
+		It("should update an existing condition if it has changed", func() {
+			syncRunStatus := managedgitopsv1alpha1.GitOpsDeploymentSyncRunStatus{
+				Conditions: []managedgitopsv1alpha1.GitOpsDeploymentSyncRunCondition{
+					{
+						Type:   managedgitopsv1alpha1.GitOpsDeploymentSyncRunConditionErrorOccurred,
+						Reason: managedgitopsv1alpha1.SyncRunReasonType(""),
+						Status: managedgitopsv1alpha1.GitOpsConditionStatusFalse,
+					},
+				},
+			}
+
+			syncRunCR.Status = syncRunStatus
+			Expect(k8sClient.Status().Update(ctx, syncRunCR)).To(BeNil())
+
+			expectedSyncRunStatus := managedgitopsv1alpha1.GitOpsDeploymentSyncRunStatus{
+				Conditions: []managedgitopsv1alpha1.GitOpsDeploymentSyncRunCondition{
+					{
+						Type:    managedgitopsv1alpha1.GitOpsDeploymentSyncRunConditionErrorOccurred,
+						Reason:  managedgitopsv1alpha1.SyncRunReasonType(conditionType),
+						Status:  managedgitopsv1alpha1.GitOpsConditionStatusTrue,
+						Message: "error occured due to xyz",
+					},
+				},
+			}
+
+			err := setGitOpsDeploymentSyncRunCondition(ctx, k8sClient, syncRunCR, managedgitopsv1alpha1.SyncRunConditionType(conditionType), managedgitopsv1alpha1.SyncRunReasonType(conditionType), managedgitopsv1alpha1.GitOpsConditionStatusTrue, expectedSyncRunStatus.Conditions[0].Message)
+			Expect(err).To(BeNil())
+
+			Expect(syncRunCR).Should(SatisfyAll(haveErrOccurredConditionSet(expectedSyncRunStatus)))
+		})
+
+		It("shouldn't update an existing condition if it hasn't changed", func() {
+
+			expectedSyncRunStatus := managedgitopsv1alpha1.GitOpsDeploymentSyncRunStatus{
+				Conditions: []managedgitopsv1alpha1.GitOpsDeploymentSyncRunCondition{
+					{
+						Type:    managedgitopsv1alpha1.GitOpsDeploymentSyncRunConditionErrorOccurred,
+						Reason:  managedgitopsv1alpha1.SyncRunReasonType(conditionType),
+						Status:  managedgitopsv1alpha1.GitOpsConditionStatusTrue,
+						Message: "error occured due to xyz",
+					},
+				},
+			}
+
+			syncRunCR.Status = expectedSyncRunStatus
+			Expect(k8sClient.Status().Update(ctx, syncRunCR)).To(BeNil())
+
+			err := setGitOpsDeploymentSyncRunCondition(ctx, k8sClient, syncRunCR, managedgitopsv1alpha1.SyncRunConditionType(conditionType), managedgitopsv1alpha1.SyncRunReasonType(conditionType), managedgitopsv1alpha1.GitOpsConditionStatusTrue, expectedSyncRunStatus.Conditions[0].Message)
+			Expect(err).To(BeNil())
+
+			Expect(syncRunCR).Should(SatisfyAll(haveErrOccurredConditionSet(expectedSyncRunStatus)))
 		})
 	})
 })

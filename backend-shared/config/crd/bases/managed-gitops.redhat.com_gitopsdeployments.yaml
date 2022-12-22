@@ -68,6 +68,7 @@ spec:
                       this is a semver tag for the Chart's version.
                     type: string
                 required:
+                - path
                 - repoURL
                 type: object
               type:

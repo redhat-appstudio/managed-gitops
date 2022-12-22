@@ -39,12 +39,91 @@ func (action *applicationEventLoopRunner_Action) applicationEventRunner_handleSy
 
 	// TODO: GITOPSRVCE-44: If no user error (just dev error), then output generic error occurred
 
+	syncRunCR, clientErr := getGitOpsDeploymentSyncRun(ctx, action.workspaceClient, action.eventResourceName, action.eventResourceNamespace)
+	if clientErr != nil {
+		if !apierr.IsNotFound(clientErr) {
+			return fmt.Errorf("unable to get GitOpsDeploymentSyncRun: %v", err)
+		}
+		return nil
+	}
+
+	conditionType := managedgitopsv1alpha1.GitOpsDeploymentSyncRunConditionErrorOccurred
 	if err != nil {
+		// set the condition only for user errors
+		if err.UserError() != "" {
+			if err := setGitOpsDeploymentSyncRunCondition(ctx, action.workspaceClient, syncRunCR, conditionType, managedgitopsv1alpha1.SyncRunReasonType(conditionType), managedgitopsv1alpha1.GitOpsConditionStatusTrue, err.UserError()); err != nil {
+				return fmt.Errorf("failed to update the status of GitOpsDeploymentSyncRun: %v", err)
+			}
+		}
+
 		return err.DevError()
+	}
+
+	if err := setGitOpsDeploymentSyncRunCondition(ctx, action.workspaceClient, syncRunCR, conditionType, managedgitopsv1alpha1.SyncRunReasonType(""), managedgitopsv1alpha1.GitOpsConditionStatusFalse, ""); err != nil {
+		return fmt.Errorf("failed to update the status of GitOpsDeploymentSyncRun: %v", err)
 	}
 
 	return nil
 
+}
+
+func setGitOpsDeploymentSyncRunCondition(ctx context.Context, k8sClient client.Client, syncRunCR *managedgitopsv1alpha1.GitOpsDeploymentSyncRun, conditionType managedgitopsv1alpha1.SyncRunConditionType, reason managedgitopsv1alpha1.SyncRunReasonType, status managedgitopsv1alpha1.GitOpsConditionStatus, message string) error {
+
+	conditions := syncRunCR.Status.Conditions
+	conditionIndex := findConditionIndex(conditions, conditionType)
+
+	now := metav1.Now()
+
+	// create a new condition if it is absent
+	if conditionIndex == -1 {
+		syncRunCR.Status.Conditions = append(conditions, managedgitopsv1alpha1.GitOpsDeploymentSyncRunCondition{
+			Type:               conditionType,
+			LastTransitionTime: &now,
+			Status:             status,
+			Reason:             reason,
+			Message:            message,
+		})
+
+	} else {
+		// update the existing condition if it has changed
+		condition := &conditions[conditionIndex]
+		if message != condition.Message || status != condition.Status || reason != condition.Reason {
+			condition.LastTransitionTime = &now
+		}
+
+		condition.Message = message
+		condition.Status = status
+		condition.Reason = reason
+	}
+
+	return k8sClient.Status().Update(ctx, syncRunCR)
+}
+
+func findConditionIndex(conditions []managedgitopsv1alpha1.GitOpsDeploymentSyncRunCondition, conditionType managedgitopsv1alpha1.SyncRunConditionType) int {
+
+	for i, condition := range conditions {
+		if condition.Type == conditionType {
+			return i
+		}
+	}
+
+	return -1
+}
+
+func getGitOpsDeploymentSyncRun(ctx context.Context, k8sClient client.Client, name, namespace string) (*managedgitopsv1alpha1.GitOpsDeploymentSyncRun, error) {
+	syncRunCR := &managedgitopsv1alpha1.GitOpsDeploymentSyncRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+
+	err := k8sClient.Get(ctx, client.ObjectKeyFromObject(syncRunCR), syncRunCR)
+	if err != nil {
+		return nil, err
+	}
+
+	return syncRunCR, nil
 }
 
 func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRunModifiedInternal(ctx context.Context,

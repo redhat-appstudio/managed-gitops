@@ -34,16 +34,18 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			startApplicationEventQueueLoopWithFactory(context.Background(), aeqlParam, &mockApplicationEventLoopRunnerFactory)
 
+			inputEvent := &eventlooptypes.EventLoopEvent{
+				EventType:   eventlooptypes.DeploymentModified,
+				Request:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: "", Name: ""}},
+				Client:      nil,
+				ReqResource: eventlooptypes.GitOpsDeploymentTypeName,
+				WorkspaceID: "",
+			}
+
 			aeqlParam.InputChan <- RequestMessage{
 				Message: eventlooptypes.EventLoopMessage{
-					MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
-					Event: &eventlooptypes.EventLoopEvent{
-						EventType:   eventlooptypes.DeploymentModified,
-						Request:     reconcile.Request{NamespacedName: types.NamespacedName{Namespace: "", Name: ""}},
-						Client:      nil,
-						ReqResource: eventlooptypes.GitOpsDeploymentTypeName,
-						WorkspaceID: "",
-					},
+					MessageType:       eventlooptypes.ApplicationEventLoopMessageType_Event,
+					Event:             inputEvent,
 					ShutdownSignalled: false,
 				},
 				ResponseChan: nil, // no response channel needed
@@ -51,10 +53,10 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			outputEvent := <-mockApplicationEventLoopRunnerFactory.mockChannel
 			Expect(outputEvent).NotTo(BeNil())
-			Expect(outputEvent.EventType).To(Equal(outputEvent.EventType))
-			Expect(outputEvent.Request).To(Equal(outputEvent.Request))
-			Expect(outputEvent.ReqResource).To(Equal(outputEvent.ReqResource))
-			Expect(outputEvent.WorkspaceID).To(Equal(outputEvent.WorkspaceID))
+			Expect(outputEvent.EventType).To(Equal(inputEvent.EventType))
+			Expect(outputEvent.Request).To(Equal(inputEvent.Request))
+			Expect(outputEvent.ReqResource).To(Equal(inputEvent.ReqResource))
+			Expect(outputEvent.WorkspaceID).To(Equal(inputEvent.WorkspaceID))
 
 		})
 	})
@@ -108,10 +110,10 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			outputEvent := <-mockApplicationEventLoopRunnerFactory.mockChannel
 			Expect(outputEvent).NotTo(BeNil(), "we should have received the event on a runner")
-			Expect(outputEvent.EventType).To(Equal(outputEvent.EventType))
-			Expect(outputEvent.Request).To(Equal(outputEvent.Request))
-			Expect(outputEvent.ReqResource).To(Equal(outputEvent.ReqResource))
-			Expect(outputEvent.WorkspaceID).To(Equal(outputEvent.WorkspaceID))
+			Expect(outputEvent.EventType).To(Equal(event.EventType))
+			Expect(outputEvent.Request).To(Equal(event.Request))
+			Expect(outputEvent.ReqResource).To(Equal(event.ReqResource))
+			Expect(outputEvent.WorkspaceID).To(Equal(event.WorkspaceID))
 
 		})
 

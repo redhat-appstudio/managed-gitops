@@ -255,11 +255,11 @@ func handleWorkspaceEventLoopMessage(ctx context.Context, event eventlooptypes.E
 
 	// First, sanity check the event
 	if event.MessageType == eventlooptypes.ApplicationEventLoopMessageType_WorkComplete {
-		log.Error(nil, "SEVERE: invalid message type received in applicationEventLooRouter")
+		log.Error(nil, "SEVERE: invalid message type received in workspaceEventLoopRouter")
 		return
 	}
 	if event.Event == nil {
-		log.Error(nil, "SEVERE: event was nil in workspaceEventLooRouter")
+		log.Error(nil, "SEVERE: event was nil in workspaceEventLoopRouter")
 		return
 	}
 

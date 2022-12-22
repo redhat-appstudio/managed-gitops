@@ -963,11 +963,11 @@ func processOperation_GitOpsEngineInstance(ctx context.Context, dbOperation db.O
 
 		// APISERVER:=$(kubectl config view -o jsonpath="{.clusters[?(@.name==\"$CLUSTER_NAME\")].cluster.server}")
 
-		errfromSetUpArgoCD := utils.SetupArgoCD(ctx, dbGitopsEngineInstance.Namespace_name, opConfig.eventClient, log)
-		if errfromSetUpArgoCD != nil {
-			log.Error(errfromScopedArgoCD, "Unable to setup ArgoCD for GitopsEngineInstance")
-			return shouldRetryTrue, errfromSetUpArgoCD
-		}
+		// errfromSetUpArgoCD := utils.SetupArgoCD(ctx, dbGitopsEngineInstance.Namespace_name, opConfig.eventClient, log)
+		// if errfromSetUpArgoCD != nil {
+		// 	log.Error(errfromScopedArgoCD, "Unable to setup ArgoCD for GitopsEngineInstance")
+		// 	return shouldRetryTrue, errfromSetUpArgoCD
+		// }
 	}
 	fmt.Println("CCCCCCCCCCLLLUUUSSTTEEEERRRRRRRR-3")
 

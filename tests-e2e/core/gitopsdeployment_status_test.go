@@ -100,11 +100,11 @@ var _ = Describe("GitOpsDeployment Status Tests", func() {
 	})
 })
 
-var _ = Describe("GitOpsDeployment SyncError test", func() {
+var _ = Describe("GitOpsDeployment Status.Conditions tests", func() {
 
-	Context("Errors are set properly in Status.Sync.SyncError field of GitOpsDeployment", func() {
+	Context("Errors are set properly in Status.Conditions field of GitOpsDeployment", func() {
 
-		It("ensures that GitOpsDeployment .status.sync.syncError field contains the syncError if Application is not synced and error type of the error is SyncError ", func() {
+		It("ensures that GitOpsDeployment .Status.Conditions field contains the syncError if Application is not synced and type of the error is SyncError ", func() {
 
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
@@ -233,6 +233,88 @@ var _ = Describe("GitOpsDeployment SyncError test", func() {
 			By("delete the GitOpsDeployment resource")
 			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
+		})
+
+		It("ensures that GitOpsDeployment .Status.Conditions field contains the InvalidSpecError if spec.source.path field is empty in GitOpsDeployment CR", func() {
+
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			By("create an invalid GitOpsDeployment application")
+			gitOpsDeploymentResource := managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "managed-environment-gitops-depl",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						RepoURL: "https://github.com/redhat-appstudio/managed-gitops",
+						Path:    "",
+					},
+					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated,
+				},
+			}
+
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
+			Expect(err).To(Succeed())
+
+			expectedConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{
+				{
+					Type:    managedgitopsv1alpha1.GitOpsDeploymentConditionInvalidSpecError,
+					Message: "spec.source.path is a required field and it cannot be empty",
+					Status:  managedgitopsv1alpha1.GitOpsConditionStatusTrue,
+					Reason:  managedgitopsv1alpha1.GitOpsDeploymentReasonInvalidSpecError,
+				},
+			}
+
+			Eventually(gitOpsDeploymentResource, "5m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveConditions(expectedConditions),
+				),
+			)
+		})
+
+		It("ensures that GitOpsDeployment .Status.Conditions field contains the InvalidSpecError if spec.source.path field is '/' in GitOpsDeployment CR", func() {
+
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			By("create an invalid GitOpsDeployment application")
+			gitOpsDeploymentResource := managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "managed-environment-gitops-depl",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						RepoURL: "https://github.com/redhat-appstudio/managed-gitops",
+						Path:    "/",
+					},
+					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated,
+				},
+			}
+
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
+			Expect(err).To(Succeed())
+
+			expectedConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{
+				{
+					Type:    managedgitopsv1alpha1.GitOpsDeploymentConditionInvalidSpecError,
+					Message: "spec.source.path cannot be '/'",
+					Status:  managedgitopsv1alpha1.GitOpsConditionStatusTrue,
+					Reason:  managedgitopsv1alpha1.GitOpsDeploymentReasonInvalidSpecError,
+				},
+			}
+
+			Eventually(gitOpsDeploymentResource, "5m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveConditions(expectedConditions),
+				),
+			)
 		})
 	})
 })

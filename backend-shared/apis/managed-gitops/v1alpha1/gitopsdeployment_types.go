@@ -44,7 +44,7 @@ type ApplicationSource struct {
 	// RepoURL is the URL to the repository (Git or Helm) that contains the application manifests
 	RepoURL string `json:"repoURL"`
 	// Path is a directory path within the Git repository, and is only valid for applications sourced from Git.
-	Path string `json:"path,omitempty"`
+	Path string `json:"path"`
 	// TargetRevision defines the revision of the source to sync the application to.
 	// In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
 	// In case of Helm, this is a semver tag for the Chart's version.
@@ -178,8 +178,9 @@ type GitOpsDeploymentCondition struct {
 type GitOpsDeploymentConditionType string
 
 const (
-	GitOpsDeploymentConditionSyncError     GitOpsDeploymentConditionType = "SyncError"
-	GitOpsDeploymentConditionErrorOccurred GitOpsDeploymentConditionType = "ErrorOccurred"
+	GitOpsDeploymentConditionSyncError        GitOpsDeploymentConditionType = "SyncError"
+	GitOpsDeploymentConditionErrorOccurred    GitOpsDeploymentConditionType = "ErrorOccurred"
+	GitOpsDeploymentConditionInvalidSpecError GitOpsDeploymentConditionType = "InvalidSpecError"
 )
 
 // GitOpsConditionStatus is a type which represents possible comparison results
@@ -198,8 +199,9 @@ const (
 type GitOpsDeploymentReasonType string
 
 const (
-	GitopsDeploymentReasonSyncError     GitOpsDeploymentReasonType = "SyncError"
-	GitopsDeploymentReasonErrorOccurred GitOpsDeploymentReasonType = "ErrorOccurred"
+	GitopsDeploymentReasonSyncError        GitOpsDeploymentReasonType = "SyncError"
+	GitopsDeploymentReasonErrorOccurred    GitOpsDeploymentReasonType = "ErrorOccurred"
+	GitOpsDeploymentReasonInvalidSpecError GitOpsDeploymentReasonType = "InvalidSpecError"
 )
 
 //+kubebuilder:object:root=true

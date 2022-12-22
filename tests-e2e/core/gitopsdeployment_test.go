@@ -12,6 +12,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	typed "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -733,7 +734,9 @@ func expectAllResourcesToBeDeleted(expectedResourceStatusList []managedgitopsv1a
 				GinkgoWriter.Println("unrecognize kind:", resourceValue.Kind)
 				return false
 			}
-			if err := k8sclient.Get(context.Background(), resourceName, obj); err != nil {
+
+			// The object should not exist: a NotFound error should be returned, otherwise return false.
+			if err := k8sclient.Get(context.Background(), resourceName, obj); err == nil || !apierr.IsNotFound(err) {
 				return false
 			}
 		}

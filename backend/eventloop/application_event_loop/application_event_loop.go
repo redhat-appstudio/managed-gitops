@@ -53,7 +53,7 @@ type RequestMessage struct {
 	ResponseChan chan ResponseMessage
 }
 
-// RequestMessage is a message sent back on the ResponseChan of the RequestMessage
+// ResponseMesage is a message sent back on the ResponseChan of the RequestMessage
 type ResponseMessage struct {
 
 	// RequestAccepted is true if the Application Event Loop is actively accepting message, and false

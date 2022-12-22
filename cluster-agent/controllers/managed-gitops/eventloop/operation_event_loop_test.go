@@ -150,7 +150,7 @@ var _ = Describe("Operation Controller", func() {
 			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
 			Expect(err).To(BeNil())
 
-			By("Operation row(test-wrong-operation) doesn't exists")
+			By("Operation row insertion")
 			operationCR := &managedgitopsv1alpha1.Operation{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
@@ -181,7 +181,7 @@ var _ = Describe("Operation Controller", func() {
 			// gitopsEngineCluster := db.GitopsEngineCluster{
 			// 	Gitopsenginecluster_id: "test-fake-cluster-1",
 			// 	Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
-			// }
+			//
 
 			gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
 			Expect(gitopsEngineCluster).ToNot(BeNil())

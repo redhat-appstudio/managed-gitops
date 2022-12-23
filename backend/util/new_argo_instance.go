@@ -26,8 +26,11 @@ func CreateNewArgoCDInstance(namespace *corev1.Namespace, user db.ClusterUser, o
 			Name: "kube-system",
 		},
 	}
+	if err := k8sclient.Get(ctx, client.ObjectKeyFromObject(kubeSystemNamespace), kubeSystemNamespace); err != nil {
+		return fmt.Errorf("unable to retrieve kubesystem namespace %v", err)
+	}
 
-	gitopsEngineInstance, _, _, err := dbutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespace, kubeSystemNamespace.Name, dbQueries, log)
+	gitopsEngineInstance, _, _, err := dbutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespace, string(kubeSystemNamespace.UID), dbQueries, log)
 	if err != nil {
 		return err
 	}

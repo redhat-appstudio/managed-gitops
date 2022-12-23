@@ -23,6 +23,7 @@ var _ = FDescribe("Test for creating opeartion with resource-type as Gitopsengin
 		var log logr.Logger
 		var ctx context.Context
 		var namespace *corev1.Namespace
+		var operationid string
 
 		// Create a fake k8s client before each test
 		BeforeEach(func() {
@@ -50,6 +51,8 @@ var _ = FDescribe("Test for creating opeartion with resource-type as Gitopsengin
 			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).To(BeNil())
 
+			operationid = "test-operation"
+
 		})
 
 		AfterEach(func() {
@@ -61,7 +64,7 @@ var _ = FDescribe("Test for creating opeartion with resource-type as Gitopsengin
 			err := dbQueries.CreateClusterUser(ctx, &clusterUser)
 			Expect(err).To(BeNil())
 
-			err = CreateNewArgoCDInstance(namespace, clusterUser, k8sClient, log, dbQueries)
+			err = CreateNewArgoCDInstance(namespace, clusterUser, operationid, k8sClient, log, dbQueries)
 			Expect(err).To(BeNil())
 
 		})

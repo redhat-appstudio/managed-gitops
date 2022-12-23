@@ -33,12 +33,6 @@ func (action *applicationEventLoopRunner_Action) applicationEventRunner_handleSy
 	// Handle all GitOpsDeploymentSyncRun related events
 	err := action.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
 
-	// TODO: GITOPSRVCE-44: Get the SyncRunModified object from k8s, so we can update it if necessary
-
-	// TODO: GITOPSRVCE-44: Add the ErrorOccurred condition to the syncRunModified
-
-	// TODO: GITOPSRVCE-44: If no user error (just dev error), then output generic error occurred
-
 	syncRunCR, clientErr := getGitOpsDeploymentSyncRun(ctx, action.workspaceClient, action.eventResourceName, action.eventResourceNamespace)
 	if clientErr != nil {
 		if !apierr.IsNotFound(clientErr) {
@@ -281,8 +275,6 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 				// If the gitopsdepl doesn't exist, we really can't proceed any further
 
 				err := fmt.Errorf("unable to retrieve gitopsdeployment referenced in syncrun: %v", err)
-				// TODO: GITOPSRVCE-44 - ENHANCEMENT - If the gitopsDepl isn't referenced, update the status of the GitOpsDeplomentSyncRun condition as an error and return
-				// TODO: GITOPSRVCE-44 - ENHANCEMENT - implement status conditions on GitOpsDeploymentSyncRun
 				userError := fmt.Sprintf("Unable to retrieve GitOpsDeployment '%s' referenced by the GitOpsDeploymentSyncRun", gitopsDepl.Name)
 				log.Error(err, "handleSyncRunModified error")
 				return gitopserrors.NewUserDevError(userError, err)

@@ -264,9 +264,6 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 	})
 
 	Context("Set GitOpsDeploymentSyncRun conditions", func() {
-		// condition already present and no update
-		// condition not found
-		// condition difference
 
 		var (
 			ctx           context.Context

@@ -381,7 +381,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		log.Error(err, "GitOpsEngineCluster could not be found when processing Operation")
 		return &dbOperation, shouldRetryTrue, nil
 	} else if thisCluster.Gitopsenginecluster_id != dbGitopsEngineInstance.EngineCluster_id {
-		log.Error(nil, "SEVERE: The gitops engine cluster that the cluster-agent is running on did not match the operation's target argo cd instance id.")
+		log.Error(nil, "SEVERE: The gitops engine cluster that the cluster-agent is running on did not match the operation's target argo cd instance id.", thisCluster.Gitopsenginecluster_id)
 		return &dbOperation, shouldRetryTrue, nil
 	}
 	fmt.Println("C H E C K - 7")
@@ -954,7 +954,7 @@ func processOperation_GitOpsEngineInstance(ctx context.Context, dbOperation db.O
 		log.Error(err, "Unable to retrieve database GitopsEngineInstance row from database")
 		return shouldRetryTrue, err
 	} else {
-		errfromScopedArgoCD := utils.CreateNamespaceScopedArgoCD(ctx, crOperation.Name, dbGitopsEngineInstance.Namespace_name, opConfig.eventClient, log)
+		errfromScopedArgoCD := utils.CreateNamespaceScopedArgoCD(ctx, crOperation.Name, crOperation.Namespace, opConfig.eventClient, log)
 		if errfromScopedArgoCD != nil {
 			log.Error(errfromScopedArgoCD, "Unable to create namespace scoped ArgoCD for GitopsEngineInstance")
 			return shouldRetryTrue, errfromScopedArgoCD

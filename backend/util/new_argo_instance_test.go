@@ -64,7 +64,7 @@ var _ = FDescribe("Test for creating opeartion with resource-type as Gitopsengin
 			err := dbQueries.CreateClusterUser(ctx, &clusterUser)
 			Expect(err).To(BeNil())
 
-			err = CreateNewArgoCDInstance(namespace, clusterUser, operationid, k8sClient, log, dbQueries)
+			err = CreateNewArgoCDInstance(ctx, namespace, clusterUser, operationid, k8sClient, log, dbQueries)
 			Expect(err).To(BeNil())
 
 		})

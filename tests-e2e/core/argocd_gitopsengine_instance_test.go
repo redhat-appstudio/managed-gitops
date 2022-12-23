@@ -122,7 +122,7 @@ var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", fu
 			// err = dbq.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
 			// Expect(err).To(BeNil())
 
-			By("Operation row(test-wrong-operation) doesn't exists")
+			By("creating Operation CR")
 			operationCR := &managedgitopsv1alpha1.Operation{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      argocdNamespace,

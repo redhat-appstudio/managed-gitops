@@ -13,8 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func CreateNewArgoCDInstance(namespace *corev1.Namespace, user db.ClusterUser, operationid string, k8sclient client.Client, log logr.Logger, dbQueries db.AllDatabaseQueries) error {
-	ctx := context.Background()
+func CreateNewArgoCDInstance(ctx context.Context, namespace *corev1.Namespace, user db.ClusterUser, operationid string, k8sclient client.Client, log logr.Logger, dbQueries db.AllDatabaseQueries) error {
 
 	if err := k8sclient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace); err != nil {
 		return fmt.Errorf("unable to retrieve gitopsengine namespace: %v", err)
@@ -34,7 +33,7 @@ func CreateNewArgoCDInstance(namespace *corev1.Namespace, user db.ClusterUser, o
 	if err != nil {
 		return err
 	}
-	fmt.Println(gitopsEngineInstance.Namespace_name, gitopsEngineInstance.Namespace_uid, gitopsEngineInstance.EngineCluster_id)
+	fmt.Println(gitopsEngineInstance.Gitopsengineinstance_id, gitopsEngineInstance.Namespace_name, gitopsEngineInstance.Namespace_uid, gitopsEngineInstance.EngineCluster_id)
 	fmt.Println("BBBBBAAACCCKKKEENNNDDD -2")
 
 	operation := db.Operation{

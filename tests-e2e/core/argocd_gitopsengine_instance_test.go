@@ -59,9 +59,10 @@ var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", fu
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 			testClusterUser := &db.ClusterUser{
-				Clusteruser_id: "test-user",
+				Clusteruser_id: "test-user-234",
 				User_name:      "test-user",
 			}
+
 			// task := eventloop.processOperationEventTask{
 			// 	log: logger,
 			// 	event: eventloop.operationEventLoopEvent{
@@ -74,8 +75,10 @@ var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", fu
 			ctx := context.Background()
 			log := log.FromContext(ctx)
 
-			// _, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
+			By("Creating gitopsengine cluster,cluster user and namespace")
+			err = dbq.GetOrCreateSpecialClusterUser(ctx, testClusterUser)
 			Expect(err).To(BeNil())
+
 			namespaceCR := corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      argocdNamespace,
@@ -85,7 +88,25 @@ var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", fu
 			err = k8sClient.Create(ctx, &namespaceCR)
 			Expect(err).To(BeNil())
 
-			err = util.CreateNewArgoCDInstance(&namespaceCR, *testClusterUser, k8sClient, log, dbq)
+			// kubeSystemNamespace := &corev1.Namespace{
+			// 	ObjectMeta: metav1.ObjectMeta{
+			// 		Name: "kube-system",
+			// 	},
+			// }
+
+			// gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, kubeSystemNamespace.Name, dbq, log)
+			// Expect(err).To(BeNil())
+			// gitopsEngineInstanceput := db.GitopsEngineInstance{
+			// 	Gitopsengineinstance_id: "test-fake-engine-instance-id-6543",
+			// 	Namespace_name:          namespaceCR.Name,
+			// 	Namespace_uid:           kubeSystemNamespace.Name,
+			// 	EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+			// }
+
+			// err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstanceput)
+			// Expect(err).To(BeNil())
+
+			err = util.CreateNewArgoCDInstance(&namespaceCR, *testClusterUser, "test-operation", k8sClient, log, dbq)
 			Expect(err).To(BeNil())
 
 			By("creating Operation row in database")
@@ -108,19 +129,12 @@ var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", fu
 					Namespace: argocdNamespace,
 				},
 				Spec: managedgitopsv1alpha1.OperationSpec{
-					OperationID: "test-wrong-operation",
+					OperationID: "test-operation",
 				},
 			}
 
 			err = k8s.Create(operationCR, k8sClient)
 			Expect(err).To(BeNil())
-
-			// clusterUser := db.ClusterUser{User_name: "test-gitops-service-user-3"}
-			// dbq.CreateClusterUser(ctx, &clusterUser)
-
-			// retry, err := task.PerformTask(ctx)
-			// Expect(err).To(BeNil())
-			// Expect(retry).To(BeFalse())
 
 			By("ensuring ArgoCD service resource exists")
 			argocdInstance := &apps.Deployment{

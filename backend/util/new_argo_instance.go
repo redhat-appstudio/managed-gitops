@@ -13,7 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func CreateNewArgoCDInstance(namespace *corev1.Namespace, user db.ClusterUser, k8sclient client.Client, log logr.Logger, dbQueries db.AllDatabaseQueries) error {
+func CreateNewArgoCDInstance(namespace *corev1.Namespace, user db.ClusterUser, operationid string, k8sclient client.Client, log logr.Logger, dbQueries db.AllDatabaseQueries) error {
 	ctx := context.Background()
 
 	if err := k8sclient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace); err != nil {
@@ -31,9 +31,11 @@ func CreateNewArgoCDInstance(namespace *corev1.Namespace, user db.ClusterUser, k
 	if err != nil {
 		return err
 	}
+	fmt.Println(gitopsEngineInstance.Namespace_name, gitopsEngineInstance.Namespace_uid, gitopsEngineInstance.EngineCluster_id)
 	fmt.Println("BBBBBAAACCCKKKEENNNDDD -2")
 
 	operation := db.Operation{
+		Operation_id:            operationid,
 		Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
 		Operation_owner_user_id: user.Clusteruser_id,
 		Resource_type:           db.OperationResourceType_GitOpsEngineInstance,

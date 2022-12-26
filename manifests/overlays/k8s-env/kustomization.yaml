@@ -4,9 +4,9 @@ kind: Kustomization
 resources:
 - ../../base/crd
 - ../../base/gitops-namespace
-- ../../../../appstudio-controller/config/default
-- ../../../../backend/config/default
-- ../../../../cluster-agent/config/default
+- ../../../appstudio-controller/config/default
+- ../../../backend/config/default
+- ../../../cluster-agent/config/default
 - ../../base/postgresql-staging
 # - ../../base/gitops-service-argocd
 

@@ -119,6 +119,13 @@ run: manifests generate fmt vet ## Run a controller from your host.
 # - more on controller log level configuration: https://sdk.operatorframework.io/docs/building-operators/golang/references/logging/
 # - we disable webhook when running locally, because K8s will not be able to connect to our local process (which is a prereq for webhook supprot)
 
+.PHONY: chaos-run
+chaos-run: manifests generate fmt vet ## Chaos Engineering: Simulate a controller that restarts every ~33 seconds.
+	go build -o /tmp/appstudio-controller-manager-chaos main.go
+	KILL_INTERVAL="45" KILL_INITIAL="10" ../utilities/random-kill.sh /tmp/appstudio-controller-manager-chaos --zap-log-level info --zap-time-encoding=rfc3339nano
+	rm /tmp/appstudio-controller-manager-chaos
+
+
 #.PHONY: docker-build
 #docker-build: test ## Build docker image with the manager.
 #	docker build -t ${IMG} .

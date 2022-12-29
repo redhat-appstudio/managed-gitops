@@ -152,6 +152,10 @@ uninstall-all-k8s: undeploy-k8s-env
 start: ## Start all the components, compile & run (ensure goreman is installed, with 'go install github.com/mattn/goreman@latest')
 	$(GOBIN)/goreman start
 
+start-chaos: ## Start all the components, compile & run (ensure goreman is installed, with 'go install github.com/mattn/goreman@latest')
+	$(GOBIN)/goreman -f Procfile.chaos start
+
+
 clean: ## remove the bin and vendor folders from each component
 	cd $(MAKEFILE_ROOT)/backend-shared && make clean
 	cd $(MAKEFILE_ROOT)/backend && make clean

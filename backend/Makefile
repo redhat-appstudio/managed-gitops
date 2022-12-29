@@ -62,7 +62,13 @@ build: generate fmt vet ## Build manager binary.
 
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go --zap-log-level info --zap-time-encoding=rfc3339nano
+
 # more on controller log level configuration: https://sdk.operatorframework.io/docs/building-operators/golang/references/logging/
+
+chaos-run: manifests generate fmt vet ## Chaos Engineering: Simulate a controller that restarts every ~33 seconds.
+	go build -o /tmp/backend-manager-chaos  main.go
+	KILL_INTERVAL="45" KILL_INITIAL="10" ../utilities/random-kill.sh /tmp/backend-manager-chaos --zap-log-level info --zap-time-encoding=rfc3339nano
+	rm /tmp/backend-manager-chaos
 
 ##@ Deployment
 

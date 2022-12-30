@@ -5,14 +5,17 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
@@ -865,6 +868,69 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Entry("different appstudio label in both",
 				map[string]string{appstudioLabelKey + "/label1": "value"}, map[string]string{appstudioLabelKey + "/label2": "value"}, false),
 		)
+
+	})
+
+	Context("Test isNamespaceBeingDeleted", func() {
+
+		var k8sClient client.Client
+		ctx := context.Background()
+		log := log.FromContext(ctx)
+
+		BeforeEach(func() {
+			// Create fake client
+			scheme,
+				argocdNamespace,
+				kubesystemNamespace,
+				apiNamespace,
+				err := tests.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			// Create fake client
+			k8sClient = fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(apiNamespace, argocdNamespace, kubesystemNamespace).
+				Build()
+
+		})
+
+		It("should return false if the Namespace is not being deleted", func() {
+
+			namespace := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "ns",
+				},
+			}
+			err := k8sClient.Create(ctx, namespace)
+			Expect(err).To(BeNil())
+
+			res, err := isRequestInNamespaceBeingDeleted(ctx, namespace.Name, k8sClient, log)
+			Expect(res).To(BeFalse())
+			Expect(err).To(BeNil())
+
+		})
+
+		It("should return true if the Namespace has a deletionTimestamp", func() {
+
+			namespace := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "ns",
+					DeletionTimestamp: &metav1.Time{Time: time.Now()},
+				},
+			}
+			err := k8sClient.Create(ctx, namespace)
+			Expect(err).To(BeNil())
+
+			res, err := isRequestInNamespaceBeingDeleted(ctx, namespace.Name, k8sClient, log)
+			Expect(res).To(BeTrue())
+			Expect(err).To(BeNil())
+		})
+
+		It("should return false, with no error, if the Namespace doesn't exist", func() {
+			res, err := isRequestInNamespaceBeingDeleted(ctx, "does-not-exist", k8sClient, log)
+			Expect(res).To(BeFalse())
+			Expect(err).To(BeNil())
+		})
 
 	})
 })

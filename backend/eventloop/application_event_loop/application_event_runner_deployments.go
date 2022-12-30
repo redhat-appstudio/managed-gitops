@@ -231,6 +231,12 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 
 	}
 
+	// Don't process a new GitOpsDeployment in a Namespace that is in the process of being deleted.
+	if gitopsDeplNamespace.DeletionTimestamp != nil {
+		a.log.Info("Skipping GitOpsDeployment event in Namespace that is being deleted")
+		return nil, nil, deploymentModifiedResult_NoChange, nil
+	}
+
 	isWorkspaceTarget := gitopsDeployment.Spec.Destination.Environment == ""
 	managedEnv, engineInstance, destinationName, err := a.reconcileManagedEnvironmentOfGitOpsDeployment(ctx, gitopsDeployment,
 		gitopsDeplNamespace, isWorkspaceTarget)

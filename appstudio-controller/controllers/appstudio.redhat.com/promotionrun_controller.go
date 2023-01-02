@@ -79,7 +79,7 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	rClient := sharedutil.IfEnabledSimulateUnreliableClient(r.Client)
 
 	// If the Namespace is in the process of being deleted, don't handle any additional requests.
-	if isNamespaceBeingDeleted, err := isRequestInNamespaceBeingDeleted(ctx, req.Namespace,
+	if isNamespaceBeingDeleted, err := isRequestNamespaceBeingDeleted(ctx, req.Namespace,
 		rClient, log); isNamespaceBeingDeleted || err != nil {
 		return ctrl.Result{}, err
 	}

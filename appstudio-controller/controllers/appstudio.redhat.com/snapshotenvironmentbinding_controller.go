@@ -77,7 +77,7 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 	rClient := sharedutil.IfEnabledSimulateUnreliableClient(r.Client)
 
 	// If the Namespace is in the process of being deleted, don't handle any additional requests.
-	if isNamespaceBeingDeleted, err := isRequestInNamespaceBeingDeleted(ctx, req.Namespace,
+	if isNamespaceBeingDeleted, err := isRequestNamespaceBeingDeleted(ctx, req.Namespace,
 		rClient, log); isNamespaceBeingDeleted || err != nil {
 		return ctrl.Result{}, err
 	}
@@ -481,8 +481,8 @@ func removeAppStudioLabelsFromMap(m map[string]string) {
 	}
 }
 
-// isRequestInNamespaceBeingDeleted returns true if the Namespace of the resource is being deleted, false otherwise.
-func isRequestInNamespaceBeingDeleted(ctx context.Context, namespaceName string, k8sClient client.Client, log logr.Logger) (bool, error) {
+// isRequestNamespaceBeingDeleted returns true if the Namespace of the resource is being deleted, false otherwise.
+func isRequestNamespaceBeingDeleted(ctx context.Context, namespaceName string, k8sClient client.Client, log logr.Logger) (bool, error) {
 	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespaceName}}
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace); err != nil {
 		if apierr.IsNotFound(err) {

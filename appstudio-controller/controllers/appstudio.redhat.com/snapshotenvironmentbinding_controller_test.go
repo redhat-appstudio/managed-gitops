@@ -871,7 +871,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 	})
 
-	Context("Test isNamespaceBeingDeleted", func() {
+	Context("Test isRequestNamespaceBeingDeleted", func() {
 
 		var k8sClient client.Client
 		ctx := context.Background()
@@ -904,7 +904,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			err := k8sClient.Create(ctx, namespace)
 			Expect(err).To(BeNil())
 
-			res, err := isRequestInNamespaceBeingDeleted(ctx, namespace.Name, k8sClient, log)
+			res, err := isRequestNamespaceBeingDeleted(ctx, namespace.Name, k8sClient, log)
 			Expect(res).To(BeFalse())
 			Expect(err).To(BeNil())
 
@@ -921,13 +921,13 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			err := k8sClient.Create(ctx, namespace)
 			Expect(err).To(BeNil())
 
-			res, err := isRequestInNamespaceBeingDeleted(ctx, namespace.Name, k8sClient, log)
+			res, err := isRequestNamespaceBeingDeleted(ctx, namespace.Name, k8sClient, log)
 			Expect(res).To(BeTrue())
 			Expect(err).To(BeNil())
 		})
 
 		It("should return false, with no error, if the Namespace doesn't exist", func() {
-			res, err := isRequestInNamespaceBeingDeleted(ctx, "does-not-exist", k8sClient, log)
+			res, err := isRequestNamespaceBeingDeleted(ctx, "does-not-exist", k8sClient, log)
 			Expect(res).To(BeFalse())
 			Expect(err).To(BeNil())
 		})

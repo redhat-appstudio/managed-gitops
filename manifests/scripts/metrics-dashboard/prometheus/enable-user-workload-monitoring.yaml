@@ -1,0 +1,23 @@
+
+# This is a hack, which is likely to break based on changes to this ConfigMap :P
+# This was working as of OpenShift 4.11 - @jonwest, Jan 11, 2023
+
+apiVersion: v1
+data:
+  config.yaml: |-
+    enableUserWorkload: true  
+    prometheusK8s:
+
+      volumeClaimTemplate:
+        metadata:
+          name: prometheus-data
+          annotations:
+            openshift.io/cluster-monitoring-drop-pvc: "yes"
+        spec:
+          resources:
+            requests:
+              storage: 20Gi
+kind: ConfigMap
+metadata:
+  name: cluster-monitoring-config
+  namespace: openshift-monitoring

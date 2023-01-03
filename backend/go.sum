@@ -1039,8 +1039,11 @@ github.com/prometheus/procfs v0.7.3/go.mod h1:cz+aTbrPOrUb4q7XlbU9ygM+/jj0fzG6c1
 github.com/prometheus/tsdb v0.7.1/go.mod h1:qhTCs0VvXwvX/y3TZrWD7rabWM+ijKTux40TwIPHuXU=
 github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0-20221223144523-aa8214ccb5e9 h1:j/GVi1YCbizyjj5KrpFSPzbMI/2SaHVgzI6yisz/RT0=
 github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0-20221223144523-aa8214ccb5e9/go.mod h1:N5HSc2dyk4q0UIyW1hKTCECis35g8IpdlXUHNybNdmw=
+<<<<<<< HEAD
 github.com/redhat-appstudio/managed-gitops/utilities/db-migration v0.0.0-20230104103159-83d017120158 h1:F6Rd3lFOPKcjgLWiBZTXs/6QBbW+J8Jlj9Kiw8bXank=
 github.com/redhat-appstudio/managed-gitops/utilities/db-migration v0.0.0-20230104103159-83d017120158/go.mod h1:WtY+H8P4/WX6NYJcasIfuhkjKg0FN4dGSRIQHdJld/A=
+=======
+>>>>>>> 1ef413a (remove parent go deps in replace)
 github.com/remyoudompheng/bigfft v0.0.0-20190728182440-6a916e37a237/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
 github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=

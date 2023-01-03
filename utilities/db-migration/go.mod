@@ -4,7 +4,8 @@ go 1.18
 
 require (
 	github.com/golang-migrate/migrate/v4 v4.15.2
-	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0
+	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0-20221223144523-aa8214ccb5e9
+
 )
 
 require (
@@ -87,7 +88,5 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace (
-	github.com/redhat-appstudio/managed-gitops/backend-shared => ../../backend-shared
-	sigs.k8s.io/controller-runtime => github.com/kcp-dev/controller-runtime v0.12.2-0.20220808200255-4b60fd66e5de
-)
+//github.com/redhat-appstudio/managed-gitops/backend-shared => ../../backend-shared
+replace sigs.k8s.io/controller-runtime => github.com/kcp-dev/controller-runtime v0.12.2-0.20220808200255-4b60fd66e5de

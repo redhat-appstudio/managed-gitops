@@ -1812,6 +1812,8 @@ github.com/redhat-appstudio/application-api v0.0.0-20230111181119-3144e2878df0 h
 github.com/redhat-appstudio/application-api v0.0.0-20230111181119-3144e2878df0/go.mod h1:LpcTNLCDMf1CUNTw2bgTiz8M49sUsN2F9T7bOSKcJEo=
 github.com/redhat-appstudio/application-service v0.0.0-20220609190313-7a1a14b575dc h1:f0fQXsJZR5Du/PQS2SMBinju0b9PAHLEKPbOwg/ERAI=
 github.com/redhat-appstudio/application-service v0.0.0-20220609190313-7a1a14b575dc/go.mod h1:QME/qCjHbFRj7f9Jh5EN0mwXQTR1YVM4jImRXr3KKbk=
+github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0-20221223144523-aa8214ccb5e9 h1:j/GVi1YCbizyjj5KrpFSPzbMI/2SaHVgzI6yisz/RT0=
+github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0-20221223144523-aa8214ccb5e9/go.mod h1:N5HSc2dyk4q0UIyW1hKTCECis35g8IpdlXUHNybNdmw=
 github.com/redhat-appstudio/service-provider-integration-operator v0.4.3/go.mod h1:S7NKaaZ0rhCrmHGqae9i21ROY23LurTtII3eMKqxjBQ=
 github.com/redhat-appstudio/service-provider-integration-scm-file-retriever v0.4.3/go.mod h1:hzWm/OOlLXmtF8Qwox3GZlfGJAjVM7KaRkbBjmYAI9k=
 github.com/redhat-developer/alizer/go v0.0.0-20220609125305-b292b0edb1b0 h1:jYQdp7Lu5EPc4XtfSW2P08wC46C0YQStT400hDT2+S8=

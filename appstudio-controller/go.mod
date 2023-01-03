@@ -8,7 +8,7 @@ require (
 	github.com/onsi/gomega v1.20.1
 	github.com/redhat-appstudio/application-api v0.0.0-20230111181119-3144e2878df0
 	github.com/redhat-appstudio/application-service v0.0.0-20220609190313-7a1a14b575dc
-	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0
+	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0-20221223144523-aa8214ccb5e9
 	k8s.io/apimachinery v0.24.3
 	k8s.io/client-go v0.24.3
 	sigs.k8s.io/controller-runtime v0.13.0
@@ -148,11 +148,7 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace (
-	// TODO: GITOPSRVCE-211: This line can be removed, once the application-api PR has merged.
-	// github.com/redhat-appstudio/application-api => github.com/jgwest/application-api v0.0.0-20221123042158-cdfb05b10aac
-	github.com/redhat-appstudio/managed-gitops/backend => ../backend
-	github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
-	github.com/redhat-appstudio/managed-gitops/utilities/db-migration => ../utilities/db-migration
-	sigs.k8s.io/controller-runtime => github.com/kcp-dev/controller-runtime v0.12.2-0.20220808200255-4b60fd66e5de
-)
+// github.com/redhat-appstudio/managed-gitops/backend => ../backend
+// github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
+// github.com/redhat-appstudio/managed-gitops/utilities/db-migration => ../utilities/db-migration
+replace sigs.k8s.io/controller-runtime => github.com/kcp-dev/controller-runtime v0.12.2-0.20220808200255-4b60fd66e5de

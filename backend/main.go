@@ -40,7 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/go-logr/logr"
-	"github.com/redhat-appstudio/managed-gitops/utilities/db-migration/migrate"
+	"github.com/saumeya/managed-gitops/utilities/db-migration/migrate"
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 

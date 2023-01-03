@@ -1,4 +1,4 @@
-module github.com/redhat-appstudio/managed-gitops/utilities/db-migration
+module github.com/saumeya/managed-gitops/utilities/db-migration
 
 go 1.18
 

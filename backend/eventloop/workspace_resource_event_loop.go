@@ -182,8 +182,7 @@ func internalProcessWorkspaceResourceMessage(ctx context.Context, msg workspaceR
 		// Retrieve the namespace that the repository credential is contained within
 		namespace := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      req.Namespace,
-				Namespace: req.Namespace,
+				Name: req.Namespace,
 			},
 		}
 		if err := msg.apiNamespaceClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace); err != nil {
@@ -226,8 +225,7 @@ func internalProcessWorkspaceResourceMessage(ctx context.Context, msg workspaceR
 		// Retrieve the namespace that the managed environment is contained within
 		namespace := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      req.Namespace,
-				Namespace: req.Namespace,
+				Name: req.Namespace,
 			},
 		}
 		if err := msg.apiNamespaceClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace); err != nil {

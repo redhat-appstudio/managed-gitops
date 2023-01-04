@@ -29,9 +29,8 @@ var _ = Describe("Terminate Operation on Argo CD Application", func() {
 		It("If the operation never terminates, after we ask it to terminate, then an error should be returned.", func() {
 			argoCDNamespace := corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "argocd",
-					Namespace: "argocd",
-					UID:       uuid.NewUUID(),
+					Name: "argocd",
+					UID:  uuid.NewUUID(),
 				},
 			}
 
@@ -76,9 +75,8 @@ var _ = Describe("Terminate Operation on Argo CD Application", func() {
 		Context("Terminate Operation Goes To Done Test", func() {
 			argoCDNamespace := corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "argocd",
-					Namespace: "argocd",
-					UID:       uuid.NewUUID(),
+					Name: "argocd",
+					UID:  uuid.NewUUID(),
 				},
 			}
 			testCases := []struct {
@@ -154,9 +152,8 @@ var _ = Describe("Terminate Operation on Argo CD Application", func() {
 		It("Verify that the terminate operation exits immediately, if the application is deleted (no longer exists)", func() {
 			argoCDNamespace := corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "argocd",
-					Namespace: "argocd",
-					UID:       uuid.NewUUID(),
+					Name: "argocd",
+					UID:  uuid.NewUUID(),
 				},
 			}
 

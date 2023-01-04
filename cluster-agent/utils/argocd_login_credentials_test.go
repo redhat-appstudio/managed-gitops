@@ -27,8 +27,7 @@ var _ = Describe("ArgoCD Login Credentials", func() {
 
 				namespace := &corev1.Namespace{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "openshift-gitops",
-						Namespace: "openshift-gitops",
+						Name: "openshift-gitops",
 					},
 				}
 

@@ -25,8 +25,8 @@ import (
 // This ensures that:
 //   - When multiple 'application event loop' goroutines are attempting to create workspace-scoped resources,
 //     that no duplicates are created (eg it shouldn't be possible to create multiple ClusterUsers for a single user, or multiple
-//     ManagedEnvironments for a single workspace)
-//   - There are no race conditions on creation of workspace-scoped resources.
+//     ManagedEnvironments for a single namespace)
+//   - There are no race conditions on creation of namespace-scoped resources.
 //
 // API-namespace-scoped resources are:
 // - managedenv

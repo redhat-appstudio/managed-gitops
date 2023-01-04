@@ -31,34 +31,99 @@ import (
 // (which also corresponds to 1 instance of the Application Event Loop per Argo CD Application CR,
 // as there is also a 1:1 relationship between GitOpsDeployments CRs and Argo CD Application CRs).
 
-var (
+const (
 	// deploymentStatusTickRate is the rate at which the application event runner will be sent a message
 	// indicating that the GitOpsDeployment status field should be updated.
 	deploymentStatusTickRate = 15 * time.Second
+
+	// disableDeploymentStatusTickLogging disables logging of events related to the deployment status.
+	// - These events tend to be noisy, and this will help reduce this noise when debugging.
+	disableDeploymentStatusTickLogging = false
 )
 
-func StartApplicationEventQueueLoop(ctx context.Context, gitopsDeploymentName string, gitopsDeploymentNamespace string, workspaceID string,
-	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, vwsAPIExportName string) chan eventlooptypes.EventLoopMessage {
+// RequestMessage is a message sent to the Application Event Loop by the Workspace Event loop.
+type RequestMessage struct {
+	// Message is the primary message contents of the message sent to the Application Event loop
+	Message eventlooptypes.EventLoopMessage
 
-	res := make(chan eventlooptypes.EventLoopMessage)
-
-	go applicationEventQueueLoop(ctx, res, gitopsDeploymentName, gitopsDeploymentNamespace, workspaceID, sharedResourceEventLoop, defaultApplicationEventRunnerFactory{}, vwsAPIExportName)
-
-	return res
+	// If the sender of the message would like a reply to the message, they may pass a channel as
+	// part of the message. The receiver will reply on this channel.
+	// - ResponseChan may be nil, if no response is needed.
+	// - Not all message types support ResponseChan
+	ResponseChan chan ResponseMessage
 }
 
-func startApplicationEventQueueLoopWithFactory(ctx context.Context, gitopsDeploymentName string, gitopsDeploymentNamespace string, workspaceID string,
-	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, aerFactory applicationEventRunnerFactory, vwsAPIExportName string) chan eventlooptypes.EventLoopMessage {
+// ResponseMesage is a message sent back on the ResponseChan of the RequestMessage
+type ResponseMessage struct {
 
-	res := make(chan eventlooptypes.EventLoopMessage)
-
-	go applicationEventQueueLoop(ctx, res, gitopsDeploymentName, gitopsDeploymentNamespace, workspaceID, sharedResourceEventLoop, aerFactory, vwsAPIExportName)
-
-	return res
+	// RequestAccepted is true if the Application Event Loop is actively accepting message, and false
+	// if the request was rejected (because the Application Event Loop has shutdown)
+	RequestAccepted bool
 }
 
-func applicationEventQueueLoop(ctx context.Context, input chan eventlooptypes.EventLoopMessage, gitopsDeploymentName string, gitopsDeploymentNamespace string,
-	workspaceID string, sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop, aerFactory applicationEventRunnerFactory, vwsAPIExportName string) {
+// ApplicationEventQueueLoop contains the variables required to initialize an Application Event Loop. These refer
+// to the particular GitOpsDeployment that a Application Event Loop is responsible for handling.
+// - All fields are immutable: they should not be changed once first written.
+type ApplicationEventQueueLoop struct {
+
+	// GitopsDeploymentName is the GitOpsDeployment resource that this Appliction Event Loop is reponsible for handling
+	GitopsDeploymentName string
+
+	// GitopsDeploymentNamespace is the namespace of the above GitOpsDeployment
+	GitopsDeploymentNamespace string
+
+	// WorkspaceID is the UID of the namespace
+	WorkspaceID string
+
+	// SharedResourceEventLoop is a reference to the shared resource event loop
+	SharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop
+
+	// VwsAPIExportName is a KCP-only reference to the APIExport related to this API
+	VwsAPIExportName string
+
+	// InputChan is the channel that this Application Event Loop will listen for mesages on.
+	InputChan chan RequestMessage
+}
+
+// StartApplicationEventQueueLoop will start the Application Event Loop for the GitOpsDeployment referenced
+// in the aeqlParam parameter.
+func StartApplicationEventQueueLoop(ctx context.Context, aeqlParam ApplicationEventQueueLoop) {
+
+	go applicationEventQueueLoop(ctx,
+		aeqlParam.InputChan,
+		aeqlParam.GitopsDeploymentName,
+		aeqlParam.GitopsDeploymentNamespace,
+		aeqlParam.WorkspaceID,
+		aeqlParam.SharedResourceEventLoop,
+		defaultApplicationEventRunnerFactory{}, // use the default factory
+		aeqlParam.VwsAPIExportName)
+
+}
+
+// startApplicationEventQueueLoopWithFactory allows a custom applicationEventLoop factory to be passed, to replace
+// the default factory. This function should only be called/useful for unit tests.
+func startApplicationEventQueueLoopWithFactory(ctx context.Context, aeqlParam ApplicationEventQueueLoop, aerFactory applicationEventRunnerFactory) {
+
+	go applicationEventQueueLoop(ctx,
+		aeqlParam.InputChan,
+		aeqlParam.GitopsDeploymentName,
+		aeqlParam.GitopsDeploymentNamespace,
+		aeqlParam.WorkspaceID,
+		aeqlParam.SharedResourceEventLoop,
+		aerFactory, // use parameter-provided factory
+		aeqlParam.VwsAPIExportName)
+
+}
+
+// applicationEventQueueLoop is the main function of the application event loop: it accepts messages from the
+// workspace event loop, creates runners, and passes them to runners.
+func applicationEventQueueLoop(ctx context.Context,
+	input chan RequestMessage,
+	gitopsDeploymentName string, gitopsDeploymentNamespace string,
+	workspaceID string,
+	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop,
+	aerFactory applicationEventRunnerFactory,
+	vwsAPIExportName string) {
 
 	log := log.FromContext(ctx).WithValues("workspaceID", workspaceID, "gitOpsDeplName", gitopsDeploymentName,
 		"gitopsDeplNamespace", gitopsDeploymentNamespace).WithName("application-event-loop")
@@ -68,14 +133,14 @@ func applicationEventQueueLoop(ctx context.Context, input chan eventlooptypes.Ev
 
 	// Only one deployment event is processed at a time
 	// These are events that are waiting to be sent to application_event_runner_deployments runner
-	var activeDeploymentEvent *eventlooptypes.EventLoopEvent
-	waitingDeploymentEvents := []*eventlooptypes.EventLoopEvent{}
+	var activeDeploymentEvent *RequestMessage
+	waitingDeploymentEvents := []*RequestMessage{}
 
 	// Only one sync operation event is processed at a time
 	// For example: if the user created multiple GitOpsDeploymentSyncRun CRs, they will be processed to completion, one at a time.
 	// These are events that are waiting to be sent to application_event_runner_syncruns runner
-	var activeSyncOperationEvent *eventlooptypes.EventLoopEvent
-	waitingSyncOperationEvents := []*eventlooptypes.EventLoopEvent{}
+	var activeSyncOperationEvent *RequestMessage
+	waitingSyncOperationEvents := []*RequestMessage{}
 
 	deploymentEventRunner := aerFactory.createNewApplicationEventLoopRunner(input, sharedResourceEventLoop, gitopsDeploymentName,
 		gitopsDeploymentNamespace, workspaceID, "deployment")
@@ -88,56 +153,83 @@ func applicationEventQueueLoop(ctx context.Context, input chan eventlooptypes.Ev
 	// Start the ticker, which will -- every X seconds -- instruct the GitOpsDeployment CR fields to update
 	startNewStatusUpdateTimer(ctx, input, vwsAPIExportName, log)
 
+out:
 	for {
-
-		// If both the runners signal that they have shutdown, then exit
-		if deploymentEventRunnerShutdown && syncOperationEventRunnerShutdown {
-			log.V(sharedutil.LogLevel_Debug).Info("orderly termination of deployment and sync runners.")
-			break
-		}
-
 		// Block on waiting for more events for this application
 		newEvent := <-input
 
-		if newEvent.Event == nil {
-			log.Error(nil, "SEVERE: applicationEventQueueLoop event was nil", "messageType", newEvent.MessageType)
-			continue
+		eventLoopMessage := newEvent.Message.Event
+
+		if eventLoopMessage != nil {
+			if !(eventLoopMessage.EventType == eventlooptypes.UpdateDeploymentStatusTick && disableDeploymentStatusTickLogging) {
+				log.V(sharedutil.LogLevel_Debug).Info("applicationEventQueueLoop received event",
+					"event", eventlooptypes.StringEventLoopEvent(eventLoopMessage))
+
+			}
 		}
 
 		// If we've received a new event from the workspace event loop
-		if newEvent.MessageType == eventlooptypes.ApplicationEventLoopMessageType_Event {
+		if newEvent.Message.MessageType == eventlooptypes.ApplicationEventLoopMessageType_Event {
 
-			log := log.WithValues("event", eventlooptypes.StringEventLoopEvent(newEvent.Event))
+			if eventLoopMessage == nil {
+				log.Error(nil, "SEVERE: applicationEventQueueLoop event was nil", "thing", newEvent.Message.MessageType)
+				continue
+			}
 
-			log.V(sharedutil.LogLevel_Debug).Info("applicationEventQueueLoop received event")
+			// First check if the event loop has shutdown, and therefore we should reject the request
+			workRejected := deploymentEventRunnerShutdown && syncOperationEventRunnerShutdown
 
-			if newEvent.Event.ReqResource == eventlooptypes.GitOpsDeploymentTypeName {
+			// We reject the message from the workspace event loop if we have already shutdown
+			// - the workspace event loop will receive the rejection, and start up a new event loop
+			if newEvent.ResponseChan != nil {
+
+				// Inform the event loop if we have accepted/rejected their message
+				newEvent.ResponseChan <- ResponseMessage{
+					RequestAccepted: !workRejected,
+				}
+
+				// Terminate this event loop once we inform the workspace event loop that we have shutdown.
+				if workRejected {
+					break out
+				}
+			}
+
+			// Otherwise, if the response chan is nil, but work is rejected, just continue
+			if workRejected {
+				continue
+			}
+
+			// From this point on, the work has been accepted
+
+			log := log.WithValues("event", eventlooptypes.StringEventLoopEvent(eventLoopMessage))
+
+			if eventLoopMessage.ReqResource == eventlooptypes.GitOpsDeploymentTypeName {
 
 				if !deploymentEventRunnerShutdown {
-					waitingDeploymentEvents = append(waitingDeploymentEvents, newEvent.Event)
+					waitingDeploymentEvents = append(waitingDeploymentEvents, &newEvent)
 				} else {
 					log.V(sharedutil.LogLevel_Debug).Info("Ignoring post-shutdown deployment event")
 				}
 
-			} else if newEvent.Event.ReqResource == eventlooptypes.GitOpsDeploymentSyncRunTypeName {
+			} else if eventLoopMessage.ReqResource == eventlooptypes.GitOpsDeploymentSyncRunTypeName {
 
 				if !syncOperationEventRunnerShutdown {
-					waitingSyncOperationEvents = append(waitingSyncOperationEvents, newEvent.Event)
+					waitingSyncOperationEvents = append(waitingSyncOperationEvents, &newEvent)
 				} else {
 					log.V(sharedutil.LogLevel_Debug).Info("Ignoring post-shutdown sync operation event")
 				}
-			} else if newEvent.Event.ReqResource == eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName {
+			} else if eventLoopMessage.ReqResource == eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName {
 
 				if !deploymentEventRunnerShutdown {
-					waitingDeploymentEvents = append(waitingDeploymentEvents, newEvent.Event)
+					waitingDeploymentEvents = append(waitingDeploymentEvents, &newEvent)
 				} else {
 					log.V(sharedutil.LogLevel_Debug).Info("Ignoring post-shutdown managed environment event")
 				}
 
-			} else if newEvent.Event.EventType == eventlooptypes.UpdateDeploymentStatusTick {
+			} else if eventLoopMessage.EventType == eventlooptypes.UpdateDeploymentStatusTick {
 
 				if !deploymentEventRunnerShutdown {
-					waitingDeploymentEvents = append(waitingDeploymentEvents, newEvent.Event)
+					waitingDeploymentEvents = append(waitingDeploymentEvents, &newEvent)
 				} else {
 					log.V(sharedutil.LogLevel_Debug).Info("Ignoring post-shutdown deployment event")
 				}
@@ -147,38 +239,52 @@ func applicationEventQueueLoop(ctx context.Context, input chan eventlooptypes.Ev
 			}
 
 			// If we've received a work complete notification...
-		} else if newEvent.MessageType == eventlooptypes.ApplicationEventLoopMessageType_WorkComplete {
+		} else if newEvent.Message.MessageType == eventlooptypes.ApplicationEventLoopMessageType_WorkComplete {
 
-			log := log.WithValues("event", eventlooptypes.StringEventLoopEvent(newEvent.Event))
+			if eventLoopMessage == nil {
+				log.Error(nil, "SEVERE: applicationEventQueueLoop event was nil", "thing", newEvent.Message.MessageType)
+				continue
+			}
 
-			log.V(sharedutil.LogLevel_Debug).Info("applicationEventQueueLoop received work complete event")
+			if newEvent.ResponseChan != nil {
+				log.Error(nil, "SEVERE: WorkComplete does not support non-nil ResponseChan")
+			}
 
-			if newEvent.Event.EventType == eventlooptypes.UpdateDeploymentStatusTick {
+			log := log.WithValues("event", eventlooptypes.StringEventLoopEvent(eventLoopMessage))
+
+			if !(eventLoopMessage.EventType == eventlooptypes.UpdateDeploymentStatusTick && disableDeploymentStatusTickLogging) {
+
+				log.V(sharedutil.LogLevel_Debug).Info("applicationEventQueueLoop received work complete event")
+			}
+
+			if eventLoopMessage.EventType == eventlooptypes.UpdateDeploymentStatusTick {
 				// After we finish processing a previous status tick, start the timer to queue up a new one.
 				// This ensures we are always reminded to do a status update.
 				activeDeploymentEvent = nil
 				startNewStatusUpdateTimer(ctx, input, vwsAPIExportName, log)
 
-			} else if newEvent.Event.ReqResource == eventlooptypes.GitOpsDeploymentTypeName ||
-				newEvent.Event.ReqResource == eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName {
+			} else if eventLoopMessage.ReqResource == eventlooptypes.GitOpsDeploymentTypeName ||
+				eventLoopMessage.ReqResource == eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName {
 
-				if activeDeploymentEvent != newEvent.Event {
-					log.Error(nil, "SEVERE: unmatched deployment event work item", "activeDeploymentEvent", eventlooptypes.StringEventLoopEvent(activeDeploymentEvent))
+				if activeDeploymentEvent.Message.Event != newEvent.Message.Event {
+					log.Error(nil, "SEVERE: unmatched deployment event work item",
+						"activeDeploymentEvent", eventlooptypes.StringEventLoopEvent(activeDeploymentEvent.Message.Event))
 				}
 				activeDeploymentEvent = nil
 
-				deploymentEventRunnerShutdown = newEvent.ShutdownSignalled
+				deploymentEventRunnerShutdown = newEvent.Message.ShutdownSignalled
 				if deploymentEventRunnerShutdown {
 					log.Info("Deployment signalled shutdown")
 				}
 
-			} else if newEvent.Event.ReqResource == eventlooptypes.GitOpsDeploymentSyncRunTypeName {
+			} else if eventLoopMessage.ReqResource == eventlooptypes.GitOpsDeploymentSyncRunTypeName {
 
-				if newEvent.Event != activeSyncOperationEvent {
-					log.Error(nil, "SEVERE: unmatched sync operation event work item", "activeSyncOperationEvent", eventlooptypes.StringEventLoopEvent(activeSyncOperationEvent))
+				if activeSyncOperationEvent.Message.Event != newEvent.Message.Event {
+					log.Error(nil, "SEVERE: unmatched sync operation event work item",
+						"activeSyncOperationEvent", eventlooptypes.StringEventLoopEvent(activeSyncOperationEvent.Message.Event))
 				}
 				activeSyncOperationEvent = nil
-				syncOperationEventRunnerShutdown = newEvent.ShutdownSignalled
+				syncOperationEventRunnerShutdown = newEvent.Message.ShutdownSignalled
 				if syncOperationEventRunnerShutdown {
 					log.Info("Sync operation signalled shutdown")
 				}
@@ -187,8 +293,28 @@ func applicationEventQueueLoop(ctx context.Context, input chan eventlooptypes.Ev
 				log.Error(nil, "SEVERE: unexpected event resource type in applicationEventQueueLoop")
 			}
 
+			// If the parent workspace event loop is requesting our status...
+		} else if newEvent.Message.MessageType == eventlooptypes.ApplicationEventLoopMessageType_StatusCheck {
+
+			if newEvent.ResponseChan == nil { // sanity check the response chan
+				log.Error(nil, "SEVERE: StatusCheck does not support nil ResponseChan")
+				continue
+			}
+
+			workRejected := deploymentEventRunnerShutdown && syncOperationEventRunnerShutdown
+
+			// Inform the event loop if we have accepted/rejected their message
+			newEvent.ResponseChan <- ResponseMessage{
+				RequestAccepted: !workRejected,
+			}
+
+			// Terminate the event loop once we inform the workspace event loop that we have shutdown.
+			if workRejected {
+				break out
+			}
+
 		} else {
-			log.Error(nil, "SEVERE: Unrecognized workspace event type", "type", newEvent.MessageType)
+			log.Error(nil, "SEVERE: Unrecognized workspace event type", "type", newEvent.Message.MessageType)
 		}
 
 		// If we are not currently doing any deployment work, and there are events waiting, then send the next event to the runner
@@ -198,10 +324,21 @@ func applicationEventQueueLoop(ctx context.Context, input chan eventlooptypes.Ev
 			waitingDeploymentEvents = waitingDeploymentEvents[1:]
 
 			// Send the work to the runner
-			log.V(sharedutil.LogLevel_Debug).Info("About to send work to depl event runner", "event", eventlooptypes.StringEventLoopEvent(activeDeploymentEvent))
-			deploymentEventRunner <- activeDeploymentEvent
-			log.V(sharedutil.LogLevel_Debug).Info("Sent work to depl event runner", "event", eventlooptypes.StringEventLoopEvent(activeDeploymentEvent))
+			if !(activeDeploymentEvent.Message.Event.EventType == eventlooptypes.UpdateDeploymentStatusTick &&
+				disableDeploymentStatusTickLogging == true) {
+				log.V(sharedutil.LogLevel_Debug).Info("About to send work to depl event runner",
+					"event", eventlooptypes.StringEventLoopEvent(activeDeploymentEvent.Message.Event))
+			}
 
+			deploymentEventRunner <- activeDeploymentEvent.Message.Event
+
+			if !(activeDeploymentEvent.Message.Event.EventType == eventlooptypes.UpdateDeploymentStatusTick &&
+				disableDeploymentStatusTickLogging == true) {
+
+				log.V(sharedutil.LogLevel_Debug).Info("Sent work to depl event runner",
+					"event", eventlooptypes.StringEventLoopEvent(activeDeploymentEvent.Message.Event))
+
+			}
 		}
 
 		// If we are not currently doing any sync operation work, and there are events waiting, then send the next event to the runner
@@ -211,8 +348,9 @@ func applicationEventQueueLoop(ctx context.Context, input chan eventlooptypes.Ev
 			waitingSyncOperationEvents = waitingSyncOperationEvents[1:]
 
 			// Send the work to the runner
-			syncOperationEventRunner <- activeSyncOperationEvent
-			log.V(sharedutil.LogLevel_Debug).Info("Sent work to sync op runner", "event", eventlooptypes.StringEventLoopEvent(activeSyncOperationEvent))
+			syncOperationEventRunner <- activeSyncOperationEvent.Message.Event
+			log.V(sharedutil.LogLevel_Debug).Info("Sent work to sync op runner",
+				"event", eventlooptypes.StringEventLoopEvent(activeSyncOperationEvent.Message.Event))
 
 		}
 
@@ -227,12 +365,12 @@ func applicationEventQueueLoop(ctx context.Context, input chan eventlooptypes.Ev
 			}
 		}
 	}
-
 }
 
 // startNewStatusUpdateTimer will send a timer tick message to the application event loop in X seconds.
 // This tick informs the runner that it needs to update the status field of the Deployment.
-func startNewStatusUpdateTimer(ctx context.Context, input chan eventlooptypes.EventLoopMessage, vwsAPIExportName string, log logr.Logger) {
+func startNewStatusUpdateTimer(ctx context.Context, input chan RequestMessage, vwsAPIExportName string,
+	log logr.Logger) {
 
 	// Up to 1 second of jitter
 	// #nosec
@@ -266,15 +404,18 @@ func startNewStatusUpdateTimer(ctx context.Context, input chan eventlooptypes.Ev
 		clusterName, _ := logicalcluster.ClusterFromContext(ctx)
 
 		<-statusUpdateTimer.C
-		tickMessage := eventlooptypes.EventLoopMessage{
-			Event: &eventlooptypes.EventLoopEvent{
-				EventType: eventlooptypes.UpdateDeploymentStatusTick,
-				Request: reconcile.Request{
-					ClusterName: clusterName.String(),
+		tickMessage := RequestMessage{
+			Message: eventlooptypes.EventLoopMessage{
+				Event: &eventlooptypes.EventLoopEvent{
+					EventType: eventlooptypes.UpdateDeploymentStatusTick,
+					Request: reconcile.Request{
+						ClusterName: clusterName.String(),
+					},
+					Client: workspaceClient,
 				},
-				Client: workspaceClient,
+				MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
 			},
-			MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
+			ResponseChan: nil,
 		}
 		input <- tickMessage
 	}()
@@ -293,7 +434,7 @@ func getk8sClient(apiExportName string) (client.Client, error) {
 //
 // The defaultApplicationEventRunnerFactory should be used in all cases, except for when writing mocks for unit tests.
 type applicationEventRunnerFactory interface {
-	createNewApplicationEventLoopRunner(informWorkCompleteChan chan eventlooptypes.EventLoopMessage,
+	createNewApplicationEventLoopRunner(informWorkCompleteChan chan RequestMessage,
 		sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop,
 		gitopsDeplName string, gitopsDeplNamespace string, workspaceID string, debugContext string) chan *eventlooptypes.EventLoopEvent
 }
@@ -304,7 +445,7 @@ type defaultApplicationEventRunnerFactory struct {
 var _ applicationEventRunnerFactory = defaultApplicationEventRunnerFactory{}
 
 // createNewApplicationEventLoopRunner is a simple wrapper around the default function.
-func (defaultApplicationEventRunnerFactory) createNewApplicationEventLoopRunner(informWorkCompleteChan chan eventlooptypes.EventLoopMessage,
+func (defaultApplicationEventRunnerFactory) createNewApplicationEventLoopRunner(informWorkCompleteChan chan RequestMessage,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop,
 	gitopsDeplName string, gitopsDeplNamespace string, workspaceID string, debugContext string) chan *eventlooptypes.EventLoopEvent {
 

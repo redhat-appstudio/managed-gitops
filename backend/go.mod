@@ -12,8 +12,8 @@ require (
 	github.com/onsi/ginkgo/v2 v2.1.6
 	github.com/onsi/gomega v1.20.1
 	github.com/prometheus/client_golang v1.12.1
-	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0
-	github.com/redhat-appstudio/managed-gitops/utilities/db-migration v0.0.0
+	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0-20221223144523-aa8214ccb5e9
+	github.com/saumeya/managed-gitops/utilities/db-migration v0.0.0-20230103070513-8cd24905e4f8
 	github.com/stretchr/testify v1.7.1
 	go.uber.org/zap v1.19.1
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
@@ -106,8 +106,6 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace (
-	github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
-	github.com/redhat-appstudio/managed-gitops/utilities/db-migration => ../utilities/db-migration
-	sigs.k8s.io/controller-runtime => github.com/kcp-dev/controller-runtime v0.12.2-0.20220808200255-4b60fd66e5de
-)
+//github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
+//github.com/redhat-appstudio/managed-gitops/utilities/db-migration => ../utilities/db-migration
+replace sigs.k8s.io/controller-runtime => github.com/kcp-dev/controller-runtime v0.12.2-0.20220808200255-4b60fd66e5de

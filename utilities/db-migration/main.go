@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	migrate "github.com/redhat-appstudio/managed-gitops/utilities/db-migration/migrate"
+	migrate "github.com/saumeya/managed-gitops/utilities/db-migration/migrate"
 )
 
 func main() {

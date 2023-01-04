@@ -73,11 +73,11 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 		return newSharedResourceManagedEnvContainer(), nil
 	}
 
-	// After this point in the code, the API exists.
+	// After this point in the code, the API CR necessarily exists.
 
 	// Retrieve all existing APICRToDatabaseMappings for this resource name/namespace, and clean up the ones that don't match the UID
 	// of managedEnvironmentNew
-	if err := deleteManagedEnvironmentByAPINameAndNamespace(ctx, workspaceClient, managedEnvironmentCRName, managedEnvironmentCRNamespace,
+	if err := deleteManagedEnvironmentDBByAPINameAndNamespace(ctx, workspaceClient, managedEnvironmentCRName, managedEnvironmentCRNamespace,
 		string(managedEnvironmentCR.UID), workspaceNamespace, k8sClientFactory, dbQueries, *clusterUser, log); err != nil {
 		err2 := fmt.Errorf("unable to delete old managed environments by API name and namespace '%s' in '%s': %w",
 			managedEnvironmentCRName, managedEnvironmentCRNamespace, err)
@@ -256,7 +256,7 @@ func getManagedEnvironmentCRs(ctx context.Context,
 		if apierr.IsNotFound(err) {
 			log.Info("Managed environment could not be found, so function was called to clean database entry.")
 
-			err = deleteManagedEnvironmentByAPINameAndNamespace(ctx, workspaceClient, managedEnvironmentCRName,
+			err = deleteManagedEnvironmentDBByAPINameAndNamespace(ctx, workspaceClient, managedEnvironmentCRName,
 				managedEnvironmentCRNamespace, "", workspaceNamespace, k8sClientFactory, dbQueries, clusterUser, log)
 
 			return managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{}, corev1.Secret{}, resourceDoesNotExist, err
@@ -288,15 +288,15 @@ func getManagedEnvironmentCRs(ctx context.Context,
 	return managedEnvironmentCR, secretCR, resourceExists, nil
 }
 
-// deleteManagedEnvironmentByAPINameAndNamespace will delete all the Managed Environments (plus related resources) that
-// have the given name/namespace.
+// deleteManagedEnvironmentDBByAPINameAndNamespace will delete all the Managed Environments DB resources (plus related DB resources) that
+// have the given name/namespace (that don't match 'skipResourcesWithK8sUID')
 // Parameters:
 // - managedEnvironmentCRName: GitOpsDeploymentManagedEnvironment resource name
 // - managedEnvironmentCRNamespace: GitOpsDeploymentManagedEnvironment resource namespace
 // - skipResourceWithK8sUID: If 'skipResourceWithK8sUID' is non-empty, resources with this UID will NOT be deleted.
 //
 // Note: skipResourceWithK8sUID can be used to skip deleting a managed environment that is still valid.
-func deleteManagedEnvironmentByAPINameAndNamespace(ctx context.Context, workspaceClient client.Client,
+func deleteManagedEnvironmentDBByAPINameAndNamespace(ctx context.Context, workspaceClient client.Client,
 	managedEnvironmentCRName string,
 	managedEnvironmentCRNamespace string,
 	skipResourceWithK8sUID string,
@@ -328,8 +328,7 @@ func deleteManagedEnvironmentByAPINameAndNamespace(ctx context.Context, workspac
 		}
 
 		// 2a) Locate the managed environment DB row, if it exists
-		managedEnv := &db.ManagedEnvironment{
-			Managedenvironment_id: mapping.DBRelationKey}
+		managedEnv := &db.ManagedEnvironment{Managedenvironment_id: mapping.DBRelationKey}
 		if err := dbQueries.GetManagedEnvironmentById(ctx, managedEnv); err != nil {
 			if !db.IsResultNotFoundError(err) {
 				return fmt.Errorf("unable to retrieve managed environment: %v", err)

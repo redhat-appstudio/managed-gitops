@@ -32,7 +32,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 )
 
-var _ = Describe("Operation Controller", func() {
+var _ = FDescribe("Operation Controller", func() {
 	const (
 		name      = "operation"
 		namespace = "argocd"
@@ -170,18 +170,20 @@ var _ = Describe("Operation Controller", func() {
 
 		})
 
-		FIt("ensures that if the operation has a resource-type of GitOpsEngineInstance then the function processOperation_GitOpsEngineInstance() picks it successfully", func() {
+		It("ensures that if the operation has a resource-type of GitOpsEngineInstance then the function processOperation_GitOpsEngineInstance() picks it successfully", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
 
 			// err = db.SetupForTestingDBGinkgo()
 			// Expect(err).To(BeNil())
+
 			testClusterUser = &db.ClusterUser{
-				Clusteruser_id: "test-user",
-				User_name:      "test-user",
+				Clusteruser_id: "test-user123",
+				User_name:      "test-user123",
 			}
 			err = dbQueries.CreateClusterUser(ctx, testClusterUser)
+			Expect(err).To(BeNil())
 
 			// gitopsEngineCluster := db.GitopsEngineCluster{
 			// 	Gitopsenginecluster_id: "test-fake-cluster-1",

@@ -7,44 +7,41 @@ import (
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"github.com/redhat-appstudio/managed-gitops/backend/util"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	apps "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", func() {
 
 	const (
-		argocdNamespace      = fixture.NewArgoCDInstanceNamespace
-		argocdCRName         = "argocd-instance"
-		destinationNamespace = fixture.NewArgoCDInstanceDestNamespace
+		argocdNamespace = fixture.NewArgoCDInstanceNamespace
+		argocdCRName    = "argocd-instance"
+		workspace       = "my-user"
 	)
 
 	Context("ArgoCD instance gets created from an operation's gitopsEngineInstance resource-type", func() {
-		var argocdNamespace *v1.Namespace
-		var workspace *v1.Namespace
-		var err error
+
 		BeforeEach(func() {
 
-			By("Delete old namespaces, and kube-system resources")
-			Expect(fixture.EnsureCleanSlate()).To(Succeed())
-
 			By("deleting the namespace before the test starts, so that the code can create it")
-			// config, err := fixture.GetSystemKubeConfig()
-			// if err != nil {
-			// 	panic(err)
-			// }
+			config, err := fixture.GetSystemKubeConfig()
+			if err != nil {
+				panic(err)
+			}
 
-			// err = fixture.DeleteNamespace(argocdNamespace.Name, config)
-			// Expect(err).To(BeNil())
-
-			_, argocdNamespace, _, workspace, err = tests.GenericTestSetup()
+			err = fixture.DeleteNamespace(argocdNamespace, config)
 			Expect(err).To(BeNil())
+			err = fixture.DeleteNamespace(workspace, config)
+			Expect(err).To(BeNil())
+
+			// _, argocdNamespace, _, workspace, err = tests.GenericTestSetup()
+			// Expect(err).To(BeNil())
 
 		})
 
@@ -61,9 +58,10 @@ var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", fu
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
+
 			testClusterUser := &db.ClusterUser{
-				Clusteruser_id: "test-user-12",
-				User_name:      "test-user-12",
+				Clusteruser_id: "test-usernnnnn",
+				User_name:      "test-usernnnnn",
 			}
 
 			By("create a clusterUser and namespace for GitOpsEngineInstance where ArgoCD will be created")
@@ -80,6 +78,24 @@ var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", fu
 			// 		Namespace: argocdNamespace,
 			// 	},
 			// }
+
+			argocdNamespace := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: argocdNamespace,
+					UID:  uuid.NewUUID(),
+				},
+				Spec: corev1.NamespaceSpec{},
+			}
+
+			workspace := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: workspace,
+					UID:  uuid.NewUUID(),
+				},
+				Spec: corev1.NamespaceSpec{},
+			}
+			err = k8sClient.Create(ctx, argocdNamespace)
+			Expect(err).To(BeNil())
 			err = k8sClient.Create(ctx, workspace)
 			Expect(err).To(BeNil())
 
@@ -94,8 +110,6 @@ var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", fu
 			// 		Namespace: argocdCRName,
 			// 	},
 			// }
-			// err = k8sClient.Create(ctx, &namespaceCR)
-			// Expect(err).To(BeNil())
 
 			By("creating Operation CR")
 			operationCR := &managedgitopsv1alpha1.Operation{

@@ -217,12 +217,23 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, names
 			ResourceExclusions: string(resourceExclusions),
 		},
 	}
-
+	fmt.Println(namespace)
 	namespaceToCreate := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namespace,
 		},
 	}
+	// if err := k8sClient.Create(ctx, namespaceToCreate); err != nil {
+	// 	if apierr.IsAlreadyExists(err) {
+	// 		if err := k8sClient.Update(ctx, namespaceToCreate); err != nil {
+	// 			return fmt.Errorf("error on Update %v", err)
+	// 		}
+	// 		sharedutil.LogAPIResourceChangeEvent(namespaceToCreate.Namespace, namespaceToCreate.Name, namespaceToCreate, sharedutil.ResourceCreated, log)
+
+	// 	} else {
+	// 		return fmt.Errorf("error on Create %v", err)
+	// 	}
+	// }
 	if err := k8sClient.Create(ctx, namespaceToCreate); err != nil {
 		return fmt.Errorf("namespace could not be created: %v", err)
 	}

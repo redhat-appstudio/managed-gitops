@@ -956,6 +956,8 @@ func processOperation_GitOpsEngineInstance(ctx context.Context, dbOperation db.O
 	} else {
 		errfromScopedArgoCD := utils.CreateNamespaceScopedArgoCD(ctx, crOperation.Name, crOperation.Namespace, opConfig.eventClient, log)
 		if errfromScopedArgoCD != nil {
+			fmt.Println("CCCCCCCCCCLLLUUUSSTTEEEERRRRRRRR-1 : ")
+			fmt.Println(crOperation.Name, crOperation.Namespace, opConfig.argoCDNamespace.Namespace)
 			log.Error(errfromScopedArgoCD, "Unable to create namespace scoped ArgoCD for GitopsEngineInstance")
 			return shouldRetryTrue, errfromScopedArgoCD
 		}

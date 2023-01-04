@@ -73,7 +73,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 
 	gitopsDeplNamespace := corev1.Namespace{}
 
-	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: deplNamespace, Name: deplNamespace}, &gitopsDeplNamespace); err != nil {
+	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Name: deplNamespace}, &gitopsDeplNamespace); err != nil {
 		userError := fmt.Sprintf("unable to retrieve the contents of the namespace '%s' containing the API resource '%s'. Does it exist?",
 			deplNamespace, deplName)
 		devError := fmt.Errorf("unable to retrieve namespace '%s': %v", deplNamespace, err)
@@ -211,7 +211,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	a.log.Info("Received GitOpsDeployment event for a new GitOpsDeployment resource")
 
 	gitopsDeplNamespace := corev1.Namespace{}
-	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: gitopsDeployment.ObjectMeta.Namespace,
+	if err := a.workspaceClient.Get(ctx, types.NamespacedName{
 		Name: gitopsDeployment.ObjectMeta.Namespace}, &gitopsDeplNamespace); err != nil {
 
 		userError := "unable to access the Namespace containing the GitOpsDeployment resource"
@@ -352,7 +352,7 @@ func (a applicationEventLoopRunner_Action) handleDeleteGitOpsDeplEvent(ctx conte
 	a.log.Info("Received GitOpsDeployment event for a GitOpsDeployment resource that no longer exists (or does not exist)")
 
 	apiNamespace := corev1.Namespace{}
-	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: a.eventResourceNamespace, Name: a.eventResourceNamespace}, &apiNamespace); err != nil {
+	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Name: a.eventResourceNamespace}, &apiNamespace); err != nil {
 		userError := "unable to retrieve the namespace containing the GitOpsDeployment"
 		devError := fmt.Errorf("unable to retrieve workspace namespace")
 
@@ -470,7 +470,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 	}
 
 	apiNamespace := corev1.Namespace{}
-	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: a.eventResourceNamespace, Name: a.eventResourceNamespace}, &apiNamespace); err != nil {
+	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Name: a.eventResourceNamespace}, &apiNamespace); err != nil {
 		userError := "unable to retrieve namespace containing the GitOpsDeployment"
 		devError := fmt.Errorf("unable to retrieve workspace namespace")
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, devError)

@@ -199,6 +199,9 @@ type ApplicationScopedQueries interface {
 
 	CreateAPICRToDatabaseMapping(ctx context.Context, obj *APICRToDatabaseMapping) error
 
+	// Get APICRToDatabaseMapping in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+	GetAPICRToDatabaseMappingBatch(ctx context.Context, apiCRToDatabaseMapping *[]APICRToDatabaseMapping, limit, offSet int) error
+
 	// ListAPICRToDatabaseMappingByAPINamespaceAndName returns the DBRelationKey for a given type/name/namespace/namespace uid/db-relation-type query
 	ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx context.Context, apiCRResourceType APICRToDatabaseMapping_ResourceType,
 		crName string, crNamespace string, crNamespaceUID string, dbRelationType APICRToDatabaseMapping_DBRelationType,
@@ -227,11 +230,18 @@ type ApplicationScopedQueries interface {
 	DeleteApplicationStateById(ctx context.Context, id string) (int, error)
 
 	GetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment) error
+
+	// Delete ManagedEnvironment row by ID
+	DeleteManagedEnvironmentById(ctx context.Context, id string) (int, error)
+
 	GetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance) error
 
 	// GetAPICRForDatabaseUID retrieves the name/namespace/uid of an API Resources (such as GitOpsDeploymentManagedEnvironment)
 	// based on the primary key of the corresponding database row (for example, ManagedEnvironment)
 	GetAPICRForDatabaseUID(ctx context.Context, apiCRToDatabaseMapping *APICRToDatabaseMapping) error
+
+	// Delete RepositoryCredentials row by ID
+	DeleteRepositoryCredentialsByID(ctx context.Context, id string) (int, error)
 }
 
 type CloseableQueries interface {

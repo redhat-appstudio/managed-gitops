@@ -331,7 +331,7 @@ func deleteManagedEnvironmentDBByAPINameAndNamespace(ctx context.Context, worksp
 			// If the managed environment can't be found, there is no other work to do, so just continue.
 		} else {
 			// 2b) Whether or not the managed environment DB row exists, clean up all related database entries
-			if err := deleteManagedEnvironmentResources(ctx, managedEnv.Managedenvironment_id, managedEnv, user, k8sClientFactory, dbQueries, log); err != nil {
+			if err := DeleteManagedEnvironmentResources(ctx, managedEnv.Managedenvironment_id, managedEnv, user, k8sClientFactory, dbQueries, log); err != nil {
 				return fmt.Errorf("unable to delete managed environment row '%s': %v", managedEnv.Managedenvironment_id, err)
 			}
 		}
@@ -541,15 +541,17 @@ func createNewManagedEnv(ctx context.Context, managedEnvironment managedgitopsv1
 	return managedEnv, nil
 }
 
-func deleteManagedEnvironmentResources(ctx context.Context, managedEnvID string, managedEnvCR *db.ManagedEnvironment, user db.ClusterUser,
+func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string, managedEnvCR *db.ManagedEnvironment, user db.ClusterUser,
 	k8sClientFactory SRLK8sClientFactory, dbQueries db.DatabaseQueries, log logr.Logger) error {
 
 	log = log.WithValues("managedEnvID", managedEnvID)
 
 	// 1) Retrieve all the Applications that reference this ManagedEnvironment
 	applications := []db.Application{}
-	if _, err := dbQueries.ListApplicationsForManagedEnvironment(ctx, managedEnvID, &applications); err != nil {
-		return fmt.Errorf("unable to list applicatiosn for managed environment '%s': %v", managedEnvID, err)
+
+	log.Info("niling the values of Application rows that reference deleted ManagedEnvironment")
+	if _, err := dbQueries.RemoveManagedEnvironmentFromAllApplications(ctx, managedEnvID, &applications); err != nil {
+		return fmt.Errorf("unable to list applications for managed environment '%s': %v", managedEnvID, err)
 	}
 
 	// gitopsEngineInstances is a hash set of all the gitops engine instances that referenced the managed environment
@@ -561,14 +563,6 @@ func deleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 		app := applications[idx]
 
 		log := log.WithValues("applicationID", app.Application_id)
-
-		// Nil the managed environment field of the Application (since we are deleting the managed environment itself, and we have a foreign key here)
-		app.Managed_environment_id = ""
-		if err := dbQueries.UpdateApplication(ctx, &app); err != nil {
-			log.Error(err, "Unable to update Application row: nil-ing the managed environment field of Application that uses deleted managed environment")
-			return fmt.Errorf("unable to nil managed environment of applicaton '%s': %v", app.Application_id, err)
-		}
-		log.Info("Updated Application row: nil-ing the managed environment field of Application that uses deleted managed environment")
 
 		gitopsEngineInstance := &db.GitopsEngineInstance{
 			Gitopsengineinstance_id: app.Engine_instance_inst_id,

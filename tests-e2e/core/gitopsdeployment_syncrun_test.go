@@ -8,9 +8,11 @@ import (
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
+	appEventLoop "github.com/redhat-appstudio/managed-gitops/backend/eventloop/application_event_loop"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	appFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/application"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
+	syncRunFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeploymentsyncrun"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -84,6 +86,13 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
 				),
 			)
+
+			By("check if GitOpsDeploymentSyncRun is updated with the right conditions")
+			conditions := []managedgitopsv1alpha1.GitOpsDeploymentSyncRunCondition{
+				getDefaultSyncRunCondition(),
+			}
+			Eventually(syncRunCR, "60s", "1s").Should(SatisfyAll(syncRunFixture.HaveConditions(conditions)))
+
 		})
 
 		It("updating the spec of an existing GitOpsDeploymentSyncRun CR should not trigger a new sync", func() {
@@ -103,9 +112,23 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			)
 
 			By("update the revision field of GitOpsDeploymentSyncRun and verify that there is no Sync")
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&syncRunCR), &syncRunCR)
+			Expect(err).To(BeNil())
+
 			syncRunCR.Spec.RevisionID = "xyz"
 			err = k8sClient.Update(ctx, &syncRunCR)
 			Expect(err).To(BeNil())
+
+			By("check if GitOpsDeploymentSyncRun status is updated with the error")
+			conditions := []managedgitopsv1alpha1.GitOpsDeploymentSyncRunCondition{
+				{
+					Type:    managedgitopsv1alpha1.GitOpsDeploymentSyncRunConditionErrorOccurred,
+					Message: appEventLoop.ErrRevisionIsImmutable,
+					Reason:  getDefaultSyncRunReason(),
+					Status:  managedgitopsv1alpha1.GitOpsConditionStatusTrue,
+				},
+			}
+			Eventually(syncRunCR, "60s", "1s").Should(SatisfyAll(syncRunFixture.HaveConditions(conditions)))
 
 			By("verify there is no new sync triggered by checking history")
 			app := &appv1.Application{
@@ -132,6 +155,12 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			err := k8sClient.Create(ctx, &syncRunCR)
 			Expect(err).To(BeNil())
 
+			By("check if GitOpsDeploymentSyncRun is updated with the right condition")
+			conditions := []managedgitopsv1alpha1.GitOpsDeploymentSyncRunCondition{
+				getDefaultSyncRunCondition(),
+			}
+			Eventually(syncRunCR, "60s", "1s").Should(SatisfyAll(syncRunFixture.HaveConditions(conditions)))
+
 			By("check if the GitOpsDeployment is Synced and Healthy")
 			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
@@ -141,8 +170,14 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			)
 
 			By("update the SyncRun CR with no changes")
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&syncRunCR), &syncRunCR)
+			Expect(err).To(BeNil())
+
 			err = k8sClient.Update(ctx, &syncRunCR)
 			Expect(err).To(BeNil())
+
+			By("check if GitOpsDeploymentSyncRun conditions is not updated twice")
+			Eventually(syncRunCR, "60s", "1s").Should(SatisfyAll(syncRunFixture.HaveConditions(conditions)))
 
 			By("verify that there is no new sync triggered by checking history")
 			app := &appv1.Application{
@@ -243,6 +278,10 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 
 			err := k8sClient.Create(ctx, &syncRunCR)
 			Expect(err).To(BeNil())
+
+			By("check if GitOpsDeploymentSyncRun is updated with the right condition")
+			conditions := []managedgitopsv1alpha1.GitOpsDeploymentSyncRunCondition{getDefaultSyncRunCondition()}
+			Eventually(syncRunCR, "60s", "1s").Should(SatisfyAll(syncRunFixture.HaveConditions(conditions)))
 
 			By("check if the GitOpsDeployment is Synced and Healthy")
 			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
@@ -351,6 +390,12 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			err = k8sClient.Create(ctx, &newSyncRunCR)
 			Expect(err).To(BeNil())
 
+			By("check if GitOpsDeploymentSyncRun is updated with the right condition")
+			conditions := []managedgitopsv1alpha1.GitOpsDeploymentSyncRunCondition{
+				getDefaultSyncRunCondition(),
+			}
+			Eventually(newSyncRunCR, "60s", "1s").Should(SatisfyAll(syncRunFixture.HaveConditions(conditions)))
+
 			By("ensure that the new SyncRun CR is processed successfully")
 			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
@@ -387,6 +432,12 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 
 				err := k8sClient.Create(ctx, &syncRunCR)
 				Expect(err).To(BeNil())
+
+				By("check if GitOpsDeploymentSyncRun is updated with the right condition")
+				conditions := []managedgitopsv1alpha1.GitOpsDeploymentSyncRunCondition{
+					getDefaultSyncRunCondition(),
+				}
+				Eventually(syncRunCR, "60s", "1s").Should(SatisfyAll(syncRunFixture.HaveConditions(conditions)))
 			}
 
 			app := appv1.Application{
@@ -447,5 +498,20 @@ func buildGitOpsDeploymentSyncRunResource(name, ns, deplyName, revision string) 
 			GitopsDeploymentName: deplyName,
 			RevisionID:           revision,
 		},
+	}
+}
+
+func getDefaultSyncRunReason() managedgitopsv1alpha1.SyncRunReasonType {
+	return managedgitopsv1alpha1.SyncRunReasonType(
+		managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred,
+	)
+}
+
+func getDefaultSyncRunCondition() managedgitopsv1alpha1.GitOpsDeploymentSyncRunCondition {
+	return managedgitopsv1alpha1.GitOpsDeploymentSyncRunCondition{
+		Type:    managedgitopsv1alpha1.GitOpsDeploymentSyncRunConditionErrorOccurred,
+		Message: "",
+		Reason:  "",
+		Status:  managedgitopsv1alpha1.GitOpsConditionStatusFalse,
 	}
 }

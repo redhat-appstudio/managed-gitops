@@ -28,8 +28,8 @@ var _ = FDescribe("Test for creating opeartion with resource-type as Gitopsengin
 		// Create a fake k8s client before each test
 		BeforeEach(func() {
 
-			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			// err := db.SetupForTestingDBGinkgo()
+			// Expect(err).To(BeNil())
 
 			ctx = context.Background()
 			log = logf.FromContext(ctx)

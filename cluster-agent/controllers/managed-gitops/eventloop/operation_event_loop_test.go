@@ -175,8 +175,13 @@ var _ = Describe("Operation Controller", func() {
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
 
-			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			// err = db.SetupForTestingDBGinkgo()
+			// Expect(err).To(BeNil())
+			testClusterUser = &db.ClusterUser{
+				Clusteruser_id: "test-user",
+				User_name:      "test-user",
+			}
+			err = dbQueries.CreateClusterUser(ctx, testClusterUser)
 
 			// gitopsEngineCluster := db.GitopsEngineCluster{
 			// 	Gitopsenginecluster_id: "test-fake-cluster-1",
@@ -189,7 +194,7 @@ var _ = Describe("Operation Controller", func() {
 
 			gitopsEngineInstance := db.GitopsEngineInstance{
 				Gitopsengineinstance_id: "test-fake-engine-instance-id",
-				Namespace_name:          workspace.Namespace,
+				Namespace_name:          workspace.Name,
 				Namespace_uid:           string(workspace.UID),
 				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 			}

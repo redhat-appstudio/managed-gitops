@@ -50,8 +50,7 @@ var _ = Describe("ArgoCD AppSync Command", func() {
 
 				namespace := &corev1.Namespace{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "openshift-gitops",
-						Namespace: "openshift-gitops",
+						Name: "openshift-gitops",
 					},
 				}
 

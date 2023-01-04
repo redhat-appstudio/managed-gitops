@@ -303,7 +303,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 					EventType: eventlooptypes.DeploymentModified,
 					Request: reconcile.Request{
 						NamespacedName: types.NamespacedName{
-							Namespace: apiNamespace.Namespace,
+							Namespace: apiNamespace.Name,
 							Name:      gitopsDepl.Name,
 						},
 					},

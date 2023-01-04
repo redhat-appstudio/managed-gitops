@@ -31,8 +31,7 @@ var _ = Describe("GitOpsEngine Client Test", Ordered, func() {
 
 			gitopsNamespace := corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "gitops",
-					Namespace: "gitops",
+					Name: "gitops",
 				},
 			}
 

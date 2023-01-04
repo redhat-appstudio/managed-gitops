@@ -331,7 +331,7 @@ var _ = Describe("Operation Controller", func() {
 				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 				gitopsEngineInstance := &db.GitopsEngineInstance{
 					Gitopsengineinstance_id: "test-fake-engine-instance",
-					Namespace_name:          workspace.Namespace,
+					Namespace_name:          workspace.Name,
 					Namespace_uid:           string(workspace.UID),
 					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 				}
@@ -419,7 +419,7 @@ var _ = Describe("Operation Controller", func() {
 				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 				gitopsEngineInstance := &db.GitopsEngineInstance{
 					Gitopsengineinstance_id: "test-fake-engine-instance",
-					Namespace_name:          workspace.Namespace,
+					Namespace_name:          workspace.Name,
 					Namespace_uid:           string(workspace.UID),
 					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 				}
@@ -525,7 +525,7 @@ var _ = Describe("Operation Controller", func() {
 				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 				gitopsEngineInstance := &db.GitopsEngineInstance{
 					Gitopsengineinstance_id: "test-fake-engine-instance",
-					Namespace_name:          workspace.Namespace,
+					Namespace_name:          workspace.Name,
 					Namespace_uid:           string(workspace.UID),
 					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 				}
@@ -700,7 +700,7 @@ var _ = Describe("Operation Controller", func() {
 					}
 					gitopsEngineInstance := &db.GitopsEngineInstance{
 						Gitopsengineinstance_id: "test-fake-engine-instance",
-						Namespace_name:          workspace.Namespace,
+						Namespace_name:          workspace.Name,
 						Namespace_uid:           string(workspace.UID),
 						EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 					}
@@ -867,7 +867,7 @@ var _ = Describe("Operation Controller", func() {
 				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 				gitopsEngineInstance := &db.GitopsEngineInstance{
 					Gitopsengineinstance_id: "test-fake-engine-instance",
-					Namespace_name:          workspace.Namespace,
+					Namespace_name:          workspace.Name,
 					Namespace_uid:           string(workspace.UID),
 					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 				}

@@ -53,7 +53,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 	log := a.log
 
 	namespace := corev1.Namespace{}
-	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: a.eventResourceNamespace, Name: a.eventResourceNamespace}, &namespace); err != nil {
+	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Name: a.eventResourceNamespace}, &namespace); err != nil {
 		userError := fmt.Sprintf("unable to retrieve the contents of the namespace '%s' containing the API resource '%s'. Does it exist?",
 			a.eventResourceNamespace, a.eventResourceName)
 		devError := fmt.Errorf("unable to retrieve namespace '%s': %v", a.eventResourceNamespace, err)

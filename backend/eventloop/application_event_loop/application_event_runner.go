@@ -230,8 +230,7 @@ func handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx context.C
 		// 2a) Retrieve the Namespace containing the ManagedEnvironment CR
 		gitopsDeplNamespace := corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      managedEnvEvent.Request.Namespace,
-				Namespace: managedEnvEvent.Request.Namespace,
+				Name: managedEnvEvent.Request.Namespace,
 			},
 		}
 		if err := managedEnvEvent.Client.Get(ctx, client.ObjectKeyFromObject(&gitopsDeplNamespace), &gitopsDeplNamespace); err != nil {

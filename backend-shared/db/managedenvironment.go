@@ -110,7 +110,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetManagedEnvironmentById(ctx context.Cont
 	}
 
 	if len(dbResults) == 0 {
-		return NewResultNotFoundError("error on retrieving GetGitopsEngineInstanceById")
+		return NewResultNotFoundError("error on retrieving GetManagedEnvironmentById")
 	}
 
 	*managedEnvironment = dbResults[0]

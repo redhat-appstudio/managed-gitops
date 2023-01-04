@@ -122,9 +122,17 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 				Name:      applicationFromDB.Name,
 				Namespace: applicationFromDB.Namespace}
 
-			err := client.Get(ctx, namespacedName, &applicationFromArgoCD)
-			if err != nil {
+			if err := client.Get(ctx, namespacedName, &applicationFromArgoCD); err != nil {
 				if apierr.IsNotFound(err) {
+
+					if applicationRowFromDB.Managed_environment_id == "" {
+						// We shouldn't recreate any Argo CD Application resources that have a nil managed environment row
+						// - A nil managed environment row means the Application is currently invalid (until the user fixes it, by updating the GitOpsDeployment)
+
+						// So we just continue to the next Application
+						continue
+					}
+
 					log.Info("Application " + applicationRowFromDB.Application_id + " not found in ArgoCD, probably user deleted it, " +
 						"but it still exists in DB, hence recreating application in ArgoCD.")
 
@@ -141,26 +149,32 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 						log.Error(err, "Namespace Reconciler is unable to create operation: "+dbOperationInput.ShortString())
 					}
 					log.Info("Operation is created to recreateArgoCD  Application " + applicationRowFromDB.Application_id)
-					continue
 				} else {
 					log.Error(err, "Error occurred in Namespace Reconciler while fetching application from cluster: "+applicationRowFromDB.Application_id)
+				}
+				continue
+			}
+
+			// If the managed_environment_id row is not empty, then it depends on whether the DB spec field matches the
+			if applicationRowFromDB.Managed_environment_id != "" {
+
+				// At this point we have the applications from ArgoCD and DB, now compare them to check if they are not in Sync.
+
+				if compare, err := controllers.CompareApplication(applicationFromArgoCD, applicationRowFromDB, log); err != nil {
+					log.Error(err, "unable to compare application contents")
+					continue
+				} else if compare != "" {
+					log.Info("Argo application is not in Sync with DB, updating Argo CD App. Application:" + applicationRowFromDB.Application_id)
+				} else {
+					log.V(sharedutil.LogLevel_Debug).Info("Argo application is in Sync with DB, Application:" + applicationRowFromDB.Application_id)
 					continue
 				}
 			}
 
-			// At this point we have the applications from ArgoCD and DB, now compare them to check if they are not in Sync.
-			if compare, err := controllers.CompareApplication(applicationFromArgoCD, applicationRowFromDB, log); err != nil {
-				log.Error(err, "unable to compare application contents")
-				continue
-			} else if compare != "" {
-				log.Info("Argo application is not in Sync with DB, updating Argo CD App. Application:" + applicationRowFromDB.Application_id)
-			} else {
-				log.V(sharedutil.LogLevel_Debug).Info("Argo application is in Sync with DB, Application:" + applicationRowFromDB.Application_id)
-				continue
-			}
+			// else { if the managed_enviroment_id row is empty, then continue executing below as we should always create an Operation in this case }
 
-			// At this point application from ArgoCD and DB are not in Sync, so need to update Argo CD Application resource
-			// according to DB entry
+			// At this point application from ArgoCD and DB are not in Sync (or the managed env is empty),
+			// so need to update Argo CD Application resource according to DB entry.
 
 			// ArgoCD application and DB entry are not in Sync,
 			// ArgoCD should use the state of resources present in the database should
@@ -171,9 +185,8 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 				Resource_type: db.OperationResourceType_Application,
 			}
 
-			_, _, err = operations.CreateOperation(ctx, false, dbOperationInput,
-				specialClusterUser.Clusteruser_id, cache.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, client, log)
-			if err != nil {
+			if _, _, err := operations.CreateOperation(ctx, false, dbOperationInput,
+				specialClusterUser.Clusteruser_id, cache.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, client, log); err != nil {
 				log.Error(err, "Namespace Reconciler is unable to create operation: "+dbOperationInput.ShortString())
 				continue
 			}

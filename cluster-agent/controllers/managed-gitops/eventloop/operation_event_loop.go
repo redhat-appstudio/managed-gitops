@@ -754,54 +754,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 
 		if db.IsResultNotFoundError(err) {
 			// The application db entry no longer exists, so delete the corresponding Application CR
-
-			// Find the Application that has the corresponding databaseID label
-			list := appv1.ApplicationList{}
-			labelSelector := labels.NewSelector()
-			req, err := labels.NewRequirement(controllers.ArgoCDApplicationDatabaseIDLabel, selection.Equals, []string{dbApplication.Application_id})
-			if err != nil {
-				log.Error(err, "SEVERE: invalid label requirement")
-				return shouldRetryFalse, err
-			}
-			labelSelector = labelSelector.Add(*req)
-			if err := opConfig.eventClient.List(ctx, &list, &client.ListOptions{
-				Namespace:     opConfig.argoCDNamespace.Name,
-				LabelSelector: labelSelector,
-			}); err != nil {
-				log.Error(err, "unable to complete Argo CD Application list")
-				return shouldRetryTrue, err
-			}
-
-			if len(list.Items) > 1 {
-				// Sanity test: should really only ever be 0 or 1
-				log.Error(nil, "SEVERE: unexpected number of items in list", "length", len(list.Items))
-			}
-
-			var firstDeletionErr error
-			for _, item := range list.Items {
-
-				log := log.WithValues("argoCDApplicationName", item.Name, "argoCDApplicationNamespace", item.Namespace)
-
-				log.Info("Deleting Argo CD Application that is no longer (or not) defined in the Application table.")
-
-				// Delete all Argo CD applications with the corresponding database label (but, there should be only one)
-				err := controllers.DeleteArgoCDApplication(ctx, item, opConfig.eventClient, log)
-				if err != nil {
-					log.Error(err, "error on deleting Argo CD Application")
-
-					if firstDeletionErr == nil {
-						firstDeletionErr = err
-					}
-				}
-			}
-
-			if firstDeletionErr != nil {
-				log.Error(firstDeletionErr, "Deletion of at least one Argo CD application failed.", "firstError", firstDeletionErr)
-				return shouldRetryTrue, firstDeletionErr
-			}
-
-			// success
-			return shouldRetryFalse, nil
+			return deleteArgoCDApplicationOfDeletedApplicationRow(ctx, dbApplication.Application_id, opConfig, log)
 
 		} else {
 			log.Error(err, "Unable to retrieve database Application row from database")
@@ -823,6 +776,11 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 
 		if apierr.IsNotFound(err) {
 			// The Application CR doesn't exist, so we need to create it
+
+			// However, we should not create the Argo CD Appliction if the Application row does not have a valid ManagedEnvironment foreign key
+			if dbApplication.Managed_environment_id == "" {
+				return shouldRetryFalse, nil
+			}
 
 			// Copy the contents of the Spec_field database column, into the Spec field of the Argo CD Application CR
 			if err := yaml.Unmarshal([]byte(dbApplication.Spec_field), app); err != nil {
@@ -908,6 +866,59 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 	}
 
 	return shouldRetryFalse, nil
+}
+
+// Delete all Argo CD Applications that reference a specific Application row
+func deleteArgoCDApplicationOfDeletedApplicationRow(ctx context.Context, dbApplicationID string, opConfig operationConfig, log logr.Logger) (bool, error) {
+
+	// Find the Application that has the corresponding databaseID label
+	list := appv1.ApplicationList{}
+	labelSelector := labels.NewSelector()
+	req, err := labels.NewRequirement(controllers.ArgoCDApplicationDatabaseIDLabel, selection.Equals, []string{dbApplicationID})
+	if err != nil {
+		log.Error(err, "SEVERE: invalid label requirement")
+		return shouldRetryFalse, err
+	}
+	labelSelector = labelSelector.Add(*req)
+	if err := opConfig.eventClient.List(ctx, &list, &client.ListOptions{
+		Namespace:     opConfig.argoCDNamespace.Name,
+		LabelSelector: labelSelector,
+	}); err != nil {
+		log.Error(err, "unable to complete Argo CD Application list")
+		return shouldRetryTrue, err
+	}
+
+	if len(list.Items) > 1 {
+		// Sanity test: should really only ever be 0 or 1
+		log.Error(nil, "SEVERE: unexpected number of items in list", "length", len(list.Items))
+	}
+
+	var firstDeletionErr error
+	for _, item := range list.Items {
+
+		log := log.WithValues("argoCDApplicationName", item.Name, "argoCDApplicationNamespace", item.Namespace)
+
+		log.Info("Deleting Argo CD Application that is no longer (or not) defined in the Application table.")
+
+		// Delete all Argo CD applications with the corresponding database label (but, there should be only one)
+		err := controllers.DeleteArgoCDApplication(ctx, item, opConfig.eventClient, log)
+		if err != nil {
+			log.Error(err, "error on deleting Argo CD Application")
+
+			if firstDeletionErr == nil {
+				firstDeletionErr = err
+			}
+		}
+	}
+
+	if firstDeletionErr != nil {
+		log.Error(firstDeletionErr, "Deletion of at least one Argo CD application failed.", "firstError", firstDeletionErr)
+		return shouldRetryTrue, firstDeletionErr
+	}
+
+	// success
+	return shouldRetryFalse, nil
+
 }
 
 // ensureManagedEnvironmentExists ensures that the managed environment described by 'application' is defined as an Argo CD

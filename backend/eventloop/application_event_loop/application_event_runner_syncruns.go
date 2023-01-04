@@ -21,9 +21,9 @@ import (
 )
 
 const (
-	errDeploymentNameIsImmutable = "deployment name field is immutable: changing it from its initial value is not supported"
+	ErrDeploymentNameIsImmutable = "deployment name field is immutable: changing it from its initial value is not supported"
 
-	errRevisionIsImmutable = "revision change is not supported: changing it from its initial value is not supported"
+	ErrRevisionIsImmutable = "revision change is not supported: changing it from its initial value is not supported"
 )
 
 // This file is responsible for processing events related to GitOpsDeploymentSyncRun CR.
@@ -570,15 +570,15 @@ func (a *applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplSyncRunEvent(
 	log.Info("Received GitOpsDeploymentSyncRun event for an existing GitOpsDeploymentSyncRun resource")
 
 	if syncOperation.DeploymentNameField != syncRunCR.Spec.GitopsDeploymentName {
-		err := fmt.Errorf(errDeploymentNameIsImmutable)
-		log.Error(err, errDeploymentNameIsImmutable)
-		return gitopserrors.NewUserDevError(errDeploymentNameIsImmutable, err)
+		err := fmt.Errorf(ErrDeploymentNameIsImmutable)
+		log.Error(err, ErrDeploymentNameIsImmutable)
+		return gitopserrors.NewUserDevError(ErrDeploymentNameIsImmutable, err)
 	}
 
 	if syncOperation.Revision != syncRunCR.Spec.RevisionID {
-		err := fmt.Errorf(errRevisionIsImmutable)
-		log.Error(err, errRevisionIsImmutable)
-		return gitopserrors.NewUserDevError(errRevisionIsImmutable, err)
+		err := fmt.Errorf(ErrRevisionIsImmutable)
+		log.Error(err, ErrRevisionIsImmutable)
+		return gitopserrors.NewUserDevError(ErrRevisionIsImmutable, err)
 	}
 
 	return nil

@@ -159,8 +159,8 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 			err = k8sClient.Update(ctx, gitopsDeplSyncRun)
 			Expect(err).To(BeNil())
 			userDevErr = applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
-			Expect(userDevErr.DevError().Error()).Should(Equal(errDeploymentNameIsImmutable))
-			Expect(userDevErr.UserError()).Should(Equal(errDeploymentNameIsImmutable))
+			Expect(userDevErr.DevError().Error()).Should(Equal(ErrDeploymentNameIsImmutable))
+			Expect(userDevErr.UserError()).Should(Equal(ErrDeploymentNameIsImmutable))
 
 			gitopsDeplSyncRun.Spec.GitopsDeploymentName = gitopsDepl.Name
 			err = k8sClient.Update(ctx, gitopsDeplSyncRun)
@@ -174,8 +174,8 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 			err = k8sClient.Update(ctx, gitopsDeplSyncRun)
 			Expect(err).To(BeNil())
 			userDevErr = applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
-			Expect(userDevErr.DevError().Error()).Should(Equal(errRevisionIsImmutable))
-			Expect(userDevErr.UserError()).Should(Equal(errRevisionIsImmutable))
+			Expect(userDevErr.DevError().Error()).Should(Equal(ErrRevisionIsImmutable))
+			Expect(userDevErr.UserError()).Should(Equal(ErrRevisionIsImmutable))
 		})
 
 		It("should terminate the SyncOperation and create an Operation when the SyncRun CR is deleted", func() {

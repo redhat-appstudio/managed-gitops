@@ -724,6 +724,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				},
 			}
 			err = bindingReconciler.Get(ctx, client.ObjectKeyFromObject(deployment), deployment)
+			Expect(err).To(BeNil())
 			deployment.Status.Sync.Status = apibackend.SyncStatusCodeSynced
 			err = bindingReconciler.Status().Update(ctx, deployment)
 			Expect(err).To(BeNil())
@@ -736,6 +737,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				},
 			}
 			err = bindingReconciler.Get(ctx, client.ObjectKeyFromObject(deployment), deployment)
+			Expect(err).To(BeNil())
 			deployment.Status.Sync.Status = apibackend.SyncStatusCodeOutOfSync
 			err = bindingReconciler.Status().Update(ctx, deployment)
 			Expect(err).To(BeNil())
@@ -781,6 +783,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				},
 			}
 			err = bindingReconciler.Get(ctx, client.ObjectKeyFromObject(deployment), deployment)
+			Expect(err).To(BeNil())
 			deployment.Status.Sync.Status = apibackend.SyncStatusCodeSynced
 			err = bindingReconciler.Status().Update(ctx, deployment)
 			Expect(err).To(BeNil())
@@ -793,6 +796,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				},
 			}
 			err = bindingReconciler.Get(ctx, client.ObjectKeyFromObject(deployment), deployment)
+			Expect(err).To(BeNil())
 			deployment.Status.Sync.Status = apibackend.SyncStatusCodeSynced
 			err = bindingReconciler.Status().Update(ctx, deployment)
 			Expect(err).To(BeNil())

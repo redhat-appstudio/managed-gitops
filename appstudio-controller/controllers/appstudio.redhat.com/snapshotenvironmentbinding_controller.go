@@ -167,7 +167,7 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 	// - If not, create/update it.
 	for componentName, expectedGitOpsDeployment := range expectedDeployments {
 
-		if err := r.processExpectedGitOpsDeployment(ctx, expectedGitOpsDeployment, binding, rClient); err != nil {
+		if err := processExpectedGitOpsDeployment(ctx, expectedGitOpsDeployment, *binding, rClient); err != nil {
 
 			errorMessage := fmt.Sprintf("Error occurred while processing expected GitOpsDeployment '%s' for Binding '%s'",
 				expectedGitOpsDeployment.Name, binding.Name)
@@ -262,8 +262,8 @@ const (
 )
 
 // processExpectedGitOpsDeployment processed the GitOpsDeployment that is expected for a particular Component
-func (r *SnapshotEnvironmentBindingReconciler) processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployment apibackend.GitOpsDeployment,
-	binding *appstudioshared.SnapshotEnvironmentBinding, k8sClient client.Client) error {
+func processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployment apibackend.GitOpsDeployment,
+	binding appstudioshared.SnapshotEnvironmentBinding, k8sClient client.Client) error {
 
 	log := log.FromContext(ctx).WithValues("binding", binding.Name, "gitOpsDeployment", expectedGitopsDeployment.Name, "namespace", binding.Namespace)
 	actualGitOpsDeployment := apibackend.GitOpsDeployment{}

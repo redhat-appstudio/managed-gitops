@@ -32,7 +32,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 )
 
-var _ = FDescribe("Operation Controller", func() {
+var _ = Describe("Operation Controller", func() {
 	const (
 		name      = "operation"
 		namespace = "argocd"

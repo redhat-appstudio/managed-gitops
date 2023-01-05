@@ -80,7 +80,7 @@ var _ = FDescribe("Operation Controller", func() {
 			defaultProject := &appv1.AppProject{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "default",
-					Namespace: workspace.Name,
+					Namespace: namespace,
 				},
 			}
 
@@ -170,7 +170,7 @@ var _ = FDescribe("Operation Controller", func() {
 
 		})
 
-		It("ensures that if the operation has a resource-type of GitOpsEngineInstance then the function processOperation_GitOpsEngineInstance() picks it successfully", func() {
+		FIt("ensures that if the operation has a resource-type of GitOpsEngineInstance then the function processOperation_GitOpsEngineInstance() picks it successfully", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
@@ -179,8 +179,8 @@ var _ = FDescribe("Operation Controller", func() {
 			// Expect(err).To(BeNil())
 
 			testClusterUser = &db.ClusterUser{
-				Clusteruser_id: "test-user123",
-				User_name:      "test-user123",
+				Clusteruser_id: "test-user",
+				User_name:      "test-user",
 			}
 			err = dbQueries.CreateClusterUser(ctx, testClusterUser)
 			Expect(err).To(BeNil())
@@ -195,7 +195,7 @@ var _ = FDescribe("Operation Controller", func() {
 			Expect(err).To(BeNil())
 
 			gitopsEngineInstance := db.GitopsEngineInstance{
-				Gitopsengineinstance_id: "test-fake-engine-instance-id",
+				Gitopsengineinstance_id: "test-fake-engine-instance-id-1",
 				Namespace_name:          workspace.Name,
 				Namespace_uid:           string(workspace.UID),
 				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,

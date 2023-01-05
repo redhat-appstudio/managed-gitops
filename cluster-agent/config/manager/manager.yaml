@@ -29,9 +29,12 @@ spec:
         - gitops-service-cluster-agent
         args:
         - --health-probe-bind-address=:8083
-        - --metrics-bind-address=127.0.0.1:8082
+        - --metrics-bind-address=:8080
         - --leader-elect
         - --zap-time-encoding=rfc3339nano
+        ports:
+          - containerPort: 8080
+            name: http-metrics
         env:
         - name: ARGO_CD_NAMESPACE
           value: gitops-service-argocd

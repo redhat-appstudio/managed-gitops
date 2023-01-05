@@ -32,6 +32,11 @@ spec:
         args:
         - --leader-elect
         - --zap-time-encoding=rfc3339nano
+        - --health-probe-bind-address=:8085
+        - --metrics-bind-address=:8080
+        ports:
+          - containerPort: 8080
+            name: http-metrics
         image: ${COMMON_IMAGE}
         name: manager
         securityContext:

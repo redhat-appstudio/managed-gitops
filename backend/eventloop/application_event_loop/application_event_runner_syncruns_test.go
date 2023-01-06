@@ -2,6 +2,7 @@ package application_event_loop
 
 import (
 	"context"
+	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -40,6 +41,9 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 					Name:      "my-gitops-depl",
 					Namespace: workspace.Name,
 					UID:       uuid.NewUUID(),
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual,
 				},
 			}
 
@@ -132,6 +136,9 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 					Name:      "new-gitopsdepl",
 					Namespace: gitopsDeplSyncRun.Namespace,
 					UID:       uuid.NewUUID(),
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual,
 				},
 			}
 
@@ -235,6 +242,46 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 			applicationAction.eventResourceName = "invalid-gitops-syncrun"
 			userDevErr := applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
 			Expect(userDevErr.DevError().Error()).Should(Equal(expectedErr))
+		})
+
+		It("should return an error for a GitOpsDeployment with Automated sync policy", func() {
+
+			By("create a GitOpsDeployment with Automated sync policy")
+			gitopsDeplAutomated := managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-depl-automated",
+					Namespace: gitopsDepl.Namespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated,
+				},
+			}
+
+			err := k8sClient.Create(ctx, &gitopsDeplAutomated)
+			Expect(err).To(BeNil())
+
+			By("create a SyncRun CR pointing to the above GitOpsDeployment")
+			syncRun := managedgitopsv1alpha1.GitOpsDeploymentSyncRun{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "syncrun",
+					Namespace: gitopsDeplAutomated.Namespace,
+					UID:       uuid.NewUUID(),
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSyncRunSpec{
+					GitopsDeploymentName: gitopsDeplAutomated.Name,
+				},
+			}
+
+			err = k8sClient.Create(ctx, &syncRun)
+			Expect(err).To(BeNil())
+
+			By("check if an error is returned")
+			expectedErr := fmt.Sprintf("invalid GitOpsDeploymentSyncRun '%s'. Syncing a GitOpsDeployment with Automated sync policy is not allowed", syncRun.Name)
+
+			applicationAction.eventResourceName = "syncrun"
+			userDevErr := applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
+			Expect(userDevErr.DevError().Error()).Should(Equal(expectedErr))
+			Expect(userDevErr.UserError()).Should(Equal(expectedErr))
 		})
 
 		It("should return true shutdown signal if neither CR nor DB entry exists", func() {

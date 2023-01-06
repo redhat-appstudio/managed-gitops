@@ -580,6 +580,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 					Namespace: workspace.Name,
 					UID:       uuid.NewUUID(),
 				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual,
+				},
 			}
 
 			gitopsDeplSyncRun := &managedgitopsv1alpha1.GitOpsDeploymentSyncRun{

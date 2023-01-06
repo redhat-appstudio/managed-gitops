@@ -214,6 +214,14 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			return gitopserrors.NewDevOnlyError(fmt.Errorf("SEVERE - All cases should be handled by above if statements"))
 		}
 
+		// return an error if 'Automated' sync policy is enabled. Argo CD doesn't allow syncing an Application with automated sync policy.
+		if gitopsDepl.Spec.Type != managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual {
+			userErr := fmt.Sprintf("invalid GitOpsDeploymentSyncRun '%s'. Syncing a GitOpsDeployment with Automated sync policy is not allowed", syncRunCR.Name)
+			devErr := fmt.Errorf(userErr)
+			log.Error(devErr, "failed to process GitOpsDeploymentSyncRun")
+			return gitopserrors.NewUserDevError(userErr, devErr)
+		}
+
 		// The GitopsDepl CR exists, so use the UID of the CR to retrieve the database entry, if possible
 		deplToAppMapping := &db.DeploymentToApplicationMapping{Deploymenttoapplicationmapping_uid_id: string(gitopsDepl.UID)}
 

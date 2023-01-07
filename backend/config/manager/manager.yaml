@@ -29,7 +29,7 @@ spec:
         - gitops-service-backend
         args:
         - --health-probe-bind-address=:18081
-        - --metrics-bind-address=127.0.0.1:18080
+        - --metrics-bind-address=127.0.0.1:8080
         - --leader-elect
         - --zap-time-encoding=rfc3339nano
         env:

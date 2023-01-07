@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
+	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
@@ -16,6 +17,7 @@ import (
 func CreateNewArgoCDInstance(ctx context.Context, namespace *corev1.Namespace, user db.ClusterUser, operationid string, k8sclient client.Client, log logr.Logger, dbQueries db.AllDatabaseQueries) error {
 
 	if err := k8sclient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace); err != nil {
+		log.Error(err, "Unable to get namespace")
 		return fmt.Errorf("unable to retrieve gitopsengine namespace: %v", err)
 	}
 	fmt.Println("BBBBBAAACCCKKKEENNNDDD -1")
@@ -26,6 +28,7 @@ func CreateNewArgoCDInstance(ctx context.Context, namespace *corev1.Namespace, u
 		},
 	}
 	if err := k8sclient.Get(ctx, client.ObjectKeyFromObject(kubeSystemNamespace), kubeSystemNamespace); err != nil {
+		log.Error(err, "Unable to get kubesystem namespace")
 		return fmt.Errorf("unable to retrieve kubesystem namespace %v", err)
 	}
 
@@ -36,7 +39,7 @@ func CreateNewArgoCDInstance(ctx context.Context, namespace *corev1.Namespace, u
 	fmt.Println(gitopsEngineInstance.Gitopsengineinstance_id, gitopsEngineInstance.Namespace_name, gitopsEngineInstance.Namespace_uid, gitopsEngineInstance.EngineCluster_id)
 	fmt.Println("BBBBBAAACCCKKKEENNNDDD -2")
 
-	operation := db.Operation{
+	dboperation := db.Operation{
 		Operation_id:            operationid,
 		Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
 		Operation_owner_user_id: user.Clusteruser_id,
@@ -44,14 +47,40 @@ func CreateNewArgoCDInstance(ctx context.Context, namespace *corev1.Namespace, u
 		Resource_id:             gitopsEngineInstance.Gitopsengineinstance_id,
 	}
 
-	log.Info("Creating operation for the gitopsEngineInstance")
+	log.Info("Creating operation row for the gitopsEngineInstance")
 
-	_, _, err = operations.CreateOperation(ctx, false, operation, user.Clusteruser_id,
-		dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, k8sclient, log)
+	err = dbQueries.CreateOperation(ctx, &dboperation, dboperation.Operation_owner_user_id)
 	if err != nil {
-		return fmt.Errorf("unable to create operation for gitopsEngineInstance '%s': %v", gitopsEngineInstance.Gitopsengineinstance_id, err)
+		log.Error(err, "Unable to create db row for Operation")
+		return fmt.Errorf("unable to create operation db row for gitopsEngineInstance '%s': %v", gitopsEngineInstance.Gitopsengineinstance_id, err)
 	}
 	fmt.Println("BBBBBAAACCCKKKEENNNDDD -3")
+
+	log.Info("Creating operation CR for the gitopsEngineInstance")
+
+	// k8sOperation, dbOperation, err := operations.CreateOperation(ctx, false, operation, user.Clusteruser_id, gitopsEngineInstance.Namespace_name, dbQueries, k8sclient, log)
+	// if err != nil {
+	// 	return fmt.Errorf("unable to create operation for gitopsEngineInstance '%s': %v", gitopsEngineInstance.Gitopsengineinstance_id, err)
+	// } else if k8sOperation == nil {
+	// 	return fmt.Errorf("k8soperation returned nil for gitopsEngineInstance '%s': %v", gitopsEngineInstance.Gitopsengineinstance_id, err)
+	// } else if dbOperation == nil {
+	// 	return fmt.Errorf("dboperation returned nil for gitopsEngineInstance '%s': %v", gitopsEngineInstance.Gitopsengineinstance_id, err)
+	// }
+	k8sOperation := managedgitopsv1alpha1.Operation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      operations.GenerateOperationCRName(dboperation),
+			Namespace: gitopsEngineInstance.Namespace_name,
+		},
+		Spec: managedgitopsv1alpha1.OperationSpec{
+			OperationID: dboperation.Operation_id,
+		},
+	}
+
+	if err := k8sclient.Create(ctx, &k8sOperation, &client.CreateOptions{}); err != nil {
+		log.Error(err, "Unable to create K8s Operation")
+		return fmt.Errorf("unable to create operation for gitopsEngineInstance '%s': %v", gitopsEngineInstance.Gitopsengineinstance_id, err)
+	}
+	fmt.Println("BBBBBAAACCCKKKEENNNDDD -4")
 
 	return nil
 }

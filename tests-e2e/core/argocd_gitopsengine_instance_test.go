@@ -5,7 +5,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	"github.com/redhat-appstudio/managed-gitops/backend/util"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
@@ -60,8 +59,8 @@ var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", fu
 			Expect(err).To(Succeed())
 
 			testClusterUser := &db.ClusterUser{
-				Clusteruser_id: "test-usernnnnn",
-				User_name:      "test-usernnnnn",
+				Clusteruser_id: "test-user",
+				User_name:      "test-user",
 			}
 
 			By("create a clusterUser and namespace for GitOpsEngineInstance where ArgoCD will be created")
@@ -112,22 +111,22 @@ var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", fu
 			// }
 
 			By("creating Operation CR")
-			operationCR := &managedgitopsv1alpha1.Operation{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      argocdNamespace.Name,
-					Namespace: argocdNamespace.Name,
-				},
-				Spec: managedgitopsv1alpha1.OperationSpec{
-					OperationID: "test-operation",
-				},
-			}
+			// operationCR := &managedgitopsv1alpha1.Operation{
+			// 	ObjectMeta: metav1.ObjectMeta{
+			// 		Name:      argocdNamespace.Name,
+			// 		Namespace: argocdNamespace.Name,
+			// 	},
+			// 	Spec: managedgitopsv1alpha1.OperationSpec{
+			// 		OperationID: "test-operation",
+			// 	},
+			// }
 
-			err = k8sClient.Create(ctx, operationCR)
-			Expect(err).To(BeNil())
+			// err = k8sClient.Create(ctx, operationCR)
+			// Expect(err).To(BeNil())
 
 			By("ensuring ArgoCD service resource exists")
 			argocdInstance := &apps.Deployment{
-				ObjectMeta: metav1.ObjectMeta{Name: argocdNamespace.Name + "-server", Namespace: argocdNamespace.Name},
+				ObjectMeta: metav1.ObjectMeta{Name: workspace.Name + "-server", Namespace: workspace.Name},
 			}
 
 			Eventually(argocdInstance, "60s", "5s").Should(k8s.ExistByName(k8sClient))

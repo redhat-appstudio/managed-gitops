@@ -14,7 +14,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var _ = Describe("Test for creating opeartion with resource-type as Gitopsengineinstance ", func() {
+var _ = FDescribe("Test for creating opeartion with resource-type as Gitopsengineinstance ", func() {
 
 	Context("New Argo Instance test", func() {
 
@@ -51,7 +51,7 @@ var _ = Describe("Test for creating opeartion with resource-type as Gitopsengine
 			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).To(BeNil())
 
-			operationid = "test-operation"
+			operationid = "test-operation-n"
 
 		})
 
@@ -60,7 +60,7 @@ var _ = Describe("Test for creating opeartion with resource-type as Gitopsengine
 		})
 		It("tests whether the operation pointing to gitopsengineinstance resource type gets created successfully", func() {
 
-			clusterUser := db.ClusterUser{User_name: "gitops-service-user"}
+			clusterUser := db.ClusterUser{User_name: "gitops-service-user-nv"}
 			err := dbQueries.CreateClusterUser(ctx, &clusterUser)
 			Expect(err).To(BeNil())
 

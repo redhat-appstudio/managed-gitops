@@ -19,7 +19,9 @@ import (
 var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", func() {
 
 	const (
-		workspace = "my-user"
+		workspace       = "my-user"
+		operationID     = "test-operation"
+		operationPrefix = "operation-"
 	)
 
 	Context("ArgoCD instance gets created from an operation's gitopsEngineInstance resource-type", func() {
@@ -55,8 +57,8 @@ var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", fu
 			Expect(err).To(Succeed())
 
 			testClusterUser := &db.ClusterUser{
-				Clusteruser_id: "test-user-new",
-				User_name:      "test-user-new",
+				Clusteruser_id: "test-usernew",
+				User_name:      "test-usernew",
 			}
 
 			By("create a clusterUser and namespace for GitOpsEngineInstance where ArgoCD will be created")
@@ -78,12 +80,12 @@ var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", fu
 			err = k8sClient.Create(ctx, workspace)
 			Expect(err).To(BeNil())
 
-			err = util.CreateNewArgoCDInstance(ctx, workspace, *testClusterUser, "test-operation", k8sClient, log, dbq)
+			err = util.CreateNewArgoCDInstance(ctx, workspace, *testClusterUser, operationID, k8sClient, log, dbq)
 			Expect(err).To(BeNil())
 
 			By("ensuring ArgoCD service resource exists")
 			argocdInstance := &apps.Deployment{
-				ObjectMeta: metav1.ObjectMeta{Name: workspace.Name + "-server", Namespace: workspace.Name},
+				ObjectMeta: metav1.ObjectMeta{Name: operationPrefix + operationID + "-server", Namespace: workspace.Name},
 			}
 
 			Eventually(argocdInstance, "60s", "5s").Should(k8s.ExistByName(k8sClient))

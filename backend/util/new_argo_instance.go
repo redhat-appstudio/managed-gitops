@@ -35,7 +35,6 @@ func CreateNewArgoCDInstance(ctx context.Context, namespace *corev1.Namespace, u
 	if err != nil {
 		return err
 	}
-	fmt.Println(gitopsEngineInstance.Gitopsengineinstance_id, gitopsEngineInstance.Namespace_name, gitopsEngineInstance.Namespace_uid, gitopsEngineInstance.EngineCluster_id)
 
 	dboperation := db.Operation{
 		Operation_id:            operationid,

@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", func() {
+var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", func() {
 
 	const (
 		workspace       = "my-user"
@@ -63,9 +63,12 @@ var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", fu
 			ctx := context.Background()
 			log := log.FromContext(ctx)
 
-			By("Creating gitopsengine cluster,cluster user and namespace")
-			err = dbq.CreateClusterUser(ctx, testClusterUser)
+			err = db.SetupForTestingDBGinkgo()
 			Expect(err).To(BeNil())
+
+			By("Creating gitopsengine cluster,cluster user and namespace")
+			// err = dbq.CreateClusterUser(ctx, testClusterUser)
+			// Expect(err).To(BeNil())
 
 			workspace := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{

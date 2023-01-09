@@ -10,7 +10,7 @@ resources:
 - ../../../backend/config/default
 - ../../../cluster-agent/config/default
 - ../../base/postgresql-staging
-- ../../base/gitops-service-argocd
+- ../../base/gitops-service-argocd/base
 
 # Uncomment to use a custom image:
 

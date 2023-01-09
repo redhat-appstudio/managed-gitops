@@ -317,7 +317,6 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		if db.IsResultNotFoundError(err) {
 			// no corresponding db operation, so no work to do
 			log.V(sharedutil.LogLevel_Warn).Info("Received a K8 request for an Operation resource, but the referenced DB Operation Row doesn't exist")
-			fmt.Println("C H E C K - 3.1")
 
 			return nil, shouldRetryFalse, nil
 		} else {
@@ -332,7 +331,6 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		log.V(sharedutil.LogLevel_Debug).Info("Skipping Operation with state of Completed/Failed")
 		return &dbOperation, shouldRetryFalse, nil
 	}
-	fmt.Println("C H E C K - 4")
 
 	// If the operation is in waiting state, update it to in-progress before we start processing it.
 	if dbOperation.State == db.OperationState_Waiting {
@@ -345,7 +343,6 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		log.V(sharedutil.LogLevel_Debug).Info("Updated OperationState to InProgress")
 
 	}
-	fmt.Println("C H E C K - 5")
 
 	// 3) Find the Argo CD instance that is targeted by this operation.
 	dbGitopsEngineInstance := &db.GitopsEngineInstance{
@@ -365,7 +362,6 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 			return &dbOperation, shouldRetryTrue, err
 		}
 	}
-	fmt.Println("C H E C K - 6")
 
 	// Sanity test: find the gitops engine cluster, by kube-system, and ensure that the
 	// gitopsengineinstance matches the gitops engine cluster we are running on.
@@ -384,7 +380,6 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		log.Error(nil, "SEVERE: The gitops engine cluster that the cluster-agent is running on did not match the operation's target argo cd instance id.", thisCluster.Gitopsenginecluster_id)
 		return &dbOperation, shouldRetryTrue, nil
 	}
-	fmt.Println("C H E C K - 7")
 
 	// 4) Find the namespace for the targeted Argo CD instance
 	argoCDNamespace := &corev1.Namespace{
@@ -416,7 +411,6 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		log:               log,
 		syncFuncs:         task.syncFuncs,
 	}
-	fmt.Println("C H E C K - 8")
 
 	// 5) Finally, call the corresponding method for processing the particular type of Operation.
 
@@ -460,7 +454,6 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	} else if dbOperation.Resource_type == db.OperationResourceType_GitOpsEngineInstance {
 
 		// Process a SyncOperation event
-		fmt.Println("INNNSSSTTTAANNCCEEEE")
 		shouldRetry, err := processOperation_GitOpsEngineInstance(taskContext, dbOperation, *operationCR, operationConfigParams)
 
 		if err != nil {
@@ -959,13 +952,6 @@ func processOperation_GitOpsEngineInstance(ctx context.Context, dbOperation db.O
 			return shouldRetryTrue, errfromScopedArgoCD
 		}
 
-		// APISERVER:=$(kubectl config view -o jsonpath="{.clusters[?(@.name==\"$CLUSTER_NAME\")].cluster.server}")
-
-		// errfromSetUpArgoCD := utils.SetupArgoCD(ctx, dbGitopsEngineInstance.Namespace_name, opConfig.eventClient, log)
-		// if errfromSetUpArgoCD != nil {
-		// 	log.Error(errfromScopedArgoCD, "Unable to setup ArgoCD for GitopsEngineInstance")
-		// 	return shouldRetryTrue, errfromSetUpArgoCD
-		// }
 	}
 
 	return shouldRetryFalse, nil

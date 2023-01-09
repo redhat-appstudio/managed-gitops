@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", func() {
+var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", func() {
 
 	const (
 		workspace       = "my-user"
@@ -27,6 +27,8 @@ var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", fun
 	Context("ArgoCD instance gets created from an operation's gitopsEngineInstance resource-type", func() {
 
 		BeforeEach(func() {
+			By("Delete old namespaces, and kube-system resources")
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("deleting the namespace before the test starts, so that the code can create it")
 			config, err := fixture.GetSystemKubeConfig()
@@ -37,13 +39,9 @@ var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", fun
 			err = fixture.DeleteNamespace(workspace, config)
 			Expect(err).To(BeNil())
 
-			// _, argocdNamespace, _, workspace, err = tests.GenericTestSetup()
-			// Expect(err).To(BeNil())
-
 		})
 
 		It("ensures that a standalone ArgoCD gets created successfully when an operation CR of resource-type GitOpsEngineInstance is created", func() {
-			// var logger logr.Logger
 
 			if fixture.IsRunningAgainstKCP() {
 				Skip("Skipping this test until we support running gitops operator with KCP")
@@ -57,8 +55,8 @@ var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", fun
 			Expect(err).To(Succeed())
 
 			testClusterUser := &db.ClusterUser{
-				Clusteruser_id: "test-usernew",
-				User_name:      "test-usernew",
+				Clusteruser_id: "test-user",
+				User_name:      "test-user",
 			}
 
 			By("create a clusterUser and namespace for GitOpsEngineInstance where ArgoCD will be created")

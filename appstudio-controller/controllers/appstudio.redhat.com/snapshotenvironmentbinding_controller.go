@@ -212,16 +212,6 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 }
 
 func addComponentDeploymentCondition(binding *appstudioshared.SnapshotEnvironmentBinding, ctx context.Context, c client.Client, log logr.Logger) error {
-	if len(binding.Status.ComponentDeploymentConditions) > 1 {
-		// this should never happen, log and fix it
-		log.Info("snapshot environment binding has multiple component deployment conditions",
-			"binding name", binding.Name, "binding namespace", binding.Namespace)
-		binding.Status.ComponentDeploymentConditions = []metav1.Condition{}
-	}
-	if len(binding.Status.ComponentDeploymentConditions) == 0 {
-		binding.Status.ComponentDeploymentConditions = append(binding.Status.ComponentDeploymentConditions, metav1.Condition{})
-	}
-
 	total := len(binding.Status.GitOpsDeployments)
 	synced := 0
 	for _, deploymentStatus := range binding.Status.GitOpsDeployments {
@@ -243,6 +233,16 @@ func addComponentDeploymentCondition(binding *appstudioshared.SnapshotEnvironmen
 		reason = ComponentDeploymentConditionCommitsSynced
 	}
 	message := fmt.Sprintf("%d of %d components deployed", synced, total)
+
+	if len(binding.Status.ComponentDeploymentConditions) > 1 {
+		// this should never happen, log and fix it
+		log.Info("snapshot environment binding has multiple component deployment conditions",
+			"binding name", binding.Name, "binding namespace", binding.Namespace)
+		binding.Status.ComponentDeploymentConditions = []metav1.Condition{}
+	}
+	if len(binding.Status.ComponentDeploymentConditions) == 0 {
+		binding.Status.ComponentDeploymentConditions = append(binding.Status.ComponentDeploymentConditions, metav1.Condition{})
+	}
 
 	condition := &binding.Status.ComponentDeploymentConditions[0]
 	if condition.Type != ctype || condition.Status != status || condition.Reason != reason || condition.Message != message {

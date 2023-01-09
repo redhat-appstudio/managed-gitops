@@ -20,24 +20,23 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-
-	routev1 "github.com/openshift/api/route/v1"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
-	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
+	argocdoperator "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	routev1 "github.com/openshift/api/route/v1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	argoprojiocontrollers "github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/argoproj.io"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/argoproj.io/application_info_cache"
 	controllers "github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/managed-gitops"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/managed-gitops/eventloop"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -48,7 +47,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
+	utilruntime.Must(argocdoperator.AddToScheme(scheme))
 	utilruntime.Must(managedgitopsv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(appv1.AddToScheme(scheme))
 

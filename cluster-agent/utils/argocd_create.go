@@ -223,26 +223,24 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, names
 			Name: namespace,
 		},
 	}
-	// if err := k8sClient.Create(ctx, namespaceToCreate); err != nil {
-	// 	if apierr.IsAlreadyExists(err) {
-	// 		if err := k8sClient.Update(ctx, namespaceToCreate); err != nil {
-	// 			return fmt.Errorf("error on Update %v", err)
-	// 		}
-	// 		sharedutil.LogAPIResourceChangeEvent(namespaceToCreate.Namespace, namespaceToCreate.Name, namespaceToCreate, sharedutil.ResourceCreated, log)
-
-	// 	} else {
-	// 		return fmt.Errorf("error on Create %v", err)
-	// 	}
-	// }
-	if err := k8sClient.Create(ctx, namespaceToCreate); err != nil {
-		return fmt.Errorf("namespace could not be created: %v", err)
+	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(namespaceToCreate), namespaceToCreate); err != nil {
+		if apierr.IsNotFound(err) {
+			if err := k8sClient.Create(ctx, namespaceToCreate); err != nil {
+				return fmt.Errorf("error on Create %v", err)
+			}
+			sharedutil.LogAPIResourceChangeEvent(namespaceToCreate.Namespace, namespaceToCreate.Name, namespaceToCreate, sharedutil.ResourceCreated, log)
+		} else {
+			return fmt.Errorf("error on Get %v", err)
+		}
 	}
-	sharedutil.LogAPIResourceChangeEvent(namespaceToCreate.Namespace, namespaceToCreate.Name, namespaceToCreate, sharedutil.ResourceCreated, log)
+	// sharedutil.LogAPIResourceChangeEvent(namespaceToCreate.Namespace, namespaceToCreate.Name, namespaceToCreate, sharedutil.ResourceCreated, log)
+	fmt.Println("PASSSSSSSSSSSSS -1")
 
 	if errk8s := k8sClient.Create(ctx, argoCDOperand); errk8s != nil {
 		return fmt.Errorf("error on creating: %s, %v ", argoCDOperand.GetName(), errk8s)
 	}
 	sharedutil.LogAPIResourceChangeEvent(argoCDOperand.Namespace, argoCDOperand.Name, argoCDOperand, sharedutil.ResourceCreated, log)
+	fmt.Println("PASSSSSSSSSSSSS -2")
 
 	// Wait for Argo CD to be installed by gitops operator.
 	err = wait.Poll(1*time.Second, 3*time.Minute, func() (bool, error) {

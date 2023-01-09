@@ -18,7 +18,7 @@ echo "OK"
 kubectl create namespace gitops-service-argocd 2> /dev/null || true
 
 echo "Installing Argo CD into gitops-service-argocd"
-kubectl apply -f $SCRIPTPATH/../../base/gitops-service-argocd/argo-cd.yaml
+kustomize build $SCRIPTPATH/../../base/gitops-service-argocd/overlays/test-e2e | kubectl apply -f -
 echo -n "Waiting for default project (and namespace) to exist: "
 while ! kubectl get appproject/default -n gitops-service-argocd &> /dev/null ; do
   echo -n .

@@ -942,7 +942,6 @@ func processOperation_GitOpsEngineInstance(ctx context.Context, dbOperation db.O
 	if dbOperation.Resource_id == "" {
 		return shouldRetryTrue, fmt.Errorf("resource id was nil while processing operation: " + crOperation.Name)
 	}
-	fmt.Println("CCCCCCCCCCLLLUUUSSTTEEEERRRRRRRR-1")
 	dbGitopsEngineInstance := &db.GitopsEngineInstance{
 		Gitopsengineinstance_id: dbOperation.Instance_id,
 	}
@@ -956,12 +955,9 @@ func processOperation_GitOpsEngineInstance(ctx context.Context, dbOperation db.O
 	} else {
 		errfromScopedArgoCD := utils.CreateNamespaceScopedArgoCD(ctx, crOperation.Name, crOperation.Namespace, opConfig.eventClient, log)
 		if errfromScopedArgoCD != nil {
-			fmt.Println("CCCCCCCCCCLLLUUUSSTTEEEERRRRRRRR-1 : ")
-			fmt.Println(crOperation.Name, crOperation.Namespace, opConfig.argoCDNamespace.Namespace)
 			log.Error(errfromScopedArgoCD, "Unable to create namespace scoped ArgoCD for GitopsEngineInstance")
 			return shouldRetryTrue, errfromScopedArgoCD
 		}
-		fmt.Println("CCCCCCCCCCLLLUUUSSTTEEEERRRRRRRR-2")
 
 		// APISERVER:=$(kubectl config view -o jsonpath="{.clusters[?(@.name==\"$CLUSTER_NAME\")].cluster.server}")
 
@@ -971,7 +967,6 @@ func processOperation_GitOpsEngineInstance(ctx context.Context, dbOperation db.O
 		// 	return shouldRetryTrue, errfromSetUpArgoCD
 		// }
 	}
-	fmt.Println("CCCCCCCCCCLLLUUUSSTTEEEERRRRRRRR-3")
 
 	return shouldRetryFalse, nil
 

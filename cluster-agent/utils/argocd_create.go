@@ -217,7 +217,6 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, names
 			ResourceExclusions: string(resourceExclusions),
 		},
 	}
-	fmt.Println(namespace)
 	namespaceToCreate := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namespace,
@@ -234,13 +233,11 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, names
 		}
 	}
 	// sharedutil.LogAPIResourceChangeEvent(namespaceToCreate.Namespace, namespaceToCreate.Name, namespaceToCreate, sharedutil.ResourceCreated, log)
-	fmt.Println("PASSSSSSSSSSSSS -1")
 
 	if errk8s := k8sClient.Create(ctx, argoCDOperand); errk8s != nil {
 		return fmt.Errorf("error on creating: %s, %v ", argoCDOperand.GetName(), errk8s)
 	}
 	sharedutil.LogAPIResourceChangeEvent(argoCDOperand.Namespace, argoCDOperand.Name, argoCDOperand, sharedutil.ResourceCreated, log)
-	fmt.Println("PASSSSSSSSSSSSS -2")
 
 	// Wait for Argo CD to be installed by gitops operator.
 	err = wait.Poll(1*time.Second, 3*time.Minute, func() (bool, error) {

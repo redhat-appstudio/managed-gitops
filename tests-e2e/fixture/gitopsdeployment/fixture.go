@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	matcher "github.com/onsi/gomega/types"
@@ -303,4 +304,37 @@ func HaveReconciledState(reconciledState managedgitopsv1alpha1.ReconciledState) 
 
 		return res
 	}, BeTrue())
+}
+
+func UpdateDeploymentWithFunction(gitopsDeployment *managedgitopsv1alpha1.GitOpsDeployment,
+	mutationFn func(*managedgitopsv1alpha1.GitOpsDeployment)) error {
+
+	GinkgoWriter.Printf("Updating GitOpsDeployment for '%v'\n", gitopsDeployment.ObjectMeta)
+	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+	Expect(err).To(BeNil())
+
+	k8sClient, err := fixture.GetKubeClient(config)
+	if err != nil {
+		fmt.Println(k8sFixture.K8sClientError, err)
+		return err
+	}
+
+	return k8sFixture.UntilSuccess(k8sClient, func(k8sClient client.Client) error {
+
+		// Retrieve the latest version of the GitOpsDeployment resource
+		err := k8sFixture.Get(gitopsDeployment, k8sClient)
+		if err != nil {
+			return err
+		}
+
+		// Call the mutation function, to change the deployment
+		mutationFn(gitopsDeployment)
+
+		// Attempt to update the object with the change made by the mutation function
+		err = k8sFixture.UpdateStatus(gitopsDeployment, k8sClient)
+
+		// Report back the error, if we hit one
+		return err
+	})
+
 }

@@ -699,24 +699,24 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 		})
 
 		It("sets the binding's ComponentDeploymentConditions status field when some components are out of sync.", func() {
-			// Create SnapshotEnvironmentBinding CR in cluster.
+			By("Creating SnapshotEnvironmentBinding CR in cluster.")
 			err := bindingReconciler.Create(ctx, binding)
 			Expect(err).To(BeNil())
 
-			// Check status field before calling Reconciler
+			By("Checking status field before calling Reconciler")
 			binding = &appstudiosharedv1.SnapshotEnvironmentBinding{}
 			err = bindingReconciler.Client.Get(ctx, request.NamespacedName, binding)
 			Expect(err).To(BeNil())
 			Expect(len(binding.Status.ComponentDeploymentConditions)).To(Equal(0))
 
-			// Trigger Reconciler to create the GitOpsDeployments
+			By("Triggering Reconciler to create the GitOpsDeployments")
 			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).To(BeNil())
 			binding = &appstudiosharedv1.SnapshotEnvironmentBinding{}
 			err = bindingReconciler.Get(ctx, request.NamespacedName, binding)
 			Expect(err).To(BeNil())
 
-			// Update the first GitOpsDeployment to simulate a successful sync
+			By("Updating the first GitOpsDeployment to simulate a successful sync")
 			deployment := &apibackend.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      binding.Status.GitOpsDeployments[0].GitOpsDeployment,
@@ -729,7 +729,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			err = bindingReconciler.Status().Update(ctx, deployment)
 			Expect(err).To(BeNil())
 
-			// Update the second GitOpsDeployment to simulate a failed sync
+			By("Updating the second GitOpsDeployment to simulate a failed sync")
 			deployment = &apibackend.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      binding.Status.GitOpsDeployments[1].GitOpsDeployment,
@@ -742,11 +742,11 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			err = bindingReconciler.Status().Update(ctx, deployment)
 			Expect(err).To(BeNil())
 
-			// Trigger Reconciler to update the status ComponentDeploymentConditions field
+			By("Triggering Reconciler to update the status ComponentDeploymentConditions field")
 			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).To(BeNil())
 
-			// Check status field after calling Reconciler
+			By("Checking status field after calling Reconciler")
 			binding = &appstudiosharedv1.SnapshotEnvironmentBinding{}
 			err = bindingReconciler.Get(ctx, request.NamespacedName, binding)
 			Expect(err).To(BeNil())
@@ -758,24 +758,24 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 		})
 
 		It("sets the binding's ComponentDeploymentConditions status field when all components deployed successfully.", func() {
-			// Create SnapshotEnvironmentBinding CR in cluster.
+			By("Creating SnapshotEnvironmentBinding CR in cluster.")
 			err := bindingReconciler.Create(ctx, binding)
 			Expect(err).To(BeNil())
 
-			// Check status field before calling Reconciler
+			By("Checking status field before calling Reconciler")
 			binding = &appstudiosharedv1.SnapshotEnvironmentBinding{}
 			err = bindingReconciler.Client.Get(ctx, request.NamespacedName, binding)
 			Expect(err).To(BeNil())
 			Expect(len(binding.Status.ComponentDeploymentConditions)).To(Equal(0))
 
-			// Trigger Reconciler to create the GitOpsDeployments
+			By("Triggering Reconciler to create the GitOpsDeployments")
 			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).To(BeNil())
 			binding = &appstudiosharedv1.SnapshotEnvironmentBinding{}
 			err = bindingReconciler.Get(ctx, request.NamespacedName, binding)
 			Expect(err).To(BeNil())
 
-			// Update the first GitOpsDeployment to simulate a successful sync
+			By("Updating the first GitOpsDeployment to simulate a successful sync")
 			deployment := &apibackend.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      binding.Status.GitOpsDeployments[0].GitOpsDeployment,
@@ -788,7 +788,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			err = bindingReconciler.Status().Update(ctx, deployment)
 			Expect(err).To(BeNil())
 
-			// Update the first GitOpsDeployment to simulate a successful sync
+			By("Updating the first GitOpsDeployment to simulate a successful sync")
 			deployment = &apibackend.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      binding.Status.GitOpsDeployments[1].GitOpsDeployment,
@@ -801,11 +801,11 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			err = bindingReconciler.Status().Update(ctx, deployment)
 			Expect(err).To(BeNil())
 
-			// Trigger Reconciler to update the status ComponentDeploymentConditions field
+			By("Triggering Reconciler to update the status ComponentDeploymentConditions field")
 			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).To(BeNil())
 
-			// Check status field after calling Reconciler
+			By("Checking status field after calling Reconciler")
 			binding = &appstudiosharedv1.SnapshotEnvironmentBinding{}
 			err = bindingReconciler.Get(ctx, request.NamespacedName, binding)
 			Expect(err).To(BeNil())

@@ -308,9 +308,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			//====================================================
 			By("Update GitOpsDeployment CR, but dont change anything is in Binding CR.")
 
-			Expect(k8s.Get(&gitOpsDeploymentBefore, k8sClient)).To(Succeed())
-			gitOpsDeploymentBefore.Spec.Source.Path = "resources/test-data/sample-gitops-repository/components/componentA/overlays/dev"
-			Expect(k8s.Update(&gitOpsDeploymentBefore, k8sClient)).To(Succeed())
+			gitopsDeplFixture.UpdateDeploymentWithFunction(&gitOpsDeploymentBefore, func(depl *managedgitopsv1alpha1.GitOpsDeployment) {
+				depl.Spec.Source.Path = "resources/test-data/sample-gitops-repository/components/componentA/overlays/dev"
+			})
 
 			//====================================================
 			By("Verify that GitOpsDeployment CR is reverted by GitOps-Service is having same Spec.Source as given in Binding.")

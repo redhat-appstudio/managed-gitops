@@ -235,7 +235,7 @@ var _ = Describe("GitOpsDeployment Status.Conditions tests", func() {
 			Expect(err).To(Succeed())
 		})
 
-		It("ensures that GitOpsDeployment .Status.Conditions field contains the InvalidSpecError if spec.source.path field is empty in GitOpsDeployment CR", func() {
+		It("ensures that errors are set properly in GitOpsDeployment .Status.Conditions field when spec.source.path field is empty", func() {
 
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
@@ -262,10 +262,10 @@ var _ = Describe("GitOpsDeployment Status.Conditions tests", func() {
 
 			expectedConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{
 				{
-					Type:    managedgitopsv1alpha1.GitOpsDeploymentConditionInvalidSpecError,
+					Type:    managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred,
 					Message: "spec.source.path is a required field and it cannot be empty",
 					Status:  managedgitopsv1alpha1.GitOpsConditionStatusTrue,
-					Reason:  managedgitopsv1alpha1.GitOpsDeploymentReasonInvalidSpecError,
+					Reason:  managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred,
 				},
 			}
 
@@ -276,7 +276,7 @@ var _ = Describe("GitOpsDeployment Status.Conditions tests", func() {
 			)
 		})
 
-		It("ensures that GitOpsDeployment .Status.Conditions field contains the InvalidSpecError if spec.source.path field is '/' in GitOpsDeployment CR", func() {
+		It("ensures that errors are set properly in GitOpsDeployment .Status.Conditions field when spec.source.path field is '/'", func() {
 
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
@@ -303,10 +303,10 @@ var _ = Describe("GitOpsDeployment Status.Conditions tests", func() {
 
 			expectedConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{
 				{
-					Type:    managedgitopsv1alpha1.GitOpsDeploymentConditionInvalidSpecError,
+					Type:    managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred,
 					Message: "spec.source.path cannot be '/'",
 					Status:  managedgitopsv1alpha1.GitOpsConditionStatusTrue,
-					Reason:  managedgitopsv1alpha1.GitOpsDeploymentReasonInvalidSpecError,
+					Reason:  managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred,
 				},
 			}
 

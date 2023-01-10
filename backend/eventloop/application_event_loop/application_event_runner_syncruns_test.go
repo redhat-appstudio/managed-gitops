@@ -44,6 +44,9 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 				},
 				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
 					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual,
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						Path: "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+					},
 				},
 			}
 
@@ -139,6 +142,9 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 				},
 				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
 					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual,
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						Path: "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+					},
 				},
 			}
 

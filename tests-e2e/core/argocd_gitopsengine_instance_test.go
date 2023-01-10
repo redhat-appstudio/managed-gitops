@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", func() {
+var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", func() {
 
 	const (
 		workspace       = "my-user"
@@ -50,6 +50,8 @@ var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", fun
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).To(BeNil())
 			defer dbq.CloseDatabase()
+			err = db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
@@ -62,9 +64,6 @@ var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", fun
 			By("create a clusterUser and namespace for GitOpsEngineInstance where ArgoCD will be created")
 			ctx := context.Background()
 			log := log.FromContext(ctx)
-
-			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
 
 			By("Creating gitopsengine cluster,cluster user and namespace")
 			// err = dbq.CreateClusterUser(ctx, testClusterUser)

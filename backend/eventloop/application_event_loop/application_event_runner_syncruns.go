@@ -43,11 +43,14 @@ func (action *applicationEventLoopRunner_Action) applicationEventRunner_handleSy
 
 	conditionType := managedgitopsv1alpha1.GitOpsDeploymentSyncRunConditionErrorOccurred
 	if err != nil {
-		// set the condition only for user errors
-		if err.UserError() != "" {
-			if err := setGitOpsDeploymentSyncRunCondition(ctx, action.workspaceClient, syncRunCR, conditionType, managedgitopsv1alpha1.SyncRunReasonType(conditionType), managedgitopsv1alpha1.GitOpsConditionStatusTrue, err.UserError()); err != nil {
-				return fmt.Errorf("failed to update the status of GitOpsDeploymentSyncRun: %v", err)
-			}
+
+		errMsg := err.UserError()
+		if errMsg == "" {
+			errMsg = gitopserrors.UnknownError
+		}
+
+		if err := setGitOpsDeploymentSyncRunCondition(ctx, action.workspaceClient, syncRunCR, conditionType, managedgitopsv1alpha1.SyncRunReasonType(conditionType), managedgitopsv1alpha1.GitOpsConditionStatusTrue, errMsg); err != nil {
+			return fmt.Errorf("failed to update the status of GitOpsDeploymentSyncRun: %v", err)
 		}
 
 		return err.DevError()

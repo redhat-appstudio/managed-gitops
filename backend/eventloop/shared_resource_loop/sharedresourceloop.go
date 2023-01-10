@@ -11,6 +11,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/gitopserrors"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -486,10 +487,10 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 		return nil, fmt.Errorf("unable to get or created managed env on deployment modified event: %v", err)
 	}
 
-	gitopsEngineInstance, _, _, err := internalDetermineGitOpsEngineInstanceForNewApplication(ctx, *clusterUser, *managedEnv, apiNamespaceClient, dbQueries, l)
-	if err != nil {
-		return nil, fmt.Errorf("unable to retrieve cluster user while processing GitOpsRepositoryCredentials: '%s' in namespace: '%s': Error: %v",
-			repositoryCredentialCRName, string(repositoryCredentialCRNamespace.UID), err)
+	gitopsEngineInstance, _, _, uerr := internalDetermineGitOpsEngineInstanceForNewApplication(ctx, *clusterUser, *managedEnv, apiNamespaceClient, dbQueries, l)
+	if uerr != nil {
+		return nil, fmt.Errorf("unable to retrieve cluster user while processing GitOpsRepositoryCredentials: '%s' in namespace: '%s': Error: %w",
+			repositoryCredentialCRName, string(repositoryCredentialCRNamespace.UID), uerr.DevError())
 	}
 
 	// Note: this may be nil in some if-else branches
@@ -955,9 +956,9 @@ func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, gito
 			fmt.Errorf("unable to get or created managed env on deployment modified event: %v", err)
 	}
 
-	engineInstance, isNewInstance, gitopsEngineCluster, err := internalDetermineGitOpsEngineInstanceForNewApplication(ctx, *clusterUser, *managedEnv, gitopsEngineClient, dbQueries, l)
-	if err != nil {
-		return SharedResourceManagedEnvContainer{}, fmt.Errorf("unable to determine gitops engine instance: %v", err)
+	engineInstance, isNewInstance, gitopsEngineCluster, uerr := internalDetermineGitOpsEngineInstanceForNewApplication(ctx, *clusterUser, *managedEnv, gitopsEngineClient, dbQueries, l)
+	if uerr != nil {
+		return SharedResourceManagedEnvContainer{}, fmt.Errorf("unable to determine gitops engine instance: %w", uerr.DevError())
 	}
 
 	// Create the cluster access object, to allow us to interact with the GitOpsEngine and ManagedEnvironment on the user's behalf
@@ -998,21 +999,27 @@ func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, gito
 //
 // This logic would be improved by https://issues.redhat.com/browse/GITOPSRVCE-73 (and others)
 func internalDetermineGitOpsEngineInstanceForNewApplication(ctx context.Context, user db.ClusterUser, managedEnv db.ManagedEnvironment,
-	k8sClient client.Client, dbq db.DatabaseQueries, l logr.Logger) (*db.GitopsEngineInstance, bool, *db.GitopsEngineCluster, error) {
+	k8sClient client.Client, dbq db.DatabaseQueries, l logr.Logger) (*db.GitopsEngineInstance, bool, *db.GitopsEngineCluster, gitopserrors.ConditionError) {
 
 	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: dbutil.GetGitOpsEngineSingleInstanceNamespace()}}
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace); err != nil {
-		return nil, false, nil, fmt.Errorf("unable to retrieve gitopsengine namespace in determineGitOpsEngineInstanceForNewApplication: %v", err)
+		devError := fmt.Errorf("unable to retrieve gitopsengine namespace in determineGitOpsEngineInstanceForNewApplication: %w", err)
+		userMsg := gitopserrors.UnknownError
+		return nil, false, nil, gitopserrors.NewUserConditionError(userMsg, devError, ConditionReasonKubeError)
 	}
 
 	kubeSystemNamespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(kubeSystemNamespace), kubeSystemNamespace); err != nil {
-		return nil, false, nil, fmt.Errorf("unable to retrieve kube-system namespace in determineGitOpsEngineInstanceForNewApplication: %v", err)
+		devError := fmt.Errorf("unable to retrieve kube-system namespace in determineGitOpsEngineInstanceForNewApplication: %w", err)
+		userMsg := gitopserrors.UnknownError
+		return nil, false, nil, gitopserrors.NewUserConditionError(userMsg, devError, ConditionReasonKubeError)
 	}
 
 	gitopsEngineInstance, isNewInstance, gitopsEngineCluster, err := dbutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespace, string(kubeSystemNamespace.UID), dbq, l)
 	if err != nil {
-		return nil, false, nil, fmt.Errorf("unable to get or create engine instance for new application: %v", err)
+		devError := fmt.Errorf("unable to get or create engine instance for new application: %w", err)
+		userMsg := gitopserrors.UnknownError
+		return nil, false, nil, gitopserrors.NewUserConditionError(userMsg, devError, ConditionReasonDatabaseError)
 	}
 
 	// When we support multiple Argo CD instance, the algorithm would be:

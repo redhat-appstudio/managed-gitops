@@ -21,7 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -386,7 +385,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	argoCDNamespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: dbGitopsEngineInstance.Namespace_name,
-			UID:  types.UID(dbGitopsEngineInstance.Namespace_uid),
+			// UID:  types.UID(dbGitopsEngineInstance.Namespace_uid),
 		},
 	}
 	if err := eventClient.Get(taskContext, client.ObjectKeyFromObject(argoCDNamespace), argoCDNamespace); err != nil {
@@ -403,10 +402,10 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	fmt.Println("UUUUUIIIIIIIDDDDDD :")
 	fmt.Println(argoCDNamespace.UID)
 	fmt.Println(dbGitopsEngineInstance.Namespace_uid)
-	// if string(argoCDNamespace.UID) != dbGitopsEngineInstance.Namespace_uid {
-	// 	log.Error(nil, "SEVERE: Engine instance did not match Argo CD namespace uid, while processing operation")
-	// 	return &dbOperation, shouldRetryFalse, nil
-	// }
+	if string(argoCDNamespace.UID) != dbGitopsEngineInstance.Namespace_uid {
+		log.Error(nil, "SEVERE: Engine instance did not match Argo CD namespace uid, while processing operation")
+		return &dbOperation, shouldRetryFalse, nil
+	}
 
 	operationConfigParams := operationConfig{
 		dbQueries:         dbQueries,

@@ -190,7 +190,7 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 
 	// Update the status field with statusField vars (even if an error occurred)
 	binding.Status.GitOpsDeployments = statusField
-	if err := addComponentDeploymentCondition(binding, ctx, rClient, log); err != nil {
+	if err := addComponentDeploymentCondition(ctx, binding, rClient, log); err != nil {
 		log.Error(err, "unable to update component deployment condition for Binding "+binding.Name)
 		return ctrl.Result{}, fmt.Errorf("unable to update component deployment condition for Binding %s. Error: %w", binding.Name, err)
 	}
@@ -211,7 +211,7 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 	return ctrl.Result{}, nil
 }
 
-func addComponentDeploymentCondition(binding *appstudioshared.SnapshotEnvironmentBinding, ctx context.Context, c client.Client, log logr.Logger) error {
+func addComponentDeploymentCondition(ctx context.Context, binding *appstudioshared.SnapshotEnvironmentBinding, c client.Client, log logr.Logger) error {
 	total := len(binding.Status.GitOpsDeployments)
 	synced := 0
 	for _, deploymentStatus := range binding.Status.GitOpsDeployments {
@@ -236,7 +236,7 @@ func addComponentDeploymentCondition(binding *appstudioshared.SnapshotEnvironmen
 
 	if len(binding.Status.ComponentDeploymentConditions) > 1 {
 		// this should never happen, log and fix it
-		log.Info("snapshot environment binding has multiple component deployment conditions",
+		log.Error(nil, "snapshot environment binding has multiple component deployment conditions",
 			"binding name", binding.Name, "binding namespace", binding.Namespace)
 		binding.Status.ComponentDeploymentConditions = []metav1.Condition{}
 	}

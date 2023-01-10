@@ -106,6 +106,16 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 		}
 	}
 
+	if gitopsDeployment != nil {
+		if gitopsDeployment.Spec.Source.Path == "" {
+			userError := "spec.source.path is a required field and it cannot be empty"
+			return signalledShutdown_false, nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, err)
+		} else if gitopsDeployment.Spec.Source.Path == "/" {
+			userError := "spec.source.path cannot be '/'"
+			return signalledShutdown_false, nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, err)
+		}
+	}
+
 	// Update the list of GitOpsDeployments that we use to generate metrics
 	if gitopsDeployment != nil {
 		metrics.AddOrUpdateGitOpsDeployment(deplName, deplNamespace, string(gitopsDeplNamespace.UID))
@@ -799,22 +809,6 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 			reason := managedgitopsv1alpha1.GitopsDeploymentReasonSyncError + "Resolved"
 			if cond, _ := condition.NewConditionManager().FindCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError); cond.Reason != reason {
 				condition.NewConditionManager().SetCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError, managedgitopsv1alpha1.GitOpsConditionStatusFalse, reason, "")
-			}
-		}
-	}
-
-	// Set gitopsDeploymentCondition if spec.source.path field is empty or '/'
-	if gitopsDeployment.Spec.Source.Path == "" {
-		condition.NewConditionManager().SetCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionInvalidSpecError, managedgitopsv1alpha1.GitOpsConditionStatusTrue, managedgitopsv1alpha1.GitOpsDeploymentReasonInvalidSpecError, "spec.source.path is a required field and it cannot be empty")
-	} else if gitopsDeployment.Spec.Source.Path == "/" {
-		condition.NewConditionManager().SetCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionInvalidSpecError, managedgitopsv1alpha1.GitOpsConditionStatusTrue, managedgitopsv1alpha1.GitOpsDeploymentReasonInvalidSpecError, "spec.source.path cannot be '/'")
-	} else {
-		// Update Condition as Resolved if gitopsDeployment.Spec.Source.Path is updated with correct value
-		if condition.NewConditionManager().HasCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionInvalidSpecError) {
-			reason := managedgitopsv1alpha1.GitOpsDeploymentReasonInvalidSpecError + "Resolved"
-			if cond, _ := condition.NewConditionManager().FindCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionInvalidSpecError); cond.Reason != reason {
-				cond.Message = ""
-				condition.NewConditionManager().SetCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionInvalidSpecError, managedgitopsv1alpha1.GitOpsConditionStatusFalse, reason, "")
 			}
 		}
 	}

@@ -504,6 +504,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 					Namespace: workspace.Name,
 					UID:       uuid.NewUUID(),
 				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						Path: "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+					},
+				},
 			}
 
 			k8sClientOuter := fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).Build()
@@ -582,6 +587,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				},
 				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
 					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual,
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						Path: "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+					},
 				},
 			}
 
@@ -667,6 +675,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 					Name:      "my-gitops-depl",
 					Namespace: workspace.Name,
 					UID:       uuid.NewUUID(),
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						Path: "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+					},
 				},
 			}
 
@@ -776,6 +789,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 					Name:      "my-gitops-depl",
 					Namespace: workspace.Name,
 					UID:       uuid.NewUUID(),
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						Path: "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+					},
 				},
 			}
 
@@ -946,7 +964,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(userDevErr).To(BeNil())
 		})
 
-		It("Should update status condition of deployment when path field of gitopsDeployment is empty", func() {
+		It("Should update status condition of deployment when path field of gitopsDeployment is empty or '/'", func() {
 			By("Create new deployment.")
 
 			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
@@ -981,277 +999,42 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			}
 
 			_, _, _, _, userDevErr := a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
-			Expect(userDevErr).To(BeNil())
+			Expect(userDevErr.UserError()).To(Equal("spec.source.path is a required field and it cannot be empty"))
 
-			By("Get DeploymentToApplicationMapping and Application objects, to be used later.")
-			var deplToAppMapping db.DeploymentToApplicationMapping
-			{
-				var appMappings []db.DeploymentToApplicationMapping
-
-				err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
-				Expect(err).To(BeNil())
-
-				Expect(len(appMappings)).To(Equal(1))
-
-				deplToAppMapping = appMappings[0]
-			}
-
-			By("Inserting dummy data into ApplicationState table, because we are not calling the Reconciler for this, which updates the status of application into db.")
-			var resourceStatus managedgitopsv1alpha1.ResourceStatus
-			var resources []managedgitopsv1alpha1.ResourceStatus
-			resources = append(resources, resourceStatus)
-
-			var buffer bytes.Buffer
-
-			By("Convert ResourceStatus object into String")
-			resourceStr, err := yaml.Marshal(&resources)
-			Expect(err).To(BeNil())
-
-			By("Compress the data")
-			gzipWriter, err := gzip.NewWriterLevel(&buffer, gzip.BestSpeed)
-			Expect(err).To(BeNil())
-
-			_, err = gzipWriter.Write([]byte(string(resourceStr)))
-			Expect(err).To(BeNil())
-
-			err = gzipWriter.Close()
-			Expect(err).To(BeNil())
-
-			reconciledStateString, reconciledobj, err := dummyApplicationComparedToField()
-			Expect(err).To(BeNil())
-
-			applicationState := &db.ApplicationState{
-				Applicationstate_application_id: deplToAppMapping.Application_id,
-				Health:                          string(managedgitopsv1alpha1.HeathStatusCodeHealthy),
-				Sync_Status:                     string(managedgitopsv1alpha1.SyncStatusCodeSynced),
-				Revision:                        "abcdefg",
-				Message:                         "Success",
-				Resources:                       buffer.Bytes(),
-				ReconciledState:                 reconciledStateString,
-			}
-
-			err = dbQueries.CreateApplicationState(ctx, applicationState)
-			Expect(err).To(BeNil())
-
-			By("Retrieve latest version of GitOpsDeployment and check Health/Sync before calling applicationEventRunner_handleUpdateDeploymentStatusTick function.")
-			gitopsDeployment := &managedgitopsv1alpha1.GitOpsDeployment{}
 			gitopsDeploymentKey := client.ObjectKey{Namespace: gitopsDepl.Namespace, Name: gitopsDepl.Name}
 
-			clientErr := a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
+			By("Update the path to correct value to verify whether error is nil")
+			clientErr := a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDepl)
 			Expect(clientErr).To(BeNil())
 
-			By("Verify gitopsDeployment.Spec.Source.Path is empty")
-			Expect(gitopsDeployment.Spec.Source.Path).To(BeEmpty())
-
-			Expect(gitopsDeployment.Status.Health.Status).To(BeEmpty())
-			Expect(gitopsDeployment.Status.Sync.Status).To(BeEmpty())
-			Expect(gitopsDeployment.Status.Sync.Revision).To(BeEmpty())
-			Expect(gitopsDeployment.Status.Health.Message).To(BeEmpty())
-			Expect(gitopsDeployment.Status.ReconciledState.Destination.Namespace).To(BeEmpty())
-			Expect(gitopsDeployment.Status.ReconciledState.Destination.Name).To(BeEmpty())
-			Expect(gitopsDeployment.Status.Conditions).To(BeNil())
-
-			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status.")
-			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
+			gitopsDepl.Spec.Source.Path = "resources/test-data/sample-gitops-repository/environments/overlays/dev"
+			err = k8sClient.Update(ctx, gitopsDepl)
 			Expect(err).To(BeNil())
 
-			By("Retrieve latest version of GitOpsDeployment and check Health/Sync after calling applicationEventRunner_handleUpdateDeploymentStatusTick function.")
-			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
-			Expect(clientErr).To(BeNil())
-
-			Expect(gitopsDeployment.Status.Health.Status).To(Equal(managedgitopsv1alpha1.HeathStatusCodeHealthy))
-			Expect(gitopsDeployment.Status.Sync.Status).To(Equal(managedgitopsv1alpha1.SyncStatusCodeSynced))
-			Expect(gitopsDeployment.Status.Sync.Revision).To(Equal("abcdefg"))
-			Expect(gitopsDeployment.Status.Health.Message).To(Equal("Success"))
-			Expect(gitopsDeployment.Status.ReconciledState.Source.Path).To(Equal(reconciledobj.Source.Path))
-			Expect(gitopsDeployment.Status.ReconciledState.Source.RepoURL).To(Equal(reconciledobj.Source.RepoURL))
-			Expect(gitopsDeployment.Status.ReconciledState.Source.Branch).To(Equal(reconciledobj.Source.TargetRevision))
-			Expect(gitopsDeployment.Status.ReconciledState.Destination.Namespace).To(Equal(reconciledobj.Destination.Namespace))
-
-			matchingCondition, _ := conditions.NewConditionManager().FindCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionInvalidSpecError)
-			Expect(matchingCondition).ToNot(BeNil())
-			Expect(matchingCondition.Message).To(Equal("spec.source.path is a required field and it cannot be empty"))
-			Expect(matchingCondition.Status).To(Equal(managedgitopsv1alpha1.GitOpsConditionStatusTrue))
-			Expect(matchingCondition.Type).To(Equal(managedgitopsv1alpha1.GitOpsDeploymentConditionInvalidSpecError))
-
-			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
-			Expect(clientErr).To(BeNil())
-
-			By("Update the path to verify whether gitopsDeployment condition status is false")
-			gitopsDeployment.Spec.Source.Path = "resources/test-data/sample-gitops-repository/environments/overlays/dev"
-			err = k8sClient.Update(ctx, gitopsDeployment)
-			Expect(err).To(BeNil())
-
-			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
-			Expect(err).To(BeNil())
-
-			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
-			Expect(clientErr).To(BeNil())
-
-			By("Verify whether gitOpsCondition status is false")
-			matchingCondition, _ = conditions.NewConditionManager().FindCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionInvalidSpecError)
-			Expect(matchingCondition).ToNot(BeNil())
-			Expect(matchingCondition.Status).To(Equal(managedgitopsv1alpha1.GitOpsConditionStatusFalse))
-			Expect(matchingCondition.Message).To(Equal(""))
-
-			By("Delete GitOpsDepl to clean resources.")
-			err = k8sClient.Delete(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
-
-		})
-
-		It("Should update status condition of deployment when path field of gitopsDeployment is '/' ", func() {
-			By("Create new deployment.")
-
-			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "my-gitops-depl",
-					Namespace: workspace.Name,
-					UID:       uuid.NewUUID(),
-				},
-				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
-					Source: managedgitopsv1alpha1.ApplicationSource{
-						Path: "/",
-					},
-				},
-			}
-
-			k8sClient := fake.
-				NewClientBuilder().
-				WithScheme(scheme).
-				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).
-				Build()
-
-			a := applicationEventLoopRunner_Action{
-				// When the code asks for a new k8s client, give it our fake client
-				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
-					return k8sClient, nil
-				},
-				eventResourceName:           gitopsDepl.Name,
-				eventResourceNamespace:      gitopsDepl.Namespace,
-				workspaceClient:             k8sClient,
-				log:                         log.FromContext(context.Background()),
-				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
-				workspaceID:                 workspaceID,
-				testOnlySkipCreateOperation: true,
-				k8sClientFactory: MockSRLK8sClientFactory{
-					fakeClient: k8sClient,
-				},
-			}
-
-			_, _, _, _, userDevErr := a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			_, _, _, _, userDevErr = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
 
-			By("Get DeploymentToApplicationMapping and Application objects, to be used later.")
-			var deplToAppMapping db.DeploymentToApplicationMapping
-			{
-				var appMappings []db.DeploymentToApplicationMapping
-
-				err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
-				Expect(err).To(BeNil())
-
-				Expect(len(appMappings)).To(Equal(1))
-
-				deplToAppMapping = appMappings[0]
-			}
-
-			By("Inserting dummy data into ApplicationState table, because we are not calling the Reconciler for this, which updates the status of application into db.")
-			var resourceStatus managedgitopsv1alpha1.ResourceStatus
-			var resources []managedgitopsv1alpha1.ResourceStatus
-			resources = append(resources, resourceStatus)
-
-			var buffer bytes.Buffer
-
-			By("Convert ResourceStatus object into String")
-			resourceStr, err := yaml.Marshal(&resources)
-			Expect(err).To(BeNil())
-
-			By("Compress the data")
-			gzipWriter, err := gzip.NewWriterLevel(&buffer, gzip.BestSpeed)
-			Expect(err).To(BeNil())
-
-			_, err = gzipWriter.Write([]byte(string(resourceStr)))
-			Expect(err).To(BeNil())
-
-			err = gzipWriter.Close()
-			Expect(err).To(BeNil())
-
-			reconciledStateString, reconciledobj, err := dummyApplicationComparedToField()
-			Expect(err).To(BeNil())
-
-			applicationState := &db.ApplicationState{
-				Applicationstate_application_id: deplToAppMapping.Application_id,
-				Health:                          string(managedgitopsv1alpha1.HeathStatusCodeHealthy),
-				Sync_Status:                     string(managedgitopsv1alpha1.SyncStatusCodeSynced),
-				Revision:                        "abcdefg",
-				Message:                         "Success",
-				Resources:                       buffer.Bytes(),
-				ReconciledState:                 reconciledStateString,
-			}
-
-			err = dbQueries.CreateApplicationState(ctx, applicationState)
-			Expect(err).To(BeNil())
-
-			By("Retrieve latest version of GitOpsDeployment and check Health/Sync before calling applicationEventRunner_handleUpdateDeploymentStatusTick function.")
-			gitopsDeployment := &managedgitopsv1alpha1.GitOpsDeployment{}
-			gitopsDeploymentKey := client.ObjectKey{Namespace: gitopsDepl.Namespace, Name: gitopsDepl.Name}
-
-			clientErr := a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
+			By("Update the path to '/' verify whether error condition is set")
+			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDepl)
 			Expect(clientErr).To(BeNil())
 
-			By("Verify gitopsDeployment.Spec.Source.Path is '/' ")
-			Expect(gitopsDeployment.Spec.Source.Path).To(Equal("/"))
-
-			Expect(gitopsDeployment.Status.Health.Status).To(BeEmpty())
-			Expect(gitopsDeployment.Status.Sync.Status).To(BeEmpty())
-			Expect(gitopsDeployment.Status.Sync.Revision).To(BeEmpty())
-			Expect(gitopsDeployment.Status.Health.Message).To(BeEmpty())
-			Expect(gitopsDeployment.Status.ReconciledState.Destination.Namespace).To(BeEmpty())
-			Expect(gitopsDeployment.Status.ReconciledState.Destination.Name).To(BeEmpty())
-			Expect(gitopsDeployment.Status.Conditions).To(BeNil())
-
-			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status.")
-			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
+			gitopsDepl.Spec.Source.Path = "/"
+			err = k8sClient.Update(ctx, gitopsDepl)
 			Expect(err).To(BeNil())
 
-			By("Retrieve latest version of GitOpsDeployment and check Health/Sync after calling applicationEventRunner_handleUpdateDeploymentStatusTick function.")
-			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
+			_, _, _, _, userDevErr = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(userDevErr.UserError()).To(Equal("spec.source.path cannot be '/'"))
+
+			By("Update the path to correct value to verify whether error is nil")
+			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDepl)
 			Expect(clientErr).To(BeNil())
 
-			Expect(gitopsDeployment.Status.Health.Status).To(Equal(managedgitopsv1alpha1.HeathStatusCodeHealthy))
-			Expect(gitopsDeployment.Status.Sync.Status).To(Equal(managedgitopsv1alpha1.SyncStatusCodeSynced))
-			Expect(gitopsDeployment.Status.Sync.Revision).To(Equal("abcdefg"))
-			Expect(gitopsDeployment.Status.Health.Message).To(Equal("Success"))
-			Expect(gitopsDeployment.Status.ReconciledState.Source.Path).To(Equal(reconciledobj.Source.Path))
-			Expect(gitopsDeployment.Status.ReconciledState.Source.RepoURL).To(Equal(reconciledobj.Source.RepoURL))
-			Expect(gitopsDeployment.Status.ReconciledState.Source.Branch).To(Equal(reconciledobj.Source.TargetRevision))
-			Expect(gitopsDeployment.Status.ReconciledState.Destination.Namespace).To(Equal(reconciledobj.Destination.Namespace))
-
-			matchingCondition, _ := conditions.NewConditionManager().FindCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionInvalidSpecError)
-			Expect(matchingCondition).ToNot(BeNil())
-			Expect(matchingCondition.Message).To(Equal("spec.source.path cannot be '/'"))
-			Expect(matchingCondition.Status).To(Equal(managedgitopsv1alpha1.GitOpsConditionStatusTrue))
-			Expect(matchingCondition.Type).To(Equal(managedgitopsv1alpha1.GitOpsDeploymentConditionInvalidSpecError))
-
-			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
-			Expect(clientErr).To(BeNil())
-
-			By("Update the path to verify whether gitopsDeployment condition status is false")
-			gitopsDeployment.Spec.Source.Path = "resources/test-data/sample-gitops-repository/environments/overlays/dev"
-			err = k8sClient.Update(ctx, gitopsDeployment)
+			gitopsDepl.Spec.Source.Path = "resources/test-data/sample-gitops-repository/environments/overlays/dev"
+			err = k8sClient.Update(ctx, gitopsDepl)
 			Expect(err).To(BeNil())
 
-			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
-			Expect(err).To(BeNil())
-
-			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
-			Expect(clientErr).To(BeNil())
-
-			By("Verify whether gitOpsCondition status is false")
-			matchingCondition, _ = conditions.NewConditionManager().FindCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionInvalidSpecError)
-			Expect(matchingCondition).ToNot(BeNil())
-			Expect(matchingCondition.Status).To(Equal(managedgitopsv1alpha1.GitOpsConditionStatusFalse))
-			Expect(matchingCondition.Message).To(Equal(""))
+			_, _, _, _, userDevErr = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(userDevErr).To(BeNil())
 
 			By("Delete GitOpsDepl to clean resources.")
 			err = k8sClient.Delete(ctx, gitopsDepl)
@@ -1589,6 +1372,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 					Namespace: workspace.Name,
 					UID:       uuid.NewUUID(),
 				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						Path: "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+					},
+				},
 			}
 
 			k8sClientOuter := fake.
@@ -1649,6 +1437,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 					Name:      "my-gitops-depl",
 					Namespace: workspace.Name,
 					UID:       uuid.NewUUID(),
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						Path: "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+					},
 				},
 			}
 

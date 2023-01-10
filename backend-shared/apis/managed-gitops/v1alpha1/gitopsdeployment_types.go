@@ -178,9 +178,8 @@ type GitOpsDeploymentCondition struct {
 type GitOpsDeploymentConditionType string
 
 const (
-	GitOpsDeploymentConditionSyncError        GitOpsDeploymentConditionType = "SyncError"
-	GitOpsDeploymentConditionErrorOccurred    GitOpsDeploymentConditionType = "ErrorOccurred"
-	GitOpsDeploymentConditionInvalidSpecError GitOpsDeploymentConditionType = "InvalidSpecError"
+	GitOpsDeploymentConditionSyncError     GitOpsDeploymentConditionType = "SyncError"
+	GitOpsDeploymentConditionErrorOccurred GitOpsDeploymentConditionType = "ErrorOccurred"
 )
 
 // GitOpsConditionStatus is a type which represents possible comparison results
@@ -199,9 +198,8 @@ const (
 type GitOpsDeploymentReasonType string
 
 const (
-	GitopsDeploymentReasonSyncError        GitOpsDeploymentReasonType = "SyncError"
-	GitopsDeploymentReasonErrorOccurred    GitOpsDeploymentReasonType = "ErrorOccurred"
-	GitOpsDeploymentReasonInvalidSpecError GitOpsDeploymentReasonType = "InvalidSpecError"
+	GitopsDeploymentReasonSyncError     GitOpsDeploymentReasonType = "SyncError"
+	GitopsDeploymentReasonErrorOccurred GitOpsDeploymentReasonType = "ErrorOccurred"
 )
 
 //+kubebuilder:object:root=true

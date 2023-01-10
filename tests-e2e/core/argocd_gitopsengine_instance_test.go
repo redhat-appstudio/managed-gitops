@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", func() {
+var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", func() {
 
 	const (
 		workspace       = "my-user"

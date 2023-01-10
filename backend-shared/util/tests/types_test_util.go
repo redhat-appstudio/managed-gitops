@@ -2,7 +2,7 @@ package tests
 
 import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
+	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"

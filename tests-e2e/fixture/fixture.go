@@ -17,7 +17,7 @@ import (
 
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	routev1 "github.com/openshift/api/route/v1"
-	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
+	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"

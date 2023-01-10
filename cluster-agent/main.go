@@ -23,7 +23,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	routev1 "github.com/openshift/api/route/v1"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"

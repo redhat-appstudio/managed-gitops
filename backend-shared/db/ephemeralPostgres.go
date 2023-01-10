@@ -110,7 +110,7 @@ func NewEphemeralCreateTestFramework() (EphemeralDB, error) {
 	}
 
 	// Following command is used to populate the database tables from the db-schema.sql (defined in the monorepo)
-	schemaToPostgresCont := exec.Command("docker", "cp", "../../../db-schema.sql", dockerName+":/")
+	schemaToPostgresCont := exec.Command("docker", "cp", "../../db-schema.sql", dockerName+":/")
 	schemaToPostgresContErr := schemaToPostgresCont.Run()
 
 	if schemaToPostgresContErr != nil {

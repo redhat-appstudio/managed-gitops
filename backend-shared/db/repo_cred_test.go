@@ -1,5 +1,5 @@
 // db_test is a test suite for the db package.
-// To run the tests: cd backend-shared; go test ./config/db -v -run TestDb
+// To run the tests: cd backend-shared; go test ./db -v -run TestDb
 package db_test
 
 import (
@@ -8,7 +8,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 )
 
 var _ = Describe("RepositoryCredentials Tests", func() {

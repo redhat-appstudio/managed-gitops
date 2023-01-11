@@ -42,11 +42,6 @@ import (
 const (
 	// If the 'appstudioLabelKey' string is present in a label of the SnapshotEnvironmentBinding, that label is copied to child GitOpsDeployments of the SnapshotEnvironmentBinding
 	appstudioLabelKey = "appstudio.openshift.io"
-
-	ComponentDeploymentConditionAllComponentsDeployed = "AllComponentsDeployed"
-	ComponentDeploymentConditionCommitsSynced         = "CommitsSynced"
-	ComponentDeploymentConditionCommitsUnsynced       = "CommitsUnsynced"
-	ComponentDeploymentConditionErrorOccurred         = "ErrorOccurred"
 )
 
 // SnapshotEnvironmentBindingReconciler reconciles a SnapshotEnvironmentBinding object
@@ -225,12 +220,12 @@ func addComponentDeploymentCondition(ctx context.Context, binding *appstudioshar
 		}
 	}
 
-	ctype := ComponentDeploymentConditionAllComponentsDeployed
+	ctype := appstudioshared.ComponentDeploymentConditionAllComponentsDeployed
 	status := metav1.ConditionFalse
-	reason := ComponentDeploymentConditionCommitsUnsynced
+	reason := appstudioshared.ComponentDeploymentConditionCommitsUnsynced
 	if synced == total {
 		status = metav1.ConditionTrue
-		reason = ComponentDeploymentConditionCommitsSynced
+		reason = appstudioshared.ComponentDeploymentConditionCommitsSynced
 	}
 	message := fmt.Sprintf("%d of %d components deployed", synced, total)
 

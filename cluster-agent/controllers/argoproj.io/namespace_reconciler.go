@@ -189,108 +189,160 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 }
 
 // compareApplications compares Application objects, since both objects are of different types we can not use == operator for comparison.
-func compareApplications(applicationFromArgoCD appv1.Application, applicationFromDB fauxargocd.FauxApplication, log logr.Logger) bool {
+func compareApplications(appArgo appv1.Application, appDB fauxargocd.FauxApplication, log logr.Logger) bool {
 
 	var isAPIVersionUpdateNeeded bool
-	if applicationFromArgoCD.APIVersion != applicationFromDB.APIVersion {
+	if appArgo.APIVersion != appDB.APIVersion {
 		log.Info("APIVersion field in ArgoCD and DB entry is not in Sync.")
-		log.Info("APIVersion:= ArgoCD: " + applicationFromArgoCD.APIVersion + "; DB: " + applicationFromDB.APIVersion)
+		log.Info("APIVersion:= ArgoCD: " + appArgo.APIVersion + "; DB: " + appDB.APIVersion)
 		isAPIVersionUpdateNeeded = true
 	}
 
 	var isKindUpdateNeeded bool
-	if applicationFromArgoCD.Kind != applicationFromDB.Kind {
+	if appArgo.Kind != appDB.Kind {
 		log.Info("Kind field in ArgoCD and DB entry is not in Sync.")
-		log.Info("Kind:= ArgoCD: " + applicationFromArgoCD.Kind + "; DB: " + applicationFromDB.Kind)
+		log.Info("Kind:= ArgoCD: " + appArgo.Kind + "; DB: " + appDB.Kind)
 		isKindUpdateNeeded = true
 	}
 
 	var isNameUpdateNeeded bool
-	if applicationFromArgoCD.Name != applicationFromDB.Name {
+	if appArgo.Name != appDB.Name {
 		log.Info("Name field in ArgoCD and DB entry is not in Sync.")
-		log.Info("Name:= ArgoCD: " + applicationFromArgoCD.Name + "; DB: " + applicationFromDB.Name)
+		log.Info("Name:= ArgoCD: " + appArgo.Name + "; DB: " + appDB.Name)
 		isNameUpdateNeeded = true
 	}
 
 	var isNamespaceUpdateNeeded bool
-	if applicationFromArgoCD.Namespace != applicationFromDB.Namespace {
+	if appArgo.Namespace != appDB.Namespace {
 		log.Info("Namespace field in ArgoCD and DB entry is not in Sync.")
-		log.Info("Namespace:= ArgoCD: " + applicationFromArgoCD.Namespace + "; DB: " + applicationFromDB.Namespace)
+		log.Info("Namespace:= ArgoCD: " + appArgo.Namespace + "; DB: " + appDB.Namespace)
 		isNamespaceUpdateNeeded = true
 	}
 
 	var isRepoUrlUpdateNeeded bool
-	if applicationFromArgoCD.Spec.Source.RepoURL != applicationFromDB.Spec.Source.RepoURL {
+	if appArgo.Spec.Source.RepoURL != appDB.Spec.Source.RepoURL {
 		log.Info("RepoURL field in ArgoCD and DB entry is not in Sync.")
-		log.Info("RepoURL:= ArgoCD: " + applicationFromArgoCD.Spec.Source.RepoURL + "; DB: " + applicationFromDB.Spec.Source.RepoURL)
+		log.Info("RepoURL:= ArgoCD: " + appArgo.Spec.Source.RepoURL + "; DB: " + appDB.Spec.Source.RepoURL)
 		isRepoUrlUpdateNeeded = true
 	}
 
 	var isPathUpdateNeeded bool
-	if applicationFromArgoCD.Spec.Source.Path != applicationFromDB.Spec.Source.Path {
+	if appArgo.Spec.Source.Path != appDB.Spec.Source.Path {
 		log.Info("Path field in ArgoCD and DB entry is not in Sync.")
-		log.Info("Path:= ArgoCD: " + applicationFromArgoCD.Spec.Source.Path + "; DB: " + applicationFromDB.Spec.Source.Path)
+		log.Info("Path:= ArgoCD: " + appArgo.Spec.Source.Path + "; DB: " + appDB.Spec.Source.Path)
 		isPathUpdateNeeded = true
 	}
 
 	var isTargetRevisionUpdateNeeded bool
-	if applicationFromArgoCD.Spec.Source.TargetRevision != applicationFromDB.Spec.Source.TargetRevision {
+	if appArgo.Spec.Source.TargetRevision != appDB.Spec.Source.TargetRevision {
 		log.Info("TargetRevision field in ArgoCD and DB entry is not in Sync.")
-		log.Info("TargetRevision:= ArgoCD: " + applicationFromArgoCD.Spec.Source.TargetRevision + "; DB: " + applicationFromDB.Spec.Source.TargetRevision)
+		log.Info("TargetRevision:= ArgoCD: " + appArgo.Spec.Source.TargetRevision + "; DB: " + appDB.Spec.Source.TargetRevision)
 		isTargetRevisionUpdateNeeded = true
 	}
 
 	var isDestinationServerUpdateNeeded bool
-	if applicationFromArgoCD.Spec.Destination.Server != applicationFromDB.Spec.Destination.Server {
+	if appArgo.Spec.Destination.Server != appDB.Spec.Destination.Server {
 		log.Info("Destination.Server field in ArgoCD and DB entry is not in Sync.")
-		log.Info("Destination.Server:= ArgoCD: " + applicationFromArgoCD.Spec.Destination.Server + "; DB: " + applicationFromDB.Spec.Destination.Server)
+		log.Info("Destination.Server:= ArgoCD: " + appArgo.Spec.Destination.Server + "; DB: " + appDB.Spec.Destination.Server)
 		isDestinationServerUpdateNeeded = true
 	}
 
 	var isDestinationNamespaceUpdateNeeded bool
-	if applicationFromArgoCD.Spec.Destination.Namespace != applicationFromDB.Spec.Destination.Namespace {
+	if appArgo.Spec.Destination.Namespace != appDB.Spec.Destination.Namespace {
 		log.Info("Destination.Namespace field in ArgoCD and DB entry is not in Sync.")
-		log.Info("Destination.Namespace:= ArgoCD: " + applicationFromArgoCD.Spec.Destination.Namespace + "; DB: " + applicationFromDB.Spec.Destination.Namespace)
+		log.Info("Destination.Namespace:= ArgoCD: " + appArgo.Spec.Destination.Namespace + "; DB: " + appDB.Spec.Destination.Namespace)
 		isDestinationNamespaceUpdateNeeded = true
 	}
 
 	var isDestinationNameUpdateNeeded bool
-	if applicationFromArgoCD.Spec.Destination.Name != applicationFromDB.Spec.Destination.Name {
+	if appArgo.Spec.Destination.Name != appDB.Spec.Destination.Name {
 		log.Info("Destination.Name field in ArgoCD and DB entry is not in Sync.")
-		log.Info("Destination.Name:= ArgoCD: " + applicationFromArgoCD.Spec.Destination.Name + "; DB: " + applicationFromDB.Spec.Destination.Name)
+		log.Info("Destination.Name:= ArgoCD: " + appArgo.Spec.Destination.Name + "; DB: " + appDB.Spec.Destination.Name)
 		isDestinationNameUpdateNeeded = true
 	}
 
 	var isProjectUpdateNeeded bool
-	if applicationFromArgoCD.Spec.Project != applicationFromDB.Spec.Project {
+	if appArgo.Spec.Project != appDB.Spec.Project {
 		log.Info("Project field in ArgoCD and DB entry is not in Sync.")
-		log.Info("Project:= ArgoCD: " + applicationFromArgoCD.Spec.Project + "; DB: " + applicationFromDB.Spec.Project)
+		log.Info("Project:= ArgoCD: " + appArgo.Spec.Project + "; DB: " + appDB.Spec.Project)
 		isProjectUpdateNeeded = true
 	}
 
-	var isAutomatedPruneUpdateNeeded bool
-	if applicationFromArgoCD.Spec.SyncPolicy.Automated.Prune != applicationFromDB.Spec.SyncPolicy.Automated.Prune {
-		log.Info("Prune field in ArgoCD and DB entry is not in Sync.")
-		isAutomatedPruneUpdateNeeded = true
+	var isAutomatedPruneUpdateNeeded, isAutomatedSelfHealUpdateNeeded, isAutomatedAllowEmptyUpdateNeeded,
+		canPanic, isNilDbSyncPolicy, isNilArgoSyncPolicy,
+		isNilDbSyncPolicyAutomated, isNilArgoSyncPolicyAutomated bool
+
+	// if SyncPolicy is nil in both Argo app and DB entry, so consider fields are in Sync.
+	if appArgo.Spec.SyncPolicy == nil && appDB.Spec.SyncPolicy == nil {
+		// Do not check nested fields to avoid panic
+		canPanic = true
 	}
 
-	var isAutomatedSelfHealUpdateNeeded bool
-	if applicationFromArgoCD.Spec.SyncPolicy.Automated.SelfHeal != applicationFromDB.Spec.SyncPolicy.Automated.SelfHeal {
-		log.Info("SelfHeal field in ArgoCD and DB entry is not in Sync.")
-		isAutomatedSelfHealUpdateNeeded = true
+	// if SyncPolicy in nil DB, but not in Argo CD
+	if !canPanic && appArgo.Spec.SyncPolicy != nil && appDB.Spec.SyncPolicy == nil {
+		log.Info("SyncPolicy field in ArgoCD and DB entry is not in Sync.")
+		isNilDbSyncPolicy = true
 	}
 
-	var isAutomatedAllowEmptyUpdateNeeded bool
-	if applicationFromArgoCD.Spec.SyncPolicy.Automated.AllowEmpty != applicationFromDB.Spec.SyncPolicy.Automated.AllowEmpty {
-		log.Info("AllowEmpty field in ArgoCD and DB entry is not in Sync.")
-		isAutomatedAllowEmptyUpdateNeeded = true
+	// if SyncPolicy in Argo CD app in nil, but not in DB
+	if !canPanic && appArgo.Spec.SyncPolicy == nil && appDB.Spec.SyncPolicy != nil {
+		log.Info("SyncPolicy field in ArgoCD and DB entry is not in Sync.")
+		isNilArgoSyncPolicy = true
+	}
+
+	// If SyncPolicy is nil in both Argo CD and DB then no need to check nested fields.
+	// If SyncPolicy is nil in one of the objects then consider fields are not in Sync and skip checking for nested fields to avoid panic.
+	if !canPanic && !isNilDbSyncPolicy && !isNilArgoSyncPolicy {
+
+		// Now check for nested fields.
+
+		// if SyncPolicy.Automated is nil in both Argo CD and DB, so consider fields are in Sync.
+		if appArgo.Spec.SyncPolicy.Automated == nil && appDB.Spec.SyncPolicy.Automated == nil {
+			// Do not check nested fields to avoid panic
+			canPanic = true
+		}
+
+		// SyncPolicy.Automated is nil in DB, but not in Argo CD
+		if !canPanic && appArgo.Spec.SyncPolicy.Automated != nil && appDB.Spec.SyncPolicy.Automated == nil {
+			log.Info("SyncPolicy.Automated field in ArgoCD and DB entry is not in Sync.")
+			isNilDbSyncPolicyAutomated = true
+		}
+
+		// SyncPolicy.Automated is nil in Argo CD, but not in DB
+		if !canPanic && appArgo.Spec.SyncPolicy.Automated == nil && appDB.Spec.SyncPolicy.Automated != nil {
+			log.Info("SyncPolicy.Automated field in ArgoCD and DB entry is not in Sync.")
+			isNilArgoSyncPolicyAutomated = true
+		}
+
+		// If SyncPolicy.Automated is nil in both Argo CD and DB then no need to check nested fields.
+		// If SyncPolicy.Automated is nil in one of the objects then consider fields are not in Sync and skip checking for nested fields to avoid panic.
+		if !canPanic && !isNilDbSyncPolicyAutomated && !isNilArgoSyncPolicyAutomated {
+
+			// Parent fields are validated and it can not panic now.
+
+			if appArgo.Spec.SyncPolicy.Automated.Prune != appDB.Spec.SyncPolicy.Automated.Prune {
+				log.Info("Prune field in ArgoCD and DB entry is not in Sync.")
+				isAutomatedPruneUpdateNeeded = true
+			}
+
+			if appArgo.Spec.SyncPolicy.Automated.SelfHeal != appDB.Spec.SyncPolicy.Automated.SelfHeal {
+				log.Info("SelfHeal field in ArgoCD and DB entry is not in Sync.")
+				isAutomatedSelfHealUpdateNeeded = true
+			}
+
+			if appArgo.Spec.SyncPolicy.Automated.AllowEmpty != appDB.Spec.SyncPolicy.Automated.AllowEmpty {
+				log.Info("AllowEmpty field in ArgoCD and DB entry is not in Sync.")
+				isAutomatedAllowEmptyUpdateNeeded = true
+			}
+		}
 	}
 
 	// If any of the above steps have been performed, then we need to update the application.
 	isUpdateNeeded := isAPIVersionUpdateNeeded || isKindUpdateNeeded || isNameUpdateNeeded ||
 		isNamespaceUpdateNeeded || isRepoUrlUpdateNeeded || isPathUpdateNeeded || isTargetRevisionUpdateNeeded ||
 		isDestinationServerUpdateNeeded || isDestinationNamespaceUpdateNeeded || isDestinationNameUpdateNeeded ||
-		isProjectUpdateNeeded || isAutomatedPruneUpdateNeeded || isAutomatedSelfHealUpdateNeeded || isAutomatedAllowEmptyUpdateNeeded
+		isProjectUpdateNeeded || isAutomatedPruneUpdateNeeded || isAutomatedSelfHealUpdateNeeded || isAutomatedAllowEmptyUpdateNeeded ||
+		isNilDbSyncPolicy || isNilArgoSyncPolicy || isNilDbSyncPolicyAutomated || isNilArgoSyncPolicyAutomated
 
 	return isUpdateNeeded
 }

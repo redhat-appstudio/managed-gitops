@@ -148,9 +148,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			By("checking the status component deployment condition is true")
 			Eventually(binding, "3m", "1s").Should(bindingFixture.HaveComponentDeploymentCondition(
 				metav1.Condition{
-					Type:    appstudiocontroller.ComponentDeploymentConditionAllComponentsDeployed,
+					Type:    appstudiosharedv1.ComponentDeploymentConditionAllComponentsDeployed,
 					Status:  metav1.ConditionTrue,
-					Reason:  appstudiocontroller.ComponentDeploymentConditionCommitsSynced,
+					Reason:  appstudiosharedv1.ComponentDeploymentConditionCommitsSynced,
 					Message: "2 of 2 components deployed",
 				}))
 
@@ -164,16 +164,16 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			By("checking the status component deployment condition is false")
 			Eventually(binding, "3m", "1s").Should(bindingFixture.HaveComponentDeploymentCondition(
 				metav1.Condition{
-					Type:    appstudiocontroller.ComponentDeploymentConditionAllComponentsDeployed,
+					Type:    appstudiosharedv1.ComponentDeploymentConditionAllComponentsDeployed,
 					Status:  metav1.ConditionFalse,
-					Reason:  appstudiocontroller.ComponentDeploymentConditionCommitsUnsynced,
+					Reason:  appstudiosharedv1.ComponentDeploymentConditionCommitsUnsynced,
 					Message: "1 of 2 components deployed",
 				}))
 			Consistently(binding, "1m", "1s").Should(bindingFixture.HaveComponentDeploymentCondition(
 				metav1.Condition{
-					Type:    appstudiocontroller.ComponentDeploymentConditionAllComponentsDeployed,
+					Type:    appstudiosharedv1.ComponentDeploymentConditionAllComponentsDeployed,
 					Status:  metav1.ConditionFalse,
-					Reason:  appstudiocontroller.ComponentDeploymentConditionCommitsUnsynced,
+					Reason:  appstudiosharedv1.ComponentDeploymentConditionCommitsUnsynced,
 					Message: "1 of 2 components deployed",
 				}))
 
@@ -187,9 +187,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			By("checking the status component deployment condition is true")
 			Eventually(binding, "3m", "1s").Should(bindingFixture.HaveComponentDeploymentCondition(
 				metav1.Condition{
-					Type:    appstudiocontroller.ComponentDeploymentConditionAllComponentsDeployed,
+					Type:    appstudiosharedv1.ComponentDeploymentConditionAllComponentsDeployed,
 					Status:  metav1.ConditionTrue,
-					Reason:  appstudiocontroller.ComponentDeploymentConditionCommitsSynced,
+					Reason:  appstudiosharedv1.ComponentDeploymentConditionCommitsSynced,
 					Message: "2 of 2 components deployed",
 				}))
 		})

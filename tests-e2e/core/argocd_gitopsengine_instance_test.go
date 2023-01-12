@@ -19,9 +19,9 @@ import (
 var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", func() {
 
 	const (
-		workspace       = "my-user"
-		operationID     = "test-operation"
-		operationPrefix = "operation-"
+		newArgoCDNamespaceName = fixture.NewArgoCDInstanceNamespace
+		operationID            = "test-operation"
+		operationPrefix        = "operation-"
 	)
 
 	Context("ArgoCD instance gets created from an operation's gitopsEngineInstance resource-type", func() {
@@ -29,15 +29,6 @@ var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", fun
 		BeforeEach(func() {
 			By("Delete old namespaces, and kube-system resources")
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
-
-			By("deleting the namespace before the test starts, so that the code can create it")
-			config, err := fixture.GetSystemKubeConfig()
-			if err != nil {
-				panic(err)
-			}
-
-			err = fixture.DeleteNamespace(workspace, config)
-			Expect(err).To(BeNil())
 
 		})
 
@@ -60,36 +51,31 @@ var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", fun
 				Clusteruser_id: "test-user",
 				User_name:      "test-user",
 			}
-
-			By("create a clusterUser and namespace for GitOpsEngineInstance where ArgoCD will be created")
 			ctx := context.Background()
 			log := log.FromContext(ctx)
 
 			By("Creating gitopsengine cluster,cluster user and namespace")
-			// err = dbq.CreateClusterUser(ctx, testClusterUser)
-			// Expect(err).To(BeNil())
 
-			workspace := &corev1.Namespace{
+			newArgoCDNamespace := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: workspace,
+					Name: newArgoCDNamespaceName,
 					UID:  uuid.NewUUID(),
 				},
 				Spec: corev1.NamespaceSpec{},
 			}
 
-			err = k8sClient.Create(ctx, workspace)
+			err = k8sClient.Create(ctx, newArgoCDNamespace)
 			Expect(err).To(BeNil())
 
-			err = util.CreateNewArgoCDInstance(ctx, workspace, *testClusterUser, operationID, k8sClient, log, dbq)
+			err = util.CreateNewArgoCDInstance(ctx, newArgoCDNamespace, *testClusterUser, k8sClient, log, dbq)
 			Expect(err).To(BeNil())
 
 			By("ensuring ArgoCD service resource exists")
 			argocdInstance := &apps.Deployment{
-				ObjectMeta: metav1.ObjectMeta{Name: operationPrefix + operationID + "-server", Namespace: workspace.Name},
+				ObjectMeta: metav1.ObjectMeta{Name: newArgoCDNamespace.Name + "-server", Namespace: newArgoCDNamespace.Name},
 			}
 
-			Eventually(argocdInstance, "60s", "5s").Should(k8s.ExistByName(k8sClient))
-			Expect(err).To(BeNil())
+			Eventually(argocdInstance, "2m", "5s").Should(k8s.ExistByName(k8sClient), "Argo CD server Deployment should exist")
 
 		})
 	})

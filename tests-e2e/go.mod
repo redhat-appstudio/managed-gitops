@@ -4,12 +4,12 @@ go 1.18
 
 require (
 	github.com/argoproj-labs/argocd-operator v0.5.0
-	github.com/argoproj/argo-cd/v2 v2.5.5
+	github.com/argoproj/argo-cd/v2 v2.5.4
 	github.com/argoproj/gitops-engine v0.7.1-0.20221004132320-98ccd3d43fd9
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
 	github.com/redhat-appstudio/application-api v0.0.0-20230116140450-3ef8e0cd2c9e
 	github.com/redhat-appstudio/managed-gitops/appstudio-controller v0.0.0
-	github.com/redhat-appstudio/managed-gitops/backend v0.0.0-00010101000000-000000000000
+	github.com/redhat-appstudio/managed-gitops/backend v0.0.0
 	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0
 	github.com/redhat-appstudio/managed-gitops/cluster-agent v0.0.0
 	k8s.io/apimachinery v0.24.3
@@ -136,7 +136,7 @@ require (
 	github.com/Azure/go-autorest/autorest/date v0.3.0 // indirect
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
-	github.com/Microsoft/go-winio v0.5.2 // indirect
+	github.com/Microsoft/go-winio v0.5.1 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7 // indirect
 	github.com/acomagu/bufpipe v1.0.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -195,7 +195,7 @@ require (
 	golang.org/x/xerrors v0.0.0-20220517211312-f3a8303e98df // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20220314164441-57ef72a4c106 // indirect
+	google.golang.org/genproto v0.0.0-20220207185906-7721543eae58 // indirect
 	google.golang.org/grpc v1.45.0 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect

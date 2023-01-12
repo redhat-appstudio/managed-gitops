@@ -15,11 +15,11 @@ require (
 	github.com/redhat-appstudio/managed-gitops/utilities/db-migration v0.0.0
 	github.com/stretchr/testify v1.7.1
 	go.uber.org/zap v1.19.1
-	golang.org/x/oauth2 v0.0.0-20220608161450-d0670ef3b1eb
+	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.24.3
 	k8s.io/apimachinery v0.24.3
-	k8s.io/client-go v12.0.0+incompatible
+	k8s.io/client-go v0.24.3
 	sigs.k8s.io/controller-runtime v0.13.0
 
 )
@@ -34,7 +34,6 @@ require (
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
-	github.com/argoproj-labs/argocd-operator v0.5.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -48,7 +47,7 @@ require (
 	github.com/go-pg/pg/v10 v10.10.6 // indirect
 	github.com/go-pg/zerochecker v0.2.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-jwt/jwt/v4 v4.2.0 // indirect
+	github.com/golang-jwt/jwt/v4 v4.1.0 // indirect
 	github.com/golang-migrate/migrate/v4 v4.15.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
@@ -71,7 +70,6 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
@@ -85,7 +83,7 @@ require (
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
-	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
+	golang.org/x/crypto v0.0.0-20220214200702-86341886e292 // indirect
 	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
@@ -110,30 +108,5 @@ require (
 replace (
 	github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
 	github.com/redhat-appstudio/managed-gitops/utilities/db-migration => ../utilities/db-migration
-	k8s.io/api => k8s.io/api v0.24.2
-	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.24.2
-	k8s.io/apimachinery => k8s.io/apimachinery v0.24.2
-	k8s.io/apiserver => k8s.io/apiserver v0.24.2
-	k8s.io/cli-runtime => k8s.io/cli-runtime v0.24.2
-	k8s.io/client-go => k8s.io/client-go v0.24.2
-	k8s.io/cloud-provider => k8s.io/cloud-provider v0.24.2
-	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.24.2
-	k8s.io/code-generator => k8s.io/code-generator v0.24.2
-	k8s.io/component-base => k8s.io/component-base v0.24.2
-	k8s.io/component-helpers => k8s.io/component-helpers v0.24.2
-	k8s.io/controller-manager => k8s.io/controller-manager v0.24.2
-	k8s.io/cri-api => k8s.io/cri-api v0.24.2
-	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.24.2
-	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.24.2
-	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.24.2
-	k8s.io/kube-proxy => k8s.io/kube-proxy v0.24.2
-	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.24.2
-	k8s.io/kubectl => k8s.io/kubectl v0.24.2
-	k8s.io/kubelet => k8s.io/kubelet v0.24.2
-	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.24.2
-	k8s.io/metrics => k8s.io/metrics v0.24.2
-	k8s.io/mount-utils => k8s.io/mount-utils v0.24.2
-	k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.24.2
-	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.24.2
 	sigs.k8s.io/controller-runtime => github.com/kcp-dev/controller-runtime v0.12.2-0.20220808200255-4b60fd66e5de
 )

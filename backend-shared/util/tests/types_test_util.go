@@ -4,7 +4,6 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 
-	appv1 "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,11 +22,6 @@ func GenericTestSetup() (*runtime.Scheme, *corev1.Namespace, *corev1.Namespace, 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	err := managedgitopsv1alpha1.AddToScheme(scheme)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-
-	err = appv1.AddToScheme(scheme)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}

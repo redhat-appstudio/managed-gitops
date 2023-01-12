@@ -11,7 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/utils"
 	"gopkg.in/yaml.v2"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,6 +30,8 @@ import (
 	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	sharedoperations "github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
+
+	argocdoperatorv1alph1 "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 )
 
 var _ = Describe("Operation Controller", func() {
@@ -45,9 +47,9 @@ var _ = Describe("Operation Controller", func() {
 		var k8sClient client.WithWatch
 		var task processOperationEventTask
 		var logger logr.Logger
-		var kubesystemNamespace *v1.Namespace
-		var argocdNamespace *v1.Namespace
-		var workspace *v1.Namespace
+		var kubesystemNamespace *corev1.Namespace
+		var argocdNamespace *corev1.Namespace
+		var workspace *corev1.Namespace
 		var scheme *runtime.Scheme
 		var testClusterUser *db.ClusterUser
 		var err error
@@ -61,13 +63,16 @@ var _ = Describe("Operation Controller", func() {
 				User_name:      "test-user",
 			}
 
-			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
+			dbQueries, err = db.NewUnsafePostgresDBQueries(false, true)
 			Expect(err).To(BeNil())
 
 			scheme, argocdNamespace, kubesystemNamespace, workspace, err = tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			err = appv1.AddToScheme(scheme)
+			Expect(err).To(BeNil())
+
+			err = argocdoperatorv1alph1.AddToScheme(scheme)
 			Expect(err).To(BeNil())
 
 			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
@@ -85,9 +90,6 @@ var _ = Describe("Operation Controller", func() {
 			}
 
 			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace, defaultProject).Build()
-
-			// By("Initialize fake kube client")
-			// k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).Build()
 
 			task = processOperationEventTask{
 				log: logger,
@@ -175,42 +177,32 @@ var _ = Describe("Operation Controller", func() {
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
 
-			// err = db.SetupForTestingDBGinkgo()
-			// Expect(err).To(BeNil())
-
-			testClusterUser = &db.ClusterUser{
-				Clusteruser_id: "test-user-new",
-				User_name:      "test-user-new",
-			}
-			err = dbQueries.CreateClusterUser(ctx, testClusterUser)
-			Expect(err).To(BeNil())
-
-			// gitopsEngineCluster := db.GitopsEngineCluster{
-			// 	Gitopsenginecluster_id: "test-fake-cluster-1",
-			// 	Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
-			//
-
 			gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
 			Expect(gitopsEngineCluster).ToNot(BeNil())
 			Expect(err).To(BeNil())
 
+			newArgoCDNamespace := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-new-argocd-namespace",
+					UID:  "test-new-argocd-namespace-uuid",
+				},
+			}
+			err = k8sClient.Create(context.Background(), newArgoCDNamespace)
+			Expect(err).To(BeNil())
+
 			gitopsEngineInstance := db.GitopsEngineInstance{
 				Gitopsengineinstance_id: "test-fake-engine-instance-id-1",
-				Namespace_name:          workspace.Name,
-				Namespace_uid:           string(workspace.UID),
+				Namespace_name:          newArgoCDNamespace.Name,
+				Namespace_uid:           string(newArgoCDNamespace.UID),
 				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 			}
-
-			// err = dbQueries.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-			// Expect(err).To(BeNil())
 
 			err = dbQueries.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
 			Expect(err).To(BeNil())
 
 			operationDB := &db.Operation{
-				Operation_id:            "test-operation-gitopsengineinstance",
 				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-				Resource_id:             "test-fake-resource-id",
+				Resource_id:             gitopsEngineInstance.Gitopsengineinstance_id,
 				Resource_type:           db.OperationResourceType_GitOpsEngineInstance,
 				State:                   db.OperationState_Waiting,
 				Operation_owner_user_id: testClusterUser.Clusteruser_id,
@@ -226,12 +218,47 @@ var _ = Describe("Operation Controller", func() {
 					Namespace: namespace,
 				},
 				Spec: managedgitopsv1alpha1.OperationSpec{
-					OperationID: "test-operation-gitopsengineinstance",
+					OperationID: operationDB.Operation_id,
 				},
 			}
-
 			err = task.event.client.Create(ctx, operationCR)
 			Expect(err).To(BeNil())
+
+			// Wait for cluster agent to create the ArgoCD operand. Since Argo CD is not actually running,
+			// we simulate Argo CD creating the 'default' AppProject
+			go func() {
+				defer GinkgoRecover() // Allow Ginkgo to catch the Expects
+
+			outer_for:
+				for {
+
+					var argoCDList argocdoperatorv1alph1.ArgoCDList
+
+					err := k8sClient.List(context.Background(), &argoCDList)
+					Expect(err).To(BeNil())
+
+					for _, argoCDItem := range argoCDList.Items {
+
+						By("Simulating Argo CD creating a default AppProject, as soon as the ArgoCD CR exists")
+						appProject := appv1.AppProject{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      "default",
+								Namespace: argoCDItem.Namespace,
+							},
+							Spec: appv1.AppProjectSpec{},
+						}
+
+						err := k8sClient.Create(context.Background(), &appProject)
+						Expect(err).To(BeNil())
+
+						break outer_for
+
+					}
+
+					time.Sleep(100 * time.Millisecond)
+
+				}
+			}()
 
 			retry, err := task.PerformTask(ctx)
 			Expect(err).To(BeNil())
@@ -1070,7 +1097,7 @@ var _ = Describe("Operation Controller", func() {
 
 					By("Verifying whether Cluster secret is created and unmarshalling the tls-config byte value")
 					secretName := argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: applicationDB.Managed_environment_id})
-					clusterSecret := &v1.Secret{
+					clusterSecret := &corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      secretName,
 							Namespace: gitopsEngineInstance.Namespace_name,
@@ -1343,7 +1370,7 @@ var _ = Describe("Operation Controller", func() {
 
 				By("verify that there is no retry and error for a successful termination")
 				task.syncFuncs = &syncFuncs{
-					terminateOperation: func(ctx context.Context, s string, n v1.Namespace, cs *utils.CredentialService, c client.Client, d time.Duration, l logr.Logger) error {
+					terminateOperation: func(ctx context.Context, s string, n corev1.Namespace, cs *utils.CredentialService, c client.Client, d time.Duration, l logr.Logger) error {
 						return nil
 					},
 				}
@@ -1374,7 +1401,7 @@ var _ = Describe("Operation Controller", func() {
 				By("check if an error is returned for the failed termination")
 				expectedErr := "unable to terminate sync due to xyz reason"
 				task.syncFuncs = &syncFuncs{
-					terminateOperation: func(ctx context.Context, s string, n v1.Namespace, cs *utils.CredentialService, c client.Client, d time.Duration, l logr.Logger) error {
+					terminateOperation: func(ctx context.Context, s string, n corev1.Namespace, cs *utils.CredentialService, c client.Client, d time.Duration, l logr.Logger) error {
 						return fmt.Errorf(expectedErr)
 					},
 				}
@@ -1401,7 +1428,7 @@ var _ = Describe("Operation Controller", func() {
 
 				By("verify there is no termination and retry should be false")
 				task.syncFuncs = &syncFuncs{
-					terminateOperation: func(ctx context.Context, s string, n v1.Namespace, cs *utils.CredentialService, c client.Client, d time.Duration, l logr.Logger) error {
+					terminateOperation: func(ctx context.Context, s string, n corev1.Namespace, cs *utils.CredentialService, c client.Client, d time.Duration, l logr.Logger) error {
 						return fmt.Errorf("unable to terminate sync due to xyz reason")
 					},
 				}

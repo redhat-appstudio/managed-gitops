@@ -217,22 +217,25 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, names
 			ResourceExclusions: string(resourceExclusions),
 		},
 	}
-	namespaceToCreate := &corev1.Namespace{
+
+	newArgoCDNamespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namespace,
 		},
 	}
-	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(namespaceToCreate), namespaceToCreate); err != nil {
+
+	// Get the namespace, or create it if it doesn't already exist
+	if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(newArgoCDNamespace), newArgoCDNamespace); err != nil {
 		if apierr.IsNotFound(err) {
-			if err := k8sClient.Create(ctx, namespaceToCreate); err != nil {
-				return fmt.Errorf("error on Create %v", err)
+			// It doesn't exist, so create it
+			if err := k8sClient.Create(ctx, newArgoCDNamespace); err != nil {
+				return fmt.Errorf("while creating Argo CD instance, a namespace could not be created: %v", err)
 			}
-			sharedutil.LogAPIResourceChangeEvent(namespaceToCreate.Namespace, namespaceToCreate.Name, namespaceToCreate, sharedutil.ResourceCreated, log)
+			sharedutil.LogAPIResourceChangeEvent(newArgoCDNamespace.Namespace, newArgoCDNamespace.Name, newArgoCDNamespace, sharedutil.ResourceCreated, log)
 		} else {
-			return fmt.Errorf("error on Get %v", err)
+			return fmt.Errorf("while creating Argo CD instance, an unexpected error on retrieving Namespace: %v", err)
 		}
 	}
-	// sharedutil.LogAPIResourceChangeEvent(namespaceToCreate.Namespace, namespaceToCreate.Name, namespaceToCreate, sharedutil.ResourceCreated, log)
 
 	if errk8s := k8sClient.Create(ctx, argoCDOperand); errk8s != nil {
 		return fmt.Errorf("error on creating: %s, %v ", argoCDOperand.GetName(), errk8s)

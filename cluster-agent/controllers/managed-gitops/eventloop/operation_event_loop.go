@@ -927,10 +927,11 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 }
 
 func processOperation_GitOpsEngineInstance(ctx context.Context, dbOperation db.Operation, crOperation operation.Operation, opConfig operationConfig) (bool, error) {
-	// var config *rest.Config
+
 	if dbOperation.Resource_id == "" {
 		return shouldRetryTrue, fmt.Errorf("resource id was nil while processing operation: " + crOperation.Name)
 	}
+
 	dbGitopsEngineInstance := &db.GitopsEngineInstance{
 		Gitopsengineinstance_id: dbOperation.Instance_id,
 	}
@@ -942,10 +943,11 @@ func processOperation_GitOpsEngineInstance(ctx context.Context, dbOperation db.O
 		log.Error(err, "Unable to retrieve database GitopsEngineInstance row from database")
 		return shouldRetryTrue, err
 	} else {
-		errfromScopedArgoCD := utils.CreateNamespaceScopedArgoCD(ctx, crOperation.Name, crOperation.Namespace, opConfig.eventClient, log)
-		if errfromScopedArgoCD != nil {
-			log.Error(errfromScopedArgoCD, "Unable to create namespace scoped ArgoCD for GitopsEngineInstance")
-			return shouldRetryTrue, errfromScopedArgoCD
+		// The ArgoCD CR name is given the name of the namespace it is being created in
+		err := utils.CreateNamespaceScopedArgoCD(ctx, dbGitopsEngineInstance.Namespace_name, dbGitopsEngineInstance.Namespace_name, opConfig.eventClient, log)
+		if err != nil {
+			log.Error(err, "Unable to create namespace scoped ArgoCD for GitopsEngineInstance")
+			return shouldRetryTrue, err
 		}
 
 	}

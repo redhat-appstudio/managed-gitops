@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
@@ -14,7 +13,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func CreateNewArgoCDInstance(ctx context.Context, namespace *corev1.Namespace, user db.ClusterUser, operationid string, k8sclient client.Client, log logr.Logger, dbQueries db.AllDatabaseQueries) error {
+func CreateNewArgoCDInstance(ctx context.Context, namespace *corev1.Namespace, user db.ClusterUser, k8sclient client.Client,
+	log logr.Logger, dbQueries db.AllDatabaseQueries) error {
 
 	if err := k8sclient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace); err != nil {
 		log.Error(err, "Unable to get namespace")
@@ -31,50 +31,30 @@ func CreateNewArgoCDInstance(ctx context.Context, namespace *corev1.Namespace, u
 		return fmt.Errorf("unable to retrieve kubesystem namespace %v", err)
 	}
 
-	gitopsEngineInstance, _, _, err := dbutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespace, string(kubeSystemNamespace.UID), dbQueries, log)
+	gitopsEngineInstance, _, _, err := dbutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespace,
+		string(kubeSystemNamespace.UID), dbQueries, log)
 	if err != nil {
 		return err
 	}
 
 	dboperation := db.Operation{
-		Operation_id:            operationid,
 		Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
 		Operation_owner_user_id: user.Clusteruser_id,
 		Resource_type:           db.OperationResourceType_GitOpsEngineInstance,
 		Resource_id:             gitopsEngineInstance.Gitopsengineinstance_id,
 	}
 
-	log.Info("Creating operation row for the gitopsEngineInstance")
-
-	err = dbQueries.CreateOperation(ctx, &dboperation, dboperation.Operation_owner_user_id)
-	if err != nil {
-		log.Error(err, "Unable to create db row for Operation")
-		return fmt.Errorf("unable to create operation db row for gitopsEngineInstance '%s': %v", gitopsEngineInstance.Gitopsengineinstance_id, err)
-	}
-
 	log.Info("Creating operation CR for the gitopsEngineInstance")
 
-	// k8sOperation, dbOperation, err := operations.CreateOperation(ctx, false, operation, user.Clusteruser_id, gitopsEngineInstance.Namespace_name, dbQueries, k8sclient, log)
-	// if err != nil {
-	// 	return fmt.Errorf("unable to create operation for gitopsEngineInstance '%s': %v", gitopsEngineInstance.Gitopsengineinstance_id, err)
-	// } else if k8sOperation == nil {
-	// 	return fmt.Errorf("k8soperation returned nil for gitopsEngineInstance '%s': %v", gitopsEngineInstance.Gitopsengineinstance_id, err)
-	// } else if dbOperation == nil {
-	// 	return fmt.Errorf("dboperation returned nil for gitopsEngineInstance '%s': %v", gitopsEngineInstance.Gitopsengineinstance_id, err)
-	// }
-	k8sOperation := managedgitopsv1alpha1.Operation{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      operations.GenerateOperationCRName(dboperation),
-			Namespace: gitopsEngineInstance.Namespace_name,
-		},
-		Spec: managedgitopsv1alpha1.OperationSpec{
-			OperationID: dboperation.Operation_id,
-		},
-	}
+	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, false, dboperation, user.Clusteruser_id,
+		gitopsEngineInstance.Namespace_name, dbQueries, k8sclient, log)
 
-	if err := k8sclient.Create(ctx, &k8sOperation, &client.CreateOptions{}); err != nil {
-		log.Error(err, "Unable to create K8s Operation")
+	if err != nil {
 		return fmt.Errorf("unable to create operation for gitopsEngineInstance '%s': %v", gitopsEngineInstance.Gitopsengineinstance_id, err)
+	} else if k8sOperation == nil {
+		return fmt.Errorf("k8soperation returned nil for gitopsEngineInstance '%s': %v", gitopsEngineInstance.Gitopsengineinstance_id, err)
+	} else if dbOperation == nil {
+		return fmt.Errorf("dboperation returned nil for gitopsEngineInstance '%s': %v", gitopsEngineInstance.Gitopsengineinstance_id, err)
 	}
 
 	return nil

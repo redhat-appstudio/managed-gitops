@@ -347,7 +347,9 @@ func SetupForTestingDBGinkgo() error {
 
 		for _, gitopsEngineInstance := range engineInstances {
 
-			if strings.HasPrefix(gitopsEngineInstance.Gitopsengineinstance_id, "test-") {
+			if strings.HasPrefix(gitopsEngineInstance.Gitopsengineinstance_id, "test-") ||
+				strings.HasPrefix(gitopsEngineInstance.Namespace_name, "test-") {
+
 				gitopsEngineInstanceUIDsToDelete[gitopsEngineInstance.Gitopsengineinstance_id] = ""
 			}
 		}
@@ -426,7 +428,7 @@ func SetupForTestingDBGinkgo() error {
 	Expect(err).To(BeNil())
 
 	for _, gitopsEngineInstance := range engineInstances {
-		if strings.HasPrefix(gitopsEngineInstance.Gitopsengineinstance_id, "test-") {
+		if strings.HasPrefix(gitopsEngineInstance.Gitopsengineinstance_id, "test-") || strings.HasPrefix(gitopsEngineInstance.Namespace_name, "test-") {
 
 			rowsAffected, err := dbq.DeleteGitopsEngineInstanceById(ctx, gitopsEngineInstance.Gitopsengineinstance_id)
 
@@ -487,7 +489,7 @@ func SetupForTestingDBGinkgo() error {
 		for _, user := range clusterUsers {
 			if strings.HasPrefix(user.Clusteruser_id, "test-") {
 				rowsAffected, err := dbq.DeleteClusterUserById(ctx, user.Clusteruser_id)
-				Expect(rowsAffected).Should(Equal(1))
+				Expect(rowsAffected).Should(Equal(1), "expected deletion of "+user.Clusteruser_id+" to succeed.")
 				Expect(err).To(BeNil())
 			}
 		}

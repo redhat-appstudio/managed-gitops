@@ -16,7 +16,6 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	apps "k8s.io/api/apps/v1"
@@ -37,15 +36,13 @@ const (
 	GitOpsServiceE2ENamespace = "gitops-service-e2e"
 
 	// NewArgoCDInstanceNamespace  is the namespace thats test should use if they wish to install a new Argo CD instance
-	NewArgoCDInstanceNamespace = "my-argocd"
+	NewArgoCDInstanceNamespace = "test-my-argocd"
 
 	// NewArgoCDInstanceDestNamespace is the destinaton Argo CD Application namespace tests should use if they wish to deploy from a new Argo CD instance
 	NewArgoCDInstanceDestNamespace = "argocd-instance-dest-namespace"
 
 	// ENVGitOpsInKCP is an environment variable that is set when running our e2e tests against KCP
 	ENVGitOpsInKCP = "GITOPS_IN_KCP"
-
-	operationID = "test-operation"
 )
 
 // EnsureCleanSlateNonKCPVirtualWorkspace should be called before every E2E tests:
@@ -89,10 +86,6 @@ func EnsureCleanSlateNonKCPVirtualWorkspace() error {
 	}
 
 	if err := cleanUpOldKubeSystemResources(clientconfig); err != nil {
-		return err
-	}
-
-	if err := cleanUpOldGitopsEngineInstance(operationID); err != nil {
 		return err
 	}
 
@@ -141,34 +134,6 @@ func cleanUpOldArgoCDApplications(namespaceParam string, destNamespace string, c
 				}
 			}
 		}
-	}
-
-	return nil
-}
-func cleanUpOldGitopsEngineInstance(operationID string) error {
-	ctx := context.Background()
-	dbQueries, err := db.NewUnsafePostgresDBQueries(true, true)
-	if err != nil {
-		return err
-	}
-
-	operation := db.Operation{
-		Operation_id: operationID,
-	}
-	err = dbQueries.GetOperationById(ctx, &operation)
-	if err != nil {
-		if !db.IsResultNotFoundError(err) {
-			return err
-		}
-	}
-
-	_, err = dbQueries.DeleteOperationById(ctx, operation.Operation_id)
-	if err != nil {
-		return err
-	}
-	_, err = dbQueries.DeleteGitopsEngineInstanceById(ctx, operation.Instance_id)
-	if err != nil {
-		return err
 	}
 
 	return nil

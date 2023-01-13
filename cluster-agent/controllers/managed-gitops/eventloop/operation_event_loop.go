@@ -952,7 +952,7 @@ func processOperation_GitOpsEngineInstance(ctx context.Context, dbOperation db.O
 		return shouldRetryTrue, err
 	} else {
 		// The ArgoCD CR name is given the name of the namespace it is being created in
-		err := utils.CreateNamespaceScopedArgoCD(ctx, dbGitopsEngineInstance.Namespace_name, dbGitopsEngineInstance.Namespace_name, opConfig.eventClient, log)
+		err := utils.ReconcileNamespaceScopedArgoCD(ctx, dbGitopsEngineInstance.Namespace_name, dbGitopsEngineInstance.Namespace_name, opConfig.eventClient, log)
 		if err != nil {
 			log.Error(err, "Unable to create namespace scoped ArgoCD for GitopsEngineInstance")
 			return shouldRetryTrue, err

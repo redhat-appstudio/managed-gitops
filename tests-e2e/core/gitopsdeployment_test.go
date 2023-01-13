@@ -783,7 +783,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 					},
 				}
 
-				if k8s.Create(gitOpsDeploymentResource, k8sClient); err != nil {
+				if err := k8s.Create(gitOpsDeploymentResource, k8sClient); err != nil {
 					return err
 				}
 

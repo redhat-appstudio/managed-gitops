@@ -32,7 +32,9 @@ const (
 	// We set this to be at least twice the default reconciliation time (3 minutes) to avoid a race condition in updating ConfigMaps
 	// in Argo CD. This is an imperfect solution.
 	ArgoCDReconcileWaitTime = "7m"
-	numberToSimulate        = 5
+
+	// Number of users interacting with GitOps service.
+	numberToSimulate = 5
 )
 
 var _ = Describe("GitOpsDeployment E2E tests", func() {
@@ -711,6 +713,9 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 		Context("Simulates simple interactions of X active users interacting with the service", func() {
 
+			config, err := fixture.GetSystemKubeConfig()
+			Expect(err).To(BeNil())
+
 			// testPrintln outputs a log statement along with the particular test #
 			testPrintln := func(str string, i int) {
 				fmt.Printf("%v - %d) %s\n", time.Now(), i, str)
@@ -719,17 +724,46 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			// runTestInner returns error if the test fail, nil otherwise.
 			runTestInner := func(i int) error {
 
-				var err error
-
 				testPrintln("Create new namespace", i)
 				namespace := &corev1.Namespace{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "user",
+						Name: fmt.Sprintf("user-%d", i),
+						Labels: map[string]string{
+							"argocd.argoproj.io/managed-by": "gitops-service-argocd",
+						},
 					},
 				}
 
 				if err = k8s.Create(namespace, k8sClient); err != nil {
 					return err
+				}
+
+				// Generate  expected resource from "https://github.com/managed-gitops-test-data/deployment-permutations-*" using name
+				getResourceStatusList_deploymentPermutations := func(name string) []managedgitopsv1alpha1.ResourceStatus {
+					return []managedgitopsv1alpha1.ResourceStatus{
+						{
+							Group:     "",
+							Version:   "v1",
+							Kind:      "ConfigMap",
+							Name:      name,
+							Namespace: namespace.ObjectMeta.Name,
+							Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
+						},
+					}
+				}
+
+				// Generate expected identifier configmap for "https://github.com/managed-gitops-test-data/deployment-permutations-*"
+				createResourceStatusListFunction_deploymentPermutations := func() []managedgitopsv1alpha1.ResourceStatus {
+					return []managedgitopsv1alpha1.ResourceStatus{
+						{
+							Group:     "",
+							Version:   "v1",
+							Kind:      "ConfigMap",
+							Name:      "identifier",
+							Namespace: namespace.ObjectMeta.Name,
+							Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
+						},
+					}
 				}
 
 				testPrintln("Create GitopsDeploymentResource", i)
@@ -741,7 +775,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 					Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
 						Source: managedgitopsv1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/managed-gitops-test-data/deployment-permutations-a",
-							Path:           "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+							Path:           "pathB",
 							TargetRevision: "branchA",
 						},
 						Destination: managedgitopsv1alpha1.ApplicationDestination{},
@@ -789,7 +823,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 				gitOpsDeploymentResource.Spec.Source.RepoURL = "https://github.com/managed-gitops-test-data/deployment-permutations-b"
 
-				// updating the CR with changes in repoURL
+				testPrintln("updating the CR with changes in repoURLL", i)
 				if err := k8s.Update(gitOpsDeploymentResource, k8sClient); err != nil {
 					return err
 				}
@@ -824,7 +858,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				}
 
 				testPrintln("delete namespace", i)
-				if err := k8s.Delete(namespace, k8sClient); err != nil {
+				if err := fixture.DeleteNamespace(namespace.ObjectMeta.Name, config); err != nil {
 					return err
 				}
 
@@ -837,10 +871,9 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				defer wg.Done()
 				result := runTestInner(i)
 				resChannel <- result
-
 			}
 
-			FIt("Simulates simple interactions of X active users interacting with the service ", func() {
+			It("Simulates simple interactions of X active users interacting with the service ", func() {
 
 				Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
@@ -849,18 +882,16 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 				wg.Add(numberToSimulate)
 
-				for i := 0; i < numberToSimulate; i++ {
-
+				for i := 1; i <= numberToSimulate; i++ {
 					go runTest(i, resultChan, &wg)
+				}
 
+				for j := 1; j <= numberToSimulate; j++ {
+					fmt.Println("read from channel ", <-resultChan)
 				}
 
 				fmt.Println("Waiting for goroutines to finish...")
 				wg.Wait()
-
-				for errorVal := range resultChan {
-					fmt.Printf("read %v from channel", errorVal)
-				}
 
 				fmt.Println("Done!")
 			})

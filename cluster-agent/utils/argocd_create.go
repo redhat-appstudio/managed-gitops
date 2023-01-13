@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -45,7 +46,8 @@ type ClusterSecretConfigJSON struct {
 	TLSClientConfig ClusterSecretTLSClientConfigJSON `json:"tlsClientConfig"`
 }
 
-func CreateNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, namespace string, k8sClient client.Client, log logr.Logger) error {
+// ReconcileNamespaceScopedArgoCD will create/update an ArgoCD operand within the specified namespace.
+func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, namespace string, k8sClient client.Client, log logr.Logger) error {
 	policy := "g, system:authenticated, role:admin"
 	scopes := "[groups]"
 
@@ -62,7 +64,7 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, names
 
 	// The values from manifests/staging-cluster-resources/argo-cd.yaml are converted in a Go struct.
 
-	argoCDOperand := &argocdoperator.ArgoCD{
+	expectedArgoCDOperand := &argocdoperator.ArgoCD{
 		ObjectMeta: metav1.ObjectMeta{
 			Finalizers: []string{ArgoCDFinalizerName},
 			Name:       argocdCRName,
@@ -224,7 +226,7 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, names
 		},
 	}
 
-	// Get the namespace, or create it if it doesn't already exist
+	// 1) Get the namespace, or create it if it doesn't already exist
 	if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(newArgoCDNamespace), newArgoCDNamespace); err != nil {
 		if apierr.IsNotFound(err) {
 			// It doesn't exist, so create it
@@ -237,10 +239,40 @@ func CreateNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, names
 		}
 	}
 
-	if errk8s := k8sClient.Create(ctx, argoCDOperand); errk8s != nil {
-		return fmt.Errorf("error on creating: %s, %v ", argoCDOperand.GetName(), errk8s)
+	// 2) Retrieve the ArgoCD operand: if it doesn't exist, create it. If it does exist, update it.
+	existingArgoCDOperand := &argocdoperator.ArgoCD{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      argocdCRName,
+			Namespace: newArgoCDNamespace.Name,
+		},
 	}
-	sharedutil.LogAPIResourceChangeEvent(argoCDOperand.Namespace, argoCDOperand.Name, argoCDOperand, sharedutil.ResourceCreated, log)
+	if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(existingArgoCDOperand), existingArgoCDOperand); err != nil {
+
+		if apierr.IsNotFound(err) {
+			// A) Operand doesn't exist, so create it
+			if errk8s := k8sClient.Create(ctx, expectedArgoCDOperand); errk8s != nil {
+				return fmt.Errorf("error on creating: %s, %v ", expectedArgoCDOperand.GetName(), errk8s)
+			}
+			sharedutil.LogAPIResourceChangeEvent(expectedArgoCDOperand.Namespace, expectedArgoCDOperand.Name, expectedArgoCDOperand,
+				sharedutil.ResourceCreated, log)
+		} else {
+			log.Error(err, "unexpected error on retrieving ArgoCD operand")
+			return fmt.Errorf("unexpected error on retrieving ArgoCD operand, %v", err)
+		}
+
+	} else {
+		// B) The existing ArgoCD resource already exists, so make sure it is up to date
+		if !reflect.DeepEqual(existingArgoCDOperand.Spec, expectedArgoCDOperand) {
+			existingArgoCDOperand.Spec = expectedArgoCDOperand.Spec
+			if err := k8sClient.Update(ctx, existingArgoCDOperand); err != nil {
+				log.Error(err, "unexpected error on updating existing ArgoCD operand")
+				return fmt.Errorf("unexpected error on updating existing ArgoCD operand, %v", err)
+			}
+
+			sharedutil.LogAPIResourceChangeEvent(existingArgoCDOperand.Namespace, existingArgoCDOperand.Name, existingArgoCDOperand,
+				sharedutil.ResourceModified, log)
+		}
+	}
 
 	// Wait for Argo CD to be installed by gitops operator.
 	err = wait.Poll(1*time.Second, 3*time.Minute, func() (bool, error) {

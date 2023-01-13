@@ -60,7 +60,7 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 			k8sClient, err := fixture.GetKubeClient(config)
 			Expect(err).To(BeNil())
 
-			err = argocdv1.CreateNamespaceScopedArgoCD(ctx, argocdCRName, argocdNamespace, k8sClient, log)
+			err = argocdv1.ReconcileNamespaceScopedArgoCD(ctx, argocdCRName, argocdNamespace, k8sClient, log)
 			Expect(err).To(BeNil())
 
 			By("ensuring ArgoCD service resource exists")

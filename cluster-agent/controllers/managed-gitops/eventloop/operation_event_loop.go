@@ -385,7 +385,6 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	argoCDNamespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: dbGitopsEngineInstance.Namespace_name,
-			// UID:  types.UID(dbGitopsEngineInstance.Namespace_uid),
 		},
 	}
 	if err := eventClient.Get(taskContext, client.ObjectKeyFromObject(argoCDNamespace), argoCDNamespace); err != nil {
@@ -399,9 +398,6 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 			return &dbOperation, shouldRetryTrue, err
 		}
 	}
-	fmt.Println("UUUUUIIIIIIIDDDDDD :")
-	fmt.Println(argoCDNamespace.UID)
-	fmt.Println(dbGitopsEngineInstance.Namespace_uid)
 	if string(argoCDNamespace.UID) != dbGitopsEngineInstance.Namespace_uid {
 		log.Error(nil, "SEVERE: Engine instance did not match Argo CD namespace uid, while processing operation")
 		return &dbOperation, shouldRetryFalse, nil

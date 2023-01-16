@@ -225,7 +225,7 @@ func cleanK8sOperations(ctx context.Context, dbq db.DatabaseQueries, client clie
 
 		// Delete the k8s operation now.
 		if err := operations.CleanupOperation(ctx, dbOperation, k8sOperation, cache.GetGitOpsEngineSingleInstanceNamespace(),
-			dbq, client, log); err != nil {
+			dbq, client, false, log); err != nil {
 
 			log.Error(err, "Unable to Delete k8s Operation"+string(k8sOperation.UID)+" for DbOperation: "+string(k8sOperation.Spec.OperationID))
 		} else {

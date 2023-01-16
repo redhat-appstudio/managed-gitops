@@ -27,7 +27,7 @@ const (
 const operationCRNamePattern = "operation-%s"
 
 // CreateOperation will create an Operation CR on the target GitOpsEngine cluster, and a corresponding entry in the
-// database. It will then wait for that operatio to complete (if waitForOperation is true)
+// database. It will then wait for that operation to complete (if waitForOperation is true)
 // - In order to avoid intermittent issues, the Operation could will keep trying for 60 seconds.
 func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationParam db.Operation, clusterUserID string,
 	operationNamespace string, dbQueries db.ApplicationScopedQueries, gitopsEngineClient client.Client,
@@ -171,26 +171,28 @@ func createOperationInternal(ctx context.Context, waitForOperation bool, dbOpera
 
 }
 
-// cleanupOperation cleans up the database entry and (optionally) the CR, once an operation has concluded.
+// cleanupOperation cleans up the operation CR and (optionally) the database entry, once an operation has concluded.
 func CleanupOperation(ctx context.Context, dbOperation db.Operation, k8sOperation managedgitopsv1alpha1.Operation, operationNamespace string,
-	dbQueries db.ApplicationScopedQueries, gitopsEngineClient client.Client, log logr.Logger) error {
+	dbQueries db.ApplicationScopedQueries, gitopsEngineClient client.Client, deleteDBOperation bool, log logr.Logger) error {
 
 	log = log.WithValues("operation", dbOperation.Operation_id, "namespace", operationNamespace)
 
-	// // Delete the database entry
-	// rowsDeleted, err := dbQueries.DeleteOperationById(ctx, dbOperation.Operation_id)
-	// if err != nil {
-	// 	return err
-	// }
-	// if rowsDeleted != 1 {
-	// 	log.V(sharedutil.LogLevel_Warn).Error(err, "unexpected number of operation rows deleted", "operation-id", dbOperation.Operation_id, "rows", rowsDeleted)
-	// }
+	if deleteDBOperation {
+		// Delete the database entry
+		rowsDeleted, err := dbQueries.DeleteOperationById(ctx, dbOperation.Operation_id)
+		if err != nil {
+			return err
+		}
+		if rowsDeleted != 1 {
+			log.V(sharedutil.LogLevel_Warn).Info("unexpected number of operation rows deleted", "operation-id", dbOperation.Operation_id, "rows", rowsDeleted)
+		}
+	}
 
-	// Optional: Delete the Operation CR
+	// Delete the Operation CR
 	if err := gitopsEngineClient.Delete(ctx, &k8sOperation); err != nil {
 		if !apierr.IsNotFound(err) {
-			// Log the error, but don't return it: it's the responsibility of the cluster agent to delete the operation cr
 			log.Error(err, "Unable to delete Operation CR")
+			return err
 		}
 	}
 	log.V(sharedutil.LogLevel_Debug).Info("Deleted operation CR: " + k8sOperation.Name)

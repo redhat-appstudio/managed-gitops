@@ -25,19 +25,24 @@ echo "* Waiting for Grafana CRDs to exist"
 
 while : ; do
   kubectl get customresourcedefinition/grafanas.integreatly.org  > /dev/null 2>&1 && break
-  sleep 1s
+  sleep 1
 done
 
 # -----------------
 
-echo "* Waiting for Grafana route"
-
+echo "* Waiting to acquire cluster host name"
 while : ; do
-  kubectl get route/grafana-route -n grafana -o yaml  > /dev/null 2>&1 && break
-  sleep 1s
+  kubectl get route/thanos-querier -n openshift-monitoring -o yaml  > /dev/null 2>&1 && break
+  sleep 1
 done
 
-export HOSTNAME=`kubectl get route/grafana-route -n grafana -o yaml  | grep "    host:" | cut -c11-`
+# We determine the cluster hostname by looking at the thanos-queroer route, which should already exist
+# on the cluster by default, and already have a hostname in its Route.
+
+HOSTNAME=`kubectl get route/thanos-querier -n openshift-monitoring -o yaml  | grep "    host:" | cut -c11-`
+HOSTNAME=`echo $HOSTNAME | sed 's/thanos-querier-openshift-monitoring/grafana/g'`
+
+
 export ADMIN_SECRET_VALUE=`openssl rand -hex 10`
 
 echo
@@ -50,9 +55,8 @@ TMP_DIR=`mktemp -d`
 
 # Substitute the cluster domain into the Grafana Ingress CR
 cp -f grafana/grafana-cr.yaml $TMP_DIR/grafana-cr-resolved.yaml
-sed -i 's/HOSTNAME/'$HOSTNAME'/g' $TMP_DIR/grafana-cr-resolved.yaml
-sed -i 's/ADMIN_SECRET_VALUE/'$ADMIN_SECRET_VALUE'/g' $TMP_DIR/grafana-cr-resolved.yaml
-
+sed -i.bak 's/HOSTNAME/'$HOSTNAME'/g' $TMP_DIR/grafana-cr-resolved.yaml
+sed -i.bak 's/ADMIN_SECRET_VALUE/'$ADMIN_SECRET_VALUE'/g' $TMP_DIR/grafana-cr-resolved.yaml
 
 kubectl apply -f $TMP_DIR/grafana-cr-resolved.yaml -n grafana
 
@@ -66,7 +70,7 @@ echo
 echo "* Waiting for Grafana service account token secret to exist"
 while : ; do
   kubectl get secrets -n grafana | grep "grafana-serviceaccount-token"  > /dev/null 2>&1 && break
-  sleep 1s
+  sleep 1
 done
 
 echo
@@ -78,7 +82,7 @@ GRAFANA_SA_TOKEN=`kubectl -n grafana get secret $GRAFANA_SECRET -o jsonpath={.da
 
 cp -f grafana/grafana-data-source.yaml  $TMP_DIR/grafana-data-source-resolved.yaml
 
-sed -i 's/GRAFANA_SA_TOKEN/'$GRAFANA_SA_TOKEN'/g' $TMP_DIR/grafana-data-source-resolved.yaml
+sed -i.bak 's/GRAFANA_SA_TOKEN/'$GRAFANA_SA_TOKEN'/g' $TMP_DIR/grafana-data-source-resolved.yaml
 
 kubectl apply -f $TMP_DIR/grafana-data-source-resolved.yaml
 

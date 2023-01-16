@@ -3,12 +3,15 @@ package operations
 import (
 	"context"
 
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -133,6 +136,91 @@ var _ = Describe("Testing generateUniqueOperationCRName function", func() {
 				Expect(crName).To(Equal("operation-customtestid"))
 
 			})
+		})
+	})
+})
+
+var _ = Describe("Testing CleanupOperation function", func() {
+	Context("CleanupOperation should remove Operation CR and DB entry", func() {
+
+		var (
+			ctx          context.Context
+			dbq          db.AllDatabaseQueries
+			logr         logr.Logger
+			k8sClient    client.Client
+			k8sOperation *operation.Operation
+			dbOperation  *db.Operation
+		)
+
+		BeforeEach(func() {
+			scheme,
+				argocdNamespace,
+				kubesystemNamespace,
+				workspace,
+				err := tests.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			err = db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
+
+			ctx = context.Background()
+			logr = log.FromContext(ctx)
+
+			k8sClient = fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(workspace, argocdNamespace, kubesystemNamespace).
+				Build()
+
+			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).To(BeNil())
+
+			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
+			Expect(err).To(BeNil())
+
+			app := db.Application{
+				Application_id:          "test-my-application",
+				Name:                    "my-application",
+				Spec_field:              "{}",
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+
+			err = dbq.CreateApplication(ctx, &app)
+			Expect(err).To(BeNil())
+
+			dbOperationInput := db.Operation{
+				Instance_id:   app.Engine_instance_inst_id,
+				Resource_id:   app.Application_id,
+				Resource_type: db.OperationResourceType_Application,
+			}
+
+			// Create new Operation
+			k8sOperation, dbOperation, err = CreateOperation(ctx, false, dbOperationInput, "test-user", gitopsEngineInstance.Namespace_name, dbq, k8sClient, logr)
+			Expect(err).To(BeNil())
+			Expect(k8sOperation).NotTo(BeNil())
+			Expect(dbOperation).NotTo(BeNil())
+		})
+
+		It("should remove CR and DB entry", func() {
+			err := CleanupOperation(ctx, *dbOperation, *k8sOperation, k8sOperation.Namespace, dbq, k8sClient, true, logr)
+			Expect(err).To(BeNil())
+
+			err = dbq.GetOperationById(ctx, dbOperation)
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(k8sOperation), k8sOperation)
+			Expect(errors.IsNotFound(err)).To(BeTrue())
+		})
+
+		It("shouldn't remove DB entry when deleteDBOperation is disabled", func() {
+			err := CleanupOperation(ctx, *dbOperation, *k8sOperation, k8sOperation.Namespace, dbq, k8sClient, false, logr)
+			Expect(err).To(BeNil())
+
+			err = dbq.GetOperationById(ctx, dbOperation)
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(k8sOperation), k8sOperation)
+			Expect(errors.IsNotFound(err)).To(BeTrue())
 		})
 	})
 })

@@ -402,7 +402,7 @@ func (a *applicationEventLoopRunner_Action) handleDeletedGitOpsDeplSyncRunEvent(
 	}
 
 	// 3) Clean up the operation and database table entries
-	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log); err != nil {
+	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, !a.testOnlySkipCreateOperation, log); err != nil {
 		return gitopserrors.NewDevOnlyError(err)
 	}
 
@@ -564,7 +564,7 @@ outer_for:
 
 	}
 
-	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log); err != nil {
+	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, !a.testOnlySkipCreateOperation, log); err != nil {
 		return gitopserrors.NewDevOnlyError(err)
 	}
 

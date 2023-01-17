@@ -866,27 +866,22 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 
 	// Before we create the application, make sure that the managed environment that the application points to exists
 
-	specFieldApp := &appv1.Application{}
-
-	if err := yaml.Unmarshal([]byte(dbApplication.Spec_field), specFieldApp); err != nil {
-		log.Error(err, "SEVERE: unable to unmarshal DB application spec field, on updating existing Application cR: "+app.Name)
-		// We return nil here, with no retry, because there's likely nothing else that can be done to fix this.
-		// Thus there is no need to keep retrying.
-		return shouldRetryFalse, nil
-	}
-
-	var specDiff string
-	if !reflect.DeepEqual(specFieldApp.Spec.Source, app.Spec.Source) {
-		specDiff = "spec.source fields differ"
-	} else if !reflect.DeepEqual(specFieldApp.Spec.Destination, app.Spec.Destination) {
-		specDiff = "spec.destination fields differ"
-	} else if specFieldApp.Spec.Project != app.Spec.Project {
-		specDiff = "spec project fields differ"
-	} else if !reflect.DeepEqual(specFieldApp.Spec.SyncPolicy, app.Spec.SyncPolicy) {
-		specDiff = "sync policy fields differ"
+	specDiff, err := controllers.CompareApplication(*app, *dbApplication, log)
+	if err != nil {
+		log.Error(err, "unable to compare Argo CD Application with DB row")
+		return shouldRetryFalse, err
 	}
 
 	if specDiff != "" {
+		specFieldApp := &appv1.Application{}
+
+		if err := yaml.Unmarshal([]byte(dbApplication.Spec_field), specFieldApp); err != nil {
+			log.Error(err, "SEVERE: unable to unmarshal DB application spec field, on updating existing Application cR: "+app.Name)
+			// We return nil here, with no retry, because there's likely nothing else that can be done to fix this.
+			// Thus there is no need to keep retrying.
+			return shouldRetryFalse, nil
+		}
+
 		app.Spec.Destination = specFieldApp.Spec.Destination
 		app.Spec.Source = specFieldApp.Spec.Source
 		app.Spec.Project = specFieldApp.Spec.Project

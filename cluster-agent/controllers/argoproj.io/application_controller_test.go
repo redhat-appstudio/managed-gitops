@@ -21,10 +21,10 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
-	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"sigs.k8s.io/yaml"
 )
 
 var _ = Describe("Application Controller", func() {
@@ -856,7 +856,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			err = db.SetupForTestingDBGinkgo()
 			Expect(err).To(BeNil())
 
-			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
+			dbQueries, err = db.NewUnsafePostgresDBQueries(false, true)
 			Expect(err).To(BeNil())
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
@@ -902,8 +902,8 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			err = reconciler.Create(ctx, &argoCdApp)
 			Expect(err).To(BeNil())
 
-			var speCialClusterUser db.ClusterUser
-			err = dbQueries.GetOrCreateSpecialClusterUser(context.Background(), &speCialClusterUser)
+			var specialClusterUser db.ClusterUser
+			err = dbQueries.GetOrCreateSpecialClusterUser(context.Background(), &specialClusterUser)
 			Expect(err).To(BeNil())
 		})
 

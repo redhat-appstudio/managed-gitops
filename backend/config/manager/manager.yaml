@@ -31,7 +31,7 @@ spec:
         - --health-probe-bind-address=:18081
         - --metrics-bind-address=127.0.0.1:8080
         - --leader-elect
-        - --zap-time-encoding=rfc3339nano
+        - --zap-time-encoding=rfc3339nano        
         env:
         - name: ARGO_CD_NAMESPACE
           value: gitops-service-argocd
@@ -57,14 +57,14 @@ spec:
           httpGet:
             path: /readyz
             port: 18081
-          initialDelaySeconds: 120
+          initialDelaySeconds: 180
           periodSeconds: 30
         resources:
           limits:
-            cpu: 300m
-            memory: 1200Mi
+            cpu: 1000m
+            memory: 2400Mi
           requests:
-            cpu: 200m
-            memory: 600Mi
+            cpu: 300m
+            memory: 1000Mi
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10

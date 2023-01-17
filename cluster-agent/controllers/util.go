@@ -2,14 +2,17 @@ package controllers
 
 import (
 	"context"
+	"reflect"
 	"time"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/go-logr/logr"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -189,4 +192,47 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 	}
 
 	return nil
+}
+
+// CompareApplication compares an Argo CD Application and the spec field of a DB Application row, returning "" if the same,
+// otherwise returning the specific difference.
+func CompareApplication(argoCDApp appv1.Application, dbApplication db.Application, log logr.Logger) (string, error) {
+
+	// reflect.DeepEqual will treat empty slices differently depending on how they are defined, so we ensure that
+	// in every case, an empty slice is defined as a appv1.SyncOptions{}
+	sanitizeApp := func(input appv1.Application) appv1.Application {
+		if input.Spec.SyncPolicy != nil {
+
+			if len(input.Spec.SyncPolicy.SyncOptions) == 0 {
+				input.Spec.SyncPolicy.SyncOptions = appv1.SyncOptions{}
+			}
+		}
+		return input
+	}
+	argoCDApp = sanitizeApp(*argoCDApp.DeepCopy())
+
+	specFieldAppFromDB := appv1.Application{}
+
+	if err := yaml.Unmarshal([]byte(dbApplication.Spec_field), &specFieldAppFromDB); err != nil {
+		log.Error(err, "SEVERE: unable to unmarshal DB application spec field, on updating existing Application CR: "+argoCDApp.Name)
+		// We return nil here, with no retry, because there's likely nothing else that can be done to fix this.
+		// Thus there is no need to keep retrying.
+		return "", nil
+	}
+
+	specFieldAppFromDB = sanitizeApp(specFieldAppFromDB)
+
+	var specDiff string
+	if !reflect.DeepEqual(specFieldAppFromDB.Spec.Source, argoCDApp.Spec.Source) {
+		specDiff = "spec.source fields differ"
+	} else if !reflect.DeepEqual(specFieldAppFromDB.Spec.Destination, argoCDApp.Spec.Destination) {
+		specDiff = "spec.destination fields differ"
+	} else if specFieldAppFromDB.Spec.Project != argoCDApp.Spec.Project {
+		specDiff = "spec project fields differ"
+	} else if !reflect.DeepEqual(specFieldAppFromDB.Spec.SyncPolicy, argoCDApp.Spec.SyncPolicy) {
+		specDiff = "sync policy fields differ"
+	}
+
+	return specDiff, nil
+
 }

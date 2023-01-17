@@ -964,8 +964,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(userDevErr).To(BeNil())
 		})
 
-		It("Should update status condition of deployment when path field of gitopsDeployment is empty or '/'", func() {
-			By("Create new deployment.")
+		It("Should report an error via status condition of deployment, when path field of gitopsDeployment is empty or '/'", func() {
+
+			By("Create new deployment with a missing path")
 
 			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -999,11 +1000,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			}
 
 			_, _, _, _, userDevErr := a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
-			Expect(userDevErr.UserError()).To(Equal("spec.source.path is a required field and it cannot be empty"))
+			Expect(userDevErr.UserError()).To(Equal(managedgitopsv1alpha1.GitOpsDeploymentUserError_PathIsRequired))
 
 			gitopsDeploymentKey := client.ObjectKey{Namespace: gitopsDepl.Namespace, Name: gitopsDepl.Name}
 
-			By("Update the path to correct value to verify whether error is nil")
+			By("Update the path to correct value, and verify error is now nil")
 			clientErr := a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDepl)
 			Expect(clientErr).To(BeNil())
 
@@ -1014,7 +1015,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			_, _, _, _, userDevErr = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
 
-			By("Update the path to '/' verify whether error condition is set")
+			By("Update the path to '/' and verify that error condition is set")
 			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDepl)
 			Expect(clientErr).To(BeNil())
 
@@ -1023,9 +1024,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(err).To(BeNil())
 
 			_, _, _, _, userDevErr = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
-			Expect(userDevErr.UserError()).To(Equal("spec.source.path cannot be '/'"))
+			Expect(userDevErr.UserError()).To(Equal(managedgitopsv1alpha1.GitOpsDeploymentUserError_InvalidPathSlash))
 
-			By("Update the path to correct value to verify whether error is nil")
+			By("Update the path to correct value, and verify error is nil again")
 			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDepl)
 			Expect(clientErr).To(BeNil())
 
@@ -1035,10 +1036,6 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			_, _, _, _, userDevErr = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
-
-			By("Delete GitOpsDepl to clean resources.")
-			err = k8sClient.Delete(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
 
 		})
 

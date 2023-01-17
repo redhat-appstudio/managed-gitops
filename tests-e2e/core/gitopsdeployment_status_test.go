@@ -263,7 +263,7 @@ var _ = Describe("GitOpsDeployment Status.Conditions tests", func() {
 			expectedConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{
 				{
 					Type:    managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred,
-					Message: "spec.source.path is a required field and it cannot be empty",
+					Message: managedgitopsv1alpha1.GitOpsDeploymentUserError_PathIsRequired,
 					Status:  managedgitopsv1alpha1.GitOpsConditionStatusTrue,
 					Reason:  managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred,
 				},
@@ -304,7 +304,7 @@ var _ = Describe("GitOpsDeployment Status.Conditions tests", func() {
 			expectedConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{
 				{
 					Type:    managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred,
-					Message: "spec.source.path cannot be '/'",
+					Message: managedgitopsv1alpha1.GitOpsDeploymentUserError_InvalidPathSlash,
 					Status:  managedgitopsv1alpha1.GitOpsConditionStatusTrue,
 					Reason:  managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred,
 				},

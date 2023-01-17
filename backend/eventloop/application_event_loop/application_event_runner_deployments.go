@@ -108,10 +108,10 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 
 	if gitopsDeployment != nil {
 		if gitopsDeployment.Spec.Source.Path == "" {
-			userError := "spec.source.path is a required field and it cannot be empty"
+			userError := managedgitopsv1alpha1.GitOpsDeploymentUserError_PathIsRequired
 			return signalledShutdown_false, nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, err)
 		} else if gitopsDeployment.Spec.Source.Path == "/" {
-			userError := "spec.source.path cannot be '/'"
+			userError := managedgitopsv1alpha1.GitOpsDeploymentUserError_InvalidPathSlash
 			return signalledShutdown_false, nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, err)
 		}
 	}
@@ -804,11 +804,12 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	if applicationState.SyncError != "" {
 		condition.NewConditionManager().SetCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError, managedgitopsv1alpha1.GitOpsConditionStatusTrue, managedgitopsv1alpha1.GitopsDeploymentReasonSyncError, applicationState.SyncError)
 	} else {
+		conditionManager := condition.NewConditionManager()
 		// Update syncError Condition as false if applicationState.SyncError field in database is empty by checking if the condition field is empty or not
-		if condition.NewConditionManager().HasCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError) {
+		if conditionManager.HasCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError) {
 			reason := managedgitopsv1alpha1.GitopsDeploymentReasonSyncError + "Resolved"
-			if cond, _ := condition.NewConditionManager().FindCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError); cond.Reason != reason {
-				condition.NewConditionManager().SetCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError, managedgitopsv1alpha1.GitOpsConditionStatusFalse, reason, "")
+			if cond, _ := conditionManager.FindCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError); cond.Reason != reason {
+				conditionManager.SetCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError, managedgitopsv1alpha1.GitOpsConditionStatusFalse, reason, "")
 			}
 		}
 	}

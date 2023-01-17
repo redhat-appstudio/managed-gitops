@@ -202,6 +202,11 @@ const (
 	GitopsDeploymentReasonErrorOccurred GitOpsDeploymentReasonType = "ErrorOccurred"
 )
 
+const (
+	GitOpsDeploymentUserError_InvalidPathSlash = "spec.source.path cannot be '/'"
+	GitOpsDeploymentUserError_PathIsRequired   = "spec.source.path is a required field and it cannot be empty"
+)
+
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 

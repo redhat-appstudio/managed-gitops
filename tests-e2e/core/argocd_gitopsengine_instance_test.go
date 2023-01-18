@@ -18,7 +18,7 @@ import (
 var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", func() {
 
 	const (
-		newArgoCDNamespaceName = fixture.NewArgoCDInstanceNamespace
+		newArgoCDNamespaceName = fixture.NewArgoCDInstanceNamespace + "-sample"
 		operationID            = "test-operation"
 		operationPrefix        = "operation-"
 	)

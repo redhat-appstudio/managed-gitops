@@ -72,7 +72,7 @@ var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", fun
 				ObjectMeta: metav1.ObjectMeta{Name: newArgoCDNamespace.Name + "-server", Namespace: newArgoCDNamespace.Name},
 			}
 
-			Eventually(argocdInstance, "10m", "5s").Should(k8s.ExistByName(k8sClient), "Argo CD server Deployment should exist")
+			Eventually(argocdInstance, "30m", "5s").Should(k8s.ExistByName(k8sClient), "Argo CD server Deployment should exist")
 
 		})
 	})

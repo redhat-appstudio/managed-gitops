@@ -32,9 +32,6 @@ const (
 	// We set this to be at least twice the default reconciliation time (3 minutes) to avoid a race condition in updating ConfigMaps
 	// in Argo CD. This is an imperfect solution.
 	ArgoCDReconcileWaitTime = "7m"
-
-	// Number of users interacting with GitOps service.
-	numberToSimulate = 5
 )
 
 var _ = Describe("GitOpsDeployment E2E tests", func() {
@@ -711,20 +708,30 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 		})
 
-		Context("Simulates simple interactions of X active users interacting with the service", func() {
+	})
 
-			config, err := fixture.GetSystemKubeConfig()
+	Context("Simulates simple interactions of X active users interacting with the service", func() {
+
+		// Number of users interacting with GitOps service.
+		const (
+			numberToSimulate = 10
+		)
+
+		var k8sClient client.Client
+
+		BeforeEach(func() {
+			var config *rest.Config
+
+			var err error
+			config, err = fixture.GetSystemKubeConfig()
 			Expect(err).To(BeNil())
 
-			// testPrintln outputs a log statement along with the particular test #
-			testPrintln := func(str string, i int) {
-				fmt.Printf("%v - %d) %s\n", time.Now(), i, str)
-			}
+			k8sClient, err = fixture.GetKubeClient(config)
+			Expect(err).To(BeNil())
 
-			// runTestInner returns error if the test fail, nil otherwise.
-			runTestInner := func(i int) error {
+			// Ensure that all user-* namespaces are deleted at start of tests
+			for i := 1; i <= numberToSimulate; i++ {
 
-				testPrintln("Create new namespace", i)
 				namespace := &corev1.Namespace{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: fmt.Sprintf("user-%d", i),
@@ -734,171 +741,208 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 					},
 				}
 
-				if err = k8s.Create(namespace, k8sClient); err != nil {
-					return err
+				if err = k8sClient.Delete(context.Background(), namespace); err != nil {
+					Expect(apierr.IsNotFound(err)).To(BeTrue())
 				}
 
-				// Generate  expected resource from "https://github.com/managed-gitops-test-data/deployment-permutations-*" using name
-				getResourceStatusList_deploymentPermutations := func(name string) []managedgitopsv1alpha1.ResourceStatus {
-					return []managedgitopsv1alpha1.ResourceStatus{
-						{
-							Group:     "",
-							Version:   "v1",
-							Kind:      "ConfigMap",
-							Name:      name,
-							Namespace: namespace.ObjectMeta.Name,
-							Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
-						},
-					}
-				}
-
-				// Generate expected identifier configmap for "https://github.com/managed-gitops-test-data/deployment-permutations-*"
-				createResourceStatusListFunction_deploymentPermutations := func() []managedgitopsv1alpha1.ResourceStatus {
-					return []managedgitopsv1alpha1.ResourceStatus{
-						{
-							Group:     "",
-							Version:   "v1",
-							Kind:      "ConfigMap",
-							Name:      "identifier",
-							Namespace: namespace.ObjectMeta.Name,
-							Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
-						},
-					}
-				}
-
-				testPrintln("Create GitopsDeploymentResource", i)
-				gitOpsDeploymentResource := &managedgitopsv1alpha1.GitOpsDeployment{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      fmt.Sprintf("my-gitops-depl-%d", i),
-						Namespace: namespace.ObjectMeta.Name,
-					},
-					Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
-						Source: managedgitopsv1alpha1.ApplicationSource{
-							RepoURL:        "https://github.com/managed-gitops-test-data/deployment-permutations-a",
-							Path:           "pathB",
-							TargetRevision: "branchA",
-						},
-						Destination: managedgitopsv1alpha1.ApplicationDestination{},
-						Type:        managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated,
-					},
-				}
-
-				if err := k8s.Create(gitOpsDeploymentResource, k8sClient); err != nil {
-					return err
-				}
-
-				testPrintln("Make sure it deploys the target resources", i)
-				createResourceStatusList_deploymentPermutations := createResourceStatusListFunction_deploymentPermutations()
-
-				createResourceStatusList_deploymentPermutations = append(createResourceStatusList_deploymentPermutations,
-					getResourceStatusList_deploymentPermutations("deployment-permutations-a-brancha-pathb")...)
-				if err := k8s.Get(gitOpsDeploymentResource, k8sClient); err != nil {
-					return err
-				}
-
-				if err := wait.PollImmediate(time.Second*1, time.Minute*10, func() (done bool, err error) {
-
-					if !gitopsDeplFixture.HaveSyncStatusCodeFunc(managedgitopsv1alpha1.SyncStatusCodeSynced, *gitOpsDeploymentResource) {
-						return false, nil
-					}
-
-					if !gitopsDeplFixture.HaveHealthStatusCodeFunc(managedgitopsv1alpha1.HeathStatusCodeHealthy, *gitOpsDeploymentResource) {
-						return false, nil
-					}
-
-					if !gitopsDeplFixture.HaveResourcesFunc(createResourceStatusList_deploymentPermutations, *gitOpsDeploymentResource) {
-						return false, nil
-					}
-
-					return true, nil
-
-				}); err != nil {
-					return err
-				}
-
-				testPrintln("Modify the gitops deployment to a new repoURL", i)
-				if err := k8s.Get(gitOpsDeploymentResource, k8sClient); err != nil {
-					return err
-				}
-
-				gitOpsDeploymentResource.Spec.Source.RepoURL = "https://github.com/managed-gitops-test-data/deployment-permutations-b"
-
-				testPrintln("updating the CR with changes in repoURLL", i)
-				if err := k8s.Update(gitOpsDeploymentResource, k8sClient); err != nil {
-					return err
-				}
-
-				expectedResourceStatusList := createResourceStatusListFunction_deploymentPermutations()
-				expectedResourceStatusList = append(expectedResourceStatusList,
-					getResourceStatusList_deploymentPermutations("deployment-permutations-b-brancha-pathb")...)
-
-				if err := wait.PollImmediate(time.Second*1, time.Minute*10, func() (done bool, err error) {
-
-					if !gitopsDeplFixture.HaveSyncStatusCodeFunc(managedgitopsv1alpha1.SyncStatusCodeSynced, *gitOpsDeploymentResource) {
-						return false, nil
-					}
-
-					if !gitopsDeplFixture.HaveHealthStatusCodeFunc(managedgitopsv1alpha1.HeathStatusCodeHealthy, *gitOpsDeploymentResource) {
-						return false, nil
-					}
-
-					if !gitopsDeplFixture.HaveResourcesFunc(expectedResourceStatusList, *gitOpsDeploymentResource) {
-						return false, nil
-					}
-
-					return true, nil
-
-				}); err != nil {
-					return err
-				}
-
-				testPrintln("delete the GitOpsDeployment resource", i)
-				if err := k8s.Delete(gitOpsDeploymentResource, k8sClient); err != nil {
-					return err
-				}
-
-				testPrintln("delete namespace", i)
-				if err := fixture.DeleteNamespace(namespace.ObjectMeta.Name, config); err != nil {
-					return err
-				}
-
-				return nil
+				Eventually(namespace, "2m", "1s").ShouldNot(k8s.ExistByName(k8sClient))
 			}
-
-			// runTests calls the inner test function, and returns the result on the channel
-			runTest := func(i int, resChannel chan<- error, wg *sync.WaitGroup) {
-
-				defer wg.Done()
-				result := runTestInner(i)
-				resChannel <- result
-			}
-
-			It("Simulates simple interactions of X active users interacting with the service ", func() {
-
-				Expect(fixture.EnsureCleanSlate()).To(Succeed())
-
-				resultChan := make(chan error)
-				var wg sync.WaitGroup
-
-				wg.Add(numberToSimulate)
-
-				for i := 1; i <= numberToSimulate; i++ {
-					go runTest(i, resultChan, &wg)
-				}
-
-				for j := 1; j <= numberToSimulate; j++ {
-					fmt.Println("read from channel ", <-resultChan)
-				}
-
-				fmt.Println("Waiting for goroutines to finish...")
-				wg.Wait()
-
-				fmt.Println("Done!")
-			})
 
 		})
 
+		AfterEach(func() {
+			// At end of a test, output the state of Argo CD Application, for post-mortem debuggign
+			err := fixture.ReportRemainingArgoCDApplications(k8sClient)
+			Expect(err).To(BeNil())
+		})
+
+		config, err := fixture.GetSystemKubeConfig()
+		Expect(err).To(BeNil())
+
+		// testPrintln outputs a log statement along with the particular test #
+		testPrintln := func(str string, i int) {
+			fmt.Printf("%v - %d) %s\n", time.Now(), i, str)
+		}
+
+		// runTestInner returns error if the test fail, nil otherwise.
+		runTestInner := func(i int) error {
+
+			testPrintln("Create new namespace", i)
+			namespace := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: fmt.Sprintf("user-%d", i),
+					Labels: map[string]string{
+						"argocd.argoproj.io/managed-by": "gitops-service-argocd",
+					},
+				},
+			}
+
+			if err = k8s.Create(namespace, k8sClient); err != nil {
+				return err
+			}
+
+			// Generate  expected resource from "https://github.com/managed-gitops-test-data/deployment-permutations-*" using name
+			getResourceStatusList_deploymentPermutations := func(name string) []managedgitopsv1alpha1.ResourceStatus {
+				return []managedgitopsv1alpha1.ResourceStatus{
+					{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "ConfigMap",
+						Name:      name,
+						Namespace: namespace.ObjectMeta.Name,
+						Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
+					},
+				}
+			}
+
+			// Generate expected identifier configmap for "https://github.com/managed-gitops-test-data/deployment-permutations-*"
+			createResourceStatusListFunction_deploymentPermutations := func() []managedgitopsv1alpha1.ResourceStatus {
+				return []managedgitopsv1alpha1.ResourceStatus{
+					{
+						Group:     "",
+						Version:   "v1",
+						Kind:      "ConfigMap",
+						Name:      "identifier",
+						Namespace: namespace.ObjectMeta.Name,
+						Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
+					},
+				}
+			}
+
+			testPrintln("Create GitopsDeploymentResource", i)
+			gitOpsDeploymentResource := &managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("my-gitops-depl-%d", i),
+					Namespace: namespace.ObjectMeta.Name,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/managed-gitops-test-data/deployment-permutations-a",
+						Path:           "pathB",
+						TargetRevision: "branchA",
+					},
+					Destination: managedgitopsv1alpha1.ApplicationDestination{},
+					Type:        managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated,
+				},
+			}
+
+			if err := k8s.Create(gitOpsDeploymentResource, k8sClient); err != nil {
+				return err
+			}
+
+			testPrintln("Make sure it deploys the target resources", i)
+			createResourceStatusList_deploymentPermutations := createResourceStatusListFunction_deploymentPermutations()
+
+			createResourceStatusList_deploymentPermutations = append(createResourceStatusList_deploymentPermutations,
+				getResourceStatusList_deploymentPermutations("deployment-permutations-a-brancha-pathb")...)
+			if err := k8s.Get(gitOpsDeploymentResource, k8sClient); err != nil {
+				return err
+			}
+
+			if err := wait.PollImmediate(time.Second*1, time.Minute*10, func() (done bool, err error) {
+
+				if !gitopsDeplFixture.HaveSyncStatusCodeFunc(managedgitopsv1alpha1.SyncStatusCodeSynced, *gitOpsDeploymentResource) {
+					return false, nil
+				}
+
+				if !gitopsDeplFixture.HaveHealthStatusCodeFunc(managedgitopsv1alpha1.HeathStatusCodeHealthy, *gitOpsDeploymentResource) {
+					return false, nil
+				}
+
+				if !gitopsDeplFixture.HaveResourcesFunc(createResourceStatusList_deploymentPermutations, *gitOpsDeploymentResource) {
+					return false, nil
+				}
+
+				return true, nil
+
+			}); err != nil {
+				return err
+			}
+
+			testPrintln("Modify the gitops deployment to a new repoURL", i)
+			if err := k8s.Get(gitOpsDeploymentResource, k8sClient); err != nil {
+				return err
+			}
+
+			gitOpsDeploymentResource.Spec.Source.RepoURL = "https://github.com/managed-gitops-test-data/deployment-permutations-b"
+
+			testPrintln("updating the CR with changes in repoURLL", i)
+			if err := k8s.Update(gitOpsDeploymentResource, k8sClient); err != nil {
+				return err
+			}
+
+			expectedResourceStatusList := createResourceStatusListFunction_deploymentPermutations()
+			expectedResourceStatusList = append(expectedResourceStatusList,
+				getResourceStatusList_deploymentPermutations("deployment-permutations-b-brancha-pathb")...)
+
+			if err := wait.PollImmediate(time.Second*1, time.Minute*10, func() (done bool, err error) {
+
+				if !gitopsDeplFixture.HaveSyncStatusCodeFunc(managedgitopsv1alpha1.SyncStatusCodeSynced, *gitOpsDeploymentResource) {
+					return false, nil
+				}
+
+				if !gitopsDeplFixture.HaveHealthStatusCodeFunc(managedgitopsv1alpha1.HeathStatusCodeHealthy, *gitOpsDeploymentResource) {
+					return false, nil
+				}
+
+				if !gitopsDeplFixture.HaveResourcesFunc(expectedResourceStatusList, *gitOpsDeploymentResource) {
+					return false, nil
+				}
+
+				return true, nil
+
+			}); err != nil {
+				return err
+			}
+
+			testPrintln("delete the GitOpsDeployment resource", i)
+			if err := k8s.Delete(gitOpsDeploymentResource, k8sClient); err != nil {
+				return err
+			}
+
+			testPrintln("delete namespace", i)
+			if err := fixture.DeleteNamespace(namespace.ObjectMeta.Name, config); err != nil {
+				return err
+			}
+
+			return nil
+		}
+
+		// runTests calls the inner test function, and returns the result on the channel
+		runTest := func(i int, resChannel chan<- error, wg *sync.WaitGroup) {
+
+			result := runTestInner(i)
+			wg.Done()
+			resChannel <- result
+		}
+
+		It("Simulates simple interactions of X active users interacting with the service ", func() {
+
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			resultChan := make(chan error)
+			var wg sync.WaitGroup
+
+			wg.Add(numberToSimulate)
+
+			for i := 1; i <= numberToSimulate; i++ {
+				go runTest(i, resultChan, &wg)
+			}
+
+			fmt.Println("Waiting for goroutines to finish...")
+			wg.Wait()
+
+			for j := 1; j <= numberToSimulate; j++ {
+				res := <-resultChan
+				fmt.Println("read from channel ", res)
+				Expect(res).To(BeNil())
+			}
+
+			fmt.Println("Done!")
+		})
+
 	})
+
 })
 
 // Returns true if the all param resources no longer exist (have been deleted), and false otherwise.

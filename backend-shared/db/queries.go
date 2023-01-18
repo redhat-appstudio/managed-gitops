@@ -144,6 +144,9 @@ type DatabaseQueries interface {
 
 	// ListApplicationsForManagedEnvironment returns a list of all Applications that reference the specified ManagedEnvironment row
 	ListApplicationsForManagedEnvironment(ctx context.Context, managedEnvironmentID string, applications *[]Application) (int, error)
+
+	// ListAllGitopsEngineInstanceNamespaces returns a list of unique namespaces from GitopsEngineInstance table.
+	ListAllGitopsEngineInstanceNamespaces(ctx context.Context, gitopsEngineInstances *[]GitopsEngineInstance) error
 }
 
 // ApplicationScopedQueries are the set of database queries that act on application DB resources:

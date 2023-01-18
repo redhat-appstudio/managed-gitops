@@ -63,7 +63,9 @@ func AddOrUpdateGitOpsDeployment(resourceName string, resourceNamespace string, 
 
 	// Add the key to the list of tracked GitOpsDeployments, but only if there are less than 'maxTrackedDeployments'
 	if len(activeGitOpsDeployments.gitOpsDeployments) <= maxTrackedDeployments {
-		activeGitOpsDeployments.gitOpsDeployments[mapKey] = false
+		if _, exists := activeGitOpsDeployments.gitOpsDeployments[mapKey]; !exists {
+			activeGitOpsDeployments.gitOpsDeployments[mapKey] = false
+		}
 	}
 
 	Gitopsdepl.Set((float64)(len(activeGitOpsDeployments.gitOpsDeployments)))

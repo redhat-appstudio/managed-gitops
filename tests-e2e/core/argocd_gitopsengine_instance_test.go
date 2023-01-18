@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", func() {
+var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", func() {
 
 	const (
 		newArgoCDNamespaceName = fixture.NewArgoCDInstanceNamespace
@@ -23,7 +23,7 @@ var _ = FDescribe("ArgoCD instance via GitOpsEngineInstance Operations Test", fu
 		operationPrefix        = "operation-"
 	)
 
-	FContext("ArgoCD instance gets created from an operation's gitopsEngineInstance resource-type", func() {
+	Context("ArgoCD instance gets created from an operation's gitopsEngineInstance resource-type", func() {
 
 		BeforeEach(func() {
 			By("Delete old namespaces, and kube-system resources")

@@ -20,6 +20,8 @@
   "panels": [
     {
       "aliasColors": {
+        "Failed": "semi-dark-red",
+        "Total": "semi-dark-green",
         "failed": "semi-dark-red",
         "gitopsDeployments_failures{container=\"manager\", endpoint=\"http-metrics\", gitopsDeployment=\"fail\", instance=\"10.128.2.19:8080\", job=\"gitops-core-service-controller-manager-metrics-service\", namespace=\"gitops\", pod=\"gitops-core-service-controller-manager-9dc9cb9bc-p5p4g\", prometheus=\"openshift-user-workload-monitoring/user-workload\", service=\"gitops-core-service-controller-manager-metrics-service\"}": "semi-dark-red",
         "total": "semi-dark-green"
@@ -47,12 +49,12 @@
       "id": 2,
       "legend": {
         "avg": false,
-        "current": false,
+        "current": true,
         "max": false,
         "min": false,
         "show": true,
         "total": false,
-        "values": false
+        "values": true
       },
       "lines": true,
       "linewidth": 1,
@@ -74,7 +76,7 @@
           "exemplar": true,
           "expr": "active_gitopsDeployments",
           "interval": "",
-          "legendFormat": "total",
+          "legendFormat": "Total",
           "refId": "A"
         },
         {
@@ -82,7 +84,7 @@
           "expr": "gitopsDeployments_failures",
           "hide": false,
           "interval": "",
-          "legendFormat": "failed",
+          "legendFormat": "Failed",
           "refId": "B"
         }
       ],
@@ -139,12 +141,12 @@
     "list": []
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "GitOps",
   "uid": "BhY6sRo4z",
-  "version": 2
+  "version": 3
 }

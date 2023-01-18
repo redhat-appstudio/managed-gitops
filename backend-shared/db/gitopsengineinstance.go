@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+
 	"github.com/go-pg/pg/v10"
 )
 
@@ -13,6 +14,20 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllGitopsEngineInstances(ctx con
 	}
 
 	if err := dbq.dbConnection.Model(gitopsEngineInstances).Context(ctx).Select(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ListAllGitopsEngineInstanceNamespaces returns a list of unique namespaces from GitopsEngineInstance table.
+func (dbq *PostgreSQLDatabaseQueries) ListAllGitopsEngineInstanceNamespaces(ctx context.Context, gitopsEngineInstances *[]GitopsEngineInstance) error {
+
+	if err := validateQueryParamsEntity(gitopsEngineInstances, dbq); err != nil {
+		return err
+	}
+
+	if err := dbq.dbConnection.Model(gitopsEngineInstances).Context(ctx).Column("gei.namespace_name").DistinctOn("gei.namespace_name").Select(); err != nil {
 		return err
 	}
 

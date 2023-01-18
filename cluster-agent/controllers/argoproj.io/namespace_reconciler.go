@@ -18,6 +18,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/yaml"
@@ -27,6 +28,11 @@ const (
 	appRowBatchSize             = 50               // Number of rows needs to be fetched in each batch.
 	namespaceReconcilerInterval = 30 * time.Minute // Interval in Minutes to reconcile workspace/namespace.
 	sleepIntervalsOfBatches     = 1 * time.Second  // Interval in Millisecond between each batch.
+	SecretDbIdentifierKey       = "databaseID"     //Secret label key to point DB entry.
+	// #nosec G101
+	SecretTypeIdentifierKey = "argocd.argoproj.io/secret-type" //Secret label key to define secret type.
+	SecretClusterTypeValue  = "cluster"                        // Secret type for Cluster Secret
+	SecretRepoTypeValue     = "repository"                     // Secret type for Repository Secret
 )
 
 // This function iterates through each Workspace/Namespace present in DB and ensures that the state of resources in Cluster is in Sync with DB.
@@ -45,6 +51,7 @@ func (r *ApplicationReconciler) startTimerForNextCycle() {
 
 		_, _ = sharedutil.CatchPanic(func() error {
 			runNamespaceReconcile(ctx, r.DB, r.Client, log)
+			runSecretCleanup(ctx, r.DB, r.Client, log)
 			return nil
 		})
 
@@ -203,6 +210,69 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 
 	log.Info(fmt.Sprintf("Namespace Reconciler finished an iteration at %s. "+
 		"Next iteration will be triggered after %v Minutes", time.Now().String(), namespaceReconcilerInterval))
+}
+
+// runSecretCleanup goes through the Argo CD Cluster/Repository Secrets, and deletes secrets that no longer point to valid database entries.
+func runSecretCleanup(ctx context.Context, dbQueries db.DatabaseQueries, k8sClient client.Client, log logr.Logger) {
+	// Get list of unique namespaces from GitopsEngineInstance table.
+	var gitopsEngineInstance []db.GitopsEngineInstance
+
+	if err := dbQueries.ListAllGitopsEngineInstanceNamespaces(ctx, &gitopsEngineInstance); err != nil {
+		log.Error(err, "Error occurred in Secret Clean-up while fetching list of GitopsEngineInstance Namespaces.")
+		return
+	}
+
+	for instanceIndex := range gitopsEngineInstance {
+		instance := gitopsEngineInstance[instanceIndex] // To avoid "Implicit memory aliasing in for loop." error.
+
+		// Get list of secrets in given namespace
+		secretList := corev1.SecretList{}
+		if err := k8sClient.List(context.Background(), &secretList, &client.ListOptions{Namespace: instance.Namespace_name}); err != nil {
+			log.Error(err, "Error occurred in Secret Clean-up while fetching list of Secrets from Namespace : "+instance.Namespace_name)
+			return
+		}
+
+		for secretIndex := range secretList.Items {
+			secret := secretList.Items[secretIndex] // To avoid "Implicit memory aliasing in for loop." error.
+
+			// Look for secrets which have required labels i.e databaseID and argocd.argoproj.io/secret-type
+			// Ignore secrets which don't have these labels
+			var secretType string
+			databaseID, ok := secret.Labels[SecretDbIdentifierKey]
+			if ok {
+				secretType, ok = secret.Labels[SecretTypeIdentifierKey]
+			}
+
+			// If secret has both labels then process it.
+			if ok {
+				var error, k8sErr error
+
+				if secretType == SecretClusterTypeValue {
+					// If secret type is Cluster, then check if DB entry pointed by databaseID label is present in ManagedEnvironment table.
+					error = dbQueries.GetManagedEnvironmentById(ctx, &db.ManagedEnvironment{Managedenvironment_id: databaseID})
+
+				} else if secretType == SecretRepoTypeValue {
+					// If secret type is Repository, then check if DB entry pointed by databaseID label is present in RepositoryCredentials table.
+					_, error = dbQueries.GetRepositoryCredentialsByID(ctx, databaseID)
+				}
+
+				if error != nil {
+					if db.IsResultNotFoundError(error) {
+						// If entry is not present in DB then it is an orphan CR, hence delete the Secret from Cluster.
+						k8sErr = k8sClient.Delete(ctx, &secret) // k8sErr is declared above To avoid "Implicit memory aliasing in for loop." error.
+						if k8sErr != nil {
+							log.Error(k8sErr, "error occurred in Secret Clean-up while deleting an orphan Secret: "+secret.Name+" from Namespace : "+secret.Namespace)
+						} else {
+							log.Info("Secret Clean-up successfully deleted orphan Secret: " + secret.Name + " from Namespace : " + secret.Namespace)
+						}
+					} else {
+						// B) Some other unexpected error occurred, so we just skip it until next time
+						log.Error(error, "unexpected error occurred in Secret Clean-up while fetching DB entry pointed by Secret : "+secret.Name+" in Namespaces : "+secret.Namespace)
+					}
+				}
+			}
+		}
+	}
 }
 
 func cleanK8sOperations(ctx context.Context, dbq db.DatabaseQueries, client client.Client, log logr.Logger) {

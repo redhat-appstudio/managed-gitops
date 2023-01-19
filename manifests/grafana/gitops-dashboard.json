@@ -30,6 +30,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": null,
+      "decimals": 0,
       "description": "Number of active and failed GitopsDeployments",
       "fieldConfig": {
         "defaults": {
@@ -148,5 +149,5 @@
   "timezone": "",
   "title": "GitOps",
   "uid": "BhY6sRo4z",
-  "version": 3
+  "version": 2
 }

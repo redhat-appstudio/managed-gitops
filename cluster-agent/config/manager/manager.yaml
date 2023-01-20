@@ -46,9 +46,6 @@ spec:
               key: postgresql-password
               name: gitops-postgresql-staging
         image: ${COMMON_IMAGE}
-        securityContext:
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true          
         livenessProbe:
           httpGet:
             path: /healthz
@@ -69,5 +66,14 @@ spec:
           requests:
             cpu: 200m
             memory: 50Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
+      volumes:
+      - emptyDir: {}
+        name: tmp

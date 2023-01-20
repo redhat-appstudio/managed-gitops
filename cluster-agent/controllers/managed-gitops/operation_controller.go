@@ -48,6 +48,7 @@ type OperationReconciler struct {
 	ControllerEventLoop *eventloop.OperationEventLoop
 }
 
+//+kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch
 //+kubebuilder:rbac:groups=managed-gitops.redhat.com,resources=operations,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=managed-gitops.redhat.com,resources=operations/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=managed-gitops.redhat.com,resources=operations/finalizers,verbs=update

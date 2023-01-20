@@ -84,9 +84,10 @@ var _ = Describe("Environment controller tests", func() {
 					Configuration:      appstudioshared.EnvironmentConfiguration{},
 					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
 						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
-							TargetNamespace:          "my-target-namespace",
-							APIURL:                   "https://my-api-url",
-							ClusterCredentialsSecret: secret.Name,
+							TargetNamespace:            "my-target-namespace",
+							APIURL:                     "https://my-api-url",
+							ClusterCredentialsSecret:   secret.Name,
+							AllowInsecureSkipTLSVerify: true,
 						},
 					},
 				},
@@ -115,6 +116,8 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(managedEnvCR.Spec.APIURL).To(Equal(env.Spec.UnstableConfigurationFields.APIURL),
 				"ManagedEnvironment should match the Environment")
 			Expect(managedEnvCR.Spec.ClusterCredentialsSecret).To(Equal(env.Spec.UnstableConfigurationFields.ClusterCredentialsSecret),
+				"ManagedEnvironment should match the Environment")
+			Expect(managedEnvCR.Spec.AllowInsecureSkipTLSVerify).To(Equal(env.Spec.UnstableConfigurationFields.AllowInsecureSkipTLSVerify),
 				"ManagedEnvironment should match the Environment")
 		})
 
@@ -165,9 +168,10 @@ var _ = Describe("Environment controller tests", func() {
 					Configuration:      appstudioshared.EnvironmentConfiguration{},
 					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
 						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
-							TargetNamespace:          "my-target-namespace",
-							APIURL:                   "https://my-api-url",
-							ClusterCredentialsSecret: secret2.Name,
+							TargetNamespace:            "my-target-namespace",
+							APIURL:                     "https://my-api-url",
+							ClusterCredentialsSecret:   secret2.Name,
+							AllowInsecureSkipTLSVerify: true,
 						},
 					},
 				},
@@ -204,6 +208,8 @@ var _ = Describe("Environment controller tests", func() {
 				"ManagedEnvironment should match the new Environment spec, not the old value of the managed env")
 			Expect(newManagedEnv.Spec.ClusterCredentialsSecret).To(Equal(env.Spec.UnstableConfigurationFields.ClusterCredentialsSecret),
 				"ManagedEnvironment should match the Environment, not the old value")
+			Expect(newManagedEnv.Spec.AllowInsecureSkipTLSVerify).To(Equal(env.Spec.UnstableConfigurationFields.AllowInsecureSkipTLSVerify),
+				"ManagedEnvironment should match the Environment, not the old value")
 
 			By("reconciling again, and confirming that nothing changed")
 			_, err = reconciler.Reconcile(ctx, req)
@@ -212,6 +218,8 @@ var _ = Describe("Environment controller tests", func() {
 				"ManagedEnvironment should continue to match the new Environment spec")
 			Expect(newManagedEnv.Spec.ClusterCredentialsSecret).To(Equal(env.Spec.UnstableConfigurationFields.ClusterCredentialsSecret),
 				"ManagedEnvironment should continue to match the Environment spec")
+			Expect(newManagedEnv.Spec.AllowInsecureSkipTLSVerify).To(Equal(env.Spec.UnstableConfigurationFields.AllowInsecureSkipTLSVerify),
+				"ManagedEnvironment should continue to match the new Environment spec")
 
 		})
 

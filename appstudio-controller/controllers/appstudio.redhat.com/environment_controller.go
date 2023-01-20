@@ -212,8 +212,9 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 		},
 	}
 	managedEnv.Spec = managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
-		APIURL:                   env.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.APIURL,
-		ClusterCredentialsSecret: secret.Name,
+		APIURL:                     env.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.APIURL,
+		ClusterCredentialsSecret:   secret.Name,
+		AllowInsecureSkipTLSVerify: env.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify,
 	}
 
 	return &managedEnv, nil

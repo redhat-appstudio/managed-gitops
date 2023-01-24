@@ -347,7 +347,7 @@ var _ = Describe("DB Reconciler Test", func() {
 				Expect(err).To(BeNil())
 
 				By("Call function for apiCrToDbMappingDbReconcile.")
-				apiCrToDbMappingDbReconcile(ctx, dbq, k8sClient, nil, log)
+				apiCRToDbMappingDbReconcile(ctx, dbq, k8sClient, nil, log)
 
 				By("Verify that no entry is deleted from DB.")
 				err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentDb)
@@ -385,7 +385,7 @@ var _ = Describe("DB Reconciler Test", func() {
 				Expect(err).To(BeNil())
 
 				By("Call function for apiCrToDbMappingDbReconcile.")
-				apiCrToDbMappingDbReconcile(ctx, dbq, k8sClient, nil, log)
+				apiCRToDbMappingDbReconcile(ctx, dbq, k8sClient, nil, log)
 
 				By("Verify that entries for the ManagedEnvironment which is not available in cluster, are deleted from DB.")
 
@@ -413,7 +413,7 @@ var _ = Describe("DB Reconciler Test", func() {
 				Expect(err).To(BeNil())
 
 				By("Call function for apiCrToDbMappingDbReconcile.")
-				apiCrToDbMappingDbReconcile(ctx, dbq, k8sClient, nil, log)
+				apiCRToDbMappingDbReconcile(ctx, dbq, k8sClient, nil, log)
 
 				By("Verify that entries for the ManagedEnvironment which is not available in cluster, are deleted from DB.")
 
@@ -466,7 +466,7 @@ var _ = Describe("DB Reconciler Test", func() {
 				Expect(err).To(BeNil())
 
 				By("Call function for apiCrToDbMappingDbReconcile.")
-				apiCrToDbMappingDbReconcile(ctx, dbq, k8sClient, MockSRLK8sClientFactory{fakeClient: k8sClient}, log)
+				apiCRToDbMappingDbReconcile(ctx, dbq, k8sClient, MockSRLK8sClientFactory{fakeClient: k8sClient}, log)
 
 				By("Verify that entries for the ManagedEnvironment which is not available in cluster, are deleted from DB.")
 
@@ -604,7 +604,7 @@ var _ = Describe("DB Reconciler Test", func() {
 				Expect(err).To(BeNil())
 
 				By("Call function for apiCrToDbMappingDbReconcile.")
-				apiCrToDbMappingDbReconcile(ctx, dbq, k8sClient, nil, log)
+				apiCRToDbMappingDbReconcile(ctx, dbq, k8sClient, nil, log)
 
 				By("Verify that no entry is deleted from DB.")
 				_, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsDb.RepositoryCredentialsID)
@@ -635,7 +635,7 @@ var _ = Describe("DB Reconciler Test", func() {
 				Expect(err).To(BeNil())
 
 				By("Call function for apiCrToDbMappingDbReconcile.")
-				apiCrToDbMappingDbReconcile(ctx, dbq, k8sClient, nil, log)
+				apiCRToDbMappingDbReconcile(ctx, dbq, k8sClient, nil, log)
 
 				By("Verify that entries for the GitOpsDeployment which is not available in cluster, are deleted from DB.")
 
@@ -692,7 +692,7 @@ var _ = Describe("DB Reconciler Test", func() {
 				Expect(err).To(BeNil())
 
 				By("Call function for apiCrToDbMappingDbReconcile.")
-				apiCrToDbMappingDbReconcile(ctx, dbq, k8sClient, nil, log)
+				apiCRToDbMappingDbReconcile(ctx, dbq, k8sClient, nil, log)
 
 				By("Verify that entries for the RepositoryCredentials which is not available in cluster, are deleted from DB.")
 
@@ -799,7 +799,7 @@ var _ = Describe("DB Reconciler Test", func() {
 				Expect(err).To(BeNil())
 
 				By("Call function for apiCrToDbMappingDbReconcile.")
-				apiCrToDbMappingDbReconcile(ctx, dbq, k8sClient, nil, log)
+				apiCRToDbMappingDbReconcile(ctx, dbq, k8sClient, nil, log)
 
 				By("Verify that no entry is deleted from DB.")
 				err = dbq.GetSyncOperationById(ctx, &syncOperationDb)
@@ -830,7 +830,7 @@ var _ = Describe("DB Reconciler Test", func() {
 				Expect(err).To(BeNil())
 
 				By("Call function for apiCrToDbMappingDbReconcile.")
-				apiCrToDbMappingDbReconcile(ctx, dbq, k8sClient, nil, log)
+				apiCRToDbMappingDbReconcile(ctx, dbq, k8sClient, nil, log)
 
 				By("Verify that entries for the GitOpsDeploymentSyncRun which is not available in cluster, are deleted from DB.")
 
@@ -887,7 +887,7 @@ var _ = Describe("DB Reconciler Test", func() {
 				Expect(err).To(BeNil())
 
 				By("Call function for apiCrToDbMappingDbReconcile.")
-				apiCrToDbMappingDbReconcile(ctx, dbq, k8sClient, nil, log)
+				apiCRToDbMappingDbReconcile(ctx, dbq, k8sClient, nil, log)
 
 				By("Verify that entries for the GitOpsDeploymentSyncRun which is not available in cluster, are deleted from DB.")
 

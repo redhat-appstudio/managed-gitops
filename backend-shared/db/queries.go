@@ -108,6 +108,8 @@ type DatabaseQueries interface {
 	DeleteClusterCredentialsById(ctx context.Context, id string) (int, error)
 	DeleteClusterUserById(ctx context.Context, id string) (int, error)
 	DeleteGitopsEngineClusterById(ctx context.Context, id string) (int, error)
+
+	// Delete RepositoryCredentials row by ID
 	DeleteRepositoryCredentialsByID(ctx context.Context, id string) (int, error)
 
 	GetClusterCredentialsById(ctx context.Context, clusterCreds *ClusterCredentials) error
@@ -120,6 +122,7 @@ type DatabaseQueries interface {
 	UpdateManagedEnvironment(ctx context.Context, obj *ManagedEnvironment) error
 	DeleteGitopsEngineInstanceById(ctx context.Context, id string) (int, error)
 
+	// Delete ManagedEnvironment row by ID
 	DeleteManagedEnvironmentById(ctx context.Context, id string) (int, error)
 
 	// List functions return zero or more results. If no results are found (and no errors occurred), an empty slice is set in the result parameter.
@@ -231,17 +234,11 @@ type ApplicationScopedQueries interface {
 
 	GetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment) error
 
-	// Delete ManagedEnvironment row by ID
-	DeleteManagedEnvironmentById(ctx context.Context, id string) (int, error)
-
 	GetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance) error
 
 	// GetAPICRForDatabaseUID retrieves the name/namespace/uid of an API Resources (such as GitOpsDeploymentManagedEnvironment)
 	// based on the primary key of the corresponding database row (for example, ManagedEnvironment)
 	GetAPICRForDatabaseUID(ctx context.Context, apiCRToDatabaseMapping *APICRToDatabaseMapping) error
-
-	// Delete RepositoryCredentials row by ID
-	DeleteRepositoryCredentialsByID(ctx context.Context, id string) (int, error)
 }
 
 type CloseableQueries interface {

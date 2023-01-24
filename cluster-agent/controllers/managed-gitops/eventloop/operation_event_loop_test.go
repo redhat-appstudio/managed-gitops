@@ -669,6 +669,245 @@ var _ = Describe("Operation Controller", func() {
 
 			})
 
+			It("Verify that SyncOption is picked up by Perform Task to be in sync for - CreateNamespace=true", func() {
+				By("Close database connection")
+				defer dbQueries.CloseDatabase()
+				defer testTeardown()
+				err = db.SetupForTestingDBGinkgo()
+				Expect(err).To(BeNil())
+
+				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
+				Expect(err).To(BeNil())
+
+				dummyApplication, dummyApplicationSpecString, err := createApplicationSyncOtion("- CreateNamespace=true")
+				Expect(err).To(BeNil())
+
+				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
+				Expect(gitopsEngineCluster).ToNot(BeNil())
+				Expect(err).To(BeNil())
+
+				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
+				gitopsEngineInstance := &db.GitopsEngineInstance{
+					Gitopsengineinstance_id: "test-fake-engine-instance",
+					Namespace_name:          workspace.Name,
+					Namespace_uid:           string(workspace.UID),
+					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+				}
+				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
+				Expect(err).To(BeNil())
+
+				applicationDB := &db.Application{
+					Application_id:          "test-my-application",
+					Name:                    name,
+					Spec_field:              dummyApplicationSpecString,
+					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				}
+
+				By("Create Application in Database")
+				err = dbQueries.CreateApplication(ctx, applicationDB)
+				Expect(err).To(BeNil())
+
+				By("Creating new operation row in database")
+				operationDB := &db.Operation{
+					Operation_id:            "test-operation",
+					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+					Resource_id:             applicationDB.Application_id,
+					Resource_type:           "Application",
+					State:                   db.OperationState_Waiting,
+					Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				}
+
+				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+				Expect(err).To(BeNil())
+
+				By("Creating Operation CR")
+				operationCR := &managedgitopsv1alpha1.Operation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: namespace,
+					},
+					Spec: managedgitopsv1alpha1.OperationSpec{
+						OperationID: operationDB.Operation_id,
+					},
+				}
+
+				err = task.event.client.Create(ctx, operationCR)
+				Expect(err).To(BeNil())
+
+				retry, err := task.PerformTask(ctx)
+				Expect(err).To(BeNil())
+				Expect(retry).To(BeFalse())
+
+				By("Verifying whether Application CR is created")
+				applicationCR := &appv1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: "my-user",
+					},
+				}
+
+				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
+				Expect(err).To(BeNil())
+
+				By("Verify that the SyncOption in the Application has Option - CreateNamespace=true")
+				err = dbQueries.GetOperationById(ctx, operationDB)
+				Expect(err).To(BeNil())
+				Expect(operationDB.State).To(Equal(db.OperationState_Completed))
+				Expect(dummyApplication.Spec.SyncPolicy.SyncOptions).To(Equal(applicationCR.Spec.SyncPolicy.SyncOptions))
+				Expect(applicationCR.Spec.SyncPolicy.SyncOptions.HasOption("- CreateNamespace=true")).To(Equal(true))
+
+				//############################################################################
+
+				By("Update the SyncOption to not have option - CreateNamespace=true")
+				newSpecApp, newSpecString, err := createApplicationSyncOtion("")
+				Expect(err).To(BeNil())
+
+				By("Update Application in Database")
+				applicationUpdate := &db.Application{
+					Application_id:          "test-my-application",
+					Name:                    applicationDB.Name,
+					Spec_field:              newSpecString,
+					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+					SeqID:                   101,
+					Created_on:              applicationDB.Created_on,
+				}
+
+				err = dbQueries.UpdateApplication(ctx, applicationUpdate)
+				Expect(err).To(BeNil())
+
+				By("Creating new operation row in database")
+				operationDB2 := &db.Operation{
+					Operation_id:            "test-operation-2",
+					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+					Resource_id:             applicationDB.Application_id,
+					Resource_type:           "Application",
+					State:                   db.OperationState_Waiting,
+					Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				}
+
+				err = dbQueries.CreateOperation(ctx, operationDB2, operationDB2.Operation_owner_user_id)
+				Expect(err).To(BeNil())
+
+				By("Create new operation CR")
+				operationCR = &managedgitopsv1alpha1.Operation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      sharedoperations.GenerateOperationCRName(*operationDB2),
+						Namespace: namespace,
+					},
+					Spec: managedgitopsv1alpha1.OperationSpec{
+						OperationID: operationDB2.Operation_id,
+					},
+				}
+
+				By("updating the task that we are calling PerformTask with to point to the new operation")
+				task.event.request.Name = operationCR.Name
+				task.event.request.Namespace = operationCR.Namespace
+
+				err = task.event.client.Create(ctx, operationCR)
+				Expect(err).To(BeNil())
+
+				By("Verifying whether Application CR is created")
+				applicationCR = &appv1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: "my-user",
+					},
+				}
+
+				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
+				Expect(err).To(BeNil())
+
+				By("Call Perform task again and verify that update works: the Application CR should now have the updated spec from the databaes.")
+				retry, err = task.PerformTask(ctx)
+				Expect(err).To(BeNil())
+				Expect(retry).To(BeFalse())
+
+				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
+				Expect(err).To(BeNil())
+				Expect(newSpecApp.Spec.SyncPolicy.SyncOptions).To(Equal(applicationCR.Spec.SyncPolicy.SyncOptions), "PerformTask should have updated the Application CR to be consistent with the new spec(SyncOption) in the database")
+				Expect(applicationCR.Spec.SyncPolicy.SyncOptions.HasOption("- CreateNamespace=true")).To(Equal(false))
+
+				By("Verify that the SyncOption in the Application has Option - CreateNamespace=true")
+				err = dbQueries.GetOperationById(ctx, operationDB)
+				Expect(err).To(BeNil())
+				Expect(operationDB.State).To(Equal(db.OperationState_Completed))
+
+				//############################################################################
+
+				By("Update the SyncOption to have option - CreateNamespace=true")
+				newSpecApp2, newSpecString2, err := createApplicationSyncOtion("- CreateNamespace=true")
+				Expect(err).To(BeNil())
+
+				By("Update Application in Database")
+				applicationUpdate2 := &db.Application{
+					Application_id:          "test-my-application",
+					Name:                    applicationDB.Name,
+					Spec_field:              newSpecString2,
+					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+					SeqID:                   101,
+					Created_on:              applicationDB.Created_on,
+				}
+
+				err = dbQueries.UpdateApplication(ctx, applicationUpdate2)
+				Expect(err).To(BeNil())
+
+				By("Creating new operation row in database")
+				operationDBUpdate2 := &db.Operation{
+					Operation_id:            "test-operation-3",
+					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+					Resource_id:             applicationDB.Application_id,
+					Resource_type:           "Application",
+					State:                   db.OperationState_Waiting,
+					Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				}
+
+				err = dbQueries.CreateOperation(ctx, operationDBUpdate2, operationDBUpdate2.Operation_owner_user_id)
+				Expect(err).To(BeNil())
+
+				By("Create new operation CR")
+				operationCR = &managedgitopsv1alpha1.Operation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      sharedoperations.GenerateOperationCRName(*operationDBUpdate2),
+						Namespace: namespace,
+					},
+					Spec: managedgitopsv1alpha1.OperationSpec{
+						OperationID: operationDBUpdate2.Operation_id,
+					},
+				}
+
+				By("updating the task that we are calling PerformTask with to point to the new operation")
+				task.event.request.Name = operationCR.Name
+				task.event.request.Namespace = operationCR.Namespace
+
+				err = task.event.client.Create(ctx, operationCR)
+				Expect(err).To(BeNil())
+
+				By("Verifying whether Application CR is created")
+				applicationCR2 := &appv1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: "my-user",
+					},
+				}
+
+				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(applicationCR2), applicationCR2)
+				Expect(err).To(BeNil())
+
+				By("Call Perform task again and verify that update works: the Application CR should now have the updated spec from the databaes.")
+				retry, err = task.PerformTask(ctx)
+				Expect(err).To(BeNil())
+				Expect(retry).To(BeFalse())
+
+				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(applicationCR2), applicationCR2)
+				Expect(err).To(BeNil())
+				Expect(newSpecApp2.Spec.SyncPolicy.SyncOptions).To(Equal(applicationCR2.Spec.SyncPolicy.SyncOptions), "PerformTask should have updated the Application CR to be consistent with the new spec(SyncOption) in the database")
+				Expect(applicationCR2.Spec.SyncPolicy.SyncOptions.HasOption("- CreateNamespace=true")).To(Equal(true))
+
+			})
+
 			DescribeTable("Checks whether the user updated tls-certificate verification maps correctly from database to cluster secret",
 				func(tlsVerifyStatus bool) {
 					By("Close database connection")
@@ -1299,6 +1538,45 @@ func createCustomizedDummyApplicationData(repoPath string) (appv1.Application, s
 			Project: "default",
 			SyncPolicy: &appv1.SyncPolicy{
 				Automated: &appv1.SyncPolicyAutomated{},
+			},
+		},
+	}
+
+	dummyApplicationSpecBytes, err := yaml.Marshal(dummyApplicationSpec)
+
+	if err != nil {
+		return appv1.Application{}, "", err
+	}
+
+	return dummyApplicationSpec, string(dummyApplicationSpecBytes), nil
+}
+
+func createApplicationSyncOtion(syncOption string) (appv1.Application, string, error) {
+	// Create dummy Application Spec to be saved in DB
+	dummyApplicationSpec := appv1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Application",
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "operation",
+			Namespace: "my-user",
+		},
+		Spec: appv1.ApplicationSpec{
+			Source: appv1.ApplicationSource{
+				Path:           "guestbook",
+				TargetRevision: "HEAD",
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+			},
+			Destination: appv1.ApplicationDestination{
+				Namespace: "guestbook",
+				Server:    "https://kubernetes.default.svc",
+			},
+			Project: "default",
+			SyncPolicy: &appv1.SyncPolicy{
+				SyncOptions: appv1.SyncOptions{
+					syncOption,
+				},
 			},
 		},
 	}

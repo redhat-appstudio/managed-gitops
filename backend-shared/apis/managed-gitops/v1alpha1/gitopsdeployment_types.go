@@ -29,6 +29,9 @@ type GitOpsDeploymentSpec struct {
 	// is the same namespace as the GitOpsDeployment CR.
 	Destination ApplicationDestination `json:"destination,omitempty"`
 
+	// SyncPolicy controls when and how a sync will be performed.
+	SyncPolicy *SyncPolicy `json:"syncPolicy"`
+
 	// Two possible values:
 	// - Automated: whenever a new commit occurs in the GitOps repository, or the Argo CD Application is out of sync, Argo CD should be told to (re)synchronize.
 	// - Manual: Argo CD should never be told to resynchronize. Instead, synchronize operations will be triggered via GitOpsDeploymentSyncRun operations only.
@@ -58,6 +61,13 @@ type ApplicationDestination struct {
 	// The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
 	Namespace string `json:"namespace,omitempty"`
 }
+
+type SyncPolicy struct {
+	// Options allow you to specify whole app sync-options.
+	// This option may be empty, if and when it is empty it is considered that there are no SyncOptions present.
+	SyncOptions SyncOptions `json:"syncOptions,omitempty"`
+}
+type SyncOptions []string
 
 const (
 	GitOpsDeploymentSpecType_Automated = "automated"

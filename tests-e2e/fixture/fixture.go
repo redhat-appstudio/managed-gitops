@@ -18,7 +18,7 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	routev1 "github.com/openshift/api/route/v1"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	apps "k8s.io/api/apps/v1"

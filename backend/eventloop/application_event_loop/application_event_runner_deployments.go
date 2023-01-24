@@ -219,7 +219,6 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	dbQueries db.ApplicationScopedQueries) (*db.Application, *db.GitopsEngineInstance, deploymentModifiedResult, gitopserrors.UserError) {
 
 	a.log.Info("Received GitOpsDeployment event for a new GitOpsDeployment resource")
-
 	gitopsDeplNamespace := corev1.Namespace{}
 	if err := a.workspaceClient.Get(ctx, types.NamespacedName{
 		Name: gitopsDeployment.ObjectMeta.Namespace}, &gitopsDeplNamespace); err != nil {
@@ -278,7 +277,30 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		sourceRepoURL:        gitopsDeployment.Spec.Source.RepoURL,
 		sourcePath:           gitopsDeployment.Spec.Source.Path,
 		sourceTargetRevision: gitopsDeployment.Spec.Source.TargetRevision,
-		automated:            strings.EqualFold(gitopsDeployment.Spec.Type, managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated),
+		// syncOptions:       if non-empty, it gets updated below.
+		automated: strings.EqualFold(gitopsDeployment.Spec.Type, managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated),
+	}
+
+	if gitopsDeployment.Spec.SyncPolicy != nil && len(gitopsDeployment.Spec.SyncPolicy.SyncOptions) != 0 {
+		// syncOption = gitopsDeployment.Spec.SyncPolicy.SyncOptions
+		for _, syncOptionString := range gitopsDeployment.Spec.SyncPolicy.SyncOptions {
+			// Checks for each SyncOption goes in this for loop
+			var checkSyncOption bool
+			// 1. Check for SyncOption "- CreateNamespace=true"
+			if syncOptionString == "- CreateNamespace=true" {
+				checkSyncOption = true
+			}
+
+			// Finally after iteration through all SyncOptions if it doesn't match with any of the above specified SyncOption, an error is returned
+			if !checkSyncOption {
+				userError := "the specified sync option is either mispelled or is not supported by GitOpsDeployment"
+				devError := fmt.Errorf("invalid SyncOption : %s", syncOptionString)
+				gitopsDeployment.Status.Sync.Status = managedgitopsv1alpha1.SyncStatusCode(managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred)
+				return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, devError)
+			} else {
+				specFieldInput.syncOptions = gitopsDeployment.Spec.SyncPolicy.SyncOptions
+			}
+		}
 	}
 
 	specFieldText, err := createSpecField(specFieldInput)
@@ -542,7 +564,30 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		sourceRepoURL:        gitopsDeployment.Spec.Source.RepoURL,
 		sourcePath:           gitopsDeployment.Spec.Source.Path,
 		sourceTargetRevision: gitopsDeployment.Spec.Source.TargetRevision,
-		automated:            strings.EqualFold(gitopsDeployment.Spec.Type, managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated),
+		// syncOptions:       if non-empty, it gets updated below.
+		automated: strings.EqualFold(gitopsDeployment.Spec.Type, managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated),
+	}
+
+	if gitopsDeployment.Spec.SyncPolicy != nil && len(gitopsDeployment.Spec.SyncPolicy.SyncOptions) != 0 {
+		// syncOption = gitopsDeployment.Spec.SyncPolicy.SyncOptions
+		for _, syncOptionString := range gitopsDeployment.Spec.SyncPolicy.SyncOptions {
+			// Checks for each SyncOption goes in this for loop
+			var checkSyncOption bool
+			// 1. Check for SyncOption "- CreateNamespace=true"
+			if syncOptionString == "- CreateNamespace=true" {
+				checkSyncOption = true
+			}
+
+			// Finally after iteration through all SyncOptions if it doesn't match with any of the above specified SyncOption, an error is returned
+			if !checkSyncOption {
+				userError := "the specified sync option is either mispelled or is not supported by GitOpsDeployment"
+				devError := fmt.Errorf("invalid SyncOption : %s", syncOptionString)
+				gitopsDeployment.Status.Sync.Status = managedgitopsv1alpha1.SyncStatusCode(managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred)
+				return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, devError)
+			} else {
+				specFieldInput.syncOptions = gitopsDeployment.Spec.SyncPolicy.SyncOptions
+			}
+		}
 	}
 
 	shouldUpdateApplication := false
@@ -964,6 +1009,7 @@ type argoCDSpecInput struct {
 	sourceRepoURL        string
 	sourcePath           string
 	sourceTargetRevision string
+	syncOptions          []string
 	// MAKE SURE YOU SANITIZE ANY NEW FIELDS THAT ARE ADDED!!!!
 	automated bool
 
@@ -981,8 +1027,20 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 		input = strings.ReplaceAll(input, "&", "")
 		input = strings.ReplaceAll(input, ";", "")
 		input = strings.ReplaceAll(input, "%", "")
+		input = strings.ReplaceAll(input, "- ", "")
 
 		return input
+	}
+
+	sanitizeArray := func(input []string) []string {
+		var inputGet []string
+		for _, syncOptionVar := range input {
+			var inputRet []string
+			inputVar := sanitize(syncOptionVar)
+			inputRet = append(inputRet, inputVar)
+			inputGet = inputRet
+		}
+		return inputGet
 	}
 
 	fields := argoCDSpecInput{
@@ -995,6 +1053,7 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 		sourceRepoURL:        sanitize(fieldsParam.sourceRepoURL),
 		sourcePath:           sanitize(fieldsParam.sourcePath),
 		sourceTargetRevision: sanitize(fieldsParam.sourceTargetRevision),
+		syncOptions:          sanitizeArray(fieldsParam.syncOptions),
 		automated:            fieldsParam.automated,
 		// MAKE SURE YOU SANITIZE ANY NEW FIELDS THAT ARE ADDED!!!!
 
@@ -1023,6 +1082,16 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 			Project: "default",
 		},
 	}
+	if len(fields.syncOptions) != 0 {
+		for _, syncOptionString := range fields.syncOptions {
+			application.Spec.SyncPolicy = &fauxargocd.SyncPolicy{
+				SyncOptions: fauxargocd.SyncOptions{
+					syncOptionString,
+				},
+			}
+		}
+
+	}
 
 	if fields.automated {
 		application.Spec.SyncPolicy = &fauxargocd.SyncPolicy{
@@ -1042,7 +1111,6 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	return string(resBytes), nil
 }
 

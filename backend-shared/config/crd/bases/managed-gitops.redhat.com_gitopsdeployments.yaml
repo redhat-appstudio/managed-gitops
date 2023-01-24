@@ -71,6 +71,17 @@ spec:
                 - path
                 - repoURL
                 type: object
+              syncPolicy:
+                description: SyncPolicy controls when and how a sync will be performed.
+                properties:
+                  syncOptions:
+                    description: Options allow you to specify whole app sync-options.
+                      This option may be empty, if and when it is empty it is considered
+                      that there are no SyncOptions present.
+                    items:
+                      type: string
+                    type: array
+                type: object
               type:
                 description: "Two possible values: - Automated: whenever a new commit
                   occurs in the GitOps repository, or the Argo CD Application is out
@@ -84,6 +95,7 @@ spec:
                 type: string
             required:
             - source
+            - syncPolicy
             - type
             type: object
           status:

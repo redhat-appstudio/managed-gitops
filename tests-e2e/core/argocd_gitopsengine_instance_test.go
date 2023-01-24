@@ -5,7 +5,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	"github.com/redhat-appstudio/managed-gitops/backend/util"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"

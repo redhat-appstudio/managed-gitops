@@ -1,0 +1,24 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: gitops-cluster-agent-controller
+  namespace: appstudio-workload-monitoring
+  labels:
+    control-plane: cluster-agent-controller-manager
+spec:
+  endpoints:
+  - bearerTokenSecret:
+      key: token
+      name: prometheus-k8s-token-xhrjb
+    interval: 15s
+    path: /metrics
+    port: metrics
+    scheme: https
+    tlsConfig:
+      insecureSkipVerify: true
+  namespaceSelector:
+    matchNames:
+    - gitops
+  selector:
+    matchLabels:
+      control-plane: cluster-agent-controller-manager

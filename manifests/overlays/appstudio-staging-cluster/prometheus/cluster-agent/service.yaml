@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:     
+  labels:       
+    control-plane: cluster-agent-controller-manager
+  name: gitops-service-agent-controller-manager-metrics-service
+  namespace: gitops
+spec:             
+  internalTrafficPolicy: Cluster
+  ipFamilies:       
+  - IPv4            
+  ipFamilyPolicy: SingleStack
+  ports:
+    - name: metrics
+      protocol: TCP
+      port: 8443
+      targetPort: https
+  # - name: http-metrics   
+  #   port: 8080
+  #   protocol: TCP   
+  #   targetPort: 8080
+  selector:       
+    control-plane: cluster-agent-controller-manager
+  sessionAffinity: None
+  type: ClusterIP    

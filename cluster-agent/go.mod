@@ -199,7 +199,7 @@ replace (
 	// Monorepo
 	//github.com/redhat-appstudio/managed-gitops/backend => ../backend
 	//github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
-	github.com/redhat-appstudio/managed-gitops/utilities/db-migration => ../utilities/db-migration
+	//github.com/redhat-appstudio/managed-gitops/utilities/db-migration => ../utilities/db-migration
 
 	// Avoid CVE-2022-28948
 	gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.1

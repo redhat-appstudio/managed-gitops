@@ -8,11 +8,20 @@ import (
 	"strconv"
 )
 
-var _ UnsafeDatabaseQueries = &ChaosDBClient{}
 var _ DatabaseQueries = &ChaosDBClient{}
 
+// ChaosDBClient is a DB Client that optionally simulates an unreliable database connections that randomly injects errors
+// to allow us to verify that our service tolerates this and/or fails gracefully.
+
+// This unreliable client will be enabled by an environment variable, which we can/will enable when running the service.
+// The unreliable DB client will randomly fail a certain percent, and that % is controllable via environment variable.
+//
+// To enable it, set the following environment varaibles before running the GitOps Service controllers.
+// For example:
+// - ENABLE_UNRELIABLE_DB=true
+// - UNRELIABLE_DB_FAILURE_RATE=10
 type ChaosDBClient struct {
-	InnerClient AllDatabaseQueries
+	InnerClient DatabaseQueries
 }
 
 func (cdb *ChaosDBClient) UpdateOperation(ctx context.Context, obj *Operation) error {
@@ -374,146 +383,6 @@ func (cdb *ChaosDBClient) GetAPICRForDatabaseUID(ctx context.Context, apiCRToDat
 	}
 
 	return cdb.InnerClient.GetAPICRForDatabaseUID(ctx, apiCRToDatabaseMapping)
-
-}
-
-func (cdb *ChaosDBClient) UnsafeListAllApplications(ctx context.Context, applications *[]Application) error {
-
-	if err := shouldSimulateFailure("UnsafeListAllApplications", applications); err != nil {
-		return err
-	}
-
-	return cdb.InnerClient.UnsafeListAllApplications(ctx, applications)
-
-}
-
-func (cdb *ChaosDBClient) UnsafeListAllApplicationStates(ctx context.Context, applicationStates *[]ApplicationState) error {
-
-	if err := shouldSimulateFailure("UnsafeListAllApplicationStates", applicationStates); err != nil {
-		return err
-	}
-
-	return cdb.InnerClient.UnsafeListAllApplicationStates(ctx, applicationStates)
-
-}
-
-func (cdb *ChaosDBClient) UnsafeListAllClusterAccess(ctx context.Context, clusterAccess *[]ClusterAccess) error {
-
-	if err := shouldSimulateFailure("UnsafeListAllClusterAccess", clusterAccess); err != nil {
-		return err
-	}
-
-	return cdb.InnerClient.UnsafeListAllClusterAccess(ctx, clusterAccess)
-
-}
-
-func (cdb *ChaosDBClient) UnsafeListAllClusterCredentials(ctx context.Context, clusterCredentials *[]ClusterCredentials) error {
-
-	if err := shouldSimulateFailure("UnsafeListAllClusterCredentials", testClusterUser.GetAsLogKeyValues()...); err != nil {
-		return err
-	}
-
-	return cdb.InnerClient.UnsafeListAllClusterCredentials(ctx, clusterCredentials)
-
-}
-
-func (cdb *ChaosDBClient) UnsafeListAllClusterUsers(ctx context.Context, clusterUsers *[]ClusterUser) error {
-
-	if err := shouldSimulateFailure("UnsafeListAllClusterUsers", clusterUsers); err != nil {
-		return err
-	}
-
-	return cdb.InnerClient.UnsafeListAllClusterUsers(ctx, clusterUsers)
-
-}
-
-func (cdb *ChaosDBClient) UnsafeListAllGitopsEngineInstances(ctx context.Context, gitopsEngineInstances *[]GitopsEngineInstance) error {
-
-	if err := shouldSimulateFailure("UnsafeListAllGitopsEngineInstances", gitopsEngineInstances); err != nil {
-		return err
-	}
-
-	return cdb.InnerClient.UnsafeListAllGitopsEngineInstances(ctx, gitopsEngineInstances)
-
-}
-
-func (cdb *ChaosDBClient) UnsafeListAllManagedEnvironments(ctx context.Context, managedEnvironments *[]ManagedEnvironment) error {
-
-	if err := shouldSimulateFailure("UnsafeListAllManagedEnvironments", managedEnvironments); err != nil {
-		return err
-	}
-
-	return cdb.InnerClient.UnsafeListAllManagedEnvironments(ctx, managedEnvironments)
-
-}
-
-func (cdb *ChaosDBClient) UnsafeListAllOperations(ctx context.Context, operations *[]Operation) error {
-
-	if err := shouldSimulateFailure("UnsafeListAllOperations", operations); err != nil {
-		return err
-	}
-
-	return cdb.InnerClient.UnsafeListAllOperations(ctx, operations)
-
-}
-
-func (cdb *ChaosDBClient) UnsafeListAllGitopsEngineClusters(ctx context.Context, gitopsEngineClusters *[]GitopsEngineCluster) error {
-
-	if err := shouldSimulateFailure("UnsafeListAllGitopsEngineClusters", gitopsEngineClusters); err != nil {
-		return err
-	}
-
-	return cdb.InnerClient.UnsafeListAllGitopsEngineClusters(ctx, gitopsEngineClusters)
-
-}
-
-func (cdb *ChaosDBClient) UnsafeListAllDeploymentToApplicationMapping(ctx context.Context, deploymentToApplicationMappings *[]DeploymentToApplicationMapping) error {
-
-	if err := shouldSimulateFailure("UnsafeListAllDeploymentToApplicationMapping", deploymentToApplicationMappings); err != nil {
-		return err
-	}
-
-	return cdb.InnerClient.UnsafeListAllDeploymentToApplicationMapping(ctx, deploymentToApplicationMappings)
-
-}
-
-func (cdb *ChaosDBClient) UnsafeListAllSyncOperations(ctx context.Context, syncOperations *[]SyncOperation) error {
-
-	if err := shouldSimulateFailure("UnsafeListAllSyncOperations", syncOperations); err != nil {
-		return err
-	}
-
-	return cdb.InnerClient.UnsafeListAllSyncOperations(ctx, syncOperations)
-
-}
-
-func (cdb *ChaosDBClient) UnsafeListAllKubernetesResourceToDBResourceMapping(ctx context.Context, kubernetesToDBResourceMapping *[]KubernetesToDBResourceMapping) error {
-
-	if err := shouldSimulateFailure("UnsafeListAllKubernetesResourceToDBResourceMapping", kubernetesToDBResourceMapping); err != nil {
-		return err
-	}
-
-	return cdb.InnerClient.UnsafeListAllKubernetesResourceToDBResourceMapping(ctx, kubernetesToDBResourceMapping)
-
-}
-
-func (cdb *ChaosDBClient) UnsafeListAllAPICRToDatabaseMappings(ctx context.Context, mappings *[]APICRToDatabaseMapping) error {
-
-	if err := shouldSimulateFailure("UnsafeListAllAPICRToDatabaseMappings", mappings); err != nil {
-		return err
-	}
-
-	return cdb.InnerClient.UnsafeListAllAPICRToDatabaseMappings(ctx, mappings)
-
-}
-
-func (cdb *ChaosDBClient) UnsafeListAllRepositoryCredentials(ctx context.Context, repositoryCredentials *[]RepositoryCredentials) error {
-
-	if err := shouldSimulateFailure("UnsafeListAllRepositoryCredentials", repositoryCredentials); err != nil {
-		return err
-	}
-
-	return cdb.InnerClient.UnsafeListAllRepositoryCredentials(ctx, repositoryCredentials)
 
 }
 
@@ -967,6 +836,14 @@ func (cdb *ChaosDBClient) CheckedListAllGitopsEngineInstancesForGitopsEngineClus
 
 }
 
+func (cdb *ChaosDBClient) GetAPICRToDatabaseMappingBatch(ctx context.Context, apiCRToDatabaseMapping *[]APICRToDatabaseMapping, limit, offSet int) error {
+	if err := shouldSimulateFailure("GetAPICRToDatabaseMappingBatch", apiCRToDatabaseMapping, limit, offSet); err != nil {
+		return err
+	}
+
+	return cdb.InnerClient.GetAPICRToDatabaseMappingBatch(ctx, apiCRToDatabaseMapping, limit, offSet)
+}
+
 func (cdb *ChaosDBClient) CloseDatabase() {
 	cdb.InnerClient.CloseDatabase()
 }
@@ -978,14 +855,14 @@ func shouldSimulateFailure(apiType string, obj ...interface{}) error {
 	}
 
 	// set environment variable(UNRELIABLE_DB_FAILURE_RATE) in your terminal before running Gitops service
-	unreliableClientFailureRate := os.Getenv("UNRELIABLE_DB_FAILURE_RATE")
-	unreliableClientFailureRateValue, err := strconv.Atoi(unreliableClientFailureRate)
+	unreliableDBClientFailureRate := os.Getenv("UNRELIABLE_DB_FAILURE_RATE")
+	unreliableDBClientFailureRateValue, err := strconv.Atoi(unreliableDBClientFailureRate)
 	if err != nil {
 		return err
 	}
 
 	// Convert it to a decimal point, e.g. 50% to 0.5
-	unreliableClientFailureRateValueDouble := (float64)(unreliableClientFailureRateValue) / (float64)(100)
+	unreliableClientFailureRateValueDouble := (float64)(unreliableDBClientFailureRateValue) / (float64)(100)
 
 	// return an error randomly x% of the time (using math/rand package)
 	// #nosec G404 -- not used for cryptographic purposes

@@ -4,6 +4,8 @@ kind: ValidatingWebhookConfiguration
 metadata:
   creationTimestamp: null
   name: validating-webhook-configuration
+  annotations:
+    service.beta.openshift.io/inject-cabundle: "true"
 webhooks:
 - admissionReviewVersions:
   - v1
@@ -24,4 +26,44 @@ webhooks:
     - UPDATE
     resources:
     - snapshots
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-appstudio-redhat-com-v1alpha1-snapshotenvironmentbinding
+  failurePolicy: Fail
+  name: vsnapshotenvironmentbinding.kb.io
+  rules:
+  - apiGroups:
+    - appstudio.redhat.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - snapshotenvironmentbindings
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-appstudio-redhat-com-v1alpha1-promotionrun
+  failurePolicy: Fail
+  name: vpromotionrun.kb.io
+  rules:
+  - apiGroups:
+    - appstudio.redhat.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - promotionruns
   sideEffects: None

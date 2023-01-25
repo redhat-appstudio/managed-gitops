@@ -37,6 +37,9 @@ spec:
         ports:
           - containerPort: 8080
             name: http-metrics
+          - containerPort: 9443
+            name: webhook-server
+            protocol: TCP
         image: ${COMMON_IMAGE}
         name: manager
         securityContext:
@@ -61,17 +64,14 @@ spec:
           requests:
             cpu: 50m
             memory: 256Mi
-
-        # TODO: GITOPSRVCE-211: remove this, once it is proven not to be needed
-        # volumeMounts:
-        # - mountPath: /tmp/k8s-webhook-server/serving-certs
-        #   name: cert
-        #   readOnly: true
+        volumeMounts:
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: cert
+          readOnly: true
       serviceAccountName: gitops-appstudio-service-controller-manager
       terminationGracePeriodSeconds: 10
-      # TODO: GITOPSRVCE-211: remove this, once it is proven not to be needed
-      # volumes:
-      # - name: cert
-      #   secret:
-      #     defaultMode: 420
-      #     secretName: webhook-server-cert
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: webhook-server-cert

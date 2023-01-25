@@ -927,9 +927,10 @@ func deleteArgoCDApplicationOfDeletedApplicationRow(ctx context.Context, dbAppli
 		log.Error(firstDeletionErr, "Deletion of at least one Argo CD application failed.", "firstError", firstDeletionErr)
 		return shouldRetryTrue, firstDeletionErr
 	}
+	// success
+	return shouldRetryFalse, nil
 }
 
-// success
 func processOperation_GitOpsEngineInstance(ctx context.Context, dbOperation db.Operation, crOperation operation.Operation, opConfig operationConfig) (bool, error) {
 
 	if dbOperation.Resource_id == "" {

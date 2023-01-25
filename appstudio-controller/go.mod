@@ -148,15 +148,9 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-// github.com/redhat-appstudio/managed-gitops/backend => ../backend
-// github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
-// github.com/redhat-appstudio/managed-gitops/utilities/db-migration => ../utilities/db-migration
-
-replace (
-	// TODO: GITOPSRVCE-211: This line can be removed, once the application-api PR has merged.
-	// github.com/redhat-appstudio/application-api => github.com/jgwest/application-api v0.0.0-20221123042158-cdfb05b10aac
-	//github.com/redhat-appstudio/managed-gitops/backend => ../backend
-	//github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
-	github.com/redhat-appstudio/managed-gitops/utilities/db-migration => ../utilities/db-migration
-	sigs.k8s.io/controller-runtime => github.com/kcp-dev/controller-runtime v0.12.2-0.20220808200255-4b60fd66e5de
-)
+// TODO: GITOPSRVCE-211: This line can be removed, once the application-api PR has merged.
+// github.com/redhat-appstudio/application-api => github.com/jgwest/application-api v0.0.0-20221123042158-cdfb05b10aac
+//github.com/redhat-appstudio/managed-gitops/backend => ../backend
+//github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
+//github.com/redhat-appstudio/managed-gitops/utilities/db-migration => ../utilities/db-migration
+replace sigs.k8s.io/controller-runtime => github.com/kcp-dev/controller-runtime v0.12.2-0.20220808200255-4b60fd66e5de

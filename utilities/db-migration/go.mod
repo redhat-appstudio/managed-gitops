@@ -89,7 +89,5 @@ require (
 )
 
 //github.com/redhat-appstudio/managed-gitops/backend-shared => ../../backend-shared
-replace (
-	github.com/redhat-appstudio/managed-gitops/backend-shared => ../../backend-shared
-	sigs.k8s.io/controller-runtime => github.com/kcp-dev/controller-runtime v0.12.2-0.20220808200255-4b60fd66e5de
-)
+//github.com/redhat-appstudio/managed-gitops/backend-shared => ../../backend-shared
+replace sigs.k8s.io/controller-runtime => github.com/kcp-dev/controller-runtime v0.12.2-0.20220808200255-4b60fd66e5de

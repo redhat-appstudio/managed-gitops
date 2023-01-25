@@ -11,7 +11,7 @@ import (
 
 	"github.com/go-logr/logr"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	corev1 "k8s.io/api/core/v1"
@@ -230,8 +230,7 @@ func handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx context.C
 		// 2a) Retrieve the Namespace containing the ManagedEnvironment CR
 		gitopsDeplNamespace := corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      managedEnvEvent.Request.Namespace,
-				Namespace: managedEnvEvent.Request.Namespace,
+				Name: managedEnvEvent.Request.Namespace,
 			},
 		}
 		if err := managedEnvEvent.Client.Get(ctx, client.ObjectKeyFromObject(&gitopsDeplNamespace), &gitopsDeplNamespace); err != nil {

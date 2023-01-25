@@ -21,7 +21,7 @@ spec:
       value: Dockerfile
     - name: infra-deployment-update-script
       value: |
-        sed -i -e 's|\(https://raw.githubusercontent.com/redhat-appstudio/managed-gitops/\)[^/]*\(/.*\)|\1{{ revision }}\2|' -e 's/\(newTag: \).*/\1{{ revision }}/' components/gitops/staging/kustomization.yaml
+        sed -i -E 's/[0-9a-f]{40}/$(params.revision)/g' components/gitops/staging/kustomization.yaml
   pipelineRef:
     name: docker-build
     bundle: quay.io/redhat-appstudio/hacbs-core-service-templates-bundle:latest

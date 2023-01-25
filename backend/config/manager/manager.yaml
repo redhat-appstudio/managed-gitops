@@ -1,57 +1,73 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  labels:
-    control-plane: controller-manager
-  name: system
----
+# apiVersion: v1
+# kind: Namespace
+# metadata:
+#   labels:
+#     control-plane: controller-manager
+#   name: system
+# ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: controller-manager
   namespace: system
   labels:
-    control-plane: controller-manager
+    control-plane: backend-controller-manager
 spec:
   selector:
     matchLabels:
-      control-plane: controller-manager
+      control-plane: backend-controller-manager
   replicas: 1
   template:
     metadata:
       labels:
-        control-plane: controller-manager
+        control-plane: backend-controller-manager
     spec:
       securityContext:
         runAsNonRoot: true
-        readOnlyRootFilesystem: true
       containers:
       - command:
-        - /manager
+        - gitops-service-backend
         args:
+        - --health-probe-bind-address=:18081
+        - --metrics-bind-address=:8080
         - --leader-elect
-        image: controller:latest
-        name: manager
+        - --zap-time-encoding=rfc3339nano
+        ports:
+          - containerPort: 8080
+            name: http-metrics
+        env:
+        - name: ARGO_CD_NAMESPACE
+          value: gitops-service-argocd
+        - name: DB_ADDR
+          value: gitops-postgresql-staging
+        - name: DB_PASS
+          valueFrom:
+            secretKeyRef:
+              key: postgresql-password
+              name: gitops-postgresql-staging
+        image: ${COMMON_IMAGE}
         securityContext:
           allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 8081
-          initialDelaySeconds: 15
-          periodSeconds: 20
+            port: 18081
+          initialDelaySeconds: 120
+          periodSeconds: 60
+        name: manager
         readinessProbe:
           httpGet:
             path: /readyz
-            port: 8081
-          initialDelaySeconds: 5
-          periodSeconds: 10
+            port: 18081
+          initialDelaySeconds: 180
+          periodSeconds: 30
         resources:
           limits:
-            cpu: 200m
-            memory: 100Mi
+            cpu: 1000m
+            memory: 2400Mi
           requests:
-            cpu: 100m
-            memory: 20Mi
+            cpu: 300m
+            memory: 1000Mi
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10

@@ -10,8 +10,8 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/go-logr/logr"
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
-	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
@@ -364,7 +364,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 	// Sanity test: find the gitops engine cluster, by kube-system, and ensure that the
 	// gitopsengineinstance matches the gitops engine cluster we are running on.
-	kubeSystemNamespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system", Namespace: "kube-system"}}
+	kubeSystemNamespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
 	if err := eventClient.Get(taskContext, client.ObjectKeyFromObject(kubeSystemNamespace), kubeSystemNamespace); err != nil {
 		log.Error(err, "Unable to retrieve kube-system namespace")
 		return &dbOperation, shouldRetryTrue, fmt.Errorf("unable to retrieve kube-system namespace in internalPerformTask")
@@ -383,8 +383,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	// 4) Find the namespace for the targeted Argo CD instance
 	argoCDNamespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      dbGitopsEngineInstance.Namespace_name,
-			Namespace: dbGitopsEngineInstance.Namespace_name,
+			Name: dbGitopsEngineInstance.Namespace_name,
 		},
 	}
 	if err := eventClient.Get(taskContext, client.ObjectKeyFromObject(argoCDNamespace), argoCDNamespace); err != nil {
@@ -867,27 +866,22 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 
 	// Before we create the application, make sure that the managed environment that the application points to exists
 
-	specFieldApp := &appv1.Application{}
-
-	if err := yaml.Unmarshal([]byte(dbApplication.Spec_field), specFieldApp); err != nil {
-		log.Error(err, "SEVERE: unable to unmarshal DB application spec field, on updating existing Application cR: "+app.Name)
-		// We return nil here, with no retry, because there's likely nothing else that can be done to fix this.
-		// Thus there is no need to keep retrying.
-		return shouldRetryFalse, nil
-	}
-
-	var specDiff string
-	if !reflect.DeepEqual(specFieldApp.Spec.Source, app.Spec.Source) {
-		specDiff = "spec.source fields differ"
-	} else if !reflect.DeepEqual(specFieldApp.Spec.Destination, app.Spec.Destination) {
-		specDiff = "spec.destination fields differ"
-	} else if specFieldApp.Spec.Project != app.Spec.Project {
-		specDiff = "spec project fields differ"
-	} else if !reflect.DeepEqual(specFieldApp.Spec.SyncPolicy, app.Spec.SyncPolicy) {
-		specDiff = "sync policy fields differ"
+	specDiff, err := controllers.CompareApplication(*app, *dbApplication, log)
+	if err != nil {
+		log.Error(err, "unable to compare Argo CD Application with DB row")
+		return shouldRetryFalse, err
 	}
 
 	if specDiff != "" {
+		specFieldApp := &appv1.Application{}
+
+		if err := yaml.Unmarshal([]byte(dbApplication.Spec_field), specFieldApp); err != nil {
+			log.Error(err, "SEVERE: unable to unmarshal DB application spec field, on updating existing Application cR: "+app.Name)
+			// We return nil here, with no retry, because there's likely nothing else that can be done to fix this.
+			// Thus there is no need to keep retrying.
+			return shouldRetryFalse, nil
+		}
+
 		app.Spec.Destination = specFieldApp.Spec.Destination
 		app.Spec.Source = specFieldApp.Spec.Source
 		app.Spec.Project = specFieldApp.Spec.Project

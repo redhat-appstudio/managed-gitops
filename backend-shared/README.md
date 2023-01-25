@@ -58,7 +58,7 @@ To do this, please refer to [monorepo README] to find more information about it.
 [OperationID]: https://github.com/redhat-appstudio/managed-gitops/blob/main/backend-shared/apis/managed-gitops/v1alpha1/operation_types.go#L25
 [Operation CRD API]: https://github.com/redhat-appstudio/managed-gitops/tree/main/backend-shared/apis/managed-gitops/v1alpha1
 [backend-shared]: https://github.com/redhat-appstudio/managed-gitops/tree/main/backend-share
-[Database functions and structs]: https://github.com/redhat-appstudio/managed-gitops/tree/main/backend-shared/config/db
+[Database functions and structs]: https://github.com/redhat-appstudio/managed-gitops/tree/main/backend-shared/db
 [Service Account]: https://github.com/redhat-appstudio/managed-gitops/blob/main/backend-shared/hack/service_account.go
 [Proxy Client]: https://github.com/redhat-appstudio/managed-gitops/blob/main/backend-shared/util/proxyclient.go
 [Find an ArgoCD instance]: https://github.com/redhat-appstudio/managed-gitops/blob/main/backend-shared/util/utils.go

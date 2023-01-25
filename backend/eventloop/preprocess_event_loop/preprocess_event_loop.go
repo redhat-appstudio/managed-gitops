@@ -70,7 +70,7 @@ func emitEvent(event eventlooptypes.EventLoopEvent, nextStep *eventloop.Controll
 		return
 	}
 
-	log.V(sharedutil.LogLevel_Debug).Info("Emitting event to workspace event loop",
+	log.V(sharedutil.LogLevel_Debug).Info("Emitting event to controller event loop",
 		"event", eventlooptypes.StringEventLoopEvent(&event), "debug-context", debugStr)
 
 	nextStep.EventLoopInputChannel <- event

@@ -13,7 +13,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.1.4
 	github.com/onsi/gomega v1.20.1
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
-	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0-20221223144523-aa8214ccb5e9
+	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0-20230124072856-99d48ccd0240
 	github.com/stretchr/testify v1.7.1
 	golang.org/x/oauth2 v0.0.0-20220608161450-d0670ef3b1eb
 	google.golang.org/grpc v1.45.0
@@ -197,9 +197,9 @@ replace (
 	github.com/improbable-eng/grpc-web => github.com/improbable-eng/grpc-web v0.0.0-20181111100011-16092bd1d58a
 
 	// Monorepo
-	// github.com/redhat-appstudio/managed-gitops/backend => ../backend
-	// github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
-	// github.com/redhat-appstudio/managed-gitops/utilities/db-migration => ../utilities/db-migration
+	//github.com/redhat-appstudio/managed-gitops/backend => ../backend
+	//github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
+	github.com/redhat-appstudio/managed-gitops/utilities/db-migration => ../utilities/db-migration
 
 	// Avoid CVE-2022-28948
 	gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.1

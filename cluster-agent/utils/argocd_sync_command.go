@@ -31,8 +31,7 @@ func AppSync(ctx context.Context, appName string, revision string, namespaceName
 
 	namespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespaceName,
-			Name:      namespaceName,
+			Name: namespaceName,
 		},
 	}
 

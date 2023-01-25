@@ -24,12 +24,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-logr/logr"
 	appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	apibackend "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -46,6 +49,10 @@ type SnapshotEnvironmentBindingReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
+
+//+kubebuilder:rbac:groups=managed-gitops.redhat.com,resources=gitopsdeployments,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=managed-gitops.redhat.com,resources=gitopsdeployments/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=managed-gitops.redhat.com,resources=gitopsdeployments/finalizers,verbs=update
 
 //+kubebuilder:rbac:groups=appstudio.redhat.com,resources=snapshotenvironmentbindings,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=appstudio.redhat.com,resources=snapshotenvironmentbindings/status,verbs=get;update;patch
@@ -178,6 +185,10 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 
 	// Update the status field with statusField vars (even if an error occurred)
 	binding.Status.GitOpsDeployments = statusField
+	if err := addComponentDeploymentCondition(ctx, binding, rClient, log); err != nil {
+		log.Error(err, "unable to update component deployment condition for Binding "+binding.Name)
+		return ctrl.Result{}, fmt.Errorf("unable to update component deployment condition for Binding %s. Error: %w", binding.Name, err)
+	}
 	if err := rClient.Status().Update(ctx, binding); err != nil {
 		if apierr.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -193,6 +204,51 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func addComponentDeploymentCondition(ctx context.Context, binding *appstudioshared.SnapshotEnvironmentBinding, c client.Client, log logr.Logger) error {
+	total := len(binding.Status.GitOpsDeployments)
+	synced := 0
+	for _, deploymentStatus := range binding.Status.GitOpsDeployments {
+		deployment := apibackend.GitOpsDeployment{}
+		err := c.Get(ctx, types.NamespacedName{Name: deploymentStatus.GitOpsDeployment, Namespace: binding.Namespace}, &deployment)
+		if err != nil {
+			return err
+		}
+		if deployment.Status.Sync.Status == apibackend.SyncStatusCodeSynced {
+			synced++
+		}
+	}
+
+	ctype := appstudioshared.ComponentDeploymentConditionAllComponentsDeployed
+	status := metav1.ConditionFalse
+	reason := appstudioshared.ComponentDeploymentConditionCommitsUnsynced
+	if synced == total {
+		status = metav1.ConditionTrue
+		reason = appstudioshared.ComponentDeploymentConditionCommitsSynced
+	}
+	message := fmt.Sprintf("%d of %d components deployed", synced, total)
+
+	if len(binding.Status.ComponentDeploymentConditions) > 1 {
+		// this should never happen, log and fix it
+		log.Error(nil, "snapshot environment binding has multiple component deployment conditions",
+			"binding name", binding.Name, "binding namespace", binding.Namespace)
+		binding.Status.ComponentDeploymentConditions = []metav1.Condition{}
+	}
+	if len(binding.Status.ComponentDeploymentConditions) == 0 {
+		binding.Status.ComponentDeploymentConditions = append(binding.Status.ComponentDeploymentConditions, metav1.Condition{})
+	}
+
+	condition := &binding.Status.ComponentDeploymentConditions[0]
+	if condition.Type != ctype || condition.Status != status || condition.Reason != reason || condition.Message != message {
+		condition.Type = ctype
+		condition.Status = status
+		condition.Reason = reason
+		condition.Message = message
+		condition.LastTransitionTime = metav1.Now()
+	}
+
+	return nil
 }
 
 const (
@@ -278,10 +334,12 @@ func generateExpectedGitOpsDeployment(component appstudioshared.BindingComponent
 			Namespace: binding.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				{
-					APIVersion: binding.APIVersion,
-					Kind:       binding.Kind,
-					Name:       binding.Name,
-					UID:        binding.UID,
+					APIVersion:         binding.APIVersion,
+					Kind:               binding.Kind,
+					Name:               binding.Name,
+					UID:                binding.UID,
+					BlockOwnerDeletion: pointer.Bool(true),
+					Controller:         pointer.Bool(true),
 				},
 			},
 		},

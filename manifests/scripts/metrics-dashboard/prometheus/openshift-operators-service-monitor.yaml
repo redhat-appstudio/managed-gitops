@@ -1,0 +1,21 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    name: gitops-operator
+  name: gitops-operator-metrics-in-gitops
+  namespace: openshift-gitops
+spec:
+  endpoints:
+  - bearerTokenSecret:
+      key: ""
+    port: http-metrics
+  - bearerTokenSecret:
+      key: ""
+    port: cr-metrics
+  namespaceSelector:
+    matchNames:
+      - openshift-operators
+  selector:
+    matchLabels:
+      name: gitops-operator

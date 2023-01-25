@@ -44,7 +44,7 @@ type ApplicationSource struct {
 	// RepoURL is the URL to the repository (Git or Helm) that contains the application manifests
 	RepoURL string `json:"repoURL"`
 	// Path is a directory path within the Git repository, and is only valid for applications sourced from Git.
-	Path string `json:"path,omitempty"`
+	Path string `json:"path"`
 	// TargetRevision defines the revision of the source to sync the application to.
 	// In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
 	// In case of Helm, this is a semver tag for the Chart's version.
@@ -200,6 +200,11 @@ type GitOpsDeploymentReasonType string
 const (
 	GitopsDeploymentReasonSyncError     GitOpsDeploymentReasonType = "SyncError"
 	GitopsDeploymentReasonErrorOccurred GitOpsDeploymentReasonType = "ErrorOccurred"
+)
+
+const (
+	GitOpsDeploymentUserError_InvalidPathSlash = "spec.source.path cannot be '/'"
+	GitOpsDeploymentUserError_PathIsRequired   = "spec.source.path is a required field and it cannot be empty"
 )
 
 //+kubebuilder:object:root=true

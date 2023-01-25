@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	matcher "github.com/onsi/gomega/types"
@@ -90,27 +91,35 @@ func HaveHealthStatusCode(status managedgitopsv1alpha1.HealthStatusCode) matcher
 
 	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
 
-		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		return HaveHealthStatusCodeFunc(status, gitopsDepl)
 
-		k8sClient, err := fixture.GetKubeClient(config)
-		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
-			return false
-		}
-
-		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitopsDepl), &gitopsDepl)
-		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
-			return false
-		}
-
-		res := status == gitopsDepl.Status.Health.Status
-
-		fmt.Println("HaveHealthStatusCode:", res, "/ Expected:", status, "/ Actual:", gitopsDepl.Status.Health.Status)
-
-		return res
 	}, BeTrue())
+}
+
+// HaveHealthStatusCodeFunc can be called for non-Gomega-based comparisons. See description above.
+// For the vast majority of tests, you should not (need to) use this function.
+func HaveHealthStatusCodeFunc(status managedgitopsv1alpha1.HealthStatusCode, gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
+	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+	Expect(err).To(BeNil())
+
+	k8sClient, err := fixture.GetKubeClient(config)
+	if err != nil {
+		fmt.Println(k8sFixture.K8sClientError, err)
+		return false
+	}
+
+	err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitopsDepl), &gitopsDepl)
+	if err != nil {
+		fmt.Println(k8sFixture.K8sClientError, err)
+		return false
+	}
+
+	res := status == gitopsDepl.Status.Health.Status
+
+	fmt.Println("HaveHealthStatusCode:", res, "/ Expected:", status, "/ Actual:", gitopsDepl.Status.Health.Status)
+
+	return res
+
 }
 
 // HaveSyncStatusCode waits for the given GitOpsDeployment to have the expected Sync status (e.g. "Unknown"/"Synced"/"OutOfSync")
@@ -120,74 +129,87 @@ func HaveHealthStatusCode(status managedgitopsv1alpha1.HealthStatusCode) matcher
 func HaveSyncStatusCode(status managedgitopsv1alpha1.SyncStatusCode) matcher.GomegaMatcher {
 
 	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
-
-		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
-
-		k8sClient, err := fixture.GetKubeClient(config)
-		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
-			return false
-		}
-
-		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitopsDepl), &gitopsDepl)
-		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
-			return false
-		}
-
-		res := status == gitopsDepl.Status.Sync.Status
-		fmt.Println("HaveSyncStatusCode:", res, "/ Expected:", status, "/ Actual:", gitopsDepl.Status.Sync.Status)
-
-		return res
+		return HaveSyncStatusCodeFunc(status, gitopsDepl)
 	}, BeTrue())
+}
+
+// HaveSyncStatusCodeFunc can be called for non-Gomega-based comparisons. See description above.
+// For the vast majority of tests, you should not (need to) use this function.
+func HaveSyncStatusCodeFunc(status managedgitopsv1alpha1.SyncStatusCode, gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
+	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+	Expect(err).To(BeNil())
+
+	k8sClient, err := fixture.GetKubeClient(config)
+	if err != nil {
+		fmt.Println(k8sFixture.K8sClientError, err)
+		return false
+	}
+
+	err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitopsDepl), &gitopsDepl)
+	if err != nil {
+		fmt.Println(k8sFixture.K8sClientError, err)
+		return false
+	}
+
+	res := status == gitopsDepl.Status.Sync.Status
+	fmt.Println("HaveSyncStatusCode:", res, "/ Expected:", status, "/ Actual:", gitopsDepl.Status.Sync.Status)
+
+	return res
+
 }
 
 // HaveResources checks if the .status.resources field of GitOpsDeployment have the required resources
 func HaveResources(resourceStatusList []managedgitopsv1alpha1.ResourceStatus) matcher.GomegaMatcher {
 	return WithTransform(func(gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment) bool {
 
-		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		return HaveResourcesFunc(resourceStatusList, gitopsDeployment)
 
-		k8sClient, err := fixture.GetKubeClient(config)
-		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
-			return false
-		}
+	}, BeTrue())
+}
 
-		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitopsDeployment), &gitopsDeployment)
-		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
-			return false
-		}
+// HaveResourcesFunc can be called for non-Gomega-based comparisons. See description above.
+// For the vast majority of tests, you should not (need to) use this function.
+func HaveResourcesFunc(resourceStatusList []managedgitopsv1alpha1.ResourceStatus, gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment) bool {
+	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+	Expect(err).To(BeNil())
 
-		// compare the slices irrespective of their order
-		resourceExists := false
-		existingResourceStatusList := gitopsDeployment.Status.Resources
+	k8sClient, err := fixture.GetKubeClient(config)
+	if err != nil {
+		fmt.Println(k8sFixture.K8sClientError, err)
+		return false
+	}
 
-		if len(resourceStatusList) != len(existingResourceStatusList) {
-			fmt.Println("HaveResources:", resourceExists, "/ Expected:", resourceStatusList, "/ Actual:", gitopsDeployment.Status.Resources)
-			return false
-		}
+	err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitopsDeployment), &gitopsDeployment)
+	if err != nil {
+		fmt.Println(k8sFixture.K8sClientError, err)
+		return false
+	}
 
-		for _, resourceStatus := range resourceStatusList {
-			resourceExists = false
-			for _, existingResourceStatus := range existingResourceStatusList {
-				if reflect.DeepEqual(resourceStatus, existingResourceStatus) {
-					resourceExists = true
-					break
-				}
-			}
-			if !resourceExists {
-				fmt.Println("HaveResources:", resourceExists, "/ Expected:", resourceStatusList, "/ Actual:", gitopsDeployment.Status.Resources)
-				fmt.Println("- missing: ", resourceStatus)
+	// compare the slices irrespective of their order
+	resourceExists := false
+	existingResourceStatusList := gitopsDeployment.Status.Resources
+
+	if len(resourceStatusList) != len(existingResourceStatusList) {
+		fmt.Println("HaveResources:", resourceExists, "/ Expected:", resourceStatusList, "/ Actual:", gitopsDeployment.Status.Resources)
+		return false
+	}
+
+	for _, resourceStatus := range resourceStatusList {
+		resourceExists = false
+		for _, existingResourceStatus := range existingResourceStatusList {
+			if reflect.DeepEqual(resourceStatus, existingResourceStatus) {
+				resourceExists = true
 				break
 			}
 		}
-		return resourceExists
+		if !resourceExists {
+			fmt.Println("HaveResources:", resourceExists, "/ Expected:", resourceStatusList, "/ Actual:", gitopsDeployment.Status.Resources)
+			fmt.Println("- missing: ", resourceStatus)
+			break
+		}
+	}
+	return resourceExists
 
-	}, BeTrue())
 }
 
 func HaveSpecSource(source managedgitopsv1alpha1.ApplicationSource) matcher.GomegaMatcher {
@@ -303,4 +325,37 @@ func HaveReconciledState(reconciledState managedgitopsv1alpha1.ReconciledState) 
 
 		return res
 	}, BeTrue())
+}
+
+func UpdateDeploymentWithFunction(gitopsDeployment *managedgitopsv1alpha1.GitOpsDeployment,
+	mutationFn func(*managedgitopsv1alpha1.GitOpsDeployment)) error {
+
+	GinkgoWriter.Printf("Updating GitOpsDeployment for '%v'\n", gitopsDeployment.ObjectMeta)
+	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+	Expect(err).To(BeNil())
+
+	k8sClient, err := fixture.GetKubeClient(config)
+	if err != nil {
+		fmt.Println(k8sFixture.K8sClientError, err)
+		return err
+	}
+
+	return k8sFixture.UntilSuccess(k8sClient, func(k8sClient client.Client) error {
+
+		// Retrieve the latest version of the GitOpsDeployment resource
+		err := k8sFixture.Get(gitopsDeployment, k8sClient)
+		if err != nil {
+			return err
+		}
+
+		// Call the mutation function, to change the deployment
+		mutationFn(gitopsDeployment)
+
+		// Attempt to update the object with the change made by the mutation function
+		err = k8sFixture.UpdateStatus(gitopsDeployment, k8sClient)
+
+		// Report back the error, if we hit one
+		return err
+	})
+
 }

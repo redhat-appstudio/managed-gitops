@@ -6,8 +6,8 @@ import (
 	"time"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
-	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
+	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/gitopserrors"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
@@ -21,9 +21,9 @@ import (
 )
 
 const (
-	errDeploymentNameIsImmutable = "deployment name field is immutable: changing it from its initial value is not supported"
+	ErrDeploymentNameIsImmutable = "deployment name field is immutable: changing it from its initial value is not supported"
 
-	errRevisionIsImmutable = "revision change is not supported: changing it from its initial value is not supported"
+	ErrRevisionIsImmutable = "revision change is not supported: changing it from its initial value is not supported"
 )
 
 // This file is responsible for processing events related to GitOpsDeploymentSyncRun CR.
@@ -33,18 +33,94 @@ func (action *applicationEventLoopRunner_Action) applicationEventRunner_handleSy
 	// Handle all GitOpsDeploymentSyncRun related events
 	err := action.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
 
-	// TODO: GITOPSRVCE-44: Get the SyncRunModified object from k8s, so we can update it if necessary
+	syncRunCR, clientErr := getGitOpsDeploymentSyncRun(ctx, action.workspaceClient, action.eventResourceName, action.eventResourceNamespace)
+	if clientErr != nil {
+		if !apierr.IsNotFound(clientErr) {
+			return fmt.Errorf("unable to get GitOpsDeploymentSyncRun: %v", err)
+		}
+		return nil
+	}
 
-	// TODO: GITOPSRVCE-44: Add the ErrorOccurred condition to the syncRunModified
-
-	// TODO: GITOPSRVCE-44: If no user error (just dev error), then output generic error occurred
-
+	conditionType := managedgitopsv1alpha1.GitOpsDeploymentSyncRunConditionErrorOccurred
 	if err != nil {
+
+		errMsg := err.UserError()
+		if errMsg == "" {
+			errMsg = gitopserrors.UnknownError
+		}
+
+		if err := setGitOpsDeploymentSyncRunCondition(ctx, action.workspaceClient, syncRunCR, conditionType, managedgitopsv1alpha1.SyncRunReasonType(conditionType), managedgitopsv1alpha1.GitOpsConditionStatusTrue, errMsg); err != nil {
+			return fmt.Errorf("failed to update the status of GitOpsDeploymentSyncRun: %v", err)
+		}
+
 		return err.DevError()
+	}
+
+	if err := setGitOpsDeploymentSyncRunCondition(ctx, action.workspaceClient, syncRunCR, conditionType, managedgitopsv1alpha1.SyncRunReasonType(""), managedgitopsv1alpha1.GitOpsConditionStatusFalse, ""); err != nil {
+		return fmt.Errorf("failed to update the status of GitOpsDeploymentSyncRun: %v", err)
 	}
 
 	return nil
 
+}
+
+func setGitOpsDeploymentSyncRunCondition(ctx context.Context, k8sClient client.Client, syncRunCR *managedgitopsv1alpha1.GitOpsDeploymentSyncRun, conditionType managedgitopsv1alpha1.SyncRunConditionType, reason managedgitopsv1alpha1.SyncRunReasonType, status managedgitopsv1alpha1.GitOpsConditionStatus, message string) error {
+
+	conditions := syncRunCR.Status.Conditions
+	conditionIndex := findConditionIndex(conditions, conditionType)
+
+	now := metav1.Now()
+
+	// create a new condition if it is absent
+	if conditionIndex == -1 {
+		syncRunCR.Status.Conditions = append(conditions, managedgitopsv1alpha1.GitOpsDeploymentSyncRunCondition{
+			Type:               conditionType,
+			LastTransitionTime: &now,
+			Status:             status,
+			Reason:             reason,
+			Message:            message,
+		})
+
+	} else {
+		// update the existing condition if it has changed
+		condition := &conditions[conditionIndex]
+		if message != condition.Message || status != condition.Status || reason != condition.Reason {
+			condition.LastTransitionTime = &now
+		}
+
+		condition.Message = message
+		condition.Status = status
+		condition.Reason = reason
+	}
+
+	return k8sClient.Status().Update(ctx, syncRunCR)
+}
+
+func findConditionIndex(conditions []managedgitopsv1alpha1.GitOpsDeploymentSyncRunCondition, conditionType managedgitopsv1alpha1.SyncRunConditionType) int {
+
+	for i, condition := range conditions {
+		if condition.Type == conditionType {
+			return i
+		}
+	}
+
+	return -1
+}
+
+func getGitOpsDeploymentSyncRun(ctx context.Context, k8sClient client.Client, name, namespace string) (*managedgitopsv1alpha1.GitOpsDeploymentSyncRun, error) {
+	syncRunCR := &managedgitopsv1alpha1.GitOpsDeploymentSyncRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+
+	err := k8sClient.Get(ctx, client.ObjectKeyFromObject(syncRunCR), syncRunCR)
+	if err != nil {
+		return nil, err
+	}
+
+	return syncRunCR, nil
 }
 
 func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRunModifiedInternal(ctx context.Context,
@@ -53,7 +129,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 	log := a.log
 
 	namespace := corev1.Namespace{}
-	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: a.eventResourceNamespace, Name: a.eventResourceNamespace}, &namespace); err != nil {
+	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Name: a.eventResourceNamespace}, &namespace); err != nil {
 		userError := fmt.Sprintf("unable to retrieve the contents of the namespace '%s' containing the API resource '%s'. Does it exist?",
 			a.eventResourceNamespace, a.eventResourceName)
 		devError := fmt.Errorf("unable to retrieve namespace '%s': %v", a.eventResourceNamespace, err)
@@ -202,8 +278,6 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 				// If the gitopsdepl doesn't exist, we really can't proceed any further
 
 				err := fmt.Errorf("unable to retrieve gitopsdeployment referenced in syncrun: %v", err)
-				// TODO: GITOPSRVCE-44 - ENHANCEMENT - If the gitopsDepl isn't referenced, update the status of the GitOpsDeplomentSyncRun condition as an error and return
-				// TODO: GITOPSRVCE-44 - ENHANCEMENT - implement status conditions on GitOpsDeploymentSyncRun
 				userError := fmt.Sprintf("Unable to retrieve GitOpsDeployment '%s' referenced by the GitOpsDeploymentSyncRun", gitopsDepl.Name)
 				log.Error(err, "handleSyncRunModified error")
 				return gitopserrors.NewUserDevError(userError, err)
@@ -212,6 +286,14 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 			// If there was a generic error in retrieving the key, return it
 			log.Error(err, "unable to retrieve gitopsdeployment referenced in syncrun")
 			return gitopserrors.NewDevOnlyError(fmt.Errorf("SEVERE - All cases should be handled by above if statements"))
+		}
+
+		// return an error if 'Automated' sync policy is enabled. Argo CD doesn't allow syncing an Application with automated sync policy.
+		if gitopsDepl.Spec.Type != managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual {
+			userErr := fmt.Sprintf("invalid GitOpsDeploymentSyncRun '%s'. Syncing a GitOpsDeployment with Automated sync policy is not allowed", syncRunCR.Name)
+			devErr := fmt.Errorf(userErr)
+			log.Error(devErr, "failed to process GitOpsDeploymentSyncRun")
+			return gitopserrors.NewUserDevError(userErr, devErr)
 		}
 
 		// The GitopsDepl CR exists, so use the UID of the CR to retrieve the database entry, if possible
@@ -320,7 +402,7 @@ func (a *applicationEventLoopRunner_Action) handleDeletedGitOpsDeplSyncRunEvent(
 	}
 
 	// 3) Clean up the operation and database table entries
-	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log); err != nil {
+	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, !a.testOnlySkipCreateOperation, log); err != nil {
 		return gitopserrors.NewDevOnlyError(err)
 	}
 
@@ -482,7 +564,7 @@ outer_for:
 
 	}
 
-	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log); err != nil {
+	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, !a.testOnlySkipCreateOperation, log); err != nil {
 		return gitopserrors.NewDevOnlyError(err)
 	}
 
@@ -499,15 +581,15 @@ func (a *applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplSyncRunEvent(
 	log.Info("Received GitOpsDeploymentSyncRun event for an existing GitOpsDeploymentSyncRun resource")
 
 	if syncOperation.DeploymentNameField != syncRunCR.Spec.GitopsDeploymentName {
-		err := fmt.Errorf(errDeploymentNameIsImmutable)
-		log.Error(err, errDeploymentNameIsImmutable)
-		return gitopserrors.NewUserDevError(errDeploymentNameIsImmutable, err)
+		err := fmt.Errorf(ErrDeploymentNameIsImmutable)
+		log.Error(err, ErrDeploymentNameIsImmutable)
+		return gitopserrors.NewUserDevError(ErrDeploymentNameIsImmutable, err)
 	}
 
 	if syncOperation.Revision != syncRunCR.Spec.RevisionID {
-		err := fmt.Errorf(errRevisionIsImmutable)
-		log.Error(err, errRevisionIsImmutable)
-		return gitopserrors.NewUserDevError(errRevisionIsImmutable, err)
+		err := fmt.Errorf(ErrRevisionIsImmutable)
+		log.Error(err, ErrRevisionIsImmutable)
+		return gitopserrors.NewUserDevError(ErrRevisionIsImmutable, err)
 	}
 
 	return nil

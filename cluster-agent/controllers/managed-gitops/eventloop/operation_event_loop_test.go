@@ -9,9 +9,6 @@ import (
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
-	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/utils"
 	"gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
@@ -19,6 +16,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -26,9 +25,11 @@ import (
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
-	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/apimachinery/pkg/util/wait"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
+	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
+	sharedoperations "github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 )
 
 var _ = Describe("Operation Controller", func() {
@@ -331,7 +332,7 @@ var _ = Describe("Operation Controller", func() {
 				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 				gitopsEngineInstance := &db.GitopsEngineInstance{
 					Gitopsengineinstance_id: "test-fake-engine-instance",
-					Namespace_name:          workspace.Namespace,
+					Namespace_name:          workspace.Name,
 					Namespace_uid:           string(workspace.UID),
 					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 				}
@@ -419,7 +420,7 @@ var _ = Describe("Operation Controller", func() {
 				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 				gitopsEngineInstance := &db.GitopsEngineInstance{
 					Gitopsengineinstance_id: "test-fake-engine-instance",
-					Namespace_name:          workspace.Namespace,
+					Namespace_name:          workspace.Name,
 					Namespace_uid:           string(workspace.UID),
 					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 				}
@@ -525,7 +526,7 @@ var _ = Describe("Operation Controller", func() {
 				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 				gitopsEngineInstance := &db.GitopsEngineInstance{
 					Gitopsengineinstance_id: "test-fake-engine-instance",
-					Namespace_name:          workspace.Namespace,
+					Namespace_name:          workspace.Name,
 					Namespace_uid:           string(workspace.UID),
 					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 				}
@@ -614,7 +615,7 @@ var _ = Describe("Operation Controller", func() {
 				By("Create new operation CR")
 				operationCR = &managedgitopsv1alpha1.Operation{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "operation-1",
+						Name:      sharedoperations.GenerateOperationCRName(*operationDB2),
 						Namespace: namespace,
 					},
 					Spec: managedgitopsv1alpha1.OperationSpec{
@@ -700,7 +701,7 @@ var _ = Describe("Operation Controller", func() {
 					}
 					gitopsEngineInstance := &db.GitopsEngineInstance{
 						Gitopsengineinstance_id: "test-fake-engine-instance",
-						Namespace_name:          workspace.Namespace,
+						Namespace_name:          workspace.Name,
 						Namespace_uid:           string(workspace.UID),
 						EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 					}
@@ -867,7 +868,7 @@ var _ = Describe("Operation Controller", func() {
 				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 				gitopsEngineInstance := &db.GitopsEngineInstance{
 					Gitopsengineinstance_id: "test-fake-engine-instance",
-					Namespace_name:          workspace.Namespace,
+					Namespace_name:          workspace.Name,
 					Namespace_uid:           string(workspace.UID),
 					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 				}

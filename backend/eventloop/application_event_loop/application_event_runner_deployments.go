@@ -11,8 +11,8 @@ import (
 
 	"github.com/go-logr/logr"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
-	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 
@@ -73,7 +73,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 
 	gitopsDeplNamespace := corev1.Namespace{}
 
-	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: deplNamespace, Name: deplNamespace}, &gitopsDeplNamespace); err != nil {
+	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Name: deplNamespace}, &gitopsDeplNamespace); err != nil {
 		userError := fmt.Sprintf("unable to retrieve the contents of the namespace '%s' containing the API resource '%s'. Does it exist?",
 			deplNamespace, deplName)
 		devError := fmt.Errorf("unable to retrieve namespace '%s': %v", deplNamespace, err)
@@ -103,6 +103,16 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 				a.log.Error(err, "unable to locate object in handleDeploymentModified", "request", gitopsDeploymentKey)
 				return signalledShutdown_false, nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, err)
 			}
+		}
+	}
+
+	if gitopsDeployment != nil {
+		if gitopsDeployment.Spec.Source.Path == "" {
+			userError := managedgitopsv1alpha1.GitOpsDeploymentUserError_PathIsRequired
+			return signalledShutdown_false, nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, err)
+		} else if gitopsDeployment.Spec.Source.Path == "/" {
+			userError := managedgitopsv1alpha1.GitOpsDeploymentUserError_InvalidPathSlash
+			return signalledShutdown_false, nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, err)
 		}
 	}
 
@@ -211,7 +221,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	a.log.Info("Received GitOpsDeployment event for a new GitOpsDeployment resource")
 
 	gitopsDeplNamespace := corev1.Namespace{}
-	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: gitopsDeployment.ObjectMeta.Namespace,
+	if err := a.workspaceClient.Get(ctx, types.NamespacedName{
 		Name: gitopsDeployment.ObjectMeta.Namespace}, &gitopsDeplNamespace); err != nil {
 
 		userError := "unable to access the Namespace containing the GitOpsDeployment resource"
@@ -326,7 +336,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 	}
 
-	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, a.log); err != nil {
+	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, !a.testOnlySkipCreateOperation, a.log); err != nil {
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 	}
 
@@ -352,7 +362,7 @@ func (a applicationEventLoopRunner_Action) handleDeleteGitOpsDeplEvent(ctx conte
 	a.log.Info("Received GitOpsDeployment event for a GitOpsDeployment resource that no longer exists (or does not exist)")
 
 	apiNamespace := corev1.Namespace{}
-	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: a.eventResourceNamespace, Name: a.eventResourceNamespace}, &apiNamespace); err != nil {
+	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Name: a.eventResourceNamespace}, &apiNamespace); err != nil {
 		userError := "unable to retrieve the namespace containing the GitOpsDeployment"
 		devError := fmt.Errorf("unable to retrieve workspace namespace")
 
@@ -470,7 +480,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 	}
 
 	apiNamespace := corev1.Namespace{}
-	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Namespace: a.eventResourceNamespace, Name: a.eventResourceNamespace}, &apiNamespace); err != nil {
+	if err := a.workspaceClient.Get(ctx, types.NamespacedName{Name: a.eventResourceNamespace}, &apiNamespace); err != nil {
 		userError := "unable to retrieve namespace containing the GitOpsDeployment"
 		devError := fmt.Errorf("unable to retrieve workspace namespace")
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, devError)
@@ -596,7 +606,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 	}
 
-	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, log); err != nil {
+	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, !a.testOnlySkipCreateOperation, log); err != nil {
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 	}
 
@@ -723,7 +733,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	}
 
 	// 6) Finally, clean up the operation
-	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, log); err != nil {
+	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, !a.testOnlySkipCreateOperation, log); err != nil {
 		log.Error(err, "unable to cleanup operation", "operation", dbOperationInput.ShortString())
 		return false, err
 	}
@@ -794,10 +804,13 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	if applicationState.SyncError != "" {
 		condition.NewConditionManager().SetCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError, managedgitopsv1alpha1.GitOpsConditionStatusTrue, managedgitopsv1alpha1.GitopsDeploymentReasonSyncError, applicationState.SyncError)
 	} else {
-		// Update syncError Condition as false if applicationState.SyncError field in database is empty
-		reason := managedgitopsv1alpha1.GitopsDeploymentReasonSyncError + "Resolved"
-		if cond, _ := condition.NewConditionManager().FindCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError); cond.Reason != reason {
-			condition.NewConditionManager().SetCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError, managedgitopsv1alpha1.GitOpsConditionStatusFalse, reason, "")
+		conditionManager := condition.NewConditionManager()
+		// Update syncError Condition as false if applicationState.SyncError field in database is empty by checking if the condition field is empty or not
+		if conditionManager.HasCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError) {
+			reason := managedgitopsv1alpha1.GitopsDeploymentReasonSyncError + "Resolved"
+			if cond, _ := conditionManager.FindCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError); cond.Reason != reason {
+				conditionManager.SetCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError, managedgitopsv1alpha1.GitOpsConditionStatusFalse, reason, "")
+			}
 		}
 	}
 

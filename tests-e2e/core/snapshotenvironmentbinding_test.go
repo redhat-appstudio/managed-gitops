@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"strings"
@@ -125,6 +126,74 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			Expect(gitOpsDeploymentSecond.OwnerReferences[0].UID).To(Equal(binding.UID))
 		})
 
+		// Verifies a SnapshotEnvironmentBinding's status component deployment condition is set correctly when the
+		// deployment of the components succeeds.
+		It("updates the binding's status component deployment condition when the deployment of the components succeeds.", func() {
+
+			By("creating binding cr and update the status field, because it is not updated when creating the object.")
+
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a", "component-b"})
+			err = k8s.Create(&binding, k8sClient)
+			Expect(err).To(Succeed())
+
+			// Update Status field
+			err = buildAndUpdateBindingStatus(binding.Spec.Components,
+				"https://github.com/redhat-appstudio/managed-gitops", "main", "fdhyqtw",
+				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging", "resources/test-data/sample-gitops-repository/components/componentB/overlays/staging"}, &binding)
+			Expect(err).To(BeNil())
+
+			By("checking the status component deployment condition is true")
+			Eventually(binding, "3m", "1s").Should(bindingFixture.HaveComponentDeploymentCondition(
+				metav1.Condition{
+					Type:    appstudiosharedv1.ComponentDeploymentConditionAllComponentsDeployed,
+					Status:  metav1.ConditionTrue,
+					Reason:  appstudiosharedv1.ComponentDeploymentConditionCommitsSynced,
+					Message: "2 of 2 components deployed",
+				}))
+
+			By("updating the bindings status field to force an out-of-sync component")
+			// Update Status field
+			err = buildAndUpdateBindingStatus(binding.Spec.Components,
+				"https://github.com/redhat-appstudio/managed-gitops", "main", "fdhyqtw",
+				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging", "resources/test-data/sample-gitops-repository/components/componentC/overlays/staging"}, &binding)
+			Expect(err).To(BeNil())
+
+			By("checking the status component deployment condition is false")
+			Eventually(binding, "3m", "1s").Should(bindingFixture.HaveComponentDeploymentCondition(
+				metav1.Condition{
+					Type:    appstudiosharedv1.ComponentDeploymentConditionAllComponentsDeployed,
+					Status:  metav1.ConditionFalse,
+					Reason:  appstudiosharedv1.ComponentDeploymentConditionCommitsUnsynced,
+					Message: "1 of 2 components deployed",
+				}))
+			Consistently(binding, "1m", "1s").Should(bindingFixture.HaveComponentDeploymentCondition(
+				metav1.Condition{
+					Type:    appstudiosharedv1.ComponentDeploymentConditionAllComponentsDeployed,
+					Status:  metav1.ConditionFalse,
+					Reason:  appstudiosharedv1.ComponentDeploymentConditionCommitsUnsynced,
+					Message: "1 of 2 components deployed",
+				}))
+
+			By("updating the bindings status field to fix the out-of-sync component")
+			// Update Status field
+			err = buildAndUpdateBindingStatus(binding.Spec.Components,
+				"https://github.com/redhat-appstudio/managed-gitops", "main", "fdhyqtw",
+				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging", "resources/test-data/sample-gitops-repository/components/componentB/overlays/staging"}, &binding)
+			Expect(err).To(BeNil())
+
+			By("checking the status component deployment condition is true")
+			Eventually(binding, "3m", "1s").Should(bindingFixture.HaveComponentDeploymentCondition(
+				metav1.Condition{
+					Type:    appstudiosharedv1.ComponentDeploymentConditionAllComponentsDeployed,
+					Status:  metav1.ConditionTrue,
+					Reason:  appstudiosharedv1.ComponentDeploymentConditionCommitsSynced,
+					Message: "2 of 2 components deployed",
+				}))
+		})
+
 		//This test is to verify the scenario when a user creates an SnapshotEnvironmentBinding CR in Cluster and after GitOpsDeployment CR is created by GitOps-Service,
 		// user does modification in Binding CR. In this case GitOps-Service should also update GitOpsDeployment CR accordingly.
 		It("Should update GitOpsDeployment CR if Binding CR is updated.", func() {
@@ -239,10 +308,10 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			//====================================================
 			By("Update GitOpsDeployment CR, but dont change anything is in Binding CR.")
 
-			err = bindingFixture.UpdateStatusWithFunction(&binding, func(bindingStatus *appstudiosharedv1.SnapshotEnvironmentBindingStatus) {
-				bindingStatus.Components[0].GitOpsRepository.Path = "resources/test-data/sample-gitops-repository/components/componentA/overlays/dev"
+			err = gitopsDeplFixture.UpdateDeploymentWithFunction(&gitOpsDeploymentBefore, func(depl *managedgitopsv1alpha1.GitOpsDeployment) {
+				depl.Spec.Source.Path = "resources/test-data/sample-gitops-repository/components/componentA/overlays/dev"
 			})
-			Expect(err).To(Succeed())
+			Expect(err).To(BeNil())
 
 			//====================================================
 			By("Verify that GitOpsDeployment CR is reverted by GitOps-Service is having same Spec.Source as given in Binding.")
@@ -301,22 +370,10 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			//====================================================
 			By("Delete GitOpsDeployment CR created by GitOps-Service, but not the Binding.")
 
-			err = k8s.Delete(&gitOpsDeploymentBefore, k8sClient)
-			Expect(err).To(Succeed())
-
-			err = k8s.Get(&gitOpsDeploymentBefore, k8sClient)
-			Expect(err).NotTo(Succeed())
-			Expect(apierr.IsNotFound(err)).To(BeTrue())
+			Expect(k8sClient.Delete(context.Background(), &gitOpsDeploymentBefore)).To(Succeed())
 
 			//====================================================
 			By("Verify that GitOpsDeployment CR is recreated by GitOps-Service.")
-
-			// Update any value in Binding just to trigger Reconciler.
-			err = k8s.Get(&binding, k8sClient)
-			Expect(err).To(Succeed())
-			binding.Spec.Components[0].Configuration.Replicas = 2
-			err = k8s.Update(&binding, k8sClient)
-			Expect(err).To(Succeed())
 
 			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments))
 

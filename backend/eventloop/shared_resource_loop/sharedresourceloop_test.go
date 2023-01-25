@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
@@ -455,13 +455,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(err).To(BeNil())
 
 			// There should be no Operation DB entry
-			// TODO: Uncomment this when the bug is fixed (see GITOPSRVCE-290)
-			// --> Expect(len(operations)).To(Equal(0))
-			// Temporary workaround (delete the DB entry manually)
-			// --------------------------------------
-			_, err = dbq.DeleteOperationById(ctx, operationDB.Operation_id)
-			Expect(err).To(BeNil())
-			// --------------------------------------
+			Expect(len(operations)).To(Equal(0))
 
 			// There should be no Operation CR
 			Expect(len(operationList.Items)).To(Equal(0))
@@ -538,13 +532,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(err).To(BeNil())
 
 			// There should be no Operation DB entry
-			// TODO: Uncomment this when the bug is fixed (see GITOPSRVCE-290)
-			// --> Expect(len(operations)).To(Equal(0))
-			// Temporary workaround (delete the DB entry manually)
-			// --------------------------------------
-			_, err = dbq.DeleteOperationById(ctx, operationDB.Operation_id)
-			Expect(err).To(BeNil())
-			// --------------------------------------
+			Expect(len(operations)).To(Equal(0))
 
 			// There should be no Operation CR
 			Expect(len(operationList.Items)).To(Equal(0))

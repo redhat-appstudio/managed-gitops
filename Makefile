@@ -4,7 +4,7 @@ TAG ?= latest
 BASE_IMAGE ?= gitops-service
 USERNAME ?= redhat-appstudio
 IMG ?= quay.io/${USERNAME}/${BASE_IMAGE}:${TAG}
-APPLICATION_API_COMMIT ?= 54515964769fd6e41dd42e741f8e81ffcd61f3a8
+APPLICATION_API_COMMIT ?= 3144e2878df03c3a7eb1fef4bdda3459b59e81a7
 
 # Default values match the their respective deployments in staging/production environment for GitOps Service, otherwise the E2E will fail.
 ARGO_CD_NAMESPACE ?= gitops-service-argocd
@@ -13,53 +13,49 @@ ARGO_CD_VERSION ?= v2.5.1
 help: ## Display this help menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
+
+### --- D e p l o y m e n t --- T a r g e t s ###
+
+# Deploy only the bare minimum to K8s: CRDs
+
+deploy-local-dev-env: kustomize ## Only deploy CRDs to K8s
+	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/local-dev-env | kubectl apply -f - 
+
+undeploy-local-dev-env: kustomize ## Remove CRDs from K8s
+	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/local-dev-env | kubectl delete -f - 
+
+# Deploy bare minimum + postgres: CRDs, and postgresql, but not controllers
+
+deploy-local-dev-env-with-k8s-db: kustomize postgresql-secret-on-k8s ## Only deploy CRDs, postgres workload/secret, to K8s
+	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/local-dev-env-with-k8s-db | kubectl apply -f - 
+
+undeploy-local-dev-env-with-k8s-db: kustomize ## Remove CRDs, postgres workload/secret  from K8s
+	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/local-dev-env-with-k8s-db | kubectl delete -f - 
+
+# Deploy everything to K8s, including the controllers and postgres workloads
+
+deploy-k8s-env: kustomize postgresql-secret-on-k8s ## Deploy all controller/DB workloads to K8s, use e.g. IMG=quay.io/pgeorgia/gitops-service:latest to specify a specific image
+	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/k8s-env |  COMMON_IMAGE=${IMG} envsubst | kubectl apply -f - 
+
+undeploy-k8s-env: kustomize ## Remove all controller/DB workloads from K8s.
+	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/k8s-env | kubectl delete -f - 
+
+
+
 ### --- P o s t g r e s --- ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-deploy-postgresql: ## Deploy postgres into Kubernetes and insert 'db-schema.sql'
-	kubectl create namespace gitops 2> /dev/null || true
-	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/manifests/postgresql-staging/postgresql-staging.yaml
-	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/manifests/postgresql-staging/postgresql-staging-secret.yaml	
 
-undeploy-postgresql: ## Undeploy postgres from Kubernetes
-	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/manifests/postgresql-staging/postgresql-staging.yaml
-	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/manifests/postgresql-staging/postgresql-staging-secret.yaml
+postgresql-secret-on-k8s: ## Auto-generate the postgres Secret in the gitops namespace
+	$(MAKEFILE_ROOT)/manifests/scripts/generate-postgresql-secret.sh
 
-port-forward-postgress-manual: ## Port forward postgresql manually
+port-forward-postgres-manual: ## Port forward postgresql manually
 	$(MAKEFILE_ROOT)/create-dev-env.sh kube
 
-port-forward-postgress-auto: ## Port forward postgresql automatically
+port-forward-postgres-auto: ## Port forward postgresql automatically
 	$(MAKEFILE_ROOT)/create-dev-env.sh kube-auto
 	
-### --- B a c k e n d  -  S h a r e d--- ###
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-deploy-backend-shared-crd: ## Deploy backend related CRDs
-	kubectl create namespace gitops 2> /dev/null || true
-	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_gitopsdeployments.yaml
-	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentsyncruns.yaml
-	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentrepositorycredentials.yaml
-	kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentmanagedenvironments.yaml
-
-undeploy-backend-shared-crd: ## Remove backend related CRDs
-	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_gitopsdeployments.yaml
-	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentsyncruns.yaml
-	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentrepositorycredentials.yaml
-	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_gitopsdeploymentmanagedenvironments.yaml
-
 ### --- B a c k e n d --- ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~ #
-deploy-backend-rbac: kustomize ## Deploy backend related RBAC resouces
-	kubectl create namespace gitops 2> /dev/null || true
-	$(KUSTOMIZE) build  $(MAKEFILE_ROOT)/manifests/backend-rbac/ | kubectl -n gitops apply -f -
-
-undeploy-backend-rbac: ## Remove backend related RBAC resouces
-	$(KUSTOMIZE) build  $(MAKEFILE_ROOT)/manifests/backend-rbac/ | kubectl -n gitops delete -f -
-
-deploy-backend: deploy-backend-shared-crd deploy-backend-rbac ## Deploy backend operator into Kubernetes -- e.g. make deploy-backend IMG=quay.io/pgeorgia/gitops-service:latest
-	kubectl create namespace gitops 2> /dev/null || true
-	ARGO_CD_NAMESPACE=${ARGO_CD_NAMESPACE} COMMON_IMAGE=${IMG} envsubst < $(MAKEFILE_ROOT)/manifests/controller-deployments/managed-gitops-backend-deployment.yaml | kubectl apply -f -
-
-undeploy-backend: undeploy-backend-rbac undeploy-backend-shared-crd ## Undeploy backend from Kubernetes
-	kubectl delete -f $(MAKEFILE_ROOT)/manifests/controller-deployments/managed-gitops-backend-deployment.yaml
 
 build-backend: ## Build backend only
 	cd $(MAKEFILE_ROOT)/backend && make build
@@ -69,30 +65,6 @@ test-backend: ## Run tests for backend only
 
 ### --- c l u s t e r - a g e n t --- ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-deploy-cluster-agent-crd: ## Deploy cluster-agent related CRDs
-	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl create namespace gitops 2> /dev/null || true
-	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl -n gitops apply -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_operations.yaml
-	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl create ns "${ARGO_CD_NAMESPACE}" 2> /dev/null || true
-	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/$(ARGO_CD_VERSION)/manifests/crds/application-crd.yaml
-
-undeploy-cluster-agent-crd: ## Remove cluster-agent related CRDs
-	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/backend-shared/config/crd/bases/managed-gitops.redhat.com_operations.yaml
-	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl delete -f https://raw.githubusercontent.com/argoproj/argo-cd/$(ARGO_CD_VERSION)/manifests/crds/application-crd.yaml
-	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl delete ns "${ARGO_CD_NAMESPACE}" 2> /dev/null || true
-
-deploy-cluster-agent-rbac: kustomize ## Deploy cluster-agent related RBAC resouces
-	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl create namespace gitops 2> /dev/null || true	
-	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/cluster-agent-rbac/ | KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl -n gitops apply -f -
-
-undeploy-cluster-agent-rbac: kustomize ## Remove cluster-agent related RBAC resouces
-	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/cluster-agent-rbac/ | KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl -n gitops delete -f -
-
-deploy-cluster-agent: deploy-cluster-agent-crd deploy-cluster-agent-rbac ## Deploy cluster-agent operator into Kubernetes -- e.g. make deploy-cluster-agent IMG=quay.io/pgeorgia/gitops-service:latest
-	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl create namespace gitops 2> /dev/null || true
-	ARGO_CD_NAMESPACE=${ARGO_CD_NAMESPACE} COMMON_IMAGE=${IMG} envsubst < $(MAKEFILE_ROOT)/manifests/controller-deployments/managed-gitops-clusteragent-deployment.yaml | KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl apply -f -
-
-undeploy-cluster-agent: undeploy-cluster-agent-rbac undeploy-cluster-agent-crd ## Undeploy cluster-agent from Kubernetes
-	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl delete -f $(MAKEFILE_ROOT)/manifests/controller-deployments/managed-gitops-clusteragent-deployment.yaml
 
 build-cluster-agent: ## Build cluster-agent only
 	cd $(MAKEFILE_ROOT)/cluster-agent && make build
@@ -100,33 +72,8 @@ build-cluster-agent: ## Build cluster-agent only
 test-cluster-agent: ## Run test for cluster-agent only
 	cd $(MAKEFILE_ROOT)/cluster-agent && make test
 
-### --- a p p s t u d i o - c o n t r o l l e r --- ###
+### --- a p p s t u d i o  -  c o n t r o l l e r --- ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-deploy-appstudio-controller-crd: ## Deploy appstudio-controller related CRDs
-	# application-api CRDs
-	kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-api/${APPLICATION_API_COMMIT}/manifests/application-api-customresourcedefinitions.yaml
-	# Application CR from AppStudio HAS
-	kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-api/${APPLICATION_API_COMMIT}/config/crd/bases/appstudio.redhat.com_applications.yaml
-	kubectl apply -f https://raw.githubusercontent.com/redhat-appstudio/application-api/${APPLICATION_API_COMMIT}/config/crd/bases/appstudio.redhat.com_components.yaml
-
-undeploy-appstudio-controller-crd: ## Remove appstudio-controller related CRDs
-	kubectl delete -f https://raw.githubusercontent.com/redhat-appstudio/application-api/${APPLICATION_API_COMMIT}/config/crd/bases/appstudio.redhat.com_applications.yaml
-	kubectl delete -f https://raw.githubusercontent.com/redhat-appstudio/application-api/${APPLICATION_API_COMMIT}/config/crd/bases/appstudio.redhat.com_components.yaml
-
-deploy-appstudio-controller-rbac: kustomize ## Deploy appstudio-controller related RBAC resouces
-	kubectl create namespace gitops 2> /dev/null || true
-	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/appstudio-controller-rbac/ | kubectl -n gitops apply -f -
-
-undeploy-appstudio-controller-rbac: kustomize ## Remove appstudio-controller related RBAC resouces
-	kubectl -n gitops delete -f  $(MAKEFILE_ROOT)/manifests/appstudio-controller-rbac/
-	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/appstudio-controller-rbac/ | kubectl -n gitops delete -f -
-
-deploy-appstudio-controller: deploy-appstudio-controller-crd deploy-appstudio-controller-rbac ## Deploy appstudio-controller operator into Kubernetes -- e.g. make appstudio-controller IMG=quay.io/pgeorgia/gitops-service:latest
-	kubectl create namespace gitops 2> /dev/null || true
-	COMMON_IMAGE=${IMG} envsubst < $(MAKEFILE_ROOT)/manifests/controller-deployments/appstudio-controller/managed-gitops-appstudio-controller-deployment.yaml | kubectl apply -f -
-
-undeploy-appstudio-controller: undeploy-appstudio-controller-rbac undeploy-appstudio-controller-crd ## Undeploy appstudio-controller from Kubernetes
-	kubectl delete -f $(MAKEFILE_ROOT)/manifests/controller-deployments/appstudio-controller/managed-gitops-appstudio-controller-deployment.yaml
 
 build-appstudio-controller: ## Build only
 	cd $(MAKEFILE_ROOT)/appstudio-controller && make build
@@ -153,26 +100,26 @@ e2e-reset: ## Kills the port-forwarding and the controllers
 	pkill goreman
 	pkill kubectl
 
-install-argocd-openshift: ## Using OpenShift GitOps, install Argo CD to the gitops-service-argocd namespace
-	manifests/openshift-argo-deploy/deploy.sh
+install-argocd-openshift: kustomize ## Using OpenShift GitOps, install Argo CD to the gitops-service-argocd namespace
+	PATH=$(MAKEFILE_ROOT)/bin:$(PATH) $(MAKEFILE_ROOT)/manifests/scripts/openshift-argo-deploy/deploy.sh
 
 install-argocd-k8s: ## (Non-OpenShift): Install Argo CD to the gitops-service-argocd namespace
-	ARGO_CD_VERSION=$(ARGO_CD_VERSION) manifests/k8s-argo-deploy/deploy.sh
+	ARGO_CD_VERSION=$(ARGO_CD_VERSION) manifests/scripts/k8s-argo-deploy/deploy.sh
 
 uninstall-argocd: ## Uninstall Argo CD from gitops-service-argocd namespace (from either OpenShift or K8s)
 	kubectl delete namespace "$(ARGO_CD_NAMESPACE)" || true
-	kubectl delete -f manifests/openshift-argo-deploy/openshift-gitops-subscription.yaml || true
+	kubectl delete -f manifests/scripts/openshift-argo-deploy/openshift-gitops-subscription.yaml || true
 
-devenv-docker: deploy-backend-shared-crd deploy-cluster-agent-crd deploy-appstudio-controller-crd deploy-backend-rbac deploy-cluster-agent-rbac deploy-appstudio-controller-rbac ## Setup local development environment (Postgres via Docker & local operators)
+devenv-docker: deploy-local-dev-env ## Setup local development environment (Postgres via Docker & local operators)
 	$(MAKEFILE_ROOT)/create-dev-env.sh
 
-devenv-k8s: deploy-backend-shared-crd deploy-cluster-agent-crd deploy-backend-rbac deploy-cluster-agent-rbac deploy-postgresql port-forward-postgress-manual deploy-appstudio-controller ## Setup local development environment (Postgres via k8s & local operators)
+devenv-k8s: deploy-local-dev-env-with-k8s-db port-forward-postgres-manual  ## Setup local development environment (Postgres via k8s & local operators)
 
-devenv-k8s-e2e: deploy-backend-shared-crd deploy-cluster-agent-crd deploy-backend-rbac deploy-cluster-agent-rbac deploy-postgresql port-forward-postgress-auto deploy-appstudio-controller ## Setup local development environment (Postgres via k8s & local operators)
+devenv-k8s-e2e: deploy-local-dev-env-with-k8s-db port-forward-postgres-auto ## Setup local development environment (Postgres via k8s & local operators)
 
-install-all-k8s: deploy-postgresql port-forward-postgress-manual deploy-backend deploy-cluster-agent deploy-appstudio-controller ## Installs e.g. make deploy-k8s IMG=quay.io/pgeorgia/gitops-service:latest
+install-all-k8s: deploy-k8s-env port-forward-postgres-manual ## Installs e.g. make install-all-k8s IMG=quay.io/pgeorgia/gitops-service:latest
 
-uninstall-all-k8s: undeploy-postgresql undeploy-backend undeploy-cluster-agent undeploy-appstudio-controller
+uninstall-all-k8s: undeploy-k8s-env
 	kubectl delete namespace gitops
 
 ### --- G e n e r a l --- ###
@@ -246,6 +193,8 @@ generate-manifests: ## Call the 'generate' and 'manifests' targets of every proj
 	cd $(MAKEFILE_ROOT)/cluster-agent && make generate manifests
 	cd $(MAKEFILE_ROOT)/appstudio-controller && make generate manifests
 
+### --- D a t a b a s e  --- ###
+
 db-migrate:
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && go run main.go
 
@@ -291,6 +240,14 @@ test-e2e-kcp-virtual-workspace: ## Test E2E against KCP virtual workspaces
 
 
 ### --- Utilities for other makefile targets ---
+
+ensure-gitops-ns-exists:
+	kubectl create namespace gitops 2> /dev/null || true
+
+ensure-workload-gitops-ns-exists:
+	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl create namespace gitops 2> /dev/null || true
+
+
 
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.

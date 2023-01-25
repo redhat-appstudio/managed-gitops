@@ -25,7 +25,7 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 
-	db "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
+	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 
 	testStructs "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1/mocks/structs"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
@@ -504,6 +504,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 					Namespace: workspace.Name,
 					UID:       uuid.NewUUID(),
 				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						Path: "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+					},
+				},
 			}
 
 			k8sClientOuter := fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).Build()
@@ -579,6 +584,12 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 					Name:      "my-gitops-depl",
 					Namespace: workspace.Name,
 					UID:       uuid.NewUUID(),
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual,
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						Path: "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+					},
 				},
 			}
 
@@ -664,6 +675,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 					Name:      "my-gitops-depl",
 					Namespace: workspace.Name,
 					UID:       uuid.NewUUID(),
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						Path: "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+					},
 				},
 			}
 
@@ -773,6 +789,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 					Name:      "my-gitops-depl",
 					Namespace: workspace.Name,
 					UID:       uuid.NewUUID(),
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						Path: "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+					},
 				},
 			}
 
@@ -941,6 +962,81 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			_, _, _, _, userDevErr = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
+		})
+
+		It("Should report an error via status condition of deployment, when path field of gitopsDeployment is empty or '/'", func() {
+
+			By("Create new deployment with a missing path")
+
+			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-gitops-depl",
+					Namespace: workspace.Name,
+					UID:       uuid.NewUUID(),
+				},
+			}
+
+			k8sClient := fake.
+				NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).
+				Build()
+
+			a := applicationEventLoopRunner_Action{
+				// When the code asks for a new k8s client, give it our fake client
+				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+					return k8sClient, nil
+				},
+				eventResourceName:           gitopsDepl.Name,
+				eventResourceNamespace:      gitopsDepl.Namespace,
+				workspaceClient:             k8sClient,
+				log:                         log.FromContext(context.Background()),
+				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
+				workspaceID:                 workspaceID,
+				testOnlySkipCreateOperation: true,
+				k8sClientFactory: MockSRLK8sClientFactory{
+					fakeClient: k8sClient,
+				},
+			}
+
+			_, _, _, _, userDevErr := a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(userDevErr.UserError()).To(Equal(managedgitopsv1alpha1.GitOpsDeploymentUserError_PathIsRequired))
+
+			gitopsDeploymentKey := client.ObjectKey{Namespace: gitopsDepl.Namespace, Name: gitopsDepl.Name}
+
+			By("Update the path to correct value, and verify error is now nil")
+			clientErr := a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDepl)
+			Expect(clientErr).To(BeNil())
+
+			gitopsDepl.Spec.Source.Path = "resources/test-data/sample-gitops-repository/environments/overlays/dev"
+			err = k8sClient.Update(ctx, gitopsDepl)
+			Expect(err).To(BeNil())
+
+			_, _, _, _, userDevErr = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(userDevErr).To(BeNil())
+
+			By("Update the path to '/' and verify that error condition is set")
+			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDepl)
+			Expect(clientErr).To(BeNil())
+
+			gitopsDepl.Spec.Source.Path = "/"
+			err = k8sClient.Update(ctx, gitopsDepl)
+			Expect(err).To(BeNil())
+
+			_, _, _, _, userDevErr = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(userDevErr.UserError()).To(Equal(managedgitopsv1alpha1.GitOpsDeploymentUserError_InvalidPathSlash))
+
+			By("Update the path to correct value, and verify error is nil again")
+			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDepl)
+			Expect(clientErr).To(BeNil())
+
+			gitopsDepl.Spec.Source.Path = "resources/test-data/sample-gitops-repository/environments/overlays/dev"
+			err = k8sClient.Update(ctx, gitopsDepl)
+			Expect(err).To(BeNil())
+
+			_, _, _, _, userDevErr = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(userDevErr).To(BeNil())
+
 		})
 
 		It("Verify that the .status.reconciledState value of the GitOpsDeployment resource correctly references the name of the GitOpsDeploymentManagedEnvironment resource", func() {
@@ -1273,6 +1369,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 					Namespace: workspace.Name,
 					UID:       uuid.NewUUID(),
 				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						Path: "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+					},
+				},
 			}
 
 			k8sClientOuter := fake.
@@ -1333,6 +1434,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 					Name:      "my-gitops-depl",
 					Namespace: workspace.Name,
 					UID:       uuid.NewUUID(),
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						Path: "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+					},
 				},
 			}
 

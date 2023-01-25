@@ -132,6 +132,20 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Environment")
 		os.Exit(1)
 	}
+
+	// TODO: GITOPSRVCE-211: Uncomment this block of text, to re-enable webhook.
+	//
+	// // If the webhook is not disabled, start listening on the webhook URL
+	// if !strings.EqualFold(os.Getenv("DISABLE_APPSTUDIO_WEBHOOK"), "true") {
+
+	// 	setupLog.Info("setting up webhooks")
+	// 	if err = (&applicationv1alpha1.Snapshot{}).SetupWebhookWithManager(mgr); err != nil {
+	// 		setupLog.Error(err, "unable to create webhook", "webhook", "Snapshot")
+	// 		os.Exit(1)
+	// 	}
+
+	// }
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

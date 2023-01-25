@@ -2,7 +2,7 @@ package tests
 
 import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
+	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -42,27 +42,24 @@ func GenericTestSetup() (*runtime.Scheme, *corev1.Namespace, *corev1.Namespace, 
 
 	argocdNamespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      dbutil.GetGitOpsEngineSingleInstanceNamespace(),
-			UID:       uuid.NewUUID(),
-			Namespace: dbutil.GetGitOpsEngineSingleInstanceNamespace(),
+			Name: dbutil.GetGitOpsEngineSingleInstanceNamespace(),
+			UID:  uuid.NewUUID(),
 		},
 		Spec: corev1.NamespaceSpec{},
 	}
 
 	kubesystemNamespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "kube-system",
-			UID:       uuid.NewUUID(),
-			Namespace: "kube-system",
+			Name: "kube-system",
+			UID:  uuid.NewUUID(),
 		},
 		Spec: corev1.NamespaceSpec{},
 	}
 
 	namespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-user",
-			UID:       uuid.NewUUID(),
-			Namespace: "my-user",
+			Name: "my-user",
+			UID:  uuid.NewUUID(),
 		},
 		Spec: corev1.NamespaceSpec{},
 	}

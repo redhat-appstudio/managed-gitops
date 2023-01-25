@@ -12,15 +12,15 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
-	cache "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	cache "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
-	"gopkg.in/yaml.v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -90,7 +90,6 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 		}
 
 		var listOfApplicationsFromDB []db.Application
-		var applicationFromDB fauxargocd.FauxApplication
 
 		// Fetch Application table entries in batch size as configured above.​
 		if err := dbQueries.GetApplicationBatch(ctx, &listOfApplicationsFromDB, appRowBatchSize, offSet); err != nil {
@@ -107,6 +106,8 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 
 		// Iterate over batch received above.
 		for _, applicationRowFromDB := range listOfApplicationsFromDB {
+			var applicationFromDB fauxargocd.FauxApplication
+
 			processedApplicationIds[applicationRowFromDB.Application_id] = false
 
 			// Fetch the Application object from DB
@@ -125,7 +126,7 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 			if err != nil {
 				if apierr.IsNotFound(err) {
 					log.Info("Application " + applicationRowFromDB.Application_id + " not found in ArgoCD, probably user deleted it, " +
-						"but It still exists in DB, hence recreating application in ArgoCD.")
+						"but it still exists in DB, hence recreating application in ArgoCD.")
 
 					// We need to recreate ArgoCD Application, to do that create Operation to inform ArgoCD about it.
 					dbOperationInput := db.Operation{
@@ -148,7 +149,10 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 			}
 
 			// At this point we have the applications from ArgoCD and DB, now compare them to check if they are not in Sync.
-			if compareApplications(applicationFromArgoCD, applicationFromDB, log) {
+			if compare, err := controllers.CompareApplication(applicationFromArgoCD, applicationRowFromDB, log); err != nil {
+				log.Error(err, "unable to compare application contents")
+				continue
+			} else if compare != "" {
 				log.Info("Argo application is not in Sync with DB, updating Argo CD App. Application:" + applicationRowFromDB.Application_id)
 			} else {
 				log.V(sharedutil.LogLevel_Debug).Info("Argo application is in Sync with DB, Application:" + applicationRowFromDB.Application_id)
@@ -188,113 +192,6 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 		"Next iteration will be triggered after %v Minutes", time.Now().String(), namespaceReconcilerInterval))
 }
 
-// compareApplications compares Application objects, since both objects are of different types we can not use == operator for comparison.
-func compareApplications(applicationFromArgoCD appv1.Application, applicationFromDB fauxargocd.FauxApplication, log logr.Logger) bool {
-
-	var isAPIVersionUpdateNeeded bool
-	if applicationFromArgoCD.APIVersion != applicationFromDB.APIVersion {
-		log.Info("APIVersion field in ArgoCD and DB entry is not in Sync.")
-		log.Info("APIVersion:= ArgoCD: " + applicationFromArgoCD.APIVersion + "; DB: " + applicationFromDB.APIVersion)
-		isAPIVersionUpdateNeeded = true
-	}
-
-	var isKindUpdateNeeded bool
-	if applicationFromArgoCD.Kind != applicationFromDB.Kind {
-		log.Info("Kind field in ArgoCD and DB entry is not in Sync.")
-		log.Info("Kind:= ArgoCD: " + applicationFromArgoCD.Kind + "; DB: " + applicationFromDB.Kind)
-		isKindUpdateNeeded = true
-	}
-
-	var isNameUpdateNeeded bool
-	if applicationFromArgoCD.Name != applicationFromDB.Name {
-		log.Info("Name field in ArgoCD and DB entry is not in Sync.")
-		log.Info("Name:= ArgoCD: " + applicationFromArgoCD.Name + "; DB: " + applicationFromDB.Name)
-		isNameUpdateNeeded = true
-	}
-
-	var isNamespaceUpdateNeeded bool
-	if applicationFromArgoCD.Namespace != applicationFromDB.Namespace {
-		log.Info("Namespace field in ArgoCD and DB entry is not in Sync.")
-		log.Info("Namespace:= ArgoCD: " + applicationFromArgoCD.Namespace + "; DB: " + applicationFromDB.Namespace)
-		isNamespaceUpdateNeeded = true
-	}
-
-	var isRepoUrlUpdateNeeded bool
-	if applicationFromArgoCD.Spec.Source.RepoURL != applicationFromDB.Spec.Source.RepoURL {
-		log.Info("RepoURL field in ArgoCD and DB entry is not in Sync.")
-		log.Info("RepoURL:= ArgoCD: " + applicationFromArgoCD.Spec.Source.RepoURL + "; DB: " + applicationFromDB.Spec.Source.RepoURL)
-		isRepoUrlUpdateNeeded = true
-	}
-
-	var isPathUpdateNeeded bool
-	if applicationFromArgoCD.Spec.Source.Path != applicationFromDB.Spec.Source.Path {
-		log.Info("Path field in ArgoCD and DB entry is not in Sync.")
-		log.Info("Path:= ArgoCD: " + applicationFromArgoCD.Spec.Source.Path + "; DB: " + applicationFromDB.Spec.Source.Path)
-		isPathUpdateNeeded = true
-	}
-
-	var isTargetRevisionUpdateNeeded bool
-	if applicationFromArgoCD.Spec.Source.TargetRevision != applicationFromDB.Spec.Source.TargetRevision {
-		log.Info("TargetRevision field in ArgoCD and DB entry is not in Sync.")
-		log.Info("TargetRevision:= ArgoCD: " + applicationFromArgoCD.Spec.Source.TargetRevision + "; DB: " + applicationFromDB.Spec.Source.TargetRevision)
-		isTargetRevisionUpdateNeeded = true
-	}
-
-	var isDestinationServerUpdateNeeded bool
-	if applicationFromArgoCD.Spec.Destination.Server != applicationFromDB.Spec.Destination.Server {
-		log.Info("Destination.Server field in ArgoCD and DB entry is not in Sync.")
-		log.Info("Destination.Server:= ArgoCD: " + applicationFromArgoCD.Spec.Destination.Server + "; DB: " + applicationFromDB.Spec.Destination.Server)
-		isDestinationServerUpdateNeeded = true
-	}
-
-	var isDestinationNamespaceUpdateNeeded bool
-	if applicationFromArgoCD.Spec.Destination.Namespace != applicationFromDB.Spec.Destination.Namespace {
-		log.Info("Destination.Namespace field in ArgoCD and DB entry is not in Sync.")
-		log.Info("Destination.Namespace:= ArgoCD: " + applicationFromArgoCD.Spec.Destination.Namespace + "; DB: " + applicationFromDB.Spec.Destination.Namespace)
-		isDestinationNamespaceUpdateNeeded = true
-	}
-
-	var isDestinationNameUpdateNeeded bool
-	if applicationFromArgoCD.Spec.Destination.Name != applicationFromDB.Spec.Destination.Name {
-		log.Info("Destination.Name field in ArgoCD and DB entry is not in Sync.")
-		log.Info("Destination.Name:= ArgoCD: " + applicationFromArgoCD.Spec.Destination.Name + "; DB: " + applicationFromDB.Spec.Destination.Name)
-		isDestinationNameUpdateNeeded = true
-	}
-
-	var isProjectUpdateNeeded bool
-	if applicationFromArgoCD.Spec.Project != applicationFromDB.Spec.Project {
-		log.Info("Project field in ArgoCD and DB entry is not in Sync.")
-		log.Info("Project:= ArgoCD: " + applicationFromArgoCD.Spec.Project + "; DB: " + applicationFromDB.Spec.Project)
-		isProjectUpdateNeeded = true
-	}
-
-	var isAutomatedPruneUpdateNeeded bool
-	if applicationFromArgoCD.Spec.SyncPolicy.Automated.Prune != applicationFromDB.Spec.SyncPolicy.Automated.Prune {
-		log.Info("Prune field in ArgoCD and DB entry is not in Sync.")
-		isAutomatedPruneUpdateNeeded = true
-	}
-
-	var isAutomatedSelfHealUpdateNeeded bool
-	if applicationFromArgoCD.Spec.SyncPolicy.Automated.SelfHeal != applicationFromDB.Spec.SyncPolicy.Automated.SelfHeal {
-		log.Info("SelfHeal field in ArgoCD and DB entry is not in Sync.")
-		isAutomatedSelfHealUpdateNeeded = true
-	}
-
-	var isAutomatedAllowEmptyUpdateNeeded bool
-	if applicationFromArgoCD.Spec.SyncPolicy.Automated.AllowEmpty != applicationFromDB.Spec.SyncPolicy.Automated.AllowEmpty {
-		log.Info("AllowEmpty field in ArgoCD and DB entry is not in Sync.")
-		isAutomatedAllowEmptyUpdateNeeded = true
-	}
-
-	// If any of the above steps have been performed, then we need to update the application.
-	isUpdateNeeded := isAPIVersionUpdateNeeded || isKindUpdateNeeded || isNameUpdateNeeded ||
-		isNamespaceUpdateNeeded || isRepoUrlUpdateNeeded || isPathUpdateNeeded || isTargetRevisionUpdateNeeded ||
-		isDestinationServerUpdateNeeded || isDestinationNamespaceUpdateNeeded || isDestinationNameUpdateNeeded ||
-		isProjectUpdateNeeded || isAutomatedPruneUpdateNeeded || isAutomatedSelfHealUpdateNeeded || isAutomatedAllowEmptyUpdateNeeded
-
-	return isUpdateNeeded
-}
-
 func cleanK8sOperations(ctx context.Context, dbq db.DatabaseQueries, client client.Client, log logr.Logger) {
 	// Get list of Operations from cluster.
 	listOfK8sOperation := v1alpha1.OperationList{}
@@ -328,7 +225,7 @@ func cleanK8sOperations(ctx context.Context, dbq db.DatabaseQueries, client clie
 
 		// Delete the k8s operation now.
 		if err := operations.CleanupOperation(ctx, dbOperation, k8sOperation, cache.GetGitOpsEngineSingleInstanceNamespace(),
-			dbq, client, log); err != nil {
+			dbq, client, false, log); err != nil {
 
 			log.Error(err, "Unable to Delete k8s Operation"+string(k8sOperation.UID)+" for DbOperation: "+string(k8sOperation.Spec.OperationID))
 		} else {

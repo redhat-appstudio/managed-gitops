@@ -6,9 +6,9 @@ require (
 	github.com/devfile/api/v2 v2.0.0-20211021164004-dabee4e633ed
 	github.com/onsi/ginkgo/v2 v2.1.4
 	github.com/onsi/gomega v1.20.1
-	github.com/redhat-appstudio/application-api v0.0.0-20221110070312-2a23d78f7f04
+	github.com/redhat-appstudio/application-api v0.0.0-20230111181119-3144e2878df0
 	github.com/redhat-appstudio/application-service v0.0.0-20220609190313-7a1a14b575dc
-	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0-20221223144523-aa8214ccb5e9
+	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0-20230124072856-99d48ccd0240
 	k8s.io/apimachinery v0.24.3
 	k8s.io/client-go v0.24.3
 	sigs.k8s.io/controller-runtime v0.13.0
@@ -142,7 +142,7 @@ require (
 	k8s.io/component-base v0.24.3 // indirect
 	k8s.io/klog/v2 v2.70.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20220803162953-67bda5d908f1 // indirect
-	k8s.io/utils v0.0.0-20220728103510-ee6ede2d64ed // indirect
+	k8s.io/utils v0.0.0-20220728103510-ee6ede2d64ed
 	sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
@@ -151,4 +151,12 @@ require (
 // github.com/redhat-appstudio/managed-gitops/backend => ../backend
 // github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
 // github.com/redhat-appstudio/managed-gitops/utilities/db-migration => ../utilities/db-migration
-replace sigs.k8s.io/controller-runtime => github.com/kcp-dev/controller-runtime v0.12.2-0.20220808200255-4b60fd66e5de
+
+replace (
+	// TODO: GITOPSRVCE-211: This line can be removed, once the application-api PR has merged.
+	// github.com/redhat-appstudio/application-api => github.com/jgwest/application-api v0.0.0-20221123042158-cdfb05b10aac
+	//github.com/redhat-appstudio/managed-gitops/backend => ../backend
+	//github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
+	github.com/redhat-appstudio/managed-gitops/utilities/db-migration => ../utilities/db-migration
+	sigs.k8s.io/controller-runtime => github.com/kcp-dev/controller-runtime v0.12.2-0.20220808200255-4b60fd66e5de
+)

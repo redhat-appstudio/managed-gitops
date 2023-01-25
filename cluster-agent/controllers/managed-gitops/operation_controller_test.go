@@ -18,15 +18,15 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
+	sharedoperations "github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -95,7 +95,7 @@ var _ = Describe("Garbage Collect Operations", func() {
 			By("operation CR should be removed from the cluster")
 			operationCR := &managedgitopsv1alpha1.Operation{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      fmt.Sprintf("operation-%s", validOperation.Operation_id),
+					Name:      sharedoperations.GenerateOperationCRName(validOperation),
 					Namespace: util.GetGitOpsEngineSingleInstanceNamespace(),
 				},
 			}

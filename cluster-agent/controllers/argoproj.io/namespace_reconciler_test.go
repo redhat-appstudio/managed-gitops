@@ -7,8 +7,8 @@ import (
 	. "github.com/onsi/gomega"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/config/db"
-	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/config/db/util"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/argoproj.io/application_info_cache"
@@ -57,91 +57,6 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 				_, ok := deletedApplicationIds[app.Labels["databaseID"]]
 				Expect(ok).To(BeTrue())
 			}
-		})
-	})
-
-	Context("Testing for CompareApplications function.", func() {
-		It("Should compare applications.", func() {
-
-			applicationFromDB, _, applicationFromArgoCD, err := createDummyApplicationData()
-			Expect(err).To(BeNil())
-
-			var ctx context.Context
-			log := log.FromContext(ctx)
-
-			result := compareApplications(applicationFromArgoCD, applicationFromDB, log)
-			Expect(result).To(BeFalse())
-
-			// Set different value in each field then revert them, otherwise next field wont be compared
-			applicationFromArgoCD.APIVersion = "test"
-			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
-			Expect(result).To(BeTrue())
-			applicationFromArgoCD.APIVersion = applicationFromDB.APIVersion // Revert the value, to compare next field.
-
-			applicationFromArgoCD.Kind = "test"
-			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
-			Expect(result).To(BeTrue())
-			applicationFromArgoCD.Kind = applicationFromDB.Kind
-
-			applicationFromArgoCD.Name = "test"
-			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
-			Expect(result).To(BeTrue())
-			applicationFromArgoCD.Name = applicationFromDB.Name
-
-			applicationFromArgoCD.Namespace = "test"
-			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
-			Expect(result).To(BeTrue())
-			applicationFromArgoCD.Namespace = applicationFromDB.Namespace
-
-			applicationFromArgoCD.Spec.Source.RepoURL = "test"
-			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
-			Expect(result).To(BeTrue())
-			applicationFromArgoCD.Spec.Source.RepoURL = applicationFromDB.Spec.Source.RepoURL
-
-			applicationFromArgoCD.Spec.Source.Path = "test"
-			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
-			Expect(result).To(BeTrue())
-			applicationFromArgoCD.Spec.Source.Path = applicationFromDB.Spec.Source.Path
-
-			applicationFromArgoCD.Spec.Source.TargetRevision = "test"
-			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
-			Expect(result).To(BeTrue())
-			applicationFromArgoCD.Spec.Source.TargetRevision = applicationFromDB.Spec.Source.TargetRevision
-
-			applicationFromArgoCD.Spec.Destination.Server = "test"
-			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
-			Expect(result).To(BeTrue())
-			applicationFromArgoCD.Spec.Destination.Server = applicationFromDB.Spec.Destination.Server
-
-			applicationFromArgoCD.Spec.Destination.Namespace = "test"
-			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
-			Expect(result).To(BeTrue())
-			applicationFromArgoCD.Spec.Destination.Namespace = applicationFromDB.Spec.Destination.Namespace
-
-			applicationFromArgoCD.Spec.Destination.Name = "test"
-			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
-			Expect(result).To(BeTrue())
-			applicationFromArgoCD.Spec.Destination.Name = applicationFromDB.Spec.Destination.Name
-
-			applicationFromArgoCD.Spec.Project = "test"
-			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
-			Expect(result).To(BeTrue())
-			applicationFromArgoCD.Spec.Project = applicationFromDB.Spec.Project
-
-			applicationFromArgoCD.Spec.SyncPolicy.Automated.Prune = true
-			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
-			Expect(result).To(BeTrue())
-			applicationFromArgoCD.Spec.SyncPolicy.Automated.Prune = applicationFromDB.Spec.SyncPolicy.Automated.Prune
-
-			applicationFromArgoCD.Spec.SyncPolicy.Automated.SelfHeal = true
-			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
-			Expect(result).To(BeTrue())
-			applicationFromArgoCD.Spec.SyncPolicy.Automated.SelfHeal = applicationFromDB.Spec.SyncPolicy.Automated.SelfHeal
-
-			applicationFromArgoCD.Spec.SyncPolicy.Automated.AllowEmpty = true
-			result = compareApplications(applicationFromArgoCD, applicationFromDB, log)
-			Expect(result).To(BeTrue())
-			applicationFromArgoCD.Spec.SyncPolicy.Automated.AllowEmpty = applicationFromDB.Spec.SyncPolicy.Automated.AllowEmpty
 		})
 	})
 

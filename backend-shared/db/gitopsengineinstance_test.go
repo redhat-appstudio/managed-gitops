@@ -76,12 +76,12 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 
 	})
 
-	It("Should list unique namespaces from GitopsEngineInstance", func() {
+	It("Should list GitopsEngineInstances for a GitOpsEngineCluster", func() {
 		err := db.SetupForTestingDBGinkgo()
 		Expect(err).To(BeNil())
 
 		ctx := context.Background()
-		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+		dbq, err := db.NewUnsafePostgresDBQueries(false, true)
 		Expect(err).To(BeNil())
 		defer dbq.CloseDatabase()
 
@@ -96,6 +96,27 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
 		Expect(err).To(BeNil())
 
+		By("creating a GitOpsEngineInstance/Cluster that should NOT be returned by the List function")
+		var instanceDbCluster2_shouldNotMatch db.GitopsEngineInstance
+		{
+			gitopsEngineCluster2 := db.GitopsEngineCluster{
+				Gitopsenginecluster_id: "test-cred-" + string(uuid.NewUUID()),
+				Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+			}
+			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster2)
+			Expect(err).To(BeNil())
+
+			instanceDbCluster2_shouldNotMatch = db.GitopsEngineInstance{
+				Gitopsengineinstance_id: "test-ins-id-" + string(uuid.NewUUID()),
+				Namespace_name:          "test-fake-namespace-1",
+				Namespace_uid:           "test-fake-namespace-1",
+				EngineCluster_id:        gitopsEngineCluster2.Gitopsenginecluster_id,
+			}
+			err = dbq.CreateGitopsEngineInstance(ctx, &instanceDbCluster2_shouldNotMatch)
+			Expect(err).To(BeNil())
+		}
+
+		By("creating a new GitOpsEngineCluster with 2 Instances, each in different Namespace")
 		gitopsEngineCluster := db.GitopsEngineCluster{
 			Gitopsenginecluster_id: "test-cred-" + string(uuid.NewUUID()),
 			Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
@@ -112,59 +133,39 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 		err = dbq.CreateGitopsEngineInstance(ctx, &instanceDb)
 		Expect(err).To(BeNil())
 
-		// Create duplicate entry with differet namespace
-		clusterCredentials.Clustercredentials_cred_id = "test-cred-" + string(uuid.NewUUID())
-		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
+		instanceDb2 := db.GitopsEngineInstance{
+			Gitopsengineinstance_id: "test-ins-id-" + string(uuid.NewUUID()),
+			Namespace_name:          "test-fake-namespace-2",
+			Namespace_uid:           "test-fake-namespace-2",
+			EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+		}
+		err = dbq.CreateGitopsEngineInstance(ctx, &instanceDb2)
 		Expect(err).To(BeNil())
 
-		gitopsEngineCluster.Gitopsenginecluster_id = "test-cred-" + string(uuid.NewUUID())
-		gitopsEngineCluster.Clustercredentials_id = clusterCredentials.Clustercredentials_cred_id
-		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
+		listResults := &[]db.GitopsEngineInstance{}
+		err = dbq.ListGitopsEngineInstancesForCluster(ctx, gitopsEngineCluster, listResults)
 		Expect(err).To(BeNil())
 
-		instanceDb.Gitopsengineinstance_id = "test-ins-id-" + string(uuid.NewUUID())
-		instanceDb.Namespace_name = "test-fake-namespace-2"
-		instanceDb.Namespace_uid = "test-fake-namespace-2"
-		instanceDb.EngineCluster_id = gitopsEngineCluster.Gitopsenginecluster_id
-		err = dbq.CreateGitopsEngineInstance(ctx, &instanceDb)
-		Expect(err).To(BeNil())
+		for _, listResult := range *listResults {
+			Expect(listResult.Gitopsengineinstance_id).ToNot(Equal(instanceDbCluster2_shouldNotMatch.Gitopsengineinstance_id),
+				"the GitOpsEngineInstance which is on the cluster, should not be returned by the results")
+		}
 
-		// Create duplicate entry with same namespace
+		gitopsEngineInstancesToMatch := []db.GitopsEngineInstance{instanceDb, instanceDb2}
 
-		clusterCredentials.Clustercredentials_cred_id = "test-cred-" + string(uuid.NewUUID())
-		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-		Expect(err).To(BeNil())
+		for _, gitopsEngineInstancesToMatch := range gitopsEngineInstancesToMatch {
+			matchFound := false
 
-		gitopsEngineCluster.Gitopsenginecluster_id = "test-cred-" + string(uuid.NewUUID())
-		gitopsEngineCluster.Clustercredentials_id = clusterCredentials.Clustercredentials_cred_id
-		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-		Expect(err).To(BeNil())
+			for _, listResult := range *listResults {
 
-		instanceDb.Gitopsengineinstance_id = "test-ins-id-" + string(uuid.NewUUID())
-		instanceDb.Namespace_name = "test-fake-namespace-2"
-		instanceDb.Namespace_uid = "test-fake-namespace-2"
-		instanceDb.EngineCluster_id = gitopsEngineCluster.Gitopsenginecluster_id
-		err = dbq.CreateGitopsEngineInstance(ctx, &instanceDb)
-		Expect(err).To(BeNil())
+				if listResult.Gitopsengineinstance_id == gitopsEngineInstancesToMatch.Gitopsengineinstance_id {
+					matchFound = true
+					break
+				}
 
-		By("Get unique namespaces.")
-		var instancesArray []db.GitopsEngineInstance
-		err = dbq.ListAllGitopsEngineInstanceNamespaces(ctx, &instancesArray)
-		Expect(err).To(BeNil())
-		// According to this tests there should be 2 namespaces in DB, but there are left over entries by other tests,
-		// hence number of elements in response can not be used for verification
-		Expect(checkUnique(instancesArray)).To(BeTrue())
+			}
+			Expect(matchFound).To(BeTrue(), "both instances should be found in the list results")
+		}
+
 	})
 })
-
-func checkUnique(instancesArray []db.GitopsEngineInstance) bool {
-	// Since Map can have unique keys, append namespace names as key
-	// By using Map extra logic to check uniqueness required for Array/Slice can be avoided.
-	tempMap := make(map[string]string)
-	for _, instance := range instancesArray {
-		tempMap[instance.Namespace_name] = ""
-	}
-
-	// If number of keys in Map and number of elements in Array are same it meand all entries in Array had unique namespace name.
-	return len(tempMap) == len(instancesArray)
-}

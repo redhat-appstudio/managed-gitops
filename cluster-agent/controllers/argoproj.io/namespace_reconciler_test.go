@@ -238,6 +238,20 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			// Fake kube client.
 			k8sClient = fake.NewClientBuilder().WithScheme(scheme).Build()
 
+			kubeSystemNamepace := corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kube-system",
+					UID:  "test-kube-system",
+				},
+			}
+			err = k8sClient.Create(ctx, &kubeSystemNamepace)
+			Expect(err).To(BeNil())
+
+			gitopsEngineCluster, created, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubeSystemNamepace.UID), dbq, log)
+			Expect(err).To(BeNil())
+			Expect(gitopsEngineCluster).ToNot(BeNil())
+			Expect(created).To(BeTrue())
+
 			By("Create required db entries.")
 			clusterCredentials = db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-cluster-creds-test-1",
@@ -248,13 +262,6 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-			Expect(err).To(BeNil())
-
-			gitopsEngineCluster := db.GitopsEngineCluster{
-				Gitopsenginecluster_id: "test-fake-cluster-1",
-				Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
-			}
-			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
 			Expect(err).To(BeNil())
 
 			gitopsEngineInstance = db.GitopsEngineInstance{

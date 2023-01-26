@@ -20,14 +20,18 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllGitopsEngineInstances(ctx con
 	return nil
 }
 
-// ListAllGitopsEngineInstanceNamespaces returns a list of unique namespaces from GitopsEngineInstance table.
-func (dbq *PostgreSQLDatabaseQueries) ListAllGitopsEngineInstanceNamespaces(ctx context.Context, gitopsEngineInstances *[]GitopsEngineInstance) error {
+// ListGitopsEngineInstancesForCluster lists the GitOpsEngineInstances that are on the given GitOpsEngineCluster
+func (dbq *PostgreSQLDatabaseQueries) ListGitopsEngineInstancesForCluster(ctx context.Context, gitopsEngineCluster GitopsEngineCluster, gitopsEngineInstances *[]GitopsEngineInstance) error {
 
 	if err := validateQueryParamsEntity(gitopsEngineInstances, dbq); err != nil {
 		return err
 	}
 
-	if err := dbq.dbConnection.Model(gitopsEngineInstances).Context(ctx).Column("gei.namespace_name").DistinctOn("gei.namespace_name").Select(); err != nil {
+	if IsEmpty(gitopsEngineCluster.Gitopsenginecluster_id) {
+		return fmt.Errorf("GitOpsEngineCluster parameter has nil value, when attempting to list corresponding GitOpsEngineInstances")
+	}
+
+	if err := dbq.dbConnection.Model(gitopsEngineInstances).Context(ctx).Where("gei.enginecluster_id = ?", gitopsEngineCluster.Gitopsenginecluster_id).Select(); err != nil {
 		return err
 	}
 

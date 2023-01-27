@@ -669,7 +669,7 @@ var _ = Describe("Operation Controller", func() {
 
 			})
 
-			It("Verify that SyncOption is picked up by Perform Task to be in sync for - CreateNamespace=true", func() {
+			It("Verify that SyncOption is picked up by Perform Task to be in sync for CreateNamespace=true", func() {
 				By("Close database connection")
 				defer dbQueries.CloseDatabase()
 				defer testTeardown()
@@ -679,7 +679,7 @@ var _ = Describe("Operation Controller", func() {
 				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
 				Expect(err).To(BeNil())
 
-				dummyApplication, dummyApplicationSpecString, err := createApplicationSyncOtion("- CreateNamespace=true")
+				dummyApplication, dummyApplicationSpecString, err := createApplicationSyncOtion("CreateNamespace=true")
 				Expect(err).To(BeNil())
 
 				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
@@ -755,11 +755,11 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 				Expect(operationDB.State).To(Equal(db.OperationState_Completed))
 				Expect(dummyApplication.Spec.SyncPolicy.SyncOptions).To(Equal(applicationCR.Spec.SyncPolicy.SyncOptions))
-				Expect(applicationCR.Spec.SyncPolicy.SyncOptions.HasOption("- CreateNamespace=true")).To(Equal(true))
+				Expect(applicationCR.Spec.SyncPolicy.SyncOptions.HasOption("CreateNamespace=true")).To(Equal(true))
 
 				//############################################################################
 
-				By("Update the SyncOption to not have option - CreateNamespace=true")
+				By("Update the SyncOption to not have option CreateNamespace=true")
 				newSpecApp, newSpecString, err := createApplicationSyncOtion("")
 				Expect(err).To(BeNil())
 
@@ -827,7 +827,7 @@ var _ = Describe("Operation Controller", func() {
 				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
 				Expect(err).To(BeNil())
 				Expect(newSpecApp.Spec.SyncPolicy.SyncOptions).To(Equal(applicationCR.Spec.SyncPolicy.SyncOptions), "PerformTask should have updated the Application CR to be consistent with the new spec(SyncOption) in the database")
-				Expect(applicationCR.Spec.SyncPolicy.SyncOptions.HasOption("- CreateNamespace=true")).To(Equal(false))
+				Expect(applicationCR.Spec.SyncPolicy.SyncOptions.HasOption("CreateNamespace=true")).To(Equal(false))
 
 				By("Verify that the SyncOption in the Application has Option - CreateNamespace=true")
 				err = dbQueries.GetOperationById(ctx, operationDB)
@@ -836,8 +836,8 @@ var _ = Describe("Operation Controller", func() {
 
 				//############################################################################
 
-				By("Update the SyncOption to have option - CreateNamespace=true")
-				newSpecApp2, newSpecString2, err := createApplicationSyncOtion("- CreateNamespace=true")
+				By("Update the SyncOption to have option CreateNamespace=true")
+				newSpecApp2, newSpecString2, err := createApplicationSyncOtion("CreateNamespace=true")
 				Expect(err).To(BeNil())
 
 				By("Update Application in Database")
@@ -904,7 +904,7 @@ var _ = Describe("Operation Controller", func() {
 				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(applicationCR2), applicationCR2)
 				Expect(err).To(BeNil())
 				Expect(newSpecApp2.Spec.SyncPolicy.SyncOptions).To(Equal(applicationCR2.Spec.SyncPolicy.SyncOptions), "PerformTask should have updated the Application CR to be consistent with the new spec(SyncOption) in the database")
-				Expect(applicationCR2.Spec.SyncPolicy.SyncOptions.HasOption("- CreateNamespace=true")).To(Equal(true))
+				Expect(applicationCR2.Spec.SyncPolicy.SyncOptions.HasOption("CreateNamespace=true")).To(Equal(true))
 
 			})
 

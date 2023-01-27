@@ -95,7 +95,6 @@ spec:
                 type: string
             required:
             - source
-            - syncPolicy
             - type
             type: object
           status:

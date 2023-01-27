@@ -82,6 +82,9 @@ func buildGitOpsDeploymentResource(name, repoURL, path, deploymentSpecType strin
 			},
 			Destination: managedgitopsv1alpha1.ApplicationDestination{},
 			Type:        deploymentSpecType,
+			SyncPolicy: &managedgitopsv1alpha1.SyncPolicy{
+				SyncOptions: managedgitopsv1alpha1.SyncOptions{},
+			},
 		},
 	}
 
@@ -93,3 +96,9 @@ func buildTargetRevisionGitOpsDeploymentResource(name, repoURL, path, target, de
 	gitOpsDeploymentResource.Spec.Source.TargetRevision = target
 	return gitOpsDeploymentResource
 }
+
+// func buildSyncOptionGitopsDeployment(syncOption []string, name, repoURL, path, deploymentSpecType string) managedgitopsv1alpha1.GitOpsDeployment {
+// 	gitOpsDeploymentResource := buildGitOpsDeploymentResource(name, repoURL, path, deploymentSpecType)
+// 	gitOpsDeploymentResource.Spec.SyncPolicy.SyncOptions = syncOption
+// 	return gitOpsDeploymentResource
+// }

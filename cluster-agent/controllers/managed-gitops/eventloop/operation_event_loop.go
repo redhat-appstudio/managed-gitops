@@ -415,7 +415,6 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 	if dbOperation.Resource_type == db.OperationResourceType_Application {
 		shouldRetry, err := processOperation_Application(taskContext, dbOperation, *operationCR, operationConfigParams)
-
 		if err != nil {
 			log.Error(err, "error occurred on processing the application operation")
 		}
@@ -852,9 +851,6 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		app.Spec.Project = specFieldApp.Spec.Project
 		app.Spec.SyncPolicy = specFieldApp.Spec.SyncPolicy
 
-		fmt.Println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-		fmt.Println(app.Spec.SyncPolicy.SyncOptions)
-
 		if len(specFieldApp.Spec.SyncPolicy.SyncOptions) != 0 {
 			for _, syncOptionString := range specFieldApp.Spec.SyncPolicy.SyncOptions {
 				// Checks for each SyncOption goes in this for loop
@@ -864,7 +860,10 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 				if syncOptionString == "" {
 					checkSyncOption = true
 				}
-				if syncOptionString == "- CreateNamespace=true" {
+				if syncOptionString == "CreateNamespace=true" {
+					checkSyncOption = true
+				}
+				if syncOptionString == "PrunePropagationPolicy=background" {
 					checkSyncOption = true
 				}
 				if !checkSyncOption {

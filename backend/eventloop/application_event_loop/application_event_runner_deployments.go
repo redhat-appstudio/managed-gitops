@@ -280,11 +280,16 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		for _, syncOptionString := range gitopsDeployment.Spec.SyncPolicy.SyncOptions {
 			// Checks for each SyncOption goes in this for loop
 			var checkSyncOption bool
-			// 1. Check for SyncOption "- CreateNamespace=true"
+			// 1. Check for SyncOption "CreateNamespace=true" / empty string
+			if syncOptionString == "" {
+				checkSyncOption = true
+			}
 			if syncOptionString == "- CreateNamespace=true" {
 				checkSyncOption = true
 			}
-
+			if syncOptionString == prunePropagationPolicy {
+				checkSyncOption = true
+			}
 			// Finally after iteration through all SyncOptions if it doesn't match with any of the above specified SyncOption, an error is returned
 			if !checkSyncOption {
 				userError := "the specified sync option is either mispelled or is not supported by GitOpsDeployment"
@@ -295,6 +300,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 				specFieldInput.syncOptions = gitopsDeployment.Spec.SyncPolicy.SyncOptions
 			}
 		}
+
 	}
 
 	specFieldText, err := createSpecField(specFieldInput)
@@ -567,8 +573,14 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		for _, syncOptionString := range gitopsDeployment.Spec.SyncPolicy.SyncOptions {
 			// Checks for each SyncOption goes in this for loop
 			var checkSyncOption bool
-			// 1. Check for SyncOption "- CreateNamespace=true"
+			// 1. Check for SyncOption "CreateNamespace=true" / empty string
+			if syncOptionString == "" {
+				checkSyncOption = true
+			}
 			if syncOptionString == "- CreateNamespace=true" {
+				checkSyncOption = true
+			}
+			if syncOptionString == "- PrunePropagationPolicy=background" {
 				checkSyncOption = true
 			}
 
@@ -1076,18 +1088,8 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 			Project: "default",
 		},
 	}
-	if len(fields.syncOptions) != 0 {
-		for _, syncOptionString := range fields.syncOptions {
-			application.Spec.SyncPolicy = &fauxargocd.SyncPolicy{
-				SyncOptions: fauxargocd.SyncOptions{
-					syncOptionString,
-				},
-			}
-		}
 
-	}
-
-	if fields.automated {
+	if fields.automated && len(fields.syncOptions) == 0 {
 		application.Spec.SyncPolicy = &fauxargocd.SyncPolicy{
 			Automated: &fauxargocd.SyncPolicyAutomated{
 				Prune:      true,
@@ -1097,6 +1099,31 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 			SyncOptions: fauxargocd.SyncOptions{
 				prunePropagationPolicy,
 			},
+		}
+	}
+
+	if len(fields.syncOptions) != 0 && !fields.automated {
+		for _, syncOptionString := range fields.syncOptions {
+			application.Spec.SyncPolicy = &fauxargocd.SyncPolicy{
+				SyncOptions: fauxargocd.SyncOptions{
+					syncOptionString,
+				},
+			}
+		}
+	}
+	if fields.automated && len(fields.syncOptions) != 0 {
+		for _, syncOptionString := range fields.syncOptions {
+			application.Spec.SyncPolicy = &fauxargocd.SyncPolicy{
+				Automated: &fauxargocd.SyncPolicyAutomated{
+					Prune:      true,
+					SelfHeal:   true,
+					AllowEmpty: true,
+				},
+				SyncOptions: fauxargocd.SyncOptions{
+					prunePropagationPolicy,
+					syncOptionString,
+				},
+			}
 		}
 	}
 

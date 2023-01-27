@@ -83,6 +83,36 @@ func HaveAutomatedSyncPolicy(syncPolicy appv1alpha1.SyncPolicyAutomated) matcher
 	}, BeTrue())
 }
 
+func HaveSyncOption(syncOption appv1alpha1.SyncOptions) matcher.GomegaMatcher {
+
+	return WithTransform(func(app appv1alpha1.Application) bool {
+
+		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
+		Expect(err).To(BeNil())
+
+		k8sClient, err := fixture.GetKubeClient(config)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&app), &app)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		fmt.Println(app.Spec.SyncPolicy.SyncOptions)
+		isSyncOption := false
+		if syncOption != nil {
+			isSyncOption = app.Spec.SyncPolicy.SyncOptions.HasOption("CreateNamespace=true")
+		}
+		fmt.Println("HaveSyncOption:", isSyncOption, "/ Expected:", syncOption.HasOption("CreateNamespace=true"), "/ Actual:", app.Spec.SyncPolicy.SyncOptions.HasOption("CreateNamespace=true"))
+
+		return isSyncOption
+	}, BeTrue())
+}
+
 // HaveHealthStatusCode waits for Argo CD Application to have the given health
 func HaveHealthStatusCode(status appv1alpha1.ApplicationStatus) matcher.GomegaMatcher {
 

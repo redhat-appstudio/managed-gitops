@@ -30,7 +30,7 @@ type GitOpsDeploymentSpec struct {
 	Destination ApplicationDestination `json:"destination,omitempty"`
 
 	// SyncPolicy controls when and how a sync will be performed.
-	SyncPolicy *SyncPolicy `json:"syncPolicy"`
+	SyncPolicy *SyncPolicy `json:"syncPolicy,omitempty"`
 
 	// Two possible values:
 	// - Automated: whenever a new commit occurs in the GitOps repository, or the Argo CD Application is out of sync, Argo CD should be told to (re)synchronize.

@@ -160,7 +160,7 @@ func validateApplication(asApplication applicationv1alpha1.Application) error {
 	if strings.TrimSpace(asApplication.Name) == "" {
 		return fmt.Errorf("application resource has invalid name: '%s'", asApplication.Name)
 	}
-
+	//
 	if strings.TrimSpace(asApplication.Status.Devfile) == "" {
 		return fmt.Errorf("application status' devfile field is empty")
 	}

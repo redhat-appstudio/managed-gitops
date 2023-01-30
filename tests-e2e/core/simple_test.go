@@ -96,9 +96,3 @@ func buildTargetRevisionGitOpsDeploymentResource(name, repoURL, path, target, de
 	gitOpsDeploymentResource.Spec.Source.TargetRevision = target
 	return gitOpsDeploymentResource
 }
-
-// func buildSyncOptionGitopsDeployment(syncOption []string, name, repoURL, path, deploymentSpecType string) managedgitopsv1alpha1.GitOpsDeployment {
-// 	gitOpsDeploymentResource := buildGitOpsDeploymentResource(name, repoURL, path, deploymentSpecType)
-// 	gitOpsDeploymentResource.Spec.SyncPolicy.SyncOptions = syncOption
-// 	return gitOpsDeploymentResource
-// }

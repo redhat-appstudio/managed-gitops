@@ -781,13 +781,6 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 				return shouldRetryFalse, nil
 			}
 
-			// //Check if the spec field contains the sync option "- CreateNamespace=true" and add it to the applicationCR
-			// if strings.Contains(dbApplication.Spec_field, "CreateNamespace=true") {
-			// 	if err := yaml.Unmarshal([]byte(dbApplication.Spec_field), app); err != nil {
-			// 		log.Error(err, "SEVERE: unable to unmarshal application spec field on creating Application CR.")
-			// 		return shouldRetryFalse, err
-			// 	}
-			// }
 			// Copy the contents of the Spec_field database column, into the Spec field of the Argo CD Application CR
 			if err := yaml.Unmarshal([]byte(dbApplication.Spec_field), app); err != nil {
 				log.Error(err, "SEVERE: unable to unmarshal application spec field on creating Application CR.")
@@ -859,15 +852,15 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 				// 1. Check for SyncOption "CreateNamespace=true" / empty string
 				if syncOptionString == "" {
 					checkSyncOption = true
-				}
-				if syncOptionString == "CreateNamespace=true" {
+				} else if syncOptionString == "CreateNamespace=true" {
+					checkSyncOption = true
+				} else if syncOptionString == "PrunePropagationPolicy=background" {
 					checkSyncOption = true
 				}
-				if syncOptionString == "PrunePropagationPolicy=background" {
-					checkSyncOption = true
-				}
+
 				if !checkSyncOption {
-					log.Error(err, "The SyncOption is not supported or it is misspelled")
+					log.Error(err, "The SyncOption is not supported or it is misspelled ")
+					err := fmt.Errorf("Invalid syncOption: %s", syncOptionString)
 					// No need to retry becasue the SyncOption is either unsupported or misspelled
 					return shouldRetryFalse, err
 				}

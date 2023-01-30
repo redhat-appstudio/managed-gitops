@@ -215,7 +215,7 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 
 			Expect(err).To(BeNil())
 
-			Expect(strings.Contains(applicationFirst.Spec_field, "- CreateNamespace=true")).To(Equal(true))
+			Expect(strings.Contains(applicationFirst.Spec_field, "CreateNamespace=true")).To(Equal(true))
 			//############################################################################
 
 			By("Update existing deployment so that the SyncOption is set to nil/empty")
@@ -269,7 +269,7 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			Expect(err).To(BeNil())
 			Expect(applicationFirst.SeqID).To(Equal(applicationSecond.SeqID))
 			Expect(applicationFirst.Spec_field).NotTo(Equal(applicationSecond.Spec_field))
-			Expect(strings.Contains(applicationSecond.Spec_field, "- CreateNamespace=true")).To(Equal(false))
+			Expect(strings.Contains(applicationSecond.Spec_field, "CreateNamespace=true")).To(Equal(false))
 
 			clusterUser := db.ClusterUser{User_name: string(workspace.UID)}
 			err = dbQueries.GetClusterUserByUsername(context.Background(), &clusterUser)
@@ -328,7 +328,7 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappingsThird)
 
 			Expect(err).To(BeNil())
-			Expect(len(appMappingsSecond)).To(Equal(1))
+			Expect(len(appMappingsThird)).To(Equal(1))
 
 			deplToAppMappingThird := appMappingsThird[0]
 			applicationThird := db.Application{Application_id: deplToAppMappingThird.Application_id}
@@ -337,7 +337,7 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			Expect(err).To(BeNil())
 			Expect(applicationThird.SeqID).To(Equal(applicationSecond.SeqID))
 			Expect(applicationThird.Spec_field).NotTo(Equal(applicationSecond.Spec_field))
-			Expect(strings.Contains(applicationThird.Spec_field, "- CreateNamespace=true")).To(Equal(true))
+			Expect(strings.Contains(applicationThird.Spec_field, "CreateNamespace=true")).To(Equal(true))
 
 			clusterUser = db.ClusterUser{User_name: string(workspace.UID)}
 			err = dbQueries.GetClusterUserByUsername(context.Background(), &clusterUser)
@@ -350,6 +350,45 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			managedEnvironment = db.ManagedEnvironment{Managedenvironment_id: applicationThird.Managed_environment_id}
 			err = dbQueries.GetManagedEnvironmentById(ctx, &managedEnvironment)
 			Expect(err).To(BeNil())
+
+			//############################################################################
+			By("Update existing deployment to a SyncOption that is not empty and is set to a false syncOption CreateNamespace=foo ")
+
+			gitopsDepl.Spec.SyncPolicy.SyncOptions = managedgitopsv1alpha1.SyncOptions{
+				"- CreateNamespace=foo",
+			}
+
+			// Create new client and application runner, but pass existing gitOpsDeployment object.
+			k8sClientOuter = fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).
+				Build()
+			k8sClient = &sharedutil.ProxyClient{
+				InnerClient: k8sClientOuter,
+				Informer:    &informer,
+			}
+
+			appEventLoopRunnerActionFail := applicationEventLoopRunner_Action{
+				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+					return k8sClient, nil
+				},
+				eventResourceName:           gitopsDepl.Name,
+				eventResourceNamespace:      gitopsDepl.Namespace,
+				workspaceClient:             k8sClient,
+				log:                         log.FromContext(context.Background()),
+				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
+				workspaceID:                 workspaceID,
+				testOnlySkipCreateOperation: true,
+				k8sClientFactory: MockSRLK8sClientFactory{
+					fakeClient: k8sClient,
+				},
+			}
+
+			By("This should update the existing application.")
+
+			_, _, _, message, userDevErr = appEventLoopRunnerActionFail.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(userDevErr).ToNot(BeNil())
+			Expect(message).To(Equal(deploymentModifiedResult_Failed))
 
 		})
 

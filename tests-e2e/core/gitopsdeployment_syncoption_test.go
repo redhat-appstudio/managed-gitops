@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"fmt"
 
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -66,8 +65,6 @@ var _ = Describe("Argo CD Application", func() {
 					Namespace: dbutil.GetGitOpsEngineSingleInstanceNamespace(),
 				},
 			}
-			fmt.Println(app.Namespace)
-			fmt.Println(app.Name)
 
 			Eventually(app, "60s", "1s").Should(appFixture.HaveSyncOption(appv1alpha1.SyncOptions{"CreateNamespace=true"}))
 

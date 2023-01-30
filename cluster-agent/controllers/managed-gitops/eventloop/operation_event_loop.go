@@ -14,6 +14,7 @@ import (
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
+	appeventloop "github.com/redhat-appstudio/managed-gitops/backend/eventloop/application_event_loop"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -845,25 +846,14 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		app.Spec.SyncPolicy = specFieldApp.Spec.SyncPolicy
 
 		if len(specFieldApp.Spec.SyncPolicy.SyncOptions) != 0 {
-			for _, syncOptionString := range specFieldApp.Spec.SyncPolicy.SyncOptions {
-				// Checks for each SyncOption goes in this for loop
-				var checkSyncOption bool
-
-				// 1. Check for SyncOption "CreateNamespace=true" / empty string
-				if syncOptionString == "" {
-					checkSyncOption = true
-				} else if syncOptionString == "CreateNamespace=true" {
-					checkSyncOption = true
-				} else if syncOptionString == "PrunePropagationPolicy=background" {
-					checkSyncOption = true
-				}
-
-				if !checkSyncOption {
-					log.Error(err, "The SyncOption is not supported or it is misspelled ")
-					err := fmt.Errorf("Invalid syncOption: %s", syncOptionString)
-					// No need to retry becasue the SyncOption is either unsupported or misspelled
-					return shouldRetryFalse, err
-				}
+			isSyncOption, err := appeventloop.CheckValidSyncOption(specFieldApp.Spec.SyncPolicy.SyncOptions)
+			if isSyncOption {
+				app.Spec.SyncPolicy.SyncOptions = specFieldApp.Spec.SyncPolicy.SyncOptions
+			} else if !isSyncOption {
+				log.Error(err.DevError(), "The SyncOption is not supported or it is misspelled ")
+				err := fmt.Errorf(err.UserError(), specFieldApp.Spec.SyncPolicy.SyncOptions)
+				// No need to retry becasue the SyncOption is either unsupported or misspelled
+				return shouldRetryFalse, err
 			}
 		}
 

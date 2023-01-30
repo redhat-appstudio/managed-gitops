@@ -155,7 +155,7 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 					},
 					SyncPolicy: &managedgitopsv1alpha1.SyncPolicy{
 						SyncOptions: managedgitopsv1alpha1.SyncOptions{
-							"- CreateNamespace=true",
+							"CreateNamespace=true",
 						},
 					},
 				},
@@ -287,7 +287,7 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			By("Update existing deployment to a SyncOption that is not empty and is set to CreateNamespace=true")
 
 			gitopsDepl.Spec.SyncPolicy.SyncOptions = managedgitopsv1alpha1.SyncOptions{
-				"- CreateNamespace=true",
+				"CreateNamespace=true",
 			}
 
 			// Create new client and application runner, but pass existing gitOpsDeployment object.
@@ -355,7 +355,7 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			By("Update existing deployment to a SyncOption that is not empty and is set to a false syncOption CreateNamespace=foo ")
 
 			gitopsDepl.Spec.SyncPolicy.SyncOptions = managedgitopsv1alpha1.SyncOptions{
-				"- CreateNamespace=foo",
+				"CreateNamespace=foo",
 			}
 
 			// Create new client and application runner, but pass existing gitOpsDeployment object.

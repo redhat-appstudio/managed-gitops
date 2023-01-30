@@ -102,7 +102,6 @@ func HaveSyncOption(syncOption appv1alpha1.SyncOptions) matcher.GomegaMatcher {
 			return false
 		}
 
-		fmt.Println(app.Spec.SyncPolicy.SyncOptions)
 		isSyncOption := false
 		if syncOption != nil {
 			isSyncOption = app.Spec.SyncPolicy.SyncOptions.HasOption("CreateNamespace=true")

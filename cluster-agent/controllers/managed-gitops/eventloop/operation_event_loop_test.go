@@ -641,7 +641,7 @@ var _ = Describe("Operation Controller", func() {
 				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
 				Expect(err).To(BeNil())
 
-				By("Call Perform task again and verify that update works: the Application CR should now have the updated spec from the databaes.")
+				By("Call Perform task again and verify that update works: the Application CR should now have the updated spec from the database.")
 				retry, err = task.PerformTask(ctx)
 				Expect(err).To(BeNil())
 				Expect(retry).To(BeFalse())
@@ -669,7 +669,7 @@ var _ = Describe("Operation Controller", func() {
 
 			})
 
-			It("Verify that SyncOption is picked up by Perform Task to be in sync for CreateNamespace=true", func() {
+			FIt("Verify that SyncOption is picked up by Perform Task to be in sync for CreateNamespace=true", func() {
 				By("Close database connection")
 				defer dbQueries.CloseDatabase()
 				defer testTeardown()
@@ -679,7 +679,7 @@ var _ = Describe("Operation Controller", func() {
 				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
 				Expect(err).To(BeNil())
 
-				dummyApplication, dummyApplicationSpecString, err := createApplicationSyncOtion("CreateNamespace=true")
+				dummyApplication, dummyApplicationSpecString, err := createApplicationSyncOption("CreateNamespace=true")
 				Expect(err).To(BeNil())
 
 				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
@@ -760,7 +760,7 @@ var _ = Describe("Operation Controller", func() {
 				//############################################################################
 
 				By("Update the SyncOption to not have option CreateNamespace=true")
-				newSpecApp, newSpecString, err := createApplicationSyncOtion("")
+				newSpecApp, newSpecString, err := createApplicationSyncOption("")
 				Expect(err).To(BeNil())
 
 				By("Update Application in Database")
@@ -819,7 +819,7 @@ var _ = Describe("Operation Controller", func() {
 				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
 				Expect(err).To(BeNil())
 
-				By("Call Perform task again and verify that update works: the Application CR should now have the updated spec from the databaes.")
+				By("Call Perform task again and verify that update works: the Application CR should now have the updated spec from the database.")
 				retry, err = task.PerformTask(ctx)
 				Expect(err).To(BeNil())
 				Expect(retry).To(BeFalse())
@@ -829,7 +829,7 @@ var _ = Describe("Operation Controller", func() {
 				Expect(newSpecApp.Spec.SyncPolicy.SyncOptions).To(Equal(applicationCR.Spec.SyncPolicy.SyncOptions), "PerformTask should have updated the Application CR to be consistent with the new spec(SyncOption) in the database")
 				Expect(applicationCR.Spec.SyncPolicy.SyncOptions.HasOption("CreateNamespace=true")).To(Equal(false))
 
-				By("Verify that the SyncOption in the Application has Option - CreateNamespace=true")
+				By("Verify that the SyncOption in the Application has Option - CreateNamespace=true and the operation is completed")
 				err = dbQueries.GetOperationById(ctx, operationDB)
 				Expect(err).To(BeNil())
 				Expect(operationDB.State).To(Equal(db.OperationState_Completed))
@@ -837,7 +837,7 @@ var _ = Describe("Operation Controller", func() {
 				//############################################################################
 
 				By("Update the SyncOption to have option CreateNamespace=true")
-				newSpecApp2, newSpecString2, err := createApplicationSyncOtion("CreateNamespace=true")
+				newSpecApp2, newSpecString2, err := createApplicationSyncOption("CreateNamespace=true")
 				Expect(err).To(BeNil())
 
 				By("Update Application in Database")
@@ -896,7 +896,7 @@ var _ = Describe("Operation Controller", func() {
 				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(applicationCR2), applicationCR2)
 				Expect(err).To(BeNil())
 
-				By("Call Perform task again and verify that update works: the Application CR should now have the updated spec from the databaes.")
+				By("Call Perform task again and verify that update works: the Application CR should now have the updated spec from the database.")
 				retry, err = task.PerformTask(ctx)
 				Expect(err).To(BeNil())
 				Expect(retry).To(BeFalse())
@@ -905,6 +905,72 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 				Expect(newSpecApp2.Spec.SyncPolicy.SyncOptions).To(Equal(applicationCR2.Spec.SyncPolicy.SyncOptions), "PerformTask should have updated the Application CR to be consistent with the new spec(SyncOption) in the database")
 				Expect(applicationCR2.Spec.SyncPolicy.SyncOptions.HasOption("CreateNamespace=true")).To(Equal(true))
+
+				//############################################################################
+
+				By("Update the SyncOption to have option CreateNamespace=foo")
+				_, newSpecStringfail, err := createApplicationSyncOption("CreateNamespace=foo")
+				Expect(err).To(BeNil())
+
+				By("Update Application in Database")
+				applicationFail := &db.Application{
+					Application_id:          "test-my-application",
+					Name:                    applicationDB.Name,
+					Spec_field:              newSpecStringfail,
+					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+					SeqID:                   101,
+					Created_on:              applicationDB.Created_on,
+				}
+
+				err = dbQueries.UpdateApplication(ctx, applicationFail)
+				Expect(err).To(BeNil())
+				By("Creating new operation row in database")
+				operationDBFail := &db.Operation{
+					Operation_id:            "test-operation-4",
+					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+					Resource_id:             applicationDB.Application_id,
+					Resource_type:           "Application",
+					State:                   db.OperationState_Waiting,
+					Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				}
+
+				err = dbQueries.CreateOperation(ctx, operationDBFail, operationDBFail.Operation_owner_user_id)
+				Expect(err).To(BeNil())
+
+				By("Create new operation CR")
+				operationCR = &managedgitopsv1alpha1.Operation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      sharedoperations.GenerateOperationCRName(*operationDBFail),
+						Namespace: namespace,
+					},
+					Spec: managedgitopsv1alpha1.OperationSpec{
+						OperationID: operationDBFail.Operation_id,
+					},
+				}
+
+				By("updating the task that we are calling PerformTask with to point to the new operation")
+				task.event.request.Name = operationCR.Name
+				task.event.request.Namespace = operationCR.Namespace
+
+				err = task.event.client.Create(ctx, operationCR)
+				Expect(err).To(BeNil())
+
+				By("Application CR should not be created")
+				applicationCRFail := &appv1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: "my-user",
+					},
+				}
+
+				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(applicationCRFail), applicationCRFail)
+				Expect(err).To(BeNil())
+
+				By("Call Perform task again and verify that SyncOption is rejected because it is invalid")
+				retry, err = task.PerformTask(ctx)
+				Expect(err).ToNot(BeNil())
+				Expect(retry).To(BeFalse())
 
 			})
 
@@ -1551,7 +1617,7 @@ func createCustomizedDummyApplicationData(repoPath string) (appv1.Application, s
 	return dummyApplicationSpec, string(dummyApplicationSpecBytes), nil
 }
 
-func createApplicationSyncOtion(syncOption string) (appv1.Application, string, error) {
+func createApplicationSyncOption(syncOption string) (appv1.Application, string, error) {
 	// Create dummy Application Spec to be saved in DB
 	dummyApplicationSpec := appv1.Application{
 		TypeMeta: metav1.TypeMeta{

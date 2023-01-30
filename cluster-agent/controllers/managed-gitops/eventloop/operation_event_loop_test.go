@@ -669,7 +669,7 @@ var _ = Describe("Operation Controller", func() {
 
 			})
 
-			FIt("Verify that SyncOption is picked up by Perform Task to be in sync for CreateNamespace=true", func() {
+			It("Verify that SyncOption is picked up by Perform Task to be in sync for CreateNamespace=true", func() {
 				By("Close database connection")
 				defer dbQueries.CloseDatabase()
 				defer testTeardown()

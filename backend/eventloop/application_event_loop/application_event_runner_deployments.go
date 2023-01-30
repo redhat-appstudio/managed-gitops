@@ -276,11 +276,11 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	}
 
 	if gitopsDeployment.Spec.SyncPolicy != nil && len(gitopsDeployment.Spec.SyncPolicy.SyncOptions) != 0 {
-		// syncOption = gitopsDeployment.Spec.SyncPolicy.SyncOptions
-		syncOptionBool, err := checkValidSyncOption(gitopsDeployment)
-		if syncOptionBool {
+		isSyncOption, err := CheckValidSyncOption(gitopsDeployment.Spec.SyncPolicy.SyncOptions)
+		if isSyncOption {
 			specFieldInput.syncOptions = gitopsDeployment.Spec.SyncPolicy.SyncOptions
 		} else {
+			gitopsDeployment.Status.Sync.Status = managedgitopsv1alpha1.SyncStatusCode(managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred)
 			return nil, nil, deploymentModifiedResult_Failed, err
 		}
 
@@ -552,11 +552,11 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 	}
 
 	if gitopsDeployment.Spec.SyncPolicy != nil && len(gitopsDeployment.Spec.SyncPolicy.SyncOptions) != 0 {
-		// syncOption = gitopsDeployment.Spec.SyncPolicy.SyncOptions
-		syncOptionBool, err := checkValidSyncOption(gitopsDeployment)
-		if syncOptionBool {
+		isSyncOption, err := CheckValidSyncOption(gitopsDeployment.Spec.SyncPolicy.SyncOptions)
+		if isSyncOption {
 			specFieldInput.syncOptions = gitopsDeployment.Spec.SyncPolicy.SyncOptions
 		} else {
+			gitopsDeployment.Status.Sync.Status = managedgitopsv1alpha1.SyncStatusCode(managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred)
 			return nil, nil, deploymentModifiedResult_Failed, err
 		}
 
@@ -969,15 +969,17 @@ func (g *gitOpsDeploymentAdapter) setGitOpsDeploymentCondition(conditionType man
 	return nil
 }
 
-func checkValidSyncOption(gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment) (bool, gitopserrors.UserError) {
+func CheckValidSyncOption(syncOptions []string) (bool, gitopserrors.UserError) {
 	var checkSyncOption bool
-	for _, syncOptionString := range gitopsDeployment.Spec.SyncPolicy.SyncOptions {
+	for _, syncOptionString := range syncOptions {
 		// Checks for each SyncOption goes in this for loop
 
-		// 1. Check for SyncOption "CreateNamespace=true" / empty string
+		// Check for SyncOption string
 		if syncOptionString == "" {
 			checkSyncOption = true
-		} else if syncOptionString == "- CreateNamespace=true" {
+		} else if syncOptionString == "CreateNamespace=true" {
+			checkSyncOption = true
+		} else if syncOptionString == "CreateNamespace=false" {
 			checkSyncOption = true
 		} else if syncOptionString == prunePropagationPolicy {
 			checkSyncOption = true
@@ -986,7 +988,7 @@ func checkValidSyncOption(gitopsDeployment managedgitopsv1alpha1.GitOpsDeploymen
 		if !checkSyncOption {
 			userError := "the specified sync option is either mispelled or is not supported by GitOpsDeployment"
 			devError := fmt.Errorf("invalid SyncOption : %s", syncOptionString)
-			gitopsDeployment.Status.Sync.Status = managedgitopsv1alpha1.SyncStatusCode(managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred)
+
 			return checkSyncOption, gitopserrors.NewUserDevError(userError, devError)
 		}
 	}

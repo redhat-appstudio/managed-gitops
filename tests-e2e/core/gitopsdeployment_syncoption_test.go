@@ -28,7 +28,7 @@ var _ = Describe("Argo CD Application", func() {
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			gitOpsDeployment.Spec.SyncPolicy.SyncOptions = managedgitopsv1alpha1.SyncOptions{
-				"- CreateNamespace=true",
+				"CreateNamespace=true",
 			}
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
@@ -90,7 +90,7 @@ var _ = Describe("Argo CD Application", func() {
 			err = k8s.Get(&gitOpsDeployment, k8sClient)
 			Expect(err).To(Succeed())
 			gitOpsDeployment.Spec.SyncPolicy.SyncOptions = managedgitopsv1alpha1.SyncOptions{
-				"- CreateNamespace=true",
+				"CreateNamespace=true",
 			}
 
 			err = k8s.Update(&gitOpsDeployment, k8sClient)

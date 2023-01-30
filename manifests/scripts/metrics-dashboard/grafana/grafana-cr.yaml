@@ -4,6 +4,7 @@ metadata:
   name: example-grafana
   namespace: grafana
 spec:
+  baseImage: docker.io/grafana/grafana:9.1.6
   config:
     auth:
       disable_signout_menu: true
@@ -24,4 +25,3 @@ spec:
   ingress:
     enabled: true
     hostname: HOSTNAME # hostname.apps.cvogt-22.devcluster.openshift.com
-

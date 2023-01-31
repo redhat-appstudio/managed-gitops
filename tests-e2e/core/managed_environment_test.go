@@ -10,6 +10,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	argocdutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
@@ -17,6 +18,7 @@ import (
 	appFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/application"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
+	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/managedenvironment"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -162,6 +164,102 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
+
+		})
+	})
+})
+
+var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
+
+	Context("Create a new Environment and checks whether managedEnvironment has been created", func() {
+
+		It("should ensure that AllowInsecureSkipTLSVerify field of Environment API is equal to AllowInsecureSkipTLSVerify field of GitOpsDeploymentManagedEnvironment", func() {
+
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			kubeConfigContents, apiServerURL, err := extractKubeConfigValues()
+			Expect(err).To(BeNil())
+
+			By("creating second managed environment Secret")
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-managed-env-secret",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Type:       "managed-gitops.redhat.com/managed-environment",
+				StringData: map[string]string{"kubeconfig": kubeConfigContents},
+			}
+
+			err = k8s.Create(secret, k8sClient)
+			Expect(err).To(BeNil())
+
+			By("creating the 'staging' Environment")
+			environment := appstudioshared.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "staging",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Spec: appstudioshared.EnvironmentSpec{
+					Type:               appstudioshared.EnvironmentType_POC,
+					DisplayName:        "my-environment",
+					DeploymentStrategy: appstudioshared.DeploymentStrategy_AppStudioAutomated,
+					ParentEnvironment:  "",
+					Tags:               []string{},
+					Configuration: appstudioshared.EnvironmentConfiguration{
+						Env: []appstudioshared.EnvVarPair{},
+					},
+					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
+						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+							TargetNamespace:            fixture.GitOpsServiceE2ENamespace,
+							APIURL:                     apiServerURL,
+							ClusterCredentialsSecret:   secret.Name,
+							AllowInsecureSkipTLSVerify: true,
+						},
+					},
+				},
+			}
+
+			err = k8s.Create(&environment, k8sClient)
+			Expect(err).To(Succeed())
+
+			By("checks if managedEnvironment CR has been created and AllowInsecureSkipTLSVerify field is equal to AllowInsecureSkipTLSVerify field of Environment API")
+			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "managed-environment-" + environment.Name,
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+			}
+
+			Eventually(managedEnvCR, "2m", "1s").Should(
+				SatisfyAll(
+					managedenvironment.HaveAllowInsecureSkipTLSVerify(environment.Spec.UnstableConfigurationFields.AllowInsecureSkipTLSVerify),
+				),
+			)
+
+			err = k8s.Get(&environment, k8sClient)
+			Expect(err).To(BeNil())
+
+			By("update AllowInsecureSkipTLSVerify field to false")
+			environment.Spec.UnstableConfigurationFields = &appstudioshared.UnstableEnvironmentConfiguration{
+				KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+					TargetNamespace:            fixture.GitOpsServiceE2ENamespace,
+					APIURL:                     apiServerURL,
+					ClusterCredentialsSecret:   secret.Name,
+					AllowInsecureSkipTLSVerify: false,
+				},
+			}
+
+			err = k8s.Update(&environment, k8sClient)
+			Expect(err).To(BeNil())
+
+			Eventually(managedEnvCR, "2m", "1s").Should(
+				SatisfyAll(
+					managedenvironment.HaveAllowInsecureSkipTLSVerify(managedEnvCR.Spec.AllowInsecureSkipTLSVerify),
+				),
+			)
 
 		})
 	})

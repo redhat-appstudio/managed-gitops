@@ -10,6 +10,13 @@ APPLICATION_API_COMMIT ?= 3144e2878df03c3a7eb1fef4bdda3459b59e81a7
 ARGO_CD_NAMESPACE ?= gitops-service-argocd
 ARGO_CD_VERSION ?= v2.5.1
 
+# Tool to build the container image. It can be either docker or podman
+DOCKER ?= docker
+
+# Get the OS and ARCH values to be used for building the binary.
+OS ?= $(shell go env GOOS)
+ARCH ?= $(shell go env GOARCH)
+
 help: ## Display this help menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
@@ -138,10 +145,10 @@ clean: ## remove the bin and vendor folders from each component
 build: build-backend build-cluster-agent build-appstudio-controller ## Build all the components - note: you do not need to do this before running start
 
 docker-build: ## Build docker image -- note: you have to change the USERNAME var. Optionally change the BASE_IMAGE or TAG
-	docker build -t ${IMG} $(MAKEFILE_ROOT)
+	$(DOCKER) build --build-arg OS=$(OS) --build-arg ARCH=$(ARCH) -t ${IMG} $(MAKEFILE_ROOT)
 
 docker-push: ## Push docker image - note: you have to change the USERNAME var. Optionally change the BASE_IMAGE or TAG
-	docker push ${IMG}
+	$(DOCKER) push ${IMG}
 
 test: test-backend test-backend-shared test-cluster-agent test-appstudio-controller ## Run tests for all components
 

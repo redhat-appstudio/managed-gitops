@@ -49,6 +49,10 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+# Get the OS and ARCH values to be used for building the binary.
+OS ?= $(shell go env GOOS)
+ARCH ?= $(shell go env GOARCH)
+
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # This is a requirement for 'setup-envtest.sh' in the test target.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
@@ -109,7 +113,7 @@ test: fmt vet envtest ## Run tests.
 ##@ Build
 
 build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager main.go
+	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build -o bin/manager main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
 	KUBECONFIG=${WORKLOAD_KUBECONFIG} go run ./main.go --zap-log-level info --zap-time-encoding=rfc3339nano

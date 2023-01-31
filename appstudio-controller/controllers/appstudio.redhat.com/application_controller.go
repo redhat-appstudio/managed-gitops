@@ -84,16 +84,19 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	}
 
-	// gitOpsDeploymentCreation consists of code that creates a GitOpsDeployment for each AppStudio Application resource.
-	// We plan to deprecate/remove this function once the Environment API logic is fully in place.
+	/*
+	   Will remove this commented out code after some days once this behaviour is not required anymore
+	   // gitOpsDeploymentCreation consists of code that creates a GitOpsDeployment for each AppStudio Application resource.
+	   // We plan to deprecate/remove this function once the Environment API logic is fully in place.
 
-	// 'skipGitOpsDeploymentCreation' is a temporary annotation which can be added to Applications to trigger the new behaviour.
-	// - If this annotation is not specified, OR the old annotation has any other value, the deprecated behaviour will be used.
-	if asApplication.ObjectMeta.Annotations != nil && asApplication.ObjectMeta.Annotations["skipGitOpsDeploymentCreation"] == "true" {
-		return ctrl.Result{}, nil
-	}
+	   // 'skipGitOpsDeploymentCreation' is a temporary annotation which can be added to Applications to trigger the new behaviour.
+	   // - If this annotation is not specified, OR the old annotation has any other value, the deprecated behaviour will be used.
+	   // if asApplication.ObjectMeta.Annotations != nil && asApplication.ObjectMeta.Annotations["skipGitOpsDeploymentCreation"] == "true" {
+	   //  return ctrl.Result{}, nil
+	   // }
+	*/
 
-	return gitOpsDeploymentCreation(asApplication, ctx, req, r.Client, log)
+	return ctrl.Result{}, nil
 }
 
 // processDeleteGitOpsDeployment deletes the GitOpsDeployment that corresponds to req

@@ -83,7 +83,7 @@ func HaveAutomatedSyncPolicy(syncPolicy appv1alpha1.SyncPolicyAutomated) matcher
 	}, BeTrue())
 }
 
-func HaveSyncOption(syncOption appv1alpha1.SyncOptions) matcher.GomegaMatcher {
+func HaveSyncOption(syncOption string) matcher.GomegaMatcher {
 
 	return WithTransform(func(app appv1alpha1.Application) bool {
 
@@ -103,10 +103,8 @@ func HaveSyncOption(syncOption appv1alpha1.SyncOptions) matcher.GomegaMatcher {
 		}
 
 		isSyncOption := false
-		if syncOption != nil {
-			isSyncOption = app.Spec.SyncPolicy.SyncOptions.HasOption("CreateNamespace=true")
-		}
-		fmt.Println("HaveSyncOption:", isSyncOption, "/ Expected:", syncOption.HasOption("CreateNamespace=true"), "/ Actual:", app.Spec.SyncPolicy.SyncOptions.HasOption("CreateNamespace=true"))
+		isSyncOption = app.Spec.SyncPolicy.SyncOptions.HasOption(syncOption)
+		fmt.Println("HaveSyncOption:", isSyncOption, "/ Expected:", syncOption, "/ Actual:", app.Spec.SyncPolicy.SyncOptions.HasOption(syncOption))
 
 		return isSyncOption
 	}, BeTrue())

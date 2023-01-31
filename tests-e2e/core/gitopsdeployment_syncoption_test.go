@@ -17,6 +17,10 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 )
 
+const (
+	createNamespace = "CreateNamespace=true"
+)
+
 var _ = Describe("Argo CD Application", func() {
 	Context("Creating GitOpsDeployment should result in an Argo CD Application that is in sync with the syncOption - CreateNamespace=true", func() {
 		It("Argo CD Application should have syncOption - CreateNamespace=true enabled", func() {
@@ -66,7 +70,7 @@ var _ = Describe("Argo CD Application", func() {
 				},
 			}
 
-			Eventually(app, "60s", "1s").Should(appFixture.HaveSyncOption(appv1alpha1.SyncOptions{"CreateNamespace=true"}))
+			Eventually(app, "60s", "1s").Should(appFixture.HaveSyncOption(createNamespace))
 
 			By("updating GitOpsDeployment CR to not have syncOption")
 			err = k8s.Get(&gitOpsDeployment, k8sClient)
@@ -84,7 +88,7 @@ var _ = Describe("Argo CD Application", func() {
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)))
 
-			Eventually(app, "60s", "1s").ShouldNot(appFixture.HaveSyncOption(appv1alpha1.SyncOptions{"CreateNamespace=true"}))
+			Eventually(app, "60s", "1s").ShouldNot(appFixture.HaveSyncOption(createNamespace))
 
 			By("updating GitOpsDeployment CR to have syncOption")
 			err = k8s.Get(&gitOpsDeployment, k8sClient)
@@ -102,7 +106,7 @@ var _ = Describe("Argo CD Application", func() {
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)))
 
-			Eventually(app, "60s", "1s").Should(appFixture.HaveSyncOption(appv1alpha1.SyncOptions{"CreateNamespace=true"}))
+			Eventually(app, "60s", "1s").Should(appFixture.HaveSyncOption(createNamespace))
 
 		})
 

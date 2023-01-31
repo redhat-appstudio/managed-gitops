@@ -13,8 +13,7 @@ ARGO_CD_VERSION ?= v2.5.1
 # Tool to build the container image. It can be either docker or podman
 DOCKER ?= docker
 
-# Get the OS and ARCH values to be used for building the binary.
-OS ?= $(shell go env GOOS)
+# Get the ARCH value to be used for building the binary.
 ARCH ?= $(shell go env GOARCH)
 
 help: ## Display this help menu
@@ -145,7 +144,7 @@ clean: ## remove the bin and vendor folders from each component
 build: build-backend build-cluster-agent build-appstudio-controller ## Build all the components - note: you do not need to do this before running start
 
 docker-build: ## Build docker image -- note: you have to change the USERNAME var. Optionally change the BASE_IMAGE or TAG
-	$(DOCKER) build --build-arg OS=$(OS) --build-arg ARCH=$(ARCH) -t ${IMG} $(MAKEFILE_ROOT)
+	$(DOCKER) build --build-arg ARCH=$(ARCH) -t ${IMG} $(MAKEFILE_ROOT)
 
 docker-push: ## Push docker image - note: you have to change the USERNAME var. Optionally change the BASE_IMAGE or TAG
 	$(DOCKER) push ${IMG}

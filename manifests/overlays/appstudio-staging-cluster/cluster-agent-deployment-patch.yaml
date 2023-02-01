@@ -31,7 +31,7 @@ spec:
           httpGet:
             path: /healthz
             port: 8083
-          initialDelaySeconds: 15
+          initialDelaySeconds: 45
           periodSeconds: 20
         name: manager
         ports:
@@ -41,15 +41,15 @@ spec:
           httpGet:
             path: /readyz
             port: 8083
-          initialDelaySeconds: 5
+          initialDelaySeconds: 45
           periodSeconds: 10
         resources:
           limits:
             cpu: 300m
-            memory: 200Mi
+            memory: 1000Mi
           requests:
             cpu: 200m
-            memory: 50Mi
+            memory: 300Mi
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true

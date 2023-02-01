@@ -60,7 +60,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				},
 				Spec: appstudiosharedv1.EnvironmentSpec{
 					DisplayName:        "my-environment",
-					Type:               appstudiosharedv1.EnvironmentType_POC,
 					DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
 					ParentEnvironment:  "",
 					Tags:               []string{},
@@ -628,7 +627,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				},
 				Spec: appstudiosharedv1.EnvironmentSpec{
 					DisplayName:        "my-environment",
-					Type:               appstudiosharedv1.EnvironmentType_POC,
 					DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
 					ParentEnvironment:  "",
 					Tags:               []string{},

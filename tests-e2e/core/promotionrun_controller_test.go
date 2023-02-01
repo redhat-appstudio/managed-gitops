@@ -267,7 +267,6 @@ func buildEnvironmentResource(name, displayName, parentEnvironment string, envTy
 		},
 		Spec: appstudiosharedv1.EnvironmentSpec{
 			DisplayName:        displayName,
-			Type:               envType,
 			DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
 			ParentEnvironment:  parentEnvironment,
 			Tags:               []string{name},

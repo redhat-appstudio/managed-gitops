@@ -14,7 +14,6 @@ import (
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
-	appeventloop "github.com/redhat-appstudio/managed-gitops/backend/eventloop/application_event_loop"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -844,18 +843,6 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		app.Spec.Source = specFieldApp.Spec.Source
 		app.Spec.Project = specFieldApp.Spec.Project
 		app.Spec.SyncPolicy = specFieldApp.Spec.SyncPolicy
-
-		if len(specFieldApp.Spec.SyncPolicy.SyncOptions) != 0 {
-			isSyncOption, err := appeventloop.CheckValidSyncOption(specFieldApp.Spec.SyncPolicy.SyncOptions)
-			if isSyncOption {
-				app.Spec.SyncPolicy.SyncOptions = specFieldApp.Spec.SyncPolicy.SyncOptions
-			} else if !isSyncOption {
-				log.Error(err.DevError(), "The SyncOption is not supported or it is misspelled ")
-				err := fmt.Errorf(err.UserError(), specFieldApp.Spec.SyncPolicy.SyncOptions)
-				// No need to retry becasue the SyncOption is either unsupported or misspelled
-				return shouldRetryFalse, err
-			}
-		}
 
 		if err := opConfig.eventClient.Update(ctx, app); err != nil {
 			log.Error(err, "unable to update application after difference detected.")

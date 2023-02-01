@@ -867,8 +867,14 @@ func shouldSimulateFailure(apiType string, obj ...interface{}) error {
 	// return an error randomly x% of the time (using math/rand package)
 	// #nosec G404 -- not used for cryptographic purposes
 	if rand.Float64() < float64(unreliableClientFailureRateValueDouble) {
-		fmt.Println("unreliable_db_client.go - Simulated DB error:", apiType, obj)
-		return fmt.Errorf("unreliable_db_client.go - simulated DB error: %s %v", apiType, obj)
+
+		parameters := ""
+		if len(obj) > 0 {
+			parameters = fmt.Sprintln(obj...)
+		}
+
+		fmt.Println("unreliable_db_client.go - Simulated DB error:", apiType, parameters)
+		return fmt.Errorf("unreliable_db_client.go - simulated DB error: %s %s", apiType, parameters)
 	}
 
 	return nil

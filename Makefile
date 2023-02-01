@@ -187,6 +187,14 @@ fmt: ## Run 'go fmt' on all components
 	cd $(MAKEFILE_ROOT)/appstudio-controller && make fmt
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && make fmt
 
+lint: ## Run lint checks for all components
+	cd $(MAKEFILE_ROOT)/backend-shared && make lint
+	cd $(MAKEFILE_ROOT)/backend && make lint
+	cd $(MAKEFILE_ROOT)/cluster-agent && make lint
+	cd $(MAKEFILE_ROOT)/appstudio-controller && make lint
+	cd $(MAKEFILE_ROOT)/tests-e2e && make lint
+	cd $(MAKEFILE_ROOT)/utilities/db-migration && make lint
+
 generate-manifests: ## Call the 'generate' and 'manifests' targets of every project
 	cd $(MAKEFILE_ROOT)/backend-shared && make generate manifests
 	cd $(MAKEFILE_ROOT)/backend && make generate manifests

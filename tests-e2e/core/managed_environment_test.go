@@ -183,7 +183,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			kubeConfigContents, apiServerURL, err := extractKubeConfigValues()
 			Expect(err).To(BeNil())
 
-			By("creating second managed environment Secret")
+			By("creating managed environment Secret")
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-managed-env-secret",
@@ -196,7 +196,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8s.Create(secret, k8sClient)
 			Expect(err).To(BeNil())
 
-			By("creating the 'staging' Environment")
+			By("creating the new 'staging' Environment")
 			environment := appstudioshared.Environment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "staging",
@@ -242,7 +242,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8s.Get(&environment, k8sClient)
 			Expect(err).To(BeNil())
 
-			By("update AllowInsecureSkipTLSVerify field to false")
+			By("update AllowInsecureSkipTLSVerify field of Environment to false and verify whether it updates the AllowInsecureSkipTLSVerify field of GitOpsDeploymentManagedEnvironment")
 			environment.Spec.UnstableConfigurationFields = &appstudioshared.UnstableEnvironmentConfiguration{
 				KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
 					TargetNamespace:            fixture.GitOpsServiceE2ENamespace,

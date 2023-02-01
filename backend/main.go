@@ -160,6 +160,15 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "GitOpsDeploymentManagedEnvironment")
 		os.Exit(1)
 	}
+	if err = (&managedgitopscontrollers.SecretReconciler{
+		Client:                       mgr.GetClient(),
+		Scheme:                       mgr.GetScheme(),
+		PreprocessEventLoopProcessor: managedgitopscontrollers.NewDefaultPreProcessEventLoopProcessor(preprocessEventLoop),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "GitOpsDeploymentManagedEnvironment")
+		os.Exit(1)
+	}
+
 	//+kubebuilder:scaffold:builder
 
 	startDBReconciler(mgr)

@@ -82,9 +82,6 @@ func buildGitOpsDeploymentResource(name, repoURL, path, deploymentSpecType strin
 			},
 			Destination: managedgitopsv1alpha1.ApplicationDestination{},
 			Type:        deploymentSpecType,
-			SyncPolicy: &managedgitopsv1alpha1.SyncPolicy{
-				SyncOptions: managedgitopsv1alpha1.SyncOptions{},
-			},
 		},
 	}
 

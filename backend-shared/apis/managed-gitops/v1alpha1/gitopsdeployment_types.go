@@ -62,17 +62,40 @@ type ApplicationDestination struct {
 	Namespace string `json:"namespace,omitempty"`
 }
 
+type SyncOption string
+
+// Supported values for SyncOptions
+const (
+	SyncOptions_CreateNamespace_true  SyncOption = "CreateNamespace=true"
+	SyncOptions_CreateNamespace_false SyncOption = "CreateNamespace=false"
+)
+
 type SyncPolicy struct {
 	// Options allow you to specify whole app sync-options.
 	// This option may be empty, if and when it is empty it is considered that there are no SyncOptions present.
 	SyncOptions SyncOptions `json:"syncOptions,omitempty"`
 }
-type SyncOptions []string
+type SyncOptions []SyncOption
 
 const (
 	GitOpsDeploymentSpecType_Automated = "automated"
 	GitOpsDeploymentSpecType_Manual    = "manual"
 )
+
+func SyncOptionToStringSlice(syncOptions SyncOptions) []string {
+	if syncOptions == nil {
+		return nil
+	}
+	var res []string
+	if len(syncOptions) > 0 {
+		res = []string{}
+		for _, syncOption := range syncOptions {
+			res = append(res, string(syncOption))
+		}
+	}
+
+	return res
+}
 
 // ResourceStatus holds the current sync and health status of a resource
 type ResourceStatus struct {

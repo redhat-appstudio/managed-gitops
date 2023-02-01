@@ -8,7 +8,6 @@ import (
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
-	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
@@ -23,8 +22,8 @@ import (
 )
 
 var _ = Describe("Application Event Runner Deployments", func() {
-	Context("createSpecField() should generate a valid argocd Application", func() {
-		getfakeArgoCDSpecInput := func(automated, unsanitized bool) argoCDSpecInput {
+	Context("createSpecField should generate a valid argocd Application", func() {
+		getFakeArgoCDSpecInput := func(automated, unsanitized bool) argoCDSpecInput {
 			input := argoCDSpecInput{
 				crName:               "sample-depl",
 				crNamespace:          "kcp-workspace",
@@ -43,7 +42,7 @@ var _ = Describe("Application Event Runner Deployments", func() {
 		}
 
 		getValidApplication := func(automated bool) string {
-			input := getfakeArgoCDSpecInput(automated, false)
+			input := getFakeArgoCDSpecInput(automated, false)
 			application := fauxargocd.FauxApplication{
 				FauxTypeMeta: fauxargocd.FauxTypeMeta{
 					Kind:       "Application",
@@ -88,21 +87,21 @@ var _ = Describe("Application Event Runner Deployments", func() {
 		}
 
 		It("Input spec is converted to an argocd Application", func() {
-			input := getfakeArgoCDSpecInput(false, false)
+			input := getFakeArgoCDSpecInput(false, false)
 			application, err := createSpecField(input)
 			Expect(err).To(BeNil())
 			Expect(application).To(Equal(getValidApplication(false)))
 		})
 
 		It("Sanitize illegal characters from input", func() {
-			input := getfakeArgoCDSpecInput(false, true)
+			input := getFakeArgoCDSpecInput(false, true)
 			application, err := createSpecField(input)
 			Expect(err).To(BeNil())
 			Expect(application).To(Equal(getValidApplication(false)))
 		})
 
 		It("Input spec with automated enabled should set automated sync policy", func() {
-			input := getfakeArgoCDSpecInput(true, false)
+			input := getFakeArgoCDSpecInput(true, false)
 			application, err := createSpecField(input)
 			Expect(err).To(BeNil())
 			Expect(application).To(Equal(getValidApplication(true)))
@@ -119,16 +118,13 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 		var workspace *corev1.Namespace
 		var argocdNamespace *corev1.Namespace
 		var dbQueries db.AllDatabaseQueries
-		var k8sClientOuter client.WithWatch
-		var k8sClient *sharedutil.ProxyClient
+		var k8sClient client.WithWatch
 		var kubesystemNamespace *corev1.Namespace
-		var informer sharedutil.ListEventReceiver
 		var gitopsDepl *managedgitopsv1alpha1.GitOpsDeployment
 		var appEventLoopRunnerAction applicationEventLoopRunner_Action
 
 		BeforeEach(func() {
 			ctx = context.Background()
-			informer = sharedutil.ListEventReceiver{}
 
 			scheme,
 				argocdNamespace,
@@ -155,21 +151,16 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 					},
 					SyncPolicy: &managedgitopsv1alpha1.SyncPolicy{
 						SyncOptions: managedgitopsv1alpha1.SyncOptions{
-							"CreateNamespace=true",
+							managedgitopsv1alpha1.SyncOptions_CreateNamespace_true,
 						},
 					},
 				},
 			}
 
-			k8sClientOuter = fake.NewClientBuilder().
+			k8sClient = fake.NewClientBuilder().
 				WithScheme(scheme).
 				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).
 				Build()
-
-			k8sClient = &sharedutil.ProxyClient{
-				InnerClient: k8sClientOuter,
-				Informer:    &informer,
-			}
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(false, false)
 			Expect(err).To(BeNil())
@@ -215,42 +206,19 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 
 			Expect(err).To(BeNil())
 
-			Expect(strings.Contains(applicationFirst.Spec_field, "CreateNamespace=true")).To(Equal(true))
+			Expect(strings.Contains(applicationFirst.Spec_field, string(managedgitopsv1alpha1.SyncOptions_CreateNamespace_true))).To(Equal(true))
 			//############################################################################
 
 			By("Update existing deployment so that the SyncOption is set to nil/empty")
-			var emptySyncOption []string
+			var emptySyncOption []managedgitopsv1alpha1.SyncOption
 			gitopsDepl.Spec.SyncPolicy.SyncOptions = emptySyncOption
 
-			// Create new client and application runner, but pass existing gitOpsDeployment object.
-			k8sClientOuter = fake.NewClientBuilder().
-				WithScheme(scheme).
-				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).
-				Build()
-			k8sClient = &sharedutil.ProxyClient{
-				InnerClient: k8sClientOuter,
-				Informer:    &informer,
-			}
-
-			appEventLoopRunnerActionSecond := applicationEventLoopRunner_Action{
-				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
-					return k8sClient, nil
-				},
-				eventResourceName:           gitopsDepl.Name,
-				eventResourceNamespace:      gitopsDepl.Namespace,
-				workspaceClient:             k8sClient,
-				log:                         log.FromContext(context.Background()),
-				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
-				workspaceID:                 workspaceID,
-				testOnlySkipCreateOperation: true,
-				k8sClientFactory: MockSRLK8sClientFactory{
-					fakeClient: k8sClient,
-				},
-			}
+			err = k8sClient.Update(ctx, gitopsDepl)
+			Expect(err).To(BeNil())
 
 			By("This should update the existing application.")
 
-			_, _, _, message, userDevErr = appEventLoopRunnerActionSecond.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			_, _, _, message, userDevErr = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
 			Expect(message).To(Equal(deploymentModifiedResult_Updated))
 
@@ -269,56 +237,21 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			Expect(err).To(BeNil())
 			Expect(applicationFirst.SeqID).To(Equal(applicationSecond.SeqID))
 			Expect(applicationFirst.Spec_field).NotTo(Equal(applicationSecond.Spec_field))
-			Expect(strings.Contains(applicationSecond.Spec_field, "CreateNamespace=true")).To(Equal(false))
-
-			clusterUser := db.ClusterUser{User_name: string(workspace.UID)}
-			err = dbQueries.GetClusterUserByUsername(context.Background(), &clusterUser)
-			Expect(err).To(BeNil())
-
-			gitopsEngineInstance := db.GitopsEngineInstance{Gitopsengineinstance_id: applicationSecond.Engine_instance_inst_id}
-			err = dbQueries.GetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance)
-			Expect(err).To(BeNil())
-
-			managedEnvironment := db.ManagedEnvironment{Managedenvironment_id: applicationSecond.Managed_environment_id}
-			err = dbQueries.GetManagedEnvironmentById(ctx, &managedEnvironment)
-			Expect(err).To(BeNil())
+			Expect(strings.Contains(applicationSecond.Spec_field, string(managedgitopsv1alpha1.SyncOptions_CreateNamespace_true))).To(Equal(false))
 
 			//############################################################################
 			By("Update existing deployment to a SyncOption that is not empty and is set to CreateNamespace=true")
 
 			gitopsDepl.Spec.SyncPolicy.SyncOptions = managedgitopsv1alpha1.SyncOptions{
-				"CreateNamespace=true",
+				managedgitopsv1alpha1.SyncOptions_CreateNamespace_true,
 			}
 
-			// Create new client and application runner, but pass existing gitOpsDeployment object.
-			k8sClientOuter = fake.NewClientBuilder().
-				WithScheme(scheme).
-				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).
-				Build()
-			k8sClient = &sharedutil.ProxyClient{
-				InnerClient: k8sClientOuter,
-				Informer:    &informer,
-			}
-
-			appEventLoopRunnerActionThird := applicationEventLoopRunner_Action{
-				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
-					return k8sClient, nil
-				},
-				eventResourceName:           gitopsDepl.Name,
-				eventResourceNamespace:      gitopsDepl.Namespace,
-				workspaceClient:             k8sClient,
-				log:                         log.FromContext(context.Background()),
-				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
-				workspaceID:                 workspaceID,
-				testOnlySkipCreateOperation: true,
-				k8sClientFactory: MockSRLK8sClientFactory{
-					fakeClient: k8sClient,
-				},
-			}
+			err = k8sClient.Update(ctx, gitopsDepl)
+			Expect(err).To(BeNil())
 
 			By("This should update the existing application.")
 
-			_, _, _, message, userDevErr = appEventLoopRunnerActionThird.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			_, _, _, message, userDevErr = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
 			Expect(message).To(Equal(deploymentModifiedResult_Updated))
 
@@ -337,19 +270,7 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			Expect(err).To(BeNil())
 			Expect(applicationThird.SeqID).To(Equal(applicationSecond.SeqID))
 			Expect(applicationThird.Spec_field).NotTo(Equal(applicationSecond.Spec_field))
-			Expect(strings.Contains(applicationThird.Spec_field, "CreateNamespace=true")).To(Equal(true))
-
-			clusterUser = db.ClusterUser{User_name: string(workspace.UID)}
-			err = dbQueries.GetClusterUserByUsername(context.Background(), &clusterUser)
-			Expect(err).To(BeNil())
-
-			gitopsEngineInstance = db.GitopsEngineInstance{Gitopsengineinstance_id: applicationThird.Engine_instance_inst_id}
-			err = dbQueries.GetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance)
-			Expect(err).To(BeNil())
-
-			managedEnvironment = db.ManagedEnvironment{Managedenvironment_id: applicationThird.Managed_environment_id}
-			err = dbQueries.GetManagedEnvironmentById(ctx, &managedEnvironment)
-			Expect(err).To(BeNil())
+			Expect(strings.Contains(applicationThird.Spec_field, string(managedgitopsv1alpha1.SyncOptions_CreateNamespace_true))).To(Equal(true))
 
 			//############################################################################
 			By("Update existing deployment to a SyncOption that is not empty and is set to a false syncOption CreateNamespace=foo ")
@@ -357,36 +278,12 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			gitopsDepl.Spec.SyncPolicy.SyncOptions = managedgitopsv1alpha1.SyncOptions{
 				"CreateNamespace=foo",
 			}
-
-			// Create new client and application runner, but pass existing gitOpsDeployment object.
-			k8sClientOuter = fake.NewClientBuilder().
-				WithScheme(scheme).
-				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).
-				Build()
-			k8sClient = &sharedutil.ProxyClient{
-				InnerClient: k8sClientOuter,
-				Informer:    &informer,
-			}
-
-			appEventLoopRunnerActionFail := applicationEventLoopRunner_Action{
-				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
-					return k8sClient, nil
-				},
-				eventResourceName:           gitopsDepl.Name,
-				eventResourceNamespace:      gitopsDepl.Namespace,
-				workspaceClient:             k8sClient,
-				log:                         log.FromContext(context.Background()),
-				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
-				workspaceID:                 workspaceID,
-				testOnlySkipCreateOperation: true,
-				k8sClientFactory: MockSRLK8sClientFactory{
-					fakeClient: k8sClient,
-				},
-			}
+			err = k8sClient.Update(ctx, gitopsDepl)
+			Expect(err).To(BeNil())
 
 			By("This should update the existing application.")
 
-			_, _, _, message, userDevErr = appEventLoopRunnerActionFail.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			_, _, _, message, userDevErr = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(userDevErr).ToNot(BeNil())
 			Expect(message).To(Equal(deploymentModifiedResult_Failed))
 

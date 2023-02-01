@@ -282,13 +282,13 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	}
 
 	if gitopsDeployment.Spec.SyncPolicy != nil && len(gitopsDeployment.Spec.SyncPolicy.SyncOptions) != 0 {
-		isSyncOption, err := CheckValidSyncOption(gitopsDeployment.Spec.SyncPolicy.SyncOptions)
-		if isSyncOption {
-			specFieldInput.syncOptions = gitopsDeployment.Spec.SyncPolicy.SyncOptions
-		} else {
-			gitopsDeployment.Status.Sync.Status = managedgitopsv1alpha1.SyncStatusCode(managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred)
-			return nil, nil, deploymentModifiedResult_Failed, err
+		userErr := checkValidSyncOption(gitopsDeployment.Spec.SyncPolicy.SyncOptions)
+
+		if userErr != nil {
+			return nil, nil, deploymentModifiedResult_Failed, userErr
 		}
+
+		specFieldInput.syncOptions = managedgitopsv1alpha1.SyncOptionToStringSlice(gitopsDeployment.Spec.SyncPolicy.SyncOptions)
 
 	}
 
@@ -558,14 +558,11 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 	}
 
 	if gitopsDeployment.Spec.SyncPolicy != nil && len(gitopsDeployment.Spec.SyncPolicy.SyncOptions) != 0 {
-		isSyncOption, err := CheckValidSyncOption(gitopsDeployment.Spec.SyncPolicy.SyncOptions)
-		if isSyncOption {
-			specFieldInput.syncOptions = gitopsDeployment.Spec.SyncPolicy.SyncOptions
-		} else {
-			gitopsDeployment.Status.Sync.Status = managedgitopsv1alpha1.SyncStatusCode(managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred)
+		if err := checkValidSyncOption(gitopsDeployment.Spec.SyncPolicy.SyncOptions); err != nil {
 			return nil, nil, deploymentModifiedResult_Failed, err
 		}
 
+		specFieldInput.syncOptions = managedgitopsv1alpha1.SyncOptionToStringSlice(gitopsDeployment.Spec.SyncPolicy.SyncOptions)
 	}
 	shouldUpdateApplication := false
 
@@ -975,30 +972,27 @@ func (g *gitOpsDeploymentAdapter) setGitOpsDeploymentCondition(conditionType man
 	return nil
 }
 
-func CheckValidSyncOption(syncOptions []string) (bool, gitopserrors.UserError) {
-	var checkSyncOption bool
+func checkValidSyncOption(syncOptions []managedgitopsv1alpha1.SyncOption) gitopserrors.UserError {
+
 	for _, syncOptionString := range syncOptions {
-		// Checks for each SyncOption goes in this for loop
+
+		match := true
 
 		// Check for SyncOption string
-		if syncOptionString == "" {
-			checkSyncOption = true
-		} else if syncOptionString == "CreateNamespace=true" {
-			checkSyncOption = true
-		} else if syncOptionString == "CreateNamespace=false" {
-			checkSyncOption = true
-		} else if syncOptionString == prunePropagationPolicy {
-			checkSyncOption = true
+		if !(syncOptionString == managedgitopsv1alpha1.SyncOptions_CreateNamespace_true ||
+			syncOptionString == managedgitopsv1alpha1.SyncOptions_CreateNamespace_false) {
+			match = false
 		}
-		// Finally after iteration through all SyncOptions if it doesn't match with any of the above specified SyncOption, an error is returned
-		if !checkSyncOption {
-			userError := "the specified sync option is either mispelled or is not supported by GitOpsDeployment"
+
+		// If at least one of the options don't match, return a user  error
+		if !match {
+			userError := "the specified sync option in .spec.syncPolicy.syncOptions is either mispelled or is not supported by GitOpsDeployment"
 			devError := fmt.Errorf("invalid SyncOption : %s", syncOptionString)
 
-			return checkSyncOption, gitopserrors.NewUserDevError(userError, devError)
+			return gitopserrors.NewUserDevError(userError, devError)
 		}
 	}
-	return checkSyncOption, nil
+	return nil
 }
 
 type argoCDSpecInput struct {
@@ -1030,20 +1024,16 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 		input = strings.ReplaceAll(input, "&", "")
 		input = strings.ReplaceAll(input, ";", "")
 		input = strings.ReplaceAll(input, "%", "")
-		input = strings.ReplaceAll(input, "- ", "")
 
 		return input
 	}
 
 	sanitizeArray := func(input []string) []string {
-		var inputGet []string
+		res := []string{}
 		for _, syncOptionVar := range input {
-			var inputRet []string
-			inputVar := sanitize(syncOptionVar)
-			inputRet = append(inputRet, inputVar)
-			inputGet = inputRet
+			res = append(res, sanitize(syncOptionVar))
 		}
-		return inputGet
+		return res
 	}
 
 	fields := argoCDSpecInput{
@@ -1086,7 +1076,7 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 		},
 	}
 
-	if fields.automated && len(fields.syncOptions) == 0 {
+	if fields.automated {
 		application.Spec.SyncPolicy = &fauxargocd.SyncPolicy{
 			Automated: &fauxargocd.SyncPolicyAutomated{
 				Prune:      true,
@@ -1097,33 +1087,26 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 				prunePropagationPolicy,
 			},
 		}
+
+	} else {
+		// !fields.automated
+		application.Spec.SyncPolicy = nil
 	}
 
-	if !fields.automated && len(fields.syncOptions) != 0 {
-		application.Spec.SyncPolicy = &fauxargocd.SyncPolicy{
-			SyncOptions: fauxargocd.SyncOptions{},
+	if len(fields.syncOptions) > 0 {
+
+		if application.Spec.SyncPolicy == nil {
+			application.Spec.SyncPolicy = &fauxargocd.SyncPolicy{}
 		}
+
+		if application.Spec.SyncPolicy.SyncOptions == nil {
+			application.Spec.SyncPolicy.SyncOptions = fauxargocd.SyncOptions{}
+		}
+
 		for _, syncOptionString := range fields.syncOptions {
 			application.Spec.SyncPolicy.SyncOptions = append(application.Spec.SyncPolicy.SyncOptions,
 				syncOptionString)
 		}
-	}
-	if fields.automated && len(fields.syncOptions) != 0 {
-		application.Spec.SyncPolicy = &fauxargocd.SyncPolicy{
-			Automated: &fauxargocd.SyncPolicyAutomated{
-				Prune:      true,
-				SelfHeal:   true,
-				AllowEmpty: true,
-			},
-			SyncOptions: fauxargocd.SyncOptions{
-				prunePropagationPolicy,
-			},
-		}
-		for _, syncOptionString := range fields.syncOptions {
-			application.Spec.SyncPolicy.SyncOptions = append(application.Spec.SyncPolicy.SyncOptions,
-				syncOptionString)
-		}
-
 	}
 
 	resBytes, err := goyaml.Marshal(application)

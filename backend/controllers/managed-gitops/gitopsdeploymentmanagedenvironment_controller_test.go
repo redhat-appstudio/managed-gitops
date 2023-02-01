@@ -21,8 +21,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,40 +37,6 @@ var _ = Describe("GitOpsDeploymentManagedEnvironment Controller Test", func() {
 
 		var k8sClient client.Client
 		var namespace *corev1.Namespace
-
-		createSecret := func(name string, validSecret bool) corev1.Secret {
-			secret := corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "my-name",
-					Namespace: namespace.Name,
-				},
-				Type: sharedutil.ManagedEnvironmentSecretType,
-			}
-
-			if !validSecret {
-				secret.Type = ""
-			}
-
-			err := k8sClient.Create(context.Background(), &secret)
-			Expect(err).To(BeNil())
-			return secret
-		}
-
-		createManagedEnvTargetingSecret := func(name string, secret corev1.Secret) managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment {
-			managedEnv := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      name,
-					Namespace: namespace.Name,
-				},
-				Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
-					ClusterCredentialsSecret: secret.Name,
-				},
-			}
-			err := k8sClient.Create(context.Background(), &managedEnv)
-			Expect(err).To(BeNil())
-			return managedEnv
-
-		}
 
 		var reconciler GitOpsDeploymentManagedEnvironmentReconciler
 		var mockProcessor mockPreprocessEventLoopProcessor
@@ -103,72 +67,11 @@ var _ = Describe("GitOpsDeploymentManagedEnvironment Controller Test", func() {
 
 		})
 
-		It("reconciles on a non-managed-env secret", func() {
-			// secret with the wrong type
-			// expect: 0
-			secret := createSecret("my-secret", false)
-			_, err := reconciler.Reconcile(context.Background(), ctrl.Request{
-				NamespacedName: types.NamespacedName{
-					Namespace: secret.Namespace,
-					Name:      secret.Name,
-				},
-			})
-			Expect(err).To(BeNil())
-			Expect(len(mockProcessor.requestsReceived)).Should(Equal(0))
-
-		})
-
-		It("reconciles on a managed-env secret, but with 0 managed env CRs referring to the secret", func() {
-			// secret with the right type, but no managed envs referred to it
-			secret := createSecret("my-secret", true)
-			_, err := reconciler.Reconcile(context.Background(), ctrl.Request{
-				NamespacedName: types.NamespacedName{
-					Namespace: secret.Namespace,
-					Name:      secret.Name,
-				},
-			})
-			Expect(err).To(BeNil())
-			Expect(len(mockProcessor.requestsReceived)).Should(Equal(0))
-		})
-
-		It("reconciles on a managed-env secret, but with 1 managed env CRs referring to the secret", func() {
-			// secret with the right type, and 1 managed env referring to it
-			// expect: 1
-			secret := createSecret("my-secret", true)
-			createManagedEnvTargetingSecret("managed-env", secret)
-			_, err := reconciler.Reconcile(context.Background(), ctrl.Request{
-				NamespacedName: types.NamespacedName{
-					Namespace: secret.Namespace,
-					Name:      secret.Name,
-				},
-			})
-			Expect(err).To(BeNil())
-			Expect(len(mockProcessor.requestsReceived)).Should(Equal(1))
-
-		})
-
-		It("reconciles on a managed-env secret, but with multiple managed env CRs referring to the secret", func() {
-			// secret with the right type, and 2 managed envs referring to it
-			// expect: 2
-			secret := createSecret("my-secret", true)
-			createManagedEnvTargetingSecret("managed-env1", secret)
-			createManagedEnvTargetingSecret("managed-env2", secret)
-			_, err := reconciler.Reconcile(context.Background(), ctrl.Request{
-				NamespacedName: types.NamespacedName{
-					Namespace: secret.Namespace,
-					Name:      secret.Name,
-				},
-			})
-			Expect(err).To(BeNil())
-			Expect(len(mockProcessor.requestsReceived)).Should(Equal(2))
-
-		})
-
 		It("reconciles on a managed-env", func() {
 			// secret with the right type, and 2 managed envs referring to it
 			// expect: 2
-			secret := createSecret("my-secret", true)
-			managedEnv := createManagedEnvTargetingSecret("managed-env1", secret)
+			secret := createSecretForManagedEnv("my-secret", true, *namespace, k8sClient)
+			managedEnv := createManagedEnvTargetingSecret("managed-env1", secret, *namespace, k8sClient)
 			_, err := reconciler.Reconcile(context.Background(), ctrl.Request{
 				NamespacedName: types.NamespacedName{
 					Namespace: managedEnv.Namespace,

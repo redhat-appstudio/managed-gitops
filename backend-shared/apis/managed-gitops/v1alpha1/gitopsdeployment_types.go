@@ -207,8 +207,10 @@ const (
 	GitOpsDeploymentUserError_PathIsRequired   = "spec.source.path is a required field and it cannot be empty"
 )
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Sync Status",type=string,JSONPath=`.status.sync.status`
+// +kubebuilder:printcolumn:name="Health Status",type=string,JSONPath=`.status.health.status`
 
 // GitOpsDeployment is the Schema for the gitopsdeployments API
 type GitOpsDeployment struct {

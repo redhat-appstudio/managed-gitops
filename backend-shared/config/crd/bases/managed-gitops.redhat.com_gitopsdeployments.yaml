@@ -16,7 +16,14 @@ spec:
     singular: gitopsdeployment
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .status.sync.status
+      name: Sync Status
+      type: string
+    - jsonPath: .status.health.status
+      name: Health Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: GitOpsDeployment is the Schema for the gitopsdeployments API

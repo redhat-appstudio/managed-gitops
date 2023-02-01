@@ -3,11 +3,9 @@ package db
 import (
 	"context"
 	"fmt"
-	"os"
 	"reflect"
 	"runtime/debug"
 	"strings"
-	"testing"
 
 	"github.com/google/uuid"
 	. "github.com/onsi/gomega"
@@ -528,13 +526,6 @@ func SetupForTestingDBGinkgo() error {
 	}
 
 	return nil
-}
-
-// This functions skips the testing in Openshift CI enviroment
-func skipOpenshiftCI(t *testing.T) {
-	if os.Getenv("OPENSHIFT_CI") != "" {
-		t.Skip("Skipping testing in OpenShift CI environment")
-	}
 }
 
 func removeAnyRepositoryCredentialsTestEntries(ctx context.Context, dbq AllDatabaseQueries) error {

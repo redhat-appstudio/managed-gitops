@@ -169,9 +169,9 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 	})
 })
 
-var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
+var _ = Describe("Environment E2E tests", func() {
 
-	Context("Create a new Environment and checks whether managedEnvironment has been created", func() {
+	Context("Create a new Environment and checks whether ManagedEnvironment has been created", func() {
 
 		It("should ensure that AllowInsecureSkipTLSVerify field of Environment API is equal to AllowInsecureSkipTLSVerify field of GitOpsDeploymentManagedEnvironment", func() {
 
@@ -257,7 +257,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			Eventually(managedEnvCR, "2m", "1s").Should(
 				SatisfyAll(
-					managedenvironment.HaveAllowInsecureSkipTLSVerify(managedEnvCR.Spec.AllowInsecureSkipTLSVerify),
+					managedenvironment.HaveAllowInsecureSkipTLSVerify(environment.Spec.UnstableConfigurationFields.AllowInsecureSkipTLSVerify),
 				),
 			)
 

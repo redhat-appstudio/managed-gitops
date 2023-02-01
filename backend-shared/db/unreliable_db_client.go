@@ -776,6 +776,14 @@ func (cdb *ChaosDBClient) CheckedListClusterCredentialsByHost(ctx context.Contex
 
 }
 
+func (cdb *ChaosDBClient) ListGitopsEngineInstancesForCluster(ctx context.Context, gitopsEngineCluster GitopsEngineCluster, gitopsEngineInstances *[]GitopsEngineInstance) error {
+	if err := shouldSimulateFailure("ListGitopsEngineInstancesForCluster", gitopsEngineCluster, gitopsEngineInstances); err != nil {
+		return err
+	}
+
+	return cdb.InnerClient.ListGitopsEngineInstancesForCluster(ctx, gitopsEngineCluster, gitopsEngineInstances)
+}
+
 func (cdb *ChaosDBClient) ListManagedEnvironmentForClusterCredentialsAndOwnerId(ctx context.Context, clusterCredentialId string, ownerId string, managedEnvironments *[]ManagedEnvironment) error {
 
 	if err := shouldSimulateFailure("ListManagedEnvironmentForClusterCredentialsAndOwnerId", clusterCredentialId, ownerId, managedEnvironments); err != nil {

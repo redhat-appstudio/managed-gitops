@@ -76,7 +76,6 @@ var _ = Describe("Environment controller tests", func() {
 					Namespace: apiNamespace.Name,
 				},
 				Spec: appstudioshared.EnvironmentSpec{
-					Type:               appstudioshared.EnvironmentType_POC,
 					DisplayName:        "my-environment",
 					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
 					ParentEnvironment:  "",
@@ -167,7 +166,6 @@ var _ = Describe("Environment controller tests", func() {
 					Namespace: apiNamespace.Name,
 				},
 				Spec: appstudioshared.EnvironmentSpec{
-					Type:               appstudioshared.EnvironmentType_POC,
 					DisplayName:        "my-environment",
 					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
 					ParentEnvironment:  "",
@@ -260,7 +258,6 @@ var _ = Describe("Environment controller tests", func() {
 					Namespace: apiNamespace.Name,
 				},
 				Spec: appstudioshared.EnvironmentSpec{
-					Type:               appstudioshared.EnvironmentType_POC,
 					DisplayName:        "my-environment",
 					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
 					ParentEnvironment:  "",
@@ -298,7 +295,6 @@ var _ = Describe("Environment controller tests", func() {
 					Namespace: apiNamespace.Name,
 				},
 				Spec: appstudioshared.EnvironmentSpec{
-					Type:               appstudioshared.EnvironmentType_POC,
 					DisplayName:        "my-environment",
 					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
 					ParentEnvironment:  "",
@@ -345,7 +341,6 @@ var _ = Describe("Environment controller tests", func() {
 					Namespace: apiNamespace.Name,
 				},
 				Spec: appstudioshared.EnvironmentSpec{
-					Type:               appstudioshared.EnvironmentType_POC,
 					DisplayName:        "my-environment",
 					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
 					ParentEnvironment:  "",

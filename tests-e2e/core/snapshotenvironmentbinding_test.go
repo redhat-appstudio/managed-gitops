@@ -38,7 +38,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
 				Spec: appstudiosharedv1.EnvironmentSpec{
-					Type:               appstudiosharedv1.EnvironmentType_POC,
 					DisplayName:        "my-environment",
 					DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
 					ParentEnvironment:  "",

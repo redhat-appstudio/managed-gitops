@@ -113,7 +113,7 @@ var _ = Describe("Test for creating opeartion with resource-type as Gitopsengine
 				}
 			}
 
-			Expect(matchFound).To(BeTrue(), "an operation pointing to a gitopsengineinstance should exist, and the gitopsengineinstance should matches the test namespce")
+			Expect(matchFound).To(BeTrue(), "an operation pointing to a gitopsengineinstance should exist, and the gitopsengineinstance should matches the test namespace")
 
 		})
 	})

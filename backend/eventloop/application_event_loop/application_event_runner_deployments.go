@@ -40,7 +40,7 @@ const (
 	deploymentModifiedResult_Updated  deploymentModifiedResult = "updatedApp"
 	deploymentModifiedResult_NoChange deploymentModifiedResult = "noChangeInApp"
 
-	prunePropagationPolicy = "PrunePropagationPolicy=background"
+	prunePropagationPolicy = "PrunePropagationPolicy=foreground"
 )
 
 // This file is responsible for processing events related to GitOpsDeployment CR.

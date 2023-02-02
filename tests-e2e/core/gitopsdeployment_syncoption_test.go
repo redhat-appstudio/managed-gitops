@@ -94,8 +94,10 @@ var _ = Describe("Argo CD Application", func() {
 			By("updating GitOpsDeployment CR to have syncOption")
 			err = k8s.Get(&gitOpsDeployment, k8sClient)
 			Expect(err).To(Succeed())
-			gitOpsDeployment.Spec.SyncPolicy.SyncOptions = managedgitopsv1alpha1.SyncOptions{
-				managedgitopsv1alpha1.SyncOptions_CreateNamespace_true,
+			gitOpsDeployment.Spec.SyncPolicy = &managedgitopsv1alpha1.SyncPolicy{
+				SyncOptions: managedgitopsv1alpha1.SyncOptions{
+					managedgitopsv1alpha1.SyncOptions_CreateNamespace_true,
+				},
 			}
 
 			err = k8s.Update(&gitOpsDeployment, k8sClient)

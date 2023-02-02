@@ -48,6 +48,9 @@ func CreateNewArgoCDInstance(ctx context.Context, namespace *corev1.Namespace, u
 
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, false, dboperation, user.Clusteruser_id,
 		gitopsEngineInstance.Namespace_name, dbQueries, k8sclient, log)
+	fmt.Println("BBBBBBBBBBBBBBB1")
+	fmt.Println(k8sOperation.Name)
+	fmt.Println(k8sOperation.Namespace)
 
 	if err != nil {
 		return fmt.Errorf("unable to create operation for gitopsEngineInstance '%s': %v", gitopsEngineInstance.Gitopsengineinstance_id, err)

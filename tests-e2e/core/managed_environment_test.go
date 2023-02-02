@@ -203,7 +203,6 @@ var _ = Describe("Environment E2E tests", func() {
 					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
 				Spec: appstudioshared.EnvironmentSpec{
-					Type:               appstudioshared.EnvironmentType_POC,
 					DisplayName:        "my-environment",
 					DeploymentStrategy: appstudioshared.DeploymentStrategy_AppStudioAutomated,
 					ParentEnvironment:  "",

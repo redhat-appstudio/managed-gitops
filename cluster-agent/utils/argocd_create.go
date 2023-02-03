@@ -220,7 +220,6 @@ func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, na
 			ResourceExclusions: string(resourceExclusions),
 		},
 	}
-	fmt.Println("CCCCCCCCCCCCCC12")
 
 	newArgoCDNamespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -240,7 +239,6 @@ func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, na
 			return fmt.Errorf("while creating Argo CD instance, an unexpected error on retrieving Namespace: %v", err)
 		}
 	}
-	fmt.Println("CCCCCCCCCCCCCC13")
 
 	// 2) Retrieve the ArgoCD operand: if it doesn't exist, create it. If it does exist, update it.
 	existingArgoCDOperand := &argocdoperator.ArgoCD{
@@ -249,14 +247,8 @@ func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, na
 			Namespace: newArgoCDNamespace.Name,
 		},
 	}
-	fmt.Println(existingArgoCDOperand.Name)
-	fmt.Println(existingArgoCDOperand.Namespace)
-	fmt.Println(expectedArgoCDOperand.Name)
-	fmt.Println(expectedArgoCDOperand.Namespace)
-	fmt.Println(newArgoCDNamespace.Name)
 
 	if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(existingArgoCDOperand), existingArgoCDOperand); err != nil {
-		fmt.Println("CCCCCCCCCCCCCC13.1")
 
 		if apierr.IsNotFound(err) {
 			// A) Operand doesn't exist, so create it
@@ -266,7 +258,6 @@ func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, na
 			}
 			sharedutil.LogAPIResourceChangeEvent(expectedArgoCDOperand.Namespace, expectedArgoCDOperand.Name, expectedArgoCDOperand,
 				sharedutil.ResourceCreated, log)
-			fmt.Println("CCCCCCCCCCCCCC13.2")
 
 		} else {
 			log.Error(err, "unexpected error on retrieving ArgoCD operand")
@@ -286,7 +277,6 @@ func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, na
 				sharedutil.ResourceModified, log)
 		}
 	}
-	fmt.Println("CCCCCCCCCCCCCC14")
 
 	// Wait for Argo CD to be installed by gitops operator.
 	err = wait.Poll(1*time.Second, 3*time.Minute, func() (bool, error) {

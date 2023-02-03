@@ -414,11 +414,11 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			// Check no GitOpsDeployment CR found with default name (longer name).
 			gitOpsDeployment := buildGitOpsDeploymentObjectMeta(gitOpsDeploymentName, binding.Namespace)
-			Consistently(gitOpsDeployment, "30s", "1s").ShouldNot(k8s.ExistByName(k8sClient), "wait 30s for the object not to exist")
+			Consistently(&gitOpsDeployment, "30s", "1s").ShouldNot(k8s.ExistByName(k8sClient), "wait 30s for the object not to exist")
 
 			// Check GitOpsDeployment is created with short name.
 			gitOpsDeployment.Name = binding.Name + "-" + binding.Spec.Components[0].Name
-			Eventually(gitOpsDeployment, "2m", "1s").Should(k8s.ExistByName(k8sClient))
+			Eventually(&gitOpsDeployment, "2m", "1s").Should(k8s.ExistByName(k8sClient))
 
 			// Check GitOpsDeployment is having repository data as given in Binding.
 			Eventually(gitOpsDeployment, "2m", "1s").Should(gitopsDeplFixture.HaveSpecSource(managedgitopsv1alpha1.ApplicationSource{

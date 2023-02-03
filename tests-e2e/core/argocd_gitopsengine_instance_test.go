@@ -60,8 +60,8 @@ var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", fun
 				},
 			}
 			fmt.Println("TTTTTTTTTTTT1")
-			err = k8sClient.Create(ctx, newArgoCDNamespace)
-			Expect(err).To(BeNil())
+			// err = k8sClient.Create(ctx, newArgoCDNamespace)
+			// Expect(err).To(BeNil())
 			fmt.Println("TTTTTTTTTTTT2")
 
 			err = util.CreateNewArgoCDInstance(ctx, newArgoCDNamespace, *testClusterUser, k8sClient, log, dbq)

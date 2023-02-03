@@ -71,6 +71,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	rClient := sharedutil.IfEnabledSimulateUnreliableClient(r.Client)
 
+	// TODO: GITOPSRVCE-373: remove this call to processDeleteGitOpsDeployment
 	if err := rClient.Get(ctx, req.NamespacedName, &asApplication); err != nil {
 
 		if apierrors.IsNotFound(err) {
@@ -84,17 +85,19 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	}
 
-	/*
-	   Will remove this commented out code after some days once this behaviour is not required anymore
-	   // gitOpsDeploymentCreation consists of code that creates a GitOpsDeployment for each AppStudio Application resource.
-	   // We plan to deprecate/remove this function once the Environment API logic is fully in place.
-
-	   // 'skipGitOpsDeploymentCreation' is a temporary annotation which can be added to Applications to trigger the new behaviour.
-	   // - If this annotation is not specified, OR the old annotation has any other value, the deprecated behaviour will be used.
-	   // if asApplication.ObjectMeta.Annotations != nil && asApplication.ObjectMeta.Annotations["skipGitOpsDeploymentCreation"] == "true" {
-	   //  return ctrl.Result{}, nil
-	   // }
-	*/
+	// TODO: GITOPSRVCE-373: remove this commented out code after some days once this behaviour is not required anymore
+	//
+	// gitOpsDeploymentCreation consists of code that creates a GitOpsDeployment for each AppStudio Application resource.
+	// We plan to deprecate/remove this function once the Environment API logic is fully in place.
+	//
+	// 'skipGitOpsDeploymentCreation' is a temporary annotation which can be added to Applications to trigger the new behaviour.
+	// - If this annotation is not specified, OR the old annotation has any other value, the deprecated behaviour will be used.
+	//
+	// if asApplication.ObjectMeta.Annotations != nil && asApplication.ObjectMeta.Annotations["skipGitOpsDeploymentCreation"] == "true" {
+	//  return ctrl.Result{}, nil
+	// }
+	// return gitOpsDeploymentCreation(asApplication, ctx, req, r.Client, log)
+	//
 
 	return ctrl.Result{}, nil
 }

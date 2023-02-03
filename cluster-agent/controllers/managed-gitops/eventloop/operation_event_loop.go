@@ -285,7 +285,6 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	eventClient := task.event.client
 
 	log := task.log.WithValues("namespace", task.event.request.Namespace, "name", task.event.request.Name)
-	fmt.Println("CCCCCCCCCCCCCC1")
 	// 1) Retrieve an up-to-date copy of the Operation CR that we want to process.
 	operationCR := &operation.Operation{
 		ObjectMeta: metav1.ObjectMeta{
@@ -307,7 +306,6 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	}
 
 	log = log.WithValues("operationID", operationCR.Spec.OperationID)
-	fmt.Println("CCCCCCCCCCCCCC2")
 
 	// 2) Retrieve the database entry that corresponds to the Operation CR.
 	dbOperation := db.Operation{
@@ -332,7 +330,6 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		log.V(sharedutil.LogLevel_Debug).Info("Skipping Operation with state of Completed/Failed")
 		return &dbOperation, shouldRetryFalse, nil
 	}
-	fmt.Println("CCCCCCCCCCCCCC3")
 
 	// If the operation is in waiting state, update it to in-progress before we start processing it.
 	if dbOperation.State == db.OperationState_Waiting {
@@ -345,7 +342,6 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		log.V(sharedutil.LogLevel_Debug).Info("Updated OperationState to InProgress")
 
 	}
-	fmt.Println("CCCCCCCCCCCCCC4")
 
 	// 3) Find the Argo CD instance that is targeted by this operation.
 	dbGitopsEngineInstance := &db.GitopsEngineInstance{
@@ -365,7 +361,6 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 			return &dbOperation, shouldRetryTrue, err
 		}
 	}
-	fmt.Println("CCCCCCCCCCCCCC5")
 
 	// Sanity test: find the gitops engine cluster, by kube-system, and ensure that the
 	// gitopsengineinstance matches the gitops engine cluster we are running on.
@@ -406,7 +401,6 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		log.Error(nil, "SEVERE: Engine instance did not match Argo CD namespace uid, while processing operation")
 		return &dbOperation, shouldRetryFalse, nil
 	}
-	fmt.Println("CCCCCCCCCCCCCC6")
 
 	operationConfigParams := operationConfig{
 		dbQueries:         dbQueries,
@@ -418,7 +412,6 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	}
 
 	// 5) Finally, call the corresponding method for processing the particular type of Operation.
-	fmt.Println("CCCCCCCCCCCCCC7")
 
 	if dbOperation.Resource_type == db.OperationResourceType_Application {
 		shouldRetry, err := processOperation_Application(taskContext, dbOperation, *operationCR, operationConfigParams)
@@ -942,14 +935,12 @@ func processOperation_GitOpsEngineInstance(ctx context.Context, dbOperation db.O
 	if dbOperation.Resource_id == "" {
 		return shouldRetryTrue, fmt.Errorf("resource id was nil while processing operation: " + crOperation.Name)
 	}
-	fmt.Println("CCCCCCCCCCCCCC8")
 
 	dbGitopsEngineInstance := &db.GitopsEngineInstance{
 		Gitopsengineinstance_id: dbOperation.Instance_id,
 	}
 
 	log := opConfig.log.WithValues("Gitopsengineinstance_id", dbGitopsEngineInstance.Gitopsengineinstance_id)
-	fmt.Println("CCCCCCCCCCCCCC9")
 
 	err := opConfig.dbQueries.GetGitopsEngineInstanceById(ctx, dbGitopsEngineInstance)
 	if err != nil {
@@ -959,10 +950,7 @@ func processOperation_GitOpsEngineInstance(ctx context.Context, dbOperation db.O
 		// The ArgoCD CR name is given the name of the namespace it is being created in
 		fmt.Println(dbGitopsEngineInstance.Namespace_name)
 		err := utils.ReconcileNamespaceScopedArgoCD(ctx, dbGitopsEngineInstance.Namespace_name, dbGitopsEngineInstance.Namespace_name, opConfig.eventClient, log)
-		fmt.Println("CCCCCCCCCCCCCC10")
-
 		if err != nil {
-
 			log.Error(err, "Unable to create namespace scoped ArgoCD for GitopsEngineInstance")
 			return shouldRetryTrue, err
 		}

@@ -41,7 +41,7 @@ import (
 
 const (
 	// If the 'appstudioLabelKey' string is present in a label of the SnapshotEnvironmentBinding, that label is copied to child GitOpsDeployments of the SnapshotEnvironmentBinding
-	appstudioLabelKey = "appstudio.openshift.io"
+	appstudioLabelKey = "appstudio."
 )
 
 // SnapshotEnvironmentBindingReconciler reconciles a SnapshotEnvironmentBinding object

@@ -32,7 +32,7 @@ help: ## Display this help.
 ##@ Development
 
 .PHONY: test
-test: # Run tests.
+test: ## Run E2E tests.
 	go test -v -p=1 -timeout=60m -race -count=1 -coverprofile=coverage.out ./...
 	
 
@@ -50,22 +50,22 @@ rm -rf $$TMP_DIR ;\
 }
 endef
 
+.PHONY: lint
+lint: ## Run the linters
+	golangci-lint --version
+	GOMAXPROCS=2 golangci-lint run --fix --verbose --timeout 300s
+
 GO_SEC = $(shell pwd)/bin/gosec
 go_sec: ## Download gosec locally if necessary.
 	$(call go-get-tool,$(GO_SEC),github.com/securego/gosec/v2/cmd/gosec@latest)
 
-.PHONY: lint
-lint:
-	golangci-lint --version
-	GOMAXPROCS=2 golangci-lint run --fix --verbose --timeout 300s
-
 .PHONY: gosec
-gosec: go_sec 
+gosec: go_sec ## Run the gosec
 	# Run this command, to install gosec, if not installed:
 	# go install github.com/securego/gosec/v2/cmd/gosec@latest
 	$(GO_SEC) ./...
 
 # Remove the vendor and bin folders
 .PHONY: clean
-clean:
+clean: ## Clean the build files
 	rm -rf vendor/ bin/

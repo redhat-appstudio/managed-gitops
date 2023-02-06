@@ -1,13 +1,14 @@
 package core
 
 import (
+	"strings"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strings"
 )
 
 var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests.", func() {
@@ -151,6 +152,13 @@ func buildComponentResource(name, componentName, appName string) appstudioshared
 		Spec: appstudiosharedv1.ComponentSpec{
 			ComponentName: componentName,
 			Application:   appName,
+			Source: appstudiosharedv1.ComponentSource{
+				ComponentSourceUnion: appstudiosharedv1.ComponentSourceUnion{
+					GitSource: &appstudiosharedv1.GitSource{
+						URL: "https://github.com/redhat-appstudio/managed-gitops",
+					},
+				},
+			},
 		},
 	}
 }

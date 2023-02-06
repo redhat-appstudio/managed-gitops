@@ -10,6 +10,7 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
+	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/managedenvironment"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -25,8 +26,10 @@ var _ = Describe("AppStudio Application Tests", func() {
 			Spec: applicationv1alpha1.ApplicationSpec{
 				DisplayName: "name",
 				// AppModelRepository: applicationv1alpha1.ApplicationGitRepository{},
-				GitOpsRepository: applicationv1alpha1.ApplicationGitRepository{},
-				Description:      "desc",
+				GitOpsRepository: applicationv1alpha1.ApplicationGitRepository{
+					URL: "https://github.com/redhat-appstudio/managed-gitops",
+				},
+				Description: "desc",
 			},
 		}
 
@@ -62,9 +65,10 @@ projects:
 
 schemaVersion: 2.1.0`,
 		}
-
-		err = k8sClient.Status().Update(context.Background(), asApp)
-		Expect(err).To(Succeed())
+		if !managedenvironment.IsStonesoupEnvironment() {
+			err = k8sClient.Status().Update(context.Background(), asApp)
+			Expect(err).To(Succeed())
+		}
 
 		asComponent := &applicationv1alpha1.Component{
 			ObjectMeta: metav1.ObjectMeta{

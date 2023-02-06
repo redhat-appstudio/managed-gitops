@@ -12,8 +12,10 @@ import (
 
 	argocdoperator "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -74,6 +76,10 @@ func EnsureCleanSlateNonKCPVirtualWorkspace() error {
 	}
 
 	if err := DeleteNamespace(NewArgoCDInstanceDestNamespace, clientconfig); err != nil {
+		return err
+	}
+
+	if err := DeleteNamespace(GitOpsServiceE2ENamespace, clientconfig); err != nil {
 		return err
 	}
 
@@ -978,4 +984,27 @@ func GetE2ETestUserWorkspaceKubeClient() (client.Client, error) {
 	}
 
 	return k8sClient, nil
+}
+
+// IsStonesoupEnvironment returns true if the tests are running in a Stonesoup environment false otherwise
+func IsStonesoupEnvironment() bool {
+
+	appOfApps := appv1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "all-components-staging",
+			Namespace: "openshift-gitops",
+		},
+	}
+
+	config, err := GetE2ETestUserWorkspaceKubeConfig()
+	Expect(err).To(BeNil())
+
+	k8sClient, err := GetKubeClient(config)
+	Expect(err).To(BeNil())
+
+	err = k8s.Get(&appOfApps, k8sClient)
+	if err != nil && apierr.IsNotFound(err) {
+		return false
+	}
+	return true
 }

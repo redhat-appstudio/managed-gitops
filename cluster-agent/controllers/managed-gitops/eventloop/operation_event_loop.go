@@ -197,6 +197,27 @@ func getDBOperationForEvent(ctx context.Context, newEvent operationEventLoopEven
 				return taskCompleteFalse, err
 			}
 		}
+		dbGitopsEngineInstance := db.GitopsEngineInstance{
+			Gitopsengineinstance_id: dbOperation.Instance_id,
+		}
+		if err := dbQueries.GetGitopsEngineInstanceById(ctx, &dbGitopsEngineInstance); err != nil {
+
+			if db.IsResultNotFoundError(err) {
+				return taskCompleteTrue, nil
+			} else {
+				// some other generic error
+				log.Error(err, "Unable to retrieve gitopsEngineInstance due to generic error: "+dbGitopsEngineInstance.Gitopsengineinstance_id)
+				return taskCompleteFalse, err
+			}
+		}
+		if &dbGitopsEngineInstance != nil {
+			if operationCR.Namespace != dbGitopsEngineInstance.Namespace_name {
+				err := fmt.Errorf("OperationCR namespace did not match with existing namespace of GitopsEngineInstance")
+				log.Error(err, "Invalid Operation Detected, Name :"+operationCR.Name+"Namespace :"+operationCR.Namespace)
+				return taskCompleteFalse, err
+			}
+
+		}
 
 		// Sanity test: all the fields should have non-empty values, at this step
 		if dbOperation.Instance_id == "" && dbOperation.Resource_id == "" && string(dbOperation.Resource_type) == "" {

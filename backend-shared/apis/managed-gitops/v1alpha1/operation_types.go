@@ -20,6 +20,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	OperationStandardNamespace = "gitops"
+)
+
 // OperationSpec defines the desired state of Operation
 type OperationSpec struct {
 	OperationID string `json:"operationID,omitempty"`

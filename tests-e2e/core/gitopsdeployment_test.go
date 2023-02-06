@@ -976,12 +976,13 @@ func expectAllResourcesToBeDeleted(expectedResourceStatusList []managedgitopsv1a
 
 			// The object should not exist: a NotFound error should be returned, otherwise return false.
 			if err := k8sclient.Get(context.Background(), resourceName, obj); err == nil || !apierr.IsNotFound(err) {
+				fmt.Println("Waiting for resource to be deleted:", resourceName)
 				return false
 			}
 		}
 
 		// If all the resources were found, return true
 		return true
-	}, ArgoCDReconcileWaitTime, "1s").Should(BeTrue())
+	}, ArgoCDReconcileWaitTime, "1s").Should(BeTrue(), "all resources should be deleted")
 
 }

@@ -29,6 +29,9 @@ type GitOpsDeploymentSpec struct {
 	// is the same namespace as the GitOpsDeployment CR.
 	Destination ApplicationDestination `json:"destination,omitempty"`
 
+	// SyncPolicy controls when and how a sync will be performed.
+	SyncPolicy *SyncPolicy `json:"syncPolicy,omitempty"`
+
 	// Two possible values:
 	// - Automated: whenever a new commit occurs in the GitOps repository, or the Argo CD Application is out of sync, Argo CD should be told to (re)synchronize.
 	// - Manual: Argo CD should never be told to resynchronize. Instead, synchronize operations will be triggered via GitOpsDeploymentSyncRun operations only.
@@ -59,10 +62,40 @@ type ApplicationDestination struct {
 	Namespace string `json:"namespace,omitempty"`
 }
 
+type SyncOption string
+
+// Supported values for SyncOptions
+const (
+	SyncOptions_CreateNamespace_true  SyncOption = "CreateNamespace=true"
+	SyncOptions_CreateNamespace_false SyncOption = "CreateNamespace=false"
+)
+
+type SyncPolicy struct {
+	// Options allow you to specify whole app sync-options.
+	// This option may be empty, if and when it is empty it is considered that there are no SyncOptions present.
+	SyncOptions SyncOptions `json:"syncOptions,omitempty"`
+}
+type SyncOptions []SyncOption
+
 const (
 	GitOpsDeploymentSpecType_Automated = "automated"
 	GitOpsDeploymentSpecType_Manual    = "manual"
 )
+
+func SyncOptionToStringSlice(syncOptions SyncOptions) []string {
+	if syncOptions == nil {
+		return nil
+	}
+	var res []string
+	if len(syncOptions) > 0 {
+		res = []string{}
+		for _, syncOption := range syncOptions {
+			res = append(res, string(syncOption))
+		}
+	}
+
+	return res
+}
 
 // ResourceStatus holds the current sync and health status of a resource
 type ResourceStatus struct {
@@ -207,8 +240,10 @@ const (
 	GitOpsDeploymentUserError_PathIsRequired   = "spec.source.path is a required field and it cannot be empty"
 )
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Sync Status",type=string,JSONPath=`.status.sync.status`
+// +kubebuilder:printcolumn:name="Health Status",type=string,JSONPath=`.status.health.status`
 
 // GitOpsDeployment is the Schema for the gitopsdeployments API
 type GitOpsDeployment struct {

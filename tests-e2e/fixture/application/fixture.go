@@ -83,6 +83,36 @@ func HaveAutomatedSyncPolicy(syncPolicy appv1alpha1.SyncPolicyAutomated) matcher
 	}, BeTrue())
 }
 
+func HaveSyncOption(expectedSyncOption string) matcher.GomegaMatcher {
+
+	return WithTransform(func(app appv1alpha1.Application) bool {
+
+		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
+		Expect(err).To(BeNil())
+
+		k8sClient, err := fixture.GetKubeClient(config)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&app), &app)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		isSyncOption := false
+		if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.SyncOptions != nil {
+			isSyncOption = app.Spec.SyncPolicy.SyncOptions.HasOption(expectedSyncOption)
+		}
+
+		fmt.Println("HaveSyncOption:", expectedSyncOption, "/ Expected:", expectedSyncOption, "/ Actual:", isSyncOption)
+
+		return isSyncOption
+	}, BeTrue())
+}
+
 // HaveHealthStatusCode waits for Argo CD Application to have the given health
 func HaveHealthStatusCode(status appv1alpha1.ApplicationStatus) matcher.GomegaMatcher {
 

@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"time"
 
 	"fmt"
 	"strings"
@@ -569,6 +570,37 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 		})
 
+		It("should not create a new GitOpsDeployment if the Namespace of the GitOpsDeployment is being deleted", func() {
+
+			By("simulating the start of deletion of the Namespace of the existing GitOpsDeployment")
+			workspace.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+			workspace.Finalizers = []string{"my-finalizer"}
+			err := k8sClient.Update(ctx, workspace)
+			Expect(err).To(BeNil())
+
+			appEventLoopRunnerAction = applicationEventLoopRunner_Action{
+				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
+					return k8sClient, nil
+				},
+				eventResourceName:           gitopsDepl.Name,
+				workspaceClient:             k8sClient,
+				log:                         log.FromContext(context.Background()),
+				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),
+				workspaceID:                 workspaceID,
+				eventResourceNamespace:      workspace.Name,
+				testOnlySkipCreateOperation: true,
+				k8sClientFactory: MockSRLK8sClientFactory{
+					fakeClient: k8sClient,
+				},
+			}
+
+			By("calling the function under test, to inform it about the new event")
+			_, _, _, res, userDevErr := appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+
+			Expect(userDevErr).To(BeNil())
+			Expect(res).To(Equal(deploymentModifiedResult_NoChange),
+				"since the Namespace is being deleted, the request should not be acted upon")
+		})
 	})
 
 	Context("Handle sync run modified", func() {

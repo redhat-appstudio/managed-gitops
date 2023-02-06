@@ -108,6 +108,9 @@ schemaVersion: 2.1.0`,
 
 		DescribeTable("Verify skip annotation on Application works as expected", func(annotationValue bool) {
 
+			// TODO: GITOPSRVCE-373: remove this test once this behaviour is not required anymore
+			Skip("Skipping this tests as this functionality is removed and will remove this test completely once the functionality is completely removed from the ApplicationReconciler")
+
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			asApp := createAppAndComponent(annotationValue)

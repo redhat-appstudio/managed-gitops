@@ -86,7 +86,7 @@ func operationEventLoopRouter(input chan operationEventLoopEvent) {
 
 	log.Info("controllerEventLoopRouter started")
 
-	dbQueries, err := db.NewSharedProductionPostgresDBQueries(true)
+	dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
 	if err != nil {
 		log.Error(err, "SEVERE: Controller event loop exited before startup.")
 		return
@@ -415,7 +415,6 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 	if dbOperation.Resource_type == db.OperationResourceType_Application {
 		shouldRetry, err := processOperation_Application(taskContext, dbOperation, *operationCR, operationConfigParams)
-
 		if err != nil {
 			log.Error(err, "error occurred on processing the application operation")
 		}
@@ -844,6 +843,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		app.Spec.Source = specFieldApp.Spec.Source
 		app.Spec.Project = specFieldApp.Spec.Project
 		app.Spec.SyncPolicy = specFieldApp.Spec.SyncPolicy
+
 		if err := opConfig.eventClient.Update(ctx, app); err != nil {
 			log.Error(err, "unable to update application after difference detected.")
 			// Retry if we were unable to update the Application, for example due to a conflict

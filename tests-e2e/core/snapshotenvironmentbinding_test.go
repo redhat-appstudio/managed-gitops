@@ -38,7 +38,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
 				Spec: appstudiosharedv1.EnvironmentSpec{
-					Type:               appstudiosharedv1.EnvironmentType_POC,
 					DisplayName:        "my-environment",
 					DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
 					ParentEnvironment:  "",
@@ -419,7 +418,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			gitOpsDeployment := buildGitOpsDeploymentObjectMeta(gitOpsDeploymentName, binding.Namespace)
 			Consistently(&gitOpsDeployment, "30s", "1s").ShouldNot(k8s.ExistByName(k8sClient), "wait 30s for the object not to exist")
 
-			// Check GitOpsDeployment is created with short name).
+			// Check GitOpsDeployment is created with short name.
 			gitOpsDeployment.Name = binding.Name + "-" + binding.Spec.Components[0].Name
 			Eventually(&gitOpsDeployment, "2m", "1s").Should(k8s.ExistByName(k8sClient))
 

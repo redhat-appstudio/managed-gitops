@@ -59,6 +59,12 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	rClient := sharedutil.IfEnabledSimulateUnreliableClient(r.Client)
 
+	// If the Namespace is in the process of being deleted, don't handle any additional requests.
+	if isNamespaceBeingDeleted, err := isRequestNamespaceBeingDeleted(ctx, req.Namespace,
+		rClient, log); isNamespaceBeingDeleted || err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// The goal of this function is to ensure that if an Environment exists, and that Environment
 	// has the 'kubernetesCredentials' field defined, that a corresponding
 	// GitOpsDeploymentManagedEnvironment exists (and is up-to-date).
@@ -212,8 +218,9 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 		},
 	}
 	managedEnv.Spec = managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
-		APIURL:                   env.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.APIURL,
-		ClusterCredentialsSecret: secret.Name,
+		APIURL:                     env.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.APIURL,
+		ClusterCredentialsSecret:   secret.Name,
+		AllowInsecureSkipTLSVerify: env.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify,
 	}
 
 	return &managedEnv, nil

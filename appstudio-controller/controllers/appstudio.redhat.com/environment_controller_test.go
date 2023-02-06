@@ -54,7 +54,7 @@ var _ = Describe("Environment controller tests", func() {
 
 		})
 
-		It("should create a GitOpsDeploymentManagedEnvironment, if the Environment is created", func() {
+		createEnvironmentTest := func(allowInsecureSkipTLSVerifyParam bool) {
 			var err error
 
 			secret := corev1.Secret{
@@ -76,7 +76,6 @@ var _ = Describe("Environment controller tests", func() {
 					Namespace: apiNamespace.Name,
 				},
 				Spec: appstudioshared.EnvironmentSpec{
-					Type:               appstudioshared.EnvironmentType_POC,
 					DisplayName:        "my-environment",
 					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
 					ParentEnvironment:  "",
@@ -84,9 +83,10 @@ var _ = Describe("Environment controller tests", func() {
 					Configuration:      appstudioshared.EnvironmentConfiguration{},
 					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
 						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
-							TargetNamespace:          "my-target-namespace",
-							APIURL:                   "https://my-api-url",
-							ClusterCredentialsSecret: secret.Name,
+							TargetNamespace:            "my-target-namespace",
+							APIURL:                     "https://my-api-url",
+							ClusterCredentialsSecret:   secret.Name,
+							AllowInsecureSkipTLSVerify: allowInsecureSkipTLSVerifyParam,
 						},
 					},
 				},
@@ -116,10 +116,19 @@ var _ = Describe("Environment controller tests", func() {
 				"ManagedEnvironment should match the Environment")
 			Expect(managedEnvCR.Spec.ClusterCredentialsSecret).To(Equal(env.Spec.UnstableConfigurationFields.ClusterCredentialsSecret),
 				"ManagedEnvironment should match the Environment")
+			Expect(managedEnvCR.Spec.AllowInsecureSkipTLSVerify).To(Equal(env.Spec.UnstableConfigurationFields.AllowInsecureSkipTLSVerify),
+				"ManagedEnvironment should match the Environment")
+		}
+
+		It("should create a GitOpsDeploymentManagedEnvironment, if the Environment is created where AllowInsecureSkipTLSVerify field is true", func() {
+			createEnvironmentTest(true)
 		})
 
-		It("should update a GitOpsDeploymentManagedEnvironment, if the Environment is updated", func() {
+		It("should create a GitOpsDeploymentManagedEnvironment, if the Environment is created where AllowInsecureSkipTLSVerify field is false", func() {
+			createEnvironmentTest(false)
+		})
 
+		updateEnvTest := func(allowInsecureSkipTLSVerifyParam bool) {
 			var err error
 
 			By("creating first managed environment Secret")
@@ -157,7 +166,6 @@ var _ = Describe("Environment controller tests", func() {
 					Namespace: apiNamespace.Name,
 				},
 				Spec: appstudioshared.EnvironmentSpec{
-					Type:               appstudioshared.EnvironmentType_POC,
 					DisplayName:        "my-environment",
 					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
 					ParentEnvironment:  "",
@@ -165,9 +173,10 @@ var _ = Describe("Environment controller tests", func() {
 					Configuration:      appstudioshared.EnvironmentConfiguration{},
 					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
 						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
-							TargetNamespace:          "my-target-namespace",
-							APIURL:                   "https://my-api-url",
-							ClusterCredentialsSecret: secret2.Name,
+							TargetNamespace:            "my-target-namespace",
+							APIURL:                     "https://my-api-url",
+							ClusterCredentialsSecret:   secret2.Name,
+							AllowInsecureSkipTLSVerify: allowInsecureSkipTLSVerifyParam,
 						},
 					},
 				},
@@ -179,8 +188,9 @@ var _ = Describe("Environment controller tests", func() {
 
 			previouslyReconciledManagedEnv := generateEmptyManagedEnvironment(env.Name, env.Namespace)
 			previouslyReconciledManagedEnv.Spec = managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
-				APIURL:                   "https://old-api-url",
-				ClusterCredentialsSecret: secret.Name,
+				APIURL:                     "https://old-api-url",
+				ClusterCredentialsSecret:   secret.Name,
+				AllowInsecureSkipTLSVerify: !allowInsecureSkipTLSVerifyParam,
 			}
 			err = k8sClient.Create(ctx, &previouslyReconciledManagedEnv)
 			Expect(err).To(BeNil())
@@ -204,6 +214,8 @@ var _ = Describe("Environment controller tests", func() {
 				"ManagedEnvironment should match the new Environment spec, not the old value of the managed env")
 			Expect(newManagedEnv.Spec.ClusterCredentialsSecret).To(Equal(env.Spec.UnstableConfigurationFields.ClusterCredentialsSecret),
 				"ManagedEnvironment should match the Environment, not the old value")
+			Expect(newManagedEnv.Spec.AllowInsecureSkipTLSVerify).To(Equal(env.Spec.UnstableConfigurationFields.AllowInsecureSkipTLSVerify),
+				"ManagedEnvironment should match the Environment, not the old value")
 
 			By("reconciling again, and confirming that nothing changed")
 			_, err = reconciler.Reconcile(ctx, req)
@@ -212,7 +224,16 @@ var _ = Describe("Environment controller tests", func() {
 				"ManagedEnvironment should continue to match the new Environment spec")
 			Expect(newManagedEnv.Spec.ClusterCredentialsSecret).To(Equal(env.Spec.UnstableConfigurationFields.ClusterCredentialsSecret),
 				"ManagedEnvironment should continue to match the Environment spec")
+			Expect(newManagedEnv.Spec.AllowInsecureSkipTLSVerify).To(Equal(env.Spec.UnstableConfigurationFields.AllowInsecureSkipTLSVerify),
+				"ManagedEnvironment should continue to match the new Environment spec")
+		}
 
+		It("should update a GitOpsDeploymentManagedEnvironment,  if the Environment is updated where AllowInsecureSkipTLSVerify field is true", func() {
+			updateEnvTest(true)
+		})
+
+		It("should update a GitOpsDeploymentManagedEnvironment, if the Environment is updated where AllowInsecureSkipTLSVerify field is false", func() {
+			updateEnvTest(false)
 		})
 
 		It("should not return an error, if the Environment is deleted", func() {
@@ -237,7 +258,6 @@ var _ = Describe("Environment controller tests", func() {
 					Namespace: apiNamespace.Name,
 				},
 				Spec: appstudioshared.EnvironmentSpec{
-					Type:               appstudioshared.EnvironmentType_POC,
 					DisplayName:        "my-environment",
 					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
 					ParentEnvironment:  "",
@@ -275,7 +295,6 @@ var _ = Describe("Environment controller tests", func() {
 					Namespace: apiNamespace.Name,
 				},
 				Spec: appstudioshared.EnvironmentSpec{
-					Type:               appstudioshared.EnvironmentType_POC,
 					DisplayName:        "my-environment",
 					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
 					ParentEnvironment:  "",
@@ -322,7 +341,6 @@ var _ = Describe("Environment controller tests", func() {
 					Namespace: apiNamespace.Name,
 				},
 				Spec: appstudioshared.EnvironmentSpec{
-					Type:               appstudioshared.EnvironmentType_POC,
 					DisplayName:        "my-environment",
 					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
 					ParentEnvironment:  "",

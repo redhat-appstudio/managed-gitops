@@ -34,6 +34,7 @@ import (
 
 	conditions "github.com/redhat-appstudio/managed-gitops/backend/condition"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -233,8 +234,17 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			By("Delete the GitOpsDepl and verify that the corresponding DB entries are removed.")
 			// ----------------------------------------------------------------------------
 
+			gitopsDepl.Finalizers = append(gitopsDepl.Finalizers, deletionFinalizer)
+			err = k8sClient.Update(ctx, gitopsDepl)
+			Expect(err).To(BeNil())
+
 			err = k8sClient.Delete(ctx, gitopsDepl)
 			Expect(err).To(BeNil())
+
+			// verify that the GitOpsDeployment is not deleted due to the presence of finalizer
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsDepl), gitopsDepl)
+			Expect(err).To(BeNil())
+			Expect(gitopsDepl.DeletionTimestamp).NotTo(BeNil())
 
 			_, _, _, message, userDevErr = appEventLoopRunnerActionSecond.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
@@ -257,17 +267,34 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			operationCreated := false
 			operationDeleted := false
+			gitopsDeploymentDeleted := false
+			gitopsDeploymentUpdated := false
+			var gitopsDeploymentUpdatedAt, operationDeletedAt time.Time
+
 			for _, event := range informer.Events {
 				if event.Action == sharedutil.Create && event.ObjectTypeOf() == "Operation" {
 					operationCreated = true
 				}
 				if event.Action == sharedutil.Delete && event.ObjectTypeOf() == "Operation" {
 					operationDeleted = true
+					operationDeletedAt = event.ExitTime
+				}
+				if event.Action == sharedutil.Delete && event.ObjectTypeOf() == "GitOpsDeployment" {
+					gitopsDeploymentDeleted = true
+				}
+				if event.Action == sharedutil.Update && event.ObjectTypeOf() == "GitOpsDeployment" {
+					gitopsDeploymentUpdated = true
+					gitopsDeploymentUpdatedAt = event.ExitTime
 				}
 			}
 
 			Expect(operationCreated).To(BeTrue())
 			Expect(operationDeleted).To(BeTrue())
+			Expect(gitopsDeploymentUpdated).To(BeTrue())
+			Expect(gitopsDeploymentDeleted).To(BeTrue())
+
+			By("verify whether the finalizer was removed after the successful deletion of operation")
+			Expect(gitopsDeploymentUpdatedAt.After(operationDeletedAt)).To(BeTrue())
 		})
 
 		It("Should not deploy application, as request data is not valid.", func() {
@@ -1687,6 +1714,121 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			Expect(resourcesOut).NotTo(BeNil())
 			Expect(resourcesOut).To(BeEmpty())
+		})
+	})
+
+	Context("Test removeFinalizerIfExist function", func() {
+
+		var (
+			ctx        context.Context
+			k8sClient  *sharedutil.ProxyClient
+			gitopsDepl *managedgitopsv1alpha1.GitOpsDeployment
+			informer   sharedutil.ListEventReceiver
+		)
+
+		BeforeEach(func() {
+			ctx = context.Background()
+			scheme, _, _, workspace, err := tests.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			gitopsDepl = &managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-gitops-depl",
+					Namespace: workspace.Name,
+					UID:       uuid.NewUUID(),
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/abc-org/abc-repo",
+						Path:           "/abc-path",
+						TargetRevision: "abc-commit"},
+					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated,
+					Destination: managedgitopsv1alpha1.ApplicationDestination{
+						Namespace: "abc-namespace",
+					},
+				},
+			}
+
+			innerClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(workspace, gitopsDepl).Build()
+
+			informer = sharedutil.ListEventReceiver{}
+			k8sClient = &sharedutil.ProxyClient{
+				InnerClient: innerClient,
+				Informer:    &informer,
+			}
+		})
+
+		It("should remove the finalizer when it is found", func() {
+			testFinalizer := "managed.gitops.test/test"
+			gitopsDepl.Finalizers = append(gitopsDepl.Finalizers, testFinalizer)
+			err := k8sClient.Update(ctx, gitopsDepl)
+			Expect(err).To(BeNil())
+
+			err = removeFinalizerIfExist(ctx, k8sClient, gitopsDepl, testFinalizer)
+			Expect(err).To(BeNil())
+
+			gitopsDeplUpdated := false
+			for _, event := range informer.Events {
+				if event.Action == sharedutil.Update && event.ObjectTypeOf() == "GitOpsDeployment" {
+					gitopsDeplUpdated = true
+				}
+			}
+			Expect(gitopsDeplUpdated).To(BeTrue())
+		})
+
+		It("should not update if the finalizer is not found", func() {
+			err := removeFinalizerIfExist(ctx, k8sClient, gitopsDepl, deletionFinalizer)
+			Expect(err).To(BeNil())
+
+			gitopsDeplUpdated := false
+			for _, event := range informer.Events {
+				if event.Action == sharedutil.Update && event.ObjectTypeOf() == "GitOpsDeployment" {
+					gitopsDeplUpdated = true
+				}
+			}
+			Expect(gitopsDeplUpdated).To(BeFalse())
+		})
+
+		It("should not update if the GitOpsDeployment is already deleted", func() {
+			err := k8sClient.Delete(ctx, gitopsDepl)
+			Expect(err).To(BeNil())
+
+			err = removeFinalizerIfExist(ctx, k8sClient, gitopsDepl, deletionFinalizer)
+			Expect(err).To(BeNil())
+
+			gitopsDeplUpdated := false
+			for _, event := range informer.Events {
+				if event.Action == sharedutil.Update && event.ObjectTypeOf() == "GitOpsDeployment" {
+					gitopsDeplUpdated = true
+				}
+			}
+			Expect(gitopsDeplUpdated).To(BeFalse())
+		})
+
+		It("should retry when there is a conflict", func() {
+			By("introduce a conflict by updating the object")
+			gitopsDeplClone := gitopsDepl.DeepCopy()
+			gitopsDeplClone.Finalizers = append(gitopsDeplClone.Finalizers, deletionFinalizer)
+			err := k8sClient.Update(ctx, gitopsDeplClone)
+			Expect(err).To(BeNil())
+
+			By("check if there will be a conflict on update")
+			gitopsDepl.Spec.Source.Path = "/sample"
+			err = k8sClient.Update(ctx, gitopsDepl)
+			Expect(err).ToNot(BeNil())
+			Expect(errors.IsConflict(err)).To(BeTrue())
+
+			By("verify if the conflict will be handled by retrying")
+			err = removeFinalizerIfExist(ctx, k8sClient, gitopsDepl, deletionFinalizer)
+			Expect(err).To(BeNil())
+
+			gitopsDeplUpdated := false
+			for _, event := range informer.Events {
+				if event.Action == sharedutil.Update && event.ObjectTypeOf() == "GitOpsDeployment" {
+					gitopsDeplUpdated = true
+				}
+			}
+			Expect(gitopsDeplUpdated).To(BeTrue())
 		})
 	})
 })

@@ -572,7 +572,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
-			binding.ObjectMeta.Labels = map[string]string{"appstudio.usertag": "testing"}
+			binding.ObjectMeta.Labels = map[string]string{"appstudio.openshift.io": "testing"}
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
@@ -603,7 +603,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			err = k8s.Get(&gitopsDeployment, k8sClient)
 			Expect(err).To(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeNil())
-			Expect(gitopsDeployment.ObjectMeta.Labels["appstudio.usertag"]).To(Equal("testing"))
+			Expect(gitopsDeployment.ObjectMeta.Labels["appstudio.openshift.io"]).To(Equal("testing"))
 		})
 
 		It("Should not append ASEB label without appstudio.environment label into the GitopsDeployment Label", func() {
@@ -645,7 +645,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			err = k8s.Get(&gitopsDeployment, k8sClient)
 			Expect(err).To(BeNil())
-			Expect(gitopsDeployment.ObjectMeta.Labels["appstudio.usertag"]).ToNot(Equal("testing"))
+			Expect(gitopsDeployment.ObjectMeta.Labels["appstudio.openshift.io"]).ToNot(Equal("testing"))
 		})
 
 		It("Should update gitopsDeployment label if ASEB label gets updated", func() {
@@ -658,7 +658,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
-			binding.ObjectMeta.Labels = map[string]string{"appstudio.usertag": "testing"}
+			binding.ObjectMeta.Labels = map[string]string{"appstudio.openshift.io": "testing"}
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
@@ -687,30 +687,30 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			err = k8s.Get(&gitopsDeployment, k8sClient)
 			Expect(err).To(BeNil())
-			Expect(gitopsDeployment.ObjectMeta.Labels["appstudio.usertag"]).To(Equal("testing"))
+			Expect(gitopsDeployment.ObjectMeta.Labels["appstudio.openshift.io"]).To(Equal("testing"))
 
 			err = k8s.Get(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
 			// Update binding label
-			binding.ObjectMeta.Labels["appstudio.usertag"] = "testing-update"
+			binding.ObjectMeta.Labels["appstudio.openshift.io"] = "testing-update"
 			err = k8s.Update(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Verify whether `gitopsDeployment.ObjectMeta.Labels` is updated with ASEB labels")
 			err = k8s.Get(&gitopsDeployment, k8sClient)
 			Expect(err).To(BeNil())
-			Expect(gitopsDeployment).To(gitopsDeplFixture.HaveLabel("appstudio.usertag", "testing-update"))
+			Expect(gitopsDeployment).To(gitopsDeplFixture.HaveLabel("appstudio.openshift.io", "testing-update"))
 
-			By("Remove ASEB label `appstudio.usertag` label and verify whether it is removed from gitopsDeployment label")
-			delete(binding.ObjectMeta.Labels, "appstudio.usertag")
+			By("Remove ASEB label `appstudio.openshift.io` label and verify whether it is removed from gitopsDeployment label")
+			delete(binding.ObjectMeta.Labels, "appstudio.openshift.io")
 			err = k8s.Update(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
-			By("Verify whether gitopsDeployment.ObjectMeta.Label `appstudio.usertag` is removed from gitopsDeployment")
+			By("Verify whether gitopsDeployment.ObjectMeta.Label `appstudio.openshift.io` is removed from gitopsDeployment")
 			err = k8s.Get(&gitopsDeployment, k8sClient)
 			Expect(err).To(BeNil())
-			Expect(gitopsDeployment).To(gitopsDeplFixture.NotHaveLabel("appstudio.usertag", "testing-update"))
+			Expect(gitopsDeployment).To(gitopsDeplFixture.NotHaveLabel("appstudio.openshift.io", "testing-update"))
 		})
 
 	})

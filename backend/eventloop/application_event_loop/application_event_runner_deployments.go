@@ -25,7 +25,6 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend/metrics"
 	goyaml "gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -440,7 +439,7 @@ func removeFinalizerIfExist(ctx context.Context, k8sClient client.Client, gitops
 
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsDepl), gitopsDepl)
-		if err != nil && !errors.IsNotFound(err) {
+		if err != nil && !apierr.IsNotFound(err) {
 			return err
 		}
 

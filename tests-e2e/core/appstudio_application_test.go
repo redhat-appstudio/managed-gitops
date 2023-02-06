@@ -10,7 +10,6 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
-	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/managedenvironment"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -65,7 +64,7 @@ projects:
 
 schemaVersion: 2.1.0`,
 		}
-		if !managedenvironment.IsStonesoupEnvironment() {
+		if !fixture.IsStonesoupEnvironment() {
 			err = k8sClient.Status().Update(context.Background(), asApp)
 			Expect(err).To(Succeed())
 		}

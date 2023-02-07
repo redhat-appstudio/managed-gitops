@@ -657,7 +657,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			)
 			By("delete the GitOpsDeployment resource")
 
-			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
+			err = k8sClient.Delete(ctx,&gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
 			By("verify if the finalizer has prevented the GitOpsDeployment from deletion")

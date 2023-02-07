@@ -197,27 +197,30 @@ func getDBOperationForEvent(ctx context.Context, newEvent operationEventLoopEven
 				return taskCompleteFalse, err
 			}
 		}
-		dbGitopsEngineInstance := db.GitopsEngineInstance{
-			Gitopsengineinstance_id: dbOperation.Instance_id,
-		}
-		if err := dbQueries.GetGitopsEngineInstanceById(ctx, &dbGitopsEngineInstance); err != nil {
+		//
+		// dbGitopsEngineInstance := db.GitopsEngineInstance{
+		// 	Gitopsengineinstance_id: dbOperation.Instance_id,
+		// }
+		// if err := dbQueries.GetGitopsEngineInstanceById(ctx, &dbGitopsEngineInstance); err != nil {
 
-			if db.IsResultNotFoundError(err) {
-				return taskCompleteTrue, nil
-			} else {
-				// some other generic error
-				log.Error(err, "Unable to retrieve gitopsEngineInstance due to generic error: "+dbGitopsEngineInstance.Gitopsengineinstance_id)
-				return taskCompleteFalse, err
-			}
-		}
-		if &dbGitopsEngineInstance != nil {
-			if operationCR.Namespace != dbGitopsEngineInstance.Namespace_name {
-				err := fmt.Errorf("OperationCR namespace did not match with existing namespace of GitopsEngineInstance")
-				log.Error(err, "Invalid Operation Detected, Name :"+operationCR.Name+"Namespace :"+operationCR.Namespace)
-				return taskCompleteFalse, err
-			}
+		// 	if db.IsResultNotFoundError(err) {
+		// 		return taskCompleteTrue, nil
+		// 	} else {
+		// 		// some other generic error
+		// 		log.Error(err, "Unable to retrieve gitopsEngineInstance due to generic error: "+dbGitopsEngineInstance.Gitopsengineinstance_id)
+		// 		return taskCompleteFalse, err
+		// 	}
+		// }
+		// fmt.Println(operationCR.Namespace)
+		// fmt.Println(dbGitopsEngineInstance.Namespace_name)
+		// if &dbGitopsEngineInstance != nil {
+		// 	if operationCR.Namespace != dbGitopsEngineInstance.Namespace_name {
+		// 		err := fmt.Errorf("OperationCR namespace did not match with existing namespace of GitopsEngineInstance")
+		// 		log.Error(err, "Invalid Operation Detected, Name :"+operationCR.Name+"Namespace :"+operationCR.Namespace)
+		// 		return taskCompleteFalse, err
+		// 	}
 
-		}
+		// }
 
 		// Sanity test: all the fields should have non-empty values, at this step
 		if dbOperation.Instance_id == "" && dbOperation.Resource_id == "" && string(dbOperation.Resource_type) == "" {
@@ -345,6 +348,29 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 			return nil, shouldRetryTrue, err
 		}
 	}
+	dbGitopsEngineInstance := &db.GitopsEngineInstance{
+		Gitopsengineinstance_id: dbOperation.Instance_id,
+	}
+	if err := dbQueries.GetGitopsEngineInstanceById(taskContext, dbGitopsEngineInstance); err != nil {
+
+		if db.IsResultNotFoundError(err) {
+			return nil, shouldRetryTrue, err
+		} else {
+			// some other generic error
+			log.Error(err, "Unable to retrieve gitopsEngineInstance due to generic error: "+dbGitopsEngineInstance.Gitopsengineinstance_id)
+			return nil, shouldRetryTrue, err
+		}
+	}
+	fmt.Println(operationCR.Namespace)
+	fmt.Println(dbGitopsEngineInstance.Namespace_name)
+	if &dbGitopsEngineInstance != nil {
+		if operationCR.Namespace != dbGitopsEngineInstance.Namespace_name {
+			err := fmt.Errorf("OperationCR namespace did not match with existing namespace of GitopsEngineInstance")
+			log.Error(err, "Invalid Operation Detected, Name :"+operationCR.Name+"Namespace :"+operationCR.Namespace)
+			return nil, shouldRetryTrue, err
+		}
+
+	}
 
 	// If the operation has already completed (e.g. we previously ran it), then just ignore it and return
 	if dbOperation.State == db.OperationState_Completed || dbOperation.State == db.OperationState_Failed {
@@ -365,7 +391,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	}
 
 	// 3) Find the Argo CD instance that is targeted by this operation.
-	dbGitopsEngineInstance := &db.GitopsEngineInstance{
+	dbGitopsEngineInstance = &db.GitopsEngineInstance{
 		Gitopsengineinstance_id: dbOperation.Instance_id,
 	}
 	if err := dbQueries.GetGitopsEngineInstanceById(taskContext, dbGitopsEngineInstance); err != nil {

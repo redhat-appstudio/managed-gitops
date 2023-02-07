@@ -348,9 +348,11 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	ctx = sharedutil.RemoveKCPClusterFromContext(ctx)
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
 
+	fmt.Println(operationNamespace)
+	fmt.Println(engineInstance.Namespace_name)
 	err = CheckOperationCRNamespace(&operationNamespace, engineInstance)
 	if err != nil {
-		a.log.Error(err, "Operation namespace check failed", operationNamespace)
+		a.log.Error(err, "Operation namespace check failed"+operationNamespace)
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 	}
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput,
@@ -368,7 +370,9 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 }
 func CheckOperationCRNamespace(operationNamespace *string, gitopsEngineInstance *db.GitopsEngineInstance) error {
 	if gitopsEngineInstance != nil {
-		if operationNamespace != &gitopsEngineInstance.Namespace_name {
+		if *operationNamespace != gitopsEngineInstance.Namespace_name {
+			fmt.Println(*operationNamespace)
+			fmt.Println(gitopsEngineInstance.Namespace_name)
 			return fmt.Errorf("Namespace mismatched in given OperationCR and existing GitopsEngineInstance")
 		}
 	} else if gitopsEngineInstance == nil {
@@ -691,6 +695,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 
 	ctx = sharedutil.RemoveKCPClusterFromContext(ctx)
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
+
 	err = CheckOperationCRNamespace(&operationNamespace, engineInstance)
 	if err != nil {
 		a.log.Error(err, "Operation namespace check failed", operationNamespace)

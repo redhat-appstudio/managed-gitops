@@ -37,7 +37,12 @@ func ParseWebhookInfo(request *restful.Request, response *restful.Response) {
 		return
 	}
 	webhook.Payload = payload
-	defer request.Request.Body.Close()
+	defer func() {
+		err = request.Request.Body.Close()
+		if err != nil {
+			log.Printf("error closing request body: err=%v\n", err)
+		}
+	}()
 
 	event, err := github.ParseWebHook(github.WebHookType(request.Request), webhook.Payload)
 	if err != nil {

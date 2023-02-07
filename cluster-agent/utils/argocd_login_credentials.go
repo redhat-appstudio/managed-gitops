@@ -321,9 +321,9 @@ func getArgoCDAdminPasswords(ctx context.Context, namespace string, k8sClient cl
 }
 
 // Attempt to login using the login, to verify it is correct. This is useful for verifying cached logins.
-func (cs *CredentialService) testLogin(ctx context.Context, serverAddr string, authToken string) (argocdclient.Client, error) {
+func (cs *CredentialService) testLogin(ctx context.Context, serverAddr string, authToken string) (acdClient argocdclient.Client, err error) {
 
-	acdClient, err := cs.acdClientGenerator.generateClientForServerAddress(serverAddr, authToken, false)
+	acdClient, err = cs.acdClientGenerator.generateClientForServerAddress(serverAddr, authToken, false)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create argocdclient: %v", err)
 	}
@@ -332,7 +332,12 @@ func (cs *CredentialService) testLogin(ctx context.Context, serverAddr string, a
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve acd client: %v", err)
 	}
-	defer conn.Close()
+	defer func() {
+		closeErr := conn.Close()
+		if err == nil && closeErr != nil {
+			err = closeErr
+		}
+	}()
 
 	_, err = verIf.Version(ctx, &empty.Empty{})
 	if err != nil {

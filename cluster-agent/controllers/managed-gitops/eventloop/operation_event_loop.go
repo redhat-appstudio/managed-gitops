@@ -197,7 +197,7 @@ func getDBOperationForEvent(ctx context.Context, newEvent operationEventLoopEven
 				return taskCompleteFalse, err
 			}
 		}
-		//
+
 		// dbGitopsEngineInstance := db.GitopsEngineInstance{
 		// 	Gitopsengineinstance_id: dbOperation.Instance_id,
 		// }

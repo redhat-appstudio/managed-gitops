@@ -278,7 +278,7 @@ func generateSampleData() (ClusterCredentials, ManagedEnvironment, GitopsEngineC
 
 	gitopsEngineInstance := GitopsEngineInstance{
 		Gitopsengineinstance_id: "test-fake-engine-instance-id",
-		Namespace_name:          "test-fake-namespace",
+		Namespace_name:          "argocd",
 		Namespace_uid:           "test-fake-namespace-914",
 		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 	}

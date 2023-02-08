@@ -26,9 +26,10 @@ import (
 
 var _ = Describe("Managed Environment Operation Tests", func() {
 	const (
-		operationName      = "operation"
-		operationNamespace = "argocd"
+		operationName = "operation"
 	)
+	var operationNamespace = dbutil.GetGitOpsEngineSingleInstanceNamespace()
+
 	Context("Reconciling Operation CRs pointing to Managed Environments", func() {
 
 		var ctx context.Context

@@ -258,6 +258,7 @@ func (task *processOperationEventTask) PerformTask(taskContext context.Context) 
 		return shouldRetryTrue, fmt.Errorf("unable to instantiate database in operation controller loop: %v", err)
 	}
 	defer dbQueries.CloseDatabase()
+	fmt.Println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1")
 
 	// Process the event (this is where most of the work is done)
 	dbOperation, shouldRetry, err := task.internalPerformTask(taskContext, dbQueries)
@@ -265,17 +266,20 @@ func (task *processOperationEventTask) PerformTask(taskContext context.Context) 
 	if dbOperation != nil {
 
 		// After the event is processed, update the status in the database
+		fmt.Println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA2")
 
 		// Don't update the status of operations that have previously completed.
 		if dbOperation.State == db.OperationState_Completed || dbOperation.State == db.OperationState_Failed {
 			return shouldRetryFalse, err
 		}
+		fmt.Println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3")
 
 		// If the task failed and thus should be retried...
 		if shouldRetry {
 			// Not complete, still (re)trying.
 			dbOperation.State = db.OperationState_In_Progress
 		} else {
+			fmt.Println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4")
 
 			// Complete (but complete doesn't mean successful: it could be complete due to a fatal error)
 			if err == nil {
@@ -285,11 +289,13 @@ func (task *processOperationEventTask) PerformTask(taskContext context.Context) 
 			}
 		}
 		dbOperation.Last_state_update = time.Now()
+		fmt.Println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA5")
 
 		if err != nil {
 			// TODO: GITOPSRVCE-77 - SECURITY - At some point, we will likely want to sanitize the error value for users
 			dbOperation.Human_readable_state = db.TruncateVarchar(err.Error(), db.OperationHumanReadableStateLength)
 		}
+		fmt.Println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA6")
 
 		// Update the Operation row of the database, based on the new state.
 		if err := dbQueries.UpdateOperation(taskContext, dbOperation); err != nil {
@@ -309,6 +315,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	eventClient := task.event.client
 
 	log := task.log.WithValues("namespace", task.event.request.Namespace, "name", task.event.request.Name)
+	fmt.Println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7")
 	// 1) Retrieve an up-to-date copy of the Operation CR that we want to process.
 	operationCR := &operation.Operation{
 		ObjectMeta: metav1.ObjectMeta{
@@ -316,6 +323,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 			Namespace: task.event.request.Namespace,
 		},
 	}
+	fmt.Println(operationCR.Namespace)
 	if err := eventClient.Get(taskContext, client.ObjectKeyFromObject(operationCR), operationCR); err != nil {
 		if apierr.IsNotFound(err) {
 			// If the resource doesn't exist, so our job is done.
@@ -328,6 +336,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 			return nil, shouldRetryTrue, fmt.Errorf("unable to retrieve operation CR: %v", err)
 		}
 	}
+	fmt.Println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8")
 
 	log = log.WithValues("operationID", operationCR.Spec.OperationID)
 
@@ -348,6 +357,8 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 			return nil, shouldRetryTrue, err
 		}
 	}
+	fmt.Println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9")
+
 	dbGitopsEngineInstance := &db.GitopsEngineInstance{
 		Gitopsengineinstance_id: dbOperation.Instance_id,
 	}
@@ -361,6 +372,9 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 			return nil, shouldRetryTrue, err
 		}
 	}
+	fmt.Println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA10")
+
+	fmt.Println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
 	fmt.Println(operationCR.Namespace)
 	fmt.Println(dbGitopsEngineInstance.Namespace_name)
 	if operationCR.Namespace != dbGitopsEngineInstance.Namespace_name {

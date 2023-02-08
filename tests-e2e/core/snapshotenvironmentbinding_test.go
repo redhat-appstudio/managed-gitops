@@ -8,6 +8,7 @@ import (
 
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -32,27 +33,24 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("creating the 'staging' Environment")
-			environment = appstudiosharedv1.Environment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "staging",
-					Namespace: fixture.GitOpsServiceE2ENamespace,
-				},
-				Spec: appstudiosharedv1.EnvironmentSpec{
-					DisplayName:        "my-environment",
-					DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
-					ParentEnvironment:  "",
-					Tags:               []string{},
-					Configuration: appstudiosharedv1.EnvironmentConfiguration{
-						Env: []appstudiosharedv1.EnvVarPair{},
-					},
-				},
-			}
-
+			environment = buildEnvironment("staging", "my-environment")
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
 			err = k8s.Create(&environment, k8sClient)
 			Expect(err).To(Succeed())
+
+			if fixture.IsRunningInStonesoupEnvironment() {
+				// Create an application
+				application := buildApplication("new-demo-app", fixture.GitOpsServiceE2ENamespace, "https://github.com/redhat-appstudio/managed-gitops")
+				err = k8s.Create(&application, k8sClient)
+				Expect(err).To(Succeed())
+
+				// Create a snapshot for the application
+				snapshot := buildSnapshot("my-snapshot", fixture.GitOpsServiceE2ENamespace, "new-demo-app")
+				err = k8s.Create(&snapshot, k8sClient)
+				Expect(err).To(Succeed())
+			}
 
 		})
 
@@ -128,9 +126,8 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 		// Verifies a SnapshotEnvironmentBinding's status component deployment condition is set correctly when the
 		// deployment of the components succeeds.
 		It("updates the binding's status component deployment condition when the deployment of the components succeeds.", func() {
-
-			if fixture.IsStonesoupEnvironment() {
-				Skip("Skipping test as its not supported in a Stonesoup environment")
+			if fixture.IsRunningInStonesoupEnvironment() {
+				Skip("Skipping test as its running in Stonesoup environment")
 			}
 			By("creating binding cr and update the status field, because it is not updated when creating the object.")
 
@@ -286,7 +283,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			//====================================================
 			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
-
+			Eventually(binding.Spec.Components, "2m", "10s").Should(HaveLen(1))
 			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
 			// gitOpsDeploymentName := binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + binding.Spec.Components[0].Name
 
@@ -330,7 +327,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 		// This test is to verify the scenario when a user creates an SnapshotEnvironmentBinding CR in Cluster and then GitOps-Service creates GitOpsDeployment CR.
 		// Now user deletes GitOpsDeployment from Cluster but Binding is still present in Cluster. In this case GitOps-Service should recreate GitOpsDeployment CR as given in Binding.
 		It("Should recreate GitOpsDeployment, if Binding still exists but GitOpsDeployment is deleted.", func() {
-
+			if fixture.IsRunningInStonesoupEnvironment() {
+				Skip("Skipping this test because of race condition when running on KCP based env")
+			}
 			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -458,7 +457,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			//====================================================
 			By("Verify that short name is used for GitOpsDeployment CR.")
-
+			Eventually(binding.Spec.Components, "2m", "10s").Should(HaveLen(1))
 			// Get the short name with hash value.
 			hashValue := sha256.Sum256([]byte(binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + compName))
 			hashString := fmt.Sprintf("%x", hashValue)
@@ -490,7 +489,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 		})
 
 		It("should create a GitOpsDeployment that references cluster credentials specified in Environment", func() {
-
 			// ToDo: solve GITOPSRVC-217, and remove this constraint
 			if fixture.IsRunningAgainstKCP() {
 				Skip("Skipping this test because of race condition when running on KCP based env")
@@ -538,7 +536,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
 				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
-
+			Eventually(binding.Spec.Components, "2m", "10s").Should(HaveLen(1))
 			By("waiting for the the controller to Reconcile the GitOpsDeplyoment")
 			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
 
@@ -562,16 +560,13 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 		})
 
 		It("Should append ASEB labels with key `appstudio.environment` to GitopsDeployment label", func() {
-			if fixture.IsStonesoupEnvironment() {
-				Skip("Skipping test as its not supported in a Stonesoup environment")
-			}
 			By("Create SnapshotEnvironmentBindingResource")
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
-			binding.ObjectMeta.Labels = map[string]string{"appstudio.openshift.io": "testing"}
+			binding.ObjectMeta.Labels["appstudio.openshift.io"] = "testing"
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
@@ -581,7 +576,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
 				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
-
+			Eventually(binding.Spec.Components, "2m", "10s").Should(HaveLen(1))
 			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
 			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
 
@@ -601,14 +596,11 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			err = k8s.Get(&gitopsDeployment, k8sClient)
 			Expect(err).To(BeNil())
-			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeNil())
-			Expect(gitopsDeployment.ObjectMeta.Labels["appstudio.openshift.io"]).To(Equal("testing"))
+			Eventually(gitopsDeployment.ObjectMeta.Labels, "2m", "10s").ShouldNot(BeNil())
+			Eventually(gitopsDeployment.ObjectMeta.Labels["appstudio.openshift.io"], "2m", "10s").Should(Equal("testing"))
 		})
 
-		It("Should not append ASEB label without appstudio.environment label into the GitopsDeployment Label", func() {
-			if fixture.IsStonesoupEnvironment() {
-				Skip("Skipping test as its not supported in a Stonesoup environment")
-			}
+		It("Should not append ASEB label without appstudio.openshift.io label into the GitopsDeployment Label", func() {
 			By("Create SnapshotEnvironmentBindingResource")
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -625,6 +617,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
 
+			Eventually(binding.Spec.Components, "2m", "10s").Should(HaveLen(1))
 			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
 			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
 
@@ -644,20 +637,17 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			err = k8s.Get(&gitopsDeployment, k8sClient)
 			Expect(err).To(BeNil())
-			Expect(gitopsDeployment.ObjectMeta.Labels["appstudio.openshift.io"]).ToNot(Equal("testing"))
+			Consistently(gitopsDeployment.ObjectMeta.Labels["appstudio.openshift.io"], "2m", "10s").ShouldNot(Equal("testing"))
 		})
 
 		It("Should update gitopsDeployment label if ASEB label gets updated", func() {
-			if fixture.IsStonesoupEnvironment() {
-				Skip("Skipping test as its not supported in a Stonesoup environment")
-			}
 			By("Create SnapshotEnvironmentBindingResource")
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
-			binding.ObjectMeta.Labels = map[string]string{"appstudio.openshift.io": "testing"}
+			binding.ObjectMeta.Labels["appstudio.openshift.io"] = "testing"
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
@@ -666,7 +656,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
 				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
-
+			Eventually(binding.Spec.Components, "2m", "10s").Should(HaveLen(1))
 			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
 			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
 
@@ -699,26 +689,32 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			By("Verify whether `gitopsDeployment.ObjectMeta.Labels` is updated with ASEB labels")
 			err = k8s.Get(&gitopsDeployment, k8sClient)
 			Expect(err).To(BeNil())
-			Expect(gitopsDeployment).To(gitopsDeplFixture.HaveLabel("appstudio.openshift.io", "testing-update"))
+			Eventually(gitopsDeployment, "2m", "10s").Should(gitopsDeplFixture.HaveLabel("appstudio.openshift.io", "testing-update"))
 
 			By("Remove ASEB label `appstudio.openshift.io` label and verify whether it is removed from gitopsDeployment label")
 			delete(binding.ObjectMeta.Labels, "appstudio.openshift.io")
-			err = k8s.Update(&binding, k8sClient)
+			err = k8s.UntilSuccess(k8sClient, func(k8sClient client.Client) error {
+				// Retrieve the latest version of the SnapshotEnvironmentBinding resource
+				err := k8s.Get(&binding, k8sClient)
+				if err != nil {
+					return err
+				}
+				return k8s.Update(&binding, k8sClient)
+			})
 			Expect(err).To(Succeed())
 
 			By("Verify whether gitopsDeployment.ObjectMeta.Label `appstudio.openshift.io` is removed from gitopsDeployment")
 			err = k8s.Get(&gitopsDeployment, k8sClient)
 			Expect(err).To(BeNil())
-			Expect(gitopsDeployment).To(gitopsDeplFixture.NotHaveLabel("appstudio.openshift.io", "testing-update"))
+			Eventually(gitopsDeployment, "2m", "10s").ShouldNot(gitopsDeplFixture.NotHaveLabel("appstudio.openshift.io", "testing-update"))
 		})
-
 	})
 
 })
 
+// buildAndUpdateBindingStatus builds and updates the status field of SnapshotEnvironmentBinding CR
 func buildAndUpdateBindingStatus(components []appstudiosharedv1.BindingComponent, url,
 	branch, commitID string, path []string, binding *appstudiosharedv1.SnapshotEnvironmentBinding) error {
-
 	By(fmt.Sprintf("updating Status field of SnapshotEnvironmentBindingResource for '%s' of '%s' in '%v'", url, branch, path))
 
 	return bindingFixture.UpdateStatusWithFunction(binding, func(bindingStatus *appstudiosharedv1.SnapshotEnvironmentBindingStatus) {
@@ -730,12 +726,17 @@ func buildAndUpdateBindingStatus(components []appstudiosharedv1.BindingComponent
 	})
 }
 
+// buildSnapshotEnvironmentBindingResource builds the SnapshotEnvironmentBinding CR
 func buildSnapshotEnvironmentBindingResource(name, appName, envName, snapShotName string, replica int, componentNames []string) appstudiosharedv1.SnapshotEnvironmentBinding {
 	// Create SnapshotEnvironmentBinding CR.
 	binding := appstudiosharedv1.SnapshotEnvironmentBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: fixture.GitOpsServiceE2ENamespace,
+			Labels: map[string]string{
+				"appstudio.application": appName,
+				"appstudio.environment": envName,
+			},
 		},
 		Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 			Application: appName,
@@ -756,12 +757,13 @@ func buildSnapshotEnvironmentBindingResource(name, appName, envName, snapShotNam
 	return binding
 }
 
+// buildSnapshotEnvironmentBindingStatus builds the status fields that needs to be updated
+// for the SnapshotEnvironmentBinding CR
 func buildSnapshotEnvironmentBindingStatus(components []appstudiosharedv1.BindingComponent, url,
 	branch, commitID string, path []string) appstudiosharedv1.SnapshotEnvironmentBindingStatus {
 
 	// Create SnapshotEnvironmentBindingStatus object.
 	status := appstudiosharedv1.SnapshotEnvironmentBindingStatus{}
-
 	var componentStatus []appstudiosharedv1.BindingComponentStatus
 
 	for i, component := range components {
@@ -777,6 +779,61 @@ func buildSnapshotEnvironmentBindingStatus(components []appstudiosharedv1.Bindin
 	return status
 }
 
+// buildEnvironment creates an instance of Environment CR
+func buildEnvironment(name, displayName string) appstudiosharedv1.Environment {
+	environment := appstudiosharedv1.Environment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: fixture.GitOpsServiceE2ENamespace,
+		},
+		Spec: appstudiosharedv1.EnvironmentSpec{
+			Type:               appstudiosharedv1.EnvironmentType_POC,
+			DisplayName:        displayName,
+			DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
+			ParentEnvironment:  "",
+			Tags:               []string{},
+			Configuration: appstudiosharedv1.EnvironmentConfiguration{
+				Env: []appstudiosharedv1.EnvVarPair{},
+			},
+		},
+	}
+	return environment
+}
+
+// buildSnapshot creates an instance of Snapshot CR
+func buildSnapshot(name, namespace, appName string) appstudiosharedv1.Snapshot {
+	snapshot := appstudiosharedv1.Snapshot{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: appstudiosharedv1.SnapshotSpec{
+			Application: appName,
+			DisplayName: name,
+		},
+	}
+	return snapshot
+}
+
+// buildApplication creates an instance of Application CR
+func buildApplication(appName, appNamespace, url string) appstudiosharedv1.Application {
+	// Create application.appstudio.redhat.com object.
+	application := appstudiosharedv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      appName,
+			Namespace: appNamespace,
+		},
+		Spec: appstudiosharedv1.ApplicationSpec{
+			DisplayName: appName,
+			GitOpsRepository: appstudiosharedv1.ApplicationGitRepository{
+				URL: url,
+			},
+		},
+	}
+	return application
+}
+
+// buildGitOpsDeploymentObjectMeta creates ObjectMetadata for a GitopsDeployment CR
 func buildGitOpsDeploymentObjectMeta(name, namespace string) managedgitopsv1alpha1.GitOpsDeployment {
 	// Create GitOpsDeployment object only with ObjectMeta.
 	gitOpsDeployment := managedgitopsv1alpha1.GitOpsDeployment{

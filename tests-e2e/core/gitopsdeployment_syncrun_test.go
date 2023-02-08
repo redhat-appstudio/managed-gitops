@@ -13,6 +13,7 @@ import (
 	appFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/application"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	syncRunFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeploymentsyncrun"
+	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -484,7 +485,9 @@ return hs`
 
 func removeCustomHealthCheckForDeployment(ctx context.Context, k8sClient client.Client, argocdCM *corev1.ConfigMap) {
 	delete(argocdCM.Data, "resource.customizations.health.apps_Deployment")
-	err := k8sClient.Update(ctx, argocdCM)
+	err := k8s.UntilSuccess(k8sClient, func(k8sClient client.Client) error {
+		return k8sClient.Update(ctx, argocdCM)
+	})
 	Expect(err).To(BeNil())
 }
 

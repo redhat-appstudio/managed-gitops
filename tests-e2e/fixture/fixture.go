@@ -986,8 +986,8 @@ func GetE2ETestUserWorkspaceKubeClient() (client.Client, error) {
 	return k8sClient, nil
 }
 
-// IsStonesoupEnvironment returns true if the tests are running in a Stonesoup environment, false otherwise
-func IsStonesoupEnvironment() bool {
+// IsRunningInStonesoupEnvironment returns true if the tests are running in a Stonesoup environment, false otherwise
+func IsRunningInStonesoupEnvironment() bool {
 	// Stonesoup environment is bootstrapped by an AppOfApps Gitops Deployment.
 	// Check if the AppOfApps exists.
 	appOfApps := appv1alpha1.Application{

@@ -64,7 +64,7 @@ projects:
 
 schemaVersion: 2.1.0`,
 		}
-		if !fixture.IsStonesoupEnvironment() {
+		if !fixture.IsRunningInStonesoupEnvironment() {
 			err = k8sClient.Status().Update(context.Background(), asApp)
 			Expect(err).To(Succeed())
 		}

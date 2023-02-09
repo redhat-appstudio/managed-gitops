@@ -2,7 +2,7 @@
 
 ## Support
 
-The Red Hat suported image `registry.redhat.io/rhel8/postgresql-12` is used in this setup via the `ImageStreamTag` made
+The Red Hat suported image `registry.redhat.io/rhel8/postgresql-13` is used in this setup via the `ImageStreamTag` made
 available for all OpenShift Container Platform users.
 
 

@@ -21,7 +21,7 @@ spec:
           value: ""
           valueFrom:
             secretKeyRef:
-              key: db.name
+              key: db.host
               name: gitops-service-postgres-rds-config
         - name: DB_PASS
           value: ""

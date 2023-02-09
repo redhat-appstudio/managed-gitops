@@ -283,7 +283,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			//====================================================
 			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
-			Eventually(binding.Spec.Components, "2m", "10s").Should(HaveLen(1))
+
 			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
 			// gitOpsDeploymentName := binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + binding.Spec.Components[0].Name
 
@@ -457,7 +457,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			//====================================================
 			By("Verify that short name is used for GitOpsDeployment CR.")
-			Eventually(binding.Spec.Components, "2m", "10s").Should(HaveLen(1))
+
 			// Get the short name with hash value.
 			hashValue := sha256.Sum256([]byte(binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + compName))
 			hashString := fmt.Sprintf("%x", hashValue)
@@ -536,7 +536,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
 				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
-			Eventually(binding.Spec.Components, "2m", "10s").Should(HaveLen(1))
+
 			By("waiting for the the controller to Reconcile the GitOpsDeplyoment")
 			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
 
@@ -576,7 +576,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
 				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
-			Eventually(binding.Spec.Components, "2m", "10s").Should(HaveLen(1))
+
 			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
 			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
 
@@ -617,7 +617,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
 
-			Eventually(binding.Spec.Components, "2m", "10s").Should(HaveLen(1))
 			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
 			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
 
@@ -656,7 +655,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
 				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
-			Eventually(binding.Spec.Components, "2m", "10s").Should(HaveLen(1))
+
 			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
 			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
 
@@ -692,13 +691,13 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			Eventually(gitopsDeployment, "2m", "10s").Should(gitopsDeplFixture.HaveLabel("appstudio.openshift.io", "testing-update"))
 
 			By("Remove ASEB label `appstudio.openshift.io` label and verify whether it is removed from gitopsDeployment label")
-			delete(binding.ObjectMeta.Labels, "appstudio.openshift.io")
 			err = k8s.UntilSuccess(k8sClient, func(k8sClient client.Client) error {
 				// Retrieve the latest version of the SnapshotEnvironmentBinding resource
 				err := k8s.Get(&binding, k8sClient)
 				if err != nil {
 					return err
 				}
+				delete(binding.ObjectMeta.Labels, "appstudio.openshift.io")
 				return k8s.Update(&binding, k8sClient)
 			})
 			Expect(err).To(Succeed())

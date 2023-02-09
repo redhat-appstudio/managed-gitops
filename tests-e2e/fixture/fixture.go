@@ -79,10 +79,6 @@ func EnsureCleanSlateNonKCPVirtualWorkspace() error {
 		return err
 	}
 
-	if err := DeleteNamespace(GitOpsServiceE2ENamespace, clientconfig); err != nil {
-		return err
-	}
-
 	// Clean up after tests that target the default Argo CD E2E instance (used by most E2E tests)
 	if err := cleanUpOldArgoCDApplications(dbutil.GetGitOpsEngineSingleInstanceNamespace(), GitOpsServiceE2ENamespace, clientconfig); err != nil {
 		return err

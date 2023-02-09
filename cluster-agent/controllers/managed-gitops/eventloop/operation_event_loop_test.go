@@ -386,7 +386,7 @@ var _ = Describe("Operation Controller", func() {
 
 		Context("Process Application Operation Test", func() {
 
-			FIt("Verify that When an Operation row points to an Application row that doesn't exist, any Argo Application CR that relates to that Application row should be removed.", func() {
+			It("Verify that When an Operation row points to an Application row that doesn't exist, any Argo Application CR that relates to that Application row should be removed.", func() {
 				By("Close database connection")
 				err = db.SetupForTestingDBGinkgo()
 				Expect(err).To(BeNil())

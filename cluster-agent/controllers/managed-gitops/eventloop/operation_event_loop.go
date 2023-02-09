@@ -323,7 +323,6 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 			Namespace: task.event.request.Namespace,
 		},
 	}
-	fmt.Println(operationCR.Namespace)
 	if err := eventClient.Get(taskContext, client.ObjectKeyFromObject(operationCR), operationCR); err != nil {
 		if apierr.IsNotFound(err) {
 			// If the resource doesn't exist, so our job is done.

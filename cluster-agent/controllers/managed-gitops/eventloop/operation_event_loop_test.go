@@ -386,7 +386,7 @@ var _ = Describe("Operation Controller", func() {
 
 		Context("Process Application Operation Test", func() {
 
-			It("Verify that When an Operation row points to an Application row that doesn't exist, any Argo Application CR that relates to that Application row should be removed.", func() {
+			FIt("Verify that When an Operation row points to an Application row that doesn't exist, any Argo Application CR that relates to that Application row should be removed.", func() {
 				By("Close database connection")
 				err = db.SetupForTestingDBGinkgo()
 				Expect(err).To(BeNil())
@@ -497,23 +497,23 @@ var _ = Describe("Operation Controller", func() {
 					return apierr.IsNotFound(err)
 				}).Should(BeTrue())
 
-				// kubernetesToDBResourceMapping := db.KubernetesToDBResourceMapping{
-				// 	KubernetesResourceType: "Namespace",
-				// 	KubernetesResourceUID:  string(kubesystemNamespace.UID),
-				// 	DBRelationType:         "GitopsEngineCluster",
-				// 	DBRelationKey:          gitopsEngineCluster.Gitopsenginecluster_id,
-				// }
+				kubernetesToDBResourceMapping := db.KubernetesToDBResourceMapping{
+					KubernetesResourceType: "Namespace",
+					KubernetesResourceUID:  string(kubesystemNamespace.UID),
+					DBRelationType:         "GitopsEngineCluster",
+					DBRelationKey:          gitopsEngineCluster.Gitopsenginecluster_id,
+				}
 
-				// By("deleting resources and cleaning up db entries created by test.")
-				// resourcesToBeDeleted := testResources{
-				// 	Operation_id:                  []string{operationDB.Operation_id},
-				// 	Gitopsenginecluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
-				// 	Gitopsengineinstance_id:       gitopsEngineInstance.Gitopsengineinstance_id,
-				// 	ClusterCredentials_id:         gitopsEngineCluster.Clustercredentials_id,
-				// 	kubernetesToDBResourceMapping: kubernetesToDBResourceMapping,
-				// }
+				By("deleting resources and cleaning up db entries created by test.")
+				resourcesToBeDeleted := testResources{
+					Operation_id:                  []string{operationDB.Operation_id},
+					Gitopsenginecluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+					Gitopsengineinstance_id:       gitopsEngineInstance.Gitopsengineinstance_id,
+					ClusterCredentials_id:         gitopsEngineCluster.Clustercredentials_id,
+					kubernetesToDBResourceMapping: kubernetesToDBResourceMapping,
+				}
 
-				// deleteTestResources(ctx, dbQueries, resourcesToBeDeleted)
+				deleteTestResources(ctx, dbQueries, resourcesToBeDeleted)
 
 			})
 

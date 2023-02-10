@@ -21,7 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var _ = Describe("Operation CR namespace E2E tests", func() {
+var _ = FDescribe("Operation CR namespace E2E tests", func() {
 
 	const (
 		operationNamespace = "gitops-service-argocd"
@@ -36,6 +36,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 		var k8sClient client.Client
 		var kubeSystemNamespace *corev1.Namespace
 		var config *rest.Config
+		var gitopsEngineInstance *db.GitopsEngineInstance
 
 		BeforeEach(func() {
 
@@ -81,7 +82,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 				},
 			}
 
-			gitopsEngineInstance, _, _, err := dbutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespaceToCreate, string(kubeSystemNamespace.UID), dbQueries, log)
+			gitopsEngineInstance, _, _, err = dbutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespaceToCreate, string(kubeSystemNamespace.UID), dbQueries, log)
 
 			operationDB := &db.Operation{
 				Operation_id:            "test-operation",
@@ -101,7 +102,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			operationCR := &managedgitopsv1alpha1.Operation{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      operationName,
-					Namespace: operationNamespace,
+					Namespace: gitopsEngineInstance.Namespace_name,
 				},
 				Spec: managedgitopsv1alpha1.OperationSpec{
 					OperationID: "test-operation",
@@ -137,7 +138,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 				},
 			}
 
-			gitopsEngineInstance, _, _, err := dbutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespaceToCreate, string(kubeSystemNamespace.UID), dbQueries, log)
+			gitopsEngineInstance, _, _, err = dbutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespaceToCreate, string(kubeSystemNamespace.UID), dbQueries, log)
 
 			operationDB := &db.Operation{
 				Operation_id:            "test-operation",

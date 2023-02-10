@@ -371,8 +371,6 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 func CheckOperationCRNamespace(operationNamespace *string, gitopsEngineInstance *db.GitopsEngineInstance) error {
 	if gitopsEngineInstance != nil {
 		if *operationNamespace != gitopsEngineInstance.Namespace_name {
-			fmt.Println(*operationNamespace)
-			fmt.Println(gitopsEngineInstance.Namespace_name)
 			return fmt.Errorf("Namespace mismatched in given OperationCR and existing GitopsEngineInstance")
 		}
 	} else if gitopsEngineInstance == nil {

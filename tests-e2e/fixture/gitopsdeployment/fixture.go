@@ -18,38 +18,6 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 )
 
-// NotHaveLabel will succeed if the specified label does NOT exist on the GitOpsDeployment, and fail otherwise.
-func NotHaveLabel(key, value string) matcher.GomegaMatcher {
-
-	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
-		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
-
-		k8sClient, err := fixture.GetKubeClient(config)
-		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
-			return false
-		}
-
-		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitopsDepl), &gitopsDepl)
-		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
-			return false
-		}
-
-		// Look for the label on the GitOpsDeployment
-		for gopsLabelKey, gopsLabelValue := range gitopsDepl.Labels {
-			if gopsLabelKey == key && gopsLabelValue == value {
-				fmt.Println("Label found on '" + gitopsDepl.Name + "': key '" + key + "' with value '" + value + "'")
-				return false
-			}
-		}
-
-		return true
-	}, BeTrue())
-
-}
-
 // HaveLabel will succeed if the GitOpsDeployment contains the specified label, and fail otherwise.
 func HaveLabel(key, value string) matcher.GomegaMatcher {
 
@@ -301,7 +269,7 @@ func HaveConditions(conditions []managedgitopsv1alpha1.GitOpsDeploymentCondition
 
 }
 
-//  HaveReconciledState checks the GitOpsDeployment resource's '.status.reconciledState' field, to ensure the expected value matches the actual value.
+// HaveReconciledState checks the GitOpsDeployment resource's '.status.reconciledState' field, to ensure the expected value matches the actual value.
 func HaveReconciledState(reconciledState managedgitopsv1alpha1.ReconciledState) matcher.GomegaMatcher {
 
 	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {

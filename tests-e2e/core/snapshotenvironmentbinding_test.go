@@ -126,9 +126,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 		// Verifies a SnapshotEnvironmentBinding's status component deployment condition is set correctly when the
 		// deployment of the components succeeds.
 		It("updates the binding's status component deployment condition when the deployment of the components succeeds.", func() {
-			if fixture.IsRunningInStonesoupEnvironment() {
-				Skip("Skipping test as its running in Stonesoup environment")
-			}
 			By("creating binding cr and update the status field, because it is not updated when creating the object.")
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -327,9 +324,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 		// This test is to verify the scenario when a user creates an SnapshotEnvironmentBinding CR in Cluster and then GitOps-Service creates GitOpsDeployment CR.
 		// Now user deletes GitOpsDeployment from Cluster but Binding is still present in Cluster. In this case GitOps-Service should recreate GitOpsDeployment CR as given in Binding.
 		It("Should recreate GitOpsDeployment, if Binding still exists but GitOpsDeployment is deleted.", func() {
-			if fixture.IsRunningInStonesoupEnvironment() {
-				Skip("Skipping this test because of race condition when running on KCP based env")
-			}
 			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -559,7 +553,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 					"the namespace of the GitOpsDeployment should come from the Environment")
 		})
 
-		It("Should append ASEB labels with key `appstudio.environment` to GitopsDeployment label", func() {
+		It("Should append ASEB labels with key `appstudio.openshift.io` to GitopsDeployment label", func() {
 			By("Create SnapshotEnvironmentBindingResource")
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -596,8 +590,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			err = k8s.Get(&gitopsDeployment, k8sClient)
 			Expect(err).To(BeNil())
-			Eventually(gitopsDeployment.ObjectMeta.Labels, "2m", "10s").ShouldNot(BeNil())
-			Eventually(gitopsDeployment.ObjectMeta.Labels["appstudio.openshift.io"], "2m", "10s").Should(Equal("testing"))
+			Eventually(gitopsDeployment, "2m", "10s").Should(gitopsDeplFixture.HaveLabel("appstudio.openshift.io", "testing"))
 		})
 
 		It("Should not append ASEB label without appstudio.openshift.io label into the GitopsDeployment Label", func() {
@@ -636,7 +629,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			err = k8s.Get(&gitopsDeployment, k8sClient)
 			Expect(err).To(BeNil())
-			Consistently(gitopsDeployment.ObjectMeta.Labels["appstudio.openshift.io"], "2m", "10s").ShouldNot(Equal("testing"))
+			Eventually(gitopsDeployment, "2m", "10s").ShouldNot(gitopsDeplFixture.HaveLabel("appstudio.openshift.io", "testing"))
 		})
 
 		It("Should update gitopsDeployment label if ASEB label gets updated", func() {
@@ -705,7 +698,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			By("Verify whether gitopsDeployment.ObjectMeta.Label `appstudio.openshift.io` is removed from gitopsDeployment")
 			err = k8s.Get(&gitopsDeployment, k8sClient)
 			Expect(err).To(BeNil())
-			Eventually(gitopsDeployment, "2m", "10s").ShouldNot(gitopsDeplFixture.NotHaveLabel("appstudio.openshift.io", "testing-update"))
+			Eventually(gitopsDeployment, "2m", "10s").ShouldNot(gitopsDeplFixture.HaveLabel("appstudio.openshift.io", "testing-update"))
 		})
 	})
 
@@ -786,7 +779,6 @@ func buildEnvironment(name, displayName string) appstudiosharedv1.Environment {
 			Namespace: fixture.GitOpsServiceE2ENamespace,
 		},
 		Spec: appstudiosharedv1.EnvironmentSpec{
-			Type:               appstudiosharedv1.EnvironmentType_POC,
 			DisplayName:        displayName,
 			DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
 			ParentEnvironment:  "",

@@ -13,6 +13,20 @@ make build-appstudio-controller     # Build appstudio-controller only
 make docker-build                   # Build docker image
 ```
 
+#### Support for multiple platforms
+
+The `make` targets can be configured to build for other operating systems and/or architectures,
+by explicitly setting the `OS` and `ARCH` environment variables.
+
+```shell
+OS=linux ARCH=amd64 make build      # Build all components for platform linux/amd64
+OS=linux ARCH=arm64 make build      # Build all components for platform linux/arm64
+```
+```shell
+OS=darwin ARCH=amd64 make build     # Build all components for platform darwin/amd64
+OS=darwin ARCH=arm64 make build     # Build all components for platform darwin/arm64
+```
+
 ### Build Container images
 
 The project uses just one single base image from which you can select which `binary` you would like to run.
@@ -22,6 +36,7 @@ For more information, look at the Dockerfile.
 By default it will run `/bin/bash` shell and it uses a `non-root` user.
 
 #### Build and Push
+##### Using Docker (default)
 
 ```shell
 # Login to the contaier registry (e.g. quay.io)
@@ -50,6 +65,24 @@ make docker-build docker-push IMG=quay.io/$USERNAME/$IMAGE_NAME:$TAG
 make docker-build BASE_IMAGE="foo" TAG="bar"
 ```
 
+##### Using Podman
+
+```shell
+# Login to the contaier registry (e.g. quay.io)
+podman login quay.io
+
+# Build the container
+DOCKER=podman make docker-build
+
+# Push to registry
+DOCKER=podman make docker-push -USERNAME=drpaneas
+
+# Or combine them
+DOCKER=podman make docker-build docker-push IMG=quay.io/$USERNAME/$IMAGE_NAME:$TAG
+
+# Other optional variables
+DOCKER=podman make docker-build BASE_IMAGE="foo" TAG="bar"
+```
 #### Run the containers
 
 ```shell

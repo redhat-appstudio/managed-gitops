@@ -126,6 +126,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 		// Verifies a SnapshotEnvironmentBinding's status component deployment condition is set correctly when the
 		// deployment of the components succeeds.
 		It("updates the binding's status component deployment condition when the deployment of the components succeeds.", func() {
+			if fixture.IsRunningInStonesoupEnvironment() {
+				Skip("Skipping test as its running in Stonesoup environment")
+			}
 			By("creating binding cr and update the status field, because it is not updated when creating the object.")
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -707,6 +710,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 // buildAndUpdateBindingStatus builds and updates the status field of SnapshotEnvironmentBinding CR
 func buildAndUpdateBindingStatus(components []appstudiosharedv1.BindingComponent, url,
 	branch, commitID string, path []string, binding *appstudiosharedv1.SnapshotEnvironmentBinding) error {
+
 	By(fmt.Sprintf("updating Status field of SnapshotEnvironmentBindingResource for '%s' of '%s' in '%v'", url, branch, path))
 
 	return bindingFixture.UpdateStatusWithFunction(binding, func(bindingStatus *appstudiosharedv1.SnapshotEnvironmentBindingStatus) {
@@ -756,6 +760,7 @@ func buildSnapshotEnvironmentBindingStatus(components []appstudiosharedv1.Bindin
 
 	// Create SnapshotEnvironmentBindingStatus object.
 	status := appstudiosharedv1.SnapshotEnvironmentBindingStatus{}
+
 	var componentStatus []appstudiosharedv1.BindingComponentStatus
 
 	for i, component := range components {

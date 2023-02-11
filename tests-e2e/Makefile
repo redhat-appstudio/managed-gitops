@@ -51,7 +51,7 @@ rm -rf $$TMP_DIR ;\
 endef
 
 .PHONY: lint
-lint: ## Run the linters
+lint: ## Run lint checks for the test code
 	golangci-lint --version
 	GOMAXPROCS=2 golangci-lint run --fix --verbose --timeout 300s
 
@@ -60,12 +60,12 @@ go_sec: ## Download gosec locally if necessary.
 	$(call go-get-tool,$(GO_SEC),github.com/securego/gosec/v2/cmd/gosec@latest)
 
 .PHONY: gosec
-gosec: go_sec ## Run the gosec
+gosec: go_sec ## Run the gosec tool
 	# Run this command, to install gosec, if not installed:
 	# go install github.com/securego/gosec/v2/cmd/gosec@latest
 	$(GO_SEC) ./...
 
 # Remove the vendor and bin folders
 .PHONY: clean
-clean: ## Clean the build files
+clean: ## Remove the vendor and bin folders
 	rm -rf vendor/ bin/

@@ -474,18 +474,27 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 })
 
 func addCustomHealthCheckForDeployment(ctx context.Context, k8sClient client.Client, argocdCM *corev1.ConfigMap) {
-	argocdCM.Data["resource.customizations.health.apps_Deployment"] = `hs = {}
+	healthStatusMessage := `hs = {}
 hs.status = "Progressing"
 hs.message = "Custom health check to test Sync operation"
 return hs`
 
-	err := k8sClient.Update(ctx, argocdCM)
+	err := k8s.UntilSuccess(k8sClient, func(k8sClient client.Client) error {
+		if err := k8s.Get(argocdCM, k8sClient); err != nil {
+			return err
+		}
+		argocdCM.Data["resource.customizations.health.apps_Deployment"] = healthStatusMessage
+		return k8sClient.Update(ctx, argocdCM)
+	})
 	Expect(err).To(BeNil())
 }
 
 func removeCustomHealthCheckForDeployment(ctx context.Context, k8sClient client.Client, argocdCM *corev1.ConfigMap) {
-	delete(argocdCM.Data, "resource.customizations.health.apps_Deployment")
 	err := k8s.UntilSuccess(k8sClient, func(k8sClient client.Client) error {
+		if err := k8s.Get(argocdCM, k8sClient); err != nil {
+			return err
+		}
+		delete(argocdCM.Data, "resource.customizations.health.apps_Deployment")
 		return k8sClient.Update(ctx, argocdCM)
 	})
 	Expect(err).To(BeNil())

@@ -27,7 +27,7 @@ type GitopsEngineCluster struct {
 
 	// -- pointer to credentials for the cluster
 	// -- Foreign key to: ClusterCredentials.clustercredentials_cred_id
-	Clustercredentials_id string `pg:"clustercredentials_id,notnull"`
+	Clustercredentials_id string `pg:"clustercredentials_id,notnull" varchar:"48"`
 }
 
 // GitopsEngineInstance is an Argo CD instance on an Argo CD cluster

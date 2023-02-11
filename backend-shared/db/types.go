@@ -21,13 +21,13 @@ type GitopsEngineCluster struct {
 	//lint:ignore U1000 used by go-pg
 	tableName struct{} `pg:"gitopsenginecluster"` //nolint
 
-	Gitopsenginecluster_id string `pg:"gitopsenginecluster_id,pk" varchar:"48"`
+	PrimaryKeyID string `pg:"gitopsenginecluster_id,pk" varchar:"48"`
 
 	SeqID int64 `pg:"seq_id"`
 
 	// -- pointer to credentials for the cluster
 	// -- Foreign key to: ClusterCredentials.clustercredentials_cred_id
-	Clustercredentials_id string `pg:"clustercredentials_id,notnull" varchar:"48"`
+	ClusterCredentialsID string `pg:"clustercredentials_id,notnull" varchar:"48"`
 }
 
 // GitopsEngineInstance is an Argo CD instance on an Argo CD cluster
@@ -41,8 +41,8 @@ type GitopsEngineInstance struct {
 
 	// -- An Argo CD cluster may host multiple Argo CD instances; these fields
 	// -- indicate which namespace this specific instance lives in.
-	Namespace_name string `pg:"namespace_name,notnull" varchar:"48"`
-	Namespace_uid  string `pg:"namespace_uid,notnull" varchar:"48"`
+	NamespaceName string `pg:"namespace_name,notnull" varchar:"48"`
+	NamespaceUID  string `pg:"namespace_uid,notnull" varchar:"48"`
 
 	// -- Reference to the Argo CD cluster containing the instance
 	// -- Foreign key to: GitopsEngineCluster.gitopsenginecluster_id
@@ -62,10 +62,10 @@ type ManagedEnvironment struct {
 
 	// -- pointer to credentials for the cluster
 	// -- Foreign key to: ClusterCredentials.clustercredentials_cred_id
-	Clustercredentials_id string `pg:"clustercredentials_id,notnull" varchar:"48"`
+	ClusterCredentialsID string `pg:"clustercredentials_id,notnull" varchar:"48"`
 
-	// -- Created_on field will tell us how old resources are
-	Created_on time.Time `pg:"created_on"`
+	// -- CreatedOn field will tell us how old resources are
+	CreatedOn time.Time `pg:"created_on"`
 }
 
 // ClusterCredentials contains the credentials required to access a K8s cluster.
@@ -100,10 +100,10 @@ type ClusterCredentials struct {
 	Host string `pg:"host" varchar:"512"`
 
 	// -- State 1) kube_config containing a token to a service account that has the permissions we need.
-	Kube_config string `pg:"kube_config" varchar:"65000"`
+	KubeConfig string `pg:"kube_config" varchar:"65000"`
 
 	// -- State 1) The name of a context within the kube_config
-	Kube_config_context string `pg:"kube_config_context" varchar:"64"`
+	KubeConfig_context string `pg:"kube_config_context" varchar:"64"`
 
 	// -- State 2) ServiceAccount bearer token from the target manager cluster
 	Serviceaccount_bearer_token string `pg:"serviceaccount_bearer_token" varchar:"2048"`
@@ -203,7 +203,7 @@ type Operation struct {
 	Resource_type OperationResourceType `pg:"resource_type,notnull" varchar:"32"`
 
 	// -- When the operation was created. Used for garbage collection, as operations should be short lived.
-	Created_on time.Time `pg:"created_on,notnull"`
+	CreatedOn time.Time `pg:"created_on,notnull"`
 
 	// -- last_state_update is set whenever state changes
 	// -- (initial value should be equal to created_on)
@@ -229,7 +229,7 @@ type Application struct {
 	tableName struct{} `pg:"application"` //nolint
 
 	// primary key: auto-generated random uid.
-	Application_id string `pg:"application_id,pk,notnull" varchar:"48"`
+	ApplicationID string `pg:"application_id,pk,notnull" varchar:"48"`
 
 	// Name of the Application CR within the Argo CD namespace
 	// Value: gitopsdepl-(uid of the gitopsdeployment)
@@ -249,8 +249,8 @@ type Application struct {
 
 	SeqID int64 `pg:"seq_id"`
 
-	// -- Created_on field will tell us how old resources are
-	Created_on time.Time `pg:"created_on,notnull"`
+	// -- CreatedOn field will tell us how old resources are
+	CreatedOn time.Time `pg:"created_on,notnull"`
 }
 
 // ApplicationState is the Argo CD health/sync state of the Application
@@ -318,8 +318,8 @@ type DeploymentToApplicationMapping struct {
 	NamespaceUID string `pg:"namespace_uid" varchar:"48"`
 
 	// Reference to the corresponding Application row
-	// -- Foreign key to: Application.Application_id
-	Application_id string `pg:"application_id,notnull" varchar:"48"`
+	// -- Foreign key to: Application.ApplicationID
+	ApplicationID string `pg:"application_id,notnull" varchar:"48"`
 
 	SeqID int64 `pg:"seq_id"`
 }
@@ -406,9 +406,9 @@ type SyncOperation struct {
 	//lint:ignore U1000 used by go-pg
 	tableName struct{} `pg:"syncoperation,alias:so"` //nolint
 
-	SyncOperation_id string `pg:"syncoperation_id,pk,notnull" varchar:"48"`
+	SyncOperationID string `pg:"syncoperation_id,pk,notnull" varchar:"48"`
 
-	Application_id string `pg:"application_id" varchar:"48"`
+	ApplicationID string `pg:"application_id" varchar:"48"`
 
 	DeploymentNameField string `pg:"deployment_name,notnull" varchar:"256"`
 
@@ -416,7 +416,7 @@ type SyncOperation struct {
 
 	DesiredState string `pg:"desired_state,notnull" varchar:"16"`
 
-	Created_on time.Time `pg:"created_on,notnull"`
+	CreatedOn time.Time `pg:"created_on,notnull"`
 }
 
 // DisposableResource can be implemented by a type, such that calling Dispose(...) on an instance of that type will delete
@@ -476,8 +476,8 @@ type RepositoryCredentials struct {
 	// SeqID is used only for debugging purposes. It helps us to keep track of the order that rows are created.
 	SeqID int64 `pg:"seq_id"`
 
-	// -- Created_on field will tell us how old resources are
-	Created_on time.Time `pg:"created_on,notnull"`
+	// -- CreatedOn field will tell us how old resources are
+	CreatedOn time.Time `pg:"created_on,notnull"`
 }
 
 // hasEmptyValues returns error if any of the notnull tagged fields are empty.

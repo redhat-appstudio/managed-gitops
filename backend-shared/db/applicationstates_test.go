@@ -23,7 +23,7 @@ var _ = Describe("ApplicationStates Tests", func() {
 			Expect(err).To(BeNil())
 
 			application := &db.Application{
-				Application_id:          "test-my-application",
+				ApplicationID:           "test-my-application",
 				Name:                    "my-application",
 				Spec_field:              "{}",
 				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
@@ -34,7 +34,7 @@ var _ = Describe("ApplicationStates Tests", func() {
 			Expect(err).To(BeNil())
 
 			applicationState := &db.ApplicationState{
-				Applicationstate_application_id: application.Application_id,
+				Applicationstate_application_id: application.ApplicationID,
 				Health:                          "Progressing",
 				Sync_Status:                     "Unknown",
 				Resources:                       make([]byte, 10),
@@ -46,7 +46,7 @@ var _ = Describe("ApplicationStates Tests", func() {
 			Expect(err).To(BeNil())
 
 			fetchObj := &db.ApplicationState{
-				Applicationstate_application_id: application.Application_id,
+				Applicationstate_application_id: application.ApplicationID,
 			}
 			err = dbq.GetApplicationStateById(ctx, fetchObj)
 			Expect(err).To(BeNil())

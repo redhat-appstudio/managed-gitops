@@ -66,8 +66,8 @@ var _ = Describe("Operations Test", func() {
 		err = dbq.GetOperationById(ctx, &operationget)
 		Expect(err).To(BeNil())
 		Expect(operationget.Last_state_update).To(BeAssignableToTypeOf(timestamp))
-		Expect(operationget.Created_on).To(BeAssignableToTypeOf(timestamp))
-		operationget.Created_on = operation.Created_on
+		Expect(operationget.CreatedOn).To(BeAssignableToTypeOf(timestamp))
+		operationget.CreatedOn = operation.CreatedOn
 		operationget.Last_state_update = operation.Last_state_update
 		Expect(operation).Should(Equal(operationget))
 
@@ -76,8 +76,8 @@ var _ = Describe("Operations Test", func() {
 		err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, operation.Resource_id, operation.Resource_type, &operationlist, operation.Operation_owner_user_id)
 		Expect(err).To(BeNil())
 		Expect(operationlist[0].Last_state_update).To(BeAssignableToTypeOf(timestamp))
-		Expect(operationlist[0].Created_on).To(BeAssignableToTypeOf(timestamp))
-		operationlist[0].Created_on = operation.Created_on
+		Expect(operationlist[0].CreatedOn).To(BeAssignableToTypeOf(timestamp))
+		operationlist[0].CreatedOn = operation.CreatedOn
 		operationlist[0].Last_state_update = operation.Last_state_update
 
 		Expect(operationlist[0]).Should(Equal(operation))
@@ -92,7 +92,7 @@ var _ = Describe("Operations Test", func() {
 			Operation_owner_user_id: testClusterUser.Clusteruser_id,
 			SeqID:                   int64(seq),
 		}
-		operationupdate.Created_on = operation.Created_on
+		operationupdate.CreatedOn = operation.CreatedOn
 		operationupdate.Last_state_update = operation.Last_state_update
 		err = dbq.UpdateOperation(ctx, &operationupdate)
 		Expect(err).To(BeNil())

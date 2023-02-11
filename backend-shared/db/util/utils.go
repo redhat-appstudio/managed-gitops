@@ -104,8 +104,8 @@ func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, namespace 
 
 	clusterCreds := db.ClusterCredentials{
 		Host:                        "host",
-		Kube_config:                 "kube_config",
-		Kube_config_context:         "kube_config_context",
+		KubeConfig:                  "kube_config",
+		KubeConfig_context:          "kube_config_context",
 		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
 		Serviceaccount_ns:           "serviceaccount_ns",
 	}
@@ -121,8 +121,8 @@ func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, namespace 
 		clusterCreds.GetAsLogKeyValues()...)
 
 	managedEnvironment := db.ManagedEnvironment{
-		Name:                  "Managed Environment for " + namespace.Name,
-		Clustercredentials_id: clusterCreds.Clustercredentials_cred_id,
+		Name:                 "Managed Environment for " + namespace.Name,
+		ClusterCredentialsID: clusterCreds.Clustercredentials_cred_id,
 	}
 
 	if err := dbq.CreateManagedEnvironment(ctx, &managedEnvironment); err != nil {
@@ -222,10 +222,10 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 			dbResourceMapping = nil
 		} else {
 
-			if gitopsEngineInstance.EngineCluster_id != gitopsEngineCluster.Gitopsenginecluster_id {
+			if gitopsEngineInstance.EngineCluster_id != gitopsEngineCluster.PrimaryKeyID {
 				return nil, false, nil,
 					fmt.Errorf("able to locate engine instance, and engine cluster, but they mismatched: instance id: %v, cluster id: %v",
-						gitopsEngineInstance.Gitopsengineinstance_id, gitopsEngineCluster.Gitopsenginecluster_id)
+						gitopsEngineInstance.Gitopsengineinstance_id, gitopsEngineCluster.PrimaryKeyID)
 			}
 
 			// Success: both existed.
@@ -237,9 +237,9 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 		// Scenario A) neither exists: create both
 
 		gitopsEngineInstance = &db.GitopsEngineInstance{
-			Namespace_name:   gitopsEngineNamespace.Name,
-			Namespace_uid:    string(gitopsEngineNamespace.UID),
-			EngineCluster_id: gitopsEngineCluster.Gitopsenginecluster_id,
+			NamespaceName:    gitopsEngineNamespace.Name,
+			NamespaceUID:     string(gitopsEngineNamespace.UID),
+			EngineCluster_id: gitopsEngineCluster.PrimaryKeyID,
 		}
 
 		if err := dbq.CreateGitopsEngineInstance(ctx, gitopsEngineInstance); err != nil {
@@ -285,9 +285,9 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 	} else if dbResourceMapping != nil && gitopsEngineInstance != nil {
 		// Scenario D) both exist, so just return the cluster
 
-		if gitopsEngineInstance.EngineCluster_id != gitopsEngineCluster.Gitopsenginecluster_id {
+		if gitopsEngineInstance.EngineCluster_id != gitopsEngineCluster.PrimaryKeyID {
 			return nil, false, nil, fmt.Errorf("able to locate engine instance, and engine cluster, but they mismatched: instance id: %v, cluster id: %v",
-				gitopsEngineInstance.Gitopsengineinstance_id, gitopsEngineCluster.Gitopsenginecluster_id)
+				gitopsEngineInstance.Gitopsengineinstance_id, gitopsEngineCluster.PrimaryKeyID)
 		}
 
 		return gitopsEngineInstance, false, gitopsEngineCluster, nil
@@ -327,7 +327,7 @@ func GetGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context, kubesys
 
 	// If there exists a db resource mapping for this cluster, see if we can get the GitOpsEngineCluster
 	gitopsEngineCluster = &db.GitopsEngineCluster{
-		Gitopsenginecluster_id: dbResourceMapping.DBRelationKey,
+		PrimaryKeyID: dbResourceMapping.DBRelationKey,
 	}
 
 	if err := dbq.GetGitopsEngineClusterById(ctx, gitopsEngineCluster); err != nil {
@@ -386,7 +386,7 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 		//
 		// Next: see if we can get that GitOpsEngineCluster, using that primary key.
 		gitopsEngineCluster = &db.GitopsEngineCluster{
-			Gitopsenginecluster_id: dbResourceMapping.DBRelationKey,
+			PrimaryKeyID: dbResourceMapping.DBRelationKey,
 		}
 
 		if err := dbq.GetGitopsEngineClusterById(ctx, gitopsEngineCluster); err != nil {
@@ -423,8 +423,8 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 		// target cluster, which we can store in the database.
 		clusterCreds := db.ClusterCredentials{
 			Host:                        "host",
-			Kube_config:                 "kube_config",
-			Kube_config_context:         "kube_config_context",
+			KubeConfig:                  "kube_config",
+			KubeConfig_context:          "kube_config_context",
 			Serviceaccount_bearer_token: "serviceaccount_bearer_token",
 			Serviceaccount_ns:           "serviceaccount_ns",
 		}
@@ -437,15 +437,15 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 		log.Info("Created Cluster Credentials for GitOpsEngineCluster: "+clusterCreds.Clustercredentials_cred_id, clusterCreds.GetAsLogKeyValues()...)
 
 		gitopsEngineCluster = &db.GitopsEngineCluster{
-			Clustercredentials_id: clusterCreds.Clustercredentials_cred_id,
+			ClusterCredentialsID: clusterCreds.Clustercredentials_cred_id,
 		}
 		if err := dbq.CreateGitopsEngineCluster(ctx, gitopsEngineCluster); err != nil {
 			log.Error(err, "Unable to create GitopsEngineCluster", gitopsEngineCluster.GetAsLogKeyValues()...)
 			return nil, false, fmt.Errorf("unable to create engine cluster, when neither existed: %v", err)
 		}
-		log.Info("Created GitopsEngineCluster: "+gitopsEngineCluster.Gitopsenginecluster_id, gitopsEngineCluster.GetAsLogKeyValues()...)
+		log.Info("Created GitopsEngineCluster: "+gitopsEngineCluster.PrimaryKeyID, gitopsEngineCluster.GetAsLogKeyValues()...)
 
-		expectedDBResourceMapping.DBRelationKey = gitopsEngineCluster.Gitopsenginecluster_id
+		expectedDBResourceMapping.DBRelationKey = gitopsEngineCluster.PrimaryKeyID
 		if err := dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &expectedDBResourceMapping); err != nil {
 			log.Error(err, "Unable to create KubernetesResourceToDBResourceMapping", expectedDBResourceMapping.GetAsLogKeyValues()...)
 			return nil, false, fmt.Errorf("unable to create mapping when neither existed: %v", err)
@@ -465,7 +465,7 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 	} else if dbResourceMapping == nil && gitopsEngineCluster != nil {
 		// Scenario C) this will happen if the engine cluster db entry exists, but there is no mapping for it
 
-		expectedDBResourceMapping.DBRelationKey = gitopsEngineCluster.Gitopsenginecluster_id
+		expectedDBResourceMapping.DBRelationKey = gitopsEngineCluster.PrimaryKeyID
 		if err := dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &expectedDBResourceMapping); err != nil {
 			log.Error(err, "Unable to create KubernetesResourceToDBResourceMapping", expectedDBResourceMapping.GetAsLogKeyValues()...)
 

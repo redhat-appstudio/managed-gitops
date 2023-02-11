@@ -8,7 +8,7 @@ import (
 
 func (dbq *PostgreSQLDatabaseQueries) CreateManagedEnvironment(ctx context.Context, obj *ManagedEnvironment) error {
 
-	if err := validateQueryParams(obj.Clustercredentials_id, dbq); err != nil {
+	if err := validateQueryParams(obj.ClusterCredentialsID, dbq); err != nil {
 		return err
 	}
 
@@ -27,7 +27,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateManagedEnvironment(ctx context.Conte
 		return fmt.Errorf("managed environment name field should not be empty")
 	}
 
-	obj.Created_on = time.Now()
+	obj.CreatedOn = time.Now()
 
 	if err := validateFieldLength(obj); err != nil {
 		return err
@@ -207,7 +207,7 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateManagedEnvironment(ctx context.Conte
 	}
 
 	if err := isEmptyValues("UpdateManagedEnvironment",
-		"Clustercredentials_id", obj.Clustercredentials_id); err != nil {
+		"ClusterCredentialsID", obj.ClusterCredentialsID); err != nil {
 		return err
 	}
 
@@ -244,7 +244,7 @@ func (obj *ManagedEnvironment) GetAsLogKeyValues() []interface{} {
 		return []interface{}{}
 	}
 
-	return []interface{}{"clusterCredentialsID", obj.Clustercredentials_id,
+	return []interface{}{"clusterCredentialsID", obj.ClusterCredentialsID,
 		"managedEnvironmentID", obj.Managedenvironment_id,
 		"managedEnvironmentName", obj.Name}
 }

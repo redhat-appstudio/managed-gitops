@@ -12,7 +12,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedGetApplicationById(ctx context.Cont
 		return err
 	}
 
-	if IsEmpty(application.Application_id) {
+	if IsEmpty(application.ApplicationID) {
 		return fmt.Errorf("application_Id is nil in GetApplicationById")
 	}
 
@@ -21,7 +21,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedGetApplicationById(ctx context.Cont
 		var results []Application
 
 		if err := dbq.dbConnection.Model(&results).
-			Where("application_id = ?", application.Application_id).
+			Where("application_id = ?", application.ApplicationID).
 			Context(ctx).
 			Select(); err != nil {
 
@@ -29,11 +29,11 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedGetApplicationById(ctx context.Cont
 		}
 
 		if len(results) == 0 {
-			return NewResultNotFoundError(fmt.Sprintf("Application '%s'", application.Application_id))
+			return NewResultNotFoundError(fmt.Sprintf("Application '%s'", application.ApplicationID))
 		}
 
 		if len(results) > 1 {
-			return fmt.Errorf("multiple results found on retrieving Application: %v", application.Application_id)
+			return fmt.Errorf("multiple results found on retrieving Application: %v", application.ApplicationID)
 		}
 
 		applicationResult = results[0]
@@ -46,7 +46,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedGetApplicationById(ctx context.Cont
 			Clusteraccess_gitops_engine_instance_id: applicationResult.Engine_instance_inst_id}); err != nil {
 
 		if IsResultNotFoundError(err) {
-			return NewAccessDeniedError(fmt.Sprintf("No cluster access exists for application '%s'", application.Application_id))
+			return NewAccessDeniedError(fmt.Sprintf("No cluster access exists for application '%s'", application.ApplicationID))
 		}
 		return err
 	}
@@ -62,14 +62,14 @@ func (dbq *PostgreSQLDatabaseQueries) GetApplicationById(ctx context.Context, ap
 		return err
 	}
 
-	if IsEmpty(application.Application_id) {
+	if IsEmpty(application.ApplicationID) {
 		return fmt.Errorf("application_Id is nil")
 	}
 
 	var results []Application
 
 	if err := dbq.dbConnection.Model(&results).
-		Where("application_id = ?", application.Application_id).
+		Where("application_id = ?", application.ApplicationID).
 		Context(ctx).
 		Select(); err != nil {
 
@@ -77,11 +77,11 @@ func (dbq *PostgreSQLDatabaseQueries) GetApplicationById(ctx context.Context, ap
 	}
 
 	if len(results) == 0 {
-		return NewResultNotFoundError(fmt.Sprintf("Application '%s'", application.Application_id))
+		return NewResultNotFoundError(fmt.Sprintf("Application '%s'", application.ApplicationID))
 	}
 
 	if len(results) > 1 {
-		return fmt.Errorf("multiple results found on retrieving Application: %v", application.Application_id)
+		return fmt.Errorf("multiple results found on retrieving Application: %v", application.ApplicationID)
 	}
 
 	*application = results[0]
@@ -96,15 +96,15 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedCreateApplication(ctx context.Conte
 	}
 
 	if dbq.allowTestUuids {
-		if IsEmpty(obj.Application_id) {
-			obj.Application_id = generateUuid()
+		if IsEmpty(obj.ApplicationID) {
+			obj.ApplicationID = generateUuid()
 		}
 	} else {
-		if !IsEmpty(obj.Application_id) {
+		if !IsEmpty(obj.ApplicationID) {
 			return fmt.Errorf("primary key should be empty")
 		}
 
-		obj.Application_id = generateUuid()
+		obj.ApplicationID = generateUuid()
 	}
 
 	if err := isEmptyValues("CreateApplication",
@@ -155,7 +155,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedDeleteApplicationById(ctx context.C
 	}
 
 	result := &Application{
-		Application_id: id,
+		ApplicationID: id,
 	}
 
 	if err := dbq.CheckedGetApplicationById(ctx, result, ownerId); err != nil {
@@ -181,7 +181,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteApplicationById(ctx context.Context,
 	}
 
 	result := &Application{
-		Application_id: id,
+		ApplicationID: id,
 	}
 
 	deleteResult, err := dbq.dbConnection.Model(result).WherePK().Context(ctx).Delete()
@@ -199,14 +199,14 @@ func (dbq *PostgreSQLDatabaseQueries) CreateApplication(ctx context.Context, obj
 	}
 
 	if dbq.allowTestUuids {
-		if IsEmpty(obj.Application_id) {
-			obj.Application_id = generateUuid()
+		if IsEmpty(obj.ApplicationID) {
+			obj.ApplicationID = generateUuid()
 		}
 	} else {
-		if !IsEmpty(obj.Application_id) {
+		if !IsEmpty(obj.ApplicationID) {
 			return fmt.Errorf("primary key should be empty")
 		}
-		obj.Application_id = generateUuid()
+		obj.ApplicationID = generateUuid()
 	}
 
 	if err := isEmptyValues("CreateApplication",
@@ -216,7 +216,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateApplication(ctx context.Context, obj
 		return err
 	}
 
-	obj.Created_on = time.Now()
+	obj.CreatedOn = time.Now()
 
 	if err := validateFieldLength(obj); err != nil {
 		return err
@@ -239,7 +239,7 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateApplication(ctx context.Context, obj
 	}
 
 	if err := isEmptyValues("UpdateApplication",
-		"Application_id", obj.Application_id,
+		"ApplicationID", obj.ApplicationID,
 		"Engine_instance_inst_id", obj.Engine_instance_inst_id,
 		"Spec_field", obj.Spec_field,
 		"Name", obj.Name); err != nil {
@@ -289,7 +289,7 @@ func (dbq *PostgreSQLDatabaseQueries) RemoveManagedEnvironmentFromAllApplication
 		app.Managed_environment_id = ""
 
 		if err := dbq.UpdateApplication(ctx, &app); err != nil {
-			return 0, fmt.Errorf("unable to update application '%s': %v", app.Application_id, err)
+			return 0, fmt.Errorf("unable to update application '%s': %v", app.ApplicationID, err)
 		}
 	}
 
@@ -337,7 +337,7 @@ func (app *Application) DisposeAppScoped(ctx context.Context, dbq ApplicationSco
 	if err := isEmptyValues("DisposeAppScoped-Application", "dbq", dbq); err != nil {
 		return err
 	}
-	_, err := dbq.DeleteApplicationById(ctx, app.Application_id)
+	_, err := dbq.DeleteApplicationById(ctx, app.ApplicationID)
 
 	return err
 }
@@ -349,7 +349,7 @@ func (obj *Application) GetAsLogKeyValues() []interface{} {
 		return []interface{}{}
 	}
 
-	return []interface{}{"applicationID", obj.Application_id,
+	return []interface{}{"applicationID", obj.ApplicationID,
 		"engineInstanceID", obj.Engine_instance_inst_id,
 		"managedEnvironmentID", obj.Managed_environment_id,
 		"applicationName", obj.Name,

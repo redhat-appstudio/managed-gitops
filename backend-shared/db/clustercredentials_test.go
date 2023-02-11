@@ -20,8 +20,8 @@ var _ = Describe("ClusterCredentials Tests", func() {
 			defer dbq.CloseDatabase()
 			clusterCreds := db.ClusterCredentials{
 				Host:                        "test-host",
-				Kube_config:                 "test-kube_config",
-				Kube_config_context:         "test-kube_config_context",
+				KubeConfig:                  "test-kube_config",
+				KubeConfig_context:          "test-kube_config_context",
 				Serviceaccount_bearer_token: "test-serviceaccount_bearer_token",
 				Serviceaccount_ns:           "test-serviceaccount_ns",
 			}

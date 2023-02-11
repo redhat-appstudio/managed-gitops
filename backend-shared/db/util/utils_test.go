@@ -20,9 +20,9 @@ import (
 
 // Used to list down resources for deletion which are created while running tests.
 type testResources struct {
-	Application_id                        string
+	ApplicationID                         string
 	Managedenvironment_id                 string
-	Gitopsenginecluster_id                string
+	PrimaryKeyID                          string
 	Gitopsengineinstance_id               string
 	Clustercredentials_cred_id            string
 	Deploymenttoapplicationmapping_uid_id string
@@ -49,8 +49,8 @@ func deleteTestResources(ctx context.Context, dbQueries db.AllDatabaseQueries, r
 	}
 
 	// Delete Application
-	if resourcesToBeDeleted.Application_id != "" {
-		rowsAffected, err = dbQueries.DeleteApplicationById(ctx, resourcesToBeDeleted.Application_id)
+	if resourcesToBeDeleted.ApplicationID != "" {
+		rowsAffected, err = dbQueries.DeleteApplicationById(ctx, resourcesToBeDeleted.ApplicationID)
 		Expect(err).To(BeNil())
 		Expect(rowsAffected).To(Equal(1))
 	}
@@ -63,8 +63,8 @@ func deleteTestResources(ctx context.Context, dbQueries db.AllDatabaseQueries, r
 	}
 
 	// Delete GitopsEngineCluster
-	if resourcesToBeDeleted.Gitopsenginecluster_id != "" {
-		rowsAffected, err = dbQueries.DeleteGitopsEngineClusterById(ctx, resourcesToBeDeleted.Gitopsenginecluster_id)
+	if resourcesToBeDeleted.PrimaryKeyID != "" {
+		rowsAffected, err = dbQueries.DeleteGitopsEngineClusterById(ctx, resourcesToBeDeleted.PrimaryKeyID)
 		Expect(err).To(BeNil())
 		Expect(rowsAffected).To(Equal(1))
 	}
@@ -168,7 +168,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			// Check ClusterCredentials resource
 			clusterCredentials := db.ClusterCredentials{
-				Clustercredentials_cred_id: managedEnvironment.Clustercredentials_id,
+				Clustercredentials_cred_id: managedEnvironment.ClusterCredentialsID,
 			}
 			err = dbQueries.GetClusterCredentialsById(ctx, &clusterCredentials)
 			Expect(err).To(BeNil())
@@ -180,8 +180,8 @@ var _ = Describe("Test utility functions.", func() {
 			retriveManagedEnvironment, isNew, err := GetOrCreateManagedEnvironmentByNamespaceUID(ctx, workspace, dbQueries, log)
 			Expect(err).To(BeNil())
 			Expect(isNew).To(BeFalse())
-			Expect(retriveManagedEnvironment.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
-			retriveManagedEnvironment.Created_on = managedEnvironment.Created_on
+			Expect(retriveManagedEnvironment.CreatedOn.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
+			retriveManagedEnvironment.CreatedOn = managedEnvironment.CreatedOn
 			Expect(retriveManagedEnvironment).To(Equal(managedEnvironment))
 
 			// ----------------------------------------------------------------------------
@@ -242,8 +242,8 @@ var _ = Describe("Test utility functions.", func() {
 			// Create ClusterCredentials
 			clusterCredentials = db.ClusterCredentials{
 				Host:                        "host",
-				Kube_config:                 "kube-config",
-				Kube_config_context:         "kube-config-context",
+				KubeConfig:                  "kube-config",
+				KubeConfig_context:          "kube-config-context",
 				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
@@ -254,8 +254,8 @@ var _ = Describe("Test utility functions.", func() {
 			// Create ManagedEnvironment
 
 			managedEnvironment = db.ManagedEnvironment{
-				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
-				Name:                  "my-managed-environment",
+				ClusterCredentialsID: clusterCredentials.Clustercredentials_cred_id,
+				Name:                 "my-managed-environment",
 			}
 			err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironment)
 			Expect(err).To(BeNil())
@@ -264,7 +264,7 @@ var _ = Describe("Test utility functions.", func() {
 			// Create GitopsEngineCluster
 
 			gitopsEngineCluster = db.GitopsEngineCluster{
-				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+				ClusterCredentialsID: clusterCredentials.Clustercredentials_cred_id,
 			}
 			err = dbQueries.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
 			Expect(err).To(BeNil())
@@ -273,9 +273,9 @@ var _ = Describe("Test utility functions.", func() {
 			// Create GitopsEngineInstance
 
 			gitopsEngineInstance = db.GitopsEngineInstance{
-				Namespace_name:   "my-namespace",
-				Namespace_uid:    "test-1",
-				EngineCluster_id: gitopsEngineCluster.Gitopsenginecluster_id,
+				NamespaceName:    "my-namespace",
+				NamespaceUID:     "test-1",
+				EngineCluster_id: gitopsEngineCluster.PrimaryKeyID,
 			}
 			err = dbQueries.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
 			Expect(err).To(BeNil())
@@ -297,7 +297,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			deploymentToApplicationMapping = &db.DeploymentToApplicationMapping{
 				Deploymenttoapplicationmapping_uid_id: string(uuid.NewUUID()),
-				Application_id:                        application.Application_id,
+				ApplicationID:                         application.ApplicationID,
 				DeploymentName:                        "my-depl-to-app-mapping",
 				DeploymentNamespace:                   "my-namespace",
 				NamespaceUID:                          "test-1",
@@ -310,9 +310,9 @@ var _ = Describe("Test utility functions.", func() {
 			// ----------------------------------------------------------------------------
 			resourcesToBeDeleted := testResources{
 				Deploymenttoapplicationmapping_uid_id: deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id,
-				Application_id:                        application.Application_id,
+				ApplicationID:                         application.ApplicationID,
 				Gitopsengineinstance_id:               gitopsEngineInstance.Gitopsengineinstance_id,
-				Gitopsenginecluster_id:                gitopsEngineCluster.Gitopsenginecluster_id,
+				PrimaryKeyID:                          gitopsEngineCluster.PrimaryKeyID,
 				Managedenvironment_id:                 managedEnvironment.Managedenvironment_id,
 				Clustercredentials_cred_id:            clusterCredentials.Clustercredentials_cred_id,
 			}
@@ -366,7 +366,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			deploymentToApplicationMappingSecond := &db.DeploymentToApplicationMapping{
 				Deploymenttoapplicationmapping_uid_id: string(uuid.NewUUID()),
-				Application_id:                        application.Application_id,
+				ApplicationID:                         application.ApplicationID,
 				DeploymentName:                        "my-depl-to-app-mapping",
 				DeploymentNamespace:                   "my-namespace",
 				NamespaceUID:                          "test-1",
@@ -415,11 +415,11 @@ var _ = Describe("Test utility functions.", func() {
 			var resourcesToBeDeleted testResources
 			// Objects could be nil, in that case it would throw error. To avoid that check object first
 			if gitopsEngineCluster != nil {
-				resourcesToBeDeleted.Gitopsenginecluster_id = gitopsEngineCluster.Gitopsenginecluster_id
+				resourcesToBeDeleted.PrimaryKeyID = gitopsEngineCluster.PrimaryKeyID
 			}
 
 			if gitopsEngineCluster != nil {
-				resourcesToBeDeleted.Clustercredentials_cred_id = gitopsEngineCluster.Clustercredentials_id
+				resourcesToBeDeleted.Clustercredentials_cred_id = gitopsEngineCluster.ClusterCredentialsID
 			}
 
 			if kubernetesToDBResourceMapping.KubernetesResourceUID != "" {
@@ -450,7 +450,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			// Check GitopsEngineCluster is created.
 			retrieveGitopsEngineCluster := db.GitopsEngineCluster{
-				Gitopsenginecluster_id: gitopsEngineCluster.Gitopsenginecluster_id,
+				PrimaryKeyID: gitopsEngineCluster.PrimaryKeyID,
 			}
 
 			err = dbQueries.GetGitopsEngineClusterById(ctx, &retrieveGitopsEngineCluster)
@@ -461,7 +461,7 @@ var _ = Describe("Test utility functions.", func() {
 			//----------------------------------------------------------
 			// Check KubernetesToDBResourceMapping is created.
 			var foundMapping bool
-			kubernetesToDBResourceMapping, foundMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineCluster.Gitopsenginecluster_id, db.K8sToDBMapping_GitopsEngineCluster)
+			kubernetesToDBResourceMapping, foundMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineCluster.PrimaryKeyID, db.K8sToDBMapping_GitopsEngineCluster)
 
 			Expect(err).To(BeNil())
 			Expect(foundMapping).To(BeTrue())
@@ -501,7 +501,7 @@ var _ = Describe("Test utility functions.", func() {
 			Expect(err).To(BeNil())
 			Expect(foundOldMapping).To(BeFalse())
 
-			kubernetesToDBResourceMapping, foundNewMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineCluster.Gitopsenginecluster_id, db.K8sToDBMapping_GitopsEngineCluster)
+			kubernetesToDBResourceMapping, foundNewMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineCluster.PrimaryKeyID, db.K8sToDBMapping_GitopsEngineCluster)
 			Expect(err).To(BeNil())
 			Expect(foundNewMapping).To(BeTrue())
 		})
@@ -526,7 +526,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			// Fetch KubernetesToDBResourceMapping to be used later.
 			var foundMapping bool
-			kubernetesToDBResourceMapping, foundMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineCluster.Gitopsenginecluster_id, db.K8sToDBMapping_GitopsEngineCluster)
+			kubernetesToDBResourceMapping, foundMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineCluster.PrimaryKeyID, db.K8sToDBMapping_GitopsEngineCluster)
 			Expect(err).To(BeNil())
 			Expect(foundMapping).To(BeTrue())
 
@@ -545,7 +545,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			Expect(gitopsEngineCluster).To(Equal(retrieveGitopsEngineCluster))
 
-			kubernetesToDBResourceMappingSecond, _, err := findKubernetesToDBResourceMappingInTable(ctx, dbQueries, retrieveGitopsEngineCluster.Gitopsenginecluster_id, db.K8sToDBMapping_GitopsEngineCluster)
+			kubernetesToDBResourceMappingSecond, _, err := findKubernetesToDBResourceMappingInTable(ctx, dbQueries, retrieveGitopsEngineCluster.PrimaryKeyID, db.K8sToDBMapping_GitopsEngineCluster)
 			Expect(err).To(BeNil())
 			Expect(kubernetesToDBResourceMappingSecond).To(Equal(kubernetesToDBResourceMapping))
 		})
@@ -582,8 +582,8 @@ var _ = Describe("Test utility functions.", func() {
 
 			// Objects could be nil, in that case it would throw error. To avoid that check object first
 			if gitopsEngineCluster != nil {
-				resourcesToBeDeleted.Gitopsenginecluster_id = gitopsEngineCluster.Gitopsenginecluster_id
-				resourcesToBeDeleted.Clustercredentials_cred_id = gitopsEngineCluster.Clustercredentials_id
+				resourcesToBeDeleted.PrimaryKeyID = gitopsEngineCluster.PrimaryKeyID
+				resourcesToBeDeleted.Clustercredentials_cred_id = gitopsEngineCluster.ClusterCredentialsID
 			}
 
 			if kubernetesToDBResourceMapping.KubernetesResourceType != "" {
@@ -664,7 +664,7 @@ var _ = Describe("Test utility functions.", func() {
 			// ----------------------------------------------------------------------------
 
 			// Fetch KubernetesToDBResourceMapping to be cleaned in AfterEach.
-			kubernetesToDBResourceMapping, _, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineCluster.Gitopsenginecluster_id, db.K8sToDBMapping_GitopsEngineCluster)
+			kubernetesToDBResourceMapping, _, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineCluster.PrimaryKeyID, db.K8sToDBMapping_GitopsEngineCluster)
 			Expect(err).To(BeNil())
 		})
 	})
@@ -706,8 +706,8 @@ var _ = Describe("Test utility functions.", func() {
 			}
 
 			if gitopsEngineCluster != nil {
-				resourcesToBeDeleted.Gitopsenginecluster_id = gitopsEngineCluster.Gitopsenginecluster_id
-				resourcesToBeDeleted.Clustercredentials_cred_id = gitopsEngineCluster.Clustercredentials_id
+				resourcesToBeDeleted.PrimaryKeyID = gitopsEngineCluster.PrimaryKeyID
+				resourcesToBeDeleted.Clustercredentials_cred_id = gitopsEngineCluster.ClusterCredentialsID
 			}
 
 			if kubernetesToDBResourceMappingForEngineInstance.KubernetesResourceUID != "" {
@@ -757,7 +757,7 @@ var _ = Describe("Test utility functions.", func() {
 			Expect(err).To(BeNil())
 			Expect(foundGitopsEngineInstanceMapping).To(BeTrue())
 
-			kubernetesToDBResourceMappingForEngineCluster, foundGitopsEngineClusterMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineCluster.Gitopsenginecluster_id, db.K8sToDBMapping_GitopsEngineCluster)
+			kubernetesToDBResourceMappingForEngineCluster, foundGitopsEngineClusterMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineCluster.PrimaryKeyID, db.K8sToDBMapping_GitopsEngineCluster)
 			Expect(err).To(BeNil())
 			Expect(foundGitopsEngineClusterMapping).To(BeTrue())
 		})
@@ -812,7 +812,7 @@ var _ = Describe("Test utility functions.", func() {
 			Expect(foundNewGitopsEngineInstanceMapping).To(BeTrue())
 
 			// Check mapping for GitOpsEngineCluster is present.
-			kubernetesToDBResourceMappingForEngineCluster, foundGitopsEngineClusterMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineCluster.Gitopsenginecluster_id, db.K8sToDBMapping_GitopsEngineCluster)
+			kubernetesToDBResourceMappingForEngineCluster, foundGitopsEngineClusterMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineCluster.PrimaryKeyID, db.K8sToDBMapping_GitopsEngineCluster)
 			Expect(err).To(BeNil())
 			Expect(foundGitopsEngineClusterMapping).To(BeTrue())
 		})
@@ -861,7 +861,7 @@ var _ = Describe("Test utility functions.", func() {
 			Expect(foundGitopsEngineInstanceMapping).To(BeTrue())
 
 			// Check mapping for GitOpsEngineCluster is present.
-			kubernetesToDBResourceMappingForEngineCluster, foundGitopsEngineClusterMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineCluster.Gitopsenginecluster_id, db.K8sToDBMapping_GitopsEngineCluster)
+			kubernetesToDBResourceMappingForEngineCluster, foundGitopsEngineClusterMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineCluster.PrimaryKeyID, db.K8sToDBMapping_GitopsEngineCluster)
 			Expect(err).To(BeNil())
 			Expect(foundGitopsEngineClusterMapping).To(BeTrue())
 

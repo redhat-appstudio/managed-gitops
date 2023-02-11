@@ -229,7 +229,7 @@ func (dbq *PostgreSQLDatabaseQueries) isAccessibleByUser(ctx context.Context, cl
 		for _, engineCluster := range engineClustersUsingCredential {
 
 			var gitopsEngineInstances []GitopsEngineInstance
-			if err := dbq.CheckedListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx, engineCluster.Gitopsenginecluster_id, ownerId, &gitopsEngineInstances); err != nil {
+			if err := dbq.CheckedListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx, engineCluster.PrimaryKeyID, ownerId, &gitopsEngineInstances); err != nil {
 				return false, err
 			}
 
@@ -284,7 +284,7 @@ func (obj *ClusterCredentials) GetAsLogKeyValues() []interface{} {
 	}
 
 	// We avoid logging the bearer_token or kube_config, as these container sensitive user data.
-	return []interface{}{"host", obj.Host, "kube-config-length", len(obj.Kube_config),
-		"kube-config-context", len(obj.Kube_config_context), "serviceaccount_ns", obj.Serviceaccount_ns,
+	return []interface{}{"host", obj.Host, "kube-config-length", len(obj.KubeConfig),
+		"kube-config-context", len(obj.KubeConfig_context), "serviceaccount_ns", obj.Serviceaccount_ns,
 		"serviceaccount-bearer-token-length", len(obj.Serviceaccount_bearer_token)}
 }

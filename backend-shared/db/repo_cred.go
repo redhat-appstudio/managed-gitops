@@ -32,7 +32,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateRepositoryCredentials(ctx context.Co
 		return err
 	}
 
-	obj.Created_on = time.Now()
+	obj.CreatedOn = time.Now()
 
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {

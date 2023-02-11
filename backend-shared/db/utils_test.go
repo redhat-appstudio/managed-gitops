@@ -121,17 +121,17 @@ var _ = Describe("Test utility functions", func() {
 
 		It("Should pass.", func() {
 			gitopsEngineCluster := &GitopsEngineCluster{
-				Gitopsenginecluster_id: "user-id",
-				SeqID:                  123,
+				PrimaryKeyID: "user-id",
+				SeqID:        123,
 			}
 			err := validateFieldLength(gitopsEngineCluster)
 			Expect(IsMaxLengthError(err)).To(BeFalse())
 		})
 
-		It("Should return error for Gitopsenginecluster_id", func() {
+		It("Should return error for PrimaryKeyID", func() {
 			gitopsEngineCluster := &GitopsEngineCluster{
-				Gitopsenginecluster_id: strings.Repeat("abc", 17),
-				SeqID:                  123,
+				PrimaryKeyID: strings.Repeat("abc", 17),
+				SeqID:        123,
 			}
 			err := validateFieldLength(gitopsEngineCluster)
 			Expect(IsMaxLengthError(err)).To(BeTrue())

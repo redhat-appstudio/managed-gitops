@@ -60,8 +60,8 @@ func (dbq *PostgreSQLDatabaseQueries) CreateOperation(ctx context.Context, obj *
 		return fmt.Errorf("unable to retrieve operation's gitops engine instance ID: '%v' %v", obj.Instance_id, err)
 	}
 
-	obj.Created_on = time.Now()
-	obj.Last_state_update = obj.Created_on
+	obj.CreatedOn = time.Now()
+	obj.Last_state_update = obj.CreatedOn
 
 	// Initial state is waiting
 	obj.State = OperationState_Waiting

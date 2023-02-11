@@ -261,28 +261,28 @@ func generateSampleData() (ClusterCredentials, ManagedEnvironment, GitopsEngineC
 	clusterCredentials := ClusterCredentials{
 		Clustercredentials_cred_id:  "test-cluster-creds-test",
 		Host:                        "host",
-		Kube_config:                 "kube-config",
-		Kube_config_context:         "kube-config-context",
+		KubeConfig:                  "kube-config",
+		KubeConfig_context:          "kube-config-context",
 		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
 		Serviceaccount_ns:           "Serviceaccount_ns",
 	}
 
 	managedEnvironment := ManagedEnvironment{
 		Managedenvironment_id: "test-managed-env-914",
-		Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+		ClusterCredentialsID:  clusterCredentials.Clustercredentials_cred_id,
 		Name:                  "my env",
 	}
 
 	gitopsEngineCluster := GitopsEngineCluster{
-		Gitopsenginecluster_id: "test-fake-cluster-914",
-		Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+		PrimaryKeyID:         "test-fake-cluster-914",
+		ClusterCredentialsID: clusterCredentials.Clustercredentials_cred_id,
 	}
 
 	gitopsEngineInstance := GitopsEngineInstance{
 		Gitopsengineinstance_id: "test-fake-engine-instance-id",
-		Namespace_name:          "test-fake-namespace",
-		Namespace_uid:           "test-fake-namespace-914",
-		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+		NamespaceName:           "test-fake-namespace",
+		NamespaceUID:            "test-fake-namespace-914",
+		EngineCluster_id:        gitopsEngineCluster.PrimaryKeyID,
 	}
 
 	clusterAccess := ClusterAccess{
@@ -313,8 +313,8 @@ func SetupForTestingDBGinkgo() error {
 	Expect(err).To(BeNil())
 
 	for _, syncOperation := range syncOperations {
-		if strings.HasPrefix(syncOperation.SyncOperation_id, "test-") {
-			rowsAffected, err := dbq.DeleteSyncOperationById(ctx, syncOperation.SyncOperation_id)
+		if strings.HasPrefix(syncOperation.SyncOperationID, "test-") {
+			rowsAffected, err := dbq.DeleteSyncOperationById(ctx, syncOperation.SyncOperationID)
 			Expect(err).To(BeNil())
 
 			if err == nil {
@@ -395,8 +395,8 @@ func SetupForTestingDBGinkgo() error {
 	Expect(err).To(BeNil())
 
 	for _, application := range applications {
-		if strings.HasPrefix(application.Application_id, "test-") {
-			rowsAffected, err := dbq.DeleteApplicationById(ctx, application.Application_id)
+		if strings.HasPrefix(application.ApplicationID, "test-") {
+			rowsAffected, err := dbq.DeleteApplicationById(ctx, application.ApplicationID)
 			Expect(err).To(BeNil())
 			if err == nil {
 				Expect(rowsAffected).Should(Equal(1))
@@ -443,8 +443,8 @@ func SetupForTestingDBGinkgo() error {
 	Expect(err).To(BeNil())
 
 	for _, engineCluster := range engineClusters {
-		if strings.HasPrefix(engineCluster.Gitopsenginecluster_id, "test-") {
-			rowsAffected, err := dbq.DeleteGitopsEngineClusterById(ctx, engineCluster.Gitopsenginecluster_id)
+		if strings.HasPrefix(engineCluster.PrimaryKeyID, "test-") {
+			rowsAffected, err := dbq.DeleteGitopsEngineClusterById(ctx, engineCluster.PrimaryKeyID)
 			Expect(err).To(BeNil())
 
 			if err == nil {

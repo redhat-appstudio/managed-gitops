@@ -15,13 +15,13 @@ func generateUuid() string {
 
 // Create entry for Application and DeploymentToApplicationMapping tables
 func createAppAndDtamEntry(ctx context.Context, dbq db.AllDatabaseQueries, application *db.Application, deploymentToApplicationMapping *db.DeploymentToApplicationMapping) {
-	application.Application_id = "test-app-" + generateUuid()
+	application.ApplicationID = "test-app-" + generateUuid()
 	application.Name = "test-app-" + generateUuid()
 	err := dbq.CreateApplication(ctx, application)
 	Expect(err).To(BeNil())
 
 	deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id = "test-" + generateUuid()
-	deploymentToApplicationMapping.Application_id = application.Application_id
+	deploymentToApplicationMapping.ApplicationID = application.ApplicationID
 	err = dbq.CreateDeploymentToApplicationMapping(ctx, deploymentToApplicationMapping)
 	Expect(err).To(BeNil())
 }

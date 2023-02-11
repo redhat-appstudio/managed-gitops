@@ -142,14 +142,14 @@ func (dbq *PostgreSQLDatabaseQueries) GetDeploymentToApplicationMappingByApplica
 		return err
 	}
 
-	if IsEmpty(deplToAppMappingParam.Application_id) {
+	if IsEmpty(deplToAppMappingParam.ApplicationID) {
 		return fmt.Errorf("GetDeploymentToApplicationMappingByApplicationId: param is nil")
 	}
 
 	var dbResults []DeploymentToApplicationMapping
 
 	if err := dbq.dbConnection.Model(&dbResults).
-		Where("dta.application_id = ?", deplToAppMappingParam.Application_id). // TODO: GITOPSRVCE-68 - PERF - Index this
+		Where("dta.application_id = ?", deplToAppMappingParam.ApplicationID). // TODO: GITOPSRVCE-68 - PERF - Index this
 		Context(ctx).
 		Select(); err != nil {
 
@@ -204,7 +204,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedGetDeploymentToApplicationMappingBy
 	}
 
 	// Check that the user has access to retrieve the referenced Application
-	deplApplication := Application{Application_id: dbResults[0].Application_id}
+	deplApplication := Application{ApplicationID: dbResults[0].ApplicationID}
 	if err := dbq.CheckedGetApplicationById(ctx, &deplApplication, ownerId); err != nil {
 
 		if IsResultNotFoundError(err) {
@@ -272,7 +272,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateDeploymentToApplicationMapping(ctx c
 	}
 
 	if err := isEmptyValues("CreateDeploymentToApplicationMapping",
-		"Application_id", obj.Application_id,
+		"ApplicationID", obj.ApplicationID,
 		"Deploymenttoapplicationmapping_uid_id", obj.Deploymenttoapplicationmapping_uid_id,
 		"DeploymentName", obj.DeploymentName,
 		"DeploymentNamespace", obj.DeploymentNamespace,
@@ -325,7 +325,7 @@ func (obj *DeploymentToApplicationMapping) GetAsLogKeyValues() []interface{} {
 		return []interface{}{}
 	}
 
-	return []interface{}{"dtamApplicationID", obj.Application_id, "dtamDeploymentName", obj.DeploymentName,
+	return []interface{}{"dtamApplicationID", obj.ApplicationID, "dtamDeploymentName", obj.DeploymentName,
 		"dtamNamespace", obj.DeploymentNamespace, "dtamUID", obj.Deploymenttoapplicationmapping_uid_id,
 		"dtamNamespaceUID", obj.NamespaceUID}
 }

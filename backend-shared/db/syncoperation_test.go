@@ -30,7 +30,7 @@ var _ = Describe("SyncOperation Tests", func() {
 			Expect(err).To(BeNil())
 
 			application := &db.Application{
-				Application_id:          "test-my-application",
+				ApplicationID:           "test-my-application",
 				Name:                    "my-application",
 				Spec_field:              "{}",
 				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
@@ -55,8 +55,8 @@ var _ = Describe("SyncOperation Tests", func() {
 			Expect(err).To(BeNil())
 
 			insertRow := db.SyncOperation{
-				SyncOperation_id:    "test-sync",
-				Application_id:      application.Application_id,
+				SyncOperationID:     "test-sync",
+				ApplicationID:       application.ApplicationID,
 				DeploymentNameField: "testDeployment",
 				Revision:            "testRev",
 				DesiredState:        "Terminated",
@@ -66,12 +66,12 @@ var _ = Describe("SyncOperation Tests", func() {
 
 			Expect(err).To(BeNil())
 			fetchRow := db.SyncOperation{
-				SyncOperation_id: "test-sync",
+				SyncOperationID: "test-sync",
 			}
 			err = dbq.GetSyncOperationById(ctx, &fetchRow)
 			Expect(err).To(BeNil())
-			Expect(fetchRow.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
-			fetchRow.Created_on = insertRow.Created_on
+			Expect(fetchRow.CreatedOn.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
+			fetchRow.CreatedOn = insertRow.CreatedOn
 			Expect(fetchRow).Should(Equal(insertRow))
 
 			updatedSyncOperation := insertRow
@@ -84,11 +84,11 @@ var _ = Describe("SyncOperation Tests", func() {
 			Expect(err).To(BeNil())
 			Expect(fetchRow.DesiredState).Should(Equal(updatedSyncOperation.DesiredState))
 
-			rowCount, err := dbq.DeleteSyncOperationById(ctx, insertRow.SyncOperation_id)
+			rowCount, err := dbq.DeleteSyncOperationById(ctx, insertRow.SyncOperationID)
 			Expect(err).To(BeNil())
 			Expect(rowCount).Should(Equal(1))
 			fetchRow = db.SyncOperation{
-				SyncOperation_id: "test-sync",
+				SyncOperationID: "test-sync",
 			}
 
 			err = dbq.GetSyncOperationById(ctx, &fetchRow)

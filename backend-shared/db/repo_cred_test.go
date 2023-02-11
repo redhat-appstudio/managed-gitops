@@ -60,6 +60,7 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 				AuthSSHKey:              "test-auth-ssh-key",
 				SecretObj:               "test-secret-obj",
 				EngineClusterID:         gitopsEngineInstance.Gitopsengineinstance_id, // constrain 'fk_gitopsengineinstance_id'
+				CreatedOn:               time.Now(),
 			}
 
 			By("Inserting the RepositoryCredentials object to the database")
@@ -69,8 +70,8 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			By("Getting the RepositoryCredentials object from the database")
 			fetch, err := dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentials.RepositoryCredentialsID)
 			Expect(err).To(BeNil())
-			Expect(fetch.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
-			fetch.Created_on = gitopsRepositoryCredentials.Created_on
+			Expect(fetch.CreatedOn.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
+			fetch.CreatedOn = gitopsRepositoryCredentials.CreatedOn
 			Expect(fetch).Should(Equal(gitopsRepositoryCredentials))
 
 			By("Creating an identical RepositoryCredentials object should fail")
@@ -83,6 +84,7 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 				AuthSSHKey:              "test-auth-ssh-key",
 				SecretObj:               "test-secret-obj",
 				EngineClusterID:         gitopsEngineInstance.Gitopsengineinstance_id, // constrain 'fk_gitopsengineinstance_id'
+				CreatedOn:               time.Now(),
 			}
 
 			By("Inserting the identical RepositoryCredentials object to the database")
@@ -105,13 +107,13 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			By("Getting the updated RepositoryCredentials object from the database")
 			fetchUpdated, err := dbq.GetRepositoryCredentialsByID(ctx, updatedCR.RepositoryCredentialsID)
 			Expect(err).To(BeNil())
-			Expect(fetch.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
-			fetchUpdated.Created_on = updatedCR.Created_on
+			Expect(fetch.CreatedOn.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
+			fetchUpdated.CreatedOn = updatedCR.CreatedOn
 			Expect(fetchUpdated).Should(Equal(updatedCR))
 
 			By("Comparing the original and updated RepositoryCredentials objects")
-			Expect(fetchUpdated.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
-			fetchUpdated.Created_on = updatedCR.Created_on
+			Expect(fetchUpdated.CreatedOn.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
+			fetchUpdated.CreatedOn = updatedCR.CreatedOn
 			Expect(fetch).ShouldNot(Equal(fetchUpdated))
 
 			By("Deleting the RepositoryCredentials object from the database")

@@ -23,22 +23,22 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 		clusterCredentials := db.ClusterCredentials{
 			Clustercredentials_cred_id:  "test-cluster-creds-test-1",
 			Host:                        "host",
-			Kube_config:                 "kube-config",
-			Kube_config_context:         "kube-config-context",
+			KubeConfig:                  "kube-config",
+			KubeConfig_context:          "kube-config-context",
 			Serviceaccount_bearer_token: "serviceaccount_bearer_token",
 			Serviceaccount_ns:           "Serviceaccount_ns",
 		}
 
 		gitopsEngineCluster := db.GitopsEngineCluster{
-			Gitopsenginecluster_id: "test-fake-cluster-1",
-			Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+			PrimaryKeyID:         "test-fake-cluster-1",
+			ClusterCredentialsID: clusterCredentials.Clustercredentials_cred_id,
 		}
 
 		gitopsEngineInstanceput := db.GitopsEngineInstance{
 			Gitopsengineinstance_id: "test-fake-engine-instance-id",
-			Namespace_name:          "test-fake-namespace",
-			Namespace_uid:           "test-fake-namespace-1",
-			EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+			NamespaceName:           "test-fake-namespace",
+			NamespaceUID:            "test-fake-namespace-1",
+			EngineCluster_id:        gitopsEngineCluster.PrimaryKeyID,
 		}
 		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
 		Expect(err).To(BeNil())
@@ -88,8 +88,8 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 		clusterCredentials := db.ClusterCredentials{
 			Clustercredentials_cred_id:  "test-cred-" + string(uuid.NewUUID()),
 			Host:                        "host",
-			Kube_config:                 "kube-config",
-			Kube_config_context:         "kube-config-context",
+			KubeConfig:                  "kube-config",
+			KubeConfig_context:          "kube-config-context",
 			Serviceaccount_bearer_token: "serviceaccount_bearer_token",
 			Serviceaccount_ns:           "Serviceaccount_ns",
 		}
@@ -100,17 +100,17 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 		var instanceDbCluster2_shouldNotMatch db.GitopsEngineInstance
 		{
 			gitopsEngineCluster2 := db.GitopsEngineCluster{
-				Gitopsenginecluster_id: "test-cred-" + string(uuid.NewUUID()),
-				Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+				PrimaryKeyID:         "test-cred-" + string(uuid.NewUUID()),
+				ClusterCredentialsID: clusterCredentials.Clustercredentials_cred_id,
 			}
 			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster2)
 			Expect(err).To(BeNil())
 
 			instanceDbCluster2_shouldNotMatch = db.GitopsEngineInstance{
 				Gitopsengineinstance_id: "test-ins-id-" + string(uuid.NewUUID()),
-				Namespace_name:          "test-fake-namespace-1",
-				Namespace_uid:           "test-fake-namespace-1",
-				EngineCluster_id:        gitopsEngineCluster2.Gitopsenginecluster_id,
+				NamespaceName:           "test-fake-namespace-1",
+				NamespaceUID:            "test-fake-namespace-1",
+				EngineCluster_id:        gitopsEngineCluster2.PrimaryKeyID,
 			}
 			err = dbq.CreateGitopsEngineInstance(ctx, &instanceDbCluster2_shouldNotMatch)
 			Expect(err).To(BeNil())
@@ -118,26 +118,26 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 
 		By("creating a new GitOpsEngineCluster with 2 Instances, each in different Namespace")
 		gitopsEngineCluster := db.GitopsEngineCluster{
-			Gitopsenginecluster_id: "test-cred-" + string(uuid.NewUUID()),
-			Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+			PrimaryKeyID:         "test-cred-" + string(uuid.NewUUID()),
+			ClusterCredentialsID: clusterCredentials.Clustercredentials_cred_id,
 		}
 		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
 		Expect(err).To(BeNil())
 
 		instanceDb := db.GitopsEngineInstance{
 			Gitopsengineinstance_id: "test-ins-id-" + string(uuid.NewUUID()),
-			Namespace_name:          "test-fake-namespace-1",
-			Namespace_uid:           "test-fake-namespace-1",
-			EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+			NamespaceName:           "test-fake-namespace-1",
+			NamespaceUID:            "test-fake-namespace-1",
+			EngineCluster_id:        gitopsEngineCluster.PrimaryKeyID,
 		}
 		err = dbq.CreateGitopsEngineInstance(ctx, &instanceDb)
 		Expect(err).To(BeNil())
 
 		instanceDb2 := db.GitopsEngineInstance{
 			Gitopsengineinstance_id: "test-ins-id-" + string(uuid.NewUUID()),
-			Namespace_name:          "test-fake-namespace-2",
-			Namespace_uid:           "test-fake-namespace-2",
-			EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+			NamespaceName:           "test-fake-namespace-2",
+			NamespaceUID:            "test-fake-namespace-2",
+			EngineCluster_id:        gitopsEngineCluster.PrimaryKeyID,
 		}
 		err = dbq.CreateGitopsEngineInstance(ctx, &instanceDb2)
 		Expect(err).To(BeNil())

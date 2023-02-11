@@ -11,21 +11,21 @@ func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineClusterById(ctx context.Con
 		return err
 	}
 
-	if err := isEmptyValues("GetGitopsEngineClusterById", "Gitopsenginecluster_id", gitopsEngineCluster.Gitopsenginecluster_id); err != nil {
+	if err := isEmptyValues("GetGitopsEngineClusterById", "PrimaryKeyID", gitopsEngineCluster.PrimaryKeyID); err != nil {
 		return err
 	}
 
 	var dbResultEngineClusters []GitopsEngineCluster
 	if err := dbq.dbConnection.Model(&dbResultEngineClusters).
-		Where("gitopsenginecluster_id = ?", gitopsEngineCluster.Gitopsenginecluster_id).
+		Where("gitopsenginecluster_id = ?", gitopsEngineCluster.PrimaryKeyID).
 		Context(ctx).
 		Select(); err != nil {
-		return fmt.Errorf("error on retrieving GitopsEngineCluster '%s': %v", gitopsEngineCluster.Gitopsenginecluster_id, err)
+		return fmt.Errorf("error on retrieving GitopsEngineCluster '%s': %v", gitopsEngineCluster.PrimaryKeyID, err)
 	}
 
 	if len(dbResultEngineClusters) == 0 {
 		return NewResultNotFoundError(
-			fmt.Sprintf("no engine clusters was found with id '%s'", gitopsEngineCluster.Gitopsenginecluster_id))
+			fmt.Sprintf("no engine clusters was found with id '%s'", gitopsEngineCluster.PrimaryKeyID))
 	}
 
 	if len(dbResultEngineClusters) > 1 {
@@ -43,7 +43,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedGetGitopsEngineClusterById(ctx cont
 		return err
 	}
 
-	if IsEmpty(gitopsEngineCluster.Gitopsenginecluster_id) {
+	if IsEmpty(gitopsEngineCluster.PrimaryKeyID) {
 		return fmt.Errorf("invalid pk in GetGitopsEngineClusterById")
 	}
 
@@ -53,9 +53,9 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedGetGitopsEngineClusterById(ctx cont
 
 	// Return engine instances that are owned by 'ownerid', and are running on cluster 'id'
 	var dbResultGitopsEngineInstances []GitopsEngineInstance
-	if err := dbq.CheckedListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx, gitopsEngineCluster.Gitopsenginecluster_id, ownerId, &dbResultGitopsEngineInstances); err != nil {
+	if err := dbq.CheckedListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx, gitopsEngineCluster.PrimaryKeyID, ownerId, &dbResultGitopsEngineInstances); err != nil {
 		return NewResultNotFoundError(
-			fmt.Sprintf("unable to list engine instances for engine cluster '%s' %v", gitopsEngineCluster.Gitopsenginecluster_id, err))
+			fmt.Sprintf("unable to list engine instances for engine cluster '%s' %v", gitopsEngineCluster.PrimaryKeyID, err))
 	}
 
 	// For security reasons, there should be at least one gitops engine instance that is running on the cluster, that
@@ -68,15 +68,15 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedGetGitopsEngineClusterById(ctx cont
 
 	var dbResultEngineClusters []GitopsEngineCluster
 	if err := dbq.dbConnection.Model(&dbResultEngineClusters).
-		Where("gitopsenginecluster_id = ?", gitopsEngineCluster.Gitopsenginecluster_id).
+		Where("gitopsenginecluster_id = ?", gitopsEngineCluster.PrimaryKeyID).
 		Context(ctx).
 		Select(); err != nil {
-		return fmt.Errorf("error on retrieving GitopsEngineCluster '%s': %v", gitopsEngineCluster.Gitopsenginecluster_id, err)
+		return fmt.Errorf("error on retrieving GitopsEngineCluster '%s': %v", gitopsEngineCluster.PrimaryKeyID, err)
 	}
 
 	if len(dbResultEngineClusters) == 0 {
 		return NewResultNotFoundError(
-			fmt.Sprintf("no engine clusters was found with id '%s'", gitopsEngineCluster.Gitopsenginecluster_id))
+			fmt.Sprintf("no engine clusters was found with id '%s'", gitopsEngineCluster.PrimaryKeyID))
 	}
 
 	if len(dbResultEngineClusters) > 1 {
@@ -120,8 +120,8 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedListGitopsEngineClusterByCredential
 
 		// Return engine instances that are owned by 'ownerid', and are running on cluster 'id'
 		var dbEngineInstances []GitopsEngineInstance
-		if err := dbq.CheckedListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx, gitopsEngineCluster.Gitopsenginecluster_id, ownerId, &dbEngineInstances); err != nil {
-			return fmt.Errorf("unable to list engine instance for '%s', owner '%s', error: %v", gitopsEngineCluster.Gitopsenginecluster_id, ownerId, err)
+		if err := dbq.CheckedListAllGitopsEngineInstancesForGitopsEngineClusterIdAndOwnerId(ctx, gitopsEngineCluster.PrimaryKeyID, ownerId, &dbEngineInstances); err != nil {
+			return fmt.Errorf("unable to list engine instance for '%s', owner '%s', error: %v", gitopsEngineCluster.PrimaryKeyID, ownerId, err)
 		}
 
 		// For security reasons, there should be at least one gitops engine instance that is running on the cluster, that
@@ -140,22 +140,22 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedListGitopsEngineClusterByCredential
 func (dbq *PostgreSQLDatabaseQueries) CreateGitopsEngineCluster(ctx context.Context, obj *GitopsEngineCluster) error {
 
 	if dbq.allowTestUuids {
-		if IsEmpty(obj.Gitopsenginecluster_id) {
-			obj.Gitopsenginecluster_id = generateUuid()
+		if IsEmpty(obj.PrimaryKeyID) {
+			obj.PrimaryKeyID = generateUuid()
 		}
 	} else {
-		if !IsEmpty(obj.Gitopsenginecluster_id) {
+		if !IsEmpty(obj.PrimaryKeyID) {
 			return fmt.Errorf("primary key should be empty")
 		}
 
-		obj.Gitopsenginecluster_id = generateUuid()
+		obj.PrimaryKeyID = generateUuid()
 	}
 
-	if err := validateQueryParams(obj.Gitopsenginecluster_id, dbq); err != nil {
+	if err := validateQueryParams(obj.PrimaryKeyID, dbq); err != nil {
 		return err
 	}
 
-	if IsEmpty(obj.Clustercredentials_id) {
+	if IsEmpty(obj.ClusterCredentialsID) {
 		return fmt.Errorf("cluster credentials field should not be empty")
 	}
 
@@ -197,7 +197,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteGitopsEngineClusterById(ctx context.
 	}
 
 	result := &GitopsEngineCluster{
-		Gitopsenginecluster_id: id,
+		PrimaryKeyID: id,
 	}
 
 	deleteResult, err := dbq.dbConnection.Model(result).WherePK().Context(ctx).Delete()
@@ -213,7 +213,7 @@ func (obj *GitopsEngineCluster) Dispose(ctx context.Context, dbq DatabaseQueries
 		return fmt.Errorf("missing database interface in GitOpsEngineCluster dispose")
 	}
 
-	_, err := dbq.DeleteGitopsEngineClusterById(ctx, obj.Gitopsenginecluster_id)
+	_, err := dbq.DeleteGitopsEngineClusterById(ctx, obj.PrimaryKeyID)
 	return err
 }
 
@@ -223,5 +223,5 @@ func (obj *GitopsEngineCluster) GetAsLogKeyValues() []interface{} {
 	if obj == nil {
 		return []interface{}{}
 	}
-	return []interface{}{"clustercredentials_id", obj.Clustercredentials_id, "gitopsenginecluster_id", obj.Gitopsenginecluster_id}
+	return []interface{}{"clustercredentials_id", obj.ClusterCredentialsID, "gitopsenginecluster_id", obj.PrimaryKeyID}
 }

@@ -17,14 +17,14 @@ func (dbq *PostgreSQLDatabaseQueries) GetSyncOperationById(ctx context.Context, 
 		return err
 	}
 
-	if IsEmpty(syncOperation.SyncOperation_id) {
+	if IsEmpty(syncOperation.SyncOperationID) {
 		return fmt.Errorf("sync operation id is empty")
 	}
 
 	var dbResults []SyncOperation
 
 	if err := dbq.dbConnection.Model(&dbResults).
-		Where("so.syncoperation_id = ?", syncOperation.SyncOperation_id).
+		Where("so.syncoperation_id = ?", syncOperation.SyncOperationID).
 		Context(ctx).
 		Select(); err != nil {
 
@@ -51,19 +51,19 @@ func (dbq *PostgreSQLDatabaseQueries) CreateSyncOperation(ctx context.Context, o
 	}
 
 	if dbq.allowTestUuids {
-		if IsEmpty(obj.SyncOperation_id) {
-			obj.SyncOperation_id = generateUuid()
+		if IsEmpty(obj.SyncOperationID) {
+			obj.SyncOperationID = generateUuid()
 		}
 	} else {
-		if !IsEmpty(obj.SyncOperation_id) {
+		if !IsEmpty(obj.SyncOperationID) {
 			return fmt.Errorf("primary key should be empty")
 		}
 
-		obj.SyncOperation_id = generateUuid()
+		obj.SyncOperationID = generateUuid()
 	}
 
 	if err := isEmptyValues("CreateSyncOperation",
-		"Application_id", obj.Application_id,
+		"ApplicationID", obj.ApplicationID,
 		"DeploymentNameField", obj.DeploymentNameField,
 		"Revision", obj.Revision,
 		"DesiredState", obj.DesiredState); err != nil {
@@ -74,7 +74,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateSyncOperation(ctx context.Context, o
 		return err
 	}
 
-	obj.Created_on = time.Now()
+	obj.CreatedOn = time.Now()
 
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
@@ -120,8 +120,8 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateSyncOperation(ctx context.Context, o
 	}
 
 	if err := isEmptyValues("UpdateSyncOperation",
-		"syncoperation_id", obj.SyncOperation_id,
-		"application_id", obj.Application_id,
+		"syncoperation_id", obj.SyncOperationID,
+		"application_id", obj.ApplicationID,
 		"deployment_name", obj.DeploymentNameField,
 		"revision", obj.Revision,
 		"desired_state", obj.DesiredState,
@@ -131,11 +131,11 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateSyncOperation(ctx context.Context, o
 
 	result, err := dbq.dbConnection.Model(obj).WherePK().Context(ctx).Update()
 	if err != nil {
-		return fmt.Errorf("error on updating SyncOperation: %v, %v", err, obj.SyncOperation_id)
+		return fmt.Errorf("error on updating SyncOperation: %v, %v", err, obj.SyncOperationID)
 	}
 
 	if result.RowsAffected() != 1 {
-		return fmt.Errorf("unexpected number of rows affected: %d, %v", result.RowsAffected(), obj.SyncOperation_id)
+		return fmt.Errorf("unexpected number of rows affected: %d, %v", result.RowsAffected(), obj.SyncOperationID)
 	}
 
 	return nil
@@ -155,7 +155,7 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateSyncOperationRemoveApplicationField(
 	}
 
 	operation := SyncOperation{
-		Application_id: applicationId,
+		ApplicationID: applicationId,
 	}
 
 	res, err := dbq.dbConnection.Model(&operation).Set("application_id = ?", nil).Where("application_id = ?", applicationId).Update()
@@ -185,6 +185,6 @@ func (obj *SyncOperation) DisposeAppScoped(ctx context.Context, dbq ApplicationS
 		return fmt.Errorf("missing database interface in syncoperation dispose")
 	}
 
-	_, err := dbq.DeleteSyncOperationById(ctx, obj.SyncOperation_id)
+	_, err := dbq.DeleteSyncOperationById(ctx, obj.SyncOperationID)
 	return err
 }

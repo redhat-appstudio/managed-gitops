@@ -27,11 +27,11 @@ func (dbq *PostgreSQLDatabaseQueries) ListGitopsEngineInstancesForCluster(ctx co
 		return err
 	}
 
-	if IsEmpty(gitopsEngineCluster.Gitopsenginecluster_id) {
+	if IsEmpty(gitopsEngineCluster.PrimaryKeyID) {
 		return fmt.Errorf("GitOpsEngineCluster parameter has nil value, when attempting to list corresponding GitOpsEngineInstances")
 	}
 
-	if err := dbq.dbConnection.Model(gitopsEngineInstances).Context(ctx).Where("gei.enginecluster_id = ?", gitopsEngineCluster.Gitopsenginecluster_id).Select(); err != nil {
+	if err := dbq.dbConnection.Model(gitopsEngineInstances).Context(ctx).Where("gei.enginecluster_id = ?", gitopsEngineCluster.PrimaryKeyID).Select(); err != nil {
 		return err
 	}
 
@@ -161,11 +161,11 @@ func (dbq *PostgreSQLDatabaseQueries) CreateGitopsEngineInstance(ctx context.Con
 		return fmt.Errorf("engine cluster id should not be empty")
 	}
 
-	if IsEmpty(obj.Namespace_name) {
+	if IsEmpty(obj.NamespaceName) {
 		return fmt.Errorf("namespace name should not be empty")
 	}
 
-	if IsEmpty(obj.Namespace_uid) {
+	if IsEmpty(obj.NamespaceUID) {
 		return fmt.Errorf("namespace uid should not be empty")
 	}
 

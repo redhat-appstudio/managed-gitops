@@ -26,7 +26,7 @@ var _ = Describe("Application Test", func() {
 		Expect(err).To(BeNil())
 
 		applicationput := db.Application{
-			Application_id:          "test-my-application",
+			ApplicationID:           "test-my-application",
 			Name:                    "my-application",
 			Spec_field:              "{}",
 			Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
@@ -37,24 +37,24 @@ var _ = Describe("Application Test", func() {
 		Expect(err).To(BeNil())
 
 		applicationget := db.Application{
-			Application_id: applicationput.Application_id,
+			ApplicationID: applicationput.ApplicationID,
 		}
 
 		err = dbq.GetApplicationById(ctx, &applicationget)
 		Expect(err).To(BeNil())
-		Expect(applicationput.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
-		applicationput.Created_on = applicationget.Created_on
+		Expect(applicationput.CreatedOn.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
+		applicationput.CreatedOn = applicationget.CreatedOn
 		Expect(applicationput).Should(Equal(applicationget))
 
 		applicationupdate := db.Application{
 
-			Application_id:          applicationput.Application_id,
+			ApplicationID:           applicationput.ApplicationID,
 			Name:                    "test-application-update",
 			Spec_field:              "{}",
 			Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
 			Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			SeqID:                   int64(seq),
-			Created_on:              applicationget.Created_on,
+			CreatedOn:               applicationget.CreatedOn,
 		}
 
 		err = dbq.UpdateApplication(ctx, &applicationupdate)
@@ -64,7 +64,7 @@ var _ = Describe("Application Test", func() {
 		Expect(err).To(BeNil())
 		Expect(applicationupdate).ShouldNot(Equal(applicationget))
 
-		rowsAffected, err := dbq.DeleteApplicationById(ctx, applicationput.Application_id)
+		rowsAffected, err := dbq.DeleteApplicationById(ctx, applicationput.ApplicationID)
 		Expect(err).To(BeNil())
 		Expect(rowsAffected).Should(Equal(1))
 
@@ -72,7 +72,7 @@ var _ = Describe("Application Test", func() {
 		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
 		applicationget = db.Application{
-			Application_id: "does-not-exist",
+			ApplicationID: "does-not-exist",
 		}
 		err = dbq.GetApplicationById(ctx, &applicationget)
 		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
@@ -101,7 +101,7 @@ var _ = Describe("Application Test", func() {
 
 		// Create multiple application entries.
 		applicationput := db.Application{
-			Application_id:          "test-my-application-1",
+			ApplicationID:           "test-my-application-1",
 			Name:                    "my-application",
 			Spec_field:              "{}",
 			Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
@@ -111,19 +111,19 @@ var _ = Describe("Application Test", func() {
 		err = dbq.CreateApplication(ctx, &applicationput)
 		Expect(err).To(BeNil())
 
-		applicationput.Application_id = "test-my-application-2"
+		applicationput.ApplicationID = "test-my-application-2"
 		err = dbq.CreateApplication(ctx, &applicationput)
 		Expect(err).To(BeNil())
 
-		applicationput.Application_id = "test-my-application-3"
+		applicationput.ApplicationID = "test-my-application-3"
 		err = dbq.CreateApplication(ctx, &applicationput)
 		Expect(err).To(BeNil())
 
-		applicationput.Application_id = "test-my-application-4"
+		applicationput.ApplicationID = "test-my-application-4"
 		err = dbq.CreateApplication(ctx, &applicationput)
 		Expect(err).To(BeNil())
 
-		applicationput.Application_id = "test-my-application-5"
+		applicationput.ApplicationID = "test-my-application-5"
 		err = dbq.CreateApplication(ctx, &applicationput)
 		Expect(err).To(BeNil())
 

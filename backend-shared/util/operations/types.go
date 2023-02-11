@@ -119,7 +119,7 @@ func createOperationInternal(ctx context.Context, waitForOperation bool, dbOpera
 		Resource_id:             dbOperationParam.Resource_id,
 		Resource_type:           dbOperationParam.Resource_type,
 		Operation_owner_user_id: clusterUserID,
-		Created_on:              time.Now(),
+		CreatedOn:               time.Now(),
 		Last_state_update:       time.Now(),
 		State:                   db.OperationState_Waiting,
 		Human_readable_state:    "",

@@ -63,7 +63,7 @@ var _ = Describe("Testing CreateOperation function.", func() {
 			Expect(err).To(BeNil())
 
 			applicationput := db.Application{
-				Application_id:          "test-my-application",
+				ApplicationID:           "test-my-application",
 				Name:                    "my-application",
 				Spec_field:              "{}",
 				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
@@ -75,18 +75,18 @@ var _ = Describe("Testing CreateOperation function.", func() {
 
 			dbOperationInput := db.Operation{
 				Instance_id:   applicationput.Engine_instance_inst_id,
-				Resource_id:   applicationput.Application_id,
+				Resource_id:   applicationput.ApplicationID,
 				Resource_type: db.OperationResourceType_Application,
 			}
 
 			// Create new Operation
-			k8sOperationFirst, dbOperationFirst, err = CreateOperation(ctx, false, dbOperationInput, "test-user", gitopsEngineInstance.Namespace_name, dbq, k8sClient, log)
+			k8sOperationFirst, dbOperationFirst, err = CreateOperation(ctx, false, dbOperationInput, "test-user", gitopsEngineInstance.NamespaceName, dbq, k8sClient, log)
 			Expect(err).To(BeNil())
 			Expect(k8sOperationFirst).NotTo(BeNil())
 			Expect(dbOperationFirst).NotTo(BeNil())
 
 			// Try to recreate same Operation it should return existing one.
-			k8sOperationSecond, dbOperationSecond, err = CreateOperation(ctx, false, dbOperationInput, "test-user", gitopsEngineInstance.Namespace_name, dbq, k8sClient, log)
+			k8sOperationSecond, dbOperationSecond, err = CreateOperation(ctx, false, dbOperationInput, "test-user", gitopsEngineInstance.NamespaceName, dbq, k8sClient, log)
 			Expect(err).To(BeNil())
 			Expect(k8sOperationSecond).NotTo(BeNil())
 			Expect(dbOperationSecond).NotTo(BeNil())
@@ -178,7 +178,7 @@ var _ = Describe("Testing CleanupOperation function", func() {
 			Expect(err).To(BeNil())
 
 			app := db.Application{
-				Application_id:          "test-my-application",
+				ApplicationID:           "test-my-application",
 				Name:                    "my-application",
 				Spec_field:              "{}",
 				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
@@ -190,12 +190,12 @@ var _ = Describe("Testing CleanupOperation function", func() {
 
 			dbOperationInput := db.Operation{
 				Instance_id:   app.Engine_instance_inst_id,
-				Resource_id:   app.Application_id,
+				Resource_id:   app.ApplicationID,
 				Resource_type: db.OperationResourceType_Application,
 			}
 
 			// Create new Operation
-			k8sOperation, dbOperation, err = CreateOperation(ctx, false, dbOperationInput, "test-user", gitopsEngineInstance.Namespace_name, dbq, k8sClient, logr)
+			k8sOperation, dbOperation, err = CreateOperation(ctx, false, dbOperationInput, "test-user", gitopsEngineInstance.NamespaceName, dbq, k8sClient, logr)
 			Expect(err).To(BeNil())
 			Expect(k8sOperation).NotTo(BeNil())
 			Expect(dbOperation).NotTo(BeNil())

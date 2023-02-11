@@ -61,7 +61,6 @@ func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, na
 	if err != nil {
 		return fmt.Errorf("failed to marshal resource exclusions: %v", err)
 	}
-	fmt.Println("CCCCCCCCCCCCCC11")
 
 	// The values from manifests/staging-cluster-resources/argo-cd.yaml are converted in a Go struct.
 

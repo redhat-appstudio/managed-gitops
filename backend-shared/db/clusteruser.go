@@ -48,20 +48,20 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterUser(ctx context.Context, obj
 	}
 
 	if dbq.allowTestUuids {
-		if IsEmpty(obj.Clusteruser_id) {
-			obj.Clusteruser_id = generateUuid()
+		if IsEmpty(obj.ClusterUserID) {
+			obj.ClusterUserID = generateUuid()
 		}
 	} else {
-		if !IsEmpty(obj.Clusteruser_id) {
+		if !IsEmpty(obj.ClusterUserID) {
 			return fmt.Errorf("primary key should be empty")
 		}
 
-		obj.Clusteruser_id = generateUuid()
+		obj.ClusterUserID = generateUuid()
 	}
 
 	// State
 
-	if IsEmpty(obj.User_name) {
+	if IsEmpty(obj.UserName) {
 		return fmt.Errorf("user name should not be empty")
 	}
 
@@ -89,14 +89,14 @@ func (dbq *PostgreSQLDatabaseQueries) GetClusterUserByUsername(ctx context.Conte
 		return err
 	}
 
-	if IsEmpty(clusterUser.User_name) {
+	if IsEmpty(clusterUser.UserName) {
 		return fmt.Errorf("username is nil for GetClusterUserByUsername")
 	}
 
 	var dbResults []ClusterUser
 
 	if err := dbq.dbConnection.Model(&dbResults).
-		Where("cu.user_name = ?", clusterUser.User_name).
+		Where("cu.user_name = ?", clusterUser.UserName).
 		Context(ctx).
 		Select(); err != nil {
 
@@ -122,14 +122,14 @@ func (dbq *PostgreSQLDatabaseQueries) GetClusterUserById(ctx context.Context, cl
 		return err
 	}
 
-	if IsEmpty(clusterUser.Clusteruser_id) {
+	if IsEmpty(clusterUser.ClusterUserID) {
 		return fmt.Errorf("cluster user id is empty")
 	}
 
 	var dbResults []ClusterUser
 
 	if err := dbq.dbConnection.Model(&dbResults).
-		Where("cu.clusteruser_id = ?", clusterUser.Clusteruser_id).
+		Where("cu.clusteruser_id = ?", clusterUser.ClusterUserID).
 		Context(ctx).
 		Select(); err != nil {
 
@@ -173,8 +173,8 @@ func (dbq *PostgreSQLDatabaseQueries) GetOrCreateSpecialClusterUser(ctx context.
 
 	// If user already exists then return it, else create new.
 	if len(dbResults) == 0 {
-		clusterUser.Clusteruser_id = SpecialClusterUserName
-		clusterUser.User_name = SpecialClusterUserName
+		clusterUser.ClusterUserID = SpecialClusterUserName
+		clusterUser.UserName = SpecialClusterUserName
 
 		if _, err := dbq.dbConnection.Model(clusterUser).Context(ctx).Insert(); err != nil {
 			return fmt.Errorf("error on inserting SpecialClusterUser: %v", err)
@@ -192,7 +192,7 @@ func (obj *ClusterUser) Dispose(ctx context.Context, dbq DatabaseQueries) error 
 		return fmt.Errorf("missing database interface in ClusterUser dispose")
 	}
 
-	_, err := dbq.DeleteClusterUserById(ctx, obj.Clusteruser_id)
+	_, err := dbq.DeleteClusterUserById(ctx, obj.ClusterUserID)
 	return err
 }
 
@@ -203,5 +203,5 @@ func (obj *ClusterUser) GetAsLogKeyValues() []interface{} {
 		return []interface{}{}
 	}
 
-	return []interface{}{"clusteruser_id", obj.Clusteruser_id, "user_name", obj.User_name}
+	return []interface{}{"clusteruser_id", obj.ClusterUserID, "user_name", obj.UserName}
 }

@@ -92,19 +92,19 @@ func TestIsEmptyValues(t *testing.T) {
 
 var _ = Describe("Test utility functions", func() {
 	Context("Ensure ValidateFieldLength reports database rows that are too long", func() {
-		It("Should return error for Clusteruser_id", func() {
+		It("Should return error for ClusterUserID", func() {
 			user := &ClusterUser{
-				Clusteruser_id: strings.Repeat("abc", 17),
-				User_name:      "user-name",
+				ClusterUserID: strings.Repeat("abc", 17),
+				UserName:      "user-name",
 			}
 			err := validateFieldLength(user)
 			Expect(IsMaxLengthError(err)).To(BeTrue())
 		})
 
-		It("Should return error for User_name", func() {
+		It("Should return error for UserName", func() {
 			user := &ClusterUser{
-				Clusteruser_id: "user-id",
-				User_name:      strings.Repeat("abc", 86),
+				ClusterUserID: "user-id",
+				UserName:      strings.Repeat("abc", 86),
 			}
 			err := validateFieldLength(user)
 			Expect(IsMaxLengthError(err)).To(BeTrue())
@@ -112,8 +112,8 @@ var _ = Describe("Test utility functions", func() {
 
 		It("Should pass", func() {
 			user := &ClusterUser{
-				Clusteruser_id: "user-id",
-				User_name:      "user-name",
+				ClusterUserID: "user-id",
+				UserName:      "user-name",
 			}
 			err := validateFieldLength(user)
 			Expect(IsMaxLengthError(err)).To(BeFalse())

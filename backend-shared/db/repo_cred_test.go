@@ -35,10 +35,10 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			Expect(err).To(BeNil())
 
 			By("Satisfying the foreign key constraint 'fk_clusteruser_id'")
-			// aka: ClusterUser.Clusteruser_id) required for 'repo_cred_user_id'
+			// aka: ClusterUser.ClusterUserID) required for 'repo_cred_user_id'
 			clusterUser = &db.ClusterUser{
-				Clusteruser_id: "test-repocred-user-id",
-				User_name:      "test-repocred-user",
+				ClusterUserID: "test-repocred-user-id",
+				UserName:      "test-repocred-user",
 			}
 			err = dbq.CreateClusterUser(ctx, clusterUser)
 			Expect(err).To(BeNil())
@@ -53,7 +53,7 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			By("Creating a RepositoryCredentials object")
 			gitopsRepositoryCredentials := db.RepositoryCredentials{
 				RepositoryCredentialsID: "test-repo-cred-id",
-				UserID:                  clusterUser.Clusteruser_id, // constrain 'fk_clusteruser_id'
+				UserID:                  clusterUser.ClusterUserID, // constrain 'fk_clusteruser_id'
 				PrivateURL:              "https://test-private-url",
 				AuthUsername:            "test-auth-username",
 				AuthPassword:            "test-auth-password",
@@ -77,7 +77,7 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			By("Creating an identical RepositoryCredentials object should fail")
 			gitopsRepositoryCredentials2 := db.RepositoryCredentials{
 				RepositoryCredentialsID: "test-repo-cred-id",
-				UserID:                  clusterUser.Clusteruser_id, // constrain 'fk_clusteruser_id'
+				UserID:                  clusterUser.ClusterUserID, // constrain 'fk_clusteruser_id'
 				PrivateURL:              "https://test-private-url",
 				AuthUsername:            "test-auth-username",
 				AuthPassword:            "test-auth-password",
@@ -141,7 +141,7 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			Expect(err).ShouldNot(BeNil())
 			expectedErr := "RepositoryCredentials.UserID is empty, but it shouldn't (notnull tag found: `repo_cred_user_id,notnull`)"
 			Expect(err.Error()).Should(Equal(expectedErr))
-			updatedCR.UserID = clusterUser.Clusteruser_id // reset the UserID to the original value
+			updatedCR.UserID = clusterUser.ClusterUserID // reset the UserID to the original value
 
 			By("Should return error if PrivateURL is null")
 			updatedCR.PrivateURL = ""

@@ -91,7 +91,7 @@ type ClusterCredentials struct {
 	tableName struct{} `pg:"clustercredentials,alias:cc"` //nolint
 
 	// -- Primary key for the credentials (UID)
-	Clustercredentials_cred_id string `pg:"clustercredentials_cred_id,pk" varchar:"48"`
+	ClustercredentialsCredID string `pg:"clustercredentials_cred_id,pk" varchar:"48"`
 
 	SeqID int64 `pg:"seq_id"`
 
@@ -106,10 +106,10 @@ type ClusterCredentials struct {
 	KubeConfig_context string `pg:"kube_config_context" varchar:"64"`
 
 	// -- State 2) ServiceAccount bearer token from the target manager cluster
-	Serviceaccount_bearer_token string `pg:"serviceaccount_bearer_token" varchar:"2048"`
+	ServiceAccountBearerToken string `pg:"serviceaccount_bearer_token" varchar:"2048"`
 
 	// -- State 2) The namespace of the ServiceAccount
-	Serviceaccount_ns string `pg:"serviceaccount_ns" varchar:"128"`
+	ServiceAccountNs string `pg:"serviceaccount_ns" varchar:"128"`
 
 	// -- Indicates that ArgoCD/GitOps Service should not check the TLS certificate.
 	AllowInsecureSkipTLSVerify bool `pg:"allowinsecure_skiptlsverify"`
@@ -122,9 +122,9 @@ type ClusterUser struct {
 	//lint:ignore U1000 used by go-pg
 	tableName struct{} `pg:"clusteruser,alias:cu"` //nolint
 
-	Clusteruser_id string `pg:"clusteruser_id,pk" varchar:"48"`
-	User_name      string `pg:"user_name,,notnull" varchar:"256"`
-	SeqID          int64  `pg:"seq_id"`
+	ClusterUserID string `pg:"clusteruser_id,pk" varchar:"48"`
+	UserName      string `pg:"user_name,,notnull" varchar:"256"`
+	SeqID         int64  `pg:"seq_id"`
 }
 
 type ClusterAccess struct {
@@ -133,16 +133,16 @@ type ClusterAccess struct {
 	tableName struct{} `pg:"clusteraccess"` //nolint
 
 	// -- Describes whose managed environment this is (UID)
-	// -- Foreign key to: ClusterUser.Clusteruser_id
-	Clusteraccess_user_id string `pg:"clusteraccess_user_id,pk" varchar:"48"`
+	// -- Foreign key to: ClusterUser.ClusterUserID
+	ClusterAccessUserID string `pg:"clusteraccess_user_id,pk" varchar:"48"`
 
 	// -- Describes which managed environment the user has access to (UID)
 	// -- Foreign key to: ManagedEnvironment.Managedenvironment_id
-	Clusteraccess_managed_environment_id string `pg:"clusteraccess_managed_environment_id,pk" varchar:"48"`
+	ClusterAccessManagedEnvironmentID string `pg:"clusteraccess_managed_environment_id,pk" varchar:"48"`
 
 	// -- Which Argo CD instance is managing the environment?
 	// -- Foreign key to: GitOpsEngineInstance.Gitopsengineinstance_id
-	Clusteraccess_gitops_engine_instance_id string `pg:"clusteraccess_gitops_engine_instance_id,pk" varchar:"48"`
+	ClusterAccessGitopsEngineInstanceID string `pg:"clusteraccess_gitops_engine_instance_id,pk" varchar:"48"`
 
 	SeqID int64 `pg:"seq_id"`
 }
@@ -183,13 +183,13 @@ type Operation struct {
 
 	// -- Specifies which Argo CD instance this operation is targeting
 	// -- Foreign key to: GitopsEngineInstance.gitopsengineinstance_id
-	Instance_id string `pg:"instance_id,notnull" varchar:"48"`
+	InstanceID string `pg:"instance_id,notnull" varchar:"48"`
 
 	// Primary key of the resource that was updated
-	Resource_id string `pg:"resource_id,notnull" varchar:"48"`
+	ResourceID string `pg:"resource_id,notnull" varchar:"48"`
 
 	// -- The user that initiated the operation.
-	Operation_owner_user_id string `pg:"operation_owner_user_id" varchar:"48"`
+	OperationOwnerUserID string `pg:"operation_owner_user_id" varchar:"48"`
 
 	// Resource type of the the resource that was updated.
 	// This value lets the operation know which table contains the resource.
@@ -207,19 +207,19 @@ type Operation struct {
 
 	// -- last_state_update is set whenever state changes
 	// -- (initial value should be equal to created_on)
-	Last_state_update time.Time `pg:"last_state_update,notnull"`
+	LastStateUpdate time.Time `pg:"last_state_update,notnull"`
 
 	// Whether the Operation is in progress/has completed/has been processed/etc.
 	// (possible values: Waiting / In_Progress / Completed / Failed)
 	State OperationState `pg:"state,notnull" varchar:"30"`
 
 	// -- If there is an error message from the operation, it is passed via this field.
-	Human_readable_state string `pg:"human_readable_state" varchar:"1024"`
+	HumanReadableState string `pg:"human_readable_state" varchar:"1024"`
 
 	SeqID int64 `pg:"seq_id"`
 
 	// -- Amount of time to wait in seconds after last_state_update for a completed/failed operation to be garbage collected.
-	GC_expiration_time int `pg:"gc_expiration_time"`
+	GCExpirationTime int `pg:"gc_expiration_time"`
 }
 
 // Application represents an Argo CD Application CR within an Argo CD namespace.
@@ -238,10 +238,10 @@ type Application struct {
 
 	// '.spec' field of the Application CR
 	// Note: Rather than converting individual JSON fields into SQL Table fields, we just pull the whole spec field.
-	Spec_field string `pg:"spec_field,notnull" varchar:"16384"`
+	SpecField string `pg:"spec_field,notnull" varchar:"16384"`
 
 	// Which Argo CD instance it's hosted on
-	Engine_instance_inst_id string `pg:"engine_instance_inst_id,notnull" varchar:"48"`
+	EngineInstanceInstID string `pg:"engine_instance_inst_id,notnull" varchar:"48"`
 
 	// Which managed environment it is targetting
 	// Foreign key to ManagedEnvironment.Managedenvironment_id
@@ -275,7 +275,7 @@ type ApplicationState struct {
 	// -- * Synced
 	// -- * OutOfSync
 	// -- * Unknown
-	Sync_Status string `pg:"sync_status,notnull" varchar:"30"`
+	SyncStatus string `pg:"sync_status,notnull" varchar:"30"`
 
 	Message string `pg:"message" varchar:"1024"`
 
@@ -437,7 +437,7 @@ type AppScopedDisposableResource interface {
 
 // RepositoryCredentials represents a RepositoryCredentials CR.
 // It is created by the backend component, if we need to access a private repository.
-// Can be used as a reference via the Operation row by providing the Resource_id and Resource_type.
+// Can be used as a reference via the Operation row by providing the ResourceID and Resource_type.
 type RepositoryCredentials struct {
 
 	//lint:ignore U1000 used by go-pg
@@ -447,7 +447,7 @@ type RepositoryCredentials struct {
 	RepositoryCredentialsID string `pg:"repositorycredentials_id,pk,notnull" varchar:"48"`
 
 	// UserID represents a customer of the GitOps service that wants to use a private repository.
-	// -- Foreign key to: ClusterUser.Clusteruser_id
+	// -- Foreign key to: ClusterUser.ClusterUserID
 	UserID string `pg:"repo_cred_user_id,notnull" varchar:"48"`
 
 	// PrivateURL is the address of the private Git repository.
@@ -510,5 +510,5 @@ outer_for:
 }
 
 func (o Operation) GetGCExpirationTime() time.Duration {
-	return time.Duration(o.GC_expiration_time) * time.Second
+	return time.Duration(o.GCExpirationTime) * time.Second
 }

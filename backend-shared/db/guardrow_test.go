@@ -71,34 +71,34 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			Expect(err).To(BeNil())
 
 			applicationFirst := db.Application{
-				ApplicationID:           "test-my-application-1",
-				Name:                    "my-application",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          "test-my-application-1",
+				Name:                   "my-application",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			err = dbq.CreateApplication(ctx, &applicationFirst)
 			Expect(err).To(BeNil())
 
 			applicationSecond := db.Application{
-				ApplicationID:           "test-my-application-2",
-				Name:                    "my-application",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          "test-my-application-2",
+				Name:                   "my-application",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 			err = dbq.CreateApplication(ctx, &applicationSecond)
 			Expect(err).To(BeNil())
 
 			applicationSecond = db.Application{
-				ApplicationID:           applicationSecond.ApplicationID,
-				Name:                    "test-application-update",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
-				SeqID:                   applicationSecond.SeqID,
-				CreatedOn:               applicationFirst.CreatedOn,
+				ApplicationID:          applicationSecond.ApplicationID,
+				Name:                   "test-application-update",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
+				SeqID:                  applicationSecond.SeqID,
+				CreatedOn:              applicationFirst.CreatedOn,
 			}
 
 			err = dbq.UpdateApplication(ctx, &applicationSecond)
@@ -135,11 +135,11 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			Expect(err).To(BeNil())
 
 			applicationFirst := db.Application{
-				ApplicationID:           "test-my-application-1",
-				Name:                    "my-application",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          "test-my-application-1",
+				Name:                   "my-application",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			err = dbq.CreateApplication(ctx, &applicationFirst)
@@ -148,7 +148,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			applicationStateFirst := &db.ApplicationState{
 				Applicationstate_application_id: applicationFirst.ApplicationID,
 				Health:                          "Progressing",
-				Sync_Status:                     "Unknown",
+				SyncStatus:                      "Unknown",
 				Resources:                       make([]byte, 10),
 				ReconciledState:                 "test-reconciledState",
 				SyncError:                       "test-sync-error",
@@ -158,11 +158,11 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			Expect(err).To(BeNil())
 
 			applicationSecond := db.Application{
-				ApplicationID:           "test-my-application-2",
-				Name:                    "my-application",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          "test-my-application-2",
+				Name:                   "my-application",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 			err = dbq.CreateApplication(ctx, &applicationSecond)
 			Expect(err).To(BeNil())
@@ -170,7 +170,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			applicationStateSecond := &db.ApplicationState{
 				Applicationstate_application_id: applicationSecond.ApplicationID,
 				Health:                          "Progressing",
-				Sync_Status:                     "Unknown",
+				SyncStatus:                      "Unknown",
 				Resources:                       make([]byte, 10),
 				ReconciledState:                 "test-reconciledState",
 				SyncError:                       "test-sync-error",
@@ -181,7 +181,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			applicationStateSecond = &db.ApplicationState{
 				Applicationstate_application_id: applicationSecond.ApplicationID,
 				Health:                          "Progressing",
-				Sync_Status:                     "Sync",
+				SyncStatus:                      "Sync",
 				Resources:                       make([]byte, 10),
 				ReconciledState:                 "test-reconciledState",
 				SyncError:                       "test-sync-error",
@@ -194,8 +194,8 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			err = dbq.GetApplicationStateById(ctx, applicationStateSecond)
 			Expect(err).To(BeNil())
 
-			Expect(applicationStateSecond.Sync_Status).Should(Equal("Sync"))
-			Expect(applicationStateFirst.Sync_Status).ShouldNot(Equal(applicationStateSecond.Sync_Status))
+			Expect(applicationStateSecond.SyncStatus).Should(Equal("Sync"))
+			Expect(applicationStateFirst.SyncStatus).ShouldNot(Equal(applicationStateSecond.SyncStatus))
 
 			rowsAffected, err := dbq.DeleteApplicationStateById(ctx, applicationStateSecond.Applicationstate_application_id)
 			Expect(err).To(BeNil())
@@ -219,30 +219,30 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			defer dbq.CloseDatabase()
 
 			var clusterUser = &db.ClusterUser{
-				Clusteruser_id: "test-user-1",
-				User_name:      "test-user-1",
+				ClusterUserID: "test-user-1",
+				UserName:      "test-user-1",
 			}
 			err = dbq.CreateClusterUser(ctx, clusterUser)
 			Expect(err).To(BeNil())
 
 			clusterCredentialsFirst := db.ClusterCredentials{
-				Clustercredentials_cred_id:  "test-cluster-creds-test-1",
-				Host:                        "host",
-				KubeConfig:                  "kube-config",
-				KubeConfig_context:          "kube-config-context",
-				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-				Serviceaccount_ns:           "Serviceaccount_ns",
+				ClustercredentialsCredID:  "test-cluster-creds-test-1",
+				Host:                      "host",
+				KubeConfig:                "kube-config",
+				KubeConfig_context:        "kube-config-context",
+				ServiceAccountBearerToken: "serviceaccount_bearer_token",
+				ServiceAccountNs:          "ServiceAccountNs",
 			}
 
 			managedEnvironmentFirst := db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env-1",
-				ClusterCredentialsID:  clusterCredentialsFirst.Clustercredentials_cred_id,
+				ClusterCredentialsID:  clusterCredentialsFirst.ClustercredentialsCredID,
 				Name:                  "my env",
 			}
 
 			gitopsEngineClusterFirst := db.GitopsEngineCluster{
 				PrimaryKeyID:         "test-fake-cluster-1",
-				ClusterCredentialsID: clusterCredentialsFirst.Clustercredentials_cred_id,
+				ClusterCredentialsID: clusterCredentialsFirst.ClustercredentialsCredID,
 			}
 
 			gitopsEngineInstanceFirst := db.GitopsEngineInstance{
@@ -253,9 +253,9 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			clusterAccessFirst := db.ClusterAccess{
-				Clusteraccess_user_id:                   clusterUser.Clusteruser_id,
-				Clusteraccess_managed_environment_id:    managedEnvironmentFirst.Managedenvironment_id,
-				Clusteraccess_gitops_engine_instance_id: gitopsEngineInstanceFirst.Gitopsengineinstance_id,
+				ClusterAccessUserID:                 clusterUser.ClusterUserID,
+				ClusterAccessManagedEnvironmentID:   managedEnvironmentFirst.Managedenvironment_id,
+				ClusterAccessGitopsEngineInstanceID: gitopsEngineInstanceFirst.Gitopsengineinstance_id,
 			}
 
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsFirst)
@@ -274,30 +274,30 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			Expect(err).To(BeNil())
 
 			clusterUser = &db.ClusterUser{
-				Clusteruser_id: "test-user-2",
-				User_name:      "test-user-2",
+				ClusterUserID: "test-user-2",
+				UserName:      "test-user-2",
 			}
 			err = dbq.CreateClusterUser(ctx, clusterUser)
 			Expect(err).To(BeNil())
 
 			clusterCredentialsSecond := db.ClusterCredentials{
-				Clustercredentials_cred_id:  "test-cluster-creds-test-2",
-				Host:                        "host",
-				KubeConfig:                  "kube-config",
-				KubeConfig_context:          "kube-config-context",
-				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-				Serviceaccount_ns:           "Serviceaccount_ns",
+				ClustercredentialsCredID:  "test-cluster-creds-test-2",
+				Host:                      "host",
+				KubeConfig:                "kube-config",
+				KubeConfig_context:        "kube-config-context",
+				ServiceAccountBearerToken: "serviceaccount_bearer_token",
+				ServiceAccountNs:          "ServiceAccountNs",
 			}
 
 			managedEnvironmentSecond := db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env-2",
-				ClusterCredentialsID:  clusterCredentialsSecond.Clustercredentials_cred_id,
+				ClusterCredentialsID:  clusterCredentialsSecond.ClustercredentialsCredID,
 				Name:                  "my env",
 			}
 
 			gitopsEngineClusterSecond := db.GitopsEngineCluster{
 				PrimaryKeyID:         "test-fake-cluster-2",
-				ClusterCredentialsID: clusterCredentialsSecond.Clustercredentials_cred_id,
+				ClusterCredentialsID: clusterCredentialsSecond.ClustercredentialsCredID,
 			}
 
 			gitopsEngineInstanceSecond := db.GitopsEngineInstance{
@@ -308,9 +308,9 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			clusterAccessSecond := db.ClusterAccess{
-				Clusteraccess_user_id:                   clusterUser.Clusteruser_id,
-				Clusteraccess_managed_environment_id:    managedEnvironmentSecond.Managedenvironment_id,
-				Clusteraccess_gitops_engine_instance_id: gitopsEngineInstanceSecond.Gitopsengineinstance_id,
+				ClusterAccessUserID:                 clusterUser.ClusterUserID,
+				ClusterAccessManagedEnvironmentID:   managedEnvironmentSecond.Managedenvironment_id,
+				ClusterAccessGitopsEngineInstanceID: gitopsEngineInstanceSecond.Gitopsengineinstance_id,
 			}
 
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsSecond)
@@ -328,7 +328,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			err = dbq.CreateClusterAccess(ctx, &clusterAccessSecond)
 			Expect(err).To(BeNil())
 
-			affectedRows, err := dbq.DeleteClusterAccessById(ctx, clusterAccessSecond.Clusteraccess_user_id, clusterAccessSecond.Clusteraccess_managed_environment_id, clusterAccessSecond.Clusteraccess_gitops_engine_instance_id)
+			affectedRows, err := dbq.DeleteClusterAccessById(ctx, clusterAccessSecond.ClusterAccessUserID, clusterAccessSecond.ClusterAccessManagedEnvironmentID, clusterAccessSecond.ClusterAccessGitopsEngineInstanceID)
 			Expect(err).To(BeNil())
 			Expect(affectedRows).To(Equal(1))
 
@@ -350,26 +350,26 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			defer dbq.CloseDatabase()
 
 			clusterCredFirst := db.ClusterCredentials{
-				Host:                        "test-host",
-				KubeConfig:                  "test-kube_config",
-				KubeConfig_context:          "test-kube_config_context",
-				Serviceaccount_bearer_token: "test-serviceaccount_bearer_token",
-				Serviceaccount_ns:           "test-serviceaccount_ns",
+				Host:                      "test-host",
+				KubeConfig:                "test-kube_config",
+				KubeConfig_context:        "test-kube_config_context",
+				ServiceAccountBearerToken: "test-serviceaccount_bearer_token",
+				ServiceAccountNs:          "test-serviceaccount_ns",
 			}
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredFirst)
 			Expect(err).To(BeNil())
 
 			clusterCredSecond := db.ClusterCredentials{
-				Host:                        "test-host",
-				KubeConfig:                  "test-kube_config",
-				KubeConfig_context:          "test-kube_config_context",
-				Serviceaccount_bearer_token: "test-serviceaccount_bearer_token",
-				Serviceaccount_ns:           "test-serviceaccount_ns",
+				Host:                      "test-host",
+				KubeConfig:                "test-kube_config",
+				KubeConfig_context:        "test-kube_config_context",
+				ServiceAccountBearerToken: "test-serviceaccount_bearer_token",
+				ServiceAccountNs:          "test-serviceaccount_ns",
 			}
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredSecond)
 			Expect(err).To(BeNil())
 
-			rowsAffected, err := dbq.DeleteClusterCredentialsById(ctx, clusterCredSecond.Clustercredentials_cred_id)
+			rowsAffected, err := dbq.DeleteClusterCredentialsById(ctx, clusterCredSecond.ClustercredentialsCredID)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))
 
@@ -391,20 +391,20 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			defer dbq.CloseDatabase()
 
 			userfirst := &db.ClusterUser{
-				Clusteruser_id: "test-user-id-1",
-				User_name:      "test-user-1",
+				ClusterUserID: "test-user-id-1",
+				UserName:      "test-user-1",
 			}
 			err = dbq.CreateClusterUser(ctx, userfirst)
 			Expect(err).To(BeNil())
 
 			usersecond := &db.ClusterUser{
-				Clusteruser_id: "test-user-id-2",
-				User_name:      "test-user-2",
+				ClusterUserID: "test-user-id-2",
+				UserName:      "test-user-2",
 			}
 			err = dbq.CreateClusterUser(ctx, usersecond)
 			Expect(err).To(BeNil())
 
-			rowsAffected, err := dbq.DeleteClusterUserById(ctx, usersecond.Clusteruser_id)
+			rowsAffected, err := dbq.DeleteClusterUserById(ctx, usersecond.ClusterUserID)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))
 
@@ -429,11 +429,11 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			Expect(err).To(BeNil())
 
 			applicationFirst := db.Application{
-				ApplicationID:           "test-my-application-1",
-				Name:                    "my-application",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          "test-my-application-1",
+				Name:                   "my-application",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			err = dbq.CreateApplication(ctx, &applicationFirst)
@@ -451,11 +451,11 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			Expect(err).To(BeNil())
 
 			applicationSecond := db.Application{
-				ApplicationID:           "test-my-application-2",
-				Name:                    "my-application",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          "test-my-application-2",
+				Name:                   "my-application",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 			err = dbq.CreateApplication(ctx, &applicationSecond)
 			Expect(err).To(BeNil())
@@ -493,17 +493,17 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			defer dbq.CloseDatabase()
 
 			clusterCredentialsFirst := db.ClusterCredentials{
-				Clustercredentials_cred_id:  "test-cluster-creds-test-1",
-				Host:                        "host",
-				KubeConfig:                  "kube-config",
-				KubeConfig_context:          "kube-config-context",
-				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-				Serviceaccount_ns:           "Serviceaccount_ns",
+				ClustercredentialsCredID:  "test-cluster-creds-test-1",
+				Host:                      "host",
+				KubeConfig:                "kube-config",
+				KubeConfig_context:        "kube-config-context",
+				ServiceAccountBearerToken: "serviceaccount_bearer_token",
+				ServiceAccountNs:          "ServiceAccountNs",
 			}
 
 			gitopsEngineClusterFirst := db.GitopsEngineCluster{
 				PrimaryKeyID:         "test-fake-cluster-1",
-				ClusterCredentialsID: clusterCredentialsFirst.Clustercredentials_cred_id,
+				ClusterCredentialsID: clusterCredentialsFirst.ClustercredentialsCredID,
 			}
 
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsFirst)
@@ -513,17 +513,17 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			Expect(err).To(BeNil())
 
 			clusterCredentialsSecond := db.ClusterCredentials{
-				Clustercredentials_cred_id:  "test-cluster-creds-test-2",
-				Host:                        "host",
-				KubeConfig:                  "kube-config",
-				KubeConfig_context:          "kube-config-context",
-				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-				Serviceaccount_ns:           "Serviceaccount_ns",
+				ClustercredentialsCredID:  "test-cluster-creds-test-2",
+				Host:                      "host",
+				KubeConfig:                "kube-config",
+				KubeConfig_context:        "kube-config-context",
+				ServiceAccountBearerToken: "serviceaccount_bearer_token",
+				ServiceAccountNs:          "ServiceAccountNs",
 			}
 
 			gitopsEngineClusterSecond := db.GitopsEngineCluster{
 				PrimaryKeyID:         "test-fake-cluster-2",
-				ClusterCredentialsID: clusterCredentialsSecond.Clustercredentials_cred_id,
+				ClusterCredentialsID: clusterCredentialsSecond.ClustercredentialsCredID,
 			}
 
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsSecond)
@@ -553,17 +553,17 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			defer dbq.CloseDatabase()
 
 			clusterCredentialsFirst := db.ClusterCredentials{
-				Clustercredentials_cred_id:  "test-cluster-creds-test-1",
-				Host:                        "host",
-				KubeConfig:                  "kube-config",
-				KubeConfig_context:          "kube-config-context",
-				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-				Serviceaccount_ns:           "Serviceaccount_ns",
+				ClustercredentialsCredID:  "test-cluster-creds-test-1",
+				Host:                      "host",
+				KubeConfig:                "kube-config",
+				KubeConfig_context:        "kube-config-context",
+				ServiceAccountBearerToken: "serviceaccount_bearer_token",
+				ServiceAccountNs:          "ServiceAccountNs",
 			}
 
 			gitopsEngineClusterFirst := db.GitopsEngineCluster{
 				PrimaryKeyID:         "test-fake-cluster-1",
-				ClusterCredentialsID: clusterCredentialsFirst.Clustercredentials_cred_id,
+				ClusterCredentialsID: clusterCredentialsFirst.ClustercredentialsCredID,
 			}
 
 			gitopsEngineInstanceFirst := db.GitopsEngineInstance{
@@ -582,17 +582,17 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			Expect(err).To(BeNil())
 
 			clusterCredentialsSecond := db.ClusterCredentials{
-				Clustercredentials_cred_id:  "test-cluster-creds-test-2",
-				Host:                        "host",
-				KubeConfig:                  "kube-config",
-				KubeConfig_context:          "kube-config-context",
-				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-				Serviceaccount_ns:           "Serviceaccount_ns",
+				ClustercredentialsCredID:  "test-cluster-creds-test-2",
+				Host:                      "host",
+				KubeConfig:                "kube-config",
+				KubeConfig_context:        "kube-config-context",
+				ServiceAccountBearerToken: "serviceaccount_bearer_token",
+				ServiceAccountNs:          "ServiceAccountNs",
 			}
 
 			gitopsEngineClusterSecond := db.GitopsEngineCluster{
 				PrimaryKeyID:         "test-fake-cluster-2",
-				ClusterCredentialsID: clusterCredentialsSecond.Clustercredentials_cred_id,
+				ClusterCredentialsID: clusterCredentialsSecond.ClustercredentialsCredID,
 			}
 
 			gitopsEngineInstanceSecond := db.GitopsEngineInstance{
@@ -670,17 +670,17 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			defer dbq.CloseDatabase()
 
 			clusterCredentialsFirst := db.ClusterCredentials{
-				Clustercredentials_cred_id:  "test-cluster-creds-test-1",
-				Host:                        "host",
-				KubeConfig:                  "kube-config",
-				KubeConfig_context:          "kube-config-context",
-				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-				Serviceaccount_ns:           "Serviceaccount_ns",
+				ClustercredentialsCredID:  "test-cluster-creds-test-1",
+				Host:                      "host",
+				KubeConfig:                "kube-config",
+				KubeConfig_context:        "kube-config-context",
+				ServiceAccountBearerToken: "serviceaccount_bearer_token",
+				ServiceAccountNs:          "ServiceAccountNs",
 			}
 
 			managedEnvironmentFirst := db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env-1",
-				ClusterCredentialsID:  clusterCredentialsFirst.Clustercredentials_cred_id,
+				ClusterCredentialsID:  clusterCredentialsFirst.ClustercredentialsCredID,
 				Name:                  "my env101",
 			}
 
@@ -691,17 +691,17 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			Expect(err).To(BeNil())
 
 			clusterCredentialsSecond := db.ClusterCredentials{
-				Clustercredentials_cred_id:  "test-cluster-creds-test-2",
-				Host:                        "host",
-				KubeConfig:                  "kube-config",
-				KubeConfig_context:          "kube-config-context",
-				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-				Serviceaccount_ns:           "Serviceaccount_ns",
+				ClustercredentialsCredID:  "test-cluster-creds-test-2",
+				Host:                      "host",
+				KubeConfig:                "kube-config",
+				KubeConfig_context:        "kube-config-context",
+				ServiceAccountBearerToken: "serviceaccount_bearer_token",
+				ServiceAccountNs:          "ServiceAccountNs",
 			}
 
 			managedEnvironmentSecond := db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env-2",
-				ClusterCredentialsID:  clusterCredentialsSecond.Clustercredentials_cred_id,
+				ClusterCredentialsID:  clusterCredentialsSecond.ClustercredentialsCredID,
 				Name:                  "my env101",
 			}
 
@@ -713,7 +713,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 
 			managedEnvironmentSecond = db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env-2",
-				ClusterCredentialsID:  clusterCredentialsSecond.Clustercredentials_cred_id,
+				ClusterCredentialsID:  clusterCredentialsSecond.ClustercredentialsCredID,
 				SeqID:                 managedEnvironmentSecond.SeqID,
 				Name:                  "my-env101-update",
 				CreatedOn:             managedEnvironmentFirst.CreatedOn,
@@ -753,51 +753,51 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
 			Expect(err).To(BeNil())
 			var testClusterUser = &db.ClusterUser{
-				Clusteruser_id: "test-user-1",
-				User_name:      "test-user-1",
+				ClusterUserID: "test-user-1",
+				UserName:      "test-user-1",
 			}
 			operationFirst := db.Operation{
-				Operation_id:            "test-operation-1",
-				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-				Resource_id:             "test-fake-resource-id",
-				Resource_type:           "GitopsEngineInstance",
-				State:                   db.OperationState_Waiting,
-				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				Operation_id:         "test-operation-1",
+				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+				ResourceID:           "test-fake-resource-id",
+				Resource_type:        "GitopsEngineInstance",
+				State:                db.OperationState_Waiting,
+				OperationOwnerUserID: testClusterUser.ClusterUserID,
 			}
 			err = dbq.CreateClusterUser(ctx, testClusterUser)
 			Expect(err).To(BeNil())
 
-			err = dbq.CreateOperation(ctx, &operationFirst, operationFirst.Operation_owner_user_id)
+			err = dbq.CreateOperation(ctx, &operationFirst, operationFirst.OperationOwnerUserID)
 			Expect(err).To(BeNil())
 
 			testClusterUser = &db.ClusterUser{
-				Clusteruser_id: "test-user-2",
-				User_name:      "test-user-2",
+				ClusterUserID: "test-user-2",
+				UserName:      "test-user-2",
 			}
 			operationSecond := db.Operation{
-				Operation_id:            "test-operation-2",
-				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-				Resource_id:             "test-fake-resource-id",
-				Resource_type:           "GitopsEngineInstance",
-				State:                   db.OperationState_Waiting,
-				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				Operation_id:         "test-operation-2",
+				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+				ResourceID:           "test-fake-resource-id",
+				Resource_type:        "GitopsEngineInstance",
+				State:                db.OperationState_Waiting,
+				OperationOwnerUserID: testClusterUser.ClusterUserID,
 			}
 			err = dbq.CreateClusterUser(ctx, testClusterUser)
 			Expect(err).To(BeNil())
 
-			err = dbq.CreateOperation(ctx, &operationSecond, operationSecond.Operation_owner_user_id)
+			err = dbq.CreateOperation(ctx, &operationSecond, operationSecond.OperationOwnerUserID)
 			Expect(err).To(BeNil())
 
 			operationSecond = db.Operation{
-				Operation_id:            "test-operation-2",
-				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-				Resource_id:             "test-fake-resource-id-update",
-				Resource_type:           "GitopsEngineInstance",
-				State:                   db.OperationState_Waiting,
-				Operation_owner_user_id: testClusterUser.Clusteruser_id,
-				SeqID:                   operationSecond.SeqID,
-				CreatedOn:               operationSecond.CreatedOn,
-				Last_state_update:       operationSecond.Last_state_update,
+				Operation_id:         "test-operation-2",
+				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+				ResourceID:           "test-fake-resource-id-update",
+				Resource_type:        "GitopsEngineInstance",
+				State:                db.OperationState_Waiting,
+				OperationOwnerUserID: testClusterUser.ClusterUserID,
+				SeqID:                operationSecond.SeqID,
+				CreatedOn:            operationSecond.CreatedOn,
+				LastStateUpdate:      operationSecond.LastStateUpdate,
 			}
 
 			err = dbq.UpdateOperation(ctx, &operationSecond)
@@ -807,8 +807,8 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			err = dbq.GetOperationById(ctx, &operationSecond)
 			Expect(err).To(BeNil())
 
-			Expect(operationSecond.Resource_id).Should(Equal("test-fake-resource-id-update"))
-			Expect(operationFirst.Resource_id).ShouldNot(Equal(operationSecond.Resource_id))
+			Expect(operationSecond.ResourceID).Should(Equal("test-fake-resource-id-update"))
+			Expect(operationFirst.ResourceID).ShouldNot(Equal(operationSecond.ResourceID))
 
 			rowsAffected, err := dbq.DeleteOperationById(ctx, operationSecond.Operation_id)
 			Expect(err).To(BeNil())
@@ -835,32 +835,32 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			Expect(err).To(BeNil())
 
 			var testClusterUser = &db.ClusterUser{
-				Clusteruser_id: "test-user-1",
-				User_name:      "test-user-1",
+				ClusterUserID: "test-user-1",
+				UserName:      "test-user-1",
 			}
 			err = dbq.CreateClusterUser(ctx, testClusterUser)
 			Expect(err).To(BeNil())
 			applicationFirst := db.Application{
-				ApplicationID:           "test-my-application-1",
-				Name:                    "my-application",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          "test-my-application-1",
+				Name:                   "my-application",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			err = dbq.CreateApplication(ctx, &applicationFirst)
 			Expect(err).To(BeNil())
 
 			operationFirst := &db.Operation{
-				Operation_id:            "test-operation-1",
-				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-				Resource_id:             "fake resource id",
-				Resource_type:           "GitopsEngineInstance",
-				State:                   db.OperationState_Waiting,
-				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				Operation_id:         "test-operation-1",
+				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+				ResourceID:           "fake resource id",
+				Resource_type:        "GitopsEngineInstance",
+				State:                db.OperationState_Waiting,
+				OperationOwnerUserID: testClusterUser.ClusterUserID,
 			}
 
-			err = dbq.CreateOperation(ctx, operationFirst, operationFirst.Operation_owner_user_id)
+			err = dbq.CreateOperation(ctx, operationFirst, operationFirst.OperationOwnerUserID)
 			Expect(err).To(BeNil())
 
 			syncoperationFirst := db.SyncOperation{
@@ -875,33 +875,33 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			Expect(err).To(BeNil())
 
 			testClusterUser = &db.ClusterUser{
-				Clusteruser_id: "test-user-2",
-				User_name:      "test-user-2",
+				ClusterUserID: "test-user-2",
+				UserName:      "test-user-2",
 			}
 			err = dbq.CreateClusterUser(ctx, testClusterUser)
 			Expect(err).To(BeNil())
 
 			applicationSecond := db.Application{
-				ApplicationID:           "test-my-application-2",
-				Name:                    "my-application",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          "test-my-application-2",
+				Name:                   "my-application",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			err = dbq.CreateApplication(ctx, &applicationSecond)
 			Expect(err).To(BeNil())
 
 			operationSecond := &db.Operation{
-				Operation_id:            "test-operation-2",
-				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-				Resource_id:             "fake resource id",
-				Resource_type:           "GitopsEngineInstance",
-				State:                   db.OperationState_Waiting,
-				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				Operation_id:         "test-operation-2",
+				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+				ResourceID:           "fake resource id",
+				Resource_type:        "GitopsEngineInstance",
+				State:                db.OperationState_Waiting,
+				OperationOwnerUserID: testClusterUser.ClusterUserID,
 			}
 
-			err = dbq.CreateOperation(ctx, operationSecond, operationSecond.Operation_owner_user_id)
+			err = dbq.CreateOperation(ctx, operationSecond, operationSecond.OperationOwnerUserID)
 			Expect(err).To(BeNil())
 
 			syncoperationSecond := db.SyncOperation{
@@ -940,15 +940,15 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			Expect(err).To(BeNil())
 
 			var testClusterUser = &db.ClusterUser{
-				Clusteruser_id: "test-user-1",
-				User_name:      "test-user-1",
+				ClusterUserID: "test-user-1",
+				UserName:      "test-user-1",
 			}
 			err = dbq.CreateClusterUser(ctx, testClusterUser)
 			Expect(err).To(BeNil())
 
 			gitopsRepositoryCredentialsFirst := db.RepositoryCredentials{
 				RepositoryCredentialsID: "test-repo-cred-id",
-				UserID:                  testClusterUser.Clusteruser_id, // constrain 'fk_clusteruser_id'
+				UserID:                  testClusterUser.ClusterUserID, // constrain 'fk_clusteruser_id'
 				PrivateURL:              "https://test-private-url",
 				AuthUsername:            "test-auth-username",
 				AuthPassword:            "test-auth-password",
@@ -961,15 +961,15 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			Expect(err).To(BeNil())
 
 			testClusterUser = &db.ClusterUser{
-				Clusteruser_id: "test-user-2",
-				User_name:      "test-user-2",
+				ClusterUserID: "test-user-2",
+				UserName:      "test-user-2",
 			}
 			err = dbq.CreateClusterUser(ctx, testClusterUser)
 			Expect(err).To(BeNil())
 
 			gitopsRepositoryCredentialsSecond := db.RepositoryCredentials{
 				RepositoryCredentialsID: "test-repo-cred-id-2",
-				UserID:                  testClusterUser.Clusteruser_id, // constrain 'fk_clusteruser_id'
+				UserID:                  testClusterUser.ClusterUserID, // constrain 'fk_clusteruser_id'
 				PrivateURL:              "https://test-private-url-2",
 				AuthUsername:            "test-auth-username-2",
 				AuthPassword:            "test-auth-password-2",

@@ -20,8 +20,8 @@ var _ = Describe("Operations Test", func() {
 		gitopsEngineInstance *db.GitopsEngineInstance
 		dbq                  db.AllDatabaseQueries
 		testClusterUser      = &db.ClusterUser{
-			Clusteruser_id: "test-user-1",
-			User_name:      "test-user-1",
+			ClusterUserID: "test-user-1",
+			UserName:      "test-user-1",
 		}
 
 		ctx context.Context
@@ -48,15 +48,15 @@ var _ = Describe("Operations Test", func() {
 
 	It("Should Create, Get, List, Update and Delete an Operation", func() {
 		operation := db.Operation{
-			Operation_id:            "test-operation-1",
-			Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-			Resource_id:             "test-fake-resource-id",
-			Resource_type:           "GitopsEngineInstance",
-			State:                   db.OperationState_Waiting,
-			Operation_owner_user_id: testClusterUser.Clusteruser_id,
+			Operation_id:         "test-operation-1",
+			InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+			ResourceID:           "test-fake-resource-id",
+			Resource_type:        "GitopsEngineInstance",
+			State:                db.OperationState_Waiting,
+			OperationOwnerUserID: testClusterUser.ClusterUserID,
 		}
 
-		err := dbq.CreateOperation(ctx, &operation, operation.Operation_owner_user_id)
+		err := dbq.CreateOperation(ctx, &operation, operation.OperationOwnerUserID)
 		Expect(err).To(BeNil())
 
 		operationget := db.Operation{
@@ -65,35 +65,35 @@ var _ = Describe("Operations Test", func() {
 
 		err = dbq.GetOperationById(ctx, &operationget)
 		Expect(err).To(BeNil())
-		Expect(operationget.Last_state_update).To(BeAssignableToTypeOf(timestamp))
+		Expect(operationget.LastStateUpdate).To(BeAssignableToTypeOf(timestamp))
 		Expect(operationget.CreatedOn).To(BeAssignableToTypeOf(timestamp))
 		operationget.CreatedOn = operation.CreatedOn
-		operationget.Last_state_update = operation.Last_state_update
+		operationget.LastStateUpdate = operation.LastStateUpdate
 		Expect(operation).Should(Equal(operationget))
 
 		var operationlist []db.Operation
 
-		err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, operation.Resource_id, operation.Resource_type, &operationlist, operation.Operation_owner_user_id)
+		err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, operation.ResourceID, operation.Resource_type, &operationlist, operation.OperationOwnerUserID)
 		Expect(err).To(BeNil())
-		Expect(operationlist[0].Last_state_update).To(BeAssignableToTypeOf(timestamp))
+		Expect(operationlist[0].LastStateUpdate).To(BeAssignableToTypeOf(timestamp))
 		Expect(operationlist[0].CreatedOn).To(BeAssignableToTypeOf(timestamp))
 		operationlist[0].CreatedOn = operation.CreatedOn
-		operationlist[0].Last_state_update = operation.Last_state_update
+		operationlist[0].LastStateUpdate = operation.LastStateUpdate
 
 		Expect(operationlist[0]).Should(Equal(operation))
 		Expect(len(operationlist)).Should(Equal(1))
 
 		operationupdate := db.Operation{
-			Operation_id:            "test-operation-1",
-			Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-			Resource_id:             "test-fake-resource-id-update",
-			Resource_type:           "GitopsEngineInstance-update",
-			State:                   db.OperationState_Waiting,
-			Operation_owner_user_id: testClusterUser.Clusteruser_id,
-			SeqID:                   int64(seq),
+			Operation_id:         "test-operation-1",
+			InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+			ResourceID:           "test-fake-resource-id-update",
+			Resource_type:        "GitopsEngineInstance-update",
+			State:                db.OperationState_Waiting,
+			OperationOwnerUserID: testClusterUser.ClusterUserID,
+			SeqID:                int64(seq),
 		}
 		operationupdate.CreatedOn = operation.CreatedOn
-		operationupdate.Last_state_update = operation.Last_state_update
+		operationupdate.LastStateUpdate = operation.LastStateUpdate
 		err = dbq.UpdateOperation(ctx, &operationupdate)
 		Expect(err).To(BeNil())
 		err = dbq.GetOperationById(ctx, &operationupdate)
@@ -112,10 +112,10 @@ var _ = Describe("Operations Test", func() {
 		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
 		operation.Operation_id = strings.Repeat("abc", 100)
-		err = dbq.CreateOperation(ctx, &operation, operation.Operation_owner_user_id)
+		err = dbq.CreateOperation(ctx, &operation, operation.OperationOwnerUserID)
 		Expect(true).To(Equal(db.IsMaxLengthError(err)))
 
-		operationget.Operation_owner_user_id = strings.Repeat("abc", 100)
+		operationget.OperationOwnerUserID = strings.Repeat("abc", 100)
 		err = dbq.UpdateOperation(ctx, &operationget)
 		Expect(true).To(Equal(db.IsMaxLengthError(err)))
 
@@ -128,15 +128,15 @@ var _ = Describe("Operations Test", func() {
 		BeforeEach(func() {
 			By("create a sample operation")
 			sampleOperation = &db.Operation{
-				Operation_id:            "test-operation-1",
-				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-				Resource_id:             "test-fake-resource-id",
-				Resource_type:           "GitopsEngineInstance",
-				Operation_owner_user_id: testClusterUser.Clusteruser_id,
-				Last_state_update:       time.Now(),
+				Operation_id:         "test-operation-1",
+				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+				ResourceID:           "test-fake-resource-id",
+				Resource_type:        "GitopsEngineInstance",
+				OperationOwnerUserID: testClusterUser.ClusterUserID,
+				LastStateUpdate:      time.Now(),
 			}
 
-			err := dbq.CreateOperation(ctx, sampleOperation, sampleOperation.Operation_owner_user_id)
+			err := dbq.CreateOperation(ctx, sampleOperation, sampleOperation.OperationOwnerUserID)
 			Expect(err).To(BeNil())
 		})
 
@@ -167,7 +167,7 @@ var _ = Describe("Operations Test", func() {
 			Expect(err).To(BeNil())
 
 			sampleOperation.State = db.OperationState_Completed
-			sampleOperation.GC_expiration_time = 100
+			sampleOperation.GCExpirationTime = 100
 			err = dbq.UpdateOperation(ctx, sampleOperation)
 			Expect(err).To(BeNil())
 
@@ -183,7 +183,7 @@ var _ = Describe("Operations Test", func() {
 			Expect(err).To(BeNil())
 
 			sampleOperation.State = db.OperationState_Failed
-			sampleOperation.GC_expiration_time = 100
+			sampleOperation.GCExpirationTime = 100
 			err = dbq.UpdateOperation(ctx, sampleOperation)
 			Expect(err).To(BeNil())
 
@@ -199,6 +199,6 @@ var _ = Describe("Operations Test", func() {
 
 func readyForGarbageCollection() types.GomegaMatcher {
 	return WithTransform(func(operation *db.Operation) bool {
-		return operation.GC_expiration_time > 0 && (operation.State == db.OperationState_Completed || operation.State == db.OperationState_Failed)
+		return operation.GCExpirationTime > 0 && (operation.State == db.OperationState_Completed || operation.State == db.OperationState_Failed)
 	}, BeTrue())
 }

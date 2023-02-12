@@ -26,7 +26,7 @@ var _ = Describe("Database Query interface tests", func() {
 			}
 
 			createdClusterUser := ClusterUser{
-				User_name: sharedConnectionPoolUserName,
+				UserName: sharedConnectionPoolUserName,
 			}
 
 			err = conn.GetClusterUserByUsername(context.Background(), &createdClusterUser)
@@ -35,7 +35,7 @@ var _ = Describe("Database Query interface tests", func() {
 				return
 			}
 
-			_, err = conn.DeleteClusterUserById(context.Background(), createdClusterUser.Clusteruser_id)
+			_, err = conn.DeleteClusterUserById(context.Background(), createdClusterUser.ClusterUserID)
 			if err != nil && !apierr.IsNotFound(err) {
 				GinkgoWriter.Println(err)
 				return
@@ -75,13 +75,13 @@ var _ = Describe("Database Query interface tests", func() {
 			By("creating and geting a cluster user to verify the database connection works")
 			var err error
 			createdClusterUser := ClusterUser{
-				User_name: sharedConnectionPoolUserName,
+				UserName: sharedConnectionPoolUserName,
 			}
 			err = conn.CreateClusterUser(context.Background(), &createdClusterUser)
 			Expect(err).To(BeNil())
 
 			retrievedClusterUser := ClusterUser{
-				Clusteruser_id: createdClusterUser.Clusteruser_id,
+				ClusterUserID: createdClusterUser.ClusterUserID,
 			}
 			err = conn.GetClusterUserById(context.Background(), &retrievedClusterUser)
 			Expect(err).To(BeNil())

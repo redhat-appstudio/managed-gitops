@@ -19,22 +19,22 @@ var _ = Describe("ClusterCredentials Tests", func() {
 			Expect(err).To(BeNil())
 			defer dbq.CloseDatabase()
 			clusterCreds := db.ClusterCredentials{
-				Host:                        "test-host",
-				KubeConfig:                  "test-kube_config",
-				KubeConfig_context:          "test-kube_config_context",
-				Serviceaccount_bearer_token: "test-serviceaccount_bearer_token",
-				Serviceaccount_ns:           "test-serviceaccount_ns",
+				Host:                      "test-host",
+				KubeConfig:                "test-kube_config",
+				KubeConfig_context:        "test-kube_config_context",
+				ServiceAccountBearerToken: "test-serviceaccount_bearer_token",
+				ServiceAccountNs:          "test-serviceaccount_ns",
 			}
 			err = dbq.CreateClusterCredentials(ctx, &clusterCreds)
 			Expect(err).To(BeNil())
 			fetchedCluster := db.ClusterCredentials{
-				Clustercredentials_cred_id: clusterCreds.Clustercredentials_cred_id,
+				ClustercredentialsCredID: clusterCreds.ClustercredentialsCredID,
 			}
 			err = dbq.GetClusterCredentialsById(ctx, &fetchedCluster)
 			Expect(err).To(BeNil())
 			Expect(clusterCreds).To(Equal(fetchedCluster))
 
-			count, err := dbq.DeleteClusterCredentialsById(ctx, clusterCreds.Clustercredentials_cred_id)
+			count, err := dbq.DeleteClusterCredentialsById(ctx, clusterCreds.ClustercredentialsCredID)
 			Expect(err).To(BeNil())
 			Expect(count).To(Equal(1))
 			err = dbq.GetClusterCredentialsById(ctx, &fetchedCluster)

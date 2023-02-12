@@ -22,42 +22,42 @@ var _ = Describe("ClusterUser Tests", func() {
 			defer dbq.CloseDatabase()
 
 			user := &db.ClusterUser{
-				Clusteruser_id: "test-user-id",
-				User_name:      "test-user-name",
+				ClusterUserID: "test-user-id",
+				UserName:      "test-user-name",
 			}
 			err = dbq.CreateClusterUser(ctx, user)
 			Expect(err).To(BeNil())
 
 			retrieveUser := &db.ClusterUser{
-				User_name: "test-user-name",
+				UserName: "test-user-name",
 			}
 			err = dbq.GetClusterUserByUsername(ctx, retrieveUser)
 			Expect(err).To(BeNil())
 			Expect(user).Should(Equal(retrieveUser))
 			retrieveUser = &db.ClusterUser{
-				Clusteruser_id: user.Clusteruser_id,
+				ClusterUserID: user.ClusterUserID,
 			}
 			err = dbq.GetClusterUserById(ctx, retrieveUser)
 			Expect(err).To(BeNil())
 			Expect(user).Should(Equal(retrieveUser))
-			rowsAffected, err := dbq.DeleteClusterUserById(ctx, retrieveUser.Clusteruser_id)
+			rowsAffected, err := dbq.DeleteClusterUserById(ctx, retrieveUser.ClusterUserID)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))
 			err = dbq.GetClusterUserById(ctx, retrieveUser)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
 			// Set the invalid value
-			user.User_name = strings.Repeat("abc", 100)
+			user.UserName = strings.Repeat("abc", 100)
 			err = dbq.CreateClusterUser(ctx, user)
 			Expect(db.IsMaxLengthError(err)).To(Equal(true))
 
 			var specialClusterUser db.ClusterUser
 			err = dbq.GetOrCreateSpecialClusterUser(ctx, &specialClusterUser)
 			Expect(err).To(BeNil())
-			Expect(specialClusterUser.Clusteruser_id).To(Equal(db.SpecialClusterUserName))
-			Expect(specialClusterUser.User_name).To(Equal(db.SpecialClusterUserName))
+			Expect(specialClusterUser.ClusterUserID).To(Equal(db.SpecialClusterUserName))
+			Expect(specialClusterUser.UserName).To(Equal(db.SpecialClusterUserName))
 
-			rowsAffected, err = dbq.DeleteClusterUserById(ctx, specialClusterUser.Clusteruser_id)
+			rowsAffected, err = dbq.DeleteClusterUserById(ctx, specialClusterUser.ClusterUserID)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))
 		})

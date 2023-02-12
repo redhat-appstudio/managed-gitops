@@ -14,8 +14,8 @@ var _ = Describe("Types Test", func() {
 	Context("Tests all the functions for types.go", func() {
 
 		var testClusterUser = &db.ClusterUser{
-			Clusteruser_id: "test-user",
-			User_name:      "test-user",
+			ClusterUserID: "test-user",
+			UserName:      "test-user",
 		}
 
 		It("Should execute select on all the fields of the database.", func() {
@@ -81,14 +81,14 @@ var _ = Describe("Types Test", func() {
 			Expect(err).To(BeNil())
 
 			application := &db.Application{
-				ApplicationID:           "test-my-application",
-				Name:                    "my-application",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          "test-my-application",
+				Name:                   "my-application",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
-			err = dbq.CheckedCreateApplication(ctx, application, clusterAccess.Clusteraccess_user_id)
+			err = dbq.CheckedCreateApplication(ctx, application, clusterAccess.ClusterAccessUserID)
 			Expect(err).To(BeNil())
 
 			retrievedApplication := db.Application{ApplicationID: application.ApplicationID}
@@ -97,7 +97,7 @@ var _ = Describe("Types Test", func() {
 			Expect(err).To(BeNil())
 			Expect(application.ApplicationID).Should(Equal(retrievedApplication.ApplicationID))
 
-			rowsAffected, err := dbq.CheckedDeleteApplicationById(ctx, application.ApplicationID, clusterAccess.Clusteraccess_user_id)
+			rowsAffected, err := dbq.CheckedDeleteApplicationById(ctx, application.ApplicationID, clusterAccess.ClusterAccessUserID)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))
 
@@ -139,11 +139,11 @@ var _ = Describe("Types Test", func() {
 			Expect(err).To(BeNil())
 
 			retrievedGitopsEngineCluster := &db.GitopsEngineCluster{PrimaryKeyID: gitopsEngineCluster.PrimaryKeyID}
-			err = dbq.CheckedGetGitopsEngineClusterById(ctx, retrievedGitopsEngineCluster, testClusterUser.Clusteruser_id)
+			err = dbq.CheckedGetGitopsEngineClusterById(ctx, retrievedGitopsEngineCluster, testClusterUser.ClusterUserID)
 			Expect(err).To(BeNil())
 			Expect(&gitopsEngineCluster).Should(Equal(&retrievedGitopsEngineCluster))
 
-			rowsAffected, err := dbq.DeleteClusterAccessById(ctx, clusterAccess.Clusteraccess_user_id, clusterAccess.Clusteraccess_managed_environment_id, clusterAccess.Clusteraccess_gitops_engine_instance_id)
+			rowsAffected, err := dbq.DeleteClusterAccessById(ctx, clusterAccess.ClusterAccessUserID, clusterAccess.ClusterAccessManagedEnvironmentID, clusterAccess.ClusterAccessGitopsEngineInstanceID)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))
 
@@ -152,7 +152,7 @@ var _ = Describe("Types Test", func() {
 			Expect(rowsAffected).Should(Equal(1))
 
 			gitopsEngineInstance = &db.GitopsEngineInstance{Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id}
-			err = dbq.CheckedGetGitopsEngineInstanceById(ctx, gitopsEngineInstance, testClusterUser.Clusteruser_id)
+			err = dbq.CheckedGetGitopsEngineInstanceById(ctx, gitopsEngineInstance, testClusterUser.ClusterUserID)
 			Expect(err).ToNot(BeNil())
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
@@ -161,7 +161,7 @@ var _ = Describe("Types Test", func() {
 			Expect(rowsAffected).Should(Equal(1))
 
 			retrievedGitopsEngineCluster = &db.GitopsEngineCluster{PrimaryKeyID: gitopsEngineCluster.PrimaryKeyID}
-			err = dbq.CheckedGetGitopsEngineClusterById(ctx, retrievedGitopsEngineCluster, testClusterUser.Clusteruser_id)
+			err = dbq.CheckedGetGitopsEngineClusterById(ctx, retrievedGitopsEngineCluster, testClusterUser.ClusterUserID)
 			Expect(err).ToNot(BeNil())
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 		})
@@ -182,7 +182,7 @@ var _ = Describe("Types Test", func() {
 
 			result := &db.ManagedEnvironment{Managedenvironment_id: managedEnvironment.Managedenvironment_id}
 
-			err = dbq.CheckedGetManagedEnvironmentById(ctx, result, testClusterUser.Clusteruser_id)
+			err = dbq.CheckedGetManagedEnvironmentById(ctx, result, testClusterUser.ClusterUserID)
 			Expect(err).To(BeNil())
 			Expect(managedEnvironment.CreatedOn.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 			managedEnvironment.CreatedOn = result.CreatedOn
@@ -194,7 +194,7 @@ var _ = Describe("Types Test", func() {
 			// deleting from another user should fail
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
-			rowsAffected, err := dbq.DeleteClusterAccessById(ctx, clusterAccess.Clusteraccess_user_id, clusterAccess.Clusteraccess_managed_environment_id, clusterAccess.Clusteraccess_gitops_engine_instance_id)
+			rowsAffected, err := dbq.DeleteClusterAccessById(ctx, clusterAccess.ClusterAccessUserID, clusterAccess.ClusterAccessManagedEnvironmentID, clusterAccess.ClusterAccessGitopsEngineInstanceID)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))
 
@@ -203,7 +203,7 @@ var _ = Describe("Types Test", func() {
 			Expect(rowsAffected).Should(Equal(1))
 
 			result = &db.ManagedEnvironment{Managedenvironment_id: managedEnvironment.Managedenvironment_id}
-			err = dbq.CheckedGetManagedEnvironmentById(ctx, result, testClusterUser.Clusteruser_id)
+			err = dbq.CheckedGetManagedEnvironmentById(ctx, result, testClusterUser.ClusterUserID)
 			Expect(err).ToNot(BeNil())
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
@@ -224,19 +224,19 @@ var _ = Describe("Types Test", func() {
 			Expect(err).To(BeNil())
 
 			operation := &db.Operation{
-				Operation_id:            "test-operation",
-				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-				Resource_id:             "fake resource id",
-				Resource_type:           "GitopsEngineInstance",
-				State:                   db.OperationState_Waiting,
-				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				Operation_id:         "test-operation",
+				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+				ResourceID:           "fake resource id",
+				Resource_type:        "GitopsEngineInstance",
+				State:                db.OperationState_Waiting,
+				OperationOwnerUserID: testClusterUser.ClusterUserID,
 			}
 
-			err = dbq.CreateOperation(ctx, operation, operation.Operation_owner_user_id)
+			err = dbq.CreateOperation(ctx, operation, operation.OperationOwnerUserID)
 			Expect(err).To(BeNil())
 
 			result := db.Operation{Operation_id: operation.Operation_id}
-			err = dbq.CheckedGetOperationById(ctx, &result, operation.Operation_owner_user_id)
+			err = dbq.CheckedGetOperationById(ctx, &result, operation.OperationOwnerUserID)
 			Expect(err).To(BeNil())
 			Expect(operation.Operation_id).Should(Equal(result.Operation_id))
 
@@ -248,7 +248,7 @@ var _ = Describe("Types Test", func() {
 			rowsAffected, _ := dbq.CheckedDeleteOperationById(ctx, operation.Operation_id, "another-user")
 			Expect(rowsAffected).Should(Equal(0))
 
-			rowsAffected, err = dbq.CheckedDeleteOperationById(ctx, operation.Operation_id, operation.Operation_owner_user_id)
+			rowsAffected, err = dbq.CheckedDeleteOperationById(ctx, operation.Operation_id, operation.OperationOwnerUserID)
 			Expect(rowsAffected).Should(Equal(1))
 			Expect(err).To(BeNil())
 		})
@@ -264,27 +264,27 @@ var _ = Describe("Types Test", func() {
 			defer dbq.CloseDatabase()
 
 			clusterUser := db.ClusterUser{
-				Clusteruser_id: "test-my-cluster-user-2",
-				User_name:      "cluster-mccluster",
+				ClusterUserID: "test-my-cluster-user-2",
+				UserName:      "cluster-mccluster",
 			}
 			err = dbq.CreateClusterUser(ctx, &clusterUser)
 			Expect(err).To(BeNil())
 
-			retrievedClusterUser := db.ClusterUser{Clusteruser_id: clusterUser.Clusteruser_id}
+			retrievedClusterUser := db.ClusterUser{ClusterUserID: clusterUser.ClusterUserID}
 			err = dbq.GetClusterUserById(ctx, &retrievedClusterUser)
 			Expect(err).To(BeNil())
-			Expect(clusterUser.User_name).Should(Equal(retrievedClusterUser.User_name))
+			Expect(clusterUser.UserName).Should(Equal(retrievedClusterUser.UserName))
 
-			rowsAffected, err := dbq.DeleteClusterUserById(ctx, clusterUser.Clusteruser_id)
+			rowsAffected, err := dbq.DeleteClusterUserById(ctx, clusterUser.ClusterUserID)
 			Expect(rowsAffected).Should(Equal(1))
 			Expect(err).To(BeNil())
 
-			retrievedClusterUser = db.ClusterUser{Clusteruser_id: clusterUser.Clusteruser_id}
+			retrievedClusterUser = db.ClusterUser{ClusterUserID: clusterUser.ClusterUserID}
 			err = dbq.GetClusterUserById(ctx, &retrievedClusterUser)
 			Expect(err).ToNot(BeNil())
 			Expect(db.IsResultNotFoundError(err)).To(Equal(true))
 
-			retrievedClusterUser = db.ClusterUser{Clusteruser_id: "does-not-exist"}
+			retrievedClusterUser = db.ClusterUser{ClusterUserID: "does-not-exist"}
 			err = dbq.GetClusterUserById(ctx, &retrievedClusterUser)
 			Expect(err).ToNot(BeNil())
 			Expect(db.IsResultNotFoundError(err)).To(Equal(true))
@@ -302,12 +302,12 @@ var _ = Describe("Types Test", func() {
 			defer dbq.CloseDatabase()
 
 			clusterCredentials := db.ClusterCredentials{
-				Clustercredentials_cred_id:  "test-cluster-creds-test",
-				Host:                        "host",
-				KubeConfig:                  "kube-config",
-				KubeConfig_context:          "kube-config-context",
-				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-				Serviceaccount_ns:           "Serviceaccount_ns",
+				ClustercredentialsCredID:  "test-cluster-creds-test",
+				Host:                      "host",
+				KubeConfig:                "kube-config",
+				KubeConfig_context:        "kube-config-context",
+				ServiceAccountBearerToken: "serviceaccount_bearer_token",
+				ServiceAccountNs:          "ServiceAccountNs",
 			}
 
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
@@ -322,7 +322,7 @@ var _ = Describe("Types Test", func() {
 			{
 				managedEnvironment = db.ManagedEnvironment{
 					Managedenvironment_id: "test-managed-env-914",
-					ClusterCredentialsID:  clusterCredentials.Clustercredentials_cred_id,
+					ClusterCredentialsID:  clusterCredentials.ClustercredentialsCredID,
 					Name:                  "my env",
 				}
 				err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
@@ -330,7 +330,7 @@ var _ = Describe("Types Test", func() {
 
 				gitopsEngineCluster = db.GitopsEngineCluster{
 					PrimaryKeyID:         "test-fake-cluster-914",
-					ClusterCredentialsID: clusterCredentials.Clustercredentials_cred_id,
+					ClusterCredentialsID: clusterCredentials.ClustercredentialsCredID,
 				}
 				err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
 				Expect(err).To(BeNil())
@@ -345,9 +345,9 @@ var _ = Describe("Types Test", func() {
 				Expect(err).To(BeNil())
 
 				clusterAccess = db.ClusterAccess{
-					Clusteraccess_user_id:                   testClusterUser.Clusteruser_id,
-					Clusteraccess_managed_environment_id:    managedEnvironment.Managedenvironment_id,
-					Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
+					ClusterAccessUserID:                 testClusterUser.ClusterUserID,
+					ClusterAccessManagedEnvironmentID:   managedEnvironment.Managedenvironment_id,
+					ClusterAccessGitopsEngineInstanceID: gitopsEngineInstance.Gitopsengineinstance_id,
 				}
 				err = dbq.CreateClusterAccess(ctx, &clusterAccess)
 				Expect(err).To(BeNil())
@@ -355,7 +355,7 @@ var _ = Describe("Types Test", func() {
 			}
 
 			retrievedClusterCredentials := &db.ClusterCredentials{
-				Clustercredentials_cred_id: clusterCredentials.Clustercredentials_cred_id,
+				ClustercredentialsCredID: clusterCredentials.ClustercredentialsCredID,
 			}
 			err = dbq.GetClusterCredentialsById(ctx, retrievedClusterCredentials)
 			Expect(err).To(BeNil())
@@ -365,9 +365,9 @@ var _ = Describe("Types Test", func() {
 			Expect(clusterCredentials.KubeConfig_context).Should(Equal(retrievedClusterCredentials.KubeConfig_context))
 
 			retrievedClusterCredentials = &db.ClusterCredentials{
-				Clustercredentials_cred_id: clusterCredentials.Clustercredentials_cred_id,
+				ClustercredentialsCredID: clusterCredentials.ClustercredentialsCredID,
 			}
-			err = dbq.CheckedGetClusterCredentialsById(ctx, retrievedClusterCredentials, testClusterUser.Clusteruser_id)
+			err = dbq.CheckedGetClusterCredentialsById(ctx, retrievedClusterCredentials, testClusterUser.ClusterUserID)
 			Expect(err).To(BeNil())
 			Expect(retrievedClusterCredentials).ToNot(BeNil())
 
@@ -375,7 +375,7 @@ var _ = Describe("Types Test", func() {
 			Expect(clusterCredentials.KubeConfig).Should(Equal(retrievedClusterCredentials.KubeConfig))
 			Expect(clusterCredentials.KubeConfig_context).Should(Equal(retrievedClusterCredentials.KubeConfig_context))
 
-			rowsAffected, err := dbq.DeleteClusterAccessById(ctx, clusterAccess.Clusteraccess_user_id, clusterAccess.Clusteraccess_managed_environment_id, clusterAccess.Clusteraccess_gitops_engine_instance_id)
+			rowsAffected, err := dbq.DeleteClusterAccessById(ctx, clusterAccess.ClusterAccessUserID, clusterAccess.ClusterAccessManagedEnvironmentID, clusterAccess.ClusterAccessGitopsEngineInstanceID)
 			Expect(rowsAffected).Should(Equal(1))
 			Expect(err).To(BeNil())
 
@@ -391,12 +391,12 @@ var _ = Describe("Types Test", func() {
 			Expect(rowsAffected).Should(Equal(1))
 			Expect(err).To(BeNil())
 
-			rowsAffected, err = dbq.DeleteClusterCredentialsById(ctx, clusterCredentials.Clustercredentials_cred_id)
+			rowsAffected, err = dbq.DeleteClusterCredentialsById(ctx, clusterCredentials.ClustercredentialsCredID)
 			Expect(rowsAffected).Should(Equal(1))
 			Expect(err).To(BeNil())
 
 			retrievedClusterCredentials = &db.ClusterCredentials{
-				Clustercredentials_cred_id: clusterCredentials.Clustercredentials_cred_id,
+				ClustercredentialsCredID: clusterCredentials.ClustercredentialsCredID,
 			}
 			err = dbq.GetClusterCredentialsById(ctx, retrievedClusterCredentials)
 			Expect(err).ToNot(BeNil())

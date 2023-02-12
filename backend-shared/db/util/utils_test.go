@@ -24,7 +24,7 @@ type testResources struct {
 	Managedenvironment_id                 string
 	PrimaryKeyID                          string
 	Gitopsengineinstance_id               string
-	Clustercredentials_cred_id            string
+	ClustercredentialsCredID              string
 	Deploymenttoapplicationmapping_uid_id string
 	kubernetesToDBResourceMapping         db.KubernetesToDBResourceMapping
 }
@@ -77,8 +77,8 @@ func deleteTestResources(ctx context.Context, dbQueries db.AllDatabaseQueries, r
 	}
 
 	// Delete ClusterCredentials
-	if resourcesToBeDeleted.Clustercredentials_cred_id != "" {
-		rowsAffected, err = dbQueries.DeleteClusterCredentialsById(ctx, resourcesToBeDeleted.Clustercredentials_cred_id)
+	if resourcesToBeDeleted.ClustercredentialsCredID != "" {
+		rowsAffected, err = dbQueries.DeleteClusterCredentialsById(ctx, resourcesToBeDeleted.ClustercredentialsCredID)
 		Expect(err).To(BeNil())
 		Expect(rowsAffected).To(Equal(1))
 	}
@@ -168,7 +168,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			// Check ClusterCredentials resource
 			clusterCredentials := db.ClusterCredentials{
-				Clustercredentials_cred_id: managedEnvironment.ClusterCredentialsID,
+				ClustercredentialsCredID: managedEnvironment.ClusterCredentialsID,
 			}
 			err = dbQueries.GetClusterCredentialsById(ctx, &clusterCredentials)
 			Expect(err).To(BeNil())
@@ -190,7 +190,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			resourcesToBeDeleted := testResources{
 				Managedenvironment_id:         managedEnvironment.Managedenvironment_id,
-				Clustercredentials_cred_id:    clusterCredentials.Clustercredentials_cred_id,
+				ClustercredentialsCredID:      clusterCredentials.ClustercredentialsCredID,
 				kubernetesToDBResourceMapping: kubernetesToDBResourceMapping,
 			}
 
@@ -241,11 +241,11 @@ var _ = Describe("Test utility functions.", func() {
 
 			// Create ClusterCredentials
 			clusterCredentials = db.ClusterCredentials{
-				Host:                        "host",
-				KubeConfig:                  "kube-config",
-				KubeConfig_context:          "kube-config-context",
-				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-				Serviceaccount_ns:           "Serviceaccount_ns",
+				Host:                      "host",
+				KubeConfig:                "kube-config",
+				KubeConfig_context:        "kube-config-context",
+				ServiceAccountBearerToken: "serviceaccount_bearer_token",
+				ServiceAccountNs:          "ServiceAccountNs",
 			}
 			err = dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
 			Expect(err).To(BeNil())
@@ -254,7 +254,7 @@ var _ = Describe("Test utility functions.", func() {
 			// Create ManagedEnvironment
 
 			managedEnvironment = db.ManagedEnvironment{
-				ClusterCredentialsID: clusterCredentials.Clustercredentials_cred_id,
+				ClusterCredentialsID: clusterCredentials.ClustercredentialsCredID,
 				Name:                 "my-managed-environment",
 			}
 			err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironment)
@@ -264,7 +264,7 @@ var _ = Describe("Test utility functions.", func() {
 			// Create GitopsEngineCluster
 
 			gitopsEngineCluster = db.GitopsEngineCluster{
-				ClusterCredentialsID: clusterCredentials.Clustercredentials_cred_id,
+				ClusterCredentialsID: clusterCredentials.ClustercredentialsCredID,
 			}
 			err = dbQueries.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
 			Expect(err).To(BeNil())
@@ -284,10 +284,10 @@ var _ = Describe("Test utility functions.", func() {
 			// Create Application
 
 			application = db.Application{
-				Name:                    "my-application",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				Name:                   "my-application",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 			err = dbQueries.CreateApplication(ctx, &application)
 			Expect(err).To(BeNil())
@@ -314,7 +314,7 @@ var _ = Describe("Test utility functions.", func() {
 				Gitopsengineinstance_id:               gitopsEngineInstance.Gitopsengineinstance_id,
 				PrimaryKeyID:                          gitopsEngineCluster.PrimaryKeyID,
 				Managedenvironment_id:                 managedEnvironment.Managedenvironment_id,
-				Clustercredentials_cred_id:            clusterCredentials.Clustercredentials_cred_id,
+				ClustercredentialsCredID:              clusterCredentials.ClustercredentialsCredID,
 			}
 
 			deleteTestResources(ctx, dbQueries, resourcesToBeDeleted)
@@ -419,7 +419,7 @@ var _ = Describe("Test utility functions.", func() {
 			}
 
 			if gitopsEngineCluster != nil {
-				resourcesToBeDeleted.Clustercredentials_cred_id = gitopsEngineCluster.ClusterCredentialsID
+				resourcesToBeDeleted.ClustercredentialsCredID = gitopsEngineCluster.ClusterCredentialsID
 			}
 
 			if kubernetesToDBResourceMapping.KubernetesResourceUID != "" {
@@ -583,7 +583,7 @@ var _ = Describe("Test utility functions.", func() {
 			// Objects could be nil, in that case it would throw error. To avoid that check object first
 			if gitopsEngineCluster != nil {
 				resourcesToBeDeleted.PrimaryKeyID = gitopsEngineCluster.PrimaryKeyID
-				resourcesToBeDeleted.Clustercredentials_cred_id = gitopsEngineCluster.ClusterCredentialsID
+				resourcesToBeDeleted.ClustercredentialsCredID = gitopsEngineCluster.ClusterCredentialsID
 			}
 
 			if kubernetesToDBResourceMapping.KubernetesResourceType != "" {
@@ -707,7 +707,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			if gitopsEngineCluster != nil {
 				resourcesToBeDeleted.PrimaryKeyID = gitopsEngineCluster.PrimaryKeyID
-				resourcesToBeDeleted.Clustercredentials_cred_id = gitopsEngineCluster.ClusterCredentialsID
+				resourcesToBeDeleted.ClustercredentialsCredID = gitopsEngineCluster.ClusterCredentialsID
 			}
 
 			if kubernetesToDBResourceMappingForEngineInstance.KubernetesResourceUID != "" {

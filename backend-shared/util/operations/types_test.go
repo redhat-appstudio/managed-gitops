@@ -63,19 +63,19 @@ var _ = Describe("Testing CreateOperation function.", func() {
 			Expect(err).To(BeNil())
 
 			applicationput := db.Application{
-				ApplicationID:           "test-my-application",
-				Name:                    "my-application",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          "test-my-application",
+				Name:                   "my-application",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			err = dbq.CreateApplication(ctx, &applicationput)
 			Expect(err).To(BeNil())
 
 			dbOperationInput := db.Operation{
-				Instance_id:   applicationput.Engine_instance_inst_id,
-				Resource_id:   applicationput.ApplicationID,
+				InstanceID:    applicationput.EngineInstanceInstID,
+				ResourceID:    applicationput.ApplicationID,
 				Resource_type: db.OperationResourceType_Application,
 			}
 
@@ -97,8 +97,8 @@ var _ = Describe("Testing CreateOperation function.", func() {
 			Expect(k8sOperationFirst.Spec.OperationID).To(Equal(k8sOperationSecond.Spec.OperationID))
 
 			Expect(dbOperationFirst.Operation_id).To(Equal(dbOperationSecond.Operation_id))
-			Expect(dbOperationFirst.Instance_id).To(Equal(dbOperationSecond.Instance_id))
-			Expect(dbOperationFirst.Resource_id).To(Equal(dbOperationSecond.Resource_id))
+			Expect(dbOperationFirst.InstanceID).To(Equal(dbOperationSecond.InstanceID))
+			Expect(dbOperationFirst.ResourceID).To(Equal(dbOperationSecond.ResourceID))
 			Expect(dbOperationFirst.SeqID).To(Equal(dbOperationSecond.SeqID))
 		})
 	})
@@ -178,19 +178,19 @@ var _ = Describe("Testing CleanupOperation function", func() {
 			Expect(err).To(BeNil())
 
 			app := db.Application{
-				ApplicationID:           "test-my-application",
-				Name:                    "my-application",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          "test-my-application",
+				Name:                   "my-application",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			err = dbq.CreateApplication(ctx, &app)
 			Expect(err).To(BeNil())
 
 			dbOperationInput := db.Operation{
-				Instance_id:   app.Engine_instance_inst_id,
-				Resource_id:   app.ApplicationID,
+				InstanceID:    app.EngineInstanceInstID,
+				ResourceID:    app.ApplicationID,
 				Resource_type: db.OperationResourceType_Application,
 			}
 

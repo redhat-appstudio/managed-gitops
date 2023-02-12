@@ -103,11 +103,11 @@ func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, namespace 
 	// TODO: GITOPSRVCE-66 - Cluster credentials placeholder values - we will need to create a service account on the target cluster, which we can store in the database.
 
 	clusterCreds := db.ClusterCredentials{
-		Host:                        "host",
-		KubeConfig:                  "kube_config",
-		KubeConfig_context:          "kube_config_context",
-		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-		Serviceaccount_ns:           "serviceaccount_ns",
+		Host:                      "host",
+		KubeConfig:                "kube_config",
+		KubeConfig_context:        "kube_config_context",
+		ServiceAccountBearerToken: "serviceaccount_bearer_token",
+		ServiceAccountNs:          "serviceaccount_ns",
 	}
 
 	// We avoid logging the bearer_token or kube_config, as these container sensitive user data.
@@ -117,12 +117,12 @@ func GetOrCreateManagedEnvironmentByNamespaceUID(ctx context.Context, namespace 
 
 		return nil, false, fmt.Errorf("unable to create cluster creds for managed env: %v", err)
 	}
-	log.Info("Created Cluster Credentials for ManagedEnvironment: "+clusterCreds.Clustercredentials_cred_id,
+	log.Info("Created Cluster Credentials for ManagedEnvironment: "+clusterCreds.ClustercredentialsCredID,
 		clusterCreds.GetAsLogKeyValues()...)
 
 	managedEnvironment := db.ManagedEnvironment{
 		Name:                 "Managed Environment for " + namespace.Name,
-		ClusterCredentialsID: clusterCreds.Clustercredentials_cred_id,
+		ClusterCredentialsID: clusterCreds.ClustercredentialsCredID,
 	}
 
 	if err := dbq.CreateManagedEnvironment(ctx, &managedEnvironment); err != nil {
@@ -422,11 +422,11 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 		// TODO: GITOPSRVCE-66 - Cluster credentials placeholder values - we will need to create a service account on the
 		// target cluster, which we can store in the database.
 		clusterCreds := db.ClusterCredentials{
-			Host:                        "host",
-			KubeConfig:                  "kube_config",
-			KubeConfig_context:          "kube_config_context",
-			Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-			Serviceaccount_ns:           "serviceaccount_ns",
+			Host:                      "host",
+			KubeConfig:                "kube_config",
+			KubeConfig_context:        "kube_config_context",
+			ServiceAccountBearerToken: "serviceaccount_bearer_token",
+			ServiceAccountNs:          "serviceaccount_ns",
 		}
 		if err := dbq.CreateClusterCredentials(ctx, &clusterCreds); err != nil {
 			log.Error(err, "Unable to create Cluster Credentials for GitOpsEngineCluster",
@@ -434,10 +434,10 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 
 			return nil, false, fmt.Errorf("unable to create cluster creds for managed env: %v", err)
 		}
-		log.Info("Created Cluster Credentials for GitOpsEngineCluster: "+clusterCreds.Clustercredentials_cred_id, clusterCreds.GetAsLogKeyValues()...)
+		log.Info("Created Cluster Credentials for GitOpsEngineCluster: "+clusterCreds.ClustercredentialsCredID, clusterCreds.GetAsLogKeyValues()...)
 
 		gitopsEngineCluster = &db.GitopsEngineCluster{
-			ClusterCredentialsID: clusterCreds.Clustercredentials_cred_id,
+			ClusterCredentialsID: clusterCreds.ClustercredentialsCredID,
 		}
 		if err := dbq.CreateGitopsEngineCluster(ctx, gitopsEngineCluster); err != nil {
 			log.Error(err, "Unable to create GitopsEngineCluster", gitopsEngineCluster.GetAsLogKeyValues()...)

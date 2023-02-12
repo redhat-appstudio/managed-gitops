@@ -22,30 +22,30 @@ var _ = Describe("ClusterAccess Tests", func() {
 			ctx := context.Background()
 
 			var clusterUser = &db.ClusterUser{
-				Clusteruser_id: "test-user-application",
-				User_name:      "test-user-application",
+				ClusterUserID: "test-user-application",
+				UserName:      "test-user-application",
 			}
 			err = dbq.CreateClusterUser(ctx, clusterUser)
 			Expect(err).To(BeNil())
 
 			clusterCredentials := db.ClusterCredentials{
-				Clustercredentials_cred_id:  "test-cluster-creds-test-5",
-				Host:                        "host",
-				KubeConfig:                  "kube-config",
-				KubeConfig_context:          "kube-config-context",
-				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-				Serviceaccount_ns:           "Serviceaccount_ns",
+				ClustercredentialsCredID:  "test-cluster-creds-test-5",
+				Host:                      "host",
+				KubeConfig:                "kube-config",
+				KubeConfig_context:        "kube-config-context",
+				ServiceAccountBearerToken: "serviceaccount_bearer_token",
+				ServiceAccountNs:          "ServiceAccountNs",
 			}
 
 			managedEnvironment := db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env-5",
-				ClusterCredentialsID:  clusterCredentials.Clustercredentials_cred_id,
+				ClusterCredentialsID:  clusterCredentials.ClustercredentialsCredID,
 				Name:                  "my env",
 			}
 
 			gitopsEngineCluster := db.GitopsEngineCluster{
 				PrimaryKeyID:         "test-fake-cluster-5",
-				ClusterCredentialsID: clusterCredentials.Clustercredentials_cred_id,
+				ClusterCredentialsID: clusterCredentials.ClustercredentialsCredID,
 			}
 
 			gitopsEngineInstance := db.GitopsEngineInstance{
@@ -56,9 +56,9 @@ var _ = Describe("ClusterAccess Tests", func() {
 			}
 
 			clusterAccess := db.ClusterAccess{
-				Clusteraccess_user_id:                   clusterUser.Clusteruser_id,
-				Clusteraccess_managed_environment_id:    managedEnvironment.Managedenvironment_id,
-				Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				ClusterAccessUserID:                 clusterUser.ClusterUserID,
+				ClusterAccessManagedEnvironmentID:   managedEnvironment.Managedenvironment_id,
+				ClusterAccessGitopsEngineInstanceID: gitopsEngineInstance.Gitopsengineinstance_id,
 			}
 
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
@@ -75,21 +75,21 @@ var _ = Describe("ClusterAccess Tests", func() {
 
 			err = dbq.CreateClusterAccess(ctx, &clusterAccess)
 			Expect(err).To(BeNil())
-			fetchRow := db.ClusterAccess{Clusteraccess_user_id: clusterAccess.Clusteraccess_user_id,
-				Clusteraccess_managed_environment_id:    clusterAccess.Clusteraccess_managed_environment_id,
-				Clusteraccess_gitops_engine_instance_id: clusterAccess.Clusteraccess_gitops_engine_instance_id}
+			fetchRow := db.ClusterAccess{ClusterAccessUserID: clusterAccess.ClusterAccessUserID,
+				ClusterAccessManagedEnvironmentID:   clusterAccess.ClusterAccessManagedEnvironmentID,
+				ClusterAccessGitopsEngineInstanceID: clusterAccess.ClusterAccessGitopsEngineInstanceID}
 			err = dbq.GetClusterAccessByPrimaryKey(ctx, &fetchRow)
 			Expect(err).To(BeNil())
 			Expect(fetchRow).Should(Equal(clusterAccess))
 
-			affectedRows, err := dbq.DeleteClusterAccessById(ctx, fetchRow.Clusteraccess_user_id, fetchRow.Clusteraccess_managed_environment_id, fetchRow.Clusteraccess_gitops_engine_instance_id)
+			affectedRows, err := dbq.DeleteClusterAccessById(ctx, fetchRow.ClusterAccessUserID, fetchRow.ClusterAccessManagedEnvironmentID, fetchRow.ClusterAccessGitopsEngineInstanceID)
 			Expect(err).To(BeNil())
 			Expect(affectedRows).To(Equal(1))
 
 			err = dbq.GetClusterAccessByPrimaryKey(ctx, &fetchRow)
 			Expect(db.IsResultNotFoundError(err)).To(Equal(true))
 
-			clusterAccess.Clusteraccess_user_id = strings.Repeat("abc", 100)
+			clusterAccess.ClusterAccessUserID = strings.Repeat("abc", 100)
 			err = dbq.CreateClusterAccess(ctx, &clusterAccess)
 			Expect(db.IsMaxLengthError(err)).To(BeTrue())
 		})

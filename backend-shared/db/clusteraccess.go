@@ -25,18 +25,18 @@ func (dbq *PostgreSQLDatabaseQueries) GetClusterAccessByPrimaryKey(ctx context.C
 	}
 
 	if err := isEmptyValues("GetClusterAccessByPrimaryKey",
-		"Clusteraccess_gitops_engine_instance_id", obj.Clusteraccess_gitops_engine_instance_id,
-		"Clusteraccess_managed_environment_id", obj.Clusteraccess_managed_environment_id,
-		"Clusteraccess_user_id", obj.Clusteraccess_user_id); err != nil {
+		"ClusterAccessGitopsEngineInstanceID", obj.ClusterAccessGitopsEngineInstanceID,
+		"ClusterAccessManagedEnvironmentID", obj.ClusterAccessManagedEnvironmentID,
+		"ClusterAccessUserID", obj.ClusterAccessUserID); err != nil {
 		return err
 	}
 
 	var dbResults []ClusterAccess
 
 	err := dbq.dbConnection.Model(&dbResults).
-		Where("clusteraccess_user_id = ?", obj.Clusteraccess_user_id).
-		Where("clusteraccess_managed_environment_id = ?", obj.Clusteraccess_managed_environment_id).
-		Where("clusteraccess_gitops_engine_instance_id = ?", obj.Clusteraccess_gitops_engine_instance_id).
+		Where("clusteraccess_user_id = ?", obj.ClusterAccessUserID).
+		Where("clusteraccess_managed_environment_id = ?", obj.ClusterAccessManagedEnvironmentID).
+		Where("clusteraccess_gitops_engine_instance_id = ?", obj.ClusterAccessGitopsEngineInstanceID).
 		Context(ctx).Select()
 
 	if err != nil {
@@ -58,15 +58,15 @@ func (dbq *PostgreSQLDatabaseQueries) GetClusterAccessByPrimaryKey(ctx context.C
 
 func (dbq *PostgreSQLDatabaseQueries) CreateClusterAccess(ctx context.Context, obj *ClusterAccess) error {
 
-	if err := validateQueryParams(obj.Clusteraccess_gitops_engine_instance_id, dbq); err != nil {
+	if err := validateQueryParams(obj.ClusterAccessGitopsEngineInstanceID, dbq); err != nil {
 		return err
 	}
 
-	if IsEmpty(obj.Clusteraccess_managed_environment_id) {
+	if IsEmpty(obj.ClusterAccessManagedEnvironmentID) {
 		return fmt.Errorf("primary key environment id should not be empty")
 	}
 
-	if IsEmpty(obj.Clusteraccess_user_id) {
+	if IsEmpty(obj.ClusterAccessUserID) {
 		return fmt.Errorf("primary key user_id should not be empty")
 	}
 
@@ -148,7 +148,7 @@ func (obj *ClusterAccess) Dispose(ctx context.Context, dbq DatabaseQueries) erro
 		return fmt.Errorf("missing database interface in ClusterAccess dispose")
 	}
 
-	_, err := dbq.DeleteClusterAccessById(ctx, obj.Clusteraccess_user_id, obj.Clusteraccess_managed_environment_id, obj.Clusteraccess_gitops_engine_instance_id)
+	_, err := dbq.DeleteClusterAccessById(ctx, obj.ClusterAccessUserID, obj.ClusterAccessManagedEnvironmentID, obj.ClusterAccessGitopsEngineInstanceID)
 	return err
 }
 
@@ -159,7 +159,7 @@ func (obj *ClusterAccess) GetAsLogKeyValues() []interface{} {
 		return []interface{}{}
 	}
 
-	return []interface{}{"engineInstanceID", obj.Clusteraccess_gitops_engine_instance_id,
-		"managedEnvironmentID", obj.Clusteraccess_managed_environment_id,
-		"userID", obj.Clusteraccess_user_id}
+	return []interface{}{"engineInstanceID", obj.ClusterAccessGitopsEngineInstanceID,
+		"managedEnvironmentID", obj.ClusterAccessManagedEnvironmentID,
+		"userID", obj.ClusterAccessUserID}
 }

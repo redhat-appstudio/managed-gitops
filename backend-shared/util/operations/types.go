@@ -73,13 +73,13 @@ func createOperationInternal(ctx context.Context, waitForOperation bool, dbOpera
 	l logr.Logger) (*managedgitopsv1alpha1.Operation, *db.Operation, error) {
 
 	var err error
-	l = l.WithValues("Operation GitOpsEngineInstanceID", dbOperationParam.Instance_id,
-		"Operation ResourceID", dbOperationParam.Resource_id,
+	l = l.WithValues("Operation GitOpsEngineInstanceID", dbOperationParam.InstanceID,
+		"Operation ResourceID", dbOperationParam.ResourceID,
 		"Operation ResourceType", dbOperationParam.Resource_type,
 		"Operation OwnerUserID", clusterUserID,
 	)
 	var dbOperationList []db.Operation
-	if err = dbQueries.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, dbOperationParam.Resource_id, dbOperationParam.Resource_type, &dbOperationList, clusterUserID); err != nil {
+	if err = dbQueries.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, dbOperationParam.ResourceID, dbOperationParam.Resource_type, &dbOperationList, clusterUserID); err != nil {
 		l.Error(err, "unable to fetch list of Operations")
 		// We intentionally don't return here: if we were unable to fetch the list,
 		// then we will create an Operation as usual (and it might be duplicate, but that's fine)
@@ -115,14 +115,14 @@ func createOperationInternal(ctx context.Context, waitForOperation bool, dbOpera
 	}
 
 	dbOperation := db.Operation{
-		Instance_id:             dbOperationParam.Instance_id,
-		Resource_id:             dbOperationParam.Resource_id,
-		Resource_type:           dbOperationParam.Resource_type,
-		Operation_owner_user_id: clusterUserID,
-		CreatedOn:               time.Now(),
-		Last_state_update:       time.Now(),
-		State:                   db.OperationState_Waiting,
-		Human_readable_state:    "",
+		InstanceID:           dbOperationParam.InstanceID,
+		ResourceID:           dbOperationParam.ResourceID,
+		Resource_type:        dbOperationParam.Resource_type,
+		OperationOwnerUserID: clusterUserID,
+		CreatedOn:            time.Now(),
+		LastStateUpdate:      time.Now(),
+		State:                db.OperationState_Waiting,
+		HumanReadableState:   "",
 	}
 
 	if err := dbQueries.CreateOperation(ctx, &dbOperation, clusterUserID); err != nil {

@@ -29,17 +29,17 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterCredentials(ctx context.Conte
 
 	if dbq.allowTestUuids {
 
-		if IsEmpty(obj.Clustercredentials_cred_id) {
-			obj.Clustercredentials_cred_id = generateUuid()
+		if IsEmpty(obj.ClustercredentialsCredID) {
+			obj.ClustercredentialsCredID = generateUuid()
 		}
 
 	} else {
 
-		if !IsEmpty(obj.Clustercredentials_cred_id) {
+		if !IsEmpty(obj.ClustercredentialsCredID) {
 			return fmt.Errorf("primary key should be empty")
 		}
 
-		obj.Clustercredentials_cred_id = generateUuid()
+		obj.ClustercredentialsCredID = generateUuid()
 	}
 
 	if err := validateFieldLength(obj); err != nil {
@@ -66,7 +66,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetClusterCredentialsById(ctx context.Cont
 
 	var dbResults []ClusterCredentials
 	if err := dbq.dbConnection.Model(&dbResults).
-		Where("clustercredentials_cred_id = ?", clusterCreds.Clustercredentials_cred_id).Context(ctx).
+		Where("clustercredentials_cred_id = ?", clusterCreds.ClustercredentialsCredID).Context(ctx).
 		Select(); err != nil {
 
 		return fmt.Errorf("error on retrieving ClusterCredentials: %v", err)
@@ -94,7 +94,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedGetClusterCredentialsById(ctx conte
 	// A user should only be able to get cluster credentials if:
 	// - they have access to a gitops engine instance on that cluster.
 	// - they have access to a managed environment using those credentials
-	accessibleByUser, err := dbq.isAccessibleByUser(ctx, clusterCredentials.Clustercredentials_cred_id, ownerId)
+	accessibleByUser, err := dbq.isAccessibleByUser(ctx, clusterCredentials.ClustercredentialsCredID, ownerId)
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedGetClusterCredentialsById(ctx conte
 
 	if err = dbq.dbConnection.Model(&dbResults).
 		// owner id from cluster access must match the provided parameter
-		Where("cc.clustercredentials_cred_id = ?", clusterCredentials.Clustercredentials_cred_id).
+		Where("cc.clustercredentials_cred_id = ?", clusterCredentials.ClustercredentialsCredID).
 		Context(ctx).
 		Select(); err != nil {
 		return err
@@ -159,7 +159,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedListClusterCredentialsByHost(ctx co
 		// A user should only be able to get cluster credentials if:
 		// - they have access to a gitops engine instance on that cluster.
 		// - they have access to a managed environment using those credentials
-		accessibleByUser, err := dbq.isAccessibleByUser(ctx, credsWithHostName.Clustercredentials_cred_id, ownerId)
+		accessibleByUser, err := dbq.isAccessibleByUser(ctx, credsWithHostName.ClustercredentialsCredID, ownerId)
 		if err != nil {
 			return err
 		}
@@ -256,7 +256,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteClusterCredentialsById(ctx context.C
 	}
 
 	result := &ClusterCredentials{
-		Clustercredentials_cred_id: id,
+		ClustercredentialsCredID: id,
 	}
 
 	deleteResult, err := dbq.dbConnection.Model(result).WherePK().Context(ctx).Delete()
@@ -272,7 +272,7 @@ func (obj *ClusterCredentials) Dispose(ctx context.Context, dbq DatabaseQueries)
 		return fmt.Errorf("missing database interface in ClusterCredentials dispose")
 	}
 
-	_, err := dbq.DeleteClusterCredentialsById(ctx, obj.Clustercredentials_cred_id)
+	_, err := dbq.DeleteClusterCredentialsById(ctx, obj.ClustercredentialsCredID)
 	return err
 }
 
@@ -285,6 +285,6 @@ func (obj *ClusterCredentials) GetAsLogKeyValues() []interface{} {
 
 	// We avoid logging the bearer_token or kube_config, as these container sensitive user data.
 	return []interface{}{"host", obj.Host, "kube-config-length", len(obj.KubeConfig),
-		"kube-config-context", len(obj.KubeConfig_context), "serviceaccount_ns", obj.Serviceaccount_ns,
-		"serviceaccount-bearer-token-length", len(obj.Serviceaccount_bearer_token)}
+		"kube-config-context", len(obj.KubeConfig_context), "serviceaccount_ns", obj.ServiceAccountNs,
+		"serviceaccount-bearer-token-length", len(obj.ServiceAccountBearerToken)}
 }

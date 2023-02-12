@@ -21,17 +21,17 @@ var _ = Describe("Gitopsenginecluster Test", func() {
 		defer dbq.CloseDatabase()
 
 		clusterCredentials := db.ClusterCredentials{
-			Clustercredentials_cred_id:  "test-cluster-creds-test-1",
-			Host:                        "host",
-			KubeConfig:                  "kube-config",
-			KubeConfig_context:          "kube-config-context",
-			Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-			Serviceaccount_ns:           "Serviceaccount_ns",
+			ClustercredentialsCredID:  "test-cluster-creds-test-1",
+			Host:                      "host",
+			KubeConfig:                "kube-config",
+			KubeConfig_context:        "kube-config-context",
+			ServiceAccountBearerToken: "serviceaccount_bearer_token",
+			ServiceAccountNs:          "ServiceAccountNs",
 		}
 
 		gitopsEngineClusterput := db.GitopsEngineCluster{
 			PrimaryKeyID:         "test-fake-cluster-1",
-			ClusterCredentialsID: clusterCredentials.Clustercredentials_cred_id,
+			ClusterCredentialsID: clusterCredentials.ClustercredentialsCredID,
 		}
 
 		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)

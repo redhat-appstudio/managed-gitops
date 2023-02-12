@@ -21,17 +21,17 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 		defer dbq.CloseDatabase()
 
 		clusterCredentials := db.ClusterCredentials{
-			Clustercredentials_cred_id:  "test-cluster-creds-test-1",
-			Host:                        "host",
-			KubeConfig:                  "kube-config",
-			KubeConfig_context:          "kube-config-context",
-			Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-			Serviceaccount_ns:           "Serviceaccount_ns",
+			ClustercredentialsCredID:  "test-cluster-creds-test-1",
+			Host:                      "host",
+			KubeConfig:                "kube-config",
+			KubeConfig_context:        "kube-config-context",
+			ServiceAccountBearerToken: "serviceaccount_bearer_token",
+			ServiceAccountNs:          "ServiceAccountNs",
 		}
 
 		gitopsEngineCluster := db.GitopsEngineCluster{
 			PrimaryKeyID:         "test-fake-cluster-1",
-			ClusterCredentialsID: clusterCredentials.Clustercredentials_cred_id,
+			ClusterCredentialsID: clusterCredentials.ClustercredentialsCredID,
 		}
 
 		gitopsEngineInstanceput := db.GitopsEngineInstance{
@@ -86,12 +86,12 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 		defer dbq.CloseDatabase()
 
 		clusterCredentials := db.ClusterCredentials{
-			Clustercredentials_cred_id:  "test-cred-" + string(uuid.NewUUID()),
-			Host:                        "host",
-			KubeConfig:                  "kube-config",
-			KubeConfig_context:          "kube-config-context",
-			Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-			Serviceaccount_ns:           "Serviceaccount_ns",
+			ClustercredentialsCredID:  "test-cred-" + string(uuid.NewUUID()),
+			Host:                      "host",
+			KubeConfig:                "kube-config",
+			KubeConfig_context:        "kube-config-context",
+			ServiceAccountBearerToken: "serviceaccount_bearer_token",
+			ServiceAccountNs:          "ServiceAccountNs",
 		}
 		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
 		Expect(err).To(BeNil())
@@ -101,7 +101,7 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 		{
 			gitopsEngineCluster2 := db.GitopsEngineCluster{
 				PrimaryKeyID:         "test-cred-" + string(uuid.NewUUID()),
-				ClusterCredentialsID: clusterCredentials.Clustercredentials_cred_id,
+				ClusterCredentialsID: clusterCredentials.ClustercredentialsCredID,
 			}
 			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster2)
 			Expect(err).To(BeNil())
@@ -119,7 +119,7 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 		By("creating a new GitOpsEngineCluster with 2 Instances, each in different Namespace")
 		gitopsEngineCluster := db.GitopsEngineCluster{
 			PrimaryKeyID:         "test-cred-" + string(uuid.NewUUID()),
-			ClusterCredentialsID: clusterCredentials.Clustercredentials_cred_id,
+			ClusterCredentialsID: clusterCredentials.ClustercredentialsCredID,
 		}
 		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
 		Expect(err).To(BeNil())

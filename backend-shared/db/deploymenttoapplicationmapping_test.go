@@ -45,9 +45,9 @@ var _ = Describe("DeploymentToApplicationMapping Tests", func() {
 			Expect(err).To(BeNil())
 
 			application = &db.Application{
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			deploymentToApplicationMapping = &db.DeploymentToApplicationMapping{

@@ -50,7 +50,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateApplicationState(ctx context.Context
 	if err := isEmptyValues("CreateApplicationState",
 		"Applicationstate_application_id", obj.Applicationstate_application_id,
 		"Health", obj.Health,
-		"Sync_Status", obj.Sync_Status,
+		"SyncStatus", obj.SyncStatus,
 		"ReconciledState", obj.ReconciledState); err != nil {
 		return err
 	}
@@ -90,7 +90,7 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateApplicationState(ctx context.Context
 	if err := isEmptyValues("UpdateApplicationState",
 		"Applicationstate_application_id", obj.Applicationstate_application_id,
 		"Health", obj.Health,
-		"Sync_Status", obj.Sync_Status,
+		"SyncStatus", obj.SyncStatus,
 		"ReconciledState", obj.ReconciledState); err != nil {
 		return err
 	}

@@ -19,30 +19,30 @@ var _ = Describe("Injection Test", func() {
 		ctx := context.Background()
 
 		var clusterUser = &db.ClusterUser{
-			Clusteruser_id: "test-user-wrong-application",
-			User_name:      "test-user-wrong-application",
+			ClusterUserID: "test-user-wrong-application",
+			UserName:      "test-user-wrong-application",
 		}
 		err = dbq.CreateClusterUser(ctx, clusterUser)
 		Expect(err).To(BeNil())
 
 		clusterCredentials := db.ClusterCredentials{
-			Clustercredentials_cred_id:  "test-cluster-creds-test-5",
-			Host:                        "host",
-			KubeConfig:                  "kube-config",
-			KubeConfig_context:          "kube-config-context",
-			Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-			Serviceaccount_ns:           "Serviceaccount_ns",
+			ClustercredentialsCredID:  "test-cluster-creds-test-5",
+			Host:                      "host",
+			KubeConfig:                "kube-config",
+			KubeConfig_context:        "kube-config-context",
+			ServiceAccountBearerToken: "serviceaccount_bearer_token",
+			ServiceAccountNs:          "ServiceAccountNs",
 		}
 
 		managedEnvironment := db.ManagedEnvironment{
 			Managedenvironment_id: "test-managed-env-5",
-			ClusterCredentialsID:  clusterCredentials.Clustercredentials_cred_id,
+			ClusterCredentialsID:  clusterCredentials.ClustercredentialsCredID,
 			Name:                  "my env",
 		}
 
 		gitopsEngineCluster := db.GitopsEngineCluster{
 			PrimaryKeyID:         "test-fake-cluster-5",
-			ClusterCredentialsID: clusterCredentials.Clustercredentials_cred_id,
+			ClusterCredentialsID: clusterCredentials.ClustercredentialsCredID,
 		}
 
 		gitopsEngineInstance := db.GitopsEngineInstance{
@@ -53,9 +53,9 @@ var _ = Describe("Injection Test", func() {
 		}
 
 		clusterAccess := db.ClusterAccess{
-			Clusteraccess_user_id:                   clusterUser.Clusteruser_id,
-			Clusteraccess_managed_environment_id:    managedEnvironment.Managedenvironment_id,
-			Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
+			ClusterAccessUserID:                 clusterUser.ClusterUserID,
+			ClusterAccessManagedEnvironmentID:   managedEnvironment.Managedenvironment_id,
+			ClusterAccessGitopsEngineInstanceID: gitopsEngineInstance.Gitopsengineinstance_id,
 		}
 
 		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
@@ -74,14 +74,14 @@ var _ = Describe("Injection Test", func() {
 		Expect(err).To(BeNil())
 
 		application := &db.Application{
-			ApplicationID:           "test-my-application-5",
-			Name:                    "test'application",
-			Spec_field:              "{}",
-			Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-			Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			ApplicationID:          "test-my-application-5",
+			Name:                   "test'application",
+			SpecField:              "{}",
+			EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+			Managed_environment_id: managedEnvironment.Managedenvironment_id,
 		}
 
-		err = dbq.CheckedCreateApplication(ctx, application, clusterAccess.Clusteraccess_user_id)
+		err = dbq.CheckedCreateApplication(ctx, application, clusterAccess.ClusterAccessUserID)
 		Expect(err).To(BeNil())
 
 		retrievedApplication := db.Application{ApplicationID: application.ApplicationID}
@@ -101,14 +101,14 @@ var _ = Describe("Injection Test", func() {
 		ctx := context.Background()
 
 		clusterCredentials := db.ClusterCredentials{
-			Clustercredentials_cred_id: "test-cluster-creds-input",
-			Host:                       "host'sInput'",
+			ClustercredentialsCredID: "test-cluster-creds-input",
+			Host:                     "host'sInput'",
 		}
 
 		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
 		Expect(err).To(BeNil())
 		retrievedClusterCredentials := &db.ClusterCredentials{
-			Clustercredentials_cred_id: clusterCredentials.Clustercredentials_cred_id,
+			ClustercredentialsCredID: clusterCredentials.ClustercredentialsCredID,
 		}
 		err = dbq.GetClusterCredentialsById(ctx, retrievedClusterCredentials)
 		Expect(err).To(BeNil())
@@ -126,12 +126,12 @@ var _ = Describe("Injection Test", func() {
 		ctx := context.Background()
 
 		clusterCredentials := db.ClusterCredentials{
-			Clustercredentials_cred_id:  "test-cluster-creds-test-1",
-			Host:                        "host",
-			KubeConfig:                  "kube-config",
-			KubeConfig_context:          "kube-config-context",
-			Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-			Serviceaccount_ns:           "Serviceaccount_ns",
+			ClustercredentialsCredID:  "test-cluster-creds-test-1",
+			Host:                      "host",
+			KubeConfig:                "kube-config",
+			KubeConfig_context:        "kube-config-context",
+			ServiceAccountBearerToken: "serviceaccount_bearer_token",
+			ServiceAccountNs:          "ServiceAccountNs",
 		}
 
 		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
@@ -139,7 +139,7 @@ var _ = Describe("Injection Test", func() {
 		{
 			managedEnvironment := db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env-1",
-				ClusterCredentialsID:  clusterCredentials.Clustercredentials_cred_id,
+				ClusterCredentialsID:  clusterCredentials.ClustercredentialsCredID,
 				Name:                  "test'env",
 			}
 			err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
@@ -164,14 +164,14 @@ var _ = Describe("Injection Test", func() {
 		ctx := context.Background()
 
 		user := &db.ClusterUser{
-			Clusteruser_id: "test-user-id",
-			User_name:      "samyak'scluster",
+			ClusterUserID: "test-user-id",
+			UserName:      "samyak'scluster",
 		}
 		err = dbq.CreateClusterUser(ctx, user)
 		Expect(err).To(BeNil())
 
 		retrieveUser := &db.ClusterUser{
-			User_name: "samyak'scluster",
+			UserName: "samyak'scluster",
 		}
 		err = dbq.GetClusterUserByUsername(ctx, retrieveUser)
 		Expect(err).To(BeNil())
@@ -187,30 +187,30 @@ var _ = Describe("Injection Test", func() {
 		ctx := context.Background()
 
 		var clusterUser = &db.ClusterUser{
-			Clusteruser_id: "test-user-wrong-application",
-			User_name:      "test-user-wrong-application",
+			ClusterUserID: "test-user-wrong-application",
+			UserName:      "test-user-wrong-application",
 		}
 		err = dbq.CreateClusterUser(ctx, clusterUser)
 		Expect(err).To(BeNil())
 
 		clusterCredentials := db.ClusterCredentials{
-			Clustercredentials_cred_id:  "test-cluster-creds-test-5",
-			Host:                        "host",
-			KubeConfig:                  "kube-config",
-			KubeConfig_context:          "kube-config-context",
-			Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-			Serviceaccount_ns:           "Serviceaccount_ns",
+			ClustercredentialsCredID:  "test-cluster-creds-test-5",
+			Host:                      "host",
+			KubeConfig:                "kube-config",
+			KubeConfig_context:        "kube-config-context",
+			ServiceAccountBearerToken: "serviceaccount_bearer_token",
+			ServiceAccountNs:          "ServiceAccountNs",
 		}
 
 		managedEnvironment := db.ManagedEnvironment{
 			Managedenvironment_id: "test-managed-env-5",
-			ClusterCredentialsID:  clusterCredentials.Clustercredentials_cred_id,
+			ClusterCredentialsID:  clusterCredentials.ClustercredentialsCredID,
 			Name:                  "my env",
 		}
 
 		gitopsEngineCluster := db.GitopsEngineCluster{
 			PrimaryKeyID:         "test-fake-cluster-5",
-			ClusterCredentialsID: clusterCredentials.Clustercredentials_cred_id,
+			ClusterCredentialsID: clusterCredentials.ClustercredentialsCredID,
 		}
 
 		gitopsEngineInstance := db.GitopsEngineInstance{
@@ -221,9 +221,9 @@ var _ = Describe("Injection Test", func() {
 		}
 
 		clusterAccess := db.ClusterAccess{
-			Clusteraccess_user_id:                   clusterUser.Clusteruser_id,
-			Clusteraccess_managed_environment_id:    managedEnvironment.Managedenvironment_id,
-			Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
+			ClusterAccessUserID:                 clusterUser.ClusterUserID,
+			ClusterAccessManagedEnvironmentID:   managedEnvironment.Managedenvironment_id,
+			ClusterAccessGitopsEngineInstanceID: gitopsEngineInstance.Gitopsengineinstance_id,
 		}
 
 		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
@@ -242,14 +242,14 @@ var _ = Describe("Injection Test", func() {
 		Expect(err).To(BeNil())
 
 		application := &db.Application{
-			ApplicationID:           "test-my-application-5",
-			Name:                    "test'application",
-			Spec_field:              "{}",
-			Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-			Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			ApplicationID:          "test-my-application-5",
+			Name:                   "test'application",
+			SpecField:              "{}",
+			EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+			Managed_environment_id: managedEnvironment.Managedenvironment_id,
 		}
 
-		err = dbq.CheckedCreateApplication(ctx, application, clusterAccess.Clusteraccess_user_id)
+		err = dbq.CheckedCreateApplication(ctx, application, clusterAccess.ClusterAccessUserID)
 		Expect(err).To(BeNil())
 
 		retrievedApplication := db.Application{ApplicationID: application.ApplicationID}

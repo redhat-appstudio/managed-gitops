@@ -14,8 +14,8 @@ var _ = Describe("SyncOperation Tests", func() {
 	Context("It should execute all SyncOperation Functions", func() {
 		It("Should execute all SyncOperation Functions", func() {
 			var testClusterUser = &db.ClusterUser{
-				Clusteruser_id: "test-user",
-				User_name:      "test-user",
+				ClusterUserID: "test-user",
+				UserName:      "test-user",
 			}
 
 			err := db.SetupForTestingDBGinkgo()
@@ -30,11 +30,11 @@ var _ = Describe("SyncOperation Tests", func() {
 			Expect(err).To(BeNil())
 
 			application := &db.Application{
-				ApplicationID:           "test-my-application",
-				Name:                    "my-application",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          "test-my-application",
+				Name:                   "my-application",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			err = dbq.CreateApplication(ctx, application)
@@ -42,15 +42,15 @@ var _ = Describe("SyncOperation Tests", func() {
 			Expect(err).To(BeNil())
 
 			operation := &db.Operation{
-				Operation_id:            "test-operation",
-				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-				Resource_id:             "fake resource id",
-				Resource_type:           "GitopsEngineInstance",
-				State:                   db.OperationState_Waiting,
-				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				Operation_id:         "test-operation",
+				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+				ResourceID:           "fake resource id",
+				Resource_type:        "GitopsEngineInstance",
+				State:                db.OperationState_Waiting,
+				OperationOwnerUserID: testClusterUser.ClusterUserID,
 			}
 
-			err = dbq.CreateOperation(ctx, operation, operation.Operation_owner_user_id)
+			err = dbq.CreateOperation(ctx, operation, operation.OperationOwnerUserID)
 
 			Expect(err).To(BeNil())
 

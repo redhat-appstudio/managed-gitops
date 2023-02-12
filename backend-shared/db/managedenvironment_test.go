@@ -22,17 +22,17 @@ var _ = Describe("Managedenvironment Test", func() {
 		defer dbq.CloseDatabase()
 
 		clusterCredentials := db.ClusterCredentials{
-			Clustercredentials_cred_id:  "test-cluster-creds-test-3",
-			Host:                        "host",
-			KubeConfig:                  "kube-config",
-			KubeConfig_context:          "kube-config-context",
-			Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-			Serviceaccount_ns:           "Serviceaccount_ns",
+			ClustercredentialsCredID:  "test-cluster-creds-test-3",
+			Host:                      "host",
+			KubeConfig:                "kube-config",
+			KubeConfig_context:        "kube-config-context",
+			ServiceAccountBearerToken: "serviceaccount_bearer_token",
+			ServiceAccountNs:          "ServiceAccountNs",
 		}
 
 		managedEnvironment := db.ManagedEnvironment{
 			Managedenvironment_id: "test-managed-env-3",
-			ClusterCredentialsID:  clusterCredentials.Clustercredentials_cred_id,
+			ClusterCredentialsID:  clusterCredentials.ClustercredentialsCredID,
 			Name:                  "my env101",
 		}
 
@@ -63,7 +63,7 @@ var _ = Describe("Managedenvironment Test", func() {
 
 		managedEnvironmentNotExist := db.ManagedEnvironment{
 			Managedenvironment_id: "test-managed-env-4-not-exist",
-			ClusterCredentialsID:  clusterCredentials.Clustercredentials_cred_id,
+			ClusterCredentialsID:  clusterCredentials.ClustercredentialsCredID,
 			Name:                  "my env101-not-exist",
 		}
 		err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentNotExist)
@@ -89,18 +89,18 @@ var _ = Describe("Managedenvironment Test", func() {
 		Expect(err).To(BeNil())
 
 		var testClusterUser = &db.ClusterUser{
-			Clusteruser_id: "test-user-1",
-			User_name:      "test-user-1",
+			ClusterUserID: "test-user-1",
+			UserName:      "test-user-1",
 		}
 		managedEnvironmentput := db.ManagedEnvironment{
 			Managedenvironment_id: "test-managed-env",
-			ClusterCredentialsID:  clusterCredentials.Clustercredentials_cred_id,
+			ClusterCredentialsID:  clusterCredentials.ClustercredentialsCredID,
 			Name:                  "my env",
 		}
 		clusterAccessput := db.ClusterAccess{
-			Clusteraccess_user_id:                   testClusterUser.Clusteruser_id,
-			Clusteraccess_managed_environment_id:    managedEnvironmentput.Managedenvironment_id,
-			Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
+			ClusterAccessUserID:                 testClusterUser.ClusterUserID,
+			ClusterAccessManagedEnvironmentID:   managedEnvironmentput.Managedenvironment_id,
+			ClusterAccessGitopsEngineInstanceID: gitopsEngineInstance.Gitopsengineinstance_id,
 		}
 		err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentput)
 		Expect(err).To(BeNil())
@@ -111,7 +111,7 @@ var _ = Describe("Managedenvironment Test", func() {
 
 		var managedEnvironmentget []db.ManagedEnvironment
 
-		err = dbq.ListManagedEnvironmentForClusterCredentialsAndOwnerId(ctx, clusterCredentials.Clustercredentials_cred_id, clusterAccessput.Clusteraccess_user_id, &managedEnvironmentget)
+		err = dbq.ListManagedEnvironmentForClusterCredentialsAndOwnerId(ctx, clusterCredentials.ClustercredentialsCredID, clusterAccessput.ClusterAccessUserID, &managedEnvironmentget)
 		Expect(err).To(BeNil())
 
 		Expect(managedEnvironmentget[0].CreatedOn.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")

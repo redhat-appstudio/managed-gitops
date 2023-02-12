@@ -23,11 +23,11 @@ var _ = Describe("ApplicationStates Tests", func() {
 			Expect(err).To(BeNil())
 
 			application := &db.Application{
-				ApplicationID:           "test-my-application",
-				Name:                    "my-application",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          "test-my-application",
+				Name:                   "my-application",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			err = dbq.CreateApplication(ctx, application)
@@ -36,7 +36,7 @@ var _ = Describe("ApplicationStates Tests", func() {
 			applicationState := &db.ApplicationState{
 				Applicationstate_application_id: application.ApplicationID,
 				Health:                          "Progressing",
-				Sync_Status:                     "Unknown",
+				SyncStatus:                      "Unknown",
 				Resources:                       make([]byte, 10),
 				ReconciledState:                 "test-reconciledState",
 				SyncError:                       "test-syncError",
@@ -53,7 +53,7 @@ var _ = Describe("ApplicationStates Tests", func() {
 			Expect(fetchObj).Should(Equal(applicationState))
 
 			applicationState.Health = "Healthy"
-			applicationState.Sync_Status = "Synced"
+			applicationState.SyncStatus = "Synced"
 			err = dbq.UpdateApplicationState(ctx, applicationState)
 			Expect(err).To(BeNil())
 

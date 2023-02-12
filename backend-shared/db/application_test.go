@@ -26,11 +26,11 @@ var _ = Describe("Application Test", func() {
 		Expect(err).To(BeNil())
 
 		applicationput := db.Application{
-			ApplicationID:           "test-my-application",
-			Name:                    "my-application",
-			Spec_field:              "{}",
-			Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-			Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			ApplicationID:          "test-my-application",
+			Name:                   "my-application",
+			SpecField:              "{}",
+			EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+			Managed_environment_id: managedEnvironment.Managedenvironment_id,
 		}
 
 		err = dbq.CreateApplication(ctx, &applicationput)
@@ -48,13 +48,13 @@ var _ = Describe("Application Test", func() {
 
 		applicationupdate := db.Application{
 
-			ApplicationID:           applicationput.ApplicationID,
-			Name:                    "test-application-update",
-			Spec_field:              "{}",
-			Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-			Managed_environment_id:  managedEnvironment.Managedenvironment_id,
-			SeqID:                   int64(seq),
-			CreatedOn:               applicationget.CreatedOn,
+			ApplicationID:          applicationput.ApplicationID,
+			Name:                   "test-application-update",
+			SpecField:              "{}",
+			EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+			Managed_environment_id: managedEnvironment.Managedenvironment_id,
+			SeqID:                  int64(seq),
+			CreatedOn:              applicationget.CreatedOn,
 		}
 
 		err = dbq.UpdateApplication(ctx, &applicationupdate)
@@ -101,11 +101,11 @@ var _ = Describe("Application Test", func() {
 
 		// Create multiple application entries.
 		applicationput := db.Application{
-			ApplicationID:           "test-my-application-1",
-			Name:                    "my-application",
-			Spec_field:              "{}",
-			Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-			Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			ApplicationID:          "test-my-application-1",
+			Name:                   "my-application",
+			SpecField:              "{}",
+			EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+			Managed_environment_id: managedEnvironment.Managedenvironment_id,
 		}
 
 		err = dbq.CreateApplication(ctx, &applicationput)

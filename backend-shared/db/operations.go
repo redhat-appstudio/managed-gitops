@@ -45,23 +45,23 @@ func (dbq *PostgreSQLDatabaseQueries) CreateOperation(ctx context.Context, obj *
 	// State
 
 	if err := isEmptyValues("CreateOperation",
-		"Instance_id", obj.Instance_id,
+		"InstanceID", obj.InstanceID,
 		"Operation_id", obj.Operation_id,
-		"Operation_owner_user_id", obj.Operation_owner_user_id,
-		"Resource_id", obj.Resource_id,
+		"OperationOwnerUserID", obj.OperationOwnerUserID,
+		"ResourceID", obj.ResourceID,
 		"Resource_type", obj.Resource_type,
 		"State", obj.State); err != nil {
 		return err
 	}
 
 	// Verify the instance exists
-	gei := GitopsEngineInstance{Gitopsengineinstance_id: obj.Instance_id}
+	gei := GitopsEngineInstance{Gitopsengineinstance_id: obj.InstanceID}
 	if err := dbq.GetGitopsEngineInstanceById(ctx, &gei); err != nil {
-		return fmt.Errorf("unable to retrieve operation's gitops engine instance ID: '%v' %v", obj.Instance_id, err)
+		return fmt.Errorf("unable to retrieve operation's gitops engine instance ID: '%v' %v", obj.InstanceID, err)
 	}
 
 	obj.CreatedOn = time.Now()
-	obj.Last_state_update = obj.CreatedOn
+	obj.LastStateUpdate = obj.CreatedOn
 
 	// Initial state is waiting
 	obj.State = OperationState_Waiting
@@ -89,10 +89,10 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateOperation(ctx context.Context, obj *
 	}
 
 	if err := isEmptyValues("UpdateOperation",
-		"Instance_id", obj.Instance_id,
+		"InstanceID", obj.InstanceID,
 		"Operation_id", obj.Operation_id,
-		"Operation_owner_user_id", obj.Operation_owner_user_id,
-		"Resource_id", obj.Resource_id,
+		"OperationOwnerUserID", obj.OperationOwnerUserID,
+		"ResourceID", obj.ResourceID,
 		"Resource_type", obj.Resource_type,
 		"State", obj.State); err != nil {
 		return err

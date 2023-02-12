@@ -41,9 +41,9 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedGetApplicationById(ctx context.Cont
 
 	// Ensure there is a cluster access for this user, and the application's managed env and engine instance
 	if err := dbq.GetClusterAccessByPrimaryKey(ctx,
-		&ClusterAccess{Clusteraccess_user_id: ownerId,
-			Clusteraccess_managed_environment_id:    applicationResult.Managed_environment_id,
-			Clusteraccess_gitops_engine_instance_id: applicationResult.Engine_instance_inst_id}); err != nil {
+		&ClusterAccess{ClusterAccessUserID: ownerId,
+			ClusterAccessManagedEnvironmentID:   applicationResult.Managed_environment_id,
+			ClusterAccessGitopsEngineInstanceID: applicationResult.EngineInstanceInstID}); err != nil {
 
 		if IsResultNotFoundError(err) {
 			return NewAccessDeniedError(fmt.Sprintf("No cluster access exists for application '%s'", application.ApplicationID))
@@ -108,8 +108,8 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedCreateApplication(ctx context.Conte
 	}
 
 	if err := isEmptyValues("CreateApplication",
-		"Engine_instance_inst_id", obj.Engine_instance_inst_id,
-		"Spec_field", obj.Spec_field,
+		"EngineInstanceInstID", obj.EngineInstanceInstID,
+		"SpecField", obj.SpecField,
 		"Name", obj.Name); err != nil {
 		return err
 	}
@@ -210,8 +210,8 @@ func (dbq *PostgreSQLDatabaseQueries) CreateApplication(ctx context.Context, obj
 	}
 
 	if err := isEmptyValues("CreateApplication",
-		"Engine_instance_inst_id", obj.Engine_instance_inst_id,
-		"Spec_field", obj.Spec_field,
+		"EngineInstanceInstID", obj.EngineInstanceInstID,
+		"SpecField", obj.SpecField,
 		"Name", obj.Name); err != nil {
 		return err
 	}
@@ -240,8 +240,8 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateApplication(ctx context.Context, obj
 
 	if err := isEmptyValues("UpdateApplication",
 		"ApplicationID", obj.ApplicationID,
-		"Engine_instance_inst_id", obj.Engine_instance_inst_id,
-		"Spec_field", obj.Spec_field,
+		"EngineInstanceInstID", obj.EngineInstanceInstID,
+		"SpecField", obj.SpecField,
 		"Name", obj.Name); err != nil {
 		return err
 	}
@@ -350,9 +350,9 @@ func (obj *Application) GetAsLogKeyValues() []interface{} {
 	}
 
 	return []interface{}{"applicationID", obj.ApplicationID,
-		"engineInstanceID", obj.Engine_instance_inst_id,
+		"engineInstanceID", obj.EngineInstanceInstID,
 		"managedEnvironmentID", obj.Managed_environment_id,
 		"applicationName", obj.Name,
-		"applicationSpecField", obj.Spec_field}
+		"applicationSpecField", obj.SpecField}
 
 }

@@ -141,25 +141,25 @@ func (e *APICRToDatabaseMapping) ShortString() string {
 func (o *Operation) ShortString() string {
 	res := ""
 	res += "operation-id: " + o.Operation_id + ", "
-	res += "instance-id: " + o.Instance_id + ", "
-	res += "owner: " + o.Operation_owner_user_id + ", "
-	res += "resource: " + o.Resource_id + ", "
+	res += "instance-id: " + o.InstanceID + ", "
+	res += "owner: " + o.OperationOwnerUserID + ", "
+	res += "resource: " + o.ResourceID + ", "
 	res += "resource-type: " + string(o.Resource_type) + ", "
 	return res
 }
 
 func (o *Operation) LongString() string {
 	res := ""
-	res += "instance-id: " + o.Instance_id + ", "
+	res += "instance-id: " + o.InstanceID + ", "
 	res += "operation-id: " + o.Operation_id + ", "
-	res += "owner: " + o.Operation_owner_user_id + ", "
-	res += "resource: " + o.Resource_id + ", "
+	res += "owner: " + o.OperationOwnerUserID + ", "
+	res += "resource: " + o.ResourceID + ", "
 	res += "resource-type: " + string(o.Resource_type) + ", "
 
-	res += "human-readable-state: " + o.Human_readable_state + ", "
+	res += "human-readable-state: " + o.HumanReadableState + ", "
 	res += "state: " + string(o.State) + ", "
-	res += fmt.Sprintf("last-status-update: %v", o.Last_state_update) + ", "
-	res += fmt.Sprintf("created_on: %v", o.Last_state_update)
+	res += fmt.Sprintf("last-status-update: %v", o.LastStateUpdate) + ", "
+	res += fmt.Sprintf("created_on: %v", o.LastStateUpdate)
 
 	return res
 }
@@ -222,8 +222,8 @@ func IsMaxLengthError(err error) bool {
 }
 
 var testClusterUser = &ClusterUser{
-	Clusteruser_id: "test-user",
-	User_name:      "test-user",
+	ClusterUserID: "test-user",
+	UserName:      "test-user",
 }
 
 func CreateSampleData(dbq AllDatabaseQueries) (*ClusterCredentials, *ManagedEnvironment, *GitopsEngineCluster, *GitopsEngineInstance, *ClusterAccess, error) {
@@ -259,23 +259,23 @@ func CreateSampleData(dbq AllDatabaseQueries) (*ClusterCredentials, *ManagedEnvi
 
 func generateSampleData() (ClusterCredentials, ManagedEnvironment, GitopsEngineCluster, GitopsEngineInstance, ClusterAccess) {
 	clusterCredentials := ClusterCredentials{
-		Clustercredentials_cred_id:  "test-cluster-creds-test",
-		Host:                        "host",
-		KubeConfig:                  "kube-config",
-		KubeConfig_context:          "kube-config-context",
-		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-		Serviceaccount_ns:           "Serviceaccount_ns",
+		ClustercredentialsCredID:  "test-cluster-creds-test",
+		Host:                      "host",
+		KubeConfig:                "kube-config",
+		KubeConfig_context:        "kube-config-context",
+		ServiceAccountBearerToken: "serviceaccount_bearer_token",
+		ServiceAccountNs:          "ServiceAccountNs",
 	}
 
 	managedEnvironment := ManagedEnvironment{
 		Managedenvironment_id: "test-managed-env-914",
-		ClusterCredentialsID:  clusterCredentials.Clustercredentials_cred_id,
+		ClusterCredentialsID:  clusterCredentials.ClustercredentialsCredID,
 		Name:                  "my env",
 	}
 
 	gitopsEngineCluster := GitopsEngineCluster{
 		PrimaryKeyID:         "test-fake-cluster-914",
-		ClusterCredentialsID: clusterCredentials.Clustercredentials_cred_id,
+		ClusterCredentialsID: clusterCredentials.ClustercredentialsCredID,
 	}
 
 	gitopsEngineInstance := GitopsEngineInstance{
@@ -286,9 +286,9 @@ func generateSampleData() (ClusterCredentials, ManagedEnvironment, GitopsEngineC
 	}
 
 	clusterAccess := ClusterAccess{
-		Clusteraccess_user_id:                   testClusterUser.Clusteruser_id,
-		Clusteraccess_managed_environment_id:    managedEnvironment.Managedenvironment_id,
-		Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
+		ClusterAccessUserID:                 testClusterUser.ClusterUserID,
+		ClusterAccessManagedEnvironmentID:   managedEnvironment.Managedenvironment_id,
+		ClusterAccessGitopsEngineInstanceID: gitopsEngineInstance.Gitopsengineinstance_id,
 	}
 
 	return clusterCredentials, managedEnvironment, gitopsEngineCluster, gitopsEngineInstance, clusterAccess
@@ -360,10 +360,10 @@ func SetupForTestingDBGinkgo() error {
 	for _, operation := range operations {
 
 		// Clean up any operations that reference GitOpsEngineInstance that are going to be deleted below.
-		_, instanceToBeDeleted := gitopsEngineInstanceUIDsToDelete[operation.Instance_id]
+		_, instanceToBeDeleted := gitopsEngineInstanceUIDsToDelete[operation.InstanceID]
 
 		if instanceToBeDeleted || strings.HasPrefix(operation.Operation_id, "test-") {
-			rowsAffected, err := dbq.CheckedDeleteOperationById(ctx, operation.Operation_id, operation.Operation_owner_user_id)
+			rowsAffected, err := dbq.CheckedDeleteOperationById(ctx, operation.Operation_id, operation.OperationOwnerUserID)
 			Expect(rowsAffected).Should(Equal(1))
 			Expect(err).To(BeNil())
 
@@ -409,10 +409,10 @@ func SetupForTestingDBGinkgo() error {
 	Expect(err).To(BeNil())
 
 	for _, clusterAccess := range clusterAccess {
-		if strings.HasPrefix(clusterAccess.Clusteraccess_managed_environment_id, "test-") {
-			rowsAffected, err := dbq.DeleteClusterAccessById(ctx, clusterAccess.Clusteraccess_user_id,
-				clusterAccess.Clusteraccess_managed_environment_id,
-				clusterAccess.Clusteraccess_gitops_engine_instance_id)
+		if strings.HasPrefix(clusterAccess.ClusterAccessManagedEnvironmentID, "test-") {
+			rowsAffected, err := dbq.DeleteClusterAccessById(ctx, clusterAccess.ClusterAccessUserID,
+				clusterAccess.ClusterAccessManagedEnvironmentID,
+				clusterAccess.ClusterAccessGitopsEngineInstanceID)
 			Expect(err).To(BeNil())
 
 			if err == nil {
@@ -470,8 +470,8 @@ func SetupForTestingDBGinkgo() error {
 	Expect(err).To(BeNil())
 
 	for _, clusterCredential := range clusterCredentials {
-		if strings.HasPrefix(clusterCredential.Clustercredentials_cred_id, "test-") {
-			rowsAffected, err := dbq.DeleteClusterCredentialsById(ctx, clusterCredential.Clustercredentials_cred_id)
+		if strings.HasPrefix(clusterCredential.ClustercredentialsCredID, "test-") {
+			rowsAffected, err := dbq.DeleteClusterCredentialsById(ctx, clusterCredential.ClustercredentialsCredID)
 			Expect(err).To(BeNil())
 
 			if err == nil {
@@ -485,8 +485,8 @@ func SetupForTestingDBGinkgo() error {
 
 	if Expect(err).To(BeNil()) {
 		for _, user := range clusterUsers {
-			if strings.HasPrefix(user.Clusteruser_id, "test-") {
-				rowsAffected, err := dbq.DeleteClusterUserById(ctx, user.Clusteruser_id)
+			if strings.HasPrefix(user.ClusterUserID, "test-") {
+				rowsAffected, err := dbq.DeleteClusterUserById(ctx, user.ClusterUserID)
 				Expect(rowsAffected).Should(Equal(1))
 				Expect(err).To(BeNil())
 			}

@@ -227,7 +227,7 @@ var _ = Describe("Types Test", func() {
 				Operation_id:         "test-operation",
 				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
 				ResourceID:           "fake resource id",
-				Resource_type:        "GitopsEngineInstance",
+				ResourceType:         "GitopsEngineInstance",
 				State:                db.OperationState_Waiting,
 				OperationOwnerUserID: testClusterUser.ClusterUserID,
 			}
@@ -339,7 +339,7 @@ var _ = Describe("Types Test", func() {
 					Gitopsengineinstance_id: "test-fake-engine-instance-id",
 					NamespaceName:           "test-fake-namespace",
 					NamespaceUID:            "test-fake-namespace-914",
-					EngineCluster_id:        gitopsEngineCluster.PrimaryKeyID,
+					EngineClusterID:         gitopsEngineCluster.PrimaryKeyID,
 				}
 				err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
 				Expect(err).To(BeNil())

@@ -51,7 +51,7 @@ var _ = Describe("Operations Test", func() {
 			Operation_id:         "test-operation-1",
 			InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
 			ResourceID:           "test-fake-resource-id",
-			Resource_type:        "GitopsEngineInstance",
+			ResourceType:         "GitopsEngineInstance",
 			State:                db.OperationState_Waiting,
 			OperationOwnerUserID: testClusterUser.ClusterUserID,
 		}
@@ -73,7 +73,7 @@ var _ = Describe("Operations Test", func() {
 
 		var operationlist []db.Operation
 
-		err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, operation.ResourceID, operation.Resource_type, &operationlist, operation.OperationOwnerUserID)
+		err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, operation.ResourceID, operation.ResourceType, &operationlist, operation.OperationOwnerUserID)
 		Expect(err).To(BeNil())
 		Expect(operationlist[0].LastStateUpdate).To(BeAssignableToTypeOf(timestamp))
 		Expect(operationlist[0].CreatedOn).To(BeAssignableToTypeOf(timestamp))
@@ -87,7 +87,7 @@ var _ = Describe("Operations Test", func() {
 			Operation_id:         "test-operation-1",
 			InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
 			ResourceID:           "test-fake-resource-id-update",
-			Resource_type:        "GitopsEngineInstance-update",
+			ResourceType:         "GitopsEngineInstance-update",
 			State:                db.OperationState_Waiting,
 			OperationOwnerUserID: testClusterUser.ClusterUserID,
 			SeqID:                int64(seq),
@@ -131,7 +131,7 @@ var _ = Describe("Operations Test", func() {
 				Operation_id:         "test-operation-1",
 				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
 				ResourceID:           "test-fake-resource-id",
-				Resource_type:        "GitopsEngineInstance",
+				ResourceType:         "GitopsEngineInstance",
 				OperationOwnerUserID: testClusterUser.ClusterUserID,
 				LastStateUpdate:      time.Now(),
 			}

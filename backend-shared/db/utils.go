@@ -144,7 +144,7 @@ func (o *Operation) ShortString() string {
 	res += "instance-id: " + o.InstanceID + ", "
 	res += "owner: " + o.OperationOwnerUserID + ", "
 	res += "resource: " + o.ResourceID + ", "
-	res += "resource-type: " + string(o.Resource_type) + ", "
+	res += "resource-type: " + string(o.ResourceType) + ", "
 	return res
 }
 
@@ -154,7 +154,7 @@ func (o *Operation) LongString() string {
 	res += "operation-id: " + o.Operation_id + ", "
 	res += "owner: " + o.OperationOwnerUserID + ", "
 	res += "resource: " + o.ResourceID + ", "
-	res += "resource-type: " + string(o.Resource_type) + ", "
+	res += "resource-type: " + string(o.ResourceType) + ", "
 
 	res += "human-readable-state: " + o.HumanReadableState + ", "
 	res += "state: " + string(o.State) + ", "
@@ -282,7 +282,7 @@ func generateSampleData() (ClusterCredentials, ManagedEnvironment, GitopsEngineC
 		Gitopsengineinstance_id: "test-fake-engine-instance-id",
 		NamespaceName:           "test-fake-namespace",
 		NamespaceUID:            "test-fake-namespace-914",
-		EngineCluster_id:        gitopsEngineCluster.PrimaryKeyID,
+		EngineClusterID:         gitopsEngineCluster.PrimaryKeyID,
 	}
 
 	clusterAccess := ClusterAccess{

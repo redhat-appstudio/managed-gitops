@@ -273,9 +273,9 @@ var _ = Describe("Test utility functions.", func() {
 			// Create GitopsEngineInstance
 
 			gitopsEngineInstance = db.GitopsEngineInstance{
-				NamespaceName:    "my-namespace",
-				NamespaceUID:     "test-1",
-				EngineCluster_id: gitopsEngineCluster.PrimaryKeyID,
+				NamespaceName:   "my-namespace",
+				NamespaceUID:    "test-1",
+				EngineClusterID: gitopsEngineCluster.PrimaryKeyID,
 			}
 			err = dbQueries.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
 			Expect(err).To(BeNil())

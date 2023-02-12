@@ -52,7 +52,7 @@ var _ = Describe("ClusterAccess Tests", func() {
 				Gitopsengineinstance_id: "test-fake-engine-instance-id",
 				NamespaceName:           "test-fake-namespace",
 				NamespaceUID:            "test-fake-namespace-5",
-				EngineCluster_id:        gitopsEngineCluster.PrimaryKeyID,
+				EngineClusterID:         gitopsEngineCluster.PrimaryKeyID,
 			}
 
 			clusterAccess := db.ClusterAccess{

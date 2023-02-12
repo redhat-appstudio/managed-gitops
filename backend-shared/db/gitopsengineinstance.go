@@ -157,7 +157,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateGitopsEngineInstance(ctx context.Con
 		obj.Gitopsengineinstance_id = generateUuid()
 	}
 
-	if IsEmpty(obj.EngineCluster_id) {
+	if IsEmpty(obj.EngineClusterID) {
 		return fmt.Errorf("engine cluster id should not be empty")
 	}
 

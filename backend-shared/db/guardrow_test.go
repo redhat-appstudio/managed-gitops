@@ -249,7 +249,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Gitopsengineinstance_id: "test-fake-engine-instance-id-1",
 				NamespaceName:           "test-fake-namespace",
 				NamespaceUID:            "test-fake-namespace-5",
-				EngineCluster_id:        gitopsEngineClusterFirst.PrimaryKeyID,
+				EngineClusterID:         gitopsEngineClusterFirst.PrimaryKeyID,
 			}
 
 			clusterAccessFirst := db.ClusterAccess{
@@ -304,7 +304,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Gitopsengineinstance_id: "test-fake-engine-instance-id-2",
 				NamespaceName:           "test-fake-namespace",
 				NamespaceUID:            "test-fake-namespace-5",
-				EngineCluster_id:        gitopsEngineClusterSecond.PrimaryKeyID,
+				EngineClusterID:         gitopsEngineClusterSecond.PrimaryKeyID,
 			}
 
 			clusterAccessSecond := db.ClusterAccess{
@@ -570,7 +570,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Gitopsengineinstance_id: "test-fake-engine-instance-id-1",
 				NamespaceName:           "test-fake-namespace",
 				NamespaceUID:            "test-fake-namespace-1",
-				EngineCluster_id:        gitopsEngineClusterFirst.PrimaryKeyID,
+				EngineClusterID:         gitopsEngineClusterFirst.PrimaryKeyID,
 			}
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsFirst)
 			Expect(err).To(BeNil())
@@ -599,7 +599,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Gitopsengineinstance_id: "test-fake-engine-instance-id-2",
 				NamespaceName:           "test-fake-namespace",
 				NamespaceUID:            "test-fake-namespace-1",
-				EngineCluster_id:        gitopsEngineClusterSecond.PrimaryKeyID,
+				EngineClusterID:         gitopsEngineClusterSecond.PrimaryKeyID,
 			}
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsSecond)
 			Expect(err).To(BeNil())
@@ -760,7 +760,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Operation_id:         "test-operation-1",
 				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
 				ResourceID:           "test-fake-resource-id",
-				Resource_type:        "GitopsEngineInstance",
+				ResourceType:         "GitopsEngineInstance",
 				State:                db.OperationState_Waiting,
 				OperationOwnerUserID: testClusterUser.ClusterUserID,
 			}
@@ -778,7 +778,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Operation_id:         "test-operation-2",
 				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
 				ResourceID:           "test-fake-resource-id",
-				Resource_type:        "GitopsEngineInstance",
+				ResourceType:         "GitopsEngineInstance",
 				State:                db.OperationState_Waiting,
 				OperationOwnerUserID: testClusterUser.ClusterUserID,
 			}
@@ -792,7 +792,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Operation_id:         "test-operation-2",
 				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
 				ResourceID:           "test-fake-resource-id-update",
-				Resource_type:        "GitopsEngineInstance",
+				ResourceType:         "GitopsEngineInstance",
 				State:                db.OperationState_Waiting,
 				OperationOwnerUserID: testClusterUser.ClusterUserID,
 				SeqID:                operationSecond.SeqID,
@@ -855,7 +855,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Operation_id:         "test-operation-1",
 				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
 				ResourceID:           "fake resource id",
-				Resource_type:        "GitopsEngineInstance",
+				ResourceType:         "GitopsEngineInstance",
 				State:                db.OperationState_Waiting,
 				OperationOwnerUserID: testClusterUser.ClusterUserID,
 			}
@@ -896,7 +896,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Operation_id:         "test-operation-2",
 				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
 				ResourceID:           "fake resource id",
-				Resource_type:        "GitopsEngineInstance",
+				ResourceType:         "GitopsEngineInstance",
 				State:                db.OperationState_Waiting,
 				OperationOwnerUserID: testClusterUser.ClusterUserID,
 			}

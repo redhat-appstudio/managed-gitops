@@ -222,7 +222,7 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 			dbResourceMapping = nil
 		} else {
 
-			if gitopsEngineInstance.EngineCluster_id != gitopsEngineCluster.PrimaryKeyID {
+			if gitopsEngineInstance.EngineClusterID != gitopsEngineCluster.PrimaryKeyID {
 				return nil, false, nil,
 					fmt.Errorf("able to locate engine instance, and engine cluster, but they mismatched: instance id: %v, cluster id: %v",
 						gitopsEngineInstance.Gitopsengineinstance_id, gitopsEngineCluster.PrimaryKeyID)
@@ -237,9 +237,9 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 		// Scenario A) neither exists: create both
 
 		gitopsEngineInstance = &db.GitopsEngineInstance{
-			NamespaceName:    gitopsEngineNamespace.Name,
-			NamespaceUID:     string(gitopsEngineNamespace.UID),
-			EngineCluster_id: gitopsEngineCluster.PrimaryKeyID,
+			NamespaceName:   gitopsEngineNamespace.Name,
+			NamespaceUID:    string(gitopsEngineNamespace.UID),
+			EngineClusterID: gitopsEngineCluster.PrimaryKeyID,
 		}
 
 		if err := dbq.CreateGitopsEngineInstance(ctx, gitopsEngineInstance); err != nil {
@@ -285,7 +285,7 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 	} else if dbResourceMapping != nil && gitopsEngineInstance != nil {
 		// Scenario D) both exist, so just return the cluster
 
-		if gitopsEngineInstance.EngineCluster_id != gitopsEngineCluster.PrimaryKeyID {
+		if gitopsEngineInstance.EngineClusterID != gitopsEngineCluster.PrimaryKeyID {
 			return nil, false, nil, fmt.Errorf("able to locate engine instance, and engine cluster, but they mismatched: instance id: %v, cluster id: %v",
 				gitopsEngineInstance.Gitopsengineinstance_id, gitopsEngineCluster.PrimaryKeyID)
 		}

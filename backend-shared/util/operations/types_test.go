@@ -74,9 +74,9 @@ var _ = Describe("Testing CreateOperation function.", func() {
 			Expect(err).To(BeNil())
 
 			dbOperationInput := db.Operation{
-				InstanceID:    applicationput.EngineInstanceInstID,
-				ResourceID:    applicationput.ApplicationID,
-				Resource_type: db.OperationResourceType_Application,
+				InstanceID:   applicationput.EngineInstanceInstID,
+				ResourceID:   applicationput.ApplicationID,
+				ResourceType: db.OperationResourceType_Application,
 			}
 
 			// Create new Operation
@@ -189,9 +189,9 @@ var _ = Describe("Testing CleanupOperation function", func() {
 			Expect(err).To(BeNil())
 
 			dbOperationInput := db.Operation{
-				InstanceID:    app.EngineInstanceInstID,
-				ResourceID:    app.ApplicationID,
-				Resource_type: db.OperationResourceType_Application,
+				InstanceID:   app.EngineInstanceInstID,
+				ResourceID:   app.ApplicationID,
+				ResourceType: db.OperationResourceType_Application,
 			}
 
 			// Create new Operation

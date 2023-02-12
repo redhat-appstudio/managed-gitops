@@ -49,7 +49,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateOperation(ctx context.Context, obj *
 		"Operation_id", obj.Operation_id,
 		"OperationOwnerUserID", obj.OperationOwnerUserID,
 		"ResourceID", obj.ResourceID,
-		"Resource_type", obj.Resource_type,
+		"ResourceType", obj.ResourceType,
 		"State", obj.State); err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateOperation(ctx context.Context, obj *
 		"Operation_id", obj.Operation_id,
 		"OperationOwnerUserID", obj.OperationOwnerUserID,
 		"ResourceID", obj.ResourceID,
-		"Resource_type", obj.Resource_type,
+		"ResourceType", obj.ResourceType,
 		"State", obj.State); err != nil {
 		return err
 	}

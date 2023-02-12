@@ -45,7 +45,7 @@ var _ = Describe("SyncOperation Tests", func() {
 				Operation_id:         "test-operation",
 				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
 				ResourceID:           "fake resource id",
-				Resource_type:        "GitopsEngineInstance",
+				ResourceType:         "GitopsEngineInstance",
 				State:                db.OperationState_Waiting,
 				OperationOwnerUserID: testClusterUser.ClusterUserID,
 			}

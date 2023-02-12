@@ -46,7 +46,7 @@ type GitopsEngineInstance struct {
 
 	// -- Reference to the Argo CD cluster containing the instance
 	// -- Foreign key to: GitopsEngineCluster.gitopsenginecluster_id
-	EngineCluster_id string `pg:"enginecluster_id,notnull" varchar:"48"`
+	EngineClusterID string `pg:"enginecluster_id,notnull" varchar:"48"`
 }
 
 // ManagedEnvironment is an environment (eg a user's cluster, or a subset of that cluster) that they want to deploy applications to, using Argo CD
@@ -200,7 +200,7 @@ type Operation struct {
 	// * Application (user creates a new Application via service/web UI)
 	// * RepositoryCredentials (user provides private repository credentials via web UI)
 	// * SyncOperation (specified when user wants to sync an Argo CD Application)
-	Resource_type OperationResourceType `pg:"resource_type,notnull" varchar:"32"`
+	ResourceType OperationResourceType `pg:"resource_type,notnull" varchar:"32"`
 
 	// -- When the operation was created. Used for garbage collection, as operations should be short lived.
 	CreatedOn time.Time `pg:"created_on,notnull"`
@@ -437,7 +437,7 @@ type AppScopedDisposableResource interface {
 
 // RepositoryCredentials represents a RepositoryCredentials CR.
 // It is created by the backend component, if we need to access a private repository.
-// Can be used as a reference via the Operation row by providing the ResourceID and Resource_type.
+// Can be used as a reference via the Operation row by providing the ResourceID and ResourceType.
 type RepositoryCredentials struct {
 
 	//lint:ignore U1000 used by go-pg

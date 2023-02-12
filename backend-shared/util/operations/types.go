@@ -75,11 +75,11 @@ func createOperationInternal(ctx context.Context, waitForOperation bool, dbOpera
 	var err error
 	l = l.WithValues("Operation GitOpsEngineInstanceID", dbOperationParam.InstanceID,
 		"Operation ResourceID", dbOperationParam.ResourceID,
-		"Operation ResourceType", dbOperationParam.Resource_type,
+		"Operation ResourceType", dbOperationParam.ResourceType,
 		"Operation OwnerUserID", clusterUserID,
 	)
 	var dbOperationList []db.Operation
-	if err = dbQueries.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, dbOperationParam.ResourceID, dbOperationParam.Resource_type, &dbOperationList, clusterUserID); err != nil {
+	if err = dbQueries.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, dbOperationParam.ResourceID, dbOperationParam.ResourceType, &dbOperationList, clusterUserID); err != nil {
 		l.Error(err, "unable to fetch list of Operations")
 		// We intentionally don't return here: if we were unable to fetch the list,
 		// then we will create an Operation as usual (and it might be duplicate, but that's fine)
@@ -117,7 +117,7 @@ func createOperationInternal(ctx context.Context, waitForOperation bool, dbOpera
 	dbOperation := db.Operation{
 		InstanceID:           dbOperationParam.InstanceID,
 		ResourceID:           dbOperationParam.ResourceID,
-		Resource_type:        dbOperationParam.Resource_type,
+		ResourceType:         dbOperationParam.ResourceType,
 		OperationOwnerUserID: clusterUserID,
 		CreatedOn:            time.Now(),
 		LastStateUpdate:      time.Now(),

@@ -38,7 +38,7 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 			Gitopsengineinstance_id: "test-fake-engine-instance-id",
 			NamespaceName:           "test-fake-namespace",
 			NamespaceUID:            "test-fake-namespace-1",
-			EngineCluster_id:        gitopsEngineCluster.PrimaryKeyID,
+			EngineClusterID:         gitopsEngineCluster.PrimaryKeyID,
 		}
 		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
 		Expect(err).To(BeNil())
@@ -70,7 +70,7 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 		err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstanceget)
 		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
-		gitopsEngineInstanceput.EngineCluster_id = strings.Repeat("abc", 100)
+		gitopsEngineInstanceput.EngineClusterID = strings.Repeat("abc", 100)
 		err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstanceput)
 		Expect(true).To(Equal(db.IsMaxLengthError(err)))
 
@@ -110,7 +110,7 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 				Gitopsengineinstance_id: "test-ins-id-" + string(uuid.NewUUID()),
 				NamespaceName:           "test-fake-namespace-1",
 				NamespaceUID:            "test-fake-namespace-1",
-				EngineCluster_id:        gitopsEngineCluster2.PrimaryKeyID,
+				EngineClusterID:         gitopsEngineCluster2.PrimaryKeyID,
 			}
 			err = dbq.CreateGitopsEngineInstance(ctx, &instanceDbCluster2_shouldNotMatch)
 			Expect(err).To(BeNil())
@@ -128,7 +128,7 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 			Gitopsengineinstance_id: "test-ins-id-" + string(uuid.NewUUID()),
 			NamespaceName:           "test-fake-namespace-1",
 			NamespaceUID:            "test-fake-namespace-1",
-			EngineCluster_id:        gitopsEngineCluster.PrimaryKeyID,
+			EngineClusterID:         gitopsEngineCluster.PrimaryKeyID,
 		}
 		err = dbq.CreateGitopsEngineInstance(ctx, &instanceDb)
 		Expect(err).To(BeNil())
@@ -137,7 +137,7 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 			Gitopsengineinstance_id: "test-ins-id-" + string(uuid.NewUUID()),
 			NamespaceName:           "test-fake-namespace-2",
 			NamespaceUID:            "test-fake-namespace-2",
-			EngineCluster_id:        gitopsEngineCluster.PrimaryKeyID,
+			EngineClusterID:         gitopsEngineCluster.PrimaryKeyID,
 		}
 		err = dbq.CreateGitopsEngineInstance(ctx, &instanceDb2)
 		Expect(err).To(BeNil())

@@ -21,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -540,6 +541,10 @@ func processOperation_SyncOperation(ctx context.Context, dbOperation db.Operatio
 
 	// 3) Process the event, based on whether the SyncOperation is requesting an app sync, or a terminate.
 	if dbSyncOperation.DesiredState == db.SyncOperation_DesiredState_Running {
+		// refresh the Application before syncing to make sure that the latest revision is deployed.
+		if err := opConfig.syncFuncs.refreshApp(ctx, opConfig.eventClient, dbApplication.Name, opConfig.argoCDNamespace.Name); err != nil {
+			return shouldRetryTrue, err
+		}
 
 		return runAppSync(ctx, dbOperation, *dbSyncOperation, &dbApplication, opConfig)
 
@@ -550,6 +555,58 @@ func processOperation_SyncOperation(ctx context.Context, dbOperation db.Operatio
 	} else {
 		log.Error(nil, "SEVERE: unexpected desired state in SyncOperation DB entry")
 		return shouldRetryFalse, nil
+	}
+}
+
+func refreshApplication(ctx context.Context, k8sClient client.Client, appName, appNS string) error {
+	appCR := &appv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      appName,
+			Namespace: appNS,
+		},
+	}
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(appCR), appCR)
+		if err != nil {
+			return err
+		}
+		if appCR.Annotations == nil {
+			appCR.Annotations = map[string]string{}
+		}
+		if _, ok := appCR.Annotations[appv1.AnnotationKeyRefresh]; !ok {
+			appCR.Annotations[appv1.AnnotationKeyRefresh] = "normal"
+			return k8sClient.Update(ctx, appCR)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// wait until the refresh annotation is removed from the Argo CD application
+	return waitForApplicationToRefresh(ctx, k8sClient, appCR)
+}
+
+func waitForApplicationToRefresh(ctx context.Context, k8sClient client.Client, appCR *appv1.Application) error {
+	backoff := sharedutil.ExponentialBackoff{Factor: 2, Min: time.Duration(100 * time.Millisecond), Max: time.Duration(10 * time.Second), Jitter: true}
+
+	for {
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(appCR), appCR); err != nil {
+			return err
+		}
+
+		// we can assume that an Application has been refreshed if Argo CD has removed the refresh annotation
+		if _, ok := appCR.Annotations[appv1.AnnotationKeyRefresh]; !ok {
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context cancelled while waiting for Argo CD to remove refresh annotation: %v", ctx.Err())
+		default:
+			backoff.DelayOnFail(ctx)
+		}
 	}
 }
 
@@ -603,12 +660,15 @@ func isOperationRunning(ctx context.Context, k8sClient client.Client, appName, a
 type syncFuncs struct {
 	appSync            func(context.Context, string, string, string, client.Client, *utils.CredentialService, bool) error
 	terminateOperation func(context.Context, string, corev1.Namespace, *utils.CredentialService, client.Client, time.Duration, logr.Logger) error
+
+	refreshApp func(context.Context, client.Client, string, string) error
 }
 
 func defaultSyncFuncs() *syncFuncs {
 	return &syncFuncs{
 		appSync:            utils.AppSync,
 		terminateOperation: utils.TerminateOperation,
+		refreshApp:         refreshApplication,
 	}
 }
 

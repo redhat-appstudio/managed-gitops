@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -1150,6 +1151,7 @@ var _ = Describe("Operation Controller", func() {
 				applicationDB          *db.Application
 				applicationCR          *appv1.Application
 				gitopsEngineInstanceID string
+				closeRefreshHandler    chan struct{}
 			)
 
 			createOperationDBAndCR := func(resourceID, gitopsEngineInstanceID string) {
@@ -1196,6 +1198,32 @@ var _ = Describe("Operation Controller", func() {
 				err = k8sClient.Update(ctx, applicationCR)
 				Expect(err).To(BeNil())
 			}
+			refreshHandler := func(appCR appv1.Application, closeRefreshHandler chan struct{}) {
+				for {
+					select {
+					case <-closeRefreshHandler:
+						return
+					default:
+					}
+
+					err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+						err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&appCR), &appCR)
+						if err != nil {
+							if apierr.IsNotFound(err) {
+								return nil
+							}
+							return err
+						}
+
+						if _, ok := appCR.Annotations[appv1.AnnotationKeyRefresh]; ok {
+							delete(appCR.Annotations, appv1.AnnotationKeyRefresh)
+							return k8sClient.Update(ctx, &appCR)
+						}
+						return nil
+					})
+					Expect(err).To(BeNil())
+				}
+			}
 
 			BeforeEach(func() {
 				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
@@ -1241,9 +1269,13 @@ var _ = Describe("Operation Controller", func() {
 				}
 				err = k8sClient.Create(ctx, applicationCR)
 				Expect(err).To(BeNil())
+
+				closeRefreshHandler = make(chan struct{})
+				go refreshHandler(*applicationCR, closeRefreshHandler)
 			})
 
 			AfterEach(func() {
+				closeRefreshHandler <- struct{}{}
 				dbQueries.CloseDatabase()
 				testTeardown()
 			})
@@ -1269,11 +1301,17 @@ var _ = Describe("Operation Controller", func() {
 					appSync: func(ctx context.Context, s1, s2, s3 string, c client.Client, cs *utils.CredentialService, b bool) error {
 						return nil
 					},
+					refreshApp: refreshApplication,
 				}
 
 				retry, err := task.PerformTask(ctx)
 				Expect(err).Should(BeNil())
 				Expect(retry).To(BeFalse())
+
+				By("verify if the refresh annotation is removed")
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
+				Expect(err).To(BeNil())
+				Expect(applicationCR.Annotations).To(BeNil())
 			})
 
 			It("should return an error and retry if the sync fails", func() {
@@ -1298,11 +1336,87 @@ var _ = Describe("Operation Controller", func() {
 					appSync: func(ctx context.Context, s1, s2, s3 string, c client.Client, cs *utils.CredentialService, b bool) error {
 						return fmt.Errorf(expectedErr)
 					},
+					refreshApp: refreshApplication,
 				}
 
 				retry, err := task.PerformTask(ctx)
 				Expect(err.Error()).Should(Equal(expectedErr))
 				Expect(retry).To(BeTrue())
+			})
+
+			It("should return an error and retry if the refresh fails", func() {
+				By("create a SyncOperation in the database")
+				syncOperation := db.SyncOperation{
+					SyncOperation_id:    "test-syncoperation",
+					Application_id:      applicationDB.Application_id,
+					DeploymentNameField: "test",
+					Revision:            "main",
+					DesiredState:        db.SyncOperation_DesiredState_Running,
+				}
+				err = dbQueries.CreateSyncOperation(ctx, &syncOperation)
+				Expect(err).To(BeNil())
+
+				By("create Operation DB row and CR for the SyncOperation")
+				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
+
+				By("check if the sync failed error is returned with retry")
+				expectedErr := "failed to refresh app: operation"
+				task.syncFuncs = &syncFuncs{
+					refreshApp: func(ctx context.Context, c client.Client, s1, s2 string) error {
+						return fmt.Errorf("failed to refresh app: %s", s1)
+					},
+				}
+
+				retry, err := task.PerformTask(ctx)
+				Expect(err.Error()).Should(Equal(expectedErr))
+				Expect(retry).To(BeTrue())
+			})
+
+			It("should handle conflicts while refreshing application", func() {
+				By("create a SyncOperation in the database")
+				syncOperation := db.SyncOperation{
+					SyncOperation_id:    "test-syncoperation",
+					Application_id:      applicationDB.Application_id,
+					DeploymentNameField: "test",
+					Revision:            "main",
+					DesiredState:        db.SyncOperation_DesiredState_Running,
+				}
+				err = dbQueries.CreateSyncOperation(ctx, &syncOperation)
+				Expect(err).To(BeNil())
+
+				By("create Operation DB row and CR for the SyncOperation")
+				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
+
+				By("introduce a conflict")
+				applicationCR.Annotations = map[string]string{
+					"key-1": "value-1",
+					"key-2": "value-2",
+				}
+				err = k8sClient.Update(ctx, applicationCR)
+				Expect(err).To(BeNil())
+
+				applicationCR.Annotations["key-3"] = "value-3"
+				err = k8sClient.Update(ctx, applicationCR)
+				Expect(apierr.IsConflict(err)).To(BeTrue())
+
+				task.syncFuncs = &syncFuncs{
+					appSync: func(ctx context.Context, s1, s2, s3 string, c client.Client, cs *utils.CredentialService, b bool) error {
+						return nil
+					},
+					refreshApp: refreshApplication,
+				}
+				retry, err := task.PerformTask(ctx)
+				Expect(err).Should(BeNil())
+				Expect(retry).To(BeFalse())
+
+				By("verify if the refresh annotation is removed")
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
+				Expect(err).To(BeNil())
+
+				_, found := applicationCR.Annotations[appv1.AnnotationKeyRefresh]
+				Expect(found).To(BeFalse())
+				Expect(applicationCR.Annotations["key-1"]).Should(Equal("value-1"))
+				Expect(applicationCR.Annotations["key-2"]).Should(Equal("value-2"))
 			})
 
 			It("return an error and don't retry if the SyncOperation DB row is not found", func() {

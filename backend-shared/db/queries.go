@@ -101,6 +101,10 @@ type DatabaseQueries interface {
 	GetClusterAccessByPrimaryKey(ctx context.Context, obj *ClusterAccess) error
 	GetDBResourceMappingForKubernetesResource(ctx context.Context, obj *KubernetesToDBResourceMapping) error
 
+	// Given a KubernetesResourceType, DBRelationType, and DBRelationKey, look for a KubernetesToDBResourceMapping that match those
+	// and return the corresponding KubernetesResourceUID in the 'obj'
+	GetKubernetesResourceMappingForDatabaseResource(ctx context.Context, obj *KubernetesToDBResourceMapping) error
+
 	GetGitopsEngineClusterById(ctx context.Context, gitopsEngineCluster *GitopsEngineCluster) error
 	GetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment) error
 	GetRepositoryCredentialsByID(ctx context.Context, id string) (obj RepositoryCredentials, err error)
@@ -148,6 +152,9 @@ type DatabaseQueries interface {
 
 	// ListGitopsEngineInstancesForCluster lists the GitOpsEngineInstances that are on the given GitOpsEngineCluster
 	ListGitopsEngineInstancesForCluster(ctx context.Context, gitopsEngineCluster GitopsEngineCluster, gitopsEngineInstances *[]GitopsEngineInstance) error
+
+	// UpdateKubernetesResourceUIDForKubernetesToDBResourceMapping updates the KubernetesResourceUID field for a given obj
+	UpdateKubernetesResourceUIDForKubernetesToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) error
 }
 
 // ApplicationScopedQueries are the set of database queries that act on application DB resources:

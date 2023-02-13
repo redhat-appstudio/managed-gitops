@@ -160,6 +160,11 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 	gitopsEngineNamespace corev1.Namespace, kubesystemNamespaceUID string,
 	dbq db.DatabaseQueries, log logr.Logger) (*db.GitopsEngineInstance, bool, *db.GitopsEngineCluster, error) {
 
+	if gitopsEngineNamespace.UID == "" { // Sanity test the UID
+		log.Error(nil, "SEVERE: gitopsEngineNamespace.UID was nil in GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID")
+		return nil, false, nil, fmt.Errorf("gitopsEngineNamespace.UID was nil in GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID")
+	}
+
 	// First create the GitOpsEngine cluster if needed; this will be used to create the instance.
 	gitopsEngineCluster, _, err := GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, kubesystemNamespaceUID, dbq, log)
 	if err != nil {
@@ -176,7 +181,7 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 	// We will re-use this object later in the function to create the mapping, if it doesn't already exist.
 	expectedDBResourceMapping := db.KubernetesToDBResourceMapping{
 		KubernetesResourceType: db.K8sToDBMapping_Namespace,
-		KubernetesResourceUID:  kubesystemNamespaceUID,
+		KubernetesResourceUID:  string(gitopsEngineNamespace.UID),
 		DBRelationType:         db.K8sToDBMapping_GitopsEngineInstance,
 	}
 

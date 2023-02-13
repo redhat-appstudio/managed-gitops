@@ -852,6 +852,23 @@ func (cdb *ChaosDBClient) GetAPICRToDatabaseMappingBatch(ctx context.Context, ap
 	return cdb.InnerClient.GetAPICRToDatabaseMappingBatch(ctx, apiCRToDatabaseMapping, limit, offSet)
 }
 
+func (cdb *ChaosDBClient) UpdateKubernetesResourceUIDForKubernetesToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) error {
+	if err := shouldSimulateFailure("UpdateKubernetesResourceUIDForKubernetesToDBResourceMapping", obj); err != nil {
+		return err
+	}
+
+	return cdb.InnerClient.UpdateKubernetesResourceUIDForKubernetesToDBResourceMapping(ctx, obj)
+}
+
+func (cdb *ChaosDBClient) GetKubernetesResourceMappingForDatabaseResource(ctx context.Context, obj *KubernetesToDBResourceMapping) error {
+	if err := shouldSimulateFailure("GetKubernetesResourceMappingForDatabaseResource", obj); err != nil {
+		return err
+	}
+
+	return cdb.InnerClient.GetKubernetesResourceMappingForDatabaseResource(ctx, obj)
+
+}
+
 func (cdb *ChaosDBClient) CloseDatabase() {
 	cdb.InnerClient.CloseDatabase()
 }

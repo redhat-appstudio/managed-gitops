@@ -16,6 +16,37 @@ const (
 	K8sToDBMapping_GitopsEngineInstance = "GitopsEngineInstance"
 )
 
+func (dbq *PostgreSQLDatabaseQueries) UpdateKubernetesResourceUIDForKubernetesToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) error {
+
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
+		return err
+	}
+
+	if err := isEmptyValues("UpdateKubernetesToDBResourceMapping",
+		"DBRelationKey", obj.DBRelationKey,
+		"DBRelationType", obj.DBRelationType,
+		"KubernetesResourceType", obj.KubernetesResourceType,
+		"KubernetesResourceUID", obj.KubernetesResourceUID,
+	); err != nil {
+		return err
+	}
+
+	result, err := dbq.dbConnection.Model(obj).Set("kubernetes_resource_uid = ?", obj.KubernetesResourceUID).
+		Where("ktdbrm.kubernetes_resource_type = ?", obj.KubernetesResourceType).
+		Where("ktdbrm.db_relation_key = ?", obj.DBRelationKey).
+		Where("ktdbrm.db_relation_type = ?", obj.DBRelationType).
+		Update()
+	if err != nil {
+		return fmt.Errorf("error on updating KubernetesToDBResourceMapping: %v, %s", err, obj.asString())
+	}
+
+	if result.RowsAffected() != 1 {
+		return fmt.Errorf("unexpected number of rows affected: %d, %s", result.RowsAffected(), obj.asString())
+	}
+
+	return nil
+}
+
 func (dbq *PostgreSQLDatabaseQueries) DeleteKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) (int, error) {
 
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
@@ -32,7 +63,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteKubernetesResourceToDBResourceMappin
 
 	deleteResult, err := dbq.dbConnection.Model(obj).WherePK().Context(ctx).Delete()
 	if err != nil {
-		return 0, fmt.Errorf("error on deleting operation: %v", err)
+		return 0, fmt.Errorf("error on deleting KubernetesToDBResourceMapping: %v, %s", err, obj.asString())
 	}
 
 	return deleteResult.RowsAffected(), nil
@@ -64,11 +95,50 @@ func (dbq *PostgreSQLDatabaseQueries) GetDBResourceMappingForKubernetesResource(
 	}
 
 	if len(result) == 0 {
-		return NewResultNotFoundError(fmt.Sprintf("unable to retrieve mapping for %s:%s", obj.KubernetesResourceType, obj.KubernetesResourceUID))
+		return NewResultNotFoundError(fmt.Sprintf("unable to retrieve mapping for %s", obj.asString()))
 	}
 
 	if len(result) > 1 {
-		return fmt.Errorf("unexpected number of results when retrieving mapping for %s:%s", obj.KubernetesResourceType, obj.KubernetesResourceUID)
+		return fmt.Errorf("unexpected number of results when retrieving mapping for %s", obj.asString())
+	}
+
+	*obj = result[0]
+
+	return nil
+
+}
+
+func (dbq *PostgreSQLDatabaseQueries) GetKubernetesResourceMappingForDatabaseResource(ctx context.Context, obj *KubernetesToDBResourceMapping) error {
+
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
+		return err
+	}
+
+	if err := isEmptyValues("GetKubernetesResourceMappingForDatabaseResource",
+		"KubernetesResourceType", obj.KubernetesResourceType,
+		"DBRelationType", obj.DBRelationType,
+		"DBRelationKey", obj.DBRelationKey); err != nil {
+		return err
+	}
+
+	var result []KubernetesToDBResourceMapping
+
+	if err := dbq.dbConnection.Model(&result).
+		Where("ktdbrm.kubernetes_resource_type = ?", obj.KubernetesResourceType).
+		Where("ktdbrm.db_relation_key = ?", obj.DBRelationKey).
+		Where("ktdbrm.db_relation_type = ?", obj.DBRelationType).
+		Context(ctx).
+		Select(); err != nil {
+
+		return fmt.Errorf("error on retrieving k8s resource UID of db resource mapping: %v", err)
+	}
+
+	if len(result) == 0 {
+		return NewResultNotFoundError(fmt.Sprintf("unable to k8s resource UID mapping for %s", obj.asString()))
+	}
+
+	if len(result) > 1 {
+		return fmt.Errorf("unexpected number of results when retrieving k8s resource UID mapping for %s", obj.asString())
 	}
 
 	*obj = result[0]
@@ -97,11 +167,11 @@ func (dbq *PostgreSQLDatabaseQueries) CreateKubernetesResourceToDBResourceMappin
 
 	result, err := dbq.dbConnection.Model(obj).Context(ctx).Insert()
 	if err != nil {
-		return fmt.Errorf("error on inserting managed environment: %v", err)
+		return fmt.Errorf("error on inserting KubernetesResourceToDBMapping: %v, %s", err, obj.asString())
 	}
 
 	if result.RowsAffected() != 1 {
-		return fmt.Errorf("unexpected number of rows affected: %d", result.RowsAffected())
+		return fmt.Errorf("unexpected number of rows affected: %d, %s", result.RowsAffected(), obj.asString())
 	}
 
 	return nil
@@ -138,4 +208,11 @@ func (obj *KubernetesToDBResourceMapping) GetAsLogKeyValues() []interface{} {
 	return []interface{}{
 		"k8sResourceType", obj.KubernetesResourceType, "k8sResourceUID", obj.KubernetesResourceUID,
 		"dbRelationType", obj.DBRelationType, "dbRelationKey", obj.DBRelationKey}
+}
+
+func (obj *KubernetesToDBResourceMapping) asString() string {
+	if obj == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%v/%v/%v/%v", obj.DBRelationType, obj.DBRelationKey, obj.KubernetesResourceType, obj.KubernetesResourceUID)
 }

@@ -362,7 +362,7 @@ func SetupForTestingDBGinkgo() error {
 		// Clean up any operations that reference GitOpsEngineInstance that are going to be deleted below.
 		_, instanceToBeDeleted := gitopsEngineInstanceUIDsToDelete[operation.Instance_id]
 
-		if instanceToBeDeleted || strings.HasPrefix(operation.Operation_id, "test-") {
+		if instanceToBeDeleted || strings.HasPrefix(operation.Operation_id, "test-") || strings.HasPrefix(operation.Operation_owner_user_id, "test-") {
 			rowsAffected, err := dbq.CheckedDeleteOperationById(ctx, operation.Operation_id, operation.Operation_owner_user_id)
 			Expect(rowsAffected).Should(Equal(1))
 			Expect(err).To(BeNil())

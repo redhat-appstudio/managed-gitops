@@ -87,6 +87,16 @@ build-appstudio-controller: ## Build only
 test-appstudio-controller: ## Run test for appstudio-controller only
 	cd $(MAKEFILE_ROOT)/appstudio-controller && make test
 
+
+### --- i n i t  -  c o n t a i n e r --- ###
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
+build-init-container-binary: ## Build init-controller binary
+	cd $(MAKEFILE_ROOT)/utilities/init-container && make build
+
+test-init-container-binary: ## Run test for init-controller binary only
+	cd $(MAKEFILE_ROOT)/utilities/init-container && make test
+
 ### --- A r g o C D    W e b   U I --- ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 deploy-argocd: ## Install ArgoCD vanilla Web UI
@@ -141,7 +151,7 @@ clean: ## remove the bin and vendor folders from each component
 	cd $(MAKEFILE_ROOT)/tests-e2e && make clean
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && make clean
 
-build: build-backend build-cluster-agent build-appstudio-controller ## Build all the components - note: you do not need to do this before running start
+build: build-backend build-cluster-agent build-appstudio-controller build-init-container-binary ## Build all the components - note: you do not need to do this before running start
 
 docker-build: ## Build docker image -- note: you have to change the USERNAME var. Optionally change the BASE_IMAGE or TAG
 	$(DOCKER) build --build-arg ARCH=$(ARCH) -t ${IMG} $(MAKEFILE_ROOT)
@@ -149,7 +159,7 @@ docker-build: ## Build docker image -- note: you have to change the USERNAME var
 docker-push: ## Push docker image - note: you have to change the USERNAME var. Optionally change the BASE_IMAGE or TAG
 	$(DOCKER) push ${IMG}
 
-test: test-backend test-backend-shared test-cluster-agent test-appstudio-controller ## Run tests for all components
+test: test-backend test-backend-shared test-cluster-agent test-appstudio-controller test-init-container-binary ## Run tests for all components
 
 setup-e2e-openshift: install-argocd-openshift devenv-k8s-e2e ## Setup steps for E2E tests to run with Openshift CI
 
@@ -177,6 +187,7 @@ vendor: ## Clone locally the dependencies - off-line
 	cd $(MAKEFILE_ROOT)/appstudio-controller && go mod vendor	
 	cd $(MAKEFILE_ROOT)/tests-e2e && go mod vendor	
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && go mod vendor	
+	cd $(MAKEFILE_ROOT)/utilities/init-container && go mod vendor
 
 tidy: ## Tidy all components
 	cd $(MAKEFILE_ROOT)/backend-shared && go mod tidy
@@ -185,6 +196,7 @@ tidy: ## Tidy all components
 	cd $(MAKEFILE_ROOT)/appstudio-controller && go mod tidy
 	cd $(MAKEFILE_ROOT)/tests-e2e && go mod tidy
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && go mod tidy
+	cd $(MAKEFILE_ROOT)/utilities/init-container && go mod vendor
 	 
 fmt: ## Run 'go fmt' on all components
 	cd $(MAKEFILE_ROOT)/backend-shared && make fmt
@@ -192,6 +204,7 @@ fmt: ## Run 'go fmt' on all components
 	cd $(MAKEFILE_ROOT)/cluster-agent && make fmt
 	cd $(MAKEFILE_ROOT)/appstudio-controller && make fmt
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && make fmt
+	cd $(MAKEFILE_ROOT)/utilities/init-container && make fmt
 
 lint: ## Run lint checks for all components
 	cd $(MAKEFILE_ROOT)/backend-shared && make lint
@@ -200,6 +213,7 @@ lint: ## Run lint checks for all components
 	cd $(MAKEFILE_ROOT)/appstudio-controller && make lint
 	cd $(MAKEFILE_ROOT)/tests-e2e && make lint
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && make lint
+	cd $(MAKEFILE_ROOT)/utilities/init-container && make lint
 
 generate-manifests: ## Call the 'generate' and 'manifests' targets of every project
 	cd $(MAKEFILE_ROOT)/backend-shared && make generate manifests

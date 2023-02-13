@@ -61,6 +61,14 @@ func Migrate(opType string, migrationPath string) error {
 			return fmt.Errorf("unable to upgrade migration version by 1 level: %v", err)
 		}
 		return nil
+	} else if opType == "migrate_to" {
+		if err := m.Migrate(10); err != nil {
+			if err.Error() == "no change" {
+				return nil
+			}
+			return fmt.Errorf("unable to Migrate to version 10: %v", err)
+		}
+		return nil
 	} else {
 		return fmt.Errorf("invalid argument passed")
 	}

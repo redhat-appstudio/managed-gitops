@@ -60,7 +60,7 @@ var _ = Describe("Argo CD Application", func() {
 			Expect(err).To(BeNil())
 
 			dbApplication := &db.Application{
-				Application_id: appMapping.Application_id,
+				ApplicationID: appMapping.ApplicationID,
 			}
 			err = dbQueries.GetApplicationById(context.Background(), dbApplication)
 			Expect(err).To(BeNil())

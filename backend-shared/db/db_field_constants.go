@@ -26,7 +26,7 @@ const (
 	ClusterUserUserNameLength                                               = 256
 	ClusterAccessClusteraccessUserIDLength                                  = 48
 	ClusterAccessClusteraccessManagedEnvironmentIDLength                    = 48
-	ClusterAccessClusteraccessGitopsengineinstanceIDLength                  = 48
+	ClusterAccessClusteraccessGitopsEngineInstanceIDLength                  = 48
 	OperationOperationIDLength                                              = 48
 	OperationInstanceIDLength                                               = 48
 	OperationResourceIDLength                                               = 48
@@ -127,7 +127,7 @@ var DbFieldMap = map[string]int{
 	"ClusterUserUserNameLength":                                               ClusterUserUserNameLength,
 	"ClusterAccessClusteraccessUserIDLength":                                  ClusterAccessClusteraccessUserIDLength,
 	"ClusterAccessClusteraccessManagedEnvironmentIDLength":                    ClusterAccessClusteraccessManagedEnvironmentIDLength,
-	"ClusterAccessClusteraccessGitopsengineinstanceIDLength":                  ClusterAccessClusteraccessGitopsengineinstanceIDLength,
+	"ClusterAccessClusteraccessGitopsEngineInstanceIDLength":                  ClusterAccessClusteraccessGitopsEngineInstanceIDLength,
 	"OperationOperationIDLength":                                              OperationOperationIDLength,
 	"OperationInstanceIDLength":                                               OperationInstanceIDLength,
 	"OperationResourceIDLength":                                               OperationResourceIDLength,

@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    control-plane: cluster-agent-controller-manager
+  name: gitops-service-agent-controller-manager
+  namespace: gitops
+spec:
+  template:
+    spec:
+      containers:
+      - args:
+        - --health-probe-bind-address=:8083
+        - --metrics-bind-address=:8080
+        - --leader-elect
+        - --zap-time-encoding=rfc3339nano
+        command:
+        - gitops-service-cluster-agent
+        env:
+        - name: ARGO_CD_NAMESPACE
+          value: gitops-service-argocd
+        - name: DB_ADDR
+          value: ""
+          valueFrom:
+            secretKeyRef:
+              key: db.host
+              name: gitops-service-postgres-rds-config
+        - name: DB_PASS
+          value: ""
+          valueFrom:
+            secretKeyRef:
+              key: db.password
+              name: gitops-service-postgres-rds-config
+        image: ${COMMON_IMAGE}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8083
+          initialDelaySeconds: 45
+          periodSeconds: 20
+        name: manager
+        ports:
+        - containerPort: 8080
+          name: http-metrics
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8083
+          initialDelaySeconds: 45
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 300m
+            memory: 1000Mi
+          requests:
+            cpu: 200m
+            memory: 300Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+      - args:
+        - --secure-listen-address=0.0.0.0:8443
+        - --upstream=http://127.0.0.1:8080/
+        - --logtostderr=true
+        - --v=10
+        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.0
+        imagePullPolicy: IfNotPresent
+        name: kube-rbac-proxy
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File

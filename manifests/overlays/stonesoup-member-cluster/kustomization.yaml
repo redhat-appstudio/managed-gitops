@@ -8,9 +8,8 @@ resources:
 - ../../../appstudio-controller/config/default-no-webhook-no-prometheus
 - ../../../backend/config/default-no-prometheus
 - ../../../cluster-agent/config/default-no-prometheus
-- ../../base/postgresql-staging
 - ../../base/gitops-service-argocd/base
-- prometheus/
+- ../appstudio-staging-cluster/prometheus
 
 patchesStrategicMerge:
 - backend-deployment-patch.yaml

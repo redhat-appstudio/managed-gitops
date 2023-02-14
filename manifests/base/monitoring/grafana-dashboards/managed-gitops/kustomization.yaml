@@ -9,4 +9,4 @@ generatorOptions:
 configMapGenerator:
   - name: grafana-dashboard-gitops-service
     files:
-      - grafana-dashboards/gitops-dashboard.json
+      - gitops-dashboard.json

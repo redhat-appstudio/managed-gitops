@@ -3,4 +3,4 @@ kind: Kustomization
 
 resources:
 - https://github.com/redhat-appstudio/application-api/config/crd?ref=3ef8e0cd2c9ee21c8ce29cdfd5e7069f866ff5db
-- ../../../backend-shared/config/crd
+- ../../base

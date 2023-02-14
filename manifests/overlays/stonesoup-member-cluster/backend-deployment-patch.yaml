@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitops-core-service-controller-manager
+  namespace: gitops
+spec:
+  template:
+    spec:
+      containers:
+      - args:
+        - --health-probe-bind-address=:18081
+        - --metrics-bind-address=:8080
+        - --leader-elect
+        - --zap-time-encoding=rfc3339nano
+        command:
+        - gitops-service-backend
+        env:
+        - name: ARGO_CD_NAMESPACE
+          value: gitops-service-argocd
+        - name: DB_ADDR
+          value: ""
+          valueFrom:
+            secretKeyRef:
+              key: db.host
+              name: gitops-service-postgres-rds-config
+        - name: DB_PASS
+          value: ""
+          valueFrom:
+            secretKeyRef:
+              key: db.password
+              name: gitops-service-postgres-rds-config
+        image: ${COMMON_IMAGE}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 18081
+          initialDelaySeconds: 120
+          periodSeconds: 60
+        name: manager
+        ports:
+        - containerPort: 8080
+          name: http-metrics
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 18081
+          initialDelaySeconds: 180
+          periodSeconds: 30
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 4800Mi
+          requests:
+            cpu: 1000m
+            memory: 2400Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+      - args:
+        - --secure-listen-address=0.0.0.0:8443
+        - --upstream=http://127.0.0.1:8080/
+        - --logtostderr=true
+        - --v=10
+        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.0
+        imagePullPolicy: IfNotPresent
+        name: kube-rbac-proxy
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File

@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	dboperations "github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
@@ -18,7 +20,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var _ = Describe("Operation CR namespace E2E tests", func() {
@@ -32,11 +33,14 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 	Context("Operation CR in invalid namespace should be ignored", func() {
 		var err error
 		var ctx context.Context
+		var log logr.Logger
 		var dbQueries db.AllDatabaseQueries
 		var k8sClient client.Client
 		var kubeSystemNamespace *corev1.Namespace
 		var config *rest.Config
 		var gitopsEngineInstance *db.GitopsEngineInstance
+		var operationDB *db.Operation
+		var operationCR *managedgitopsv1alpha1.Operation
 
 		BeforeEach(func() {
 
@@ -67,13 +71,16 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			Expect(err).To(Succeed())
 
 		})
+		AfterEach(func() {
+			err := operations.CleanupOperation(ctx, *operationDB, *operationCR, operationCR.Namespace, dbQueries, k8sClient, true, log)
+			Expect(err).To(BeNil())
+		})
 
 		It("should create Operation CR and namespace, the OperationCR.namespace created should match Argocd namespace ", func() {
 
 			if fixture.IsRunningAgainstKCP() {
 				Skip("Skipping this test until we support running gitops operator with KCP")
 			}
-			log := log.FromContext(ctx)
 
 			By("creating Opeartion CR")
 			namespaceToCreate := &corev1.Namespace{
@@ -84,7 +91,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 
 			gitopsEngineInstance, _, _, err = dbutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespaceToCreate, string(kubeSystemNamespace.UID), dbQueries, log)
 
-			operationDB := &db.Operation{
+			operationDB = &db.Operation{
 				Operation_id:            "test-operation",
 				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
 				Resource_id:             "test-fake-resource-id",
@@ -99,7 +106,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			err = k8sClient.Create(ctx, namespaceToCreate)
 			Expect(err).To(BeNil())
 
-			operationCR := &managedgitopsv1alpha1.Operation{
+			operationCR = &managedgitopsv1alpha1.Operation{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      operationName,
 					Namespace: gitopsEngineInstance.Namespace_name,
@@ -129,7 +136,6 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			if fixture.IsRunningAgainstKCP() {
 				Skip("Skipping this test until we support running gitops operator with KCP")
 			}
-			log := log.FromContext(ctx)
 
 			By("creating Opeartion CR")
 			namespaceToCreate := &corev1.Namespace{
@@ -140,7 +146,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 
 			gitopsEngineInstance, _, _, err = dbutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespaceToCreate, string(kubeSystemNamespace.UID), dbQueries, log)
 
-			operationDB := &db.Operation{
+			operationDB = &db.Operation{
 				Operation_id:            "test-operation",
 				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
 				Resource_id:             "test-fake-resource-id",
@@ -160,7 +166,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			err = k8sClient.Create(ctx, falseNamespaceToCreate)
 			Expect(err).To(BeNil())
 
-			operationCR := &managedgitopsv1alpha1.Operation{
+			operationCR = &managedgitopsv1alpha1.Operation{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "fake-operation",
 					Namespace: falseNamespace,

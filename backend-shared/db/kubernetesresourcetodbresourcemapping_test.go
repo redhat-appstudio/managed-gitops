@@ -129,7 +129,7 @@ var _ = Describe("Kubernetesresourcetodbresourcemapping Test", func() {
 		Expect(err).To(BeNil())
 
 		By("retrieving the value after update, and verifying it has been updated")
-		err = dbq.GetDBResourceMappingForKubernetesResource(ctx, &toUpdate)
+		err = dbq.GetKubernetesResourceMappingForDatabaseResource(ctx, &toUpdate)
 		Expect(err).To(BeNil())
 
 		Expect(toUpdate).To(Equal(db.KubernetesToDBResourceMapping{
@@ -142,7 +142,7 @@ var _ = Describe("Kubernetesresourcetodbresourcemapping Test", func() {
 
 		By("retrieving the value of the value that should not have been updated, and ensuring it wasn't updated")
 		shouldNotChangeNew := mapping[1]
-		err = dbq.GetDBResourceMappingForKubernetesResource(ctx, &shouldNotChangeNew)
+		err = dbq.GetKubernetesResourceMappingForDatabaseResource(ctx, &shouldNotChangeNew)
 		Expect(err).To(BeNil())
 		shouldNotChange.SeqID = shouldNotChangeNew.SeqID
 		Expect(shouldNotChangeNew).To(Equal(shouldNotChange))

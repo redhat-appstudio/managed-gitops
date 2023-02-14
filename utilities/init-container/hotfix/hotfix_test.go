@@ -116,26 +116,3 @@ var _ = Describe("Test for ensuring that hotfix can perform the expected update"
 	})
 
 })
-
-// // hotfixOnStartup fixes a known bad value on the Stonesoup staging target cluster.
-// func createThing(ctx context.Context) {
-
-// 	dbq, err := db.NewSharedProductionPostgresDBQueries(false)
-// 	if err != nil {
-// 		fmt.Println("Unable to acquire database in hotfixOnStartup function", err)
-// 		return
-// 	}
-
-// 	targetKDB := db.KubernetesToDBResourceMapping{
-// 		KubernetesResourceType: "Namespace",
-// 		KubernetesResourceUID:  "9dc321a8-aab6-4482-ac71-3c16be1e7c47",
-// 		DBRelationType:         "GitopsEngineInstance",
-// 		DBRelationKey:          "701632d3-dd8b-4173-88c3-84306579a156",
-// 	}
-
-// 	err = dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &targetKDB)
-// 	if err != nil {
-// 		fmt.Println(err)
-// 	}
-
-// }

@@ -503,7 +503,7 @@ func SetupForTestingDBGinkgo() error {
 	for i := range kubernetesToDBResourceMappings {
 		item := kubernetesToDBResourceMappings[i]
 
-		if strings.HasPrefix(item.KubernetesResourceUID, "test-") {
+		if strings.HasPrefix(item.KubernetesResourceUID, "test-") || strings.HasPrefix(item.DBRelationKey, "test-") {
 			rowsAffected, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, &item)
 
 			Expect(err).To(BeNil())

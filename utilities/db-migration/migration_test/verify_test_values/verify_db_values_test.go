@@ -109,7 +109,7 @@ var _ = Describe("Test to verify that the data added to database is still presen
 			err = dbq.GetOperationById(ctx, operationDB)
 			Expect(err).To(BeNil())
 
-			By("Create a KubernetesToDBResourceMapping between a gitops engine instance and argo cd namespace")
+			By("Get kubernetesToDBResourceMapping between a gitops engine instance and argo cd namespace")
 			kubernetesToDBResourceMapping := &db.KubernetesToDBResourceMapping{
 				KubernetesResourceType: "Namespace",
 				KubernetesResourceUID:  "Namespace-uid",
@@ -120,14 +120,14 @@ var _ = Describe("Test to verify that the data added to database is still presen
 			err = dbq.GetDBResourceMappingForKubernetesResource(ctx, kubernetesToDBResourceMapping)
 			Expect(err).To(BeNil())
 
-			By("Get a repository credentials")
+			By("Get repository credentials by Id")
 			gitopsRepositoryCredentialsDb := &db.RepositoryCredentials{
 				RepositoryCredentialsID: "test-repo-1",
 			}
 			_, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsDb.RepositoryCredentialsID)
 			Expect(err).To(BeNil())
 
-			By("Create an APICRToDatabasemapping pointing to those repository credentials")
+			By("Get APICRToDatabasemapping pointing to those repository credentials")
 			apiCRToDatabaseMappingDb := &db.APICRToDatabaseMapping{
 				APIResourceType:      db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentRepositoryCredential,
 				APIResourceUID:       "test-uid",
@@ -140,7 +140,7 @@ var _ = Describe("Test to verify that the data added to database is still presen
 			err = dbq.GetAPICRForDatabaseUID(ctx, apiCRToDatabaseMappingDb)
 			Expect(err).To(BeNil())
 
-			By("Create a SyncOperation pointing to the Application")
+			By("Get SyncOperation pointing to the Application")
 			syncOperation := db.SyncOperation{
 				SyncOperation_id:    "test-syncOperation",
 				Application_id:      applicationDB.Application_id,
@@ -151,7 +151,7 @@ var _ = Describe("Test to verify that the data added to database is still presen
 			err = dbq.GetSyncOperationById(ctx, &syncOperation)
 			Expect(err).To(BeNil())
 
-			By("Create an APICRToDatabasemapping pointing to the SyncOperations")
+			By("Get APICRToDatabasemapping pointing to the SyncOperations")
 			item := &db.APICRToDatabaseMapping{
 				APIResourceType:      db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
 				APIResourceUID:       "test-k8s-uid",

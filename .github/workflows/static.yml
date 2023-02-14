@@ -190,12 +190,12 @@ jobs:
           cd $GITHUB_WORKSPACE/utilities/db-migration/migration_test/add_test_values
           go test $GITHUB_WORKSPACE/utilities/db-migration/migration_test/add_test_values -run "TestInitializeValues"
       
-      - name: "Migrate to latest database version"
+      - name: "Migrate to latest version of database"
         run: |
           cd $GITHUB_WORKSPACE
           make db-migrate
 
-      - name: "Run migration tests to verify data still present in database"
+      - name: "Run migration tests to verify that data added is still present/valid in database"
         run: |
           cd $GITHUB_WORKSPACE/utilities/db-migration/migration_test/verify_test_values
           go test $GITHUB_WORKSPACE/utilities/db-migration/migration_test/verify_test_values -run "TestVerifyDBValues"

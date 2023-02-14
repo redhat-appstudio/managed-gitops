@@ -70,7 +70,7 @@ var _ = Describe("Test to populate the database fields", func() {
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsForManagedEnv)
 			Expect(err).To(BeNil())
 
-			By("Create a managed environed pointing to those cluster credentials")
+			By("Create a managed environment pointing to those cluster credentials")
 			managedEnvironmentDb := db.ManagedEnvironment{
 				Managedenvironment_id: "test-env-1",
 				Clustercredentials_id: clusterCredentialsForManagedEnv.Clustercredentials_cred_id,

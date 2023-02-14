@@ -29,11 +29,11 @@ var _ = Describe("application_info_cache Test", func() {
 			Expect(err).To(BeNil())
 
 			application := &db.Application{
-				Application_id:          "test-my-application",
-				Name:                    "my-application",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          "test-my-application",
+				Name:                   "my-application",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			// An entry for the application should be there in order to create an entry for applicationState
@@ -41,9 +41,9 @@ var _ = Describe("application_info_cache Test", func() {
 			Expect(err).To(BeNil())
 
 			testAppState := db.ApplicationState{
-				Applicationstate_application_id: application.Application_id,
+				Applicationstate_application_id: application.ApplicationID,
 				Health:                          "Healthy",
-				Sync_Status:                     "Synced",
+				SyncStatus:                      "Synced",
 			}
 			errCreate := aic.CreateApplicationState(ctx, testAppState)
 			Expect(errCreate).To(BeNil())
@@ -108,11 +108,11 @@ var _ = Describe("application_info_cache Test", func() {
 			Expect(err).To(BeNil())
 
 			application := &db.Application{
-				Application_id:          testId,
-				Name:                    "my-application",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          testId,
+				Name:                   "my-application",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			// An entry for the application should be there in order to create an entry for applicationState
@@ -123,7 +123,7 @@ var _ = Describe("application_info_cache Test", func() {
 			testAppState := db.ApplicationState{
 				Applicationstate_application_id: testId,
 				Health:                          "Healthy",
-				Sync_Status:                     "Synced",
+				SyncStatus:                      "Synced",
 			}
 			err = dbq.CreateApplicationState(ctx, &testAppState)
 			Expect(err).To(BeNil())
@@ -173,24 +173,24 @@ var _ = Describe("application_info_cache Test", func() {
 			Expect(err).To(BeNil())
 
 			testapplication := db.Application{
-				Application_id:          testId,
-				Name:                    "my-application",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          testId,
+				Name:                   "my-application",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			err = dbq.CreateApplication(ctx, &testapplication)
 			Expect(err).To(BeNil())
 
-			getApp, isFromCache, errGet := aic.GetApplicationById(ctx, testapplication.Application_id)
+			getApp, isFromCache, errGet := aic.GetApplicationById(ctx, testapplication.ApplicationID)
 			// ideally the appState should now report an Application obj
 			Expect(errGet).To(BeNil())
 			Expect(isFromCache).To(BeFalse())
 			Expect(getApp).To(Equal(testapplication))
 
 			//calling the same GetApplicationById again should come from cache, hence ifFromCache should be True
-			_, isFromCache, errGet = aic.GetApplicationById(ctx, testapplication.Application_id)
+			_, isFromCache, errGet = aic.GetApplicationById(ctx, testapplication.ApplicationID)
 			Expect(errGet).To(BeNil())
 			Expect(isFromCache).To(BeTrue())
 

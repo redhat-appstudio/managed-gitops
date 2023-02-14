@@ -477,7 +477,7 @@ type RepositoryCredentials struct {
 	SeqID int64 `pg:"seq_id"`
 
 	// -- CreatedOn field will tell us how old resources are
-	CreatedOn time.Time `pg:"created_on,notnull"`
+	CreatedOn time.Time `pg:"created_on"`
 }
 
 // hasEmptyValues returns error if any of the notnull tagged fields are empty.

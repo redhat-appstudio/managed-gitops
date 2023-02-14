@@ -213,7 +213,7 @@ func CompareApplication(argoCDApp appv1.Application, dbApplication db.Applicatio
 
 	specFieldAppFromDB := appv1.Application{}
 
-	if err := yaml.Unmarshal([]byte(dbApplication.Spec_field), &specFieldAppFromDB); err != nil {
+	if err := yaml.Unmarshal([]byte(dbApplication.SpecField), &specFieldAppFromDB); err != nil {
 		log.Error(err, "SEVERE: unable to unmarshal DB application spec field, on updating existing Application CR: "+argoCDApp.Name)
 		// We return nil here, with no retry, because there's likely nothing else that can be done to fix this.
 		// Thus there is no need to keep retrying.

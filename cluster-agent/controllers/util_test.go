@@ -266,7 +266,7 @@ var _ = Describe("Tests for the small number of utility functions in cluster-age
 			applicationFromDB, yamlData, applicationFromArgoCD, err := createDummyApplicationData()
 			Expect(err).To(BeNil())
 
-			dbApp.Spec_field = yamlData
+			dbApp.SpecField = yamlData
 
 			var ctx context.Context
 			log := log.FromContext(ctx)
@@ -348,7 +348,7 @@ var _ = Describe("Tests for the small number of utility functions in cluster-age
 				}
 
 				res := db.Application{
-					Spec_field: string(bytes),
+					SpecField: string(bytes),
 				}
 
 				return res

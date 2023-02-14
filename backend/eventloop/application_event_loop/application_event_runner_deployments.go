@@ -270,7 +270,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 
 	specFieldInput := argoCDSpecInput{
 		crName:               appName,
-		crNamespace:          engineInstance.Namespace_name,
+		crNamespace:          engineInstance.NamespaceName,
 		destinationNamespace: destinationNamespace,
 		// TODO: GITOPSRVCE-66 - Fill this in with cluster credentials
 		destinationName:      destinationName,
@@ -304,10 +304,10 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	}
 
 	application := db.Application{
-		Name:                    appName,
-		Engine_instance_inst_id: engineInstance.Gitopsengineinstance_id,
-		Managed_environment_id:  targetManagedEnvId,
-		Spec_field:              specFieldText,
+		Name:                   appName,
+		EngineInstanceInstID:   engineInstance.Gitopsengineinstance_id,
+		Managed_environment_id: targetManagedEnvId,
+		SpecField:              specFieldText,
 	}
 
 	if err := dbQueries.CreateApplication(ctx, &application); err != nil {
@@ -315,13 +315,13 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 	}
-	a.log.Info("Created new Application in DB: "+application.Application_id, application.GetAsLogKeyValues()...)
+	a.log.Info("Created new Application in DB: "+application.ApplicationID, application.GetAsLogKeyValues()...)
 
-	a.log.Info("Created new Application in DB: " + application.Application_id)
+	a.log.Info("Created new Application in DB: " + application.ApplicationID)
 
 	requiredDeplToAppMapping := &db.DeploymentToApplicationMapping{
 		Deploymenttoapplicationmapping_uid_id: string(gitopsDeployment.UID),
-		Application_id:                        application.Application_id,
+		ApplicationID:                         application.ApplicationID,
 		DeploymentName:                        gitopsDeployment.Name,
 		DeploymentNamespace:                   gitopsDeployment.Namespace,
 		NamespaceUID:                          eventlooptypes.GetWorkspaceIDFromNamespaceID(gitopsDeplNamespace),
@@ -334,9 +334,9 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	}
 
 	dbOperationInput := db.Operation{
-		Instance_id:   engineInstance.Gitopsengineinstance_id,
-		Resource_id:   application.Application_id,
-		Resource_type: db.OperationResourceType_Application,
+		InstanceID:   engineInstance.Gitopsengineinstance_id,
+		ResourceID:   application.ApplicationID,
+		ResourceType: db.OperationResourceType_Application,
 	}
 
 	gitopsEngineClient, err := a.getK8sClientForGitOpsEngineInstance(ctx, engineInstance)
@@ -347,7 +347,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	ctx = sharedutil.RemoveKCPClusterFromContext(ctx)
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput,
-		clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, a.log)
+		clusterUser.ClusterUserID, operationNamespace, dbQueries, gitopsEngineClient, a.log)
 	if err != nil {
 		a.log.Error(err, "could not create operation", "namespace", operationNamespace)
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
@@ -471,11 +471,11 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 				deplToAppMapping, gitopsDeployment, clusterUser))
 	}
 
-	log := a.log.WithValues("applicationId", deplToAppMapping.Application_id, "gitopsDeplUID", gitopsDeployment.UID)
+	log := a.log.WithValues("applicationId", deplToAppMapping.ApplicationID, "gitopsDeplUID", gitopsDeployment.UID)
 
 	a.log.Info("Received GitOpsDeployment event for an existing GitOpsDeployment resource")
 
-	application := &db.Application{Application_id: deplToAppMapping.Application_id}
+	application := &db.Application{ApplicationID: deplToAppMapping.ApplicationID}
 	if err := dbQueries.GetApplicationById(ctx, application); err != nil {
 		if !db.IsResultNotFoundError(err) {
 			log.Error(err, "unable to retrieve Application DB entry in handleUpdatedGitOpsDeplEvent")
@@ -515,7 +515,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		// If engineInstance from reconcileManagedEnvironmentOfGitOpsDeployment is nil, instead get the engine instance from
 		// the application.
 		engineInstance = &db.GitopsEngineInstance{
-			Gitopsengineinstance_id: application.Engine_instance_inst_id,
+			Gitopsengineinstance_id: application.EngineInstanceInstID,
 		}
 		if err := dbQueries.GetGitopsEngineInstanceById(ctx, engineInstance); err != nil {
 			return nil, nil, deploymentModifiedResult_Failed,
@@ -547,7 +547,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 
 	specFieldInput := argoCDSpecInput{
 		crName:               application.Name,
-		crNamespace:          engineInstance.Namespace_name,
+		crNamespace:          engineInstance.NamespaceName,
 		destinationNamespace: destinationNamespace,
 		destinationName:      destinationName,
 		sourceRepoURL:        gitopsDeployment.Spec.Source.RepoURL,
@@ -574,13 +574,13 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 			return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 		}
 
-		if specFieldResult == application.Spec_field {
+		if specFieldResult == application.SpecField {
 			log.Info("Processed GitOpsDeployment event: No spec change detected between Application DB entry and GitOpsDeployment CR")
 			// No change required: the application database entry is consistent with the gitopsdepl CR
 		} else {
 
 			shouldUpdateApplication = true
-			application.Spec_field = specFieldResult
+			application.SpecField = specFieldResult
 
 			log.Info("Processed GitOpsDeployment event: Spec change detected between Application DB entry and GitOpsDeployment CR")
 		}
@@ -612,19 +612,19 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 	// Create the operation
 	gitopsEngineClient, err := a.getK8sClientForGitOpsEngineInstance(ctx, engineInstance)
 	if err != nil {
-		log.Error(err, "unable to retrieve gitopsengineinstance for updated gitopsdepl", "gitopsEngineInstance", engineInstance.EngineCluster_id)
+		log.Error(err, "unable to retrieve gitopsengineinstance for updated gitopsdepl", "gitopsEngineInstance", engineInstance.EngineClusterID)
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 	}
 
 	dbOperationInput := db.Operation{
-		Instance_id:   engineInstance.Gitopsengineinstance_id,
-		Resource_id:   application.Application_id,
-		Resource_type: db.OperationResourceType_Application,
+		InstanceID:   engineInstance.Gitopsengineinstance_id,
+		ResourceID:   application.ApplicationID,
+		ResourceType: db.OperationResourceType_Application,
 	}
 
 	ctx = sharedutil.RemoveKCPClusterFromContext(ctx)
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
-	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput, clusterUser.Clusteruser_id,
+	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput, clusterUser.ClusterUserID,
 		operationNamespace, dbQueries, gitopsEngineClient, log)
 	if err != nil {
 		log.Error(err, "could not create operation")
@@ -647,11 +647,11 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 
 	// If the gitopsdepl CR doesn't exist, but database row does, then the CR has been deleted, so handle it.
 	dbApplication := db.Application{
-		Application_id: deplToAppMapping.Application_id,
+		ApplicationID: deplToAppMapping.ApplicationID,
 	}
 	if err := dbQueries.GetApplicationById(ctx, &dbApplication); err != nil {
 
-		a.log.Error(err, "unable to get application by id", "id", deplToAppMapping.Application_id)
+		a.log.Error(err, "unable to get application by id", "id", deplToAppMapping.ApplicationID)
 
 		if db.IsResultNotFoundError(err) {
 			dbApplicationFound = false
@@ -661,10 +661,10 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		}
 	}
 
-	log := a.log.WithValues("applicationID", deplToAppMapping.Application_id)
+	log := a.log.WithValues("applicationID", deplToAppMapping.ApplicationID)
 
 	// 1) Remove the ApplicationState from the database
-	rowsDeleted, err := dbQueries.DeleteApplicationStateById(ctx, deplToAppMapping.Application_id)
+	rowsDeleted, err := dbQueries.DeleteApplicationStateById(ctx, deplToAppMapping.ApplicationID)
 	if err != nil {
 
 		log.V(sharedutil.LogLevel_Warn).Error(err, "unable to delete application state by id")
@@ -679,9 +679,9 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 
 	// 2) Set the application field of SyncOperations to nil, for all SyncOperations that point to this Application
 	// - this ensures that the foreign key constraint of SyncOperation doesn't prevent us from deletion the Application
-	rowsUpdated, err := dbQueries.UpdateSyncOperationRemoveApplicationField(ctx, deplToAppMapping.Application_id)
+	rowsUpdated, err := dbQueries.UpdateSyncOperationRemoveApplicationField(ctx, deplToAppMapping.ApplicationID)
 	if err != nil {
-		log.Error(err, "unable to update old sync operations", "applicationId", deplToAppMapping.Application_id)
+		log.Error(err, "unable to update old sync operations", "applicationId", deplToAppMapping.ApplicationID)
 		return false, err
 
 	} else if rowsUpdated == 0 {
@@ -713,7 +713,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 
 	// 4) Remove the Application from the database
 	log.Info("GitOpsDeployment was deleted, so deleting Application row from database")
-	rowsDeleted, err = dbQueries.DeleteApplicationById(ctx, deplToAppMapping.Application_id)
+	rowsDeleted, err = dbQueries.DeleteApplicationById(ctx, deplToAppMapping.ApplicationID)
 	if err != nil {
 		// Log the error, but continue
 		log.Error(err, "unable to delete application by id")
@@ -722,9 +722,9 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		log.V(sharedutil.LogLevel_Warn).Error(nil, "unexpected number of rows deleted for application", "rowsDeleted", rowsDeleted)
 	}
 
-	gitopsEngineInstance, err := a.sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, dbApplication.Engine_instance_inst_id, a.workspaceClient, apiNamespace, a.log)
+	gitopsEngineInstance, err := a.sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, dbApplication.EngineInstanceInstID, a.workspaceClient, apiNamespace, a.log)
 	if err != nil {
-		log := log.WithValues("gitopsEngineID", dbApplication.Engine_instance_inst_id)
+		log := log.WithValues("gitopsEngineID", dbApplication.EngineInstanceInstID)
 
 		if db.IsResultNotFoundError(err) {
 			log.Error(err, "GitOpsEngineInstance could not be retrieved during gitopsdepl deletion handling")
@@ -743,15 +743,15 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		return false, err
 	}
 	dbOperationInput := db.Operation{
-		Instance_id:   dbApplication.Engine_instance_inst_id,
-		Resource_id:   deplToAppMapping.Application_id,
-		Resource_type: db.OperationResourceType_Application,
+		InstanceID:   dbApplication.EngineInstanceInstID,
+		ResourceID:   deplToAppMapping.ApplicationID,
+		ResourceType: db.OperationResourceType_Application,
 	}
 
 	ctx = sharedutil.RemoveKCPClusterFromContext(ctx)
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput,
-		clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, log)
+		clusterUser.ClusterUserID, operationNamespace, dbQueries, gitopsEngineClient, log)
 	if err != nil {
 		log.Error(err, "unable to create operation", "operation", dbOperationInput.ShortString())
 		return false, err
@@ -806,7 +806,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	}
 
 	// 3) Retrieve the application state for the application pointed to by the DTAM
-	applicationState := db.ApplicationState{Applicationstate_application_id: mapping.Application_id}
+	applicationState := db.ApplicationState{Applicationstate_application_id: mapping.ApplicationID}
 	if err := dbQueries.GetApplicationStateById(ctx, &applicationState); err != nil {
 
 		if db.IsResultNotFoundError(err) {
@@ -822,7 +822,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	// Update the gitopsDeployment instance with health and status values (fetched from the database)
 	gitopsDeployment.Status.Health.Status = managedgitopsv1alpha1.HealthStatusCode(applicationState.Health)
 	gitopsDeployment.Status.Health.Message = applicationState.Message
-	gitopsDeployment.Status.Sync.Status = managedgitopsv1alpha1.SyncStatusCode(applicationState.Sync_Status)
+	gitopsDeployment.Status.Sync.Status = managedgitopsv1alpha1.SyncStatusCode(applicationState.SyncStatus)
 	gitopsDeployment.Status.Sync.Revision = applicationState.Revision
 
 	// Update gitopsDeployment status with syncError if applicationState.SyncError field in database is non empty

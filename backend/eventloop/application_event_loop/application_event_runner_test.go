@@ -147,7 +147,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(len(appMappingsFirst)).To(Equal(1))
 
 			deplToAppMappingFirst := appMappingsFirst[0]
-			applicationFirst := db.Application{Application_id: deplToAppMappingFirst.Application_id}
+			applicationFirst := db.Application{ApplicationID: deplToAppMappingFirst.ApplicationID}
 			err = dbQueries.GetApplicationById(context.Background(), &applicationFirst)
 
 			Expect(err).To(BeNil())
@@ -208,18 +208,18 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(len(appMappingsSecond)).To(Equal(1))
 
 			deplToAppMappingSecond := appMappingsSecond[0]
-			applicationSecond := db.Application{Application_id: deplToAppMappingSecond.Application_id}
+			applicationSecond := db.Application{ApplicationID: deplToAppMappingSecond.ApplicationID}
 			err = dbQueries.GetApplicationById(context.Background(), &applicationSecond)
 
 			Expect(err).To(BeNil())
 			Expect(applicationFirst.SeqID).To(Equal(applicationSecond.SeqID))
-			Expect(applicationFirst.Spec_field).NotTo(Equal(applicationSecond.Spec_field))
+			Expect(applicationFirst.SpecField).NotTo(Equal(applicationSecond.SpecField))
 
-			clusterUser := db.ClusterUser{User_name: string(workspace.UID)}
+			clusterUser := db.ClusterUser{UserName: string(workspace.UID)}
 			err = dbQueries.GetClusterUserByUsername(context.Background(), &clusterUser)
 			Expect(err).To(BeNil())
 
-			gitopsEngineInstance := db.GitopsEngineInstance{Gitopsengineinstance_id: applicationSecond.Engine_instance_inst_id}
+			gitopsEngineInstance := db.GitopsEngineInstance{Gitopsengineinstance_id: applicationSecond.EngineInstanceInstID}
 			err = dbQueries.GetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance)
 			Expect(err).To(BeNil())
 
@@ -321,7 +321,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(len(appMappingsFirst)).To(Equal(1))
 
 			deplToAppMappingFirst := appMappingsFirst[0]
-			applicationFirst := db.Application{Application_id: deplToAppMappingFirst.Application_id}
+			applicationFirst := db.Application{ApplicationID: deplToAppMappingFirst.ApplicationID}
 			err = dbQueries.GetApplicationById(context.Background(), &applicationFirst)
 			Expect(err).To(BeNil())
 
@@ -384,7 +384,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(len(appMappings)).To(Equal(0))
 
 			// GitopsEngine instance should still be reachable
-			gitopsEngineInstance := db.GitopsEngineInstance{Gitopsengineinstance_id: applicationFirst.Engine_instance_inst_id}
+			gitopsEngineInstance := db.GitopsEngineInstance{Gitopsengineinstance_id: applicationFirst.EngineInstanceInstID}
 			err = dbQueries.GetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance)
 			Expect(err).To(BeNil())
 
@@ -425,20 +425,20 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			}
 
 			clusterUser := db.ClusterUser{
-				User_name: string(workspace.UID),
+				UserName: string(workspace.UID),
 			}
 			err = dbQueries.GetClusterUserByUsername(context.Background(), &clusterUser)
 			Expect(err).To(BeNil())
 
 			application := db.Application{
-				Application_id: deplToAppMapping.Application_id,
+				ApplicationID: deplToAppMapping.ApplicationID,
 			}
 
 			err = dbQueries.GetApplicationById(context.Background(), &application)
 			Expect(err).To(BeNil())
 
 			gitopsEngineInstance := db.GitopsEngineInstance{
-				Gitopsengineinstance_id: application.Engine_instance_inst_id,
+				Gitopsengineinstance_id: application.EngineInstanceInstID,
 			}
 
 			err = dbQueries.GetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance)
@@ -896,9 +896,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(err).To(BeNil())
 
 			applicationState := &db.ApplicationState{
-				Applicationstate_application_id: deplToAppMapping.Application_id,
+				Applicationstate_application_id: deplToAppMapping.ApplicationID,
 				Health:                          string(managedgitopsv1alpha1.HeathStatusCodeHealthy),
-				Sync_Status:                     string(managedgitopsv1alpha1.SyncStatusCodeSynced),
+				SyncStatus:                      string(managedgitopsv1alpha1.SyncStatusCodeSynced),
 				Revision:                        "abcdefg",
 				Message:                         "Success",
 				Resources:                       buffer.Bytes(),
@@ -959,9 +959,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			By("Update SyncError in ApplicationState to be empty")
 			applicationState = &db.ApplicationState{
-				Applicationstate_application_id: deplToAppMapping.Application_id,
+				Applicationstate_application_id: deplToAppMapping.ApplicationID,
 				Health:                          string(managedgitopsv1alpha1.HeathStatusCodeHealthy),
-				Sync_Status:                     string(managedgitopsv1alpha1.SyncStatusCodeSynced),
+				SyncStatus:                      string(managedgitopsv1alpha1.SyncStatusCodeSynced),
 				Revision:                        "abcdefg",
 				Message:                         "Success",
 				Resources:                       buffer.Bytes(),
@@ -1141,12 +1141,12 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(err).To(BeNil())
 
 			clusterCredentials := db.ClusterCredentials{
-				Clustercredentials_cred_id:  "test-cluster-creds-test",
-				Host:                        "host",
-				Kube_config:                 "kube-config",
-				Kube_config_context:         "kube-config-context",
-				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-				Serviceaccount_ns:           "Serviceaccount_ns",
+				ClustercredentialsCredID:  "test-cluster-creds-test",
+				Host:                      "host",
+				KubeConfig:                "kube-config",
+				KubeConfig_context:        "kube-config-context",
+				ServiceAccountBearerToken: "serviceaccount_bearer_token",
+				ServiceAccountNs:          "Serviceaccount_ns",
 			}
 
 			err = dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
@@ -1155,7 +1155,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			managedEnvironment := db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env",
 				Name:                  "my-managed-env",
-				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+				ClusterCredentialsID:  clusterCredentials.ClustercredentialsCredID,
 			}
 			err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironment)
 			Expect(err).To(BeNil())
@@ -1253,9 +1253,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(err).To(BeNil())
 
 			applicationState := &db.ApplicationState{
-				Applicationstate_application_id: deplToAppMapping.Application_id,
+				Applicationstate_application_id: deplToAppMapping.ApplicationID,
 				Health:                          string(managedgitopsv1alpha1.HeathStatusCodeHealthy),
-				Sync_Status:                     string(managedgitopsv1alpha1.SyncStatusCodeSynced),
+				SyncStatus:                      string(managedgitopsv1alpha1.SyncStatusCodeSynced),
 				Revision:                        "abcdefg",
 				Message:                         "Success",
 				Resources:                       buffer.Bytes(),
@@ -1866,7 +1866,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 			Expect(len(dtam)).To(Equal(1))
 
 			application := db.Application{
-				Application_id: dtam[0].Application_id,
+				ApplicationID: dtam[0].ApplicationID,
 			}
 			if err := dbQueries.GetApplicationById(ctx, &application); err != nil {
 				return db.ManagedEnvironment{}, db.Application{}, err
@@ -1891,7 +1891,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 
 			for idx := range operations {
 				operation := operations[idx]
-				if operation.Resource_id == resourceId && operation.Resource_type == resourceType {
+				if operation.ResourceID == resourceId && operation.ResourceType == resourceType {
 					res = append(res, operation)
 				}
 			}
@@ -1985,11 +1985,11 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 			Expect(err).To(BeNil())
 			Expect(managedEnvRow.Managedenvironment_id).To(Equal(managedEnvRowFromAPICRToDBMapping),
 				"the managed env from the GitOpsDeployment CR should match the one from the ManagedEnvironment CR")
-			Expect(application.Application_id).To(Equal(appFromCall.Application_id),
+			Expect(application.ApplicationID).To(Equal(appFromCall.ApplicationID),
 				"the application object returned from the function call should match the GitOpsDeployment CR we created")
 
 			By("ensuring an Operation was created for the Application")
-			applicationOperations, err := listOperationRowsForResource(application.Application_id, "Application")
+			applicationOperations, err := listOperationRowsForResource(application.ApplicationID, "Application")
 			Expect(err).To(BeNil())
 
 			Expect(len(applicationOperations)).To(Equal(1))
@@ -2015,7 +2015,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 			Expect(appFromCall).ToNot(BeNil())
 			Expect(engineInstanceFromCall).ToNot(BeNil())
 			Expect(userDevErr).To(BeNil())
-			Expect(appFromSecondCall.Application_id).To(Equal(appFromCall.Application_id))
+			Expect(appFromSecondCall.ApplicationID).To(Equal(appFromCall.ApplicationID))
 
 			Expect(appFromSecondCall.Managed_environment_id).To(BeEmpty(),
 				"if the managed environment CR is deleted, the ManagedEnvironment field of the application row should be nil")
@@ -2053,7 +2053,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 			Expect(userDevErr).To(BeNil())
 
 			By("ensuring an Operation was created for the Application")
-			applicationOperations, err := listOperationRowsForResource(originalAppFromCall.Application_id, "Application")
+			applicationOperations, err := listOperationRowsForResource(originalAppFromCall.ApplicationID, "Application")
 			Expect(err).To(BeNil())
 			Expect(len(applicationOperations)).To(Equal(1))
 
@@ -2073,7 +2073,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 				Expect(appFromCall).ToNot(BeNil())
 				Expect(engineInstanceFromCall).ToNot(BeNil())
 				Expect(userDevErr).To(BeNil())
-				Expect(appFromCall.Application_id).To(Equal(originalAppFromCall.Application_id))
+				Expect(appFromCall.ApplicationID).To(Equal(originalAppFromCall.ApplicationID))
 
 				Expect(appFromCall.Managed_environment_id).ToNot(Equal(originalAppFromCall.Managed_environment_id),
 					"the managed environment on the Application row should have changed.")
@@ -2087,10 +2087,10 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 				Expect(err).To(BeNil())
 				Expect(managedEnvRow.Managedenvironment_id).To(Equal(managedEnvRowFromAPICRToDBMapping),
 					"the managed env from the GitOpsDeployment CR should match the one from the ManagedEnvironment CR")
-				Expect(application.Application_id).To(Equal(appFromCall.Application_id),
+				Expect(application.ApplicationID).To(Equal(appFromCall.ApplicationID),
 					"the application object returned from the function call should match the GitOpsDeployment CR we created")
 
-				applicationOperations, err := listOperationRowsForResource(appFromCall.Application_id, "Application")
+				applicationOperations, err := listOperationRowsForResource(appFromCall.ApplicationID, "Application")
 				Expect(err).To(BeNil())
 				Expect(len(applicationOperations)).To(Equal(2), "a new operation targetting the Application should have been created for the Application")
 			}
@@ -2135,7 +2135,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 			Expect(originalAppFromCall).ToNot(BeNil())
 			Expect(engineInstanceFromCall).ToNot(BeNil())
 			Expect(userDevErr).To(BeNil())
-			applicationOperations, err := listOperationRowsForResource(originalAppFromCall.Application_id, "Application")
+			applicationOperations, err := listOperationRowsForResource(originalAppFromCall.ApplicationID, "Application")
 			Expect(err).To(BeNil())
 			Expect(len(applicationOperations)).To(Equal(1))
 
@@ -2150,14 +2150,14 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 				applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(canShutdown).To(BeFalse())
 			Expect(appFromCall).ToNot(BeNil())
-			Expect(appFromCall.Application_id).To(Equal(originalAppFromCall.Application_id))
+			Expect(appFromCall.ApplicationID).To(Equal(originalAppFromCall.ApplicationID))
 			Expect(engineInstanceFromCall).ToNot(BeNil())
 			Expect(userDevErr).To(BeNil())
 
 			Expect(appFromCall.Managed_environment_id).ToNot(Equal(originalAppFromCall.Managed_environment_id))
 
 			By("ensuring an Operation was created for the Application")
-			applicationOperations, err = listOperationRowsForResource(appFromCall.Application_id, "Application")
+			applicationOperations, err = listOperationRowsForResource(appFromCall.ApplicationID, "Application")
 			Expect(err).To(BeNil())
 			Expect(len(applicationOperations)).To(Equal(2),
 				"a second Operation should have been created, since the Application should have changed")
@@ -2200,7 +2200,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 			Expect(originalAppFromCall).ToNot(BeNil())
 			Expect(engineInstanceFromCall).ToNot(BeNil())
 			Expect(userDevErr).To(BeNil())
-			applicationOperations, err := listOperationRowsForResource(originalAppFromCall.Application_id, "Application")
+			applicationOperations, err := listOperationRowsForResource(originalAppFromCall.ApplicationID, "Application")
 			Expect(err).To(BeNil())
 			Expect(len(applicationOperations)).To(Equal(1))
 
@@ -2248,7 +2248,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 			canShutdown, appFromCall, engineInstanceFromCall, _, userDevErr := appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(canShutdown).To(BeFalse())
 			Expect(appFromCall).ToNot(BeNil())
-			Expect(appFromCall.Application_id).To(Equal(originalAppFromCall.Application_id))
+			Expect(appFromCall.ApplicationID).To(Equal(originalAppFromCall.ApplicationID))
 			Expect(engineInstanceFromCall).ToNot(BeNil())
 			Expect(userDevErr).To(BeNil())
 			Expect(appFromCall.Managed_environment_id).ToNot(Equal(originalAppFromCall.Managed_environment_id))
@@ -2262,10 +2262,10 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 			Expect(err).To(BeNil())
 			Expect(managedEnvRow2.Managedenvironment_id).To(Equal(managedEnvRowFromAPICRToDBMapping2),
 				"the managed env from the GitOpsDeployment CR should match the one from the new ManagedEnvironment CR")
-			Expect(application.Application_id).To(Equal(appFromCall.Application_id),
+			Expect(application.ApplicationID).To(Equal(appFromCall.ApplicationID),
 				"the application object returned from the function call should match the GitOpsDeployment CR we created")
 
-			applicationOperations, err = listOperationRowsForResource(appFromCall.Application_id, "Application")
+			applicationOperations, err = listOperationRowsForResource(appFromCall.ApplicationID, "Application")
 			Expect(err).To(BeNil())
 			Expect(len(applicationOperations)).To(Equal(2),
 				"a new operation targetting the Application should have been created for the Application")
@@ -2328,7 +2328,7 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 			managedEnvironment := db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env",
 				Name:                  "my-managed-env",
-				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+				ClusterCredentialsID:  clusterCredentials.ClustercredentialsCredID,
 			}
 			err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironment)
 			Expect(err).To(BeNil())
@@ -2437,11 +2437,11 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 
 			By("creating an Application row that references the ManagedEnvironment row")
 			application := db.Application{
-				Application_id:          "test-my-application",
-				Name:                    "application",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: engineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          "test-my-application",
+				Name:                   "application",
+				SpecField:              "{}",
+				EngineInstanceInstID:   engineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 			err = dbQueries.CreateApplication(ctx, &application)
 			Expect(err).To(BeNil())
@@ -2452,7 +2452,7 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 				DeploymentName:                        gitopsDepl.Name,
 				DeploymentNamespace:                   gitopsDepl.Namespace,
 				NamespaceUID:                          string(namespace.UID),
-				Application_id:                        application.Application_id,
+				ApplicationID:                         application.ApplicationID,
 			}
 			err = dbQueries.CreateDeploymentToApplicationMapping(ctx, &dtam)
 			Expect(err).To(BeNil())

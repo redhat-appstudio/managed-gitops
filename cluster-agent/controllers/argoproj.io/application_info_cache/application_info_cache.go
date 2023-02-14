@@ -400,7 +400,7 @@ func processGetAppStateMessage(dbQueries db.DatabaseQueries, req applicationInfo
 
 func processGetAppMessage(dbQueries db.DatabaseQueries, req applicationInfoCacheRequest, cacheApp map[string]applicationCacheEntry, cacheAppState map[string]applicationStateCacheEntry, log logr.Logger) {
 	app := db.Application{
-		Application_id: req.primaryKey,
+		ApplicationID: req.primaryKey,
 	}
 
 	if db.IsEmpty(req.primaryKey) {
@@ -417,7 +417,7 @@ func processGetAppMessage(dbQueries db.DatabaseQueries, req applicationInfoCache
 	var err error
 	var valueFromCache bool
 
-	if res, exists := cacheApp[app.Application_id]; !exists {
+	if res, exists := cacheApp[app.ApplicationID]; !exists {
 		// If it's not in the cache, then get it from the database
 
 		// Update valueFromCache to false, since data is retrieved from db
@@ -425,21 +425,21 @@ func processGetAppMessage(dbQueries db.DatabaseQueries, req applicationInfoCache
 
 		if err = dbQueries.GetApplicationById(req.ctx, &app); err != nil {
 			// Error occurred: invalidate the cache and return the error
-			delete(cacheApp, app.Application_id)
-			delete(cacheAppState, app.Application_id)
+			delete(cacheApp, app.ApplicationID)
+			delete(cacheAppState, app.ApplicationID)
 
 			app = db.Application{}
 
 		} else {
 			// No error, so update the cache with the result from the database
 
-			if app.Application_id != "" {
+			if app.ApplicationID != "" {
 				newCacheEntry := applicationCacheEntry{
 					app:             app,
 					cacheExpireTime: time.Now().Add(1 * time.Minute),
 				}
 
-				cacheApp[app.Application_id] = newCacheEntry
+				cacheApp[app.ApplicationID] = newCacheEntry
 			}
 		}
 

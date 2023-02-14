@@ -235,7 +235,7 @@ func createPrimaryGitOpsEngineInstance(k8sclient client.Client, log logr.Logger)
 	}
 
 	// Create the fake cluster user if they don't exist
-	clusterUser := db.ClusterUser{User_name: "gitops-service-user"}
+	clusterUser := db.ClusterUser{UserName: "gitops-service-user"}
 	if err := dbQueries.GetClusterUserByUsername(ctx, &clusterUser); err != nil {
 		if db.IsResultNotFoundError(err) {
 			if err = dbQueries.CreateClusterUser(ctx, &clusterUser); err != nil {
@@ -278,9 +278,9 @@ func createPrimaryGitOpsEngineInstance(k8sclient client.Client, log logr.Logger)
 	}
 
 	clusterAccess := &db.ClusterAccess{
-		Clusteraccess_user_id:                   clusterUser.Clusteruser_id,
-		Clusteraccess_managed_environment_id:    managedEnv.Managedenvironment_id,
-		Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
+		ClusterAccessUserID:                 clusterUser.ClusterUserID,
+		ClusterAccessManagedEnvironmentID:   managedEnv.Managedenvironment_id,
+		ClusterAccessGitopsEngineInstanceID: gitopsEngineInstance.Gitopsengineinstance_id,
 	}
 
 	if err := dbQueries.CreateClusterAccess(ctx, clusterAccess); err != nil {

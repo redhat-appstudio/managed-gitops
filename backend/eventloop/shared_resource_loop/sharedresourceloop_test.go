@@ -28,7 +28,7 @@ type testResources struct {
 	Managedenvironment_id   string
 	Gitopsengineinstance_id string
 	EngineCluster_id        string
-	Clustercredentials_id   []string
+	ClusterCredentialsID    []string
 }
 
 var _ = Describe("SharedResourceEventLoop Test", func() {
@@ -83,9 +83,9 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				// Delete clusterAccess
 				if resourcesToBeDeleted.clusterAccess != nil {
 					rowsAffected, err := dbq.DeleteClusterAccessById(ctx,
-						resourcesToBeDeleted.clusterAccess.Clusteraccess_user_id,
-						resourcesToBeDeleted.clusterAccess.Clusteraccess_managed_environment_id,
-						resourcesToBeDeleted.clusterAccess.Clusteraccess_gitops_engine_instance_id)
+						resourcesToBeDeleted.clusterAccess.ClusterAccessUserID,
+						resourcesToBeDeleted.clusterAccess.ClusterAccessManagedEnvironmentID,
+						resourcesToBeDeleted.clusterAccess.ClusterAccessGitopsEngineInstanceID)
 
 					Expect(rowsAffected).To(Equal(1))
 					Expect(err).To(BeNil())
@@ -120,8 +120,8 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				}
 
 				// Delete clusterCredentials
-				if len(resourcesToBeDeleted.Clustercredentials_id) != 0 {
-					for _, clustercredentials_id := range resourcesToBeDeleted.Clustercredentials_id {
+				if len(resourcesToBeDeleted.ClusterCredentialsID) != 0 {
+					for _, clustercredentials_id := range resourcesToBeDeleted.ClusterCredentialsID {
 						rowsAffected, err := dbq.DeleteClusterCredentialsById(ctx, clustercredentials_id)
 						Expect(rowsAffected).To(Equal(1))
 						Expect(err).To(BeNil())
@@ -157,7 +157,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(usrOld).To(Equal(usrNew))
 
 			// To be used by AfterEach to clean up the resources created by test
-			resourcesToBeDeleted = testResources{Clusteruser_id: usrNew.Clusteruser_id}
+			resourcesToBeDeleted = testResources{Clusteruser_id: usrNew.ClusterUserID}
 		})
 
 		It("Should create or fetch resources.", func() {
@@ -196,22 +196,22 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(sharedResourceNew.IsNewClusterAccess).To(BeFalse())
 
 			Expect(sharedResourceOld.ClusterUser).To(Equal(sharedResourceNew.ClusterUser))
-			Expect(sharedResourceOld.ManagedEnv.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
-			sharedResourceOld.ManagedEnv.Created_on = sharedResourceNew.ManagedEnv.Created_on
+			Expect(sharedResourceOld.ManagedEnv.CreatedOn.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
+			sharedResourceOld.ManagedEnv.CreatedOn = sharedResourceNew.ManagedEnv.CreatedOn
 			Expect(sharedResourceOld.ManagedEnv).To(Equal(sharedResourceNew.ManagedEnv))
 			Expect(sharedResourceOld.GitopsEngineInstance).To(Equal(sharedResourceNew.GitopsEngineInstance))
 			Expect(sharedResourceOld.ClusterAccess).To(Equal(sharedResourceNew.ClusterAccess))
 
 			// To be used by AfterEach to clean up the resources created by test
 			resourcesToBeDeleted = testResources{
-				Clusteruser_id:          sharedResourceOld.ClusterUser.Clusteruser_id,
+				Clusteruser_id:          sharedResourceOld.ClusterUser.ClusterUserID,
 				Managedenvironment_id:   sharedResourceOld.ManagedEnv.Managedenvironment_id,
 				Gitopsengineinstance_id: sharedResourceOld.GitopsEngineInstance.Gitopsengineinstance_id,
 				clusterAccess:           sharedResourceOld.ClusterAccess,
-				EngineCluster_id:        sharedResourceOld.GitopsEngineInstance.EngineCluster_id,
-				Clustercredentials_id: []string{
-					sharedResourceOld.GitopsEngineCluster.Clustercredentials_id,
-					sharedResourceOld.ManagedEnv.Clustercredentials_id,
+				EngineCluster_id:        sharedResourceOld.GitopsEngineInstance.EngineClusterID,
+				ClusterCredentialsID: []string{
+					sharedResourceOld.GitopsEngineCluster.ClusterCredentialsID,
+					sharedResourceOld.ManagedEnv.ClusterCredentialsID,
 				},
 			}
 		})
@@ -224,7 +224,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			// Negative test, engineInstance is not present, it should return error
 			engineInstanceOld, err := sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, "", k8sClient, *namespace, l)
 			Expect(err).NotTo(BeNil())
-			Expect(engineInstanceOld.EngineCluster_id).To(BeEmpty())
+			Expect(engineInstanceOld.EngineClusterID).To(BeEmpty())
 
 			// Create new engine instance which will be used by "GetGitopsEngineInstanceById" fucntion
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
@@ -233,19 +233,19 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			defer dbq.CloseDatabase()
 
 			clusterCredentials := db.ClusterCredentials{
-				Clustercredentials_cred_id: string(uuid.NewUUID()),
+				ClustercredentialsCredID: string(uuid.NewUUID()),
 			}
 
 			gitopsEngineCluster := db.GitopsEngineCluster{
-				Gitopsenginecluster_id: string(uuid.NewUUID()),
-				Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+				PrimaryKeyID:         string(uuid.NewUUID()),
+				ClusterCredentialsID: clusterCredentials.ClustercredentialsCredID,
 			}
 
 			gitopsEngineInstance := db.GitopsEngineInstance{
 				Gitopsengineinstance_id: string(uuid.NewUUID()),
-				Namespace_name:          namespace.Name,
-				Namespace_uid:           string(namespace.UID),
-				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+				NamespaceName:           namespace.Name,
+				NamespaceUID:            string(namespace.UID),
+				EngineClusterID:         gitopsEngineCluster.PrimaryKeyID,
 			}
 
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
@@ -262,14 +262,14 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				gitopsEngineInstance.Gitopsengineinstance_id, k8sClient, *namespace, l)
 
 			Expect(err).To(BeNil())
-			Expect(engineInstanceNew.EngineCluster_id).NotTo(BeNil())
+			Expect(engineInstanceNew.EngineClusterID).NotTo(BeNil())
 
 			// To be used by AfterEach to clean up the resources created by test
 			resourcesToBeDeleted = testResources{
 				Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				EngineCluster_id:        gitopsEngineInstance.EngineCluster_id,
-				Clustercredentials_id: []string{
-					clusterCredentials.Clustercredentials_cred_id,
+				EngineCluster_id:        gitopsEngineInstance.EngineClusterID,
+				ClusterCredentialsID: []string{
+					clusterCredentials.ClustercredentialsCredID,
 				},
 			}
 		})
@@ -286,19 +286,19 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			defer dbq.CloseDatabase()
 
 			clusterCredentials := db.ClusterCredentials{
-				Clustercredentials_cred_id: string(uuid.NewUUID()),
+				ClustercredentialsCredID: string(uuid.NewUUID()),
 			}
 
 			gitopsEngineCluster := db.GitopsEngineCluster{
-				Gitopsenginecluster_id: string(uuid.NewUUID()),
-				Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+				PrimaryKeyID:         string(uuid.NewUUID()),
+				ClusterCredentialsID: clusterCredentials.ClustercredentialsCredID,
 			}
 
 			gitopsEngineInstance := db.GitopsEngineInstance{
 				Gitopsengineinstance_id: string(uuid.NewUUID()),
-				Namespace_name:          namespace.Name,
-				Namespace_uid:           string(namespace.UID),
-				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+				NamespaceName:           namespace.Name,
+				NamespaceUID:            string(namespace.UID),
+				EngineClusterID:         gitopsEngineCluster.PrimaryKeyID,
 			}
 
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
@@ -315,7 +315,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				gitopsEngineInstance.Gitopsengineinstance_id, k8sClient, *namespace, l)
 
 			Expect(err).To(BeNil())
-			Expect(engineInstanceNew.EngineCluster_id).NotTo(BeNil())
+			Expect(engineInstanceNew.EngineClusterID).NotTo(BeNil())
 
 			// At first assuming there are no existing users, hence creating new.
 			usrOld,
@@ -339,10 +339,10 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			// To be used by AfterEach to clean up the resources created by test
 			resourcesToBeDeleted = testResources{
 				Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				EngineCluster_id:        gitopsEngineInstance.EngineCluster_id,
+				EngineCluster_id:        gitopsEngineInstance.EngineClusterID,
 				// Clusteruser_id:          usrNew.Clusteruser_id,
-				Clustercredentials_id: []string{
-					clusterCredentials.Clustercredentials_cred_id,
+				ClusterCredentialsID: []string{
+					clusterCredentials.ClustercredentialsCredID,
 				},
 			}
 
@@ -350,7 +350,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			cr := &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-gitopsdeploymenrepositorycredential",
-					Namespace: gitopsEngineInstance.Namespace_name,
+					Namespace: gitopsEngineInstance.NamespaceName,
 					UID:       uuid.NewUUID(),
 				},
 				Spec: managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialSpec{
@@ -367,8 +367,8 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(err).To(BeNil())
 
 			var repositoryCredentialCRNamespace v1.Namespace
-			repositoryCredentialCRNamespace.Name = gitopsEngineInstance.Namespace_name
-			repositoryCredentialCRNamespace.UID = types.UID(gitopsEngineInstance.Namespace_uid)
+			repositoryCredentialCRNamespace.Name = gitopsEngineInstance.NamespaceName
+			repositoryCredentialCRNamespace.UID = types.UID(gitopsEngineInstance.NamespaceUID)
 
 			var k8sClientFactory SRLK8sClientFactory
 
@@ -382,7 +382,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			secret := &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-secret",
-					Namespace: gitopsEngineInstance.Namespace_name,
+					Namespace: gitopsEngineInstance.NamespaceName,
 				},
 				Data: map[string][]byte{
 					"username": []byte("test-username"),
@@ -407,7 +407,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(err).To(BeNil())
 
 			primaryKey := dbRepoCred.RepositoryCredentialsID
-			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, primaryKey, db.OperationResourceType_RepositoryCredentials, &operations, usrNew.Clusteruser_id)
+			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, primaryKey, db.OperationResourceType_RepositoryCredentials, &operations, usrNew.ClusterUserID)
 			Expect(err).To(BeNil())
 
 			// Verify the Operation CR and DB Entry are the same
@@ -423,11 +423,11 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			// Fetch the RepositoryCredential DB row using information provided by the Operation
 			// this is how the cluster-agent will find the RepositoryCredential DB row
 			// and verify that this db row is the same with the output of the internalProcessMessage_ReconcileRepositoryCredential()
-			fmt.Println("Get the RepositoryCredential DB row using the operationDB.Resource_id", "operation Resource ID", operationDB.Resource_id)
-			fetch, err := dbq.GetRepositoryCredentialsByID(ctx, operationDB.Resource_id)
+			fmt.Println("Get the RepositoryCredential DB row using the operationDB.Resource_id", "operation Resource ID", operationDB.ResourceID)
+			fetch, err := dbq.GetRepositoryCredentialsByID(ctx, operationDB.ResourceID)
 			Expect(err).To(BeNil())
-			Expect(fetch.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
-			fetch.Created_on = dbRepoCred.Created_on
+			Expect(fetch.CreatedOn.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
+			fetch.CreatedOn = dbRepoCred.CreatedOn
 			Expect(fetch).Should(Equal(*dbRepoCred))
 
 			// Delete the Operation using the CleanRepoCredOperation function
@@ -451,7 +451,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(err).To(BeNil())
 
 			operations = []db.Operation{}
-			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, primaryKey, db.OperationResourceType_RepositoryCredentials, &operations, usrNew.Clusteruser_id)
+			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, primaryKey, db.OperationResourceType_RepositoryCredentials, &operations, usrNew.ClusterUserID)
 			Expect(err).To(BeNil())
 
 			// There should be no Operation DB entry
@@ -468,7 +468,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			// Check if there are any new operations, if they are deleted (previously) there should be none
 			primaryKey = dbRepoCred.RepositoryCredentialsID
-			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, primaryKey, db.OperationResourceType_RepositoryCredentials, &operations, usrNew.Clusteruser_id)
+			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, primaryKey, db.OperationResourceType_RepositoryCredentials, &operations, usrNew.ClusterUserID)
 			Expect(err).To(BeNil())
 			Expect(len(operations)).To(Equal(0))
 			Expect(len(operationList.Items)).To(Equal(0))
@@ -496,7 +496,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			operationDB.Operation_id = operationList.Items[0].Spec.OperationID
 			err = dbq.GetOperationById(ctx, &operationDB)
 			Expect(err).To(BeNil())
-			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, primaryKey, db.OperationResourceType_RepositoryCredentials, &operations, usrNew.Clusteruser_id)
+			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, primaryKey, db.OperationResourceType_RepositoryCredentials, &operations, usrNew.ClusterUserID)
 			Expect(err).To(BeNil())
 			operationDB = operations[0]
 			operationCR = operationList.Items[0]
@@ -528,7 +528,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(err).To(BeNil())
 
 			operations = []db.Operation{}
-			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, primaryKey, db.OperationResourceType_RepositoryCredentials, &operations, usrNew.Clusteruser_id)
+			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, primaryKey, db.OperationResourceType_RepositoryCredentials, &operations, usrNew.ClusterUserID)
 			Expect(err).To(BeNil())
 
 			// There should be no Operation DB entry

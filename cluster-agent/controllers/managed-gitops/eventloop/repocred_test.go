@@ -67,17 +67,17 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 
 		gitopsEngineInstance = &db.GitopsEngineInstance{
 			Gitopsengineinstance_id: "test-fake-engine-instance",
-			Namespace_name:          argocdNamespace.Name,
-			Namespace_uid:           string(argocdNamespace.UID),
-			EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+			NamespaceName:           argocdNamespace.Name,
+			NamespaceUID:            string(argocdNamespace.UID),
+			EngineClusterID:         gitopsEngineCluster.PrimaryKeyID,
 		}
 		err = dbq.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
 		Expect(err).To(BeNil())
 
 		By("Satisfying the foreign key constraint 'fk_clusteruser_id'")
 		clusterUser = &db.ClusterUser{
-			Clusteruser_id: "test-repocred-user-id",
-			User_name:      "test-repocred-user",
+			ClusterUserID: "test-repocred-user-id",
+			UserName:      "test-repocred-user",
 		}
 		err = dbq.CreateClusterUser(ctx, clusterUser)
 		Expect(err).To(BeNil())
@@ -122,27 +122,27 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 			var repositoryCredential db.RepositoryCredentials
 
 			BeforeEach(func() {
-				By(" --- creating an Operation DB row and CR with a valid Resource_id ---")
+				By(" --- creating an Operation DB row and CR with a valid ResourceID ---")
 				dbOperationInput := db.Operation{
-					Operation_id:            "test-operation",
-					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-					Resource_id:             "test-my-repo-creds", // this needs to be unique for this testcase!
-					Resource_type:           db.OperationResourceType_RepositoryCredentials,
-					State:                   db.OperationState_Waiting,
-					Operation_owner_user_id: clusterUser.Clusteruser_id,
+					Operation_id:         "test-operation",
+					InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+					ResourceID:           "test-my-repo-creds", // this needs to be unique for this testcase!
+					ResourceType:         db.OperationResourceType_RepositoryCredentials,
+					State:                db.OperationState_Waiting,
+					OperationOwnerUserID: clusterUser.ClusterUserID,
 				}
 
 				// Create an Operation DB Row and a corresponding Operation CR
-				operationCR, operationDB, err = operations.CreateOperation(ctx, false, dbOperationInput, clusterUser.Clusteruser_id, namespace, dbq, k8sClient, logger)
+				operationCR, operationDB, err = operations.CreateOperation(ctx, false, dbOperationInput, clusterUser.ClusterUserID, namespace, dbq, k8sClient, logger)
 				Expect(err).To(BeNil())
 				task.event.request.Name = operationCR.Name // Correct the task's Operation CR name request
 				logger.Info("operationCR", "operationCR", operationCR)
 				logger.Info("operationDB", "operationDB", operationDB)
 
-				By(" --- creating a RepositoryCredentials DB row with Resource_id as its PrimaryKey ---")
+				By(" --- creating a RepositoryCredentials DB row with ResourceID as its PrimaryKey ---")
 				repositoryCredential = db.RepositoryCredentials{
-					RepositoryCredentialsID: operationDB.Resource_id,
-					UserID:                  clusterUser.Clusteruser_id, // comply with the constraint 'fk_clusteruser_id'
+					RepositoryCredentialsID: operationDB.ResourceID,
+					UserID:                  clusterUser.ClusterUserID, // comply with the constraint 'fk_clusteruser_id'
 					PrivateURL:              "test-fake-private-url",
 					AuthUsername:            "test-fake-auth-username",
 					AuthPassword:            "test-fake-auth-password",
@@ -156,10 +156,10 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 				Expect(err).To(BeNil())
 
 				By(" --- getting the RepositoryCredentials object from the database ---")
-				fetch, err := dbq.GetRepositoryCredentialsByID(ctx, operationDB.Resource_id)
+				fetch, err := dbq.GetRepositoryCredentialsByID(ctx, operationDB.ResourceID)
 				Expect(err).To(BeNil())
-				Expect(fetch.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
-				fetch.Created_on = repositoryCredential.Created_on
+				Expect(fetch.CreatedOn.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
+				fetch.CreatedOn = repositoryCredential.CreatedOn
 				Expect(fetch).Should(Equal(repositoryCredential))
 			})
 
@@ -229,24 +229,24 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 				err = task.event.client.Create(ctx, secret)
 				Expect(err).To(BeNil())
 
-				By(" --- creating an Operation DB row and CR with a valid Resource_id ---")
+				By(" --- creating an Operation DB row and CR with a valid ResourceID ---")
 				dbOperationInput := db.Operation{
-					Operation_id:            "test-operation-2",
-					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-					Resource_id:             "test-my-repo-creds-2", // this needs to be unique for this testcase!
-					Resource_type:           db.OperationResourceType_RepositoryCredentials,
-					State:                   db.OperationState_Waiting,
-					Operation_owner_user_id: clusterUser.Clusteruser_id,
+					Operation_id:         "test-operation-2",
+					InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+					ResourceID:           "test-my-repo-creds-2", // this needs to be unique for this testcase!
+					ResourceType:         db.OperationResourceType_RepositoryCredentials,
+					State:                db.OperationState_Waiting,
+					OperationOwnerUserID: clusterUser.ClusterUserID,
 				}
 
-				operationCR, operationDB, err = operations.CreateOperation(ctx, false, dbOperationInput, clusterUser.Clusteruser_id, namespace, dbq, k8sClient, logger)
+				operationCR, operationDB, err = operations.CreateOperation(ctx, false, dbOperationInput, clusterUser.ClusterUserID, namespace, dbq, k8sClient, logger)
 				Expect(err).To(BeNil())
 				task.event.request.Name = operationCR.Name // Correct the task's Operation CR name request
 
-				By(" --- creating a RepositoryCredentials DB row with Resource_id as its PrimaryKey ---")
+				By(" --- creating a RepositoryCredentials DB row with ResourceID as its PrimaryKey ---")
 				repositoryCredential = db.RepositoryCredentials{
-					RepositoryCredentialsID: operationDB.Resource_id,
-					UserID:                  clusterUser.Clusteruser_id, // comply with the constraint 'fk_clusteruser_id'
+					RepositoryCredentialsID: operationDB.ResourceID,
+					UserID:                  clusterUser.ClusterUserID, // comply with the constraint 'fk_clusteruser_id'
 					PrivateURL:              "test-fake-correct-url",
 					AuthUsername:            "test-fake-correct-auth-username",
 					AuthPassword:            "test-fake-correct-auth-password",
@@ -260,10 +260,10 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 				Expect(err).To(BeNil())
 
 				By(" --- getting the RepositoryCredentials object from the database ---")
-				fetch, err := dbq.GetRepositoryCredentialsByID(ctx, operationDB.Resource_id)
+				fetch, err := dbq.GetRepositoryCredentialsByID(ctx, operationDB.ResourceID)
 				Expect(err).To(BeNil())
-				Expect(fetch.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
-				fetch.Created_on = repositoryCredential.Created_on
+				Expect(fetch.CreatedOn.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
+				fetch.CreatedOn = repositoryCredential.CreatedOn
 				Expect(fetch).Should(Equal(repositoryCredential))
 			})
 
@@ -339,17 +339,17 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 				err = task.event.client.Create(ctx, secret)
 				Expect(err).To(BeNil())
 
-				By(" --- creating an Operation DB row and CR with a valid Resource_id ---")
+				By(" --- creating an Operation DB row and CR with a valid ResourceID ---")
 				dbOperationInput := db.Operation{
-					Operation_id:            "test-operation-3",
-					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-					Resource_id:             "test-my-repo-creds-3", // this needs to be unique for this testcase!
-					Resource_type:           db.OperationResourceType_RepositoryCredentials,
-					State:                   db.OperationState_Waiting,
-					Operation_owner_user_id: clusterUser.Clusteruser_id,
+					Operation_id:         "test-operation-3",
+					InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+					ResourceID:           "test-my-repo-creds-3", // this needs to be unique for this testcase!
+					ResourceType:         db.OperationResourceType_RepositoryCredentials,
+					State:                db.OperationState_Waiting,
+					OperationOwnerUserID: clusterUser.ClusterUserID,
 				}
 
-				operationCR, operationDB, err = operations.CreateOperation(ctx, false, dbOperationInput, clusterUser.Clusteruser_id, namespace, dbq, k8sClient, logger)
+				operationCR, operationDB, err = operations.CreateOperation(ctx, false, dbOperationInput, clusterUser.ClusterUserID, namespace, dbq, k8sClient, logger)
 				Expect(err).To(BeNil())
 				task.event.request.Name = operationCR.Name // Correct the task's Operation CR name request
 			})
@@ -435,17 +435,17 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 				err = task.event.client.Create(ctx, secret2)
 				Expect(err).To(BeNil())
 
-				By(" --- creating an Operation DB row and CR with a valid Resource_id ---")
+				By(" --- creating an Operation DB row and CR with a valid ResourceID ---")
 				dbOperationInput := db.Operation{
-					Operation_id:            "test-operation-4",
-					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-					Resource_id:             "test-my-repo-creds-4", // this needs to be unique for this testcase!
-					Resource_type:           db.OperationResourceType_RepositoryCredentials,
-					State:                   db.OperationState_Waiting,
-					Operation_owner_user_id: clusterUser.Clusteruser_id,
+					Operation_id:         "test-operation-4",
+					InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+					ResourceID:           "test-my-repo-creds-4", // this needs to be unique for this testcase!
+					ResourceType:         db.OperationResourceType_RepositoryCredentials,
+					State:                db.OperationState_Waiting,
+					OperationOwnerUserID: clusterUser.ClusterUserID,
 				}
 
-				operationCR, operationDB, err = operations.CreateOperation(ctx, false, dbOperationInput, clusterUser.Clusteruser_id, namespace, dbq, k8sClient, logger)
+				operationCR, operationDB, err = operations.CreateOperation(ctx, false, dbOperationInput, clusterUser.ClusterUserID, namespace, dbq, k8sClient, logger)
 				Expect(err).To(BeNil())
 				task.event.request.Name = operationCR.Name // Correct the task's Operation CR name request
 			})
@@ -481,17 +481,17 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 
 			BeforeEach(func() {
 
-				By(" --- creating an Operation DB row and a CR with a valid Resource_id ---")
+				By(" --- creating an Operation DB row and a CR with a valid ResourceID ---")
 				dbOperationInput := db.Operation{
-					Operation_id:            "test-operation-5",
-					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-					Resource_id:             "test-my-repo-creds-5", // this needs to be unique for this testcase!
-					Resource_type:           db.OperationResourceType_RepositoryCredentials,
-					State:                   db.OperationState_Waiting,
-					Operation_owner_user_id: clusterUser.Clusteruser_id,
+					Operation_id:         "test-operation-5",
+					InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+					ResourceID:           "test-my-repo-creds-5", // this needs to be unique for this testcase!
+					ResourceType:         db.OperationResourceType_RepositoryCredentials,
+					State:                db.OperationState_Waiting,
+					OperationOwnerUserID: clusterUser.ClusterUserID,
 				}
 
-				operationCR, operationDB, err = operations.CreateOperation(ctx, false, dbOperationInput, clusterUser.Clusteruser_id, namespace, dbq, k8sClient, logger)
+				operationCR, operationDB, err = operations.CreateOperation(ctx, false, dbOperationInput, clusterUser.ClusterUserID, namespace, dbq, k8sClient, logger)
 				Expect(err).To(BeNil())
 				task.event.request.Name = operationCR.Name // Correct the task's Operation CR name request
 			})

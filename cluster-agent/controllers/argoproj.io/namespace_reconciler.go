@@ -116,11 +116,11 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 		for _, applicationRowFromDB := range listOfApplicationsFromDB {
 			var applicationFromDB fauxargocd.FauxApplication
 
-			processedApplicationIds[applicationRowFromDB.Application_id] = false
+			processedApplicationIds[applicationRowFromDB.ApplicationID] = false
 
 			// Fetch the Application object from DB
-			if err := yaml.Unmarshal([]byte(applicationRowFromDB.Spec_field), &applicationFromDB); err != nil {
-				log.Error(err, "Error occurred in Namespace Reconciler while unmarshalling application: "+applicationRowFromDB.Application_id)
+			if err := yaml.Unmarshal([]byte(applicationRowFromDB.SpecField), &applicationFromDB); err != nil {
+				log.Error(err, "Error occurred in Namespace Reconciler while unmarshalling application: "+applicationRowFromDB.ApplicationID)
 				continue // Skip to next iteration instead of stopping the entire loop.
 			}
 
@@ -141,24 +141,24 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 						continue
 					}
 
-					log.Info("Application " + applicationRowFromDB.Application_id + " not found in ArgoCD, probably user deleted it, " +
+					log.Info("Application " + applicationRowFromDB.ApplicationID + " not found in ArgoCD, probably user deleted it, " +
 						"but it still exists in DB, hence recreating application in ArgoCD.")
 
 					// We need to recreate ArgoCD Application, to do that create Operation to inform ArgoCD about it.
 					dbOperationInput := db.Operation{
-						Instance_id:   applicationRowFromDB.Engine_instance_inst_id,
-						Resource_id:   applicationRowFromDB.Application_id,
-						Resource_type: db.OperationResourceType_Application,
+						InstanceID:   applicationRowFromDB.EngineInstanceInstID,
+						ResourceID:   applicationRowFromDB.ApplicationID,
+						ResourceType: db.OperationResourceType_Application,
 					}
 
 					_, _, err = operations.CreateOperation(ctx, false, dbOperationInput,
-						specialClusterUser.Clusteruser_id, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, client, log)
+						specialClusterUser.ClusterUserID, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, client, log)
 					if err != nil {
 						log.Error(err, "Namespace Reconciler is unable to create operation: "+dbOperationInput.ShortString())
 					}
-					log.Info("Operation is created to recreateArgoCD  Application " + applicationRowFromDB.Application_id)
+					log.Info("Operation is created to recreateArgoCD  Application " + applicationRowFromDB.ApplicationID)
 				} else {
-					log.Error(err, "Error occurred in Namespace Reconciler while fetching application from cluster: "+applicationRowFromDB.Application_id)
+					log.Error(err, "Error occurred in Namespace Reconciler while fetching application from cluster: "+applicationRowFromDB.ApplicationID)
 				}
 				continue
 			}
@@ -172,9 +172,9 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 					log.Error(err, "unable to compare application contents")
 					continue
 				} else if compare != "" {
-					log.Info("Argo application is not in Sync with DB, updating Argo CD App. Application:" + applicationRowFromDB.Application_id)
+					log.Info("Argo application is not in Sync with DB, updating Argo CD App. Application:" + applicationRowFromDB.ApplicationID)
 				} else {
-					log.V(sharedutil.LogLevel_Debug).Info("Argo application is in Sync with DB, Application:" + applicationRowFromDB.Application_id)
+					log.V(sharedutil.LogLevel_Debug).Info("Argo application is in Sync with DB, Application:" + applicationRowFromDB.ApplicationID)
 					continue
 				}
 			}
@@ -188,18 +188,18 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 			// ArgoCD should use the state of resources present in the database should
 			// Create Operation to inform Argo CD to get in Sync with database entry.
 			dbOperationInput := db.Operation{
-				Instance_id:   applicationRowFromDB.Engine_instance_inst_id,
-				Resource_id:   applicationRowFromDB.Application_id,
-				Resource_type: db.OperationResourceType_Application,
+				InstanceID:   applicationRowFromDB.EngineInstanceInstID,
+				ResourceID:   applicationRowFromDB.ApplicationID,
+				ResourceType: db.OperationResourceType_Application,
 			}
 
 			if _, _, err := operations.CreateOperation(ctx, false, dbOperationInput,
-				specialClusterUser.Clusteruser_id, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, client, log); err != nil {
+				specialClusterUser.ClusterUserID, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, client, log); err != nil {
 				log.Error(err, "Namespace Reconciler is unable to create operation: "+dbOperationInput.ShortString())
 				continue
 			}
 
-			log.Info("Namespace Reconcile processed application: " + applicationRowFromDB.Application_id)
+			log.Info("Namespace Reconcile processed application: " + applicationRowFromDB.ApplicationID)
 		}
 
 		// Skip processed entries in next iteration
@@ -252,17 +252,17 @@ func runSecretCleanup(ctx context.Context, dbQueries db.DatabaseQueries, k8sClie
 		instance := gitopsEngineInstance[instanceIndex] // To avoid "Implicit memory aliasing in for loop." error.
 
 		// Sanity check: have we processed this Namespace already
-		if _, exists := namespacesProcessed[instance.Namespace_uid]; exists {
+		if _, exists := namespacesProcessed[instance.NamespaceUID]; exists {
 			// Log it an skip. There really should never be any GitOpsEngineInstances with matching namespace UID
-			log.V(sharedutil.LogLevel_Warn).Error(nil, "there appears to exist multiple GitOpsEngineInstances targeting the same namespace", "namespaceUID", instance.Namespace_uid)
+			log.V(sharedutil.LogLevel_Warn).Error(nil, "there appears to exist multiple GitOpsEngineInstances targeting the same namespace", "namespaceUID", instance.NamespaceUID)
 			continue
 		}
-		namespacesProcessed[instance.Namespace_uid] = nil
+		namespacesProcessed[instance.NamespaceUID] = nil
 
 		// Get list of Secrets in the given namespace
 		secretList := corev1.SecretList{}
-		if err := k8sClient.List(context.Background(), &secretList, &client.ListOptions{Namespace: instance.Namespace_name}); err != nil {
-			log.Error(err, "Error occurred in Secret Clean-up while fetching list of Secrets from Namespace : "+instance.Namespace_name)
+		if err := k8sClient.List(context.Background(), &secretList, &client.ListOptions{Namespace: instance.NamespaceName}); err != nil {
+			log.Error(err, "Error occurred in Secret Clean-up while fetching list of Secrets from Namespace : "+instance.NamespaceName)
 			return
 		}
 

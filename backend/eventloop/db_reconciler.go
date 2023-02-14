@@ -207,11 +207,11 @@ func cleanDeplToAppMappingFromDb(ctx context.Context, deplToAppMapping *db.Deplo
 
 	// If the gitopsdepl CR doesn't exist, but database row does, then the CR has been deleted, so handle it.
 	dbApplication := db.Application{
-		Application_id: deplToAppMapping.Application_id,
+		ApplicationID: deplToAppMapping.ApplicationID,
 	}
 
 	if err := dbQueries.GetApplicationById(ctx, &dbApplication); err != nil {
-		logger.Error(err, "unable to get application by id", "id", deplToAppMapping.Application_id)
+		logger.Error(err, "unable to get application by id", "id", deplToAppMapping.ApplicationID)
 
 		if db.IsResultNotFoundError(err) {
 			dbApplicationFound = false
@@ -221,18 +221,18 @@ func cleanDeplToAppMappingFromDb(ctx context.Context, deplToAppMapping *db.Deplo
 		}
 	}
 
-	log := logger.WithValues("applicationID", deplToAppMapping.Application_id)
+	log := logger.WithValues("applicationID", deplToAppMapping.ApplicationID)
 
 	// 1) Remove the ApplicationState from the database
-	if err := cleanRowFromDB(ctx, dbQueries, deplToAppMapping.Application_id, dbType_ApplicationState, log, deplToAppMapping); err != nil {
+	if err := cleanRowFromDB(ctx, dbQueries, deplToAppMapping.ApplicationID, dbType_ApplicationState, log, deplToAppMapping); err != nil {
 		return err
 	}
 
 	// 2) Set the application field of SyncOperations to nil, for all SyncOperations that point to this Application
 	// - this ensures that the foreign key constraint of SyncOperation doesn't prevent us from deletion the Application
-	rowsUpdated, err := dbQueries.UpdateSyncOperationRemoveApplicationField(ctx, deplToAppMapping.Application_id)
+	rowsUpdated, err := dbQueries.UpdateSyncOperationRemoveApplicationField(ctx, deplToAppMapping.ApplicationID)
 	if err != nil {
-		log.Error(err, "unable to update old sync operations", "applicationId", deplToAppMapping.Application_id)
+		log.Error(err, "unable to update old sync operations", "applicationId", deplToAppMapping.ApplicationID)
 		return err
 	} else if rowsUpdated == 0 {
 		log.Info("no SyncOperation rows updated, for updating old syncoperations on GitOpsDeployment deletion")
@@ -255,7 +255,7 @@ func cleanDeplToAppMappingFromDb(ctx context.Context, deplToAppMapping *db.Deplo
 
 	// 4) Remove the Application from the database
 	log.Info("GitOpsDeployment was deleted, so deleting Application row from database")
-	if err := cleanRowFromDB(ctx, dbQueries, deplToAppMapping.Application_id, dbType_Application, log, deplToAppMapping); err != nil {
+	if err := cleanRowFromDB(ctx, dbQueries, deplToAppMapping.ApplicationID, dbType_Application, log, deplToAppMapping); err != nil {
 		return err
 	}
 	return nil
@@ -348,15 +348,15 @@ func apiCRToDBMappingDBReconcile_GitOpsDeploymentSyncRun(ctx context.Context, cl
 	// Clean GitOpsDeploymentSyncRun table entry
 	var applicationDb db.Application
 
-	syncOperationDb := db.SyncOperation{SyncOperation_id: apiCrToDbMappingFromDB.DBRelationKey}
+	syncOperationDb := db.SyncOperation{SyncOperationID: apiCrToDbMappingFromDB.DBRelationKey}
 	if err := dbQueries.GetSyncOperationById(ctx, &syncOperationDb); err != nil {
 		log.Error(err, "Error occurred in apiCrToDbMappingDbReconcile_GitOpsDeploymentSyncRun while fetching SyncOperation by Id : "+apiCrToDbMappingFromDB.DBRelationKey+" from DB.")
 		return
 	}
 
-	applicationDb = db.Application{Application_id: syncOperationDb.Application_id}
+	applicationDb = db.Application{ApplicationID: syncOperationDb.ApplicationID}
 	if err := dbQueries.GetApplicationById(ctx, &applicationDb); err != nil {
-		log.Error(err, "Error occurred in apiCrToDbMappingDbReconcile_GitOpsDeploymentSyncRun while fetching Application by Id : "+syncOperationDb.Application_id+" from DB.")
+		log.Error(err, "Error occurred in apiCrToDbMappingDbReconcile_GitOpsDeploymentSyncRun while fetching Application by Id : "+syncOperationDb.ApplicationID+" from DB.")
 		return
 	}
 
@@ -366,7 +366,7 @@ func apiCRToDBMappingDBReconcile_GitOpsDeploymentSyncRun(ctx context.Context, cl
 	}
 
 	// Create k8s Operation to delete related CRs using Cluster Agent
-	createOperation(ctx, applicationDb.Engine_instance_inst_id, applicationDb.Application_id, syncRunK8s.Namespace, db.OperationResourceType_SyncOperation, dbQueries, client, log)
+	createOperation(ctx, applicationDb.EngineInstanceInstID, applicationDb.ApplicationID, syncRunK8s.Namespace, db.OperationResourceType_SyncOperation, dbQueries, client, log)
 
 }
 
@@ -448,9 +448,9 @@ func cleanRowFromDB(ctx context.Context, dbQueries db.DatabaseQueries, id string
 func createOperation(ctx context.Context, gitopsengineinstanceId, resourceId, namespace string, resourceType db.OperationResourceType, dbQueries db.DatabaseQueries, k8sClient client.Client, log logr.Logger) {
 
 	operationDb := db.Operation{
-		Instance_id:   gitopsengineinstanceId,
-		Resource_id:   resourceId,
-		Resource_type: resourceType,
+		InstanceID:   gitopsengineinstanceId,
+		ResourceID:   resourceId,
+		ResourceType: resourceType,
 	}
 
 	// Get Special user created for internal use,
@@ -464,7 +464,7 @@ func createOperation(ctx context.Context, gitopsengineinstanceId, resourceId, na
 
 	// Create k8s Operation to inform Cluster Agent to delete related k8s CRs
 	if _, _, err := operations.CreateOperation(ctx, false, operationDb,
-		specialClusterUser.Clusteruser_id, namespace, dbQueries, k8sClient, log); err != nil {
+		specialClusterUser.ClusterUserID, namespace, dbQueries, k8sClient, log); err != nil {
 		log.Error(err, "unable to create operation", "operation", operationDb.ShortString())
 	}
 }

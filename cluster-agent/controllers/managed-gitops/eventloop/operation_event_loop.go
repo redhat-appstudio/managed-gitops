@@ -114,7 +114,7 @@ func operationEventLoopRouter(input chan operationEventLoopEvent) {
 
 			// If multiple operations exist that target the same Application/SyncOperation, we should only process those
 			// operations one at a time (i.e. non-concurrently)
-			mapKey = dbOperation.Instance_id + "-" + string(dbOperation.Resource_type) + "-" + dbOperation.Resource_id
+			mapKey = dbOperation.InstanceID + "-" + string(dbOperation.ResourceType) + "-" + dbOperation.ResourceID
 
 			return nil
 		})
@@ -199,7 +199,7 @@ func getDBOperationForEvent(ctx context.Context, newEvent operationEventLoopEven
 		}
 
 		// Sanity test: all the fields should have non-empty values, at this step
-		if dbOperation.Instance_id == "" && dbOperation.Resource_id == "" && string(dbOperation.Resource_type) == "" {
+		if dbOperation.InstanceID == "" && dbOperation.ResourceID == "" && string(dbOperation.ResourceType) == "" {
 
 			log.Error(nil, "SEVERE: at least one of the expected operation's fields was empty, so could not process in cluster agent.")
 			return taskCompleteTrue, nil
@@ -260,11 +260,11 @@ func (task *processOperationEventTask) PerformTask(taskContext context.Context) 
 				dbOperation.State = db.OperationState_Failed
 			}
 		}
-		dbOperation.Last_state_update = time.Now()
+		dbOperation.LastStateUpdate = time.Now()
 
 		if err != nil {
 			// TODO: GITOPSRVCE-77 - SECURITY - At some point, we will likely want to sanitize the error value for users
-			dbOperation.Human_readable_state = db.TruncateVarchar(err.Error(), db.OperationHumanReadableStateLength)
+			dbOperation.HumanReadableState = db.TruncateVarchar(err.Error(), db.OperationHumanReadableStateLength)
 		}
 
 		// Update the Operation row of the database, based on the new state.
@@ -345,7 +345,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 	// 3) Find the Argo CD instance that is targeted by this operation.
 	dbGitopsEngineInstance := &db.GitopsEngineInstance{
-		Gitopsengineinstance_id: dbOperation.Instance_id,
+		Gitopsengineinstance_id: dbOperation.InstanceID,
 	}
 	if err := dbQueries.GetGitopsEngineInstanceById(taskContext, dbGitopsEngineInstance); err != nil {
 
@@ -375,7 +375,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	} else if thisCluster == nil {
 		log.Error(err, "GitOpsEngineCluster could not be found when processing Operation")
 		return &dbOperation, shouldRetryTrue, nil
-	} else if thisCluster.Gitopsenginecluster_id != dbGitopsEngineInstance.EngineCluster_id {
+	} else if thisCluster.PrimaryKeyID != dbGitopsEngineInstance.EngineClusterID {
 		log.Error(nil, "SEVERE: The gitops engine cluster that the cluster-agent is running on did not match the operation's target argo cd instance id.")
 		return &dbOperation, shouldRetryTrue, nil
 	}
@@ -383,7 +383,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	// 4) Find the namespace for the targeted Argo CD instance
 	argoCDNamespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: dbGitopsEngineInstance.Namespace_name,
+			Name: dbGitopsEngineInstance.NamespaceName,
 		},
 	}
 	if err := eventClient.Get(taskContext, client.ObjectKeyFromObject(argoCDNamespace), argoCDNamespace); err != nil {
@@ -397,7 +397,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 			return &dbOperation, shouldRetryTrue, err
 		}
 	}
-	if string(argoCDNamespace.UID) != dbGitopsEngineInstance.Namespace_uid {
+	if string(argoCDNamespace.UID) != dbGitopsEngineInstance.NamespaceUID {
 		log.Error(nil, "SEVERE: Engine instance did not match Argo CD namespace uid, while processing operation")
 		return &dbOperation, shouldRetryFalse, nil
 	}
@@ -413,7 +413,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 	// 5) Finally, call the corresponding method for processing the particular type of Operation.
 
-	if dbOperation.Resource_type == db.OperationResourceType_Application {
+	if dbOperation.ResourceType == db.OperationResourceType_Application {
 		shouldRetry, err := processOperation_Application(taskContext, dbOperation, *operationCR, operationConfigParams)
 		if err != nil {
 			log.Error(err, "error occurred on processing the application operation")
@@ -421,7 +421,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 		return &dbOperation, shouldRetry, err
 
-	} else if dbOperation.Resource_type == db.OperationResourceType_ManagedEnvironment {
+	} else if dbOperation.ResourceType == db.OperationResourceType_ManagedEnvironment {
 		shouldRetry, err := processOperation_ManagedEnvironment(taskContext, dbOperation, *operationCR, operationConfigParams)
 
 		if err != nil {
@@ -430,7 +430,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 		return &dbOperation, shouldRetry, err
 
-	} else if dbOperation.Resource_type == db.OperationResourceType_RepositoryCredentials {
+	} else if dbOperation.ResourceType == db.OperationResourceType_RepositoryCredentials {
 		shouldRetry, err := processOperation_RepositoryCredentials(taskContext, dbOperation, *operationCR, operationConfigParams)
 
 		if err != nil {
@@ -439,7 +439,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 		return &dbOperation, shouldRetry, err
 
-	} else if dbOperation.Resource_type == db.OperationResourceType_SyncOperation {
+	} else if dbOperation.ResourceType == db.OperationResourceType_SyncOperation {
 
 		// Process a SyncOperation event
 		shouldRetry, err := processOperation_SyncOperation(taskContext, dbOperation, *operationCR, operationConfigParams)
@@ -451,7 +451,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		return &dbOperation, shouldRetry, err
 
 	} else {
-		log.Error(nil, "SEVERE: unrecognized resource type: "+string(dbOperation.Resource_type))
+		log.Error(nil, "SEVERE: unrecognized resource type: "+string(dbOperation.ResourceType))
 		return &dbOperation, shouldRetryFalse, nil
 	}
 
@@ -490,35 +490,35 @@ func processOperation_SyncOperation(ctx context.Context, dbOperation db.Operatio
 	dbQueries := opConfig.dbQueries
 
 	// Sanity checks
-	if dbOperation.Resource_id == "" {
+	if dbOperation.ResourceID == "" {
 		return shouldRetryFalse, fmt.Errorf("resource id was nil while processing operation: " + crOperation.Name)
 	}
 
 	// 1) Retrieve the SyncOperation DB entry pointed to by the Operation DB entry
 	dbSyncOperation := &db.SyncOperation{
-		SyncOperation_id: dbOperation.Resource_id,
+		SyncOperationID: dbOperation.ResourceID,
 	}
 	if err := dbQueries.GetSyncOperationById(ctx, dbSyncOperation); err != nil {
 
 		if !db.IsResultNotFoundError(err) {
 			// On generic error, we should retry.
-			log.Error(err, "DB error occurred on retriving SyncOperation: "+dbSyncOperation.SyncOperation_id)
+			log.Error(err, "DB error occurred on retriving SyncOperation: "+dbSyncOperation.SyncOperationID)
 			return shouldRetryTrue, err
 		} else {
 			// On db row not found, just ignore it and move on.
-			log.V(sharedutil.LogLevel_Debug).Info("SyncOperation '" + dbSyncOperation.SyncOperation_id + "' DB entry was no longer available.")
+			log.V(sharedutil.LogLevel_Debug).Info("SyncOperation '" + dbSyncOperation.SyncOperationID + "' DB entry was no longer available.")
 			return shouldRetryFalse, err
 		}
 	}
 
 	// 2) Retrieve the Application DB entry pointed to by the SyncOperation DB entry
 	dbApplication := db.Application{
-		Application_id: dbSyncOperation.Application_id,
+		ApplicationID: dbSyncOperation.ApplicationID,
 	}
 	if err := dbQueries.GetApplicationById(ctx, &dbApplication); err != nil {
 
 		if db.IsResultNotFoundError(err) {
-			log.Error(err, "Unable to retrieve application ID in SyncOperation table: "+dbApplication.Application_id)
+			log.Error(err, "Unable to retrieve application ID in SyncOperation table: "+dbApplication.ApplicationID)
 			return shouldRetryFalse, err
 		} else {
 			// On generic error, return true so the operation is retried.
@@ -639,25 +639,25 @@ outer:
 
 		/// 1) Retrieve the database entry for the operation
 		dbSyncOperation := &db.SyncOperation{
-			SyncOperation_id: dbOperation.Resource_id,
+			SyncOperationID: dbOperation.ResourceID,
 		}
 		if innerErr := opConfig.dbQueries.GetSyncOperationById(ctx, dbSyncOperation); innerErr != nil {
 
 			// If the DB entry no longer exists, then no more work is to be done
 			if db.IsResultNotFoundError(innerErr) {
-				log.V(sharedutil.LogLevel_Debug).Info("SyncOperation '" + dbSyncOperation.SyncOperation_id + "' DB entry was no longer available, during AppSync.")
+				log.V(sharedutil.LogLevel_Debug).Info("SyncOperation '" + dbSyncOperation.SyncOperationID + "' DB entry was no longer available, during AppSync.")
 				shouldRetry = shouldRetryFalse
 				err = nil
 				break outer
 			} else {
-				log.Error(innerErr, "Unable to retrieve SyncOperation '"+dbSyncOperation.SyncOperation_id+"', during AppSync.")
+				log.Error(innerErr, "Unable to retrieve SyncOperation '"+dbSyncOperation.SyncOperationID+"', during AppSync.")
 			}
 		}
 
 		// 2) If the user cancelled the SyncOperation (by altering the desired state field), then we should stop waiting
 		// for the appsync to complete, here.
 		if dbSyncOperation.DesiredState != db.SyncOperation_DesiredState_Running {
-			log.V(sharedutil.LogLevel_Debug).Info("SyncOperation '" + dbSyncOperation.SyncOperation_id + "' no longer had desired running state.")
+			log.V(sharedutil.LogLevel_Debug).Info("SyncOperation '" + dbSyncOperation.SyncOperationID + "' no longer had desired running state.")
 			shouldRetry = shouldRetryFalse
 			err = nil
 			break outer
@@ -686,7 +686,7 @@ func processOperation_ManagedEnvironment(ctx context.Context, dbOperation db.Ope
 	// 1) Make sure the managed environment db entry DOESN'T exist (see above)
 	{
 		managedEnv := &db.ManagedEnvironment{
-			Managedenvironment_id: dbOperation.Resource_id, // managed env id referencing managed env row
+			Managedenvironment_id: dbOperation.ResourceID, // managed env id referencing managed env row
 		}
 		if err := opConfig.dbQueries.GetManagedEnvironmentById(ctx, managedEnv); err != nil {
 			if !db.IsResultNotFoundError(err) {
@@ -703,7 +703,7 @@ func processOperation_ManagedEnvironment(ctx context.Context, dbOperation db.Ope
 
 	// We have confirmed the database entry doesn't exist, now locate the Argo CD Cluster Secret that
 	// corresponds to the managed environment.
-	expectedSecretName := argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: dbOperation.Resource_id})
+	expectedSecretName := argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: dbOperation.ResourceID})
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -739,21 +739,21 @@ const (
 func processOperation_Application(ctx context.Context, dbOperation db.Operation, crOperation operation.Operation, opConfig operationConfig) (bool, error) {
 
 	// Sanity check
-	if dbOperation.Resource_id == "" {
+	if dbOperation.ResourceID == "" {
 		return shouldRetryTrue, fmt.Errorf("resource id was nil while processing operation: " + crOperation.Name)
 	}
 
 	dbApplication := &db.Application{
-		Application_id: dbOperation.Resource_id,
+		ApplicationID: dbOperation.ResourceID,
 	}
 
-	log := opConfig.log.WithValues("applicationID", dbApplication.Application_id)
+	log := opConfig.log.WithValues("applicationID", dbApplication.ApplicationID)
 
 	if err := opConfig.dbQueries.GetApplicationById(ctx, dbApplication); err != nil {
 
 		if db.IsResultNotFoundError(err) {
 			// The application db entry no longer exists, so delete the corresponding Application CR
-			return deleteArgoCDApplicationOfDeletedApplicationRow(ctx, dbApplication.Application_id, opConfig, log)
+			return deleteArgoCDApplicationOfDeletedApplicationRow(ctx, dbApplication.ApplicationID, opConfig, log)
 
 		} else {
 			log.Error(err, "Unable to retrieve database Application row from database")
@@ -781,8 +781,8 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 				return shouldRetryFalse, nil
 			}
 
-			// Copy the contents of the Spec_field database column, into the Spec field of the Argo CD Application CR
-			if err := yaml.Unmarshal([]byte(dbApplication.Spec_field), app); err != nil {
+			// Copy the contents of the SpecField database column, into the Spec field of the Argo CD Application CR
+			if err := yaml.Unmarshal([]byte(dbApplication.SpecField), app); err != nil {
 				log.Error(err, "SEVERE: unable to unmarshal application spec field on creating Application CR.")
 				// We return nil here, because there's likely nothing else that can be done to fix this.
 				// Thus there is no need to keep retrying.
@@ -790,7 +790,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 			}
 
 			// Add databaseID label
-			app.ObjectMeta.Labels = map[string]string{controllers.ArgoCDApplicationDatabaseIDLabel: dbApplication.Application_id}
+			app.ObjectMeta.Labels = map[string]string{controllers.ArgoCDApplicationDatabaseIDLabel: dbApplication.ApplicationID}
 
 			// Before we create the application, make sure that the managed environment exists that the application points to
 			if app.Spec.Destination.Name != argosharedutil.ArgoCDDefaultDestinationInCluster {
@@ -832,7 +832,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 	if specDiff != "" {
 		specFieldApp := &appv1.Application{}
 
-		if err := yaml.Unmarshal([]byte(dbApplication.Spec_field), specFieldApp); err != nil {
+		if err := yaml.Unmarshal([]byte(dbApplication.SpecField), specFieldApp); err != nil {
 			log.Error(err, "SEVERE: unable to unmarshal DB application spec field, on updating existing Application cR: "+app.Name)
 			// We return nil here, with no retry, because there's likely nothing else that can be done to fix this.
 			// Thus there is no need to keep retrying.
@@ -977,7 +977,7 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 		}
 	}
 	clusterCredentials := &db.ClusterCredentials{
-		Clustercredentials_cred_id: managedEnv.Clustercredentials_id,
+		ClustercredentialsCredID: managedEnv.ClusterCredentialsID,
 	}
 	if err := opConfig.dbQueries.GetClusterCredentialsById(ctx, clusterCredentials); err != nil {
 		if db.IsResultNotFoundError(err) {
@@ -985,7 +985,7 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 			// Return true to indicate that the managed environment cluster secret should be deleted.
 			return nil
 		} else {
-			return fmt.Errorf("unable to get cluster credentials '%s': %v", clusterCredentials.Clustercredentials_cred_id, err)
+			return fmt.Errorf("unable to get cluster credentials '%s': %v", clusterCredentials.ClustercredentialsCredID, err)
 		}
 	}
 
@@ -1054,7 +1054,7 @@ func generateExpectedClusterSecret(ctx context.Context, application db.Applicati
 	}
 
 	clusterCredentials := &db.ClusterCredentials{
-		Clustercredentials_cred_id: managedEnv.Clustercredentials_id,
+		ClustercredentialsCredID: managedEnv.ClusterCredentialsID,
 	}
 
 	if err := opConfig.dbQueries.GetClusterCredentialsById(ctx, clusterCredentials); err != nil {
@@ -1064,11 +1064,11 @@ func generateExpectedClusterSecret(ctx context.Context, application db.Applicati
 			return corev1.Secret{}, deleteSecret_true, nil
 		} else {
 			return corev1.Secret{}, deleteSecret_false,
-				fmt.Errorf("unable to get cluster credentials '%s': %v", clusterCredentials.Clustercredentials_cred_id, err)
+				fmt.Errorf("unable to get cluster credentials '%s': %v", clusterCredentials.ClustercredentialsCredID, err)
 		}
 	}
 
-	bearerToken := clusterCredentials.Serviceaccount_bearer_token
+	bearerToken := clusterCredentials.ServiceAccountBearerToken
 
 	name := argosharedutil.GenerateArgoCDClusterSecretName(*managedEnv)
 	insecureVerifyTLS := clusterCredentials.AllowInsecureSkipTLSVerify

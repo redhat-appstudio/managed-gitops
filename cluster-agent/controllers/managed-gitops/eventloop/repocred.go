@@ -102,23 +102,23 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 
 	const retry, noRetry = true, false
 
-	if dbOperation.Resource_id == "" {
+	if dbOperation.ResourceID == "" {
 		return retry, fmt.Errorf("%v: %v", errOperationIDNotFound, crOperation.Name)
 	}
 
 	l := opConfig.log.WithValues("operationRow", dbOperation.Operation_id)
 
 	// 2) Retrieve the RepositoryCredentials database row that corresponds to the operation
-	dbRepositoryCredentials, err := opConfig.dbQueries.GetRepositoryCredentialsByID(ctx, dbOperation.Resource_id)
+	dbRepositoryCredentials, err := opConfig.dbQueries.GetRepositoryCredentialsByID(ctx, dbOperation.ResourceID)
 	if err != nil {
 		// If the db row is missing, try to delete the related leftovers (ArgoCD Secret)
 		if db.IsResultNotFoundError(err) {
-			l.Error(err, errRowNotFound, "resource-id", dbOperation.Resource_id)
-			return deleteArgoCDSecretLeftovers(ctx, dbOperation.Resource_id, opConfig.argoCDNamespace, opConfig.eventClient, l)
+			l.Error(err, errRowNotFound, "resource-id", dbOperation.ResourceID)
+			return deleteArgoCDSecretLeftovers(ctx, dbOperation.ResourceID, opConfig.argoCDNamespace, opConfig.eventClient, l)
 		}
 
 		// Something went wrong with the database connection, just retry
-		l.Error(err, errGenericDB, "resource-id", dbOperation.Resource_id)
+		l.Error(err, errGenericDB, "resource-id", dbOperation.ResourceID)
 		return retry, err
 	}
 

@@ -27,10 +27,10 @@ var _ = Describe("Db Field Constants Test", func() {
 			Entry("Empty string", "", "", 5),
 		)
 	})
-	Context("Test getConstantValue", func() {
-		for field, value := range DbFieldMap {
-			result := getConstantValue(field)
-			Expect(value).To(Equal(result))
-		}
-	})
+	// Context("Test getConstantValue", func() {
+	// 	for field, value := range DbFieldMap {
+	// 		result := getConstantValue(field)
+	// 		Expect(value).To(Equal(result))
+	// 	}
+	// })
 })

@@ -63,20 +63,20 @@ var _ = Describe("DB Reconciler Test", func() {
 
 			// Create Application entry
 			application = db.Application{
-				Application_id:          "test-my-application",
-				Name:                    "my-application",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          "test-my-application",
+				Name:                   "my-application",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 			err = dbq.CreateApplication(ctx, &application)
 			Expect(err).To(BeNil())
 
 			// Create ApplicationState entry
 			applicationState = db.ApplicationState{
-				Applicationstate_application_id: application.Application_id,
+				Applicationstate_application_id: application.ApplicationID,
 				Health:                          "Healthy",
-				Sync_Status:                     "Synced",
+				SyncStatus:                      "Synced",
 				ReconciledState:                 "Healthy",
 			}
 			err = dbq.CreateApplicationState(ctx, &applicationState)
@@ -97,7 +97,7 @@ var _ = Describe("DB Reconciler Test", func() {
 			// Create DeploymentToApplicationMapping entry
 			deploymentToApplicationMapping = db.DeploymentToApplicationMapping{
 				Deploymenttoapplicationmapping_uid_id: string(gitopsDepl.UID),
-				Application_id:                        application.Application_id,
+				ApplicationID:                         application.ApplicationID,
 				DeploymentName:                        gitopsDepl.Name,
 				DeploymentNamespace:                   gitopsDepl.Namespace,
 				NamespaceUID:                          "demo-namespace",
@@ -111,8 +111,8 @@ var _ = Describe("DB Reconciler Test", func() {
 
 			// Create SyncOperation entry
 			syncOperation = db.SyncOperation{
-				SyncOperation_id:    "test-syncOperation",
-				Application_id:      application.Application_id,
+				SyncOperationID:     "test-syncOperation",
+				ApplicationID:       application.ApplicationID,
 				Revision:            "master",
 				DeploymentNameField: deploymentToApplicationMapping.DeploymentName,
 				DesiredState:        "Synced",
@@ -133,7 +133,7 @@ var _ = Describe("DB Reconciler Test", func() {
 
 			err = dbq.GetSyncOperationById(ctx, &syncOperation)
 			Expect(err).To(BeNil())
-			Expect(syncOperation.Application_id).NotTo(BeEmpty())
+			Expect(syncOperation.ApplicationID).NotTo(BeEmpty())
 
 			err = dbq.GetDeploymentToApplicationMappingByApplicationId(ctx, &deploymentToApplicationMapping)
 			Expect(err).To(BeNil())
@@ -147,7 +147,7 @@ var _ = Describe("DB Reconciler Test", func() {
 
 			// Create another Application entry
 			applicationOne := application
-			applicationOne.Application_id = "test-my-application-1"
+			applicationOne.ApplicationID = "test-my-application-1"
 			applicationOne.Name = "my-application-1"
 			err := dbq.CreateApplication(ctx, &applicationOne)
 			Expect(err).To(BeNil())
@@ -155,21 +155,21 @@ var _ = Describe("DB Reconciler Test", func() {
 			// Create another DeploymentToApplicationMapping entry
 			deploymentToApplicationMappingOne := deploymentToApplicationMapping
 			deploymentToApplicationMappingOne.Deploymenttoapplicationmapping_uid_id = "test-" + string(uuid.NewUUID())
-			deploymentToApplicationMappingOne.Application_id = applicationOne.Application_id
+			deploymentToApplicationMappingOne.ApplicationID = applicationOne.ApplicationID
 			deploymentToApplicationMappingOne.DeploymentName = "test-deployment-1"
 			err = dbq.CreateDeploymentToApplicationMapping(ctx, &deploymentToApplicationMappingOne)
 			Expect(err).To(BeNil())
 
 			// Create another ApplicationState entry
 			applicationStateOne := applicationState
-			applicationStateOne.Applicationstate_application_id = applicationOne.Application_id
+			applicationStateOne.Applicationstate_application_id = applicationOne.ApplicationID
 			err = dbq.CreateApplicationState(ctx, &applicationStateOne)
 			Expect(err).To(BeNil())
 
 			// Create another SyncOperation entry
 			syncOperationOne := syncOperation
-			syncOperationOne.SyncOperation_id = "test-syncOperation-1"
-			syncOperationOne.Application_id = applicationOne.Application_id
+			syncOperationOne.SyncOperationID = "test-syncOperation-1"
+			syncOperationOne.ApplicationID = applicationOne.ApplicationID
 			syncOperationOne.DeploymentNameField = deploymentToApplicationMappingOne.DeploymentName
 			err = dbq.CreateSyncOperation(ctx, &syncOperationOne)
 			Expect(err).To(BeNil())
@@ -184,7 +184,7 @@ var _ = Describe("DB Reconciler Test", func() {
 
 			err = dbq.GetSyncOperationById(ctx, &syncOperation)
 			Expect(err).To(BeNil())
-			Expect(syncOperation.Application_id).To(Equal(application.Application_id))
+			Expect(syncOperation.ApplicationID).To(Equal(application.ApplicationID))
 
 			err = dbq.GetDeploymentToApplicationMappingByApplicationId(ctx, &deploymentToApplicationMapping)
 			Expect(err).To(BeNil())
@@ -199,7 +199,7 @@ var _ = Describe("DB Reconciler Test", func() {
 
 			err = dbq.GetSyncOperationById(ctx, &syncOperationOne)
 			Expect(err).To(BeNil())
-			Expect(syncOperationOne.Application_id).To(BeEmpty())
+			Expect(syncOperationOne.ApplicationID).To(BeEmpty())
 
 			err = dbq.GetDeploymentToApplicationMappingByApplicationId(ctx, &deploymentToApplicationMappingOne)
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
@@ -231,7 +231,7 @@ var _ = Describe("DB Reconciler Test", func() {
 
 			err = dbq.GetSyncOperationById(ctx, &syncOperation)
 			Expect(err).To(BeNil())
-			Expect(syncOperation.Application_id).To(BeEmpty())
+			Expect(syncOperation.ApplicationID).To(BeEmpty())
 
 			err = dbq.GetDeploymentToApplicationMappingByApplicationId(ctx, &deploymentToApplicationMapping)
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
@@ -309,12 +309,12 @@ var _ = Describe("DB Reconciler Test", func() {
 
 				// Create DB entry for ClusterCredentials
 				clusterCredentialsDb = db.ClusterCredentials{
-					Clustercredentials_cred_id:  "test-" + string(uuid.NewUUID()),
-					Host:                        "host",
-					Kube_config:                 "kube-config",
-					Kube_config_context:         "kube-config-context",
-					Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-					Serviceaccount_ns:           "Serviceaccount_ns",
+					ClustercredentialsCredID:  "test-" + string(uuid.NewUUID()),
+					Host:                      "host",
+					KubeConfig:                "kube-config",
+					KubeConfig_context:        "kube-config-context",
+					ServiceAccountBearerToken: "serviceaccount_bearer_token",
+					ServiceAccountNs:          "Serviceaccount_ns",
 				}
 				err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsDb)
 				Expect(err).To(BeNil())
@@ -322,7 +322,7 @@ var _ = Describe("DB Reconciler Test", func() {
 				// Create DB entry for ManagedEnvironment
 				managedEnvironmentDb = db.ManagedEnvironment{
 					Managedenvironment_id: "test-env-" + string(managedEnvCr.UID),
-					Clustercredentials_id: clusterCredentialsDb.Clustercredentials_cred_id,
+					ClusterCredentialsID:  clusterCredentialsDb.ClustercredentialsCredID,
 					Name:                  managedEnvCr.Name,
 				}
 				err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentDb)
@@ -364,7 +364,7 @@ var _ = Describe("DB Reconciler Test", func() {
 				Expect(err).To(BeNil())
 
 				// Create DB entry for ClusterCredentials
-				clusterCredentialsDb.Clustercredentials_cred_id = "test-" + string(uuid.NewUUID())
+				clusterCredentialsDb.ClustercredentialsCredID = "test-" + string(uuid.NewUUID())
 				err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsDb)
 				Expect(err).To(BeNil())
 
@@ -372,7 +372,7 @@ var _ = Describe("DB Reconciler Test", func() {
 				managedEnvironmentDbTemp := managedEnvironmentDb
 				managedEnvironmentDb.Name = "test-env-" + string(uuid.NewUUID())
 				managedEnvironmentDb.Managedenvironment_id = "test-" + string(uuid.NewUUID())
-				managedEnvironmentDb.Clustercredentials_id = clusterCredentialsDb.Clustercredentials_cred_id
+				managedEnvironmentDb.ClusterCredentialsID = clusterCredentialsDb.ClustercredentialsCredID
 				err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentDb)
 				Expect(err).To(BeNil())
 
@@ -431,7 +431,7 @@ var _ = Describe("DB Reconciler Test", func() {
 				Expect(err).To(BeNil())
 
 				// Create DB entry for ClusterCredentials
-				clusterCredentialsDb.Clustercredentials_cred_id = "test-" + string(uuid.NewUUID())
+				clusterCredentialsDb.ClustercredentialsCredID = "test-" + string(uuid.NewUUID())
 				err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsDb)
 				Expect(err).To(BeNil())
 
@@ -439,7 +439,7 @@ var _ = Describe("DB Reconciler Test", func() {
 				managedEnvironmentDbTemp := managedEnvironmentDb
 				managedEnvironmentDb.Name = "test-env-" + string(uuid.NewUUID())
 				managedEnvironmentDb.Managedenvironment_id = "test-" + string(uuid.NewUUID())
-				managedEnvironmentDb.Clustercredentials_id = clusterCredentialsDb.Clustercredentials_cred_id
+				managedEnvironmentDb.ClusterCredentialsID = clusterCredentialsDb.ClustercredentialsCredID
 				err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentDb)
 				Expect(err).To(BeNil())
 
@@ -456,11 +456,11 @@ var _ = Describe("DB Reconciler Test", func() {
 
 				// Create DB entry for Application
 				applicationDb := &db.Application{
-					Application_id:          "test-app-" + string(uuid.NewUUID()),
-					Name:                    "test-app",
-					Spec_field:              "{}",
-					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-					Managed_environment_id:  managedEnvironmentDb.Managedenvironment_id,
+					ApplicationID:          "test-app-" + string(uuid.NewUUID()),
+					Name:                   "test-app",
+					SpecField:              "{}",
+					EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+					Managed_environment_id: managedEnvironmentDb.Managedenvironment_id,
 				}
 				err = dbq.CreateApplication(ctx, applicationDb)
 				Expect(err).To(BeNil())
@@ -490,7 +490,7 @@ var _ = Describe("DB Reconciler Test", func() {
 				err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, managedEnvironmentDb.Managedenvironment_id, db.OperationResourceType_ManagedEnvironment, &operationlist, "cluster-agent-application-sync-user")
 				Expect(err).To(BeNil())
 				Expect(len(operationlist)).ShouldNot(Equal(0))
-				Expect(operationlist[0].Resource_id).To(Equal(managedEnvironmentDb.Managedenvironment_id))
+				Expect(operationlist[0].ResourceID).To(Equal(managedEnvironmentDb.Managedenvironment_id))
 			})
 		})
 
@@ -565,8 +565,8 @@ var _ = Describe("DB Reconciler Test", func() {
 
 				// Create DB entry for ClusterUser
 				clusterUserDb = &db.ClusterUser{
-					Clusteruser_id: "test-repocred-user-id",
-					User_name:      "test-repocred-user",
+					ClusterUserID: "test-repocred-user-id",
+					UserName:      "test-repocred-user",
 				}
 				err = dbq.CreateClusterUser(ctx, clusterUserDb)
 				Expect(err).To(BeNil())
@@ -574,7 +574,7 @@ var _ = Describe("DB Reconciler Test", func() {
 				// Create DB entry for RepositoryCredentials
 				gitopsRepositoryCredentialsDb = db.RepositoryCredentials{
 					RepositoryCredentialsID: "test-repo-" + string(uuid.NewUUID()),
-					UserID:                  clusterUserDb.Clusteruser_id,
+					UserID:                  clusterUserDb.ClusterUserID,
 					PrivateURL:              "https://test-private-url",
 					AuthUsername:            "test-auth-username",
 					AuthPassword:            "test-auth-password",
@@ -660,7 +660,7 @@ var _ = Describe("DB Reconciler Test", func() {
 				Expect(err).To(BeNil())
 
 				var operationlist []db.Operation
-				err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, gitopsRepositoryCredentialsDb.RepositoryCredentialsID, db.OperationResourceType_RepositoryCredentials, &operationlist, specialClusterUser.Clusteruser_id)
+				err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, gitopsRepositoryCredentialsDb.RepositoryCredentialsID, db.OperationResourceType_RepositoryCredentials, &operationlist, specialClusterUser.ClusterUserID)
 				Expect(err).To(BeNil())
 				Expect(len(operationlist)).ShouldNot(Equal(0))
 
@@ -760,19 +760,19 @@ var _ = Describe("DB Reconciler Test", func() {
 
 				// Create DB entry for Application
 				applicationDb := &db.Application{
-					Application_id:          "test-app-" + string(uuid.NewUUID()),
-					Name:                    gitopsDeplSyncRunCr.Spec.GitopsDeploymentName,
-					Spec_field:              "{}",
-					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+					ApplicationID:          "test-app-" + string(uuid.NewUUID()),
+					Name:                   gitopsDeplSyncRunCr.Spec.GitopsDeploymentName,
+					SpecField:              "{}",
+					EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+					Managed_environment_id: managedEnvironment.Managedenvironment_id,
 				}
 				err = dbq.CreateApplication(ctx, applicationDb)
 				Expect(err).To(BeNil())
 
 				// Create DB entry for SyncOperation
 				syncOperationDb = db.SyncOperation{
-					SyncOperation_id:    "test-op-" + string(uuid.NewUUID()),
-					Application_id:      applicationDb.Application_id,
+					SyncOperationID:     "test-op-" + string(uuid.NewUUID()),
+					ApplicationID:       applicationDb.ApplicationID,
 					DeploymentNameField: "test-depl-" + string(uuid.NewUUID()),
 					Revision:            "Head",
 					DesiredState:        "Terminated",
@@ -788,7 +788,7 @@ var _ = Describe("DB Reconciler Test", func() {
 					APIResourceNamespace: gitopsDeplSyncRunCr.Namespace,
 					NamespaceUID:         "test-" + string(uuid.NewUUID()),
 					DBRelationType:       db.APICRToDatabaseMapping_DBRelationType_ManagedEnvironment,
-					DBRelationKey:        syncOperationDb.SyncOperation_id,
+					DBRelationKey:        syncOperationDb.SyncOperationID,
 				}
 			})
 
@@ -817,13 +817,13 @@ var _ = Describe("DB Reconciler Test", func() {
 
 				// Create another entry for SyncOperation
 				syncOperationDbTemp := syncOperationDb
-				syncOperationDb.SyncOperation_id = "test-sync-" + string(uuid.NewUUID())
+				syncOperationDb.SyncOperationID = "test-sync-" + string(uuid.NewUUID())
 				err = dbq.CreateSyncOperation(ctx, &syncOperationDb)
 				Expect(err).To(BeNil())
 
 				// Create another entry for APICRToDatabaseMapping
 				apiCRToDatabaseMappingDbTemp := apiCRToDatabaseMappingDb
-				apiCRToDatabaseMappingDb.DBRelationKey = syncOperationDb.SyncOperation_id
+				apiCRToDatabaseMappingDb.DBRelationKey = syncOperationDb.SyncOperationID
 				apiCRToDatabaseMappingDb.APIResourceUID = "test-" + string(uuid.NewUUID())
 				apiCRToDatabaseMappingDb.APIResourceName = "test-" + string(uuid.NewUUID())
 				err = dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
@@ -855,7 +855,7 @@ var _ = Describe("DB Reconciler Test", func() {
 				Expect(err).To(BeNil())
 
 				var operationlist []db.Operation
-				err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, syncOperationDbTemp.Application_id, db.OperationResourceType_SyncOperation, &operationlist, specialClusterUser.Clusteruser_id)
+				err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, syncOperationDbTemp.ApplicationID, db.OperationResourceType_SyncOperation, &operationlist, specialClusterUser.ClusterUserID)
 				Expect(err).To(BeNil())
 				Expect(len(operationlist)).ShouldNot(Equal(0))
 
@@ -876,12 +876,12 @@ var _ = Describe("DB Reconciler Test", func() {
 				Expect(err).To(BeNil())
 
 				// Create another SyncOperation DB entry
-				syncOperationDb.SyncOperation_id = "test-sync-" + string(uuid.NewUUID())
+				syncOperationDb.SyncOperationID = "test-sync-" + string(uuid.NewUUID())
 				err = dbq.CreateSyncOperation(ctx, &syncOperationDb)
 				Expect(err).To(BeNil())
 
 				// Create another APICRToDatabaseMapping DB entry
-				apiCRToDatabaseMappingDb.DBRelationKey = syncOperationDb.SyncOperation_id
+				apiCRToDatabaseMappingDb.DBRelationKey = syncOperationDb.SyncOperationID
 				apiCRToDatabaseMappingDb.APIResourceUID = "test-" + string(uuid.NewUUID())
 				err = dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
 				Expect(err).To(BeNil())

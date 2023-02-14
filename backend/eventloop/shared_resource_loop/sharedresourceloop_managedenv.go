@@ -130,13 +130,13 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 	}
 
 	clusterCreds := &db.ClusterCredentials{
-		Clustercredentials_cred_id: managedEnv.Clustercredentials_id,
+		ClustercredentialsCredID: managedEnv.ClusterCredentialsID,
 	}
 	if err := dbQueries.GetClusterCredentialsById(ctx, clusterCreds); err != nil {
 
 		if !db.IsResultNotFoundError(err) {
 			updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown, ConditionReasonDatabaseError, gitopserrors.UnknownError, log)
-			return newSharedResourceManagedEnvContainer(), fmt.Errorf("unable to retrieve cluster credentials for '%s': %w", clusterCreds.Clustercredentials_cred_id, err)
+			return newSharedResourceManagedEnvContainer(), fmt.Errorf("unable to retrieve cluster credentials for '%s': %w", clusterCreds.ClustercredentialsCredID, err)
 		}
 
 		// Sanity test:
@@ -157,7 +157,7 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 	// Verify that we are able to connect to the cluster using the service account token we stored
 	validClusterCreds, err := verifyClusterCredentials(ctx, *clusterCreds, managedEnvironmentCR, k8sClientFactory)
 	if !validClusterCreds || err != nil {
-		log.Info("was unable to connect using provided cluster credentials, so acquiring new ones.", "clusterCreds", clusterCreds.Clustercredentials_cred_id)
+		log.Info("was unable to connect using provided cluster credentials, so acquiring new ones.", "clusterCreds", clusterCreds.ClustercredentialsCredID)
 		// D) If the cluster credentials appear to no longer be valid (we're no longer able to connect), then reacquire using the
 		// Secret.
 		return replaceExistingManagedEnv(ctx, gitopsEngineClient, workspaceClient, *clusterUser, isNewUser, managedEnvironmentCR, secretCR, *managedEnv,
@@ -361,7 +361,7 @@ func replaceExistingManagedEnv(ctx context.Context,
 	dbQueries db.DatabaseQueries,
 	log logr.Logger) (SharedResourceManagedEnvContainer, error) {
 
-	oldClusterCredentialsPrimaryKey := managedEnvironmentDB.Clustercredentials_id
+	oldClusterCredentialsPrimaryKey := managedEnvironmentDB.ClusterCredentialsID
 
 	// 1) Create new cluster creds, based on secret
 	clusterCredentials, err := createNewClusterCredentials(ctx, managedEnvironmentCR, secret, k8sClientFactory, dbQueries, log, workspaceClient)
@@ -371,7 +371,7 @@ func replaceExistingManagedEnv(ctx context.Context,
 	}
 
 	// 2) Update the existing managed environment to point to the new credentials
-	managedEnvironmentDB.Clustercredentials_id = clusterCredentials.Clustercredentials_cred_id
+	managedEnvironmentDB.ClusterCredentialsID = clusterCredentials.ClustercredentialsCredID
 
 	if err := dbQueries.UpdateManagedEnvironment(ctx, &managedEnvironmentDB); err != nil {
 		log.Error(err, "Unable to update ManagedEnvironment with new cluster credentials ID", managedEnvironmentDB.GetAsLogKeyValues()...)
@@ -479,9 +479,9 @@ func wrapManagedEnv(ctx context.Context, managedEnv db.ManagedEnvironment, works
 
 	// Create the cluster access object, to allow us to interact with the GitOpsEngine and ManagedEnvironment on the user's behalf
 	ca := db.ClusterAccess{
-		Clusteraccess_user_id:                   clusterUser.Clusteruser_id,
-		Clusteraccess_managed_environment_id:    managedEnv.Managedenvironment_id,
-		Clusteraccess_gitops_engine_instance_id: engineInstance.Gitopsengineinstance_id,
+		ClusterAccessUserID:                 clusterUser.ClusterUserID,
+		ClusterAccessManagedEnvironmentID:   managedEnv.Managedenvironment_id,
+		ClusterAccessGitopsEngineInstanceID: engineInstance.Gitopsengineinstance_id,
 	}
 
 	err1, isNewClusterAccess := internalGetOrCreateClusterAccess(ctx, &ca, dbQueries, log)
@@ -510,8 +510,8 @@ func createNewManagedEnv(ctx context.Context, managedEnvironment managedgitopsv1
 	}
 
 	managedEnv := &db.ManagedEnvironment{
-		Name:                  managedEnvironment.Name,
-		Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+		Name:                 managedEnvironment.Name,
+		ClusterCredentialsID: clusterCredentials.ClustercredentialsCredID,
 	}
 
 	if err := dbQueries.CreateManagedEnvironment(ctx, managedEnv); err != nil {
@@ -562,10 +562,10 @@ func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 	for idx := range applications {
 		app := applications[idx]
 
-		log := log.WithValues("applicationID", app.Application_id)
+		log := log.WithValues("applicationID", app.ApplicationID)
 
 		gitopsEngineInstance := &db.GitopsEngineInstance{
-			Gitopsengineinstance_id: app.Engine_instance_inst_id,
+			Gitopsengineinstance_id: app.EngineInstanceInstID,
 		}
 		if err := dbQueries.GetGitopsEngineInstanceById(ctx, gitopsEngineInstance); err != nil {
 			return fmt.Errorf("unable to retrieve gitopsengineinstance '%s' while deleting managed environment '%s': %v",
@@ -573,7 +573,7 @@ func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 		}
 
 		// Add the gitops engine instance key to the map
-		gitopsEngineInstances[app.Engine_instance_inst_id] = *gitopsEngineInstance
+		gitopsEngineInstances[app.EngineInstanceInstID] = *gitopsEngineInstance
 
 		client, err := k8sClientFactory.GetK8sClientForGitOpsEngineInstance(ctx, gitopsEngineInstance)
 		if err != nil {
@@ -581,20 +581,20 @@ func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 		}
 
 		operation := db.Operation{
-			Instance_id:             app.Engine_instance_inst_id,
-			Operation_owner_user_id: user.Clusteruser_id,
-			Resource_type:           db.OperationResourceType_Application,
-			Resource_id:             app.Application_id,
+			InstanceID:           app.EngineInstanceInstID,
+			OperationOwnerUserID: user.ClusterUserID,
+			ResourceType:         db.OperationResourceType_Application,
+			ResourceID:           app.ApplicationID,
 		}
 
 		log.Info("Creating operation for updated application, of deleted managed environment")
 
 		// Don't wait for the Operation to complete, just create it and continue with the next.
-		_, _, err = operations.CreateOperation(ctx, false, operation, user.Clusteruser_id,
+		_, _, err = operations.CreateOperation(ctx, false, operation, user.ClusterUserID,
 			dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, client, log)
 		// TODO: GITOPSRVCE-174 - Add garbage collection of this operation once 174 is finished.
 		if err != nil {
-			return fmt.Errorf("unable to create operation for applicaton '%s': %v", app.Application_id, err)
+			return fmt.Errorf("unable to create operation for applicaton '%s': %v", app.ApplicationID, err)
 		}
 	}
 
@@ -607,17 +607,17 @@ func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 	for idx := range clusterAccesses {
 		clusterAccess := clusterAccesses[idx]
 
-		rowsDeleted, err := dbQueries.DeleteClusterAccessById(ctx, clusterAccess.Clusteraccess_user_id, managedEnvID, clusterAccess.Clusteraccess_gitops_engine_instance_id)
+		rowsDeleted, err := dbQueries.DeleteClusterAccessById(ctx, clusterAccess.ClusterAccessUserID, managedEnvID, clusterAccess.ClusterAccessGitopsEngineInstanceID)
 		if err != nil {
-			log.Error(err, "Unable to delete ClusterAccess row that referenced to ManagedEnvironment", "userID", clusterAccess.Clusteraccess_user_id, "gitopsEngineInstanceID", clusterAccess.Clusteraccess_gitops_engine_instance_id)
-			return fmt.Errorf("unable to delete cluster access while deleting managed environment '%s': %v", clusterAccess.Clusteraccess_managed_environment_id, err)
+			log.Error(err, "Unable to delete ClusterAccess row that referenced to ManagedEnvironment", "userID", clusterAccess.ClusterAccessUserID, "gitopsEngineInstanceID", clusterAccess.ClusterAccessGitopsEngineInstanceID)
+			return fmt.Errorf("unable to delete cluster access while deleting managed environment '%s': %v", clusterAccess.ClusterAccessManagedEnvironmentID, err)
 		}
 		if rowsDeleted != 1 {
 			// It's POSSIBLE (but unlikely) the cluster access was deleted while this for loop was in progress, so it's a WARN.
 			log.V(sharedutil.LogLevel_Warn).Info("Unexpected number of cluster accesses rows deleted, when deleting managed env.",
 				"rowsDeleted", rowsDeleted, "cluster-access", clusterAccess)
 		}
-		log.Info("Deleted ClusterAccess row that referenced to ManagedEnvironment", "userID", clusterAccess.Clusteraccess_user_id, "gitopsEngineInstanceID", clusterAccess.Clusteraccess_gitops_engine_instance_id)
+		log.Info("Deleted ClusterAccess row that referenced to ManagedEnvironment", "userID", clusterAccess.ClusterAccessUserID, "gitopsEngineInstanceID", clusterAccess.ClusterAccessGitopsEngineInstanceID)
 
 	}
 
@@ -631,12 +631,12 @@ func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 
 	// 5) Delete the cluster credentials row of the managed environment
 	if managedEnvCR != nil {
-		log := log.WithValues("clusterCredentialsId", managedEnvCR.Clustercredentials_id)
+		log := log.WithValues("clusterCredentialsId", managedEnvCR.ClusterCredentialsID)
 
-		rowsDeleted, err = dbQueries.DeleteClusterCredentialsById(ctx, managedEnvCR.Clustercredentials_id)
+		rowsDeleted, err = dbQueries.DeleteClusterCredentialsById(ctx, managedEnvCR.ClusterCredentialsID)
 		if err != nil || rowsDeleted != 1 {
 			log.Error(err, "Unable to delete ClusterCredentials of the managed environment")
-			return fmt.Errorf("unable to delete cluster credentials '%s' for managed environment: %v (%v)", managedEnvCR.Clustercredentials_id, err, rowsDeleted)
+			return fmt.Errorf("unable to delete cluster credentials '%s' for managed environment: %v (%v)", managedEnvCR.ClusterCredentialsID, err, rowsDeleted)
 		}
 		log.Info("Deleted ClusterCredentials of the managed environment")
 	}
@@ -655,16 +655,16 @@ func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 		// Create an operation, pointing to the managed environment: but note, the managed environment database entry won't exist
 		// when it processed by cluster agent. This is intentional.
 		operation := db.Operation{
-			Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-			Operation_owner_user_id: user.Clusteruser_id,
-			Resource_type:           db.OperationResourceType_ManagedEnvironment,
-			Resource_id:             managedEnvID,
+			InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+			OperationOwnerUserID: user.ClusterUserID,
+			ResourceType:         db.OperationResourceType_ManagedEnvironment,
+			ResourceID:           managedEnvID,
 		}
 
 		log.Info("Creating Operation to delete Argo CD cluster secret, referencing managed environment")
 
 		// TODO: GITOPSRVCE-174 - Add garbage collection of this operation once 174 is finished.
-		_, _, err = operations.CreateOperation(ctx, false, operation, user.Clusteruser_id,
+		_, _, err = operations.CreateOperation(ctx, false, operation, user.ClusterUserID,
 			dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, client, log)
 		if err != nil {
 			return fmt.Errorf("unable to create operation for deleted managed environment: %v", err)
@@ -770,12 +770,12 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 	insecureVerifyTLS := managedEnvironment.Spec.AllowInsecureSkipTLSVerify
 
 	clusterCredentials := db.ClusterCredentials{
-		Host:                        managedEnvironment.Spec.APIURL,
-		Kube_config:                 "",
-		Kube_config_context:         "",
-		Serviceaccount_bearer_token: bearerToken,
-		Serviceaccount_ns:           serviceAccountNamespaceKubeSystem,
-		AllowInsecureSkipTLSVerify:  insecureVerifyTLS,
+		Host:                       managedEnvironment.Spec.APIURL,
+		KubeConfig:                 "",
+		KubeConfig_context:         "",
+		ServiceAccountBearerToken:  bearerToken,
+		ServiceAccountNs:           serviceAccountNamespaceKubeSystem,
+		AllowInsecureSkipTLSVerify: insecureVerifyTLS,
 	}
 
 	if err := dbQueries.CreateClusterCredentials(ctx, &clusterCredentials); err != nil {
@@ -834,13 +834,13 @@ func verifyClusterCredentials(ctx context.Context, clusterCreds db.ClusterCreden
 	if clusterCreds.Host == "" {
 		return false, fmt.Errorf("cluster credentials is missing host")
 	}
-	if clusterCreds.Serviceaccount_bearer_token == "" {
+	if clusterCreds.ServiceAccountBearerToken == "" {
 		return false, fmt.Errorf("cluster credentials is missing service account bearer token")
 	}
 
 	configParam := &rest.Config{
 		Host:        clusterCreds.Host,
-		BearerToken: clusterCreds.Serviceaccount_bearer_token,
+		BearerToken: clusterCreds.ServiceAccountBearerToken,
 	}
 
 	configParam.Insecure = clusterCreds.AllowInsecureSkipTLSVerify
@@ -861,7 +861,7 @@ func verifyClusterCredentials(ctx context.Context, clusterCreds db.ClusterCreden
 	}
 	if err := clientObj.Get(ctx, client.ObjectKeyFromObject(serviceAccount), serviceAccount); err != nil {
 		return false, fmt.Errorf("unable to retrieve service account when verifying cluster credential '%s': %w",
-			clusterCreds.Clustercredentials_cred_id, err)
+			clusterCreds.ClustercredentialsCredID, err)
 	}
 
 	// Success!

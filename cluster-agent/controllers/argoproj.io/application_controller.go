@@ -92,13 +92,13 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		log.V(sharedutil.LogLevel_Warn).Info("Application CR was missing 'databaseID' label")
 		return ctrl.Result{}, nil
 	} else {
-		applicationDB.Application_id = databaseID
+		applicationDB.ApplicationID = databaseID
 	}
-	if _, _, err := r.Cache.GetApplicationById(ctx, applicationDB.Application_id); err != nil {
+	if _, _, err := r.Cache.GetApplicationById(ctx, applicationDB.ApplicationID); err != nil {
 		if db.IsResultNotFoundError(err) {
 
 			log.V(sharedutil.LogLevel_Warn).Info("Application CR '" + req.NamespacedName.String() +
-				"' missing corresponding database entry: " + applicationDB.Application_id)
+				"' missing corresponding database entry: " + applicationDB.ApplicationID)
 
 			adt := applicationDeleteTask{
 				applicationCR: app,
@@ -112,16 +112,16 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 			return ctrl.Result{}, nil
 		} else {
-			log.Error(err, "Unable to retrieve Application from database: "+applicationDB.Application_id)
+			log.Error(err, "Unable to retrieve Application from database: "+applicationDB.ApplicationID)
 			return ctrl.Result{}, err
 		}
 	}
 
-	log = log.WithValues("applicationID", applicationDB.Application_id)
+	log = log.WithValues("applicationID", applicationDB.ApplicationID)
 
 	// 3) Does there exist an ApplicationState for this Application, already?
 	applicationState := &db.ApplicationState{
-		Applicationstate_application_id: applicationDB.Application_id,
+		Applicationstate_application_id: applicationDB.ApplicationID,
 	}
 
 	if _, _, errGet := r.Cache.GetApplicationStateById(ctx, applicationState.Applicationstate_application_id); errGet != nil {
@@ -131,7 +131,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 			applicationState.Health = db.TruncateVarchar(string(app.Status.Health.Status), db.ApplicationStateHealthLength)
 			applicationState.Message = db.TruncateVarchar(app.Status.Health.Message, db.ApplicationStateMessageLength)
-			applicationState.Sync_Status = db.TruncateVarchar(string(app.Status.Sync.Status), db.ApplicationStateSyncStatusLength)
+			applicationState.SyncStatus = db.TruncateVarchar(string(app.Status.Sync.Status), db.ApplicationStateSyncStatusLength)
 			applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationStateRevisionLength)
 			sanitizeHealthAndStatus(applicationState)
 
@@ -170,7 +170,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			// Successfully created ApplicationState
 			return ctrl.Result{}, nil
 		} else {
-			log.Error(errGet, "Unable to retrieve ApplicationState from database: "+applicationDB.Application_id)
+			log.Error(errGet, "Unable to retrieve ApplicationState from database: "+applicationDB.ApplicationID)
 			return ctrl.Result{}, errGet
 		}
 	}
@@ -179,7 +179,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	applicationState.Health = db.TruncateVarchar(string(app.Status.Health.Status), db.ApplicationStateHealthLength)
 	applicationState.Message = db.TruncateVarchar(app.Status.Health.Message, db.ApplicationStateMessageLength)
-	applicationState.Sync_Status = db.TruncateVarchar(string(app.Status.Sync.Status), db.ApplicationStateSyncStatusLength)
+	applicationState.SyncStatus = db.TruncateVarchar(string(app.Status.Sync.Status), db.ApplicationStateSyncStatusLength)
 	applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationStateRevisionLength)
 	sanitizeHealthAndStatus(applicationState)
 
@@ -232,8 +232,8 @@ func sanitizeHealthAndStatus(applicationState *db.ApplicationState) {
 		applicationState.Health = "Unknown"
 	}
 
-	if applicationState.Sync_Status == "" {
-		applicationState.Sync_Status = "Unknown"
+	if applicationState.SyncStatus == "" {
+		applicationState.SyncStatus = "Unknown"
 	}
 
 }

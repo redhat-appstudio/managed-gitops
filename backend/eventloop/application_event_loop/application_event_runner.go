@@ -274,14 +274,14 @@ func handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx context.C
 			for _, deplToAppMapping := range dtams {
 
 				appl := db.Application{
-					Application_id: deplToAppMapping.Application_id,
+					ApplicationID: deplToAppMapping.ApplicationID,
 				}
 
 				if err := dbQueries.GetApplicationById(ctx, &appl); err != nil {
 					if db.IsResultNotFoundError(err) {
 						continue
 					} else {
-						return false, fmt.Errorf("unable to retrieve application '%s': %v", appl.Application_id, err)
+						return false, fmt.Errorf("unable to retrieve application '%s': %v", appl.ApplicationID, err)
 					}
 				}
 

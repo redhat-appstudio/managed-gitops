@@ -649,7 +649,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 	// 6) If there is no existing APICRToDBMapping for this CR, then let's create one
 	if currentAPICRToDBMapping == nil {
 		dbRepoCred := db.RepositoryCredentials{
-			UserID:          clusterUser.Clusteruser_id, // comply with the constraint 'fk_clusteruser_id'
+			UserID:          clusterUser.ClusterUserID, // comply with the constraint 'fk_clusteruser_id'
 			PrivateURL:      privateURL,
 			AuthUsername:    authUsername,
 			AuthPassword:    authPassword,
@@ -771,7 +771,7 @@ func CleanRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCredent
 	listOfK8sOperation := managedgitopsv1alpha1.OperationList{}
 	err := client.List(ctx, &listOfK8sOperation)
 	if err != nil {
-		l.Error(err, "unable to fetch list of Operation from cluster.", "clusterUser", clusterUser.User_name)
+		l.Error(err, "unable to fetch list of Operation from cluster.", "clusterUser", clusterUser.UserName)
 		return err
 	}
 
@@ -801,10 +801,10 @@ func CleanRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCredent
 		}
 
 		// If Operation is not for the Operation_owner_user_id of the RepositoryCredential, then skip.
-		if dbOperation.Operation_owner_user_id != clusterUser.Clusteruser_id {
+		if dbOperation.OperationOwnerUserID != clusterUser.ClusterUserID {
 			l.Error(err, "skipping Operation that is not for this RepositoryCredential's Operation_owner_user_id.",
-				"Operation DB ID", dbOperation.Operation_id, "Operation Owner User ID", dbOperation.Operation_owner_user_id,
-				"ClusterUser ID", clusterUser.Clusteruser_id)
+				"Operation DB ID", dbOperation.Operation_id, "Operation Owner User ID", dbOperation.OperationOwnerUserID,
+				"ClusterUser ID", clusterUser.ClusterUserID)
 			continue
 		}
 
@@ -828,14 +828,14 @@ func createRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCreden
 	dbQueries db.DatabaseQueries, apiNamespaceClient client.Client, shouldWait bool, l logr.Logger) (error, string) {
 
 	dbOperationInput := db.Operation{
-		Instance_id:             dbRepoCred.EngineClusterID,
-		Resource_id:             dbRepoCred.RepositoryCredentialsID,
-		Resource_type:           db.OperationResourceType_RepositoryCredentials,
-		State:                   db.OperationState_Waiting,
-		Operation_owner_user_id: clusterUser.Clusteruser_id,
+		InstanceID:           dbRepoCred.EngineClusterID,
+		ResourceID:           dbRepoCred.RepositoryCredentialsID,
+		ResourceType:         db.OperationResourceType_RepositoryCredentials,
+		State:                db.OperationState_Waiting,
+		OperationOwnerUserID: clusterUser.ClusterUserID,
 	}
 
-	operationCR, operationDB, err := operations.CreateOperation(ctx, shouldWait, dbOperationInput, clusterUser.Clusteruser_id, ns, dbQueries,
+	operationCR, operationDB, err := operations.CreateOperation(ctx, shouldWait, dbOperationInput, clusterUser.ClusterUserID, ns, dbQueries,
 		apiNamespaceClient, l)
 	if err != nil {
 		errV := fmt.Errorf("unable to create operation: %v", err)
@@ -911,7 +911,7 @@ func internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx context.Con
 	isNewUser := false
 
 	// TODO: GITOPSRVCE-19 - KCP support: for now, we assume that the namespace UID that the request occurred in is the user id.
-	clusterUser := db.ClusterUser{User_name: string(workspaceNamespace.UID)}
+	clusterUser := db.ClusterUser{UserName: string(workspaceNamespace.UID)}
 
 	// TODO: GITOPSRVCE-41 - We are assuming that user namespace uid == username, which is messy. We should add a new field for unique user id, and username should be human readable and not used for security, etc.
 	err := dbq.GetClusterUserByUsername(ctx, &clusterUser)
@@ -920,10 +920,10 @@ func internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx context.Con
 			isNewUser = true
 
 			if err := dbq.CreateClusterUser(ctx, &clusterUser); err != nil {
-				l.Error(err, "Unable to create ClusterUser with User ID: "+clusterUser.Clusteruser_id, clusterUser.GetAsLogKeyValues()...)
+				l.Error(err, "Unable to create ClusterUser with User ID: "+clusterUser.ClusterUserID, clusterUser.GetAsLogKeyValues()...)
 				return nil, false, err
 			}
-			l.Info("Created Cluster User with User ID: "+clusterUser.Clusteruser_id, clusterUser.GetAsLogKeyValues()...)
+			l.Info("Created Cluster User with User ID: "+clusterUser.ClusterUserID, clusterUser.GetAsLogKeyValues()...)
 
 		} else {
 			return nil, false, err
@@ -963,9 +963,9 @@ func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, gito
 
 	// Create the cluster access object, to allow us to interact with the GitOpsEngine and ManagedEnvironment on the user's behalf
 	ca := db.ClusterAccess{
-		Clusteraccess_user_id:                   clusterUser.Clusteruser_id,
-		Clusteraccess_managed_environment_id:    managedEnv.Managedenvironment_id,
-		Clusteraccess_gitops_engine_instance_id: engineInstance.Gitopsengineinstance_id,
+		ClusterAccessUserID:                 clusterUser.ClusterUserID,
+		ClusterAccessManagedEnvironmentID:   managedEnv.Managedenvironment_id,
+		ClusterAccessGitopsEngineInstanceID: engineInstance.Gitopsengineinstance_id,
 	}
 
 	err, isNewClusterAccess := internalGetOrCreateClusterAccess(ctx, &ca, dbQueries, l)
@@ -1054,8 +1054,8 @@ func internalGetOrCreateClusterAccess(ctx context.Context, ca *db.ClusterAccess,
 
 		return err, false
 	}
-	l.Info(fmt.Sprintf("Created ClusterAccess for UserID: %s, for ManagedEnvironment: %s", ca.Clusteraccess_user_id,
-		ca.Clusteraccess_managed_environment_id), ca.GetAsLogKeyValues()...)
+	l.Info(fmt.Sprintf("Created ClusterAccess for UserID: %s, for ManagedEnvironment: %s", ca.ClusterAccessUserID,
+		ca.ClusterAccessManagedEnvironmentID), ca.GetAsLogKeyValues()...)
 
 	return nil, true
 }
@@ -1065,7 +1065,7 @@ func internalGetOrCreateClusterUserByNamespaceUID(ctx context.Context, namespace
 	isNewUser := false
 
 	// TODO: GITOPSRVCE-19 - KCP support: for now, we assume that the namespace UID that the request occurred in is the user id.
-	clusterUser := db.ClusterUser{User_name: namespaceUID}
+	clusterUser := db.ClusterUser{UserName: namespaceUID}
 
 	err := dbq.GetClusterUserByUsername(ctx, &clusterUser)
 	if err != nil {

@@ -92,11 +92,11 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			Expect(err).To(BeNil())
 
 			applicationput = db.Application{
-				Application_id:          "test-my-application",
-				Name:                    "test-my-application",
-				Spec_field:              dummyApplicationSpec,
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          "test-my-application",
+				Name:                   "test-my-application",
+				SpecField:              dummyApplicationSpec,
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			err = dbQueries.CreateApplication(ctx, &applicationput)
@@ -132,7 +132,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 		AfterEach(func() {
 			for _, operation := range operationList {
-				rowsAffected, err := dbQueries.CheckedDeleteOperationById(ctx, operation.Operation_id, operation.Operation_owner_user_id)
+				rowsAffected, err := dbQueries.CheckedDeleteOperationById(ctx, operation.Operation_id, operation.OperationOwnerUserID)
 				Expect(rowsAffected).Should((Equal(1)))
 				Expect(err).To(BeNil())
 			}
@@ -146,9 +146,9 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			log := logger.FromContext(ctx)
 
 			dbOperationInput := db.Operation{
-				Instance_id:   applicationput.Engine_instance_inst_id,
-				Resource_id:   applicationput.Application_id,
-				Resource_type: db.OperationResourceType_Application,
+				InstanceID:   applicationput.EngineInstanceInstID,
+				ResourceID:   applicationput.ApplicationID,
+				ResourceType: db.OperationResourceType_Application,
 			}
 
 			_, dbOperation, err := operations.CreateOperation(ctx, false, dbOperationInput,
@@ -183,9 +183,9 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			log := logger.FromContext(ctx)
 
 			dbOperationInput := db.Operation{
-				Instance_id:   applicationput.Engine_instance_inst_id,
-				Resource_id:   applicationput.Application_id,
-				Resource_type: db.OperationResourceType_Application,
+				InstanceID:   applicationput.EngineInstanceInstID,
+				ResourceID:   applicationput.ApplicationID,
+				ResourceType: db.OperationResourceType_Application,
 			}
 
 			_, dbOperation, err := operations.CreateOperation(ctx, false, dbOperationInput,
@@ -254,21 +254,21 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Create required db entries.")
 			clusterCredentials = db.ClusterCredentials{
-				Clustercredentials_cred_id:  "test-cluster-creds-test-1",
-				Host:                        "host",
-				Kube_config:                 "kube-config",
-				Kube_config_context:         "kube-config-context",
-				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-				Serviceaccount_ns:           "Serviceaccount_ns",
+				ClustercredentialsCredID:  "test-cluster-creds-test-1",
+				Host:                      "host",
+				KubeConfig:                "kube-config",
+				KubeConfig_context:        "kube-config-context",
+				ServiceAccountBearerToken: "serviceaccount_bearer_token",
+				ServiceAccountNs:          "Serviceaccount_ns",
 			}
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
 			Expect(err).To(BeNil())
 
 			gitopsEngineInstance = db.GitopsEngineInstance{
 				Gitopsengineinstance_id: "test-fake-engine-instance-id",
-				Namespace_name:          "test-fake-namespace",
-				Namespace_uid:           "test-fake-namespace-1",
-				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+				NamespaceName:           "test-fake-namespace",
+				NamespaceUID:            "test-fake-namespace-1",
+				EngineClusterID:         gitopsEngineCluster.PrimaryKeyID,
 			}
 			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
 			Expect(err).To(BeNil())
@@ -277,7 +277,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			secret = corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-secret",
-					Namespace: gitopsEngineInstance.Namespace_name,
+					Namespace: gitopsEngineInstance.NamespaceName,
 				},
 			}
 		})
@@ -287,8 +287,8 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			defer dbq.CloseDatabase()
 
 			clusterUser := &db.ClusterUser{
-				Clusteruser_id: "test-repocred-user-id",
-				User_name:      "test-repocred-user",
+				ClusterUserID: "test-repocred-user-id",
+				UserName:      "test-repocred-user",
 			}
 			err := dbq.CreateClusterUser(ctx, clusterUser)
 			Expect(err).To(BeNil())
@@ -297,7 +297,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			repoCredentials := db.RepositoryCredentials{
 				RepositoryCredentialsID: "test-cred-id" + string(uuid.NewUUID()),
-				UserID:                  clusterUser.Clusteruser_id,
+				UserID:                  clusterUser.ClusterUserID,
 				PrivateURL:              "https://test-private-url",
 				AuthUsername:            "test-auth-username",
 				AuthPassword:            "test-auth-password",
@@ -361,7 +361,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			managedEnvironment := db.ManagedEnvironment{
 				Managedenvironment_id: "test-env-id" + string(uuid.NewUUID()),
-				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+				ClusterCredentialsID:  clusterCredentials.ClustercredentialsCredID,
 				Name:                  "test-env-" + string(uuid.NewUUID()),
 			}
 

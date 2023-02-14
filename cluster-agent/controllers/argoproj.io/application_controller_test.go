@@ -146,15 +146,15 @@ var _ = Describe("Application Controller", func() {
 			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
 			applicationDB := &db.Application{
-				Application_id:          databaseID,
-				Name:                    name,
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          databaseID,
+				Name:                   name,
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			applicationState := &db.ApplicationState{
-				Applicationstate_application_id: applicationDB.Application_id,
+				Applicationstate_application_id: applicationDB.ApplicationID,
 			}
 
 			By("Create a new ArgoCD Application")
@@ -176,7 +176,7 @@ var _ = Describe("Application Controller", func() {
 
 			By("Verify that Health and Status of ArgoCD Application is equal to the Health and Status of Application in database")
 			Expect(applicationState.Health).To(Equal(string(guestbookApp.Status.Health.Status)))
-			Expect(applicationState.Sync_Status).To(Equal(string(guestbookApp.Status.Sync.Status)))
+			Expect(applicationState.SyncStatus).To(Equal(string(guestbookApp.Status.Sync.Status)))
 
 		})
 
@@ -190,20 +190,20 @@ var _ = Describe("Application Controller", func() {
 			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
 			applicationDB := &db.Application{
-				Application_id:          databaseID,
-				Name:                    name,
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          databaseID,
+				Name:                   name,
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			reconciledStateString, _, err := dummyApplicationComparedToField()
 			Expect(err).To(BeNil())
 
 			applicationState := &db.ApplicationState{
-				Applicationstate_application_id: applicationDB.Application_id,
+				Applicationstate_application_id: applicationDB.ApplicationID,
 				Health:                          "Progressing",
-				Sync_Status:                     "OutOfSync",
+				SyncStatus:                      "OutOfSync",
 				ReconciledState:                 reconciledStateString,
 				SyncError:                       "test-sync-error",
 			}
@@ -231,7 +231,7 @@ var _ = Describe("Application Controller", func() {
 
 			By("Verify that Health and Status of ArgoCD Application is equal to the Health and Status of Application in database")
 			Expect(applicationState.Health).To(Equal(string(guestbookApp.Status.Health.Status)))
-			Expect(applicationState.Sync_Status).To(Equal(string(guestbookApp.Status.Sync.Status)))
+			Expect(applicationState.SyncStatus).To(Equal(string(guestbookApp.Status.Sync.Status)))
 
 		})
 
@@ -245,11 +245,11 @@ var _ = Describe("Application Controller", func() {
 			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
 			applicationDB := &db.Application{
-				Application_id:          databaseID,
-				Name:                    name,
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          databaseID,
+				Name:                   name,
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			By("Create Application in Database")
@@ -308,11 +308,11 @@ var _ = Describe("Application Controller", func() {
 			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
 			applicationDB := &db.Application{
-				Application_id:          databaseID,
-				Name:                    name,
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          databaseID,
+				Name:                   name,
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			By("Verify Application is not present in database")
@@ -340,15 +340,15 @@ var _ = Describe("Application Controller", func() {
 			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
 			applicationDB := &db.Application{
-				Application_id:          databaseID,
-				Name:                    name,
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          databaseID,
+				Name:                   name,
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			applicationState := &db.ApplicationState{
-				Applicationstate_application_id: applicationDB.Application_id,
+				Applicationstate_application_id: applicationDB.ApplicationID,
 			}
 
 			By("Create a new ArgoCD Application")
@@ -429,11 +429,11 @@ var _ = Describe("Application Controller", func() {
 			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
 			applicationDB := &db.Application{
-				Application_id:          databaseID,
-				Name:                    name,
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          databaseID,
+				Name:                   name,
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			By("Create a new ArgoCD Application")
@@ -462,15 +462,15 @@ var _ = Describe("Application Controller", func() {
 			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
 			applicationDB := &db.Application{
-				Application_id:          databaseID,
-				Name:                    name,
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          databaseID,
+				Name:                   name,
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			applicationStateDB := &db.ApplicationState{
-				Applicationstate_application_id: applicationDB.Application_id,
+				Applicationstate_application_id: applicationDB.ApplicationID,
 			}
 
 			By("Create Application in Database")
@@ -522,11 +522,11 @@ var _ = Describe("Application Controller", func() {
 			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
 			applicationDB := &db.Application{
-				Application_id:          databaseID,
-				Name:                    name,
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          databaseID,
+				Name:                   name,
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			reconciledStateString, reconciledObj, err := dummyApplicationComparedToField()
@@ -535,9 +535,9 @@ var _ = Describe("Application Controller", func() {
 
 			// applicationState which already exists in database
 			applicationState := &db.ApplicationState{
-				Applicationstate_application_id: applicationDB.Application_id,
+				Applicationstate_application_id: applicationDB.ApplicationID,
 				Health:                          "Healthy",
-				Sync_Status:                     "Synced",
+				SyncStatus:                      "Synced",
 				ReconciledState:                 reconciledStateString,
 			}
 
@@ -559,7 +559,7 @@ var _ = Describe("Application Controller", func() {
 			Expect(result).ToNot(BeNil())
 
 			applicationStateget := &db.ApplicationState{
-				Applicationstate_application_id: applicationDB.Application_id,
+				Applicationstate_application_id: applicationDB.ApplicationID,
 			}
 
 			By("Verify ReconcidedState in ApplicationState is updated in database")
@@ -594,15 +594,15 @@ var _ = Describe("Application Controller", func() {
 			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
 			applicationDB := &db.Application{
-				Application_id:          databaseID,
-				Name:                    name,
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          databaseID,
+				Name:                   name,
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			applicationStateDB := &db.ApplicationState{
-				Applicationstate_application_id: applicationDB.Application_id,
+				Applicationstate_application_id: applicationDB.ApplicationID,
 			}
 
 			By("Create Application in Database")
@@ -695,15 +695,15 @@ var _ = Describe("Application Controller", func() {
 			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
 			applicationDB := &db.Application{
-				Application_id:          databaseID,
-				Name:                    name,
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          databaseID,
+				Name:                   name,
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			applicationStateDB := &db.ApplicationState{
-				Applicationstate_application_id: applicationDB.Application_id,
+				Applicationstate_application_id: applicationDB.ApplicationID,
 			}
 
 			By("Create Application in Database")
@@ -743,11 +743,11 @@ var _ = Describe("Application Controller", func() {
 			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
 			applicationDB := &db.Application{
-				Application_id:          databaseID,
-				Name:                    name,
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          databaseID,
+				Name:                   name,
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			reconciledStateString, reconciledObj, err := dummyApplicationComparedToField()
@@ -756,9 +756,9 @@ var _ = Describe("Application Controller", func() {
 
 			// applicationState which already exists in database
 			applicationState := &db.ApplicationState{
-				Applicationstate_application_id: applicationDB.Application_id,
+				Applicationstate_application_id: applicationDB.ApplicationID,
 				Health:                          "Healthy",
-				Sync_Status:                     "Synced",
+				SyncStatus:                      "Synced",
 				ReconciledState:                 reconciledStateString,
 				SyncError:                       "test-sync-error",
 			}
@@ -781,7 +781,7 @@ var _ = Describe("Application Controller", func() {
 			Expect(result).ToNot(BeNil())
 
 			applicationStateget := &db.ApplicationState{
-				Applicationstate_application_id: applicationDB.Application_id,
+				Applicationstate_application_id: applicationDB.ApplicationID,
 			}
 
 			By("Verify ReconcidedState in ApplicationState is updated in database")
@@ -869,11 +869,11 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			Expect(err).To(BeNil())
 
 			applicationput = db.Application{
-				Application_id:          "test-my-application",
-				Name:                    "test-my-application",
-				Spec_field:              dummyApplicationSpec,
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				ApplicationID:          "test-my-application",
+				Name:                   "test-my-application",
+				SpecField:              dummyApplicationSpec,
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			}
 
 			err = dbQueries.CreateApplication(ctx, &applicationput)
@@ -952,7 +952,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 					}
 					err = dbQueries.GetOperationById(ctx, &dbOperation)
 					Expect(err).To(BeNil())
-					if dbOperation.Resource_id == applicationput.Application_id {
+					if dbOperation.ResourceID == applicationput.ApplicationID {
 						count += 1
 					}
 				}
@@ -994,9 +994,9 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 					}
 					err = dbQueries.GetOperationById(ctx, &dbOperation)
 					Expect(err).To(BeNil())
-					if dbOperation.Resource_id == applicationput.Application_id {
-						Expect(dbOperation.Resource_id).To(Equal(applicationput.Application_id))
-						Expect(dbOperation.Instance_id).To(Equal(applicationput.Engine_instance_inst_id))
+					if dbOperation.ResourceID == applicationput.ApplicationID {
+						Expect(dbOperation.ResourceID).To(Equal(applicationput.ApplicationID))
+						Expect(dbOperation.InstanceID).To(Equal(applicationput.EngineInstanceInstID))
 					}
 				}
 			}
@@ -1034,9 +1034,9 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 					}
 					err = dbQueries.GetOperationById(ctx, &dbOperation)
 					Expect(err).To(BeNil())
-					if dbOperation.Resource_id == applicationput.Application_id {
-						Expect(dbOperation.Resource_id).To(Equal(applicationput.Application_id))
-						Expect(dbOperation.Instance_id).To(Equal(applicationput.Engine_instance_inst_id))
+					if dbOperation.ResourceID == applicationput.ApplicationID {
+						Expect(dbOperation.ResourceID).To(Equal(applicationput.ApplicationID))
+						Expect(dbOperation.InstanceID).To(Equal(applicationput.EngineInstanceInstID))
 					}
 				}
 			}
@@ -1088,43 +1088,43 @@ func createSampleData(dbq db.AllDatabaseQueries) (*db.ClusterCredentials, *db.Ma
 }
 
 var testClusterUser = &db.ClusterUser{
-	Clusteruser_id: "test-user",
-	User_name:      "test-user",
+	ClusterUserID: "test-user",
+	UserName:      "test-user",
 }
 
 // Generate fake cluster for testing.
 func generateSampleData() (db.ClusterCredentials, db.ManagedEnvironment, db.GitopsEngineCluster, db.GitopsEngineInstance, db.ClusterAccess) {
 	clusterCredentials := db.ClusterCredentials{
-		Clustercredentials_cred_id:  "test-cluster-creds-test",
-		Host:                        "host",
-		Kube_config:                 "kube-config",
-		Kube_config_context:         "kube-config-context",
-		Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-		Serviceaccount_ns:           "Serviceaccount_ns",
+		ClustercredentialsCredID:  "test-cluster-creds-test",
+		Host:                      "host",
+		KubeConfig:                "kube-config",
+		KubeConfig_context:        "kube-config-context",
+		ServiceAccountBearerToken: "serviceaccount_bearer_token",
+		ServiceAccountNs:          "Serviceaccount_ns",
 	}
 
 	managedEnvironment := db.ManagedEnvironment{
 		Managedenvironment_id: "test-managed-env",
-		Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+		ClusterCredentialsID:  clusterCredentials.ClustercredentialsCredID,
 		Name:                  "my env",
 	}
 
 	gitopsEngineCluster := db.GitopsEngineCluster{
-		Gitopsenginecluster_id: "test-fake-cluster",
-		Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+		PrimaryKeyID:         "test-fake-cluster",
+		ClusterCredentialsID: clusterCredentials.ClustercredentialsCredID,
 	}
 
 	gitopsEngineInstance := db.GitopsEngineInstance{
 		Gitopsengineinstance_id: "test-fake-engine-instance-id",
-		Namespace_name:          "test-fake-namespace",
-		Namespace_uid:           "test-fake-namespace",
-		EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+		NamespaceName:           "test-fake-namespace",
+		NamespaceUID:            "test-fake-namespace",
+		EngineClusterID:         gitopsEngineCluster.PrimaryKeyID,
 	}
 
 	clusterAccess := db.ClusterAccess{
-		Clusteraccess_user_id:                   testClusterUser.Clusteruser_id,
-		Clusteraccess_managed_environment_id:    managedEnvironment.Managedenvironment_id,
-		Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
+		ClusterAccessUserID:                 testClusterUser.ClusterUserID,
+		ClusterAccessManagedEnvironmentID:   managedEnvironment.Managedenvironment_id,
+		ClusterAccessGitopsEngineInstanceID: gitopsEngineInstance.Gitopsengineinstance_id,
 	}
 
 	return clusterCredentials, managedEnvironment, gitopsEngineCluster, gitopsEngineInstance, clusterAccess

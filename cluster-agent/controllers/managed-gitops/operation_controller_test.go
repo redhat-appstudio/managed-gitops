@@ -71,16 +71,16 @@ var _ = Describe("Garbage Collect Operations", func() {
 		It("operations with expired gc interval should be removed", func() {
 			By("create an operation with expiration time")
 			validOperation := db.Operation{
-				Operation_id:            "test-operation-1",
-				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-				Resource_id:             "test-fake-resource-id",
-				Resource_type:           "GitopsEngineInstance",
-				State:                   db.OperationState_Waiting,
-				Operation_owner_user_id: clusterAccess.Clusteraccess_user_id,
-				GC_expiration_time:      2,
-				Last_state_update:       time.Now(),
+				Operation_id:         "test-operation-1",
+				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+				ResourceID:           "test-fake-resource-id",
+				ResourceType:         "GitopsEngineInstance",
+				State:                db.OperationState_Waiting,
+				OperationOwnerUserID: clusterAccess.ClusterAccessUserID,
+				GCExpirationTime:     2,
+				LastStateUpdate:      time.Now(),
 			}
-			err = dbq.CreateOperation(ctx, &validOperation, validOperation.Operation_owner_user_id)
+			err = dbq.CreateOperation(ctx, &validOperation, validOperation.OperationOwnerUserID)
 			Expect(err).To(BeNil())
 
 			By("wait until we exceed the expiration time")
@@ -106,16 +106,16 @@ var _ = Describe("Garbage Collect Operations", func() {
 		It("operation within the gc interval should not be removed", func() {
 			By("create an operation with a long expiration time")
 			invalidOperation := db.Operation{
-				Operation_id:            "test-operation-1",
-				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-				Resource_id:             "test-fake-resource-id",
-				Resource_type:           "GitopsEngineInstance",
-				State:                   db.OperationState_Waiting,
-				Operation_owner_user_id: clusterAccess.Clusteraccess_user_id,
-				GC_expiration_time:      2000,
-				Last_state_update:       time.Now(),
+				Operation_id:         "test-operation-1",
+				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+				ResourceID:           "test-fake-resource-id",
+				ResourceType:         "GitopsEngineInstance",
+				State:                db.OperationState_Waiting,
+				OperationOwnerUserID: clusterAccess.ClusterAccessUserID,
+				GCExpirationTime:     2000,
+				LastStateUpdate:      time.Now(),
 			}
-			err = dbq.CreateOperation(ctx, &invalidOperation, invalidOperation.Operation_owner_user_id)
+			err = dbq.CreateOperation(ctx, &invalidOperation, invalidOperation.OperationOwnerUserID)
 			Expect(err).To(BeNil())
 
 			gc.garbageCollectOperations(ctx, []db.Operation{invalidOperation}, log)

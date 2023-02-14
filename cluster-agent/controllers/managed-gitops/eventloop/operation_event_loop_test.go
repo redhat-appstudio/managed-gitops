@@ -57,8 +57,8 @@ var _ = Describe("Operation Controller", func() {
 			logger = log.FromContext(ctx)
 
 			testClusterUser = &db.ClusterUser{
-				Clusteruser_id: "test-user",
-				User_name:      "test-user",
+				ClusterUserID: "test-user",
+				UserName:      "test-user",
 			}
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
@@ -102,15 +102,15 @@ var _ = Describe("Operation Controller", func() {
 
 			By("creating Operation row in database")
 			operationDB := &db.Operation{
-				Operation_id:            "test-operation",
-				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-				Resource_id:             "test-fake-resource-id",
-				Resource_type:           db.OperationResourceType_Application,
-				State:                   db.OperationState_Waiting,
-				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				Operation_id:         "test-operation",
+				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+				ResourceID:           "test-fake-resource-id",
+				ResourceType:         db.OperationResourceType_Application,
+				State:                db.OperationState_Waiting,
+				OperationOwnerUserID: testClusterUser.ClusterUserID,
 			}
 
-			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.OperationOwnerUserID)
 			Expect(err).To(BeNil())
 
 			retry, err := task.PerformTask(ctx)
@@ -131,15 +131,15 @@ var _ = Describe("Operation Controller", func() {
 			Expect(err).To(BeNil())
 
 			operationDB := &db.Operation{
-				Operation_id:            "test-operation",
-				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-				Resource_id:             "test-fake-resource-id",
-				Resource_type:           db.OperationResourceType_Application,
-				State:                   db.OperationState_Waiting,
-				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				Operation_id:         "test-operation",
+				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+				ResourceID:           "test-fake-resource-id",
+				ResourceType:         db.OperationResourceType_Application,
+				State:                db.OperationState_Waiting,
+				OperationOwnerUserID: testClusterUser.ClusterUserID,
 			}
 
-			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.OperationOwnerUserID)
 			Expect(err).To(BeNil())
 
 			By("Operation row(test-wrong-operation) doesn't exists")
@@ -173,19 +173,19 @@ var _ = Describe("Operation Controller", func() {
 			By("'kube-system' namespace has a UID that is not found in a corresponding row in GitOpsEngineCluster database")
 			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
 			Expect(err).To(BeNil())
-			Expect(kubesystemNamespace.UID).ToNot(Equal(gitopsEngineInstance.Namespace_uid))
+			Expect(kubesystemNamespace.UID).ToNot(Equal(gitopsEngineInstance.NamespaceUID))
 
 			By("creating Operation row in database")
 			operationDB := &db.Operation{
-				Operation_id:            "test-operation",
-				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-				Resource_id:             "test-fake-resource-id",
-				Resource_type:           db.OperationResourceType_Application,
-				State:                   db.OperationState_Waiting,
-				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				Operation_id:         "test-operation",
+				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+				ResourceID:           "test-fake-resource-id",
+				ResourceType:         db.OperationResourceType_Application,
+				State:                db.OperationState_Waiting,
+				OperationOwnerUserID: testClusterUser.ClusterUserID,
 			}
 
-			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.OperationOwnerUserID)
 			Expect(err).To(BeNil())
 
 			By("Operation CR exists")
@@ -220,24 +220,24 @@ var _ = Describe("Operation Controller", func() {
 			By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 			gitopsEngineInstance := &db.GitopsEngineInstance{
 				Gitopsengineinstance_id: "test-fake-engine-instance",
-				Namespace_name:          "doesn't-exist",
-				Namespace_uid:           string("doesnt-exist-uid"),
-				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+				NamespaceName:           "doesn't-exist",
+				NamespaceUID:            string("doesnt-exist-uid"),
+				EngineClusterID:         gitopsEngineCluster.PrimaryKeyID,
 			}
 			err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
 			Expect(err).To(BeNil())
 
 			By("creating Operation row in database")
 			operationDB := &db.Operation{
-				Operation_id:            "test-operation",
-				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-				Resource_id:             "test-fake-resource-id",
-				Resource_type:           db.OperationResourceType_Application,
-				State:                   db.OperationState_Waiting,
-				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				Operation_id:         "test-operation",
+				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+				ResourceID:           "test-fake-resource-id",
+				ResourceType:         db.OperationResourceType_Application,
+				State:                db.OperationState_Waiting,
+				OperationOwnerUserID: testClusterUser.ClusterUserID,
 			}
 
-			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.OperationOwnerUserID)
 			Expect(err).To(BeNil())
 
 			By("creating Operation CR")
@@ -263,15 +263,15 @@ var _ = Describe("Operation Controller", func() {
 				KubernetesResourceType: "Namespace",
 				KubernetesResourceUID:  string(kubesystemNamespace.UID),
 				DBRelationType:         "GitopsEngineCluster",
-				DBRelationKey:          gitopsEngineCluster.Gitopsenginecluster_id,
+				DBRelationKey:          gitopsEngineCluster.PrimaryKeyID,
 			}
 
 			By("deleting resources and cleaning up db entries created by test.")
 			resourcesToBeDeleted := testResources{
 				Operation_id:                  []string{operationDB.Operation_id},
-				Gitopsenginecluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+				PrimaryKeyID:                  gitopsEngineCluster.PrimaryKeyID,
 				Gitopsengineinstance_id:       gitopsEngineInstance.Gitopsengineinstance_id,
-				ClusterCredentials_id:         gitopsEngineCluster.Clustercredentials_id,
+				ClusterCredentials_id:         gitopsEngineCluster.ClusterCredentialsID,
 				kubernetesToDBResourceMapping: kubernetesToDBResourceMapping,
 			}
 
@@ -332,9 +332,9 @@ var _ = Describe("Operation Controller", func() {
 				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 				gitopsEngineInstance := &db.GitopsEngineInstance{
 					Gitopsengineinstance_id: "test-fake-engine-instance",
-					Namespace_name:          workspace.Name,
-					Namespace_uid:           string(workspace.UID),
-					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+					NamespaceName:           workspace.Name,
+					NamespaceUID:            string(workspace.UID),
+					EngineClusterID:         gitopsEngineCluster.PrimaryKeyID,
 				}
 
 				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
@@ -342,15 +342,15 @@ var _ = Describe("Operation Controller", func() {
 
 				By("Creating Operation row in database")
 				operationDB := &db.Operation{
-					Operation_id:            "test-operation",
-					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-					Resource_id:             "doesnt-exist",
-					Resource_type:           "Application",
-					State:                   db.OperationState_Waiting,
-					Operation_owner_user_id: testClusterUser.Clusteruser_id,
+					Operation_id:         "test-operation",
+					InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+					ResourceID:           "doesnt-exist",
+					ResourceType:         "Application",
+					State:                db.OperationState_Waiting,
+					OperationOwnerUserID: testClusterUser.ClusterUserID,
 				}
 
-				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.OperationOwnerUserID)
 				Expect(err).To(BeNil())
 
 				By("Creating Operation CR")
@@ -386,15 +386,15 @@ var _ = Describe("Operation Controller", func() {
 					KubernetesResourceType: "Namespace",
 					KubernetesResourceUID:  string(kubesystemNamespace.UID),
 					DBRelationType:         "GitopsEngineCluster",
-					DBRelationKey:          gitopsEngineCluster.Gitopsenginecluster_id,
+					DBRelationKey:          gitopsEngineCluster.PrimaryKeyID,
 				}
 
 				By("deleting resources and cleaning up db entries created by test.")
 				resourcesToBeDeleted := testResources{
 					Operation_id:                  []string{operationDB.Operation_id},
-					Gitopsenginecluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+					PrimaryKeyID:                  gitopsEngineCluster.PrimaryKeyID,
 					Gitopsengineinstance_id:       gitopsEngineInstance.Gitopsengineinstance_id,
-					ClusterCredentials_id:         gitopsEngineCluster.Clustercredentials_id,
+					ClusterCredentials_id:         gitopsEngineCluster.ClusterCredentialsID,
 					kubernetesToDBResourceMapping: kubernetesToDBResourceMapping,
 				}
 
@@ -420,20 +420,20 @@ var _ = Describe("Operation Controller", func() {
 				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 				gitopsEngineInstance := &db.GitopsEngineInstance{
 					Gitopsengineinstance_id: "test-fake-engine-instance",
-					Namespace_name:          workspace.Name,
-					Namespace_uid:           string(workspace.UID),
-					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+					NamespaceName:           workspace.Name,
+					NamespaceUID:            string(workspace.UID),
+					EngineClusterID:         gitopsEngineCluster.PrimaryKeyID,
 				}
 				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
 				Expect(err).To(BeNil())
 
 				By("Create Application in Database")
 				applicationDB := &db.Application{
-					Application_id:          "test-my-application",
-					Name:                    name,
-					Spec_field:              dummyApplicationSpecString,
-					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+					ApplicationID:          "test-my-application",
+					Name:                   name,
+					SpecField:              dummyApplicationSpecString,
+					EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+					Managed_environment_id: managedEnvironment.Managedenvironment_id,
 				}
 
 				err = dbQueries.CreateApplication(ctx, applicationDB)
@@ -441,15 +441,15 @@ var _ = Describe("Operation Controller", func() {
 
 				By("Creating Operation row in database")
 				operationDB := &db.Operation{
-					Operation_id:            "test-operation",
-					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-					Resource_id:             applicationDB.Application_id,
-					Resource_type:           "Application",
-					State:                   db.OperationState_Waiting,
-					Operation_owner_user_id: testClusterUser.Clusteruser_id,
+					Operation_id:         "test-operation",
+					InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+					ResourceID:           applicationDB.ApplicationID,
+					ResourceType:         "Application",
+					State:                db.OperationState_Waiting,
+					OperationOwnerUserID: testClusterUser.ClusterUserID,
 				}
 
-				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.OperationOwnerUserID)
 				Expect(err).To(BeNil())
 
 				By("Creating Operation CR")
@@ -491,16 +491,16 @@ var _ = Describe("Operation Controller", func() {
 					KubernetesResourceType: "Namespace",
 					KubernetesResourceUID:  string(kubesystemNamespace.UID),
 					DBRelationType:         "GitopsEngineCluster",
-					DBRelationKey:          gitopsEngineCluster.Gitopsenginecluster_id,
+					DBRelationKey:          gitopsEngineCluster.PrimaryKeyID,
 				}
 
 				By("deleting resources and cleaning up db entries created by test.")
 				resourcesToBeDeleted := testResources{
-					Application_id:                applicationDB.Application_id,
+					ApplicationID:                 applicationDB.ApplicationID,
 					Operation_id:                  []string{operationDB.Operation_id},
-					Gitopsenginecluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+					PrimaryKeyID:                  gitopsEngineCluster.PrimaryKeyID,
 					Gitopsengineinstance_id:       gitopsEngineInstance.Gitopsengineinstance_id,
-					ClusterCredentials_id:         gitopsEngineCluster.Clustercredentials_id,
+					ClusterCredentials_id:         gitopsEngineCluster.ClusterCredentialsID,
 					kubernetesToDBResourceMapping: kubernetesToDBResourceMapping,
 				}
 
@@ -526,19 +526,19 @@ var _ = Describe("Operation Controller", func() {
 				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 				gitopsEngineInstance := &db.GitopsEngineInstance{
 					Gitopsengineinstance_id: "test-fake-engine-instance",
-					Namespace_name:          workspace.Name,
-					Namespace_uid:           string(workspace.UID),
-					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+					NamespaceName:           workspace.Name,
+					NamespaceUID:            string(workspace.UID),
+					EngineClusterID:         gitopsEngineCluster.PrimaryKeyID,
 				}
 				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
 				Expect(err).To(BeNil())
 
 				applicationDB := &db.Application{
-					Application_id:          "test-my-application",
-					Name:                    name,
-					Spec_field:              dummyApplicationSpecString,
-					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+					ApplicationID:          "test-my-application",
+					Name:                   name,
+					SpecField:              dummyApplicationSpecString,
+					EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+					Managed_environment_id: managedEnvironment.Managedenvironment_id,
 				}
 
 				By("Create Application in Database")
@@ -547,15 +547,15 @@ var _ = Describe("Operation Controller", func() {
 
 				By("Creating new operation row in database")
 				operationDB := &db.Operation{
-					Operation_id:            "test-operation",
-					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-					Resource_id:             applicationDB.Application_id,
-					Resource_type:           "Application",
-					State:                   db.OperationState_Waiting,
-					Operation_owner_user_id: testClusterUser.Clusteruser_id,
+					Operation_id:         "test-operation",
+					InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+					ResourceID:           applicationDB.ApplicationID,
+					ResourceType:         "Application",
+					State:                db.OperationState_Waiting,
+					OperationOwnerUserID: testClusterUser.ClusterUserID,
 				}
 
-				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.OperationOwnerUserID)
 				Expect(err).To(BeNil())
 
 				By("Creating Operation CR")
@@ -587,13 +587,13 @@ var _ = Describe("Operation Controller", func() {
 
 				By("Update Application in Database")
 				applicationUpdate := &db.Application{
-					Application_id:          "test-my-application",
-					Name:                    applicationDB.Name,
-					Spec_field:              newSpecString,
-					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
-					SeqID:                   101,
-					Created_on:              applicationDB.Created_on,
+					ApplicationID:          "test-my-application",
+					Name:                   applicationDB.Name,
+					SpecField:              newSpecString,
+					EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+					Managed_environment_id: managedEnvironment.Managedenvironment_id,
+					SeqID:                  101,
+					CreatedOn:              applicationDB.CreatedOn,
 				}
 
 				err = dbQueries.UpdateApplication(ctx, applicationUpdate)
@@ -601,15 +601,15 @@ var _ = Describe("Operation Controller", func() {
 
 				By("Creating new operation row in database")
 				operationDB2 := &db.Operation{
-					Operation_id:            "test-operation-2",
-					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-					Resource_id:             applicationDB.Application_id,
-					Resource_type:           "Application",
-					State:                   db.OperationState_Waiting,
-					Operation_owner_user_id: testClusterUser.Clusteruser_id,
+					Operation_id:         "test-operation-2",
+					InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+					ResourceID:           applicationDB.ApplicationID,
+					ResourceType:         "Application",
+					State:                db.OperationState_Waiting,
+					OperationOwnerUserID: testClusterUser.ClusterUserID,
 				}
 
-				err = dbQueries.CreateOperation(ctx, operationDB2, operationDB2.Operation_owner_user_id)
+				err = dbQueries.CreateOperation(ctx, operationDB2, operationDB2.OperationOwnerUserID)
 				Expect(err).To(BeNil())
 
 				By("Create new operation CR")
@@ -651,17 +651,17 @@ var _ = Describe("Operation Controller", func() {
 					KubernetesResourceType: "Namespace",
 					KubernetesResourceUID:  string(kubesystemNamespace.UID),
 					DBRelationType:         "GitopsEngineCluster",
-					DBRelationKey:          gitopsEngineCluster.Gitopsenginecluster_id,
+					DBRelationKey:          gitopsEngineCluster.PrimaryKeyID,
 				}
 
 				By("deleting resources and cleaning up db entries created by test.")
 
 				resourcesToBeDeleted := testResources{
-					Application_id:                applicationDB.Application_id,
+					ApplicationID:                 applicationDB.ApplicationID,
 					Operation_id:                  []string{operationDB.Operation_id, operationDB2.Operation_id},
-					Gitopsenginecluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+					PrimaryKeyID:                  gitopsEngineCluster.PrimaryKeyID,
 					Gitopsengineinstance_id:       gitopsEngineInstance.Gitopsengineinstance_id,
-					ClusterCredentials_id:         gitopsEngineCluster.Clustercredentials_id,
+					ClusterCredentials_id:         gitopsEngineCluster.ClusterCredentialsID,
 					kubernetesToDBResourceMapping: kubernetesToDBResourceMapping,
 				}
 
@@ -689,19 +689,19 @@ var _ = Describe("Operation Controller", func() {
 				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 				gitopsEngineInstance := &db.GitopsEngineInstance{
 					Gitopsengineinstance_id: "test-fake-engine-instance",
-					Namespace_name:          workspace.Name,
-					Namespace_uid:           string(workspace.UID),
-					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+					NamespaceName:           workspace.Name,
+					NamespaceUID:            string(workspace.UID),
+					EngineClusterID:         gitopsEngineCluster.PrimaryKeyID,
 				}
 				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
 				Expect(err).To(BeNil())
 
 				applicationDB := &db.Application{
-					Application_id:          "test-my-application",
-					Name:                    name,
-					Spec_field:              dummyApplicationSpecString,
-					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+					ApplicationID:          "test-my-application",
+					Name:                   name,
+					SpecField:              dummyApplicationSpecString,
+					EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+					Managed_environment_id: managedEnvironment.Managedenvironment_id,
 				}
 
 				By("Create Application in Database")
@@ -710,15 +710,15 @@ var _ = Describe("Operation Controller", func() {
 
 				By("Creating new operation row in database")
 				operationDB := &db.Operation{
-					Operation_id:            "test-operation",
-					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-					Resource_id:             applicationDB.Application_id,
-					Resource_type:           "Application",
-					State:                   db.OperationState_Waiting,
-					Operation_owner_user_id: testClusterUser.Clusteruser_id,
+					Operation_id:         "test-operation",
+					InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+					ResourceID:           applicationDB.ApplicationID,
+					ResourceType:         "Application",
+					State:                db.OperationState_Waiting,
+					OperationOwnerUserID: testClusterUser.ClusterUserID,
 				}
 
-				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.OperationOwnerUserID)
 				Expect(err).To(BeNil())
 
 				By("Creating Operation CR")
@@ -765,13 +765,13 @@ var _ = Describe("Operation Controller", func() {
 
 				By("Update Application in Database")
 				applicationUpdate := &db.Application{
-					Application_id:          "test-my-application",
-					Name:                    applicationDB.Name,
-					Spec_field:              newSpecString,
-					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
-					SeqID:                   101,
-					Created_on:              applicationDB.Created_on,
+					ApplicationID:          "test-my-application",
+					Name:                   applicationDB.Name,
+					SpecField:              newSpecString,
+					EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+					Managed_environment_id: managedEnvironment.Managedenvironment_id,
+					SeqID:                  101,
+					CreatedOn:              applicationDB.CreatedOn,
 				}
 
 				err = dbQueries.UpdateApplication(ctx, applicationUpdate)
@@ -779,15 +779,15 @@ var _ = Describe("Operation Controller", func() {
 
 				By("Creating new operation row in database")
 				operationDB2 := &db.Operation{
-					Operation_id:            "test-operation-2",
-					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-					Resource_id:             applicationDB.Application_id,
-					Resource_type:           "Application",
-					State:                   db.OperationState_Waiting,
-					Operation_owner_user_id: testClusterUser.Clusteruser_id,
+					Operation_id:         "test-operation-2",
+					InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+					ResourceID:           applicationDB.ApplicationID,
+					ResourceType:         "Application",
+					State:                db.OperationState_Waiting,
+					OperationOwnerUserID: testClusterUser.ClusterUserID,
 				}
 
-				err = dbQueries.CreateOperation(ctx, operationDB2, operationDB2.Operation_owner_user_id)
+				err = dbQueries.CreateOperation(ctx, operationDB2, operationDB2.OperationOwnerUserID)
 				Expect(err).To(BeNil())
 
 				By("Create new operation CR")
@@ -842,13 +842,13 @@ var _ = Describe("Operation Controller", func() {
 
 				By("Update Application in Database")
 				applicationUpdate2 := &db.Application{
-					Application_id:          "test-my-application",
-					Name:                    applicationDB.Name,
-					Spec_field:              newSpecString2,
-					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
-					SeqID:                   101,
-					Created_on:              applicationDB.Created_on,
+					ApplicationID:          "test-my-application",
+					Name:                   applicationDB.Name,
+					SpecField:              newSpecString2,
+					EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+					Managed_environment_id: managedEnvironment.Managedenvironment_id,
+					SeqID:                  101,
+					CreatedOn:              applicationDB.CreatedOn,
 				}
 
 				err = dbQueries.UpdateApplication(ctx, applicationUpdate2)
@@ -856,15 +856,15 @@ var _ = Describe("Operation Controller", func() {
 
 				By("Creating new operation row in database")
 				operationDBUpdate2 := &db.Operation{
-					Operation_id:            "test-operation-3",
-					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-					Resource_id:             applicationDB.Application_id,
-					Resource_type:           "Application",
-					State:                   db.OperationState_Waiting,
-					Operation_owner_user_id: testClusterUser.Clusteruser_id,
+					Operation_id:         "test-operation-3",
+					InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+					ResourceID:           applicationDB.ApplicationID,
+					ResourceType:         "Application",
+					State:                db.OperationState_Waiting,
+					OperationOwnerUserID: testClusterUser.ClusterUserID,
 				}
 
-				err = dbQueries.CreateOperation(ctx, operationDBUpdate2, operationDBUpdate2.Operation_owner_user_id)
+				err = dbQueries.CreateOperation(ctx, operationDBUpdate2, operationDBUpdate2.OperationOwnerUserID)
 				Expect(err).To(BeNil())
 
 				By("Create new operation CR")
@@ -924,25 +924,25 @@ var _ = Describe("Operation Controller", func() {
 					By("creating a cluster credential with tls-cert-verification set to true")
 
 					clusterCredentials := &db.ClusterCredentials{
-						Clustercredentials_cred_id:  "test-clustercredentials_cred_id-1",
-						Host:                        "test-host",
-						Kube_config:                 "test-kube_config",
-						Kube_config_context:         "test-kube_config_context",
-						Serviceaccount_bearer_token: "test-serviceaccount_bearer_token",
-						Serviceaccount_ns:           "test-serviceaccount_ns",
-						AllowInsecureSkipTLSVerify:  tlsVerifyStatus,
+						ClustercredentialsCredID:   "test-clustercredentials_cred_id-1",
+						Host:                       "test-host",
+						KubeConfig:                 "test-kube_config",
+						KubeConfig_context:         "test-kube_config_context",
+						ServiceAccountBearerToken:  "test-serviceaccount_bearer_token",
+						ServiceAccountNs:           "test-serviceaccount_ns",
+						AllowInsecureSkipTLSVerify: tlsVerifyStatus,
 					}
 
 					managedEnvironment := &db.ManagedEnvironment{
 						Managedenvironment_id: "test-managed-env-1",
-						Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+						ClusterCredentialsID:  clusterCredentials.ClustercredentialsCredID,
 						Name:                  "test-my-env101",
 					}
 					gitopsEngineInstance := &db.GitopsEngineInstance{
 						Gitopsengineinstance_id: "test-fake-engine-instance",
-						Namespace_name:          workspace.Name,
-						Namespace_uid:           string(workspace.UID),
-						EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+						NamespaceName:           workspace.Name,
+						NamespaceUID:            string(workspace.UID),
+						EngineClusterID:         gitopsEngineCluster.PrimaryKeyID,
 					}
 
 					err = dbQueries.CreateClusterCredentials(ctx, clusterCredentials)
@@ -953,11 +953,11 @@ var _ = Describe("Operation Controller", func() {
 					Expect(err).To(BeNil())
 
 					applicationDB := &db.Application{
-						Application_id:          "test-my-application-new-1",
-						Name:                    name,
-						Spec_field:              dummyApplicationSpecString,
-						Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-						Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+						ApplicationID:          "test-my-application-new-1",
+						Name:                   name,
+						SpecField:              dummyApplicationSpecString,
+						EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+						Managed_environment_id: managedEnvironment.Managedenvironment_id,
 					}
 
 					By("Create Application in Database")
@@ -966,15 +966,15 @@ var _ = Describe("Operation Controller", func() {
 
 					By("Creating new operation row in database")
 					operationDB := &db.Operation{
-						Operation_id:            "test-operation",
-						Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-						Resource_id:             applicationDB.Application_id,
-						Resource_type:           "Application",
-						State:                   db.OperationState_Waiting,
-						Operation_owner_user_id: testClusterUser.Clusteruser_id,
+						Operation_id:         "test-operation",
+						InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+						ResourceID:           applicationDB.ApplicationID,
+						ResourceType:         "Application",
+						State:                db.OperationState_Waiting,
+						OperationOwnerUserID: testClusterUser.ClusterUserID,
 					}
 
-					err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+					err = dbQueries.CreateOperation(ctx, operationDB, operationDB.OperationOwnerUserID)
 					Expect(err).To(BeNil())
 
 					By("Creating Operation CR")
@@ -996,7 +996,7 @@ var _ = Describe("Operation Controller", func() {
 					clusterSecret := &v1.Secret{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      secretName,
-							Namespace: gitopsEngineInstance.Namespace_name,
+							Namespace: gitopsEngineInstance.NamespaceName,
 						},
 						Data: map[string][]byte{},
 					}
@@ -1025,11 +1025,11 @@ var _ = Describe("Operation Controller", func() {
 					By("deleting resources and cleaning up db entries created by test.")
 
 					resourcesToBeDeleted := testResources{
-						Application_id:          applicationDB.Application_id,
+						ApplicationID:           applicationDB.ApplicationID,
 						Operation_id:            []string{operationDB.Operation_id},
-						Gitopsenginecluster_id:  gitopsEngineCluster.Gitopsenginecluster_id,
+						PrimaryKeyID:            gitopsEngineCluster.PrimaryKeyID,
 						Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
-						ClusterCredentials_id:   gitopsEngineCluster.Clustercredentials_id,
+						ClusterCredentials_id:   gitopsEngineCluster.ClusterCredentialsID,
 					}
 
 					deleteTestResources(ctx, dbQueries, resourcesToBeDeleted)
@@ -1051,15 +1051,15 @@ var _ = Describe("Operation Controller", func() {
 			createOperationDBAndCR := func(resourceID, gitopsEngineInstanceID string) {
 				By("creating new operation row of type SyncOperation in the database")
 				operationDB := &db.Operation{
-					Operation_id:            "test-operation",
-					Instance_id:             gitopsEngineInstanceID,
-					Resource_id:             resourceID,
-					Resource_type:           db.OperationResourceType_SyncOperation,
-					State:                   db.OperationState_Waiting,
-					Operation_owner_user_id: testClusterUser.Clusteruser_id,
+					Operation_id:         "test-operation",
+					InstanceID:           gitopsEngineInstanceID,
+					ResourceID:           resourceID,
+					ResourceType:         db.OperationResourceType_SyncOperation,
+					State:                db.OperationState_Waiting,
+					OperationOwnerUserID: testClusterUser.ClusterUserID,
 				}
 
-				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.OperationOwnerUserID)
 				Expect(err).To(BeNil())
 
 				By("creating Operation CR")
@@ -1107,9 +1107,9 @@ var _ = Describe("Operation Controller", func() {
 				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 				gitopsEngineInstance := &db.GitopsEngineInstance{
 					Gitopsengineinstance_id: "test-fake-engine-instance",
-					Namespace_name:          workspace.Name,
-					Namespace_uid:           string(workspace.UID),
-					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+					NamespaceName:           workspace.Name,
+					NamespaceUID:            string(workspace.UID),
+					EngineClusterID:         gitopsEngineCluster.PrimaryKeyID,
 				}
 				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
 				Expect(err).To(BeNil())
@@ -1117,11 +1117,11 @@ var _ = Describe("Operation Controller", func() {
 				gitopsEngineInstanceID = gitopsEngineInstance.Gitopsengineinstance_id
 
 				applicationDB = &db.Application{
-					Application_id:          "test-my-application",
-					Name:                    name,
-					Spec_field:              dummyApplicationSpecString,
-					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+					ApplicationID:          "test-my-application",
+					Name:                   name,
+					SpecField:              dummyApplicationSpecString,
+					EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+					Managed_environment_id: managedEnvironment.Managedenvironment_id,
 				}
 
 				By("create Application in Database")
@@ -1148,8 +1148,8 @@ var _ = Describe("Operation Controller", func() {
 
 				By("create a SyncOperation in the database")
 				syncOperation := db.SyncOperation{
-					SyncOperation_id:    "test-syncoperation",
-					Application_id:      applicationDB.Application_id,
+					SyncOperationID:     "test-syncoperation",
+					ApplicationID:       applicationDB.ApplicationID,
 					DeploymentNameField: "test",
 					Revision:            "main",
 					DesiredState:        db.SyncOperation_DesiredState_Running,
@@ -1158,7 +1158,7 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 
 				By("create Operation DB row and CR for the SyncOperation")
-				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
+				createOperationDBAndCR(syncOperation.SyncOperationID, gitopsEngineInstanceID)
 
 				By("verify there is no retry for a successful sync")
 				task.syncFuncs = &syncFuncs{
@@ -1176,8 +1176,8 @@ var _ = Describe("Operation Controller", func() {
 
 				By("create a SyncOperation in the database")
 				syncOperation := db.SyncOperation{
-					SyncOperation_id:    "test-syncoperation",
-					Application_id:      applicationDB.Application_id,
+					SyncOperationID:     "test-syncoperation",
+					ApplicationID:       applicationDB.ApplicationID,
 					DeploymentNameField: "test",
 					Revision:            "main",
 					DesiredState:        db.SyncOperation_DesiredState_Running,
@@ -1186,7 +1186,7 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 
 				By("create Operation DB row and CR for the SyncOperation")
-				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
+				createOperationDBAndCR(syncOperation.SyncOperationID, gitopsEngineInstanceID)
 
 				By("check if the sync failed error is returned with retry")
 				expectedErr := "sync failed due to xyz reason"
@@ -1223,8 +1223,8 @@ var _ = Describe("Operation Controller", func() {
 
 				By("create a SyncOperation of unknown state in the database")
 				syncOperation := db.SyncOperation{
-					SyncOperation_id:    "test-syncoperation",
-					Application_id:      applicationDB.Application_id,
+					SyncOperationID:     "test-syncoperation",
+					ApplicationID:       applicationDB.ApplicationID,
 					DeploymentNameField: "test",
 					Revision:            "main",
 					DesiredState:        "uknown",
@@ -1233,7 +1233,7 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 
 				By("create Operation DB row and CR for the SyncOperation")
-				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
+				createOperationDBAndCR(syncOperation.SyncOperationID, gitopsEngineInstanceID)
 
 				task.syncFuncs = &syncFuncs{
 					appSync: func(ctx context.Context, s1, s2, s3 string, c client.Client, cs *utils.CredentialService, b bool) error {
@@ -1252,8 +1252,8 @@ var _ = Describe("Operation Controller", func() {
 
 				By("create a SyncOperation with desired state 'Terminated' in the database")
 				syncOperation := db.SyncOperation{
-					SyncOperation_id:    "test-syncoperation",
-					Application_id:      applicationDB.Application_id,
+					SyncOperationID:     "test-syncoperation",
+					ApplicationID:       applicationDB.ApplicationID,
 					DeploymentNameField: "test",
 					Revision:            "main",
 					DesiredState:        db.SyncOperation_DesiredState_Terminated,
@@ -1262,7 +1262,7 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 
 				By("create Operation DB row and CR for the SyncOperation")
-				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
+				createOperationDBAndCR(syncOperation.SyncOperationID, gitopsEngineInstanceID)
 
 				By("verify that there is no retry and error for a successful termination")
 				task.syncFuncs = &syncFuncs{
@@ -1282,8 +1282,8 @@ var _ = Describe("Operation Controller", func() {
 
 				By("create a SyncOperation with desired state 'Terminated' in the database")
 				syncOperation := db.SyncOperation{
-					SyncOperation_id:    "test-syncoperation",
-					Application_id:      applicationDB.Application_id,
+					SyncOperationID:     "test-syncoperation",
+					ApplicationID:       applicationDB.ApplicationID,
 					DeploymentNameField: "test",
 					Revision:            "main",
 					DesiredState:        db.SyncOperation_DesiredState_Terminated,
@@ -1292,7 +1292,7 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 
 				By("create Operation DB row and CR for the SyncOperation")
-				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
+				createOperationDBAndCR(syncOperation.SyncOperationID, gitopsEngineInstanceID)
 
 				By("check if an error is returned for the failed termination")
 				expectedErr := "unable to terminate sync due to xyz reason"
@@ -1310,8 +1310,8 @@ var _ = Describe("Operation Controller", func() {
 			It("should not terminate if no sync operation is in progress", func() {
 				By("create a SyncOperation with desired state 'Terminated' in the database")
 				syncOperation := db.SyncOperation{
-					SyncOperation_id:    "test-syncoperation",
-					Application_id:      applicationDB.Application_id,
+					SyncOperationID:     "test-syncoperation",
+					ApplicationID:       applicationDB.ApplicationID,
 					DeploymentNameField: "test",
 					Revision:            "main",
 					DesiredState:        db.SyncOperation_DesiredState_Terminated,
@@ -1320,7 +1320,7 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 
 				By("create Operation DB row and CR for the SyncOperation")
-				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
+				createOperationDBAndCR(syncOperation.SyncOperationID, gitopsEngineInstanceID)
 
 				By("verify there is no termination and retry should be false")
 				task.syncFuncs = &syncFuncs{
@@ -1437,13 +1437,13 @@ func newRequest(namespace, name string) reconcile.Request {
 // Used to list down resources for deletion which are created while running tests.
 type testResources struct {
 	Operation_id                  []string
-	Gitopsenginecluster_id        string
+	PrimaryKeyID                  string
 	Gitopsengineinstance_id       string
 	ClusterCredentials_id         string
-	Application_id                string
+	ApplicationID                 string
 	Managedenvironment_id         string
 	kubernetesToDBResourceMapping db.KubernetesToDBResourceMapping
-	SyncOperation_id              string
+	SyncOperationID               string
 }
 
 // Delete resources from table
@@ -1452,15 +1452,15 @@ func deleteTestResources(ctx context.Context, dbQueries db.AllDatabaseQueries, r
 	var err error
 
 	// Delete SyncOperation
-	if resourcesToBeDeleted.SyncOperation_id != "" {
-		rowsAffected, err = dbQueries.DeleteSyncOperationById(ctx, resourcesToBeDeleted.SyncOperation_id)
+	if resourcesToBeDeleted.SyncOperationID != "" {
+		rowsAffected, err = dbQueries.DeleteSyncOperationById(ctx, resourcesToBeDeleted.SyncOperationID)
 		Expect(err).To(BeNil())
 		Expect(rowsAffected).To(Equal(1))
 	}
 
 	// Delete Application
-	if resourcesToBeDeleted.Application_id != "" {
-		rowsAffected, err = dbQueries.DeleteApplicationById(ctx, resourcesToBeDeleted.Application_id)
+	if resourcesToBeDeleted.ApplicationID != "" {
+		rowsAffected, err = dbQueries.DeleteApplicationById(ctx, resourcesToBeDeleted.ApplicationID)
 		Expect(err).To(BeNil())
 		Expect(rowsAffected).To(Equal(1))
 	}
@@ -1495,8 +1495,8 @@ func deleteTestResources(ctx context.Context, dbQueries db.AllDatabaseQueries, r
 	}
 
 	// Delete GitopsEngineCluster
-	if resourcesToBeDeleted.Gitopsenginecluster_id != "" {
-		rowsAffected, err = dbQueries.DeleteGitopsEngineClusterById(ctx, resourcesToBeDeleted.Gitopsenginecluster_id)
+	if resourcesToBeDeleted.PrimaryKeyID != "" {
+		rowsAffected, err = dbQueries.DeleteGitopsEngineClusterById(ctx, resourcesToBeDeleted.PrimaryKeyID)
 		Expect(err).To(BeNil())
 		Expect(rowsAffected).To(Equal(1))
 	}

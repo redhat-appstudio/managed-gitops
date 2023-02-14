@@ -95,19 +95,19 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			}
 			err = dbQueries.GetManagedEnvironmentById(ctx, managedEnvRow)
 			Expect(err).To(BeNil())
-			Expect(managedEnvRow.Clustercredentials_id).ToNot(BeEmpty())
-			Expect(src.ManagedEnv.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
-			src.ManagedEnv.Created_on = managedEnvRow.Created_on
+			Expect(managedEnvRow.ClusterCredentialsID).ToNot(BeEmpty())
+			Expect(src.ManagedEnv.CreatedOn.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
+			src.ManagedEnv.CreatedOn = managedEnvRow.CreatedOn
 			Expect(src.ManagedEnv).To(Equal(managedEnvRow))
 
 			clusterCreds := &db.ClusterCredentials{
-				Clustercredentials_cred_id: managedEnvRow.Clustercredentials_id,
+				ClustercredentialsCredID: managedEnvRow.ClusterCredentialsID,
 			}
 			err = dbQueries.GetClusterCredentialsById(ctx, clusterCreds)
 			Expect(err).To(BeNil())
 			Expect(clusterCreds.Host).ToNot(BeEmpty())
-			Expect(clusterCreds.Serviceaccount_bearer_token).ToNot(BeEmpty())
-			Expect(clusterCreds.Serviceaccount_ns).ToNot(BeEmpty())
+			Expect(clusterCreds.ServiceAccountBearerToken).ToNot(BeEmpty())
+			Expect(clusterCreds.ServiceAccountNs).ToNot(BeEmpty())
 		}
 
 		It("should test ReconcileSharedManagedEnvironment: verify create, garbage cleanup, update, and delete, of ManagedEnvironment", func() {
@@ -170,7 +170,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			By("updating the managed environment, and verifying that the database rows are also updated")
 
 			oldClusterCreds := &db.ClusterCredentials{
-				Clustercredentials_cred_id: src.ManagedEnv.Clustercredentials_id,
+				ClustercredentialsCredID: src.ManagedEnv.ClusterCredentialsID,
 			}
 			err = dbQueries.GetClusterCredentialsById(ctx, oldClusterCreds)
 			Expect(err).To(BeNil())
@@ -189,9 +189,9 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			By("verifying new cluster credentials exist containing the update")
 			err = dbQueries.GetManagedEnvironmentById(ctx, src.ManagedEnv)
 			Expect(err).To(BeNil())
-			Expect(src.ManagedEnv.Clustercredentials_id).ToNot(BeEmpty())
+			Expect(src.ManagedEnv.ClusterCredentialsID).ToNot(BeEmpty())
 			newClusterCreds := &db.ClusterCredentials{
-				Clustercredentials_cred_id: src.ManagedEnv.Clustercredentials_id,
+				ClustercredentialsCredID: src.ManagedEnv.ClusterCredentialsID,
 			}
 
 			err = dbQueries.GetClusterCredentialsById(ctx, newClusterCreds)
@@ -473,7 +473,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(err).To(BeNil())
 			Expect(firstSrc.ManagedEnv).ToNot(BeNil())
 
-			oldClusterCredentials := firstSrc.ManagedEnv.Clustercredentials_id
+			oldClusterCredentials := firstSrc.ManagedEnv.ClusterCredentialsID
 
 			By("next simulating a failure to connect to the target cluster")
 			mockCtrl := gomock.NewController(GinkgoT())
@@ -493,7 +493,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(src.ManagedEnv).ToNot(BeNil())
 			Expect(mockFactory.count).To(Equal(1))
 			Expect(firstSrc.ManagedEnv.Managedenvironment_id).To(Equal(src.ManagedEnv.Managedenvironment_id))
-			Expect(src.ManagedEnv.Clustercredentials_id).ToNot(Equal(oldClusterCredentials))
+			Expect(src.ManagedEnv.ClusterCredentialsID).ToNot(Equal(oldClusterCredentials))
 
 			By("ensuring the .status.condition is set to True")
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
@@ -504,7 +504,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(ConditionReasonSucceeded))
 
 			By("verifying the old credentials have been deleted, since we simulated them being invalid")
-			clusterCreds := &db.ClusterCredentials{Clustercredentials_cred_id: oldClusterCredentials}
+			clusterCreds := &db.ClusterCredentials{ClustercredentialsCredID: oldClusterCredentials}
 			err = dbQueries.GetClusterCredentialsById(ctx, clusterCreds)
 			Expect(db.IsResultNotFoundError(err)).To(Equal(true))
 
@@ -533,20 +533,20 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(createRC.ManagedEnv).ToNot(BeNil())
 
 			applicationRow := &db.Application{
-				Application_id:          "test-fake-application-id",
-				Spec_field:              "{}",
-				Name:                    "app-name",
-				Engine_instance_inst_id: instance.Gitopsengineinstance_id,
-				Managed_environment_id:  createRC.ManagedEnv.Managedenvironment_id,
+				ApplicationID:          "test-fake-application-id",
+				SpecField:              "{}",
+				Name:                   "app-name",
+				EngineInstanceInstID:   instance.Gitopsengineinstance_id,
+				Managed_environment_id: createRC.ManagedEnv.Managedenvironment_id,
 			}
 
 			err = dbQueries.CreateApplication(ctx, applicationRow)
 			Expect(err).To(BeNil())
 
 			clusterAccess := &db.ClusterAccess{
-				Clusteraccess_user_id:                   createRC.ClusterUser.Clusteruser_id,
-				Clusteraccess_managed_environment_id:    createRC.ManagedEnv.Managedenvironment_id,
-				Clusteraccess_gitops_engine_instance_id: instance.Gitopsengineinstance_id,
+				ClusterAccessUserID:                 createRC.ClusterUser.ClusterUserID,
+				ClusterAccessManagedEnvironmentID:   createRC.ManagedEnv.Managedenvironment_id,
+				ClusterAccessGitopsEngineInstanceID: instance.Gitopsengineinstance_id,
 			}
 			err = dbQueries.CreateClusterAccess(ctx, clusterAccess)
 			Expect(err).To(BeNil())
@@ -556,7 +556,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			err = k8sClient.Delete(ctx, &managedEnv)
 			Expect(err).To(BeNil())
 
-			Expect(len(getAllOperationsForResourceID(ctx, applicationRow.Application_id, dbQueries))).To(Equal(0),
+			Expect(len(getAllOperationsForResourceID(ctx, applicationRow.ApplicationID, dbQueries))).To(Equal(0),
 				"There should be no operations for this Application in the database before Reconcile is called.")
 
 			Expect(len(getAllOperationsForResourceID(ctx, createRC.ManagedEnv.Managedenvironment_id, dbQueries))).To(Equal(0),
@@ -572,11 +572,11 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			err = dbQueries.UnsafeListAllClusterAccess(ctx, &clusterAccesses)
 			Expect(err).To(BeNil())
 			for _, clusterAccess := range clusterAccesses {
-				Expect(clusterAccess.Clusteraccess_managed_environment_id).ToNot(Equal(createRC.ManagedEnv.Managedenvironment_id),
+				Expect(clusterAccess.ClusterAccessManagedEnvironmentID).ToNot(Equal(createRC.ManagedEnv.Managedenvironment_id),
 					"there should exist no clusteraccess rows that reference the deleted managed environment")
 			}
 			clusterCred := &db.ClusterCredentials{
-				Clustercredentials_cred_id: createRC.ManagedEnv.Clustercredentials_id,
+				ClustercredentialsCredID: createRC.ManagedEnv.ClusterCredentialsID,
 			}
 			Expect(db.IsResultNotFoundError(dbQueries.GetClusterCredentialsById(ctx, clusterCred))).To(BeTrue(), "cluster credential should be deleted.")
 
@@ -584,7 +584,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(err).To(BeNil())
 			Expect(applicationRow.Managed_environment_id).To(BeEmpty())
 
-			applicationOperations := getAllOperationsForResourceID(ctx, applicationRow.Application_id, dbQueries)
+			applicationOperations := getAllOperationsForResourceID(ctx, applicationRow.ApplicationID, dbQueries)
 			Expect(len(applicationOperations)).To(Equal(1),
 				"after Reconcile is called, there should be an Operation pointing to the Application, because the Application row was updated.")
 			err = verifyOperationCRsExist(ctx, applicationOperations, k8sClient)
@@ -674,8 +674,8 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				Expect(err).To(BeNil())
 				Expect(firstSrc.ManagedEnv).ToNot(BeNil())
 
-				getClusterCredentials := firstSrc.ManagedEnv.Clustercredentials_id
-				clusterCreds := &db.ClusterCredentials{Clustercredentials_cred_id: getClusterCredentials}
+				getClusterCredentials := firstSrc.ManagedEnv.ClusterCredentialsID
+				clusterCreds := &db.ClusterCredentials{ClustercredentialsCredID: getClusterCredentials}
 				err = dbQueries.GetClusterCredentialsById(ctx, clusterCreds)
 				Expect(err).To(BeNil())
 
@@ -719,7 +719,7 @@ func getAllOperationsForResourceID(ctx context.Context, resourceID string, dbQue
 	err := dbQueries.UnsafeListAllOperations(ctx, &operationsList)
 	Expect(err).To(BeNil())
 	for idx, operation := range operationsList {
-		if operation.Resource_id == resourceID {
+		if operation.ResourceID == resourceID {
 			res = append(res, operationsList[idx])
 		}
 	}

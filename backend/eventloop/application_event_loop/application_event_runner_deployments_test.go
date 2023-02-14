@@ -201,12 +201,12 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			Expect(len(appMappingsFirst)).To(Equal(1))
 
 			deplToAppMappingFirst := appMappingsFirst[0]
-			applicationFirst := db.Application{Application_id: deplToAppMappingFirst.Application_id}
+			applicationFirst := db.Application{ApplicationID: deplToAppMappingFirst.ApplicationID}
 			err = dbQueries.GetApplicationById(context.Background(), &applicationFirst)
 
 			Expect(err).To(BeNil())
 
-			Expect(strings.Contains(applicationFirst.Spec_field, string(managedgitopsv1alpha1.SyncOptions_CreateNamespace_true))).To(Equal(true))
+			Expect(strings.Contains(applicationFirst.SpecField, string(managedgitopsv1alpha1.SyncOptions_CreateNamespace_true))).To(Equal(true))
 			//############################################################################
 
 			By("Update existing deployment so that the SyncOption is set to nil/empty")
@@ -231,13 +231,13 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			Expect(len(appMappingsSecond)).To(Equal(1))
 
 			deplToAppMappingSecond := appMappingsSecond[0]
-			applicationSecond := db.Application{Application_id: deplToAppMappingSecond.Application_id}
+			applicationSecond := db.Application{ApplicationID: deplToAppMappingSecond.ApplicationID}
 			err = dbQueries.GetApplicationById(context.Background(), &applicationSecond)
 
 			Expect(err).To(BeNil())
 			Expect(applicationFirst.SeqID).To(Equal(applicationSecond.SeqID))
-			Expect(applicationFirst.Spec_field).NotTo(Equal(applicationSecond.Spec_field))
-			Expect(strings.Contains(applicationSecond.Spec_field, string(managedgitopsv1alpha1.SyncOptions_CreateNamespace_true))).To(Equal(false))
+			Expect(applicationFirst.SpecField).NotTo(Equal(applicationSecond.SpecField))
+			Expect(strings.Contains(applicationSecond.SpecField, string(managedgitopsv1alpha1.SyncOptions_CreateNamespace_true))).To(Equal(false))
 
 			//############################################################################
 			By("Update existing deployment to a SyncOption that is not empty and is set to CreateNamespace=true")
@@ -264,13 +264,13 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			Expect(len(appMappingsThird)).To(Equal(1))
 
 			deplToAppMappingThird := appMappingsThird[0]
-			applicationThird := db.Application{Application_id: deplToAppMappingThird.Application_id}
+			applicationThird := db.Application{ApplicationID: deplToAppMappingThird.ApplicationID}
 			err = dbQueries.GetApplicationById(context.Background(), &applicationThird)
 
 			Expect(err).To(BeNil())
 			Expect(applicationThird.SeqID).To(Equal(applicationSecond.SeqID))
-			Expect(applicationThird.Spec_field).NotTo(Equal(applicationSecond.Spec_field))
-			Expect(strings.Contains(applicationThird.Spec_field, string(managedgitopsv1alpha1.SyncOptions_CreateNamespace_true))).To(Equal(true))
+			Expect(applicationThird.SpecField).NotTo(Equal(applicationSecond.SpecField))
+			Expect(strings.Contains(applicationThird.SpecField, string(managedgitopsv1alpha1.SyncOptions_CreateNamespace_true))).To(Equal(true))
 
 			//############################################################################
 			By("Update existing deployment to a SyncOption that is not empty and is set to a false syncOption CreateNamespace=foo ")

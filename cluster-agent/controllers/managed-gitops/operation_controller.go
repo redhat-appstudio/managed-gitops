@@ -122,7 +122,7 @@ func (g *garbageCollector) startGarbageCollectionCycle() {
 func (g *garbageCollector) garbageCollectOperations(ctx context.Context, operations []db.Operation, log logr.Logger) {
 	for _, operation := range operations {
 		// last_state_update + gc_expiration_time < time.Now
-		if operation.Last_state_update.Add(operation.GetGCExpirationTime()).Before(time.Now()) {
+		if operation.LastStateUpdate.Add(operation.GetGCExpirationTime()).Before(time.Now()) {
 			// remove the Operation from the DB
 			_, err := g.db.DeleteOperationById(ctx, operation.Operation_id)
 			if err != nil {

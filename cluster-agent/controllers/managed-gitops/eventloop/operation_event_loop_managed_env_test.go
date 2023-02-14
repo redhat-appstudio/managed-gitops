@@ -50,8 +50,8 @@ var _ = Describe("Managed Environment Operation Tests", func() {
 			logger = log.FromContext(ctx)
 
 			testClusterUser = &db.ClusterUser{
-				Clusteruser_id: "test-user",
-				User_name:      "test-user",
+				ClusterUserID: "test-user",
+				UserName:      "test-user",
 			}
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
@@ -84,9 +84,9 @@ var _ = Describe("Managed Environment Operation Tests", func() {
 			By("creating a gitops engine instance")
 			gitopsEngineInstance = &db.GitopsEngineInstance{
 				Gitopsengineinstance_id: "test-fake-engine-instance",
-				Namespace_name:          argocdNamespace.Name,
-				Namespace_uid:           string(argocdNamespace.UID),
-				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+				NamespaceName:           argocdNamespace.Name,
+				NamespaceUID:            string(argocdNamespace.UID),
+				EngineClusterID:         gitopsEngineCluster.PrimaryKeyID,
 			}
 			err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
 			Expect(err).To(BeNil())
@@ -96,7 +96,7 @@ var _ = Describe("Managed Environment Operation Tests", func() {
 		It("reconciles an operation that points to a managed environment that still exists, to ensure no action is taken in this case", func() {
 
 			clusterCredentials := db.ClusterCredentials{
-				Clustercredentials_cred_id: string(uuid.NewUUID()),
+				ClustercredentialsCredID: string(uuid.NewUUID()),
 			}
 
 			err = dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
@@ -104,7 +104,7 @@ var _ = Describe("Managed Environment Operation Tests", func() {
 
 			managedEnvRow := db.ManagedEnvironment{
 				Managedenvironment_id: "test-fake-managed-env",
-				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+				ClusterCredentialsID:  clusterCredentials.ClustercredentialsCredID,
 				Name:                  "my-managed-env",
 			}
 
@@ -113,15 +113,15 @@ var _ = Describe("Managed Environment Operation Tests", func() {
 
 			By("creating Operation row pointing to ManagedEnvironment")
 			operationDB := &db.Operation{
-				Operation_id:            "test-operation",
-				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-				Resource_id:             managedEnvRow.Managedenvironment_id,
-				Resource_type:           db.OperationResourceType_ManagedEnvironment,
-				State:                   db.OperationState_Waiting,
-				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				Operation_id:         "test-operation",
+				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+				ResourceID:           managedEnvRow.Managedenvironment_id,
+				ResourceType:         db.OperationResourceType_ManagedEnvironment,
+				State:                db.OperationState_Waiting,
+				OperationOwnerUserID: testClusterUser.ClusterUserID,
 			}
 
-			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.OperationOwnerUserID)
 			Expect(err).To(BeNil())
 
 			By("creating Operation CR pointing to Operation row")
@@ -172,15 +172,15 @@ var _ = Describe("Managed Environment Operation Tests", func() {
 
 			By("creating Operation row in database")
 			operationDB := &db.Operation{
-				Operation_id:            "test-operation",
-				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-				Resource_id:             deletedManagedEnvId,
-				Resource_type:           db.OperationResourceType_ManagedEnvironment,
-				State:                   db.OperationState_Waiting,
-				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				Operation_id:         "test-operation",
+				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+				ResourceID:           deletedManagedEnvId,
+				ResourceType:         db.OperationResourceType_ManagedEnvironment,
+				State:                db.OperationState_Waiting,
+				OperationOwnerUserID: testClusterUser.ClusterUserID,
 			}
 
-			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.OperationOwnerUserID)
 			Expect(err).To(BeNil())
 
 			By("creating Operation CR")
@@ -246,8 +246,8 @@ var _ = Describe("Managed Environment Operation Tests", func() {
 			logger = log.FromContext(ctx)
 
 			testClusterUser = &db.ClusterUser{
-				Clusteruser_id: "test-user",
-				User_name:      "test-user",
+				ClusterUserID: "test-user",
+				UserName:      "test-user",
 			}
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
@@ -280,9 +280,9 @@ var _ = Describe("Managed Environment Operation Tests", func() {
 			By("creating a gitops engine instance")
 			gitopsEngineInstance = &db.GitopsEngineInstance{
 				Gitopsengineinstance_id: "test-fake-engine-instance",
-				Namespace_name:          argocdNamespace.Name,
-				Namespace_uid:           string(argocdNamespace.UID),
-				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+				NamespaceName:           argocdNamespace.Name,
+				NamespaceUID:            string(argocdNamespace.UID),
+				EngineClusterID:         gitopsEngineCluster.PrimaryKeyID,
 			}
 			err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
 			Expect(err).To(BeNil())
@@ -293,7 +293,7 @@ var _ = Describe("Managed Environment Operation Tests", func() {
 			defer dbQueries.CloseDatabase()
 
 			clusterCredentials := db.ClusterCredentials{
-				Clustercredentials_cred_id: string(uuid.NewUUID()),
+				ClustercredentialsCredID: string(uuid.NewUUID()),
 			}
 
 			err = dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
@@ -302,30 +302,30 @@ var _ = Describe("Managed Environment Operation Tests", func() {
 			managedEnvironmentDB := db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env",
 				Name:                  "test-managed-env-name",
-				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+				ClusterCredentialsID:  clusterCredentials.ClustercredentialsCredID,
 			}
 			err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironmentDB)
 			Expect(err).To(BeNil())
 
 			applicationDB := db.Application{
-				Application_id:          "test-application",
-				Name:                    "test-application-name",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironmentDB.Managedenvironment_id,
+				ApplicationID:          "test-application",
+				Name:                   "test-application-name",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironmentDB.Managedenvironment_id,
 			}
 			err = dbQueries.CreateApplication(ctx, &applicationDB)
 			Expect(err).To(BeNil())
 
 			By("creating Operation row in database, pointing to Application")
 			operationDB := &db.Operation{
-				Operation_id:            "test-operation",
-				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-				Resource_id:             applicationDB.Application_id,
-				Resource_type:           db.OperationResourceType_Application,
-				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				Operation_id:         "test-operation",
+				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+				ResourceID:           applicationDB.ApplicationID,
+				ResourceType:         db.OperationResourceType_Application,
+				OperationOwnerUserID: testClusterUser.ClusterUserID,
 			}
-			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.OperationOwnerUserID)
 			Expect(err).To(BeNil())
 
 			By("creating Operation CR, pointing to Operation row")
@@ -363,7 +363,7 @@ var _ = Describe("Managed Environment Operation Tests", func() {
 			defer dbQueries.CloseDatabase()
 
 			clusterCredentials := db.ClusterCredentials{
-				Clustercredentials_cred_id: string(uuid.NewUUID()),
+				ClustercredentialsCredID: string(uuid.NewUUID()),
 			}
 
 			err = dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
@@ -372,30 +372,30 @@ var _ = Describe("Managed Environment Operation Tests", func() {
 			managedEnvironmentDB := db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env",
 				Name:                  "test-managed-env-name",
-				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+				ClusterCredentialsID:  clusterCredentials.ClustercredentialsCredID,
 			}
 			err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironmentDB)
 			Expect(err).To(BeNil())
 
 			applicationDB := db.Application{
-				Application_id:          "test-application",
-				Name:                    "test-application-name",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironmentDB.Managedenvironment_id,
+				ApplicationID:          "test-application",
+				Name:                   "test-application-name",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironmentDB.Managedenvironment_id,
 			}
 			err = dbQueries.CreateApplication(ctx, &applicationDB)
 			Expect(err).To(BeNil())
 
 			By("creating Operation row in database")
 			operationDB := &db.Operation{
-				Operation_id:            "test-operation",
-				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-				Resource_id:             applicationDB.Application_id,
-				Resource_type:           db.OperationResourceType_Application,
-				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				Operation_id:         "test-operation",
+				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+				ResourceID:           applicationDB.ApplicationID,
+				ResourceType:         db.OperationResourceType_Application,
+				OperationOwnerUserID: testClusterUser.ClusterUserID,
 			}
-			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.OperationOwnerUserID)
 			Expect(err).To(BeNil())
 
 			By("creating Operation CR, pointing to Operation row")
@@ -433,7 +433,7 @@ var _ = Describe("Managed Environment Operation Tests", func() {
 			defer dbQueries.CloseDatabase()
 
 			clusterCredentials := db.ClusterCredentials{
-				Clustercredentials_cred_id: string(uuid.NewUUID()),
+				ClustercredentialsCredID: string(uuid.NewUUID()),
 			}
 
 			err = dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
@@ -442,30 +442,30 @@ var _ = Describe("Managed Environment Operation Tests", func() {
 			managedEnvironmentDB := db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env",
 				Name:                  "test-managed-env-name",
-				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+				ClusterCredentialsID:  clusterCredentials.ClustercredentialsCredID,
 			}
 			err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironmentDB)
 			Expect(err).To(BeNil())
 
 			applicationDB := db.Application{
-				Application_id:          "test-application",
-				Name:                    "test-application-name",
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironmentDB.Managedenvironment_id,
+				ApplicationID:          "test-application",
+				Name:                   "test-application-name",
+				SpecField:              "{}",
+				EngineInstanceInstID:   gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id: managedEnvironmentDB.Managedenvironment_id,
 			}
 			err = dbQueries.CreateApplication(ctx, &applicationDB)
 			Expect(err).To(BeNil())
 
 			By("creating Operation row in database, pointing to Application")
 			operationDB := &db.Operation{
-				Operation_id:            "test-operation",
-				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-				Resource_id:             applicationDB.Application_id,
-				Resource_type:           db.OperationResourceType_Application,
-				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				Operation_id:         "test-operation",
+				InstanceID:           gitopsEngineInstance.Gitopsengineinstance_id,
+				ResourceID:           applicationDB.ApplicationID,
+				ResourceType:         db.OperationResourceType_Application,
+				OperationOwnerUserID: testClusterUser.ClusterUserID,
 			}
-			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.OperationOwnerUserID)
 			Expect(err).To(BeNil())
 
 			By("creating Operation CR, pointing to Operation row")

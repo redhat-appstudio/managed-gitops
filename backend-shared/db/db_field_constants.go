@@ -193,6 +193,6 @@ var DbFieldMap = map[string]int{
 }
 
 // Get value of constants based on constant variable name given as String.
-func getConstantValue(variable string) int {
-	return DbFieldMap[variable]
-}
+// func getConstantValue(variable string) int {
+// 	return DbFieldMap[variable]
+// }

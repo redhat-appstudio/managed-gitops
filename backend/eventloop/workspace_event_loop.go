@@ -601,7 +601,7 @@ func getDBSyncOperationFromAPIMapping(ctx context.Context, dbQueries db.Database
 		return db.SyncOperation{}, fmt.Errorf("expected db relation type to be 'SyncOperation', but found '%s'", apiCRToDBMapping.DBRelationType)
 	}
 
-	syncOperation := db.SyncOperation{SyncOperation_id: apiCRToDBMapping.DBRelationKey}
+	syncOperation := db.SyncOperation{SyncOperationID: apiCRToDBMapping.DBRelationKey}
 	if err := dbQueries.GetSyncOperationById(ctx, &syncOperation); err != nil {
 		return db.SyncOperation{}, fmt.Errorf("failed to retrieve syncoperation by id: %v", err)
 	}

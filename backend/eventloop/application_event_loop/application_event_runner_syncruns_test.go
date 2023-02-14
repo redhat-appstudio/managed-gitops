@@ -113,7 +113,7 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 			err := dbQueries.GetDatabaseMappingForAPICR(ctx, &mapping)
 			Expect(err).To(BeNil())
 
-			syncOperation := db.SyncOperation{SyncOperation_id: mapping.DBRelationKey}
+			syncOperation := db.SyncOperation{SyncOperationID: mapping.DBRelationKey}
 			err = dbQueries.GetSyncOperationById(ctx, &syncOperation)
 			Expect(err).To(BeNil())
 			Expect(syncOperation.DeploymentNameField).Should(Equal(gitopsDeplSyncRun.Spec.GitopsDeploymentName))
@@ -195,7 +195,7 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 			err := dbQueries.GetDatabaseMappingForAPICR(ctx, &mapping)
 			Expect(err).To(BeNil())
 
-			syncOperation := db.SyncOperation{SyncOperation_id: mapping.DBRelationKey}
+			syncOperation := db.SyncOperation{SyncOperationID: mapping.DBRelationKey}
 			err = dbQueries.GetSyncOperationById(ctx, &syncOperation)
 			Expect(err).To(BeNil())
 

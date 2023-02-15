@@ -574,8 +574,9 @@ func refreshApplication(ctx context.Context, k8sClient client.Client, appName, a
 		if appCR.Annotations == nil {
 			appCR.Annotations = map[string]string{}
 		}
-		if _, ok := appCR.Annotations[appv1.AnnotationKeyRefresh]; !ok {
-			appCR.Annotations[appv1.AnnotationKeyRefresh] = "normal"
+		refreshType, ok := appCR.Annotations[appv1.AnnotationKeyRefresh]
+		if !ok || refreshType != string(appv1.RefreshTypeNormal) {
+			appCR.Annotations[appv1.AnnotationKeyRefresh] = string(appv1.RefreshTypeNormal)
 			return k8sClient.Update(ctx, appCR)
 		}
 		return nil

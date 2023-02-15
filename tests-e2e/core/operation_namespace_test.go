@@ -23,7 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var _ = FDescribe("Operation CR namespace E2E tests", func() {
+var _ = Describe("Operation CR namespace E2E tests", func() {
 
 	const (
 		operationNamespace = "gitops-service-argocd"

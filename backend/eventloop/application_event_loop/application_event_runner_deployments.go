@@ -41,7 +41,7 @@ const (
 	deploymentModifiedResult_Updated  deploymentModifiedResult = "updatedApp"
 	deploymentModifiedResult_NoChange deploymentModifiedResult = "noChangeInApp"
 
-	prunePropagationPolicy = "PrunePropagationPolicy=foreground"
+	prunePropagationPolicy = "PrunePropagationPolicy=background"
 
 	// deletionFinalizer will indicate the GitOpsDeployment to wait until all its dependencies are removed.
 	// In the absence of this finalizer, GitOpsDeployment will be deleted first and its dependencies will be removed in the background.
@@ -439,12 +439,11 @@ func removeFinalizerIfExist(ctx context.Context, k8sClient client.Client, gitops
 
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsDepl), gitopsDepl)
-		if err != nil && !apierr.IsNotFound(err) {
+		if err != nil {
+			if apierr.IsNotFound(err) {
+				return nil
+			}
 			return err
-		}
-
-		if gitopsDepl == nil {
-			return nil
 		}
 
 		finalizers := removeItemFromSlice(finalizer, gitopsDepl.Finalizers)
@@ -461,7 +460,7 @@ func removeFinalizerIfExist(ctx context.Context, k8sClient client.Client, gitops
 // 1. the GitOpsDeployment object is not found.
 // 2. the GitOpsDeployment is under deletion and the deletiontimestamp is set.
 func isGitOpsDeploymentDeleted(gitopsDepl *managedgitopsv1alpha1.GitOpsDeployment) bool {
-	return gitopsDepl == nil || (gitopsDepl != nil && gitopsDepl.DeletionTimestamp != nil)
+	return gitopsDepl == nil || gitopsDepl.DeletionTimestamp != nil
 }
 
 func removeItemFromSlice(item string, items []string) []string {

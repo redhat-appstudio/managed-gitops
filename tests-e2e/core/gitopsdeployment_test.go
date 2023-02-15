@@ -20,6 +20,7 @@ import (
 	typed "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -655,15 +656,49 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 					gitopsDeplFixture.HaveResources(expectedResourceStatusList),
 				),
 			)
+
+			updateFinalizer := func(c client.Object, op func(client.Object)) {
+				err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+					err = k8sClient.Get(ctx, client.ObjectKeyFromObject(c), c)
+					if err != nil {
+						return err
+					}
+					op(c)
+					return k8sClient.Update(ctx, c)
+				})
+				Expect(err).To(BeNil())
+			}
+
+			// We add a finalizer to one of the resources to prevent a race condition where the GitOpsDeployment and
+			// all the dependent resources might get deleted before the test can check if the finalizer has prevented the deletion.
+			testFinalizer := "kubernetes"
+			resStatus := expectedResourceStatusList[0]
+
+			cm := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      resStatus.Name,
+					Namespace: resStatus.Namespace,
+				},
+			}
+
+			updateFinalizer(cm, func(o client.Object) {
+				o.SetFinalizers([]string{testFinalizer})
+			})
+
 			By("delete the GitOpsDeployment resource")
 
-			err = k8sClient.Delete(ctx,&gitOpsDeploymentResource)
+			err = k8sClient.Delete(ctx, &gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
 			By("verify if the finalizer has prevented the GitOpsDeployment from deletion")
 			err = k8s.Get(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(BeNil())
 			Expect(gitOpsDeploymentResource.DeletionTimestamp).ToNot(BeNil())
+
+			// Remove the test finalizer and verify if all the dependent resources are deleted
+			updateFinalizer(cm, func(o client.Object) {
+				o.SetFinalizers([]string{})
+			})
 
 			expectAllResourcesToBeDeleted(expectedResourceStatusList)
 

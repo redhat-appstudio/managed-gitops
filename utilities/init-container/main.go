@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util"
@@ -30,13 +31,20 @@ func main() {
 	)
 
 	// We shouldn't panic: this will return a non-zero error code, and prevent the controller from starting.
-	_, _ = util.CatchPanic(func() error {
+	_, outerErr := util.CatchPanic(func() error {
 		err := hotfix.HotfixK8sResourceUIDOfKubernetesResourceToDBResourceMapping(context.Background(), targetKDB, oldK8sResourceUID,
 			newK8ResourceUID)
-		if err != nil {
-			fmt.Println("error return by hotfix function:", err)
-		}
-		return nil
+		return err
 	})
+
+	if outerErr != nil {
+		fmt.Println("Error return by hotfix function:", outerErr)
+	}
+
+	if outerErr != nil {
+		os.Exit(1)
+	} else {
+		os.Exit(0)
+	}
 
 }

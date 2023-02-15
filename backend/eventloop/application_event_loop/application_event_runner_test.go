@@ -1793,6 +1793,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			err := k8sClient.Delete(ctx, gitopsDepl)
 			Expect(err).To(BeNil())
 
+			gitopsDepl.Finalizers = append(gitopsDepl.Finalizers, deletionFinalizer)
 			err = removeFinalizerIfExist(ctx, k8sClient, gitopsDepl, deletionFinalizer)
 			Expect(err).To(BeNil())
 

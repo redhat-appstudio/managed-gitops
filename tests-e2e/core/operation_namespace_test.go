@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
@@ -17,12 +16,14 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var _ = Describe("Operation CR namespace E2E tests", func() {
+var _ = FDescribe("Operation CR namespace E2E tests", func() {
 
 	const (
 		operationNamespace = "gitops-service-argocd"
@@ -33,10 +34,9 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 	Context("Operation CR in invalid namespace should be ignored", func() {
 		var err error
 		var ctx context.Context
-		var log logr.Logger
+
 		var dbQueries db.AllDatabaseQueries
 		var k8sClient client.Client
-		var kubeSystemNamespace *corev1.Namespace
 		var config *rest.Config
 		var gitopsEngineInstance *db.GitopsEngineInstance
 		var operationDB *db.Operation
@@ -66,13 +66,12 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).To(BeNil())
 
-			kubeSystemNamespace = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
-			err = k8s.Get(kubeSystemNamespace, k8sClient)
-			Expect(err).To(Succeed())
-
 		})
 		AfterEach(func() {
-			err := operations.CleanupOperation(ctx, *operationDB, *operationCR, operationCR.Namespace, dbQueries, k8sClient, true, log)
+			log := log.FromContext(ctx)
+			err = operations.CleanupOperation(ctx, *operationDB, *operationCR, operationCR.Namespace, dbQueries, k8sClient, true, log)
+			Expect(err).To(BeNil())
+			err = fixture.DeleteNamespace(falseNamespace, config)
 			Expect(err).To(BeNil())
 		})
 
@@ -83,11 +82,17 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			}
 
 			By("creating Opeartion CR")
+			log := log.FromContext(ctx)
 			namespaceToCreate := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: operationNamespace,
+					UID:  uuid.NewUUID(),
 				},
 			}
+			kubeSystemNamespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
+			err = k8s.Get(kubeSystemNamespace, k8sClient)
+
+			Expect(err).To(Succeed())
 
 			gitopsEngineInstance, _, _, err = dbutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespaceToCreate, string(kubeSystemNamespace.UID), dbQueries, log)
 
@@ -136,14 +141,19 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			if fixture.IsRunningAgainstKCP() {
 				Skip("Skipping this test until we support running gitops operator with KCP")
 			}
+			log := log.FromContext(ctx)
 
 			By("creating Opeartion CR")
 			namespaceToCreate := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: operationNamespace,
+					UID:  uuid.NewUUID(),
 				},
 			}
 
+			kubeSystemNamespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
+			err = k8s.Get(kubeSystemNamespace, k8sClient)
+			Expect(err).To(Succeed())
 			gitopsEngineInstance, _, _, err = dbutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespaceToCreate, string(kubeSystemNamespace.UID), dbQueries, log)
 
 			operationDB = &db.Operation{

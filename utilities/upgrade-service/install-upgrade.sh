@@ -22,16 +22,20 @@ check_pod_status_ready() {
     if [ $? -ne 0 ]; then
       echo "Pod '$pod_name' failed to become Ready in desired time. Logs from the pod:"
       kubectl logs $pod_name -n gitops;
-      echo "\n\nPerforming rollback to $PREV_IMAGE";      
+      echo "\nInstall/Upgrade failed. Performing rollback to $PREV_IMAGE";      
       rollback
     fi
   done
 }
 
 rollback() {
-  make install-all-k8s IMG=$PREV_IMAGE
-  cleanup;
-  echo "Upgrade Unsuccessful!!";
+  if [ ! -z "$PREV_IMAGE" ]; then
+    make install-all-k8s IMG=$PREV_IMAGE
+    cleanup;
+    echo "Upgrade Unsuccessful!!";
+  else
+    echo "Installing image for the first time. Nothing to rollback. Quitting..";
+  fi
   exit 1;
 }
 
@@ -62,7 +66,7 @@ echo "PREV IMAGE : $PREV_IMAGE";
 
 if [ "$PREV_IMAGE" = "$IMG" ]; then
   echo "Currently deployed image matches the new image '$IMG'. No need to upgrade. Exiting.."
-  exit 
+  exit 0; 
 fi
 
 echo "Upgrading from $PREV_IMAGE to $IMG";

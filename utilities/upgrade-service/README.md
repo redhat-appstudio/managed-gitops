@@ -1,17 +1,17 @@
 This document describes the steps to install/upgrade your service using `install-upgrade.sh` script.
 
-*Pre-requisites:*
+**Pre-requisites:**
 
 To execute the script, we would need to have some basic requirements:
 - The script is being executed on an Openshift cluster
 - The image being used is available on quay.io
 
-*Avaialable flag options:*
+**Avaialable flag options:**
 - `-i` : provide gitops service image (default: `quay.io/${QUAY_USERNAME}/gitops-service:latest`, QUAY_USERNAME = `redhat-appstudio`)
 - `-u` : provide QUAY registry username (default: `redhat-appstudio`). This will replace the value of QUAY_USERNAME in `quay.io/${QUAY_USERNAME}/gitops-service:latest`
 
 
-*Steps to execute the script:*
+**Steps to execute the script:**
 
 To execute the script using default image (`quay.io/redhat-appstudio/gitops-service:latest`) with the below command:
 ```bash

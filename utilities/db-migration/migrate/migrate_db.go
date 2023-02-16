@@ -2,6 +2,8 @@ package migrate
 
 import (
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 
 	migrate "github.com/golang-migrate/migrate/v4"
@@ -62,10 +64,12 @@ func Migrate(opType string, migrationPath string) error {
 		}
 		return nil
 	} else if opType == "migrate_to" {
-		if err := m.Migrate(10); err != nil {
-			if err.Error() == "no change" {
-				return nil
-			}
+		u64, err := strconv.ParseUint(os.Args[2], 10, 32)
+		if err != nil {
+			return err
+		}
+		version := uint(u64)
+		if err := m.Migrate(version); err != nil && err != migrate.ErrNoChange {
 			return fmt.Errorf("unable to Migrate to version 10: %v", err)
 		}
 		return nil

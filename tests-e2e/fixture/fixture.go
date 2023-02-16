@@ -115,6 +115,7 @@ func EnsureCleanSlateNonKCPVirtualWorkspace() error {
 			}
 		}
 	}
+	fmt.Println("AAAAAAAAAAA8")
 
 	return nil
 }

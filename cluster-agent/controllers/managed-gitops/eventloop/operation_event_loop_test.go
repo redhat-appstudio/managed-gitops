@@ -216,7 +216,7 @@ var _ = Describe("Operation Controller", func() {
 			operationCR := &managedgitopsv1alpha1.Operation{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
-					Namespace: namespace,
+					Namespace: gitopsEngineInstance.Namespace_name,
 				},
 				Spec: managedgitopsv1alpha1.OperationSpec{
 					OperationID: operationDB.Operation_id,

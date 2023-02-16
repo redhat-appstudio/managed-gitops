@@ -367,6 +367,7 @@ func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 	}); err != nil {
 		return err
 	}
+	fmt.Println("Pass1")
 
 	if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
 		var roles *rbacv1.RoleList
@@ -394,6 +395,7 @@ func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 	}); err != nil {
 		return fmt.Errorf("argo CD never setup rolebindings for namespace '%s': %v", namespaceParam, err)
 	}
+	fmt.Println("Pass2")
 
 	return nil
 }

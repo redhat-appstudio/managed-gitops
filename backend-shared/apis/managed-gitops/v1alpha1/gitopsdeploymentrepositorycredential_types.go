@@ -33,10 +33,19 @@ type GitOpsDeploymentRepositoryCredentialSpec struct {
 	Secret string `json:"secret"`
 }
 
+// ErrorOccurred / ValidRepositoryURL / ValidRepositoryCredential
+const (
+	GitOpsDeploymentRepositoryCredentialConditionErrorOccurred             = "ErrorOccurred"
+	GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl        = "ValidRepositoryURL"
+	GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential = "ValidRepositoryCredential"
+)
+
 // GitOpsDeploymentRepositoryCredentialStatus defines the observed state of GitOpsDeploymentRepositoryCredential
 type GitOpsDeploymentRepositoryCredentialStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 //+kubebuilder:object:root=true

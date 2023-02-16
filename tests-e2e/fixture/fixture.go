@@ -65,38 +65,31 @@ func EnsureCleanSlateNonKCPVirtualWorkspace() error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("AAAAAAAAAAA1")
 	// Clean up after tests that target the non-default Argo CD instance (only used by a few E2E tests)
 	if err := cleanUpOldArgoCDApplications(NewArgoCDInstanceDestNamespace, NewArgoCDInstanceDestNamespace, clientconfig); err != nil {
 		return err
 	}
-	fmt.Println("AAAAAAAAAAA2")
 
 	if err := DeleteNamespace(NewArgoCDInstanceNamespace, clientconfig); err != nil {
 		return err
 	}
-	fmt.Println("AAAAAAAAAAA3")
 
 	if err := DeleteNamespace(NewArgoCDInstanceDestNamespace, clientconfig); err != nil {
 		return err
 	}
-	fmt.Println("AAAAAAAAAAA4")
 
 	// Clean up after tests that target the default Argo CD E2E instance (used by most E2E tests)
 	if err := cleanUpOldArgoCDApplications(dbutil.GetGitOpsEngineSingleInstanceNamespace(), GitOpsServiceE2ENamespace, clientconfig); err != nil {
 		return err
 	}
-	fmt.Println("AAAAAAAAAAA5")
 
 	if err := ensureDestinationNamespaceExists(GitOpsServiceE2ENamespace, dbutil.GetGitOpsEngineSingleInstanceNamespace(), clientconfig); err != nil {
 		return err
 	}
-	fmt.Println("AAAAAAAAAAA6")
 
 	if err := cleanUpOldKubeSystemResources(clientconfig); err != nil {
 		return err
 	}
-	fmt.Println("AAAAAAAAAAA7")
 
 	// Delete all Argo CD Cluster Secrets from the default Argo CD Namespace
 	secretList := &corev1.SecretList{}
@@ -115,7 +108,6 @@ func EnsureCleanSlateNonKCPVirtualWorkspace() error {
 			}
 		}
 	}
-	fmt.Println("AAAAAAAAAAA8")
 
 	return nil
 }
@@ -295,12 +287,10 @@ func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 	if err != nil {
 		return err
 	}
-	fmt.Println("AAAAAAAAAAA11")
 
 	if err := DeleteNamespace(namespaceParam, clientConfig); err != nil {
 		return fmt.Errorf("unable to delete namespace '%s': %v", namespaceParam, err)
 	}
-	fmt.Println("AAAAAAAAAAA22")
 
 	// Create the namespace again
 	_, err = kubeClientSet.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
@@ -312,7 +302,6 @@ func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 	if err != nil {
 		return err
 	}
-	fmt.Println("AAAAAAAAAAA33")
 
 	if IsRunningAgainstKCP() {
 		if err = addMissingPermissions(kubeClientSet, namespaceParam, argoCDNamespaceParam); err != nil {

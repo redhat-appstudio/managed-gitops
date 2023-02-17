@@ -3,18 +3,19 @@ package hotfix
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 )
 
-// HotfixK8sResourceUIDOfKubernetesResourceToDBResourceMapping will update a KubernetesToDBResourceMapping
+// HotfixK8sResourceUIDOfKubernetesResourceToDBResourceMapping will update a KubernetesToDBResourceMapping row
 // that matches as follows.
 //
 // If the following values match exactly:
 // - KubernetesResourceType
+// - KubernetesResourceUID
 // - DBRelationType
 // - DBRelationKey
-// - KubernetesResourceUID
 //
 // then update this value to a new value:
 // - KubernetesResourceUID
@@ -34,6 +35,15 @@ func HotfixK8sResourceUIDOfKubernetesResourceToDBResourceMapping(ctx context.Con
 			fmt.Println("Target KubernetesToDBResourceMapping does not exist in database, no patch was needed.")
 			return nil
 		}
+
+		// If the database has not yet been initialized, this error will be returned:
+		// - ERROR #42P01 relation "kubernetestodbresourcemapping" does not exist
+		// In this case, since there is no database to patch, no work is needed, and no error is returned.
+		// The database will be initialized by the controller once the init-container has completed.
+		if strings.Contains(err.Error(), "ERROR #42P01") {
+			return nil
+		}
+
 		return fmt.Errorf("unable to retrieve patched KubernetesDBToResourceMapping, %v", err)
 	}
 

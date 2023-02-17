@@ -348,8 +348,6 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	ctx = sharedutil.RemoveKCPClusterFromContext(ctx)
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
 
-	fmt.Println(operationNamespace)
-	fmt.Println(engineInstance.Namespace_name)
 	err = CheckOperationCRNamespace(&operationNamespace, engineInstance)
 	if err != nil {
 		a.log.Error(err, "Operation namespace check failed"+operationNamespace)

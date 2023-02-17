@@ -335,7 +335,6 @@ func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 			return err
 		}
 	}
-	fmt.Println("Pass1")
 
 	// Wait for Argo CD to process the namespace, before we exit:
 	// - This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
@@ -367,7 +366,6 @@ func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 	}); err != nil {
 		return err
 	}
-	fmt.Println("Pass2")
 
 	if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
 		var roles *rbacv1.RoleList
@@ -395,7 +393,6 @@ func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 	}); err != nil {
 		return fmt.Errorf("argo CD never setup rolebindings for namespace '%s': %v", namespaceParam, err)
 	}
-	fmt.Println("Pass3")
 
 	return nil
 }

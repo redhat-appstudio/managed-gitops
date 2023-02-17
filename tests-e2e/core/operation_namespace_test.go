@@ -28,7 +28,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 	const (
 		operationNamespace = "gitops-service-argocd"
 		operationName      = "test-operation"
-		falseNamespace     = "fake-operation-namespace"
+		testNamespace      = fixture.GitOpsServiceE2ENamespace
 	)
 
 	Context("Operation CR in invalid namespace should be ignored", func() {
@@ -45,16 +45,12 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 		BeforeEach(func() {
 
 			By("deleting the namespace before the test starts, so that the code can create it")
+			// err = fixture.DeleteNamespace(operationNamespace, config)
+			// Expect(err).To(BeNil())
+			// err = fixture.DeleteNamespace(testNamespace, config)
+			// Expect(err).To(BeNil())
+
 			config, err = fixture.GetSystemKubeConfig()
-			if err != nil {
-				panic(err)
-			}
-			err = fixture.DeleteNamespace(operationNamespace, config)
-			Expect(err).To(BeNil())
-			err = fixture.DeleteNamespace(falseNamespace, config)
-			Expect(err).To(BeNil())
-			ctx = context.Background()
-			config, err := fixture.GetSystemKubeConfig()
 			Expect(err).To(BeNil())
 			k8sClient, err = fixture.GetKubeClient(config)
 			Expect(err).To(BeNil())
@@ -68,12 +64,11 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			log := log.FromContext(ctx)
 			err = operations.CleanupOperation(ctx, *operationDB, *operationCR, operationCR.Namespace, dbQueries, k8sClient, true, log)
 			Expect(err).To(BeNil())
-			err = fixture.DeleteNamespace(falseNamespace, config)
-			Expect(err).To(BeNil())
 		})
 
 		It("should create Operation CR and namespace, the OperationCR.namespace created should match Argocd namespace ", func() {
-
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+			ctx = context.Background()
 			if fixture.IsRunningAgainstKCP() {
 				Skip("Skipping this test until we support running gitops operator with KCP")
 			}
@@ -103,9 +98,6 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			}
 
 			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
-			Expect(err).To(BeNil())
-
-			err = k8sClient.Create(ctx, namespaceToCreate)
 			Expect(err).To(BeNil())
 
 			operationCR = &managedgitopsv1alpha1.Operation{
@@ -134,7 +126,8 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 
 		})
 		It("should create Operation CR and namespace, the OperationCR.namespace created should not match Argocd namespace ", func() {
-
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+			ctx = context.Background()
 			if fixture.IsRunningAgainstKCP() {
 				Skip("Skipping this test until we support running gitops operator with KCP")
 			}
@@ -164,19 +157,19 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 
 			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
 			Expect(err).To(BeNil())
-			falseNamespaceToCreate := &corev1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: falseNamespace,
-				},
-			}
+			// falseNamespaceToCreate := &corev1.Namespace{
+			// 	ObjectMeta: metav1.ObjectMeta{
+			// 		Name: testNamespace,
+			// 	},
+			// }
 
-			err = k8sClient.Create(ctx, falseNamespaceToCreate)
-			Expect(err).To(BeNil())
+			// err = k8sClient.Create(ctx, falseNamespaceToCreate)
+			// Expect(err).To(BeNil())
 
 			operationCR = &managedgitopsv1alpha1.Operation{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "fake-operation",
-					Namespace: falseNamespace,
+					Namespace: testNamespace,
 				},
 				Spec: managedgitopsv1alpha1.OperationSpec{
 					OperationID: "test-operation",

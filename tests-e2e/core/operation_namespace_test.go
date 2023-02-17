@@ -44,9 +44,6 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 
 		BeforeEach(func() {
 
-			By("Delete old namespaces, and kube-system resources")
-			Expect(fixture.EnsureCleanSlate()).To(Succeed())
-
 			By("deleting the namespace before the test starts, so that the code can create it")
 			config, err = fixture.GetSystemKubeConfig()
 			if err != nil {

@@ -62,6 +62,12 @@ type ApplicationDestination struct {
 	Namespace string `json:"namespace,omitempty"`
 }
 
+const (
+	// DeletionFinalizer will indicate the GitOpsDeployment to wait until all its dependencies are removed.
+	// In the absence of this finalizer, GitOpsDeployment will be deleted first and its dependencies will be removed in the background.
+	DeletionFinalizer string = "resources-finalizer.managed-gitops.redhat.com"
+)
+
 type SyncOption string
 
 // Supported values for SyncOptions

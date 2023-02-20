@@ -20,7 +20,6 @@ import (
 	typed "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -657,18 +656,6 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				),
 			)
 
-			updateFinalizer := func(c client.Object, op func(client.Object)) {
-				err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-					err = k8sClient.Get(ctx, client.ObjectKeyFromObject(c), c)
-					if err != nil {
-						return err
-					}
-					op(c)
-					return k8sClient.Update(ctx, c)
-				})
-				Expect(err).To(BeNil())
-			}
-
 			// We add a finalizer to one of the resources to prevent a race condition where the GitOpsDeployment and
 			// all the dependent resources might get deleted before the test can check if the finalizer has prevented the deletion.
 			testFinalizer := "kubernetes"
@@ -681,9 +668,10 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				},
 			}
 
-			updateFinalizer(cm, func(o client.Object) {
+			err = k8s.UpdateWithoutConflict(cm, k8sClient, func(o client.Object) {
 				o.SetFinalizers([]string{testFinalizer})
 			})
+			Expect(err).To(BeNil())
 
 			By("delete the GitOpsDeployment resource")
 
@@ -693,19 +681,22 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			By("verify if the finalizer has prevented the GitOpsDeployment from deletion")
 			err = k8s.Get(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(BeNil())
-			Expect(gitOpsDeploymentResource.DeletionTimestamp).ToNot(BeNil())
+
+			Eventually(gitOpsDeploymentResource, "60s", "1s").Should(Satisfy(gitopsDeplFixture.HasNonNilDeletionTimestamp()))
+
+			// check if the GitOps Service has not removed the finalizer before the dependent resources are deleted.
+			Consistently(gitOpsDeploymentResource, "30s", "1s").Should(k8s.ExistByName(k8sClient))
 
 			// Remove the test finalizer and verify if all the dependent resources are deleted
-			updateFinalizer(cm, func(o client.Object) {
+			err = k8s.UpdateWithoutConflict(cm, k8sClient, func(o client.Object) {
 				o.SetFinalizers([]string{})
 			})
+			Expect(err).To(BeNil())
 
 			expectAllResourcesToBeDeleted(expectedResourceStatusList)
 
 			By("verify if the GitOpsDeployment is deleted after all the dependencies are removed")
-			err = k8s.Get(&gitOpsDeploymentResource, k8sClient)
-			Expect(err).ToNot(BeNil())
-			Expect(apierr.IsNotFound(err)).To(BeTrue())
+			Eventually(gitOpsDeploymentResource, "30s", "1s").Should(k8s.NotExist(k8sClient))
 		})
 
 		It("Checks for failure of deployment when an invalid input is provided", func() {

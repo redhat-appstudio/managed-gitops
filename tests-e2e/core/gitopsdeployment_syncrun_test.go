@@ -485,8 +485,9 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 				if err != nil {
 					return err
 				}
+				app.Annotations = make(map[string]string)
 				app.Annotations[appv1.AnnotationKeyRefresh] = string(appv1.RefreshTypeNormal)
-				return k8sClient.Update(ctx, &gitOpsDeploymentResource)
+				return k8sClient.Update(ctx, app)
 			})
 			Expect(err).To(BeNil())
 

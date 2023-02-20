@@ -3,9 +3,11 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"time"
+	"k8s.io/client-go/util/retry"
 
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -72,6 +74,23 @@ func ExistByName(k8sClient client.Client) matcher.GomegaMatcher {
 	}, BeTrue())
 }
 
+// NotExist checks if the given resource does not exist.
+func NotExist(k8sClient client.Client) matcher.GomegaMatcher {
+	return WithTransform(func(obj client.Object) bool {
+		err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(obj), obj)
+		if err != nil {
+			if apierr.IsNotFound(err) {
+				fmt.Println("Object does not exist in NotExist:", obj.GetName())
+				return true
+			}
+			fmt.Println(K8sClientError, err)
+			return false
+		}
+		fmt.Println("Object still exists in NotExist:", obj.GetName())
+		return false
+	}, BeTrue())
+}
+
 // Delete deletes a K8s object from the namespace; it returns an error on failure, or nil otherwise.
 func Delete(obj client.Object, k8sClient client.Client) error {
 
@@ -133,6 +152,19 @@ func Update(obj client.Object, k8sClient client.Client) error {
 	}
 
 	return nil
+}
+
+func UpdateWithoutConflict(obj client.Object, k8sClient client.Client, modify func(client.Object)) error {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(obj), obj)
+		if err != nil {
+			return err
+		}
+		modify(obj)
+		return k8sClient.Update(context.Background(), obj)
+	})
+
+	return err
 }
 
 // CreateSecret creates a secret with the given stringData.

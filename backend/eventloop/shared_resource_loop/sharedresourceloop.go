@@ -482,12 +482,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 			repositoryCredentialCRName, string(repositoryCredentialCRNamespace.UID), err)
 	}
 
-	managedEnv, _, err := dbutil.GetOrCreateManagedEnvironmentByNamespaceUID(ctx, repositoryCredentialCRNamespace, dbQueries, l)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get or created managed env on deployment modified event: %v", err)
-	}
-
-	gitopsEngineInstance, _, _, uerr := internalDetermineGitOpsEngineInstanceForNewApplication(ctx, *clusterUser, *managedEnv, apiNamespaceClient, dbQueries, l)
+	gitopsEngineInstance, _, _, uerr := internalDetermineGitOpsEngineInstance(ctx, *clusterUser, apiNamespaceClient, dbQueries, l)
 	if uerr != nil {
 		return nil, fmt.Errorf("unable to retrieve cluster user while processing GitOpsRepositoryCredentials: '%s' in namespace: '%s': Error: %w",
 			repositoryCredentialCRName, string(repositoryCredentialCRNamespace.UID), uerr.DevError())
@@ -956,7 +951,7 @@ func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, gito
 			fmt.Errorf("unable to get or created managed env on deployment modified event: %v", err)
 	}
 
-	engineInstance, isNewInstance, gitopsEngineCluster, uerr := internalDetermineGitOpsEngineInstanceForNewApplication(ctx, *clusterUser, *managedEnv, gitopsEngineClient, dbQueries, l)
+	engineInstance, isNewInstance, gitopsEngineCluster, uerr := internalDetermineGitOpsEngineInstance(ctx, *clusterUser, gitopsEngineClient, dbQueries, l)
 	if uerr != nil {
 		return SharedResourceManagedEnvContainer{}, fmt.Errorf("unable to determine gitops engine instance: %w", uerr.DevError())
 	}
@@ -998,8 +993,7 @@ func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, gito
 // The bool return value is 'true' if GitOpsEngineInstance is created; 'false' if it already exists in DB or in case of failure.
 //
 // This logic would be improved by https://issues.redhat.com/browse/GITOPSRVCE-73 (and others)
-func internalDetermineGitOpsEngineInstanceForNewApplication(ctx context.Context, user db.ClusterUser, managedEnv db.ManagedEnvironment,
-	k8sClient client.Client, dbq db.DatabaseQueries, l logr.Logger) (*db.GitopsEngineInstance, bool, *db.GitopsEngineCluster, gitopserrors.ConditionError) {
+func internalDetermineGitOpsEngineInstance(ctx context.Context, user db.ClusterUser, k8sClient client.Client, dbq db.DatabaseQueries, l logr.Logger) (*db.GitopsEngineInstance, bool, *db.GitopsEngineCluster, gitopserrors.ConditionError) {
 
 	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: dbutil.GetGitOpsEngineSingleInstanceNamespace()}}
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace); err != nil {
@@ -1022,11 +1016,10 @@ func internalDetermineGitOpsEngineInstanceForNewApplication(ctx context.Context,
 		return nil, false, nil, gitopserrors.NewUserConditionError(userMsg, devError, ConditionReasonDatabaseError)
 	}
 
-	// When we support multiple Argo CD instance, the algorithm would be:
+	// When we support multiple Argo CD instance, the algorithm would initially be:
 	//
 	// algorithm input:
 	// - user
-	// - managed environment
 	//
 	// output:
 	// - gitops engine instance

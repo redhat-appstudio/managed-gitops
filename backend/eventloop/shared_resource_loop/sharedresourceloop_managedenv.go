@@ -470,7 +470,7 @@ func wrapManagedEnv(ctx context.Context, managedEnv db.ManagedEnvironment, works
 	bool, *db.ClusterAccess, bool, *db.GitopsEngineCluster, gitopserrors.ConditionError) {
 
 	engineInstance, isNewInstance, gitopsEngineCluster, err :=
-		internalDetermineGitOpsEngineInstanceForNewApplication(ctx, clusterUser, managedEnv, gitopsEngineClient, dbQueries, log)
+		internalDetermineGitOpsEngineInstance(ctx, clusterUser, gitopsEngineClient, dbQueries, log)
 
 	if err != nil {
 		log.Error(err.DevError(), "unable to determine gitops engine instance")

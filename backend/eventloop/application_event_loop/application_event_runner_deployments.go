@@ -413,7 +413,7 @@ func (a applicationEventLoopRunner_Action) handleDeleteGitOpsDeplEvent(ctx conte
 	}
 
 	if allErrors == nil {
-		if gitopsDepl != nil && isGitOpsDeploymentDeleted(gitopsDepl) {
+		if isGitOpsDeploymentDeleted(gitopsDepl) {
 			// remove the finalizer if all the dependencies are cleaned up
 			if err := removeFinalizerIfExist(ctx, a.workspaceClient, gitopsDepl, managedgitopsv1alpha1.DeletionFinalizer); err != nil {
 				a.log.Error(err, "failed to remove the deletion finalizer from GitOpsDeployment", "name", gitopsDepl.Name, "namespace", gitopsDepl.Namespace)

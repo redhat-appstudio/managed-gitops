@@ -461,9 +461,7 @@ func SetupForTestingDBGinkgo() error {
 		if strings.HasPrefix(managedEnvironment.Managedenvironment_id, "test-") {
 			rowsAffected, err := dbq.DeleteManagedEnvironmentById(ctx, managedEnvironment.Managedenvironment_id)
 			Expect(err).To(BeNil())
-			if err == nil {
-				Expect(rowsAffected).Should(Equal(1))
-			}
+			Expect(rowsAffected).Should(Equal(1))
 		}
 	}
 

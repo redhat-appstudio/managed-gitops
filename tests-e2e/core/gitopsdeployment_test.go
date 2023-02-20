@@ -682,10 +682,10 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.Get(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(BeNil())
 
-			Eventually(gitOpsDeploymentResource, "60s", "1s").Should(Satisfy(gitopsDeplFixture.HasNonNilDeletionTimestamp()))
+			Eventually(gitOpsDeploymentResource, "60s", "1s").Should(gitopsDeplFixture.HasNonNilDeletionTimestamp())
 
 			// check if the GitOps Service has not removed the finalizer before the dependent resources are deleted.
-			Consistently(gitOpsDeploymentResource, "30s", "1s").Should(k8s.ExistByName(k8sClient))
+			Consistently(&gitOpsDeploymentResource, "30s", "1s").Should(k8s.ExistByName(k8sClient))
 
 			// Remove the test finalizer and verify if all the dependent resources are deleted
 			err = k8s.UpdateWithoutConflict(cm, k8sClient, func(o client.Object) {
@@ -696,7 +696,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			expectAllResourcesToBeDeleted(expectedResourceStatusList)
 
 			By("verify if the GitOpsDeployment is deleted after all the dependencies are removed")
-			Eventually(gitOpsDeploymentResource, "30s", "1s").Should(k8s.NotExist(k8sClient))
+			Eventually(&gitOpsDeploymentResource, "30s", "1s").Should(k8s.NotExist(k8sClient))
 		})
 
 		It("Checks for failure of deployment when an invalid input is provided", func() {

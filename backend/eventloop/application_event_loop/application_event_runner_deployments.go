@@ -464,20 +464,14 @@ func isGitOpsDeploymentDeleted(gitopsDepl *managedgitopsv1alpha1.GitOpsDeploymen
 }
 
 func removeItemFromSlice(item string, items []string) []string {
-	itemIndex := -1
-	for n, i := range items {
-		if i == item {
-			itemIndex = n
-			break
+	result := []string{}
+	for _, i := range items {
+		if i != item {
+			result = append(result, i)
 		}
 	}
 
-	if itemIndex > -1 {
-		items[itemIndex] = items[len(items)-1]
-		items = items[:len(items)-1]
-	}
-
-	return items
+	return result
 }
 
 // Note: this function will return a nil ManagedEnvironment and/or GitOpsEngineInstance if the ManagedEnvironment

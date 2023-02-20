@@ -234,7 +234,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			By("Delete the GitOpsDepl and verify that the corresponding DB entries are removed.")
 			// ----------------------------------------------------------------------------
 
-			gitopsDepl.Finalizers = append(gitopsDepl.Finalizers, deletionFinalizer)
+			gitopsDepl.Finalizers = append(gitopsDepl.Finalizers, managedgitopsv1alpha1.DeletionFinalizer)
 			err = k8sClient.Update(ctx, gitopsDepl)
 			Expect(err).To(BeNil())
 
@@ -1777,7 +1777,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 		})
 
 		It("should not update if the finalizer is not found", func() {
-			err := removeFinalizerIfExist(ctx, k8sClient, gitopsDepl, deletionFinalizer)
+			err := removeFinalizerIfExist(ctx, k8sClient, gitopsDepl, managedgitopsv1alpha1.DeletionFinalizer)
 			Expect(err).To(BeNil())
 
 			gitopsDeplUpdated := false
@@ -1793,8 +1793,8 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			err := k8sClient.Delete(ctx, gitopsDepl)
 			Expect(err).To(BeNil())
 
-			gitopsDepl.Finalizers = append(gitopsDepl.Finalizers, deletionFinalizer)
-			err = removeFinalizerIfExist(ctx, k8sClient, gitopsDepl, deletionFinalizer)
+			gitopsDepl.Finalizers = append(gitopsDepl.Finalizers, managedgitopsv1alpha1.DeletionFinalizer)
+			err = removeFinalizerIfExist(ctx, k8sClient, gitopsDepl, managedgitopsv1alpha1.DeletionFinalizer)
 			Expect(err).To(BeNil())
 
 			gitopsDeplUpdated := false
@@ -1809,7 +1809,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 		It("should retry when there is a conflict", func() {
 			By("introduce a conflict by updating the object")
 			gitopsDeplClone := gitopsDepl.DeepCopy()
-			gitopsDeplClone.Finalizers = append(gitopsDeplClone.Finalizers, deletionFinalizer)
+			gitopsDeplClone.Finalizers = append(gitopsDeplClone.Finalizers, managedgitopsv1alpha1.DeletionFinalizer)
 			err := k8sClient.Update(ctx, gitopsDeplClone)
 			Expect(err).To(BeNil())
 
@@ -1820,7 +1820,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(errors.IsConflict(err)).To(BeTrue())
 
 			By("verify if the conflict will be handled by retrying")
-			err = removeFinalizerIfExist(ctx, k8sClient, gitopsDepl, deletionFinalizer)
+			err = removeFinalizerIfExist(ctx, k8sClient, gitopsDepl, managedgitopsv1alpha1.DeletionFinalizer)
 			Expect(err).To(BeNil())
 
 			gitopsDeplUpdated := false

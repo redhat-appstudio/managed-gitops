@@ -626,7 +626,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
-			gitOpsDeploymentResource.Finalizers = append(gitOpsDeploymentResource.Finalizers, "resources-finalizer.managed-gitops.redhat.com")
+			gitOpsDeploymentResource.Finalizers = append(gitOpsDeploymentResource.Finalizers, managedgitopsv1alpha1.DeletionFinalizer)
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())

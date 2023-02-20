@@ -1309,9 +1309,15 @@ var _ = Describe("Operation Controller", func() {
 				Expect(retry).To(BeFalse())
 
 				By("verify if the refresh annotation is removed")
-				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
-				Expect(err).To(BeNil())
-				Expect(applicationCR.Annotations).To(BeNil())
+				Eventually(func() bool {
+					err = k8sClient.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
+					if err != nil {
+						GinkgoWriter.Println(err)
+						return false
+					}
+					return applicationCR.Annotations == nil
+				}, "10s", "1s").Should(BeTrue())
+
 			})
 
 			It("should return an error and retry if the sync fails", func() {
@@ -1388,13 +1394,16 @@ var _ = Describe("Operation Controller", func() {
 				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
 
 				By("introduce a conflict")
-				applicationCR.Annotations = map[string]string{
+				appCRClone := applicationCR.DeepCopy()
+				appCRClone.Annotations = make(map[string]string)
+				appCRClone.Annotations = map[string]string{
 					"key-1": "value-1",
 					"key-2": "value-2",
 				}
-				err = k8sClient.Update(ctx, applicationCR)
+				err = k8sClient.Update(ctx, appCRClone)
 				Expect(err).To(BeNil())
 
+				applicationCR.Annotations = make(map[string]string)
 				applicationCR.Annotations["key-3"] = "value-3"
 				err = k8sClient.Update(ctx, applicationCR)
 				Expect(apierr.IsConflict(err)).To(BeTrue())
@@ -1410,11 +1419,15 @@ var _ = Describe("Operation Controller", func() {
 				Expect(retry).To(BeFalse())
 
 				By("verify if the refresh annotation is removed")
-				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
-				Expect(err).To(BeNil())
-
-				_, found := applicationCR.Annotations[appv1.AnnotationKeyRefresh]
-				Expect(found).To(BeFalse())
+				Eventually(func() bool {
+					err = k8sClient.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
+					if err != nil {
+						GinkgoWriter.Println(err)
+						return false
+					}
+					_, found := applicationCR.Annotations[appv1.AnnotationKeyRefresh]
+					return !found
+				}, "10s", "1s").Should(BeTrue())
 				Expect(applicationCR.Annotations["key-1"]).Should(Equal("value-1"))
 				Expect(applicationCR.Annotations["key-2"]).Should(Equal("value-2"))
 			})

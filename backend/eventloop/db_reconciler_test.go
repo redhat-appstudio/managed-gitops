@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/rest"
@@ -284,7 +285,7 @@ var _ = Describe("DB Reconciler Test", func() {
 						Namespace: "test-k8s-namespace",
 					},
 					Type:       "managed-gitops.redhat.com/managed-environment",
-					StringData: map[string]string{"kubeconfig": "abc"},
+					StringData: map[string]string{shared_resource_loop.Kubeconfig_key: "abc"},
 				}
 				err = k8sClient.Create(context.Background(), secretCr)
 				Expect(err).To(BeNil())

@@ -1157,7 +1157,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				},
 				Type: sharedutil.ManagedEnvironmentSecretType,
 				Data: map[string][]byte{
-					"kubeconfig": ([]byte)(kubeConfigContents),
+					shared_resource_loop.Kubeconfig_key: ([]byte)(kubeConfigContents),
 				},
 			}
 			err = k8sClient.Create(ctx, &managedEnvSecret)
@@ -1965,7 +1965,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 				},
 				Type: sharedutil.ManagedEnvironmentSecretType,
 				Data: map[string][]byte{
-					"kubeconfig": ([]byte)(kubeConfigContents),
+					shared_resource_loop.Kubeconfig_key: ([]byte)(kubeConfigContents),
 				},
 			}
 			err = k8sClient.Create(ctx, &managedEnvSecret)
@@ -2358,7 +2358,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 					},
 					Type: sharedutil.ManagedEnvironmentSecretType,
 					Data: map[string][]byte{
-						"kubeconfig": ([]byte)(kubeConfigContents),
+						shared_resource_loop.Kubeconfig_key: ([]byte)(kubeConfigContents),
 					},
 				}
 				err = k8sClient.Create(ctx, &managedEnvSecret2)

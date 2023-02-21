@@ -6,21 +6,21 @@ metadata:
 spec:
   template:
     spec:
-      initContainers:
-      - name: init-container
-        command:
-        - /init-container/init-container
-        env:
-        - name: ARGO_CD_NAMESPACE
-          value: gitops-service-argocd
-        - name: DB_ADDR
-          value: gitops-postgresql-staging
-        - name: DB_PASS
-          valueFrom:
-            secretKeyRef:
-              key: postgresql-password
-              name: gitops-postgresql-staging
-        image: ${COMMON_IMAGE}
+      # initContainers:
+      # - name: init-container
+      #   command:
+      #   - /init-container/init-container
+      #   env:
+      #   - name: ARGO_CD_NAMESPACE
+      #     value: gitops-service-argocd
+      #   - name: DB_ADDR
+      #     value: gitops-postgresql-staging
+      #   - name: DB_PASS
+      #     valueFrom:
+      #       secretKeyRef:
+      #         key: postgresql-password
+      #         name: gitops-postgresql-staging
+      #   image: ${COMMON_IMAGE}
       containers:
       - args:
         - --health-probe-bind-address=:18081

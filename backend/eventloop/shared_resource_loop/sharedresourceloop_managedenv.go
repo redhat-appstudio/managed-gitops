@@ -726,7 +726,7 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 
 	kubeconfig, exists := secret.Data[Kubeconfig_key]
 	if !exists {
-		err := fmt.Errorf("missing field in Secret: %s", Kubeconfig_key)
+		err := fmt.Errorf("missing %s field in Secret", Kubeconfig_key)
 		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionFalse, ConditionReasonMissingKubeConfigField, err.Error(), log)
 		return db.ClusterCredentials{}, err
 	}

@@ -50,7 +50,15 @@ endif
 # Get the OS and ARCH values to be used for building the binary.
 OS ?= $(shell go env GOOS)
 ARCH ?= $(shell go env GOARCH)
-
+KUBEBUILDER_ASSETS_ARCH=${ARCH}
+$(info OS is ${OS})
+$(info Arch is ${ARCH})
+ifeq (${OS},darwin)
+ifeq (${ARCH},arm64)
+  $(info Mac arm64 detected)
+  KUBEBUILDER_ASSETS_ARCH=amd64
+endif
+endif
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # This is a requirement for 'setup-envtest.sh' in the test target.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
@@ -97,7 +105,7 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate fmt vet envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -p=1 ./... -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) --arch=$(KUBEBUILDER_ASSETS_ARCH) use $(ENVTEST_K8S_VERSION) -p path)" go test -p=1 ./... -coverprofile cover.out
 
 ##@ Build
 

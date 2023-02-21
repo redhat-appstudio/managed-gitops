@@ -779,7 +779,7 @@ var _ = Describe("Test utility functions.", func() {
 			Expect(err).To(BeNil())
 
 			// ----------------------------------------------------------------------------
-			By("It should delete existing KubernetesToDBResourceMapping and rerurn new gitopsEngineInstance and KubernetesToDBResourceMapping.")
+			By("It should delete existing KubernetesToDBResourceMapping and return new gitopsEngineInstance and KubernetesToDBResourceMapping.")
 			// ----------------------------------------------------------------------------
 
 			gitopsEngineInstance, isNew, gitopsEngineCluster, err = GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, workspace, string(workSpaceUid), dbQueries, log)

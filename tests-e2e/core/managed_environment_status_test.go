@@ -70,7 +70,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			condition := managedEnv.Status.Conditions[0]
 			Expect(condition.Status).To(Equal(metav1.ConditionFalse))
 			Expect(condition.Reason).To(Equal(shared_resource_loop.ConditionReasonMissingKubeConfigField))
-			Expect(condition.Message).To(ContainSubstring("missing kubeConfig field in Secret"))
+			Expect(condition.Message).To(ContainSubstring("missing field in Secret: kubeconfig"))
 		})
 
 		It("should have a connection status condition of False when the credentials contain bad data", func() {

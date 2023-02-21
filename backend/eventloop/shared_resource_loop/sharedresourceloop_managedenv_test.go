@@ -838,7 +838,7 @@ func buildManagedEnvironmentForSRL() (managedgitopsv1alpha1.GitOpsDeploymentMana
 		},
 		Type: sharedutil.ManagedEnvironmentSecretType,
 		Data: map[string][]byte{
-			"kubeconfig": ([]byte)(kubeConfigContents),
+			Kubeconfig_key: ([]byte)(kubeConfigContents),
 		},
 	}
 

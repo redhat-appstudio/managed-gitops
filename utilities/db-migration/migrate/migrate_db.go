@@ -70,7 +70,7 @@ func Migrate(opType string, migrationPath string) error {
 		}
 		version := uint(u64)
 		if err := m.Migrate(version); err != nil && err != migrate.ErrNoChange {
-			return fmt.Errorf("unable to Migrate to version 10: %v", err)
+			return fmt.Errorf("unable to Migrate to version %d: %v", version, err)
 		}
 		return nil
 	} else {

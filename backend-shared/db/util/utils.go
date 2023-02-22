@@ -168,7 +168,6 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 	// Only create the GitOpsEngine cluster, when needed.
 	// Check the database to see if there is already a database entry for this namespace.
 	// This relationship is represented in the KubernetesToDBResourceMapping table.
-	var gitopsEngineInstance *db.GitopsEngineInstance
 
 	// expectedDBResourceMapping is the value to query the database with:
 	// - we are looking for a Namespace, with a given uid, that points to a GitOpsEngineInstance)
@@ -185,26 +184,31 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 	if err := dbq.GetDBResourceMappingForKubernetesResource(ctx, dbResourceMapping); err != nil {
 
 		if !db.IsResultNotFoundError(err) {
+			// A generic error occurred, so return
 			return nil, false, nil,
 				fmt.Errorf("unable to get DBResourceMapping for getOrCreateGitopsEngineInstanceByInstanceNamespaceUID: %v", err)
 		}
 
+		// There is no KubernetesToDBResourceMapping for the GitOpsEngineInstance, so continue below
+		// to create GitOpsEngineInstance/K8sToDBResourceMapping
+
 	} else {
-		// If there exists a db resource mapping for this cluster, see if we can get the GitOpsEngineCluster
-		gitopsEngineInstance = &db.GitopsEngineInstance{
+
+		// There exists a db resource mapping for this GitOpsEngineInstnace, now see if we can get the GitOpsEngineCluster
+
+		gitopsEngineInstance := &db.GitopsEngineInstance{
 			Gitopsengineinstance_id: dbResourceMapping.DBRelationKey,
 		}
 
-		var getEngineInstanceErr error
-		if getEngineInstanceErr = dbq.GetGitopsEngineInstanceById(ctx, gitopsEngineInstance); getEngineInstanceErr == nil {
+		if err := dbq.GetGitopsEngineInstanceById(ctx, gitopsEngineInstance); err == nil {
 
-			// Create the GitOpsEngine cluster, this will be used to create the instance.
-			gitopsEngineCluster, _, err := GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, kubesystemNamespaceUID, dbq, log)
+			// Get the GitOpsEngine cluster, this will be used to create the instance.
+			gitopsEngineCluster, err := GetGitopsEngineClusterByKubeSystemNamespaceUID(ctx, kubesystemNamespaceUID, dbq, log)
 			if err != nil {
 				return nil, false, nil, fmt.Errorf("unable to create GitOpsEngineCluster for '%v', error: '%v'", kubesystemNamespaceUID, err)
 			}
 
-			if gitopsEngineInstance.EngineCluster_id != gitopsEngineCluster.Gitopsenginecluster_id {
+			if gitopsEngineInstance.EngineCluster_id != gitopsEngineCluster.Gitopsenginecluster_id { // Sanity test
 				return nil, false, nil,
 					fmt.Errorf("able to locate engine instance, and engine cluster, but they mismatched: instance id: %v, cluster id: %v",
 						gitopsEngineInstance.Gitopsengineinstance_id, gitopsEngineCluster.Gitopsenginecluster_id)
@@ -213,13 +217,12 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 			// Success: both existed.
 			return gitopsEngineInstance, false, gitopsEngineCluster, nil
 
+		} else if !db.IsResultNotFoundError(err) {
+			// A generic error occurred, so return.
+			return nil, false, nil, err
 		}
 
-		if !db.IsResultNotFoundError(getEngineInstanceErr) {
-			return nil, false, nil, getEngineInstanceErr
-		}
-
-		// At this point, there is no gitopsEngineInstance but there is a mapping, so clean up and then later, create both
+		// At this point, there is necessarily no GitopsEngineInstance, but there is a mapping, so clean up the mapping and then create both below
 
 		log.V(util.LogLevel_Warn).Error(nil,
 			"GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID found a resource mapping, but no engine instance.")
@@ -232,17 +235,17 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 		}
 		log.Info("Deleted KubernetesResourceToDBResourceMapping due to missing engine instance", dbResourceMapping.GetAsLogKeyValues()...)
 
-		gitopsEngineInstance = nil
 	}
 
-	// At this point, just create both the gitopsEngineInstance and gitopsEngineCluster
+	// At this point, just create the GitopsEngineInstance (and potentially the GitopsEngineCluster)
 
 	gitopsEngineCluster, _, err := GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, kubesystemNamespaceUID, dbq, log)
 	if err != nil {
+		log.Error(err, "Unable to create GitopsEngineCluster", "kubesystemNamespaceUID", kubesystemNamespaceUID)
 		return nil, false, nil, fmt.Errorf("unable to create GitOpsEngineCluster for '%v', error: '%v'", kubesystemNamespaceUID, err)
 	}
 
-	gitopsEngineInstance = &db.GitopsEngineInstance{
+	gitopsEngineInstance := &db.GitopsEngineInstance{
 		Namespace_name:   gitopsEngineNamespace.Name,
 		Namespace_uid:    string(gitopsEngineNamespace.UID),
 		EngineCluster_id: gitopsEngineCluster.Gitopsenginecluster_id,
@@ -341,8 +344,11 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 	if err := dbq.GetDBResourceMappingForKubernetesResource(ctx, dbResourceMapping); err != nil {
 
 		if !db.IsResultNotFoundError(err) {
+			// A generic error occurred, so return
 			return nil, false, fmt.Errorf("unable to get DBResourceMapping: %v", err)
 		}
+
+		// Otherwise, there was no KubernetesToDBResourceMapping, so continue below to create it.
 
 	} else {
 		// If there exists a db resource mapping for this cluster, then the DBRelationKeyField points to
@@ -353,15 +359,13 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 			Gitopsenginecluster_id: dbResourceMapping.DBRelationKey,
 		}
 
-		var getEngineClusterError error
-		if getEngineClusterError = dbq.GetGitopsEngineClusterById(ctx, gitopsEngineCluster); getEngineClusterError == nil {
+		if err := dbq.GetGitopsEngineClusterById(ctx, gitopsEngineCluster); err == nil {
 			// Success: both existed.
 			return gitopsEngineCluster, false, nil
-		}
 
-		if !db.IsResultNotFoundError(getEngineClusterError) {
+		} else if !db.IsResultNotFoundError(err) {
 			// If a generic error occurs, return
-			return nil, false, getEngineClusterError
+			return nil, false, err
 		}
 
 		// We have found a mapping without the corresponding mapped entity, so delete the mapping.

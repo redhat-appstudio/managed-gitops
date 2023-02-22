@@ -896,6 +896,27 @@ func (cdb *ChaosDBClient) GetKubernetesResourceMappingForDatabaseResource(ctx co
 
 }
 
+func (cdb *ChaosDBClient) CountTotalOperationDBRows(ctx context.Context, obj *Operation) (int, error) {
+	if err := shouldSimulateFailure("CountTotalOperationDBRows", obj); err != nil {
+		return 0, err
+	}
+
+	return cdb.InnerClient.CountTotalOperationDBRows(ctx, obj)
+
+}
+
+func (cdb *ChaosDBClient) CountOperationDBRowsByState(ctx context.Context, obj *Operation) ([]struct {
+	State    string
+	RowCount int
+}, error) {
+	if err := shouldSimulateFailure("GetKubernetesResourceMappingForDatabaseResource", obj); err != nil {
+		return nil, err
+	}
+
+	return cdb.InnerClient.CountOperationDBRowsByState(ctx, obj)
+
+}
+
 func (cdb *ChaosDBClient) CloseDatabase() {
 	cdb.InnerClient.CloseDatabase()
 }

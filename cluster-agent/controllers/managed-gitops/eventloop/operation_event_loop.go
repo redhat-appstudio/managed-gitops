@@ -15,6 +15,7 @@ import (
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
+	"github.com/redhat-appstudio/managed-gitops/cluster-agent/metrics"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/utils"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -257,8 +258,10 @@ func (task *processOperationEventTask) PerformTask(taskContext context.Context) 
 			// Complete (but complete doesn't mean successful: it could be complete due to a fatal error)
 			if err == nil {
 				dbOperation.State = db.OperationState_Completed
+				metrics.SetOperationDBState(dbOperation.State)
 			} else {
 				dbOperation.State = db.OperationState_Failed
+				metrics.SetOperationDBState(dbOperation.State)
 			}
 		}
 		dbOperation.Last_state_update = time.Now()

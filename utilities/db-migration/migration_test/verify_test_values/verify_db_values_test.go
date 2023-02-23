@@ -23,7 +23,7 @@ var _ = Describe("Test to verify that the data added to database is still presen
 
 			By("Get cluster user")
 			clusterUser := db.ClusterUser{
-				Clusteruser_id: "test-user-1",
+				Clusteruser_id: addtestvalues.AddTest_PreClusterUser.Clusteruser_id,
 			}
 
 			err = dbq.GetClusterUserById(ctx, &clusterUser)
@@ -33,7 +33,7 @@ var _ = Describe("Test to verify that the data added to database is still presen
 
 			By("Get cluster credentials by ClusterCredentialsId")
 			clusterCredentials := db.ClusterCredentials{
-				Clustercredentials_cred_id: "test-cluster-creds-test-1",
+				Clustercredentials_cred_id: addtestvalues.AddTest_PreClusterCredentials.Clustercredentials_cred_id,
 			}
 
 			err = dbq.GetClusterCredentialsById(ctx, &clusterCredentials)
@@ -43,7 +43,7 @@ var _ = Describe("Test to verify that the data added to database is still presen
 
 			By("Get a gitopsengine cluster by Id")
 			gitopsEngineCluster := db.GitopsEngineCluster{
-				Gitopsenginecluster_id: "test-fake-cluster-1",
+				Gitopsenginecluster_id: addtestvalues.AddTest_PreGitopsEngineCluster.Gitopsenginecluster_id,
 			}
 			err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineCluster)
 			Expect(err).To(BeNil())
@@ -52,7 +52,7 @@ var _ = Describe("Test to verify that the data added to database is still presen
 
 			By("Get a gitopsengine instance by Id")
 			gitopsEngineInstance := db.GitopsEngineInstance{
-				Gitopsengineinstance_id: "test-fake-engine-instance-id",
+				Gitopsengineinstance_id: addtestvalues.AddTest_PreGitopsEngineInstance.Gitopsengineinstance_id,
 			}
 			err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstance)
 			Expect(err).To(BeNil())
@@ -61,7 +61,7 @@ var _ = Describe("Test to verify that the data added to database is still presen
 
 			By("Get cluster credentials for a managed environment")
 			clusterCredentialsForManagedEnv := db.ClusterCredentials{
-				Clustercredentials_cred_id: "test-cluster-creds-test-2",
+				Clustercredentials_cred_id: addtestvalues.AddTest_PreClusterCredentialsForManagedEnv.Clustercredentials_cred_id,
 			}
 			err = dbq.GetClusterCredentialsById(ctx, &clusterCredentialsForManagedEnv)
 			Expect(err).To(BeNil())
@@ -70,7 +70,7 @@ var _ = Describe("Test to verify that the data added to database is still presen
 
 			By("Get a managed environment by Id")
 			managedEnvironmentDb := db.ManagedEnvironment{
-				Managedenvironment_id: "test-env-1",
+				Managedenvironment_id: addtestvalues.AddTest_PreManagedEnvironment.Managedenvironment_id,
 			}
 			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentDb)
 			Expect(err).To(BeNil())
@@ -91,7 +91,7 @@ var _ = Describe("Test to verify that the data added to database is still presen
 
 			By("Get application by id")
 			applicationDB := db.Application{
-				Application_id: "test-my-application",
+				Application_id: addtestvalues.AddTest_PreApplicationDB.Application_id,
 			}
 			err = dbq.GetApplicationById(ctx, &applicationDB)
 			Expect(err).To(BeNil())
@@ -109,7 +109,7 @@ var _ = Describe("Test to verify that the data added to database is still presen
 
 			By("Get a deployment to application mapping to the application")
 			dtam := db.DeploymentToApplicationMapping{
-				Deploymenttoapplicationmapping_uid_id: "test-dtam",
+				Deploymenttoapplicationmapping_uid_id: addtestvalues.AddTest_PreDTAM.Deploymenttoapplicationmapping_uid_id,
 				Application_id:                        applicationDB.Application_id,
 			}
 			err = dbq.GetDeploymentToApplicationMappingByApplicationId(ctx, &dtam)
@@ -119,7 +119,7 @@ var _ = Describe("Test to verify that the data added to database is still presen
 
 			By("Get an operation database row pointing to the application")
 			operationDB := db.Operation{
-				Operation_id: "test-operation",
+				Operation_id: addtestvalues.AddTest_PreOperationDB.Operation_id,
 			}
 			err = dbq.GetOperationById(ctx, &operationDB)
 			Expect(err).To(BeNil())
@@ -130,10 +130,10 @@ var _ = Describe("Test to verify that the data added to database is still presen
 
 			By("Get kubernetesToDBResourceMapping between a gitops engine instance and argo cd namespace")
 			kubernetesToDBResourceMapping := db.KubernetesToDBResourceMapping{
-				KubernetesResourceType: "Namespace",
-				KubernetesResourceUID:  "Namespace-uid",
-				DBRelationType:         "GitopsEngineCluster",
-				DBRelationKey:          gitopsEngineCluster.Gitopsenginecluster_id,
+				KubernetesResourceType: addtestvalues.AddTest_PreKubernetesToDBResourceMapping.KubernetesResourceType,
+				KubernetesResourceUID:  addtestvalues.AddTest_PreKubernetesToDBResourceMapping.KubernetesResourceUID,
+				DBRelationType:         addtestvalues.AddTest_PreKubernetesToDBResourceMapping.DBRelationType,
+				DBRelationKey:          addtestvalues.AddTest_PreKubernetesToDBResourceMapping.DBRelationKey,
 			}
 
 			err = dbq.GetDBResourceMappingForKubernetesResource(ctx, &kubernetesToDBResourceMapping)
@@ -143,7 +143,7 @@ var _ = Describe("Test to verify that the data added to database is still presen
 
 			By("Get repository credentials by Id")
 			gitopsRepositoryCredentialsDb := db.RepositoryCredentials{
-				RepositoryCredentialsID: "test-repo-1",
+				RepositoryCredentialsID: addtestvalues.AddTest_PreRepositoryCredentials.RepositoryCredentialsID,
 			}
 			_, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsDb.RepositoryCredentialsID)
 			Expect(err).To(BeNil())
@@ -162,7 +162,7 @@ var _ = Describe("Test to verify that the data added to database is still presen
 
 			By("Get SyncOperation pointing to the Application")
 			syncOperation := db.SyncOperation{
-				SyncOperation_id: "test-syncOperation",
+				SyncOperation_id: addtestvalues.AddTest_PreSyncOperation.SyncOperation_id,
 			}
 			err = dbq.GetSyncOperationById(ctx, &syncOperation)
 			Expect(err).To(BeNil())
@@ -173,7 +173,7 @@ var _ = Describe("Test to verify that the data added to database is still presen
 			atdm := db.APICRToDatabaseMapping{
 				APIResourceType: db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
 				DBRelationType:  db.APICRToDatabaseMapping_DBRelationType_SyncOperation,
-				DBRelationKey:   "test-key",
+				DBRelationKey:   addtestvalues.AddTest_PreATDMForSyncOperation.DBRelationKey,
 			}
 			err = dbq.GetAPICRForDatabaseUID(ctx, &atdm)
 			Expect(err).To(BeNil())

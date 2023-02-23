@@ -33,8 +33,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	applicationv1alpha1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
-	appstudioredhatcomcontrollers "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 	gitopsdeploymentv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+
+	appstudioredhatcomcontrollers "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	//+kubebuilder:scaffold:imports
@@ -154,6 +155,13 @@ func main() {
 		}
 	}
 
+	if err = (&appstudioredhatcomcontrollers.DeploymentTargetClaimReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "DeploymentTargetClaim")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

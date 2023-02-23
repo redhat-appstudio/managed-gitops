@@ -33,4 +33,9 @@ resources:
   group: appstudio.redhat.com
   kind: Environment
   version: v1alpha1
+- controller: true
+  domain: redhat.com
+  group: appstudio.redhat.com
+  kind: DeploymentTargetClaim
+  version: v1alpha1
 version: "3"

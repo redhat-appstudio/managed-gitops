@@ -5,4 +5,5 @@ resources:
 - appstudio.redhat.com_v1alpha1_promotionrun.yaml
 - appstudio.redhat.com_v1alpha1_snapshotenvironmentbinding.yaml
 - appstudio.redhat.com_v1alpha1_environment.yaml
+- appstudio.redhat.com_v1alpha1_deploymenttargetclaim.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

@@ -58,6 +58,8 @@ var _ = Describe("Operation Controller", func() {
 		BeforeEach(func() {
 			ctx = context.Background()
 			logger = log.FromContext(ctx)
+			err = db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
 
 			testClusterUser = &db.ClusterUser{
 				Clusteruser_id: "test-user",
@@ -100,13 +102,19 @@ var _ = Describe("Operation Controller", func() {
 				},
 			}
 
+			namespaceToCreate := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: namespace,
+					UID:  workspace.UID,
+				},
+			}
+			err = task.event.client.Create(ctx, namespaceToCreate)
+			Expect(err).To(BeNil())
+
 		})
 		It("Ensure that calling perform task on an operation CR for Application that doesn't exist, it doesn't return an error, and retry is false", func() {
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
-
-			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
 
 			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
 			Expect(err).To(BeNil())
@@ -134,9 +142,6 @@ var _ = Describe("Operation Controller", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
-
-			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
 
 			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
 			Expect(err).To(BeNil())
@@ -272,9 +277,6 @@ var _ = Describe("Operation Controller", func() {
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
 
-			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
-
 			By("'kube-system' namespace has a UID that is not found in a corresponding row in GitOpsEngineCluster database")
 			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
 			Expect(err).To(BeNil())
@@ -313,7 +315,7 @@ var _ = Describe("Operation Controller", func() {
 
 		})
 
-		It("Ensures that if the GitopsEngineInstance's namespace_name field doesn't exist, an error is returned, and retry is true", func() {
+		It("Ensures that if the GitopsEngineInstance's namespace_name field doesn't exist, an error is returned, and retry is false as the operation namespace check overrides", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
@@ -362,7 +364,7 @@ var _ = Describe("Operation Controller", func() {
 
 			retry, err := task.PerformTask(ctx)
 			Expect(err).ToNot(BeNil())
-			Expect(retry).To(BeTrue())
+			Expect(retry).To(BeFalse())
 
 			kubernetesToDBResourceMapping := db.KubernetesToDBResourceMapping{
 				KubernetesResourceType: "Namespace",
@@ -410,13 +412,6 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = task.event.client.Create(ctx, applicationCR)
-				Expect(err).To(BeNil())
-				namespaceToCreate := &corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "argocd",
-					},
-				}
-				err = task.event.client.Create(ctx, namespaceToCreate)
 				Expect(err).To(BeNil())
 
 				// The Argo CD Applications used by GitOps Service use finalizers, so the Applicaitonwill not be deleted until the finalizer is removed.
@@ -519,19 +514,9 @@ var _ = Describe("Operation Controller", func() {
 
 			It("Verify that when an Operation row points to an Application row that exists in the database, but doesn't exist in the Argo CD namespace, it should be created.", func() {
 				By("Close database connection")
-				err = db.SetupForTestingDBGinkgo()
-				Expect(err).To(BeNil())
 				defer dbQueries.CloseDatabase()
 				defer testTeardown()
 
-				namespaceToCreate := &corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: namespace,
-						UID:  workspace.UID,
-					},
-				}
-				err = task.event.client.Create(ctx, namespaceToCreate)
-				Expect(err).To(BeNil())
 				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
 				Expect(err).To(BeNil())
 
@@ -593,6 +578,12 @@ var _ = Describe("Operation Controller", func() {
 
 				retry, err := task.PerformTask(ctx)
 				Expect(err).To(BeNil())
+
+				By("If no error was returned, and retry is false, then verify that the 'state' field of the Operation row is Completed")
+				err = dbQueries.GetOperationById(ctx, operationDB)
+				Expect(err).To(BeNil())
+				Expect(operationDB.State).To(Equal(db.OperationState_Completed))
+
 				Expect(retry).To(BeFalse())
 				By("Verifying whether Application CR is created")
 				applicationCR := appv1.Application{
@@ -631,14 +622,6 @@ var _ = Describe("Operation Controller", func() {
 				By("Close database connection")
 				defer dbQueries.CloseDatabase()
 				defer testTeardown()
-				namespaceToCreate := &corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: namespace,
-						UID:  workspace.UID,
-					},
-				}
-				err = task.event.client.Create(ctx, namespaceToCreate)
-				Expect(err).To(BeNil())
 
 				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
 				Expect(err).To(BeNil())
@@ -800,17 +783,6 @@ var _ = Describe("Operation Controller", func() {
 				By("Close database connection")
 				defer dbQueries.CloseDatabase()
 				defer testTeardown()
-				err = db.SetupForTestingDBGinkgo()
-				Expect(err).To(BeNil())
-
-				namespaceToCreate := &corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: namespace,
-						UID:  workspace.UID,
-					},
-				}
-				err = task.event.client.Create(ctx, namespaceToCreate)
-				Expect(err).To(BeNil())
 
 				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
 				Expect(err).To(BeNil())
@@ -1050,15 +1022,6 @@ var _ = Describe("Operation Controller", func() {
 					defer dbQueries.CloseDatabase()
 					defer testTeardown()
 
-					namespaceToCreate := &corev1.Namespace{
-						ObjectMeta: metav1.ObjectMeta{
-							Name: namespace,
-							UID:  workspace.UID,
-						},
-					}
-					err = task.event.client.Create(ctx, namespaceToCreate)
-					Expect(err).To(BeNil())
-
 					_, dummyApplicationSpecString, err := createDummyApplicationData()
 					Expect(err).To(BeNil())
 
@@ -1239,14 +1202,6 @@ var _ = Describe("Operation Controller", func() {
 			}
 
 			BeforeEach(func() {
-				namespaceToCreate := &corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: namespace,
-						UID:  workspace.UID,
-					},
-				}
-				err = task.event.client.Create(ctx, namespaceToCreate)
-				Expect(err).To(BeNil())
 
 				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
 				Expect(err).To(BeNil())
@@ -1575,21 +1530,49 @@ var _ = Describe("Operation Controller", func() {
 		Context("Operation namespace consistency test", func() {
 
 			It("Operation namespace should match gitopsEngineInstance's namespace", func() {
+				err = db.SetupForTestingDBGinkgo()
+				Expect(err).To(BeNil())
 				defer dbQueries.CloseDatabase()
 				defer testTeardown()
 
-				err = db.SetupForTestingDBGinkgo()
+				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
 				Expect(err).To(BeNil())
 
-				_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
+				dummyApplicationSpec, dummyApplicationSpecString, err := createDummyApplicationData()
 				Expect(err).To(BeNil())
 
-				By("creating Operation row in database")
+				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
+				Expect(gitopsEngineCluster).ToNot(BeNil())
+				Expect(err).To(BeNil())
+
+				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
+				gitopsEngineInstance := &db.GitopsEngineInstance{
+					Gitopsengineinstance_id: "test-fake-engine-instance",
+					Namespace_name:          namespace,
+					Namespace_uid:           string(workspace.UID),
+					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+				}
+				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
+				Expect(err).To(BeNil())
+
+				By("Create Application in Database")
+				applicationDB := &db.Application{
+					Application_id:          "test-my-application",
+					Name:                    name,
+					Spec_field:              dummyApplicationSpecString,
+					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				}
+
+				err = dbQueries.CreateApplication(ctx, applicationDB)
+				Expect(err).To(BeNil())
+
+				By("Creating Operation row in database")
 				operationDB := &db.Operation{
 					Operation_id:            "test-operation",
 					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-					Resource_id:             "test-fake-resource-id",
-					Resource_type:           db.OperationResourceType_Application,
+					Resource_id:             applicationDB.Application_id,
+					Resource_type:           "Application",
 					State:                   db.OperationState_Waiting,
 					Operation_owner_user_id: testClusterUser.Clusteruser_id,
 				}
@@ -1597,13 +1580,14 @@ var _ = Describe("Operation Controller", func() {
 				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
 				Expect(err).To(BeNil())
 
+				By("Creating Operation CR")
 				operationCR := &managedgitopsv1alpha1.Operation{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      name,
-						Namespace: gitopsEngineInstance.Namespace_name,
+						Namespace: namespace,
 					},
 					Spec: managedgitopsv1alpha1.OperationSpec{
-						OperationID: "test-operation",
+						OperationID: operationDB.Operation_id,
 					},
 				}
 
@@ -1612,7 +1596,24 @@ var _ = Describe("Operation Controller", func() {
 
 				retry, err := task.PerformTask(ctx)
 				Expect(err).To(BeNil())
-				Expect(retry).To(BeTrue())
+
+				By("If no error was returned, and retry is false, then verify that the 'state' field of the Operation row is Completed")
+				err = dbQueries.GetOperationById(ctx, operationDB)
+				Expect(err).To(BeNil())
+				Expect(operationDB.State).To(Equal(db.OperationState_Completed))
+
+				Expect(retry).To(BeFalse())
+				By("Verifying whether Application CR is created")
+				applicationCR := appv1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      applicationDB.Name,
+						Namespace: namespace,
+					},
+				}
+
+				err = task.event.client.Get(ctx, types.NamespacedName{Namespace: applicationCR.Namespace, Name: name}, &applicationCR)
+				Expect(err).To(BeNil())
+				Expect(dummyApplicationSpec.Spec).To(Equal(applicationCR.Spec))
 
 			})
 			It("Operation namespace should not match gitopsEngineInstance's namespace and error should be returned", func() {
@@ -1625,7 +1626,7 @@ var _ = Describe("Operation Controller", func() {
 				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
 				Expect(err).To(BeNil())
 
-				_, dummyApplicationSpecString, err := createDummyApplicationData()
+				dummyApplicationSpec, dummyApplicationSpecString, err := createDummyApplicationData()
 				Expect(err).To(BeNil())
 
 				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
@@ -1683,7 +1684,19 @@ var _ = Describe("Operation Controller", func() {
 
 				retry, err := task.PerformTask(ctx)
 				Expect(err).ToNot(BeNil())
-				Expect(retry).To(BeTrue())
+				Expect(retry).To(BeFalse())
+
+				By("Verifying whether Application CR is created")
+				applicationCR := appv1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      applicationDB.Name,
+						Namespace: namespace,
+					},
+				}
+
+				err = task.event.client.Get(ctx, types.NamespacedName{Namespace: applicationCR.Namespace, Name: name}, &applicationCR)
+				Expect(err).ToNot(BeNil())
+				Expect(dummyApplicationSpec.Spec).ToNot(Equal(applicationCR.Spec))
 
 			})
 		})

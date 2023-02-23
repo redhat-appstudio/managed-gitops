@@ -331,7 +331,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	if err := dbQueries.GetGitopsEngineInstanceById(taskContext, dbGitopsEngineInstance); err != nil {
 
 		if db.IsResultNotFoundError(err) {
-			return nil, shouldRetryTrue, err
+			return nil, shouldRetryFalse, err
 		} else {
 			// some other generic error
 			log.Error(err, "Unable to retrieve gitopsEngineInstance due to generic error: "+dbGitopsEngineInstance.Gitopsengineinstance_id)
@@ -342,7 +342,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	if operationCR.Namespace != dbGitopsEngineInstance.Namespace_name {
 		err := fmt.Errorf("OperationCR namespace did not match with existing namespace of GitopsEngineInstance")
 		log.Error(err, "Invalid Operation Detected, Name :"+operationCR.Name+"Namespace :"+operationCR.Namespace)
-		return nil, shouldRetryTrue, err
+		return nil, shouldRetryFalse, err
 	}
 
 	// If the operation has already completed (e.g. we previously ran it), then just ignore it and return

@@ -1,0 +1,18 @@
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: component-b
+spec:
+  subdomain: component-b
+  to:
+    kind: Service
+    name: component-b
+    weight: 100
+
+  # Route intentionally does not contain port field, here. This should be defined in overlay.
+  
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
+

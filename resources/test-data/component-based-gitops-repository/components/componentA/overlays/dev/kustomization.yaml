@@ -1,0 +1,77 @@
+resources:
+  - ../../base
+
+# Patches to resources in this component:
+
+# Environment variables -------------------------------------------------------
+patches:
+- patch: |-
+    - op: replace
+      path: /spec/template/spec/containers/0/env
+      value:
+        - name: RESOURCE_ENVIRONMENT
+          value: dev
+  target:
+    kind: Deployment
+    name: component-a
+
+# Container Image -------------------------------------------------------------
+
+- patch: |-
+    - op: replace
+      path: /spec/template/spec/containers/0/image
+      value: quay.io/jgwest-redhat/sample-workload:latest
+  target:
+    kind: Deployment
+    name: component-a
+
+# Replicas --------------------------------------------------------------------
+
+- patch: |-
+    - op: replace
+      path: /spec/replicas
+      value: 1
+  target:
+    kind: Deployment
+    name: component-a
+
+# Ports -----------------------------------------------------------------------
+
+- patch: |-
+    - op: replace
+      path: /spec/template/spec/containers/0/ports
+      value:
+        - containerPort: 8080
+  target:
+    kind: Deployment
+    name: component-a
+
+
+- patch: |-
+    - op: replace
+      path: /spec/port
+      value:
+        targetPort: 8080
+  target:
+    kind: Route
+    name: component-a
+
+
+- patch: |-
+    - op: replace
+      path: /spec/ports
+      value:
+        - name: server
+          protocol: TCP
+          port: 8080
+          targetPort: 8080
+
+  target:
+    kind: Service
+    name: component-a
+
+
+# -----------------------------------------------------------------------------
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization

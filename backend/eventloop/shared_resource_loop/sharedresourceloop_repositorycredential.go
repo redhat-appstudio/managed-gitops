@@ -3,11 +3,15 @@ package shared_resource_loop
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
 
-	"pkg/mod/github.com/go-git/go-git/v5/plumbing/transport/http"
-	"pkg/mod/github.com/go-git/go-git/v5/plumbing/transport/ssh"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 
-	"github.com/go-git/go-git/v5"
 	git "github.com/go-git/go-git/v5"
 
 	"github.com/go-logr/logr"
@@ -193,6 +197,14 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 			// Something went wrong, retry
 			return nil, fmt.Errorf("error retrieving secret: %v", err)
 		}
+		repositoryCredentialStatusConditon := &metav1.Condition{
+			Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
+			Reason:  errReason,
+			Status:  metav1.ConditionTrue,
+			Message: errMessage.Error(),
+		}
+		updateGitopsDeploymentRepositoryCredentialStatus(gitopsDeploymentRepositoryCredentialCR, ctx, apiNamespaceClient, secret, repositoryCredentialStatusConditon, l)
+		return nil, errMessage
 	} else {
 		// Secret exists, so get its data
 		authUsername = string(secret.Data["username"])
@@ -200,6 +212,9 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 		authSSHKey = string(secret.Data["sshPrivateKey"])
 		secretObj = secret.Name
 	}
+
+	// Before updating the records in DB, we need to set the Conditions of the CR
+	updateGitopsDeploymentRepositoryCredentialStatus(gitopsDeploymentRepositoryCredentialCR, ctx, apiNamespaceClient, secret, nil, l)
 
 	// 6) If there is no existing APICRToDBMapping for this CR, then let's create one
 	if currentAPICRToDBMapping == nil {
@@ -411,7 +426,7 @@ func updateGitopsDeploymentRepositoryCredentialStatus(repositoryCredential *mana
 	condition = checkForValidRepositoryCredential(repositoryCredential, ctx, secret)
 
 	if condition == nil {
-		condition = metav1.Condition{
+		condition = &metav1.Condition{
 			Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
 			Reason:  fmt.Sprintf("Secret specified not found"),
 			Status:  metav1.ConditionTrue,
@@ -436,7 +451,7 @@ func updateGitopsDeploymentRepositoryCredentialStatus(repositoryCredential *mana
 
 	// update the conditions stored in the GitOpsDeploymentRepositoryCredential CR
 	repositoryCredential.Status.Conditions = []metav1.Condition{
-		condition,
+		*condition,
 	}
 	// Update the GitOpsDeploymentRepositoryCredential CR
 	if err := client.Status().Update(ctx, repositoryCredential); err != nil {
@@ -445,11 +460,11 @@ func updateGitopsDeploymentRepositoryCredentialStatus(repositoryCredential *mana
 
 }
 
-func checkForValidRepositoryCredential(repositoryCredential *managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential, ctx context.Context, client client.Client, secret *corev1.Secret) *metav1.Condition {
+func checkForValidRepositoryCredential(repositoryCredential *managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential, ctx context.Context, secret *corev1.Secret) *metav1.Condition {
 
 	// Check if Secret mentioned in repositoryCredential exists
 	if secret == nil {
-		return metav1.Condition{
+		return &metav1.Condition{
 			Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
 			Reason:  fmt.Sprintf("Secret specified not found"),
 			Status:  metav1.ConditionTrue,
@@ -457,28 +472,21 @@ func checkForValidRepositoryCredential(repositoryCredential *managedgitopsv1alph
 		}
 	}
 
-	err := validateRepositoryCredentials(repositoryCredential.Spec.Repository, secret, secret*corev1.Secret)
+	err := validateRepositoryCredentials(repositoryCredential.Spec.Repository, secret)
 	if err != nil {
 		if err == git.ErrRepositoryNotExists {
-			return metav1.Condition{
+			return &metav1.Condition{
 				Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
-				Reason:  err,
+				Reason:  "Invalid Repository URL",
 				Status:  metav1.ConditionFalse,
-				Message: fmt.Sprintf("Repository specified does not exist: %s", repositoryCredential.Spec.Repository),
-			}
-		} else if err == git.ErrAuth {
-			return metav1.Condition{
-				Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
-				Reason:  err,
-				Status:  metav1.ConditionFalse,
-				Message: fmt.Sprintf("Credentials provided in Secret are invalid"),
+				Message: fmt.Sprintf("Repository %s does not exist: %w", repositoryCredential.Spec.Repository, err),
 			}
 		} else {
-			return metav1.Condition{
-				Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
-				Reason:  "Error occured while validating repository",
-				Status:  metav1.ConditionTrue,
-				Message: err,
+			return &metav1.Condition{
+				Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
+				Reason:  "Invalid Credentials",
+				Status:  metav1.ConditionFalse,
+				Message: fmt.Sprintf("Credentials provided in Secret are invalid: %w", err),
 			}
 		}
 	}
@@ -486,32 +494,91 @@ func checkForValidRepositoryCredential(repositoryCredential *managedgitopsv1alph
 }
 
 func validateRepositoryCredentials(rawRepoURL string, secret *corev1.Secret) error {
-	// Clones the repository into the given dir, just as a normal git clone does
+
+	r := regexp.MustCompile("(/|:)")
+	normalizedRepoUrl := NormalizeGitURL(rawRepoURL)
+	root := filepath.Join(os.TempDir(), r.ReplaceAllString(normalizedRepoUrl, "_"))
+	if root == os.TempDir() {
+		return fmt.Errorf("repository %q cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
+	}
 
 	// Secret exists, so get its data
 	authUsername := string(secret.Data["username"])
 	authPassword := string(secret.Data["password"])
 	authSSHKey := string(secret.Data["sshPrivateKey"])
 
-	auth := &http.BasicAuth{
-		Username: authUsername,
+	cloneOptions := &git.CloneOptions{
+		URL: normalizedRepoUrl,
 	}
 
-	if authSSHKey != nil || authSSHKey != "" {
+	if authSSHKey != "" {
 		privateKey, err := ssh.NewPublicKeys("git", []byte(authSSHKey), "")
 		if err != nil {
 			return err
 		}
-		auth.Auth = privateKey
+		cloneOptions.Auth = privateKey
 	} else {
-		auth.Password = authPassword
+		cloneOptions.Auth = &http.BasicAuth{
+			Username: authUsername,
+			Password: authPassword,
+		}
 	}
 
-	repo, err := git.PlainOpen(rawRepoURL, git.CloneOptions{
-		URL:  rawRepoURL,
-		Auth: auth,
-	})
-	defer repo.Close()
+	_, err := git.PlainClone(root, false, cloneOptions)
+
+	os.RemoveAll(root)
 
 	return err
+}
+
+// EnsurePrefix idempotently ensures that a base string has a given prefix.
+func ensurePrefix(s, prefix string) string {
+	if !strings.HasPrefix(s, prefix) {
+		s = prefix + s
+	}
+	return s
+}
+
+// removeSuffix idempotently removes a given suffix
+func removeSuffix(s, suffix string) string {
+	if strings.HasSuffix(s, suffix) {
+		return s[0 : len(s)-len(suffix)]
+	}
+	return s
+}
+
+var (
+	sshURLRegex = regexp.MustCompile("^(ssh://)?([^/:]*?)@[^@]+$")
+)
+
+// NormalizeGitURL normalizes a git URL for purposes of comparison, as well as preventing redundant
+// local clones (by normalizing various forms of a URL to a consistent location).
+// Prefer using SameURL() over this function when possible. This algorithm may change over time
+// and should not be considered stable from release to release
+func NormalizeGitURL(repo string) string {
+	repo = strings.ToLower(strings.TrimSpace(repo))
+	if yes, _ := IsSSHURL(repo); yes {
+		if !strings.HasPrefix(repo, "ssh://") {
+			// We need to replace the first colon in git@server... style SSH URLs with a slash, otherwise
+			// net/url.Parse will interpret it incorrectly as the port.
+			repo = strings.Replace(repo, ":", "/", 1)
+			repo = ensurePrefix(repo, "ssh://")
+		}
+	}
+	repo = removeSuffix(repo, ".git")
+	repoURL, err := url.Parse(repo)
+	if err != nil {
+		return ""
+	}
+	normalized := repoURL.String()
+	return strings.TrimPrefix(normalized, "ssh://")
+}
+
+// IsSSHURL returns true if supplied URL is SSH URL
+func IsSSHURL(url string) (bool, string) {
+	matches := sshURLRegex.FindStringSubmatch(url)
+	if len(matches) > 2 {
+		return true, matches[2]
+	}
+	return false, ""
 }

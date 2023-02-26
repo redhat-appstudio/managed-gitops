@@ -479,14 +479,14 @@ func checkForValidRepositoryCredential(repositoryCredential *managedgitopsv1alph
 				Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
 				Reason:  "Invalid Repository URL",
 				Status:  metav1.ConditionFalse,
-				Message: fmt.Sprintf("Repository %s does not exist: %w", repositoryCredential.Spec.Repository, err),
+				Message: fmt.Sprintf("Repository %s does not exist: %s", repositoryCredential.Spec.Repository, err.Error()),
 			}
 		} else {
 			return &metav1.Condition{
 				Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
 				Reason:  "Invalid Credentials",
 				Status:  metav1.ConditionFalse,
-				Message: fmt.Sprintf("Credentials provided in Secret are invalid: %w", err),
+				Message: fmt.Sprintf("Credentials provided in Secret are invalid: %s", err.Error()),
 			}
 		}
 	}

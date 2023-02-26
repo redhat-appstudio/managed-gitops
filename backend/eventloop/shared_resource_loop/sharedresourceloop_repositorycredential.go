@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"pkg/mod/github.com/go-git/go-git/v5/plumbing/transport/http"
-	"pkg/mod/github.com/go-git/go-git/v5@v5.4.2/plumbing/transport/ssh"
+	"pkg/mod/github.com/go-git/go-git/v5/plumbing/transport/ssh"
 
 	"github.com/go-git/go-git/v5"
 	git "github.com/go-git/go-git/v5"

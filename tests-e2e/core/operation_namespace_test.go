@@ -9,7 +9,6 @@ import (
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
-	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	dboperations "github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
@@ -80,7 +79,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			}
 
 			By("creating Opeartion CR")
-			log := log.FromContext(ctx)
+			// log := log.FromContext(ctx)
 			namespaceToTarget = &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: operationNamespace,
@@ -92,7 +91,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			clusterCredentials := &db.ClusterCredentials{
-				Clustercredentials_cred_id:  "test-cluster-creds-test",
+				Clustercredentials_cred_id:  "test-cluster-creds-test-new",
 				Host:                        "host",
 				Kube_config:                 "kube-config",
 				Kube_config_context:         "kube-config-context",
@@ -106,18 +105,26 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 				Name:                  "my env",
 			}
 
+			gitopsEngineCluster := &db.GitopsEngineCluster{
+				Gitopsenginecluster_id: "test-cluster",
+				Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+			}
+
 			err = dbQueries.CreateClusterCredentials(ctx, clusterCredentials)
 			Expect(err).To(BeNil())
 
 			err = dbQueries.CreateManagedEnvironment(ctx, managedEnvironment)
 			Expect(err).To(BeNil())
 
+			err := dbQueries.CreateGitopsEngineCluster(ctx, gitopsEngineCluster)
+			Expect(err).To(BeNil())
+
 			dummyApplicationSpec, dummyApplicationSpecString, err := createDummyApplicationData()
 			Expect(err).To(BeNil())
 
-			gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubeSystemNamespace.UID), dbQueries, log)
-			Expect(gitopsEngineCluster).ToNot(BeNil())
-			Expect(err).To(BeNil())
+			// gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubeSystemNamespace.UID), dbQueries, log)
+			// Expect(gitopsEngineCluster).ToNot(BeNil())
+			// Expect(err).To(BeNil())
 
 			namespaceToTarget = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: operationNamespace}}
 			err = k8s.Get(namespaceToTarget, k8sClient)
@@ -193,7 +200,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			if fixture.IsRunningAgainstKCP() {
 				Skip("Skipping this test until we support running gitops operator with KCP")
 			}
-			log := log.FromContext(ctx)
+			// log := log.FromContext(ctx)
 
 			By("creating Opeartion CR")
 			namespaceToTarget = &corev1.Namespace{
@@ -208,7 +215,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			clusterCredentials := &db.ClusterCredentials{
-				Clustercredentials_cred_id:  "test-cluster-creds-test",
+				Clustercredentials_cred_id:  "test-cluster-creds-test-new",
 				Host:                        "host",
 				Kube_config:                 "kube-config",
 				Kube_config_context:         "kube-config-context",
@@ -222,18 +229,26 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 				Name:                  "my env",
 			}
 
+			gitopsEngineCluster := &db.GitopsEngineCluster{
+				Gitopsenginecluster_id: "test-cluster",
+				Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+			}
+
 			err = dbQueries.CreateClusterCredentials(ctx, clusterCredentials)
 			Expect(err).To(BeNil())
 
 			err = dbQueries.CreateManagedEnvironment(ctx, managedEnvironment)
 			Expect(err).To(BeNil())
 
+			err := dbQueries.CreateGitopsEngineCluster(ctx, gitopsEngineCluster)
+			Expect(err).To(BeNil())
+
 			dummyApplicationSpec, dummyApplicationSpecString, err := createDummyApplicationData()
 			Expect(err).To(BeNil())
 
-			gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubeSystemNamespace.UID), dbQueries, log)
-			Expect(gitopsEngineCluster).ToNot(BeNil())
-			Expect(err).To(BeNil())
+			// gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubeSystemNamespace.UID), dbQueries, log)
+			// Expect(gitopsEngineCluster).ToNot(BeNil())
+			// Expect(err).To(BeNil())
 
 			namespaceToTarget = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: operationNamespace}}
 			err = k8s.Get(namespaceToTarget, k8sClient)

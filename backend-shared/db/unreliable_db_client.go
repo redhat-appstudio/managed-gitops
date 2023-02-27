@@ -134,6 +134,15 @@ func (cdb *ChaosDBClient) UpdateSyncOperation(ctx context.Context, obj *SyncOper
 
 }
 
+func (cdb *ChaosDBClient) GetSyncOperationsBatch(ctx context.Context, syncOperations *[]SyncOperation, limit, offSet int) error {
+
+	if err := shouldSimulateFailure("GetSyncOperationsBatch", syncOperations, limit, offSet); err != nil {
+		return err
+	}
+
+	return cdb.InnerClient.GetSyncOperationsBatch(ctx, syncOperations, limit, offSet)
+}
+
 func (cdb *ChaosDBClient) CreateApplication(ctx context.Context, obj *Application) error {
 
 	if err := shouldSimulateFailure("CreateApplication", obj); err != nil {
@@ -364,6 +373,15 @@ func (cdb *ChaosDBClient) GetManagedEnvironmentById(ctx context.Context, managed
 	}
 
 	return cdb.InnerClient.GetManagedEnvironmentById(ctx, managedEnvironment)
+}
+
+func (cdb *ChaosDBClient) GetManagedEnvironmentBatch(ctx context.Context, managedEnvironments *[]ManagedEnvironment, limit, offSet int) error {
+
+	if err := shouldSimulateFailure("GetManagedEnvironmentBatch", managedEnvironments, limit, offSet); err != nil {
+		return err
+	}
+
+	return cdb.InnerClient.GetManagedEnvironmentBatch(ctx, managedEnvironments, limit, offSet)
 }
 
 func (cdb *ChaosDBClient) GetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance) error {
@@ -654,6 +672,15 @@ func (cdb *ChaosDBClient) GetRepositoryCredentialsByID(ctx context.Context, id s
 
 	return cdb.InnerClient.GetRepositoryCredentialsByID(ctx, id)
 
+}
+
+func (cdb *ChaosDBClient) GetRepositoryCredentialsBatch(ctx context.Context, repositoryCredentials *[]RepositoryCredentials, limit, offSet int) error {
+
+	if err := shouldSimulateFailure("GetRepositoryCredentialsBatch", repositoryCredentials, limit, offSet); err != nil {
+		return err
+	}
+
+	return cdb.InnerClient.GetRepositoryCredentialsBatch(ctx, repositoryCredentials, limit, offSet)
 }
 
 func (cdb *ChaosDBClient) DeleteKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) (int, error) {

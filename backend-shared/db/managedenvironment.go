@@ -248,3 +248,15 @@ func (obj *ManagedEnvironment) GetAsLogKeyValues() []interface{} {
 		"managedEnvironmentID", obj.Managedenvironment_id,
 		"managedEnvironmentName", obj.Name}
 }
+
+// Get ManagedEnvironments in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+// For example if you want ManagedEnvironments starting from 51-150 then set the limit to 100 and offset to 50.
+func (dbq *PostgreSQLDatabaseQueries) GetManagedEnvironmentBatch(ctx context.Context, managedEnvironments *[]ManagedEnvironment, limit, offSet int) error {
+	return dbq.dbConnection.
+		Model(managedEnvironments).
+		Order("seq_id ASC").
+		Limit(limit).   // Batch size
+		Offset(offSet). // offset+1 is starting point of batch
+		Context(ctx).
+		Select()
+}

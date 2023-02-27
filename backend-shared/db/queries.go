@@ -109,6 +109,15 @@ type DatabaseQueries interface {
 	GetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment) error
 	GetRepositoryCredentialsByID(ctx context.Context, id string) (obj RepositoryCredentials, err error)
 
+	// Get RepositoryCredentials in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+	GetRepositoryCredentialsBatch(ctx context.Context, repositoryCredentials *[]RepositoryCredentials, limit, offSet int) error
+
+	// Get SyncOperations in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+	GetSyncOperationsBatch(ctx context.Context, syncOperations *[]SyncOperation, limit, offSet int) error
+
+	// Get ManagedEnvironment in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+	GetManagedEnvironmentBatch(ctx context.Context, managedEnvironments *[]ManagedEnvironment, limit, offSet int) error
+
 	DeleteKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) (int, error)
 	DeleteClusterCredentialsById(ctx context.Context, id string) (int, error)
 	DeleteClusterUserById(ctx context.Context, id string) (int, error)

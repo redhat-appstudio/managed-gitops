@@ -42,6 +42,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 		var config *rest.Config
 		var operationDB *db.Operation
 		var operationCR *managedgitopsv1alpha1.Operation
+		var namespaceToTarget *corev1.Namespace
 
 		BeforeEach(func() {
 
@@ -80,7 +81,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 
 			By("creating Opeartion CR")
 			log := log.FromContext(ctx)
-			namespaceToTarget := &corev1.Namespace{
+			namespaceToTarget = &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: operationNamespace,
 					UID:  uuid.NewUUID(),
@@ -177,7 +178,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			log := log.FromContext(ctx)
 
 			By("creating Opeartion CR")
-			namespaceToTarget := &corev1.Namespace{
+			namespaceToTarget = &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: operationNamespace,
 					UID:  uuid.NewUUID(),

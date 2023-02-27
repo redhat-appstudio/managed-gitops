@@ -100,11 +100,6 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 					return ctrl.Result{}, err
 				}
 
-				if dtcls.Name == "" {
-					log.Error(nil, "unable to locate DeploymentTargetClass matching deploymentTargetClassName", "className", dt.Spec.DeploymentTargetClassName)
-					return ctrl.Result{}, nil
-				}
-
 				// Add the deletion finalizer to the DT if it is absent.
 				if addFinalizer(dt, FinalizerDT) {
 					if err = r.Client.Update(ctx, dt); err != nil {
@@ -229,8 +224,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 	if dt.Spec.ClaimRef != "" {
 		if dt.Spec.ClaimRef == dtc.Name {
 			// Both DT and DTC refer each other. So bind them together.
-			err := bindDeploymentTargetClaimToTarget(ctx, r.Client, &dtc, &dt, false, log)
-			if err != nil {
+			if err := bindDeploymentTargetClaimToTarget(ctx, r.Client, &dtc, &dt, false, log); err != nil {
 				log.Error(err, "failed to bind DeploymentTargetClaim to the DeploymentTarget", "DeploymentTargetName", dt.Name, "Namespace", dt.Name)
 				return ctrl.Result{}, err
 			}
@@ -297,13 +291,11 @@ func bindDeploymentTargetClaimToTarget(ctx context.Context, k8sClient client.Cli
 	}
 
 	// Set the status of DT and DTC to Bound
-	err := updateDTCStatusPhase(ctx, k8sClient, dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Bound, log)
-	if err != nil {
+	if err := updateDTCStatusPhase(ctx, k8sClient, dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Bound, log); err != nil {
 		return err
 	}
 
-	err = updateDTStatusPhase(ctx, k8sClient, dt, applicationv1alpha1.DeploymentTargetPhase_Bound, log)
-	if err != nil {
+	if err := updateDTStatusPhase(ctx, k8sClient, dt, applicationv1alpha1.DeploymentTargetPhase_Bound, log); err != nil {
 		return err
 	}
 
@@ -321,7 +313,6 @@ func bindDeploymentTargetClaimToTarget(ctx context.Context, k8sClient client.Cli
 		}
 
 		log.Info("Added bind-complete annotation since the DeploymentTargetClaim is bounded", "annotation", applicationv1alpha1.AnnBindCompleted)
-		return nil
 	}
 
 	return nil
@@ -656,8 +647,7 @@ func (r *DeploymentTargetClaimReconciler) findObjectsForDeploymentTarget(dt clie
 	}
 
 	dtcList := applicationv1alpha1.DeploymentTargetClaimList{}
-	err := r.List(ctx, &dtcList, &client.ListOptions{Namespace: dt.GetNamespace()})
-	if err != nil {
+	if err := r.List(ctx, &dtcList, &client.ListOptions{Namespace: dt.GetNamespace()}); err != nil {
 		handlerLog.Error(err, "failed to list DeploymentTargetClaims in the mapping function")
 		return []reconcile.Request{}
 	}

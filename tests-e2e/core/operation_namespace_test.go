@@ -69,6 +69,9 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).To(Equal(1))
 
+			err = db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
+
 		})
 
 		It("should create Operation CR and namespace, the OperationCR.namespace created should match Argocd namespace ", func() {

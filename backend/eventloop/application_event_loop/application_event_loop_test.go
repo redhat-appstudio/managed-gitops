@@ -2,20 +2,26 @@ package application_event_loop
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	fake "sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-var _ = Describe("ApplicationEventLoop Test", func() {
+var _ = Describe("ApplicationEventLoop Tests", func() {
 
-	Context("Application Event Loop test", func() {
+	Context("startApplicationEventQueueLoopWithFactory test", func() {
 
 		It("should forward messages received on the input channel, to the runner, without a response channel", func() {
 
@@ -58,6 +64,159 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(outputEvent.WorkspaceID).To(Equal(inputEvent.WorkspaceID))
 
 		})
+	})
+
+	Context("Test processApplicationEventQueueLoopMessage", func() {
+
+		var ctx context.Context
+		var state applicationEventQueueLoopState
+		var klog logr.Logger
+		var k8sClient client.WithWatch
+		var workspaceUID string
+
+		var input chan RequestMessage
+		var responseChan chan ResponseMessage
+
+		BeforeEach(OncePerOrdered, func() {
+			scheme, argocdNamespace, kubesystemNamespace, workspace, err := tests.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			workspaceUID = string(workspace.UID)
+
+			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(workspace, argocdNamespace, kubesystemNamespace).Build()
+
+			ctx = context.Background()
+
+			klog = log.FromContext(ctx)
+
+			state = applicationEventQueueLoopState{
+				activeDeploymentEvent:      nil,
+				waitingDeploymentEvents:    []*RequestMessage{},
+				activeSyncOperationEvent:   nil,
+				waitingSyncOperationEvents: []*RequestMessage{},
+
+				deploymentEventRunner:         make(chan *eventlooptypes.EventLoopEvent, 5),
+				deploymentEventRunnerShutdown: false,
+
+				syncOperationEventRunner:         make(chan *eventlooptypes.EventLoopEvent, 5),
+				syncOperationEventRunnerShutdown: false,
+			}
+
+			input = make(chan RequestMessage, 5)
+			responseChan = make(chan ResponseMessage, 5)
+
+		})
+
+		Context("syncOperation event tests", func() {
+
+			When("there are no active syncOperationEvents, and an event is sent to the queue", func() {
+
+				It("should queue a new active event", func() {
+					newEvent := RequestMessage{
+						Message: eventlooptypes.EventLoopMessage{
+							MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
+							Event: &eventlooptypes.EventLoopEvent{
+								EventType:   eventlooptypes.SyncRunModified,
+								ReqResource: eventlooptypes.GitOpsDeploymentSyncRunTypeName,
+								WorkspaceID: string(workspaceUID),
+							},
+							ShutdownSignalled: false,
+						},
+						ResponseChan: responseChan,
+					}
+
+					shouldTerminate := processApplicationEventQueueLoopMessage(ctx, newEvent, &state, input, k8sClient, klog)
+					Expect(shouldTerminate).To(BeFalse())
+
+					event := <-state.syncOperationEventRunner
+					Expect(event).To(Equal(newEvent.Message.Event))
+					Expect(state.waitingSyncOperationEvents).To(HaveLen(0))
+					Expect(state.activeSyncOperationEvent.Message).To(Equal(newEvent.Message))
+				})
+
+			})
+
+			When("there are are already active syncOperationEvents, and an event is sent to the queue", Ordered, func() {
+
+				var existingActiveMessage *RequestMessage
+				var newEvent RequestMessage
+
+				It("should add the new event to the waiting loop, but not queue it", func() {
+
+					fmt.Println("pre-meow")
+
+					existingActiveMessage = &RequestMessage{
+						Message: eventlooptypes.EventLoopMessage{
+							MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
+							Event: &eventlooptypes.EventLoopEvent{
+								ReqResource: eventlooptypes.GitOpsDeploymentSyncRunTypeName,
+								WorkspaceID: "existing-event",
+							},
+						},
+					}
+
+					state.activeSyncOperationEvent = existingActiveMessage
+
+					newEvent = RequestMessage{
+						Message: eventlooptypes.EventLoopMessage{
+							MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
+							Event: &eventlooptypes.EventLoopEvent{
+								EventType:   eventlooptypes.SyncRunModified,
+								ReqResource: eventlooptypes.GitOpsDeploymentSyncRunTypeName,
+								WorkspaceID: string(workspaceUID),
+							},
+							ShutdownSignalled: false,
+						},
+						ResponseChan: responseChan,
+					}
+
+					shouldTerminate := processApplicationEventQueueLoopMessage(ctx, newEvent, &state, input, k8sClient, klog)
+
+					Expect(shouldTerminate).To(BeFalse())
+					Consistently(state.syncOperationEventRunner).ShouldNot(Receive(), "it should not queue a new event, as an existing event is already active")
+					Expect(state.waitingSyncOperationEvents).To(HaveLen(1))
+					Expect(*state.waitingSyncOperationEvents[0]).To(Equal(newEvent), "our new event should be waiting to be processed")
+					Expect(*state.activeSyncOperationEvent).To(Equal(*existingActiveMessage), "the old active event should still be active")
+
+				})
+
+				It("should queue the new event, on work complete of the old event", func() {
+					workComplete := RequestMessage{
+						Message: eventlooptypes.EventLoopMessage{
+							MessageType:       eventlooptypes.ApplicationEventLoopMessageType_WorkComplete,
+							Event:             existingActiveMessage.Message.Event,
+							ShutdownSignalled: false,
+						},
+						ResponseChan: nil,
+					}
+
+					shouldTerminate := processApplicationEventQueueLoopMessage(ctx, workComplete, &state, input, k8sClient, klog)
+					Expect(shouldTerminate).To(BeFalse())
+
+					event := <-state.syncOperationEventRunner
+					Expect(event).To(Equal(newEvent.Message.Event))
+					Expect(state.waitingSyncOperationEvents).To(HaveLen(0))
+					Expect(state.activeSyncOperationEvent.Message).To(Equal(newEvent.Message))
+
+				})
+				It("should have no active events once the new event completes, and should respect shutdown signalled", func() {
+					workComplete := RequestMessage{
+						Message: eventlooptypes.EventLoopMessage{
+							MessageType:       eventlooptypes.ApplicationEventLoopMessageType_WorkComplete,
+							Event:             newEvent.Message.Event,
+							ShutdownSignalled: true,
+						},
+						ResponseChan: nil,
+					}
+					shouldTerminate := processApplicationEventQueueLoopMessage(ctx, workComplete, &state, input, k8sClient, klog)
+					Expect(shouldTerminate).To(BeFalse())
+					Expect(state.syncOperationEventRunnerShutdown).To(BeTrue())
+					Expect(state.waitingSyncOperationEvents).To(HaveLen(0))
+					Expect(state.activeSyncOperationEvent).To(BeNil())
+				})
+			})
+		})
+
 	})
 
 	Context("Simulate a deleted GitOpsDeployment", Ordered, func() {

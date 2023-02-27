@@ -71,7 +71,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 
 		})
 
-		FIt("should create Operation CR and namespace, the OperationCR.namespace created should match Argocd namespace ", func() {
+		It("should create Operation CR and namespace, the OperationCR.namespace created should match Argocd namespace ", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 			ctx = context.Background()
 			if fixture.IsRunningAgainstKCP() {

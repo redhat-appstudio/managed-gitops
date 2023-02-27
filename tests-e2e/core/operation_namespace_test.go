@@ -3,8 +3,8 @@ package core
 import (
 	"context"
 	"fmt"
-	"time"
 
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
@@ -14,10 +14,11 @@ import (
 	dboperations "github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
+	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -28,6 +29,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 	const (
 		operationNamespace = "gitops-service-argocd"
 		operationName      = "test-operation"
+		applicationName    = "test-application"
 		testNamespace      = fixture.GitOpsServiceE2ENamespace
 	)
 
@@ -38,7 +40,6 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 		var dbQueries db.AllDatabaseQueries
 		var k8sClient client.Client
 		var config *rest.Config
-		var gitopsEngineInstance *db.GitopsEngineInstance
 		var operationDB *db.Operation
 		var operationCR *managedgitopsv1alpha1.Operation
 
@@ -64,9 +65,13 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			log := log.FromContext(ctx)
 			err = operations.CleanupOperation(ctx, *operationDB, *operationCR, operationCR.Namespace, dbQueries, k8sClient, true, log)
 			Expect(err).To(BeNil())
+			rowsAffected, err := dbQueries.DeleteApplicationById(ctx, "test-my-application-id")
+			Expect(err).To(BeNil())
+			Expect(rowsAffected).To(Equal(1))
+
 		})
 
-		It("should create Operation CR and namespace, the OperationCR.namespace created should match Argocd namespace ", func() {
+		FIt("should create Operation CR and namespace, the OperationCR.namespace created should match Argocd namespace ", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 			ctx = context.Background()
 			if fixture.IsRunningAgainstKCP() {
@@ -75,7 +80,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 
 			By("creating Opeartion CR")
 			log := log.FromContext(ctx)
-			namespaceToCreate := &corev1.Namespace{
+			namespaceToTarget := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: operationNamespace,
 					UID:  uuid.NewUUID(),
@@ -83,15 +88,47 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			}
 			kubeSystemNamespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
 			err = k8s.Get(kubeSystemNamespace, k8sClient)
-
 			Expect(err).To(Succeed())
 
-			gitopsEngineInstance, _, _, err = dbutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespaceToCreate, string(kubeSystemNamespace.UID), dbQueries, log)
+			_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
+			Expect(err).To(BeNil())
 
+			dummyApplicationSpec, dummyApplicationSpecString, err := createDummyApplicationData()
+			Expect(err).To(BeNil())
+
+			gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubeSystemNamespace.UID), dbQueries, log)
+			Expect(gitopsEngineCluster).ToNot(BeNil())
+			Expect(err).To(BeNil())
+
+			namespaceToTarget = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: operationNamespace}}
+			err = k8s.Get(namespaceToTarget, k8sClient)
+			Expect(err).To(Succeed())
+
+			By("creating a gitops engine instance")
+			gitopsEngineInstance := &db.GitopsEngineInstance{
+				Gitopsengineinstance_id: "test-fake-engine-instance-E2E",
+				Namespace_name:          namespaceToTarget.Name,
+				Namespace_uid:           string(namespaceToTarget.UID),
+				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+			}
+			err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
+			Expect(err).To(BeNil())
+
+			By("Create Application in Database")
+			applicationDB := &db.Application{
+				Application_id:          "test-my-application-id",
+				Name:                    applicationName,
+				Spec_field:              dummyApplicationSpecString,
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+
+			err = dbQueries.CreateApplication(ctx, applicationDB)
+			Expect(err).To(BeNil())
 			operationDB = &db.Operation{
-				Operation_id:            "test-operation",
+				Operation_id:            operationName,
 				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
-				Resource_id:             "test-fake-resource-id",
+				Resource_id:             applicationDB.Application_id,
 				Resource_type:           db.OperationResourceType_Application,
 				State:                   db.OperationState_Waiting,
 				Operation_owner_user_id: "test-user",
@@ -103,7 +140,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			operationCR = &managedgitopsv1alpha1.Operation{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      operationName,
-					Namespace: gitopsEngineInstance.Namespace_name,
+					Namespace: namespaceToTarget.Name,
 				},
 				Spec: managedgitopsv1alpha1.OperationSpec{
 					OperationID: "test-operation",
@@ -112,17 +149,23 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			err = k8sClient.Create(ctx, operationCR)
 			Expect(err).To(BeNil())
 
-			err = wait.PollImmediate(time.Second*1, time.Minute*1, func() (done bool, err error) {
+			By("Verifying whether Application CR is created")
+			applicationCR := appv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "operation",
+					Namespace: "my-user",
+				},
+			}
 
-				fmt.Println("Attempting to fetch Operation state: ", operationDB.State)
-				isComplete, err := dboperations.IsOperationComplete(ctx, operationDB, dbQueries)
+			Eventually(func() bool {
+				isComplete, _ := dboperations.IsOperationComplete(ctx, operationDB, dbQueries)
 				fmt.Println("- Operation state result achieved : ", isComplete)
-				return isComplete, err
+				return isComplete
+			}, "1m", "5s").Should(BeTrue())
 
-			})
+			err = k8sClient.Get(ctx, types.NamespacedName{Namespace: applicationCR.Namespace, Name: applicationCR.Name}, &applicationCR)
 			Expect(err).To(BeNil())
-			Eventually(operationCR, "60s", "5s").Should(k8s.ExistByName(k8sClient))
-			Expect(err).To(BeNil())
+			Expect(dummyApplicationSpec.Spec).To(Equal(applicationCR.Spec))
 
 		})
 		It("should create Operation CR and namespace, the OperationCR.namespace created should not match Argocd namespace ", func() {
@@ -134,7 +177,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			log := log.FromContext(ctx)
 
 			By("creating Opeartion CR")
-			namespaceToCreate := &corev1.Namespace{
+			namespaceToTarget := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: operationNamespace,
 					UID:  uuid.NewUUID(),
@@ -144,8 +187,41 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			kubeSystemNamespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
 			err = k8s.Get(kubeSystemNamespace, k8sClient)
 			Expect(err).To(Succeed())
-			gitopsEngineInstance, _, _, err = dbutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespaceToCreate, string(kubeSystemNamespace.UID), dbQueries, log)
+			_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
+			Expect(err).To(BeNil())
 
+			dummyApplicationSpec, dummyApplicationSpecString, err := createDummyApplicationData()
+			Expect(err).To(BeNil())
+
+			gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubeSystemNamespace.UID), dbQueries, log)
+			Expect(gitopsEngineCluster).ToNot(BeNil())
+			Expect(err).To(BeNil())
+
+			namespaceToTarget = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: operationNamespace}}
+			err = k8s.Get(namespaceToTarget, k8sClient)
+			Expect(err).To(Succeed())
+
+			By("creating a gitops engine instance")
+			gitopsEngineInstance := &db.GitopsEngineInstance{
+				Gitopsengineinstance_id: "test-fake-engine-instance-E2E",
+				Namespace_name:          namespaceToTarget.Name,
+				Namespace_uid:           string(namespaceToTarget.UID),
+				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+			}
+			err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
+			Expect(err).To(BeNil())
+
+			By("Create Application in Database")
+			applicationDB := &db.Application{
+				Application_id:          "test-my-application-id",
+				Name:                    applicationName,
+				Spec_field:              dummyApplicationSpecString,
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+
+			err = dbQueries.CreateApplication(ctx, applicationDB)
+			Expect(err).To(BeNil())
 			operationDB = &db.Operation{
 				Operation_id:            "test-operation",
 				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
@@ -178,20 +254,81 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			err = k8sClient.Create(ctx, operationCR)
 			Expect(err).To(BeNil())
 
-			err = wait.PollImmediate(time.Second*3, time.Minute*1, func() (done bool, err error) {
+			By("Verifying whether Application CR is created")
+			applicationCR := appv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "operation",
+					Namespace: "my-user",
+				},
+			}
 
-				fmt.Println("Attempting to fetch Operation state: ", operationDB.State)
-				isComplete, err := dboperations.IsOperationComplete(ctx, operationDB, dbQueries)
+			Eventually(func() bool {
+				isComplete, _ := dboperations.IsOperationComplete(ctx, operationDB, dbQueries)
 				fmt.Println("- Operation state result achieved : ", isComplete)
-				return isComplete, err
+				return isComplete
+			}, "1m", "5s").Should(BeFalse())
 
-			})
+			err = k8sClient.Get(ctx, types.NamespacedName{Namespace: applicationCR.Namespace, Name: applicationCR.Name}, &applicationCR)
 			Expect(err).ToNot(BeNil())
-
-			// Even if the operation failed to complete, it will exist in the namespace hence confirming that
-			// this operation was successfully ignored by gitops-service
-			Eventually(operationCR, "60s", "5s").Should(k8s.ExistByName(k8sClient))
+			Expect(dummyApplicationSpec.Spec).ToNot(Equal(applicationCR.Spec))
 
 		})
 	})
 })
+
+func createDummyApplicationData() (appv1.Application, string, error) {
+	return createCustomizedDummyApplicationData("guestbook")
+}
+
+func createCustomizedDummyApplicationData(repoPath string) (appv1.Application, string, error) {
+	// Create dummy Application Spec to be saved in DB
+	dummyApplicationSpec := appv1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Application",
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "operation",
+			Namespace: "my-user",
+		},
+		Spec: appv1.ApplicationSpec{
+			Source: appv1.ApplicationSource{
+				Path:           "guestbook",
+				TargetRevision: "HEAD",
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+			},
+			Destination: appv1.ApplicationDestination{
+				Namespace: "guestbook",
+				Server:    "https://kubernetes.default.svc",
+			},
+			Project: "default",
+			SyncPolicy: &appv1.SyncPolicy{
+				Automated: &appv1.SyncPolicyAutomated{},
+			},
+		},
+		Status: appv1.ApplicationStatus{
+			Sync: appv1.SyncStatus{
+				ComparedTo: appv1.ComparedTo{
+					Source: appv1.ApplicationSource{
+						Path:           "guestbook",
+						TargetRevision: "HEAD",
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+					},
+					Destination: appv1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "in-cluster",
+						Name:      "in-cluster",
+					},
+				},
+			},
+		},
+	}
+
+	dummyApplicationSpecBytes, err := yaml.Marshal(dummyApplicationSpec)
+
+	if err != nil {
+		return appv1.Application{}, "", err
+	}
+
+	return dummyApplicationSpec, string(dummyApplicationSpecBytes), nil
+}

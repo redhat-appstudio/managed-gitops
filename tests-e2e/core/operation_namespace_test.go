@@ -91,7 +91,25 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			err = k8s.Get(kubeSystemNamespace, k8sClient)
 			Expect(err).To(Succeed())
 
-			_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
+			clusterCredentials := &db.ClusterCredentials{
+				Clustercredentials_cred_id:  "test-cluster-creds-test",
+				Host:                        "host",
+				Kube_config:                 "kube-config",
+				Kube_config_context:         "kube-config-context",
+				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+				Serviceaccount_ns:           "Serviceaccount_ns",
+			}
+
+			managedEnvironment := &db.ManagedEnvironment{
+				Managedenvironment_id: "test-managed-env-914",
+				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+				Name:                  "my env",
+			}
+
+			err = dbQueries.CreateClusterCredentials(ctx, clusterCredentials)
+			Expect(err).To(BeNil())
+
+			err = dbQueries.CreateManagedEnvironment(ctx, managedEnvironment)
 			Expect(err).To(BeNil())
 
 			dummyApplicationSpec, dummyApplicationSpecString, err := createDummyApplicationData()
@@ -188,7 +206,26 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			kubeSystemNamespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
 			err = k8s.Get(kubeSystemNamespace, k8sClient)
 			Expect(err).To(Succeed())
-			_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
+
+			clusterCredentials := &db.ClusterCredentials{
+				Clustercredentials_cred_id:  "test-cluster-creds-test",
+				Host:                        "host",
+				Kube_config:                 "kube-config",
+				Kube_config_context:         "kube-config-context",
+				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+				Serviceaccount_ns:           "Serviceaccount_ns",
+			}
+
+			managedEnvironment := &db.ManagedEnvironment{
+				Managedenvironment_id: "test-managed-env-914",
+				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+				Name:                  "my env",
+			}
+
+			err = dbQueries.CreateClusterCredentials(ctx, clusterCredentials)
+			Expect(err).To(BeNil())
+
+			err = dbQueries.CreateManagedEnvironment(ctx, managedEnvironment)
 			Expect(err).To(BeNil())
 
 			dummyApplicationSpec, dummyApplicationSpecString, err := createDummyApplicationData()

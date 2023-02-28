@@ -285,7 +285,7 @@ var _ = Describe("DB Reconciler Test", func() {
 						Namespace: "test-k8s-namespace",
 					},
 					Type:       "managed-gitops.redhat.com/managed-environment",
-					StringData: map[string]string{shared_resource_loop.Kubeconfig_key: "abc"},
+					StringData: map[string]string{shared_resource_loop.KubeconfigKey: "abc"},
 				}
 				err = k8sClient.Create(context.Background(), secretCr)
 				Expect(err).To(BeNil())

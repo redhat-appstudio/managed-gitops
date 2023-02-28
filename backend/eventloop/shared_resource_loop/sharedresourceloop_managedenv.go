@@ -37,7 +37,7 @@ const (
 	ConditionReasonUnableToLocateContext            = "UnableToLocateContext"
 	ConditionReasonUnableToParseKubeconfigData      = "UnableToParseKubeconfigData"
 	ConditionReasonUnableToRetrieveRestConfig       = "UnableToRetrieveRestConfig"
-	Kubeconfig_key                                  = "kubeconfig"
+	KubeconfigKey                                   = "kubeconfig"
 )
 
 func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, workspaceClient client.Client,
@@ -724,9 +724,9 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 		return db.ClusterCredentials{}, err
 	}
 
-	kubeconfig, exists := secret.Data[Kubeconfig_key]
+	kubeconfig, exists := secret.Data[KubeconfigKey]
 	if !exists {
-		err := fmt.Errorf("missing %s field in Secret", Kubeconfig_key)
+		err := fmt.Errorf("missing %s field in Secret", KubeconfigKey)
 		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionFalse, ConditionReasonMissingKubeConfigField, err.Error(), log)
 		return db.ClusterCredentials{}, err
 	}

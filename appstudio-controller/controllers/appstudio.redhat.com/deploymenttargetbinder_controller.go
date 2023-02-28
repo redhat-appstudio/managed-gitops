@@ -19,7 +19,10 @@ package appstudioredhatcom
 import (
 	"context"
 
+	applicationv1alpha1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -35,6 +38,10 @@ type DeploymentTargetClaimReconciler struct {
 //+kubebuilder:rbac:groups=appstudio.redhat.com.redhat.com,resources=deploymenttargetclaims/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=appstudio.redhat.com.redhat.com,resources=deploymenttargetclaims/finalizers,verbs=update
 
+const (
+	annBindCompleted string = "dt.appstudio.redhat.com/bind-complete"
+)
+
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
@@ -45,11 +52,67 @@ type DeploymentTargetClaimReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
 func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	log := log.FromContext(ctx).WithValues("request", req)
 
-	// TODO(user): your logic here
+	dtc := applicationv1alpha1.DeploymentTargetClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      req.Name,
+			Namespace: req.Namespace,
+		},
+	}
+
+	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// If the binding is alredy done, we need to check if the DTC is still bound to a DT
+	// and update the status accordingly
+	if isBindingCompleted(dtc) {
+		// Is targetName field optional?
+		// verify if the DeploymentTarget specified by the DTC still exists.
+		dt := applicationv1alpha1.DeploymentTarget{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      dtc.Spec.TargetName,
+				Namespace: dtc.Namespace,
+			},
+		}
+
+		if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&dt), &dt); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		log.Info("DeploymentTarget exists for the DeploymentTargetClaim", "DeploymentTarget", dt.Name, "Namespace", dt.Namespace)
+
+		err := updateDTCPhase(ctx, r.Client, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Bound)
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
+}
+
+func updateDTCPhase(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim, targetPhase applicationv1alpha1.DeploymentTargetClaimPhase) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dtc), dtc); err != nil {
+			return err
+		}
+
+		if dtc.Status.Phase == targetPhase {
+			return nil
+		}
+
+		dtc.Status.Phase = targetPhase
+
+		return k8sClient.Status().Update(ctx, dtc)
+	})
+}
+
+func isBindingCompleted(dtc applicationv1alpha1.DeploymentTargetClaim) bool {
+	if dtc.Annotations == nil {
+		return false
+	}
+
+	_, found := dtc.Annotations[annBindCompleted]
+	return found
 }
 
 // SetupWithManager sets up the controller with the Manager.

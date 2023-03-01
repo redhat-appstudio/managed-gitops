@@ -191,15 +191,16 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 
 	// Fetch the secret from the cluster
 	if err := apiNamespaceClient.Get(ctx, client.ObjectKey{Name: secret.Name, Namespace: secret.Namespace}, secret); err != nil {
+		var errMessage error
 		if apierr.IsNotFound(err) {
-			return nil, fmt.Errorf("secret not found: %v", err)
+			errMessage = fmt.Errorf("secret not found: %v", err)
 		} else {
 			// Something went wrong, retry
-			return nil, fmt.Errorf("error retrieving secret: %v", err)
+			errMessage = fmt.Errorf("error retrieving secret: %v", err)
 		}
 		repositoryCredentialStatusConditon := &metav1.Condition{
 			Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
-			Reason:  errReason,
+			Reason:  err.Error(),
 			Status:  metav1.ConditionTrue,
 			Message: errMessage.Error(),
 		}
@@ -423,14 +424,19 @@ func createRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCreden
 func updateGitopsDeploymentRepositoryCredentialStatus(repositoryCredential *managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential, ctx context.Context, client client.Client, secret *corev1.Secret, condition *metav1.Condition, log logr.Logger) {
 
 	var existingCondition *metav1.Condition = nil
-	condition = checkForValidRepositoryCredential(repositoryCredential, ctx, secret)
 
+	// if the condition was sent along with the function call, we don't need to perform additional checks
+	if condition == nil {
+		condition = checkForValidRepositoryCredential(repositoryCredential, ctx, secret)
+	}
+
+	// if the condition is still nil after performing checks, we need to set ValidRepositoryCredential condition to True
 	if condition == nil {
 		condition = &metav1.Condition{
 			Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
-			Reason:  fmt.Sprintf("Secret specified not found"),
+			Reason:  "Repository Connection Successful",
 			Status:  metav1.ConditionTrue,
-			Message: fmt.Sprintf("Secret specified not found"),
+			Message: "Repository Connection Successful",
 		}
 	}
 
@@ -466,9 +472,9 @@ func checkForValidRepositoryCredential(repositoryCredential *managedgitopsv1alph
 	if secret == nil {
 		return &metav1.Condition{
 			Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
-			Reason:  fmt.Sprintf("Secret specified not found"),
+			Reason:  "Secret specified not found",
 			Status:  metav1.ConditionTrue,
-			Message: fmt.Sprintf("Secret specified not found"),
+			Message: "Secret specified not found",
 		}
 	}
 
@@ -524,9 +530,11 @@ func validateRepositoryCredentials(rawRepoURL string, secret *corev1.Secret) err
 		}
 	}
 
-	_, err := git.PlainClone(root, false, cloneOptions)
+	if _, err := git.PlainClone(root, false, cloneOptions); err != nil {
+		return err
+	}
 
-	os.RemoveAll(root)
+	err := os.RemoveAll(root)
 
 	return err
 }

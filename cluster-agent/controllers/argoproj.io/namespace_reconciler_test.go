@@ -140,7 +140,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			operationList = []db.Operation{}
 		})
 
-		FIt("Should delete Operations from cluster and if operation is completed.", func() {
+		It("Should delete Operations from cluster and if operation is completed.", func() {
 
 			ctx := context.Background()
 			log := logger.FromContext(ctx)
@@ -177,7 +177,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			Expect(len(listOfK8sOperationSecond.Items)).To(Equal(0))
 		})
 
-		FIt("Should not delete Operations from cluster and if operation is not completed.", func() {
+		It("Should not delete Operations from cluster and if operation is not completed.", func() {
 
 			ctx := context.Background()
 			log := logger.FromContext(ctx)

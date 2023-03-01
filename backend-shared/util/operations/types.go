@@ -96,7 +96,8 @@ func createOperationInternal(ctx context.Context, waitForOperation bool, dbOpera
 	}
 
 	if operationNamespace != gitopsEngineInstance.Namespace_name {
-		return nil, nil, fmt.Errorf("Namespace mismatched in given OperationCR and existing GitopsEngineInstance")
+		mismatchedNamespace := "OperationNS: " + operationNamespace + " " + "GitopsEngineInstanceNS: " + gitopsEngineInstance.Namespace_name
+		return nil, nil, fmt.Errorf("Namespace mismatched in given OperationCR and existing GitopsEngineInstance " + mismatchedNamespace)
 	}
 
 	var dbOperationList []db.Operation

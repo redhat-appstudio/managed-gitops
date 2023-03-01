@@ -340,8 +340,9 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	}
 
 	if operationCR.Namespace != dbGitopsEngineInstance.Namespace_name {
-		err := fmt.Errorf("OperationCR namespace did not match with existing namespace of GitopsEngineInstance")
-		log.Error(err, "Invalid Operation Detected, Name :"+operationCR.Name+"Namespace :"+operationCR.Namespace)
+		mismatchedNamespace := "OperationNS: " + operationCR.Namespace + " " + "GitopsEngineInstanceNS: " + dbGitopsEngineInstance.Namespace_name
+		err := fmt.Errorf("OperationCR namespace did not match with existing namespace of GitopsEngineInstance " + mismatchedNamespace)
+		log.Error(err, "Invalid Operation Detected, Name: "+operationCR.Name+"Namespace: "+operationCR.Namespace)
 		return nil, shouldRetryFalse, err
 	}
 

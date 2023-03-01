@@ -451,7 +451,17 @@ var _ = Describe("DB Reconciler Test", func() {
 				err = dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
 				Expect(err).To(BeNil())
 
-				_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
+				dbQueries, err := db.NewUnsafePostgresDBQueries(true, true)
+				Expect(err).To(BeNil())
+				_, _, engineCluster, _, _, err := db.CreateSampleData(dbQueries)
+				Expect(err).To(BeNil())
+				gitopsEngineInstance := &db.GitopsEngineInstance{
+					Gitopsengineinstance_id: "test-fake-instance-id",
+					Namespace_name:          "gitops-service-argocd",
+					Namespace_uid:           "test-fake-instance-namespace-914",
+					EngineCluster_id:        engineCluster.Gitopsenginecluster_id,
+				}
+				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
 				Expect(err).To(BeNil())
 
 				// Create DB entry for Application
@@ -547,7 +557,7 @@ var _ = Describe("DB Reconciler Test", func() {
 				repoCredentialCr = managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-repo-" + string(uuid.NewUUID()),
-						Namespace: "test-k8s-namespace",
+						Namespace: "argocd",
 						UID:       uuid.NewUUID(),
 					},
 					Spec: managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialSpec{
@@ -741,7 +751,7 @@ var _ = Describe("DB Reconciler Test", func() {
 				gitopsDeplSyncRunCr = managedgitopsv1alpha1.GitOpsDeploymentSyncRun{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-gitopsdeployment-syncrun",
-						Namespace: "test-k8s-namespace",
+						Namespace: "argocd",
 						UID:       uuid.NewUUID(),
 					},
 					Spec: managedgitopsv1alpha1.GitOpsDeploymentSyncRunSpec{

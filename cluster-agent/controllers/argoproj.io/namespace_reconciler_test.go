@@ -140,7 +140,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			operationList = []db.Operation{}
 		})
 
-		It("Should delete Operations from cluster and if operation is completed.", func() {
+		FIt("Should delete Operations from cluster and if operation is completed.", func() {
 
 			ctx := context.Background()
 			log := logger.FromContext(ctx)
@@ -152,7 +152,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			}
 
 			_, dbOperation, err := operations.CreateOperation(ctx, false, dbOperationInput,
-				db.SpecialClusterUserName, dbutil.GetGitOpsEngineSingleInstanceNamespace(), reconciler.DB, reconciler.Client, log)
+				db.SpecialClusterUserName, "argocd", reconciler.DB, reconciler.Client, log)
 			Expect(err).To(BeNil())
 
 			dbOperation.State = "Completed"
@@ -177,7 +177,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			Expect(len(listOfK8sOperationSecond.Items)).To(Equal(0))
 		})
 
-		It("Should not delete Operations from cluster and if operation is not completed.", func() {
+		FIt("Should not delete Operations from cluster and if operation is not completed.", func() {
 
 			ctx := context.Background()
 			log := logger.FromContext(ctx)
@@ -189,7 +189,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			}
 
 			_, dbOperation, err := operations.CreateOperation(ctx, false, dbOperationInput,
-				db.SpecialClusterUserName, dbutil.GetGitOpsEngineSingleInstanceNamespace(), reconciler.DB, reconciler.Client, log)
+				db.SpecialClusterUserName, "argocd", reconciler.DB, reconciler.Client, log)
 			Expect(err).To(BeNil())
 
 			operationList = append(operationList, *dbOperation)

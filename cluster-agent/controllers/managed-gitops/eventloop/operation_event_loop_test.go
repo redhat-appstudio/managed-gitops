@@ -1403,7 +1403,7 @@ var _ = Describe("Operation Controller", func() {
 				By("create Operation DB row and CR for the SyncOperation")
 				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
 
-				By("introduce a conflict")
+				By("introduce a conflict and verify if it is handled while adding refresh annotation")
 				appCRClone := applicationCR.DeepCopy()
 				appCRClone.Annotations = make(map[string]string)
 				appCRClone.Annotations = map[string]string{
@@ -1413,6 +1413,7 @@ var _ = Describe("Operation Controller", func() {
 				err = k8sClient.Update(ctx, appCRClone)
 				Expect(err).To(BeNil())
 
+				// verify if a conflict has been introduced.
 				applicationCR.Annotations = make(map[string]string)
 				applicationCR.Annotations["key-3"] = "value-3"
 				err = k8sClient.Update(ctx, applicationCR)
@@ -1424,6 +1425,8 @@ var _ = Describe("Operation Controller", func() {
 					},
 					refreshApp: refreshApplication,
 				}
+
+				// verify if the Application was refreshed by overcoming the conflict introduced in the previous step.
 				retry, err := task.PerformTask(ctx)
 				Expect(err).Should(BeNil())
 				Expect(retry).To(BeFalse())

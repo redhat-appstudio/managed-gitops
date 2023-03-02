@@ -85,14 +85,19 @@ func createOperationInternal(ctx context.Context, waitForOperation bool, dbOpera
 	}
 	if err = dbQueries.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstance); err != nil {
 		l.Error(err, "unable to fetch GitopsEngineInstance")
+		return nil, nil, fmt.Errorf("unable to fetch GitopsEngineInstance")
 	}
 
-	if len(gitopsEngineInstance.Namespace_name) == 0 {
+	if gitopsEngineInstance.Namespace_name == "" {
 		l.Error(err, "Invalid: GitopsEngineInstance namespace is empty, GitopsEngineInstanceID: %s", gitopsEngineInstance.Gitopsengineinstance_id)
+		return nil, nil, fmt.Errorf("Invalid GitopsEngine namespace")
+
 	}
 
-	if len(operationNamespace) == 0 {
+	if operationNamespace == "" {
 		l.Error(err, "Invalid: Operation namespace is empty, OperationID: %s", dbOperationParam.Operation_id)
+		return nil, nil, fmt.Errorf("Invalid Operation namespace")
+
 	}
 
 	if operationNamespace != gitopsEngineInstance.Namespace_name {

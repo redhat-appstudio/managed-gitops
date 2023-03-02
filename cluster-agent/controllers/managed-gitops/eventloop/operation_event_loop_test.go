@@ -49,7 +49,6 @@ var _ = Describe("Operation Controller", func() {
 		var task processOperationEventTask
 		var logger logr.Logger
 		var kubesystemNamespace *corev1.Namespace
-		var argocdNamespace *corev1.Namespace
 		var workspace *corev1.Namespace
 		var scheme *runtime.Scheme
 		var testClusterUser *db.ClusterUser
@@ -69,7 +68,7 @@ var _ = Describe("Operation Controller", func() {
 			dbQueries, err = db.NewUnsafePostgresDBQueries(false, true)
 			Expect(err).To(BeNil())
 
-			scheme, argocdNamespace, kubesystemNamespace, workspace, err = tests.GenericTestSetup()
+			scheme, _, kubesystemNamespace, workspace, err = tests.GenericTestSetup()
 			Expect(err).To(BeNil())
 
 			err = appv1.AddToScheme(scheme)
@@ -92,7 +91,7 @@ var _ = Describe("Operation Controller", func() {
 				},
 			}
 
-			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace, defaultProject).Build()
+			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, kubesystemNamespace, defaultProject).Build()
 
 			task = processOperationEventTask{
 				log: logger,
@@ -1685,8 +1684,11 @@ var _ = Describe("Operation Controller", func() {
 				retry, err := task.PerformTask(ctx)
 				Expect(err).ToNot(BeNil())
 				Expect(retry).To(BeFalse())
+				errString := err.Error()
+				mismatchedNamespaceErr := "OperationNS: " + operationCR.Namespace + " " + "GitopsEngineInstanceNS: " + gitopsEngineInstance.Namespace_name
+				Expect(errString).To(Equal("OperationCR namespace did not match with existing namespace of GitopsEngineInstance " + mismatchedNamespaceErr))
 
-				By("Verifying whether Application CR is created")
+				By("Verifying whether Application CR is not created")
 				applicationCR := appv1.Application{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      applicationDB.Name,
@@ -1697,7 +1699,6 @@ var _ = Describe("Operation Controller", func() {
 				err = task.event.client.Get(ctx, types.NamespacedName{Namespace: applicationCR.Namespace, Name: name}, &applicationCR)
 				Expect(err).ToNot(BeNil())
 				Expect(dummyApplicationSpec.Spec).ToNot(Equal(applicationCR.Spec))
-
 			})
 		})
 	})

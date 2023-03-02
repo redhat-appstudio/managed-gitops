@@ -1,0 +1,57 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeployment
+metadata:
+  name: gitops-depl-delete-valid
+  namespace: gitops-service-e2e
+spec:
+  source:
+    path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+    repoURL: https://github.com/redhat-appstudio/managed-gitops
+  type: automated
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: gitops-service-e2e
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: environment-config-map
+  namespace: gitops-service-e2e
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: component-a
+  namespace: gitops-service-e2e
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: component-b
+  namespace: gitops-service-e2e
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: component-a
+  namespace: gitops-service-e2e
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: component-b
+  namespace: gitops-service-e2e
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: component-a
+  namespace: gitops-service-e2e
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: component-b
+  namespace: gitops-service-e2e

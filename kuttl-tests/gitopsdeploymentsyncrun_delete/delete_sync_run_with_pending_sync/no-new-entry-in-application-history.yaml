@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: gitops-service-argocd
+spec:
+  destination:
+    name: in-cluster
+    namespace: gitops-service-e2e
+  project: default
+  source:
+    path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+    repoURL: https://github.com/redhat-appstudio/managed-gitops
+status:
+  history:
+    - id: 0
+    - id: 1
+---
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeploymentSyncRun
+metadata:
+  name: test-syncrun
+  namespace: gitops-service-e2e
+spec:
+  gitopsDeploymentName: gitops-depl-sync-run
+  revisionID: main

@@ -1,0 +1,57 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeployment
+metadata:
+  name: gitops-depl-invalid-path
+  namespace: gitops-service-e2e
+spec:
+  source:
+    path: path/path/path
+    repoURL: https://github.com/redhat-appstudio/managed-gitops
+  type: automated
+status:
+  health:
+    status: Healthy
+  reconciledState:
+    destination:
+      name: ""
+      namespace: gitops-service-e2e
+    source:
+      branch: ""
+      repoURL: https://github.com/redhat-appstudio/managed-gitops
+      path: path/path/path
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: gitops-service-argocd
+spec:
+  destination:
+    name: in-cluster
+    namespace: gitops-service-e2e
+  project: default
+  source:
+    path: path/path/path
+    repoURL: https://github.com/redhat-appstudio/managed-gitops
+  syncPolicy:
+    automated:
+      allowEmpty: true
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - PrunePropagationPolicy=background
+status:
+  conditions:
+    - message: "rpc error: code = Unknown desc = path/path/path: app path does not exist"
+      type: ComparisonError
+  health:
+    status: Healthy
+  summary: {}
+  sync:
+    comparedTo:
+      destination:
+        name: in-cluster
+        namespace: gitops-service-e2e
+      source:
+        path: path/path/path
+        repoURL: https://github.com/redhat-appstudio/managed-gitops
+    status: Unknown

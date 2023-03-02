@@ -1,0 +1,27 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeployment
+metadata:
+  name: gitops-depl-missing-src-path
+  namespace: gitops-service-e2e
+spec:
+  source:
+    path: ""
+    repoURL: https://github.com/redhat-appstudio/managed-gitops
+  type: automated
+status:
+  conditions:
+  - message: spec.source.path is a required field and it cannot be empty
+    reason: ErrorOccurred
+    status: "True"
+    type: ErrorOccurred
+  health: {}
+  reconciledState:
+    destination:
+      name: ""
+      namespace: ""
+    source:
+      branch: ""
+      path: ""
+      repoURL: ""
+  sync:
+    status: ""

@@ -1,0 +1,14 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeploymentManagedEnvironment
+metadata:
+  name: gitops-managedenvironment-dev
+  namespace: gitops-service-e2e
+spec:
+  allowInsecureSkipTLSVerify: true
+  credentialsSecret: missing-kubeconfig-secret
+status:
+  conditions:
+    - message: missing kubeConfig field in Secret
+      reason: MissingKubeConfigField
+      status: "False"
+      type: ConnectionInitializationSucceeded

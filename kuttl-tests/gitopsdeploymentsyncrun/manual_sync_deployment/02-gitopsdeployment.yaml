@@ -1,0 +1,10 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeployment
+metadata:
+  name: gitops-depl-sync-run-manual
+  namespace: gitops-service-e2e
+spec:
+  source:
+    repoURL: https://github.com/redhat-appstudio/managed-gitops
+    path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+  type: manual

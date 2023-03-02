@@ -1,0 +1,230 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeployment
+metadata:
+  name: gitops-depl-update-syncrhonicity
+  namespace: gitops-service-e2e
+spec:
+  source:
+    path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+    repoURL: https://github.com/redhat-appstudio/managed-gitops
+  type: automated
+status:
+  health:
+    status: Healthy
+  reconciledState:
+    destination:
+      name: ""
+      namespace: gitops-service-e2e
+    source:
+      branch: ""
+      path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+      repoURL: https://github.com/redhat-appstudio/managed-gitops
+  resources:
+    - kind: ConfigMap
+      name: environment-config-map
+      namespace: gitops-service-e2e
+      status: Synced
+      version: v1
+    - health:
+        status: Healthy
+      kind: Service
+      name: component-a
+      namespace: gitops-service-e2e
+      status: Synced
+      version: v1
+    - health:
+        status: Healthy
+      kind: Service
+      name: component-b
+      namespace: gitops-service-e2e
+      status: Synced
+      version: v1
+    - group: apps
+      health:
+        status: Healthy
+      kind: Deployment
+      name: component-a
+      namespace: gitops-service-e2e
+      status: Synced
+      version: v1
+    - group: apps
+      health:
+        status: Healthy
+      kind: Deployment
+      name: component-b
+      namespace: gitops-service-e2e
+      status: Synced
+      version: v1
+    - group: route.openshift.io
+      health:
+        message: Route is healthy
+        status: Healthy
+      kind: Route
+      name: component-a
+      namespace: gitops-service-e2e
+      status: Synced
+      version: v1
+    - group: route.openshift.io
+      health:
+        message: Route is healthy
+        status: Healthy
+      kind: Route
+      name: component-b
+      namespace: gitops-service-e2e
+      status: Synced
+      version: v1
+  sync:
+    status: Synced
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: gitops-service-argocd
+spec:
+  destination:
+    name: in-cluster
+    namespace: gitops-service-e2e
+  project: default
+  source:
+    path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+    repoURL: https://github.com/redhat-appstudio/managed-gitops
+  syncPolicy:
+    automated:
+      allowEmpty: true
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - PrunePropagationPolicy=background
+status:
+  health:
+    status: Healthy
+  history:
+    - id: 0
+      source:
+        path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+        repoURL: https://github.com/redhat-appstudio/managed-gitops
+  operationState:
+    message: successfully synced (all tasks run)
+    operation:
+      initiatedBy:
+        automated: true
+      retry:
+        limit: 5
+      sync:
+        prune: true
+        syncOptions:
+          - PrunePropagationPolicy=background
+    phase: Succeeded
+    syncResult:
+      source:
+        path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+        repoURL: https://github.com/redhat-appstudio/managed-gitops
+  resources:
+    - kind: ConfigMap
+      name: environment-config-map
+      namespace: gitops-service-e2e
+      status: Synced
+      version: v1
+    - health:
+        status: Healthy
+      kind: Service
+      name: component-a
+      namespace: gitops-service-e2e
+      status: Synced
+      version: v1
+    - health:
+        status: Healthy
+      kind: Service
+      name: component-b
+      namespace: gitops-service-e2e
+      status: Synced
+      version: v1
+    - group: apps
+      health:
+        status: Healthy
+      kind: Deployment
+      name: component-a
+      namespace: gitops-service-e2e
+      status: Synced
+      version: v1
+    - group: apps
+      health:
+        status: Healthy
+      kind: Deployment
+      name: component-b
+      namespace: gitops-service-e2e
+      status: Synced
+      version: v1
+    - group: route.openshift.io
+      health:
+        message: Route is healthy
+        status: Healthy
+      kind: Route
+      name: component-a
+      namespace: gitops-service-e2e
+      status: Synced
+      version: v1
+    - group: route.openshift.io
+      health:
+        message: Route is healthy
+        status: Healthy
+      kind: Route
+      name: component-b
+      namespace: gitops-service-e2e
+      status: Synced
+      version: v1
+  sourceType: Kustomize
+  summary:
+    images:
+      - quay.io/jgwest-redhat/sample-workload:latest
+  sync:
+    comparedTo:
+      destination:
+        name: in-cluster
+        namespace: gitops-service-e2e
+      source:
+        path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+        repoURL: https://github.com/redhat-appstudio/managed-gitops
+    status: Synced
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: environment-config-map
+  namespace: gitops-service-e2e
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: component-a
+  namespace: gitops-service-e2e
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: component-b
+  namespace: gitops-service-e2e
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: component-a
+  namespace: gitops-service-e2e
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: component-b
+  namespace: gitops-service-e2e
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: component-a
+  namespace: gitops-service-e2e
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: component-b
+  namespace: gitops-service-e2e

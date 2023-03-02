@@ -1,0 +1,130 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeployment
+metadata:
+  name: gitops-depl-sync-run-new-update-spec
+  namespace: gitops-service-e2e
+spec:
+  source:
+    path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+    repoURL: https://github.com/redhat-appstudio/managed-gitops
+  type: manual
+status:
+  health:
+    status: Missing
+  reconciledState:
+    destination:
+      name: ""
+      namespace: gitops-service-e2e
+    source:
+      branch: ""
+      path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+      repoURL: https://github.com/redhat-appstudio/managed-gitops
+  resources:
+    - kind: ConfigMap
+      name: environment-config-map
+      namespace: gitops-service-e2e
+      status: OutOfSync
+      version: v1
+    - kind: Service
+      name: component-a
+      namespace: gitops-service-e2e
+      status: OutOfSync
+      version: v1
+    - kind: Service
+      name: component-b
+      namespace: gitops-service-e2e
+      status: OutOfSync
+      version: v1
+    - group: apps
+      kind: Deployment
+      name: component-a
+      namespace: gitops-service-e2e
+      status: OutOfSync
+      version: v1
+    - group: apps
+      kind: Deployment
+      name: component-b
+      namespace: gitops-service-e2e
+      status: OutOfSync
+      version: v1
+    - group: route.openshift.io
+      kind: Route
+      name: component-a
+      namespace: gitops-service-e2e
+      status: OutOfSync
+      version: v1
+    - group: route.openshift.io
+      kind: Route
+      name: component-b
+      namespace: gitops-service-e2e
+      status: OutOfSync
+      version: v1
+  sync:
+    status: OutOfSync
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: gitops-service-argocd
+spec:
+  destination:
+    name: in-cluster
+    namespace: gitops-service-e2e
+  project: default
+  source:
+    path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+    repoURL: https://github.com/redhat-appstudio/managed-gitops
+status:
+  health:
+    status: Missing
+  resources:
+    - kind: ConfigMap
+      name: environment-config-map
+      namespace: gitops-service-e2e
+      status: OutOfSync
+      version: v1
+    - kind: Service
+      name: component-a
+      namespace: gitops-service-e2e
+      status: OutOfSync
+      version: v1
+    - kind: Service
+      name: component-b
+      namespace: gitops-service-e2e
+      status: OutOfSync
+      version: v1
+    - group: apps
+      kind: Deployment
+      name: component-a
+      namespace: gitops-service-e2e
+      status: OutOfSync
+      version: v1
+    - group: apps
+      kind: Deployment
+      name: component-b
+      namespace: gitops-service-e2e
+      status: OutOfSync
+      version: v1
+    - group: route.openshift.io
+      kind: Route
+      name: component-a
+      namespace: gitops-service-e2e
+      status: OutOfSync
+      version: v1
+    - group: route.openshift.io
+      kind: Route
+      name: component-b
+      namespace: gitops-service-e2e
+      status: OutOfSync
+      version: v1
+  sourceType: Kustomize
+  summary: {}
+  sync:
+    comparedTo:
+      destination:
+        name: in-cluster
+        namespace: gitops-service-e2e
+      source:
+        path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+        repoURL: https://github.com/redhat-appstudio/managed-gitops
+    status: OutOfSync

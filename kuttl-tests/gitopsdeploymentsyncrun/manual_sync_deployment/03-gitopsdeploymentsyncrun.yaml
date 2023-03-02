@@ -1,0 +1,8 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeploymentSyncRun
+metadata:
+  name: test-syncrun-manual
+  namespace: gitops-service-e2e
+spec:
+  gitopsDeploymentName: gitops-depl-sync-run-manual
+  revisionID: main

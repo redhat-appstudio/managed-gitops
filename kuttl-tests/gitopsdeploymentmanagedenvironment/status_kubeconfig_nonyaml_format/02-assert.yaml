@@ -1,0 +1,18 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeploymentManagedEnvironment
+metadata:
+  name: gitops-managedenvironment-dev
+  namespace: gitops-service-e2e
+spec:
+  allowInsecureSkipTLSVerify: true
+  credentialsSecret: non-yaml-secret
+status:
+  conditions:
+    - message:
+        'unable to parse kubeconfig data: couldn''t get version/kind; json parse
+        error: json: cannot unmarshal string into Go value of type struct { APIVersion
+        string "json:\"apiVersion,omitempty\""; Kind string "json:\"kind,omitempty\""
+        }'
+      reason: UnableToParseKubeconfigData
+      status: "False"
+      type: ConnectionInitializationSucceeded

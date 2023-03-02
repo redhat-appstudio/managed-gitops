@@ -1,0 +1,9 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+error:
+- no-resources.yaml
+delete:
+- apiVersion: managed-gitops.redhat.com/v1alpha1
+  kind: GitOpsDeployment
+  name: gitops-depl-delete-valid
+  namespace: gitops-service-e2e

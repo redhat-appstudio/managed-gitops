@@ -1,0 +1,230 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeployment
+metadata:
+  name: gitops-depl-sync-run-multiple-aao
+  namespace: gitops-service-e2e
+spec:
+  source:
+    path: guestbook-without-hook
+    repoURL: https://github.com/managed-gitops-test-data/deployment-presync-hook
+  type: manual
+status:
+  health:
+    status: Healthy
+  reconciledState:
+    destination:
+      name: ""
+      namespace: gitops-service-e2e
+    source:
+      branch: ""
+      path: guestbook-without-hook
+      repoURL: https://github.com/managed-gitops-test-data/deployment-presync-hook
+  resources:
+    - health:
+        status: Healthy
+      kind: Service
+      name: guestbook-ui
+      namespace: gitops-service-e2e
+      status: Synced
+      version: v1
+    - group: apps
+      health:
+        status: Healthy
+      kind: Deployment
+      name: guestbook-ui
+      namespace: gitops-service-e2e
+      status: Synced
+      version: v1
+  sync:
+    revision: d390b220553954a12a19b5133ad2313e6b60691e
+    status: Synced
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: gitops-service-argocd
+spec:
+  destination:
+    name: in-cluster
+    namespace: gitops-service-e2e
+  project: default
+  source:
+    path: guestbook-without-hook
+    repoURL: https://github.com/managed-gitops-test-data/deployment-presync-hook
+status:
+  health:
+    status: Healthy
+  history:
+    - id: 0
+      revision: d390b220553954a12a19b5133ad2313e6b60691e
+      source:
+        path: guestbook-without-hook
+        repoURL: https://github.com/managed-gitops-test-data/deployment-presync-hook
+    - id: 1
+      revision: 4403172251fef9664b2b91158005c6b00e0183e4
+      source:
+        path: guestbook-without-hook
+        repoURL: https://github.com/managed-gitops-test-data/deployment-presync-hook
+    - id: 2
+      revision: 06e5ee7f57516955cdcc1ea44dccbb5ccba83b56
+      source:
+        path: guestbook-without-hook
+        repoURL: https://github.com/managed-gitops-test-data/deployment-presync-hook
+  operationState:
+    message: successfully synced (all tasks run)
+    operation:
+      initiatedBy:
+        username: admin
+      retry: {}
+      sync:
+        revision: 06e5ee7f57516955cdcc1ea44dccbb5ccba83b56
+        syncStrategy:
+          hook: {}
+    phase: Succeeded
+    syncResult:
+      resources:
+        - group: ""
+          hookPhase: Running
+          kind: Service
+          message: service/guestbook-ui unchanged
+          name: guestbook-ui
+          namespace: gitops-service-e2e
+          status: Synced
+          syncPhase: Sync
+          version: v1
+        - group: apps
+          hookPhase: Running
+          kind: Deployment
+          message: deployment.apps/guestbook-ui unchanged
+          name: guestbook-ui
+          namespace: gitops-service-e2e
+          status: Synced
+          syncPhase: Sync
+          version: v1
+      revision: 06e5ee7f57516955cdcc1ea44dccbb5ccba83b56
+      source:
+        path: guestbook-without-hook
+        repoURL: https://github.com/managed-gitops-test-data/deployment-presync-hook
+  resources:
+    - health:
+        status: Healthy
+      kind: Service
+      name: guestbook-ui
+      namespace: gitops-service-e2e
+      status: Synced
+      version: v1
+    - group: apps
+      health:
+        status: Healthy
+      kind: Deployment
+      name: guestbook-ui
+      namespace: gitops-service-e2e
+      status: Synced
+      version: v1
+  sourceType: Directory
+  summary:
+    images:
+      - nginxinc/nginx-unprivileged:latest
+  sync:
+    comparedTo:
+      destination:
+        name: in-cluster
+        namespace: gitops-service-e2e
+      source:
+        path: guestbook-without-hook
+        repoURL: https://github.com/managed-gitops-test-data/deployment-presync-hook
+    revision: d390b220553954a12a19b5133ad2313e6b60691e
+    status: Synced
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: guestbook-ui
+  namespace: gitops-service-e2e
+spec:
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+    - port: 80
+      protocol: TCP
+      targetPort: 80
+  selector:
+    app: guestbook-ui
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guestbook-ui
+  namespace: gitops-service-e2e
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: guestbook-ui
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: guestbook-ui
+    spec:
+      containers:
+        - image: nginxinc/nginx-unprivileged:latest
+          imagePullPolicy: Always
+          name: guestbook-ui
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+status:
+  availableReplicas: 1
+  observedGeneration: 1
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1
+---
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeploymentSyncRun
+metadata:
+  name: test-syncrun-multiple-aao-1
+  namespace: gitops-service-e2e
+spec:
+  gitopsDeploymentName: gitops-depl-sync-run-multiple-aao
+  revisionID: main
+---
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeploymentSyncRun
+metadata:
+  name: test-syncrun-multiple-aao-2
+  namespace: gitops-service-e2e
+spec:
+  gitopsDeploymentName: gitops-depl-sync-run-multiple-aao
+  revisionID: replicas-2
+---
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeploymentSyncRun
+metadata:
+  name: test-syncrun-multiple-aao-3
+  namespace: gitops-service-e2e
+spec:
+  gitopsDeploymentName: gitops-depl-sync-run-multiple-aao
+  revisionID: replicas-3

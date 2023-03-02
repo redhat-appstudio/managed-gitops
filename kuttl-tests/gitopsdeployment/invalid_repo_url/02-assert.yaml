@@ -1,0 +1,22 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeployment
+metadata:
+  name: gitops-depl-invalid-url
+  namespace: gitops-service-e2e
+spec:
+  source:
+    path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+    repoURL: invalid-url
+  type: automated
+status:
+  health:
+    status: Healthy
+  reconciledState:
+    destination:
+      name: ""
+      namespace: gitops-service-e2e
+    source:
+      path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+      repoURL: invalid-url
+  sync:
+    status: Unknown

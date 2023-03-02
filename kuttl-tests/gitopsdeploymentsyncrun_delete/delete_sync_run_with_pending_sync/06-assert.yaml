@@ -1,0 +1,110 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeployment
+metadata:
+  name: gitops-depl-sync-run
+  namespace: gitops-service-e2e
+spec:
+  source:
+    path: guestbook
+    repoURL: https://github.com/managed-gitops-test-data/deployment-presync-hook
+  type: manual
+status:
+  health:
+    status: Missing
+  reconciledState:
+    destination:
+      name: ""
+      namespace: gitops-service-e2e
+    source:
+      branch: ""
+      path: guestbook
+      repoURL: https://github.com/managed-gitops-test-data/deployment-presync-hook
+  resources:
+    - health:
+        status: Missing
+      kind: Service
+      name: guestbook-ui
+      namespace: gitops-service-e2e
+      status: OutOfSync
+      version: v1
+    - group: apps
+      kind: Deployment
+      name: guestbook-ui
+      namespace: gitops-service-e2e
+      version: v1
+  sync:
+    revision: d390b220553954a12a19b5133ad2313e6b60691e
+    status: OutOfSync
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: gitops-service-argocd
+spec:
+  destination:
+    name: in-cluster
+    namespace: gitops-service-e2e
+  project: default
+  source:
+    path: guestbook
+    repoURL: https://github.com/managed-gitops-test-data/deployment-presync-hook
+status:
+  health:
+    status: Missing
+  operationState:
+    message: Operation terminated
+    operation:
+      initiatedBy:
+        username: admin
+      retry: {}
+      sync:
+        revision: d390b220553954a12a19b5133ad2313e6b60691e
+        syncStrategy:
+          hook: {}
+    phase: Failed
+    syncResult:
+      resources:
+        - group: apps
+          hookPhase: Succeeded
+          hookType: PreSync
+          kind: Deployment
+          message: Custom health check to test Sync operation
+          name: guestbook-ui
+          namespace: gitops-service-e2e
+          syncPhase: PreSync
+          version: v1
+      revision: d390b220553954a12a19b5133ad2313e6b60691e
+      source:
+        path: guestbook
+        repoURL: https://github.com/managed-gitops-test-data/deployment-presync-hook
+  resources:
+    - health:
+        status: Missing
+      kind: Service
+      name: guestbook-ui
+      namespace: gitops-service-e2e
+      status: OutOfSync
+      version: v1
+    - group: apps
+      hook: true
+      kind: Deployment
+      name: guestbook-ui
+      namespace: gitops-service-e2e
+      requiresPruning: true
+      version: v1
+  sourceType: Directory
+  summary:
+    images:
+      - nginxinc/nginx-unprivileged:latest
+  sync:
+    comparedTo:
+      destination:
+        name: in-cluster
+        namespace: gitops-service-e2e
+      source:
+        path: guestbook
+        repoURL: https://github.com/managed-gitops-test-data/deployment-presync-hook
+    revision: d390b220553954a12a19b5133ad2313e6b60691e
+    status: OutOfSync
+---
+

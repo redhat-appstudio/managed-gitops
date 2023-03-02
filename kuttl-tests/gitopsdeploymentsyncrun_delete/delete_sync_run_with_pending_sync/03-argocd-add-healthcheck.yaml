@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: gitops-service-argocd
+data:
+  resource.customizations.health.apps_Deployment: |
+    hs = {}
+    hs.status = "Progressing"
+    hs.message = "Custom health check to test Sync operation"
+    return hs

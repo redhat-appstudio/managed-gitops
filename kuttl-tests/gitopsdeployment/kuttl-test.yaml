@@ -1,0 +1,10 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestSuite
+testDirs:
+  - .
+suppress:
+  - events
+timeout: 20
+parallel: 1
+reportFormat: JSON
+reportName: gitopsdeployment

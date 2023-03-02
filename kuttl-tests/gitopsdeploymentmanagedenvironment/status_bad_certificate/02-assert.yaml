@@ -1,0 +1,13 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeploymentManagedEnvironment
+metadata:
+  name: gitops-managedenvironment-dev
+  namespace: gitops-service-e2e
+spec:
+  allowInsecureSkipTLSVerify: true
+  credentialsSecret: bad-cert-secret
+status:
+  conditions:
+    - reason: UnableToLocateContext
+      status: "False"
+      type: ConnectionInitializationSucceeded

@@ -1,0 +1,14 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeploymentManagedEnvironment
+metadata:
+  name: managed-environment-staging
+  namespace: gitops-service-e2e
+spec:
+  allowInsecureSkipTLSVerify: true
+  credentialsSecret: my-managed-env-secret
+status:
+  conditions:
+    - message: ""
+      reason: Succeeded
+      status: "True"
+      type: ConnectionInitializationSucceeded

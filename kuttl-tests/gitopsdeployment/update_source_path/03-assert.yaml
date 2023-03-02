@@ -1,0 +1,110 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeployment
+metadata:
+  name: update-source-path
+  namespace: gitops-service-e2e
+spec:
+  source:
+    path: pathC
+    repoURL: https://github.com/managed-gitops-test-data/deployment-permutations-a
+    targetRevision: branchA
+  type: automated
+status:
+  health:
+    status: Healthy
+  reconciledState:
+    destination:
+      name: ""
+      namespace: gitops-service-e2e
+    source:
+      branch: branchA
+      path: pathC
+      repoURL: https://github.com/managed-gitops-test-data/deployment-permutations-a
+  resources:
+  - kind: ConfigMap
+    name: deployment-permutations-a-brancha-pathc
+    namespace: gitops-service-e2e
+    status: Synced
+    version: v1
+  - kind: ConfigMap
+    name: identifier
+    namespace: gitops-service-e2e
+    status: Synced
+    version: v1
+  sync:
+    status: Synced
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: gitops-service-argocd
+spec:
+  destination:
+    name: in-cluster
+    namespace: gitops-service-e2e
+  project: default
+  source:
+    path: pathC
+    repoURL: https://github.com/managed-gitops-test-data/deployment-permutations-a
+    targetRevision: branchA
+  syncPolicy:
+    automated:
+      allowEmpty: true
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - PrunePropagationPolicy=background
+status:
+  health:
+    status: Healthy
+  history:
+  - id: 0
+    source:
+      path: pathB
+      repoURL: https://github.com/managed-gitops-test-data/deployment-permutations-a
+      targetRevision: branchA
+  - id: 1
+    source:
+      path: pathC
+      repoURL: https://github.com/managed-gitops-test-data/deployment-permutations-a
+      targetRevision: branchA
+  operationState:
+    message: successfully synced (all tasks run)
+    operation:
+      initiatedBy:
+        automated: true
+      retry:
+        limit: 5
+      sync:
+        prune: true
+        syncOptions:
+        - PrunePropagationPolicy=background
+    phase: Succeeded
+    syncResult:
+      source:
+        path: pathC
+        repoURL: https://github.com/managed-gitops-test-data/deployment-permutations-a
+        targetRevision: branchA
+  resources:
+  - kind: ConfigMap
+    name: deployment-permutations-a-brancha-pathc
+    namespace: gitops-service-e2e
+    status: Synced
+    version: v1
+  - kind: ConfigMap
+    name: identifier
+    namespace: gitops-service-e2e
+    status: Synced
+    version: v1
+  sourceType: Kustomize
+  summary: {}
+  sync:
+    comparedTo:
+      destination:
+        name: in-cluster
+        namespace: gitops-service-e2e
+      source:
+        path: pathC
+        repoURL: https://github.com/managed-gitops-test-data/deployment-permutations-a
+        targetRevision: branchA
+    status: Synced

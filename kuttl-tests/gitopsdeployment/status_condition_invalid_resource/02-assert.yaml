@@ -1,0 +1,113 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+timeout: 400
+---
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeployment
+metadata:
+  name: gitops-depl-invalid-resources
+  namespace: gitops-service-e2e
+spec:
+  source:
+    path: invalid-repository
+    repoURL: https://github.com/managed-gitops-test-data/gitops-repositories
+  type: automated
+status:
+  health:
+    status: Healthy
+  reconciledState:
+    destination:
+      name: ""
+      namespace: gitops-service-e2e
+    source:
+      branch: ""
+      path: invalid-repository
+      repoURL: https://github.com/managed-gitops-test-data/gitops-repositories
+  resources:
+  - group: not.real.com
+    health:
+      status: Missing
+    kind: NotARealResource
+    name: proxy-role
+    namespace: gitops-service-e2e
+    status: OutOfSync
+    version: v1
+  sync:
+    revision: 5ce3833a57c1582f93ea49c2947a5b4b4992ef6f
+    status: OutOfSync
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: gitops-service-argocd
+spec:
+  destination:
+    name: in-cluster
+    namespace: gitops-service-e2e
+  project: default
+  source:
+    path: invalid-repository
+    repoURL: https://github.com/managed-gitops-test-data/gitops-repositories
+  syncPolicy:
+    automated:
+      allowEmpty: true
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - PrunePropagationPolicy=background
+status:
+  conditions:
+  - message: 'Failed sync attempt to 5ce3833a57c1582f93ea49c2947a5b4b4992ef6f: one
+      or more synchronization tasks are not valid (retried 5 times).'
+    type: SyncError
+  health:
+    status: Healthy
+  operationState:
+    message: one or more synchronization tasks are not valid (retried 5 times).
+    operation:
+      initiatedBy:
+        automated: true
+      retry:
+        limit: 5
+      sync:
+        prune: true
+        revision: 5ce3833a57c1582f93ea49c2947a5b4b4992ef6f
+        syncOptions:
+        - PrunePropagationPolicy=background
+    phase: Failed
+    retryCount: 5
+    syncResult:
+      resources:
+      - group: not.real.com
+        kind: NotARealResource
+        message: the server could not find the requested resource
+        name: proxy-role
+        namespace: gitops-service-e2e
+        status: SyncFailed
+        syncPhase: Sync
+        version: v1
+      revision: 5ce3833a57c1582f93ea49c2947a5b4b4992ef6f
+      source:
+        path: invalid-repository
+        repoURL: https://github.com/managed-gitops-test-data/gitops-repositories
+  resources:
+  - group: not.real.com
+    health:
+      status: Missing
+    kind: NotARealResource
+    name: proxy-role
+    namespace: gitops-service-e2e
+    status: OutOfSync
+    version: v1
+  sourceType: Kustomize
+  summary: {}
+  sync:
+    comparedTo:
+      destination:
+        name: in-cluster
+        namespace: gitops-service-e2e
+      source:
+        path: invalid-repository
+        repoURL: https://github.com/managed-gitops-test-data/gitops-repositories
+    revision: 5ce3833a57c1582f93ea49c2947a5b4b4992ef6f
+    status: OutOfSync

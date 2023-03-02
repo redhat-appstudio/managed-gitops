@@ -1,0 +1,13 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - command: sh create_environment.sh true
+delete:
+  - apiVersion: v1
+    kind: Secret
+    name: my-managed-env-secret
+    namespace: gitops-service-e2e
+  - apiVersion: appstudio.redhat.com/v1alpha1
+    kind: Environment
+    name: staging
+    namespace: gitops-service-e2e

@@ -1,0 +1,30 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeployment
+metadata:
+  name: gitops-managedenv-test-deployment
+  namespace: gitops-service-e2e
+spec:
+  destination:
+    environment: gitops-managedenvironment-dev
+    namespace: gitops-service-e2e
+  source:
+    path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+    repoURL: https://github.com/redhat-appstudio/managed-gitops
+  type: automated
+status:
+  conditions:
+  - message: an unknown error occurred
+    reason: ErrorOccurred
+    status: "True"
+    type: ErrorOccurred
+  health: {}
+  reconciledState:
+    destination:
+      name: ""
+      namespace: ""
+    source:
+      branch: ""
+      path: ""
+      repoURL: ""
+  sync:
+    status: ""

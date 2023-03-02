@@ -1,0 +1,14 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeploymentManagedEnvironment
+metadata:
+  name: gitops-managedenvironment-dev
+  namespace: gitops-service-e2e
+spec:
+  allowInsecureSkipTLSVerify: true
+  credentialsSecret: empty-kubeconfig-secret
+status:
+  conditions:
+    - message: "unable to parse kubeconfig data: yaml: mapping values are not allowed in this context"
+      reason: UnableToParseKubeconfigData
+      status: "False"
+      type: ConnectionInitializationSucceeded

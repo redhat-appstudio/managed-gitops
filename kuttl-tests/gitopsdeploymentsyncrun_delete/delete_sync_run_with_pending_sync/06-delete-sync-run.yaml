@@ -1,0 +1,9 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+error:
+  - no-new-entry-in-application-history.yaml
+delete:
+  - apiVersion: managed-gitops.redhat.com/v1alpha1
+    kind: GitOpsDeploymentSyncRun
+    name: test-syncrun
+    namespace: gitops-service-e2e

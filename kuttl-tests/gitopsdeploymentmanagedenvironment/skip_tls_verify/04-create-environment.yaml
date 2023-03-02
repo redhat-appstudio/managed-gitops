@@ -1,0 +1,9 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - command: sh create_environment.sh false
+delete:
+  - apiVersion: v1
+    kind: Secret
+    name: my-managed-env-secret
+    namespace: gitops-service-e2e

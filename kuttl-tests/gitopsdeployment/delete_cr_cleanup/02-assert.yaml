@@ -1,0 +1,77 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeployment
+metadata:
+  name: gitops-depl-delete-valid
+  namespace: gitops-service-e2e
+spec:
+  source:
+    path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+    repoURL: https://github.com/redhat-appstudio/managed-gitops
+  type: automated
+status:
+  health:
+    status: Healthy
+  reconciledState:
+    destination:
+      name: ""
+      namespace: gitops-service-e2e
+    source:
+      branch: ""
+      path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+      repoURL: https://github.com/redhat-appstudio/managed-gitops
+  resources:
+  - kind: ConfigMap
+    name: environment-config-map
+    namespace: gitops-service-e2e
+    status: Synced
+    version: v1
+  - health:
+      status: Healthy
+    kind: Service
+    name: component-a
+    namespace: gitops-service-e2e
+    status: Synced
+    version: v1
+  - health:
+      status: Healthy
+    kind: Service
+    name: component-b
+    namespace: gitops-service-e2e
+    status: Synced
+    version: v1
+  - group: apps
+    health:
+      status: Healthy
+    kind: Deployment
+    name: component-a
+    namespace: gitops-service-e2e
+    status: Synced
+    version: v1
+  - group: apps
+    health:
+      status: Healthy
+    kind: Deployment
+    name: component-b
+    namespace: gitops-service-e2e
+    status: Synced
+    version: v1
+  - group: route.openshift.io
+    health:
+      message: Route is healthy
+      status: Healthy
+    kind: Route
+    name: component-a
+    namespace: gitops-service-e2e
+    status: Synced
+    version: v1
+  - group: route.openshift.io
+    health:
+      message: Route is healthy
+      status: Healthy
+    kind: Route
+    name: component-b
+    namespace: gitops-service-e2e
+    status: Synced
+    version: v1
+  sync:
+    status: Synced

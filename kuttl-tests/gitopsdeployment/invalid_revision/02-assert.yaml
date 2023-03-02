@@ -1,0 +1,62 @@
+apiVersion: managed-gitops.redhat.com/v1alpha1
+kind: GitOpsDeployment
+metadata:
+  name: gitops-depl-invalid-revision
+  namespace: gitops-service-e2e
+spec:
+  source:
+    path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+    repoURL: https://github.com/redhat-appstudio/managed-gitops
+    targetRevision: invalid-branch
+  type: automated
+status:
+  health:
+    status: Healthy
+  reconciledState:
+    destination:
+      name: ""
+      namespace: gitops-service-e2e
+    source:
+      branch: invalid-branch
+      repoURL: https://github.com/redhat-appstudio/managed-gitops
+      path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: gitops-service-argocd
+spec:
+  destination:
+    name: in-cluster
+    namespace: gitops-service-e2e
+  project: default
+  source:
+    path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+    repoURL: https://github.com/redhat-appstudio/managed-gitops
+    targetRevision: invalid-branch
+  syncPolicy:
+    automated:
+      allowEmpty: true
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - PrunePropagationPolicy=background
+status:
+  conditions:
+    - message:
+        "rpc error: code = Unknown desc = Unable to resolve 'invalid-branch'
+        to a commit SHA"
+      type: ComparisonError
+  health:
+    status: Healthy
+  summary: {}
+  sync:
+    comparedTo:
+      destination:
+        name: in-cluster
+        namespace: gitops-service-e2e
+      source:
+        path: resources/test-data/sample-gitops-repository/environments/overlays/dev
+        repoURL: https://github.com/redhat-appstudio/managed-gitops
+        targetRevision: invalid-branch
+    status: Unknown

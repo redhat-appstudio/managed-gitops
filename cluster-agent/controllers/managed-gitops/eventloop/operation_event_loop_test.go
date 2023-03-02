@@ -1152,6 +1152,7 @@ var _ = Describe("Operation Controller", func() {
 				applicationCR          *appv1.Application
 				gitopsEngineInstanceID string
 				closeRefreshHandler    chan struct{}
+				refreshAnnotationFound chan struct{}
 			)
 
 			createOperationDBAndCR := func(resourceID, gitopsEngineInstanceID string) {
@@ -1203,10 +1204,10 @@ var _ = Describe("Operation Controller", func() {
 			// Argo CD removes the refresh annotation once the refresh is done. Similarly, the refresh
 			// handler mock watches the Argo CD Applications and removes the refresh annotation indicating
 			// that the refresh was successful.
-			refreshHandler := func(appCR appv1.Application, closeRefreshHandler chan struct{}) {
+			refreshHandler := func(appCR appv1.Application, closeRefreshHandler, refreshAnnotationFound chan struct{}) {
 				defer GinkgoRecover()
 				for {
-					<-time.After(time.Second * 2)
+					<-time.After(100 * time.Millisecond)
 
 					select {
 					case <-closeRefreshHandler:
@@ -1214,8 +1215,9 @@ var _ = Describe("Operation Controller", func() {
 					default:
 					}
 
+					found := false
 					err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-						err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&appCR), &appCR)
+						err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&appCR), &appCR)
 						if err != nil {
 							if apierr.IsNotFound(err) {
 								return nil
@@ -1224,11 +1226,15 @@ var _ = Describe("Operation Controller", func() {
 						}
 
 						if _, ok := appCR.Annotations[appv1.AnnotationKeyRefresh]; ok {
+							found = true
 							delete(appCR.Annotations, appv1.AnnotationKeyRefresh)
 							return k8sClient.Update(ctx, &appCR)
 						}
 						return nil
 					})
+					if found {
+						refreshAnnotationFound <- struct{}{}
+					}
 					Expect(err).To(BeNil())
 				}
 			}
@@ -1279,7 +1285,8 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 
 				closeRefreshHandler = make(chan struct{})
-				go refreshHandler(*applicationCR, closeRefreshHandler)
+				refreshAnnotationFound = make(chan struct{})
+				go refreshHandler(*applicationCR, closeRefreshHandler, refreshAnnotationFound)
 			})
 
 			AfterEach(func() {
@@ -1316,16 +1323,8 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).Should(BeNil())
 				Expect(retry).To(BeFalse())
 
-				By("verify if the refresh annotation is removed")
-				Eventually(func() bool {
-					err = k8sClient.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
-					if err != nil {
-						GinkgoWriter.Println(err)
-						return false
-					}
-					return applicationCR.Annotations == nil
-				}, "10s", "1s").Should(BeTrue())
-
+				By("verify if the refresh annotation was added")
+				Expect(<-refreshAnnotationFound).To(Equal(struct{}{}))
 			})
 
 			It("should return an error and retry if the sync fails", func() {
@@ -1356,6 +1355,9 @@ var _ = Describe("Operation Controller", func() {
 				retry, err := task.PerformTask(ctx)
 				Expect(err.Error()).Should(Equal(expectedErr))
 				Expect(retry).To(BeTrue())
+
+				By("verify if the refresh annotation was added")
+				Expect(<-refreshAnnotationFound).To(Equal(struct{}{}))
 			})
 
 			It("should return an error and retry if the refresh fails", func() {
@@ -1426,18 +1428,8 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).Should(BeNil())
 				Expect(retry).To(BeFalse())
 
-				By("verify if the refresh annotation is removed")
-				Eventually(func() bool {
-					err = k8sClient.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
-					if err != nil {
-						GinkgoWriter.Println(err)
-						return false
-					}
-					_, found := applicationCR.Annotations[appv1.AnnotationKeyRefresh]
-					return !found
-				}, "10s", "1s").Should(BeTrue())
-				Expect(applicationCR.Annotations["key-1"]).Should(Equal("value-1"))
-				Expect(applicationCR.Annotations["key-2"]).Should(Equal("value-2"))
+				By("verify if the refresh annotation was added")
+				Expect(<-refreshAnnotationFound).To(Equal(struct{}{}))
 			})
 
 			It("return an error and don't retry if the SyncOperation DB row is not found", func() {

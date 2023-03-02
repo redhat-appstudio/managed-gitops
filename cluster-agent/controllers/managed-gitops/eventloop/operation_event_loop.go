@@ -566,6 +566,8 @@ func refreshApplication(ctx context.Context, k8sClient client.Client, appName, a
 		},
 	}
 
+	// Update the application with refresh annotation if it is not present already.
+	// RetryOnConflict retries updating the application if there are conflicts.
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(appCR), appCR)
 		if err != nil {

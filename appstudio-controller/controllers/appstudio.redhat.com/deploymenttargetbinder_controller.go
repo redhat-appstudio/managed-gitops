@@ -18,8 +18,11 @@ package appstudioredhatcom
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	applicationv1alpha1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/util/retry"
@@ -40,6 +43,12 @@ type DeploymentTargetClaimReconciler struct {
 
 const (
 	annBindCompleted string = "dt.appstudio.redhat.com/bind-complete"
+
+	annBoundByController string = "dt.appstudio.redhat.com/bound-by-controller"
+
+	annTargetProvisioner string = "provionser.appstudio.redhat.com/dt-provisioner"
+
+	annBinderValueYes string = "yes"
 )
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -68,7 +77,11 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 	// If the binding is alredy done, we need to check if the DTC is still bound to a DT
 	// and update the status accordingly
 	if isBindingCompleted(dtc) {
-		// Is targetName field optional?
+		// TargetName shouldn't be empty if the DTC is already bounded
+		if dtc.Spec.TargetName == "" {
+			return ctrl.Result{}, fmt.Errorf("DeploymentTarget name not set for a bounded DeploymentTargetClaim: %s", dtc.Name)
+		}
+
 		// verify if the DeploymentTarget specified by the DTC still exists.
 		dt := applicationv1alpha1.DeploymentTarget{
 			ObjectMeta: metav1.ObjectMeta{
@@ -78,19 +91,216 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 		}
 
 		if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&dt), &dt); err != nil {
+			if apierr.IsNotFound(err) {
+				// The DTC lost its bounded DT. The DT doesn't exist anymore because it got deleted.
+				log.Info("DeploymentTarget doesn't exist for the DeploymentTargetClaim", "DeploymentTarget", dt.Name, "Namespace", dt.Namespace)
+
+				// Update the DTC phase to Lost.
+				err := updateDTCStatusPhase(ctx, r.Client, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Lost)
+				return ctrl.Result{}, err
+			}
 			return ctrl.Result{}, err
 		}
 
 		log.Info("DeploymentTarget exists for the DeploymentTargetClaim", "DeploymentTarget", dt.Name, "Namespace", dt.Namespace)
 
-		err := updateDTCPhase(ctx, r.Client, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Bound)
+		// Since the binding is complete, we update the status and handle the next DTC.
+		err := updateDTCStatusPhase(ctx, r.Client, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Bound)
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{}, nil
+	// If the user doesn't set the DT, check if there is a DT available or if it needs to be provisioned.
+	if dtc.Spec.TargetName == "" {
+		isBound, err := handleDynamicDTCProvisioning(ctx, r.Client, &dtc)
+		if err != nil {
+			log.Error(err, "failed to handle DeploymentTargetClaim for dynamic provsioning")
+			return ctrl.Result{}, err
+		}
+		var res ctrl.Result
+		if !isBound {
+			log.Info("Waiting for the DeploymentTarget to be dynamically created")
+			res = ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: time.Second * 3,
+			}
+		}
+		return res, nil
+	}
+
+	// Get the DT specified by the user in the DTC
+	dt := applicationv1alpha1.DeploymentTarget{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      dtc.Spec.TargetName,
+			Namespace: dtc.Namespace,
+		},
+	}
+
+	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&dt), &dt); err != nil {
+		if apierr.IsNotFound(err) {
+			// QUESTION: Should we wait until the DT is created?
+			log.Info("Waiting for DeploymentTarget to be created", "DeploymentTarget", dt.Name, "Namespace", dt.Namespace)
+			return ctrl.Result{
+				Requeue:      true,
+				RequeueAfter: time.Second * 3,
+			}, nil
+		}
+		return ctrl.Result{}, err
+
+	}
+
+	if dt.Spec.ClaimRef != "" {
+		if dt.Spec.ClaimRef == dtc.Spec.TargetName {
+			// Both DT and DTC reference each other. So bind them together.
+			err := bindDeploymentTargetCliamToTarget(ctx, r.Client, &dtc, dt)
+			if err != nil {
+				log.Error(err, "failed to bind DeploymentTargetClaim to the DeploymentTarget", "DeploymentTargetName", dt.Name, "Namespace", dt.Name)
+				return ctrl.Result{}, err
+			}
+			log.Info("DeploymentTargetClaim bound to DeploymentTarget", "DeploymentTargetName", dt.Name, "Namespace", dt.Namespace)
+			return ctrl.Result{}, nil
+		} else {
+			log.Info("DeploymentTargetClaim wants to claim a DeploymentTarget that was already claimed", "DeploymentTargetName", dt.Name, "Namespace", dt.Namespace)
+			return ctrl.Result{}, nil
+		}
+	} else {
+		// At this stage, DT isn't claimed by anyone. The current DTC can try to claim it.
+
+		// QUESTION: How to check if the DT satisfies the DTC?
+
+		// Claim the DeploymentTarget by setting the claimRef field of DT
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&dt), &dt); err != nil {
+				return err
+			}
+
+			dt.Spec.ClaimRef = dtc.Name
+			return r.Client.Update(ctx, &dt)
+		})
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		err = bindDeploymentTargetCliamToTarget(ctx, r.Client, &dtc, dt)
+		if err != nil {
+			log.Error(err, "failed to bind DeploymentTargetClaim to the DeploymentTarget", "DeploymentTargetName", dt.Name, "Namespace", dt.Name)
+			return ctrl.Result{}, err
+		}
+		log.Info("DeploymentTargetClaim bound to DeploymentTarget", "DeploymentTargetName", dt.Name, "Namespace", dt.Namespace)
+	}
+
+	// Update the status of DTC to bound.
+	err := updateDTCStatusPhase(ctx, r.Client, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Bound)
+	return ctrl.Result{}, err
 }
 
-func updateDTCPhase(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim, targetPhase applicationv1alpha1.DeploymentTargetClaimPhase) error {
+// QUESTION: Should both dt.spec.claimRef and dtc.spec.targetName be set to consider them as bounded?
+// bindDeploymentTargetCliamToTarget binds the given DeploymentTarget to a DeploymentTargetClaim by
+// setting the dtc.spec.targetName to the DT name and adding the "bound-by-controller" annotation to the DTC.
+func bindDeploymentTargetCliamToTarget(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim, dt applicationv1alpha1.DeploymentTarget) error {
+	// Set the target name of DTC and update it as Bounded.
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dtc), dtc); err != nil {
+			return nil
+		}
+
+		dtc.Spec.TargetName = dt.Name
+
+		if dtc.Annotations == nil {
+			dtc.Annotations = map[string]string{}
+		}
+
+		val, found := dtc.Annotations[annBoundByController]
+		if found && val == annBinderValueYes {
+			return nil
+		}
+
+		dtc.Annotations[annBoundByController] = annBinderValueYes
+		return k8sClient.Update(ctx, dtc)
+	})
+}
+
+// handleBoundedDeploymentTargetClaim handles the DTCs that are already bounded i.e have the "bind-complete" annotation.
+// It checks if the DTC is still bound to DTC and updates the status accordingly.
+func handleBoundedDeploymentTargetClaim() {
+
+}
+
+// QUESTION: What is the exact meaning of finding the best match for DTC?
+// handleDynamicDTCProvisioning processes the DeploymentTargetClaim for dynamic provisioning.
+// It binds if there is a matching DT else it will mark the DTC for provisioning. It returns:
+// True: if the DTC is binded.
+// False: if the DTC is not binded and should be requeued.
+func handleDynamicDTCProvisioning(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim) (bool, error) {
+	dtList := &applicationv1alpha1.DeploymentTargetList{}
+	if err := k8sClient.List(ctx, dtList, &client.ListOptions{Namespace: dtc.Namespace}); err != nil {
+		return false, err
+	}
+
+	// QUESTION: Before we randomly assign a DT, we need to perform certain checks?
+	// Should we check if the DT is not claimed by others?
+	// Should the DT and DTC belong to the same class?
+	// And should they both target the same namespace?
+	// Or should we find a DT that claims the current DT.
+
+	// Check if a DT has been created and is available for binding.
+	if len(dtList.Items) != 0 {
+		for _, dt := range dtList.Items {
+			if dt.Spec.ClaimRef == dtc.Name {
+				if err := bindDeploymentTargetCliamToTarget(ctx, k8sClient, dtc, dt); err != nil {
+					return false, err
+				}
+
+				// Update the status of DTC and DT to bound.
+				if err := updateDTCStatusPhase(ctx, k8sClient, dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Bound); err != nil {
+					return false, err
+				}
+				if err := updateDTStatusPhase(ctx, k8sClient, &dt, applicationv1alpha1.DeploymentTargetPhase_Bound); err != nil {
+					return false, err
+				}
+				return true, nil
+			}
+		}
+	}
+
+	// If DTC is not configured with a class name, update its status as Pending and return.
+	if dtc.Spec.DeploymentTargetClassName == "" {
+		return false, updateDTCStatusPhase(ctx, k8sClient, dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Pending)
+	}
+
+	// DTC is configured with a class name. So mark the DTC for dynamic provisioning.
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dtc), dtc); err != nil {
+			return nil
+		}
+
+		if dtc.Annotations == nil {
+			dtc.Annotations = map[string]string{}
+		}
+
+		dtc.Annotations[annTargetProvisioner] = string(dtc.Spec.DeploymentTargetClassName)
+		return k8sClient.Update(ctx, dtc)
+	})
+	if err != nil {
+		return false, err
+	}
+
+	// QUESTION: What should be the status after marking the DTC for provisioning?
+	return false, updateDTCStatusPhase(ctx, k8sClient, dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Pending)
+}
+
+// func updateObject(ctx context.Context, k8sClient client.Client, obj client.Object, modify func(client.Object)) error {
+// 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+// 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(obj), obj); err != nil {
+// 			return err
+// 		}
+
+// 		modify(obj)
+
+// 		return k8sClient.Update()
+// 	})
+// }
+
+func updateDTCStatusPhase(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim, targetPhase applicationv1alpha1.DeploymentTargetClaimPhase) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dtc), dtc); err != nil {
 			return err
@@ -103,6 +313,22 @@ func updateDTCPhase(ctx context.Context, k8sClient client.Client, dtc *applicati
 		dtc.Status.Phase = targetPhase
 
 		return k8sClient.Status().Update(ctx, dtc)
+	})
+}
+
+func updateDTStatusPhase(ctx context.Context, k8sClient client.Client, dt *applicationv1alpha1.DeploymentTarget, targetPhase applicationv1alpha1.DeploymentTargetPhase) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dt), dt); err != nil {
+			return err
+		}
+
+		if dt.Status.Phase == targetPhase {
+			return nil
+		}
+
+		dt.Status.Phase = targetPhase
+
+		return k8sClient.Status().Update(ctx, dt)
 	})
 }
 

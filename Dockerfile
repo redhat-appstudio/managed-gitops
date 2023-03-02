@@ -50,6 +50,7 @@ COPY --from=builder workspace/backend/bin/manager /usr/local/bin/gitops-service-
 COPY --from=builder workspace/cluster-agent/bin/manager /usr/local/bin/gitops-service-cluster-agent
 COPY --from=builder workspace/appstudio-controller/bin/manager /usr/local/bin/appstudio-controller
 COPY --from=builder workspace/utilities/init-container/bin/init-container /init-container
+COPY --from=builder workspace/utilities/db-migration/bin/db-migrate /usr/local/bin/db-migrate
 
 # Copy the database migration versions
 COPY --from=builder workspace/utilities/db-migration/migrations /migrations

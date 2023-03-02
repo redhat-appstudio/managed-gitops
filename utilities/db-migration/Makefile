@@ -20,3 +20,7 @@ vet:
 .PHONY: clean
 clean:
 	rm -rf vendor/ bin/
+
+.PHONY: build
+build: fmt vet lint ## Build the DB migration binary
+	go build -o bin/db-migrate main.go

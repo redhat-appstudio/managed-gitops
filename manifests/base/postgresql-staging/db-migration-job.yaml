@@ -1,0 +1,24 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migrate-job
+  namespace: gitops
+spec:
+  template:
+    metadata:
+      namespace: gitops
+    spec:
+      containers:
+        - image: quay.io/redhat-appstudio/gitops-service:latest
+          name: db-migrate-job
+          resources: {}
+          command: ["/usr/local/bin/db-migrate"]
+          env:
+            - name: DB_ADDR
+              value: gitops-postgresql-staging.gitops.svc.cluster.local
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: gitops-postgresql-staging
+                  key: postgresql-password
+      restartPolicy: Never

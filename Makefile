@@ -97,6 +97,12 @@ build-init-container-binary: ## Build init-controller binary
 test-init-container-binary: ## Run test for init-controller binary only
 	cd $(MAKEFILE_ROOT)/utilities/init-container && make test
 
+### --- db - migration  --- ###
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
+build-db-migration: ## Build init-controller binary
+	cd $(MAKEFILE_ROOT)/utilities/db-migration && make build
+
 ### --- A r g o C D    W e b   U I --- ###
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 deploy-argocd: ## Install ArgoCD vanilla Web UI
@@ -151,7 +157,7 @@ clean: ## remove the bin and vendor folders from each component
 	cd $(MAKEFILE_ROOT)/tests-e2e && make clean
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && make clean
 
-build: build-backend build-cluster-agent build-appstudio-controller build-init-container-binary ## Build all the components - note: you do not need to do this before running start
+build: build-backend build-cluster-agent build-appstudio-controller build-init-container-binary build-db-migration ## Build all the components - note: you do not need to do this before running start
 
 docker-build: ## Build docker image -- note: you have to change the USERNAME var. Optionally change the BASE_IMAGE or TAG
 	$(DOCKER) build --build-arg ARCH=$(ARCH) -t ${IMG} $(MAKEFILE_ROOT)

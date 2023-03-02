@@ -1,3 +1,7 @@
+# Get the OS and ARCH values to be used for building the binary.
+OS ?= $(shell go env GOOS)
+ARCH ?= $(shell go env GOARCH)
+
 migration-script:
 	cd migrations && migrate create -ext sql -seq $(filename)
 
@@ -22,5 +26,5 @@ clean:
 	rm -rf vendor/ bin/
 
 .PHONY: build
-build: fmt vet lint ## Build the DB migration binary
-	go build -o bin/db-migrate main.go
+build: fmt vet ## Build the DB migration binary
+	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build -o bin/db-migrate main.go

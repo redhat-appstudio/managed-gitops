@@ -13,8 +13,17 @@ ARGO_CD_VERSION ?= v2.5.1
 # Tool to build the container image. It can be either docker or podman
 DOCKER ?= docker
 
+OS ?= $(shell go env GOOS)
 # Get the ARCH value to be used for building the binary.
 ARCH ?= $(shell go env GOARCH)
+$(info OS is ${OS})
+$(info Arch is ${ARCH})
+ifeq (${OS},darwin)
+ifeq (${ARCH},arm64)
+  $(info Mac arm64 detected)
+  ARCH=amd64
+endif
+endif
 
 help: ## Display this help menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

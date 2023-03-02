@@ -1198,8 +1198,16 @@ var _ = Describe("Operation Controller", func() {
 				err = k8sClient.Update(ctx, applicationCR)
 				Expect(err).To(BeNil())
 			}
+
+			// refreshHandler mocks the refresh handling behaviour of the Argo CD Application Controller.
+			// Argo CD removes the refresh annotation once the refresh is done. Similarly, the refresh
+			// handler mock watches the Argo CD Applications and removes the refresh annotation indicating
+			// that the refresh was successful.
 			refreshHandler := func(appCR appv1.Application, closeRefreshHandler chan struct{}) {
+				defer GinkgoRecover()
 				for {
+					<-time.After(time.Second * 2)
+
 					select {
 					case <-closeRefreshHandler:
 						return

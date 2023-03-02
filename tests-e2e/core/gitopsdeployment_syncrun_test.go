@@ -17,7 +17,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -480,21 +479,11 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 					Namespace: "gitops-service-argocd",
 				},
 			}
-			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
-				if err != nil {
-					return err
-				}
-				app.Annotations = make(map[string]string)
-				app.Annotations[appv1.AnnotationKeyRefresh] = string(appv1.RefreshTypeNormal)
-				return k8sClient.Update(ctx, app)
-			})
-			Expect(err).To(BeNil())
 
 			By("create a GitOpsDeploymentSyncRun")
 			syncRunCR := buildGitOpsDeploymentSyncRunResource("test-syncrun", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
 
-			err = k8sClient.Create(ctx, &syncRunCR)
+			err := k8sClient.Create(ctx, &syncRunCR)
 			Expect(err).To(BeNil())
 
 			By("check if the GitOpsDeployment is Synced and Healthy")

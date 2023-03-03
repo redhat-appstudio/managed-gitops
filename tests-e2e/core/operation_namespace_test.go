@@ -32,7 +32,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 		testNamespace      = fixture.GitOpsServiceE2ENamespace
 	)
 
-	Context("Operation CR in invalid namespace should be ignored", func() {
+	Context("Operation CR created in an invalid namespace should be ignored", func() {
 		var err error
 		var ctx context.Context
 
@@ -68,7 +68,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 
 		})
 
-		It("Should create Operation CR and namespace, the OperationCR.namespace created should match Argocd namespace ", func() {
+		It("should create an Operation CR in a valid namespace, and we should see the Operation is processed", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 			ctx = context.Background()
 			if fixture.IsRunningAgainstKCP() {
@@ -167,7 +167,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			Expect(dummyApplicationSpec.Spec).To(Equal(applicationCR.Spec))
 
 		})
-		It("Should create Operation CR and namespace, the OperationCR.namespace created should not match Argocd namespace ", func() {
+		It("should create an Operation CR in an invalid namespace, a non-Argo CD namespace, and we should see the Operation is never processed", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 			ctx = context.Background()
 			if fixture.IsRunningAgainstKCP() {

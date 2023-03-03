@@ -1526,9 +1526,9 @@ var _ = Describe("Operation Controller", func() {
 			})
 		})
 
-		Context("Operation namespace consistency test", func() {
+		Context("Operation CRs should only be processed if they are created in GitOpsEngineInstance namespace", func() {
 
-			It("Operation namespace should match gitopsEngineInstance's namespace", func() {
+			It("ensures that Operation should be processed if created in a GitopsEngineInstance namespace", func() {
 				err = db.SetupForTestingDBGinkgo()
 				Expect(err).To(BeNil())
 				defer dbQueries.CloseDatabase()
@@ -1615,7 +1615,8 @@ var _ = Describe("Operation Controller", func() {
 				Expect(dummyApplicationSpec.Spec).To(Equal(applicationCR.Spec))
 
 			})
-			It("Operation namespace should not match gitopsEngineInstance's namespace and error should be returned", func() {
+
+			It("ensures that Operation should not be processed if created outside a GitopsEngineInstance namespace, and error should be returned", func() {
 				By("Close database connection")
 				err = db.SetupForTestingDBGinkgo()
 				Expect(err).To(BeNil())

@@ -78,6 +78,33 @@ func createOperationInternal(ctx context.Context, waitForOperation bool, dbOpera
 		"Operation ResourceType", dbOperationParam.Resource_type,
 		"Operation OwnerUserID", clusterUserID,
 	)
+
+	// GitopsEngineInstance Namespace and OperationNamespace should match, if it doesn't match we won't process the operation further.
+	gitopsEngineInstance := db.GitopsEngineInstance{
+		Gitopsengineinstance_id: dbOperationParam.Instance_id,
+	}
+	if err = dbQueries.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstance); err != nil {
+		l.Error(err, "unable to fetch GitopsEngineInstance")
+		return nil, nil, fmt.Errorf("unable to fetch GitopsEngineInstance")
+	}
+
+	if gitopsEngineInstance.Namespace_name == "" {
+		l.Error(err, "Invalid: GitopsEngineInstance namespace is empty, GitopsEngineInstanceID: %s", gitopsEngineInstance.Gitopsengineinstance_id)
+		return nil, nil, fmt.Errorf("Invalid GitopsEngine namespace")
+
+	}
+
+	if operationNamespace == "" {
+		l.Error(err, "Invalid: Operation namespace is empty, OperationID: %s", dbOperationParam.Operation_id)
+		return nil, nil, fmt.Errorf("Invalid Operation namespace")
+
+	}
+
+	if operationNamespace != gitopsEngineInstance.Namespace_name {
+		mismatchedNamespace := "OperationNS: " + operationNamespace + " " + "GitopsEngineInstanceNS: " + gitopsEngineInstance.Namespace_name
+		return nil, nil, fmt.Errorf("Namespace mismatched in given OperationCR and existing GitopsEngineInstance " + mismatchedNamespace)
+	}
+
 	var dbOperationList []db.Operation
 	if err = dbQueries.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, dbOperationParam.Resource_id, dbOperationParam.Resource_type, &dbOperationList, clusterUserID); err != nil {
 		l.Error(err, "unable to fetch list of Operations")

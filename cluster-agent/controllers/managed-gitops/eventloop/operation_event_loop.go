@@ -326,6 +326,27 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		}
 	}
 
+	dbGitopsEngineInstance := &db.GitopsEngineInstance{
+		Gitopsengineinstance_id: dbOperation.Instance_id,
+	}
+	if err := dbQueries.GetGitopsEngineInstanceById(taskContext, dbGitopsEngineInstance); err != nil {
+
+		if db.IsResultNotFoundError(err) {
+			return nil, shouldRetryFalse, err
+		} else {
+			// some other generic error
+			log.Error(err, "Unable to retrieve gitopsEngineInstance due to generic error: "+dbGitopsEngineInstance.Gitopsengineinstance_id)
+			return nil, shouldRetryTrue, err
+		}
+	}
+
+	if operationCR.Namespace != dbGitopsEngineInstance.Namespace_name {
+		mismatchedNamespace := "OperationNS: " + operationCR.Namespace + " " + "GitopsEngineInstanceNS: " + dbGitopsEngineInstance.Namespace_name
+		err := fmt.Errorf("OperationCR namespace did not match with existing namespace of GitopsEngineInstance " + mismatchedNamespace)
+		log.Error(err, "Invalid Operation Detected, Name: "+operationCR.Name+" Namespace: "+operationCR.Namespace)
+		return nil, shouldRetryFalse, err
+	}
+
 	// If the operation has already completed (e.g. we previously ran it), then just ignore it and return
 	if dbOperation.State == db.OperationState_Completed || dbOperation.State == db.OperationState_Failed {
 		log.V(sharedutil.LogLevel_Debug).Info("Skipping Operation with state of Completed/Failed")
@@ -345,7 +366,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	}
 
 	// 3) Find the Argo CD instance that is targeted by this operation.
-	dbGitopsEngineInstance := &db.GitopsEngineInstance{
+	dbGitopsEngineInstance = &db.GitopsEngineInstance{
 		Gitopsengineinstance_id: dbOperation.Instance_id,
 	}
 	if err := dbQueries.GetGitopsEngineInstanceById(taskContext, dbGitopsEngineInstance); err != nil {

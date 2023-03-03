@@ -65,7 +65,6 @@ func EnsureCleanSlateNonKCPVirtualWorkspace() error {
 	if err != nil {
 		return err
 	}
-
 	// Clean up after tests that target the non-default Argo CD instance (only used by a few E2E tests)
 	if err := cleanUpOldArgoCDApplications(NewArgoCDInstanceDestNamespace, NewArgoCDInstanceDestNamespace, clientconfig); err != nil {
 		return err

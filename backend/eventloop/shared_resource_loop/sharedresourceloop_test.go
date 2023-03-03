@@ -296,7 +296,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			gitopsEngineInstance := db.GitopsEngineInstance{
 				Gitopsengineinstance_id: string(uuid.NewUUID()),
-				Namespace_name:          namespace.Name,
+				Namespace_name:          "gitops-service-argocd",
 				Namespace_uid:           string(namespace.UID),
 				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 			}

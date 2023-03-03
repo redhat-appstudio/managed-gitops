@@ -32,7 +32,7 @@ wait-until() {
 # Installs 'db-schema.sql' into the PostgreSQL running in Kubernetes cluster
 # With 'kube' is tests if port-forwarding is working and gives you the commands to do it manually
 if [ "$1" = "kube" ]; then
-  exit_if_binary_not_installed "kubectl" "psql"
+  exit_if_binary_not_installed "kubectl"
 
   # Get the secret
   counter=0

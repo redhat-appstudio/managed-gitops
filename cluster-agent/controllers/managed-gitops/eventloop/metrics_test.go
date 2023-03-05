@@ -77,6 +77,15 @@ var _ = Describe("OperationDB Metrics Controller", func() {
 
 			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).Build()
 
+			namespaceToCreate := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: namespace,
+					UID:  workspace.UID,
+				},
+			}
+			err = k8sClient.Create(ctx, namespaceToCreate)
+			Expect(err).To(BeNil())
+
 			err = db.SetupForTestingDBGinkgo()
 			Expect(err).To(BeNil())
 
@@ -87,7 +96,7 @@ var _ = Describe("OperationDB Metrics Controller", func() {
 			By("creating a gitops engine instance")
 			gitopsEngineInstance = &db.GitopsEngineInstance{
 				Gitopsengineinstance_id: "test-engine-instance",
-				Namespace_name:          workspace.Name,
+				Namespace_name:          namespace,
 				Namespace_uid:           string(workspace.UID),
 				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 			}

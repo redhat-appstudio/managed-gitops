@@ -180,7 +180,7 @@ jobs:
           cd $GITHUB_WORKSPACE
           ./create-dev-env.sh
 
-      - name: "Migrate database to version 10"
+      - name: "Migrate database to version x"
         run: |
           cd $GITHUB_WORKSPACE/utilities/db-migration
           go run main.go migrate_to 11

@@ -154,6 +154,8 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(err).To(BeNil())
 			Expect(usrNew).NotTo(BeNil())
 			Expect(isNewUser).To(BeFalse())
+			Expect(usrNew.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
+			usrNew.Created_on = usrOld.Created_on
 			Expect(usrOld).To(Equal(usrNew))
 
 			// To be used by AfterEach to clean up the resources created by test
@@ -195,11 +197,16 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(sharedResourceNew.IsNewInstance).To(BeFalse())
 			Expect(sharedResourceNew.IsNewClusterAccess).To(BeFalse())
 
+			Expect(sharedResourceNew.ClusterUser.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
+			sharedResourceNew.ClusterUser.Created_on = sharedResourceOld.ClusterUser.Created_on
+
+			Expect(sharedResourceNew.ManagedEnv.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
+			sharedResourceNew.ManagedEnv.Created_on = sharedResourceOld.ManagedEnv.Created_on
 			Expect(sharedResourceOld.ClusterUser).To(Equal(sharedResourceNew.ClusterUser))
-			Expect(sharedResourceOld.ManagedEnv.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
-			sharedResourceOld.ManagedEnv.Created_on = sharedResourceNew.ManagedEnv.Created_on
 			Expect(sharedResourceOld.ManagedEnv).To(Equal(sharedResourceNew.ManagedEnv))
 			Expect(sharedResourceOld.GitopsEngineInstance).To(Equal(sharedResourceNew.GitopsEngineInstance))
+			Expect(sharedResourceNew.ClusterAccess.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
+			sharedResourceNew.ClusterAccess.Created_on = sharedResourceOld.ClusterAccess.Created_on
 			Expect(sharedResourceOld.ClusterAccess).To(Equal(sharedResourceNew.ClusterAccess))
 
 			// To be used by AfterEach to clean up the resources created by test
@@ -334,6 +341,8 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(err).To(BeNil())
 			Expect(usrNew).NotTo(BeNil())
 			Expect(isNewUser).To(BeFalse())
+			Expect(usrNew.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
+			usrNew.Created_on = usrOld.Created_on
 			Expect(usrOld).To(Equal(usrNew))
 
 			// To be used by AfterEach to clean up the resources created by test

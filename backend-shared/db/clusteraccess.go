@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
 func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterAccess(ctx context.Context, clusterAccess *[]ClusterAccess) error {
@@ -69,6 +70,8 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterAccess(ctx context.Context, o
 	if IsEmpty(obj.Clusteraccess_user_id) {
 		return fmt.Errorf("primary key user_id should not be empty")
 	}
+
+	obj.Created_on = time.Now()
 
 	if err := validateFieldLength(obj); err != nil {
 		return err

@@ -3,6 +3,7 @@ package db_test
 import (
 	"context"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -80,6 +81,8 @@ var _ = Describe("ClusterAccess Tests", func() {
 				Clusteraccess_gitops_engine_instance_id: clusterAccess.Clusteraccess_gitops_engine_instance_id}
 			err = dbq.GetClusterAccessByPrimaryKey(ctx, &fetchRow)
 			Expect(err).To(BeNil())
+			Expect(fetchRow.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
+			fetchRow.Created_on = clusterAccess.Created_on
 			Expect(fetchRow).Should(Equal(clusterAccess))
 
 			affectedRows, err := dbq.DeleteClusterAccessById(ctx, fetchRow.Clusteraccess_user_id, fetchRow.Clusteraccess_managed_environment_id, fetchRow.Clusteraccess_gitops_engine_instance_id)

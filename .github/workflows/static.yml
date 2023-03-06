@@ -183,7 +183,7 @@ jobs:
       - name: "Migrate database to version 10"
         run: |
           cd $GITHUB_WORKSPACE/utilities/db-migration
-          go run main.go migrate_to 10
+          go run main.go migrate_to 11
 
       - name: "Run migration tests to add data in database"
         run: |

@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
 // Set the Special Cluster User details.
@@ -64,6 +65,8 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterUser(ctx context.Context, obj
 	if IsEmpty(obj.User_name) {
 		return fmt.Errorf("user name should not be empty")
 	}
+
+	obj.Created_on = time.Now()
 
 	if err := validateFieldLength(obj); err != nil {
 		return err

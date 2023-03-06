@@ -38,7 +38,10 @@ CREATE TABLE ClusterCredentials (
 
 	seq_id serial,
 
-	allowinsecure_skiptlsverify BOOLEAN DEFAULT FALSE
+	allowinsecure_skiptlsverify BOOLEAN DEFAULT FALSE,
+
+	 -- When ClusterCredentials was created, which allow us to tell how old the resources are
+	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- GitopsEngineCluster
@@ -118,7 +121,10 @@ CREATE TABLE ClusterUser (
 	-- more consistent with the user configuration we are operating within.
 	user_name VARCHAR (256) NOT NULL UNIQUE,
 
-	seq_id serial
+	seq_id serial,
+
+	 -- When ClusterUser was created, which allow us to tell how old the resources are
+	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 
@@ -146,6 +152,9 @@ CREATE TABLE ClusterAccess (
 	CONSTRAINT fk_gitopsengineinstance_id FOREIGN KEY (clusteraccess_gitops_engine_instance_id) REFERENCES GitopsEngineInstance(gitopsengineinstance_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 	
 	seq_id serial,
+
+	 -- When ClusterAccess was created, which allow us to tell how old the resources are
+	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	
 	-- All fields of the cluster are part of the primary key (not seq_uid), and in addition we have indexes
 	-- below for quickly locating a subset of the table.

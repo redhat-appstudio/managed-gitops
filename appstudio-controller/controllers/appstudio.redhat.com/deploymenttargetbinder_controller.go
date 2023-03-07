@@ -37,9 +37,11 @@ type DeploymentTargetClaimReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=appstudio.redhat.com.redhat.com,resources=deploymenttargetclaims,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=appstudio.redhat.com.redhat.com,resources=deploymenttargetclaims/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=appstudio.redhat.com.redhat.com,resources=deploymenttargetclaims/finalizers,verbs=update
+//+kubebuilder:rbac:groups=appstudio.redhat.com,resources=deploymenttargetclaims,verbs=get;list;watch;update;patch
+//+kubebuilder:rbac:groups=appstudio.redhat.com,resources=deploymenttargetclaims/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=appstudio.redhat.com,resources=deploymenttargetclaims/finalizers,verbs=update
+//+kubebuilder:rbac:groups=appstudio.redhat.com,resources=deploymenttargets,verbs=get;list;watch;update;patch
+//+kubebuilder:rbac:groups=appstudio.redhat.com,resources=deploymenttargets/status,verbs=get;update;patch
 
 const (
 	annBindCompleted string = "dt.appstudio.redhat.com/bind-complete"

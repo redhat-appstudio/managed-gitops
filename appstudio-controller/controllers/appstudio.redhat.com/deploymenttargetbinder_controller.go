@@ -49,6 +49,9 @@ const (
 	annTargetProvisioner string = "provionser.appstudio.redhat.com/dt-provisioner"
 
 	annBinderValueYes string = "yes"
+
+	// binderRequeueDuration indicates that the binder needs to reconcile after this duration.
+	binderRequeueDuration time.Duration = 20 * time.Second
 )
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -95,7 +98,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 			log.Info("Waiting for the DeploymentTarget to be dynamically created")
 			res = ctrl.Result{
 				Requeue:      true,
-				RequeueAfter: time.Second * 3,
+				RequeueAfter: binderRequeueDuration,
 			}
 		}
 		return res, nil
@@ -113,9 +116,15 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 		if apierr.IsNotFound(err) {
 			// QUESTION: Should we wait until the DT is created?
 			log.Info("Waiting for DeploymentTarget to be created", "DeploymentTarget", dt.Name, "Namespace", dt.Namespace)
+
+			// Update the DTC status as Pending and wait for DT to be created.
+			if err := updateDTCStatusPhase(ctx, r.Client, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Pending); err != nil {
+				return ctrl.Result{}, err
+			}
+
 			return ctrl.Result{
 				Requeue:      true,
-				RequeueAfter: time.Second * 3,
+				RequeueAfter: binderRequeueDuration,
 			}, nil
 		}
 		return ctrl.Result{}, err
@@ -123,7 +132,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 	}
 
 	if dt.Spec.ClaimRef != "" {
-		if dt.Spec.ClaimRef == dtc.Spec.TargetName {
+		if dt.Spec.ClaimRef == dtc.Name {
 			// Both DT and DTC reference each other. So bind them together.
 			err := bindDeploymentTargetCliamToTarget(ctx, r.Client, &dtc, dt)
 			if err != nil {
@@ -131,9 +140,8 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 				return ctrl.Result{}, err
 			}
 			log.Info("DeploymentTargetClaim bound to DeploymentTarget", "DeploymentTargetName", dt.Name, "Namespace", dt.Namespace)
-			return ctrl.Result{}, nil
 		} else {
-			// QUESTION: What should be the status here?
+			// QUESTION: What should be the status here and should we return an error?
 			log.Info("DeploymentTargetClaim wants to claim a DeploymentTarget that was already claimed", "DeploymentTargetName", dt.Name, "Namespace", dt.Namespace)
 			return ctrl.Result{}, nil
 		}
@@ -302,6 +310,9 @@ func handleDynamicDTCProvisioning(ctx context.Context, k8sClient client.Client, 
 // }
 
 func updateDTCStatusPhase(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim, targetPhase applicationv1alpha1.DeploymentTargetClaimPhase) error {
+	if dtc.Status.Phase == targetPhase {
+		return nil
+	}
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dtc), dtc); err != nil {
 			return err
@@ -318,6 +329,9 @@ func updateDTCStatusPhase(ctx context.Context, k8sClient client.Client, dtc *app
 }
 
 func updateDTStatusPhase(ctx context.Context, k8sClient client.Client, dt *applicationv1alpha1.DeploymentTarget, targetPhase applicationv1alpha1.DeploymentTargetPhase) error {
+	if dt.Status.Phase == targetPhase {
+		return nil
+	}
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dt), dt); err != nil {
 			return err

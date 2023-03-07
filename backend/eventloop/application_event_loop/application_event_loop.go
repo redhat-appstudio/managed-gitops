@@ -127,10 +127,16 @@ type applicationEventQueueLoopState struct {
 	activeSyncOperationEvent   *RequestMessage
 	waitingSyncOperationEvents []*RequestMessage
 
-	deploymentEventRunner         chan *eventlooptypes.EventLoopEvent
+	// Channel which can be used to communicate with the active deployment event runner
+	deploymentEventRunner chan *eventlooptypes.EventLoopEvent
+
+	// deploymentEventRunnerShutdown is true if the runner has shut down, false otherwise
 	deploymentEventRunnerShutdown bool
 
-	syncOperationEventRunner         chan *eventlooptypes.EventLoopEvent
+	// Channel which can be used to communicate with the active sync event runner
+	syncOperationEventRunner chan *eventlooptypes.EventLoopEvent
+
+	// syncOperationEventRunnerShutdown is true if the runner has shut down, false otherwise
 	syncOperationEventRunnerShutdown bool
 }
 
@@ -169,14 +175,13 @@ func applicationEventQueueLoop(ctx context.Context, k8sClient client.Client,
 	// Start the ticker, which will -- every X seconds -- instruct the GitOpsDeployment CR fields to update
 	startNewStatusUpdateTimer(ctx, k8sClient, input, log)
 
-out:
 	for {
 		// Block on waiting for more events for this application
 		newEvent := <-input
 
-		breakOut := processApplicationEventQueueLoopMessage(ctx, newEvent, &state, input, k8sClient, log)
-		if breakOut {
-			break out
+		// The event loop will be terminated if the application no longer exists
+		if terminateEventLoop := processApplicationEventQueueLoopMessage(ctx, newEvent, &state, input, k8sClient, log); terminateEventLoop {
+			break
 		}
 	}
 }
@@ -195,7 +200,6 @@ func processApplicationEventQueueLoopMessage(ctx context.Context, newEvent Reque
 		if !(eventLoopMessage.EventType == eventlooptypes.UpdateDeploymentStatusTick && disableDeploymentStatusTickLogging) {
 			log.V(logutil.LogLevel_Debug).Info("applicationEventQueueLoop received event",
 				"event", eventlooptypes.StringEventLoopEvent(eventLoopMessage))
-
 		}
 	}
 

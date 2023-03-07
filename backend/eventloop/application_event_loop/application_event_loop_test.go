@@ -2,7 +2,6 @@ package application_event_loop
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -143,8 +142,6 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 
 				It("should add the new event to the waiting loop, but not queue it", func() {
 
-					fmt.Println("pre-meow")
-
 					existingActiveMessage = &RequestMessage{
 						Message: eventlooptypes.EventLoopMessage{
 							MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
@@ -215,6 +212,261 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 					Expect(state.activeSyncOperationEvent).To(BeNil())
 				})
 			})
+		})
+
+		Context("Deployment event tests", func() {
+
+			When("there are no active deploy events, and an event is sent to the queue", func() {
+
+				It("should set a new active event", func() {
+					newEvent := RequestMessage{
+						Message: eventlooptypes.EventLoopMessage{
+							MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
+							Event: &eventlooptypes.EventLoopEvent{
+								EventType:   eventlooptypes.DeploymentModified,
+								ReqResource: eventlooptypes.GitOpsDeploymentTypeName,
+								WorkspaceID: string(workspaceUID),
+							},
+							ShutdownSignalled: false,
+						},
+						ResponseChan: responseChan,
+					}
+
+					shouldTerminate := processApplicationEventQueueLoopMessage(ctx, newEvent, &state, input, k8sClient, klog)
+					Expect(shouldTerminate).To(BeFalse())
+
+					event := <-state.deploymentEventRunner
+					Expect(event).To(Equal(newEvent.Message.Event))
+					Expect(state.waitingDeploymentEvents).To(HaveLen(0))
+					Expect(state.activeDeploymentEvent.Message).To(Equal(newEvent.Message))
+				})
+
+			})
+
+			When("there are are already active deploy events, and a new event is sent to the queue", Ordered, func() {
+
+				var existingActiveMessage *RequestMessage
+				var newEvent RequestMessage
+
+				It("should add the new event to the waiting loop, but not queue it", func() {
+
+					existingActiveMessage = &RequestMessage{
+						Message: eventlooptypes.EventLoopMessage{
+							MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
+							Event: &eventlooptypes.EventLoopEvent{
+								ReqResource: eventlooptypes.GitOpsDeploymentTypeName,
+								WorkspaceID: "existing-event",
+							},
+						},
+					}
+
+					state.activeDeploymentEvent = existingActiveMessage
+
+					newEvent = RequestMessage{
+						Message: eventlooptypes.EventLoopMessage{
+							MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
+							Event: &eventlooptypes.EventLoopEvent{
+								EventType:   eventlooptypes.DeploymentModified,
+								ReqResource: eventlooptypes.GitOpsDeploymentTypeName,
+								WorkspaceID: string(workspaceUID),
+							},
+							ShutdownSignalled: false,
+						},
+						ResponseChan: responseChan,
+					}
+
+					shouldTerminate := processApplicationEventQueueLoopMessage(ctx, newEvent, &state, input, k8sClient, klog)
+
+					Expect(shouldTerminate).To(BeFalse())
+					Consistently(state.deploymentEventRunner).ShouldNot(Receive(), "it should not queue a new event, as an existing event is already active")
+					Expect(state.waitingDeploymentEvents).To(HaveLen(1))
+					Expect(*state.waitingDeploymentEvents[0]).To(Equal(newEvent), "our new event should be waiting to be processed")
+					Expect(*state.activeDeploymentEvent).To(Equal(*existingActiveMessage), "the old active event should still be active")
+
+				})
+
+				It("should queue the new event, on work complete of the old event", func() {
+					workComplete := RequestMessage{
+						Message: eventlooptypes.EventLoopMessage{
+							MessageType:       eventlooptypes.ApplicationEventLoopMessageType_WorkComplete,
+							Event:             existingActiveMessage.Message.Event,
+							ShutdownSignalled: false,
+						},
+						ResponseChan: nil,
+					}
+
+					shouldTerminate := processApplicationEventQueueLoopMessage(ctx, workComplete, &state, input, k8sClient, klog)
+					Expect(shouldTerminate).To(BeFalse())
+
+					event := <-state.deploymentEventRunner
+					Expect(event).To(Equal(newEvent.Message.Event))
+					Expect(state.waitingDeploymentEvents).To(HaveLen(0))
+					Expect(state.activeDeploymentEvent.Message).To(Equal(newEvent.Message))
+
+				})
+				It("should have no active events once the new event completes, and should respect shutdown signalled", func() {
+					workComplete := RequestMessage{
+						Message: eventlooptypes.EventLoopMessage{
+							MessageType:       eventlooptypes.ApplicationEventLoopMessageType_WorkComplete,
+							Event:             newEvent.Message.Event,
+							ShutdownSignalled: true,
+						},
+						ResponseChan: nil,
+					}
+					shouldTerminate := processApplicationEventQueueLoopMessage(ctx, workComplete, &state, input, k8sClient, klog)
+					Expect(shouldTerminate).To(BeFalse())
+					Expect(state.deploymentEventRunnerShutdown).To(BeTrue())
+					Expect(state.waitingDeploymentEvents).To(HaveLen(0))
+					Expect(state.activeDeploymentEvent).To(BeNil())
+				})
+			})
+		})
+
+		Context("ManagedEnvironment event tests", func() {
+
+			When("A ManagedEnvironment event is sent to application event queue loop", Ordered, func() {
+
+				var newEvent RequestMessage
+
+				It("should queue the ManagedEnvironment event as a deployment, as this is where ManagedEnv events are processed", func() {
+					newEvent = RequestMessage{
+						Message: eventlooptypes.EventLoopMessage{
+							MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
+							Event: &eventlooptypes.EventLoopEvent{
+								EventType:   eventlooptypes.ManagedEnvironmentModified,
+								ReqResource: eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName,
+								WorkspaceID: string(workspaceUID),
+							},
+							ShutdownSignalled: false,
+						},
+						ResponseChan: responseChan,
+					}
+
+					shouldTerminate := processApplicationEventQueueLoopMessage(ctx, newEvent, &state, input, k8sClient, klog)
+					Expect(shouldTerminate).To(BeFalse())
+
+					event := <-state.deploymentEventRunner
+					Expect(event).To(Equal(newEvent.Message.Event))
+					Expect(state.waitingDeploymentEvents).To(HaveLen(0))
+					Expect(state.activeDeploymentEvent.Message).To(Equal(newEvent.Message))
+
+				})
+
+				It("should handle work completed on ManagedEnvironment event", func() {
+
+					workComplete := RequestMessage{
+						Message: eventlooptypes.EventLoopMessage{
+							MessageType:       eventlooptypes.ApplicationEventLoopMessageType_WorkComplete,
+							Event:             newEvent.Message.Event,
+							ShutdownSignalled: true,
+						},
+						ResponseChan: nil,
+					}
+					shouldTerminate := processApplicationEventQueueLoopMessage(ctx, workComplete, &state, input, k8sClient, klog)
+					Expect(shouldTerminate).To(BeFalse())
+					Expect(state.deploymentEventRunnerShutdown).To(BeTrue())
+					Expect(state.waitingDeploymentEvents).To(HaveLen(0))
+					Expect(state.activeDeploymentEvent).To(BeNil())
+				})
+			})
+
+		})
+
+		Context("UpdateDeploymentStatusTick event tests", func() {
+
+			When("an UpdateDeploymentStatusTick event is sent to event loop", Ordered, func() {
+
+				It("it should set the event to active under the deployment runner", func() {
+					newEvent := RequestMessage{
+						Message: eventlooptypes.EventLoopMessage{
+							MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
+							Event: &eventlooptypes.EventLoopEvent{
+								EventType:   eventlooptypes.UpdateDeploymentStatusTick,
+								WorkspaceID: string(workspaceUID),
+							},
+							ShutdownSignalled: false,
+						},
+						ResponseChan: responseChan,
+					}
+
+					shouldTerminate := processApplicationEventQueueLoopMessage(ctx, newEvent, &state, input, k8sClient, klog)
+					Expect(shouldTerminate).To(BeFalse())
+
+					event := <-state.deploymentEventRunner
+					Expect(event).To(Equal(newEvent.Message.Event))
+					Expect(state.waitingDeploymentEvents).To(HaveLen(0))
+					Expect(state.activeDeploymentEvent.Message).To(Equal(newEvent.Message))
+
+				})
+
+				It("should start a new status update goroutine when work complete event is sent", func() {
+
+					Expect(state.activeDeploymentEvent).ToNot(BeNil())
+
+					workCompleteEvent := RequestMessage{
+						Message: eventlooptypes.EventLoopMessage{
+							MessageType: eventlooptypes.ApplicationEventLoopMessageType_WorkComplete,
+							Event: &eventlooptypes.EventLoopEvent{
+								EventType:   eventlooptypes.UpdateDeploymentStatusTick,
+								WorkspaceID: string(workspaceUID),
+							},
+							ShutdownSignalled: false,
+						},
+					}
+
+					shouldTerminate := processApplicationEventQueueLoopMessage(ctx, workCompleteEvent, &state, input, k8sClient, klog)
+					Expect(shouldTerminate).To(BeFalse())
+					Expect(state.activeDeploymentEvent).To(BeNil())
+
+				})
+
+			})
+		})
+
+		Context("StatusCheck event tests", func() {
+
+			When("an application event loop has not shutdown", func() {
+				It("should verify the statuscheck message indicates that the status check request was accepted", func() {
+					newEvent := RequestMessage{
+						Message: eventlooptypes.EventLoopMessage{
+							MessageType:       eventlooptypes.ApplicationEventLoopMessageType_StatusCheck,
+							ShutdownSignalled: false,
+						},
+						ResponseChan: responseChan,
+					}
+
+					shouldTerminate := processApplicationEventQueueLoopMessage(ctx, newEvent, &state, input, k8sClient, klog)
+					Expect(shouldTerminate).To(BeFalse())
+
+					event := <-newEvent.ResponseChan
+					Expect(event.RequestAccepted).To(BeTrue())
+				})
+
+			})
+
+			When("An application event loop has fully shutdown", func() {
+				It("should verify the statuscheck message should indicate that the status check request was accepted", func() {
+
+					state.deploymentEventRunnerShutdown = true
+					state.syncOperationEventRunnerShutdown = true
+
+					newEvent := RequestMessage{
+						Message: eventlooptypes.EventLoopMessage{
+							MessageType:       eventlooptypes.ApplicationEventLoopMessageType_StatusCheck,
+							ShutdownSignalled: false,
+						},
+						ResponseChan: responseChan,
+					}
+
+					shouldTerminate := processApplicationEventQueueLoopMessage(ctx, newEvent, &state, input, k8sClient, klog)
+					Expect(shouldTerminate).To(BeTrue())
+
+					event := <-newEvent.ResponseChan
+					Expect(event.RequestAccepted).To(BeFalse())
+				})
+
+			})
+
 		})
 
 	})

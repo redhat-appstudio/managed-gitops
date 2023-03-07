@@ -142,8 +142,15 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 			log.Info("DeploymentTargetClaim bound to DeploymentTarget", "DeploymentTargetName", dt.Name, "Namespace", dt.Namespace)
 		} else {
 			// QUESTION: What should be the status here and should we return an error?
-			log.Info("DeploymentTargetClaim wants to claim a DeploymentTarget that was already claimed", "DeploymentTargetName", dt.Name, "Namespace", dt.Namespace)
-			return ctrl.Result{}, nil
+			alreadyClaimedErr := fmt.Errorf("DeploymentTargetClaim %s wants to claim DeploymentTarget %s that was already claimed in namespace %s", dtc.Name, dt.Name, dtc.Namespace)
+			log.Error(alreadyClaimedErr, "invalid claim by DeploymentTargetClaim")
+
+			// Update the DTC status to Pending since the DT is not available
+			if err := updateDTCStatusPhase(ctx, r.Client, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Pending); err != nil {
+				return ctrl.Result{}, err
+			}
+
+			return ctrl.Result{}, alreadyClaimedErr
 		}
 	} else {
 		// At this stage, DT isn't claimed by anyone. The current DTC can try to claim it.

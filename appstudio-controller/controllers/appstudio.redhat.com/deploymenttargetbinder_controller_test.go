@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-var _ = FDescribe("Test DeploymentTargetClaimBinderController", func() {
+var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 	Context("Testing DeploymentTargetClaimBinderController", func() {
 
 		var (

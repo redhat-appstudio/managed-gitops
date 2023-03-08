@@ -764,6 +764,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			err := bindingReconciler.Create(ctx, binding)
 			Expect(err).To(BeNil())
 
+			// Initially there are no deployments
+			Expect(len(binding.Status.GitOpsDeployments)).To(Equal(0))
+
 			By("Checking status field before calling Reconciler")
 			binding = &appstudiosharedv1.SnapshotEnvironmentBinding{}
 			err = bindingReconciler.Get(ctx, request.NamespacedName, binding)
@@ -777,10 +780,22 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			err = bindingReconciler.Get(ctx, request.NamespacedName, binding)
 			Expect(err).To(BeNil())
 
+			// After reconciling, there should be two deployments
+			Expect(len(binding.Status.GitOpsDeployments)).To(Equal(2))
+			// We are not sure of the order
+			var indexOfComponentA, indexOfComponentB int
+			if binding.Status.GitOpsDeployments[0].ComponentName == "component-a" {
+				indexOfComponentA = 0
+				indexOfComponentB = 1
+			} else { // There are only two components, so the indices are switched
+				indexOfComponentA = 1
+				indexOfComponentB = 0
+			}
+
 			By("Updating the first GitOpsDeployment to simulate a successful sync")
 			deployment := &apibackend.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      binding.Status.GitOpsDeployments[0].GitOpsDeployment,
+					Name:      binding.Status.GitOpsDeployments[indexOfComponentA].GitOpsDeployment,
 					Namespace: binding.Namespace,
 				},
 			}
@@ -796,7 +811,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			By("Updating the second GitOpsDeployment to simulate a failed sync")
 			deployment = &apibackend.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      binding.Status.GitOpsDeployments[1].GitOpsDeployment,
+					Name:      binding.Status.GitOpsDeployments[indexOfComponentB].GitOpsDeployment,
 					Namespace: binding.Namespace,
 				},
 			}
@@ -817,15 +832,15 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			binding = &appstudiosharedv1.SnapshotEnvironmentBinding{}
 			err = bindingReconciler.Get(ctx, request.NamespacedName, binding)
 			Expect(err).To(BeNil())
-			Expect(len(binding.Status.GitOpsDeployments)).To(Equal(2))
 			// Order of components not predictable, so just check the status for the specific name
 			for _, deployment := range binding.Status.GitOpsDeployments {
-				// For test purposes, we can compare exactly the Commit IDs, although in the e2e tests, it is not deterministic
+				// For these unit test purposes, we can compare exactly the Commit IDs, although in the e2e tests,
+				// it is not deterministic.
 				if deployment.ComponentName == "component-a" {
 					Expect(deployment.GitOpsDeploymentSyncStatus).To(Equal(string(apibackend.SyncStatusCodeSynced)))
 					Expect(deployment.GitOpsDeploymentHealthStatus).To(Equal(string(apibackend.HeathStatusCodeHealthy)))
 					Expect(deployment.GitOpsDeploymentCommitID).To(Equal(deployment1Revision))
-				} else {
+				} else { // For component-b
 					Expect(deployment.GitOpsDeploymentSyncStatus).To(Equal(string(apibackend.SyncStatusCodeOutOfSync)))
 					Expect(deployment.GitOpsDeploymentHealthStatus).To(Equal(string(apibackend.HeathStatusCodeDegraded)))
 					Expect(deployment.GitOpsDeploymentCommitID).To(Equal(deployment2Revision))

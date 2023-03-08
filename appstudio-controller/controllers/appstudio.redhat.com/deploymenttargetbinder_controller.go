@@ -295,7 +295,8 @@ func handleDynamicDTCProvisioning(ctx context.Context, k8sClient client.Client, 
 
 	// Check if a DT has been created and is available for binding.
 	if len(dtList.Items) != 0 {
-		for _, dt := range dtList.Items {
+		for i := 0; i < len(dtList.Items); i++ {
+			dt := dtList.Items[i]
 			if dt.Spec.ClaimRef == dtc.Name {
 				if err := bindDeploymentTargetCliamToTarget(ctx, k8sClient, dtc, dt); err != nil {
 					return false, err

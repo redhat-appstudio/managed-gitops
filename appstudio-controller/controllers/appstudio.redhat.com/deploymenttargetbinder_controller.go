@@ -91,7 +91,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 	// Handle deletion if the DTC has a deletion timestamp set.
 	if dtc.GetDeletionTimestamp() != nil {
 		// If the DTC is bound set the status of the corresponding DT to Released
-		if isBindingCompleted(dtc) {
+		if isDTCBound(dtc) {
 			dt, err := getDTBoundByDTC(ctx, r.Client, &dtc)
 			if err != nil {
 				return ctrl.Result{}, err
@@ -383,7 +383,11 @@ func isBindingCompleted(dtc applicationv1alpha1.DeploymentTargetClaim) bool {
 	}
 
 	_, found := dtc.Annotations[annBindCompleted]
-	return found && dtc.Status.Phase == applicationv1alpha1.DeploymentTargetClaimPhase_Bound
+	return found
+}
+
+func isDTCBound(dtc applicationv1alpha1.DeploymentTargetClaim) bool {
+	return isBindingCompleted(dtc) && dtc.Status.Phase == applicationv1alpha1.DeploymentTargetClaimPhase_Bound
 }
 
 func addFinalizer(obj client.Object, finalizer string) bool {

@@ -163,7 +163,7 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 		}
 	}
 
-	statusField := []appstudioshared.BindingStatusGitOpsDeployment{}
+	var statusField []appstudioshared.BindingStatusGitOpsDeployment
 	var allErrors error
 
 	// For each deployment, check if it exists, and if it has the expected content.
@@ -183,11 +183,22 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 				allErrors = fmt.Errorf("%s.\n%s, error: %w", allErrors.Error(), errorMessage, err)
 			}
 		} else {
-			// No error: add to status
-			statusField = append(statusField, appstudioshared.BindingStatusGitOpsDeployment{
+			// If no error, provide status
+			deployment := apibackend.GitOpsDeployment{}
+			newStatusEntry := appstudioshared.BindingStatusGitOpsDeployment{
 				ComponentName:    componentName,
 				GitOpsDeployment: expectedGitOpsDeployment.Name,
-			})
+			}
+			// gosec check doesn't allow taking the address of a loop variable. Here, reassign the loop variable.
+			expectedGitOpsDeployment := expectedGitOpsDeployment
+			if err := rClient.Get(ctx, client.ObjectKeyFromObject(&expectedGitOpsDeployment), &deployment); err == nil {
+				newStatusEntry.GitOpsDeploymentSyncStatus = string(deployment.Status.Sync.Status)
+				newStatusEntry.GitOpsDeploymentHealthStatus = string(deployment.Status.Health.Status)
+				newStatusEntry.GitOpsDeploymentCommitID = deployment.Status.Sync.Revision
+			} else {
+				log.Error(err, "unable to get the deployment for "+componentName)
+			}
+			statusField = append(statusField, newStatusEntry)
 		}
 	}
 

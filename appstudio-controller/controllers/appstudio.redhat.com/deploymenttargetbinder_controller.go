@@ -50,6 +50,8 @@ const (
 
 	annTargetProvisioner string = "provionser.appstudio.redhat.com/dt-provisioner"
 
+	finalizerBinder string = "binder.appstudio.redhat.com/finalizer"
+
 	annBinderValueYes string = "yes"
 
 	// binderRequeueDuration indicates that the binder needs to reconcile after this duration.
@@ -77,6 +79,37 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 
 	if err := r.Client.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc); err != nil {
 		return ctrl.Result{}, err
+	}
+
+	// Add the deletion finalizer if it is absent.
+	if addFinalizer(&dtc, finalizerBinder) {
+		if err := r.Client.Update(ctx, &dtc); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s to DeploymentTargetClaim %s in namespace %s: %v", finalizerBinder, dtc.Name, dtc.Namespace, err)
+		}
+	}
+
+	// Handle deletion if the DTC has a deletion timestamp set.
+	if dtc.GetDeletionTimestamp() != nil {
+		// If the DTC is bound set the status of the corresponding DT to Released
+		if isBindingCompleted(dtc) {
+			dt, err := getDTBoundByDTC(ctx, r.Client, &dtc)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+
+			err = updateDTStatusPhase(ctx, r.Client, dt, applicationv1alpha1.DeploymentTargetPhase_Released)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+
+		if removeFinalizer(&dtc, finalizerBinder) {
+			if err := r.Client.Update(ctx, &dtc); err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer %s from DeploymentTargetClaim %s in namespace %s: %v", finalizerBinder, dtc.Name, dtc.Namespace, err)
+			}
+		}
+
+		return ctrl.Result{}, nil
 	}
 
 	// If the binding is alredy done, we need to check if the DTC is still bound to a DT
@@ -306,18 +339,6 @@ func handleDynamicDTCProvisioning(ctx context.Context, k8sClient client.Client, 
 	return false, updateDTCStatusPhase(ctx, k8sClient, dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Pending)
 }
 
-// func updateObject(ctx context.Context, k8sClient client.Client, obj client.Object, modify func(client.Object)) error {
-// 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-// 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(obj), obj); err != nil {
-// 			return err
-// 		}
-
-// 		modify(obj)
-
-// 		return k8sClient.Update()
-// 	})
-// }
-
 func updateDTCStatusPhase(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim, targetPhase applicationv1alpha1.DeploymentTargetClaimPhase) error {
 	if dtc.Status.Phase == targetPhase {
 		return nil
@@ -362,7 +383,63 @@ func isBindingCompleted(dtc applicationv1alpha1.DeploymentTargetClaim) bool {
 	}
 
 	_, found := dtc.Annotations[annBindCompleted]
-	return found
+	return found && dtc.Status.Phase == applicationv1alpha1.DeploymentTargetClaimPhase_Bound
+}
+
+func addFinalizer(obj client.Object, finalizer string) bool {
+	finalizers := obj.GetFinalizers()
+	for _, f := range finalizers {
+		if f == finalizer {
+			return false
+		}
+	}
+
+	finalizers = append(finalizers, finalizer)
+	obj.SetFinalizers(finalizers)
+	return true
+}
+
+func removeFinalizer(obj client.Object, finalizer string) bool {
+	finalizers := obj.GetFinalizers()
+	for i, f := range finalizers {
+		if f == finalizer {
+			finalizers = append(finalizers[:i], finalizers[i+1:]...)
+			obj.SetFinalizers(finalizers)
+			return true
+		}
+	}
+	return false
+}
+
+// getDTBoundByDTC will get the DT that is bound to a given DTC.
+// It returns the DT targetted by DTC if DTC.Spec.TargetName is set.
+// Else it will fetch the DT that is claiming the current DTC.
+func getDTBoundByDTC(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim) (*applicationv1alpha1.DeploymentTarget, error) {
+	if dtc.Spec.TargetName != "" {
+		dt := &applicationv1alpha1.DeploymentTarget{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      dtc.Spec.TargetName,
+				Namespace: dtc.Namespace,
+			},
+		}
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dt), dt); err != nil {
+			return nil, err
+		}
+		return dt, nil
+	}
+
+	dtList := applicationv1alpha1.DeploymentTargetList{}
+	if err := k8sClient.List(ctx, &dtList, &client.ListOptions{Namespace: dtc.Namespace}); err != nil {
+		return nil, err
+	}
+
+	for i, dt := range dtList.Items {
+		if dt.Spec.ClaimRef == dtc.Name {
+			return &dtList.Items[i], nil
+		}
+	}
+
+	return nil, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

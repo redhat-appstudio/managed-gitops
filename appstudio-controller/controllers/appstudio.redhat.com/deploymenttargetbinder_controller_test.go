@@ -9,6 +9,7 @@ import (
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	corev1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -54,6 +55,155 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				Client: k8sClient,
 				Scheme: scheme,
 			}
+		})
+
+		Context("Test the lifecycle of a DeploymentTargetClaim", func() {
+			It("should handle the deletion of a bounded DeploymentTargetClaim", func() {
+				// dtc := appstudiosharedv1.DeploymentTargetClaim{
+				// 	ObjectMeta: metav1.ObjectMeta{
+				// 		Name:      "test-dtc",
+				// 		Namespace: namespace,
+				// 		Annotations: map[string]string{
+				// 			annBindCompleted: annBinderValueYes,
+				// 		},
+				// 	},
+				// 	Status: appstudiosharedv1.DeploymentTargetClaimStatus{
+				// 		Phase: appstudiosharedv1.DeploymentTargetClaimPhase_Pending,
+				// 	},
+				// }
+
+				dt := getDeploymentTarget()
+
+				err := k8sClient.Create(ctx, &dt)
+				Expect(err).To(BeNil())
+
+				dtc := getDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
+					dtc.ObjectMeta.Annotations = map[string]string{
+						annBindCompleted: annBinderValueYes,
+					}
+					dtc.Spec.TargetName = dt.Name
+				},
+				)
+
+				err = k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				// dt := appstudiosharedv1.DeploymentTarget{
+				// 	ObjectMeta: metav1.ObjectMeta{
+				// 		Name:      "test-dt",
+				// 		Namespace: request.Namespace,
+				// 	},
+				// 	Spec: appstudiosharedv1.DeploymentTargetSpec{
+				// 		ClaimRef: dtc.Name,
+				// 	},
+				// 	Status: appstudiosharedv1.DeploymentTargetStatus{
+				// 		Phase: appstudiosharedv1.DeploymentTargetPhase_Pending,
+				// 	},
+				// }
+
+				By("reconcile with a DT and DTC that refer each other")
+				request := newRequest(dtc.Namespace, dtc.Name)
+				res, err := reconciler.Reconcile(ctx, request)
+				Expect(err).To(BeNil())
+				Expect(res).To(Equal(ctrl.Result{}))
+
+				By("check if the status of DT and DTC is Bound")
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
+				Expect(err).To(BeNil())
+				Expect(dtc.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetClaimPhase_Bound))
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
+				Expect(err).To(BeNil())
+				Expect(dt.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetPhase_Bound))
+
+				By("check if the binding controller has set the finalizer")
+				finalizerFound := false
+				for _, f := range dtc.GetFinalizers() {
+					if f == finalizerBinder {
+						finalizerFound = true
+						break
+					}
+				}
+				Expect(finalizerFound).To(BeTrue())
+
+				By("delete the DTC and verify if the DT is moved to Released phase")
+				err = k8sClient.Delete(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
+				Expect(apierr.IsNotFound(err)).To(BeFalse())
+				GinkgoWriter.Println(dtc.GetDeletionTimestamp())
+
+				res, err = reconciler.Reconcile(ctx, request)
+				Expect(err).To(BeNil())
+				Expect(res).To(Equal(ctrl.Result{}))
+
+				GinkgoWriter.Println(dtc.GetFinalizers())
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
+				Expect(apierr.IsNotFound(err)).To(BeTrue())
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
+				Expect(err).To(BeNil())
+				Expect(dt.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetPhase_Released))
+			})
+
+			It("should handle the deletion of an unbounded DeploymentTargetClaim", func() {
+				// dtc := appstudiosharedv1.DeploymentTargetClaim{
+				// 	ObjectMeta: metav1.ObjectMeta{
+				// 		Name:      "test-dtc",
+				// 		Namespace: namespace,
+				// 		Annotations: map[string]string{
+				// 			annBindCompleted: annBinderValueYes,
+				// 		},
+				// 	},
+				// 	Spec: appstudiosharedv1.DeploymentTargetClaimSpec{
+				// 		DeploymentTargetClassName: appstudiosharedv1.DeploymentTargetClassName("test-sandbox"),
+				// 	},
+				// 	Status: appstudiosharedv1.DeploymentTargetClaimStatus{
+				// 		Phase: appstudiosharedv1.DeploymentTargetClaimPhase_Pending,
+				// 	},
+				// }
+
+				dtc := getDeploymentTargetClaim()
+				err := k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				By("reconcile with an unbounded DTC")
+				request = newRequest(dtc.Namespace, dtc.Name)
+				res, err := reconciler.Reconcile(ctx, request)
+				Expect(err).To(BeNil())
+				Expect(res).To(Equal(ctrl.Result{
+					Requeue:      true,
+					RequeueAfter: binderRequeueDuration,
+				}))
+
+				By("check if the status of DTC is Pending")
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
+				Expect(err).To(BeNil())
+				Expect(dtc.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetClaimPhase_Pending))
+
+				By("check if the binding controller has set the finalizer")
+				finalizerFound := false
+				for _, f := range dtc.GetFinalizers() {
+					if f == finalizerBinder {
+						finalizerFound = true
+						break
+					}
+				}
+				Expect(finalizerFound).To(BeTrue())
+
+				By("delete the DTC and verify if it is removed")
+				err = k8sClient.Delete(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				res, err = reconciler.Reconcile(ctx, request)
+				Expect(err).To(BeNil())
+				Expect(res).To(Equal(ctrl.Result{}))
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
+				Expect(apierr.IsNotFound(err)).To(BeTrue())
+			})
 		})
 
 		Context("Test binder controller with a bounded DeploymentTargetClaim", func() {
@@ -115,6 +265,9 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 							annBindCompleted: annBinderValueYes,
 						},
 					},
+					Status: appstudiosharedv1.DeploymentTargetClaimStatus{
+						Phase: appstudiosharedv1.DeploymentTargetClaimPhase_Bound,
+					},
 				}
 				err := k8sClient.Create(ctx, &dtc)
 				Expect(err).To(BeNil())
@@ -142,6 +295,9 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 						Annotations: map[string]string{
 							annBindCompleted: annBinderValueYes,
 						},
+					},
+					Status: appstudiosharedv1.DeploymentTargetClaimStatus{
+						Phase: appstudiosharedv1.DeploymentTargetClaimPhase_Bound,
 					},
 				}
 				err := k8sClient.Create(ctx, &dtc)
@@ -414,28 +570,40 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 	})
 })
 
-func createDTC(name, ns, class, target string) appstudiosharedv1.DeploymentTargetClaim {
-	return appstudiosharedv1.DeploymentTargetClaim{
+func getDeploymentTargetClaim(ops ...func(dtc *appstudiosharedv1.DeploymentTargetClaim)) appstudiosharedv1.DeploymentTargetClaim {
+	dtc := appstudiosharedv1.DeploymentTargetClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: ns,
+			Name:        "test-dtc",
+			Namespace:   "test-ns",
+			Annotations: map[string]string{},
 		},
 		Spec: appstudiosharedv1.DeploymentTargetClaimSpec{
-			DeploymentTargetClassName: appstudiosharedv1.DeploymentTargetClassName(class),
-			TargetName:                target,
+			DeploymentTargetClassName: appstudiosharedv1.DeploymentTargetClassName("test-sandbox-class"),
 		},
 	}
+
+	for _, o := range ops {
+		o(&dtc)
+	}
+
+	return dtc
 }
 
-func createDT(name, ns, class, claimRef string) appstudiosharedv1.DeploymentTarget {
-	return appstudiosharedv1.DeploymentTarget{
+func getDeploymentTarget(ops ...func(dt *appstudiosharedv1.DeploymentTarget)) appstudiosharedv1.DeploymentTarget {
+	dt := appstudiosharedv1.DeploymentTarget{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: ns,
+			Name:        "test-dt",
+			Namespace:   "test-ns",
+			Annotations: map[string]string{},
 		},
 		Spec: appstudiosharedv1.DeploymentTargetSpec{
-			DeploymentTargetClassName: appstudiosharedv1.DeploymentTargetClassName(class),
-			ClaimRef:                  claimRef,
+			DeploymentTargetClassName: appstudiosharedv1.DeploymentTargetClassName("test-sandbox-class"),
 		},
 	}
+
+	for _, o := range ops {
+		o(&dt)
+	}
+
+	return dt
 }

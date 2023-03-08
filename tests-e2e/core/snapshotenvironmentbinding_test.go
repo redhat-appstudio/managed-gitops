@@ -54,7 +54,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 		})
 
-		// This test is to verify the scenario when a user creates an SnapshotEnvironmentBinding CR in Cluster.
+		// This test is to verify the scenario when a user creates an SnapshotEnvironmentBinding CR in Cluster.
 		// Then GitOps-Service should create GitOpsDeployment CR based on data given in Binding and update details of GitOpsDeployment in Status field of Binding.
 		It("Should update Status of Binding and create new GitOpsDeployment CR.", func() {
 
@@ -68,27 +68,37 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
+			gitOpsDeploymentNameFirst := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
+			gitOpsDeploymentNameSecond := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[1].Name)
+
 			// Update Status field
-			err = buildAndUpdateBindingStatus(binding.Spec.Components,
+			err = buildAndUpdateBindingAndDeploymentStatus(binding.Spec.Components,
 				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
-				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging", "resources/test-data/sample-gitops-repository/components/componentB/overlays/staging"}, &binding)
+				[]string{gitOpsDeploymentNameFirst, gitOpsDeploymentNameSecond},
+				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/dev", "resources/test-data/component-based-gitops-repository/components/componentB/overlays/dev"}, &binding)
 			Expect(err).To(Succeed())
 
 			//====================================================
 			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
 
-			gitOpsDeploymentNameFirst := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
-			gitOpsDeploymentNameSecond := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[1].Name)
-
-			// gitOpsDeploymentNameFirst := binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + binding.Spec.Components[0].Name
-			// gitOpsDeploymentNameSecond := binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + binding.Spec.Components[1].Name
-
 			expectedGitOpsDeployments := []appstudiosharedv1.BindingStatusGitOpsDeployment{
-				{ComponentName: binding.Spec.Components[0].Name, GitOpsDeployment: gitOpsDeploymentNameFirst},
-				{ComponentName: binding.Spec.Components[1].Name, GitOpsDeployment: gitOpsDeploymentNameSecond},
+				{
+					ComponentName:                binding.Spec.Components[0].Name,
+					GitOpsDeployment:             gitOpsDeploymentNameFirst,
+					GitOpsDeploymentSyncStatus:   binding.Status.GitOpsDeployments[0].GitOpsDeploymentSyncStatus,
+					GitOpsDeploymentHealthStatus: binding.Status.GitOpsDeployments[0].GitOpsDeploymentHealthStatus,
+					GitOpsDeploymentCommitID:     binding.Status.GitOpsDeployments[0].GitOpsDeploymentCommitID,
+				},
+				{
+					ComponentName:                binding.Spec.Components[1].Name,
+					GitOpsDeployment:             gitOpsDeploymentNameSecond,
+					GitOpsDeploymentSyncStatus:   binding.Status.GitOpsDeployments[1].GitOpsDeploymentSyncStatus,
+					GitOpsDeploymentHealthStatus: binding.Status.GitOpsDeployments[1].GitOpsDeploymentHealthStatus,
+					GitOpsDeploymentCommitID:     binding.Status.GitOpsDeployments[1].GitOpsDeploymentCommitID,
+				},
 			}
 
-			Eventually(binding, "3m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments))
+			Eventually(binding, "3m", "1s").Should(bindingFixture.HaveGitOpsDeploymentsWithStatusProperties(expectedGitOpsDeployments))
 
 			//====================================================
 			By("Verify that GitOpsDeployment CR created by GitOps-Service is having spec source as given in Binding.")
@@ -139,8 +149,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			// Update Status field
-			err = buildAndUpdateBindingStatus(binding.Spec.Components,
+			err = buildAndUpdateBindingAndDeploymentStatus(binding.Spec.Components,
 				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
+				[]string{},
 				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging", "resources/test-data/sample-gitops-repository/components/componentB/overlays/staging"}, &binding)
 			Expect(err).To(BeNil())
 
@@ -155,8 +166,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			By("updating the bindings status field to force an out-of-sync component")
 			// Update Status field
-			err = buildAndUpdateBindingStatus(binding.Spec.Components,
+			err = buildAndUpdateBindingAndDeploymentStatus(binding.Spec.Components,
 				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
+				[]string{},
 				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging", "resources/test-data/sample-gitops-repository/components/componentC/overlays/staging"}, &binding)
 			Expect(err).To(BeNil())
 
@@ -178,8 +190,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			By("updating the bindings status field to fix the out-of-sync component")
 			// Update Status field
-			err = buildAndUpdateBindingStatus(binding.Spec.Components,
+			err = buildAndUpdateBindingAndDeploymentStatus(binding.Spec.Components,
 				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
+				[]string{},
 				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging", "resources/test-data/sample-gitops-repository/components/componentB/overlays/staging"}, &binding)
 			Expect(err).To(BeNil())
 
@@ -206,23 +219,27 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
+			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
+
 			// Update Status field
-			err = buildAndUpdateBindingStatus(binding.Spec.Components,
+			err = buildAndUpdateBindingAndDeploymentStatus(binding.Spec.Components,
 				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
-				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &binding)
+				[]string{gitOpsDeploymentName},
+				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/dev"}, &binding)
 			Expect(err).To(Succeed())
 
 			//====================================================
 			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
 
-			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
-			// gitOpsDeploymentName := binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + binding.Spec.Components[0].Name
-
 			expectedGitOpsDeployments := []appstudiosharedv1.BindingStatusGitOpsDeployment{{
-				ComponentName: binding.Spec.Components[0].Name, GitOpsDeployment: gitOpsDeploymentName,
+				ComponentName:                binding.Spec.Components[0].Name,
+				GitOpsDeployment:             gitOpsDeploymentName,
+				GitOpsDeploymentSyncStatus:   binding.Status.GitOpsDeployments[0].GitOpsDeploymentSyncStatus,
+				GitOpsDeploymentHealthStatus: binding.Status.GitOpsDeployments[0].GitOpsDeploymentHealthStatus,
+				GitOpsDeploymentCommitID:     binding.Status.GitOpsDeployments[0].GitOpsDeploymentCommitID,
 			}}
 
-			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments))
+			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveGitOpsDeploymentsWithStatusProperties(expectedGitOpsDeployments))
 
 			//====================================================
 			By("Verify that GitOpsDeployment CR created, is having Spec.Source as given in Binding.")
@@ -247,7 +264,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			//====================================================
 			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
 
-			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments))
+			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveGitOpsDeploymentsWithStatusProperties(expectedGitOpsDeployments))
 
 			//====================================================
 			By("Verify that GitOpsDeployment CR updated by GitOps-Service is having Spec.Source as given in Binding.")
@@ -275,23 +292,27 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
+			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
+
 			// Update the Status field
-			err = buildAndUpdateBindingStatus(binding.Spec.Components,
+			err = buildAndUpdateBindingAndDeploymentStatus(binding.Spec.Components,
 				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
-				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &binding)
+				[]string{gitOpsDeploymentName},
+				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/dev"}, &binding)
 			Expect(err).To(Succeed())
 
 			//====================================================
 			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
 
-			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
-			// gitOpsDeploymentName := binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + binding.Spec.Components[0].Name
-
 			expectedGitOpsDeployments := []appstudiosharedv1.BindingStatusGitOpsDeployment{{
-				ComponentName: binding.Spec.Components[0].Name, GitOpsDeployment: gitOpsDeploymentName,
+				ComponentName:                binding.Spec.Components[0].Name,
+				GitOpsDeployment:             gitOpsDeploymentName,
+				GitOpsDeploymentSyncStatus:   binding.Status.GitOpsDeployments[0].GitOpsDeploymentSyncStatus,
+				GitOpsDeploymentHealthStatus: binding.Status.GitOpsDeployments[0].GitOpsDeploymentHealthStatus,
+				GitOpsDeploymentCommitID:     binding.Status.GitOpsDeployments[0].GitOpsDeploymentCommitID,
 			}}
 
-			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments))
+			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveGitOpsDeploymentsWithStatusProperties(expectedGitOpsDeployments))
 
 			//====================================================
 			By("Verify that GitOpsDeployment CR created, is having Spec.Source as given in Binding.")
@@ -337,9 +358,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			// Update the Status field
-			err = buildAndUpdateBindingStatus(binding.Spec.Components,
+			err = buildAndUpdateBindingAndDeploymentStatus(binding.Spec.Components,
 				"https://github.com/redhat-appstudio/managed-gitops",
-				"main", "adcda66", []string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &binding)
+				"main", "adcda66", []string{}, []string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
 
 			//====================================================
@@ -446,25 +467,30 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
-			// Update the status field
-			err = buildAndUpdateBindingStatus(binding.Spec.Components,
-				"https://github.com/redhat-appstudio/gitops-repository-template", "main", "adcda66",
-				[]string{"components/componentA/overlays/staging"}, &binding)
-			Expect(err).To(Succeed())
-
-			//====================================================
-			By("Verify that short name is used for GitOpsDeployment CR.")
-
 			// Get the short name with hash value.
 			hashValue := sha256.Sum256([]byte(binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + compName))
 			hashString := fmt.Sprintf("%x", hashValue)
 			expectedName := (binding.Name + "-" + compName)[0:180] + "-" + hashString
 
+			// Update the status field
+			err = buildAndUpdateBindingAndDeploymentStatus(binding.Spec.Components,
+				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
+				[]string{expectedName},
+				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/staging"}, &binding)
+			Expect(err).To(Succeed())
+
+			//====================================================
+			By("Verify that short name is used for GitOpsDeployment CR.")
+
 			expectedGitOpsDeployments := []appstudiosharedv1.BindingStatusGitOpsDeployment{{
-				ComponentName: binding.Spec.Components[0].Name, GitOpsDeployment: expectedName,
+				ComponentName:                binding.Spec.Components[0].Name,
+				GitOpsDeployment:             expectedName,
+				GitOpsDeploymentSyncStatus:   binding.Status.GitOpsDeployments[0].GitOpsDeploymentSyncStatus,
+				GitOpsDeploymentHealthStatus: binding.Status.GitOpsDeployments[0].GitOpsDeploymentHealthStatus,
+				GitOpsDeploymentCommitID:     binding.Status.GitOpsDeployments[0].GitOpsDeploymentCommitID,
 			}}
 
-			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments))
+			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveGitOpsDeploymentsWithStatusProperties(expectedGitOpsDeployments))
 
 			// Check no GitOpsDeployment CR found with default name (longer name).
 			gitOpsDeploymentName := binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + binding.Spec.Components[0].Name
@@ -567,21 +593,26 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
+			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
+
 			By("Update Status field of SnapshotEnvironmentBindingResource")
 			// Update the status field
-			err = buildAndUpdateBindingStatus(binding.Spec.Components,
+			err = buildAndUpdateBindingAndDeploymentStatus(binding.Spec.Components,
 				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
-				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &binding)
+				[]string{gitOpsDeploymentName},
+				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
 
 			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
-			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
-
 			expectedGitOpsDeployments := []appstudiosharedv1.BindingStatusGitOpsDeployment{{
-				ComponentName: binding.Spec.Components[0].Name, GitOpsDeployment: gitOpsDeploymentName,
+				ComponentName:                binding.Spec.Components[0].Name,
+				GitOpsDeployment:             gitOpsDeploymentName,
+				GitOpsDeploymentSyncStatus:   binding.Status.GitOpsDeployments[0].GitOpsDeploymentSyncStatus,
+				GitOpsDeploymentHealthStatus: binding.Status.GitOpsDeployments[0].GitOpsDeploymentHealthStatus,
+				GitOpsDeploymentCommitID:     binding.Status.GitOpsDeployments[0].GitOpsDeploymentCommitID,
 			}}
 
-			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments))
+			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveGitOpsDeploymentsWithStatusProperties(expectedGitOpsDeployments))
 
 			By("Verify whether `gitopsDeployment.ObjectMeta.Labels` is updated with ASEB labels")
 			gitopsDeployment := managedgitopsv1alpha1.GitOpsDeployment{
@@ -606,21 +637,27 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
+			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
+
 			By("Update Status field of SnapshotEnvironmentBindingResource")
 			// Update the status field
-			err = buildAndUpdateBindingStatus(binding.Spec.Components,
+			err = buildAndUpdateBindingAndDeploymentStatus(binding.Spec.Components,
 				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
-				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &binding)
+				[]string{gitOpsDeploymentName},
+				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
 
 			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
-			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
 
 			expectedGitOpsDeployments := []appstudiosharedv1.BindingStatusGitOpsDeployment{{
-				ComponentName: binding.Spec.Components[0].Name, GitOpsDeployment: gitOpsDeploymentName,
+				ComponentName:                binding.Spec.Components[0].Name,
+				GitOpsDeployment:             gitOpsDeploymentName,
+				GitOpsDeploymentSyncStatus:   binding.Status.GitOpsDeployments[0].GitOpsDeploymentSyncStatus,
+				GitOpsDeploymentHealthStatus: binding.Status.GitOpsDeployments[0].GitOpsDeploymentHealthStatus,
+				GitOpsDeploymentCommitID:     binding.Status.GitOpsDeployments[0].GitOpsDeploymentCommitID,
 			}}
 
-			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments))
+			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveGitOpsDeploymentsWithStatusProperties(expectedGitOpsDeployments))
 
 			By("Verify whether `gitopsDeployment.ObjectMeta.Labels` is not updated with ASEB labels")
 			gitopsDeployment := managedgitopsv1alpha1.GitOpsDeployment{
@@ -646,20 +683,26 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
+			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
+
 			// Update the status field
-			err = buildAndUpdateBindingStatus(binding.Spec.Components,
+			err = buildAndUpdateBindingAndDeploymentStatus(binding.Spec.Components,
 				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
-				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &binding)
+				[]string{gitOpsDeploymentName},
+				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
 
 			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
-			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
 
 			expectedGitOpsDeployments := []appstudiosharedv1.BindingStatusGitOpsDeployment{{
-				ComponentName: binding.Spec.Components[0].Name, GitOpsDeployment: gitOpsDeploymentName,
+				ComponentName:                binding.Spec.Components[0].Name,
+				GitOpsDeployment:             gitOpsDeploymentName,
+				GitOpsDeploymentSyncStatus:   binding.Status.GitOpsDeployments[0].GitOpsDeploymentSyncStatus,
+				GitOpsDeploymentHealthStatus: binding.Status.GitOpsDeployments[0].GitOpsDeploymentHealthStatus,
+				GitOpsDeploymentCommitID:     binding.Status.GitOpsDeployments[0].GitOpsDeploymentCommitID,
 			}}
 
-			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments))
+			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveGitOpsDeploymentsWithStatusProperties(expectedGitOpsDeployments))
 
 			By("Verify whether `gitopsDeployment.ObjectMeta.Labels` is not updated with ASEB labels")
 			gitopsDeployment := managedgitopsv1alpha1.GitOpsDeployment{
@@ -711,13 +754,21 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 func buildAndUpdateBindingStatus(components []appstudiosharedv1.BindingComponent, url,
 	branch, commitID string, path []string, binding *appstudiosharedv1.SnapshotEnvironmentBinding) error {
 
+	return buildAndUpdateBindingAndDeploymentStatus(components, url, branch, commitID, nil, path, binding)
+}
+
+// buildAndUpdateBindingAndDeploymentStatus builds and updates the status field of SnapshotEnvironmentBinding CR, as well
+// as the statuses of the binding's GitOpsDeployments
+func buildAndUpdateBindingAndDeploymentStatus(components []appstudiosharedv1.BindingComponent, url,
+	branch, commitID string, deploymentNames, path []string, binding *appstudiosharedv1.SnapshotEnvironmentBinding) error {
+
 	By(fmt.Sprintf("updating Status field of SnapshotEnvironmentBindingResource for '%s' of '%s' in '%v'", url, branch, path))
 
 	return bindingFixture.UpdateStatusWithFunction(binding, func(bindingStatus *appstudiosharedv1.SnapshotEnvironmentBindingStatus) {
 
 		// Update the binding status
 		*bindingStatus = buildSnapshotEnvironmentBindingStatus(components,
-			url, branch, commitID, path)
+			url, branch, commitID, deploymentNames, path)
 
 	})
 }
@@ -740,7 +791,6 @@ func buildSnapshotEnvironmentBindingResource(name, appName, envName, snapShotNam
 			Snapshot:    snapShotName,
 		},
 	}
-
 	components := []appstudiosharedv1.BindingComponent{}
 	for _, name := range componentNames {
 		components = append(components, appstudiosharedv1.BindingComponent{
@@ -748,7 +798,6 @@ func buildSnapshotEnvironmentBindingResource(name, appName, envName, snapShotNam
 			Configuration: appstudiosharedv1.BindingComponentConfiguration{Replicas: replica},
 		})
 	}
-
 	binding.Spec.Components = components
 	return binding
 }
@@ -756,12 +805,13 @@ func buildSnapshotEnvironmentBindingResource(name, appName, envName, snapShotNam
 // buildSnapshotEnvironmentBindingStatus builds the status fields that needs to be updated
 // for the SnapshotEnvironmentBinding CR
 func buildSnapshotEnvironmentBindingStatus(components []appstudiosharedv1.BindingComponent, url,
-	branch, commitID string, path []string) appstudiosharedv1.SnapshotEnvironmentBindingStatus {
+	branch, commitID string, deploymentNames, path []string) appstudiosharedv1.SnapshotEnvironmentBindingStatus {
 
 	// Create SnapshotEnvironmentBindingStatus object.
 	status := appstudiosharedv1.SnapshotEnvironmentBindingStatus{}
 
 	var componentStatus []appstudiosharedv1.BindingComponentStatus
+	var deployments []appstudiosharedv1.BindingStatusGitOpsDeployment
 
 	for i, component := range components {
 		componentStatus = append(componentStatus, appstudiosharedv1.BindingComponentStatus{
@@ -770,8 +820,20 @@ func buildSnapshotEnvironmentBindingStatus(components []appstudiosharedv1.Bindin
 				URL: url, Branch: branch, Path: path[i], GeneratedResources: []string{}, CommitID: commitID,
 			},
 		})
+		if len(deploymentNames) > 0 {
+			// Assign the values to the binding.  Expect status to be synced and healthy.
+			// Assign arbitrary string to Commit ID, since this string is not used in the comparison test.
+			deployments = append(deployments, appstudiosharedv1.BindingStatusGitOpsDeployment{
+				ComponentName:                component.Name,
+				GitOpsDeployment:             deploymentNames[i],
+				GitOpsDeploymentSyncStatus:   string(managedgitopsv1alpha1.SyncStatusCodeSynced),
+				GitOpsDeploymentHealthStatus: string(managedgitopsv1alpha1.HeathStatusCodeHealthy),
+				GitOpsDeploymentCommitID:     "CurrentlyIDIsUnknownInTestcase",
+			})
+		}
 	}
 
+	status.GitOpsDeployments = deployments
 	status.Components = componentStatus
 	return status
 }

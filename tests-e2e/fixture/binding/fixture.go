@@ -105,6 +105,81 @@ func HaveStatusGitOpsDeployments(gitOpsDeployments []appstudiosharedv1.BindingSt
 	}, BeTrue())
 }
 
+func HaveGitOpsDeploymentsWithStatusProperties(gitOpsDeployments []appstudiosharedv1.BindingStatusGitOpsDeployment) matcher.GomegaMatcher {
+
+	// compare compares two slices, returning true if the fields other than the CommitID are equal, regardless of the order of elements in the slices
+	compare := func(a []appstudiosharedv1.BindingStatusGitOpsDeployment, b []appstudiosharedv1.BindingStatusGitOpsDeployment) string {
+		if len(a) != len(b) {
+			return "lengths don't match"
+		}
+
+		for _, aDeployment := range a { // Expected
+			match := false
+			for _, bDeployment := range b { // Actual
+				// Compare exact strings but only check the length of the Commit ID since it is not deterministic.
+				if aDeployment.ComponentName == bDeployment.ComponentName && aDeployment.GitOpsDeployment == bDeployment.GitOpsDeployment &&
+					aDeployment.GitOpsDeploymentHealthStatus == bDeployment.GitOpsDeploymentHealthStatus &&
+					aDeployment.GitOpsDeploymentSyncStatus == bDeployment.GitOpsDeploymentSyncStatus &&
+					len(bDeployment.GitOpsDeploymentCommitID) > 0 && len(bDeployment.GitOpsDeploymentCommitID) <= 40 {
+					match = true
+					break
+				}
+			}
+			if !match {
+				return fmt.Sprintf("no match for %v", aDeployment)
+			}
+		}
+		return ""
+	}
+
+	return WithTransform(func(binding appstudiosharedv1.SnapshotEnvironmentBinding) bool {
+
+		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+		Expect(err).To(BeNil())
+
+		k8sClient, err := fixture.GetKubeClient(config)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&binding), &binding)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		compareContents := compare(gitOpsDeployments, binding.Status.GitOpsDeployments)
+
+		GinkgoWriter.Println("HaveStatusGitOpsDeploymentsWithProperties:", compareContents, "\n",
+			"- Expected number of deployments: ", len(gitOpsDeployments),
+		)
+		for _, expectedDep := range gitOpsDeployments {
+			GinkgoWriter.Println("",
+				"            GitOpsDeployment: ", expectedDep.GitOpsDeployment, "\n",
+				"            GitOpsDeploymentSyncStatus: ", expectedDep.GitOpsDeploymentSyncStatus, "\n",
+				"            GitOpsDeploymentHealthStatus: ", expectedDep.GitOpsDeploymentHealthStatus, "\n",
+				"            GitOpsDeploymentCommitID: ", expectedDep.GitOpsDeploymentCommitID,
+			)
+		}
+		GinkgoWriter.Println(
+			"does not match with the following deployments (not in any specific order):\n",
+			"- Actual number of deployments: ", len(binding.Status.GitOpsDeployments),
+		)
+		for _, actualDep := range binding.Status.GitOpsDeployments {
+			GinkgoWriter.Println("",
+				"            GitOpsDeployment: ", actualDep.GitOpsDeployment, "\n",
+				"            GitOpsDeploymentSyncStatus: ", actualDep.GitOpsDeploymentSyncStatus, "\n",
+				"            GitOpsDeploymentHealthStatus: ", actualDep.GitOpsDeploymentHealthStatus, "\n",
+				"            GitOpsDeploymentCommitID: ", actualDep.GitOpsDeploymentCommitID,
+			)
+		}
+		GinkgoWriter.Println("------------------------------------------------------------------------------------")
+
+		return compareContents == ""
+	}, BeTrue())
+}
+
 func HaveComponentDeploymentCondition(expected metav1.Condition) matcher.GomegaMatcher {
 	return WithTransform(func(binding appstudiosharedv1.SnapshotEnvironmentBinding) bool {
 

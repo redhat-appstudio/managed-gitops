@@ -48,7 +48,7 @@ const (
 
 	annBoundByController string = "dt.appstudio.redhat.com/bound-by-controller"
 
-	annTargetProvisioner string = "provionser.appstudio.redhat.com/dt-provisioner"
+	annTargetProvisioner string = "provisioner.appstudio.redhat.com/dt-provisioner"
 
 	finalizerBinder string = "binder.appstudio.redhat.com/finalizer"
 

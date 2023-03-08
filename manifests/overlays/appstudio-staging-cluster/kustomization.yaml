@@ -4,7 +4,7 @@ kind: Kustomization
 resources:
 - ../../base/crd/overlays/stonesoup
 - ../../base/gitops-namespace
-- ../../../appstudio-controller/config/default
+- ../../../appstudio-controller/config/default-no-prometheus
 - ../../../backend/config/default-no-prometheus
 - ../../../cluster-agent/config/default-no-prometheus
 - ../../base/postgresql-staging

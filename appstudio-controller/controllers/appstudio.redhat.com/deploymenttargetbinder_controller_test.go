@@ -25,10 +25,6 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 			reconciler DeploymentTargetClaimReconciler
 		)
 
-		// 1. Handle Bounded DTC
-		// 2. Handle DTC for dynamic provisioning
-		// 3. Handle DTC for non-dynamic
-
 		BeforeEach(func() {
 			ctx = context.Background()
 
@@ -104,13 +100,10 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
 				Expect(apierr.IsNotFound(err)).To(BeFalse())
-				GinkgoWriter.Println(dtc.GetDeletionTimestamp())
 
 				res, err = reconciler.Reconcile(ctx, request)
 				Expect(err).To(BeNil())
 				Expect(res).To(Equal(ctrl.Result{}))
-
-				GinkgoWriter.Println(dtc.GetFinalizers())
 
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
 				Expect(apierr.IsNotFound(err)).To(BeTrue())
@@ -118,6 +111,62 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
 				Expect(err).To(BeNil())
 				Expect(dt.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetPhase_Released))
+			})
+
+			It("should handle the deletion of a bounded DeploymentTargetClaim with deleted DeploymentTarget", func() {
+				dt := getDeploymentTarget()
+				err := k8sClient.Create(ctx, &dt)
+				Expect(err).To(BeNil())
+
+				dtc := getDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
+					dtc.ObjectMeta.Annotations = map[string]string{
+						annBindCompleted: annBinderValueYes,
+					}
+					dtc.Status.Phase = appstudiosharedv1.DeploymentTargetClaimPhase_Bound
+					dtc.Spec.TargetName = dt.Name
+				},
+				)
+				err = k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				By("reconcile with a DT and DTC that refer each other")
+				request := newRequest(dtc.Namespace, dtc.Name)
+				res, err := reconciler.Reconcile(ctx, request)
+				Expect(err).To(BeNil())
+				Expect(res).To(Equal(ctrl.Result{}))
+
+				By("check if the status of DT and DTC is Bound")
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
+				Expect(err).To(BeNil())
+				Expect(dtc.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetClaimPhase_Bound))
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
+				Expect(err).To(BeNil())
+				Expect(dt.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetPhase_Bound))
+
+				By("check if the binding controller has set the finalizer")
+				finalizerFound := false
+				for _, f := range dtc.GetFinalizers() {
+					if f == finalizerBinder {
+						finalizerFound = true
+						break
+					}
+				}
+				Expect(finalizerFound).To(BeTrue())
+
+				By("delete both DTC and DT and verify if the DTC is removed")
+				err = k8sClient.Delete(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				err = k8sClient.Delete(ctx, &dt)
+				Expect(err).To(BeNil())
+
+				res, err = reconciler.Reconcile(ctx, request)
+				Expect(err).To(BeNil())
+				Expect(res).To(Equal(ctrl.Result{}))
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
+				Expect(apierr.IsNotFound(err)).To(BeTrue())
 			})
 
 			It("should handle the deletion of an unbounded DeploymentTargetClaim", func() {
@@ -162,7 +211,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 			})
 		})
 
-		Context("Test binder controller with a bounded DeploymentTargetClaim", func() {
+		Context("Test with DeploymentTargetClaim that was previously binded by the binding controller", func() {
 			It("should handle already bounded DTC and DT", func() {
 				By("create a DTC with binding completed annotation but in Pending phase")
 				dtc := getDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
@@ -174,7 +223,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 
 				dt := getDeploymentTarget(func(dt *appstudiosharedv1.DeploymentTarget) {
 					dt.Spec.ClaimRef = dtc.Name
-					dt.Status.Phase = appstudiosharedv1.DeploymentTargetPhase_Pending
+					dt.Status.Phase = appstudiosharedv1.DeploymentTargetPhase_Available
 				})
 				err = k8sClient.Create(ctx, &dt)
 				Expect(err).To(BeNil())
@@ -196,12 +245,13 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 			})
 
 			It("should return an error and set the DTC status to Lost if DT is not found", func() {
-				By("create only DTC with bounded annotation")
+				By("create a DTC that targets a DT that doesn't exist")
 				dtc := getDeploymentTargetClaim(
 					func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 						dtc.Annotations = map[string]string{
 							annBindCompleted: annBinderValueYes,
 						}
+						dtc.Spec.TargetName = "random-dt"
 						dtc.Status.Phase = appstudiosharedv1.DeploymentTargetClaimPhase_Bound
 					})
 
@@ -222,7 +272,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				Expect(dtc.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetClaimPhase_Lost))
 			})
 
-			It("should return an error and set the DTC status to Lost if no DT claims DTC", func() {
+			It("should return an error and set the DTC status to Lost if no matching DT is found", func() {
 				By("creates DTC with bounded annotation")
 				dtc := getDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 					dtc.Annotations = map[string]string{
@@ -233,7 +283,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				err := k8sClient.Create(ctx, &dtc)
 				Expect(err).To(BeNil())
 
-				By("create multiple DTs that don't claim the given DTC")
+				By("create multiple DTs that doesn't match the given DTC")
 				for i := 0; i < 3; i++ {
 					dt := getDeploymentTarget(func(dt *appstudiosharedv1.DeploymentTarget) {
 						dt.Name = fmt.Sprintf("test-dt-%d", i)
@@ -259,11 +309,8 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 			})
 		})
 
-		Context("Handle DeploymentTargetClaim for Dynamic Provisioning", func() {
-			// 1. DT was already found
-			// 2. DT with not class
-			// 3. DT has a class
-			It("should mark the DTC for dynamic provisioning if the target name is not set", func() {
+		Context("Test DeploymentTargetClaim with no target and the binding controller finds a matching target", func() {
+			It("should mark the DTC for dynamic provisioning if a matching DT is not found", func() {
 				By("create a DTC without specifying the DT")
 				dtc := getDeploymentTargetClaim()
 				err := k8sClient.Create(ctx, &dtc)
@@ -284,17 +331,21 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				Expect(dtc.Annotations).ShouldNot(BeNil())
 				Expect(dtc.Annotations[annTargetProvisioner]).To(Equal(string(dtc.Spec.DeploymentTargetClassName)))
 				Expect(dtc.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetClaimPhase_Pending))
+
+				By("verify if the bound-by-controller annotation is not set")
+				Expect(dtc.Annotations[annBoundByController]).ToNot(Equal(string(annBoundByController)))
 			})
 
-			It("shouldn't mark the DTC for dynamic provisioning and use an existing DT if it exists", func() {
+			It("shouldn't mark the DTC for dynamic provisioning if a matching DT is found", func() {
 				By("create a DTC without specifying the DT")
 				dtc := getDeploymentTargetClaim()
 				err := k8sClient.Create(ctx, &dtc)
 				Expect(err).To(BeNil())
 
-				By("create a DT that claims the above DTC")
+				By("create a DT that is available and claims the above DTC")
 				dt := getDeploymentTarget(func(dt *appstudiosharedv1.DeploymentTarget) {
 					dt.Spec.ClaimRef = dtc.Name
+					dt.Status.Phase = appstudiosharedv1.DeploymentTargetPhase_Available
 				})
 				err = k8sClient.Create(ctx, &dt)
 				Expect(err).To(BeNil())
@@ -308,15 +359,21 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				By("verify if both DTC and DT are bound together")
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
 				Expect(err).To(BeNil())
-				Expect(dtc.Annotations).ShouldNot(BeNil())
-				// check if the provision annotation is not set
 				Expect(dtc.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetClaimPhase_Bound))
-				_, found := dtc.Annotations[annTargetProvisioner]
-				Expect(found).To(BeFalse())
 
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
 				Expect(err).To(BeNil())
 				Expect(dt.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetPhase_Bound))
+
+				By("check if the provisioner annotation is not set")
+				Expect(dtc.Annotations).ShouldNot(BeNil())
+				_, found := dtc.Annotations[annTargetProvisioner]
+				Expect(found).To(BeFalse())
+
+				By("check if the bound-by-controller annotation is set")
+				val, found := dtc.Annotations[annBoundByController]
+				Expect(found).To(BeTrue())
+				Expect(val).To(Equal(annBinderValueYes))
 			})
 
 			It("should mark the DTC as pending if the DT isn't found and DTClass is not set", func() {
@@ -345,7 +402,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 			})
 		})
 
-		Context("Handle DeploymentTargetClaim with non-dynamic provisioning", func() {
+		Context("Test DeploymentTargetClaim with a user provided DeploymentTarget", func() {
 			It("should return an error and requeue if DT pointed by DTC is not found", func() {
 				By("create a DTC that points to a DT that doesn't exist")
 				dtc := getDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
@@ -369,16 +426,51 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				Expect(dtc.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetClaimPhase_Pending))
 			})
 
-			It("should bind if the DT is found and if it refers the DTC", func() {
-				By("create a DTC that is claimed by a DT")
+			It("should bind if the DT is found and if it refers back to the DTC", func() {
+				By("create a DTC and DT that refer each other")
 				dtc := getDeploymentTargetClaim()
-				err := k8sClient.Create(ctx, &dtc)
-				Expect(err).To(BeNil())
 
 				dt := getDeploymentTarget(func(dt *appstudiosharedv1.DeploymentTarget) {
 					dt.Spec.ClaimRef = dtc.Name
+					dt.Status.Phase = appstudiosharedv1.DeploymentTargetPhase_Available
 				})
-				err = k8sClient.Create(ctx, &dt)
+				err := k8sClient.Create(ctx, &dt)
+				Expect(err).To(BeNil())
+
+				dtc.Spec.TargetName = dt.Name
+				err = k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				By("reconcile and verify if it returns an error with requeue")
+				request := newRequest(dtc.Namespace, dtc.Name)
+				res, err := reconciler.Reconcile(ctx, request)
+				Expect(err).To(BeNil())
+				Expect(res).To(Equal(ctrl.Result{}))
+
+				By("verify if both DTC and DT are bound together")
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
+				Expect(err).To(BeNil())
+				Expect(dtc.Annotations).ShouldNot(BeNil())
+				Expect(dtc.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetClaimPhase_Bound))
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
+				Expect(err).To(BeNil())
+				Expect(dt.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetPhase_Bound))
+			})
+
+			It("should bind if the target DT is not claimed by anyone", func() {
+				By("create a DT and a DTC that claims it")
+				dt := getDeploymentTarget(func(dt *appstudiosharedv1.DeploymentTarget) {
+					// DT is available for claiming
+					dt.Status.Phase = appstudiosharedv1.DeploymentTargetPhase_Available
+				})
+				err := k8sClient.Create(ctx, &dt)
+				Expect(err).To(BeNil())
+
+				dtc := getDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
+					dtc.Spec.TargetName = dt.Name
+				})
+				err = k8sClient.Create(ctx, &dtc)
 				Expect(err).To(BeNil())
 
 				By("reconcile and verify if it returns an error with requeue")
@@ -417,7 +509,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				request := newRequest(dtc.Namespace, dtc.Name)
 				res, err := reconciler.Reconcile(ctx, request)
 				Expect(err).ToNot(BeNil())
-				alreadyClaimedErr := fmt.Errorf("DeploymentTargetClaim %s wants to claim DeploymentTarget %s that was already claimed in namespace %s", dtc.Name, dt.Name, dtc.Namespace)
+				alreadyClaimedErr := fmt.Errorf("DeploymentTargetClaim %s wants to claim DeploymentTarget %s that is already claimed in namespace %s", dtc.Name, dt.Name, dtc.Namespace)
 				Expect(err.Error()).To(Equal(alreadyClaimedErr.Error()))
 				Expect(res).To(Equal(ctrl.Result{}))
 
@@ -427,6 +519,29 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				Expect(dtc.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetClaimPhase_Pending))
 			})
 
+			It("should return an error if the DT doesn't match the DTC", func() {
+				By("create a DTC and DT that refer each other but belong to different classes")
+				dt := getDeploymentTarget(func(dt *appstudiosharedv1.DeploymentTarget) {
+					dt.Status.Phase = appstudiosharedv1.DeploymentTargetPhase_Available
+				})
+				err := k8sClient.Create(ctx, &dt)
+				Expect(err).To(BeNil())
+
+				dtc := getDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
+					dtc.Spec.TargetName = dt.Name
+					dtc.Spec.DeploymentTargetClassName = appstudiosharedv1.DeploymentTargetClassName("random")
+				})
+				err = k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				By("reconcile and verify if it returns an error with requeue")
+				request := newRequest(dtc.Namespace, dtc.Name)
+				res, err := reconciler.Reconcile(ctx, request)
+				Expect(err).ToNot(BeNil())
+				expectedErr := fmt.Errorf("DeploymentTarget %s does not match DeploymentTargetClaim %s in namespace %s: deploymentTargetClassName does not match", dt.Name, dtc.Name, dtc.Namespace)
+				Expect(err.Error()).To(Equal(expectedErr.Error()))
+				Expect(res).To(Equal(ctrl.Result{}))
+			})
 		})
 	})
 })
@@ -459,6 +574,11 @@ func getDeploymentTarget(ops ...func(dt *appstudiosharedv1.DeploymentTarget)) ap
 		},
 		Spec: appstudiosharedv1.DeploymentTargetSpec{
 			DeploymentTargetClassName: appstudiosharedv1.DeploymentTargetClassName("test-sandbox-class"),
+			KubernetesClusterCredentials: appstudiosharedv1.DeploymentTargetKubernetesClusterCredentials{
+				DefaultNamespace:         "test-ns",
+				APIURL:                   "https://api-url/api",
+				ClusterCredentialsSecret: "test-secret",
+			},
 		},
 	}
 

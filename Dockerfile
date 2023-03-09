@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=registry.access.redhat.com/ubi8/ubi-minimal:8.5-218
+ARG BASE_IMAGE=registry.access.redhat.com/ubi8/ubi-minimal:8.7-1085
 ################################################################################################
 # Builder image
 # Initial stage which pulls and prepares any required build dependencies for the whole monorepo

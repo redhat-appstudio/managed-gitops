@@ -50,8 +50,8 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			By("Update Status field.")
 			gitOpsDeploymentNameStage := appstudiocontroller.GenerateBindingGitOpsDeploymentName(bindingStage, bindingStage.Spec.Components[0].Name)
 			// don't care about the deployment status
-			err = buildAndUpdateBindingAndDeploymentStatus(bindingStage.Spec.Components,
-				"https://github.com/redhat-appstudio/managed-gitops", "main", "fdhyqtw", []string{gitOpsDeploymentNameStage},
+			err = buildAndUpdateBindingStatus(bindingStage.Spec.Components,
+				"https://github.com/redhat-appstudio/managed-gitops", "main", "fdhyqtw",
 				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/staging", "resources/test-data/component-based-gitops-repository/components/componentB/overlays/staging"}, &bindingStage)
 			Expect(err).To(Succeed())
 
@@ -64,8 +64,8 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			By("Update Status field.")
 			gitOpsDeploymentNameProd := appstudiocontroller.GenerateBindingGitOpsDeploymentName(bindingProd, bindingProd.Spec.Components[0].Name)
 			// don't care about the deployment status
-			err = buildAndUpdateBindingAndDeploymentStatus(bindingProd.Spec.Components,
-				"https://github.com/redhat-appstudio/managed-gitops", "main", "fdhyqtw", []string{gitOpsDeploymentNameProd},
+			err = buildAndUpdateBindingStatus(bindingProd.Spec.Components,
+				"https://github.com/redhat-appstudio/managed-gitops", "main", "fdhyqtw",
 				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/staging", "resources/test-data/component-based-gitops-repository/components/componentB/overlays/staging"}, &bindingProd)
 			Expect(err).To(Succeed())
 
@@ -74,9 +74,9 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 				{
 					ComponentName:                bindingStage.Spec.Components[0].Name,
 					GitOpsDeployment:             gitOpsDeploymentNameStage,
-					GitOpsDeploymentSyncStatus:   bindingStage.Status.GitOpsDeployments[0].GitOpsDeploymentSyncStatus,
-					GitOpsDeploymentHealthStatus: bindingStage.Status.GitOpsDeployments[0].GitOpsDeploymentHealthStatus,
-					GitOpsDeploymentCommitID:     bindingStage.Status.GitOpsDeployments[0].GitOpsDeploymentCommitID,
+					GitOpsDeploymentSyncStatus:   string(v1alpha1.SyncStatusCodeSynced),
+					GitOpsDeploymentHealthStatus: string(v1alpha1.HeathStatusCodeHealthy),
+					GitOpsDeploymentCommitID:     "CurrentlyIDIsUnknownInTestcase",
 				},
 			}
 			Eventually(bindingStage, "3m", "1s").Should(bindingFixture.HaveGitOpsDeploymentsWithStatusProperties(expectedGitOpsDeploymentsStage))
@@ -84,9 +84,9 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 				{
 					ComponentName:                bindingProd.Spec.Components[0].Name,
 					GitOpsDeployment:             gitOpsDeploymentNameProd,
-					GitOpsDeploymentSyncStatus:   bindingProd.Status.GitOpsDeployments[0].GitOpsDeploymentSyncStatus,
-					GitOpsDeploymentHealthStatus: bindingProd.Status.GitOpsDeployments[0].GitOpsDeploymentHealthStatus,
-					GitOpsDeploymentCommitID:     bindingProd.Status.GitOpsDeployments[0].GitOpsDeploymentCommitID,
+					GitOpsDeploymentSyncStatus:   string(v1alpha1.SyncStatusCodeSynced),
+					GitOpsDeploymentHealthStatus: string(v1alpha1.HeathStatusCodeHealthy),
+					GitOpsDeploymentCommitID:     "CurrentlyIDIsUnknownInTestcase",
 				},
 			}
 			Eventually(bindingProd, "3m", "1s").Should(bindingFixture.HaveGitOpsDeploymentsWithStatusProperties(expectedGitOpsDeploymentsProd))

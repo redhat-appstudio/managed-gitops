@@ -105,6 +105,10 @@ func HaveStatusGitOpsDeployments(gitOpsDeployments []appstudiosharedv1.BindingSt
 	}, BeTrue())
 }
 
+// HaveGitOpsDeploymentsWithStatusProperties compares the given, expected gitOpsDeployments with the actual SnapshotEnvironmentBinding
+// object's deployments from the cluster.  Unlike HaveStatusGitOpsDeployments, this function does not match exactly the contents of
+// BindingStatusGitOpsDeployment. Only the commit ID field's length is checked, whereas the other fields are matched exactly. This is
+// because the test does not know the commit ID in a reliable, deterministic way and because the ID can change externally.
 func HaveGitOpsDeploymentsWithStatusProperties(gitOpsDeployments []appstudiosharedv1.BindingStatusGitOpsDeployment) matcher.GomegaMatcher {
 
 	// compare compares two slices, returning true if the fields other than the CommitID are equal, regardless of the order of elements in the slices
@@ -116,7 +120,7 @@ func HaveGitOpsDeploymentsWithStatusProperties(gitOpsDeployments []appstudioshar
 		for _, aDeployment := range a { // Expected
 			match := false
 			for _, bDeployment := range b { // Actual
-				// Compare exact strings but only check the length of the Commit ID since it is not deterministic.
+				// Compare exactly the names and statuses but only check the length of the Commit ID since it is not deterministic.
 				if aDeployment.ComponentName == bDeployment.ComponentName && aDeployment.GitOpsDeployment == bDeployment.GitOpsDeployment &&
 					aDeployment.GitOpsDeploymentHealthStatus == bDeployment.GitOpsDeploymentHealthStatus &&
 					aDeployment.GitOpsDeploymentSyncStatus == bDeployment.GitOpsDeploymentSyncStatus &&

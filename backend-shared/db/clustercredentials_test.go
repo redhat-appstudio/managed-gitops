@@ -34,7 +34,6 @@ var _ = Describe("ClusterCredentials Tests", func() {
 			err = dbq.GetClusterCredentialsById(ctx, &fetchedCluster)
 			Expect(err).To(BeNil())
 			Expect(fetchedCluster.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
-			fetchedCluster.Created_on = clusterCreds.Created_on
 			Expect(clusterCreds).To(Equal(fetchedCluster))
 
 			count, err := dbq.DeleteClusterCredentialsById(ctx, clusterCreds.Clustercredentials_cred_id)

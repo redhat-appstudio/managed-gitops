@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"fmt"
-	"time"
 )
 
 func (dbq *PostgreSQLDatabaseQueries) CreateManagedEnvironment(ctx context.Context, obj *ManagedEnvironment) error {
@@ -26,8 +25,6 @@ func (dbq *PostgreSQLDatabaseQueries) CreateManagedEnvironment(ctx context.Conte
 	if IsEmpty(obj.Name) {
 		return fmt.Errorf("managed environment name field should not be empty")
 	}
-
-	obj.Created_on = time.Now()
 
 	if err := validateFieldLength(obj); err != nil {
 		return err

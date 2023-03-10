@@ -82,7 +82,6 @@ var _ = Describe("ClusterAccess Tests", func() {
 			err = dbq.GetClusterAccessByPrimaryKey(ctx, &fetchRow)
 			Expect(err).To(BeNil())
 			Expect(fetchRow.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
-			fetchRow.Created_on = clusterAccess.Created_on
 			Expect(fetchRow).Should(Equal(clusterAccess))
 
 			affectedRows, err := dbq.DeleteClusterAccessById(ctx, fetchRow.Clusteraccess_user_id, fetchRow.Clusteraccess_managed_environment_id, fetchRow.Clusteraccess_gitops_engine_instance_id)

@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"fmt"
-	"time"
 )
 
 func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllClusterCredentials(ctx context.Context, clusterCredentials *[]ClusterCredentials) error {
@@ -42,8 +41,6 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterCredentials(ctx context.Conte
 
 		obj.Clustercredentials_cred_id = generateUuid()
 	}
-
-	obj.Created_on = time.Now()
 
 	if err := validateFieldLength(obj); err != nil {
 		return err

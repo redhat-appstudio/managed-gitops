@@ -5,7 +5,8 @@ resources:
 - ../../base/crd/overlays/local-dev
 - ../../base/gitops-namespace
 - ../../../appstudio-controller/config/default
-- ../../../backend/config/default
+# TODO: GITOPSRVCE-440: Remove '-no-webhook' from this line:
+- ../../../backend/config/default-no-webhook
 - ../../../cluster-agent/config/default
 - ../../base/postgresql-staging
 # - ../../base/gitops-service-argocd

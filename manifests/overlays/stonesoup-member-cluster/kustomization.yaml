@@ -5,7 +5,8 @@ resources:
 - ../../base/crd/overlays/stonesoup
 - ../../base/gitops-namespace
 - ../../../appstudio-controller/config/default-no-prometheus
-- ../../../backend/config/default-no-prometheus
+# TODO: GITOPSRVCE-440: Remove '-no-webhook' from this line:
+- ../../../backend/config/default-no-webhook-no-prometheus
 - ../../../cluster-agent/config/default-no-prometheus
 - ../../base/gitops-service-argocd/base
 - ../appstudio-staging-cluster/prometheus

@@ -543,6 +543,195 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				Expect(res).To(Equal(ctrl.Result{}))
 			})
 		})
+
+		Context("Test GetBoundByDTC function", func() {
+			It("get the DT specified as a target in the DTC", func() {
+				dt := getDeploymentTarget()
+				err := k8sClient.Create(ctx, &dt)
+				Expect(err).To(BeNil())
+
+				dtc := getDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
+					dtc.Spec.TargetName = dt.Name
+				})
+				err = k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				boundedDT, err := getDTBoundByDTC(ctx, k8sClient, &dtc)
+				Expect(err).To(BeNil())
+				Expect(boundedDT).ToNot(BeNil())
+				Expect(client.ObjectKeyFromObject(boundedDT)).To(Equal(client.ObjectKeyFromObject(&dt)))
+			})
+
+			It("shouldn't return a DT if it absent", func() {
+				dtc := getDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
+					dtc.Spec.TargetName = "random-dt"
+				})
+				err := k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				boundedDT, err := getDTBoundByDTC(ctx, k8sClient, &dtc)
+				Expect(apierr.IsNotFound(err)).To(BeTrue())
+				Expect(boundedDT).To(BeNil())
+			})
+
+			It("get the DT that refers the DTC in a claim ref", func() {
+				dtc := getDeploymentTargetClaim()
+				err := k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				dt := getDeploymentTarget(func(dt *appstudiosharedv1.DeploymentTarget) {
+					dt.Spec.ClaimRef = dtc.Name
+				})
+				err = k8sClient.Create(ctx, &dt)
+				Expect(err).To(BeNil())
+
+				// create another DT that doesn't refer the DTC
+				fakedt := getDeploymentTarget(func(dt *appstudiosharedv1.DeploymentTarget) {
+					dt.Name = "fake-dt"
+				})
+				err = k8sClient.Create(ctx, &fakedt)
+				Expect(err).To(BeNil())
+
+				boundedDT, err := getDTBoundByDTC(ctx, k8sClient, &dtc)
+				Expect(err).To(BeNil())
+				Expect(boundedDT).ToNot(BeNil())
+				Expect(client.ObjectKeyFromObject(boundedDT)).To(Equal(client.ObjectKeyFromObject(&dt)))
+			})
+		})
+
+		Context("Test doesDTMatchDTC function", func() {
+			var (
+				dtc        appstudiosharedv1.DeploymentTargetClaim
+				dt         appstudiosharedv1.DeploymentTarget
+				errWrapper func(string) error
+			)
+			BeforeEach(func() {
+				dtc = getDeploymentTargetClaim()
+				dt = getDeploymentTarget()
+				errWrapper = mismatchErrWrap(dt.Name, dtc.Name, dtc.Namespace)
+			})
+
+			It("DT and DTC match", func() {
+				dt.Spec.ClaimRef = dtc.Name
+				dt.Status.Phase = appstudiosharedv1.DeploymentTargetPhase_Available
+
+				err := doesDTMatchDTC(dt, dtc)
+				Expect(err).To(BeNil())
+			})
+
+			It("should return an error if the classes don't match", func() {
+				dt.Spec.ClaimRef = dtc.Name
+				dt.Spec.DeploymentTargetClassName = "different-class"
+				dt.Status.Phase = appstudiosharedv1.DeploymentTargetPhase_Available
+
+				expecterErr := errWrapper("deploymentTargetClassName does not match")
+				err := doesDTMatchDTC(dt, dtc)
+				Expect(err).ToNot(BeNil())
+				Expect(err.Error()).To(Equal(expecterErr.Error()))
+			})
+
+			It("should return an error if DT is not in available phase", func() {
+				dt.Status.Phase = appstudiosharedv1.DeploymentTargetPhase_Bound
+
+				expecterErr := errWrapper("DeploymentTarget is not in Available phase")
+				err := doesDTMatchDTC(dt, dtc)
+				Expect(err).ToNot(BeNil())
+				Expect(err.Error()).To(Equal(expecterErr.Error()))
+			})
+
+			It("should return an error if DT doesn't have cluter credentials", func() {
+				dt.Spec.ClaimRef = dtc.Name
+				dt.Status.Phase = appstudiosharedv1.DeploymentTargetPhase_Available
+				dt.Spec.KubernetesClusterCredentials = appstudiosharedv1.DeploymentTargetKubernetesClusterCredentials{}
+
+				expecterErr := errWrapper("DeploymentTarget does not have cluster credentials")
+				err := doesDTMatchDTC(dt, dtc)
+				Expect(err).ToNot(BeNil())
+				Expect(err.Error()).To(Equal(expecterErr.Error()))
+			})
+
+			It("should return an error if there is a binding conflict", func() {
+				dt.Spec.ClaimRef = dtc.Name
+				dtc.Spec.TargetName = "different-dt"
+				dt.Status.Phase = appstudiosharedv1.DeploymentTargetPhase_Available
+
+				expecterErr := fmt.Errorf("DeploymentTargetClaim %s targets a DeploymenetTarget %s with a different claim ref", dtc.Name, dt.Name)
+				err := doesDTMatchDTC(dt, dtc)
+				Expect(err).ToNot(BeNil())
+				Expect(err.Error()).To(Equal(expecterErr.Error()))
+			})
+
+		})
+
+		Context("Test findMatchingDTForDTC function", func() {
+			It("should return a matching DT if found", func() {
+				dtc := getDeploymentTargetClaim()
+				err := k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				expected := getDeploymentTarget(func(dt *appstudiosharedv1.DeploymentTarget) {
+					dt.Status.Phase = appstudiosharedv1.DeploymentTargetPhase_Available
+				})
+				err = k8sClient.Create(ctx, &expected)
+				Expect(err).To(BeNil())
+
+				dt, err := findMatchingDTForDTC(ctx, k8sClient, dtc)
+				Expect(err).To(BeNil())
+				Expect(client.ObjectKeyFromObject(dt)).To(Equal(client.ObjectKeyFromObject(&expected)))
+			})
+
+			It("no matching DT is found", func() {
+				dtc := getDeploymentTargetClaim()
+				err := k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				dt, err := findMatchingDTForDTC(ctx, k8sClient, dtc)
+				Expect(err).To(BeNil())
+				Expect(dt).To(BeNil())
+			})
+		})
+
+		Context("Test bindDeploymentTargetCliamToTarget function", func() {
+			var (
+				dt  appstudiosharedv1.DeploymentTarget
+				dtc appstudiosharedv1.DeploymentTargetClaim
+			)
+
+			BeforeEach(func() {
+				dtc = getDeploymentTargetClaim()
+				err := k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+				dt = getDeploymentTarget()
+				err = k8sClient.Create(ctx, &dt)
+				Expect(err).To(BeNil())
+			})
+
+			It("should bind DT and DTC with bound-by-controller annotation", func() {
+				err := bindDeploymentTargetCliamToTarget(ctx, k8sClient, &dtc, &dt, true)
+				Expect(err).To(BeNil())
+
+				// verify if bound complete and bound-by-controller annotations are set
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
+				Expect(err).To(BeNil())
+
+				Expect(isBindingCompleted(dtc)).To(BeTrue())
+				Expect(dtc.Annotations[annBoundByController]).To(Equal(annBinderValueYes))
+			})
+
+			It("should bind DT and DTC without bound-by-controller annotation", func() {
+				err := bindDeploymentTargetCliamToTarget(ctx, k8sClient, &dtc, &dt, false)
+				Expect(err).To(BeNil())
+
+				// verify if bound complete and bound-by-controller annotations are set
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
+				Expect(err).To(BeNil())
+
+				Expect(isBindingCompleted(dtc)).To(BeTrue())
+				_, found := dtc.Annotations[annBoundByController]
+				Expect(found).To(BeFalse())
+			})
+		})
+
 	})
 })
 

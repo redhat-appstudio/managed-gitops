@@ -352,18 +352,18 @@ func findMatchingDTForDTC(ctx context.Context, k8sClient client.Client, dtc appl
 // 1. Both DT and DTC belong to the same class.
 // 2. DT should be in Available phase and should not have a different claim ref.
 // 3. DT should have the cluster credentials.
-func doesDTMatchDTC(dt applicationv1alpha1.DeploymentTarget, dtc applicationv1alpha1.DeploymentTargetClaim) error {
-	mismatchErr := fmt.Errorf("DeploymentTarget %s does not match DeploymentTargetClaim %s in namespace %s", dt.Name, dtc.Name, dtc.Namespace)
+func doesDTMatchDTC(dt applicationv1alpha1.DeploymentTarget, dtc applicationv1alpha1.DeploymentTargetClaim) (err error) {
+	mismatchErr := mismatchErrWrap(dt.Name, dtc.Name, dtc.Namespace)
 	if dt.Spec.DeploymentTargetClassName != dtc.Spec.DeploymentTargetClassName {
-		return fmt.Errorf("%v: deploymentTargetClassName does not match", mismatchErr)
+		return mismatchErr("deploymentTargetClassName does not match")
 	}
 
 	if dt.Status.Phase != applicationv1alpha1.DeploymentTargetPhase_Available {
-		return fmt.Errorf("%v: DeploymentTarget is not in Available phase", mismatchErr)
+		return mismatchErr("DeploymentTarget is not in Available phase")
 	}
 
 	if dt.Spec.KubernetesClusterCredentials == (applicationv1alpha1.DeploymentTargetKubernetesClusterCredentials{}) {
-		return fmt.Errorf("%v: DeploymentTarget does not have cluster credentials", mismatchErr)
+		return mismatchErr("DeploymentTarget does not have cluster credentials")
 	}
 
 	if err := checkForBindingConflict(&dtc, &dt); err != nil {
@@ -371,6 +371,12 @@ func doesDTMatchDTC(dt applicationv1alpha1.DeploymentTarget, dtc applicationv1al
 	}
 
 	return nil
+}
+
+func mismatchErrWrap(dtName, dtcName, ns string) func(string) error {
+	return func(msg string) error {
+		return fmt.Errorf("DeploymentTarget %s does not match DeploymentTargetClaim %s in namespace %s: %s", dtName, dtcName, ns, msg)
+	}
 }
 
 func updateDTCStatusPhase(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim, targetPhase applicationv1alpha1.DeploymentTargetClaimPhase) error {

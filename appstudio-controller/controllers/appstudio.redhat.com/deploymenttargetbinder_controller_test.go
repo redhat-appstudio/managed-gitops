@@ -617,6 +617,12 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 
 				err := doesDTMatchDTC(dt, dtc)
 				Expect(err).To(BeNil())
+
+				// check if it still matches without phase
+				dt.Status.Phase = appstudiosharedv1.DeploymentTargetPhase_Available
+
+				err = doesDTMatchDTC(dt, dtc)
+				Expect(err).To(BeNil())
 			})
 
 			It("should return an error if the classes don't match", func() {
@@ -664,7 +670,28 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 		})
 
 		Context("Test findMatchingDTForDTC function", func() {
-			It("should return a matching DT if found", func() {
+			It("should match a dynamically provisioned matching DT if found", func() {
+				dtc := getDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
+					dtc.Annotations = map[string]string{
+						annTargetProvisioner: "sandbox-provisioner",
+					}
+				})
+				err := k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				expected := getDeploymentTarget(func(dt *appstudiosharedv1.DeploymentTarget) {
+					dt.Spec.ClaimRef = dtc.Name
+					dt.Status.Phase = appstudiosharedv1.DeploymentTargetPhase_Available
+				})
+				err = k8sClient.Create(ctx, &expected)
+				Expect(err).To(BeNil())
+
+				dt, err := findMatchingDTForDTC(ctx, k8sClient, dtc)
+				Expect(err).To(BeNil())
+				Expect(client.ObjectKeyFromObject(dt)).To(Equal(client.ObjectKeyFromObject(&expected)))
+			})
+
+			It("should match a user created matching DT if found", func() {
 				dtc := getDeploymentTargetClaim()
 				err := k8sClient.Create(ctx, &dtc)
 				Expect(err).To(BeNil())

@@ -103,7 +103,7 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 		}
 	}
 
-	// Don't reconcile the binding if the HAS component indicated via the binding.status field
+	// Don't reconcile the binding if the application-service component indicated via the binding.status field
 	// that there were issues with the GitOps repository, or if the GitOps repository isn't ready
 	// yet.
 

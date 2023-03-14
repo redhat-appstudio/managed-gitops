@@ -877,9 +877,13 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	gitopsDeployment.Status.Sync.Status = managedgitopsv1alpha1.SyncStatusCode(applicationState.Sync_Status)
 	gitopsDeployment.Status.Sync.Revision = applicationState.Revision
 
-	// Update gitopsDeployment status with syncError if applicationState.SyncError field in database is non empty
+	// We update the GitopsDeployment .status.conditions with SyncError condition, if the sync_error column of ApplicationState row is non empty
+	// - The sync_error column of ApplicationState row is based on the .status.conditions[type="ApplicationConditionSyncError"].message field.
+	// - This allows us to pass Argo CD sync errors back to the user.
+
 	if applicationState.SyncError != "" {
-		condition.NewConditionManager().SetCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError, managedgitopsv1alpha1.GitOpsConditionStatusTrue, managedgitopsv1alpha1.GitopsDeploymentReasonSyncError, applicationState.SyncError)
+		condition.NewConditionManager().SetCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError,
+			managedgitopsv1alpha1.GitOpsConditionStatusTrue, managedgitopsv1alpha1.GitopsDeploymentReasonSyncError, applicationState.SyncError)
 	} else {
 		conditionManager := condition.NewConditionManager()
 		// Update syncError Condition as false if applicationState.SyncError field in database is empty by checking if the condition field is empty or not

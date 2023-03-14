@@ -22,8 +22,11 @@ import (
 
 // GitOpsDeploymentSyncRunSpec defines the desired state of GitOpsDeploymentSyncRun
 type GitOpsDeploymentSyncRunSpec struct {
+	// Reference to the target GitOpsDeployment to issue the synchronization operation to
 	GitopsDeploymentName string `json:"gitopsDeploymentName"`
-	RevisionID           string `json:"revisionID,omitempty"`
+
+	// Optional: If specified, tells the GitOps Service to deploy a particular git commit SHA
+	RevisionID string `json:"revisionID,omitempty"`
 }
 
 // GitOpsDeploymentSyncRunStatus defines the observed state of GitOpsDeploymentSyncRun

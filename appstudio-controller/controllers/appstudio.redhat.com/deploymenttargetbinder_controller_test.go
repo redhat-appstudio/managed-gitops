@@ -178,10 +178,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				request := newRequest(dtc.Namespace, dtc.Name)
 				res, err := reconciler.Reconcile(ctx, request)
 				Expect(err).To(BeNil())
-				Expect(res).To(Equal(ctrl.Result{
-					Requeue:      true,
-					RequeueAfter: binderRequeueDuration,
-				}))
+				Expect(res).To(Equal(ctrl.Result{}))
 
 				By("check if the status of DTC is Pending")
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
@@ -320,10 +317,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				request := newRequest(dtc.Namespace, dtc.Name)
 				res, err := reconciler.Reconcile(ctx, request)
 				Expect(err).To(BeNil())
-				Expect(res).To(Equal(ctrl.Result{
-					Requeue:      true,
-					RequeueAfter: binderRequeueDuration,
-				}))
+				Expect(res).To(Equal(ctrl.Result{}))
 
 				By("verify if the provisioner annotation is set and the DTC status is set to pending phase")
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
@@ -388,10 +382,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				request := newRequest(dtc.Namespace, dtc.Name)
 				res, err := reconciler.Reconcile(ctx, request)
 				Expect(err).To(BeNil())
-				Expect(res).To(Equal(ctrl.Result{
-					Requeue:      true,
-					RequeueAfter: binderRequeueDuration,
-				}))
+				Expect(res).To(Equal(ctrl.Result{}))
 
 				By("verify if the DTC is set to pending phase")
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
@@ -415,10 +406,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				request := newRequest(dtc.Namespace, dtc.Name)
 				res, err := reconciler.Reconcile(ctx, request)
 				Expect(err).To(BeNil())
-				Expect(res).To(Equal(ctrl.Result{
-					Requeue:      true,
-					RequeueAfter: binderRequeueDuration,
-				}))
+				Expect(res).To(Equal(ctrl.Result{}))
 
 				By("verify if the DTC is set to pending phase")
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)

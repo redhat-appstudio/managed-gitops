@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"fmt"
 	"time"
 
 	metric "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -37,34 +36,24 @@ func SetOperationDBState(state db.OperationState) {
 		OperationStateFailed.Inc()
 	}
 
-	ticker := time.NewTicker(60 * time.Minute)
+}
 
-	// Creating channel using make
-	tickerChan := make(chan bool)
+// Reset metrics to zero every hour
+func SetMetricsCountToZero() {
 
+	ticker := time.NewTicker(time.Minute)
 	go func() {
 		for {
-			select {
-			case <-tickerChan:
-				return
-			case <-ticker.C:
-				// Reset counter to zero every 1 hour
-				ClearMetrics()
-			}
+
+			<-ticker.C
+
+			ClearMetrics()
+
 		}
 	}()
 
-	// calling Sleep() method
-	time.Sleep(120 * time.Minute)
-
-	// Calling Stop() method to stop the ticker
-	ticker.Stop()
-
-	// Setting the value of channel
-	tickerChan <- true
-
-	// Printed when the ticker is turned off
-	fmt.Println("Ticker is turned off!")
+	// To keep the program runnning indefinitely, we can use an empty select statement
+	select {}
 
 }
 

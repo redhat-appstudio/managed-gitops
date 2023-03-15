@@ -125,14 +125,13 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 			_, err := sharedutil.CatchPanic(func() error {
 
 				action := applicationEventLoopRunner_Action{
-					getK8sClientForGitOpsEngineInstance: eventlooptypes.GetK8sClientForGitOpsEngineInstance,
-					eventResourceName:                   newEvent.Request.Name,
-					eventResourceNamespace:              newEvent.Request.Namespace,
-					workspaceClient:                     newEvent.Client,
-					sharedResourceEventLoop:             sharedResourceEventLoop,
-					log:                                 log,
-					workspaceID:                         namespaceID,
-					k8sClientFactory:                    shared_resource_loop.DefaultK8sClientFactory{},
+					eventResourceName:       newEvent.Request.Name,
+					eventResourceNamespace:  newEvent.Request.Namespace,
+					workspaceClient:         newEvent.Client,
+					sharedResourceEventLoop: sharedResourceEventLoop,
+					log:                     log,
+					workspaceID:             namespaceID,
+					k8sClientFactory:        shared_resource_loop.DefaultK8sClientFactory{},
 				}
 
 				var err error
@@ -343,14 +342,13 @@ func handleManagedEnvironmentModified(ctx context.Context, expectedResourceName 
 		// Update the existing action, but change the 'eventResourceName' and 'eventResourceNamespace' to point
 		// to the GitOpsDeployment.
 		newAction := applicationEventLoopRunner_Action{
-			getK8sClientForGitOpsEngineInstance: eventlooptypes.GetK8sClientForGitOpsEngineInstance,
-			eventResourceName:                   gitopsDeployment.Name,
-			eventResourceNamespace:              gitopsDeployment.Namespace,
-			workspaceClient:                     action.workspaceClient,
-			sharedResourceEventLoop:             action.sharedResourceEventLoop,
-			log:                                 action.log,
-			workspaceID:                         action.workspaceID,
-			k8sClientFactory:                    shared_resource_loop.DefaultK8sClientFactory{},
+			eventResourceName:       gitopsDeployment.Name,
+			eventResourceNamespace:  gitopsDeployment.Namespace,
+			workspaceClient:         action.workspaceClient,
+			sharedResourceEventLoop: action.sharedResourceEventLoop,
+			log:                     action.log,
+			workspaceID:             action.workspaceID,
+			k8sClientFactory:        shared_resource_loop.DefaultK8sClientFactory{},
 		}
 
 		signalledShutdown, err := handleDeploymentModified(ctx, newEvent, newAction, dbQueries, log)
@@ -419,11 +417,6 @@ type applicationEventLoopRunner_Action struct {
 	// The UID of the API namespace (namespace containing GitOps API types)
 	workspaceID string
 
-	// getK8sClientForGitOpsEngineInstance returns the K8s client that corresponds to the gitops engine instance.
-	// As of this writing, only one Argo CD instance is supported, so this is trivial, but should have
-	// more complex logic in the future.
-	getK8sClientForGitOpsEngineInstance func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error)
-
 	// sharedResourceEventLoop can be used to invoke the shared resource event loop, in order to
 	// create or retrieve shared database resources.
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop
@@ -433,5 +426,6 @@ type applicationEventLoopRunner_Action struct {
 	// have a cluster-agent running alongside it.
 	testOnlySkipCreateOperation bool
 
+	// k8sClientFactory enabled the creation of K8s API clients to target various environments
 	k8sClientFactory shared_resource_loop.SRLK8sClientFactory
 }

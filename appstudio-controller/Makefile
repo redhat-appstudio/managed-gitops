@@ -122,7 +122,7 @@ run: manifests generate fmt vet ## Run a controller from your host.
 .PHONY: chaos-run
 chaos-run: manifests generate fmt vet ## Chaos Engineering: Simulate a controller that restarts every ~33 seconds.
 	go build -o /tmp/appstudio-controller-manager-chaos main.go
-	KILL_INTERVAL="45" KILL_INITIAL="10" ../utilities/random-kill.sh /tmp/appstudio-controller-manager-chaos --zap-log-level info --zap-time-encoding=rfc3339nano
+	DISABLE_APPSTUDIO_WEBHOOK=true KILL_INTERVAL="45" KILL_INITIAL="10" ../utilities/random-kill.sh /tmp/appstudio-controller-manager-chaos --zap-log-level info --zap-time-encoding=rfc3339nano
 	rm /tmp/appstudio-controller-manager-chaos
 
 

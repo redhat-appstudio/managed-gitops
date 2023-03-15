@@ -1,5 +1,7 @@
 # Bump ArgoCD version
 
+This document describes the process that is used to upgrade the GitOps Service' Argo CD go.mod dependencies to a newer version.
+
 1. Determine the desired version of ArgoCD that you want to use. This can be done by visiting the ArgoCD releases page on GitHub (<https://github.com/argoproj/argo-cd/releases>) and selecting the desired version.
 
 2. In the `Makefile`, update the `ARGO_CD_VERSION` variable to the desired version. This variable is used in several places in the `Makefile`, so you will need to update all instances of it.

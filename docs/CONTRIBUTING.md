@@ -1,10 +1,8 @@
 # How to Contribute
 
-We welcome contributions from the community. Here are a few ways you can help us improve.
+## Open an Issue in JIRA
 
-## Open an Issue
-
-If you see something you'd like changed, but aren't sure how to change it, submit an issue describing what you'd like to see.
+If you see something you'd like changed, but aren't sure how to change it, submit an issue in JIRA describing what you'd like to see. See the link to JIRA under the issues tab.
 
 Please create an issue with as much detail as you can provide. It should include the data gathered as indicated above, along with:
 
@@ -17,8 +15,8 @@ We will do our very best to help you.
 ## Submit a Pull Request
 
 If you find something you'd like to fix that's obviously broken, create a branch, commit your code, and submit a pull request.
-Here's how:
 
+Here's how:
 1. Fork the repo on GitHub, and then clone it locally.
 2. Create a branch named appropriately for the change you are going to make.
 3. Make your code change.
@@ -34,4 +32,3 @@ Installation instructions can be found [here](https://golangci-lint.run/usage/in
 See [Using Pull Requests](https://help.github.com/articles/using-pull-requests/) got more information on how to use GitHub PRs.
 
 For an in depth guide on how to contribute see [this article](https://opensource.com/article/19/7/create-pull-request-github)
-

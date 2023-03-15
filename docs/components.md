@@ -2,36 +2,38 @@
 
 There are 4 separated, tightly-coupled components:
 
-- [Backend]: responsible for receiving the latest user's intent and then informing both the database and the [Cluster-Agent] about it. It also includes a REST APIServer for webhooks, called [routes].
-- [Cluster-Agent]: responsible for keeping synchronised the [ArgoCD Application CR] and its relevant Application entry in the database.
-- [App Studio Controller]: Responsible for interfacing with other components of App Studio, including watching them and creating corresponding API objects in the GitOps Serice. For example: When an Argo CD `Application` resource is created, we might create a corresponding `GitOpsDeployment` resource.
-- [App Studio Shared]: Go types and CRDs for the AppStudio Environment API.
-- [Backend Shared]: group of libraries shared among the rest of the components.
+- [Backend]: responsible for watching and determining the user's intent via the `GitOpsDeployent*` API resources, next the backend component updates the database with the users intent, and finally it informs the [Cluster-Agent] which will act on the user's intent.
+- [Cluster-Agent]: responsible ensuring that Argo CD state is up-to-date with the user intent (as defined in the database). Or, said another way, the cluster-agent component ensures that Argo CD resources ([ArgoCD Application CR]), and Cluster/Repository `Secret`s, are configured to be consistent with user intent.
+- [App Studio Controller]: Responsible for implementing the Stonesoup Environment API (see [API doc for details](api.md)).
+- [Backend Shared]: Contains code that is shared among the rest of the components. This is where shared utility code lives, such as GitOpsDeployment resource Go types, database Go types, and database access functionality. Including code within this component ensures it is not duplicated within the other components.
+
+There is also a fifth component, which lives in a separate GitHub repository:
+- [application-api]: defines the public API of GitOps Service 'appstudio-controller' component (e.g the Environment API), and the Stonesoup 'application-service' component.
 
 For detailed step-by-step guide on how each component works, check the `README` file of each individual component.
 
 ## Other interesting files
 
-- [Load Test]: _at the moment, this is just a bare-bone project for load testing_.
-- [Manifests]: Postgres installation & some files related with the GitOps service deployment (such CRDs).
-  - the [Operation CRD] is located elsewhere though, inside the [Backend Shared].
+- [Manifests]: Postgres installation & files related to deploying the GitOps Service to a Kubernetes cluster, via kustomize.
 - [db-schema]: the database schema used by the components
 - [psql.sh]: script that allows you to interact with the DB from the command line. Once inside the psql CLI, you may issue SQL statements, such as `select * from application;` (don't forget the semi-colon at the end, `;`!)
 - `(create/delete/stop)-dev-env.sh`: Create, or delete or stop the database containers.
+- [Load Test]: A small utility project for load testing Argo CD.
 
 **NOTE**: See also, the targets in `Makefile` for additional available operations.
 Plus, within each of the components there is a `Makefile`, which can be used for local development of that component.
 
-## Retired components
+## Deprecated components
 - GitOps Service Frontend: The 'frontend' component of the GitOps Service was an early UI prototype for interfacing with the GitOps Service via a Web UI based on PatternFly. The contents of this prototype can be found [under this commit](https://github.com/redhat-appstudio/managed-gitops/tree/52696fbb48070bf43170687a6a775ff80dfb13be/frontend).
 
+[application-api]: https://github.com/redhat-appstudio/application-api/
 [App Studio Controller]: https://github.com/redhat-appstudio/managed-gitops/tree/main/appstudio-controller
 [App Studio Shared]: https://github.com/redhat-appstudio/managed-gitops/tree/main/appstudio-shared
 [Backend Shared]: https://github.com/redhat-appstudio/managed-gitops/tree/main/backend-shared
 [Backend]: https://github.com/redhat-appstudio/managed-gitops/tree/main/backend
 [Cluster-Agent]: https://github.com/redhat-appstudio/managed-gitops/tree/main/cluster-agent
 [Frontend]: https://github.com/redhat-appstudio/managed-gitops/tree/main/frontend
-[Load Test]: https://github.com/redhat-appstudio/managed-gitops/tree/main/utilities/load-test#argo-cd-load-test-utility
+[Load Test]: https://github.com/redhat-appstudio/managed-gitops/tree/main/utilities/load-test
 [Manifests]: https://github.com/redhat-appstudio/managed-gitops/tree/main/manifests
 [KinD]: https://kind.sigs.k8s.io/docs/user/quick-start/
 [k3s]: https://k3s.io/

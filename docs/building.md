@@ -1,19 +1,20 @@
 # Development
 
+**NOTE**: If developing within your local development environment, it is likely easier to call `make start`, which will automatically build and run the components from the CLI, using *goreman*. 
+- This should make building and running the components (iteratively) much faster, than building using `make build`.
+
 ## Build the components
+
 
 Use either the main Makefile or the Makefile of each individual component (you can also call those from the main Makefile as well).
 See the following _build_ targets:
 
 ```shell
-make build                          # Build all the components
-make build-backend                  # Build backend only
-make build-cluster-agent            # Build cluster-agent only
-make build-appstudio-controller     # Build appstudio-controller only
-make docker-build                   # Build docker image
+make build                                         # Build all the components
+USERNAME=(your quay.io username) make docker-build # Build docker image
 ```
 
-#### Support for multiple platforms
+### Support for multiple platforms
 
 The `make` targets can be configured to build for other operating systems and/or architectures,
 by explicitly setting the `OS` and `ARCH` environment variables.
@@ -27,19 +28,22 @@ OS=darwin ARCH=amd64 make build     # Build all components for platform darwin/a
 OS=darwin ARCH=arm64 make build     # Build all components for platform darwin/arm64
 ```
 
-### Build Container images
+## Build container images
 
-The project uses just one single base image from which you can select which `binary` you would like to run.
-It basically clones the repository and builds each individual component using their own Makefile respectively.
-Then it copies over their binaries into `/usr/local/bin`.
-For more information, look at the Dockerfile.
-By default it will run `/bin/bash` shell and it uses a `non-root` user.
+The project uses just one single base image (e.g. `quay.io/redhat-appstudio/gitops-service`), from which one can select which binary you would like to run.
 
-#### Build and Push
-##### Using Docker (default)
+The Dockerfile basically clones the repository and builds each individual component using that component's Makefile.
+The final binaries are then copied into `/usr/local/bin`, which is where they are run within the container.
+
+### Build and push: using docker/podman
+
+You may user docker or podman to build the containers. 
+- To use podman, pass `DOCKER=podman` on the `make` calls. 
+- For example: `USERNAME=(your quay.io username) DOCKER=podman make docker-build docker-push`
 
 ```shell
 # Login to the contaier registry (e.g. quay.io)
+# (or use podman to login)
 docker login quay.io
 
 # Optional:
@@ -53,37 +57,19 @@ docker login quay.io
 #  * by adding 'TAG' variable you can change only the version tag of the image
 
 # Build the container
-make docker-build
+USERNAME=(your quay.io username) make docker-build
 
 # Push to registry
-make docker-push -USERNAME=drpaneas
+USERNAME=(your quay.io username) make docker-push
 
 # Or combine them
-make docker-build docker-push IMG=quay.io/$USERNAME/$IMAGE_NAME:$TAG
+USERNAME=(your quay.io username) make docker-build docker-push 
 
 # Other optional variables
 make docker-build BASE_IMAGE="foo" TAG="bar"
 ```
 
-##### Using Podman
-
-```shell
-# Login to the contaier registry (e.g. quay.io)
-podman login quay.io
-
-# Build the container
-DOCKER=podman make docker-build
-
-# Push to registry
-DOCKER=podman make docker-push -USERNAME=drpaneas
-
-# Or combine them
-DOCKER=podman make docker-build docker-push IMG=quay.io/$USERNAME/$IMAGE_NAME:$TAG
-
-# Other optional variables
-DOCKER=podman make docker-build BASE_IMAGE="foo" TAG="bar"
-```
-#### Run the containers
+### Run the containers
 
 ```shell
 docker run --rm -it gitops-service:latest gitops-service-backend

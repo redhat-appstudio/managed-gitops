@@ -5,7 +5,7 @@ To do proper development and testing of the GitOps Service there are some requir
 **Development Environment Requirements**:
 
 1. GNU/Linux or Mac Operating System (Windows with WSL/WSL2 or MSYS2, should also work, but is beyond the scope of this document.)
-2. Running a local Kubernetes cluster: Our team uses [KinD] or [K3s] for simplicity.
+2. Running a local OpenShift cluster:
 You can use [kubectx/kubens](https://github.com/ahmetb/kubectx) to manage Kubernetes context if you like.
 3. A container registry that you and your Kubernetes cluster can reach. We recommend [quay.io](https://quay.io/signin/).
 4. User-permissions set so scripts can start/stop containers and interact with [Docker].
@@ -19,7 +19,7 @@ Currently, the project has a mixture of unit-tests and integration tests, meanin
 
 To do that, follow these steps:
 
-1. Have a local (or remote) Kubernetes cluster up and running (_e.g._ `kind create cluster`)
+1. Have a local (or remote) OpenShift cluster up and running
 2. Install the namespaces, CRDs and RBAC resources for both `cluster-agent` and `backend` and start the local containers (PostgreSQL and its UI dashboard): `make devenv-docker`.
 3. Start `goreman` that starts all the required processes in the same terminal: `make start`
 
@@ -43,26 +43,25 @@ Also, you will need to set a local variable `DB_PASS` with the password of Postg
 
 To do that, follow these steps:
 
-1. Have a local (or remote) Kubernetes cluster up and running (_e.g._ `kind create cluster`)
+1. Have a local (or remote) OpenShift cluster up and running
 2. Deploy the components into the Kubernetes cluster: `make devenv-k8s IMG=quay.io/pgeorgia/gitops-service:latest`.
 
 For your curiosity, this _make target_ is making sure that:
 
-* cluster-agent CRDs and RBAC resources are applied into the cluster (see `make deploy-cluster-agent-crd` and `make deploy-cluster-agent-rbac` targets).
-* backend CRDs and RBAC resources are applied into the cluster (see `make deploy-backend-crd` and `make deploy-backend-rbac` targets).
-* postgres full deployment is running into the cluster (see `make deploy-postgresql`).
+* cluster-agent/bacckend/backend-shared/appstudio-controller/application-api CRDs and RBAC resources are applied into the cluster 
+* postgres full deployment is running on the cluster
 
 In the end, you will see a similar output:
 
 ```shell
  ------------------------------------------------
-| To access the database outside the cluster  |
+ | To access the database outside the cluster   |
  ------------------------------------------------
   - Run:            kubectl port-forward --namespace gitops svc/gitops-postgresql-staging 5432:5432 &
-  - Credentials:    HOST=127.0.0.1:5432  USERNAME=postgres  PASSWORD=3CqCKcXLyN  DB=postgres
+  - Credentials:    HOST=127.0.0.1:5432  USERNAME=postgres  PASSWORD=(password)  DB=postgres
   - Access Example: psql postgresql://postgres:3CqCKcXLyN@127.0.0.1:5432/postgres -c "select now()"
 
-  - To run Backend & ClusterAgent Operators locally: export DB_PASS=3CqCKcXLyN && goreman start
+  - To run Backend & ClusterAgent Operators locally: export DB_PASS=(password) && goreman start
  -------------------------------------------------
  ```
 
@@ -70,7 +69,7 @@ Continue by applying the local port-forward and `DB_PASS` env variable.
 See this example:
 
  1. Apply the local port-forward for the database: `kubectl port-forward --namespace gitops svc/gitops-postgresql-staging 5432:5432 &` (don't forget to _kill_ this later).
- 2. Run the operators locally: `export DB_PASS=3CqCKcXLyN && make start`.
+ 2. Run the operators locally: `export DB_PASS=(password) && make start`.
 
  > To reset the database run, `make undeploy-postgresql` and afterwards install it again: `deploy-postgresql`.
  > In case you have problem with accessing the database, follow the [debug guide](./debug.md) for further investigation.

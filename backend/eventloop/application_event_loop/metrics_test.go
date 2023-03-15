@@ -89,9 +89,6 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 			Expect(err).To(BeNil())
 
 			appEventLoopRunnerAction = applicationEventLoopRunner_Action{
-				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
-					return k8sClient, nil
-				},
 				eventResourceName:           gitopsDepl.Name,
 				eventResourceNamespace:      gitopsDepl.Namespace,
 				workspaceClient:             k8sClient,
@@ -191,9 +188,6 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 			Expect(err).To(BeNil())
 
 			appEventLoopRunnerAction = applicationEventLoopRunner_Action{
-				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
-					return k8sClient, nil
-				},
 				eventResourceName:           gitopsDepl.Name,
 				eventResourceNamespace:      gitopsDepl.Namespace,
 				workspaceClient:             k8sClient,

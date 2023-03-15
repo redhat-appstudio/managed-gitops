@@ -75,9 +75,6 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 			Expect(err).To(BeNil())
 
 			applicationAction = applicationEventLoopRunner_Action{
-				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
-					return k8sClient, nil
-				},
 				eventResourceName:           gitopsDepl.Name,
 				eventResourceNamespace:      gitopsDepl.Namespace,
 				sharedResourceEventLoop:     shared_resource_loop.NewSharedResourceLoop(),

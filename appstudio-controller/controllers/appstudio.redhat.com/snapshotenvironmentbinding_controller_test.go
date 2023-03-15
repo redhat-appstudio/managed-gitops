@@ -793,9 +793,11 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 			// Check the deployment name too
 			// Eg. appa-staging-binding-new-demo-app-staging-component-a
-			gitOpsDeploymentNameFirst := binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + binding.Spec.Components[indexOfComponentA].Name
+			gitOpsDeploymentNameFirst := GenerateBindingGitOpsDeploymentName(*binding, binding.Spec.Components[indexOfComponentA].Name)
+
 			// Eg. appa-staging-binding-new-demo-app-staging-component-b
-			gitOpsDeploymentNameSecond := binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + binding.Spec.Components[indexOfComponentB].Name
+			gitOpsDeploymentNameSecond := GenerateBindingGitOpsDeploymentName(*binding, binding.Spec.Components[indexOfComponentB].Name)
+
 			Expect(binding.Status.GitOpsDeployments[indexOfComponentA].GitOpsDeployment).To(Equal(gitOpsDeploymentNameFirst))
 			Expect(binding.Status.GitOpsDeployments[indexOfComponentB].GitOpsDeployment).To(Equal(gitOpsDeploymentNameSecond))
 			// Check that the Sync and Health statuses, and the commit ID are not set yet

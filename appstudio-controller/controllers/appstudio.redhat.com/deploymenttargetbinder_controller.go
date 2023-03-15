@@ -22,6 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 	applicationv1alpha1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -47,18 +48,6 @@ type DeploymentTargetClaimReconciler struct {
 //+kubebuilder:rbac:groups=appstudio.redhat.com,resources=deploymenttargetclaims/finalizers,verbs=update
 //+kubebuilder:rbac:groups=appstudio.redhat.com,resources=deploymenttargets,verbs=get;list;watch;update;patch
 //+kubebuilder:rbac:groups=appstudio.redhat.com,resources=deploymenttargets/status,verbs=get;update;patch
-
-const (
-	annBindCompleted string = "dt.appstudio.redhat.com/bind-complete"
-
-	annBoundByController string = "dt.appstudio.redhat.com/bound-by-controller"
-
-	annTargetProvisioner string = "provisioner.appstudio.redhat.com/dt-provisioner"
-
-	finalizerBinder string = "binder.appstudio.redhat.com/finalizer"
-
-	annBinderValueYes string = "yes"
-)
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -88,9 +77,9 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 	}
 
 	// Add the deletion finalizer if it is absent.
-	if addFinalizer(&dtc, finalizerBinder) {
+	if addFinalizer(&dtc, sharedutil.FinalizerBinder) {
 		if err := r.Client.Update(ctx, &dtc); err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s to DeploymentTargetClaim %s in namespace %s: %v", finalizerBinder, dtc.Name, dtc.Namespace, err)
+			return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s to DeploymentTargetClaim %s in namespace %s: %v", sharedutil.FinalizerBinder, dtc.Name, dtc.Namespace, err)
 		}
 	}
 
@@ -111,9 +100,9 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 			}
 		}
 
-		if removeFinalizer(&dtc, finalizerBinder) {
+		if removeFinalizer(&dtc, sharedutil.FinalizerBinder) {
 			if err := r.Client.Update(ctx, &dtc); err != nil {
-				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer %s from DeploymentTargetClaim %s in namespace %s: %v", finalizerBinder, dtc.Name, dtc.Namespace, err)
+				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer %s from DeploymentTargetClaim %s in namespace %s: %v", sharedutil.FinalizerBinder, dtc.Name, dtc.Namespace, err)
 			}
 		}
 
@@ -259,17 +248,17 @@ func bindDeploymentTargetCliamToTarget(ctx context.Context, k8sClient client.Cli
 		// matched by the binding controller.
 		if isBoundByController {
 			dtc.Spec.TargetName = dt.Name
-			val, found := dtc.Annotations[annBoundByController]
-			if !found && val != annBinderValueYes {
-				dtc.Annotations[annBoundByController] = annBinderValueYes
+			val, found := dtc.Annotations[sharedutil.AnnBoundByController]
+			if !found && val != sharedutil.AnnBinderValueYes {
+				dtc.Annotations[sharedutil.AnnBoundByController] = sharedutil.AnnBinderValueYes
 				updated = true
 			}
 		}
 
 		// Add bind complete annotation
-		val, found := dtc.Annotations[annBindCompleted]
-		if !found && val != annBinderValueYes {
-			dtc.Annotations[annBindCompleted] = annBinderValueYes
+		val, found := dtc.Annotations[sharedutil.AnnBindCompleted]
+		if !found && val != sharedutil.AnnBinderValueYes {
+			dtc.Annotations[sharedutil.AnnBindCompleted] = sharedutil.AnnBinderValueYes
 			updated = true
 		}
 		if updated {
@@ -330,7 +319,7 @@ func handleDynamicDTCProvisioning(ctx context.Context, k8sClient client.Client, 
 			dtc.Annotations = map[string]string{}
 		}
 
-		dtc.Annotations[annTargetProvisioner] = string(dtc.Spec.DeploymentTargetClassName)
+		dtc.Annotations[sharedutil.AnnTargetProvisioner] = string(dtc.Spec.DeploymentTargetClassName)
 		return k8sClient.Update(ctx, dtc)
 	})
 	if err != nil {
@@ -446,7 +435,7 @@ func isBindingCompleted(dtc applicationv1alpha1.DeploymentTargetClaim) bool {
 		return false
 	}
 
-	_, found := dtc.Annotations[annBindCompleted]
+	_, found := dtc.Annotations[sharedutil.AnnBindCompleted]
 	return found
 }
 
@@ -459,7 +448,7 @@ func isMarkedForDynamicProvisioning(dtc applicationv1alpha1.DeploymentTargetClai
 		return false
 	}
 
-	_, found := dtc.Annotations[annTargetProvisioner]
+	_, found := dtc.Annotations[sharedutil.AnnTargetProvisioner]
 	return found
 }
 

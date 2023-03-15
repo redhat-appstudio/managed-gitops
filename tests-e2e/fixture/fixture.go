@@ -290,6 +290,38 @@ func cleanUpOldSnapshotEnvironmentBindingAPIs(namespace string, k8sClient client
 	return nil
 }
 
+func cleanUpOldDeploymentTargetClaimAPIs(ns string, k8sClient client.Client) error {
+	dtcList := appstudiosharedv1.DeploymentTargetClaimList{}
+	if err := k8sClient.List(context.Background(), &dtcList, &client.ListOptions{Namespace: ns}); err != nil {
+		return err
+	}
+
+	for i := range dtcList.Items {
+		dtc := dtcList.Items[i]
+		if err := k8sClient.Delete(context.Background(), &dtc); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func cleanUpOldDeploymentTargetAPIs(ns string, k8sClient client.Client) error {
+	dtList := appstudiosharedv1.DeploymentTargetList{}
+	if err := k8sClient.List(context.Background(), &dtList, &client.ListOptions{Namespace: ns}); err != nil {
+		return err
+	}
+
+	for i := range dtList.Items {
+		dtc := dtList.Items[i]
+		if err := k8sClient.Delete(context.Background(), &dtc); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespaceParam string, clientConfig *rest.Config) error {
 
 	kubeClientSet, err := kubernetes.NewForConfig(clientConfig)
@@ -436,6 +468,18 @@ func DeleteNamespace(namespaceParam string, clientConfig *rest.Config) error {
 		// Deletes old SnapshotEnvironmentBinding APIs in this namespace
 		if err := cleanUpOldSnapshotEnvironmentBindingAPIs(namespaceParam, k8sClient); err != nil {
 			GinkgoWriter.Printf("unable to delete old Environment APIs in '%s': %v\n", namespaceParam, err)
+			return false, nil
+		}
+
+		// Deletes old DeploymentTargetClaim APIs in this namespace
+		if err := cleanUpOldDeploymentTargetClaimAPIs(namespaceParam, k8sClient); err != nil {
+			GinkgoWriter.Printf("unable to delete old DeploymentTargetClaim APIs in '%s': %v\n", namespaceParam, err)
+			return false, nil
+		}
+
+		// Deletes old DeploymentTarget APIs in this namespace
+		if err := cleanUpOldDeploymentTargetAPIs(namespaceParam, k8sClient); err != nil {
+			GinkgoWriter.Printf("unable to delete old DeploymentTarget APIs in '%s': %v\n", namespaceParam, err)
 			return false, nil
 		}
 

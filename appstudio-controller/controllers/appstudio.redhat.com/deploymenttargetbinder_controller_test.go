@@ -652,12 +652,77 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				dtc.Spec.TargetName = "different-dt"
 				dt.Status.Phase = appstudiosharedv1.DeploymentTargetPhase_Available
 
-				expecterErr := fmt.Errorf("DeploymentTargetClaim %s targets a DeploymenetTarget %s with a different claim ref", dtc.Name, dt.Name)
+				expecterErr := dtConflictErr(dtc.Name, dt.Name)
 				err := doesDTMatchDTC(dt, dtc)
 				Expect(err).ToNot(BeNil())
 				Expect(err.Error()).To(Equal(expecterErr.Error()))
 			})
 
+		})
+
+		Context("Test checkForBindingConflict function", func() {
+			It("should return an error if DTC targets a DT that has a claimRef to a different DTC.", func() {
+				dt := getDeploymentTarget(func(dt *appstudiosharedv1.DeploymentTarget) {
+					dt.Spec.ClaimRef = "random-dtc"
+				})
+
+				dtc := getDeploymentTargetClaim(
+					func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
+						dtc.Spec.TargetName = dt.Name
+					},
+				)
+
+				err := checkForBindingConflict(&dtc, &dt)
+				Expect(err).NotTo(BeNil())
+				Expect(err.Error()).To(Equal(dtcConflictErr(dtc.Name, dt.Name).Error()))
+			})
+
+			It("should return an error if DTC has empty target but DT has a claimRef to a different DTC.", func() {
+				dt := getDeploymentTarget(func(dt *appstudiosharedv1.DeploymentTarget) {
+					dt.Spec.ClaimRef = "random-dtc"
+				})
+				dtc := getDeploymentTargetClaim()
+
+				err := checkForBindingConflict(&dtc, &dt)
+				Expect(err).NotTo(BeNil())
+				Expect(err.Error()).To(Equal(dtcConflictErr(dtc.Name, dt.Name).Error()))
+			})
+
+			It("should return an error if DT has a claim ref to a DTC but the DTC targets a different DT", func() {
+				dtc := getDeploymentTargetClaim(
+					func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
+						dtc.Spec.TargetName = "random-dt"
+					},
+				)
+				dt := getDeploymentTarget(func(dt *appstudiosharedv1.DeploymentTarget) {
+					dt.Spec.ClaimRef = dtc.Name
+				})
+
+				err := checkForBindingConflict(&dtc, &dt)
+				Expect(err).NotTo(BeNil())
+				Expect(err.Error()).To(Equal(dtConflictErr(dtc.Name, dt.Name).Error()))
+			})
+
+			It("should return an error if DT has empty claim ref but DTC targets a different DT.", func() {
+				dtc := getDeploymentTargetClaim(
+					func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
+						dtc.Spec.TargetName = "random-dt"
+					},
+				)
+				dt := getDeploymentTarget()
+
+				err := checkForBindingConflict(&dtc, &dt)
+				Expect(err).NotTo(BeNil())
+				Expect(err.Error()).To(Equal(dtConflictErr(dtc.Name, dt.Name).Error()))
+			})
+
+			It("should not return an error if there are no conflicts", func() {
+				dtc := getDeploymentTargetClaim()
+				dt := getDeploymentTarget()
+
+				err := checkForBindingConflict(&dtc, &dt)
+				Expect(err).To(BeNil())
+			})
 		})
 
 		Context("Test findMatchingDTForDTC function", func() {

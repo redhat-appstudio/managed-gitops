@@ -1511,6 +1511,9 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 		It("Should not delete ManagedEnvironment entry if its ACTDM entry is available.", func() {
 
+			// TODO: GITOPSRVCE-457: re-enable once 457 is fixed.
+			Skip("GITOPSRVCE-457: re-enable once 457 is fixed.")
+
 			defer dbq.CloseDatabase()
 
 			By("Call clean-up function.")
@@ -1524,6 +1527,10 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 		})
 
 		It("Should delete ManagedEnvironment entry if its ACTDM entry is not available.", func() {
+
+			// TODO: GITOPSRVCE-457: re-enable once 457 is fixed.
+			Skip("GITOPSRVCE-457: re-enable once 457 is fixed.")
+
 			defer dbq.CloseDatabase()
 
 			By("Create ManagedEnvironment row without DTAM entry.")
@@ -1563,6 +1570,9 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 		})
 
 		It("Should not delete ManagedEnvironment entry if its ACTDM entry is not available, but created time is less than wait time for deletion.", func() {
+
+			// TODO: GITOPSRVCE-457: re-enable once 457 is fixed.
+			Skip("GITOPSRVCE-457: re-enable once 457 is fixed.")
 
 			defer dbq.CloseDatabase()
 

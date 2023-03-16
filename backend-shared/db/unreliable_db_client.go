@@ -914,7 +914,14 @@ func (cdb *ChaosDBClient) CountOperationDBRowsByState(ctx context.Context, obj *
 	}
 
 	return cdb.InnerClient.CountOperationDBRowsByState(ctx, obj)
+}
 
+func (cdb *ChaosDBClient) GetKubernetesToDBResourceMappingBatch(ctx context.Context, k8sToDBResourceMapping *[]KubernetesToDBResourceMapping, limit, offset int) error {
+	if err := shouldSimulateFailure("GetKubernetesToDBResourceMappingBatch", limit, offset); err != nil {
+		return err
+	}
+
+	return cdb.InnerClient.GetKubernetesToDBResourceMappingBatch(ctx, k8sToDBResourceMapping, limit, offset)
 }
 
 func (cdb *ChaosDBClient) CloseDatabase() {

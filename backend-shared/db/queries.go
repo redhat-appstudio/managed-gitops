@@ -173,6 +173,9 @@ type DatabaseQueries interface {
 		State    string
 		RowCount int
 	}, error)
+
+	// Get KubernetesToDBResourceMapping in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offset'.
+	GetKubernetesToDBResourceMappingBatch(ctx context.Context, k8sToDBResourceMapping *[]KubernetesToDBResourceMapping, limit, offset int) error
 }
 
 // ApplicationScopedQueries are the set of database queries that act on application DB resources:

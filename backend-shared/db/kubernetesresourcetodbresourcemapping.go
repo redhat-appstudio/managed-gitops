@@ -198,6 +198,18 @@ func (obj *KubernetesToDBResourceMapping) Dispose(ctx context.Context, dbq Datab
 	return err
 }
 
+// Get KubernetesToDBResourceMapping in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+// For example if you want KubernetesToDBResourceMapping starting from 51-150 then set the limit to 100 and offset to 50.
+func (dbq *PostgreSQLDatabaseQueries) GetKubernetesToDBResourceMappingBatch(ctx context.Context, k8sToDBResourceMapping *[]KubernetesToDBResourceMapping, limit, offset int) error {
+	return dbq.dbConnection.
+		Model(k8sToDBResourceMapping).
+		Order("seq_id ASC").
+		Limit(limit).   // Batch size
+		Offset(offset). // offset+1 is starting point of batch
+		Context(ctx).
+		Select()
+}
+
 // GetAsLogKeyValues returns an []interface that can be passed to log.Info(...).
 // e.g. log.Info("Creating database resource", obj.GetAsLogKeyValues()...)
 func (obj *KubernetesToDBResourceMapping) GetAsLogKeyValues() []interface{} {

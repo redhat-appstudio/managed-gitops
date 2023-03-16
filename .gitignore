@@ -1,3 +1,6 @@
+*.yaml
+*.txt
+jgw/
 .stfolder
 .idea/
 .vscode/

@@ -129,7 +129,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			defer dbq.CloseDatabase()
 
 			By("Call cleanOrphanedEntriesfromTable_DTAM function to check delete DB entries if GitOpsDeployment CR is not present.")
-			cleanOrphanedEntriesfromTable_DTAM(ctx, dbq, k8sClient, log)
+			cleanOrphanedEntriesfromTable_DTAM(ctx, dbq, k8sClient, true, log)
 
 			By("Verify that no entry is deleted from DB.")
 			err := dbq.GetApplicationStateById(ctx, &applicationState)
@@ -179,7 +179,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			Expect(err).To(BeNil())
 
 			By("Call cleanOrphanedEntriesfromTable_DTAM function to check/delete DB entries if GitOpsDeployment CR is not present.")
-			cleanOrphanedEntriesfromTable_DTAM(ctx, dbq, k8sClient, log)
+			cleanOrphanedEntriesfromTable_DTAM(ctx, dbq, k8sClient, true, log)
 
 			By("Verify that entries for the GitOpsDeployment which is available in cluster, are not deleted from DB.")
 
@@ -226,7 +226,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			Expect(gitopsDepl.UID).To(Equal(newUID))
 
 			By("calling cleanOrphanedEntriesfromTable_DTAM function to check delete DB entries if GitOpsDeployment CR is not present.")
-			cleanOrphanedEntriesfromTable_DTAM(ctx, dbq, k8sClient, log)
+			cleanOrphanedEntriesfromTable_DTAM(ctx, dbq, k8sClient, true, log)
 
 			By("Verify that entries for the GitOpsDeployment which is not available in cluster, are deleted from DB.")
 
@@ -351,7 +351,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Expect(err).To(BeNil())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
-				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, log)
+				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, true, log)
 
 				By("Verify that no entry is deleted from DB.")
 				err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentDb)
@@ -389,7 +389,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Expect(err).To(BeNil())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
-				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, log)
+				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, true, log)
 
 				By("Verify that entries for the ManagedEnvironment which is not available in cluster, are deleted from DB.")
 
@@ -417,7 +417,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Expect(err).To(BeNil())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
-				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, log)
+				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, true, log)
 
 				By("Verify that entries for the ManagedEnvironment which is not available in cluster, are deleted from DB.")
 
@@ -478,7 +478,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Expect(err).To(BeNil())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
-				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, MockSRLK8sClientFactory{fakeClient: k8sClient}, log)
+				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, MockSRLK8sClientFactory{fakeClient: k8sClient}, true, log)
 
 				By("Verify that entries for the ManagedEnvironment which is not available in cluster, are deleted from DB.")
 
@@ -623,7 +623,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Expect(err).To(BeNil())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
-				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, log)
+				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, true, log)
 
 				By("Verify that no entry is deleted from DB.")
 				_, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsDb.RepositoryCredentialsID)
@@ -654,7 +654,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Expect(err).To(BeNil())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
-				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, log)
+				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, true, log)
 
 				By("Verify that entries for the GitOpsDeployment which is not available in cluster, are deleted from DB.")
 
@@ -711,7 +711,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Expect(err).To(BeNil())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
-				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, log)
+				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, true, log)
 
 				By("Verify that entries for the RepositoryCredentials which is not available in cluster, are deleted from DB.")
 
@@ -827,7 +827,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Expect(err).To(BeNil())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
-				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, log)
+				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, true, log)
 
 				By("Verify that no entry is deleted from DB.")
 				err = dbq.GetSyncOperationById(ctx, &syncOperationDb)
@@ -858,7 +858,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Expect(err).To(BeNil())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
-				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, log)
+				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, true, log)
 
 				By("Verify that entries for the GitOpsDeploymentSyncRun which is not available in cluster, are deleted from DB.")
 
@@ -915,7 +915,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Expect(err).To(BeNil())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
-				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, log)
+				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, true, log)
 
 				By("Verify that entries for the GitOpsDeploymentSyncRun which is not available in cluster, are deleted from DB.")
 
@@ -992,7 +992,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 			By("Call clean-up function.")
 
-			cleanOrphanedEntriesfromTable_Application(ctx, dbq, k8sClient, log)
+			cleanOrphanedEntriesfromTable_Application(ctx, dbq, k8sClient, true, log)
 
 			By("Verify that no entry is deleted from DB.")
 
@@ -1035,7 +1035,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 			By("Call clean-up function.")
 
-			cleanOrphanedEntriesfromTable_Application(ctx, dbq, k8sClient, log)
+			cleanOrphanedEntriesfromTable_Application(ctx, dbq, k8sClient, true, log)
 
 			By("Verify that application row without DTAM entry is deleted from DB.")
 
@@ -1075,7 +1075,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 			By("Call clean-up function.")
 
-			cleanOrphanedEntriesfromTable_Application(ctx, dbq, k8sClient, log)
+			cleanOrphanedEntriesfromTable_Application(ctx, dbq, k8sClient, true, log)
 
 			By("Verify that no application rows are deleted from DB.")
 
@@ -1168,7 +1168,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 			By("Call clean-up function.")
 
-			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, nil, log)
+			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, nil, true, log)
 
 			By("Verify that no entry is deleted from DB.")
 
@@ -1206,7 +1206,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 			By("Call clean-up function.")
 
-			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, nil, log)
+			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, nil, true, log)
 
 			By("Verify that repository credentials row without DTAM entry is deleted from DB.")
 
@@ -1249,7 +1249,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 			By("Call clean-up function.")
 
-			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, nil, log)
+			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, nil, true, log)
 
 			By("Verify that no application rows are deleted from DB.")
 
@@ -1350,7 +1350,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 			By("Call clean-up function.")
 
-			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, nil, log)
+			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, nil, true, log)
 
 			By("Verify that no entry is deleted from DB.")
 
@@ -1385,7 +1385,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 			By("Call clean-up function.")
 
-			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, nil, log)
+			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, nil, true, log)
 
 			By("Verify that SyncOperation row without DTAM entry is deleted from DB.")
 
@@ -1426,7 +1426,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 			By("Call clean-up function.")
 
-			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, nil, log)
+			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, nil, true, log)
 
 			By("Verify that no application rows are deleted from DB.")
 
@@ -1511,14 +1511,11 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 		It("Should not delete ManagedEnvironment entry if its ACTDM entry is available.", func() {
 
-			// TODO: GITOPSRVCE-457: re-enable once 457 is fixed.
-			Skip("GITOPSRVCE-457: re-enable once 457 is fixed.")
-
 			defer dbq.CloseDatabase()
 
 			By("Call clean-up function.")
 
-			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, MockSRLK8sClientFactory{fakeClient: k8sClient}, log)
+			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, MockSRLK8sClientFactory{fakeClient: k8sClient}, true, log)
 
 			By("Verify that no entry is deleted from DB.")
 
@@ -1526,14 +1523,11 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			Expect(err).To(BeNil())
 		})
 
-		It("Should delete ManagedEnvironment entry if its ACTDM entry is not available.", func() {
-
-			// TODO: GITOPSRVCE-457: re-enable once 457 is fixed.
-			Skip("GITOPSRVCE-457: re-enable once 457 is fixed.")
+		It("Should delete ManagedEnvironment entry if its ACTDM entry is not available", func() {
 
 			defer dbq.CloseDatabase()
 
-			By("Create ManagedEnvironment row without DTAM entry.")
+			By("Create ManagedEnvironment row without ACTDM entry.")
 
 			managedEnvironmentDbNew := db.ManagedEnvironment{
 				Managedenvironment_id: "test-" + string(uuid.NewUUID()),
@@ -1555,7 +1549,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 			By("Call clean-up function.")
 
-			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, nil, log)
+			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, nil, true, log)
 
 			By("Verify that SyncOperation row without DTAM entry is deleted from DB.")
 
@@ -1571,12 +1565,9 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 		It("Should not delete ManagedEnvironment entry if its ACTDM entry is not available, but created time is less than wait time for deletion.", func() {
 
-			// TODO: GITOPSRVCE-457: re-enable once 457 is fixed.
-			Skip("GITOPSRVCE-457: re-enable once 457 is fixed.")
-
 			defer dbq.CloseDatabase()
 
-			By("Create application row without DTAM entry.")
+			By("Create ManagedEnvironment row without ACTDM entry.")
 
 			managedEnvironmentDbNew := db.ManagedEnvironment{
 				Managedenvironment_id: "test-" + string(uuid.NewUUID()),
@@ -1597,7 +1588,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 			By("Call clean-up function.")
 
-			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, nil, log)
+			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, nil, true, log)
 
 			By("Verify that no application rows are deleted from DB.")
 
@@ -1607,6 +1598,58 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentDb)
 			Expect(err).To(BeNil())
 		})
+
+		It("Should not delete ManagedEnvironment entry if there exists an entry in the KubernetesToDBResourceMapping table that points to that ME", func() {
+
+			defer dbq.CloseDatabase()
+
+			By("Create ManagedEnvironment row without an ACTDM entry.")
+
+			managedEnvironmentDbNew := db.ManagedEnvironment{
+				Managedenvironment_id: "test-" + string(uuid.NewUUID()),
+				Clustercredentials_id: clusterCredentialsDb.Clustercredentials_cred_id,
+				Name:                  "test-" + string(uuid.NewUUID()),
+			}
+			err := dbq.CreateManagedEnvironment(ctx, &managedEnvironmentDbNew)
+			Expect(err).To(BeNil())
+
+			By("updating created_on, so it does not block the ManagedEnvironment from being deleted")
+
+			// Set "Created_on" field to > waitTimeForRowDelete
+			managedEnvironmentDbNew.Created_on = time.Now().Add(-1 * (waitTimeforRowDelete + 1*time.Second))
+			err = dbq.UpdateManagedEnvironment(ctx, &managedEnvironmentDbNew)
+			Expect(err).To(BeNil())
+
+			By("creating a KubernetesDBToResourceMapping table referencing the ManagedEnvironment")
+			kubernetesDBToResourceMapping := db.KubernetesToDBResourceMapping{
+				KubernetesResourceType: db.K8sToDBMapping_Namespace,
+				KubernetesResourceUID:  "test-" + string(uuid.NewUUID()),
+				DBRelationType:         db.K8sToDBMapping_ManagedEnvironment,
+				DBRelationKey:          managedEnvironmentDbNew.Managedenvironment_id,
+			}
+			err = dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesDBToResourceMapping)
+			Expect(err).To(BeNil())
+
+			By("calling the function under test")
+			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, nil, true, log)
+
+			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentDbNew)
+			Expect(err).To(BeNil(), "the ManagedEnvironment should exist: it should not be deleted")
+
+			By("deleting the KubernetesToDBResourceMapping")
+			rowsDeleted, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, &kubernetesDBToResourceMapping)
+			Expect(err).To(BeNil())
+			Expect(rowsDeleted).To(Equal(1))
+
+			By("calling the function under test")
+			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, nil, true, log)
+
+			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentDbNew)
+			Expect(err).ToNot(BeNil(), "the ManagedEnvironment should no longer exist, after the KubernetesToDBResourceMapping was deleted")
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue(), "the ManagedEnvironment should no longer exist, after the KubernetesToDBResourceMapping was deleted")
+
+		})
+
 	})
 })
 

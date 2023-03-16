@@ -490,8 +490,10 @@ func cleanOrphanedEntriesfromTable(ctx context.Context, dbQueries db.DatabaseQue
 	// Loop through SyncOperations and delete those which are missing entry in ACTDM.
 	cleanOrphanedEntriesfromTable_SyncOperation(ctx, dbQueries, client, listOfAppsIdsInDTAM[dbType_SyncOperation], log)
 
-	// Loop through ManagedEnvironments and delete those which are missing entry in ACTDM.
-	cleanOrphanedEntriesfromTable_ManagedEnvironment(ctx, dbQueries, client, listOfAppsIdsInDTAM[dbType_ManagedEnvironment], k8sClientFactory, log)
+	// TODO: GITOPSRVCE-457: Re-enable this.
+
+	// // Loop through ManagedEnvironments and delete those which are missing entry in ACTDM.
+	// cleanOrphanedEntriesfromTable_ManagedEnvironment(ctx, dbQueries, client, listOfAppsIdsInDTAM[dbType_ManagedEnvironment], k8sClientFactory, log)
 }
 
 // cleanOrphanedEntriesfromTable_RepositoryCredential loops through RepositoryCredentials in database and verifies they are still valid (Having entry in ACTDM). If not, the resources are deleted.
@@ -632,6 +634,8 @@ func cleanOrphanedEntriesfromTable_SyncOperation(ctx context.Context, dbQueries 
 	}
 }
 
+// TODO: GITOPSRVCE-457: Remove this nolint, once 457 is fixed.
+//nolint:unused
 // cleanOrphanedEntriesfromTable_ManagedEnvironment loops through ManagedEnvironments in database and verifies they are still valid (Having entry in ACTDM). If not, the resources are deleted.
 func cleanOrphanedEntriesfromTable_ManagedEnvironment(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfAppsIdsInDTAM []string, k8sClientFactory sharedresourceloop.SRLK8sClientFactory, log logr.Logger) {
 

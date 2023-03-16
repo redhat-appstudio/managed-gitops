@@ -22,13 +22,13 @@ var (
 	OperationStateFailed = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Name:        "operationDB_failedState",
-			Help:        "Number of Operations DB rows currently in non-complete state",
+			Help:        "Number of Operations DB rows currently in failed state",
 			ConstLabels: map[string]string{"OperationDBState": "failed"},
 		},
 	)
 )
 
-func SetOperationDBState(state db.OperationState) {
+func IncreaseOperationDBState(state db.OperationState) {
 
 	if state == db.OperationState_Completed {
 		OperationStateCompleted.Inc()
@@ -39,14 +39,14 @@ func SetOperationDBState(state db.OperationState) {
 }
 
 // Reset metrics to zero every hour
-func SetMetricsCountToZero() {
+func StartGoRoutineRestartMetricsEveryHour() {
 
-	ticker := time.NewTicker(time.Minute)
 	go func() {
 		for {
 
-			<-ticker.C
+			ticker := time.NewTicker(1 * time.Hour)
 
+			<-ticker.C
 			ClearMetrics()
 
 		}

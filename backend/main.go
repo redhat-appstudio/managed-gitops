@@ -214,13 +214,12 @@ func startDBMetricsReconciler(mgr ctrl.Manager) {
 	}
 
 	databaseReconciler := eventloop.MetricsReconciler{
-		DB:               dbQueries,
-		Client:           mgr.GetClient(),
-		K8sClientFactory: shared_resource_loop.DefaultK8sClientFactory{},
+		DB:     dbQueries,
+		Client: mgr.GetClient(),
 	}
 
 	// Start goroutine for database metrics reconciler
-	databaseReconciler.StartDatabaseMetricsReconciler()
+	databaseReconciler.StartDBMetricsReconcilerForMetrics()
 }
 
 func initializeRoutes() {

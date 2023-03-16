@@ -258,11 +258,10 @@ func (task *processOperationEventTask) PerformTask(taskContext context.Context) 
 			// Complete (but complete doesn't mean successful: it could be complete due to a fatal error)
 			if err == nil {
 				dbOperation.State = db.OperationState_Completed
-				metrics.SetOperationDBState(dbOperation.State)
 			} else {
 				dbOperation.State = db.OperationState_Failed
-				metrics.SetOperationDBState(dbOperation.State)
 			}
+			metrics.IncreaseOperationDBState(dbOperation.State)
 		}
 		dbOperation.Last_state_update = time.Now()
 

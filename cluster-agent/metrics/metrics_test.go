@@ -13,23 +13,23 @@ var _ = Describe("Test for Operation DB metrics counter", func() {
 
 			ClearMetrics()
 
-			numberOfOperationDBRowsInCompletedSate := testutil.ToFloat64(OperationStateCompleted)
+			numberOfOperationDBRowsInCompletedState := testutil.ToFloat64(OperationStateCompleted)
 			numberOfOperationDBRowsInFailedState := testutil.ToFloat64(OperationStateFailed)
 
-			By("verify SetOperationDBState by passing state as Completed")
-			SetOperationDBState(db.OperationState_Completed)
+			By("verify IncreaseOperationDBState by passing state as Completed")
+			IncreaseOperationDBState(db.OperationState_Completed)
 
-			newNumberOfOperationDBRowsInCompletedSate := testutil.ToFloat64(OperationStateCompleted)
+			newNumberOfOperationDBRowsInCompletedState := testutil.ToFloat64(OperationStateCompleted)
 			newNumberOfOperationDBRowsInFailedState := testutil.ToFloat64(OperationStateFailed)
-			Expect(newNumberOfOperationDBRowsInCompletedSate).To(Equal(numberOfOperationDBRowsInCompletedSate + 1))
+			Expect(newNumberOfOperationDBRowsInCompletedState).To(Equal(numberOfOperationDBRowsInCompletedState + 1))
 			Expect(newNumberOfOperationDBRowsInFailedState).To(Equal(numberOfOperationDBRowsInFailedState))
 
-			By("verify SetOperationDBState by passing state as Failed")
-			SetOperationDBState(db.OperationState_Failed)
+			By("verify IncreaseOperationDBState by passing state as Failed")
+			IncreaseOperationDBState(db.OperationState_Failed)
 
-			newNumberOfOperationDBRowsInCompletedSate = testutil.ToFloat64(OperationStateCompleted)
+			newNumberOfOperationDBRowsInCompletedState = testutil.ToFloat64(OperationStateCompleted)
 			newNumberOfOperationDBRowsInFailedState = testutil.ToFloat64(OperationStateFailed)
-			Expect(newNumberOfOperationDBRowsInCompletedSate).To(Equal(numberOfOperationDBRowsInCompletedSate + 1))
+			Expect(newNumberOfOperationDBRowsInCompletedState).To(Equal(numberOfOperationDBRowsInCompletedState + 1))
 			Expect(newNumberOfOperationDBRowsInFailedState).To(Equal(numberOfOperationDBRowsInFailedState + 1))
 
 		})

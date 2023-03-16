@@ -10,7 +10,6 @@ import (
 	"github.com/go-logr/logr"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
-	sharedresourceloop "github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	"github.com/redhat-appstudio/managed-gitops/backend/metrics"
 )
 
@@ -21,16 +20,10 @@ const (
 // MetricsReconciler reconciles metrics of Database entries
 type MetricsReconciler struct {
 	client.Client
-	DB               db.DatabaseQueries
-	K8sClientFactory sharedresourceloop.SRLK8sClientFactory
+	DB db.DatabaseQueries
 }
 
-// This function counts the operation DB rows
-func (r *MetricsReconciler) StartDatabaseMetricsReconciler() {
-	r.startDBMetricsReconcilerForMetrics()
-}
-
-func (r *MetricsReconciler) startDBMetricsReconcilerForMetrics() {
+func (r *MetricsReconciler) StartDBMetricsReconcilerForMetrics() {
 	go func() {
 		// Timer to trigger Reconciler
 		timer := time.NewTimer(time.Duration(databaseMetricsReconcilerInterval))
@@ -46,7 +39,7 @@ func (r *MetricsReconciler) startDBMetricsReconcilerForMetrics() {
 
 		// Kick off the timer again, once the old task runs.
 		// This ensures that at least 'databaseMetricsReconcilerInterval' time elapses from the end of one run to the beginning of another.
-		r.startDBMetricsReconcilerForMetrics()
+		r.StartDBMetricsReconcilerForMetrics()
 	}()
 
 }
@@ -55,7 +48,7 @@ func (r *MetricsReconciler) startDBMetricsReconcilerForMetrics() {
 func operationDbReconcile(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, log logr.Logger) {
 	var operationDB db.Operation
 
-	// Fetch count of the number of operation DB rows with diffrent states(In_Progress, Waiting, Completed and Failed)
+	// Fetch count of the number of operation DB rows with different states(In_Progress, Waiting, Completed and Failed)
 	operationStateCounts, err := dbQueries.CountOperationDBRowsByState(ctx, &operationDB)
 	if err != nil {
 		log.Error(err, "Error occured while fetching the count of the number of operationDB rows based on states from database")
@@ -82,8 +75,8 @@ func operationDbReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cli
 		}
 
 		// Number of operation DB rows that are not completed: Number of Waiting State + Number of In_progress and update the metrics
-		totatIncompleteState := inProgressCount + waitingCount
-		metrics.SetCountOfOperationDBRowsInNonCompleteState(totatIncompleteState)
+		totalIncompleteState := inProgressCount + waitingCount
+		metrics.SetCountOfOperationDBRowsInNonCompleteState(totalIncompleteState)
 
 		// Update metrics with number of operation DB rows in Completed state
 		if op.State == string(db.OperationState_Completed) {
@@ -98,8 +91,8 @@ func operationDbReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cli
 		}
 
 		// Number of operation DB rows that are completed: Number in completed state + Number in error state and update the metrics
-		totatCompletedState := completedCount + failedCount
-		metrics.SetCountOfOperationDBRowsInCompleteState(totatCompletedState)
+		totalCompletedState := completedCount + failedCount
+		metrics.SetCountOfOperationDBRowsInCompleteState(totalCompletedState)
 
 	}
 

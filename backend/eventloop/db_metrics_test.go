@@ -92,9 +92,6 @@ var _ = Describe("Metrics DB Reconciler Test", func() {
 			err = dbq.CreateOperation(ctx, &OperationDB2, OperationDB2.Operation_owner_user_id)
 			Expect(err).To(BeNil())
 
-			err = dbq.GetOperationById(ctx, &OperationDB2)
-			Expect(err).To(BeNil())
-
 			OperationDB2.State = db.OperationState_In_Progress
 			err = dbq.UpdateOperation(ctx, &OperationDB2)
 			Expect(err).To(BeNil())

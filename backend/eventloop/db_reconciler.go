@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	appRowBatchSize            = 100              // Number of rows needs to be fetched in each batch.
+	rowBatchSize               = 100              // Number of rows needs to be fetched in each batch.
 	databaseReconcilerInterval = 30 * time.Minute // Interval in Minutes to reconcile Database.
 	sleepIntervalsOfBatches    = 1 * time.Second  // Interval in Millisecond between each batch.
 	waitTimeforRowDelete       = 1 * time.Hour    // Number of hours to wait before deleting DB row
@@ -65,16 +65,16 @@ func (r *DatabaseReconciler) startTimerForNextCycle() {
 		_, _ = sharedutil.CatchPanic(func() error {
 
 			// Clean orphaned entries from DTAM table and other table they relate to (i.e ApplicationState, Application).
-			cleanOrphanedEntriesfromTable_DTAM(ctx, r.DB, r.Client, log)
+			cleanOrphanedEntriesfromTable_DTAM(ctx, r.DB, r.Client, false, log)
 
 			// Clean orphaned entries from ACTDM table and other table they relate to (i.e ManagedEnvironment, RepositoryCredential, GitOpsDeploymentSync).
-			cleanOrphanedEntriesfromTable_ACTDM(ctx, r.DB, r.Client, r.K8sClientFactory, log)
+			cleanOrphanedEntriesfromTable_ACTDM(ctx, r.DB, r.Client, r.K8sClientFactory, false, log)
 
 			// Clean orphaned entries from RepositoryCredential, SyncOperation, ManagedEnvironment tables if they dont have related entries in DTAM table.
-			cleanOrphanedEntriesfromTable(ctx, r.DB, r.Client, r.K8sClientFactory, log)
+			cleanOrphanedEntriesfromTable(ctx, r.DB, r.Client, r.K8sClientFactory, false, log)
 
 			// Clean orphaned entries from Application table if they dont have related entries in ACTDM table.
-			cleanOrphanedEntriesfromTable_Application(ctx, r.DB, r.Client, log)
+			cleanOrphanedEntriesfromTable_Application(ctx, r.DB, r.Client, false, log)
 
 			return nil
 		})
@@ -92,23 +92,24 @@ func (r *DatabaseReconciler) startTimerForNextCycle() {
 ///////////////
 
 // cleanOrphanedEntriesfromTable_DTAM loops through the DTAMs in a database and verifies they are still valid. If not, the resources are deleted.
-func cleanOrphanedEntriesfromTable_DTAM(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, log logr.Logger) {
+// - The skipDelay can be used to skip the time.Sleep(), but this should true when called from a unit test.
+func cleanOrphanedEntriesfromTable_DTAM(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, skipDelay bool, log logr.Logger) {
 	offSet := 0
 
 	log = log.WithValues("job", "cleanOrphanedEntriesfromTable_DTAM")
 
 	// Continuously iterate and fetch batches until all entries of DeploymentToApplicationMapping table are processed.
 	for {
-		if offSet != 0 {
+		if offSet != 0 && !skipDelay {
 			time.Sleep(sleepIntervalsOfBatches)
 		}
 
 		var listOfdeplToAppMapping []db.DeploymentToApplicationMapping
 
 		// Fetch DeploymentToApplicationMapping table entries in batch size as configured above.​
-		if err := dbQueries.GetDeploymentToApplicationMappingBatch(ctx, &listOfdeplToAppMapping, appRowBatchSize, offSet); err != nil {
+		if err := dbQueries.GetDeploymentToApplicationMappingBatch(ctx, &listOfdeplToAppMapping, rowBatchSize, offSet); err != nil {
 			log.Error(err, fmt.Sprintf("Error occurred in DTAM Reconcile while fetching batch from Offset: %d to %d: ",
-				offSet, offSet+appRowBatchSize))
+				offSet, offSet+rowBatchSize))
 			break
 		}
 
@@ -158,7 +159,7 @@ func cleanOrphanedEntriesfromTable_DTAM(ctx context.Context, dbQueries db.Databa
 		}
 
 		// Skip processed entries in next iteration
-		offSet += appRowBatchSize
+		offSet += rowBatchSize
 	}
 }
 
@@ -229,22 +230,22 @@ func cleanOrphanedEntriesfromTable_DTAM_DeleteEntry(ctx context.Context, deplToA
 ///////////////
 
 // cleanOrphanedEntriesfromTable_ACTDM loops through the ACTDM in a database and verifies they are still valid. If not, the resources are deleted.
-func cleanOrphanedEntriesfromTable_ACTDM(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, k8sClientFactory sharedresourceloop.SRLK8sClientFactory, log logr.Logger) {
+func cleanOrphanedEntriesfromTable_ACTDM(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, k8sClientFactory sharedresourceloop.SRLK8sClientFactory, skipDelay bool, log logr.Logger) {
 	offSet := 0
 	log = log.WithValues("job", "cleanOrphanedEntriesfromTable_ACTDM")
 
 	// Continuously iterate and fetch batches until all entries of ACTDM table are processed.
 	for {
-		if offSet != 0 {
+		if offSet != 0 && !skipDelay {
 			time.Sleep(sleepIntervalsOfBatches)
 		}
 
 		var listOfApiCrToDbMapping []db.APICRToDatabaseMapping
 
 		// Fetch ACTDMs table entries in batch size as configured above.​
-		if err := dbQueries.GetAPICRToDatabaseMappingBatch(ctx, &listOfApiCrToDbMapping, appRowBatchSize, offSet); err != nil {
+		if err := dbQueries.GetAPICRToDatabaseMappingBatch(ctx, &listOfApiCrToDbMapping, rowBatchSize, offSet); err != nil {
 			log.Error(err, fmt.Sprintf("Error occurred in ACTDM Reconcile while fetching batch from Offset: %d to %d: ",
-				offSet, offSet+appRowBatchSize))
+				offSet, offSet+rowBatchSize))
 			break
 		}
 
@@ -284,7 +285,7 @@ func cleanOrphanedEntriesfromTable_ACTDM(ctx context.Context, dbQueries db.Datab
 		}
 
 		// Skip processed entries in next iteration
-		offSet += appRowBatchSize
+		offSet += rowBatchSize
 	}
 }
 
@@ -479,25 +480,23 @@ func deleteDbEntry(ctx context.Context, dbQueries db.DatabaseQueries, id string,
 ///////////////
 
 // cleanOrphanedEntriesfromTable loops through ACTDM in database and returns list of resource IDs for each CR type (i.e. RepositoryCredential, ManagedEnvironment, SyncOperation) .
-func cleanOrphanedEntriesfromTable(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, k8sClientFactory sharedresourceloop.SRLK8sClientFactory, log logr.Logger) {
+func cleanOrphanedEntriesfromTable(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, k8sClientFactory sharedresourceloop.SRLK8sClientFactory, skipDelay bool, log logr.Logger) {
 
 	// Get list of RepositoryCredential/ManagedEnvironment/SyncOperation IDs having entry in ACTDM table.
-	listOfAppsIdsInDTAM := getListOfCRIdsFromTable(ctx, dbQueries, "multiple", log)
+	listOfRowIdsInAPICRToDBMapping := getListOfCRIdsFromTable(ctx, dbQueries, "multiple", skipDelay, log)
 
 	// Loop through RepositoryCredentials and delete those which are missing entry in ACTDM.
-	cleanOrphanedEntriesfromTable_RepositoryCredential(ctx, dbQueries, client, listOfAppsIdsInDTAM[dbType_RespositoryCredential], log)
+	cleanOrphanedEntriesfromTable_RepositoryCredential(ctx, dbQueries, client, listOfRowIdsInAPICRToDBMapping[dbType_RespositoryCredential], skipDelay, log)
 
 	// Loop through SyncOperations and delete those which are missing entry in ACTDM.
-	cleanOrphanedEntriesfromTable_SyncOperation(ctx, dbQueries, client, listOfAppsIdsInDTAM[dbType_SyncOperation], log)
+	cleanOrphanedEntriesfromTable_SyncOperation(ctx, dbQueries, client, listOfRowIdsInAPICRToDBMapping[dbType_SyncOperation], skipDelay, log)
 
-	// TODO: GITOPSRVCE-457: Re-enable this.
-
-	// // Loop through ManagedEnvironments and delete those which are missing entry in ACTDM.
-	// cleanOrphanedEntriesfromTable_ManagedEnvironment(ctx, dbQueries, client, listOfAppsIdsInDTAM[dbType_ManagedEnvironment], k8sClientFactory, log)
+	// Loop through ManagedEnvironments and delete those which are missing entry in ACTDM.
+	cleanOrphanedEntriesfromTable_ManagedEnvironment(ctx, dbQueries, client, listOfRowIdsInAPICRToDBMapping[dbType_ManagedEnvironment], k8sClientFactory, skipDelay, log)
 }
 
 // cleanOrphanedEntriesfromTable_RepositoryCredential loops through RepositoryCredentials in database and verifies they are still valid (Having entry in ACTDM). If not, the resources are deleted.
-func cleanOrphanedEntriesfromTable_RepositoryCredential(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfAppsIdsInDTAM []string, log logr.Logger) {
+func cleanOrphanedEntriesfromTable_RepositoryCredential(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfAppsIdsInDTAM []string, skipDelay bool, log logr.Logger) {
 
 	log = log.WithValues("job", "cleanOrphanedEntriesfromTable_RepositoryCredential")
 
@@ -505,16 +504,16 @@ func cleanOrphanedEntriesfromTable_RepositoryCredential(ctx context.Context, dbQ
 
 	// Continuously iterate and fetch batches until all entries of RepositoryCredentials table are processed.
 	for {
-		if offSet != 0 {
+		if offSet != 0 && !skipDelay {
 			time.Sleep(sleepIntervalsOfBatches)
 		}
 
 		var listOfRepositoryCredentialsFromDB []db.RepositoryCredentials
 
 		// Fetch RepositoryCredentials table entries in batch size as configured above.​
-		if err := dbQueries.GetRepositoryCredentialsBatch(ctx, &listOfRepositoryCredentialsFromDB, appRowBatchSize, offSet); err != nil {
+		if err := dbQueries.GetRepositoryCredentialsBatch(ctx, &listOfRepositoryCredentialsFromDB, rowBatchSize, offSet); err != nil {
 			log.Error(err, fmt.Sprintf("Error occurred in cleanOrphanedEntriesfromTable_RepositoryCredential while fetching batch from Offset: %d to %d: ",
-				offSet, offSet+appRowBatchSize))
+				offSet, offSet+rowBatchSize))
 			break
 		}
 
@@ -560,28 +559,28 @@ func cleanOrphanedEntriesfromTable_RepositoryCredential(ctx context.Context, dbQ
 		}
 
 		// Skip processed entries in next iteration
-		offSet += appRowBatchSize
+		offSet += rowBatchSize
 	}
 }
 
 // cleanOrphanedEntriesfromTable_SyncOperation loops through SyncOperations in database and verifies they are still valid (Having entry in ACTDM). If not, the resources are deleted.
-func cleanOrphanedEntriesfromTable_SyncOperation(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfAppsIdsInDTAM []string, log logr.Logger) {
+func cleanOrphanedEntriesfromTable_SyncOperation(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfAppsIdsInDTAM []string, skipDelay bool, log logr.Logger) {
 
 	log = log.WithValues("job", "cleanOrphanedEntriesfromTable_SyncOperation")
 
 	offSet := 0
 	// Continuously iterate and fetch batches until all entries of RepositoryCredentials table are processed.
 	for {
-		if offSet != 0 {
+		if offSet != 0 && !skipDelay {
 			time.Sleep(sleepIntervalsOfBatches)
 		}
 
 		var listOfSyncOperationFromDB []db.SyncOperation
 
 		// Fetch SyncOperation table entries in batch size as configured above.​
-		if err := dbQueries.GetSyncOperationsBatch(ctx, &listOfSyncOperationFromDB, appRowBatchSize, offSet); err != nil {
+		if err := dbQueries.GetSyncOperationsBatch(ctx, &listOfSyncOperationFromDB, rowBatchSize, offSet); err != nil {
 			log.Error(err, fmt.Sprintf("Error occurred in cleanOrphanedEntriesfromTable_SyncOperation while fetching batch from Offset: %d to %d: ",
-				offSet, offSet+appRowBatchSize))
+				offSet, offSet+rowBatchSize))
 			break
 		}
 
@@ -630,31 +629,45 @@ func cleanOrphanedEntriesfromTable_SyncOperation(ctx context.Context, dbQueries 
 		}
 
 		// Skip processed entries in next iteration
-		offSet += appRowBatchSize
+		offSet += rowBatchSize
 	}
 }
 
-// TODO: GITOPSRVCE-457: Remove this nolint, once 457 is fixed.
 // cleanOrphanedEntriesfromTable_ManagedEnvironment loops through ManagedEnvironments in database and verifies they are still valid (Having entry in ACTDM). If not, the resources are deleted.
-//
-//nolint:unused
-func cleanOrphanedEntriesfromTable_ManagedEnvironment(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfAppsIdsInDTAM []string, k8sClientFactory sharedresourceloop.SRLK8sClientFactory, log logr.Logger) {
+func cleanOrphanedEntriesfromTable_ManagedEnvironment(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfRowIdsInAPICRToDBMapping []string, k8sClientFactory sharedresourceloop.SRLK8sClientFactory, skipDelay bool, log logr.Logger) {
+
+	// Retrieve the list of K8sToDBResourceMappings, so that we don't deleted any ManagedEnvironmentes referenced in them
+	allK8sToDBResourceMappings := getListOfK8sToDBResourceMapping(ctx, dbQueries, skipDelay, log)
+
+	// The set of ManagedEnvironments that are referenced in the KubernetesToDBResourceMapping table
+	// map: key is Managed Environment ID, value is unused
+	managedEnvIDsInK8sToDBTable := map[string]bool{}
+
+	// Iterate through all the K8sToDBResourceMappings, looking for those that match ManagedEnvironments
+	for _, k8sToDBResourceMapping := range allK8sToDBResourceMappings {
+		if k8sToDBResourceMapping.DBRelationType != db.K8sToDBMapping_ManagedEnvironment {
+			continue
+		}
+
+		managedEnvIDsInK8sToDBTable[k8sToDBResourceMapping.DBRelationKey] = true
+
+	}
 
 	log = log.WithValues("job", "cleanOrphanedEntriesfromTable_ManagedEnvironment")
 
 	offSet := 0
-	// Continuously iterate and fetch batches until all entries of RepositoryCredentials table are processed.
+	// Continuously iterate and fetch batches until all entries of the ManagedEnvironment table are processed.
 	for {
-		if offSet != 0 {
+		if offSet != 0 && !skipDelay {
 			time.Sleep(sleepIntervalsOfBatches)
 		}
 
 		var listOfManagedEnvironmentFromDB []db.ManagedEnvironment
 
 		// Fetch ManagedEnvironment table entries in batch size as configured above.​
-		if err := dbQueries.GetManagedEnvironmentBatch(ctx, &listOfManagedEnvironmentFromDB, appRowBatchSize, offSet); err != nil {
+		if err := dbQueries.GetManagedEnvironmentBatch(ctx, &listOfManagedEnvironmentFromDB, rowBatchSize, offSet); err != nil {
 			log.Error(err, fmt.Sprintf("Error occurred in cleanOrphanedEntriesfromTable_ManagedEnvironment while fetching batch from Offset: %d to %d: ",
-				offSet, offSet+appRowBatchSize))
+				offSet, offSet+rowBatchSize))
 			break
 		}
 
@@ -668,9 +681,14 @@ func cleanOrphanedEntriesfromTable_ManagedEnvironment(ctx context.Context, dbQue
 		for i := range listOfManagedEnvironmentFromDB {
 			managedEnvironment := listOfManagedEnvironmentFromDB[i] // To avoid "Implicit memory aliasing in for loop." error.
 
-			// Check if Managed Environment has entry in ACTDM table, if not then delete the repository credential.
-			// If created time is less than waitTimeforRowDelete then ignore dont delete even if ACTDM entry is missing.
-			if !slices.Contains(listOfAppsIdsInDTAM, managedEnvironment.Managedenvironment_id) &&
+			_, isManagedEnvInK8sToDBResourceMappingTable := managedEnvIDsInK8sToDBTable[managedEnvironment.Managedenvironment_id]
+
+			// We should only delete a ManagedEnvironment if all of the following are true:
+			// - ManagedEnvironment does NOT have an entry in APICRToDBMapping table
+			// - ManagedEnvironment does NOT have an entry in the K8sToDBResourceMapping table
+			// - The time that has elapsed from when the managed environment was created is greater than waitTimeforRowDelete
+			if !slices.Contains(listOfRowIdsInAPICRToDBMapping, managedEnvironment.Managedenvironment_id) &&
+				!isManagedEnvInK8sToDBResourceMappingTable &&
 				time.Since(managedEnvironment.Created_on) > waitTimeforRowDelete {
 
 				var specialClusterUser db.ClusterUser
@@ -687,31 +705,31 @@ func cleanOrphanedEntriesfromTable_ManagedEnvironment(ctx context.Context, dbQue
 		}
 
 		// Skip processed entries in next iteration
-		offSet += appRowBatchSize
+		offSet += rowBatchSize
 	}
 }
 
 // cleanOrphanedEntriesfromTable_Application loops through Applications in database and verifies they are still valid (Having entry in DTAM). If not, the resources are deleted.
-func cleanOrphanedEntriesfromTable_Application(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, log logr.Logger) {
+func cleanOrphanedEntriesfromTable_Application(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, skipDelay bool, log logr.Logger) {
 
 	log = log.WithValues("job", "cleanOrphanedEntriesfromTable_Application")
 
 	// Get list of Applications having entry in DTAM table
-	listOfAppsIdsInDTAM := getListOfCRIdsFromTable(ctx, dbQueries, "Application", log)
+	listOfAppsIdsInDTAM := getListOfCRIdsFromTable(ctx, dbQueries, "Application", skipDelay, log)
 
 	offSet := 0
 	// Continuously iterate and fetch batches until all entries of Application table are processed.
 	for {
-		if offSet != 0 {
+		if offSet != 0 && !skipDelay {
 			time.Sleep(sleepIntervalsOfBatches)
 		}
 
 		var listOfApplicationsFromDB []db.Application
 
 		// Fetch Application table entries in batch size as configured above.​
-		if err := dbQueries.GetApplicationBatch(ctx, &listOfApplicationsFromDB, appRowBatchSize, offSet); err != nil {
+		if err := dbQueries.GetApplicationBatch(ctx, &listOfApplicationsFromDB, rowBatchSize, offSet); err != nil {
 			log.Error(err, fmt.Sprintf("Error occurred in cleanOrphanedEntriesfromTable_Application while fetching batch from Offset: %d to %d: ",
-				offSet, offSet+appRowBatchSize))
+				offSet, offSet+rowBatchSize))
 			break
 		}
 
@@ -754,12 +772,47 @@ func cleanOrphanedEntriesfromTable_Application(ctx context.Context, dbQueries db
 		}
 
 		// Skip processed entries in next iteration
-		offSet += appRowBatchSize
+		offSet += rowBatchSize
 	}
 }
 
-// getListOfCRIdsFromTable loops through DTAMs in database and returns list of resource IDs for each CR type (i.e. RepositoryCredential, ManagedEnvironment, SyncOperation) .
-func getListOfCRIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, tableType dbTableName, log logr.Logger) map[dbTableName][]string {
+func getListOfK8sToDBResourceMapping(ctx context.Context, dbQueries db.DatabaseQueries, skipDelay bool, log logr.Logger) []db.KubernetesToDBResourceMapping {
+
+	offSet := 0
+
+	var res []db.KubernetesToDBResourceMapping
+
+	// Continuously iterate and fetch batches until all entries of table processed.
+	for {
+		if offSet != 0 && !skipDelay {
+			time.Sleep(sleepIntervalsOfBatches)
+		}
+
+		var tempList []db.KubernetesToDBResourceMapping
+
+		// Fetch K8sToDBResourceMapping table entries in batch size as configured above.​
+		if err := dbQueries.GetKubernetesToDBResourceMappingBatch(ctx, &tempList, rowBatchSize, offSet); err != nil {
+			log.Error(err, fmt.Sprintf("Error occurred in getListOfK8sToDBResourceMapping while fetching batch from Offset: %d to %d: ",
+				offSet, offSet+rowBatchSize))
+			break
+		}
+
+		// Break the loop if no entries are left in table to be processed.
+		if len(tempList) == 0 {
+			break
+		}
+
+		res = append(res, tempList...)
+
+		// Skip processed entries in next iteration
+		offSet += rowBatchSize
+	}
+
+	return res
+}
+
+// getListOfCRIdsFromTable loops through DTAMs or APICRToDBMappigs in database and returns list of resource IDs for each CR type (i.e. RepositoryCredential, ManagedEnvironment, SyncOperation).
+func getListOfCRIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, tableType dbTableName, skipDelay bool, log logr.Logger) map[dbTableName][]string {
 
 	offSet := 0
 
@@ -768,7 +821,7 @@ func getListOfCRIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, 
 
 	// Continuously iterate and fetch batches until all entries of table processed.
 	for {
-		if offSet != 0 {
+		if offSet != 0 && !skipDelay {
 			time.Sleep(sleepIntervalsOfBatches)
 		}
 
@@ -777,9 +830,9 @@ func getListOfCRIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, 
 			var tempList []db.DeploymentToApplicationMapping
 
 			// Fetch DeploymentToApplicationMapping table entries in batch size as configured above.​
-			if err := dbQueries.GetDeploymentToApplicationMappingBatch(ctx, &tempList, appRowBatchSize, offSet); err != nil {
+			if err := dbQueries.GetDeploymentToApplicationMappingBatch(ctx, &tempList, rowBatchSize, offSet); err != nil {
 				log.Error(err, fmt.Sprintf("Error occurred in cleanOrphanedEntriesfromTable_Application while fetching batch from Offset: %d to %d: ",
-					offSet, offSet+appRowBatchSize))
+					offSet, offSet+rowBatchSize))
 				break
 			}
 
@@ -796,9 +849,9 @@ func getListOfCRIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, 
 			var tempList []db.APICRToDatabaseMapping
 
 			// Fetch ACTDM table entries in batch size as configured above.​
-			if err := dbQueries.GetAPICRToDatabaseMappingBatch(ctx, &tempList, appRowBatchSize, offSet); err != nil {
+			if err := dbQueries.GetAPICRToDatabaseMappingBatch(ctx, &tempList, rowBatchSize, offSet); err != nil {
 				log.Error(err, fmt.Sprintf("Error occurred in cleanOrphanedEntriesfromTable while fetching batch from Offset: %d to %d: ",
-					offSet, offSet+appRowBatchSize))
+					offSet, offSet+rowBatchSize))
 				break
 			}
 
@@ -822,7 +875,7 @@ func getListOfCRIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, 
 		}
 
 		// Skip processed entries in next iteration
-		offSet += appRowBatchSize
+		offSet += rowBatchSize
 	}
 
 	return crIdMap

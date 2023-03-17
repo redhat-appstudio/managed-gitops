@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -821,7 +822,14 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 
 // applicationEventRunner_handleUpdateDeploymentStatusTick updates the status field of all the GitOpsDeploymentCRs in the workspace.
 func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateDeploymentStatusTick(ctx context.Context,
-	resourceName string, namespaceName string, dbQueries db.ApplicationScopedQueries) error {
+	resourceName string, namespaceName string, dbQueries db.ApplicationScopedQueries) (bool, error) {
+
+	const (
+		crUpdated_true  = true  // true: the GitOpsDeployment.status field was updated
+		crUpdated_false = false // false: not updated
+	)
+
+	log := a.log.WithValues("gitOpsDeploymentName", resourceName, "gitopsDeploymentNamespace", namespaceName)
 
 	// TODO: GITOPSRVCE-68 - PERF - In general, polling for all GitOpsDeployments in a workspace will scale poorly with large number of applications in the workspace. We should switch away from polling in the future.
 
@@ -834,13 +842,16 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 
 			if apierr.IsNotFound(err) {
 				// Our work is done
-				return nil
+				return crUpdated_false, nil
 			} else {
-				a.log.Error(err, "unable to locate gitops object in handleUpdateDeploymentStatusTick", "request", gitopsDeploymentKey)
-				return err
+				log.Error(err, "unable to locate gitops object in handleUpdateDeploymentStatusTick")
+				return crUpdated_false, err
 			}
 		}
 	}
+
+	// Copy of the GitOpsDeployment we retrieved, before its modified below
+	originalGitOpsDeployment := *gitopsDeployment.DeepCopy()
 
 	// 2) Retrieve the DTAM for the GitOpsDeployment, if it exists.
 	mapping := db.DeploymentToApplicationMapping{
@@ -850,10 +861,10 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 
 		if db.IsResultNotFoundError(err) {
 			// No Application associated with this GitOpsDeployment, so no work to do
-			return nil
+			return crUpdated_false, nil
 		} else {
-			a.log.Error(err, "unable to retrieve DeploymentToApplicationMapping in tick status update")
-			return err
+			log.Error(err, "unable to retrieve DeploymentToApplicationMapping in tick status update")
+			return crUpdated_false, err
 		}
 	}
 
@@ -862,10 +873,10 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	if err := dbQueries.GetApplicationStateById(ctx, &applicationState); err != nil {
 
 		if db.IsResultNotFoundError(err) {
-			a.log.Info("ApplicationState not found for application, on deploymentStatusTick: " + applicationState.Applicationstate_application_id)
-			return nil
+			log.Info("ApplicationState not found for application, on deploymentStatusTick: " + applicationState.Applicationstate_application_id)
+			return crUpdated_false, nil
 		} else {
-			return err
+			return crUpdated_false, err
 		}
 	}
 
@@ -895,15 +906,15 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	var err error
 	gitopsDeployment.Status.Resources, err = decompressResourceData(applicationState.Resources)
 	if err != nil {
-		a.log.Error(err, "unable to decompress byte array received from table.")
-		return err
+		log.Error(err, "unable to decompress byte array received from table.")
+		return crUpdated_false, err
 	}
 
 	var comparedTo fauxargocd.FauxComparedTo
 	comparedTo, err = retrieveComparedToFieldInApplicationState(applicationState.ReconciledState)
 	if err != nil {
-		a.log.Error(err, "SEVERE: unable to retrieve comparedTo field in ApplicationState")
-		return err
+		log.Error(err, "SEVERE: unable to retrieve comparedTo field in ApplicationState")
+		return crUpdated_false, err
 	}
 
 	// If the `comparedTo` value from Argo CD has a non-empty destination name field, then retrieve the corresponding `GitOpsDeploymentManagedEnvironment` resource that has that name,
@@ -932,15 +943,21 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	gitopsDeployment.Status.ReconciledState.Destination.Name = comparedTo.Destination.Name
 	gitopsDeployment.Status.ReconciledState.Destination.Namespace = comparedTo.Destination.Namespace
 
+	// If nothing has changed in the status field, our work is done.
+	if reflect.DeepEqual(gitopsDeployment.Status, originalGitOpsDeployment.Status) {
+		return crUpdated_false, nil
+	}
 	// Update the actual object in Kubernetes
 	if err := a.workspaceClient.Status().Update(ctx, gitopsDeployment, &client.UpdateOptions{}); err != nil {
-		return err
+		return crUpdated_false, err
 	}
-	sharedutil.LogAPIResourceChangeEvent(gitopsDeployment.Namespace, gitopsDeployment.Name, gitopsDeployment, sharedutil.ResourceModified, a.log)
+	// We don't need to log status updates, e.g. via 'sharedutil.LogAPIResourceChangeEvent'
+
+	log.V(sharedutil.LogLevel_Debug).Info("Updated status in deploymentStatusTick")
 
 	// NOTE: make sure to preserve the existing conditions fields that are in the status field of the CR, when updating the status!
 
-	return nil
+	return crUpdated_true, nil
 
 }
 

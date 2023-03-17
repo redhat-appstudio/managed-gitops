@@ -166,7 +166,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 					err = action.applicationEventRunner_handleSyncRunModified(ctx, scopedDBQueries)
 
 				} else if newEvent.EventType == eventlooptypes.UpdateDeploymentStatusTick {
-					err = action.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDeploymentName, gitopsDeploymentNamespace, scopedDBQueries)
+					_, err = action.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDeploymentName, gitopsDeploymentNamespace, scopedDBQueries)
 
 				} else if newEvent.EventType == eventlooptypes.ManagedEnvironmentModified {
 

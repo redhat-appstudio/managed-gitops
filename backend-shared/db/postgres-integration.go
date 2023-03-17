@@ -50,7 +50,7 @@ func ConnectToDatabaseWithPort(verbose bool, dbName string, port int) (*pg.DB, e
 	db := pg.Connect(opts)
 
 	if err := checkConn(db); err != nil {
-		return nil, fmt.Errorf("%v, unable to connect to database: Host:'%s' User:'%s' Pass:'%s' DB:'%s' ", err, opts.Addr, opts.User, opts.Password, opts.Database)
+		return nil, fmt.Errorf("%v, unable to connect to database: Host:'%s' User:'%s' DB:'%s' ", err, opts.Addr, opts.User, opts.Database)
 	}
 
 	if verbose {

@@ -793,13 +793,13 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 			// Check the deployment name too
 			// Eg. appa-staging-binding-new-demo-app-staging-component-a
-			gitOpsDeploymentNameFirst := GenerateBindingGitOpsDeploymentName(*binding, binding.Spec.Components[indexOfComponentA].Name)
+			componentADeploymentName := GenerateBindingGitOpsDeploymentName(*binding, "component-a")
 
 			// Eg. appa-staging-binding-new-demo-app-staging-component-b
-			gitOpsDeploymentNameSecond := GenerateBindingGitOpsDeploymentName(*binding, binding.Spec.Components[indexOfComponentB].Name)
+			componentBDeploymentName := GenerateBindingGitOpsDeploymentName(*binding, "component-b")
 
-			Expect(binding.Status.GitOpsDeployments[indexOfComponentA].GitOpsDeployment).To(Equal(gitOpsDeploymentNameFirst))
-			Expect(binding.Status.GitOpsDeployments[indexOfComponentB].GitOpsDeployment).To(Equal(gitOpsDeploymentNameSecond))
+			Expect(binding.Status.GitOpsDeployments[indexOfComponentA].GitOpsDeployment).To(Equal(componentADeploymentName))
+			Expect(binding.Status.GitOpsDeployments[indexOfComponentB].GitOpsDeployment).To(Equal(componentBDeploymentName))
 			// Check that the Sync and Health statuses, and the commit ID are not set yet
 			Expect(binding.Status.GitOpsDeployments[indexOfComponentA].GitOpsDeploymentSyncStatus).To(Equal(""))
 			Expect(binding.Status.GitOpsDeployments[indexOfComponentA].GitOpsDeploymentHealthStatus).To(Equal(""))

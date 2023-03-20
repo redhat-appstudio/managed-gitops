@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"sync"
 	"time"
 
 	metric "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -8,6 +9,20 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+)
+
+var (
+	NumberOfFailedOperations_currentCount    float64
+	NumberOfSucceededOperations_currentCount float64
+)
+
+var (
+	NumberOfFailedOperations_previousHour    float64
+	NumberOfSucceededOperations_previousHour float64
+)
+
+var (
+	mutex = &sync.Mutex{}
 )
 
 var (
@@ -31,29 +46,44 @@ var (
 func IncreaseOperationDBState(state db.OperationState) {
 
 	if state == db.OperationState_Completed {
-		OperationStateCompleted.Inc()
+		mutex.Lock()
+		defer mutex.Unlock()
+
+		NumberOfSucceededOperations_currentCount++
+
 	} else if state == db.OperationState_Failed {
-		OperationStateFailed.Inc()
+		mutex.Lock()
+		defer mutex.Unlock()
+
+		NumberOfFailedOperations_currentCount++
+
 	}
 
 }
 
-// Reset metrics to zero every hour
 func StartGoRoutineRestartMetricsEveryHour() {
-
 	go func() {
 		for {
 
-			ticker := time.NewTicker(1 * time.Hour)
+			time.Sleep(10 * time.Minute) // Sleep for 10 minutes
 
-			<-ticker.C
-			ClearMetrics()
+			mutex.Lock()
+
+			NumberOfFailedOperations_previousHour = NumberOfFailedOperations_currentCount
+			NumberOfSucceededOperations_previousHour = NumberOfSucceededOperations_currentCount
+
+			// Scrape NumberOfFailedOperations_previousHour and NumberOfSucceededOperations_previousHour in prometheus metrics
+			OperationStateFailed.Set(NumberOfFailedOperations_previousHour)
+			OperationStateCompleted.Set(NumberOfSucceededOperations_previousHour)
+
+			// Clear the current count
+			NumberOfFailedOperations_currentCount = 0
+			NumberOfSucceededOperations_currentCount = 0
+
+			mutex.Unlock()
 
 		}
 	}()
-
-	// To keep the program runnning indefinitely, we can use an empty select statement
-	select {}
 
 }
 

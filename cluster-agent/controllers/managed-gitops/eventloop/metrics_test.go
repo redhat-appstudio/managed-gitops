@@ -21,7 +21,6 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 
 	argocdoperatorv1alph1 "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
-	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/metrics"
 )
 
@@ -117,6 +116,9 @@ var _ = Describe("OperationDB Metrics Controller", func() {
 			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
 			Expect(err).To(BeNil())
 
+			metrics.NumberOfSucceededOperations_currentCount = 0
+			metrics.NumberOfFailedOperations_currentCount = 0
+
 			task = processOperationEventTask{
 				log: logger,
 				event: operationEventLoopEvent{
@@ -128,9 +130,6 @@ var _ = Describe("OperationDB Metrics Controller", func() {
 		})
 		It("should count total number of operation DB rows in completed state", func() {
 			defer dbQueries.CloseDatabase()
-
-			numberOfOperationDBRowsInCompletedSate := testutil.ToFloat64(metrics.OperationStateCompleted)
-			numberOfOperationDBRowsInFailedState := testutil.ToFloat64(metrics.OperationStateFailed)
 
 			By("creating Operation CR")
 			operationCR := &managedgitopsv1alpha1.Operation{
@@ -150,18 +149,11 @@ var _ = Describe("OperationDB Metrics Controller", func() {
 			Expect(err).To(BeNil())
 			Expect(retry).To(BeFalse())
 
-			newNumberOfOperationDBRowsInCompletedSate := testutil.ToFloat64(metrics.OperationStateCompleted)
-			newNumberOfOperationDBRowsInFailedState := testutil.ToFloat64(metrics.OperationStateFailed)
-			Expect(newNumberOfOperationDBRowsInCompletedSate).To(Equal(numberOfOperationDBRowsInCompletedSate + 1))
-			Expect(newNumberOfOperationDBRowsInFailedState).To(Equal(numberOfOperationDBRowsInFailedState))
-
+			Expect(int(metrics.NumberOfSucceededOperations_currentCount)).To(Equal(1))
 		})
 
 		It("should count total number of operation DB rows in failed state", func() {
 			defer dbQueries.CloseDatabase()
-
-			numberOfOperationDBRowsInCompletedSate := testutil.ToFloat64(metrics.OperationStateCompleted)
-			numberOfOperationDBRowsInFailedState := testutil.ToFloat64(metrics.OperationStateFailed)
 
 			By("fetch operation DB by ID to update the operation DB row as required by test")
 			err = dbQueries.GetOperationById(ctx, operationDB)
@@ -191,10 +183,7 @@ var _ = Describe("OperationDB Metrics Controller", func() {
 			Expect(err).ToNot(BeNil())
 			Expect(retry).To(BeFalse())
 
-			newNumberOfOperationDBRowsInCompletedSate := testutil.ToFloat64(metrics.OperationStateCompleted)
-			newNumberOfOperationDBRowsInFailedState := testutil.ToFloat64(metrics.OperationStateFailed)
-			Expect(newNumberOfOperationDBRowsInCompletedSate).To(Equal(numberOfOperationDBRowsInCompletedSate))
-			Expect(newNumberOfOperationDBRowsInFailedState).To(Equal(numberOfOperationDBRowsInFailedState + 1))
+			Expect(int(metrics.NumberOfFailedOperations_currentCount)).To(Equal(1))
 
 		})
 

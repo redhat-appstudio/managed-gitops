@@ -54,6 +54,9 @@ func SetOperationDBState(state db.OperationState) {
 		}
 	}()
 
+	// calling Sleep() method
+	time.Sleep(120 * time.Minute)
+
 	// Calling Stop() method to stop the ticker
 	ticker.Stop()
 

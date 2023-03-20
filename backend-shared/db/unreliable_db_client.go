@@ -909,7 +909,7 @@ func (cdb *ChaosDBClient) CountOperationDBRowsByState(ctx context.Context, obj *
 	State    string
 	RowCount int
 }, error) {
-	if err := shouldSimulateFailure("GetKubernetesResourceMappingForDatabaseResource", obj); err != nil {
+	if err := shouldSimulateFailure("CountOperationDBRowsByState", obj); err != nil {
 		return nil, err
 	}
 

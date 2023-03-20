@@ -524,7 +524,7 @@
               {
                 "id": "color",
                 "value": {
-                  "fixedColor": "semi-dark-blue",
+                  "fixedColor": "dark-blue",
                   "mode": "fixed"
                 }
               }
@@ -650,7 +650,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "total_number_of_operatioDB_rows",
+          "expr": "total_number_of_operationDB_rows",
           "legendFormat": "Total",
           "range": true,
           "refId": "A"
@@ -661,7 +661,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "operatioDB_rows_in_waiting_state",
+          "expr": "operationDB_rows_in_waiting_state",
           "hide": false,
           "legendFormat": "Waiting",
           "range": true,
@@ -673,7 +673,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "operatioDB_rows_in_In_progress_state",
+          "expr": "operationDB_rows_in_in_progress_state",
           "hide": false,
           "legendFormat": "In_Progress",
           "range": true,
@@ -685,7 +685,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "operatioDB_rows_in_completed_state",
+          "expr": "operationDB_rows_in_completed_state",
           "hide": false,
           "legendFormat": "Completed",
           "range": true,
@@ -697,7 +697,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "operatioDB_rows_in_error_state",
+          "expr": "operationDB_rows_in_error_state",
           "hide": false,
           "legendFormat": "Failed",
           "range": true,
@@ -2110,7 +2110,7 @@
       "type": "row"
     }
   ],
-  "refresh": "5s",
+  "refresh": "5m",
   "schemaVersion": 37,
   "style": "dark",
   "tags": [],
@@ -2118,7 +2118,7 @@
     "list": []
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-5m",
     "to": "now"
   },
   "timepicker": {},

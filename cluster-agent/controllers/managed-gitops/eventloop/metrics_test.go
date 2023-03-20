@@ -127,7 +127,6 @@ var _ = Describe("OperationDB Metrics Controller", func() {
 
 		})
 		It("should count total number of operation DB rows in completed state", func() {
-			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 
 			numberOfOperationDBRowsInCompletedSate := testutil.ToFloat64(metrics.OperationStateCompleted)
@@ -159,7 +158,6 @@ var _ = Describe("OperationDB Metrics Controller", func() {
 		})
 
 		It("should count total number of operation DB rows in failed state", func() {
-			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 
 			numberOfOperationDBRowsInCompletedSate := testutil.ToFloat64(metrics.OperationStateCompleted)

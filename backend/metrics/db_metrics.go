@@ -1,6 +1,8 @@
 package metrics
 
 import (
+	"fmt"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
@@ -9,7 +11,7 @@ import (
 var (
 	OperationDBRows = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Name:        "total_number_of_operatioDB_rows",
+			Name:        "total_number_of_operationDB_rows",
 			Help:        "Total number of operation DB rows",
 			ConstLabels: map[string]string{"name": "total_operation_DB_rows"},
 		},
@@ -17,7 +19,7 @@ var (
 
 	OperationDBRowsInWaitingState = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Name:        "operatioDB_rows_in_waiting_state",
+			Name:        "operationDB_rows_in_waiting_state",
 			Help:        "Number of operation DB rows in waiting state",
 			ConstLabels: map[string]string{"operationDBState": "Waiting"},
 		},
@@ -25,7 +27,7 @@ var (
 
 	OperationDBRowsIn_InProgressState = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Name:        "operatioDB_rows_in_In_progress_state",
+			Name:        "operationDB_rows_in_in_progress_state",
 			Help:        "Number of operation DB rows in in_progress state",
 			ConstLabels: map[string]string{"operationDBState": "In_Progress"},
 		},
@@ -33,7 +35,7 @@ var (
 
 	OperationDBRowsInCompletedState = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Name:        "operatioDB_rows_in_completed_state",
+			Name:        "operationDB_rows_in_completed_state",
 			Help:        "Number of operation DB rows in completed state",
 			ConstLabels: map[string]string{"operationDBState": "Completed"},
 		},
@@ -41,7 +43,7 @@ var (
 
 	OperationDBRowsInErrorState = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Name:        "operatioDB_rows_in_error_state",
+			Name:        "operationDB_rows_in_error_state",
 			Help:        "Number of operation DB rows in error state",
 			ConstLabels: map[string]string{"operationDBState": "Failed"},
 		},
@@ -70,28 +72,29 @@ func SetTotalCountOfOperationDBRows(count int) {
 
 // SetCountOfOperationDBRows counts the operation DB rows in In_Progress, Waiting, Completed and Failed state
 func SetCountOfOperationDBRows(state string, count int) {
-	if state == string(db.OperationState_In_Progress) {
+
+	switch state {
+	case string(db.OperationState_In_Progress):
 		OperationDBRowsIn_InProgressState.Set((float64)(count))
-	}
-	if state == string(db.OperationState_Waiting) {
+	case string(db.OperationState_Waiting):
 		OperationDBRowsInWaitingState.Set((float64)(count))
-	}
-	if state == string(db.OperationState_Completed) {
+	case string(db.OperationState_Completed):
 		OperationDBRowsInCompletedState.Set((float64)(count))
-	}
-	if state == string(db.OperationState_Failed) {
+	case string(db.OperationState_Failed):
 		OperationDBRowsInErrorState.Set((float64)(count))
+	default:
+		fmt.Println("Operation state is not defined")
 	}
 }
 
-// SetCountOfOperationDBRowsInCompleteAndNonCompleteState counts the operation DB rows in complete(Complete and Error state) and non-complete(In_Progress and Waiting) state
-func SetCountOfOperationDBRowsInCompleteAndNonCompleteState(complete bool, count int) {
-	if complete {
-		TotalOperationDBRowsInCompletedState.Set((float64)(count))
-	}
-	if !complete {
-		TotalOperationDBRowsInNonCompleteState.Set((float64)(count))
-	}
+// SetCountOfOperationDBRowsInCompleteState counts the operation DB rows in complete(Complete and Failed) state
+func SetCountOfOperationDBRowsInCompleteState(count int) {
+	TotalOperationDBRowsInCompletedState.Set((float64)(count))
+}
+
+// SetCountOfOperationDBRowsInNonCompleteState counts the operation DB rows in non-complete(In_Progress and Waiting) state
+func SetCountOfOperationDBRowsInNonCompleteState(count int) {
+	TotalOperationDBRowsInNonCompleteState.Set((float64)(count))
 }
 
 func ClearDBMetrics() {

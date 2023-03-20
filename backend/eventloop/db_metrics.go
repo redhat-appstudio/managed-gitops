@@ -55,56 +55,55 @@ func (r *MetricsReconciler) startDBMetricsReconcilerForMetrics() {
 func operationDbReconcile(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, log logr.Logger) {
 	var operationDB db.Operation
 
-	// Fetch count of total number of operation DB rows.
-	countOperationDBRows, err := dbQueries.CountTotalOperationDBRows(ctx, &operationDB)
-	metrics.SetTotalCountOfOperationDBRows(countOperationDBRows)
-	if err != nil {
-		log.Error(err, "Error occured while fetching the count of total number of operationDB rows from database")
-	}
-
 	// Fetch count of the number of operation DB rows with diffrent states(In_Progress, Waiting, Completed and Failed)
-	countOperationDBRowsInNonComleteState, err := dbQueries.CountOperationDBRowsByState(ctx, &operationDB)
+	operationStateCounts, err := dbQueries.CountOperationDBRowsByState(ctx, &operationDB)
 	if err != nil {
 		log.Error(err, "Error occured while fetching the count of the number of operationDB rows based on states from database")
 	}
 
-	var inCompleteState1, inCompleteState2 int
-	var completeState1, completeState2 int
+	var inProgressCount, waitingCount int
+	var completedCount, failedCount int
+	totalCountOfOperationDBRows := 0
 
-	for _, op := range countOperationDBRowsInNonComleteState {
+	for i, op := range operationStateCounts {
+
+		totalCountOfOperationDBRows += operationStateCounts[i].RowCount
 
 		// Update metrics with number of operation DB rows in In_Progress state
 		if op.State == string(db.OperationState_In_Progress) {
-			inCompleteState1 = op.RowCount
+			inProgressCount = op.RowCount
 			metrics.SetCountOfOperationDBRows(op.State, op.RowCount)
 		}
 
 		// Update metrics with number of operation DB rows in Waiting state
 		if op.State == string(db.OperationState_Waiting) {
-			inCompleteState2 = op.RowCount
+			waitingCount = op.RowCount
 			metrics.SetCountOfOperationDBRows(op.State, op.RowCount)
 		}
 
 		// Number of operation DB rows that are not completed: Number of Waiting State + Number of In_progress and update the metrics
-		totatIncompleteState := inCompleteState1 + inCompleteState2
-		metrics.SetCountOfOperationDBRowsInCompleteAndNonCompleteState(false, totatIncompleteState)
+		totatIncompleteState := inProgressCount + waitingCount
+		metrics.SetCountOfOperationDBRowsInNonCompleteState(totatIncompleteState)
 
 		// Update metrics with number of operation DB rows in Completed state
 		if op.State == string(db.OperationState_Completed) {
-			completeState1 = op.RowCount
+			completedCount = op.RowCount
 			metrics.SetCountOfOperationDBRows(op.State, op.RowCount)
 		}
 
 		// Update metrics with number of operation DB rows in Failed state
 		if op.State == string(db.OperationState_Failed) {
-			completeState2 = op.RowCount
+			failedCount = op.RowCount
 			metrics.SetCountOfOperationDBRows(op.State, op.RowCount)
 		}
 
 		// Number of operation DB rows that are completed: Number in completed state + Number in error state and update the metrics
-		totatCompletedState := completeState1 + completeState2
-		metrics.SetCountOfOperationDBRowsInCompleteAndNonCompleteState(true, totatCompletedState)
+		totatCompletedState := completedCount + failedCount
+		metrics.SetCountOfOperationDBRowsInCompleteState(totatCompletedState)
 
 	}
+
+	// Update metrics with total number of operation DB rows
+	metrics.SetTotalCountOfOperationDBRows(totalCountOfOperationDBRows)
 
 }

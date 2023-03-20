@@ -111,7 +111,7 @@ var _ = Describe("Test for Operation DB metrics counter", func() {
 			Expect(newTotalNumberOfOperationDBRowsInNonCompleteState).To(Equal(totalNumberOfOperationDBRowsInNonCompleteState))
 
 			By("verify SetCountOfOperationDBRowsInCompleteAndNonCompleteState function for operation DB row with Completed state")
-			SetCountOfOperationDBRowsInCompleteAndNonCompleteState(true, 2)
+			SetCountOfOperationDBRowsInCompleteState(2)
 			newTotalNumberOfOperationDBRows = testutil.ToFloat64(OperationDBRows)
 			newNumberOfOperationDBRowsInWaitingState = testutil.ToFloat64(OperationDBRowsInWaitingState)
 			newNumberOfOperationDBRowsIn_InProgressState = testutil.ToFloat64(OperationDBRowsIn_InProgressState)
@@ -129,7 +129,7 @@ var _ = Describe("Test for Operation DB metrics counter", func() {
 			Expect(newTotalNumberOfOperationDBRowsInNonCompleteState).To(Equal(totalNumberOfOperationDBRowsInNonCompleteState))
 
 			By("verify SetCountOfOperationDBRowsInCompleteAndNonCompleteState function for operation DB row with Non-Complete state")
-			SetCountOfOperationDBRowsInCompleteAndNonCompleteState(false, 2)
+			SetCountOfOperationDBRowsInNonCompleteState(2)
 			newTotalNumberOfOperationDBRows = testutil.ToFloat64(OperationDBRows)
 			newNumberOfOperationDBRowsInWaitingState = testutil.ToFloat64(OperationDBRowsInWaitingState)
 			newNumberOfOperationDBRowsIn_InProgressState = testutil.ToFloat64(OperationDBRowsIn_InProgressState)

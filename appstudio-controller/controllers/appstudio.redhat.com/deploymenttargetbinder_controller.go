@@ -555,13 +555,22 @@ func (r *DeploymentTargetClaimReconciler) SetupWithManager(mgr ctrl.Manager) err
 
 // Map all incoming DT events to corresponding DTC requests to be handled by the Reconciler.
 func (r *DeploymentTargetClaimReconciler) findObjectsForDeploymentTarget(dt client.Object) []reconcile.Request {
-	dtcList := applicationv1alpha1.DeploymentTargetClaimList{}
-	err := r.List(context.Background(), &dtcList, &client.ListOptions{Namespace: dt.GetNamespace()})
-	if err != nil {
+	ctx := context.Background()
+	handlerLog := log.FromContext(ctx)
+
+	dtObj, isOk := dt.(*applicationv1alpha1.DeploymentTarget)
+	if !isOk {
+		handlerLog.Error(nil, "SEVERE: type mismatch in mapping function. Expected an event for DeploymentTarget object")
 		return []reconcile.Request{}
 	}
 
-	dtObj := dt.(*applicationv1alpha1.DeploymentTarget)
+	dtcList := applicationv1alpha1.DeploymentTargetClaimList{}
+	err := r.List(ctx, &dtcList, &client.ListOptions{Namespace: dt.GetNamespace()})
+	if err != nil {
+		handlerLog.Error(err, "failed to list DeploymentTargetClaims in the mapping function")
+		return []reconcile.Request{}
+	}
+
 	requests := []reconcile.Request{}
 	for _, d := range dtcList.Items {
 		dtc := d

@@ -734,59 +734,6 @@ func getAllOperationsForResourceID(ctx context.Context, resourceID string, dbQue
 	return res
 }
 
-// func startServiceAccountListenerOnFakeClient(ctx context.Context, k8sClient client.Client) {
-// 	go func() {
-
-// 		var sa *corev1.ServiceAccount
-
-// 		err := wait.Poll(time.Second*1, time.Hour*1, func() (bool, error) {
-
-// 			saList := corev1.ServiceAccountList{}
-
-// 			err := k8sClient.List(ctx, &saList, &client.ListOptions{Namespace: "kube-system"})
-// 			Expect(err).To(BeNil())
-
-// 			for idx := range saList.Items {
-
-// 				item := saList.Items[idx]
-
-// 				sa = &item
-
-// 				if strings.HasPrefix(item.Name, sharedutil.ArgoCDManagerServiceAccountPrefix) {
-// 					return true, nil
-// 				}
-
-// 			}
-
-// 			return false, nil
-// 		})
-// 		Expect(err).To(BeNil())
-
-// 		tokenSecret := &corev1.Secret{
-// 			ObjectMeta: metav1.ObjectMeta{
-// 				Name:      "token-secret",
-// 				Namespace: "kube-system",
-// 				Annotations: map[string]string{
-// 					corev1.ServiceAccountNameKey: sa.Name,
-// 				},
-// 			},
-// 			Data: map[string][]byte{"token": ([]byte)("token")},
-// 			Type: corev1.SecretTypeServiceAccountToken,
-// 		}
-// 		err = k8sClient.Create(ctx, tokenSecret)
-// 		Expect(err).To(BeNil())
-
-// 		sa.Secrets = append(sa.Secrets, corev1.ObjectReference{
-// 			Name:      tokenSecret.Name,
-// 			Namespace: tokenSecret.Namespace,
-// 		})
-
-// 		err = k8sClient.Update(ctx, sa)
-// 		Expect(err).To(BeNil())
-
-// 	}()
-// }
-
 type MockSRLK8sClientFactory struct {
 	fakeClient client.Client
 }

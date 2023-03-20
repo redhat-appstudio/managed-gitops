@@ -61,7 +61,7 @@ func StartServiceAccountListenerOnFakeClient(ctx context.Context, managedEnviron
 		// Then:
 		// - add a fake token to the secret
 		// - add a reference to the Secret to the ServiceAccount
-		err := wait.Poll(time.Second*1, time.Hour*1, func() (bool, error) {
+		err := wait.PollImmediate(time.Second*1, time.Hour*1, func() (bool, error) {
 
 			secretList := corev1.SecretList{}
 			err := k8sClient.List(ctx, &secretList, &client.ListOptions{Namespace: "kube-system"})

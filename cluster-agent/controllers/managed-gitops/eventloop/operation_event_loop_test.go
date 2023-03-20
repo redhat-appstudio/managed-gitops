@@ -418,7 +418,7 @@ var _ = Describe("Operation Controller", func() {
 				// Normally it us Argo CD's job to do this, but since this is a unit test, there is no Argo CD. Instead we wait for the deletiontimestamp
 				// to be set (by the delete call of PerformTask, and then just remove the finalize and update, simulating what Argo CD does)
 				go func() {
-					err = wait.Poll(1*time.Second, 1*time.Minute, func() (bool, error) {
+					err = wait.PollImmediate(1*time.Second, 1*time.Minute, func() (bool, error) {
 						if applicationCR.DeletionTimestamp != nil {
 							err = k8sClient.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
 							Expect(err).To(BeNil())

@@ -278,7 +278,7 @@ func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, na
 	}
 
 	// Wait for Argo CD to be installed by gitops operator.
-	err = wait.Poll(1*time.Second, 3*time.Minute, func() (bool, error) {
+	err = wait.PollImmediate(1*time.Second, 3*time.Minute, func() (bool, error) {
 
 		// 'default' AppProject will be created by Argo CD if Argo CD is successfully started.
 		appProject := &appv1.AppProject{
@@ -417,7 +417,7 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 	log.Info(fmt.Sprintf("clusterRoleBinding %q created in namespace %q", clusterRoleBinding.Name, clusterRoleBinding.Namespace))
 
 	// Wait for Secret to contain a bearer token
-	err := wait.Poll(1*time.Second, 3*time.Minute, func() (bool, error) {
+	err := wait.PollImmediate(1*time.Second, 3*time.Minute, func() (bool, error) {
 		secret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      ArgoCDManagerSecretName,

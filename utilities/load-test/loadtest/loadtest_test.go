@@ -70,8 +70,8 @@ func TestNGuestbook(t *testing.T) {
 		}
 	}
 
-	// wait.Poll will keep checking whether a (app variable).Status.Health.Status condition is met
-	err := wait.Poll(1*time.Second, 2*time.Minute, func() (bool, error) {
+	// wait.PollImmediate will keep checking whether a (app variable).Status.Health.Status condition is met
+	err := wait.PollImmediate(1*time.Second, 2*time.Minute, func() (bool, error) {
 
 		// list all Argo CD applications in the namespace
 		appList, err := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).List(context.TODO(), v1.ListOptions{})
@@ -236,8 +236,8 @@ func TestHeavyApplication(t *testing.T) {
 		return
 	}
 
-	// wait.Poll will keep checking whether a (app variable).Status.Health.Status condition is met
-	err := wait.Poll(1*time.Second, 2*time.Minute, func() (bool, error) {
+	// wait.PollImmediate will keep checking whether a (app variable).Status.Health.Status condition is met
+	err := wait.PollImmediate(1*time.Second, 2*time.Minute, func() (bool, error) {
 
 		// list all Argo CD applications in the namespace
 		appList, err := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).List(context.TODO(), v1.ListOptions{})
@@ -376,8 +376,8 @@ func TestAllApplication(t *testing.T) {
 		}
 	}
 
-	// wait.Poll will keep checking whether a (app variable).Status.Health.Status condition is met
-	err := wait.Poll(1*time.Second, 2*time.Minute, func() (bool, error) {
+	// wait.PollImmediate will keep checking whether a (app variable).Status.Health.Status condition is met
+	err := wait.PollImmediate(1*time.Second, 2*time.Minute, func() (bool, error) {
 
 		// list all Argo CD applications in the namespace
 		appList, err := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).List(context.TODO(), v1.ListOptions{})
@@ -491,8 +491,8 @@ func TestNResource(t *testing.T) {
 		}
 	}
 
-	// wait.Poll will keep checking whether a (app variable).Status.Health.Status condition is met
-	err := wait.Poll(1*time.Second, 2*time.Minute, func() (bool, error) {
+	// wait.PollImmediate will keep checking whether a (app variable).Status.Health.Status condition is met
+	err := wait.PollImmediate(1*time.Second, 2*time.Minute, func() (bool, error) {
 
 		// list all Argo CD applications in the namespace
 		appList, err := GetE2EFixtureK8sClient().AppClientset.ArgoprojV1alpha1().Applications(namespace).List(context.TODO(), v1.ListOptions{})

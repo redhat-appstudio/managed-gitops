@@ -15,6 +15,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
@@ -812,6 +813,63 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				Expect(isBindingCompleted(dtc)).To(BeTrue())
 				_, found := dtc.Annotations[sharedutil.AnnBoundByController]
 				Expect(found).To(BeFalse())
+			})
+		})
+
+		Context("Test findObjectsForDeploymentTarget function", func() {
+			It("shouldn't return requests if the incoming DT didn't match any DTC", func() {
+				dtc := getDeploymentTargetClaim()
+				err := k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				dt := getDeploymentTarget()
+
+				reqs := reconciler.findObjectsForDeploymentTarget(&dt)
+				Expect(reqs).To(Equal([]reconcile.Request{}))
+			})
+
+			It("should return a DTC request if the incoming DT claims it", func() {
+				dtc := getDeploymentTargetClaim()
+				err := k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				dt := getDeploymentTarget(func(dt *appstudiosharedv1.DeploymentTarget) {
+					dt.Spec.ClaimRef = dtc.Name
+				})
+
+				reqs := reconciler.findObjectsForDeploymentTarget(&dt)
+				Expect(reqs).To(Equal([]reconcile.Request{
+					newRequest(dtc.Namespace, dtc.Name),
+				}))
+			})
+
+			It("should return a DTC request if it targets the incoming DT", func() {
+				dt := getDeploymentTarget()
+
+				dtc := getDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
+					dtc.Spec.TargetName = dt.Name
+				})
+				err := k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				reqs := reconciler.findObjectsForDeploymentTarget(&dt)
+				Expect(reqs).To(Equal([]reconcile.Request{
+					newRequest(dtc.Namespace, dtc.Name),
+				}))
+			})
+
+			It("shouldn't return any request if no DTC was found while handling the DT event", func() {
+				dt := getDeploymentTarget()
+
+				reqs := reconciler.findObjectsForDeploymentTarget(&dt)
+				Expect(reqs).To(Equal([]reconcile.Request{}))
+			})
+
+			It("shouldn't return any request if an object of different type is passed", func() {
+				dtc := getDeploymentTargetClaim()
+
+				reqs := reconciler.findObjectsForDeploymentTarget(&dtc)
+				Expect(reqs).To(Equal([]reconcile.Request{}))
 			})
 		})
 

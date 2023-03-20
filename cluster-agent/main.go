@@ -144,9 +144,7 @@ func main() {
 
 	//==============================================
 
-	// Call SetMetricsCountToZero function to start a goroutine to clear the metrics every hour
-	//metrics.StartGoRoutineRestartMetricsEveryHour()
-
+	// Call StartGoRoutineRestartMetricsEveryHour function to start a goroutine to clear the metrics every hour
 	metrics.StartGoRoutineRestartMetricsEveryHour()
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

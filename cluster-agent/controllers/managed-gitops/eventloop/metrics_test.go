@@ -6,6 +6,7 @@ import (
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -116,8 +117,7 @@ var _ = Describe("OperationDB Metrics Controller", func() {
 			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
 			Expect(err).To(BeNil())
 
-			metrics.NumberOfSucceededOperations_currentCount = 0
-			metrics.NumberOfFailedOperations_currentCount = 0
+			metrics.TestOnly_resetAllMetricsCount()
 
 			task = processOperationEventTask{
 				log: logger,
@@ -149,7 +149,10 @@ var _ = Describe("OperationDB Metrics Controller", func() {
 			Expect(err).To(BeNil())
 			Expect(retry).To(BeFalse())
 
-			Expect(int(metrics.NumberOfSucceededOperations_currentCount)).To(Equal(1))
+			metrics.TestOnly_runCollectOperationMetrics()
+
+			Expect(testutil.ToFloat64(metrics.OperationStateCompleted)).To(Equal(float64(1)))
+			Expect(testutil.ToFloat64(metrics.OperationStateFailed)).To(Equal(float64(0)))
 		})
 
 		It("should count total number of operation DB rows in failed state", func() {
@@ -183,7 +186,10 @@ var _ = Describe("OperationDB Metrics Controller", func() {
 			Expect(err).ToNot(BeNil())
 			Expect(retry).To(BeFalse())
 
-			Expect(int(metrics.NumberOfFailedOperations_currentCount)).To(Equal(1))
+			metrics.TestOnly_runCollectOperationMetrics()
+
+			Expect(testutil.ToFloat64(metrics.OperationStateFailed)).To(Equal(float64(1)))
+			Expect(testutil.ToFloat64(metrics.OperationStateCompleted)).To(Equal(float64(0)))
 
 		})
 

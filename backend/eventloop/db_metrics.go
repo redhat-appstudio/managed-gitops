@@ -48,7 +48,7 @@ func (r *MetricsReconciler) StartDBMetricsReconcilerForMetrics() {
 func operationDbReconcile(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, log logr.Logger) {
 	var operationDB db.Operation
 
-	// Fetch count of the number of operation DB rows with different states(In_Progress, Waiting, Completed and Failed)
+	// Fetch count of the number of operation DB rows with different states: In_Progress, Waiting, Completed and Failed
 	operationStateCounts, err := dbQueries.CountOperationDBRowsByState(ctx, &operationDB)
 	if err != nil {
 		log.Error(err, "Error occured while fetching the count of the number of operationDB rows based on states from database")

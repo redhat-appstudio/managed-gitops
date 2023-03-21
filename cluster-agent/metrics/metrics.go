@@ -9,20 +9,19 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 )
 
 var (
-	NumberOfFailedOperations_currentCount    float64
-	NumberOfSucceededOperations_currentCount float64
+	// Acquire this operationsMetricsMutex before updating these values
+	operationsMetricsMutex = &sync.Mutex{}
+
+	numberOfFailedOperations_currentCount    float64
+	numberOfSucceededOperations_currentCount float64
 )
 
-var (
-	NumberOfFailedOperations_previousHour    float64
-	NumberOfSucceededOperations_previousHour float64
-)
-
-var (
-	mutex = &sync.Mutex{}
+const (
+	resetOperationMetricsEveryX = 10 * time.Minute
 )
 
 var (
@@ -44,54 +43,72 @@ var (
 )
 
 func IncreaseOperationDBState(state db.OperationState) {
+	operationsMetricsMutex.Lock()
+	defer operationsMetricsMutex.Unlock()
 
 	if state == db.OperationState_Completed {
-		mutex.Lock()
-		defer mutex.Unlock()
-
-		NumberOfSucceededOperations_currentCount++
+		numberOfSucceededOperations_currentCount++
 
 	} else if state == db.OperationState_Failed {
-		mutex.Lock()
-		defer mutex.Unlock()
-
-		NumberOfFailedOperations_currentCount++
-
+		numberOfFailedOperations_currentCount++
 	}
 
 }
 
-func StartGoRoutineRestartMetricsEveryHour() {
+func StartGoRoutineCollectOperationMetrics() {
 	go func() {
-		for {
-
-			time.Sleep(10 * time.Minute) // Sleep for 10 minutes
-
-			mutex.Lock()
-
-			NumberOfFailedOperations_previousHour = NumberOfFailedOperations_currentCount
-			NumberOfSucceededOperations_previousHour = NumberOfSucceededOperations_currentCount
-
-			// Scrape NumberOfFailedOperations_previousHour and NumberOfSucceededOperations_previousHour in prometheus metrics
-			OperationStateFailed.Set(NumberOfFailedOperations_previousHour)
-			OperationStateCompleted.Set(NumberOfSucceededOperations_previousHour)
-
-			// Clear the current count
-			NumberOfFailedOperations_currentCount = 0
-			NumberOfSucceededOperations_currentCount = 0
-
-			mutex.Unlock()
-
-		}
+		_, _ = sharedutil.CatchPanic(func() error {
+			for {
+				time.Sleep(resetOperationMetricsEveryX)
+				runCollectOperationMetrics()
+			}
+		})
 	}()
+}
+
+func runCollectOperationMetrics() {
+
+	operationsMetricsMutex.Lock()
+	defer operationsMetricsMutex.Unlock()
+
+	// Scrape NumberOfFailedOperations_previousHour and NumberOfSucceededOperations_previousHour in prometheus metrics
+	OperationStateFailed.Set(numberOfFailedOperations_currentCount)
+	OperationStateCompleted.Set(numberOfSucceededOperations_currentCount)
+
+	// Clear the current count
+	clearOperationMetricsCount()
 
 }
 
-func ClearMetrics() {
+func clearOperationMetrics() {
 	OperationStateCompleted.Set(0)
 	OperationStateFailed.Set(0)
 }
 
+// Ensure the mutex is owned before calling this.
+func clearOperationMetricsCount() {
+	numberOfFailedOperations_currentCount = 0
+	numberOfSucceededOperations_currentCount = 0
+}
+
 func init() {
 	metric.Registry.MustRegister(OperationStateCompleted, OperationStateFailed)
+}
+
+// TestOnly_runCollectOperationMetrics should only be called from unit tests
+func TestOnly_runCollectOperationMetrics() {
+
+	runCollectOperationMetrics()
+
+}
+
+// TestOnly_resetAllMetricsCount should only be called from unit tests.
+func TestOnly_resetAllMetricsCount() {
+
+	clearOperationMetrics()
+
+	operationsMetricsMutex.Lock()
+	defer operationsMetricsMutex.Unlock()
+
+	clearOperationMetricsCount()
 }

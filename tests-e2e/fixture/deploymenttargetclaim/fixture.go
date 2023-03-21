@@ -41,7 +41,7 @@ func HasStatusPhase(phase appstudiosharedv1.DeploymentTargetClaimPhase) matcher.
 }
 
 // HasAnnotation checks if the DeploymentTargetClaim has a given annotation.
-func HaveAnnotation(key, value string) matcher.GomegaMatcher {
+func HasAnnotation(key, value string) matcher.GomegaMatcher {
 	return WithTransform(func(dtc appstudiosharedv1.DeploymentTargetClaim) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
 		Expect(err).To(BeNil())

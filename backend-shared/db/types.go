@@ -113,6 +113,9 @@ type ClusterCredentials struct {
 
 	// -- Indicates that ArgoCD/GitOps Service should not check the TLS certificate.
 	AllowInsecureSkipTLSVerify bool `pg:"allowinsecure_skiptlsverify"`
+
+	// -- Created_on field will tell us how old resources are
+	Created_on time.Time `pg:"created_on"`
 }
 
 // ClusterUser is an individual user/customer
@@ -125,6 +128,9 @@ type ClusterUser struct {
 	Clusteruser_id string `pg:"clusteruser_id,pk"`
 	User_name      string `pg:"user_name"`
 	SeqID          int64  `pg:"seq_id"`
+
+	// -- Created_on field will tell us how old resources are
+	Created_on time.Time `pg:"created_on"`
 }
 
 type ClusterAccess struct {
@@ -145,6 +151,9 @@ type ClusterAccess struct {
 	Clusteraccess_gitops_engine_instance_id string `pg:"clusteraccess_gitops_engine_instance_id,pk"`
 
 	SeqID int64 `pg:"seq_id"`
+
+	// -- Created_on field will tell us how old resources are
+	Created_on time.Time `pg:"created_on"`
 }
 
 type OperationState string

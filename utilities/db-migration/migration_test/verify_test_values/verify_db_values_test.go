@@ -29,6 +29,7 @@ var _ = Describe("Test to verify that the data added to database is still presen
 			err = dbq.GetClusterUserById(ctx, &clusterUser)
 			Expect(err).To(BeNil())
 			addtestvalues.AddTest_PreClusterUser.SeqID = clusterUser.SeqID
+			addtestvalues.AddTest_PreClusterUser.Created_on = clusterUser.Created_on
 			Expect(addtestvalues.AddTest_PreClusterUser).To(Equal(clusterUser))
 
 			By("Get cluster credentials by ClusterCredentialsId")
@@ -39,6 +40,7 @@ var _ = Describe("Test to verify that the data added to database is still presen
 			err = dbq.GetClusterCredentialsById(ctx, &clusterCredentials)
 			Expect(err).To(BeNil())
 			addtestvalues.AddTest_PreClusterCredentials.SeqID = clusterCredentials.SeqID
+			addtestvalues.AddTest_PreClusterCredentials.Created_on = clusterCredentials.Created_on
 			Expect(addtestvalues.AddTest_PreClusterCredentials).To(Equal(clusterCredentials))
 
 			By("Get a gitopsengine cluster by Id")
@@ -66,6 +68,7 @@ var _ = Describe("Test to verify that the data added to database is still presen
 			err = dbq.GetClusterCredentialsById(ctx, &clusterCredentialsForManagedEnv)
 			Expect(err).To(BeNil())
 			addtestvalues.AddTest_PreClusterCredentialsForManagedEnv.SeqID = clusterCredentialsForManagedEnv.SeqID
+			addtestvalues.AddTest_PreClusterCredentialsForManagedEnv.Created_on = clusterCredentialsForManagedEnv.Created_on
 			Expect(addtestvalues.AddTest_PreClusterCredentialsForManagedEnv).To(Equal(clusterCredentialsForManagedEnv))
 
 			By("Get a managed environment by Id")
@@ -87,6 +90,7 @@ var _ = Describe("Test to verify that the data added to database is still presen
 			err = dbq.GetClusterAccessByPrimaryKey(ctx, &clusterAccess)
 			Expect(err).To(BeNil())
 			addtestvalues.AddTest_PreClusterAccess.SeqID = clusterAccess.SeqID
+			addtestvalues.AddTest_PreClusterAccess.Created_on = clusterAccess.Created_on
 			Expect(addtestvalues.AddTest_PreClusterAccess).To(Equal(clusterAccess))
 
 			By("Get application by id")

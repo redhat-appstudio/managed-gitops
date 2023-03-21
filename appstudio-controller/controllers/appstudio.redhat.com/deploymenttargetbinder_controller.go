@@ -51,7 +51,7 @@ type DeploymentTargetClaimReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
+// Modify the Reconcile function to compare the state specified by
 // the DeploymentTargetClaim object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
@@ -104,13 +104,13 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 			if err := r.Client.Update(ctx, &dtc); err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer %s from DeploymentTargetClaim %s in namespace %s: %v", sharedutil.FinalizerBinder, dtc.Name, dtc.Namespace, err)
 			}
+			log.Info("Removed finalizer from DeploymentTargetClaim")
 		}
 
-		log.Info("Removed finalizer from DeploymentTargetClaim")
 		return ctrl.Result{}, nil
 	}
 
-	// If the binding is alredy done, we need to check if the DTC is still bound to a DT
+	// If the binding is already done, we need to check if the DTC is still bound to a DT
 	// and update the status accordingly
 	if isBindingCompleted(dtc) {
 		if err := handleBoundedDeploymentTargetClaim(ctx, r.Client, dtc, log); err != nil {
@@ -130,7 +130,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 
 		// If a best match DT is available bind it to the current DTC.
 		if dt != nil {
-			err = bindDeploymentTargetCliamToTarget(ctx, r.Client, &dtc, dt, true)
+			err = bindDeploymentTargetClaimToTarget(ctx, r.Client, &dtc, dt, true)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
@@ -184,7 +184,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 	if dt.Spec.ClaimRef != "" {
 		if dt.Spec.ClaimRef == dtc.Name {
 			// Both DT and DTC refer each other. So bind them together.
-			err := bindDeploymentTargetCliamToTarget(ctx, r.Client, &dtc, &dt, false)
+			err := bindDeploymentTargetClaimToTarget(ctx, r.Client, &dtc, &dt, false)
 			if err != nil {
 				log.Error(err, "failed to bind DeploymentTargetClaim to the DeploymentTarget", "DeploymentTargetName", dt.Name, "Namespace", dt.Name)
 				return ctrl.Result{}, err
@@ -208,7 +208,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 			return ctrl.Result{}, err
 		}
 
-		err := bindDeploymentTargetCliamToTarget(ctx, r.Client, &dtc, &dt, false)
+		err := bindDeploymentTargetClaimToTarget(ctx, r.Client, &dtc, &dt, false)
 		if err != nil {
 			log.Error(err, "failed to bind DeploymentTargetClaim to the DeploymentTarget", "DeploymentTargetName", dt.Name, "Namespace", dt.Name)
 			return ctrl.Result{}, err
@@ -230,9 +230,9 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 	return ctrl.Result{}, nil
 }
 
-// bindDeploymentTargetCliamToTarget binds the given DeploymentTarget to a DeploymentTargetClaim by
+// bindDeploymentTargetClaimToTarget binds the given DeploymentTarget to a DeploymentTargetClaim by
 // setting the dtc.spec.targetName to the DT name and adding the "bound-by-controller" annotation to the DTC.
-func bindDeploymentTargetCliamToTarget(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim, dt *applicationv1alpha1.DeploymentTarget, isBoundByController bool) error {
+func bindDeploymentTargetClaimToTarget(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim, dt *applicationv1alpha1.DeploymentTarget, isBoundByController bool) error {
 	// Set the target name of DTC and update it as Bounded.
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dtc), dtc); err != nil {
@@ -379,7 +379,7 @@ func doesDTMatchDTC(dt applicationv1alpha1.DeploymentTarget, dtc applicationv1al
 		return mismatchErr("DeploymentTarget does not have cluster credentials")
 	}
 
-	if err := checkForBindingConflict(&dtc, &dt); err != nil {
+	if err := checkForBindingConflict(dtc, dt); err != nil {
 		return err
 	}
 
@@ -492,7 +492,7 @@ func getDTBoundByDTC(ctx context.Context, k8sClient client.Client, dtc *applicat
 			return nil, err
 		}
 
-		if err := checkForBindingConflict(dtc, dt); err != nil {
+		if err := checkForBindingConflict(*dtc, *dt); err != nil {
 			return nil, err
 		}
 
@@ -518,7 +518,7 @@ func getDTBoundByDTC(ctx context.Context, k8sClient client.Client, dtc *applicat
 // 2. DTC has empty target but DT has a claimRef to a different DTC.
 // 3. DT has a claim ref to a DTC but the DTC targets a different DT.
 // 4. DT has empty claim ref but DTC targets a different DT.
-func checkForBindingConflict(dtc *applicationv1alpha1.DeploymentTargetClaim, dt *applicationv1alpha1.DeploymentTarget) error {
+func checkForBindingConflict(dtc applicationv1alpha1.DeploymentTargetClaim, dt applicationv1alpha1.DeploymentTarget) error {
 	if dtc.Spec.TargetName == dt.Name || dtc.Spec.TargetName == "" {
 		if dt.Spec.ClaimRef != "" && dt.Spec.ClaimRef != dtc.Name {
 			return dtcConflictErr(dtc.Name, dt.Name)

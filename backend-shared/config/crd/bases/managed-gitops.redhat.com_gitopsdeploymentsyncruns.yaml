@@ -39,8 +39,12 @@ spec:
               GitOpsDeploymentSyncRun
             properties:
               gitopsDeploymentName:
+                description: Reference to the target GitOpsDeployment to issue the
+                  synchronization operation to
                 type: string
               revisionID:
+                description: 'Optional: If specified, tells the GitOps Service to
+                  deploy a particular git commit SHA'
                 type: string
             required:
             - gitopsDeploymentName

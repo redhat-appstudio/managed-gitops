@@ -155,7 +155,8 @@ spec:
                     type: string
                 type: object
               reconciledState:
-                description: ReconciledState lists last deployment of ArgoCD Application
+                description: ReconciledState contains the last version of the GitOpsDeployment
+                  resource that the ArgoCD Controller reconciled
                 properties:
                   destination:
                     description: GitOpsDeploymentDestination contains the information

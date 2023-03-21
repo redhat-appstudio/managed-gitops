@@ -164,6 +164,15 @@ type DatabaseQueries interface {
 
 	// UpdateKubernetesResourceUIDForKubernetesToDBResourceMapping updates the KubernetesResourceUID field for a given obj
 	UpdateKubernetesResourceUIDForKubernetesToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) error
+
+	// CountTotalOperationDBRows updates the total number of operation DB rows in database
+	CountTotalOperationDBRows(ctx context.Context, operation *Operation) (int, error)
+
+	// CountOperationDBRowsByState updates the number of operation DB row in different states i.e, Waiting, In_Progress, Completed or Failed
+	CountOperationDBRowsByState(ctx context.Context, operation *Operation) ([]struct {
+		State    string
+		RowCount int
+	}, error)
 }
 
 // ApplicationScopedQueries are the set of database queries that act on application DB resources:

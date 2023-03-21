@@ -129,5 +129,6 @@ func ClearMetrics() {
 }
 
 func init() {
-	metric.Registry.MustRegister(Gitopsdepl, GitopsdeplFailures)
+	metric.Registry.MustRegister(Gitopsdepl, GitopsdeplFailures, OperationDBRows, OperationDBRowsInWaitingState, OperationDBRowsIn_InProgressState,
+		OperationDBRowsInCompletedState, OperationDBRowsInErrorState, TotalOperationDBRowsInCompletedState, TotalOperationDBRowsInNonCompleteState)
 }

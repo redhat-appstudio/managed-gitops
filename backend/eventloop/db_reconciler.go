@@ -635,8 +635,9 @@ func cleanOrphanedEntriesfromTable_SyncOperation(ctx context.Context, dbQueries 
 }
 
 // TODO: GITOPSRVCE-457: Remove this nolint, once 457 is fixed.
-//nolint:unused
 // cleanOrphanedEntriesfromTable_ManagedEnvironment loops through ManagedEnvironments in database and verifies they are still valid (Having entry in ACTDM). If not, the resources are deleted.
+//
+//nolint:unused
 func cleanOrphanedEntriesfromTable_ManagedEnvironment(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfAppsIdsInDTAM []string, k8sClientFactory sharedresourceloop.SRLK8sClientFactory, log logr.Logger) {
 
 	log = log.WithValues("job", "cleanOrphanedEntriesfromTable_ManagedEnvironment")

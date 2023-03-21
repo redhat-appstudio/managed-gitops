@@ -298,6 +298,11 @@ func cleanUpOldDeploymentTargetClaimAPIs(ns string, k8sClient client.Client) err
 
 	for i := range dtcList.Items {
 		dtc := dtcList.Items[i]
+		// Make sure that all finalizers are removed before deletion.
+		if err := removeAllFinalizers(k8sClient, &dtc); err != nil {
+			return err
+		}
+
 		if err := k8sClient.Delete(context.Background(), &dtc); err != nil {
 			return err
 		}
@@ -313,10 +318,35 @@ func cleanUpOldDeploymentTargetAPIs(ns string, k8sClient client.Client) error {
 	}
 
 	for i := range dtList.Items {
-		dtc := dtList.Items[i]
-		if err := k8sClient.Delete(context.Background(), &dtc); err != nil {
+		dt := dtList.Items[i]
+		// Make sure that all finalizers are removed before deletion.
+		if err := removeAllFinalizers(k8sClient, &dt); err != nil {
 			return err
 		}
+
+		if err := k8sClient.Delete(context.Background(), &dt); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func removeAllFinalizers(k8sClient client.Client, obj client.Object) error {
+	err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(obj), obj)
+	if err != nil {
+		return err
+	}
+
+	if len(obj.GetFinalizers()) == 0 {
+		return nil
+	}
+
+	obj.SetFinalizers([]string{})
+
+	err = k8sClient.Update(context.Background(), obj)
+	if err != nil {
+		return err
 	}
 
 	return nil

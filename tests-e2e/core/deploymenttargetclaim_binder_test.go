@@ -68,7 +68,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 
 			By("check if the provisioner annotation is added")
 			Eventually(dtc, "2m", "1s").Should(
-				dtcfixture.HaveAnnotation(sharedutil.AnnTargetProvisioner,
+				dtcfixture.HasAnnotation(sharedutil.AnnTargetProvisioner,
 					string(dtc.Spec.DeploymentTargetClassName)),
 			)
 
@@ -81,7 +81,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			By("verify if the DT and DTC are bound together")
 			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Bound),
-				dtcfixture.HaveAnnotation(sharedutil.AnnBindCompleted, sharedutil.AnnBinderValueYes),
+				dtcfixture.HasAnnotation(sharedutil.AnnBindCompleted, sharedutil.AnnBinderValueYes),
 			))
 
 			Eventually(dt, "2m", "1s").Should(
@@ -107,7 +107,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			By("verify if the DT and DTC are bounded")
 			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Bound),
-				dtcfixture.HaveAnnotation(sharedutil.AnnBindCompleted, sharedutil.AnnBinderValueYes),
+				dtcfixture.HasAnnotation(sharedutil.AnnBindCompleted, sharedutil.AnnBinderValueYes),
 			))
 
 			Eventually(dt, "2m", "1s").Should(
@@ -146,7 +146,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			By("verify if the DTC is binded with a matching DT")
 			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Bound),
-				dtcfixture.HaveAnnotation(sharedutil.AnnBindCompleted, sharedutil.AnnBinderValueYes),
+				dtcfixture.HasAnnotation(sharedutil.AnnBindCompleted, sharedutil.AnnBinderValueYes),
 			))
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
@@ -179,7 +179,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			By("verify if the DTC is binded with a matching DT")
 			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Bound),
-				dtcfixture.HaveAnnotation(sharedutil.AnnBindCompleted, sharedutil.AnnBinderValueYes),
+				dtcfixture.HasAnnotation(sharedutil.AnnBindCompleted, sharedutil.AnnBinderValueYes),
 			))
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
@@ -212,7 +212,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			By("verify if the DTC is binded with a matching DT")
 			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Bound),
-				dtcfixture.HaveAnnotation(sharedutil.AnnBindCompleted, sharedutil.AnnBinderValueYes),
+				dtcfixture.HasAnnotation(sharedutil.AnnBindCompleted, sharedutil.AnnBinderValueYes),
 			))
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)

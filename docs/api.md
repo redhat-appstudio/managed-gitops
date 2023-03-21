@@ -424,7 +424,7 @@ spec:
   # Environment is the environment resource (defined in the namespace) that the binding will deploy to.
   environment: staging
 
-	# Snapshot is the Snapshot resource (defined in the namespace) that contains the container image versions for the components of the Application.
+  # Snapshot is the Snapshot resource (defined in the namespace) that contains the container image versions for the components of the Application.
   snapshot: my-snapshot
 
   # Component-specific configuration information, used when generating GitOps repository resources.
@@ -446,8 +446,8 @@ status:
       commitID: # (...)
 
 
-	# Components describes a component's GitOps repository information.
-	# This status is updated by the Application Service controller.
+  # Components describes a component's GitOps repository information.
+  # This status is updated by the Application Service controller.
   components:
     - name: component-a
       gitopsRepository:
@@ -457,8 +457,8 @@ status:
         generatedResources:
           - abc.yaml
 
-	# Describes operations on the GitOps repository, for example, if there were issues with generating/processing the repository.
-	# This status is updated by the Application Service controller.
+  # Describes operations on the GitOps repository, for example, if there were issues with generating/processing the repository.
+  # This status is updated by the Application Service controller.
   gitopsRepoConditions:
     - # (see application-service docs for details)
 
@@ -469,8 +469,8 @@ status:
       reason: ErrorOccurred
       message: # Human readable error message indicating the specific error
 
-	# ComponentDeploymentConditions describes the deployment status of all of the Components of the Application.
-	# This status is updated by the Gitops Service's SnapshotEnvironmentBinding controller. 
+  # ComponentDeploymentConditions describes the deployment status of all of the Components of the Application.
+  # This status is updated by the Gitops Service's SnapshotEnvironmentBinding controller. 
   componentDeploymentConditions:
     - type: AllComponentsDeployed
       status: True/False/Unknown

@@ -135,14 +135,6 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 				return ctrl.Result{}, err
 			}
 
-			if err := updateDTStatusPhase(ctx, r.Client, dt, applicationv1alpha1.DeploymentTargetPhase_Bound); err != nil {
-				return ctrl.Result{}, err
-			}
-
-			if err := updateDTCStatusPhase(ctx, r.Client, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Bound); err != nil {
-				return ctrl.Result{}, err
-			}
-
 			log.Info("DeploymentTargetClaim bound to DeploymentTarget", "DeploymentTargetName", dt.Name, "Namespace", dt.Namespace)
 
 			return ctrl.Result{}, nil
@@ -190,16 +182,14 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 				return ctrl.Result{}, err
 			}
 		} else {
-			// QUESTION: What should be the status here and should we return an error?
-			alreadyClaimedErr := fmt.Errorf("DeploymentTargetClaim %s wants to claim DeploymentTarget %s that is already claimed in namespace %s", dtc.Name, dt.Name, dtc.Namespace)
-			log.Error(alreadyClaimedErr, "invalid claim by DeploymentTargetClaim")
+			log.Error(nil, "DeploymentTargetClaim wants to claim a DeploymentTarget that is already claimed", "DeploymentTarget", dt.Name)
 
 			// Update the DTC status to Pending since the DT is not available
 			if err := updateDTCStatusPhase(ctx, r.Client, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Pending); err != nil {
 				return ctrl.Result{}, err
 			}
 
-			return ctrl.Result{}, alreadyClaimedErr
+			return ctrl.Result{}, nil
 		}
 	} else {
 		// At this stage, DT isn't claimed by anyone. The current DTC can try to claim it.
@@ -215,16 +205,6 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 		}
 	}
 
-	// Update the status of DT to bound.
-	if err := updateDTStatusPhase(ctx, r.Client, &dt, applicationv1alpha1.DeploymentTargetPhase_Bound); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// Update the status of DTC to bound.
-	if err := updateDTCStatusPhase(ctx, r.Client, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Bound); err != nil {
-		return ctrl.Result{}, err
-	}
-
 	log.Info("DeploymentTargetClaim bound to DeploymentTarget", "DeploymentTargetName", dt.Name, "Namespace", dt.Namespace)
 
 	return ctrl.Result{}, nil
@@ -232,6 +212,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 
 // bindDeploymentTargetClaimToTarget binds the given DeploymentTarget to a DeploymentTargetClaim by
 // setting the dtc.spec.targetName to the DT name and adding the "bound-by-controller" annotation to the DTC.
+// It also updates the phase of the DT and DTC to bound.
 func bindDeploymentTargetClaimToTarget(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim, dt *applicationv1alpha1.DeploymentTarget, isBoundByController bool) error {
 	// Set the target name of DTC and update it as Bounded.
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -255,7 +236,18 @@ func bindDeploymentTargetClaimToTarget(ctx context.Context, k8sClient client.Cli
 			}
 		}
 
-		// Add bind complete annotation
+		// Set the status of DT and DTC to bound
+		dtc.Status.Phase = applicationv1alpha1.DeploymentTargetClaimPhase_Bound
+		if err := k8sClient.Status().Update(ctx, dtc); err != nil {
+			return err
+		}
+
+		dt.Status.Phase = applicationv1alpha1.DeploymentTargetPhase_Bound
+		if err := k8sClient.Status().Update(ctx, dt); err != nil {
+			return err
+		}
+
+		// Add bind complete annotation to indicate that the binding process is complete.
 		val, found := dtc.Annotations[sharedutil.AnnBindCompleted]
 		if !found && val != sharedutil.AnnBinderValueYes {
 			dtc.Annotations[sharedutil.AnnBindCompleted] = sharedutil.AnnBinderValueYes

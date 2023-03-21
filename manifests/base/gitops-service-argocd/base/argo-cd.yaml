@@ -144,6 +144,9 @@ spec:
         memory: 128Mi
   repo:
     logLevel: "debug"
+    extraRepoCommandArgs:
+      - --max-combined-directory-manifests-size
+      - 10M
     resources:
       limits:
         cpu: "1"

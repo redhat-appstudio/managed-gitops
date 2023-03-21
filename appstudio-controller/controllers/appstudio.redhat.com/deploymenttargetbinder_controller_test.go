@@ -211,17 +211,19 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 		})
 
 		Context("Test with DeploymentTargetClaim that was previously binded by the binding controller", func() {
-			It("should handle already bounded DTC and DT", func() {
+			It("should handle already binded DTC and DT that doesn't have the bound phase set", func() {
 				By("create a DTC with binding completed annotation but in Pending phase")
 				dtc := getDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 					dtc.Annotations = map[string]string{
-						sharedutil.AnnBindCompleted: sharedutil.AnnBinderValueYes,
+						sharedutil.AnnBindCompleted:     sharedutil.AnnBinderValueYes,
+						sharedutil.AnnBoundByController: sharedutil.AnnBinderValueYes,
 					}
 					dtc.Status.Phase = appstudiosharedv1.DeploymentTargetClaimPhase_Pending
 				})
 				err := k8sClient.Create(ctx, &dtc)
 				Expect(err).To(BeNil())
 
+				By("create a DT that claims the above DTC but not in bound phase")
 				dt := getDeploymentTarget(func(dt *appstudiosharedv1.DeploymentTarget) {
 					dt.Spec.ClaimRef = dtc.Name
 					dt.Status.Phase = appstudiosharedv1.DeploymentTargetPhase_Available
@@ -229,7 +231,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				err = k8sClient.Create(ctx, &dt)
 				Expect(err).To(BeNil())
 
-				By("reconcile with a bounded DT and DTC")
+				By("reconcile DT and DTC with bind-complete annotation")
 				request := newRequest(dtc.Namespace, dtc.Name)
 				res, err := reconciler.Reconcile(ctx, request)
 				Expect(err).To(BeNil())
@@ -482,7 +484,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				Expect(dt.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetPhase_Bound))
 			})
 
-			It("should return an error if the DT is already claimed", func() {
+			It("shouldn't bind if the DT is already claimed", func() {
 				By("create a DTC and DT that is already claimed")
 				dt := getDeploymentTarget(func(dt *appstudiosharedv1.DeploymentTarget) {
 					dt.Spec.ClaimRef = "random-dtc"
@@ -497,12 +499,10 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				err = k8sClient.Create(ctx, &dtc)
 				Expect(err).To(BeNil())
 
-				By("reconcile and verify if it returns an error with requeue")
+				By("reconcile and verify if the DTC is not bound")
 				request := newRequest(dtc.Namespace, dtc.Name)
 				res, err := reconciler.Reconcile(ctx, request)
-				Expect(err).ToNot(BeNil())
-				alreadyClaimedErr := fmt.Errorf("DeploymentTargetClaim %s wants to claim DeploymentTarget %s that is already claimed in namespace %s", dtc.Name, dt.Name, dtc.Namespace)
-				Expect(err.Error()).To(Equal(alreadyClaimedErr.Error()))
+				Expect(err).To(BeNil())
 				Expect(res).To(Equal(ctrl.Result{}))
 
 				By("verify if DTC has pending state")

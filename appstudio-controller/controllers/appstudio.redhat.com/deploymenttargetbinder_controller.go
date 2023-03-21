@@ -26,7 +26,6 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -214,50 +213,56 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 // setting the dtc.spec.targetName to the DT name and adding the "bound-by-controller" annotation to the DTC.
 // It also updates the phase of the DT and DTC to bound.
 func bindDeploymentTargetClaimToTarget(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim, dt *applicationv1alpha1.DeploymentTarget, isBoundByController bool) error {
-	// Set the target name of DTC and update it as Bounded.
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dtc), dtc); err != nil {
-			return nil
+	// Add bound-by-controller annotation if we are binding a DT that was
+	// matched by the binding controller.
+	if isBoundByController {
+		updated := false
+		if dtc.Spec.TargetName != dt.Name {
+			dtc.Spec.TargetName = dt.Name
+			updated = true
 		}
 
 		if dtc.Annotations == nil {
 			dtc.Annotations = map[string]string{}
 		}
-		updated := false
 
-		// Add bound-by-controller annotation if we are binding a DT that was
-		// matched by the binding controller.
-		if isBoundByController {
-			dtc.Spec.TargetName = dt.Name
-			val, found := dtc.Annotations[sharedutil.AnnBoundByController]
-			if !found && val != sharedutil.AnnBinderValueYes {
-				dtc.Annotations[sharedutil.AnnBoundByController] = sharedutil.AnnBinderValueYes
-				updated = true
-			}
-		}
-
-		// Set the status of DT and DTC to bound
-		dtc.Status.Phase = applicationv1alpha1.DeploymentTargetClaimPhase_Bound
-		if err := k8sClient.Status().Update(ctx, dtc); err != nil {
-			return err
-		}
-
-		dt.Status.Phase = applicationv1alpha1.DeploymentTargetPhase_Bound
-		if err := k8sClient.Status().Update(ctx, dt); err != nil {
-			return err
-		}
-
-		// Add bind complete annotation to indicate that the binding process is complete.
-		val, found := dtc.Annotations[sharedutil.AnnBindCompleted]
+		val, found := dtc.Annotations[sharedutil.AnnBoundByController]
 		if !found && val != sharedutil.AnnBinderValueYes {
-			dtc.Annotations[sharedutil.AnnBindCompleted] = sharedutil.AnnBinderValueYes
+			dtc.Annotations[sharedutil.AnnBoundByController] = sharedutil.AnnBinderValueYes
 			updated = true
 		}
+
 		if updated {
-			return k8sClient.Update(ctx, dtc)
+			if err := k8sClient.Update(ctx, dtc); err != nil {
+				return err
+			}
 		}
-		return nil
-	})
+	}
+
+	// Set the status of DT and DTC to Bound
+	err := updateDTCStatusPhase(ctx, k8sClient, dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Bound)
+	if err != nil {
+		return err
+	}
+
+	err = updateDTStatusPhase(ctx, k8sClient, dt, applicationv1alpha1.DeploymentTargetPhase_Bound)
+	if err != nil {
+		return err
+	}
+
+	if dtc.Annotations == nil {
+		dtc.Annotations = map[string]string{}
+	}
+
+	// Add bind complete annotation to indicate that the binding process is complete.
+	val, found := dtc.Annotations[sharedutil.AnnBindCompleted]
+	if !found && val != sharedutil.AnnBinderValueYes {
+		dtc.Annotations[sharedutil.AnnBindCompleted] = sharedutil.AnnBinderValueYes
+
+		return k8sClient.Update(ctx, dtc)
+	}
+
+	return nil
 }
 
 // handleBoundedDeploymentTargetClaim handles the DTCs that are already bounded i.e have the "bind-complete" annotation.
@@ -302,19 +307,13 @@ func handleDynamicDTCProvisioning(ctx context.Context, k8sClient client.Client, 
 	}
 
 	// DTC is configured with a class name. So mark the DTC for dynamic provisioning.
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dtc), dtc); err != nil {
-			return nil
-		}
+	if dtc.Annotations == nil {
+		dtc.Annotations = map[string]string{}
+	}
 
-		if dtc.Annotations == nil {
-			dtc.Annotations = map[string]string{}
-		}
+	dtc.Annotations[sharedutil.AnnTargetProvisioner] = string(dtc.Spec.DeploymentTargetClassName)
 
-		dtc.Annotations[sharedutil.AnnTargetProvisioner] = string(dtc.Spec.DeploymentTargetClassName)
-		return k8sClient.Update(ctx, dtc)
-	})
-	if err != nil {
+	if err := k8sClient.Update(ctx, dtc); err != nil {
 		return err
 	}
 
@@ -388,38 +387,20 @@ func updateDTCStatusPhase(ctx context.Context, k8sClient client.Client, dtc *app
 	if dtc.Status.Phase == targetPhase {
 		return nil
 	}
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dtc), dtc); err != nil {
-			return err
-		}
 
-		if dtc.Status.Phase == targetPhase {
-			return nil
-		}
+	dtc.Status.Phase = targetPhase
 
-		dtc.Status.Phase = targetPhase
-
-		return k8sClient.Status().Update(ctx, dtc)
-	})
+	return k8sClient.Status().Update(ctx, dtc)
 }
 
 func updateDTStatusPhase(ctx context.Context, k8sClient client.Client, dt *applicationv1alpha1.DeploymentTarget, targetPhase applicationv1alpha1.DeploymentTargetPhase) error {
 	if dt.Status.Phase == targetPhase {
 		return nil
 	}
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dt), dt); err != nil {
-			return err
-		}
 
-		if dt.Status.Phase == targetPhase {
-			return nil
-		}
+	dt.Status.Phase = targetPhase
 
-		dt.Status.Phase = targetPhase
-
-		return k8sClient.Status().Update(ctx, dt)
-	})
+	return k8sClient.Status().Update(ctx, dt)
 }
 
 func isBindingCompleted(dtc applicationv1alpha1.DeploymentTargetClaim) bool {

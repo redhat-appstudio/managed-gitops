@@ -29,7 +29,7 @@
   "liveNow": false,
   "panels": [
     {
-      "collapsed": false,
+      "collapsed": true,
       "datasource": {
         "type": "prometheus",
         "uid": "PF224BEF3374A25F8"
@@ -255,7 +255,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 19,
+        "w": 12,
         "x": 5,
         "y": 1
       },

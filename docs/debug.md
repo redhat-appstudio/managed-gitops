@@ -14,7 +14,7 @@ To reset the database to a clean state, run `./reset-db.sh`.
 
 ## Run PostgreSQL in Kubernetes
 
-* **Note**: When developing in your local development environment, it is usually easier to run Kubernetes on your local machine using `create-dev-env.sh`, as described above.
+* **Note**: When developing in your local development environment, it is usually easier to run PostgreSQL on your local machine using `create-dev-env.sh`, as described above.
 
 ### Deploy PostgreSQL
 

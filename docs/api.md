@@ -288,9 +288,9 @@ See the [GitOpsDeploymentSyncRun API reference](https://redhat-appstudio.github.
 ## GitOps Service: Stonesoup Environment APIs
 
 The Stonesoup Environment API is based on the [Application](https://redhat-appstudio.github.io/book/ref/application-environment-api.html#application), and [Component](https://redhat-appstudio.github.io/book/ref/application-environment-api.html#component) APIs, which are primarily handled by the [application-service](https://github.com/redhat-appstudio/application-service) component. 
-- These APIs are opinionated representations of the constituent parts of a user's application: a application (e.g. a loan applicatin of a bank) contains multiple components (e.g. Node frontend, Java backend, Postgresql database).
+- These APIs are opinionated representations of the constituent parts of a user's application: a application (e.g. a loan application of a bank) contains multiple components (e.g. Node frontend, Java backend, Postgresql database).
 
-The Stonesoup Environment APIs -- which are simultaneosly reconciled by multiple Stonesoup components -- are all related to provisioning or deploying K8s resources to external environments, such as external K8s clusters/namespaces or local namespaces.
+The Stonesoup Environment APIs -- which are simultaneously reconciled by multiple Stonesoup components -- are all related to provisioning or deploying K8s resources to external environments, such as external K8s clusters/namespaces or local namespaces.
 
 ### Environment
 

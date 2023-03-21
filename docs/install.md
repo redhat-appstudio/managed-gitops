@@ -12,7 +12,7 @@ make install-all-k8s IMG=quay.io/pgeorgia/gitops-service:latest # replace the IM
 ```
 
 This will automatically install all the required components into your Kubernetes cluster, in the `gitops` namespace.
-Notice that, the [Cluster-Agent] operator requires the `gitops-service-argocd` namespace which will also be created as well.
+Notice that, the [Cluster-Agent] controller requires the `gitops-service-argocd` namespace which will also be created as well.
 
 ```shell
 $ kubectl -n gitops get all

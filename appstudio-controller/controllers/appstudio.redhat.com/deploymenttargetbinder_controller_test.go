@@ -673,7 +673,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 					},
 				)
 
-				err := checkForBindingConflict(&dtc, &dt)
+				err := checkForBindingConflict(dtc, dt)
 				Expect(err).NotTo(BeNil())
 				Expect(err.Error()).To(Equal(dtcConflictErr(dtc.Name, dt.Name).Error()))
 			})
@@ -684,7 +684,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				})
 				dtc := getDeploymentTargetClaim()
 
-				err := checkForBindingConflict(&dtc, &dt)
+				err := checkForBindingConflict(dtc, dt)
 				Expect(err).NotTo(BeNil())
 				Expect(err.Error()).To(Equal(dtcConflictErr(dtc.Name, dt.Name).Error()))
 			})
@@ -699,7 +699,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 					dt.Spec.ClaimRef = dtc.Name
 				})
 
-				err := checkForBindingConflict(&dtc, &dt)
+				err := checkForBindingConflict(dtc, dt)
 				Expect(err).NotTo(BeNil())
 				Expect(err.Error()).To(Equal(dtConflictErr(dtc.Name, dt.Name).Error()))
 			})
@@ -712,7 +712,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				)
 				dt := getDeploymentTarget()
 
-				err := checkForBindingConflict(&dtc, &dt)
+				err := checkForBindingConflict(dtc, dt)
 				Expect(err).NotTo(BeNil())
 				Expect(err.Error()).To(Equal(dtConflictErr(dtc.Name, dt.Name).Error()))
 			})
@@ -721,7 +721,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				dtc := getDeploymentTargetClaim()
 				dt := getDeploymentTarget()
 
-				err := checkForBindingConflict(&dtc, &dt)
+				err := checkForBindingConflict(dtc, dt)
 				Expect(err).To(BeNil())
 			})
 		})
@@ -791,7 +791,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 			})
 
 			It("should bind DT and DTC with bound-by-controller annotation", func() {
-				err := bindDeploymentTargetCliamToTarget(ctx, k8sClient, &dtc, &dt, true)
+				err := bindDeploymentTargetClaimToTarget(ctx, k8sClient, &dtc, &dt, true)
 				Expect(err).To(BeNil())
 
 				// verify if bound complete and bound-by-controller annotations are set
@@ -803,7 +803,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 			})
 
 			It("should bind DT and DTC without bound-by-controller annotation", func() {
-				err := bindDeploymentTargetCliamToTarget(ctx, k8sClient, &dtc, &dt, false)
+				err := bindDeploymentTargetClaimToTarget(ctx, k8sClient, &dtc, &dt, false)
 				Expect(err).To(BeNil())
 
 				// verify if bound complete and bound-by-controller annotations are set

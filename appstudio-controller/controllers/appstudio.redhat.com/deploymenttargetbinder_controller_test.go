@@ -7,7 +7,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
-	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -62,7 +61,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 
 				dtc := getDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 					dtc.ObjectMeta.Annotations = map[string]string{
-						sharedutil.AnnBindCompleted: sharedutil.AnnBinderValueYes,
+						appstudiosharedv1.AnnBindCompleted: appstudiosharedv1.AnnBinderValueTrue,
 					}
 					dtc.Status.Phase = appstudiosharedv1.DeploymentTargetClaimPhase_Bound
 					dtc.Spec.TargetName = dt.Name
@@ -89,7 +88,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				By("check if the binding controller has set the finalizer")
 				finalizerFound := false
 				for _, f := range dtc.GetFinalizers() {
-					if f == sharedutil.FinalizerBinder {
+					if f == appstudiosharedv1.FinalizerBinder {
 						finalizerFound = true
 						break
 					}
@@ -122,7 +121,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 
 				dtc := getDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 					dtc.ObjectMeta.Annotations = map[string]string{
-						sharedutil.AnnBindCompleted: sharedutil.AnnBinderValueYes,
+						appstudiosharedv1.AnnBindCompleted: appstudiosharedv1.AnnBinderValueTrue,
 					}
 					dtc.Status.Phase = appstudiosharedv1.DeploymentTargetClaimPhase_Bound
 					dtc.Spec.TargetName = dt.Name
@@ -149,7 +148,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				By("check if the binding controller has set the finalizer")
 				finalizerFound := false
 				for _, f := range dtc.GetFinalizers() {
-					if f == sharedutil.FinalizerBinder {
+					if f == appstudiosharedv1.FinalizerBinder {
 						finalizerFound = true
 						break
 					}
@@ -190,7 +189,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				By("check if the binding controller has set the finalizer")
 				finalizerFound := false
 				for _, f := range dtc.GetFinalizers() {
-					if f == sharedutil.FinalizerBinder {
+					if f == appstudiosharedv1.FinalizerBinder {
 						finalizerFound = true
 						break
 					}
@@ -215,8 +214,8 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				By("create a DTC with binding completed annotation but in Pending phase")
 				dtc := getDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 					dtc.Annotations = map[string]string{
-						sharedutil.AnnBindCompleted:     sharedutil.AnnBinderValueYes,
-						sharedutil.AnnBoundByController: sharedutil.AnnBinderValueYes,
+						appstudiosharedv1.AnnBindCompleted:     appstudiosharedv1.AnnBinderValueTrue,
+						appstudiosharedv1.AnnBoundByController: appstudiosharedv1.AnnBinderValueTrue,
 					}
 					dtc.Status.Phase = appstudiosharedv1.DeploymentTargetClaimPhase_Pending
 				})
@@ -252,7 +251,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				dtc := getDeploymentTargetClaim(
 					func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 						dtc.Annotations = map[string]string{
-							sharedutil.AnnBindCompleted: sharedutil.AnnBinderValueYes,
+							appstudiosharedv1.AnnBindCompleted: appstudiosharedv1.AnnBinderValueTrue,
 						}
 						dtc.Spec.TargetName = "random-dt"
 						dtc.Status.Phase = appstudiosharedv1.DeploymentTargetClaimPhase_Bound
@@ -279,7 +278,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				By("creates DTC with bounded annotation")
 				dtc := getDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 					dtc.Annotations = map[string]string{
-						sharedutil.AnnBindCompleted: sharedutil.AnnBinderValueYes,
+						appstudiosharedv1.AnnBindCompleted: appstudiosharedv1.AnnBinderValueTrue,
 					}
 					dtc.Status.Phase = appstudiosharedv1.DeploymentTargetClaimPhase_Bound
 				})
@@ -329,11 +328,11 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
 				Expect(err).To(BeNil())
 				Expect(dtc.Annotations).ShouldNot(BeNil())
-				Expect(dtc.Annotations[sharedutil.AnnTargetProvisioner]).To(Equal(string(dtc.Spec.DeploymentTargetClassName)))
+				Expect(dtc.Annotations[appstudiosharedv1.AnnTargetProvisioner]).To(Equal(string(dtc.Spec.DeploymentTargetClassName)))
 				Expect(dtc.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetClaimPhase_Pending))
 
 				By("verify if the bound-by-controller annotation is not set")
-				Expect(dtc.Annotations[sharedutil.AnnBoundByController]).ToNot(Equal(string(sharedutil.AnnBinderValueYes)))
+				Expect(dtc.Annotations[appstudiosharedv1.AnnBoundByController]).ToNot(Equal(string(appstudiosharedv1.AnnBinderValueTrue)))
 			})
 
 			It("shouldn't mark the DTC for dynamic provisioning if a matching DT is found", func() {
@@ -367,13 +366,13 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 
 				By("check if the provisioner annotation is not set")
 				Expect(dtc.Annotations).ShouldNot(BeNil())
-				_, found := dtc.Annotations[sharedutil.AnnTargetProvisioner]
+				_, found := dtc.Annotations[appstudiosharedv1.AnnTargetProvisioner]
 				Expect(found).To(BeFalse())
 
 				By("check if the bound-by-controller annotation is set")
-				val, found := dtc.Annotations[sharedutil.AnnBoundByController]
+				val, found := dtc.Annotations[appstudiosharedv1.AnnBoundByController]
 				Expect(found).To(BeTrue())
-				Expect(val).To(Equal(sharedutil.AnnBinderValueYes))
+				Expect(val).To(Equal(appstudiosharedv1.AnnBinderValueTrue))
 			})
 
 			It("should mark the DTC as pending if the DT isn't found and DTClass is not set", func() {
@@ -730,7 +729,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 			It("should match a dynamically provisioned matching DT if found", func() {
 				dtc := getDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 					dtc.Annotations = map[string]string{
-						sharedutil.AnnTargetProvisioner: "sandbox-provisioner",
+						appstudiosharedv1.AnnTargetProvisioner: "sandbox-provisioner",
 					}
 				})
 				err := k8sClient.Create(ctx, &dtc)
@@ -799,7 +798,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				Expect(err).To(BeNil())
 
 				Expect(isBindingCompleted(dtc)).To(BeTrue())
-				Expect(dtc.Annotations[sharedutil.AnnBoundByController]).To(Equal(sharedutil.AnnBinderValueYes))
+				Expect(dtc.Annotations[appstudiosharedv1.AnnBoundByController]).To(Equal(appstudiosharedv1.AnnBinderValueTrue))
 			})
 
 			It("should bind DT and DTC without bound-by-controller annotation", func() {
@@ -811,7 +810,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				Expect(err).To(BeNil())
 
 				Expect(isBindingCompleted(dtc)).To(BeTrue())
-				_, found := dtc.Annotations[sharedutil.AnnBoundByController]
+				_, found := dtc.Annotations[appstudiosharedv1.AnnBoundByController]
 				Expect(found).To(BeFalse())
 			})
 		})

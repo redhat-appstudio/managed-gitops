@@ -22,7 +22,6 @@ import (
 
 	"github.com/go-logr/logr"
 	applicationv1alpha1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
-	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -76,9 +75,9 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 	}
 
 	// Add the deletion finalizer if it is absent.
-	if addFinalizer(&dtc, sharedutil.FinalizerBinder) {
+	if addFinalizer(&dtc, applicationv1alpha1.FinalizerBinder) {
 		if err := r.Client.Update(ctx, &dtc); err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s to DeploymentTargetClaim %s in namespace %s: %v", sharedutil.FinalizerBinder, dtc.Name, dtc.Namespace, err)
+			return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s to DeploymentTargetClaim %s in namespace %s: %v", applicationv1alpha1.FinalizerBinder, dtc.Name, dtc.Namespace, err)
 		}
 	}
 
@@ -99,9 +98,9 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 			}
 		}
 
-		if removeFinalizer(&dtc, sharedutil.FinalizerBinder) {
+		if removeFinalizer(&dtc, applicationv1alpha1.FinalizerBinder) {
 			if err := r.Client.Update(ctx, &dtc); err != nil {
-				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer %s from DeploymentTargetClaim %s in namespace %s: %v", sharedutil.FinalizerBinder, dtc.Name, dtc.Namespace, err)
+				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer %s from DeploymentTargetClaim %s in namespace %s: %v", applicationv1alpha1.FinalizerBinder, dtc.Name, dtc.Namespace, err)
 			}
 			log.Info("Removed finalizer from DeploymentTargetClaim")
 		}
@@ -226,9 +225,9 @@ func bindDeploymentTargetClaimToTarget(ctx context.Context, k8sClient client.Cli
 			dtc.Annotations = map[string]string{}
 		}
 
-		val, found := dtc.Annotations[sharedutil.AnnBoundByController]
-		if !found && val != sharedutil.AnnBinderValueYes {
-			dtc.Annotations[sharedutil.AnnBoundByController] = sharedutil.AnnBinderValueYes
+		val, found := dtc.Annotations[applicationv1alpha1.AnnBoundByController]
+		if !found && val != applicationv1alpha1.AnnBinderValueTrue {
+			dtc.Annotations[applicationv1alpha1.AnnBoundByController] = applicationv1alpha1.AnnBinderValueTrue
 			updated = true
 		}
 
@@ -255,9 +254,9 @@ func bindDeploymentTargetClaimToTarget(ctx context.Context, k8sClient client.Cli
 	}
 
 	// Add bind complete annotation to indicate that the binding process is complete.
-	val, found := dtc.Annotations[sharedutil.AnnBindCompleted]
-	if !found && val != sharedutil.AnnBinderValueYes {
-		dtc.Annotations[sharedutil.AnnBindCompleted] = sharedutil.AnnBinderValueYes
+	val, found := dtc.Annotations[applicationv1alpha1.AnnBindCompleted]
+	if !found && val != applicationv1alpha1.AnnBinderValueTrue {
+		dtc.Annotations[applicationv1alpha1.AnnBindCompleted] = applicationv1alpha1.AnnBinderValueTrue
 
 		return k8sClient.Update(ctx, dtc)
 	}
@@ -311,7 +310,7 @@ func handleDynamicDTCProvisioning(ctx context.Context, k8sClient client.Client, 
 		dtc.Annotations = map[string]string{}
 	}
 
-	dtc.Annotations[sharedutil.AnnTargetProvisioner] = string(dtc.Spec.DeploymentTargetClassName)
+	dtc.Annotations[applicationv1alpha1.AnnTargetProvisioner] = string(dtc.Spec.DeploymentTargetClassName)
 
 	if err := k8sClient.Update(ctx, dtc); err != nil {
 		return err
@@ -408,7 +407,7 @@ func isBindingCompleted(dtc applicationv1alpha1.DeploymentTargetClaim) bool {
 		return false
 	}
 
-	_, found := dtc.Annotations[sharedutil.AnnBindCompleted]
+	_, found := dtc.Annotations[applicationv1alpha1.AnnBindCompleted]
 	return found
 }
 
@@ -421,7 +420,7 @@ func isMarkedForDynamicProvisioning(dtc applicationv1alpha1.DeploymentTargetClai
 		return false
 	}
 
-	_, found := dtc.Annotations[sharedutil.AnnTargetProvisioner]
+	_, found := dtc.Annotations[applicationv1alpha1.AnnTargetProvisioner]
 	return found
 }
 

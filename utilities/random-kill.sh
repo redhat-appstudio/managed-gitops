@@ -13,7 +13,7 @@ SIGNAL=KILL
 
 # parameters: maximum time between kills (excluding initial time), initial kill-free startup time internal
 wait_for_timeout () {
-    SLEEP_VAL=$[ ( $RANDOM % $1 ) + $2 ]s
+    SLEEP_VAL=$[ ( $RANDOM % $1 ) + $2 ]
     echo "Next kill command in $SLEEP_VAL"
     sleep $SLEEP_VAL
 }

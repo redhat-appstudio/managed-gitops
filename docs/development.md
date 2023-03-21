@@ -48,7 +48,7 @@ To do that, follow these steps:
 
 For your curiosity, this _make target_ is making sure that:
 
-* cluster-agent/bacckend/backend-shared/appstudio-controller/application-api CRDs and RBAC resources are applied into the cluster 
+* cluster-agent/backend/backend-shared/appstudio-controller/application-api CRDs and RBAC resources are applied into the cluster 
 * postgres full deployment is running on the cluster
 
 In the end, you will see a similar output:

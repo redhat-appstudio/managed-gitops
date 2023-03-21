@@ -37,7 +37,7 @@ The final binaries are then copied into `/usr/local/bin`, which is where they ar
 
 ### Build and push: using docker/podman
 
-You may user docker or podman to build the containers. 
+You may use docker or podman to build the containers. 
 - To use podman, pass `DOCKER=podman` on the `make` calls. 
 - For example: `USERNAME=(your quay.io username) DOCKER=podman make docker-build docker-push`
 

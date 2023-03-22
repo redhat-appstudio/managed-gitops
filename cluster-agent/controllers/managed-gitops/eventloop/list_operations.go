@@ -8,13 +8,13 @@ import (
 	"github.com/go-logr/logr"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
-	"github.com/redhat-appstudio/managed-gitops/backend/metrics"
+	"github.com/redhat-appstudio/managed-gitops/cluster-agent/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 const (
-	operationReconcilerInterval = 10 * time.Minute // Interval in Minutes to reconcile .
+	operationReconcilerInterval = 10 * time.Minute // Interval in Minutes to reconcile.
 )
 
 // OperationReconciler reconciles operation CR

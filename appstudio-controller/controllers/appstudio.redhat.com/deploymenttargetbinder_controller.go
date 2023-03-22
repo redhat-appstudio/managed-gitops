@@ -491,27 +491,27 @@ func getDTBoundByDTC(ctx context.Context, k8sClient client.Client, dtc *applicat
 // 3. DT has a claim ref to a DTC but the DTC targets a different DT.
 // 4. DT has empty claim ref but DTC targets a different DT.
 func checkForBindingConflict(dtc applicationv1alpha1.DeploymentTargetClaim, dt applicationv1alpha1.DeploymentTarget) error {
+	conflictErr := conflictErrWrapper(dtc.Name, dtc.Spec.TargetName, dt.Name, dt.Spec.ClaimRef)
+
 	if dtc.Spec.TargetName == dt.Name || dtc.Spec.TargetName == "" {
 		if dt.Spec.ClaimRef != "" && dt.Spec.ClaimRef != dtc.Name {
-			return dtcConflictErr(dtc.Name, dt.Name)
+			return conflictErr("DeploymentTarget has a claimRef to another DeploymentTargetClaim")
 		}
 	}
 
 	if dt.Spec.ClaimRef == dtc.Name || dt.Spec.ClaimRef == "" {
 		if dtc.Spec.TargetName != "" && dtc.Spec.TargetName != dt.Name {
-			return dtConflictErr(dtc.Name, dt.Name)
+			return conflictErr("DeploymentTargetClaim targets a DeploymentTarget that is already claimed")
 		}
 	}
 
 	return nil
 }
 
-func dtcConflictErr(dtcName, dtName string) error {
-	return fmt.Errorf("DeploymentTargetClaim %s targets a DeploymenetTarget %s with a different claim ref", dtcName, dtName)
-}
-
-func dtConflictErr(dtcName, dtName string) error {
-	return fmt.Errorf("DeploymentTarget %s has a claim ref to a DeploymentTargetClaim %s with a different target", dtName, dtcName)
+func conflictErrWrapper(dtcName, target, dtName, claimRef string) func(string) error {
+	return func(msg string) error {
+		return fmt.Errorf("cannot bind DeploymentTargetClaim %s with target %q to DeploymentTarget %s with claim ref %q: %s", dtcName, target, dtName, claimRef, msg)
+	}
 }
 
 // SetupWithManager sets up the controller with the Manager.

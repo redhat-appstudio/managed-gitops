@@ -147,12 +147,11 @@ func main() {
 	// Call StartGoRoutineCollectOperationMetricsEveryHour function to start a goroutine to periodically clear the metrics
 	metrics.StartGoRoutineCollectOperationMetrics()
 
-	operationReconciler := eventloop.OperationReconciler{
+	// Trigger goroutine for listing operation CRs, to update operation CR metric
+	operationCRMetricUpdater := eventloop.OperationCRMetricUpdater{
 		Client: mgr.GetClient(),
 	}
-
-	// Trigger goroutine for listing operation CR reconciler
-	operationReconciler.StartOperationReconciler()
+	operationCRMetricUpdater.StartOperationCRMetricUpdater()
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")

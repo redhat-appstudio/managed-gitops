@@ -21,5 +21,5 @@ func SetNumberOfOperationsCR(count int) {
 }
 
 func ClearOperationMetrics() {
-	OperationCR.Set(0)
+	SetNumberOfOperationsCR(0)
 }

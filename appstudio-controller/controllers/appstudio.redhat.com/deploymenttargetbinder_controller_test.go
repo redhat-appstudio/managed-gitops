@@ -592,14 +592,16 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 
 		Context("Test doesDTMatchDTC function", func() {
 			var (
-				dtc        appstudiosharedv1.DeploymentTargetClaim
-				dt         appstudiosharedv1.DeploymentTarget
-				errWrapper func(string) error
+				dtc         appstudiosharedv1.DeploymentTargetClaim
+				dt          appstudiosharedv1.DeploymentTarget
+				mismatchErr func(string) error
+				conflictErr func(string) error
 			)
 			BeforeEach(func() {
 				dtc = getDeploymentTargetClaim()
 				dt = getDeploymentTarget()
-				errWrapper = mismatchErrWrap(dt.Name, dtc.Name, dtc.Namespace)
+				mismatchErr = mismatchErrWrap(dt.Name, dtc.Name, dtc.Namespace)
+				conflictErr = conflictErrWrapper(dtc.Name, dtc.Spec.TargetName, dt.Name, dt.Spec.ClaimRef)
 			})
 
 			It("DT and DTC match", func() {
@@ -621,7 +623,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				dt.Spec.DeploymentTargetClassName = "different-class"
 				dt.Status.Phase = appstudiosharedv1.DeploymentTargetPhase_Available
 
-				expecterErr := errWrapper("deploymentTargetClassName does not match")
+				expecterErr := mismatchErr("deploymentTargetClassName does not match")
 				err := doesDTMatchDTC(dt, dtc)
 				Expect(err).ToNot(BeNil())
 				Expect(err.Error()).To(Equal(expecterErr.Error()))
@@ -630,7 +632,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 			It("should return an error if DT is not in available phase", func() {
 				dt.Status.Phase = appstudiosharedv1.DeploymentTargetPhase_Bound
 
-				expecterErr := errWrapper("DeploymentTarget is not in Available phase")
+				expecterErr := mismatchErr("DeploymentTarget is not in Available phase")
 				err := doesDTMatchDTC(dt, dtc)
 				Expect(err).ToNot(BeNil())
 				Expect(err.Error()).To(Equal(expecterErr.Error()))
@@ -641,7 +643,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				dt.Status.Phase = appstudiosharedv1.DeploymentTargetPhase_Available
 				dt.Spec.KubernetesClusterCredentials = appstudiosharedv1.DeploymentTargetKubernetesClusterCredentials{}
 
-				expecterErr := errWrapper("DeploymentTarget does not have cluster credentials")
+				expecterErr := mismatchErr("DeploymentTarget does not have cluster credentials")
 				err := doesDTMatchDTC(dt, dtc)
 				Expect(err).ToNot(BeNil())
 				Expect(err.Error()).To(Equal(expecterErr.Error()))
@@ -652,8 +654,9 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				dtc.Spec.TargetName = "different-dt"
 				dt.Status.Phase = appstudiosharedv1.DeploymentTargetPhase_Available
 
-				expecterErr := dtConflictErr(dtc.Name, dt.Name)
 				err := doesDTMatchDTC(dt, dtc)
+				conflictErr = conflictErrWrapper(dtc.Name, dtc.Spec.TargetName, dt.Name, dt.Spec.ClaimRef)
+				expecterErr := conflictErr("DeploymentTargetClaim targets a DeploymentTarget that is already claimed")
 				Expect(err).ToNot(BeNil())
 				Expect(err.Error()).To(Equal(expecterErr.Error()))
 			})
@@ -674,7 +677,9 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 
 				err := checkForBindingConflict(dtc, dt)
 				Expect(err).NotTo(BeNil())
-				Expect(err.Error()).To(Equal(dtcConflictErr(dtc.Name, dt.Name).Error()))
+				errWrap := conflictErrWrapper(dtc.Name, dtc.Spec.TargetName, dt.Name, dt.Spec.ClaimRef)
+				expectedErr := errWrap("DeploymentTarget has a claimRef to another DeploymentTargetClaim")
+				Expect(err.Error()).To(Equal(expectedErr.Error()))
 			})
 
 			It("should return an error if DTC has empty target but DT has a claimRef to a different DTC.", func() {
@@ -685,7 +690,9 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 
 				err := checkForBindingConflict(dtc, dt)
 				Expect(err).NotTo(BeNil())
-				Expect(err.Error()).To(Equal(dtcConflictErr(dtc.Name, dt.Name).Error()))
+				errWrap := conflictErrWrapper(dtc.Name, dtc.Spec.TargetName, dt.Name, dt.Spec.ClaimRef)
+				expectedErr := errWrap("DeploymentTarget has a claimRef to another DeploymentTargetClaim")
+				Expect(err.Error()).To(Equal(expectedErr.Error()))
 			})
 
 			It("should return an error if DT has a claim ref to a DTC but the DTC targets a different DT", func() {
@@ -700,7 +707,9 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 
 				err := checkForBindingConflict(dtc, dt)
 				Expect(err).NotTo(BeNil())
-				Expect(err.Error()).To(Equal(dtConflictErr(dtc.Name, dt.Name).Error()))
+				errWrap := conflictErrWrapper(dtc.Name, dtc.Spec.TargetName, dt.Name, dt.Spec.ClaimRef)
+				expectedErr := errWrap("DeploymentTargetClaim targets a DeploymentTarget that is already claimed")
+				Expect(err.Error()).To(Equal(expectedErr.Error()))
 			})
 
 			It("should return an error if DT has empty claim ref but DTC targets a different DT.", func() {
@@ -712,8 +721,9 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				dt := getDeploymentTarget()
 
 				err := checkForBindingConflict(dtc, dt)
-				Expect(err).NotTo(BeNil())
-				Expect(err.Error()).To(Equal(dtConflictErr(dtc.Name, dt.Name).Error()))
+				errWrap := conflictErrWrapper(dtc.Name, dtc.Spec.TargetName, dt.Name, dt.Spec.ClaimRef)
+				expectedErr := errWrap("DeploymentTargetClaim targets a DeploymentTarget that is already claimed")
+				Expect(err.Error()).To(Equal(expectedErr.Error()))
 			})
 
 			It("should not return an error if there are no conflicts", func() {

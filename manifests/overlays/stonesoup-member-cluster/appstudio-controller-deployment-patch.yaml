@@ -12,7 +12,8 @@ spec:
         - --zap-time-encoding=rfc3339nano
         - --health-probe-bind-address=:8085
         - --metrics-bind-address=:8080
-        - --zap-log-level info        
+        - --zap-log-level
+        - info
         command:
         - appstudio-controller
         image: ${COMMON_IMAGE}

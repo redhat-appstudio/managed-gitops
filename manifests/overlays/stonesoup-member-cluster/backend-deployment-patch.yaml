@@ -33,7 +33,8 @@ spec:
         - --metrics-bind-address=:8080
         - --leader-elect
         - --zap-time-encoding=rfc3339nano
-        - --zap-log-level info
+        - --zap-log-level
+        - info
         command:
         - gitops-service-backend
         env:

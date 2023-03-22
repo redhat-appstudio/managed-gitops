@@ -11,7 +11,7 @@ import (
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
-	"github.com/redhat-appstudio/managed-gitops/backend/metrics"
+	"github.com/redhat-appstudio/managed-gitops/cluster-agent/metrics"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"

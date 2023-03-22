@@ -92,7 +92,7 @@ func clearOperationMetricsCount() {
 }
 
 func init() {
-	metric.Registry.MustRegister(OperationStateCompleted, OperationStateFailed)
+	metric.Registry.MustRegister(OperationStateCompleted, OperationStateFailed, OperationCR)
 }
 
 // TestOnly_runCollectOperationMetrics should only be called from unit tests

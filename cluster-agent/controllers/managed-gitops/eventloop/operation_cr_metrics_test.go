@@ -120,7 +120,7 @@ var _ = Describe("Test for Operation metrics counter", func() {
 			err = k8sClient.Create(ctx, secondOperationCR)
 			Expect(err).To(BeNil())
 
-			listOperationCRs(ctx, k8sClient, log)
+			updateOperationCRMetrics(ctx, k8sClient, log)
 
 			newNumberOfOperationsCR := testutil.ToFloat64(metrics.OperationCR)
 

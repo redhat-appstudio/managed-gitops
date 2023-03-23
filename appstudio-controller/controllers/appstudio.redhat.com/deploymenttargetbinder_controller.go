@@ -79,7 +79,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 		if err := r.Client.Update(ctx, &dtc); err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s to DeploymentTargetClaim %s in namespace %s: %v", applicationv1alpha1.FinalizerBinder, dtc.Name, dtc.Namespace, err)
 		}
-		log.Info("Added finalizer to DeploymentTargetClaim")
+		log.Info("Added finalizer to DeploymentTargetClaim", "finalizer", applicationv1alpha1.FinalizerBinder)
 	}
 
 	// Handle deletion if the DTC has a deletion timestamp set.
@@ -105,7 +105,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 			if err := r.Client.Update(ctx, &dtc); err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer %s from DeploymentTargetClaim %s in namespace %s: %v", applicationv1alpha1.FinalizerBinder, dtc.Name, dtc.Namespace, err)
 			}
-			log.Info("Removed finalizer from DeploymentTargetClaim")
+			log.Info("Removed finalizer from DeploymentTargetClaim", "finalizer", applicationv1alpha1.FinalizerBinder)
 		}
 
 		return ctrl.Result{}, nil
@@ -146,7 +146,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 
 		err = handleDynamicDTCProvisioning(ctx, r.Client, &dtc, log)
 		if err != nil {
-			log.Error(err, "failed to handle DeploymentTargetClaim for dynamic provsioning")
+			log.Error(err, "failed to handle DeploymentTargetClaim for dynamic provisioning")
 			return ctrl.Result{}, err
 		}
 		log.Info("Waiting for the DeploymentTarget to be dynamically created by the provisioner")
@@ -268,7 +268,7 @@ func bindDeploymentTargetClaimToTarget(ctx context.Context, k8sClient client.Cli
 			return err
 		}
 
-		log.Info("Added bind-complete annotation since the DeploymentTargetClaim is bounded")
+		log.Info("Added bind-complete annotation since the DeploymentTargetClaim is bounded", "annotation", applicationv1alpha1.AnnBindCompleted)
 		return nil
 	}
 
@@ -287,14 +287,14 @@ func handleBoundedDeploymentTargetClaim(ctx context.Context, k8sClient client.Cl
 	// If the provisioner annotation is present, check if its value still matches the DTC class name.
 	provisioner, found := dtc.Annotations[applicationv1alpha1.AnnTargetProvisioner]
 	if found {
-		log.Info("Provisioner annotation found for DeploymentTargetClaim")
+		log.Info("Provisioner annotation found for DeploymentTargetClaim", "annotation", applicationv1alpha1.AnnTargetProvisioner)
 		if dtc.Spec.DeploymentTargetClassName == "" {
 			// If the class name doesn't exist remove the provisioner annotation
 			delete(dtc.Annotations, applicationv1alpha1.AnnTargetProvisioner)
 			if err := k8sClient.Update(ctx, &dtc); err != nil {
 				return err
 			}
-			log.Info("Deleted the provisioner annotation from DeploymentTargetClaim because the class name was not set")
+			log.Info("Deleted the provisioner annotation from DeploymentTargetClaim because the class name was not set", "annotation", applicationv1alpha1.AnnTargetProvisioner)
 		} else if provisioner != string(dtc.Spec.DeploymentTargetClassName) {
 			// If the class name exists, but doesn't match the provisioner value
 			// update the annotation with the correct provisioner value.
@@ -302,7 +302,7 @@ func handleBoundedDeploymentTargetClaim(ctx context.Context, k8sClient client.Cl
 			if err := k8sClient.Update(ctx, &dtc); err != nil {
 				return err
 			}
-			log.Info("Updated the provisioner annotation with the correct class name")
+			log.Info("Updated the provisioner annotation with the correct class name", "annotation", applicationv1alpha1.AnnTargetProvisioner, "className", string(dtc.Spec.DeploymentTargetClassName))
 		}
 	}
 
@@ -355,7 +355,7 @@ func handleDynamicDTCProvisioning(ctx context.Context, k8sClient client.Client, 
 		return err
 	}
 
-	log.Info("Added the provisioner annotation to the DeploymentTargetClaim")
+	log.Info("Added the provisioner annotation to the DeploymentTargetClaim", "annotation", applicationv1alpha1.AnnTargetProvisioner)
 
 	// set the DTC to Pending phase and wait for the Provisioner to create a DT
 	return updateDTCStatusPhase(ctx, k8sClient, dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Pending, log)
@@ -501,7 +501,7 @@ func removeFinalizer(obj client.Object, finalizer string) bool {
 }
 
 // getDTBoundByDTC will get the DT that is bound to a given DTC.
-// It returns the DT targetted by DTC if DTC.Spec.TargetName is set.
+// It returns the DT targeted by DTC if DTC.Spec.TargetName is set.
 // Else it will fetch the DT that is claiming the current DTC.
 func getDTBoundByDTC(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim) (*applicationv1alpha1.DeploymentTarget, error) {
 	if dtc.Spec.TargetName != "" {

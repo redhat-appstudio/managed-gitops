@@ -187,7 +187,41 @@ func updateStatusConditionOfEnvironmentBinding(ctx context.Context, client clien
 	return nil
 }
 
+func getDeploymentTargetClaim(env appstudioshared.Environment) string {
+	return env.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName
+}
+
 func generateDesiredResource(ctx context.Context, env appstudioshared.Environment, k8sClient client.Client) (*managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, error) {
+
+	// If the Environment has a reference to the DeploymentTargetClaim, use the credential secret
+	// from the bounded DeploymentTarget.
+	claimName := env.GetDeploymentTargetClaimName()
+	if claimName != "" {
+		dtc := &appstudioshared.DeploymentTargetClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      claimName,
+				Namespace: env.Namespace,
+			},
+		}
+
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dtc), dtc); err != nil {
+			return nil, err
+		}
+
+		// If the DeploymentTargetClaim is not in bounded phase, return and wait
+		// until it reaches bounded phase.
+		if dtc.Status.Phase != appstudioshared.DeploymentTargetClaimPhase_Bound {
+			return nil, nil
+		}
+
+		// If the DeploymentTargetClaim is bounded, find the corresponding DeploymentTarget.
+		// Improve the logic here:
+
+		dt := appstudioshared.DeploymentTarget{}
+
+		dt.Spec.KubernetesClusterCredentials.ClusterCredentialsSecret
+
+	}
 
 	// Don't process the Environment configuration fields if they are empty
 	if env.Spec.UnstableConfigurationFields == nil {

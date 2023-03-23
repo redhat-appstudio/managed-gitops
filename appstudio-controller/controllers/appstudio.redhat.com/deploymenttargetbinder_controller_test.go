@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
@@ -14,6 +15,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -264,7 +266,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				request := newRequest(dtc.Namespace, dtc.Name)
 				res, err := reconciler.Reconcile(ctx, request)
 				Expect(err).NotTo(BeNil())
-				expectedErr := fmt.Errorf("DeploymentTarget not found for bounded DeploymentTargetClaim %s in namespace %s", dtc.Name, dtc.Namespace)
+				expectedErr := fmt.Errorf("DeploymentTarget not found for a bounded DeploymentTargetClaim %s in namespace %s", dtc.Name, dtc.Namespace)
 				Expect(err.Error()).Should(Equal(expectedErr.Error()))
 				Expect(res).To(Equal(ctrl.Result{}))
 
@@ -300,7 +302,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				request := newRequest(dtc.Namespace, dtc.Name)
 				res, err := reconciler.Reconcile(ctx, request)
 				Expect(err).NotTo(BeNil())
-				expectedErr := fmt.Errorf("DeploymentTarget not found for bounded DeploymentTargetClaim %s in namespace %s", dtc.Name, dtc.Namespace)
+				expectedErr := fmt.Errorf("DeploymentTarget not found for a bounded DeploymentTargetClaim %s in namespace %s", dtc.Name, dtc.Namespace)
 				Expect(err.Error()).Should(Equal(expectedErr.Error()))
 				Expect(res).To(Equal(ctrl.Result{}))
 
@@ -895,8 +897,9 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 
 		Context("Test bindDeploymentTargetCliamToTarget function", func() {
 			var (
-				dt  appstudiosharedv1.DeploymentTarget
-				dtc appstudiosharedv1.DeploymentTargetClaim
+				dt     appstudiosharedv1.DeploymentTarget
+				dtc    appstudiosharedv1.DeploymentTargetClaim
+				logger logr.Logger
 			)
 
 			BeforeEach(func() {
@@ -906,10 +909,12 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				dt = getDeploymentTarget()
 				err = k8sClient.Create(ctx, &dt)
 				Expect(err).To(BeNil())
+
+				logger = log.FromContext(ctx)
 			})
 
 			It("should bind DT and DTC with bound-by-controller annotation", func() {
-				err := bindDeploymentTargetClaimToTarget(ctx, k8sClient, &dtc, &dt, true)
+				err := bindDeploymentTargetClaimToTarget(ctx, k8sClient, &dtc, &dt, true, logger)
 				Expect(err).To(BeNil())
 
 				// verify if bound complete and bound-by-controller annotations are set
@@ -921,7 +926,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 			})
 
 			It("should bind DT and DTC without bound-by-controller annotation", func() {
-				err := bindDeploymentTargetClaimToTarget(ctx, k8sClient, &dtc, &dt, false)
+				err := bindDeploymentTargetClaimToTarget(ctx, k8sClient, &dtc, &dt, false, logger)
 				Expect(err).To(BeNil())
 
 				// verify if bound complete and bound-by-controller annotations are set

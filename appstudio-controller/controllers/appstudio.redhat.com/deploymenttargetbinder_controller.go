@@ -57,7 +57,7 @@ type DeploymentTargetClaimReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
 func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := log.FromContext(ctx).WithValues("request", req)
+	log := log.FromContext(ctx)
 
 	dtc := applicationv1alpha1.DeploymentTargetClaim{
 		ObjectMeta: metav1.ObjectMeta{
@@ -79,10 +79,12 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 		if err := r.Client.Update(ctx, &dtc); err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s to DeploymentTargetClaim %s in namespace %s: %v", applicationv1alpha1.FinalizerBinder, dtc.Name, dtc.Namespace, err)
 		}
+		log.Info("Added finalizer to DeploymentTargetClaim")
 	}
 
 	// Handle deletion if the DTC has a deletion timestamp set.
 	if dtc.GetDeletionTimestamp() != nil {
+		log.Info("Handling a deleted DeploymentTargetClaim")
 		// If the DTC is bound set the status of the corresponding DT to Released
 		if isDTCBound(dtc) {
 			dt, err := getDTBoundByDTC(ctx, r.Client, &dtc)
@@ -91,10 +93,11 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 			}
 
 			if dt != nil {
-				err = updateDTStatusPhase(ctx, r.Client, dt, applicationv1alpha1.DeploymentTargetPhase_Released)
+				err = updateDTStatusPhase(ctx, r.Client, dt, applicationv1alpha1.DeploymentTargetPhase_Released, log)
 				if err != nil {
 					return ctrl.Result{}, err
 				}
+				log.Info("DeploymentTarget is released", "DeploymentTarget", dt.Name)
 			}
 		}
 
@@ -123,13 +126,16 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 	if dtc.Spec.TargetName == "" {
 		dt, err := findMatchingDTForDTC(ctx, r.Client, dtc)
 		if err != nil {
+			log.Error(err, "failed to find a DeploymentTarget that matches the DeploymentTargetClaim")
 			return ctrl.Result{}, err
 		}
 
 		// If a best match DT is available bind it to the current DTC.
 		if dt != nil {
-			err = bindDeploymentTargetClaimToTarget(ctx, r.Client, &dtc, dt, true)
+			log.Info("Found a matching DeploymentTarget for DeploymentTargetClaim", "DeploymentTarget", dt.Name)
+			err = bindDeploymentTargetClaimToTarget(ctx, r.Client, &dtc, dt, true, log)
 			if err != nil {
+				log.Error(err, "failed to bind DeploymentTargetClaim to the DeploymentTarget", "DeploymentTargetName", dt.Name, "Namespace", dt.Name)
 				return ctrl.Result{}, err
 			}
 
@@ -138,7 +144,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 			return ctrl.Result{}, nil
 		}
 
-		err = handleDynamicDTCProvisioning(ctx, r.Client, &dtc)
+		err = handleDynamicDTCProvisioning(ctx, r.Client, &dtc, log)
 		if err != nil {
 			log.Error(err, "failed to handle DeploymentTargetClaim for dynamic provsioning")
 			return ctrl.Result{}, err
@@ -161,7 +167,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 			log.Info("Waiting for DeploymentTarget to be created", "DeploymentTarget", dt.Name, "Namespace", dt.Namespace)
 
 			// Update the DTC status as Pending and wait for DT to be created.
-			if err := updateDTCStatusPhase(ctx, r.Client, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Pending); err != nil {
+			if err := updateDTCStatusPhase(ctx, r.Client, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Pending, log); err != nil {
 				return ctrl.Result{}, err
 			}
 
@@ -174,7 +180,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 	if dt.Spec.ClaimRef != "" {
 		if dt.Spec.ClaimRef == dtc.Name {
 			// Both DT and DTC refer each other. So bind them together.
-			err := bindDeploymentTargetClaimToTarget(ctx, r.Client, &dtc, &dt, false)
+			err := bindDeploymentTargetClaimToTarget(ctx, r.Client, &dtc, &dt, false, log)
 			if err != nil {
 				log.Error(err, "failed to bind DeploymentTargetClaim to the DeploymentTarget", "DeploymentTargetName", dt.Name, "Namespace", dt.Name)
 				return ctrl.Result{}, err
@@ -183,7 +189,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 			log.Error(nil, "DeploymentTargetClaim wants to claim a DeploymentTarget that is already claimed", "DeploymentTarget", dt.Name)
 
 			// Update the DTC status to Pending since the DT is not available
-			if err := updateDTCStatusPhase(ctx, r.Client, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Pending); err != nil {
+			if err := updateDTCStatusPhase(ctx, r.Client, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Pending, log); err != nil {
 				return ctrl.Result{}, err
 			}
 
@@ -196,7 +202,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 			return ctrl.Result{}, err
 		}
 
-		err := bindDeploymentTargetClaimToTarget(ctx, r.Client, &dtc, &dt, false)
+		err := bindDeploymentTargetClaimToTarget(ctx, r.Client, &dtc, &dt, false, log)
 		if err != nil {
 			log.Error(err, "failed to bind DeploymentTargetClaim to the DeploymentTarget", "DeploymentTargetName", dt.Name, "Namespace", dt.Name)
 			return ctrl.Result{}, err
@@ -211,9 +217,8 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 // bindDeploymentTargetClaimToTarget binds the given DeploymentTarget to a DeploymentTargetClaim by
 // setting the dtc.spec.targetName to the DT name and adding the "bound-by-controller" annotation to the DTC.
 // It also updates the phase of the DT and DTC to bound.
-func bindDeploymentTargetClaimToTarget(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim, dt *applicationv1alpha1.DeploymentTarget, isBoundByController bool) error {
-	// Add bound-by-controller annotation if we are binding a DT that was
-	// matched by the binding controller.
+func bindDeploymentTargetClaimToTarget(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim, dt *applicationv1alpha1.DeploymentTarget, isBoundByController bool, log logr.Logger) error {
+	// Add bound-by-controller annotation if we are binding a DT that was matched by the binding controller.
 	if isBoundByController {
 		updated := false
 		if dtc.Spec.TargetName != dt.Name {
@@ -236,15 +241,16 @@ func bindDeploymentTargetClaimToTarget(ctx context.Context, k8sClient client.Cli
 				return err
 			}
 		}
+		log.Info("Added bound-by-controller annotation and updated the target name for DeploymentTargetClaim since the binding controller found the matching DeploymentTarget")
 	}
 
 	// Set the status of DT and DTC to Bound
-	err := updateDTCStatusPhase(ctx, k8sClient, dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Bound)
+	err := updateDTCStatusPhase(ctx, k8sClient, dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Bound, log)
 	if err != nil {
 		return err
 	}
 
-	err = updateDTStatusPhase(ctx, k8sClient, dt, applicationv1alpha1.DeploymentTargetPhase_Bound)
+	err = updateDTStatusPhase(ctx, k8sClient, dt, applicationv1alpha1.DeploymentTargetPhase_Bound, log)
 	if err != nil {
 		return err
 	}
@@ -258,7 +264,12 @@ func bindDeploymentTargetClaimToTarget(ctx context.Context, k8sClient client.Cli
 	if !found && val != applicationv1alpha1.AnnBinderValueTrue {
 		dtc.Annotations[applicationv1alpha1.AnnBindCompleted] = applicationv1alpha1.AnnBinderValueTrue
 
-		return k8sClient.Update(ctx, dtc)
+		if err := k8sClient.Update(ctx, dtc); err != nil {
+			return err
+		}
+
+		log.Info("Added bind-complete annotation since the DeploymentTargetClaim is bounded")
+		return nil
 	}
 
 	return nil
@@ -271,15 +282,19 @@ func handleBoundedDeploymentTargetClaim(ctx context.Context, k8sClient client.Cl
 		return nil
 	}
 
+	log.Info("Handling a bounded DeploymentTargetClaim")
+
 	// If the provisioner annotation is present, check if its value still matches the DTC class name.
 	provisioner, found := dtc.Annotations[applicationv1alpha1.AnnTargetProvisioner]
 	if found {
+		log.Info("Provisioner annotation found for DeploymentTargetClaim")
 		if dtc.Spec.DeploymentTargetClassName == "" {
 			// If the class name doesn't exist remove the provisioner annotation
 			delete(dtc.Annotations, applicationv1alpha1.AnnTargetProvisioner)
 			if err := k8sClient.Update(ctx, &dtc); err != nil {
 				return err
 			}
+			log.Info("Deleted the provisioner annotation from DeploymentTargetClaim because the class name was not set")
 		} else if provisioner != string(dtc.Spec.DeploymentTargetClassName) {
 			// If the class name exists, but doesn't match the provisioner value
 			// update the annotation with the correct provisioner value.
@@ -287,7 +302,7 @@ func handleBoundedDeploymentTargetClaim(ctx context.Context, k8sClient client.Cl
 			if err := k8sClient.Update(ctx, &dtc); err != nil {
 				return err
 			}
-
+			log.Info("Updated the provisioner annotation with the correct class name")
 		}
 	}
 
@@ -297,32 +312,36 @@ func handleBoundedDeploymentTargetClaim(ctx context.Context, k8sClient client.Cl
 	}
 
 	if dt == nil {
+		log.Info("DeploymentTarget not found for a bounded DeploymentTargetClaim")
+
 		// DeploymentTarget is not found for the DeploymentTargetClaim, so update the status as Lost
-		err := updateDTCStatusPhase(ctx, k8sClient, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Lost)
+		err := updateDTCStatusPhase(ctx, k8sClient, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Lost, log)
 		if err != nil {
 			return err
 		}
 
-		log.Info("DeploymentTarget not found for a bounded DeploymentTargetClaim")
-		return fmt.Errorf("DeploymentTarget not found for bounded DeploymentTargetClaim %s in namespace %s", dtc.Name, dtc.Namespace)
+		return fmt.Errorf("DeploymentTarget not found for a bounded DeploymentTargetClaim %s in namespace %s", dtc.Name, dtc.Namespace)
 	}
 
 	log.Info("DeploymentTarget found for a bounded DeploymentTargetClaim", "DeploymentTargetName", dt.Name)
 
 	// At this stage, the DeploymentTarget exists, so update the status to Bound.
-	if err := updateDTStatusPhase(ctx, k8sClient, dt, applicationv1alpha1.DeploymentTargetPhase_Bound); err != nil {
+	if err := updateDTStatusPhase(ctx, k8sClient, dt, applicationv1alpha1.DeploymentTargetPhase_Bound, log); err != nil {
 		return err
 	}
 
-	return updateDTCStatusPhase(ctx, k8sClient, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Bound)
+	return updateDTCStatusPhase(ctx, k8sClient, &dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Bound, log)
 
 }
 
 // handleDynamicDTCProvisioning processes the DeploymentTargetClaim for dynamic provisioning.
-func handleDynamicDTCProvisioning(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim) error {
+func handleDynamicDTCProvisioning(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim, log logr.Logger) error {
+	log.Info("Handling the DeploymentTargetClaim for dynamic provisioning")
+
 	// If DTC is not configured with a class name, update its status as Pending and return.
 	if dtc.Spec.DeploymentTargetClassName == "" {
-		return updateDTCStatusPhase(ctx, k8sClient, dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Pending)
+		log.Info("DeploymentTargetClaim cannot be dynamically provisioned since DeploymentTargetClassName is not set")
+		return updateDTCStatusPhase(ctx, k8sClient, dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Pending, log)
 	}
 
 	// DTC is configured with a class name. So mark the DTC for dynamic provisioning.
@@ -336,8 +355,10 @@ func handleDynamicDTCProvisioning(ctx context.Context, k8sClient client.Client, 
 		return err
 	}
 
+	log.Info("Added the provisioner annotation to the DeploymentTargetClaim")
+
 	// set the DTC to Pending phase and wait for the Provisioner to create a DT
-	return updateDTCStatusPhase(ctx, k8sClient, dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Pending)
+	return updateDTCStatusPhase(ctx, k8sClient, dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Pending, log)
 }
 
 // findMatchingDTForDTC tries to find a DT that matches the given DTC in a namespace.
@@ -402,24 +423,34 @@ func mismatchErrWrap(dtName, dtcName, ns string) func(string) error {
 	}
 }
 
-func updateDTCStatusPhase(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim, targetPhase applicationv1alpha1.DeploymentTargetClaimPhase) error {
+func updateDTCStatusPhase(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim, targetPhase applicationv1alpha1.DeploymentTargetClaimPhase, log logr.Logger) error {
 	if dtc.Status.Phase == targetPhase {
 		return nil
 	}
 
 	dtc.Status.Phase = targetPhase
 
-	return k8sClient.Status().Update(ctx, dtc)
+	if err := k8sClient.Status().Update(ctx, dtc); err != nil {
+		return err
+	}
+
+	log.Info("Updated the status of DeploymentTargetClaim to phase", "phase", dtc.Status.Phase)
+	return nil
 }
 
-func updateDTStatusPhase(ctx context.Context, k8sClient client.Client, dt *applicationv1alpha1.DeploymentTarget, targetPhase applicationv1alpha1.DeploymentTargetPhase) error {
+func updateDTStatusPhase(ctx context.Context, k8sClient client.Client, dt *applicationv1alpha1.DeploymentTarget, targetPhase applicationv1alpha1.DeploymentTargetPhase, log logr.Logger) error {
 	if dt.Status.Phase == targetPhase {
 		return nil
 	}
 
 	dt.Status.Phase = targetPhase
 
-	return k8sClient.Status().Update(ctx, dt)
+	if err := k8sClient.Status().Update(ctx, dt); err != nil {
+		return err
+	}
+
+	log.Info("Updated the status of DeploymentTarget to phase", "DeploymentTarget", dt.Name, "phase", dt.Status.Phase)
+	return nil
 }
 
 func isBindingCompleted(dtc applicationv1alpha1.DeploymentTargetClaim) bool {

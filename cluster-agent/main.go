@@ -26,6 +26,7 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	argocdmetrics "github.com/redhat-appstudio/managed-gitops/cluster-agent/argocd-metrics"
 	argoprojiocontrollers "github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/argoproj.io"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/argoproj.io/application_info_cache"
 	controllers "github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/managed-gitops"
@@ -152,6 +153,11 @@ func main() {
 		Client: mgr.GetClient(),
 	}
 	operationCRMetricUpdater.StartOperationCRMetricUpdater()
+
+	reconciliationMetricsUpdater := argocdmetrics.ReconciliationMetricsUpdater{
+		Client: mgr.GetClient(),
+	}
+	reconciliationMetricsUpdater.Start()
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")

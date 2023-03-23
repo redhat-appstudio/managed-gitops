@@ -271,6 +271,26 @@ func handleBoundedDeploymentTargetClaim(ctx context.Context, k8sClient client.Cl
 		return nil
 	}
 
+	// If the provisioner annotation is present, check if its value still matches the DTC class name.
+	provisioner, found := dtc.Annotations[applicationv1alpha1.AnnTargetProvisioner]
+	if found {
+		if dtc.Spec.DeploymentTargetClassName == "" {
+			// If the class name doesn't exist remove the provisioner annotation
+			delete(dtc.Annotations, applicationv1alpha1.AnnTargetProvisioner)
+			if err := k8sClient.Update(ctx, &dtc); err != nil {
+				return err
+			}
+		} else if provisioner != string(dtc.Spec.DeploymentTargetClassName) {
+			// If the class name exists, but doesn't match the provisioner value
+			// update the annotation with the correct provisioner value.
+			dtc.Annotations[applicationv1alpha1.AnnTargetProvisioner] = string(dtc.Spec.DeploymentTargetClassName)
+			if err := k8sClient.Update(ctx, &dtc); err != nil {
+				return err
+			}
+
+		}
+	}
+
 	dt, err := getDTBoundByDTC(ctx, k8sClient, &dtc)
 	if err != nil && !apierr.IsNotFound(err) {
 		return fmt.Errorf("failed to get a DeploymentTarget for the given DeploymentTargetClaim %s", dtc.Name)
@@ -476,13 +496,20 @@ func getDTBoundByDTC(ctx context.Context, k8sClient client.Client, dtc *applicat
 		return nil, err
 	}
 
-	for i, dt := range dtList.Items {
-		if dt.Spec.ClaimRef == dtc.Name {
-			return &dtList.Items[i], nil
+	var dt *applicationv1alpha1.DeploymentTarget
+	for i, d := range dtList.Items {
+		if d.Spec.ClaimRef == dtc.Name {
+			if dt == nil {
+				dt = &dtList.Items[i]
+			} else {
+				// There shouldn't be multiple DTs bounded to a single DTC since there is
+				// a 1:1 relationship between them.
+				return nil, fmt.Errorf("multiple DeploymentTargets found for a bounded DeploymentTargetClaim %s", dtc.Name)
+			}
 		}
 	}
 
-	return nil, nil
+	return dt, nil
 }
 
 // checkForBindingConflict checks for the following conflicts:

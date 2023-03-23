@@ -67,7 +67,7 @@ var _ = Describe("Webhook E2E tests", func() {
 				err = k8sClient.Update(ctx, &snapshot)
 
 				Expect(err).NotTo(Succeed())
-				Expect(strings.Contains(err.Error(), fmt.Sprintf("components cannot be updated to %s", snapshot.Spec.Components)))
+				Expect(strings.Contains(err.Error(), fmt.Sprintf("components cannot be updated to %v", snapshot.Spec.Components)))
 				snapshot.Spec.Components[0].Name = temp // Revert value for next test
 
 				By("Validate Spec.Components.ContainerImage field Webhook.")
@@ -76,7 +76,7 @@ var _ = Describe("Webhook E2E tests", func() {
 				err = k8sClient.Update(ctx, &snapshot)
 
 				Expect(err).NotTo(Succeed())
-				Expect(strings.Contains(err.Error(), fmt.Sprintf("components cannot be updated to %s", snapshot.Spec.Components)))
+				Expect(strings.Contains(err.Error(), fmt.Sprintf("components cannot be updated to %v", snapshot.Spec.Components)))
 			}
 		})
 

@@ -104,6 +104,7 @@ require (
 )
 
 replace (
+	github.com/redhat-appstudio/application-api => ../../application-api
 	github.com/redhat-appstudio/managed-gitops/backend => ../backend
 	github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
 	github.com/redhat-appstudio/managed-gitops/utilities/db-migration => ../utilities/db-migration

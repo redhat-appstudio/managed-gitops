@@ -196,6 +196,7 @@ func main() {
 	//+kubebuilder:scaffold:builder
 
 	startDBReconciler(mgr)
+	startRepoCredReconciler(mgr)
 	startDBMetricsReconciler(mgr)
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
@@ -235,6 +236,24 @@ func startDBReconciler(mgr ctrl.Manager) {
 
 	// Start goroutine for database reconciler
 	databaseReconciler.StartDatabaseReconciler()
+}
+
+func startRepoCredReconciler(mgr ctrl.Manager) {
+
+	dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
+	if err != nil {
+		setupLog.Error(err, "never able to connect to database")
+		os.Exit(1)
+	}
+
+	repoCredReconciler := eventloop.RepoCredReconciler{
+		DB:               dbQueries,
+		Client:           mgr.GetClient(),
+		K8sClientFactory: shared_resource_loop.DefaultK8sClientFactory{},
+	}
+
+	// Start goroutine for Repository Credential reconciler
+	repoCredReconciler.StartRepoCredReconciler()
 }
 
 func startDBMetricsReconciler(mgr ctrl.Manager) {

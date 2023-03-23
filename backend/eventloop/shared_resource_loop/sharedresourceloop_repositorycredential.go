@@ -204,7 +204,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 			Status:  metav1.ConditionTrue,
 			Message: errMessage.Error(),
 		}
-		updateGitopsDeploymentRepositoryCredentialStatus(gitopsDeploymentRepositoryCredentialCR, ctx, apiNamespaceClient, secret, repositoryCredentialStatusConditon, l)
+		UpdateGitopsDeploymentRepositoryCredentialStatus(gitopsDeploymentRepositoryCredentialCR, ctx, apiNamespaceClient, secret, repositoryCredentialStatusConditon, l)
 		return nil, errMessage
 	} else {
 		// Secret exists, so get its data
@@ -215,7 +215,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 	}
 
 	// Before updating the records in DB, we need to set the Conditions of the CR
-	updateGitopsDeploymentRepositoryCredentialStatus(gitopsDeploymentRepositoryCredentialCR, ctx, apiNamespaceClient, secret, nil, l)
+	UpdateGitopsDeploymentRepositoryCredentialStatus(gitopsDeploymentRepositoryCredentialCR, ctx, apiNamespaceClient, secret, nil, l)
 
 	// 6) If there is no existing APICRToDBMapping for this CR, then let's create one
 	if currentAPICRToDBMapping == nil {
@@ -421,7 +421,7 @@ func createRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCreden
 // Updates the given repository credential CR's status condition to match the given condition and additional checks.
 // If there is an existing status condition with the exact same status, reason and message, no update is made in order
 // to preserve the LastTransitionTime (see https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Condition.LastTransitionTime )
-func updateGitopsDeploymentRepositoryCredentialStatus(repositoryCredential *managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential, ctx context.Context, client client.Client, secret *corev1.Secret, condition *metav1.Condition, log logr.Logger) {
+func UpdateGitopsDeploymentRepositoryCredentialStatus(repositoryCredential *managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential, ctx context.Context, client client.Client, secret *corev1.Secret, condition *metav1.Condition, log logr.Logger) {
 
 	var existingCondition *metav1.Condition = nil
 

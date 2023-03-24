@@ -279,6 +279,11 @@ start-e2e-kcp-virtual-workspace: ## Starts gitops service in service-provider vi
 test-e2e-kcp-virtual-workspace: ## Test E2E against KCP virtual workspaces
 	KUBECONFIG_SERVICE_PROVIDER=/tmp/service-provider-workspace.yaml KUBECONFIG_USER_WORKSPACE=/tmp/user-workspace.yaml  make test-e2e
 
+### --- CI Tests ---
+
+check-backward-compatability: ##  test executed from OpenShift CI
+	ginkgo -focus "GitOpsDeployment Managed Environment E2E tests Create a new GitOpsDeployment targeting a ManagedEnvironment should be healthy and have synced status, and resources should be deployed, when deployed with a ManagedEnv"  -r -v tests-e2e/core
+
 
 ### --- Utilities for other makefile targets ---
 

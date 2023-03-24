@@ -66,7 +66,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				fakeClient: k8sClient,
 			}
 
-			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
+			dbQueries, err = db.NewUnsafePostgresDBQueries(false, true)
 			Expect(err).To(BeNil())
 
 		})
@@ -290,7 +290,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
 			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
-			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(ConditionReasonSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonSucceeded)))
 
 			By("ensuring the LastTransitionTime is not updated if nothing has changed")
 			lastTransitionTime := managedEnv.Status.Conditions[0].LastTransitionTime
@@ -304,7 +304,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(managedEnv.Status.Conditions[0].LastTransitionTime).To(Equal(lastTransitionTime))
 			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
-			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(ConditionReasonSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonSucceeded)))
 		})
 
 		It("should ensure the condition ConnectionInitializationSucceeded status is True when reconciling and nothing changed", func() {
@@ -331,7 +331,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
 			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
-			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(ConditionReasonSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonSucceeded)))
 
 			By("removing the status condition and reconciling")
 			managedEnv.Status.Conditions = []metav1.Condition{}
@@ -348,7 +348,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
 			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
-			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(ConditionReasonSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonSucceeded)))
 
 			By("setting the status condition false and reconciling")
 			managedEnv.Status.Conditions[0].Status = metav1.ConditionFalse
@@ -365,7 +365,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
 			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
-			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(ConditionReasonSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonSucceeded)))
 		})
 
 		It("should set the condition ConnectionInitializationSucceeded status to False when the connection fails for new environment", func() {
@@ -406,7 +406,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
 			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionFalse))
-			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(ConditionReasonUnableToInstallServiceAccount))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonUnableToInstallServiceAccount)))
 		})
 
 		It("should set the condition ConnectionInitializationSucceeded status to False when the connection fails for existing environment", func() {
@@ -452,7 +452,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
 			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionFalse))
-			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(ConditionReasonUnableToInstallServiceAccount))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonUnableToInstallServiceAccount)))
 		})
 
 		It("should test the case where we are unable to connect to a managed env, so new credentials are acquired, and old ones are deleted", func() {
@@ -501,7 +501,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
 			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
-			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(ConditionReasonSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonSucceeded)))
 
 			By("verifying the old credentials have been deleted, since we simulated them being invalid")
 			clusterCreds := &db.ClusterCredentials{Clustercredentials_cred_id: oldClusterCredentials}

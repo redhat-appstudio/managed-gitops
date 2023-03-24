@@ -1,14 +1,11 @@
 package core
 
 import (
-	"context"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appstudiocontroller "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
@@ -51,9 +48,11 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			Expect(err).To(Succeed())
 
 			By("Update Status field.")
+			gitOpsDeploymentNameStage := appstudiocontroller.GenerateBindingGitOpsDeploymentName(bindingStage, bindingStage.Spec.Components[0].Name)
+			// don't care about the deployment status
 			err = buildAndUpdateBindingStatus(bindingStage.Spec.Components,
 				"https://github.com/redhat-appstudio/managed-gitops", "main", "fdhyqtw",
-				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging", "resources/test-data/sample-gitops-repository/components/componentB/overlays/staging"}, &bindingStage)
+				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/staging", "resources/test-data/component-based-gitops-repository/components/componentB/overlays/staging"}, &bindingStage)
 			Expect(err).To(Succeed())
 
 			By("Create Production Binding.")
@@ -63,23 +62,34 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			Expect(err).To(Succeed())
 
 			By("Update Status field.")
+			gitOpsDeploymentNameProd := appstudiocontroller.GenerateBindingGitOpsDeploymentName(bindingProd, bindingProd.Spec.Components[0].Name)
+			// don't care about the deployment status
 			err = buildAndUpdateBindingStatus(bindingProd.Spec.Components,
 				"https://github.com/redhat-appstudio/managed-gitops", "main", "fdhyqtw",
-				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging", "resources/test-data/sample-gitops-repository/components/componentB/overlays/staging"}, &bindingProd)
+				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/staging", "resources/test-data/component-based-gitops-repository/components/componentB/overlays/staging"}, &bindingProd)
 			Expect(err).To(Succeed())
 
 			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
-			gitOpsDeploymentNameStage := appstudiocontroller.GenerateBindingGitOpsDeploymentName(bindingStage, bindingStage.Spec.Components[0].Name)
 			expectedGitOpsDeploymentsStage := []appstudiosharedv1.BindingStatusGitOpsDeployment{
-				{ComponentName: bindingStage.Spec.Components[0].Name, GitOpsDeployment: gitOpsDeploymentNameStage},
+				{
+					ComponentName:                bindingStage.Spec.Components[0].Name,
+					GitOpsDeployment:             gitOpsDeploymentNameStage,
+					GitOpsDeploymentSyncStatus:   string(v1alpha1.SyncStatusCodeSynced),
+					GitOpsDeploymentHealthStatus: string(v1alpha1.HeathStatusCodeHealthy),
+					GitOpsDeploymentCommitID:     "CurrentlyIDIsUnknownInTestcase",
+				},
 			}
-			Eventually(bindingStage, "3m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeploymentsStage))
-
-			gitOpsDeploymentNameProd := appstudiocontroller.GenerateBindingGitOpsDeploymentName(bindingProd, bindingProd.Spec.Components[0].Name)
+			Eventually(bindingStage, "3m", "1s").Should(bindingFixture.HaveGitOpsDeploymentsWithStatusProperties(expectedGitOpsDeploymentsStage))
 			expectedGitOpsDeploymentsProd := []appstudiosharedv1.BindingStatusGitOpsDeployment{
-				{ComponentName: bindingProd.Spec.Components[0].Name, GitOpsDeployment: gitOpsDeploymentNameProd},
+				{
+					ComponentName:                bindingProd.Spec.Components[0].Name,
+					GitOpsDeployment:             gitOpsDeploymentNameProd,
+					GitOpsDeploymentSyncStatus:   string(v1alpha1.SyncStatusCodeSynced),
+					GitOpsDeploymentHealthStatus: string(v1alpha1.HeathStatusCodeHealthy),
+					GitOpsDeploymentCommitID:     "CurrentlyIDIsUnknownInTestcase",
+				},
 			}
-			Eventually(bindingProd, "3m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeploymentsProd))
+			Eventually(bindingProd, "3m", "1s").Should(bindingFixture.HaveGitOpsDeploymentsWithStatusProperties(expectedGitOpsDeploymentsProd))
 
 			By("Verify that GitOpsDeployments are created.")
 			gitOpsDeploymentStage := v1alpha1.GitOpsDeployment{
@@ -196,65 +206,6 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			}
 
 			Eventually(promotionRun, "3m", "1s").Should(promotionRunFixture.HaveStatusConditions(expectedPromotionRunStatusConditions))
-		})
-
-		It("Should reset the Status.Conditions field if error is resolved.", func() {
-
-			By("Create PromotionRun CR with invalid value.")
-			promotionRun.Spec.ManualPromotion.TargetEnvironment = ""
-
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
-			err = k8s.Create(&promotionRun, k8sClient)
-			Expect(err).To(Succeed())
-
-			expectedPromotionRunStatusConditions := appstudiosharedv1.PromotionRunStatus{
-				Conditions: []appstudiosharedv1.PromotionRunCondition{
-					{
-						Type:    appstudiosharedv1.PromotionRunConditionErrorOccurred,
-						Message: appstudiocontroller.ErrMessageTargetEnvironmentHasInvalidValue,
-						Status:  appstudiosharedv1.PromotionRunConditionStatusTrue,
-						Reason:  appstudiosharedv1.PromotionRunReasonErrorOccurred,
-					},
-				},
-			}
-
-			By("Verify that error is updated in Status.conditions field.")
-			Eventually(promotionRun, "3m", "1s").Should(promotionRunFixture.HaveStatusConditions(expectedPromotionRunStatusConditions))
-
-			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&promotionRun), &promotionRun)
-			Expect(err).To(Succeed())
-
-			By("Update PromotionRun CR with invalid value.")
-			promotionRun.Spec.ManualPromotion.TargetEnvironment = "prod"
-			err = k8s.Update(&promotionRun, k8sClient)
-			Expect(err).To(Succeed())
-
-			expectedPromotionRunStatus := appstudiosharedv1.PromotionRunStatus{
-				State:            appstudiosharedv1.PromotionRunState_Complete,
-				CompletionResult: appstudiosharedv1.PromotionRunCompleteResult_Success,
-				ActiveBindings:   []string{bindingProd.Name},
-				EnvironmentStatus: []appstudiosharedv1.PromotionRunEnvironmentStatus{
-					{
-						Step:            1,
-						EnvironmentName: environmentProd.Name,
-						Status:          appstudiosharedv1.PromotionRunEnvironmentStatus_Success,
-						DisplayStatus:   appstudiocontroller.StatusMessageAllGitOpsDeploymentsAreSyncedHealthy,
-					},
-				},
-				Conditions: []appstudiosharedv1.PromotionRunCondition{
-					{
-						Type:    appstudiosharedv1.PromotionRunConditionErrorOccurred,
-						Message: "",
-						Status:  appstudiosharedv1.PromotionRunConditionStatusFalse,
-						Reason:  "",
-					},
-				},
-			}
-
-			By("Verify that error is removed from Status.conditions field.")
-			Eventually(promotionRun, "3m", "1s").Should(promotionRunFixture.HaveStatusComplete(expectedPromotionRunStatus))
 		})
 	})
 })

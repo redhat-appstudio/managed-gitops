@@ -958,7 +958,8 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status.")
 			// ----------------------------------------------------------------------------
 
-			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
+			updated, err := a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
+			Expect(updated).To(BeTrue())
 			Expect(err).To(BeNil())
 
 			// ----------------------------------------------------------------------------
@@ -1002,8 +1003,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			By("Verify whether status condition of syncError is true")
 			Expect(gitopsDeployment.Status.Conditions[0].Status).To(Equal(managedgitopsv1alpha1.GitOpsConditionStatusTrue))
 
-			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
+			updated, err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
 			Expect(err).To(BeNil())
+			Expect(updated).To(BeTrue())
 
 			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
 			Expect(clientErr).To(BeNil())
@@ -1012,6 +1014,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			matchingCondition, _ = conditions.NewConditionManager().FindCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError)
 			Expect(matchingCondition).ToNot(BeNil())
 			Expect(matchingCondition.Status).To(Equal(managedgitopsv1alpha1.GitOpsConditionStatusFalse))
+
+			By("attempting to update the deployment status tick, even though nothing has changed.")
+			updated, err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
+			Expect(err).To(BeNil())
+			Expect(updated).To(BeFalse(), "since nothing has changed, the GitOpsDeployment should not have been updated")
 
 			// ----------------------------------------------------------------------------
 			By("Delete GitOpsDepl to clean resources.")
@@ -1157,7 +1164,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				},
 				Type: sharedutil.ManagedEnvironmentSecretType,
 				Data: map[string][]byte{
-					"kubeconfig": ([]byte)(kubeConfigContents),
+					shared_resource_loop.KubeconfigKey: ([]byte)(kubeConfigContents),
 				},
 			}
 			err = k8sClient.Create(ctx, &managedEnvSecret)
@@ -1316,7 +1323,8 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status and reconciledState")
 			// ----------------------------------------------------------------------------
 
-			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDeployment.Name, gitopsDeployment.Namespace, dbQueries)
+			updated, err := a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDeployment.Name, gitopsDeployment.Namespace, dbQueries)
+			Expect(updated).To(BeTrue())
 			Expect(err).To(BeNil())
 
 			// ----------------------------------------------------------------------------
@@ -1413,8 +1421,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status of a deployment that doesn't exist.")
 			// ----------------------------------------------------------------------------
 
-			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, a.eventResourceName, a.eventResourceNamespace, dbQueries)
+			updated, err := a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, a.eventResourceName, a.eventResourceNamespace, dbQueries)
 			Expect(err).To(BeNil())
+			Expect(updated).To(BeFalse())
 		})
 
 		It("Should not return error, if GitOpsDeployment doesn't exist in given namespace.", func() {
@@ -1473,8 +1482,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			// ----------------------------------------------------------------------------
 			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status for a deployment which doesn'r exist in given namespace.")
 			// ----------------------------------------------------------------------------
-			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
+			updated, err := a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
 			Expect(err).To(BeNil())
+			Expect(updated).To(BeFalse())
 
 			// ----------------------------------------------------------------------------
 			By("Deployment is already been deleted in previous step, now delete related db entries and clean resources.")
@@ -1534,8 +1544,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status for deployment which is missing ApplicationState entries.")
 			// ----------------------------------------------------------------------------
 
-			err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
+			updated, err := a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
 			Expect(err).To(BeNil())
+			Expect(updated).To(BeFalse())
 
 			// ----------------------------------------------------------------------------
 			By("Retrieve latest version of GitOpsDeployment and check Health/Sync, it should not have any Health/Sync status.")
@@ -1965,7 +1976,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 				},
 				Type: sharedutil.ManagedEnvironmentSecretType,
 				Data: map[string][]byte{
-					"kubeconfig": ([]byte)(kubeConfigContents),
+					shared_resource_loop.KubeconfigKey: ([]byte)(kubeConfigContents),
 				},
 			}
 			err = k8sClient.Create(ctx, &managedEnvSecret)
@@ -2358,7 +2369,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 					},
 					Type: sharedutil.ManagedEnvironmentSecretType,
 					Data: map[string][]byte{
-						"kubeconfig": ([]byte)(kubeConfigContents),
+						shared_resource_loop.KubeconfigKey: ([]byte)(kubeConfigContents),
 					},
 				}
 				err = k8sClient.Create(ctx, &managedEnvSecret2)

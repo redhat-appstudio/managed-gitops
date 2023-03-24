@@ -1,4 +1,4 @@
-# Managed GitOps Service Monorepo
+# Managed GitOps Service
 
 <image width="45" align="left" src="https://user-images.githubusercontent.com/242652/138285004-b27d55b3-163b-4fe3-a8ff-6c34518044bd.png">
 
@@ -9,7 +9,9 @@
 ## Overview
 
 This repo is the home for all the Managed GitOps Service components.
-It contains various tools and services that you can use to deploy, as well as the libraries you can use to develop the GitOps Service that will be integrated with RedHat AppStudio.
+It contains various tools and services that you can use to deploy, as well as the libraries you can use to develop the GitOps Service that will be integrated with the Stonesoup project.
+
+This repository is closely associated with the [application-api](https://github.com/redhat-appstudio/application-api/) repository, which contains the public Stonesoup APIs exposed by the application-service and appstudio-controller components.
 
 ---
 
@@ -18,7 +20,6 @@ It contains various tools and services that you can use to deploy, as well as th
 ### ⚡ Project Info
 * [Public Kubernetes/KCP API](./docs/api.md) - The Kubernetes-resource-based API that is used to interact with the GitOps Service.
 * 👉 **[Component Index](./docs/components.md)** 👈 - Directory structure of this repo
-* Roadmap - Planning ahead
 * [Design] - High-level architecture of the GitOps Managed Service and its components
 * [Google Drive] - Lot's of information for new people to the project
 
@@ -32,7 +33,6 @@ It contains various tools and services that you can use to deploy, as well as th
 * [Building](./docs/building.md) - Instructions for building each component and the Docker image
 * [Development](./docs/development.md) - Instructions for developers who want to contribute
 * [Debugging](./docs/debug.md) - Common errors and pitfalls
-* [Manifests](./docs/manifests.md) - Information about CRDs, RBAC, deployments, etc
 
 ---
 
@@ -44,7 +44,6 @@ If you like to contribute to GitOps Managed Service, please be so kind to read o
 [Backend]: https://github.com/redhat-appstudio/managed-gitops/tree/main/backend
 [Cluster-Agent]: https://github.com/redhat-appstudio/managed-gitops/tree/main/cluster-agent
 [Load Test]: https://github.com/redhat-appstudio/managed-gitops/tree/main/utilities/load-test#argo-cd-load-test-utility
-[Manifests]: https://github.com/redhat-appstudio/managed-gitops/tree/main/manifests
 [KinD]: https://kind.sigs.k8s.io/docs/user/quick-start/
 [k3s]: https://k3s.io/
 [EventLoop]: https://github.com/redhat-appstudio/managed-gitops/tree/main/backend/eventloop

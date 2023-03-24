@@ -3,11 +3,9 @@ module github.com/redhat-appstudio/managed-gitops/appstudio-controller
 go 1.18
 
 require (
-	github.com/devfile/api/v2 v2.0.0-20211021164004-dabee4e633ed
 	github.com/onsi/ginkgo/v2 v2.1.4
 	github.com/onsi/gomega v1.20.1
-	github.com/redhat-appstudio/application-api v0.0.0-20230116140450-3ef8e0cd2c9e
-	github.com/redhat-appstudio/application-service v0.0.0-20220609190313-7a1a14b575dc
+	github.com/redhat-appstudio/application-api v0.0.0-20230303141937-394e8c127f03
 	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0
 	k8s.io/apimachinery v0.24.3
 	k8s.io/client-go v0.24.3
@@ -17,77 +15,34 @@ require (
 
 require (
 	cloud.google.com/go/compute v1.1.0 // indirect
-	github.com/Microsoft/go-winio v0.5.1 // indirect
-	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
-	github.com/acomagu/bufpipe v1.0.3 // indirect
-	github.com/containerd/containerd v1.5.9 // indirect
-	github.com/devfile/library v1.2.1-0.20211104222135-49d635cb492f // indirect
-	github.com/devfile/registry-support/index/generator v0.0.0-20220222194908-7a90a4214f3e // indirect
-	github.com/devfile/registry-support/registry-library v0.0.0-20220222194908-7a90a4214f3e // indirect
 	github.com/emicklei/go-restful/v3 v3.8.0 // indirect
-	github.com/emirpasic/gods v1.12.0 // indirect
-	github.com/fatih/color v1.13.0 // indirect
-	github.com/go-git/gcfg v1.5.0 // indirect
-	github.com/go-git/go-billy/v5 v5.3.1 // indirect
-	github.com/go-git/go-git/v5 v5.4.2 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.19.5 // indirect
 	github.com/go-openapi/swag v0.19.15 // indirect
 	github.com/go-pg/pg/extra/pgdebug v0.2.0 // indirect
 	github.com/go-pg/pg/v10 v10.10.6 // indirect
 	github.com/go-pg/zerochecker v0.2.0 // indirect
-	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/golang-jwt/jwt/v4 v4.3.0 // indirect
-	github.com/golang/mock v1.6.0 // indirect
-	github.com/google/btree v1.0.1 // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
-	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
-	github.com/hashicorp/errwrap v1.1.0 // indirect
-	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/kcp-dev/apimachinery v0.0.0-20220805180221-5b13097793e1 // indirect
 	github.com/kcp-dev/controller-runtime-example v0.0.0-20220902160817-733db4e9d83a // indirect
 	github.com/kcp-dev/kcp/pkg/apis v0.9.0 // indirect
 	github.com/kcp-dev/logicalcluster/v2 v2.0.0-alpha.3 // indirect
-	github.com/kevinburke/ssh_config v0.0.0-20201106050909-4977a11b4351 // indirect
-	github.com/klauspost/compress v1.14.2 // indirect
+	github.com/kr/pretty v0.3.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/mattn/go-colorable v0.1.12 // indirect
-	github.com/mattn/go-isatty v0.0.14 // indirect
-	github.com/mitchellh/go-homedir v1.1.0 // indirect
-	github.com/mitchellh/reflectwalk v1.0.2 // indirect
-	github.com/moby/locker v1.0.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.0.3-0.20220114050600-8b9d41f48198 // indirect
-	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
-	github.com/redhat-developer/alizer/go v0.0.0-20220609125305-b292b0edb1b0 // indirect
-	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06 // indirect
-	github.com/sergi/go-diff v1.1.0 // indirect
-	github.com/sirupsen/logrus v1.8.1 // indirect
-	github.com/spf13/afero v1.8.0 // indirect
+	github.com/rogpeppe/go-internal v1.6.2 // indirect
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
 	github.com/vmihailenco/bufpool v0.1.11 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.3.4 // indirect
 	github.com/vmihailenco/tagparser v0.1.2 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
-	github.com/xanzy/ssh-agent v0.3.0 // indirect
-	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
-	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
-	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
-	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3 // indirect
-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	golang.org/x/xerrors v0.0.0-20220517211312-f3a8303e98df // indirect
-	google.golang.org/genproto v0.0.0-20220207185906-7721543eae58 // indirect
-	google.golang.org/grpc v1.44.0 // indirect
-	gopkg.in/warnings.v0 v0.1.2 // indirect
-	k8s.io/klog v1.0.0 // indirect
+	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	mellium.im/sasl v0.2.1 // indirect
-	oras.land/oras-go v0.4.0 // indirect
 )
 
 require (
@@ -149,8 +104,6 @@ require (
 )
 
 replace (
-	// TODO: GITOPSRVCE-211: This line can be removed, once the application-api PR has merged.
-	// github.com/redhat-appstudio/application-api => github.com/jgwest/application-api v0.0.0-20221123042158-cdfb05b10aac
 	github.com/redhat-appstudio/managed-gitops/backend => ../backend
 	github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
 	github.com/redhat-appstudio/managed-gitops/utilities/db-migration => ../utilities/db-migration

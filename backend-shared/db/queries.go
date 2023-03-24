@@ -109,6 +109,15 @@ type DatabaseQueries interface {
 	GetManagedEnvironmentById(ctx context.Context, managedEnvironment *ManagedEnvironment) error
 	GetRepositoryCredentialsByID(ctx context.Context, id string) (obj RepositoryCredentials, err error)
 
+	// Get RepositoryCredentials in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+	GetRepositoryCredentialsBatch(ctx context.Context, repositoryCredentials *[]RepositoryCredentials, limit, offSet int) error
+
+	// Get SyncOperations in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+	GetSyncOperationsBatch(ctx context.Context, syncOperations *[]SyncOperation, limit, offSet int) error
+
+	// Get ManagedEnvironment in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+	GetManagedEnvironmentBatch(ctx context.Context, managedEnvironments *[]ManagedEnvironment, limit, offSet int) error
+
 	DeleteKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) (int, error)
 	DeleteClusterCredentialsById(ctx context.Context, id string) (int, error)
 	DeleteClusterUserById(ctx context.Context, id string) (int, error)
@@ -155,6 +164,15 @@ type DatabaseQueries interface {
 
 	// UpdateKubernetesResourceUIDForKubernetesToDBResourceMapping updates the KubernetesResourceUID field for a given obj
 	UpdateKubernetesResourceUIDForKubernetesToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) error
+
+	// CountTotalOperationDBRows updates the total number of operation DB rows in database
+	CountTotalOperationDBRows(ctx context.Context, operation *Operation) (int, error)
+
+	// CountOperationDBRowsByState updates the number of operation DB row in different states i.e, Waiting, In_Progress, Completed or Failed
+	CountOperationDBRowsByState(ctx context.Context, operation *Operation) ([]struct {
+		State    string
+		RowCount int
+	}, error)
 }
 
 // ApplicationScopedQueries are the set of database queries that act on application DB resources:

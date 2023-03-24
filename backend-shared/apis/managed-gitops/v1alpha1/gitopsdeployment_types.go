@@ -114,7 +114,7 @@ type ResourceStatus struct {
 	Health    *HealthStatus  `json:"health,omitempty"`
 }
 
-// ReconciledState contains lists last thing ArgoCD Controller reconciled
+// ReconciledState contains the last version of the GitOpsDeployment resource that the ArgoCD Controller reconciled
 type ReconciledState struct {
 	Source      GitOpsDeploymentSource      `json:"source"`
 	Destination GitOpsDeploymentDestination `json:"destination"`
@@ -144,7 +144,7 @@ type GitOpsDeploymentStatus struct {
 	// List of Resource created by a deployment
 	Resources []ResourceStatus `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
 
-	// ReconciledState lists last deployment of ArgoCD Application
+	// ReconciledState contains the last version of the GitOpsDeployment resource that the ArgoCD Controller reconciled
 	ReconciledState ReconciledState `json:"reconciledState"`
 }
 

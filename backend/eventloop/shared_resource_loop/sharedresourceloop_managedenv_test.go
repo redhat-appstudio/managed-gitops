@@ -512,7 +512,15 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 		It("should clean up Application database entries on managed environment deletion, and create operations for those", func() {
 
-			_, _, _, instance, _, err := db.CreateSampleData(dbQueries)
+			_, _, engineCluster, _, _, err := db.CreateSampleData(dbQueries)
+			Expect(err).To(BeNil())
+			instance := &db.GitopsEngineInstance{
+				Gitopsengineinstance_id: "test-fake-instance-id",
+				Namespace_name:          "gitops-service-argocd",
+				Namespace_uid:           "test-fake-instance-namespace-914",
+				EngineCluster_id:        engineCluster.Gitopsenginecluster_id,
+			}
+			err = dbQueries.CreateGitopsEngineInstance(ctx, instance)
 			Expect(err).To(BeNil())
 
 			managedEnv, secret := buildManagedEnvironmentForSRL()
@@ -830,7 +838,7 @@ func buildManagedEnvironmentForSRL() (managedgitopsv1alpha1.GitOpsDeploymentMana
 		},
 		Type: sharedutil.ManagedEnvironmentSecretType,
 		Data: map[string][]byte{
-			"kubeconfig": ([]byte)(kubeConfigContents),
+			KubeconfigKey: ([]byte)(kubeConfigContents),
 		},
 	}
 

@@ -134,6 +134,15 @@ func (cdb *ChaosDBClient) UpdateSyncOperation(ctx context.Context, obj *SyncOper
 
 }
 
+func (cdb *ChaosDBClient) GetSyncOperationsBatch(ctx context.Context, syncOperations *[]SyncOperation, limit, offSet int) error {
+
+	if err := shouldSimulateFailure("GetSyncOperationsBatch", syncOperations, limit, offSet); err != nil {
+		return err
+	}
+
+	return cdb.InnerClient.GetSyncOperationsBatch(ctx, syncOperations, limit, offSet)
+}
+
 func (cdb *ChaosDBClient) CreateApplication(ctx context.Context, obj *Application) error {
 
 	if err := shouldSimulateFailure("CreateApplication", obj); err != nil {
@@ -364,6 +373,15 @@ func (cdb *ChaosDBClient) GetManagedEnvironmentById(ctx context.Context, managed
 	}
 
 	return cdb.InnerClient.GetManagedEnvironmentById(ctx, managedEnvironment)
+}
+
+func (cdb *ChaosDBClient) GetManagedEnvironmentBatch(ctx context.Context, managedEnvironments *[]ManagedEnvironment, limit, offSet int) error {
+
+	if err := shouldSimulateFailure("GetManagedEnvironmentBatch", managedEnvironments, limit, offSet); err != nil {
+		return err
+	}
+
+	return cdb.InnerClient.GetManagedEnvironmentBatch(ctx, managedEnvironments, limit, offSet)
 }
 
 func (cdb *ChaosDBClient) GetGitopsEngineInstanceById(ctx context.Context, engineInstanceParam *GitopsEngineInstance) error {
@@ -656,6 +674,15 @@ func (cdb *ChaosDBClient) GetRepositoryCredentialsByID(ctx context.Context, id s
 
 }
 
+func (cdb *ChaosDBClient) GetRepositoryCredentialsBatch(ctx context.Context, repositoryCredentials *[]RepositoryCredentials, limit, offSet int) error {
+
+	if err := shouldSimulateFailure("GetRepositoryCredentialsBatch", repositoryCredentials, limit, offSet); err != nil {
+		return err
+	}
+
+	return cdb.InnerClient.GetRepositoryCredentialsBatch(ctx, repositoryCredentials, limit, offSet)
+}
+
 func (cdb *ChaosDBClient) DeleteKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) (int, error) {
 
 	if err := shouldSimulateFailure("DeleteKubernetesResourceToDBResourceMapping", obj); err != nil {
@@ -866,6 +893,27 @@ func (cdb *ChaosDBClient) GetKubernetesResourceMappingForDatabaseResource(ctx co
 	}
 
 	return cdb.InnerClient.GetKubernetesResourceMappingForDatabaseResource(ctx, obj)
+
+}
+
+func (cdb *ChaosDBClient) CountTotalOperationDBRows(ctx context.Context, obj *Operation) (int, error) {
+	if err := shouldSimulateFailure("CountTotalOperationDBRows", obj); err != nil {
+		return 0, err
+	}
+
+	return cdb.InnerClient.CountTotalOperationDBRows(ctx, obj)
+
+}
+
+func (cdb *ChaosDBClient) CountOperationDBRowsByState(ctx context.Context, obj *Operation) ([]struct {
+	State    string
+	RowCount int
+}, error) {
+	if err := shouldSimulateFailure("CountOperationDBRowsByState", obj); err != nil {
+		return nil, err
+	}
+
+	return cdb.InnerClient.CountOperationDBRowsByState(ctx, obj)
 
 }
 

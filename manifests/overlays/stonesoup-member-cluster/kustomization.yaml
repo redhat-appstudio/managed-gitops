@@ -4,8 +4,7 @@ kind: Kustomization
 resources:
 - ../../base/crd/overlays/stonesoup
 - ../../base/gitops-namespace
-# TODO: GITOPSRVCE-211: Switch this back from 'default-no-webhook' -> 'default'
-- ../../../appstudio-controller/config/default-no-webhook-no-prometheus
+- ../../../appstudio-controller/config/default-no-prometheus
 - ../../../backend/config/default-no-prometheus
 - ../../../cluster-agent/config/default-no-prometheus
 - ../../base/gitops-service-argocd/base

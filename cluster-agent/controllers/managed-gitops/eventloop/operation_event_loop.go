@@ -15,12 +15,14 @@ import (
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
+	"github.com/redhat-appstudio/managed-gitops/cluster-agent/metrics"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/utils"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -259,6 +261,7 @@ func (task *processOperationEventTask) PerformTask(taskContext context.Context) 
 			} else {
 				dbOperation.State = db.OperationState_Failed
 			}
+			metrics.IncreaseOperationDBState(dbOperation.State)
 		}
 		dbOperation.Last_state_update = time.Now()
 
@@ -325,6 +328,27 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		}
 	}
 
+	dbGitopsEngineInstance := &db.GitopsEngineInstance{
+		Gitopsengineinstance_id: dbOperation.Instance_id,
+	}
+	if err := dbQueries.GetGitopsEngineInstanceById(taskContext, dbGitopsEngineInstance); err != nil {
+
+		if db.IsResultNotFoundError(err) {
+			return nil, shouldRetryFalse, err
+		} else {
+			// some other generic error
+			log.Error(err, "Unable to retrieve gitopsEngineInstance due to generic error: "+dbGitopsEngineInstance.Gitopsengineinstance_id)
+			return nil, shouldRetryTrue, err
+		}
+	}
+
+	if operationCR.Namespace != dbGitopsEngineInstance.Namespace_name {
+		mismatchedNamespace := "OperationNS: " + operationCR.Namespace + " " + "GitopsEngineInstanceNS: " + dbGitopsEngineInstance.Namespace_name
+		err := fmt.Errorf("OperationCR namespace did not match with existing namespace of GitopsEngineInstance " + mismatchedNamespace)
+		log.Error(err, "Invalid Operation Detected, Name: "+operationCR.Name+" Namespace: "+operationCR.Namespace)
+		return nil, shouldRetryFalse, err
+	}
+
 	// If the operation has already completed (e.g. we previously ran it), then just ignore it and return
 	if dbOperation.State == db.OperationState_Completed || dbOperation.State == db.OperationState_Failed {
 		log.V(sharedutil.LogLevel_Debug).Info("Skipping Operation with state of Completed/Failed")
@@ -344,7 +368,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	}
 
 	// 3) Find the Argo CD instance that is targeted by this operation.
-	dbGitopsEngineInstance := &db.GitopsEngineInstance{
+	dbGitopsEngineInstance = &db.GitopsEngineInstance{
 		Gitopsengineinstance_id: dbOperation.Instance_id,
 	}
 	if err := dbQueries.GetGitopsEngineInstanceById(taskContext, dbGitopsEngineInstance); err != nil {
@@ -540,6 +564,10 @@ func processOperation_SyncOperation(ctx context.Context, dbOperation db.Operatio
 
 	// 3) Process the event, based on whether the SyncOperation is requesting an app sync, or a terminate.
 	if dbSyncOperation.DesiredState == db.SyncOperation_DesiredState_Running {
+		// refresh the Application before syncing to make sure that the latest revision is deployed.
+		if err := opConfig.syncFuncs.refreshApp(ctx, opConfig.eventClient, dbApplication.Name, opConfig.argoCDNamespace.Name); err != nil {
+			return shouldRetryTrue, err
+		}
 
 		return runAppSync(ctx, dbOperation, *dbSyncOperation, &dbApplication, opConfig)
 
@@ -550,6 +578,61 @@ func processOperation_SyncOperation(ctx context.Context, dbOperation db.Operatio
 	} else {
 		log.Error(nil, "SEVERE: unexpected desired state in SyncOperation DB entry")
 		return shouldRetryFalse, nil
+	}
+}
+
+func refreshApplication(ctx context.Context, k8sClient client.Client, appName, appNS string) error {
+	appCR := &appv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      appName,
+			Namespace: appNS,
+		},
+	}
+
+	// Update the application with refresh annotation if it is not present already.
+	// RetryOnConflict retries updating the application if there are conflicts.
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(appCR), appCR)
+		if err != nil {
+			return err
+		}
+		if appCR.Annotations == nil {
+			appCR.Annotations = map[string]string{}
+		}
+		refreshType, ok := appCR.Annotations[appv1.AnnotationKeyRefresh]
+		if !ok || refreshType != string(appv1.RefreshTypeNormal) {
+			appCR.Annotations[appv1.AnnotationKeyRefresh] = string(appv1.RefreshTypeNormal)
+			return k8sClient.Update(ctx, appCR)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// wait until the refresh annotation is removed from the Argo CD application
+	return waitForApplicationToRefresh(ctx, k8sClient, appCR)
+}
+
+func waitForApplicationToRefresh(ctx context.Context, k8sClient client.Client, appCR *appv1.Application) error {
+	backoff := sharedutil.ExponentialBackoff{Factor: 2, Min: time.Duration(100 * time.Millisecond), Max: time.Duration(10 * time.Second), Jitter: true}
+
+	for {
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(appCR), appCR); err != nil {
+			return err
+		}
+
+		// we can assume that an Application has been refreshed if Argo CD has removed the refresh annotation
+		if _, ok := appCR.Annotations[appv1.AnnotationKeyRefresh]; !ok {
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context cancelled while waiting for Argo CD to remove refresh annotation: %v", ctx.Err())
+		default:
+			backoff.DelayOnFail(ctx)
+		}
 	}
 }
 
@@ -603,12 +686,15 @@ func isOperationRunning(ctx context.Context, k8sClient client.Client, appName, a
 type syncFuncs struct {
 	appSync            func(context.Context, string, string, string, client.Client, *utils.CredentialService, bool) error
 	terminateOperation func(context.Context, string, corev1.Namespace, *utils.CredentialService, client.Client, time.Duration, logr.Logger) error
+
+	refreshApp func(context.Context, client.Client, string, string) error
 }
 
 func defaultSyncFuncs() *syncFuncs {
 	return &syncFuncs{
 		appSync:            utils.AppSync,
 		terminateOperation: utils.TerminateOperation,
+		refreshApp:         refreshApplication,
 	}
 }
 

@@ -152,7 +152,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			}
 
 			_, dbOperation, err := operations.CreateOperation(ctx, false, dbOperationInput,
-				db.SpecialClusterUserName, dbutil.GetGitOpsEngineSingleInstanceNamespace(), reconciler.DB, reconciler.Client, log)
+				db.SpecialClusterUserName, "argocd", reconciler.DB, reconciler.Client, log)
 			Expect(err).To(BeNil())
 
 			dbOperation.State = "Completed"
@@ -189,7 +189,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			}
 
 			_, dbOperation, err := operations.CreateOperation(ctx, false, dbOperationInput,
-				db.SpecialClusterUserName, dbutil.GetGitOpsEngineSingleInstanceNamespace(), reconciler.DB, reconciler.Client, log)
+				db.SpecialClusterUserName, "argocd", reconciler.DB, reconciler.Client, log)
 			Expect(err).To(BeNil())
 
 			operationList = append(operationList, *dbOperation)

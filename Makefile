@@ -4,7 +4,7 @@ TAG ?= latest
 BASE_IMAGE ?= gitops-service
 USERNAME ?= redhat-appstudio
 IMG ?= quay.io/${USERNAME}/${BASE_IMAGE}:${TAG}
-APPLICATION_API_COMMIT ?= 3ef8e0cd2c9ee21c8ce29cdfd5e7069f866ff5db
+APPLICATION_API_COMMIT ?= 394e8c127f031990838397fcb2d1e10110b2e7ae
 
 # Default values match the their respective deployments in staging/production environment for GitOps Service, otherwise the E2E will fail.
 ARGO_CD_NAMESPACE ?= gitops-service-argocd
@@ -13,8 +13,17 @@ ARGO_CD_VERSION ?= v2.5.1
 # Tool to build the container image. It can be either docker or podman
 DOCKER ?= docker
 
+OS ?= $(shell go env GOOS)
 # Get the ARCH value to be used for building the binary.
 ARCH ?= $(shell go env GOARCH)
+$(info OS is ${OS})
+$(info Arch is ${ARCH})
+ifeq (${OS},darwin)
+ifeq (${ARCH},arm64)
+  $(info Mac arm64 detected)
+  ARCH=amd64
+endif
+endif
 
 help: ## Display this help menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
@@ -142,6 +151,10 @@ uninstall-all-k8s: undeploy-k8s-env
 # ~~~~~~~~~~~~~~~~~~~~~~~~~ #
 start: ## Start all the components, compile & run (ensure goreman is installed, with 'go install github.com/mattn/goreman@latest')
 	$(GOBIN)/goreman start
+
+start-chaos: ## Start all the components, compile & run (ensure goreman is installed, with 'go install github.com/mattn/goreman@latest')
+	$(GOBIN)/goreman -f Procfile.chaos start
+
 
 clean: ## remove the bin and vendor folders from each component
 	cd $(MAKEFILE_ROOT)/backend-shared && make clean

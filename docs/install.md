@@ -1,6 +1,6 @@
 # Install
 
-This workflow will install the two operators, [Backend] and [Cluster-Agent], by pulling their container images from the container registry respectively.
+This workflow will install the two controllers, [Backend] and [Cluster-Agent], by pulling their container images from the container registry respectively.
 Thus, to deploy them into Kubernetes, make sure you have _already build and push_ the container image to your registry.
 For example: `make docker-build docker-push IMG=quay.io/pgeorgia/gitops-service:latest`
 
@@ -12,7 +12,7 @@ make install-all-k8s IMG=quay.io/pgeorgia/gitops-service:latest # replace the IM
 ```
 
 This will automatically install all the required components into your Kubernetes cluster, in the `gitops` namespace.
-Notice that, the [Cluster-Agent] operator requires the `argocd` namespace which will also be created as well.
+Notice that, the [Cluster-Agent] controller requires the `gitops-service-argocd` namespace which will also be created as well.
 
 ```shell
 $ kubectl -n gitops get all
@@ -50,32 +50,7 @@ To uninstall it completely, make sure you do not run any other important resourc
 make uninstall-all-k8s
 ```
 
-This will remove everything the previous command installed, and finally it will also delete the `gitops` and `argocd` namespaces as well.
-
-## Individual components
-
-If you want to install or uninstall individual components, you can also do it by their individual makefile targets.
-Notice that for every _deploy_ target you have to specify the `IMG` var or the `BASE_IMAGE` and `TAG` alternatively.
-
-```makefile
-deploy-backend                 Deploy backend operator into Kubernetes
-undeploy-backend               Undeploy cluster-agent from Kubernetes
-```
-
-```makefile
-deploy-cluster-agent           Deploy cluster-agent operator into Kubernetes
-undeploy-cluster-agent         Undeploy cluster-agent from Kubernetes
-```
-
-```makefile
-deploy-appstudio-controller              Deploy appstudio-controller into Kubernetes
-undeploy-appstudio-controller            Undeploy appstudio-controller from Kubernetes
-```
-
-```makefile
-deploy-postgresql              Deploy postgres into Kubernetes
-undeploy-postgresql            Undeploy postgres from Kubernetes
-```
+This will remove everything the previous command installed, and finally it will also delete the `gitops` and `gitops-service-argocd` namespaces as well.
 
 [Backend Shared]: https://github.com/redhat-appstudio/managed-gitops/tree/main/backend-shared
 [Backend]: https://github.com/redhat-appstudio/managed-gitops/tree/main/backend

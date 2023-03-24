@@ -65,7 +65,6 @@ func EnsureCleanSlateNonKCPVirtualWorkspace() error {
 	if err != nil {
 		return err
 	}
-
 	// Clean up after tests that target the non-default Argo CD instance (only used by a few E2E tests)
 	if err := cleanUpOldArgoCDApplications(NewArgoCDInstanceDestNamespace, NewArgoCDInstanceDestNamespace, clientconfig); err != nil {
 		return err
@@ -213,6 +212,15 @@ func cleanUpOldGitOpsServiceAPIs(namespace string, k8sClient client.Client) erro
 
 	for idx := range gitopsDeploymentList.Items {
 		gitopsDeployment := gitopsDeploymentList.Items[idx]
+
+		// If the GitOpsDeployment contains a finalizer, remove it before deleting.
+		if len(gitopsDeployment.Finalizers) > 0 {
+			gitopsDeployment.Finalizers = []string{}
+			if err := k8sClient.Update(context.Background(), &gitopsDeployment); err != nil {
+				return fmt.Errorf("unable to remove finalizer from GitOpsDeployment: %v", err)
+			}
+		}
+
 		if err := k8sClient.Delete(context.Background(), &gitopsDeployment); err != nil {
 			return err
 		}

@@ -17,15 +17,10 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
-
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -35,18 +30,15 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/go-logr/logr"
 	"github.com/redhat-appstudio/managed-gitops/utilities/db-migration/migrate"
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
-	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	managedgitopscontrollers "github.com/redhat-appstudio/managed-gitops/backend/controllers/managed-gitops"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop"
@@ -172,6 +164,7 @@ func main() {
 	//+kubebuilder:scaffold:builder
 
 	startDBReconciler(mgr)
+	startDBMetricsReconciler(mgr)
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
 		os.Exit(1)
@@ -212,6 +205,23 @@ func startDBReconciler(mgr ctrl.Manager) {
 	databaseReconciler.StartDatabaseReconciler()
 }
 
+func startDBMetricsReconciler(mgr ctrl.Manager) {
+
+	dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
+	if err != nil {
+		setupLog.Error(err, "never able to connect to database")
+		os.Exit(1)
+	}
+
+	databaseReconciler := eventloop.MetricsReconciler{
+		DB:     dbQueries,
+		Client: mgr.GetClient(),
+	}
+
+	// Start goroutine for database metrics reconciler
+	databaseReconciler.StartDBMetricsReconcilerForMetrics()
+}
+
 func initializeRoutes() {
 
 	// Intializing the server for routing endpoints
@@ -220,73 +230,5 @@ func initializeRoutes() {
 	if err != http.ErrServerClosed {
 		log.Println("Error on ListenAndServe:", err)
 	}
-
-}
-
-// nolint
-// createPrimaryGitOpsEngineInstance create placeholder values, for development purposes. This should not be used in production.
-func createPrimaryGitOpsEngineInstance(k8sclient client.Client, log logr.Logger) error {
-
-	ctx := context.Background()
-
-	dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
-	if err != nil {
-		return err
-	}
-
-	// Create the fake cluster user if they don't exist
-	clusterUser := db.ClusterUser{User_name: "gitops-service-user"}
-	if err := dbQueries.GetClusterUserByUsername(ctx, &clusterUser); err != nil {
-		if db.IsResultNotFoundError(err) {
-			if err = dbQueries.CreateClusterUser(ctx, &clusterUser); err != nil {
-				return err
-			}
-		} else {
-			return err
-		}
-	}
-
-	namespace := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "argocd",
-		},
-	}
-	if err := k8sclient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace); err != nil {
-		return fmt.Errorf("unable to retrieve gitopsengine namespace: %v", err)
-	}
-
-	kubeSystemNamespace := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "kube-system",
-		},
-	}
-
-	gitopsEngineInstance, _, _, err := dbutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespace, kubeSystemNamespace.Name, dbQueries, log)
-	if err != nil {
-		return err
-	}
-
-	gitopsLocalWorkspaceNamespace := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "gitops-local",
-		},
-	}
-
-	managedEnv, _, err := dbutil.GetOrCreateManagedEnvironmentByNamespaceUID(ctx, *gitopsLocalWorkspaceNamespace, dbQueries, log)
-	if err != nil {
-		return err
-	}
-
-	clusterAccess := &db.ClusterAccess{
-		Clusteraccess_user_id:                   clusterUser.Clusteruser_id,
-		Clusteraccess_managed_environment_id:    managedEnv.Managedenvironment_id,
-		Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
-	}
-
-	if err := dbQueries.CreateClusterAccess(ctx, clusterAccess); err != nil {
-		return err
-	}
-
-	return nil
 
 }

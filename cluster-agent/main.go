@@ -30,6 +30,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/argoproj.io/application_info_cache"
 	controllers "github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/managed-gitops"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/managed-gitops/eventloop"
+	"github.com/redhat-appstudio/managed-gitops/cluster-agent/metrics"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -142,6 +143,15 @@ func main() {
 	namespacesReconciler.StartNamespaceReconciler()
 
 	//==============================================
+
+	// Call StartGoRoutineCollectOperationMetricsEveryHour function to start a goroutine to periodically clear the metrics
+	metrics.StartGoRoutineCollectOperationMetrics()
+
+	// Trigger goroutine for listing operation CRs, to update operation CR metric
+	operationCRMetricUpdater := eventloop.OperationCRMetricUpdater{
+		Client: mgr.GetClient(),
+	}
+	operationCRMetricUpdater.StartOperationCRMetricUpdater()
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")

@@ -470,6 +470,46 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 				Expect(app.Status.History[i].Revision).Should(Equal(cr.revision))
 			}
 		})
+
+		It("should refresh before syncing the Application", func() {
+			By("add refresh annotation and verify if it'll be overwritten after refresh")
+			app := &appv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      argocd.GenerateArgoCDApplicationName(string(gitOpsDeploymentResource.UID)),
+					Namespace: "gitops-service-argocd",
+				},
+			}
+
+			By("create a GitOpsDeploymentSyncRun")
+			syncRunCR := buildGitOpsDeploymentSyncRunResource("test-syncrun", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
+
+			err := k8sClient.Create(ctx, &syncRunCR)
+			Expect(err).To(BeNil())
+
+			By("check if the GitOpsDeployment is Synced and Healthy")
+			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
+				),
+			)
+
+			By("check if GitOpsDeploymentSyncRun is updated with the right conditions")
+			conditions := []managedgitopsv1alpha1.GitOpsDeploymentSyncRunCondition{
+				getDefaultSyncRunCondition(),
+			}
+			Eventually(syncRunCR, "60s", "1s").Should(SatisfyAll(syncRunFixture.HaveConditions(conditions)))
+
+			By("verify if the refresh annotation is removed by Argo CD")
+			Eventually(func() bool {
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
+				if err != nil {
+					return false
+				}
+				_, found := app.Annotations[appv1.AnnotationKeyRefresh]
+				return !found
+			}, ArgoCDReconcileWaitTime, "1s").Should(BeTrue())
+		})
 	})
 })
 

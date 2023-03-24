@@ -4,9 +4,7 @@ kind: Kustomization
 resources:
 - ../../base/crd/overlays/local-dev
 - ../../base/gitops-namespace
-
-# TODO: GITOPSRVCE-211: Switch this back from 'default-no-webhook' -> 'default'
-- ../../../appstudio-controller/config/default-no-webhook
+- ../../../appstudio-controller/config/default
 - ../../../backend/config/default
 - ../../../cluster-agent/config/default
 - ../../base/postgresql-staging

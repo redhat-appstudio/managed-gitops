@@ -6,12 +6,35 @@ metadata:
 spec:
   template:
     spec:
+      initContainers:
+      - name: init-container
+        command:
+        - /init-container/init-container
+        env:
+        - name: ARGO_CD_NAMESPACE
+          value: gitops-service-argocd
+        - name: DB_ADDR
+          value: ""
+          valueFrom:
+            secretKeyRef:
+              key: db.host
+              name: gitops-service-postgres-rds-config
+        - name: DB_PASS
+          value: ""
+          valueFrom:
+            secretKeyRef:
+              key: db.password
+              name: gitops-service-postgres-rds-config
+        image: ${COMMON_IMAGE}
+
       containers:
       - args:
         - --health-probe-bind-address=:18081
         - --metrics-bind-address=:8080
         - --leader-elect
         - --zap-time-encoding=rfc3339nano
+        - --zap-log-level
+        - info
         command:
         - gitops-service-backend
         env:

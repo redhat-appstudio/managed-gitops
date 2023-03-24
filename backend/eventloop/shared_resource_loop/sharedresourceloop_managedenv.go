@@ -37,6 +37,7 @@ const (
 	ConditionReasonUnableToLocateContext            = "UnableToLocateContext"
 	ConditionReasonUnableToParseKubeconfigData      = "UnableToParseKubeconfigData"
 	ConditionReasonUnableToRetrieveRestConfig       = "UnableToRetrieveRestConfig"
+	KubeconfigKey                                   = "kubeconfig"
 )
 
 func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, workspaceClient client.Client,
@@ -470,7 +471,7 @@ func wrapManagedEnv(ctx context.Context, managedEnv db.ManagedEnvironment, works
 	bool, *db.ClusterAccess, bool, *db.GitopsEngineCluster, gitopserrors.ConditionError) {
 
 	engineInstance, isNewInstance, gitopsEngineCluster, err :=
-		internalDetermineGitOpsEngineInstanceForNewApplication(ctx, clusterUser, managedEnv, gitopsEngineClient, dbQueries, log)
+		internalDetermineGitOpsEngineInstance(ctx, clusterUser, gitopsEngineClient, dbQueries, log)
 
 	if err != nil {
 		log.Error(err.DevError(), "unable to determine gitops engine instance")
@@ -723,9 +724,9 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 		return db.ClusterCredentials{}, err
 	}
 
-	kubeconfig, exists := secret.Data["kubeconfig"]
+	kubeconfig, exists := secret.Data[KubeconfigKey]
 	if !exists {
-		err := fmt.Errorf("missing kubeConfig field in Secret")
+		err := fmt.Errorf("missing %s field in Secret", KubeconfigKey)
 		updateManagedEnvironmentConnectionStatus(&managedEnvironment, ctx, workspaceClient, metav1.ConditionFalse, ConditionReasonMissingKubeConfigField, err.Error(), log)
 		return db.ClusterCredentials{}, err
 	}

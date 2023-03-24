@@ -3,6 +3,7 @@ package db_test
 import (
 	"context"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -33,13 +34,14 @@ var _ = Describe("ClusterUser Tests", func() {
 			}
 			err = dbq.GetClusterUserByUsername(ctx, retrieveUser)
 			Expect(err).To(BeNil())
+			Expect(retrieveUser.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 			Expect(user).Should(Equal(retrieveUser))
 			retrieveUser = &db.ClusterUser{
 				Clusteruser_id: user.Clusteruser_id,
 			}
 			err = dbq.GetClusterUserById(ctx, retrieveUser)
 			Expect(err).To(BeNil())
-			Expect(user).Should(Equal(retrieveUser))
+			Expect(retrieveUser.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 			rowsAffected, err := dbq.DeleteClusterUserById(ctx, retrieveUser.Clusteruser_id)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))

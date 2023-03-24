@@ -42,7 +42,8 @@ func LogAPIResourceChangeEvent(resourceNamespace string, resourceName string, re
 	jsonRepresentation, err := json.Marshal(resource)
 
 	if err != nil {
-		fmt.Println("Log Marshal error :", err)
+		log.Error(err, "SEVERE: Unable to marshal log to JSON.")
+		return
 	}
 
 	log.Info(fmt.Sprintf("API Resource changed: %s", string(resourceChangeType)), "namespace",

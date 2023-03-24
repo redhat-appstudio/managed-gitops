@@ -58,6 +58,23 @@ type GitOpsDeploymentManagedEnvironment struct {
 	Status GitOpsDeploymentManagedEnvironmentStatus `json:"status,omitempty"`
 }
 
+type ManagedEnvironmentConditionReason string
+
+const (
+	ConditionReasonSucceeded                        ManagedEnvironmentConditionReason = "Succeeded"
+	ConditionReasonKubeError                        ManagedEnvironmentConditionReason = "KubernetesError"
+	ConditionReasonDatabaseError                    ManagedEnvironmentConditionReason = "DatabaseError"
+	ConditionReasonInvalidSecretType                ManagedEnvironmentConditionReason = "InvalidSecretType"
+	ConditionReasonMissingKubeConfigField           ManagedEnvironmentConditionReason = "MissingKubeConfigField"
+	ConditionReasonUnableToCreateClient             ManagedEnvironmentConditionReason = "UnableToCreateClient"
+	ConditionReasonUnableToCreateClusterCredentials ManagedEnvironmentConditionReason = "UnableToCreateClusterCredentials"
+	ConditionReasonUnableToInstallServiceAccount    ManagedEnvironmentConditionReason = "UnableToInstallServiceAccount"
+	ConditionReasonUnableToLocateContext            ManagedEnvironmentConditionReason = "UnableToLocateContext"
+	ConditionReasonUnableToParseKubeconfigData      ManagedEnvironmentConditionReason = "UnableToParseKubeconfigData"
+	ConditionReasonUnableToRetrieveRestConfig       ManagedEnvironmentConditionReason = "UnableToRetrieveRestConfig"
+	ConditionReasonUnknownError                     ManagedEnvironmentConditionReason = "UnknownError"
+)
+
 //+kubebuilder:object:root=true
 
 // GitOpsDeploymentManagedEnvironmentList contains a list of GitOpsDeploymentManagedEnvironment

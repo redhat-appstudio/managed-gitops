@@ -937,23 +937,25 @@ const (
 // The bool return value is 'true' if respective resource is created; 'false' if it already exists in DB or in case of failure.
 func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, gitopsEngineClient client.Client,
 	workspaceNamespace corev1.Namespace, dbQueries db.DatabaseQueries,
-	l logr.Logger) (SharedResourceManagedEnvContainer, error) {
+	l logr.Logger) (SharedResourceManagedEnvContainer, connectionInitializedCondition, error) {
 
 	clusterUser, isNewUser, err := internalGetOrCreateClusterUserByNamespaceUID(ctx, string(workspaceNamespace.UID), dbQueries, l)
 	if err != nil {
-		return SharedResourceManagedEnvContainer{},
+		return SharedResourceManagedEnvContainer{}, createUnknownErrorEnvInitCondition(),
 			fmt.Errorf("unable to retrieve cluster user in processMessage, '%s': %v", string(workspaceNamespace.UID), err)
 	}
 
 	managedEnv, isNewManagedEnv, err := dbutil.GetOrCreateManagedEnvironmentByNamespaceUID(ctx, workspaceNamespace, dbQueries, l)
 	if err != nil {
-		return SharedResourceManagedEnvContainer{},
+		return SharedResourceManagedEnvContainer{}, createUnknownErrorEnvInitCondition(),
 			fmt.Errorf("unable to get or created managed env on deployment modified event: %v", err)
 	}
 
 	engineInstance, isNewInstance, gitopsEngineCluster, uerr := internalDetermineGitOpsEngineInstance(ctx, *clusterUser, gitopsEngineClient, dbQueries, l)
 	if uerr != nil {
-		return SharedResourceManagedEnvContainer{}, fmt.Errorf("unable to determine gitops engine instance: %w", uerr.DevError())
+		return SharedResourceManagedEnvContainer{},
+			createUnknownErrorEnvInitCondition(),
+			fmt.Errorf("unable to determine gitops engine instance: %w", uerr.DevError())
 	}
 
 	// Create the cluster access object, to allow us to interact with the GitOpsEngine and ManagedEnvironment on the user's behalf
@@ -965,7 +967,7 @@ func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, gito
 
 	err, isNewClusterAccess := internalGetOrCreateClusterAccess(ctx, &ca, dbQueries, l)
 	if err != nil {
-		return SharedResourceManagedEnvContainer{}, fmt.Errorf("unable to create cluster access: %v", err)
+		return SharedResourceManagedEnvContainer{}, createUnknownErrorEnvInitCondition(), fmt.Errorf("unable to create cluster access: %v", err)
 	}
 
 	return SharedResourceManagedEnvContainer{
@@ -978,7 +980,7 @@ func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, gito
 		ClusterAccess:        &ca,
 		IsNewClusterAccess:   isNewClusterAccess,
 		GitopsEngineCluster:  gitopsEngineCluster,
-	}, nil
+	}, connectionInitializedCondition{}, nil
 
 }
 
@@ -999,21 +1001,21 @@ func internalDetermineGitOpsEngineInstance(ctx context.Context, user db.ClusterU
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace); err != nil {
 		devError := fmt.Errorf("unable to retrieve gitopsengine namespace in determineGitOpsEngineInstanceForNewApplication: %w", err)
 		userMsg := gitopserrors.UnknownError
-		return nil, false, nil, gitopserrors.NewUserConditionError(userMsg, devError, ConditionReasonKubeError)
+		return nil, false, nil, gitopserrors.NewUserConditionError(userMsg, devError, string(managedgitopsv1alpha1.ConditionReasonKubeError))
 	}
 
 	kubeSystemNamespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(kubeSystemNamespace), kubeSystemNamespace); err != nil {
 		devError := fmt.Errorf("unable to retrieve kube-system namespace in determineGitOpsEngineInstanceForNewApplication: %w", err)
 		userMsg := gitopserrors.UnknownError
-		return nil, false, nil, gitopserrors.NewUserConditionError(userMsg, devError, ConditionReasonKubeError)
+		return nil, false, nil, gitopserrors.NewUserConditionError(userMsg, devError, string(managedgitopsv1alpha1.ConditionReasonKubeError))
 	}
 
 	gitopsEngineInstance, isNewInstance, gitopsEngineCluster, err := dbutil.GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, *namespace, string(kubeSystemNamespace.UID), dbq, l)
 	if err != nil {
 		devError := fmt.Errorf("unable to get or create engine instance for new application: %w", err)
 		userMsg := gitopserrors.UnknownError
-		return nil, false, nil, gitopserrors.NewUserConditionError(userMsg, devError, ConditionReasonDatabaseError)
+		return nil, false, nil, gitopserrors.NewUserConditionError(userMsg, devError, string(managedgitopsv1alpha1.ConditionReasonDatabaseError))
 	}
 
 	// When we support multiple Argo CD instance, the algorithm would initially be:

@@ -109,12 +109,16 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 	}
 
 	if !isGitOpsDeploymentDeleted(gitopsDeployment) {
+		// Perform basic validation of GitOpsDeployment values
+
 		if gitopsDeployment.Spec.Source.Path == "" {
 			userError := managedgitopsv1alpha1.GitOpsDeploymentUserError_PathIsRequired
 			return signalledShutdown_false, nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, err)
+
 		} else if gitopsDeployment.Spec.Source.Path == "/" {
 			userError := managedgitopsv1alpha1.GitOpsDeploymentUserError_InvalidPathSlash
 			return signalledShutdown_false, nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, err)
+
 		}
 	}
 

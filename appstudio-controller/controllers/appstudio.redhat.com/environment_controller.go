@@ -239,7 +239,7 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 		}
 
 	} else if env.Spec.UnstableConfigurationFields != nil {
-		log.Info("Usig the cluster credentials specified in the Environment")
+		log.Info("Using the cluster credentials specified in the Environment")
 		manageEnvDetails = managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
 			APIURL:                     env.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.APIURL,
 			ClusterCredentialsSecret:   env.Spec.UnstableConfigurationFields.ClusterCredentialsSecret,
@@ -350,11 +350,11 @@ func findBoundedDTForDTC(ctx context.Context, k8sClient client.Client, dtc appst
 	}
 
 	dtList := appstudioshared.DeploymentTargetList{}
-	if err := k8sClient.List(ctx, &dtList); err != nil {
+	if err := k8sClient.List(ctx, &dtList, &client.ListOptions{Namespace: dtc.Namespace}); err != nil {
 		return nil, err
 	}
 
-	dt := &appstudioshared.DeploymentTarget{}
+	var dt *appstudioshared.DeploymentTarget
 	for i, d := range dtList.Items {
 		if d.Spec.ClaimRef == dtc.Name {
 			if dt == nil {

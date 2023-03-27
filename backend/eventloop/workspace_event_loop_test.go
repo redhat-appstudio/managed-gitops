@@ -545,10 +545,9 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 				messagesReceived[string(gitopsDeployment.UID)] = []application_event_loop.RequestMessage{}
 				mutex.Lock()
 				defer mutex.Unlock()
-				for idx := range eventLoopMsgsReceived {
-					messagesReceived[string(gitopsDeployment.UID)] = append(messagesReceived[string(gitopsDeployment.UID)],
-						eventLoopMsgsReceived[idx])
-				}
+
+				messagesReceived[string(gitopsDeployment.UID)] = append(messagesReceived[string(gitopsDeployment.UID)], eventLoopMsgsReceived...)
+
 			}
 
 			for _, existingGitOpsDeployment := range gitopsDeployments {

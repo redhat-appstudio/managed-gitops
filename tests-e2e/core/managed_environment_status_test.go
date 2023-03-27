@@ -102,7 +102,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			Expect(condition.Message).To(ContainSubstring("json parse error"))
 		})
 
-		It("should have a connection status condition of False when there is no current contex in the kubeconfig", func() {
+		It("should have a connection status condition of False when there is no current context in the kubeconfig", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("creating the GitOpsDeploymentManagedEnvironment with a secret that lacks a kubeconfig context")

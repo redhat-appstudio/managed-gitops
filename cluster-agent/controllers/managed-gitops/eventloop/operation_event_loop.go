@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -1043,6 +1044,12 @@ func processOperation_GitOpsEngineInstance(ctx context.Context, dbOperation db.O
 
 }
 
+const (
+	// ManagedEnvironmentQueryParameter is appended to the end of an Kubernetes API URL, in an Argo CD cluster secret,
+	// in order to allow Argo CD to manage the cluster via multiple ServiceAccounts on the same cluster.
+	ManagedEnvironmentQueryParameter = "?managedEnvironment="
+)
+
 // ensureManagedEnvironmentExists ensures that the managed environment described by 'application' is defined as an Argo CD
 // cluster secret, in the Argo CD namespace.
 func ensureManagedEnvironmentExists(ctx context.Context, application db.Application, opConfig operationConfig) error {
@@ -1056,6 +1063,8 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 	if err != nil {
 		return fmt.Errorf("unable to generate expected cluster secret: %v", err)
 	}
+
+	log := opConfig.log.WithValues("expectedSecretName", expectedSecret.Name, "expectedSecretNamespace", expectedSecret.Namespace)
 
 	// If we detected that the managed environment row was deleted, ensure the secret is deleted.
 	if shouldDeleteSecret {
@@ -1095,6 +1104,7 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 			// Return true to indicate that the managed environment cluster secret should be deleted.
 			return nil
 		} else {
+			log.Error(err, "unable to retrieve managed environment in operation event loop", "managedEnvironmentID", managedEnv.Managedenvironment_id)
 			return fmt.Errorf("unable to get managed environment '%s': %v", managedEnv.Managedenvironment_id, err)
 		}
 	}
@@ -1107,6 +1117,7 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 			// Return true to indicate that the managed environment cluster secret should be deleted.
 			return nil
 		} else {
+			log.Error(err, "unable to retrieve cluster credentials in operation event loop", "clusterCredentialsID", clusterCredentials.Clustercredentials_cred_id)
 			return fmt.Errorf("unable to get cluster credentials '%s': %v", clusterCredentials.Clustercredentials_cred_id, err)
 		}
 	}
@@ -1117,16 +1128,19 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 			Namespace: expectedSecret.Namespace,
 		},
 	}
+
 	if err := opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(existingSecret), existingSecret); err != nil {
 		if !apierr.IsNotFound(err) {
+			log.Error(err, "unable to retrieve existing Argo CD cluster secret")
 			return fmt.Errorf("unable to retrieve existing Argo CD Cluster secret '%s' in '%s'", existingSecret.Name, existingSecret.Namespace)
 		}
 
 		// A) Secret doesn't exist, so create it
 		if err := opConfig.eventClient.Create(ctx, &expectedSecret); err != nil {
+			log.Error(err, "unable to create new Argo CD cluster secret")
 			return fmt.Errorf("unable to create expected Argo CD Cluster secret '%s' in '%s'", expectedSecret.Name, expectedSecret.Namespace)
 		}
-		sharedutil.LogAPIResourceChangeEvent(expectedSecret.Namespace, expectedSecret.Name, expectedSecret, sharedutil.ResourceCreated, opConfig.log)
+		sharedutil.LogAPIResourceChangeEvent(expectedSecret.Namespace, expectedSecret.Name, expectedSecret, sharedutil.ResourceCreated, log)
 
 		return nil
 	}
@@ -1140,9 +1154,10 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 
 	// C) Secret exists, but is different from what is expected, so update it.
 	if err := opConfig.eventClient.Update(ctx, existingSecret); err != nil {
+		log.Error(err, "unable to update existing Argo CD cluster secret")
 		return fmt.Errorf("unable to update existing secret '%s' in '%s'", existingSecret.Name, existingSecret.Namespace)
 	}
-	sharedutil.LogAPIResourceChangeEvent(existingSecret.Namespace, existingSecret.Name, existingSecret, sharedutil.ResourceModified, opConfig.log)
+	sharedutil.LogAPIResourceChangeEvent(existingSecret.Namespace, existingSecret.Name, existingSecret, sharedutil.ResourceModified, log)
 
 	return nil
 
@@ -1190,6 +1205,11 @@ func generateExpectedClusterSecret(ctx context.Context, application db.Applicati
 		}
 	}
 
+	if strings.Contains(clusterCredentials.Host, "?") || strings.Contains(clusterCredentials.Host, "&") {
+		return corev1.Secret{}, deleteSecret_false,
+			fmt.Errorf("the Kubernetes API URL contained unsupported characters: %v", clusterCredentials.Host)
+	}
+
 	bearerToken := clusterCredentials.Serviceaccount_bearer_token
 
 	name := argosharedutil.GenerateArgoCDClusterSecretName(*managedEnv)
@@ -1207,18 +1227,27 @@ func generateExpectedClusterSecret(ctx context.Context, application db.Applicati
 		return corev1.Secret{}, deleteSecret_false, fmt.Errorf("SEVERE: unable to marshal JSON")
 	}
 
+	if managedEnv.Managedenvironment_id == "" { // sanity test the managed environment ID, before we use it
+		return corev1.Secret{}, deleteSecret_false, fmt.Errorf("managedEnvironment did not have a valid ID")
+	}
+	managedEnvID := managedEnv.Managedenvironment_id
+
+	// append '?managedEnvironment=(managed environment DB ID)' to the end of the cluster API URL, in order
+	// to allow Argo CD to manage the cluster via multiple ServiceAccounts on the same cluster.
+	clusterCredentialsHost := clusterCredentials.Host + ManagedEnvironmentQueryParameter + managedEnvID
+
 	managedEnvironmentSecret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: opConfig.argoCDNamespace.Name,
 			Labels: map[string]string{
 				sharedutil.ArgoCDSecretTypeIdentifierKey:       sharedutil.ArgoCDSecretClusterTypeValue,
-				controllers.ArgoCDClusterSecretDatabaseIDLabel: managedEnv.Managedenvironment_id,
+				controllers.ArgoCDClusterSecretDatabaseIDLabel: managedEnvID,
 			},
 		},
 		Data: map[string][]byte{
 			"name":   ([]byte)(name),
-			"server": ([]byte)(clusterCredentials.Host),
+			"server": ([]byte)(clusterCredentialsHost),
 			"config": ([]byte)(string(jsonString)),
 		},
 	}

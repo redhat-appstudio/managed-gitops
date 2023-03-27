@@ -12,6 +12,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	argocdutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
+	clusteragenteventloop "github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/managed-gitops/eventloop"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	appFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/application"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
@@ -59,27 +60,6 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(BeNil())
 
-			// By("Allow argocd to manage the environment")
-			// Eventually(func() bool {
-			// 	secretList := &corev1.SecretList{}
-			// 	if err = k8s.List(secretList, dbutil.DefaultGitOpsEngineSingleInstanceNamespace); err != nil {
-			// 		return false
-			// 	}
-			// 	GinkgoT().Log("found secret list", len(secretList.Items))
-			// 	for _, secret := range secretList.Items {
-			// 		if strings.Contains(secret.Name, "managed-env") {
-			// 			GinkgoT().Log("found secret", secret.Name)
-			// 			secret.Data["namespaces"] = []byte(strings.Join([]string{secret.Namespace, fixture.GitOpsServiceE2ENamespace}, ","))
-			// 			if err = k8s.Update(&secret); err != nil {
-			// 				return false
-			// 			}
-			// 			return true
-			// 		}
-			// 	}
-
-			// 	return false
-			// }, "60s", "1s").Should(BeTrue())
-
 			By("ensuring GitOpsDeployment should have expected health and status and reconciledState")
 
 			expectedReconciledStateField := managedgitopsv1alpha1.ReconciledState{
@@ -124,6 +104,8 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			}
 
 			Expect(argoCDClusterSecret).To(k8s.ExistByName(k8sClient))
+
+			Expect(string(argoCDClusterSecret.Data["server"])).To(ContainSubstring(clusteragenteventloop.ManagedEnvironmentQueryParameter))
 
 			By("ensuring the resources of the GitOps repo are successfully deployed")
 

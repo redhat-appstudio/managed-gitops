@@ -23,7 +23,7 @@ const (
 var (
 	ReconciledArgoAppsPercent = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Name:        "percent_of_argocd_apps_recently_reconciled",
+			Name:        "gitops_argocd_apps_reconciled_percent",
 			Help:        "Percent of argocd applications reconciled in the last three minutes",
 			ConstLabels: map[string]string{"gitopsArgoApps": "percent-reconciled"},
 		},

@@ -57,7 +57,7 @@ type DeploymentTargetClaimReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
 func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
+	log := log.FromContext(ctx).WithValues("name", req.Name, "namespace", req.Namespace, "component", "deploymentTargetBinder")
 
 	dtc := applicationv1alpha1.DeploymentTargetClaim{
 		ObjectMeta: metav1.ObjectMeta{

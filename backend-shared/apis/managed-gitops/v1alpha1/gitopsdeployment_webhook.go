@@ -62,13 +62,15 @@ func (r *GitOpsDeployment) ValidateCreate() error {
 	}
 
 	// Check whether sync options are valid
-	for _, syncOptionString := range r.Spec.SyncPolicy.SyncOptions {
+	if r.Spec.SyncPolicy != nil {
+		for _, syncOptionString := range r.Spec.SyncPolicy.SyncOptions {
 
-		if !(syncOptionString == SyncOptions_CreateNamespace_true ||
-			syncOptionString == SyncOptions_CreateNamespace_false) {
-			return fmt.Errorf("the specified sync option in .spec.syncPolicy.syncOptions is either mispelled or is not supported by GitOpsDeployment")
+			if !(syncOptionString == SyncOptions_CreateNamespace_true ||
+				syncOptionString == SyncOptions_CreateNamespace_false) {
+				return fmt.Errorf("the specified sync option in .spec.syncPolicy.syncOptions is either mispelled or is not supported by GitOpsDeployment")
+			}
+
 		}
-
 	}
 
 	return nil
@@ -84,13 +86,15 @@ func (r *GitOpsDeployment) ValidateUpdate(old runtime.Object) error {
 	}
 
 	// Check whether sync options are valid
-	for _, syncOptionString := range r.Spec.SyncPolicy.SyncOptions {
+	if r.Spec.SyncPolicy != nil {
+		for _, syncOptionString := range r.Spec.SyncPolicy.SyncOptions {
 
-		if !(syncOptionString == SyncOptions_CreateNamespace_true ||
-			syncOptionString == SyncOptions_CreateNamespace_false) {
-			return fmt.Errorf("the specified sync option in .spec.syncPolicy.syncOptions is either mispelled or is not supported by GitOpsDeployment")
+			if !(syncOptionString == SyncOptions_CreateNamespace_true ||
+				syncOptionString == SyncOptions_CreateNamespace_false) {
+				return fmt.Errorf("the specified sync option in .spec.syncPolicy.syncOptions is either mispelled or is not supported by GitOpsDeployment")
+			}
+
 		}
-
 	}
 
 	return nil

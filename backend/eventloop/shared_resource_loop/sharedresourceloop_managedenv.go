@@ -89,6 +89,14 @@ func internalProcessMessage_internalReconcileSharedManagedEnv(ctx context.Contex
 		return newSharedResourceManagedEnvContainer(), createUnknownErrorEnvInitCondition(), nil
 	}
 
+	if strings.Contains(managedEnvironmentCR.Spec.APIURL, "?") || strings.Contains(managedEnvironmentCR.Spec.APIURL, "&") {
+
+		// TODO: JGW - Make sure this gets included after PR #397 is merged.
+		updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown,
+			ConditionReasonUnsupportedAPIURL, "the API URL must not have ? or & values", log)
+		return newSharedResourceManagedEnvContainer(), nil
+	}
+
 	// After this point in the code, the API CR necessarily exists.
 
 	// Retrieve all existing APICRToDatabaseMappings for this resource name/namespace, and clean up the ones that don't match the UID

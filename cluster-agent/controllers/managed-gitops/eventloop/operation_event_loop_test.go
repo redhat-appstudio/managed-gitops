@@ -42,6 +42,323 @@ var _ = Describe("Operation Controller", func() {
 		namespace = "argocd"
 	)
 
+	Context("Managed Environment Unit Tests", func() {
+
+		var scheme *runtime.Scheme
+		var ctx context.Context
+		var dbQueries db.AllDatabaseQueries
+		var k8sClient client.WithWatch
+		var argoCDNamespace *corev1.Namespace
+		var kubesystemNamespace *corev1.Namespace
+		var logger logr.Logger
+		var workspace *corev1.Namespace
+
+		var gitopsEngineInstance *db.GitopsEngineInstance
+
+		var opConfigVal operationConfig
+
+		BeforeEach(func() {
+			ctx = context.Background()
+			logger = log.FromContext(ctx)
+			err := db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
+
+			dbQueries, err = db.NewUnsafePostgresDBQueries(false, true)
+			Expect(err).To(BeNil())
+
+			scheme, argoCDNamespace, kubesystemNamespace, workspace, err = tests.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(workspace, kubesystemNamespace).Build()
+
+			gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
+			Expect(gitopsEngineCluster).ToNot(BeNil())
+			Expect(err).To(BeNil())
+
+			By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
+			gitopsEngineInstance = &db.GitopsEngineInstance{
+				Gitopsengineinstance_id: "test-fake-engine-instance",
+				Namespace_name:          namespace,
+				Namespace_uid:           string(workspace.UID),
+				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+			}
+			err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
+			Expect(err).To(BeNil())
+
+			opConfigVal = operationConfig{
+				dbQueries:         dbQueries,
+				argoCDNamespace:   *argoCDNamespace,
+				eventClient:       k8sClient,
+				credentialService: nil,
+				log:               logger,
+				syncFuncs:         nil,
+			}
+
+		})
+
+		It("generateExpectedClusterSecret should generate a valid cluster secret", func() {
+
+			clusterCredentials := db.ClusterCredentials{
+				Clustercredentials_cred_id:  "test-cluster-creds-test",
+				Host:                        "https://my-cluster-url.com",
+				Kube_config:                 "kube-config",
+				Kube_config_context:         "kube-config-context",
+				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+				Serviceaccount_ns:           "Serviceaccount_ns",
+			}
+			err := dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
+			Expect(err).To(BeNil())
+
+			managedEnvironment := db.ManagedEnvironment{
+				Managedenvironment_id: "test-managed-env",
+				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+				Name:                  "my env",
+			}
+			err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironment)
+			Expect(err).To(BeNil())
+
+			By("Create Application in Database")
+			applicationDB := &db.Application{
+				Application_id:          "test-my-application",
+				Name:                    name,
+				Spec_field:              "{}",
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+
+			err = dbQueries.CreateApplication(ctx, applicationDB)
+			Expect(err).To(BeNil())
+
+			secret, shouldDelete, err := generateExpectedClusterSecret(ctx, *applicationDB, opConfigVal)
+			Expect(err).To(BeNil())
+			Expect(shouldDelete).To(BeFalse())
+
+			Expect(string(secret.Data["name"])).To(Equal(argosharedutil.GenerateArgoCDClusterSecretName(managedEnvironment)))
+			Expect(string(secret.Data["server"])).To(ContainSubstring(ManagedEnvironmentQueryParameter))
+
+			configData := string(secret.Data["config"])
+
+			Expect(len(configData)).To(BeNumerically(">", 2))
+
+		})
+
+		It("generateExpectedClusterSecret should reject an invalid URL containing query parameters", func() {
+
+			clusterCredentials := db.ClusterCredentials{
+				Clustercredentials_cred_id:  "test-cluster-creds-test",
+				Host:                        "https://my-cluster-url.com?queryParameter=hello",
+				Kube_config:                 "kube-config",
+				Kube_config_context:         "kube-config-context",
+				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+				Serviceaccount_ns:           "Serviceaccount_ns",
+			}
+			err := dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
+			Expect(err).To(BeNil())
+
+			managedEnvironment := db.ManagedEnvironment{
+				Managedenvironment_id: "test-managed-env",
+				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+				Name:                  "my env",
+			}
+			err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironment)
+			Expect(err).To(BeNil())
+
+			By("create Application in Database")
+			applicationDB := &db.Application{
+				Application_id:          "test-my-application",
+				Name:                    name,
+				Spec_field:              "{}",
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+
+			err = dbQueries.CreateApplication(ctx, applicationDB)
+			Expect(err).To(BeNil())
+
+			By("calling function to test")
+			_, shouldDelete, err := generateExpectedClusterSecret(ctx, *applicationDB, opConfigVal)
+			Expect(err).To(Not(BeNil()), "should return an error due to unsupported query parameter characters in the URL")
+			Expect(err.Error()).To(ContainSubstring("the Kubernetes API URL contained unsupported characters"))
+			Expect(shouldDelete).To(BeFalse())
+		})
+
+		It("generateExpectedClusterSecret should return shouldDelete of true if the ManagedEnvironment DB entry doesn't exist", func() {
+
+			applicationDB := &db.Application{
+				Application_id:          "test-my-application",
+				Name:                    name,
+				Spec_field:              "{}",
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  "does-not-exist",
+			}
+
+			By("calling function to test")
+			_, shouldDelete, err := generateExpectedClusterSecret(ctx, *applicationDB, opConfigVal)
+			Expect(err).To(BeNil())
+			Expect(shouldDelete).To(BeTrue())
+
+		})
+
+		It("EnsureManagedEnvironment should create a Secret for ManagedEnvironment, if the Secret doesn't exist", func() {
+
+			clusterCredentials := db.ClusterCredentials{
+				Clustercredentials_cred_id:  "test-cluster-creds-test",
+				Host:                        "https://my-cluster-url.com",
+				Kube_config:                 "kube-config",
+				Kube_config_context:         "kube-config-context",
+				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+				Serviceaccount_ns:           "Serviceaccount_ns",
+			}
+			err := dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
+			Expect(err).To(BeNil())
+
+			managedEnvironment := db.ManagedEnvironment{
+				Managedenvironment_id: "test-managed-env",
+				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+				Name:                  "my env",
+			}
+			err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironment)
+			Expect(err).To(BeNil())
+
+			applicationDB := &db.Application{
+				Application_id:          "test-my-application",
+				Name:                    name,
+				Spec_field:              "{}",
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+			err = dbQueries.CreateApplication(ctx, applicationDB)
+			Expect(err).To(BeNil())
+
+			By("calling function to test")
+			err = ensureManagedEnvironmentExists(ctx, *applicationDB, opConfigVal)
+			Expect(err).To(BeNil())
+
+			secretName := argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: applicationDB.Managed_environment_id})
+			Expect(secretName).ToNot(BeEmpty())
+
+			managedEnvironmentSecret := corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      secretName,
+					Namespace: argoCDNamespace.Name,
+					Labels:    map[string]string{},
+				},
+				Data: map[string][]byte{},
+			}
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvironmentSecret), &managedEnvironmentSecret)
+			Expect(err).To(BeNil())
+
+		})
+
+		It("EnsureManagedEnvironment should update an existing Secret for ManagedEnvironment, if the Secret contains a different value", func() {
+
+			clusterCredentials := db.ClusterCredentials{
+				Clustercredentials_cred_id:  "test-cluster-creds-test",
+				Host:                        "https://my-cluster-url.com",
+				Kube_config:                 "kube-config",
+				Kube_config_context:         "kube-config-context",
+				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+				Serviceaccount_ns:           "Serviceaccount_ns",
+			}
+			err := dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
+			Expect(err).To(BeNil())
+
+			managedEnvironment := db.ManagedEnvironment{
+				Managedenvironment_id: "test-managed-env",
+				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+				Name:                  "my env",
+			}
+			err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironment)
+			Expect(err).To(BeNil())
+
+			applicationDB := &db.Application{
+				Application_id:          "test-my-application",
+				Name:                    name,
+				Spec_field:              "{}",
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+			err = dbQueries.CreateApplication(ctx, applicationDB)
+			Expect(err).To(BeNil())
+
+			secretName := argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: applicationDB.Managed_environment_id})
+			Expect(secretName).ToNot(BeEmpty())
+
+			existingSecret := corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      secretName,
+					Namespace: argoCDNamespace.Name,
+					Labels:    map[string]string{},
+				},
+				Data: map[string][]byte{
+					"name":   ([]byte)(name),
+					"server": ([]byte)(clusterCredentials.Host),
+					"config": ([]byte)(string("{}")),
+				},
+			}
+
+			err = k8sClient.Create(ctx, &existingSecret)
+			Expect(err).To(BeNil())
+
+			By("calling function to test")
+			err = ensureManagedEnvironmentExists(ctx, *applicationDB, opConfigVal)
+			Expect(err).To(BeNil())
+
+			managedEnvironmentSecret := corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      secretName,
+					Namespace: argoCDNamespace.Name,
+					Labels:    map[string]string{},
+				},
+				Data: map[string][]byte{},
+			}
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvironmentSecret), &managedEnvironmentSecret)
+			Expect(err).To(BeNil())
+
+			Expect(string(managedEnvironmentSecret.Data["name"])).To(Equal(argosharedutil.GenerateArgoCDClusterSecretName(managedEnvironment)))
+			Expect(string(managedEnvironmentSecret.Data["server"])).To(ContainSubstring(ManagedEnvironmentQueryParameter))
+
+			configData := string(managedEnvironmentSecret.Data["config"])
+			Expect(len(configData)).To(BeNumerically(">", 2))
+
+		})
+
+		It("EnsureManagedEnvironment should delete Secret if ManagedEnvironment doesn't exist", func() {
+
+			applicationDB := &db.Application{
+				Application_id:          "test-my-application",
+				Name:                    name,
+				Spec_field:              "{}",
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  "does-not-exist",
+			}
+
+			secretName := argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: applicationDB.Managed_environment_id})
+			Expect(secretName).ToNot(BeEmpty())
+
+			managedEnvironmentSecret := corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      secretName,
+					Namespace: argoCDNamespace.Name,
+					Labels:    map[string]string{},
+				},
+				Data: map[string][]byte{},
+			}
+			err := k8sClient.Create(ctx, &managedEnvironmentSecret)
+			Expect(err).To(BeNil())
+
+			err = ensureManagedEnvironmentExists(ctx, *applicationDB, opConfigVal)
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvironmentSecret), &managedEnvironmentSecret)
+			Expect(err).ToNot(BeNil())
+			Expect(apierr.IsNotFound(err)).To(BeTrue())
+
+		})
+	})
+
 	Context("Operation Controller Test", func() {
 
 		var ctx context.Context

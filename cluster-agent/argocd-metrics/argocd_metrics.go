@@ -102,9 +102,9 @@ func (m *reconciliationMetricsUpdater) reconciliationMetricsForNamespace(namespa
 		m.logger.Error(err, "listing applications", "namespace", namespace)
 		return
 	}
-	for _, app := range apps.Items {
+	for i := range apps.Items {
 		total += 1.0
-		reconciled += m.reconciliationMetricsForApplication(&app)
+		reconciled += m.reconciliationMetricsForApplication(&apps.Items[i])
 	}
 	return
 }

@@ -12,8 +12,6 @@ import (
 	//+kubebuilder:scaffold:imports
 )
 
-const Namespace = "my-user"
-
 var _ = Describe("GitOpsDeployment validation webhook", func() {
 	var namespace *corev1.Namespace
 	var gitopsDepl *GitOpsDeployment
@@ -23,7 +21,7 @@ var _ = Describe("GitOpsDeployment validation webhook", func() {
 
 		namespace = &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: Namespace,
+				Name: "my-user",
 				UID:  uuid.NewUUID(),
 			},
 			Spec: corev1.NamespaceSpec{},

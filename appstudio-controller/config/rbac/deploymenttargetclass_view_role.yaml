@@ -1,0 +1,20 @@
+# permissions for end users to view deploymenttargetclasses.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: deploymenttargetclass-viewer-role
+rules:
+- apiGroups:
+  - appstudio.redhat.com
+  resources:
+  - deploymenttargetclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - appstudio.redhat.com
+  resources:
+  - deploymenttargetclasses/status
+  verbs:
+  - get

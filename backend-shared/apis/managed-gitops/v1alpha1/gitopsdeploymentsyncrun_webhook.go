@@ -67,10 +67,7 @@ func (r *GitOpsDeploymentSyncRun) ValidateCreate() error {
 func (r *GitOpsDeploymentSyncRun) ValidateUpdate(old runtime.Object) error {
 	gitopsdeploymentsyncrunlog.Info("validate update", "name", r.Name)
 
-	if r.Name == "zyxwvutsrqponmlkjihgfedcba-abcdefghijklmnoqrstuvwxyz" {
-		return fmt.Errorf("name should not be zyxwvutsrqponmlkjihgfedcba-abcdefghijklmnoqrstuvwxyz")
-	}
-
+	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }
 

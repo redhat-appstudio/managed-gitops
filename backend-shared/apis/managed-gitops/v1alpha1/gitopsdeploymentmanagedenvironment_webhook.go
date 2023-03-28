@@ -63,7 +63,7 @@ func (r *GitOpsDeploymentManagedEnvironment) ValidateCreate() error {
 			return fmt.Errorf(err.Error())
 		}
 
-		if apiURL.Scheme != "https://" {
+		if apiURL.Scheme != "https" {
 			return fmt.Errorf("cluster api url must start with https://")
 		}
 	}

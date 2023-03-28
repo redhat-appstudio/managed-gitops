@@ -1,6 +1,34 @@
 #!/usr/bin/env bash
 
-GOBIN=$(go env GOPATH)/bin
+SCRIPT_DIR="$(
+  cd "$(dirname "$0")" >/dev/null
+  pwd
+)"
+
+# deletes the temp directory
+function cleanup() {
+  rm -rf "${TEMP_DIR}"
+  echo "Deleted temp working directory $WORK_DIR"
+}
+
+# installs the stable version kustomize binary if not found in PATH
+function install_kustomize() {
+  if [[ -z "${KUSTOMIZE}" ]]; then
+    wget https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv4.5.7/kustomize_v4.5.7_$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m |sed s/aarch64/arm64/ | sed s/x86_64/amd64/).tar.gz -O ${TEMP_DIR}/kustomize.tar.gz
+    tar zxvf ${TEMP_DIR}/kustomize.tar.gz -C ${TEMP_DIR}
+    KUSTOMIZE=${TEMP_DIR}/kustomize
+    chmod +x ${TEMP_DIR}/kustomize
+  fi
+}
+
+# installs the stable version of kubectl binary if not found in PATH
+function install_kubectl() {
+  if [[ -z "${KUBECTL}" ]]; then
+    wget https://dl.k8s.io/release/v1.26.0/bin/$(uname | tr '[:upper:]' '[:lower:]')/$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/)/kubectl -O ${TEMP_DIR}/kubectl
+    KUBECTL=${TEMP_DIR}/kubectl
+    chmod +x ${TEMP_DIR}/kubectl
+  fi
+}
 
 # Checks if a binary is present on the local system
 exit_if_binary_not_installed() {
@@ -39,11 +67,35 @@ rollback() {
   exit 1;
 }
 
-cleanup() {
-  rm -rf /tmp/managed-gitops
+# creates a kustomization.yaml file in the temp directory pointing to the manifests available in the upstream repo.
+function create_kustomization_init_file() {
+  echo "apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - https://github.com/redhat-appstudio/managed-gitops/manifests/base/crd/overlays/local-dev?ref=$GIT_REVISION
+  - https://github.com/redhat-appstudio/managed-gitops/manifests/base/gitops-namespace?ref=$GIT_REVISION
+  - https://github.com/redhat-appstudio/managed-gitops/manifests/base/postgresql-staging?ref=$GIT_REVISION
+  - https://github.com/redhat-appstudio/managed-gitops/appstudio-controller/config/default?ref=$GIT_REVISION
+  - https://github.com/redhat-appstudio/managed-gitops/backend/config/default?ref=$GIT_REVISION
+  - https://github.com/redhat-appstudio/managed-gitops/cluster-agent/config/default?ref=$GIT_REVISION" > ${TEMP_DIR}/kustomization.yaml
 }
 
-exit_if_binary_not_installed kubectl
+# Code execution starts here
+# create a temporary directory and do all the operations inside the directory.
+GIT_REVISION=main
+TEMP_DIR=$(mktemp -d -t managed-gitops-install-XXXXXXX)
+echo "Using temp directory $TEMP_DIR"
+# cleanup the temporary directory irrespective of whether the script ran successfully or failed with an error.
+trap cleanup EXIT
+
+# install kustomize in the the temp directory if its not available in the PATH
+KUSTOMIZE=$(which kustomize)
+install_kustomize
+
+# install kubectl in the the temp directory if its not available in the PATH
+KUBECTL=$(which kubectl)
+install_kubectl
+
 
 QUAY_USERNAME=redhat-appstudio
 
@@ -71,13 +123,14 @@ fi
 
 echo "Upgrading from $PREV_IMAGE to $IMG";
 
-mkdir -p /tmp/managed-gitops
-cd /tmp/managed-gitops
+# create the required yaml files for the kustomize based install.
+create_kustomization_init_file
 
-git clone git@github.com:redhat-appstudio/managed-gitops.git 
-cd managed-gitops
+# Set the right container image and apply the manifests
+${KUSTOMIZE} build ${TEMP_DIR} |  COMMON_IMAGE=${IMG} envsubst | kubectl apply -f -
 
-make install-all-k8s IMG=$IMG
+# Create Postgresql DB secret
+wget -O - https://raw.githubusercontent.com/anandf/managed-gitops/main/manifests/scripts/generate-postgresql-secret.sh | bash
 
 echo 'Wait until pods are running';
 

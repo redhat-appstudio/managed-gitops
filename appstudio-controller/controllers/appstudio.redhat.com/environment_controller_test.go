@@ -699,5 +699,98 @@ var _ = Describe("Environment controller tests", func() {
 				Expect(reqs).To(Equal([]reconcile.Request{}))
 			})
 		})
+
+		Context("Test findObjectsForDeploymentTarget function", func() {
+			It("should map requests if matching environments are found", func() {
+				By("create a DT and DTC that target each other")
+				dt := appstudioshared.DeploymentTarget{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-dt",
+						Namespace: apiNamespace.Name,
+					},
+				}
+
+				dtc := appstudioshared.DeploymentTargetClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-dtc",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudioshared.DeploymentTargetClaimSpec{
+						TargetName: dt.Name,
+					},
+				}
+
+				err := k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				By("create Environments that refer the above DTC")
+				env1 := appstudioshared.Environment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-env-1",
+						Namespace: dtc.Namespace,
+					},
+					Spec: appstudioshared.EnvironmentSpec{
+						Configuration: appstudioshared.EnvironmentConfiguration{
+							Target: appstudioshared.EnvironmentTarget{
+								DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+									ClaimName: dtc.Name,
+								},
+							},
+						},
+					},
+				}
+				err = k8sClient.Create(ctx, &env1)
+				Expect(err).To(BeNil())
+
+				env2 := appstudioshared.Environment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-env-2",
+						Namespace: dtc.Namespace,
+					},
+				}
+				env2.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName = dtc.Name
+				env2.ResourceVersion = ""
+				err = k8sClient.Create(ctx, &env2)
+				Expect(err).To(BeNil())
+
+				By("check if the requests are mapped to the correct environments")
+				expectedReqs := map[string]int{
+					env1.Name: 1,
+					env2.Name: 1,
+				}
+				reqs := reconciler.findObjectsForDeploymentTarget(&dt)
+				Expect(len(reqs)).To(Equal(len(expectedReqs)))
+				for _, r := range reqs {
+					Expect(expectedReqs[r.Name]).To(Equal(1))
+					expectedReqs[r.Name]--
+				}
+			})
+
+			It("shouldn't map any requests if no matching environments are found", func() {
+				dt := appstudioshared.DeploymentTarget{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "target-dt",
+						Namespace: apiNamespace.Name,
+					},
+				}
+
+				reqs := reconciler.findObjectsForDeploymentTarget(&dt)
+
+				Expect(reqs).To(Equal([]reconcile.Request{}))
+			})
+
+			It("shouldn't map any requests if an incompatible object is passed", func() {
+				dtc := appstudioshared.DeploymentTargetClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "target-dtc",
+						Namespace: apiNamespace.Name,
+					},
+				}
+
+				reqs := reconciler.findObjectsForDeploymentTarget(&dtc)
+
+				Expect(reqs).To(Equal([]reconcile.Request{}))
+			})
+		})
 	})
 })

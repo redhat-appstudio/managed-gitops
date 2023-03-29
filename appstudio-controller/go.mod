@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/onsi/ginkgo/v2 v2.1.4
 	github.com/onsi/gomega v1.20.1
-	github.com/redhat-appstudio/application-api v0.0.0-20230321141323-6c39669c6238
+	github.com/redhat-appstudio/application-api v0.0.0-20230328134301-1bdb1ddc9f77
 	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0
 	k8s.io/apimachinery v0.24.3
 	k8s.io/client-go v0.24.3
@@ -104,7 +104,6 @@ require (
 )
 
 replace (
-	github.com/redhat-appstudio/application-api => ../../application-api
 	github.com/redhat-appstudio/managed-gitops/backend => ../backend
 	github.com/redhat-appstudio/managed-gitops/backend-shared => ../backend-shared
 	github.com/redhat-appstudio/managed-gitops/utilities/db-migration => ../utilities/db-migration

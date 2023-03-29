@@ -3,6 +3,7 @@ package managedenvironment
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	. "github.com/onsi/gomega"
 	matcher "github.com/onsi/gomega/types"
@@ -63,5 +64,30 @@ func HaveAllowInsecureSkipTLSVerify(allowInsecureSkipTLSVerify bool) matcher.Gom
 
 		return res
 
+	}, BeTrue())
+}
+
+// HaveCredentials checks if the Managed Environment has the give cluster credentials.
+func HaveCredentials(expectedEnvSpec managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec) matcher.GomegaMatcher {
+	return WithTransform(func(env managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment) bool {
+		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+		Expect(err).To(BeNil())
+
+		k8sClient, err := fixture.GetKubeClient(config)
+		if err != nil {
+			fmt.Println(k8s.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&env), &env)
+		if err != nil {
+			fmt.Println(k8s.K8sClientError, err)
+			return false
+		}
+
+		res := reflect.DeepEqual(env.Spec, expectedEnvSpec)
+
+		fmt.Println("HaveCredentials: ", res, "/ Expected:", expectedEnvSpec, "/ Actual:", env.Spec)
+		return res
 	}, BeTrue())
 }

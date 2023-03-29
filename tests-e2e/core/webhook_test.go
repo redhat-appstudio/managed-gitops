@@ -9,8 +9,11 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -173,6 +176,250 @@ var _ = Describe("Webhook E2E tests", func() {
 
 				Expect(err).NotTo(Succeed())
 				Expect(strings.Contains(err.Error(), fmt.Sprintf("spec cannot be updated to %s", promotionRun.Spec)))
+			}
+		})
+
+		It("Should validate create GitOpsDeployment CR Webhooks for invalid .spec.Type field.", func() {
+			// Don't run webhook checks if it is disabled.
+			if envVariable != "" && !strings.EqualFold(envVariable, "true") {
+				Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+				ctx = context.Background()
+
+				k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+				Expect(err).To(Succeed())
+
+				gitOpsDeploymentResource := buildGitOpsDeploymentResource(name,
+					repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+					"unknown")
+				gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
+
+				err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
+				Expect(err).NotTo(Succeed())
+				Expect(err.Error()).Should(ContainSubstring("spec type must be manual or automated"))
+			}
+		})
+
+		It("Should validate create GitOpsDeployment CR Webhooks for invalid syncOptions.", func() {
+			// Don't run webhook checks if it is disabled.
+			if envVariable != "" && !strings.EqualFold(envVariable, "true") {
+				Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+				ctx = context.Background()
+
+				k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+				Expect(err).To(Succeed())
+
+				gitOpsDeploymentResource := buildGitOpsDeploymentResource(name,
+					repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+					managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+				gitOpsDeploymentResource.Spec.SyncPolicy = &managedgitopsv1alpha1.SyncPolicy{
+					SyncOptions: managedgitopsv1alpha1.SyncOptions{
+						"CreateNamespace=foo",
+					},
+				}
+				gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
+
+				err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
+				Expect(err).NotTo(Succeed())
+				Expect(err.Error()).Should(ContainSubstring("the specified sync option in .spec.syncPolicy.syncOptions is either mispelled or is not supported by GitOpsDeployment"))
+			}
+		})
+
+		It("Should validate update GitOpsDeployment CR Webhooks for invalid for invalid syncOptions.", func() {
+
+			// Don't run webhook checks if it is disabled.
+			if envVariable != "" && !strings.EqualFold(envVariable, "true") {
+
+				Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+				ctx = context.Background()
+
+				k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+				Expect(err).To(Succeed())
+
+				gitOpsDeploymentResource := buildGitOpsDeploymentResource(name,
+					repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+					managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+				gitOpsDeploymentResource.Spec.SyncPolicy = &managedgitopsv1alpha1.SyncPolicy{
+					SyncOptions: managedgitopsv1alpha1.SyncOptions{
+						managedgitopsv1alpha1.SyncOptions_CreateNamespace_true,
+					},
+				}
+				gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
+
+				err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
+				Expect(err).To(Succeed())
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&gitOpsDeploymentResource), &gitOpsDeploymentResource)
+				Expect(err).To(Succeed())
+
+				gitOpsDeploymentResource.Spec.SyncPolicy = &managedgitopsv1alpha1.SyncPolicy{
+					SyncOptions: managedgitopsv1alpha1.SyncOptions{
+						"CreateNamespace=foo",
+					},
+				}
+
+				err = k8s.Update(&gitOpsDeploymentResource, k8sClient)
+				Expect(err).NotTo(Succeed())
+				Expect(err.Error()).Should(ContainSubstring("the specified sync option in .spec.syncPolicy.syncOptions is either mispelled or is not supported by GitOpsDeployment"))
+
+			}
+		})
+
+		It("Should validate create GitOpsDeploymentManagedEnvironment CR Webhooks.", func() {
+
+			// Don't run webhook checks if it is disabled.
+			if envVariable != "" && !strings.EqualFold(envVariable, "true") {
+
+				Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+				ctx = context.Background()
+
+				k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+				Expect(err).To(Succeed())
+
+				managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "managed-environment",
+						Namespace: fixture.GitOpsServiceE2ENamespace,
+					},
+					Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+						APIURL: "smtp://api-url",
+					},
+				}
+				err = k8s.Create(&managedEnvCR, k8sClient)
+				Expect(err).NotTo(Succeed())
+
+			}
+		})
+
+		It("Should validate update GitOpsDeploymentManagedEnvironment CR Webhooks.", func() {
+
+			// Don't run webhook checks if it is disabled.
+			if envVariable != "" && !strings.EqualFold(envVariable, "true") {
+
+				Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+				ctx = context.Background()
+
+				k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+				Expect(err).To(Succeed())
+				managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "managed-environment",
+						Namespace: fixture.GitOpsServiceE2ENamespace,
+					},
+					Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+						APIURL: "https://api-url",
+					},
+				}
+				err = k8s.Create(&managedEnvCR, k8sClient)
+				Expect(err).To(Succeed())
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
+				Expect(err).To(Succeed())
+
+				managedEnvCR.Spec.APIURL = "smtp://api-url"
+
+				err = k8s.Update(&managedEnvCR, k8sClient)
+				Expect(err).NotTo(Succeed())
+
+			}
+		})
+
+		It("Should validate create GitOpsDeploymentRepositoryCredential CR Webhooks.", func() {
+
+			// Don't run webhook checks if it is disabled.
+			if envVariable != "" && !strings.EqualFold(envVariable, "true") {
+
+				Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+				ctx = context.Background()
+
+				k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+				Expect(err).To(Succeed())
+
+				gitOpsDeploymentRepositoryCredential := managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-gitopsdeploymenrepositorycredential",
+						Namespace: "test-namespace",
+						UID:       uuid.NewUUID(),
+					},
+					Spec: managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialSpec{
+						Repository: "smtp://fakegithub.com/test/test-repository",
+						Secret:     "test-secret",
+					}}
+
+				err = k8s.Create(&gitOpsDeploymentRepositoryCredential, k8sClient)
+				Expect(err).NotTo(Succeed())
+
+			}
+		})
+
+		It("Should validate update GitOpsDeploymentRepositoryCredential CR Webhooks.", func() {
+
+			// Don't run webhook checks if it is disabled.
+			if envVariable != "" && !strings.EqualFold(envVariable, "true") {
+
+				Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+				ctx = context.Background()
+
+				k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+				Expect(err).To(Succeed())
+
+				gitOpsDeploymentRepositoryCredential := managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-gitopsdeploymenrepositorycredential",
+						Namespace: "test-namespace",
+						UID:       uuid.NewUUID(),
+					},
+					Spec: managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialSpec{
+						Repository: "ssh://fakegithub.com/test/test-repository",
+						Secret:     "test-secret",
+					}}
+
+				err = k8s.Create(&gitOpsDeploymentRepositoryCredential, k8sClient)
+				Expect(err).To(Succeed())
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&gitOpsDeploymentRepositoryCredential), &gitOpsDeploymentRepositoryCredential)
+				Expect(err).To(Succeed())
+
+				gitOpsDeploymentRepositoryCredential.Spec.Repository = "smtp://api-url"
+
+				err = k8s.Update(&gitOpsDeploymentRepositoryCredential, k8sClient)
+				Expect(err).NotTo(Succeed())
+
+			}
+		})
+
+		It("Should validate create GitOpsDeploymentSyncRun CR Webhooks.", func() {
+			// Don't run webhook checks if it is disabled.
+			if envVariable != "" && !strings.EqualFold(envVariable, "true") {
+
+				Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+				ctx = context.Background()
+
+				k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+				Expect(err).To(Succeed())
+
+				By("create a GitOpsDeployment with 'Manual' sync policy")
+				gitOpsDeploymentResource := buildGitOpsDeploymentResource(name,
+					repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+					managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual)
+				gitOpsDeploymentResource.Spec.Destination.Environment = ""
+				gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
+
+				err = k8sClient.Create(ctx, &gitOpsDeploymentResource)
+				Expect(err).To(BeNil())
+
+				gitOpsDeploymentSyncRun := buildGitOpsDeploymentSyncRunResource("zyxwvutsrqponmlkjihgfedcba-abcdefghijklmnoqrstuvwxyz", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
+
+				err = k8s.Create(&gitOpsDeploymentSyncRun, k8sClient)
+				Expect(err).NotTo(Succeed())
+
 			}
 		})
 	})

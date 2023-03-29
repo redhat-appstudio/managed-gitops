@@ -70,3 +70,4 @@ envtest: ## Download envtest-setup locally if necessary.
 test: fmt vet envtest ## Run tests.
 	ACK_GINKGO_DEPRECATIONS=1.16.4 KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -p=1 ./... -coverpkg=./... -coverprofile cover.out
 	
+	

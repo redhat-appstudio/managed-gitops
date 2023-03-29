@@ -46,7 +46,7 @@ check_pod_status_ready() {
     echo "Binary $binary";
     pod_name=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" -n gitops | grep "$binary");
     echo "Pod name : $pod_name";
-    kubectl wait pod --for=condition=Ready $pod_name -n gitops --timeout=150s;
+    kubectl wait pod --for=condition=Ready $pod_name -n gitops --timeout=300s;
     if [ $? -ne 0 ]; then
       echo "Pod '$pod_name' failed to become Ready in desired time. Logs from the pod:"
       kubectl logs $pod_name -n gitops;

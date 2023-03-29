@@ -221,28 +221,32 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, namespaceID 
 
 	for {
 		wrapperEvent := <-input
-
 		event := (wrapperEvent.payload).(eventlooptypes.EventLoopMessage)
 
-		if wrapperEvent.messageType == workspaceEventLoopMessageType_Event {
-			// When the workspace event loop receive an event message, process it
+		processWorkspaceEventLoopMessage(ctx, event, wrapperEvent, state, log)
+	}
+}
 
-			handleWorkspaceEventLoopMessage(ctx, event, wrapperEvent, state)
+func processWorkspaceEventLoopMessage(ctx context.Context, event eventlooptypes.EventLoopMessage, wrapperEvent workspaceEventLoopMessage, state workspaceEventLoopInternalState, log logr.Logger) {
 
-		} else if wrapperEvent.messageType == workspaceEventLoopMessageType_managedEnvProcessed_Event {
-			// When the workspace event loop receives this message, it informs all of the applictions event loops about the event
+	if wrapperEvent.messageType == workspaceEventLoopMessageType_Event {
+		// When the workspace event loop receive an event message, process it
 
-			handleManagedEnvProcessedMessage(event, state)
+		handleWorkspaceEventLoopMessage(ctx, event, wrapperEvent, state)
 
-		} else if wrapperEvent.messageType == workspaceEventLoopMessageType_statusTicker {
-			// Every X minutes, the workspace event loop will send itself a message, causing it to check the
-			// status of the application event loops it is tracking, and clean them up if needed.
+	} else if wrapperEvent.messageType == workspaceEventLoopMessageType_managedEnvProcessed_Event {
+		// When the workspace event loop receives this message, it informs all of the applictions event loops about the event
 
-			handleStatusTickerMessage(state)
+		handleManagedEnvProcessedMessage(event, state)
 
-		} else {
-			log.Error(nil, "SEVERE: unrecognized workspace event loop message type")
-		}
+	} else if wrapperEvent.messageType == workspaceEventLoopMessageType_statusTicker {
+		// Every X minutes, the workspace event loop will send itself a message, causing it to check the
+		// status of the application event loops it is tracking, and clean them up if needed.
+
+		handleStatusTickerMessage(state)
+
+	} else {
+		log.Error(nil, "SEVERE: unrecognized workspace event loop message type")
 	}
 }
 
@@ -486,83 +490,80 @@ var _ applicationEventQueueLoopFactory = defaultApplicationEventLoopFactory{}
 func checkIfOrphanedGitOpsDeploymentSyncRun(ctx context.Context, event eventlooptypes.EventLoopMessage,
 	orphanedResources map[string]map[string]eventlooptypes.EventLoopEvent, log logr.Logger) string {
 
-	if event.Event.ReqResource == eventlooptypes.GitOpsDeploymentSyncRunTypeName {
-
-		// 1) Retrieve the SyncRun
-		syncRunCR := &v1alpha1.GitOpsDeploymentSyncRun{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      event.Event.Request.Name,
-				Namespace: event.Event.Request.Namespace,
-			},
-		}
-		if err := event.Event.Client.Get(ctx, client.ObjectKeyFromObject(syncRunCR), syncRunCR); err != nil {
-			if apierr.IsNotFound(err) {
-				log.V(logutil.LogLevel_Debug).Info("skipping potentially orphaned resource that could no longer be found:", "resource", syncRunCR.ObjectMeta)
-
-				// The SyncRun CR doesn't exist, so try fetching the SyncOperation from the database and extract the name of GitOpsDeployment
-				dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
-				if err != nil {
-					log.Error(err, "failed to get a connection to the databse")
-					return ""
-				}
-
-				syncOperation, err := getDBSyncOperationFromAPIMapping(ctx, dbQueries, event.Event.Client, syncRunCR)
-				if err != nil {
-					log.Error(err, "failed to get SyncOperation using APICRToDBMapping")
-					return ""
-				}
-
-				return syncOperation.DeploymentNameField
-			} else {
-				log.Error(err, "unexpected client error on retrieving syncrun object", "resource", syncRunCR.ObjectMeta)
-				return ""
-			}
-		}
-
-		// 2) Retrieve the GitOpsDeployment, referenced by the SyncRun, to see if the SyncRun is orphaned
-		gitopsDeplCR := &v1alpha1.GitOpsDeployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      syncRunCR.Spec.GitopsDeploymentName,
-				Namespace: event.Event.Request.Namespace,
-			},
-		}
-		if err := event.Event.Client.Get(ctx, client.ObjectKeyFromObject(gitopsDeplCR), gitopsDeplCR); err != nil {
-
-			if !apierr.IsNotFound(err) {
-				log.Error(err, "unexpected client error on retrieving GitOpsDeployment references by GitOpsDeploymentSyncRun", "resource", syncRunCR.ObjectMeta)
-				return ""
-			}
-
-			log.V(logutil.LogLevel_Debug).Info("was unable to locate GitOpsDeployment referenced by GitOpsDeploymentSyncRun, so the SyncRun is still orphaned.")
-
-			// Otherwise, the GitOpsDeployment couldn't be found: therefore the SyncRun is orphaned, so continue.
-
-		} else {
-			// The resource is not orphaned, so our work is done: return the GitOpsDeployment referenced by the GitOpsDeploymentSyncRun
-			return gitopsDeplCR.Name
-		}
-
-		// At this point, the SyncRun exists, but the GitOpsDeployment referenced by it doesn't
-
-		// 3) Retrieve the list of orphaned resources that are depending on the GitOpsDeployment name referenced in the spec
-		// field of the SyncRun.
-		gitopsDeplMap, exists := orphanedResources[syncRunCR.Spec.GitopsDeploymentName]
-		if !exists {
-			gitopsDeplMap = map[string]eventlooptypes.EventLoopEvent{}
-			orphanedResources[syncRunCR.Spec.GitopsDeploymentName] = gitopsDeplMap
-		}
-
-		// 4) Add this resource event to that list
-		log.V(logutil.LogLevel_Debug).Info("Adding syncrun CR to orphaned resources list, name: " + syncRunCR.Name + ", missing gitopsdepl name: " + syncRunCR.Spec.GitopsDeploymentName)
-		gitopsDeplMap[syncRunCR.Name] = *event.Event
-
-		return ""
-
-	} else {
-
+	if event.Event.ReqResource != eventlooptypes.GitOpsDeploymentSyncRunTypeName { // sanity test
 		log.Error(nil, "SEVERE: unexpected event resource type in handleOrphaned")
 		return ""
 	}
+
+	// 1) Retrieve the SyncRun
+	syncRunCR := &v1alpha1.GitOpsDeploymentSyncRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      event.Event.Request.Name,
+			Namespace: event.Event.Request.Namespace,
+		},
+	}
+	if err := event.Event.Client.Get(ctx, client.ObjectKeyFromObject(syncRunCR), syncRunCR); err != nil {
+		if apierr.IsNotFound(err) {
+			log.V(logutil.LogLevel_Debug).Info("skipping potentially orphaned resource that could no longer be found:", "resource", syncRunCR.ObjectMeta)
+
+			// The SyncRun CR doesn't exist, so try fetching the SyncOperation from the database and extract the name of GitOpsDeployment
+			dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
+			if err != nil {
+				log.Error(err, "failed to get a connection to the database")
+				return ""
+			}
+
+			syncOperation, err := getDBSyncOperationFromAPIMapping(ctx, dbQueries, event.Event.Client, syncRunCR)
+			if err != nil {
+				log.Error(err, "failed to get SyncOperation using APICRToDBMapping")
+				return ""
+			}
+
+			return syncOperation.DeploymentNameField
+		} else {
+			log.Error(err, "unexpected client error on retrieving syncrun object", "resource", syncRunCR.ObjectMeta)
+			return ""
+		}
+	}
+
+	// 2) Retrieve the GitOpsDeployment, referenced by the SyncRun, to see if the SyncRun is orphaned
+	gitopsDeplCR := &v1alpha1.GitOpsDeployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      syncRunCR.Spec.GitopsDeploymentName,
+			Namespace: event.Event.Request.Namespace,
+		},
+	}
+	if err := event.Event.Client.Get(ctx, client.ObjectKeyFromObject(gitopsDeplCR), gitopsDeplCR); err != nil {
+
+		if !apierr.IsNotFound(err) {
+			log.Error(err, "unexpected client error on retrieving GitOpsDeployment references by GitOpsDeploymentSyncRun", "resource", syncRunCR.ObjectMeta)
+			return ""
+		}
+
+		log.V(logutil.LogLevel_Debug).Info("was unable to locate GitOpsDeployment referenced by GitOpsDeploymentSyncRun, so the SyncRun is still orphaned.")
+
+		// Otherwise, the GitOpsDeployment couldn't be found: therefore the SyncRun is orphaned, so continue.
+
+	} else {
+		// The resource is not orphaned, so our work is done: return the GitOpsDeployment referenced by the GitOpsDeploymentSyncRun
+		return gitopsDeplCR.Name
+	}
+
+	// At this point, the SyncRun exists, but the GitOpsDeployment referenced by it doesn't
+
+	// 3) Retrieve the list of orphaned resources that are depending on the GitOpsDeployment name referenced in the spec
+	// field of the SyncRun.
+	gitopsDeplMap, exists := orphanedResources[syncRunCR.Spec.GitopsDeploymentName]
+	if !exists {
+		gitopsDeplMap = map[string]eventlooptypes.EventLoopEvent{}
+		orphanedResources[syncRunCR.Spec.GitopsDeploymentName] = gitopsDeplMap
+	}
+
+	// 4) Add this resource event to that list
+	log.V(logutil.LogLevel_Debug).Info("Adding syncrun CR to orphaned resources list, name: " + syncRunCR.Name + ", missing gitopsdepl name: " + syncRunCR.Spec.GitopsDeploymentName)
+	gitopsDeplMap[syncRunCR.Name] = *event.Event
+
+	return ""
 
 }
 

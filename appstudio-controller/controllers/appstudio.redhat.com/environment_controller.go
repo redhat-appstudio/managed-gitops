@@ -223,7 +223,7 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 		}
 
 		// If the DeploymentTargetClaim is bounded, find the corresponding DeploymentTarget.
-		dt, err := findBoundedDTForDTC(ctx, k8sClient, *dtc, log)
+		dt, err := getDTBoundByDTC(ctx, k8sClient, dtc)
 		if err != nil {
 			return nil, err
 		}
@@ -331,39 +331,4 @@ func (r *EnvironmentReconciler) findObjectsForDeploymentTargetClaim(dtc client.O
 	}
 
 	return envRequests
-}
-
-func findBoundedDTForDTC(ctx context.Context, k8sClient client.Client, dtc appstudioshared.DeploymentTargetClaim, log logr.Logger) (*appstudioshared.DeploymentTarget, error) {
-	if dtc.Spec.TargetName != "" {
-		dt := &appstudioshared.DeploymentTarget{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      dtc.Spec.TargetName,
-				Namespace: dtc.Namespace,
-			},
-		}
-
-		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dt), dt); err != nil {
-			return nil, err
-		}
-
-		return dt, nil
-	}
-
-	dtList := appstudioshared.DeploymentTargetList{}
-	if err := k8sClient.List(ctx, &dtList, &client.ListOptions{Namespace: dtc.Namespace}); err != nil {
-		return nil, err
-	}
-
-	var dt *appstudioshared.DeploymentTarget
-	for i, d := range dtList.Items {
-		if d.Spec.ClaimRef == dtc.Name {
-			if dt == nil {
-				dt = &dtList.Items[i]
-			} else {
-				log.Error(nil, "multiple DeploymentTargets associated with the DeploymentTargetClaim", "DeploymentTargetClaim", dtc.Name)
-			}
-		}
-	}
-
-	return dt, nil
 }

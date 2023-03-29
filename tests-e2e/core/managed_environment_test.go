@@ -14,6 +14,8 @@ import (
 	argocdutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	appFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/application"
+	dtfixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/deploymenttarget"
+	dtcfixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/deploymenttargetclaim"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/managedenvironment"
@@ -257,6 +259,107 @@ var _ = Describe("Environment E2E tests", func() {
 				),
 			)
 
+		})
+
+		It("create an Environment with DeploymentTargetClaim and verify if a valid ManagedEnvironment is created", func() {
+
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			kubeConfigContents, apiServerURL, err := extractKubeConfigValues()
+			Expect(err).To(BeNil())
+
+			By("creating managed environment Secret")
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-managed-env-secret",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Type:       "managed-gitops.redhat.com/managed-environment",
+				StringData: map[string]string{"kubeconfig": kubeConfigContents},
+			}
+
+			err = k8s.Create(secret, k8sClient)
+			Expect(err).To(BeNil())
+
+			By("create a new DeploymentTarget with the above credentials")
+			dt := appstudioshared.DeploymentTarget{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dt",
+					Namespace: secret.Namespace,
+				},
+				Spec: appstudioshared.DeploymentTargetSpec{
+					DeploymentTargetClassName: "test-class",
+					KubernetesClusterCredentials: appstudioshared.DeploymentTargetKubernetesClusterCredentials{
+						APIURL:                   apiServerURL,
+						ClusterCredentialsSecret: secret.Name,
+						DefaultNamespace:         fixture.GitOpsServiceE2ENamespace,
+					},
+				},
+			}
+			err = k8s.Create(&dt, k8sClient)
+			Expect(err).To(BeNil())
+
+			By("create a DeploymentTargetClaim that can bind to the above Environment")
+			dtc := appstudioshared.DeploymentTargetClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dtc",
+					Namespace: dt.Namespace,
+				},
+				Spec: appstudioshared.DeploymentTargetClaimSpec{
+					TargetName:                dt.Name,
+					DeploymentTargetClassName: dt.Spec.DeploymentTargetClassName,
+				},
+			}
+			err = k8s.Create(&dtc, k8sClient)
+			Expect(err).To(BeNil())
+
+			By("verify if the DT and DTC are bound together")
+			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
+				dtcfixture.HasStatusPhase(appstudioshared.DeploymentTargetClaimPhase_Bound),
+				dtcfixture.HasAnnotation(appstudioshared.AnnBindCompleted, appstudioshared.AnnBinderValueTrue),
+			))
+
+			Eventually(dt, "2m", "1s").Should(
+				dtfixture.HasStatusPhase(appstudioshared.DeploymentTargetPhase_Bound))
+
+			By("creating a new Environment refering the above DTC")
+			environment := appstudioshared.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-env",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Spec: appstudioshared.EnvironmentSpec{
+					DisplayName:        "my-environment",
+					DeploymentStrategy: appstudioshared.DeploymentStrategy_AppStudioAutomated,
+					ParentEnvironment:  "",
+					Tags:               []string{},
+					Configuration: appstudioshared.EnvironmentConfiguration{
+						Target: appstudioshared.EnvironmentTarget{
+							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+								ClaimName: dtc.Name,
+							},
+						},
+					},
+				},
+			}
+
+			err = k8s.Create(&environment, k8sClient)
+			Expect(err).To(Succeed())
+
+			By("verify if the managed environment CR is created with the required fields")
+			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "managed-environment-" + environment.Name,
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+			}
+			Eventually(managedEnvCR, "2m", "1s").Should(k8s.ExistByName(k8sClient))
+
+			Expect(managedEnvCR.Spec.APIURL).To(Equal(dt.Spec.KubernetesClusterCredentials.APIURL))
+			Expect(managedEnvCR.Spec.ClusterCredentialsSecret).To(Equal(dt.Spec.KubernetesClusterCredentials.ClusterCredentialsSecret))
 		})
 	})
 })

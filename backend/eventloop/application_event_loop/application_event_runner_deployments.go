@@ -1046,8 +1046,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 			DBRelationKey:   comparedTo.Destination.Name,
 		}
 
-		err = dbQueries.GetAPICRForDatabaseUID(ctx, apiCRToDBMapping)
-		if err != nil {
+		if err := dbQueries.GetAPICRForDatabaseUID(ctx, apiCRToDBMapping); err != nil {
 			// If any error occurs while we're trying to retrieve the value of this field, we just report the
 			// value as empty: if necessary, it will be updated on the next tick.
 			comparedTo.Destination.Name = ""
@@ -1113,9 +1112,7 @@ func getMatchingGitOpsDeployment(ctx context.Context, name, namespace string, k8
 		},
 	}
 
-	err := k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsDepl), gitopsDepl)
-
-	if err != nil {
+	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsDepl), gitopsDepl); err != nil {
 		return &managedgitopsv1alpha1.GitOpsDeployment{}, err
 	}
 
@@ -1309,7 +1306,6 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 	}
 
 	resBytes, err := goyaml.Marshal(application)
-
 	if err != nil {
 		return "", err
 	}
@@ -1358,14 +1354,13 @@ func decompressOperationState(operationStateBytes []byte) (*managedgitopsv1alpha
 }
 
 func retrieveComparedToFieldInApplicationState(reconciledState string) (fauxargocd.FauxComparedTo, error) {
-	comparedTo := &fauxargocd.FauxComparedTo{}
+	comparedTo := fauxargocd.FauxComparedTo{}
 
-	err := json.Unmarshal([]byte(reconciledState), comparedTo)
-	if err != nil {
-		return *comparedTo, fmt.Errorf("unable to Unmarshal comparedTo field: %v", err)
+	if err := json.Unmarshal([]byte(reconciledState), &comparedTo); err != nil {
+		return comparedTo, fmt.Errorf("unable to Unmarshal comparedTo field: %v", err)
 	}
 
-	return *comparedTo, err
+	return comparedTo, nil
 }
 
 func getInt64Pointer(i int) *int64 {

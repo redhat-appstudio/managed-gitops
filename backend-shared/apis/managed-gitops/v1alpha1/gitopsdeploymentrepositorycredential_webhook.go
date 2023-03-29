@@ -81,7 +81,7 @@ func (r *GitOpsDeploymentRepositoryCredential) ValidateUpdate(old runtime.Object
 			return fmt.Errorf(err.Error())
 		}
 
-		if !(apiURL.Scheme == "https://" || apiURL.Scheme == "ssh://") {
+		if !(apiURL.Scheme == "https" || apiURL.Scheme == "ssh") {
 			return fmt.Errorf("repository must begin with ssh:// or https://")
 		}
 	}

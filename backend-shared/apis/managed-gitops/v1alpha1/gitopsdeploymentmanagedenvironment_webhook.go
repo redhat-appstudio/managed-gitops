@@ -81,7 +81,7 @@ func (r *GitOpsDeploymentManagedEnvironment) ValidateUpdate(old runtime.Object) 
 			return fmt.Errorf(err.Error())
 		}
 
-		if apiURL.Scheme != "https://" {
+		if apiURL.Scheme != "https" {
 			return fmt.Errorf("cluster api url must start with https://")
 		}
 	}

@@ -74,7 +74,7 @@ kind: Kustomization
 resources:
   - https://github.com/redhat-appstudio/managed-gitops/manifests/base/crd/overlays/local-dev?ref=$GIT_REVISION
   - https://github.com/redhat-appstudio/managed-gitops/manifests/base/gitops-namespace?ref=$GIT_REVISION
-  - https://github.com/redhat-appstudio/managed-gitops/manifests/base/gitops-service-argocd?ref=$GIT_REVISION
+  - https://github.com/redhat-appstudio/managed-gitops/manifests/base/gitops-service-argocd/base?ref=$GIT_REVISION
   - https://github.com/redhat-appstudio/managed-gitops/manifests/base/postgresql-staging?ref=$GIT_REVISION
   - https://github.com/redhat-appstudio/managed-gitops/appstudio-controller/config/default?ref=$GIT_REVISION
   - https://github.com/redhat-appstudio/managed-gitops/backend/config/default?ref=$GIT_REVISION

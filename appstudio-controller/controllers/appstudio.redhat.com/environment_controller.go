@@ -299,6 +299,11 @@ func (r *EnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForDeploymentTargetClaim),
 			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
 		).
+		Watches(
+			&source.Kind{Type: &appstudioshared.DeploymentTarget{}},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForDeploymentTarget),
+			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
+		).
 		Complete(r)
 }
 
@@ -327,6 +332,58 @@ func (r *EnvironmentReconciler) findObjectsForDeploymentTargetClaim(dtc client.O
 			envRequests = append(envRequests, reconcile.Request{
 				NamespacedName: client.ObjectKeyFromObject(&env),
 			})
+		}
+	}
+
+	return envRequests
+}
+
+// findObjectsForDeploymentTarget maps an incoming DT event to the corresponding Environment request.
+// We should reconcile Environments if the DT credentials get updated.
+func (r *EnvironmentReconciler) findObjectsForDeploymentTarget(dt client.Object) []reconcile.Request {
+	ctx := context.Background()
+	handlerLog := log.FromContext(ctx)
+
+	dtObj, ok := dt.(*appstudioshared.DeploymentTarget)
+	if !ok {
+		handlerLog.Error(nil, "incompatible object in the Environment mapping function, expected a DeploymentTarget")
+		return []reconcile.Request{}
+	}
+
+	// 1. Find all DeploymentTargetClaims that are associated with this DeploymentTarget.
+	dtcList := appstudioshared.DeploymentTargetClaimList{}
+	err := r.List(ctx, &dtcList, &client.ListOptions{Namespace: dt.GetNamespace()})
+	if err != nil {
+		handlerLog.Error(err, "failed to list DeploymentTargetClaims in the mapping function")
+		return []reconcile.Request{}
+	}
+
+	dtcs := []appstudioshared.DeploymentTargetClaim{}
+	for _, d := range dtcList.Items {
+		dtc := d
+		// We only want to reconcile for DTs that have a corresponding DTC.
+		if dtc.Spec.TargetName == dt.GetName() || dtObj.Spec.ClaimRef == dtc.Name {
+			dtcs = append(dtcs, dtc)
+		}
+	}
+
+	// 2. Find all Environments that are associated with this DeploymentTargetClaim.
+	envList := &appstudioshared.EnvironmentList{}
+	err = r.Client.List(context.Background(), envList, &client.ListOptions{Namespace: dt.GetNamespace()})
+	if err != nil {
+		handlerLog.Error(err, "failed to list Environments in the Environment mapping function")
+		return []reconcile.Request{}
+	}
+
+	envRequests := []reconcile.Request{}
+	for i := 0; i < len(envList.Items); i++ {
+		env := envList.Items[i]
+		for _, dtc := range dtcs {
+			if env.GetDeploymentTargetClaimName() == dtc.GetName() {
+				envRequests = append(envRequests, reconcile.Request{
+					NamespacedName: client.ObjectKeyFromObject(&env),
+				})
+			}
 		}
 	}
 

@@ -34,8 +34,6 @@ func (r *GitOpsDeploymentSyncRun) SetupWebhookWithManager(mgr ctrl.Manager) erro
 		Complete()
 }
 
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-
 //+kubebuilder:webhook:path=/mutate-managed-gitops-redhat-com-v1alpha1-gitopsdeploymentsyncrun,mutating=true,failurePolicy=fail,sideEffects=None,groups=managed-gitops.redhat.com,resources=gitopsdeploymentsyncruns,verbs=create;update,versions=v1alpha1,name=mgitopsdeploymentsyncrun.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Defaulter = &GitOpsDeploymentSyncRun{}
@@ -44,10 +42,8 @@ var _ webhook.Defaulter = &GitOpsDeploymentSyncRun{}
 func (r *GitOpsDeploymentSyncRun) Default() {
 	gitopsdeploymentsyncrunlog.Info("default", "name", r.Name)
 
-	// TODO(user): fill in your defaulting logic.
 }
 
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-managed-gitops-redhat-com-v1alpha1-gitopsdeploymentsyncrun,mutating=false,failurePolicy=fail,sideEffects=None,groups=managed-gitops.redhat.com,resources=gitopsdeploymentsyncruns,verbs=create;update,versions=v1alpha1,name=vgitopsdeploymentsyncrun.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &GitOpsDeploymentSyncRun{}
@@ -67,7 +63,6 @@ func (r *GitOpsDeploymentSyncRun) ValidateCreate() error {
 func (r *GitOpsDeploymentSyncRun) ValidateUpdate(old runtime.Object) error {
 	gitopsdeploymentsyncrunlog.Info("validate update", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }
 
@@ -75,6 +70,5 @@ func (r *GitOpsDeploymentSyncRun) ValidateUpdate(old runtime.Object) error {
 func (r *GitOpsDeploymentSyncRun) ValidateDelete() error {
 	gitopsdeploymentsyncrunlog.Info("validate delete", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }

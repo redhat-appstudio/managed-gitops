@@ -57,7 +57,7 @@ var _ = Describe("GitOpsDeploymentRepositoryCredential validation webhook", func
 		})
 	})
 
-	Context("Update GitOpsDeploymentManagedEnvironment CR with invalid Repository API URL", func() {
+	Context("Update GitOpsDeploymentRepositoryCredential CR with invalid Repository API URL", func() {
 		It("Should fail with error saying repository must begin with ssh:// or https://", func() {
 
 			repoCredentialCr.Spec.Repository = "https://test-private-url"

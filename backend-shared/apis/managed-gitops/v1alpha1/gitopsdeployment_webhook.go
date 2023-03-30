@@ -34,8 +34,6 @@ func (r *GitOpsDeployment) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-
 //+kubebuilder:webhook:path=/mutate-managed-gitops-redhat-com-v1alpha1-gitopsdeployment,mutating=true,failurePolicy=fail,sideEffects=None,groups=managed-gitops.redhat.com,resources=gitopsdeployments,verbs=create;update,versions=v1alpha1,name=mgitopsdeployment.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Defaulter = &GitOpsDeployment{}
@@ -44,10 +42,8 @@ var _ webhook.Defaulter = &GitOpsDeployment{}
 func (r *GitOpsDeployment) Default() {
 	gitopsdeploymentlog.Info("default", "name", r.Name)
 
-	// TODO(user): fill in your defaulting logic.
 }
 
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-managed-gitops-redhat-com-v1alpha1-gitopsdeployment,mutating=false,failurePolicy=fail,sideEffects=None,groups=managed-gitops.redhat.com,resources=gitopsdeployments,verbs=create;update,versions=v1alpha1,name=vgitopsdeployment.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &GitOpsDeployment{}
@@ -56,21 +52,8 @@ var _ webhook.Validator = &GitOpsDeployment{}
 func (r *GitOpsDeployment) ValidateCreate() error {
 	gitopsdeploymentlog.Info("validate create", "name", r.Name)
 
-	// Check whether Type is manual or automated
-	if !(r.Spec.Type == GitOpsDeploymentSpecType_Automated || r.Spec.Type == GitOpsDeploymentSpecType_Manual) {
-		return fmt.Errorf("spec type must be manual or automated")
-	}
-
-	// Check whether sync options are valid
-	if r.Spec.SyncPolicy != nil {
-		for _, syncOptionString := range r.Spec.SyncPolicy.SyncOptions {
-
-			if !(syncOptionString == SyncOptions_CreateNamespace_true ||
-				syncOptionString == SyncOptions_CreateNamespace_false) {
-				return fmt.Errorf("the specified sync option in .spec.syncPolicy.syncOptions is either mispelled or is not supported by GitOpsDeployment")
-			}
-
-		}
+	if err := r.ValidateGitOpsDeployment(); err != nil {
+		return err
 	}
 
 	return nil
@@ -80,6 +63,22 @@ func (r *GitOpsDeployment) ValidateCreate() error {
 func (r *GitOpsDeployment) ValidateUpdate(old runtime.Object) error {
 	gitopsdeploymentlog.Info("validate update", "name", r.Name)
 
+	if err := r.ValidateGitOpsDeployment(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
+func (r *GitOpsDeployment) ValidateDelete() error {
+	gitopsdeploymentlog.Info("validate delete", "name", r.Name)
+
+	return nil
+}
+
+func (r *GitOpsDeployment) ValidateGitOpsDeployment() error {
+
 	// Check whether Type is manual or automated
 	if !(r.Spec.Type == GitOpsDeploymentSpecType_Automated || r.Spec.Type == GitOpsDeploymentSpecType_Manual) {
 		return fmt.Errorf("spec type must be manual or automated")
@@ -97,13 +96,5 @@ func (r *GitOpsDeployment) ValidateUpdate(old runtime.Object) error {
 		}
 	}
 
-	return nil
-}
-
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *GitOpsDeployment) ValidateDelete() error {
-	gitopsdeploymentlog.Info("validate delete", "name", r.Name)
-
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }

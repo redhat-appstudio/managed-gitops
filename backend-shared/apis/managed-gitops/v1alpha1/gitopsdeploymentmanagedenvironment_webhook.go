@@ -35,8 +35,6 @@ func (r *GitOpsDeploymentManagedEnvironment) SetupWebhookWithManager(mgr ctrl.Ma
 		Complete()
 }
 
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-
 //+kubebuilder:webhook:path=/mutate-managed-gitops-redhat-com-v1alpha1-gitopsdeploymentmanagedenvironment,mutating=true,failurePolicy=fail,sideEffects=None,groups=managed-gitops.redhat.com,resources=gitopsdeploymentmanagedenvironments,verbs=create;update,versions=v1alpha1,name=mgitopsdeploymentmanagedenvironment.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Defaulter = &GitOpsDeploymentManagedEnvironment{}
@@ -45,10 +43,8 @@ var _ webhook.Defaulter = &GitOpsDeploymentManagedEnvironment{}
 func (r *GitOpsDeploymentManagedEnvironment) Default() {
 	gitopsdeploymentmanagedenvironmentlog.Info("default", "name", r.Name)
 
-	// TODO(user): fill in your defaulting logic.
 }
 
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-managed-gitops-redhat-com-v1alpha1-gitopsdeploymentmanagedenvironment,mutating=false,failurePolicy=fail,sideEffects=None,groups=managed-gitops.redhat.com,resources=gitopsdeploymentmanagedenvironments,verbs=create;update,versions=v1alpha1,name=vgitopsdeploymentmanagedenvironment.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &GitOpsDeploymentManagedEnvironment{}
@@ -57,15 +53,8 @@ var _ webhook.Validator = &GitOpsDeploymentManagedEnvironment{}
 func (r *GitOpsDeploymentManagedEnvironment) ValidateCreate() error {
 	gitopsdeploymentmanagedenvironmentlog.Info("validate create", "name", r.Name)
 
-	if r.Spec.APIURL != "" {
-		apiURL, err := url.ParseRequestURI(r.Spec.APIURL)
-		if err != nil {
-			return fmt.Errorf(err.Error())
-		}
-
-		if apiURL.Scheme != "https" {
-			return fmt.Errorf("cluster api url must start with https://")
-		}
+	if err := r.ValidateGitOpsDeploymentManagedEnv(); err != nil {
+		return err
 	}
 
 	return nil
@@ -75,6 +64,21 @@ func (r *GitOpsDeploymentManagedEnvironment) ValidateCreate() error {
 func (r *GitOpsDeploymentManagedEnvironment) ValidateUpdate(old runtime.Object) error {
 	gitopsdeploymentmanagedenvironmentlog.Info("validate update", "name", r.Name)
 
+	if err := r.ValidateGitOpsDeploymentManagedEnv(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
+func (r *GitOpsDeploymentManagedEnvironment) ValidateDelete() error {
+	gitopsdeploymentmanagedenvironmentlog.Info("validate delete", "name", r.Name)
+
+	return nil
+}
+
+func (r *GitOpsDeploymentManagedEnvironment) ValidateGitOpsDeploymentManagedEnv() error {
 	if r.Spec.APIURL != "" {
 		apiURL, err := url.ParseRequestURI(r.Spec.APIURL)
 		if err != nil {
@@ -86,13 +90,5 @@ func (r *GitOpsDeploymentManagedEnvironment) ValidateUpdate(old runtime.Object) 
 		}
 	}
 
-	return nil
-}
-
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *GitOpsDeploymentManagedEnvironment) ValidateDelete() error {
-	gitopsdeploymentmanagedenvironmentlog.Info("validate delete", "name", r.Name)
-
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }

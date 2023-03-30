@@ -35,8 +35,6 @@ func (r *GitOpsDeploymentRepositoryCredential) SetupWebhookWithManager(mgr ctrl.
 		Complete()
 }
 
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-
 //+kubebuilder:webhook:path=/mutate-managed-gitops-redhat-com-v1alpha1-gitopsdeploymentrepositorycredential,mutating=true,failurePolicy=fail,sideEffects=None,groups=managed-gitops.redhat.com,resources=gitopsdeploymentrepositorycredentials,verbs=create;update,versions=v1alpha1,name=mgitopsdeploymentrepositorycredential.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Defaulter = &GitOpsDeploymentRepositoryCredential{}
@@ -45,10 +43,8 @@ var _ webhook.Defaulter = &GitOpsDeploymentRepositoryCredential{}
 func (r *GitOpsDeploymentRepositoryCredential) Default() {
 	gitopsdeploymentrepositorycredentiallog.Info("default", "name", r.Name)
 
-	// TODO(user): fill in your defaulting logic.
 }
 
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-managed-gitops-redhat-com-v1alpha1-gitopsdeploymentrepositorycredential,mutating=false,failurePolicy=fail,sideEffects=None,groups=managed-gitops.redhat.com,resources=gitopsdeploymentrepositorycredentials,verbs=create;update,versions=v1alpha1,name=vgitopsdeploymentrepositorycredential.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &GitOpsDeploymentRepositoryCredential{}
@@ -57,15 +53,8 @@ var _ webhook.Validator = &GitOpsDeploymentRepositoryCredential{}
 func (r *GitOpsDeploymentRepositoryCredential) ValidateCreate() error {
 	gitopsdeploymentrepositorycredentiallog.Info("validate create", "name", r.Name)
 
-	if r.Spec.Repository != "" {
-		apiURL, err := url.ParseRequestURI(r.Spec.Repository)
-		if err != nil {
-			return fmt.Errorf(err.Error())
-		}
-
-		if !(apiURL.Scheme == "https" || apiURL.Scheme == "ssh") {
-			return fmt.Errorf("repository must begin with ssh:// or https://")
-		}
+	if err := r.ValidateGitOpsDeploymentRepoCred(); err != nil {
+		return err
 	}
 
 	return nil
@@ -75,6 +64,21 @@ func (r *GitOpsDeploymentRepositoryCredential) ValidateCreate() error {
 func (r *GitOpsDeploymentRepositoryCredential) ValidateUpdate(old runtime.Object) error {
 	gitopsdeploymentrepositorycredentiallog.Info("validate update", "name", r.Name)
 
+	if err := r.ValidateGitOpsDeploymentRepoCred(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
+func (r *GitOpsDeploymentRepositoryCredential) ValidateDelete() error {
+	gitopsdeploymentrepositorycredentiallog.Info("validate delete", "name", r.Name)
+
+	return nil
+}
+func (r *GitOpsDeploymentRepositoryCredential) ValidateGitOpsDeploymentRepoCred() error {
+
 	if r.Spec.Repository != "" {
 		apiURL, err := url.ParseRequestURI(r.Spec.Repository)
 		if err != nil {
@@ -86,13 +90,5 @@ func (r *GitOpsDeploymentRepositoryCredential) ValidateUpdate(old runtime.Object
 		}
 	}
 
-	return nil
-}
-
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *GitOpsDeploymentRepositoryCredential) ValidateDelete() error {
-	gitopsdeploymentrepositorycredentiallog.Info("validate delete", "name", r.Name)
-
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }

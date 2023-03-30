@@ -84,6 +84,14 @@ rules:
 - apiGroups:
   - appstudio.redhat.com
   resources:
+  - deploymenttargetclass
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - appstudio.redhat.com
+  resources:
   - deploymenttargets
   verbs:
   - get
@@ -253,6 +261,26 @@ rules:
   - managed-gitops.redhat.com
   resources:
   - gitopsdeployments/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - toolchain.dev.openshift.com
+  resources:
+  - spacerequest
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - toolchain.dev.openshift.com
+  resources:
+  - spacerequest/status
   verbs:
   - get
   - patch

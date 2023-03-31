@@ -782,24 +782,38 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 			err
 	}
 
-	bearerToken, _, err := sharedutil.InstallServiceAccount(ctx, k8sClient, string(managedEnvironment.UID), serviceAccountNamespaceKubeSystem, log)
-	if err != nil {
-		err := fmt.Errorf("unable to install service account from secret '%s': %w", secret.Name, err)
+	var saBearerToken string
+	log.Info("createNewServiceAccount is ", "CreateNewServiceAccount", managedEnvironment.Spec.CreateNewServiceAccount)
+	if managedEnvironment.Spec.CreateNewServiceAccount {
+		// This is the original behaviour, where we create a new service account
+		saBearerToken, _, err = sharedutil.InstallServiceAccount(ctx, k8sClient, string(managedEnvironment.UID), serviceAccountNamespaceKubeSystem, log)
+		if err != nil {
+			err2 := fmt.Errorf("unable to install service account from secret '%s': %w", secret.Name, err)
 
-		return db.ClusterCredentials{},
-			convertErrToEnvInitCondition(managedgitopsv1alpha1.ConditionReasonUnableToInstallServiceAccount, err, managedEnvironment),
-			err
+			return db.ClusterCredentials{},
+				convertErrToEnvInitCondition(managedgitopsv1alpha1.ConditionReasonUnableToInstallServiceAccount, err, managedEnvironment),
+				err2
+
+		}
+	} else {
+		// If an existing service account is used instead, we just simply take the provided secret as the token for the cluster credentials
+		saBearerToken = managedEnvironment.Spec.ClusterCredentialsSecretValue
 	}
-
 	insecureVerifyTLS := managedEnvironment.Spec.AllowInsecureSkipTLSVerify
-
 	clusterCredentials := db.ClusterCredentials{
 		Host:                        managedEnvironment.Spec.APIURL,
 		Kube_config:                 "",
 		Kube_config_context:         "",
-		Serviceaccount_bearer_token: bearerToken,
+		Serviceaccount_bearer_token: saBearerToken,
 		Serviceaccount_ns:           serviceAccountNamespaceKubeSystem,
 		AllowInsecureSkipTLSVerify:  insecureVerifyTLS,
+	}
+	// If an existing service account is used instead, we should verify the cluster credentials based on the provided token
+	if !managedEnvironment.Spec.CreateNewServiceAccount {
+		validClusterCreds, err := verifyClusterCredentialsWithNamespaceList(ctx, clusterCredentials, managedEnvironment, k8sClientFactory)
+		if !validClusterCreds || err != nil {
+			log.Error(err, "Unable to verify ClusterCredentials using provided token", clusterCredentials.GetAsLogKeyValues()...)
+		}
 	}
 
 	if err := dbQueries.CreateClusterCredentials(ctx, &clusterCredentials); err != nil {
@@ -855,16 +869,15 @@ func locateContextThatMatchesAPIURL(config *clientcmdapi.Config, apiURL string) 
 	return matchingContextName, nil
 }
 
-// verifyClusterCredentials returns true if we were able to successfully connect with the credentials, false otherwise.
-func verifyClusterCredentials(ctx context.Context, clusterCreds db.ClusterCredentials, managedEnvCR managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment,
-	k8sClientFactory SRLK8sClientFactory) (bool, error) {
-	var err error
+// sanityTestCredentials returns true if we were able to successfully connect with the credentials, false otherwise.
+func sanityTestCredentials(clusterCreds db.ClusterCredentials) (*rest.Config, bool, error) {
+
 	// Sanity test the fields we are using in rest.Config
 	if clusterCreds.Host == "" {
-		return false, fmt.Errorf("cluster credentials is missing host")
+		return nil, false, fmt.Errorf("cluster credentials is missing host")
 	}
 	if clusterCreds.Serviceaccount_bearer_token == "" {
-		return false, fmt.Errorf("cluster credentials is missing service account bearer token")
+		return nil, false, fmt.Errorf("cluster credentials is missing service account bearer token")
 	}
 
 	configParam := &rest.Config{
@@ -875,6 +888,18 @@ func verifyClusterCredentials(ctx context.Context, clusterCreds db.ClusterCreden
 	configParam.Insecure = clusterCreds.AllowInsecureSkipTLSVerify
 
 	configParam.ServerName = ""
+
+	return configParam, true, nil
+}
+
+// verifyClusterCredentials returns true if we were able to successfully connect with the credentials, false otherwise.
+func verifyClusterCredentials(ctx context.Context, clusterCreds db.ClusterCredentials, managedEnvCR managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment,
+	k8sClientFactory SRLK8sClientFactory) (bool, error) {
+
+	configParam, _, err := sanityTestCredentials(clusterCreds)
+	if err != nil {
+		return false, err
+	}
 
 	clientObj, err := k8sClientFactory.BuildK8sClient(configParam)
 	if err != nil {
@@ -1004,4 +1029,28 @@ func updateManagedEnvironmentConnectionStatus(ctx context.Context,
 			log.Error(err, "updating managed environment status condition")
 		}
 	}
+}
+
+// verifyClusterCredentialsWithNamespaceList returns true if we were able to successfully connect with the credentials, false otherwise.
+func verifyClusterCredentialsWithNamespaceList(ctx context.Context, clusterCreds db.ClusterCredentials, managedEnvCR managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment,
+	k8sClientFactory SRLK8sClientFactory) (bool, error) {
+
+	configParam, _, err := sanityTestCredentials(clusterCreds)
+	if err != nil {
+		return false, err
+	}
+
+	clientObj, err := k8sClientFactory.BuildK8sClient(configParam)
+	if err != nil {
+		return false, fmt.Errorf("unable to create new K8s client to '%v': %w", configParam.Host, err)
+	}
+
+	// To verify that the client works, attempt to simply get the list of namespaces
+	var namespaceList corev1.NamespaceList
+	if err := clientObj.List(ctx, &namespaceList); err != nil {
+		return false, fmt.Errorf("unable to verify cluster credentials by retrieving the list of namespaces '%s': %w",
+			clusterCreds.Clustercredentials_cred_id, err)
+	}
+	// Success!
+	return true, nil
 }

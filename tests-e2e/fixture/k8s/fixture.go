@@ -184,3 +184,52 @@ func CreateSecret(namespace string, secretName string, stringData map[string]str
 
 	return Create(secret, k8sClient)
 }
+
+// getOrCreateServiceAccountBearerToken returns a token if there is an existing token secret for a service account.
+// If the token secret is missing, it creates a new secret and attach it to the service account
+func CreateServiceAccountBearerToken(ctx context.Context, k8sClient client.Client, serviceAccountName string,
+	serviceAccountNS string) (string, error) {
+
+	tokenSecret, err := createServiceAccountTokenSecret(ctx, k8sClient, serviceAccountName, serviceAccountNS)
+	if err != nil {
+		return "", fmt.Errorf("failed to create a token secret for service account %s: %w", serviceAccountName, err)
+	}
+
+	if err := wait.PollImmediate(time.Second*1, time.Second*120, func() (bool, error) {
+
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(tokenSecret), tokenSecret); err != nil {
+			fmt.Println("waiting: ", err)
+		}
+
+		// Exit the loop if the token has been set by k8s, continue otherwise.
+		_, exists := tokenSecret.Data["token"]
+		return exists, nil
+
+	}); err != nil {
+		return "", fmt.Errorf("unable to create service account token secret: %w", err)
+	}
+
+	tokenSecretValue := tokenSecret.Data["token"]
+	return string(tokenSecretValue), nil
+
+}
+
+func createServiceAccountTokenSecret(ctx context.Context, k8sClient client.Client, serviceAccountName, serviceAccountNS string) (*corev1.Secret, error) {
+
+	tokenSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: serviceAccountName,
+			Namespace:    serviceAccountNS,
+			Annotations: map[string]string{
+				corev1.ServiceAccountNameKey: serviceAccountName,
+			},
+		},
+		Type: corev1.SecretTypeServiceAccountToken,
+	}
+
+	if err := k8sClient.Create(ctx, tokenSecret); err != nil {
+		return nil, err
+	}
+
+	return tokenSecret, nil
+}

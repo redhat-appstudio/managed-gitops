@@ -46,7 +46,7 @@ func expectedCondition(f func(app appv1alpha1.Application) bool) matcher.GomegaM
 
 }
 
-// DeleteArgoCDApplication deletes an Argo CD Application, but first removes the finalizer if
+// DeleteArgoCDApplication deletes an Argo CD Application, but first removes the finalizer if present
 func DeleteArgoCDApplication(argocdAppName string, argoCDNamespace string) error {
 
 	config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
@@ -184,32 +184,6 @@ func HaveSyncStatusCode(expected appv1alpha1.SyncStatusCode) matcher.GomegaMatch
 	})
 
 }
-
-// // HaveSyncStatusCode waits for Argo CD to have the given sync status
-// func HaveSyncStatusCode(status appv1alpha1.ApplicationStatus) matcher.GomegaMatcher {
-
-// 	return WithTransform(func(app appv1alpha1.Application) bool {
-// 		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
-// 		Expect(err).To(BeNil())
-
-// 		k8sClient, err := fixture.GetKubeClient(config)
-// 		if err != nil {
-// 			fmt.Println(k8sFixture.K8sClientError, err)
-// 			return false
-// 		}
-
-// 		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&app), &app)
-// 		if err != nil {
-// 			fmt.Println(k8sFixture.K8sClientError, err)
-// 			return false
-// 		}
-
-// 		res := status.Sync.Status == app.Status.Sync.Status
-// 		fmt.Println("HaveSyncStatusCode:", res, "/ Expected:", status, "/ Actual:", app.Status.Sync.Status)
-
-// 		return res
-// 	}, BeTrue())
-// }
 
 // HaveOperationState checks if the Application has the given OperationState
 func HaveOperationState(opState appv1alpha1.OperationState) matcher.GomegaMatcher {

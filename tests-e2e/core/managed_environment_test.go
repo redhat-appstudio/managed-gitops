@@ -262,9 +262,10 @@ var _ = Describe("Environment E2E tests", func() {
 				Spec: appstudioshared.DeploymentTargetSpec{
 					DeploymentTargetClassName: "test-class",
 					KubernetesClusterCredentials: appstudioshared.DeploymentTargetKubernetesClusterCredentials{
-						APIURL:                   apiServerURL,
-						ClusterCredentialsSecret: secret.Name,
-						DefaultNamespace:         fixture.GitOpsServiceE2ENamespace,
+						APIURL:                     apiServerURL,
+						ClusterCredentialsSecret:   secret.Name,
+						DefaultNamespace:           fixture.GitOpsServiceE2ENamespace,
+						AllowInsecureSkipTLSVerify: true,
 					},
 				},
 			}
@@ -330,6 +331,7 @@ var _ = Describe("Environment E2E tests", func() {
 
 			Expect(managedEnvCR.Spec.APIURL).To(Equal(dt.Spec.KubernetesClusterCredentials.APIURL))
 			Expect(managedEnvCR.Spec.ClusterCredentialsSecret).To(Equal(dt.Spec.KubernetesClusterCredentials.ClusterCredentialsSecret))
+			Expect(managedEnvCR.Spec.AllowInsecureSkipTLSVerify).To(Equal(dt.Spec.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify))
 		})
 
 		It("should update the Managed Environment if the DeploymentTarget credential is modified", func() {

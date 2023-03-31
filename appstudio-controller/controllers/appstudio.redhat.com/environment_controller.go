@@ -234,8 +234,9 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 
 		log.Info("Using the cluster credentials from the DeploymentTarget", "DeploymentTarget", dt.Name)
 		manageEnvDetails = managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
-			APIURL:                   dt.Spec.KubernetesClusterCredentials.APIURL,
-			ClusterCredentialsSecret: dt.Spec.KubernetesClusterCredentials.ClusterCredentialsSecret,
+			APIURL:                     dt.Spec.KubernetesClusterCredentials.APIURL,
+			ClusterCredentialsSecret:   dt.Spec.KubernetesClusterCredentials.ClusterCredentialsSecret,
+			AllowInsecureSkipTLSVerify: dt.Spec.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify,
 		}
 
 	} else if env.Spec.UnstableConfigurationFields != nil {

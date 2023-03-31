@@ -964,15 +964,6 @@ func createUnknownErrorEnvInitCondition() connectionInitializedCondition {
 	}
 }
 
-func createUnknownInitConditionWithManagedEnv(managedEnv managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment) connectionInitializedCondition {
-	return connectionInitializedCondition{
-		managedEnvCR: managedEnv,
-		status:       metav1.ConditionUnknown,
-		reason:       managedgitopsv1alpha1.ConditionReasonUnknownError,
-		message:      gitopserrors.UnknownError,
-	}
-}
-
 // Updates the given managed environment's connection status condition to match the given status, reason and message.
 // If there is an existing status condition with the exact same status, reason and message, no update is made in order
 // to preserve the LastTransitionTime (see https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Condition.LastTransitionTime )

@@ -17,7 +17,9 @@ import (
 )
 
 const (
-	repocredReconcilerInterval = 10 * time.Minute // Interval in Minutes to reconcile Repository Credentials.
+	repoCredRowBatchSize            = 100              // Number of rows needs to be fetched in each batch.
+	repocredReconcilerInterval      = 10 * time.Minute // Interval in Minutes to reconcile Repository Credentials.
+	repoCredSleepIntervalsOfBatches = 1 * time.Second  // Interval in Millisecond between each batch.
 )
 
 // RepoCredReconciler reconciles RepositoryCredential entries
@@ -68,15 +70,15 @@ func reconcileRepositoryCredentials(ctx context.Context, dbQueries db.DatabaseQu
 	// Continuously iterate and fetch batches until all entries of ACTDM table are processed.
 	for {
 		if offSet != 0 {
-			time.Sleep(sleepIntervalsOfBatches)
+			time.Sleep(repoCredSleepIntervalsOfBatches)
 		}
 
 		var listOfApiCrToDbMapping []db.APICRToDatabaseMapping
 
 		// Fetch ACTDMs table entries in batch size as configured above.​
-		if err := dbQueries.GetAPICRToDatabaseMappingBatch(ctx, &listOfApiCrToDbMapping, appRowBatchSize, offSet); err != nil {
+		if err := dbQueries.GetAPICRToDatabaseMappingBatch(ctx, &listOfApiCrToDbMapping, repoCredRowBatchSize, offSet); err != nil {
 			log.Error(err, fmt.Sprintf("Error occurred in ACTDM Reconcile while fetching batch from Offset: %d to %d: ",
-				offSet, offSet+appRowBatchSize))
+				offSet, offSet+repoCredRowBatchSize))
 			break
 		}
 
@@ -104,7 +106,7 @@ func reconcileRepositoryCredentials(ctx context.Context, dbQueries db.DatabaseQu
 		}
 
 		// Skip processed entries in next iteration
-		offSet += appRowBatchSize
+		offSet += repoCredRowBatchSize
 	}
 }
 

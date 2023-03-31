@@ -1117,11 +1117,6 @@ func ExtractKubeConfigValues() (string, string, error) {
 
 			GinkgoWriter.Println("Attempting to read kube config from", path)
 
-			// homeDir, err := os.UserHomeDir()
-			// if err != nil {
-			// 	return "", "", err
-			// }
-
 			_, err = os.Stat(path)
 			if err != nil {
 				GinkgoWriter.Println("Unable to resolve path", path, err)
@@ -1138,6 +1133,7 @@ func ExtractKubeConfigValues() (string, string, error) {
 		}
 	}
 
+	// #nosec G304 no security concerns about reading a file from a variable, in a test
 	kubeConfigContents, err := os.ReadFile(kubeConfigDefault)
 	if err != nil {
 		return "", "", err

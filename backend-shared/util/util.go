@@ -17,6 +17,7 @@ const (
 	ArgoCDDefaultDestinationInCluster = "in-cluster"
 )
 
+// #nosec G101
 const (
 	ArgoCDSecretTypeIdentifierKey = "argocd.argoproj.io/secret-type" //Secret label key to define secret type.
 	ArgoCDSecretClusterTypeValue  = "cluster"                        // Secret type for Cluster Secret

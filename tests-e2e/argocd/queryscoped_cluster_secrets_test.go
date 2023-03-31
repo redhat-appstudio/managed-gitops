@@ -132,7 +132,7 @@ var _ = Describe("Argo CD Application tests", func() {
 
 		AfterEach(func() {
 
-			fixture.ReportRemainingArgoCDApplications(k8sClient)
+			_ = fixture.ReportRemainingArgoCDApplications(k8sClient)
 
 			cleanupTestResources()
 		})

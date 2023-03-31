@@ -795,9 +795,12 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 	if err := dbQueries.CreateClusterCredentials(ctx, &clusterCredentials); err != nil {
 		log.Error(err, "Unable to create ClusterCredentials for ManagedEnvironment", clusterCredentials.GetAsLogKeyValues()...)
 
-		return db.ClusterCredentials{},
-			createUnknownInitConditionWithManagedEnv(managedEnvironment),
-			fmt.Errorf("unable to create cluster credentials for host '%s': %w", clusterCredentials.Host, err)
+		return db.ClusterCredentials{}, connectionInitializedCondition{
+			managedEnvCR: managedEnvironment,
+			status:       metav1.ConditionUnknown,
+			reason:       managedgitopsv1alpha1.ConditionReasonUnableToCreateClusterCredentials,
+			message:      gitopserrors.UnknownError,
+		}, fmt.Errorf("unable to create cluster credentials for host '%s': %w", clusterCredentials.Host, err)
 
 	}
 	log.Info("Created ClusterCredentials for ManagedEnvironment", clusterCredentials.GetAsLogKeyValues()...)

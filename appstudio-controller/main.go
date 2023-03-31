@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"os"
 	"strings"
 
@@ -52,6 +53,7 @@ func init() {
 	// utilruntime.Must(managedgitopsv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(gitopsdeploymentv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(applicationv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(codereadytoolchainv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -168,6 +170,14 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "DeploymentTargetClaim")
+		os.Exit(1)
+	}
+
+	if err = (&appstudioredhatcomcontrollers.SandboxProvisionerReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "SandboxProvisioner")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

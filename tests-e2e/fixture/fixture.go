@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"os"
 	"path/filepath"
 	"strings"
@@ -333,6 +334,48 @@ func cleanUpOldDeploymentTargetAPIs(ns string, k8sClient client.Client) error {
 	return nil
 }
 
+func cleanUpOldDeploymentTargetClassAPIs(ns string, k8sClient client.Client) error {
+	dtclsList := appstudiosharedv1.DeploymentTargetClassList{}
+	if err := k8sClient.List(context.Background(), &dtclsList, &client.ListOptions{Namespace: ns}); err != nil {
+		return err
+	}
+
+	for i := range dtclsList.Items {
+		dtcls := dtclsList.Items[i]
+		// Make sure that all finalizers are removed before deletion.
+		if err := removeAllFinalizers(k8sClient, &dtcls); err != nil {
+			return err
+		}
+
+		if err := k8sClient.Delete(context.Background(), &dtcls); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func cleanUpOldSpaceRequestAPIs(ns string, k8sClient client.Client) error {
+	spaceRequestList := codereadytoolchainv1alpha1.SpaceRequestList{}
+	if err := k8sClient.List(context.Background(), &spaceRequestList, &client.ListOptions{Namespace: ns}); err != nil {
+		return err
+	}
+
+	for i := range spaceRequestList.Items {
+		spaceRequest := spaceRequestList.Items[i]
+		// Make sure that all finalizers are removed before deletion.
+		if err := removeAllFinalizers(k8sClient, &spaceRequest); err != nil {
+			return err
+		}
+
+		if err := k8sClient.Delete(context.Background(), &spaceRequest); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func removeAllFinalizers(k8sClient client.Client, obj client.Object) error {
 	err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(obj), obj)
 	if err != nil {
@@ -511,6 +554,18 @@ func DeleteNamespace(namespaceParam string, clientConfig *rest.Config) error {
 		// Deletes old DeploymentTarget APIs in this namespace
 		if err := cleanUpOldDeploymentTargetAPIs(namespaceParam, k8sClient); err != nil {
 			GinkgoWriter.Printf("unable to delete old DeploymentTarget APIs in '%s': %v\n", namespaceParam, err)
+			return false, nil
+		}
+
+		// Deletes old DeploymentTargetClass APIs in this namespace
+		if err := cleanUpOldDeploymentTargetClassAPIs(namespaceParam, k8sClient); err != nil {
+			GinkgoWriter.Printf("unable to delete old DeploymentTargetClass APIs in '%s': %v\n", namespaceParam, err)
+			return false, nil
+		}
+
+		// Deletes old SpaceRequest APIs in this namespace
+		if err := cleanUpOldSpaceRequestAPIs(namespaceParam, k8sClient); err != nil {
+			GinkgoWriter.Printf("unable to delete old SpaceRequest APIs in '%s': %v\n", namespaceParam, err)
 			return false, nil
 		}
 
@@ -753,6 +808,11 @@ func GetKubeClient(config *rest.Config) (client.Client, error) {
 	}
 
 	err = admissionv1.AddToScheme(scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	err = codereadytoolchainv1alpha1.AddToScheme(scheme)
 	if err != nil {
 		return nil, err
 	}

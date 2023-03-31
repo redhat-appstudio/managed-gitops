@@ -144,6 +144,27 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)),
 			)
 
+			expectedRepositoryCredentialStatusConditions := []*metav1.Condition{
+				{
+					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
+					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonCredentialsUpToDate,
+					Status: metav1.ConditionFalse,
+				}, {
+					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
+					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonValidRepositoryUrl,
+					Status: metav1.ConditionTrue,
+				}, {
+					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
+					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonCredentialsUpToDate,
+					Status: metav1.ConditionTrue,
+				},
+			}
+
+			Eventually(CR, "12m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplRepoCredFixture.HaveConditions(expectedRepositoryCredentialStatusConditions)),
+			)
+
 			By("6. ConfigMap should be deployed")
 			Eventually(func() error { return k8s.Get(configMap, k8sClient) }, "4m", "1s").Should(Succeed())
 		})
@@ -162,7 +183,24 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 			}
 			Expect(k8s.CreateSecret(fixture.GitOpsServiceE2ENamespace, secretSSHKey, stringData, k8sClient)).To(Succeed())
 
-			expectedRepositoryCredentialStatusConditions = []*metav1.Condition{
+			By("3. Create the GitOpsDeploymentRepositoryCredential CR for SSH")
+			CR := gitopsDeploymentRepositoryCredentialCRForSSHTest()
+			Expect(k8s.Create(CR, k8sClient)).To(Succeed())
+			Expect(len(CR.Status.Conditions)).To(Equal(3))
+
+			By("4. Create the GitOpsDeployment CR")
+			gitOpsDeployment := buildGitOpsDeploymentResource(deploymentCRSSH, privateRepoSSH, privateRepoPath,
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+			Expect(k8s.Create(&gitOpsDeployment, k8sClient)).To(Succeed())
+
+			By("5. GitOpsDeployment should have expected health and status")
+			Eventually(gitOpsDeployment, "4m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)),
+			)
+
+			expectedRepositoryCredentialStatusConditions := []*metav1.Condition{
 				{
 					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
 					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonCredentialsUpToDate,
@@ -177,23 +215,9 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 					Status: metav1.ConditionTrue,
 				},
 			}
-
-			By("3. Create the GitOpsDeploymentRepositoryCredential CR for SSH")
-			CR := gitopsDeploymentRepositoryCredentialCRForSSHTest()
-			Expect(k8s.Create(CR, k8sClient)).To(Succeed())
-			Expect(len(CR.Status.Conditions)).To(Equal(3))
-			Expect(CR.Status.Conditions).To(Equal(haveConditions(expectedRepositoryCredentialStatusConditions)))
-
-			By("4. Create the GitOpsDeployment CR")
-			gitOpsDeployment := buildGitOpsDeploymentResource(deploymentCRSSH, privateRepoSSH, privateRepoPath,
-				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
-			Expect(k8s.Create(&gitOpsDeployment, k8sClient)).To(Succeed())
-
-			By("5. GitOpsDeployment should have expected health and status")
-			Eventually(gitOpsDeployment, "4m", "1s").Should(
+			Eventually(CR, "12m", "1s").Should(
 				SatisfyAll(
-					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
-					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)),
+					gitopsDeplRepoCredFixture.HaveConditions(expectedRepositoryCredentialStatusConditions)),
 			)
 
 			By("6. ConfigMap should be deployed")
@@ -236,9 +260,12 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 			CR := gitopsDeploymentRepositoryCredentialCRForTokenTest()
 			Expect(k8s.Create(CR, k8sClient)).To(Succeed())
 			Expect(len(CR.Status.Conditions)).To(Equal(3))
-			Expect(CR.Status.Conditions).To(Equal(haveConditions(expectedRepositoryCredentialStatusConditions)))
+			Eventually(CR, "12m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplRepoCredFixture.HaveConditions(expectedRepositoryCredentialStatusConditions)),
+			)
 
-			By("4. Create the GitOpsDeployment CR")
+			By("4. Update the Secret")
 			stringData = map[string]string{
 				"username": env.username,
 				"password": env.token,

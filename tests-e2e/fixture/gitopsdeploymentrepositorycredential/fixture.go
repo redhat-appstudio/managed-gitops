@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 
-	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	matcher "github.com/onsi/gomega/types"
@@ -36,7 +35,7 @@ func HaveConditions(conditions []*metav1.Condition) matcher.GomegaMatcher {
 
 	}
 
-	return WithTransform(func(gitopsDeploymentRepositoryCredentialCR managedgitopsv1alpha1.GitopsDeploymentRepositoryCredential) bool {
+	return WithTransform(func(gitopsDeploymentRepositoryCredentialCR managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential) bool {
 
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
 		Expect(err).To(BeNil())

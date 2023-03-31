@@ -121,16 +121,9 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 
 			Eventually(app, "2m", "1s").Should(
 				SatisfyAll(
-					appFixture.HaveSyncStatusCode(appv1.ApplicationStatus{
-						Sync: appv1.SyncStatus{
-							Status: appv1.SyncStatusCodeSynced,
-						},
-					}),
-					appFixture.HaveHealthStatusCode(appv1.ApplicationStatus{
-						Health: appv1.HealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-					})))
+					appFixture.HaveSyncStatusCode(appv1.SyncStatusCodeSynced),
+					appFixture.HaveHealthStatusCode(health.HealthStatusHealthy),
+				))
 
 		})
 	})

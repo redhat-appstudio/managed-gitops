@@ -30,10 +30,6 @@ const (
 	namespaceReconcilerInterval = 30 * time.Minute // Interval in Minutes to reconcile workspace/namespace.
 	sleepIntervalsOfBatches     = 1 * time.Second  // Interval in Millisecond between each batch.
 	SecretDbIdentifierKey       = "databaseID"     //Secret label key to point DB entry.
-	// #nosec G101
-	SecretTypeIdentifierKey = "argocd.argoproj.io/secret-type" //Secret label key to define secret type.
-	SecretClusterTypeValue  = "cluster"                        // Secret type for Cluster Secret
-	SecretRepoTypeValue     = "repository"                     // Secret type for Repository Secret
 )
 
 // This function iterates through each Workspace/Namespace present in DB and ensures that the state of resources in Cluster is in Sync with DB.
@@ -287,7 +283,7 @@ func processSecret(ctx context.Context, secret corev1.Secret, dbQueries db.Datab
 		return
 	}
 
-	secretType, ok = secret.Labels[SecretTypeIdentifierKey]
+	secretType, ok = secret.Labels[sharedutil.ArgoCDSecretTypeIdentifierKey]
 	if !ok {
 		// Secret does not have the label that Argo CD uses to identify what type of Secret it is, so just return
 		return
@@ -296,11 +292,11 @@ func processSecret(ctx context.Context, secret corev1.Secret, dbQueries db.Datab
 	// If secret has both labels then process it.
 	var err error
 
-	if secretType == SecretClusterTypeValue {
+	if secretType == sharedutil.ArgoCDSecretClusterTypeValue {
 		// If secret type is Cluster, then check if DB entry pointed by databaseID label is present in ManagedEnvironment table.
 		err = dbQueries.GetManagedEnvironmentById(ctx, &db.ManagedEnvironment{Managedenvironment_id: databaseID})
 
-	} else if secretType == SecretRepoTypeValue {
+	} else if secretType == sharedutil.ArgoCDSecretRepoTypeValue {
 		// If secret type is Repository, then check if DB entry pointed by databaseID label is present in RepositoryCredentials table.
 		_, err = dbQueries.GetRepositoryCredentialsByID(ctx, databaseID)
 	}

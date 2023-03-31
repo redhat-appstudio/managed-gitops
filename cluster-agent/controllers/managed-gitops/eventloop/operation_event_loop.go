@@ -826,9 +826,6 @@ const (
 	// ArgoCDDefaultDestinationInCluster is 'in-cluster' which is the spec destination value that Argo CD recognizes
 	// as indicating that Argo CD should deploy to the local cluster (the cluster that Argo CD is installed on).
 	ArgoCDDefaultDestinationInCluster = "in-cluster"
-	// #nosec G101
-	ArgoCDSecretTypeKey                 = "argocd.argoproj.io/secret-type"
-	ArgoCDSecretTypeValue_ClusterSecret = "cluster"
 )
 
 // processOperation_Application handles an Operation that targets an Application.
@@ -1198,9 +1195,9 @@ func generateExpectedClusterSecret(ctx context.Context, application db.Applicati
 	name := argosharedutil.GenerateArgoCDClusterSecretName(*managedEnv)
 	insecureVerifyTLS := clusterCredentials.AllowInsecureSkipTLSVerify
 
-	clusterSecretConfigJSON := ClusterSecretConfigJSON{
+	clusterSecretConfigJSON := argosharedutil.ClusterSecretConfigJSON{
 		BearerToken: bearerToken,
-		TLSClientConfig: ClusterSecretTLSClientConfigJSON{
+		TLSClientConfig: argosharedutil.ClusterSecretTLSClientConfigJSON{
 			Insecure: insecureVerifyTLS,
 		},
 	}
@@ -1215,7 +1212,7 @@ func generateExpectedClusterSecret(ctx context.Context, application db.Applicati
 			Name:      name,
 			Namespace: opConfig.argoCDNamespace.Name,
 			Labels: map[string]string{
-				ArgoCDSecretTypeKey:                            ArgoCDSecretTypeValue_ClusterSecret,
+				sharedutil.ArgoCDSecretTypeIdentifierKey:       sharedutil.ArgoCDSecretClusterTypeValue,
 				controllers.ArgoCDClusterSecretDatabaseIDLabel: managedEnv.Managedenvironment_id,
 			},
 		},
@@ -1228,13 +1225,4 @@ func generateExpectedClusterSecret(ctx context.Context, application db.Applicati
 
 	return managedEnvironmentSecret, deleteSecret_false, nil
 
-}
-
-type ClusterSecretConfigJSON struct {
-	BearerToken     string                           `json:"bearerToken"`
-	TLSClientConfig ClusterSecretTLSClientConfigJSON `json:"tlsClientConfig"`
-}
-
-type ClusterSecretTLSClientConfigJSON struct {
-	Insecure bool `json:"insecure"`
 }

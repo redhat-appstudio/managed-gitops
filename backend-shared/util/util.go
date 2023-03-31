@@ -18,6 +18,10 @@ const (
 )
 
 const (
+	ArgoCDSecretTypeIdentifierKey = "argocd.argoproj.io/secret-type" //Secret label key to define secret type.
+	ArgoCDSecretClusterTypeValue  = "cluster"                        // Secret type for Cluster Secret
+	ArgoCDSecretRepoTypeValue     = "repository"                     // Secret type for Repository Secret
+
 	ManagedEnvironmentSecretType = "managed-gitops.redhat.com/managed-environment"
 )
 

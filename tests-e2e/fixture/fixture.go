@@ -382,7 +382,7 @@ func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 		// allow argocd to manage the target namespace
 		err = wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
 			secretList, err := kubeClientSet.CoreV1().Secrets(argoCDNamespaceParam).List(context.Background(), metav1.ListOptions{
-				LabelSelector: "argocd.argoproj.io/secret-type=cluster",
+				LabelSelector: sharedutil.ArgoCDSecretTypeIdentifierKey + "=" + sharedutil.ArgoCDSecretClusterTypeValue,
 			})
 			if err != nil {
 				return false, err
@@ -1086,4 +1086,62 @@ func IsRunningInStonesoupEnvironment() bool {
 		return false
 	}
 	return true
+}
+
+// ExtractKubeConfigValues returns contents of k8s config from $KUBE_CONFIG, plus server api url (and error)
+func ExtractKubeConfigValues() (string, string, error) {
+
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+
+	config, err := loadingRules.Load()
+	if err != nil {
+		return "", "", err
+	}
+
+	context, ok := config.Contexts[config.CurrentContext]
+	if !ok || context == nil {
+		return "", "", fmt.Errorf("no context")
+	}
+
+	cluster, ok := config.Clusters[context.Cluster]
+	if !ok || cluster == nil {
+		return "", "", fmt.Errorf("no cluster")
+	}
+
+	var kubeConfigDefault string
+
+	paths := loadingRules.Precedence
+	{
+
+		for _, path := range paths {
+
+			GinkgoWriter.Println("Attempting to read kube config from", path)
+
+			// homeDir, err := os.UserHomeDir()
+			// if err != nil {
+			// 	return "", "", err
+			// }
+
+			_, err = os.Stat(path)
+			if err != nil {
+				GinkgoWriter.Println("Unable to resolve path", path, err)
+			} else {
+				// Success
+				kubeConfigDefault = path
+				break
+			}
+
+		}
+
+		if kubeConfigDefault == "" {
+			return "", "", fmt.Errorf("unable to retrieve kube config path")
+		}
+	}
+
+	kubeConfigContents, err := os.ReadFile(kubeConfigDefault)
+	if err != nil {
+		return "", "", err
+	}
+
+	return string(kubeConfigContents), cluster.Server, nil
 }

@@ -19,6 +19,10 @@ package core
 
 import (
 	"errors"
+	"net/http"
+	"os"
+	"strings"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
@@ -27,10 +31,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"net/http"
-	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strings"
 )
 
 // Variables and constants used in the tests
@@ -128,6 +129,7 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 			By("3. Create the GitOpsDeploymentRepositoryCredential CR for HTTPS")
 			CR := gitopsDeploymentRepositoryCredentialCRForTokenTest()
 			Expect(k8s.Create(CR, k8sClient)).To(Succeed())
+			Expect(len(CR.Status.Conditions)).To(Equal(3))
 
 			By("4. Create the GitOpsDeployment CR")
 			gitOpsDeployment := buildGitOpsDeploymentResource(deploymentCRToken, privateRepoURL, privateRepoPath,

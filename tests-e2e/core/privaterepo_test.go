@@ -164,6 +164,7 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 			By("3. Create the GitOpsDeploymentRepositoryCredential CR for SSH")
 			CR := gitopsDeploymentRepositoryCredentialCRForSSHTest()
 			Expect(k8s.Create(CR, k8sClient)).To(Succeed())
+			Expect(len(CR.Status.Conditions)).To(Equal(3))
 
 			By("4. Create the GitOpsDeployment CR")
 			gitOpsDeployment := buildGitOpsDeploymentResource(deploymentCRSSH, privateRepoSSH, privateRepoPath,

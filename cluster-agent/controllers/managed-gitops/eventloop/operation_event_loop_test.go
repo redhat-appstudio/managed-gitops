@@ -1118,7 +1118,7 @@ var _ = Describe("Operation Controller", func() {
 
 					getClusterSecretData := clusterSecret.Data
 					tlsconfigbyte := getClusterSecretData["config"]
-					var tlsunmarshalled ClusterSecretConfigJSON
+					var tlsunmarshalled argosharedutil.ClusterSecretConfigJSON
 					err = json.Unmarshal(tlsconfigbyte, &tlsunmarshalled)
 					Expect(err).To(BeNil())
 

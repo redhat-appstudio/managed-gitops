@@ -7,9 +7,13 @@ import (
 	. "github.com/onsi/gomega"
 
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	matcher "github.com/onsi/gomega/types"
 
 	"context"
+
+	apierr "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	k8sFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
@@ -40,6 +44,49 @@ func expectedCondition(f func(app appv1alpha1.Application) bool) matcher.GomegaM
 
 	}, BeTrue())
 
+}
+
+// DeleteArgoCDApplication deletes an Argo CD Application, but first removes the finalizer if
+func DeleteArgoCDApplication(argocdAppName string, argoCDNamespace string) error {
+
+	config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
+	Expect(err).To(BeNil())
+
+	k8sClient, err := fixture.GetKubeClient(config)
+	if err != nil {
+		return err
+	}
+
+	argoCDApplication := appv1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      argocdAppName,
+			Namespace: argoCDNamespace,
+		},
+	}
+	if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&argoCDApplication), &argoCDApplication); err != nil {
+
+		if apierr.IsNotFound(err) {
+			// No work needed.
+			return nil
+		}
+
+		return err
+	}
+
+	if len(argoCDApplication.Finalizers) > 0 {
+		argoCDApplication.Finalizers = []string{}
+		err := k8sClient.Update(context.Background(), &argoCDApplication)
+		Expect(err).To(BeNil())
+	}
+
+	if err := k8sClient.Delete(context.Background(), &argoCDApplication); err != nil {
+		if apierr.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	return nil
 }
 
 func HasDestinationField(expectedDestination appv1alpha1.ApplicationDestination) matcher.GomegaMatcher {
@@ -113,58 +160,56 @@ func HaveSyncOption(expectedSyncOption string) matcher.GomegaMatcher {
 	}, BeTrue())
 }
 
-// HaveHealthStatusCode waits for Argo CD Application to have the given health
-func HaveHealthStatusCode(status appv1alpha1.ApplicationStatus) matcher.GomegaMatcher {
+func HaveHealthStatusCode(expectedHealth health.HealthStatusCode) matcher.GomegaMatcher {
 
-	return WithTransform(func(app appv1alpha1.Application) bool {
-		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+	return expectedCondition(func(app appv1alpha1.Application) bool {
 
-		k8sClient, err := fixture.GetKubeClient(config)
-		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
-			return false
-		}
+		fmt.Println("HaveHealthStatusCode - current health:", app.Status.Health.Status, " / expected health:", expectedHealth)
 
-		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&app), &app)
-		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
-			return false
-		}
+		return app.Status.Health.Status == expectedHealth
 
-		res := status.Health.Status == app.Status.Health.Status
+	})
 
-		fmt.Println("HaveHealthStatusCode:", res, "/ Expected:", status, "/ Actual:", app.Status.Health.Status)
-
-		return res
-	}, BeTrue())
 }
 
 // HaveSyncStatusCode waits for Argo CD to have the given sync status
-func HaveSyncStatusCode(status appv1alpha1.ApplicationStatus) matcher.GomegaMatcher {
+func HaveSyncStatusCode(expected appv1alpha1.SyncStatusCode) matcher.GomegaMatcher {
 
-	return WithTransform(func(app appv1alpha1.Application) bool {
-		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+	return expectedCondition(func(app appv1alpha1.Application) bool {
 
-		k8sClient, err := fixture.GetKubeClient(config)
-		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
-			return false
-		}
+		fmt.Println("HaveSyncStatusCode - current syncStatusCode:", app.Status.Sync.Status, " / expected syncStatusCode:", expected)
 
-		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&app), &app)
-		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
-			return false
-		}
+		return app.Status.Sync.Status == expected
 
-		res := status.Sync.Status == app.Status.Sync.Status
-		fmt.Println("HaveSyncStatusCode:", res, "/ Expected:", status, "/ Actual:", app.Status.Sync.Status)
+	})
 
-		return res
-	}, BeTrue())
 }
+
+// // HaveSyncStatusCode waits for Argo CD to have the given sync status
+// func HaveSyncStatusCode(status appv1alpha1.ApplicationStatus) matcher.GomegaMatcher {
+
+// 	return WithTransform(func(app appv1alpha1.Application) bool {
+// 		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
+// 		Expect(err).To(BeNil())
+
+// 		k8sClient, err := fixture.GetKubeClient(config)
+// 		if err != nil {
+// 			fmt.Println(k8sFixture.K8sClientError, err)
+// 			return false
+// 		}
+
+// 		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&app), &app)
+// 		if err != nil {
+// 			fmt.Println(k8sFixture.K8sClientError, err)
+// 			return false
+// 		}
+
+// 		res := status.Sync.Status == app.Status.Sync.Status
+// 		fmt.Println("HaveSyncStatusCode:", res, "/ Expected:", status, "/ Actual:", app.Status.Sync.Status)
+
+// 		return res
+// 	}, BeTrue())
+// }
 
 // HaveOperationState checks if the Application has the given OperationState
 func HaveOperationState(opState appv1alpha1.OperationState) matcher.GomegaMatcher {
@@ -196,7 +241,7 @@ func HaveOperationState(opState appv1alpha1.OperationState) matcher.GomegaMatche
 	}, BeTrue())
 }
 
-//  HaveApplicationSyncError checks the Application .status.conditions.Message fiels is set with syncError.
+// HaveApplicationSyncError checks the Application .status.conditions.Message fiels is set with syncError.
 func HaveApplicationSyncError(syncError appv1alpha1.ApplicationStatus) matcher.GomegaMatcher {
 
 	return WithTransform(func(app appv1alpha1.Application) bool {

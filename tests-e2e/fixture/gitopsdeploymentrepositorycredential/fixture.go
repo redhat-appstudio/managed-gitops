@@ -3,11 +3,13 @@ package gitopsdeploymenrepositorycredential
 import (
 	"context"
 	"fmt"
-	"pkg/mod/sigs.k8s.io/controller-runtime@v0.11.0/pkg/client"
 	"reflect"
 
-	"github.com/managed-services/managed-gitops/tests-e2e/fixture"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
+	k8sFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

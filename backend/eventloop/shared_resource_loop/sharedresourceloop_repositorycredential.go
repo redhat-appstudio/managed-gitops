@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/storage/memory"
 
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
@@ -501,41 +502,33 @@ func checkForValidRepositoryCredential(repositoryCredential *managedgitopsv1alph
 
 func validateRepositoryCredentials(rawRepoURL string, secret *corev1.Secret) error {
 
-	r := regexp.MustCompile("(/|:)")
 	normalizedRepoUrl := NormalizeGitURL(rawRepoURL)
-	root := filepath.Join(os.TempDir(), r.ReplaceAllString(normalizedRepoUrl, "_"))
-	if root == os.TempDir() {
-		return fmt.Errorf("repository %q cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
-	}
+	rem := git.NewRemote(memory.NewStorage(), &config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{normalizedRepoUrl},
+	})
 
 	// Secret exists, so get its data
 	authUsername := string(secret.Data["username"])
 	authPassword := string(secret.Data["password"])
 	authSSHKey := string(secret.Data["sshPrivateKey"])
 
-	cloneOptions := &git.CloneOptions{
-		URL: normalizedRepoUrl,
-	}
+	listOptions := &git.ListOptions{}
 
 	if authSSHKey != "" {
 		privateKey, err := ssh.NewPublicKeys("git", []byte(authSSHKey), "")
 		if err != nil {
 			return err
 		}
-		cloneOptions.Auth = privateKey
+		listOptions.Auth = privateKey
 	} else {
-		cloneOptions.Auth = &http.BasicAuth{
+		listOptions.Auth = &http.BasicAuth{
 			Username: authUsername,
 			Password: authPassword,
 		}
 	}
 
-	if _, err := git.PlainClone(root, false, cloneOptions); err != nil {
-		return err
-	}
-
-	err := os.RemoveAll(root)
-
+	_, err := rem.List(listOptions)
 	return err
 }
 

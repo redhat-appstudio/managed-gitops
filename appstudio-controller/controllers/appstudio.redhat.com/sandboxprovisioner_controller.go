@@ -32,7 +32,7 @@ import (
 
 const (
 	// environmentTierName is the tier that will be used for sandbox namespace-backed environments
-	environmentTierName = "env"
+	environmentTierName = "appstudio-env"
 	// deploymentTargetClaimLabel is the label indicating the DeploymentTargetClaim that's associated with the object
 	deploymentTargetClaimLabel = "appstudio.openshift.io/dtc"
 )
@@ -102,7 +102,7 @@ func (r *SandboxProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	// Check if there is already a matching SpaceRequest for this DTC
-	spaceRequest, err := findMatchingSpaceRequestForDTC(ctx, r.Client, dtc)
+	spaceRequest, err := findMatchingSpaceRequestForDTC(ctx, r.Client, &dtc)
 	if err != nil {
 		log.Error(err, "error while finding a SpaceRequest that matches the DeploymentTargetClaim")
 		return ctrl.Result{}, err
@@ -111,7 +111,7 @@ func (r *SandboxProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.R
 	// If there is no existing SpaceRequest, create a new one
 	if spaceRequest == nil {
 		log.Info("No existing SpaceRequest for the DeploymentTargetClaim found, creating a new one")
-		spaceRequest, err = createSpaceRequestForDTC(ctx, r.Client, dtc)
+		spaceRequest, err = createSpaceRequestForDTC(ctx, r.Client, &dtc)
 		if err != nil {
 			log.Error(err, "failed to create a new SpaceRequest for the DeploymentTargetClaim")
 			return ctrl.Result{}, err
@@ -129,27 +129,27 @@ func missingDTCLSErrWrap(dtcName, dtclsName string) func(string) error {
 	}
 }
 
-// findMatchingDTForDTC tries to find a DT that matches the given DTC in a namespace.
+// findMatchingDTClassForDTC tries to find a DTCLS that matches the given DTC in a namespace.
 func findMatchingDTClassForDTC(ctx context.Context, k8sClient client.Client, dtc applicationv1alpha1.DeploymentTargetClaim) (*applicationv1alpha1.DeploymentTargetClass, error) {
-	dtList := applicationv1alpha1.DeploymentTargetClassList{}
-	if err := k8sClient.List(ctx, &dtList); err != nil {
+	dtclsList := applicationv1alpha1.DeploymentTargetClassList{}
+	if err := k8sClient.List(ctx, &dtclsList); err != nil {
 		return nil, err
 	}
 
-	var dtcl *applicationv1alpha1.DeploymentTargetClass
-	for i, d := range dtList.Items {
+	var dtcls *applicationv1alpha1.DeploymentTargetClass
+	for i, d := range dtclsList.Items {
 		if d.Name == string(dtc.Spec.DeploymentTargetClassName) {
-			dtcl = &dtList.Items[i]
+			dtcls = &dtclsList.Items[i]
 			break
 		}
 	}
 
-	return dtcl, nil
+	return dtcls, nil
 }
 
 // findMatchingSpaceRequestForDTC tries to find a SpaceRequest that matches the given DTC in a namespace.
 // The function will return only the SpaceRequest that matches the expected environment Tier name
-func findMatchingSpaceRequestForDTC(ctx context.Context, k8sClient client.Client, dtc applicationv1alpha1.DeploymentTargetClaim) (*codereadytoolchainv1alpha1.SpaceRequest, error) {
+func findMatchingSpaceRequestForDTC(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim) (*codereadytoolchainv1alpha1.SpaceRequest, error) {
 	spaceRequestList := codereadytoolchainv1alpha1.SpaceRequestList{}
 
 	opts := []client.ListOption{
@@ -179,7 +179,7 @@ func findMatchingSpaceRequestForDTC(ctx context.Context, k8sClient client.Client
 
 // createSpaceRequestForDTC creates a new SpaceRequest for the given DTC. It sets the expected tierName and adds the
 // label indicating that it's linked with the DTC
-func createSpaceRequestForDTC(ctx context.Context, k8sClient client.Client, dtc applicationv1alpha1.DeploymentTargetClaim) (*codereadytoolchainv1alpha1.SpaceRequest, error) {
+func createSpaceRequestForDTC(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim) (*codereadytoolchainv1alpha1.SpaceRequest, error) {
 	newSpaceRequest := codereadytoolchainv1alpha1.SpaceRequest{
 		Spec: codereadytoolchainv1alpha1.SpaceRequestSpec{
 			TierName:           environmentTierName,

@@ -75,13 +75,6 @@ var _ = Describe("Test Predicates", func() {
 				Expect(instance.Generic(contextEvent)).To(BeFalse())
 			})
 
-			It("should ignore generic events", func() {
-				contextEvent := event.GenericEvent{
-					Object: dtc,
-				}
-				Expect(instance.Generic(contextEvent)).To(BeFalse())
-			})
-
 			It("should pick up on the Sandbox deploymentTargetClaim going into Pending phase", func() {
 				dtcNew.Status.Phase = appstudiosharedv1.DeploymentTargetClaimPhase_Pending
 				contextEvent := event.UpdateEvent{

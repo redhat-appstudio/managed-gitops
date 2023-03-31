@@ -65,7 +65,6 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 			dtc := getDeploymentTargetClaim(
 				func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 					dtc.Annotations = map[string]string{
-						appstudiosharedv1.AnnBindCompleted:     appstudiosharedv1.AnnBinderValueTrue,
 						appstudiosharedv1.AnnTargetProvisioner: "sandbox-provisioner",
 					}
 					dtc.Spec.TargetName = "random-dt"
@@ -83,7 +82,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 			Expect(res).To(Equal(ctrl.Result{}))
 
 			By("find a newly created matching SpaceRequest for the DTC")
-			spaceRequest, err := findMatchingSpaceRequestForDTC(ctx, k8sClient, dtc)
+			spaceRequest, err := findMatchingSpaceRequestForDTC(ctx, k8sClient, &dtc)
 			Expect(err).To(BeNil())
 			Expect(spaceRequest).To(BeNil())
 		})
@@ -94,7 +93,6 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 			dtc := getDeploymentTargetClaim(
 				func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 					dtc.Annotations = map[string]string{
-						appstudiosharedv1.AnnBindCompleted:     appstudiosharedv1.AnnBinderValueTrue,
 						appstudiosharedv1.AnnTargetProvisioner: "sandbox-provisioner",
 					}
 					dtc.Spec.TargetName = "random-dt"
@@ -129,7 +127,6 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 			dtc := getDeploymentTargetClaim(
 				func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 					dtc.Annotations = map[string]string{
-						appstudiosharedv1.AnnBindCompleted:     appstudiosharedv1.AnnBinderValueTrue,
 						appstudiosharedv1.AnnTargetProvisioner: "sandbox-provisioner",
 					}
 					dtc.Spec.TargetName = "random-dt"
@@ -147,7 +144,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 			Expect(res).To(Equal(ctrl.Result{}))
 
 			By("find a newly created matching SpaceRequest for the DTC")
-			spaceRequest, err := findMatchingSpaceRequestForDTC(ctx, k8sClient, dtc)
+			spaceRequest, err := findMatchingSpaceRequestForDTC(ctx, k8sClient, &dtc)
 			Expect(err).To(BeNil())
 			Expect(spaceRequest).ToNot(BeNil())
 			Expect(spaceRequest.Labels[deploymentTargetClaimLabel] == dtc.Name).To(BeTrue())
@@ -165,7 +162,6 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 			dtc := getDeploymentTargetClaim(
 				func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 					dtc.Annotations = map[string]string{
-						appstudiosharedv1.AnnBindCompleted:     appstudiosharedv1.AnnBinderValueTrue,
 						appstudiosharedv1.AnnTargetProvisioner: "sandbox-provisioner",
 					}
 					dtc.Spec.TargetName = "random-dt"
@@ -191,7 +187,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 			Expect(res).To(Equal(ctrl.Result{}))
 
 			By("find the already existing matching SpaceRequest for the DTC")
-			spaceRequest, err := findMatchingSpaceRequestForDTC(ctx, k8sClient, dtc)
+			spaceRequest, err := findMatchingSpaceRequestForDTC(ctx, k8sClient, &dtc)
 			Expect(err).To(BeNil())
 			Expect(spaceRequest).ToNot(BeNil())
 			Expect(spaceRequest.Labels[deploymentTargetClaimLabel] == dtc.Name).To(BeTrue())
@@ -238,7 +234,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 				err = k8sClient.Create(ctx, &expected)
 				Expect(err).To(BeNil())
 
-				spaceRequest, err := findMatchingSpaceRequestForDTC(ctx, k8sClient, dtc)
+				spaceRequest, err := findMatchingSpaceRequestForDTC(ctx, k8sClient, &dtc)
 				Expect(err).To(BeNil())
 				Expect(client.ObjectKeyFromObject(spaceRequest)).To(Equal(client.ObjectKeyFromObject(&expected)))
 			})
@@ -281,7 +277,7 @@ func getSandboxDeploymentTargetClass(ops ...func(dtc *appstudiosharedv1.Deployme
 	return dtcls
 }
 
-func getSandboxSpaceRequest(ops ...func(dtc *codereadytoolchainv1alpha1.SpaceRequest)) codereadytoolchainv1alpha1.SpaceRequest {
+func getSandboxSpaceRequest(ops ...func(spaceRequest *codereadytoolchainv1alpha1.SpaceRequest)) codereadytoolchainv1alpha1.SpaceRequest {
 	spaceRequest := codereadytoolchainv1alpha1.SpaceRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "test-sandbox-spacerequest",

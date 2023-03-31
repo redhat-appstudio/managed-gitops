@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -51,6 +52,7 @@ func init() {
 	utilruntime.Must(applicationv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(gitopsdeploymentv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(appv1.AddToScheme(scheme))
+	utilruntime.Must(codereadytoolchainv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 

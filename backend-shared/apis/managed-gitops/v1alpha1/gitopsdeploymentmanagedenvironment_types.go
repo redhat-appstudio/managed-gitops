@@ -26,9 +26,11 @@ const (
 
 // GitOpsDeploymentManagedEnvironmentSpec defines the desired state of GitOpsDeploymentManagedEnvironment
 type GitOpsDeploymentManagedEnvironmentSpec struct {
-	APIURL                     string `json:"apiURL"`
-	ClusterCredentialsSecret   string `json:"credentialsSecret"`
-	AllowInsecureSkipTLSVerify bool   `json:"allowInsecureSkipTLSVerify"`
+	APIURL                        string `json:"apiURL"`
+	ClusterCredentialsSecret      string `json:"credentialsSecret"`
+	ClusterCredentialsSecretValue string `json:"credentialsSecretValue"`
+	AllowInsecureSkipTLSVerify    bool   `json:"allowInsecureSkipTLSVerify"`
+	CreateNewServiceAccount       bool   `json:"createNewServiceAccount,omitempty"`
 }
 
 type AllowInsecureSkipTLSVerify bool

@@ -42,12 +42,17 @@ spec:
                 type: boolean
               apiURL:
                 type: string
+              createNewServiceAccount:
+                type: boolean
               credentialsSecret:
+                type: string
+              credentialsSecretValue:
                 type: string
             required:
             - allowInsecureSkipTLSVerify
             - apiURL
             - credentialsSecret
+            - credentialsSecretValue
             type: object
           status:
             description: GitOpsDeploymentManagedEnvironmentStatus defines the observed

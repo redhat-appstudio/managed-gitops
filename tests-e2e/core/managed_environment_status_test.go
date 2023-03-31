@@ -20,7 +20,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			By("creating the GitOpsDeploymentManagedEnvironment with a target cluster that does not exist")
 
 			apiServerURL := "https://api2.fake-e2e-test-data.origin-ci-int-gce.dev.rhcloud.com:6443"
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, generateFakeKubeConfig())
+			managedEnv, secret := buildManagedEnvironment(apiServerURL, generateFakeKubeConfig(), true)
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
@@ -49,7 +49,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
 			Expect(err).To(BeNil())
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents)
+			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 			delete(secret.StringData, "kubeconfig")
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -79,7 +79,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
 			Expect(err).To(BeNil())
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents)
+			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 			secret.StringData["kubeconfig"] = "badbadbad"
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -109,7 +109,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
 			Expect(err).To(BeNil())
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents)
+			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 			secret.StringData["kubeconfig"] = "apiVersion: v1\nkind: Config\n"
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -140,7 +140,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
 			Expect(err).To(BeNil())
 
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents)
+			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())

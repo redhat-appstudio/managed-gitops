@@ -427,8 +427,9 @@ var _ = Describe("Environment controller tests", func() {
 				},
 				Spec: appstudioshared.DeploymentTargetSpec{
 					KubernetesClusterCredentials: appstudioshared.DeploymentTargetKubernetesClusterCredentials{
-						APIURL:                   "https://test-url",
-						ClusterCredentialsSecret: "test-secret",
+						APIURL:                     "https://test-url",
+						ClusterCredentialsSecret:   "test-secret",
+						AllowInsecureSkipTLSVerify: true,
 					},
 				},
 				Status: appstudioshared.DeploymentTargetStatus{
@@ -492,6 +493,7 @@ var _ = Describe("Environment controller tests", func() {
 			By("verify if the environment credentials match with the DT")
 			Expect(managedEnvCR.Spec.APIURL).To(Equal(dt.Spec.KubernetesClusterCredentials.APIURL))
 			Expect(managedEnvCR.Spec.ClusterCredentialsSecret).To(Equal(dt.Spec.KubernetesClusterCredentials.ClusterCredentialsSecret))
+			Expect(managedEnvCR.Spec.AllowInsecureSkipTLSVerify).To(Equal(dt.Spec.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify))
 		})
 
 		It("should return and wait if the specified DTC is not in Bounded phase", func() {

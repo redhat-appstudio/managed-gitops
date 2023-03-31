@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/onsi/ginkgo/v2 v2.1.4
 	github.com/onsi/gomega v1.20.1
-	github.com/redhat-appstudio/application-api v0.0.0-20230328134301-1bdb1ddc9f77
+	github.com/redhat-appstudio/application-api v0.0.0-20230331114710-7a895f1e2fbc
 	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0
 	k8s.io/apimachinery v0.24.3
 	k8s.io/client-go v0.24.3

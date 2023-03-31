@@ -2,6 +2,8 @@ package shared_resource_loop
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 
 	. "github.com/onsi/ginkgo/v2"
 	matcher "github.com/onsi/gomega/types"
@@ -87,6 +89,19 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 
 		var haveErrOccurredConditionSet = func(expectedRepoCredStatus managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialStatus) matcher.GomegaMatcher {
 
+			// sanitizeCondition removes ephemeral fields from the GitOpsDeploymentCondition which should not be compared using
+			// reflect.DeepEqual
+			sanitizeCondition := func(cond *metav1.Condition) metav1.Condition {
+
+				res := metav1.Condition{
+					Type:   cond.Type,
+					Status: cond.Status,
+					Reason: cond.Reason,
+				}
+
+				return res
+
+			}
 			return WithTransform(func(repoCred *managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential) bool {
 
 				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(repoCred), repoCred); err != nil {
@@ -94,28 +109,28 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 					return false
 				}
 
-				if len(expectedRepoCredStatus.Conditions) != len(repoCred.Status.Conditions) {
+				conditionExists := false
+				existingConditionList := repoCred.Status.Conditions
+
+				if len(expectedRepoCredStatus.Conditions) != len(existingConditionList) {
+					fmt.Println("HaveConditions:", conditionExists, "/ Expected:", expectedRepoCredStatus.Conditions, "/ Actual:", repoCred.Status.Conditions)
 					return false
 				}
 
-				count := 0
-
-				for _, condition := range repoCred.Status.Conditions {
-					// do nothing if appset already has same condition
-					for _, c := range expectedRepoCredStatus.Conditions {
-						if c.Type == condition.Type && (c.Reason != condition.Reason || c.Status != condition.Status) {
-							count++
+				for _, resourceCondition := range expectedRepoCredStatus.Conditions {
+					conditionExists = false
+					for _, existingCondition := range existingConditionList {
+						if reflect.DeepEqual(sanitizeCondition(resourceCondition), sanitizeCondition(existingCondition)) {
+							conditionExists = true
 							break
 						}
 					}
+					if !conditionExists {
+						fmt.Println("GitOpsDeploymentCondition:", conditionExists, "/ Expected:", expectedRepoCredStatus.Conditions, "/ Actual:", repoCred.Status.Conditions)
+						break
+					}
 				}
-
-				if count < 3 {
-					GinkgoWriter.Println(repoCred.Status.Conditions, expectedRepoCredStatus.Conditions)
-					return false
-				}
-
-				return true
+				return conditionExists
 
 			}, BeTrue())
 		}
@@ -146,17 +161,20 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 			expectedRepoCredStatus := managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialStatus{
 				Conditions: []*metav1.Condition{
 					{
-						Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
-						Reason: managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
-						Status: metav1.ConditionTrue,
+						Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
+						Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
+						Status:  metav1.ConditionTrue,
+						Message: "repository not found",
 					}, {
-						Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
-						Reason: managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
-						Status: metav1.ConditionFalse,
+						Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
+						Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
+						Status:  metav1.ConditionFalse,
+						Message: "repository not found",
 					}, {
-						Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
-						Reason: managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
-						Status: metav1.ConditionFalse,
+						Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
+						Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
+						Status:  metav1.ConditionFalse,
+						Message: "repository not found",
 					},
 				},
 			}
@@ -172,17 +190,20 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 			expectedRepoCredStatus := managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialStatus{
 				Conditions: []*metav1.Condition{
 					{
-						Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
-						Reason: managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
-						Status: metav1.ConditionTrue,
+						Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
+						Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
+						Status:  metav1.ConditionTrue,
+						Message: "repository not found",
 					}, {
-						Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
-						Reason: managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
-						Status: metav1.ConditionFalse,
+						Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
+						Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
+						Status:  metav1.ConditionFalse,
+						Message: "repository not found",
 					}, {
-						Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
-						Reason: managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
-						Status: metav1.ConditionFalse,
+						Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
+						Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
+						Status:  metav1.ConditionFalse,
+						Message: "repository not found",
 					},
 				},
 			}

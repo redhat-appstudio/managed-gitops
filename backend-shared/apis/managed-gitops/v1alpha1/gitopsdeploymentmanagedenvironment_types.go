@@ -73,6 +73,7 @@ const (
 	ConditionReasonUnableToParseKubeconfigData      ManagedEnvironmentConditionReason = "UnableToParseKubeconfigData"
 	ConditionReasonUnableToRetrieveRestConfig       ManagedEnvironmentConditionReason = "UnableToRetrieveRestConfig"
 	ConditionReasonUnknownError                     ManagedEnvironmentConditionReason = "UnknownError"
+	ConditionReasonUnsupportedAPIURL                ManagedEnvironmentConditionReason = "UnsupportedAPIURL"
 )
 
 //+kubebuilder:object:root=true

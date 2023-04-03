@@ -91,10 +91,12 @@ func internalProcessMessage_internalReconcileSharedManagedEnv(ctx context.Contex
 
 	if strings.Contains(managedEnvironmentCR.Spec.APIURL, "?") || strings.Contains(managedEnvironmentCR.Spec.APIURL, "&") {
 
-		// TODO: JGW - Make sure this gets included after PR #397 is merged.
-		updateManagedEnvironmentConnectionStatus(&managedEnvironmentCR, ctx, workspaceClient, metav1.ConditionUnknown,
-			ConditionReasonUnsupportedAPIURL, "the API URL must not have ? or & values", log)
-		return newSharedResourceManagedEnvContainer(), nil
+		return newSharedResourceManagedEnvContainer(), connectionInitializedCondition{
+			managedEnvCR: managedEnvironmentCR,
+			status:       metav1.ConditionUnknown,
+			reason:       managedgitopsv1alpha1.ConditionReasonUnsupportedAPIURL,
+			message:      "the API URL must not have ? or & values",
+		}, nil
 	}
 
 	// After this point in the code, the API CR necessarily exists.

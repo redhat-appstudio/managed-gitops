@@ -26,11 +26,10 @@ const (
 
 // GitOpsDeploymentManagedEnvironmentSpec defines the desired state of GitOpsDeploymentManagedEnvironment
 type GitOpsDeploymentManagedEnvironmentSpec struct {
-	APIURL                        string `json:"apiURL"`
-	ClusterCredentialsSecret      string `json:"credentialsSecret"`
-	ClusterCredentialsSecretValue string `json:"credentialsSecretValue"`
-	AllowInsecureSkipTLSVerify    bool   `json:"allowInsecureSkipTLSVerify"`
-	CreateNewServiceAccount       bool   `json:"createNewServiceAccount,omitempty"`
+	APIURL                     string `json:"apiURL"`
+	ClusterCredentialsSecret   string `json:"credentialsSecret"`
+	AllowInsecureSkipTLSVerify bool   `json:"allowInsecureSkipTLSVerify"`
+	CreateNewServiceAccount    bool   `json:"createNewServiceAccount,omitempty"`
 }
 
 type AllowInsecureSkipTLSVerify bool
@@ -63,19 +62,20 @@ type GitOpsDeploymentManagedEnvironment struct {
 type ManagedEnvironmentConditionReason string
 
 const (
-	ConditionReasonSucceeded                        ManagedEnvironmentConditionReason = "Succeeded"
-	ConditionReasonKubeError                        ManagedEnvironmentConditionReason = "KubernetesError"
-	ConditionReasonDatabaseError                    ManagedEnvironmentConditionReason = "DatabaseError"
-	ConditionReasonInvalidSecretType                ManagedEnvironmentConditionReason = "InvalidSecretType"
-	ConditionReasonMissingKubeConfigField           ManagedEnvironmentConditionReason = "MissingKubeConfigField"
-	ConditionReasonUnableToCreateClient             ManagedEnvironmentConditionReason = "UnableToCreateClient"
-	ConditionReasonUnableToCreateClusterCredentials ManagedEnvironmentConditionReason = "UnableToCreateClusterCredentials"
-	ConditionReasonUnableToInstallServiceAccount    ManagedEnvironmentConditionReason = "UnableToInstallServiceAccount"
-	ConditionReasonUnableToLocateContext            ManagedEnvironmentConditionReason = "UnableToLocateContext"
-	ConditionReasonUnableToParseKubeconfigData      ManagedEnvironmentConditionReason = "UnableToParseKubeconfigData"
-	ConditionReasonUnableToRetrieveRestConfig       ManagedEnvironmentConditionReason = "UnableToRetrieveRestConfig"
-	ConditionReasonUnknownError                     ManagedEnvironmentConditionReason = "UnknownError"
-	ConditionReasonUnsupportedAPIURL                ManagedEnvironmentConditionReason = "UnsupportedAPIURL"
+	ConditionReasonUnsupportedAPIURL                  ManagedEnvironmentConditionReason = "UnsupportedAPIURL"
+	ConditionReasonSucceeded                          ManagedEnvironmentConditionReason = "Succeeded"
+	ConditionReasonKubeError                          ManagedEnvironmentConditionReason = "KubernetesError"
+	ConditionReasonDatabaseError                      ManagedEnvironmentConditionReason = "DatabaseError"
+	ConditionReasonInvalidSecretType                  ManagedEnvironmentConditionReason = "InvalidSecretType"
+	ConditionReasonMissingKubeConfigField             ManagedEnvironmentConditionReason = "MissingKubeConfigField"
+	ConditionReasonUnableToCreateClient               ManagedEnvironmentConditionReason = "UnableToCreateClient"
+	ConditionReasonUnableToCreateClusterCredentials   ManagedEnvironmentConditionReason = "UnableToCreateClusterCredentials"
+	ConditionReasonUnableToInstallServiceAccount      ManagedEnvironmentConditionReason = "UnableToInstallServiceAccount"
+	ConditionReasonUnableToValidateClusterCredentials ManagedEnvironmentConditionReason = "UnableToValidateClusterCredentials"
+	ConditionReasonUnableToLocateContext              ManagedEnvironmentConditionReason = "UnableToLocateContext"
+	ConditionReasonUnableToParseKubeconfigData        ManagedEnvironmentConditionReason = "UnableToParseKubeconfigData"
+	ConditionReasonUnableToRetrieveRestConfig         ManagedEnvironmentConditionReason = "UnableToRetrieveRestConfig"
+	ConditionReasonUnknownError                       ManagedEnvironmentConditionReason = "UnknownError"
 )
 
 //+kubebuilder:object:root=true

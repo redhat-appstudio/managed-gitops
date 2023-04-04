@@ -3,8 +3,7 @@
 KUSTOMIZE_VERSION=${KUSTOMIZE_VERSION:-"v4.5.7"}
 KUBECTL_VERSION=${KUBECTL_VERSION:-"v1.26.0"}
 
-# Revision of the kubernetes manifests to be used for the installation
-GIT_REVISION=${GIT_REVISION:-"main"}
+
 
 # deletes the temp directory
 function cleanup() {
@@ -113,11 +112,14 @@ install_kubectl
 
 
 QUAY_USERNAME=redhat-appstudio
+# Revision of the kubernetes manifests to be used for the installation
+GIT_REVISION="main"
 
-while getopts ':i:u:' OPTION; do
+while getopts ':i:u:r:' OPTION; do
   case "$OPTION" in
     i) IMG=${OPTARG};;
     u) QUAY_USERNAME=${OPTARG};;
+    r) GIT_REVISION=${OPTARG};;
     ?) echo "Available flag options are:\n[-i] to provide gitops service image (default: quay.io/${QUAY_USERNAME}/gitops-service:latest)\n[-u] to provide QUAY registry username (default: redhat-appstudio)"; exit;
   esac
 done

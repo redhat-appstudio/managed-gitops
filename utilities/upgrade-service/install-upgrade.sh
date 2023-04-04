@@ -32,16 +32,6 @@ function install_kubectl() {
   fi
 }
 
-# Checks if a binary is present on the local system
-exit_if_binary_not_installed() {
-  for binary in "$@"; do
-    command -v $binary >/dev/null 2>&1 || {
-      echo >&2 'Script requires $binary command-line utility to be installed on your local machine. Aborting...'
-      exit 1
-    }
-  done
-}
-
 # Check if a pod is ready, if it fails to get ready, rollback to PREV_IMAGE
 check_pod_status_ready() {
   for binary in "$@"; do

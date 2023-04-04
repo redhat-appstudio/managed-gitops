@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -23,7 +22,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -476,57 +474,4 @@ func getOrCreateServiceAccount(ctx context.Context, k8sClient client.Client, ser
 	log.Info(fmt.Sprintf("ServiceAccount %s created in namespace %s", serviceAccountName, serviceAccountNS))
 
 	return serviceAccount, nil
-}
-
-// getOrCreateServiceAccountBearerToken returns a token if there is an existing token secret for a service account.
-// If the token secret is missing, it creates a new secret and attach it to the service account
-func getOrCreateServiceAccountBearerToken(ctx context.Context, k8sClient client.Client, serviceAccountName string,
-	serviceAccountNS string, log logr.Logger) (string, error) {
-
-	tokenSecret, err := createServiceAccountTokenSecret(ctx, k8sClient, serviceAccountName, serviceAccountNS, log)
-	if err != nil {
-		return "", fmt.Errorf("failed to create a token secret for service account %s: %w", serviceAccountName, err)
-	}
-
-	if err := wait.PollImmediate(time.Second*1, time.Second*120, func() (bool, error) {
-
-		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(tokenSecret), tokenSecret); err != nil {
-			log.Error(err, "unable to retrieve token secret for service account", "serviceAccountName", serviceAccountName)
-		}
-
-		// Exit the loop if the token has been set by k8s, continue otherwise.
-		_, exists := tokenSecret.Data["token"]
-		return exists, nil
-
-	}); err != nil {
-		return "", fmt.Errorf("unable to create service account token secret: %w", err)
-	}
-
-	tokenSecretValue := tokenSecret.Data["token"]
-	return string(tokenSecretValue), nil
-
-}
-
-func createServiceAccountTokenSecret(ctx context.Context, k8sClient client.Client, serviceAccountName, serviceAccountNS string,
-	log logr.Logger) (*corev1.Secret, error) {
-
-	tokenSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: serviceAccountName,
-			Namespace:    serviceAccountNS,
-			Annotations: map[string]string{
-				corev1.ServiceAccountNameKey: serviceAccountName,
-			},
-		},
-		Type: corev1.SecretTypeServiceAccountToken,
-	}
-
-	log = log.WithValues("name", tokenSecret.Name, "namespace", tokenSecret.Namespace)
-
-	if err := k8sClient.Create(ctx, tokenSecret); err != nil {
-		log.Error(err, "Unable to create ServiceAccountToken Secret")
-		return nil, err
-	}
-
-	return tokenSecret, nil
 }

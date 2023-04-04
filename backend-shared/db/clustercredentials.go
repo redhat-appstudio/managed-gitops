@@ -283,8 +283,9 @@ func (obj *ClusterCredentials) GetAsLogKeyValues() []interface{} {
 		return []interface{}{}
 	}
 
-	// We avoid logging the bearer_token or kube_config, as these container sensitive user data.
+	// We avoid logging the bearer_token or kube_config, as these contain sensitive user data.
 	return []interface{}{"host", obj.Host, "kube-config-length", len(obj.Kube_config),
 		"kube-config-context", len(obj.Kube_config_context), "serviceaccount_ns", obj.Serviceaccount_ns,
-		"serviceaccount-bearer-token-length", len(obj.Serviceaccount_bearer_token)}
+		"serviceaccount-bearer-token-length", len(obj.Serviceaccount_bearer_token), "cluster_resources", obj.ClusterResources,
+		"cluster_namespaces", obj.Namespaces}
 }

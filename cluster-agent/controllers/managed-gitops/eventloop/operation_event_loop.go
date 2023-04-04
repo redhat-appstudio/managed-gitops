@@ -1252,6 +1252,14 @@ func generateExpectedClusterSecret(ctx context.Context, application db.Applicati
 		},
 	}
 
+	if clusterCredentials.ClusterResources {
+		managedEnvironmentSecret.Data["clusterResources"] = ([]byte)("true")
+	}
+
+	if clusterCredentials.Namespaces != "" {
+		managedEnvironmentSecret.Data["namespaces"] = ([]byte)(clusterCredentials.Namespaces)
+	}
+
 	return managedEnvironmentSecret, deleteSecret_false, nil
 
 }

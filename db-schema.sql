@@ -40,6 +40,14 @@ CREATE TABLE ClusterCredentials (
 
 	allowinsecure_skiptlsverify BOOLEAN DEFAULT FALSE,
 
+	-- A list of namespaces that Argo CD is able to deploy to using these cluster credentials
+	-- - This corresponds to the Argo CD cluster secret field of the same name.
+	namespaces VARCHAR (4096),
+
+	-- Whether or not Argo CD is able to deploy cluster-scoped resources using these cluster credentials
+	-- - This corresponds to the Argo CD cluster secret field of the same name.
+	cluster_resources BOOLEAN DEFAULT FALSE,
+
 	 -- When ClusterCredentials was created, which allow us to tell how old the resources are
 	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -245,7 +253,7 @@ CREATE TABLE Application (
 	engine_instance_inst_id VARCHAR(48) NOT NULL,
 	CONSTRAINT fk_gitopsengineinstance_id FOREIGN KEY (engine_instance_inst_id) REFERENCES GitopsEngineInstance(gitopsengineinstance_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 
-	-- Which managed environment it is targetting
+	-- Which managed environment it is targeting
 	-- Foreign key to: ManagedEnvironment.managedenvironment_id
 	managed_environment_id VARCHAR(48),
 	CONSTRAINT fk_managedenvironment_id FOREIGN KEY (managed_environment_id) REFERENCES ManagedEnvironment(managedenvironment_id) ON DELETE NO ACTION ON UPDATE NO ACTION,

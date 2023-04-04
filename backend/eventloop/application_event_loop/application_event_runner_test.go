@@ -2182,7 +2182,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 
 				applicationOperations, err := listOperationRowsForResource(appFromCall.Application_id, "Application")
 				Expect(err).To(BeNil())
-				Expect(len(applicationOperations)).To(Equal(2), "a new operation targetting the Application should have been created for the Application")
+				Expect(len(applicationOperations)).To(Equal(2), "a new operation targeting the Application should have been created for the Application")
 			}
 
 		})
@@ -2351,7 +2351,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 			applicationOperations, err = listOperationRowsForResource(appFromCall.Application_id, "Application")
 			Expect(err).To(BeNil())
 			Expect(len(applicationOperations)).To(Equal(2),
-				"a new operation targetting the Application should have been created for the Application")
+				"a new operation targeting the Application should have been created for the Application")
 
 		})
 	})

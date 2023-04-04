@@ -755,7 +755,7 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 
 	}
 
-	matchingContextName, err := locateContextThatMatchesAPIURL(config, managedEnvironment.Spec.APIURL)
+	matchingContextName, matchingContext, err := locateContextThatMatchesAPIURL(config, managedEnvironment.Spec.APIURL)
 	if err != nil {
 		return db.ClusterCredentials{},
 			convertErrToEnvInitCondition(managedgitopsv1alpha1.ConditionReasonUnableToLocateContext, err, managedEnvironment),
@@ -797,7 +797,30 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 		}
 	} else {
 		// If an existing service account is used instead, we just simply take the provided secret as the token for the cluster credentials
-		saBearerToken = managedEnvironment.Spec.ClusterCredentialsSecretValue
+
+		val, exists := config.AuthInfos[matchingContext.AuthInfo]
+
+		if !exists {
+			msg := "unable to extract remote cluster configuration from kubeconfig, missing auth info for " + matchingContextName
+			return db.ClusterCredentials{}, connectionInitializedCondition{
+				managedEnvCR: managedEnvironment,
+				status:       metav1.ConditionFalse,
+				reason:       managedgitopsv1alpha1.ConditionReasonUnableToParseKubeconfigData,
+				message:      msg,
+			}, fmt.Errorf("%s", msg)
+		}
+
+		if val.Token == "" {
+			msg := "unable to extract service account token for context " + matchingContextName
+			return db.ClusterCredentials{}, connectionInitializedCondition{
+				managedEnvCR: managedEnvironment,
+				status:       metav1.ConditionFalse,
+				reason:       managedgitopsv1alpha1.ConditionReasonUnableToParseKubeconfigData,
+				message:      msg,
+			}, fmt.Errorf("%s", msg)
+		}
+
+		saBearerToken = val.Token
 	}
 	insecureVerifyTLS := managedEnvironment.Spec.AllowInsecureSkipTLSVerify
 	clusterCredentials := db.ClusterCredentials{
@@ -811,8 +834,18 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 	// If an existing service account is used instead, we should verify the cluster credentials based on the provided token
 	if !managedEnvironment.Spec.CreateNewServiceAccount {
 		validClusterCreds, err := verifyClusterCredentialsWithNamespaceList(ctx, clusterCredentials, managedEnvironment, k8sClientFactory)
+
 		if !validClusterCreds || err != nil {
+
 			log.Error(err, "Unable to verify ClusterCredentials using provided token", clusterCredentials.GetAsLogKeyValues()...)
+
+			return db.ClusterCredentials{}, connectionInitializedCondition{
+				managedEnvCR: managedEnvironment,
+				status:       metav1.ConditionUnknown,
+				reason:       managedgitopsv1alpha1.ConditionReasonUnableToValidateClusterCredentials,
+				message:      "Unable to validate the credentials provided in the ManagedEnvironment Secret. Verify the API URL, and service account token are correct.",
+			}, fmt.Errorf("unable to create cluster credentials for host '%s': %w", clusterCredentials.Host, err)
+
 		}
 	}
 
@@ -836,7 +869,7 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 // locateContextThatMatchesAPIURL examines a kubeconfig (Config struct), and looks for the context that
 // matches the cluster with the given API URL.
 // See 'sharedresourceloop_managedend_test.go' for an example of a kubeconfig.
-func locateContextThatMatchesAPIURL(config *clientcmdapi.Config, apiURL string) (string, error) {
+func locateContextThatMatchesAPIURL(config *clientcmdapi.Config, apiURL string) (string, clientcmdapi.Context, error) {
 	var matchingClusterName string
 
 	// Look for the cluster with the given API URL
@@ -849,24 +882,26 @@ func locateContextThatMatchesAPIURL(config *clientcmdapi.Config, apiURL string) 
 		}
 	}
 	if matchingClusterName == "" {
-		return "", fmt.Errorf("the kubeconfig did not have a cluster entry that matched the API URL '%s", apiURL)
+		return "", clientcmdapi.Context{}, fmt.Errorf("the kubeconfig did not have a cluster entry that matched the API URL '%s", apiURL)
 	}
 
 	// Look for the context that matches the cluster above
 	var matchingContextName string
+	var matchingContext *clientcmdapi.Context
 	for contextName := range config.Contexts {
 		context := config.Contexts[contextName]
 		if context.Cluster == matchingClusterName {
 			matchingContextName = contextName
+			matchingContext = context
 		}
 	}
 	if matchingContextName == "" {
-		return "", fmt.Errorf("the kubeconfig did not have a context that matched "+
+		return "", clientcmdapi.Context{}, fmt.Errorf("the kubeconfig did not have a context that matched "+
 			"the cluster specified in the API URL of the GitOpsDeploymentManagedEnvironment. Context "+
 			"was expected to reference cluster '%s'", matchingClusterName)
 	}
 
-	return matchingContextName, nil
+	return matchingContextName, *matchingContext, nil
 }
 
 // sanityTestCredentials returns true if we were able to successfully connect with the credentials, false otherwise.

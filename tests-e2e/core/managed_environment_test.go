@@ -162,6 +162,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
+			By("creating a ServiceAccount which we will deploy with, using the GitOpsDeploymentManagedEnvironment")
 			serviceAccount := corev1.ServiceAccount{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      serviceAccountName,
@@ -180,20 +181,22 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			Expect(err).To(BeNil())
 			Expect(tokenSecret).NotTo(BeNil())
 
-			By("creating the GitOpsDeploymentManagedEnvironment")
+			By("creating the GitOpsDeploymentManagedEnvironment and Secret")
 
 			_, apiServerURL, err := extractKubeConfigValues()
 			Expect(err).To(BeNil())
 
 			kubeConfigContents := generateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, tokenSecret)
 
-			managedEnv, secret := buildManagedEnvironmentWithToken(apiServerURL, kubeConfigContents, false, tokenSecret)
+			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, false)
 
 			err = k8s.Create(&secret, k8sClient)
 			Expect(err).To(BeNil())
 
 			err = k8s.Create(&managedEnv, k8sClient)
 			Expect(err).To(BeNil())
+
+			By("by creating a GitOpsDeployment pointing to the ManagedEnvironment")
 
 			gitOpsDeploymentResource := buildGitOpsDeploymentResource("my-gitops-depl",
 				"https://github.com/redhat-appstudio/managed-gitops",
@@ -322,10 +325,10 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			_, apiServerURL, err := extractKubeConfigValues()
 			Expect(err).To(BeNil())
 
-			kubeConfigContents := generateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, tokenSecret)
-
 			// Set the tokenSecret to be "" to intentionally fail
-			managedEnv, secret := buildManagedEnvironmentWithToken(apiServerURL, kubeConfigContents, false, "FAKE")
+			kubeConfigContents := generateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, "")
+
+			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, false)
 
 			err = k8s.Create(&secret, k8sClient)
 			Expect(err).To(BeNil())
@@ -345,23 +348,21 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			By("ensuring GitOpsDeployment should have expected health and status and reconciledState")
 
-			expectedReconciledStateField := managedgitopsv1alpha1.ReconciledState{
-				Source: managedgitopsv1alpha1.GitOpsDeploymentSource{
-					RepoURL: gitOpsDeploymentResource.Spec.Source.RepoURL,
-					Path:    gitOpsDeploymentResource.Spec.Source.Path,
-				},
-				Destination: managedgitopsv1alpha1.GitOpsDeploymentDestination{
-					Name:      gitOpsDeploymentResource.Spec.Destination.Environment,
-					Namespace: gitOpsDeploymentResource.Spec.Destination.Namespace,
+			expectedConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{
+				{
+					Type:    managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred,
+					Message: "Unable to reconcile the ManagedEnvironment. Verify that the ManagedEnvironment and Secret are correctly defined, and have valid credentials",
+					Status:  managedgitopsv1alpha1.GitOpsConditionStatusTrue,
+					Reason:  managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred,
 				},
 			}
 
 			// The resulting Argo CD app is healthy but has an unknown sync status
 			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
 				SatisfyAll(
-					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeUnknown),
-					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
-					gitopsDeplFixture.HaveReconciledState(expectedReconciledStateField)))
+					gitopsDeplFixture.HaveConditions(expectedConditions),
+				),
+			)
 
 			By("deleting the secret and managed environment")
 			err = k8s.Delete(&secret, k8sClient)
@@ -418,7 +419,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			kubeConfigContents := generateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, tokenSecret)
 
-			managedEnv, secret := buildManagedEnvironmentWithToken(apiServerURL, kubeConfigContents, false, tokenSecret)
+			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, false)
 
 			err = k8s.Create(&secret, k8sClient)
 			Expect(err).To(BeNil())
@@ -653,10 +654,6 @@ users:
 }
 
 func buildManagedEnvironment(apiServerURL string, kubeConfigContents string, createNewServiceAccount bool) (managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, corev1.Secret) {
-	return buildManagedEnvironmentWithToken(apiServerURL, kubeConfigContents, createNewServiceAccount, "")
-}
-
-func buildManagedEnvironmentWithToken(apiServerURL string, kubeConfigContents string, createNewServiceAccount bool, tokenSecret string) (managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, corev1.Secret) {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-managed-env-secret",
@@ -672,11 +669,11 @@ func buildManagedEnvironmentWithToken(apiServerURL string, kubeConfigContents st
 			Namespace: fixture.GitOpsServiceE2ENamespace,
 		},
 		Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
-			APIURL:                        apiServerURL,
-			ClusterCredentialsSecret:      secret.Name,
-			ClusterCredentialsSecretValue: tokenSecret,
-			AllowInsecureSkipTLSVerify:    true,
-			CreateNewServiceAccount:       createNewServiceAccount,
+			APIURL:                   apiServerURL,
+			ClusterCredentialsSecret: secret.Name,
+
+			AllowInsecureSkipTLSVerify: true,
+			CreateNewServiceAccount:    createNewServiceAccount,
 		},
 	}
 

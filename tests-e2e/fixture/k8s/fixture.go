@@ -198,7 +198,7 @@ func CreateServiceAccountBearerToken(ctx context.Context, k8sClient client.Clien
 	if err := wait.PollImmediate(time.Second*1, time.Second*120, func() (bool, error) {
 
 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(tokenSecret), tokenSecret); err != nil {
-			fmt.Println("waiting: ", err)
+			fmt.Println("waiting for ServiceAccountTokenSecret to exist: ", err)
 		}
 
 		// Exit the loop if the token has been set by k8s, continue otherwise.

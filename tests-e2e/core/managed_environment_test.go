@@ -185,7 +185,7 @@ var _ = Describe("Environment E2E tests", func() {
 			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
-			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
+			kubeConfigContents, apiServerURL, err = fixture.ExtractKubeConfigValues()
 			Expect(err).To(BeNil())
 
 			By("creating managed environment Secret")

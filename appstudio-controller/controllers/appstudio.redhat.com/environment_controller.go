@@ -94,7 +94,9 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	if environment.GetDeploymentTargetClaimName() != "" && environment.Spec.UnstableConfigurationFields != nil {
-		return ctrl.Result{}, fmt.Errorf("environment %s is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set", environment.Name)
+		log.Error(nil, "Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set")
+		// TODO: GITOPSRVCE-498: Add this error to status
+		return ctrl.Result{}, nil
 	}
 
 	desiredManagedEnv, err := generateDesiredResource(ctx, *environment, rClient, log)
@@ -212,6 +214,11 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 		}
 
 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dtc), dtc); err != nil {
+			if apierr.IsNotFound(err) {
+				log.Error(err, "DeploymentTargetClaim not found while generating the desired Environment resource")
+				return nil, nil
+			}
+			// TODO: GITOPSRVCE-498: Add this error to status.
 			return nil, err
 		}
 
@@ -225,11 +232,18 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 		// If the DeploymentTargetClaim is bounded, find the corresponding DeploymentTarget.
 		dt, err := getDTBoundByDTC(ctx, k8sClient, dtc)
 		if err != nil {
+			if apierr.IsNotFound(err) {
+				log.Error(err, "DeploymentTarget not found for DeploymentTargetClaim", "DeploymentTargetClaim", dtc.Name)
+				return nil, nil
+			}
+			// TODO: GITOPSRVCE-498: Add this error to status.
 			return nil, err
 		}
 
 		if dt == nil {
-			return nil, fmt.Errorf("DeploymentTarget not found for DeploymentTargetClaim: %s", dtc.Name)
+			// TODO: GITOPSRVCE-498: Add this error to status.
+			log.Error(nil, "DeploymentTarget not found for DeploymentTargetClaim", "DeploymentTargetClaim", dtc.Name)
+			return nil, nil
 		}
 
 		log.Info("Using the cluster credentials from the DeploymentTarget", "DeploymentTarget", dt.Name)
@@ -298,7 +312,7 @@ func (r *EnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(
 			&source.Kind{Type: &appstudioshared.DeploymentTargetClaim{}},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForDeploymentTargetClaim),
-			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Watches(
 			&source.Kind{Type: &appstudioshared.DeploymentTarget{}},

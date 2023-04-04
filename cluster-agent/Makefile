@@ -119,6 +119,18 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	KUBECONFIG=${WORKLOAD_KUBECONFIG} go run ./main.go --zap-log-level info --zap-time-encoding=rfc3339nano
 # more on controller log level configuration: https://sdk.operatorframework.io/docs/building-operators/golang/references/logging/
 
+runexec: ## Run a controller from your host using exe in current folder
+ifeq (,$(wildcard ./main))
+runexec: manifests generate fmt vet
+	@echo Building and running cluster-agent
+	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build ./main.go
+	KUBECONFIG=${WORKLOAD_KUBECONFIG} main --zap-log-level info --zap-time-encoding=rfc3339nano
+else
+runexec:
+	@echo Running cluster-agent using existing main executable.
+	KUBECONFIG=${WORKLOAD_KUBECONFIG} main --zap-log-level info --zap-time-encoding=rfc3339nano
+endif
+
 chaos-run: manifests generate fmt vet ## Chaos Engineering: Simulate a controller that restarts every ~33 seconds.
 	go build -o /tmp/cluster-agent-manager-chaos main.go
 	KILL_INTERVAL="45" KILL_INITIAL="10" ../utilities/random-kill.sh /tmp/cluster-agent-manager-chaos --zap-log-level info --zap-time-encoding=rfc3339nano
@@ -247,3 +259,8 @@ gosec: go_sec
 .PHONY: clean
 clean:
 	rm -rf vendor/ bin/
+
+# Remove the vendor and bin folders
+.PHONY: clean-exec
+clean-exec:
+	rm main

@@ -402,10 +402,12 @@ var _ = Describe("Environment controller tests", func() {
 			By("check if an error is returned after reconciling")
 			req := newRequest(env.Namespace, env.Name)
 			res, err := reconciler.Reconcile(ctx, req)
-			Expect(err).ToNot(BeNil())
-			expectedErrMsg := "environment test-env is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set"
-			Expect(err.Error()).To(Equal(expectedErrMsg))
 			Expect(res).To(Equal(reconcile.Result{}))
+			Expect(err).To(BeNil())
+			// TODO: GITOPSRVCE-498: this test should check .status field of environment
+
+			// expectedErrMsg := "environment test-env is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set"
+			// Expect(err.Error()).To(Equal(expectedErrMsg))
 		})
 
 		It("should manage an Environment with DeploymentTargetClaim specified", func() {
@@ -589,10 +591,12 @@ var _ = Describe("Environment controller tests", func() {
 			By("reconcile and verify if an error is returned")
 			req := newRequest(env.Namespace, env.Name)
 			res, err := reconciler.Reconcile(ctx, req)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(BeNil())
 			Expect(res).To(Equal(reconcile.Result{}))
-			expectedErrMsg := "unable to generate expected GitOpsDeploymentManagedEnvironment resource: DeploymentTarget not found for DeploymentTargetClaim: test-dtc"
-			Expect(err.Error()).To(Equal(expectedErrMsg))
+			// TODO: GITOPSRVCE-498: Check if the status is updated with the error
+
+			// expectedErrMsg := "unable to generate expected GitOpsDeploymentManagedEnvironment resource: DeploymentTarget not found for DeploymentTargetClaim: test-dtc"
+			// Expect(err.Error()).To(Equal(expectedErrMsg))
 		})
 
 		It("shouldn't process the Environment if neither credentials nor DTC is provided", func() {

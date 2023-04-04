@@ -39,7 +39,6 @@ spec:
               state of GitOpsDeploymentManagedEnvironment
             properties:
               allowInsecureSkipTLSVerify:
-                description: ClusterCredentialsSecretValue string `json:"credentialsSecretValue"`
                 type: boolean
               apiURL:
                 type: string

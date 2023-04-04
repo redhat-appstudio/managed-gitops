@@ -155,6 +155,8 @@ start: ## Start all the components, compile & run (ensure goreman is installed, 
 start-chaos: ## Start all the components, compile & run (ensure goreman is installed, with 'go install github.com/mattn/goreman@latest')
 	$(GOBIN)/goreman -f Procfile.chaos start
 
+start-execs: ## Start all the components, compile & run using execs in component folders (ensure goreman is installed, with 'go install github.com/mattn/goreman@latest')
+	$(GOBIN)/goreman -f Procfile.runexecs start
 
 clean: ## remove the bin and vendor folders from each component
 	cd $(MAKEFILE_ROOT)/backend-shared && make clean
@@ -163,6 +165,11 @@ clean: ## remove the bin and vendor folders from each component
 	cd $(MAKEFILE_ROOT)/appstudio-controller && make clean
 	cd $(MAKEFILE_ROOT)/tests-e2e && make clean
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && make clean
+
+clean-execs: ## remove the main executables in each component
+	cd $(MAKEFILE_ROOT)/backend && make clean-exec
+	cd $(MAKEFILE_ROOT)/cluster-agent && make clean-exec
+	cd $(MAKEFILE_ROOT)/appstudio-controller && make clean-exec
 
 build: build-backend build-cluster-agent build-appstudio-controller build-init-container-binary ## Build all the components - note: you do not need to do this before running start
 

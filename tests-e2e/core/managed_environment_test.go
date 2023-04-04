@@ -346,7 +346,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(BeNil())
 
-			By("ensuring GitOpsDeployment should have expected health and status and reconciledState")
+			By("ensuring GitOpsDeployment has the expected error condition")
 
 			expectedConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{
 				{
@@ -357,7 +357,6 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				},
 			}
 
-			// The resulting Argo CD app is healthy but has an unknown sync status
 			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveConditions(expectedConditions),
@@ -437,24 +436,22 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(BeNil())
 
-			By("ensuring GitOpsDeployment should have expected health and status and reconciledState")
+			By("ensuring GitOpsDeployment has the expected error condition")
 
-			expectedReconciledStateField := managedgitopsv1alpha1.ReconciledState{
-				Source: managedgitopsv1alpha1.GitOpsDeploymentSource{
-					RepoURL: gitOpsDeploymentResource.Spec.Source.RepoURL,
-					Path:    gitOpsDeploymentResource.Spec.Source.Path,
-				},
-				Destination: managedgitopsv1alpha1.GitOpsDeploymentDestination{
-					Name:      gitOpsDeploymentResource.Spec.Destination.Environment,
-					Namespace: gitOpsDeploymentResource.Spec.Destination.Namespace,
+			expectedConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{
+				{
+					Type:    managedgitopsv1alpha1.GitOpsDeploymentConditionErrorOccurred,
+					Message: "Unable to reconcile the ManagedEnvironment. Verify that the ManagedEnvironment and Secret are correctly defined, and have valid credentials",
+					Status:  managedgitopsv1alpha1.GitOpsConditionStatusTrue,
+					Reason:  managedgitopsv1alpha1.GitopsDeploymentReasonErrorOccurred,
 				},
 			}
 
 			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
 				SatisfyAll(
-					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeUnknown),
-					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
-					gitopsDeplFixture.HaveReconciledState(expectedReconciledStateField)))
+					gitopsDeplFixture.HaveConditions(expectedConditions),
+				),
+			)
 
 			By("deleting the secret and managed environment")
 			err = k8s.Delete(&secret, k8sClient)
@@ -669,9 +666,8 @@ func buildManagedEnvironment(apiServerURL string, kubeConfigContents string, cre
 			Namespace: fixture.GitOpsServiceE2ENamespace,
 		},
 		Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
-			APIURL:                   apiServerURL,
-			ClusterCredentialsSecret: secret.Name,
-
+			APIURL:                     apiServerURL,
+			ClusterCredentialsSecret:   secret.Name,
 			AllowInsecureSkipTLSVerify: true,
 			CreateNewServiceAccount:    createNewServiceAccount,
 		},

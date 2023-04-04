@@ -439,7 +439,7 @@ func createNamespaceScopedUserAccount(ctx context.Context, user string, createRe
 		}
 	}
 
-	token, err := getOrCreateServiceAccountBearerToken(ctx, k8sClient, sa.Name, ns.Name, log)
+	token, err := k8s.CreateServiceAccountBearerToken(ctx, k8sClient, sa.Name, ns.Name)
 	if err != nil {
 		return "", fmt.Errorf("error on getting bearer token: %v", err)
 	}

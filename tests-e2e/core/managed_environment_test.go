@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -44,8 +45,6 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			if fixture.IsRunningAgainstKCP() {
 				Skip("Skipping this test until we support running gitops operator with KCP")
 			}
-
-			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("creating the GitOpsDeploymentManagedEnvironment")
 
@@ -470,6 +469,234 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 		})
+
+		It("verifies that we can deploy to a namespace-scoped ManagedEnvironment", func() {
+
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			By("creating a new namespace to deploy to, and a role/rolebinding/SA with permissions to deploy to it")
+			newNamespace := corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "new-e2e-test-namespace",
+					Annotations: map[string]string{
+						common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+					},
+				},
+			}
+			err = k8sClient.Create(ctx, &newNamespace)
+			Expect(err).To(Succeed())
+
+			serviceAccount := corev1.ServiceAccount{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-service-account",
+					Namespace: newNamespace.Name,
+				},
+			}
+			err = k8sClient.Create(context.Background(), &serviceAccount)
+			Expect(err).To(Succeed())
+
+			tokenSecret, err := k8s.CreateServiceAccountBearerToken(ctx, k8sClient, serviceAccount.Name, serviceAccount.Namespace)
+			Expect(err).To(BeNil())
+			Expect(tokenSecret).ToNot(BeEmpty())
+
+			namespaceRole := rbacv1.Role{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      serviceAccount.Name + "-role",
+					Namespace: newNamespace.Name,
+				},
+				Rules: []rbacv1.PolicyRule{{
+					Verbs:     []string{"*"},
+					Resources: []string{"*"},
+					APIGroups: []string{"*"},
+				}},
+			}
+			err = k8s.Create(&namespaceRole, k8sClient)
+			Expect(err).To(BeNil())
+
+			namespaceRoleBinding := rbacv1.RoleBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      serviceAccount.Name + "-role-binding",
+					Namespace: newNamespace.Name,
+				},
+				Subjects: []rbacv1.Subject{{
+					Name:      serviceAccount.Name,
+					Namespace: newNamespace.Name,
+					Kind:      "ServiceAccount",
+				}},
+				RoleRef: rbacv1.RoleRef{
+					Name: namespaceRole.Name,
+					Kind: "Role",
+				},
+			}
+			err = k8s.Create(&namespaceRoleBinding, k8sClient)
+			Expect(err).To(BeNil())
+
+			By("creating the GitOpsDeploymentManagedEnvironment and its Secret, using that service account token")
+
+			_, apiServerURL, err := extractKubeConfigValues()
+			Expect(err).To(BeNil())
+
+			kubeConfigContents := generateKubeConfig(apiServerURL, newNamespace.Name, tokenSecret)
+
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-managed-env-secret",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Type:       "managed-gitops.redhat.com/managed-environment",
+				StringData: map[string]string{"kubeconfig": kubeConfigContents},
+			}
+			err = k8s.Create(secret, k8sClient)
+			Expect(err).To(BeNil())
+
+			managedEnv := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-managed-env",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+					APIURL:                     apiServerURL,
+					ClusterCredentialsSecret:   secret.Name,
+					AllowInsecureSkipTLSVerify: true,
+					CreateNewServiceAccount:    false,
+					Namespaces:                 []string{newNamespace.Name},
+				},
+			}
+
+			err = k8s.Create(managedEnv, k8sClient)
+			Expect(err).To(BeNil())
+
+			gitOpsDeploymentResource := buildGitOpsDeploymentResource("my-gitops-depl",
+				"https://github.com/redhat-appstudio/managed-gitops",
+				"resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+
+			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
+			gitOpsDeploymentResource.Spec.Destination.Namespace = newNamespace.Name
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
+			Expect(err).To(BeNil())
+
+			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)))
+
+			componentBDeployment := &apps.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "component-b",
+					Namespace: newNamespace.Name,
+				},
+			}
+
+			Eventually(componentBDeployment).Should(k8s.ExistByName(k8sClient),
+				"we check that at least one of the resources is deployed to the expected namespace")
+
+			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
+			Expect(err).To(BeNil())
+
+			By("creating a second GitOpsDeployment, targeting a different namespace without a role and rolebinding on the serviceaccount of the managedenvironment, which should fail")
+
+			gitOpsDeploymentResource2 := buildGitOpsDeploymentResource("my-gitops-depl2",
+				"https://github.com/redhat-appstudio/managed-gitops",
+				"resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+
+			gitOpsDeploymentResource2.Spec.Destination.Environment = managedEnv.Name
+			gitOpsDeploymentResource2.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
+			err = k8s.Create(&gitOpsDeploymentResource2, k8sClient)
+			Expect(err).To(BeNil())
+
+			Eventually(gitOpsDeploymentResource2, "2m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeUnknown),
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeMissing)))
+
+			err = k8s.Delete(&gitOpsDeploymentResource2, k8sClient)
+			Expect(err).To(BeNil())
+
+			By("creating a new namespace, and adding a role and rolebinding to the existing serviceaccount and managedenvironment ")
+
+			newNamespace2 := corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "new-e2e-test-namespace2",
+					Annotations: map[string]string{
+						common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+					},
+				},
+			}
+			err = k8sClient.Create(ctx, &newNamespace2)
+			Expect(err).To(Succeed())
+
+			namespaceRole2 := rbacv1.Role{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      serviceAccount.Name + "-role",
+					Namespace: newNamespace2.Name,
+				},
+				Rules: []rbacv1.PolicyRule{{
+					Verbs:     []string{"*"},
+					Resources: []string{"*"},
+					APIGroups: []string{"*"},
+				}},
+			}
+			err = k8s.Create(&namespaceRole2, k8sClient)
+			Expect(err).To(BeNil())
+
+			namespaceRoleBinding2 := rbacv1.RoleBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      serviceAccount.Name + "-role-binding",
+					Namespace: newNamespace2.Name,
+				},
+				Subjects: []rbacv1.Subject{{
+					Name:      serviceAccount.Name,
+					Namespace: newNamespace.Name,
+					Kind:      "ServiceAccount",
+				}},
+				RoleRef: rbacv1.RoleRef{
+					Name: namespaceRole2.Name,
+					Kind: "Role",
+				},
+			}
+			err = k8s.Create(&namespaceRoleBinding2, k8sClient)
+			Expect(err).To(BeNil())
+
+			By("updating the managedenvironment, adding the second namespace to the list of managed namespaces")
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(managedEnv), managedEnv)
+			Expect(err).To(BeNil())
+			managedEnv.Spec.Namespaces = []string{newNamespace.Name, newNamespace2.Name}
+
+			err = k8sClient.Update(ctx, managedEnv)
+			Expect(err).To(BeNil())
+
+			By("create a new GitOpsDeployment that attempts to deploy to the new namespace, using the exist managedenvironment, which should work")
+			gitOpsDeploymentResource3 := buildGitOpsDeploymentResource("my-gitops-depl3",
+				"https://github.com/redhat-appstudio/managed-gitops",
+				"resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+
+			gitOpsDeploymentResource3.Spec.Destination.Environment = managedEnv.Name
+			gitOpsDeploymentResource3.Spec.Destination.Namespace = newNamespace2.Name
+			err = k8s.Create(&gitOpsDeploymentResource3, k8sClient)
+			Expect(err).To(BeNil())
+
+			Eventually(gitOpsDeploymentResource3, "2m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)),
+				"gitopsdeployment and managedenvironment should be able to deploy to the new namespace")
+
+			componentBDeployment = &apps.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "component-b",
+					Namespace: newNamespace2.Name,
+				},
+			}
+
+			Eventually(componentBDeployment).Should(k8s.ExistByName(k8sClient),
+				"we check that at least one of the resources is deployed to the new namespace")
+
+		})
+
 	})
 })
 

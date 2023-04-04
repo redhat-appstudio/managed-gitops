@@ -17,6 +17,7 @@ import (
 // - Wait for the ServiceAccountToken Secret to be created
 // - Next, add a fake token to the secret
 // - Finally, add a reference to the Secret to the ServiceAccount
+// This is for unit test purposes only.
 func StartServiceAccountListenerOnFakeClient(ctx context.Context, managedEnvironmentUID string, k8sClient client.Client) {
 
 	addSecretToServiceAccount := func(secret corev1.Secret) {

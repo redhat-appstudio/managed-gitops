@@ -2,7 +2,10 @@ package shared_resource_loop
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -66,7 +69,7 @@ func internalProcessMessage_internalReconcileSharedManagedEnv(ctx context.Contex
 		return newSharedResourceManagedEnvContainer(), createUnknownErrorEnvInitCondition(), err
 	}
 
-	// If the GitOpsDeployment's 'target' field has an empty environment field, indicating it is targetting the same
+	// If the GitOpsDeployment's 'target' field has an empty environment field, indicating it is targeting the same
 	// namespace as the GitOpsDeployment itself, then we use a separate function to process the message.
 	if isWorkspaceTarget {
 		return internalProcessMessage_GetOrCreateSharedResources(ctx, gitopsEngineClient, workspaceNamespace, dbQueries, log)
@@ -179,15 +182,30 @@ func internalProcessMessage_internalReconcileSharedManagedEnv(ctx context.Contex
 
 	}
 
+	managedEnvNamespaceSliceList, err := convertManagedEnvNamespacesFieldToCommaSeparatedList(managedEnvironmentCR.Spec.Namespaces)
+	if err != nil {
+		msg := fmt.Sprintf("user specified an invalid namespace: %v", err)
+		return newSharedResourceManagedEnvContainer(),
+			connectionInitializedCondition{
+				managedEnvCR: managedEnvironmentCR,
+				status:       metav1.ConditionUnknown,
+				reason:       managedgitopsv1alpha1.ConditionReasonInvalidNamespaceList,
+				message:      msg,
+			}, errors.New(msg)
+	}
+
 	// We found the managed env, now verify that the API url of the k8s resources matches what is in the cluster credential
-	if clusterCreds.Host != managedEnvironmentCR.Spec.APIURL {
+	if clusterCreds.Host != managedEnvironmentCR.Spec.APIURL ||
+		clusterCreds.AllowInsecureSkipTLSVerify != managedEnvironmentCR.Spec.AllowInsecureSkipTLSVerify ||
+		clusterCreds.ClusterResources != managedEnvironmentCR.Spec.ClusterResources ||
+		clusterCreds.Namespaces != managedEnvNamespaceSliceList {
 		// C) If the API URL defined in the managed env CR has changed, then replace the cluster credentials of the managed environment
 		return replaceExistingManagedEnv(ctx, gitopsEngineClient, workspaceClient, *clusterUser, isNewUser, managedEnvironmentCR, secretCR, *managedEnv,
 			workspaceNamespace, k8sClientFactory, dbQueries, log)
 	}
 
 	// Verify that we are able to connect to the cluster using the service account token we stored
-	validClusterCreds, err := verifyClusterCredentials(ctx, *clusterCreds, managedEnvironmentCR, k8sClientFactory)
+	validClusterCreds, err := verifyClusterCredentialsWithNamespaceList(ctx, *clusterCreds, managedEnvironmentCR, k8sClientFactory)
 	if !validClusterCreds || err != nil {
 		log.Info("was unable to connect using provided cluster credentials, so acquiring new ones.", "clusterCreds", clusterCreds.Clustercredentials_cred_id)
 		// D) If the cluster credentials appear to no longer be valid (we're no longer able to connect), then reacquire using the
@@ -822,6 +840,26 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 
 		saBearerToken = val.Token
 	}
+
+	// Convert the .spec.namespaces field to a comma-separated list of namespaces
+	var namespacesField string
+	if len(managedEnvironment.Spec.Namespaces) > 0 {
+
+		namespacesField, err = convertManagedEnvNamespacesFieldToCommaSeparatedList(managedEnvironment.Spec.Namespaces)
+		if err != nil {
+			log.Error(err, "ManagedEnvironment contains an invalid namespace slice", "namespaceSlice", managedEnvironment.Spec.Namespaces)
+
+			return db.ClusterCredentials{},
+				connectionInitializedCondition{
+					managedEnvCR: managedEnvironment,
+					status:       metav1.ConditionUnknown,
+					reason:       managedgitopsv1alpha1.ConditionReasonInvalidNamespaceList,
+					message:      err.Error(),
+				}, fmt.Errorf("user specified an invalid namespace: %v", err)
+		}
+
+	}
+
 	insecureVerifyTLS := managedEnvironment.Spec.AllowInsecureSkipTLSVerify
 	clusterCredentials := db.ClusterCredentials{
 		Host:                        managedEnvironment.Spec.APIURL,
@@ -830,6 +868,8 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 		Serviceaccount_bearer_token: saBearerToken,
 		Serviceaccount_ns:           serviceAccountNamespaceKubeSystem,
 		AllowInsecureSkipTLSVerify:  insecureVerifyTLS,
+		Namespaces:                  namespacesField,
+		ClusterResources:            managedEnvironment.Spec.ClusterResources,
 	}
 	// If an existing service account is used instead, we should verify the cluster credentials based on the provided token
 	if !managedEnvironment.Spec.CreateNewServiceAccount {
@@ -925,36 +965,6 @@ func sanityTestCredentials(clusterCreds db.ClusterCredentials) (*rest.Config, bo
 	configParam.ServerName = ""
 
 	return configParam, true, nil
-}
-
-// verifyClusterCredentials returns true if we were able to successfully connect with the credentials, false otherwise.
-func verifyClusterCredentials(ctx context.Context, clusterCreds db.ClusterCredentials, managedEnvCR managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment,
-	k8sClientFactory SRLK8sClientFactory) (bool, error) {
-
-	configParam, _, err := sanityTestCredentials(clusterCreds)
-	if err != nil {
-		return false, err
-	}
-
-	clientObj, err := k8sClientFactory.BuildK8sClient(configParam)
-	if err != nil {
-		return false, fmt.Errorf("unable to create new K8s client to '%v': %w", configParam.Host, err)
-	}
-
-	// To verify that the client works, attempt to retrieve the service account
-	serviceAccount := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      sharedutil.GenerateServiceAccountName(string(managedEnvCR.UID)),
-			Namespace: eventlooptypes.KubeSystemNamespace,
-		},
-	}
-	if err := clientObj.Get(ctx, client.ObjectKeyFromObject(serviceAccount), serviceAccount); err != nil {
-		return false, fmt.Errorf("unable to retrieve service account when verifying cluster credential '%s': %w",
-			clusterCreds.Clustercredentials_cred_id, err)
-	}
-
-	// Success!
-	return true, nil
 }
 
 // connectionInitializedCondition is returned by functions in this file, to indicate that a Condition should be set in the
@@ -1080,12 +1090,87 @@ func verifyClusterCredentialsWithNamespaceList(ctx context.Context, clusterCreds
 		return false, fmt.Errorf("unable to create new K8s client to '%v': %w", configParam.Host, err)
 	}
 
-	// To verify that the client works, attempt to simply get the list of namespaces
-	var namespaceList corev1.NamespaceList
-	if err := clientObj.List(ctx, &namespaceList); err != nil {
-		return false, fmt.Errorf("unable to verify cluster credentials by retrieving the list of namespaces '%s': %w",
-			clusterCreds.Clustercredentials_cred_id, err)
+	if len(managedEnvCR.Spec.Namespaces) > 0 {
+		// If the managed environment contains a namespace, use it to validate that the k8s client (based on the credentials) is valid
+		firstNamespaceName := corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: managedEnvCR.Spec.Namespaces[0],
+			},
+		}
+		if err := clientObj.Get(ctx, client.ObjectKeyFromObject(&firstNamespaceName), &firstNamespaceName); err != nil {
+			return false, fmt.Errorf("unable to verify cluster credentials by retrieve a namespace in the namespace list '%s': %w",
+				firstNamespaceName.Name, err)
+		}
+
+	} else {
+		// To verify that the client works, attempt to simply get the list of namespaces
+		var namespaceList corev1.NamespaceList
+		if err := clientObj.List(ctx, &namespaceList); err != nil {
+			return false, fmt.Errorf("unable to verify cluster credentials by retrieving the list of namespaces '%s': %w",
+				clusterCreds.Clustercredentials_cred_id, err)
+		}
 	}
+
 	// Success!
 	return true, nil
+}
+
+// Convert the .spec.namespaces field to a comma-separated list of namespaces
+func convertManagedEnvNamespacesFieldToCommaSeparatedList(namespaces []string) (string, error) {
+	if len(namespaces) == 0 {
+		return "", nil
+	}
+
+	for _, namespace := range namespaces {
+		if !isValidNamespaceName(namespace) {
+			return "", fmt.Errorf("ManagedEnvironment contains an invalid namespace in namespaces list: %s", namespace)
+		}
+	}
+
+	namespacesSlice := append([]string{}, namespaces...)
+	sort.Strings(namespacesSlice)
+
+	var namespacesField string
+
+	for _, namespace := range namespacesSlice {
+		namespacesField += strings.ToLower(namespace) + ","
+	}
+
+	// Remove trailing comma
+	namespacesField = namespacesField[0 : len(namespacesField)-1]
+
+	return namespacesField, nil
+}
+
+// Define a global regular expression pattern
+var lowerAlphanumericRegex = regexp.MustCompile(`^[a-z0-9]+$`)
+
+func isLowerAlphanumeric(s string) bool {
+	return lowerAlphanumericRegex.MatchString(s)
+}
+
+// A namespace is valid if it conforms to RFC 1123 DNS label standard
+func isValidNamespaceName(namespaceName string) bool {
+
+	// contain at most 63 characters
+	if len(namespaceName) >= 64 || len(namespaceName) == 0 {
+		return false
+	}
+
+	// starts with an alphanumeric character
+	// ends with an alphanumeric character}
+	if strings.HasPrefix(namespaceName, "-") || strings.HasSuffix(namespaceName, "-") {
+		return false
+	}
+
+	// contain only lowercase alphanumeric characters or '-'
+	for index := 0; index < len(namespaceName); index++ {
+
+		ch := namespaceName[index : index+1]
+		if ch != "-" && !isLowerAlphanumeric(ch) {
+			return false
+		}
+	}
+
+	return true
 }

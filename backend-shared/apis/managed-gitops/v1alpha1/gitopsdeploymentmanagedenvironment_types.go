@@ -26,10 +26,12 @@ const (
 
 // GitOpsDeploymentManagedEnvironmentSpec defines the desired state of GitOpsDeploymentManagedEnvironment
 type GitOpsDeploymentManagedEnvironmentSpec struct {
-	APIURL                     string `json:"apiURL"`
-	ClusterCredentialsSecret   string `json:"credentialsSecret"`
-	AllowInsecureSkipTLSVerify bool   `json:"allowInsecureSkipTLSVerify"`
-	CreateNewServiceAccount    bool   `json:"createNewServiceAccount,omitempty"`
+	APIURL                     string   `json:"apiURL"`
+	ClusterCredentialsSecret   string   `json:"credentialsSecret"`
+	AllowInsecureSkipTLSVerify bool     `json:"allowInsecureSkipTLSVerify"`
+	CreateNewServiceAccount    bool     `json:"createNewServiceAccount,omitempty"`
+	Namespaces                 []string `json:"namespaces,omitempty"`
+	ClusterResources           bool     `json:"clusterResources,omitempty"`
 }
 
 type AllowInsecureSkipTLSVerify bool
@@ -74,6 +76,7 @@ const (
 	ConditionReasonUnableToValidateClusterCredentials ManagedEnvironmentConditionReason = "UnableToValidateClusterCredentials"
 	ConditionReasonUnableToLocateContext              ManagedEnvironmentConditionReason = "UnableToLocateContext"
 	ConditionReasonUnableToParseKubeconfigData        ManagedEnvironmentConditionReason = "UnableToParseKubeconfigData"
+	ConditionReasonInvalidNamespaceList               ManagedEnvironmentConditionReason = "InvalidNamespaceList"
 	ConditionReasonUnableToRetrieveRestConfig         ManagedEnvironmentConditionReason = "UnableToRetrieveRestConfig"
 	ConditionReasonUnknownError                       ManagedEnvironmentConditionReason = "UnknownError"
 )

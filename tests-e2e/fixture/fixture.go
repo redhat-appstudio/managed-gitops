@@ -71,12 +71,12 @@ func EnsureCleanSlateNonKCPVirtualWorkspace() error {
 		return err
 	}
 
-	if err := DeleteNamespace(NewArgoCDInstanceNamespace, clientconfig); err != nil {
-		return err
-	}
-
-	if err := DeleteNamespace(NewArgoCDInstanceDestNamespace, clientconfig); err != nil {
-		return err
+	// Clean up after various old namespaces that are used in tests
+	prevTestNamespacesToDelete := []string{"new-e2e-test-namespace", "new-e2e-test-namespace2", NewArgoCDInstanceNamespace, NewArgoCDInstanceDestNamespace}
+	for _, namespaceName := range prevTestNamespacesToDelete {
+		if err := DeleteNamespace(namespaceName, clientconfig); err != nil {
+			return err
+		}
 	}
 
 	// Clean up after tests that target the default Argo CD E2E instance (used by most E2E tests)
@@ -122,7 +122,7 @@ func cleanUpOldArgoCDApplications(namespaceParam string, destNamespace string, c
 	}
 	argoCDApplicationList := appv1alpha1.ApplicationList{}
 	if err = k8sClient.List(context.Background(), &argoCDApplicationList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
-		return fmt.Errorf("unable to list '%s': %v ", namespaceParam, err)
+		return fmt.Errorf("unable to list '%s': %v . Verify that Argo CD is installed on the cluster", namespaceParam, err)
 	}
 
 	// Delete an Argo CD Application resources that reference the destination namespace
@@ -522,7 +522,7 @@ func DeleteNamespace(namespaceParam string, clientConfig *rest.Config) error {
 
 		// Delete any Argo CD Applications in the Argo CD namespace that target this namespace
 		if err := cleanUpOldArgoCDApplications(dbutil.GetGitOpsEngineSingleInstanceNamespace(), namespaceParam, clientConfig); err != nil {
-			GinkgoWriter.Printf("unable to clean up old Argo CD Applications targetting '%s': %v'\n", namespaceParam, err)
+			GinkgoWriter.Printf("unable to clean up old Argo CD Applications targeting '%s': %v'\n", namespaceParam, err)
 			return false, nil
 		}
 
@@ -979,7 +979,7 @@ func removeKCPFinalizers(k8sClient client.Client, namespaceParam string) (bool, 
 //
 // - In the gitops-service-provider workspace, the function will:
 //   - Delete all Argo CD Cluster Secrets from the Argo CD Namespace
-//   - Clean up old argo cd applications targetting the e2e namespace
+//   - Clean up old argo cd applications targeting the e2e namespace
 //
 // Need two different client ===> client virtual workspace enabled for workspace
 //

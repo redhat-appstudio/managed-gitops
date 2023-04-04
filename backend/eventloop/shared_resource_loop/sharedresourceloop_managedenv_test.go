@@ -3,6 +3,7 @@ package shared_resource_loop
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -25,7 +26,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var _ = Describe("SharedResourceEventLoop Test", func() {
+var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func() {
 
 	// This will be used by AfterEach to clean resources
 
@@ -438,7 +439,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			defer mockCtrl.Finish()
 			mockClient := mocks.NewMockClient(mockCtrl)
 
-			mockClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("fake unable to connect"))
+			mockClient.EXPECT().List(gomock.Any(), gomock.Any()).Return(fmt.Errorf("fake unable to connect"))
 			mockClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("fake unable to connect"))
 
 			mockFactory := &SimulateFailingClientMockSRLK8sClientFactory{
@@ -486,7 +487,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			defer mockCtrl.Finish()
 			mockClient := mocks.NewMockClient(mockCtrl)
 
-			mockClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("fake unable to connect"))
+			mockClient.EXPECT().List(gomock.Any(), gomock.Any()).Return(fmt.Errorf("fake unable to connect"))
 
 			mockFactory := &SimulateFailingClientMockSRLK8sClientFactory{
 				limit:          1,
@@ -624,9 +625,6 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			err = k8sClient.Create(ctx, &managedEnv)
 			Expect(err).To(BeNil())
 
-			// err = k8sClient.Create(ctx, &secret)
-			// Expect(err).To(BeNil())
-
 			By("calling reconcile on the managed env, which is missing a secret")
 			createRC, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
@@ -668,7 +666,69 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 		})
 
-		DescribeTable("Tests whether the tlsConfig value from managedEnv gets maped correctly into the database",
+		It("should reconcile a ManagedEnvironment containing .spec.namespaces and .spec.clusterResources values", func() {
+
+			managedEnv, secret := buildManagedEnvironmentForSRL()
+
+			managedEnv.Spec.Namespaces = []string{"c", "b", "a"}
+			managedEnv.Spec.ClusterResources = true
+
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, &managedEnv)
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Create(ctx, &secret)
+			Expect(err).To(BeNil())
+
+			By("calling reconcile to create database entries for new managed env")
+			createRC, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(err).To(BeNil())
+			Expect(createRC.ManagedEnv).ToNot(BeNil())
+
+			By("ensuring cluster credentials should have expected values")
+			clusterCredentials := db.ClusterCredentials{
+				Clustercredentials_cred_id: createRC.ManagedEnv.Clustercredentials_id,
+			}
+
+			err = dbQueries.GetClusterCredentialsById(ctx, &clusterCredentials)
+			Expect(err).To(BeNil())
+			Expect(clusterCredentials.Namespaces).To(Equal("a,b,c"), "should match values from managed env")
+			Expect(clusterCredentials.ClusterResources).To(Equal(true), "should match values from managed env")
+
+			By("updating the namespace/clusterresources values on the managedenv .spec, to ensure the change is applied")
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
+			Expect(err).To(BeNil())
+
+			managedEnv.Spec.ClusterResources = false
+			managedEnv.Spec.Namespaces = []string{}
+
+			err = k8sClient.Update(ctx, &managedEnv)
+			Expect(err).To(BeNil())
+
+			By("call the reconcile function again")
+			createRC, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(err).To(BeNil())
+			Expect(createRC.ManagedEnv).ToNot(BeNil())
+
+			By("ensuring cluster credentials should have new expected values")
+			clusterCredentials = db.ClusterCredentials{
+				Clustercredentials_cred_id: createRC.ManagedEnv.Clustercredentials_id,
+			}
+
+			err = dbQueries.GetClusterCredentialsById(ctx, &clusterCredentials)
+			Expect(err).To(BeNil())
+			Expect(clusterCredentials.Namespaces).To(Equal(""), "should match values from managed env")
+			Expect(clusterCredentials.ClusterResources).To(Equal(false), "should match values from managed env")
+
+		})
+
+		DescribeTable("Tests whether the tlsConfig value from managedEnv gets mapped correctly into the database",
 			func(tlsVerifyStatus bool) {
 				managedEnv, secret := buildManagedEnvironmentForSRL()
 				managedEnv.UID = "test-" + uuid.NewUUID()
@@ -683,21 +743,76 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				Expect(err).To(BeNil())
 
 				By("first calling reconcile to create database entries for new managed env")
-				firstSrc, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				reconcileRes, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 					false, *namespace, mockFactory, dbQueries, log)
 				Expect(err).To(BeNil())
-				Expect(firstSrc.ManagedEnv).ToNot(BeNil())
+				Expect(reconcileRes.ManagedEnv).ToNot(BeNil())
 
-				getClusterCredentials := firstSrc.ManagedEnv.Clustercredentials_id
-				clusterCreds := &db.ClusterCredentials{Clustercredentials_cred_id: getClusterCredentials}
+				clusterCreds := &db.ClusterCredentials{Clustercredentials_cred_id: reconcileRes.ManagedEnv.Clustercredentials_id}
 				err = dbQueries.GetClusterCredentialsById(ctx, clusterCreds)
 				Expect(err).To(BeNil())
 
 				Expect(managedEnv.Spec.AllowInsecureSkipTLSVerify).To(Equal(clusterCreds.AllowInsecureSkipTLSVerify))
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
+				Expect(err).To(BeNil())
+
+				By("updating allow insecure tls verify, and confirming the database value changes as well")
+				managedEnv.Spec.AllowInsecureSkipTLSVerify = !tlsVerifyStatus
+
+				err = k8sClient.Update(ctx, &managedEnv)
+				Expect(err).To(BeNil())
+
+				By("calling reconcile again to ensure the managed environment db entry is updated with the new value")
+				reconcileRes, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+					false, *namespace, mockFactory, dbQueries, log)
+				Expect(err).To(BeNil())
+				Expect(reconcileRes.ManagedEnv).ToNot(BeNil())
+
+				clusterCreds = &db.ClusterCredentials{Clustercredentials_cred_id: reconcileRes.ManagedEnv.Clustercredentials_id}
+				err = dbQueries.GetClusterCredentialsById(ctx, clusterCreds)
+				Expect(err).To(BeNil())
+
+				Expect(managedEnv.Spec.AllowInsecureSkipTLSVerify).To(Equal(clusterCreds.AllowInsecureSkipTLSVerify))
+
 			},
 			Entry("TLS status set TRUE", bool(managedgitopsv1alpha1.TLSVerifyStatusTrue)),
 			Entry("TLS status set FALSE", bool(managedgitopsv1alpha1.TLSVerifyStatusFalse)),
 		)
+	})
+
+	Context("Unit tests for individual pure functions", func() {
+
+		DescribeTable("Verify that isValidNamespaceName conforms to K8s namespace requirements",
+			func(namespace string, expectedResult bool) {
+				res := isValidNamespaceName(namespace)
+				Expect(res).To(Equal(expectedResult))
+			},
+			Entry("empty namespace", "", false),
+			Entry("short non-empty namespace", "a", true),
+			Entry("63 character long should be valid", strings.Repeat("a", 63), true),
+			Entry("64 character long should be invalid", strings.Repeat("a", 64), false),
+			Entry("hyphens are valid in the middle", "a-a", true),
+			Entry("hyphens are not valid as a prefix", "-a", false),
+			Entry("hyphens are not valid as a suffix", "a-", false),
+			Entry("numbers are value", "123", true),
+			Entry("must be lowercase", "A", false),
+			Entry("other characters are invalid", "invalid_characters", false),
+		)
+
+		DescribeTable("Verify that convertManagedEnvNamespacesFieldToCommaSeparatedList correctly converts a string slice to comma-separated list, rejecting invalid namespaces",
+			func(namespaceSlice []string, expectedResult string, expectError bool) {
+				res, err := convertManagedEnvNamespacesFieldToCommaSeparatedList(namespaceSlice)
+				Expect(res).To(Equal(expectedResult))
+				Expect(err != nil).To(Equal(expectError))
+			},
+			Entry("empty namespace", []string{}, "", false),
+			Entry("a single valid namespace", []string{"a"}, "a", false),
+			Entry("a couple valid namespaces", []string{"a", "b"}, "a,b", false),
+			Entry("a couple valid namespaces in reverse order", []string{"b", "a"}, "a,b", false),
+			Entry("a valid namespace, one invalid namespace", []string{"B", "a"}, "", true),
+		)
+
 	})
 
 })
@@ -780,6 +895,7 @@ func (f *SimulateFailingClientMockSRLK8sClientFactory) GetK8sClientForServiceWor
 	return f.realFakeClient, nil
 }
 
+// Build a managed environment object for shared resource loop (SRL) test
 func buildManagedEnvironmentForSRL() (managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, corev1.Secret) {
 	return buildManagedEnvironmentForSRLWithOptionalSA(true)
 }

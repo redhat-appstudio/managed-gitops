@@ -1333,6 +1333,185 @@ var _ = Describe("Operation Controller", func() {
 
 			})
 
+			It("verifies that managed environment/cluster credential database values are correctly applied in the Argo CD cluster secret", func() {
+				By("Close database connection")
+				defer dbQueries.CloseDatabase()
+				defer testTeardown()
+
+				By("creating a new managed env")
+				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
+				Expect(err).To(BeNil())
+
+				By("creating new cluster credentials for that managed env, containing non-default namespaces/clusterresource fields")
+				clusterCredentials := db.ClusterCredentials{
+					Clustercredentials_cred_id:  "test-cluster-credentials",
+					Host:                        "https://fake-host-url.com",
+					Kube_config:                 "",
+					Kube_config_context:         "",
+					Serviceaccount_bearer_token: string(uuid.NewUUID()),
+					Serviceaccount_ns:           "",
+					AllowInsecureSkipTLSVerify:  true,
+					Namespaces:                  "a,b,c",
+					ClusterResources:            true,
+				}
+				err = dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
+				Expect(err).To(BeNil())
+
+				managedEnvironment.Clustercredentials_id = clusterCredentials.Clustercredentials_cred_id
+				err = dbQueries.UpdateManagedEnvironment(ctx, managedEnvironment)
+				Expect(err).To(BeNil())
+
+				dummyApplicationSpec, dummyApplicationSpecString, err := createDummyApplicationData()
+				Expect(err).To(BeNil())
+
+				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
+				Expect(gitopsEngineCluster).ToNot(BeNil())
+				Expect(err).To(BeNil())
+
+				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
+				gitopsEngineInstance := &db.GitopsEngineInstance{
+					Gitopsengineinstance_id: "test-fake-engine-instance",
+					Namespace_name:          namespace,
+					Namespace_uid:           string(workspace.UID),
+					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+				}
+				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
+				Expect(err).To(BeNil())
+
+				By("creating an Application row, pointing to the ManagedEnvironment")
+				applicationDB := &db.Application{
+					Application_id:          "test-my-application",
+					Name:                    name,
+					Spec_field:              dummyApplicationSpecString,
+					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				}
+
+				err = dbQueries.CreateApplication(ctx, applicationDB)
+				Expect(err).To(BeNil())
+
+				By("Creating Operation row in database, pointing to the Application")
+				operationDB := &db.Operation{
+					Operation_id:            "test-operation",
+					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+					Resource_id:             applicationDB.Application_id,
+					Resource_type:           "Application",
+					State:                   db.OperationState_Waiting,
+					Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				}
+
+				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+				Expect(err).To(BeNil())
+
+				By("Creating Operation CR")
+				operationCR := &managedgitopsv1alpha1.Operation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: namespace,
+					},
+					Spec: managedgitopsv1alpha1.OperationSpec{
+						OperationID: operationDB.Operation_id,
+					},
+				}
+
+				err = task.event.client.Create(ctx, operationCR)
+				Expect(err).To(BeNil())
+
+				retry, err := task.PerformTask(ctx)
+				Expect(err).To(BeNil())
+
+				By("If no error was returned, and retry is false, then verify that the 'state' field of the Operation row is Completed")
+				err = dbQueries.GetOperationById(ctx, operationDB)
+				Expect(err).To(BeNil())
+				Expect(operationDB.State).To(Equal(db.OperationState_Completed))
+
+				Expect(retry).To(BeFalse())
+				By("verifying that the Application CR is created")
+				applicationCR := appv1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      applicationDB.Name,
+						Namespace: namespace,
+					},
+				}
+
+				By("verifying the argo cd cluster secret was created, and has expected values")
+				err = task.event.client.Get(ctx, types.NamespacedName{Namespace: applicationCR.Namespace, Name: name}, &applicationCR)
+				Expect(err).To(BeNil())
+				Expect(dummyApplicationSpec.Spec).To(Equal(applicationCR.Spec))
+
+				secret := corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      argosharedutil.GenerateArgoCDClusterSecretName(*managedEnvironment),
+						Namespace: namespace,
+					},
+				}
+				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(&secret), &secret)
+				Expect(err).To(BeNil())
+
+				Expect(string(secret.Data["clusterResources"])).To(Equal("true"),
+					"cluster resources should match the value from clustercredentials db row")
+				Expect(string(secret.Data["namespaces"])).To(Equal(clusterCredentials.Namespaces),
+					"should match the value from cluster credentials db row")
+
+				secretJSON := argosharedutil.ClusterSecretConfigJSON{}
+				err = json.Unmarshal(secret.Data["config"], &secretJSON)
+				Expect(err).To(BeNil())
+
+				Expect(secretJSON.BearerToken).To(Equal(clusterCredentials.Serviceaccount_bearer_token))
+				Expect(secretJSON.TLSClientConfig.Insecure).To(Equal(clusterCredentials.AllowInsecureSkipTLSVerify))
+
+				By("creating new cluster credentials for that managed env, containing different namespaces/clusterresource fields")
+				clusterCredentials = db.ClusterCredentials{
+					Clustercredentials_cred_id:  "test-cluster-credentials-2",
+					Host:                        "https://fake-host-url.com",
+					Kube_config:                 "",
+					Kube_config_context:         "",
+					Serviceaccount_bearer_token: string(uuid.NewUUID()),
+					Serviceaccount_ns:           "",
+					AllowInsecureSkipTLSVerify:  false,
+					Namespaces:                  "",
+					ClusterResources:            false,
+				}
+				err = dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
+				Expect(err).To(BeNil())
+
+				managedEnvironment.Clustercredentials_id = clusterCredentials.Clustercredentials_cred_id
+				err = dbQueries.UpdateManagedEnvironment(ctx, managedEnvironment)
+				Expect(err).To(BeNil())
+
+				By("reusing the operation we created previously: re-using operations isn't normally supported, but it saves us some extra lines in the unit test")
+				operationDB.State = db.OperationState_In_Progress
+				err = dbQueries.UpdateOperation(ctx, operationDB)
+				Expect(err).To(BeNil())
+
+				By("calling PerformTask to process the operation, pointing to the updated managed environment")
+				retry, err = task.PerformTask(ctx)
+				Expect(err).To(BeNil())
+				Expect(retry).To(BeFalse())
+
+				By("verifying the argo cd cluster secret was updated, and has expected values")
+				secret = corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      argosharedutil.GenerateArgoCDClusterSecretName(*managedEnvironment),
+						Namespace: namespace,
+					},
+				}
+				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(&secret), &secret)
+				Expect(err).To(BeNil())
+
+				Expect(string(secret.Data["clusterResources"])).To(Equal(""),
+					"cluster resources should match the value from clustercredentials db row")
+				Expect(string(secret.Data["namespaces"])).To(Equal(clusterCredentials.Namespaces),
+					"should match the value from cluster credentials db row")
+
+				secretJSON = argosharedutil.ClusterSecretConfigJSON{}
+				err = json.Unmarshal(secret.Data["config"], &secretJSON)
+				Expect(err).To(BeNil())
+
+				Expect(secretJSON.TLSClientConfig.Insecure).To(Equal(clusterCredentials.AllowInsecureSkipTLSVerify))
+
+			})
+
 			DescribeTable("Checks whether the user updated tls-certificate verification maps correctly from database to cluster secret",
 				func(tlsVerifyStatus bool) {
 					By("Close database connection")

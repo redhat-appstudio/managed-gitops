@@ -9,7 +9,7 @@ To execute the script, we would need to have some basic requirements:
 **Avaialable flag options:**
 - `-i` : provide gitops service image (default: `quay.io/${QUAY_USERNAME}/gitops-service:latest`, QUAY_USERNAME = `redhat-appstudio`)
 - `-u` : provide QUAY registry username (default: `redhat-appstudio`). This will replace the value of QUAY_USERNAME in `quay.io/${QUAY_USERNAME}/gitops-service:latest`
-
+- `-r` : optional argument to provide the revision of manifests to be used in kustomization.yaml. It could either be a commit id or a branch name. Default value is 'main'.
 
 **Steps to execute the script:**
 
@@ -32,3 +32,8 @@ $ sh install-upgrade.sh -u <QUAY_USERNAME>
 e.g. if QUAY_USERNAME is isequeir, this will use the image quay.io/isequeir/gitops-service:latest
 ```
 
+To execute the script using custom revision of the manifests
+```bash
+$ sh install-upgrade.sh -r 911d13321ed6217b005562ec0e37b4b275f82cd5
+
+```

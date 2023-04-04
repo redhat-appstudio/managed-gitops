@@ -40,16 +40,17 @@ CREATE TABLE ClusterCredentials (
 
 	allowinsecure_skiptlsverify BOOLEAN DEFAULT FALSE,
 
+	 -- When ClusterCredentials was created, which allow us to tell how old the resources are
+	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
 	-- A list of namespaces that Argo CD is able to deploy to using these cluster credentials
 	-- - This corresponds to the Argo CD cluster secret field of the same name.
 	namespaces VARCHAR (4096),
 
 	-- Whether or not Argo CD is able to deploy cluster-scoped resources using these cluster credentials
 	-- - This corresponds to the Argo CD cluster secret field of the same name.
-	cluster_resources BOOLEAN DEFAULT FALSE,
+	cluster_resources BOOLEAN DEFAULT FALSE
 
-	 -- When ClusterCredentials was created, which allow us to tell how old the resources are
-	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- GitopsEngineCluster

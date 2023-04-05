@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -20,6 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -194,12 +194,12 @@ func internalProcessMessage_internalReconcileSharedManagedEnv(ctx context.Contex
 			}, errors.New(msg)
 	}
 
-	// We found the managed env, now verify that the API url of the k8s resources matches what is in the cluster credential
+	// We found the managed env, now verify that the ManagedEnv's .spec values match the corresponding fields in the ClusterCredentials row
 	if clusterCreds.Host != managedEnvironmentCR.Spec.APIURL ||
 		clusterCreds.AllowInsecureSkipTLSVerify != managedEnvironmentCR.Spec.AllowInsecureSkipTLSVerify ||
 		clusterCreds.ClusterResources != managedEnvironmentCR.Spec.ClusterResources ||
 		clusterCreds.Namespaces != managedEnvNamespaceSliceList {
-		// C) If the API URL defined in the managed env CR has changed, then replace the cluster credentials of the managed environment
+		// C) If at least one of the fields in the managed env CR has changed, then replace the cluster credentials of the managed environment
 		return replaceExistingManagedEnv(ctx, gitopsEngineClient, workspaceClient, *clusterUser, isNewUser, managedEnvironmentCR, secretCR, *managedEnv,
 			workspaceNamespace, k8sClientFactory, dbQueries, log)
 	}
@@ -1115,7 +1115,7 @@ func verifyClusterCredentialsWithNamespaceList(ctx context.Context, clusterCreds
 	return true, nil
 }
 
-// Convert the .spec.namespaces field to a comma-separated list of namespaces
+// Convert the .spec.namespaces field to a sorted, comma-separated list of namespaces
 func convertManagedEnvNamespacesFieldToCommaSeparatedList(namespaces []string) (string, error) {
 	if len(namespaces) == 0 {
 		return "", nil
@@ -1130,47 +1130,11 @@ func convertManagedEnvNamespacesFieldToCommaSeparatedList(namespaces []string) (
 	namespacesSlice := append([]string{}, namespaces...)
 	sort.Strings(namespacesSlice)
 
-	var namespacesField string
+	return strings.Join(namespacesSlice, ","), nil
 
-	for _, namespace := range namespacesSlice {
-		namespacesField += strings.ToLower(namespace) + ","
-	}
-
-	// Remove trailing comma
-	namespacesField = namespacesField[0 : len(namespacesField)-1]
-
-	return namespacesField, nil
-}
-
-// Define a global regular expression pattern
-var lowerAlphanumericRegex = regexp.MustCompile(`^[a-z0-9]+$`)
-
-func isLowerAlphanumeric(s string) bool {
-	return lowerAlphanumericRegex.MatchString(s)
 }
 
 // A namespace is valid if it conforms to RFC 1123 DNS label standard
 func isValidNamespaceName(namespaceName string) bool {
-
-	// contain at most 63 characters
-	if len(namespaceName) >= 64 || len(namespaceName) == 0 {
-		return false
-	}
-
-	// starts with an alphanumeric character
-	// ends with an alphanumeric character}
-	if strings.HasPrefix(namespaceName, "-") || strings.HasSuffix(namespaceName, "-") {
-		return false
-	}
-
-	// contain only lowercase alphanumeric characters or '-'
-	for index := 0; index < len(namespaceName); index++ {
-
-		ch := namespaceName[index : index+1]
-		if ch != "-" && !isLowerAlphanumeric(ch) {
-			return false
-		}
-	}
-
-	return true
+	return len(validation.IsDNS1123Label(namespaceName)) == 0
 }

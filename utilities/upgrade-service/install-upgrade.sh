@@ -87,7 +87,7 @@ function generate_postgresql_secret {
 
 # Code execution starts here
 # create a temporary directory and do all the operations inside the directory.
-TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/managed-gitops-install-XXXXXXX)
+TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/managed-gitops-install-XXXXXXX")
 echo "Using temp directory ${TEMP_DIR}"
 # cleanup the temporary directory irrespective of whether the script ran successfully or failed with an error.
 trap cleanup EXIT

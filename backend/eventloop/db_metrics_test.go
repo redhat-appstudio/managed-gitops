@@ -144,13 +144,30 @@ var _ = Describe("Metrics DB Reconciler Test", func() {
 			newTotalNumberOfOperationDBRowsInCompletedState := testutil.ToFloat64(metrics.TotalOperationDBRowsInCompletedState)
 			newTotalNumberOfOperationDBRowsInNonCompleteState := testutil.ToFloat64(metrics.TotalOperationDBRowsInNonCompleteState)
 
-			Expect(newTotalNumberOfOperationDBRows).To(Equal(totalNumberOfOperationDBRows + 4))
-			Expect(newNumberOfOperationDBRowsInWaitingState).To(Equal(numberOfOperationDBRowsInWaitingState + 1))
-			Expect(newNumberOfOperationDBRowsIn_InProgressState).To(Equal(numberOfOperationDBRowsIn_InProgressState + 1))
-			Expect(newNumberOfOperationDBRowsInCompletedState).To(Equal(numberOfOperationDBRowsInCompletedState + 1))
-			Expect(newNumberOfOperationDBRowsInFailedState).To(Equal(numberOfOperationDBRowsInFailedState + 1))
-			Expect(newTotalNumberOfOperationDBRowsInCompletedState).To(Equal(totalNumberOfOperationDBRowsInCompletedState + 2))
-			Expect(newTotalNumberOfOperationDBRowsInNonCompleteState).To(Equal(totalNumberOfOperationDBRowsInNonCompleteState + 2))
+			var operations, waiting, inProgress, completed, failed []db.Operation
+			err = dbq.UnsafeListAllOperations(ctx, &operations)
+			Expect(err).To(BeNil())
+
+			for _, op := range operations {
+				switch op.State {
+				case db.OperationState_Waiting:
+					waiting = append(waiting, op)
+				case db.OperationState_In_Progress:
+					inProgress = append(inProgress, op)
+				case db.OperationState_Completed:
+					completed = append(completed, op)
+				case db.OperationState_Failed:
+					failed = append(failed, op)
+				}
+			}
+
+			Expect(newTotalNumberOfOperationDBRows).To(Equal(totalNumberOfOperationDBRows + float64(len(operations))))
+			Expect(newNumberOfOperationDBRowsInWaitingState).To(Equal(numberOfOperationDBRowsInWaitingState + float64(len(waiting))))
+			Expect(newNumberOfOperationDBRowsIn_InProgressState).To(Equal(numberOfOperationDBRowsIn_InProgressState + float64(len(inProgress))))
+			Expect(newNumberOfOperationDBRowsInCompletedState).To(Equal(numberOfOperationDBRowsInCompletedState + float64(len(completed))))
+			Expect(newNumberOfOperationDBRowsInFailedState).To(Equal(numberOfOperationDBRowsInFailedState + float64(len(failed))))
+			Expect(newTotalNumberOfOperationDBRowsInCompletedState).To(Equal(totalNumberOfOperationDBRowsInCompletedState + float64(len(completed)) + float64(len(failed))))
+			Expect(newTotalNumberOfOperationDBRowsInNonCompleteState).To(Equal(totalNumberOfOperationDBRowsInNonCompleteState + float64(len(waiting)) + float64(len(inProgress))))
 
 		})
 

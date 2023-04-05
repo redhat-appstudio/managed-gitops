@@ -1,71 +1,179 @@
-# TODO: GITOPSRVCE-440: Update this with the webhooks generated in backend-shared
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: mutating-webhook-configuration
+  annotations:
+    service.beta.openshift.io/inject-cabundle: "true"
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-managed-gitops-redhat-com-v1alpha1-gitopsdeployment
+  failurePolicy: Fail
+  name: mgitopsdeployment.kb.io
+  rules:
+  - apiGroups:
+    - managed-gitops.redhat.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - gitopsdeployments
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-managed-gitops-redhat-com-v1alpha1-gitopsdeploymentmanagedenvironment
+  failurePolicy: Fail
+  name: mgitopsdeploymentmanagedenvironment.kb.io
+  rules:
+  - apiGroups:
+    - managed-gitops.redhat.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - gitopsdeploymentmanagedenvironments
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-managed-gitops-redhat-com-v1alpha1-gitopsdeploymentrepositorycredential
+  failurePolicy: Fail
+  name: mgitopsdeploymentrepositorycredential.kb.io
+  rules:
+  - apiGroups:
+    - managed-gitops.redhat.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - gitopsdeploymentrepositorycredentials
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-managed-gitops-redhat-com-v1alpha1-gitopsdeploymentsyncrun
+  failurePolicy: Fail
+  name: mgitopsdeploymentsyncrun.kb.io
+  rules:
+  - apiGroups:
+    - managed-gitops.redhat.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - gitopsdeploymentsyncruns
+  sideEffects: None
 
-# ---
-# apiVersion: admissionregistration.k8s.io/v1
-# kind: ValidatingWebhookConfiguration
-# metadata:
-#   creationTimestamp: null
-#   name: validating-webhook-configuration
-#   annotations:
-#     service.beta.openshift.io/inject-cabundle: "true"
-# webhooks:
-# - admissionReviewVersions:
-#   - v1
-#   clientConfig:
-#     service:
-#       name: webhook-service
-#       namespace: system
-#       path: /validate-appstudio-redhat-com-v1alpha1-snapshot
-#   failurePolicy: Fail
-#   name: vsnapshot.kb.io
-#   rules:
-#   - apiGroups:
-#     - appstudio.redhat.com
-#     apiVersions:
-#     - v1alpha1
-#     operations:
-#     - CREATE
-#     - UPDATE
-#     resources:
-#     - snapshots
-#   sideEffects: None
-# - admissionReviewVersions:
-#   - v1
-#   clientConfig:
-#     service:
-#       name: webhook-service
-#       namespace: system
-#       path: /validate-appstudio-redhat-com-v1alpha1-snapshotenvironmentbinding
-#   failurePolicy: Fail
-#   name: vsnapshotenvironmentbinding.kb.io
-#   rules:
-#   - apiGroups:
-#     - appstudio.redhat.com
-#     apiVersions:
-#     - v1alpha1
-#     operations:
-#     - CREATE
-#     - UPDATE
-#     resources:
-#     - snapshotenvironmentbindings
-#   sideEffects: None
-# - admissionReviewVersions:
-#   - v1
-#   clientConfig:
-#     service:
-#       name: webhook-service
-#       namespace: system
-#       path: /validate-appstudio-redhat-com-v1alpha1-promotionrun
-#   failurePolicy: Fail
-#   name: vpromotionrun.kb.io
-#   rules:
-#   - apiGroups:
-#     - appstudio.redhat.com
-#     apiVersions:
-#     - v1alpha1
-#     operations:
-#     - CREATE
-#     - UPDATE
-#     resources:
-#     - promotionruns
-#   sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: validating-webhook-configuration
+  annotations:
+    service.beta.openshift.io/inject-cabundle: "true"
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-managed-gitops-redhat-com-v1alpha1-gitopsdeployment
+  failurePolicy: Fail
+  name: vgitopsdeployment.kb.io
+  rules:
+  - apiGroups:
+    - managed-gitops.redhat.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - gitopsdeployments
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-managed-gitops-redhat-com-v1alpha1-gitopsdeploymentmanagedenvironment
+  failurePolicy: Fail
+  name: vgitopsdeploymentmanagedenvironment.kb.io
+  rules:
+  - apiGroups:
+    - managed-gitops.redhat.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - gitopsdeploymentmanagedenvironments
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-managed-gitops-redhat-com-v1alpha1-gitopsdeploymentrepositorycredential
+  failurePolicy: Fail
+  name: vgitopsdeploymentrepositorycredential.kb.io
+  rules:
+  - apiGroups:
+    - managed-gitops.redhat.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - gitopsdeploymentrepositorycredentials
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-managed-gitops-redhat-com-v1alpha1-gitopsdeploymentsyncrun
+  failurePolicy: Fail
+  name: vgitopsdeploymentsyncrun.kb.io
+  rules:
+  - apiGroups:
+    - managed-gitops.redhat.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - gitopsdeploymentsyncruns
+  sideEffects: None

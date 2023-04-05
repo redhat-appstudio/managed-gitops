@@ -135,7 +135,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// // If the webhook is not disabled, start listening on the webhook URL
+	// If the webhook is not disabled, start listening on the webhook URL
 	if !strings.EqualFold(os.Getenv("DISABLE_APPSTUDIO_WEBHOOK"), "true") {
 
 		setupLog.Info("setting up webhooks")

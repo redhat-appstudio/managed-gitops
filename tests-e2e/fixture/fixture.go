@@ -21,6 +21,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	admissionv1 "k8s.io/api/admissionregistration/v1"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -747,6 +748,11 @@ func GetKubeClient(config *rest.Config) (client.Client, error) {
 	}
 
 	err = appstudiosharedv1.AddToScheme(scheme)
+	if err != nil {
+		return nil, err
+	}
+
+	err = admissionv1.AddToScheme(scheme)
 	if err != nil {
 		return nil, err
 	}

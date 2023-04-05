@@ -412,6 +412,11 @@ func generateExpectedGitOpsDeployment(component appstudioshared.BindingComponent
 		}
 	}
 
+	// Append labels to identify the Application, Component and Environment associated with this GitOpsDeployment
+	res.ObjectMeta.Labels[appstudioLabelKey+"/application"] = binding.Spec.Application
+	res.ObjectMeta.Labels[appstudioLabelKey+"/component"] = component.Name
+	res.ObjectMeta.Labels[appstudioLabelKey+"/environment"] = binding.Spec.Environment
+
 	// Ensures that this method only adds 'appstudio.openshift.io' labels
 	// - Note: If you remove this line, you need to search for other uses of 'removeNonAppStudioLabelsFromMap' in the
 	// code, as you may break the logic here.

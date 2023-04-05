@@ -575,6 +575,51 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 					"the namespace of the GitOpsDeployment should come from the Environment")
 		})
 
+		It("Should ensure the associated GitOpsDeployment has labels identifying the application, component and environment", func() {
+			By("Create SnapshotEnvironmentBindingResource")
+
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
+			err = k8s.Create(&binding, k8sClient)
+			Expect(err).To(Succeed())
+
+			By("Update Status field of SnapshotEnvironmentBindingResource")
+			// Update the status field
+			err = buildAndUpdateBindingStatus(binding.Spec.Components,
+				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
+				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/staging"}, &binding)
+			Expect(err).To(Succeed())
+
+			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")
+			gitOpsDeploymentName := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
+
+			expectedGitOpsDeployments := []appstudiosharedv1.BindingStatusGitOpsDeployment{{
+				ComponentName:                binding.Spec.Components[0].Name,
+				GitOpsDeployment:             gitOpsDeploymentName,
+				GitOpsDeploymentSyncStatus:   string(managedgitopsv1alpha1.SyncStatusCodeSynced),
+				GitOpsDeploymentHealthStatus: string(managedgitopsv1alpha1.HeathStatusCodeHealthy),
+				GitOpsDeploymentCommitID:     "CurrentlyIDIsUnknownInTestcase",
+			}}
+
+			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveGitOpsDeploymentsWithStatusProperties(expectedGitOpsDeployments))
+
+			By("Verify whether `gitopsDeployment.ObjectMeta.Labels` contains labels identifying the application, component and environment")
+			gitopsDeployment := managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      gitOpsDeploymentName,
+					Namespace: binding.Namespace,
+				},
+			}
+
+			err = k8s.Get(&gitopsDeployment, k8sClient)
+			Expect(err).To(BeNil())
+			Eventually(gitopsDeployment, "2m", "10s").Should(gitopsDeplFixture.HaveLabel("appstudio.openshift.io/application", binding.Spec.Application))
+			Eventually(gitopsDeployment, "2m", "10s").Should(gitopsDeplFixture.HaveLabel("appstudio.openshift.io/component", binding.Spec.Components[0].Name))
+			Eventually(gitopsDeployment, "2m", "10s").Should(gitopsDeplFixture.HaveLabel("appstudio.openshift.io/environment", binding.Spec.Environment))
+		})
+
 		It("Should append ASEB labels with key `appstudio.openshift.io` to GitopsDeployment label", func() {
 			By("Create SnapshotEnvironmentBindingResource")
 

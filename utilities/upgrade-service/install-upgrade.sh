@@ -50,7 +50,7 @@ check_pod_status_ready() {
 
 rollback() {
   if [ ! -z "$PREV_IMAGE" ]; then
-    make install-all-k8s IMG=$PREV_IMAGE
+    ${KUSTOMIZE} build ${TEMP_DIR} |  COMMON_IMAGE=${PREV_IMAGE} envsubst | ${KUBECTL} apply -f -
     cleanup;
     echo "Upgrade Unsuccessful!!";
   else

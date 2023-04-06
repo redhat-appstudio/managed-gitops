@@ -68,11 +68,11 @@ ifeq (,$(wildcard ./main))
 runexec: manifests generate fmt vet
 	@echo Building and running backend
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build main.go
-	./main --zap-log-level info --zap-time-encoding=rfc3339nano
+	DISABLE_APPSTUDIO_WEBHOOK=true ./main --zap-log-level info --zap-time-encoding=rfc3339nano
 else
 runexec:
 	@echo Running backend using existing main executable.
-	./main --zap-log-level info --zap-time-encoding=rfc3339nano
+	DISABLE_APPSTUDIO_WEBHOOK=true ./main --zap-log-level info --zap-time-encoding=rfc3339nano
 endif
 
 # more on controller log level configuration: https://sdk.operatorframework.io/docs/building-operators/golang/references/logging/

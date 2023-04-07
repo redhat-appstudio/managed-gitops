@@ -14,6 +14,10 @@ ignore:
   - "backend-shared/apis/managed-gitops/v1alpha1/mocks/status-writer.go"
   - "backend-shared/apis/managed-gitops/v1alpha1/mocks/structs/builders.go"
   - "backend-shared/apis/managed-gitops/v1alpha1/mocks/structs/gitopsdeployment.go"
+  - "backend-shared/db/unreliable_db_client.go"
+  - "backend-shared/util/proxyclient.go"
+  - "backend-shared/util/chaosclient.go
+  - "backend-shared/hack/db-schema-sync-check/main.go"
   - "cluster-agent/utils/mocks/ApplicationServiceClient.go"
   - "cluster-agent/utils/mocks/Client.go"
   - "cluster-agent/utils/mocks/SessionServiceClient.go"

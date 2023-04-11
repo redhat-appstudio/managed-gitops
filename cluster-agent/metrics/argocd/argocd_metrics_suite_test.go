@@ -1,4 +1,4 @@
-package argocdmetrics
+package argocd
 
 import (
 	"testing"

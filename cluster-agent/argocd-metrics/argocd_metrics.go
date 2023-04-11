@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	pollInterval = 30 * time.Second
+	pollInterval = 3 * time.Minute
 	windowSize   = 3 * time.Minute
 )
 
@@ -28,13 +28,13 @@ var (
 			ConstLabels: map[string]string{"gitopsArgoApps": "percent-reconciled"},
 		},
 	)
-
-	// Namespaces used in unit tests
-	testNamespaceNames []string
 )
 
 type ReconciliationMetricsUpdater struct {
-	client.Client
+	Client client.Client
+
+	// testNamespaceNames is an optional field used only for unit tests
+	testNamespaceNames []string
 }
 
 type reconciliationMetricsUpdater struct {
@@ -42,6 +42,9 @@ type reconciliationMetricsUpdater struct {
 	ctx        context.Context
 	logger     logr.Logger
 	timeWindow time.Time
+
+	// testNamespaceNames is an optional field used only for unit tests
+	testNamespaceNames []string
 }
 
 func (m *ReconciliationMetricsUpdater) Start() {
@@ -54,6 +57,7 @@ func (m *ReconciliationMetricsUpdater) Start() {
 	}()
 }
 
+// Every X minutes, scan all the Argo CD applications, and determine whether they reconciled within the last X minutes
 func (m *ReconciliationMetricsUpdater) poll(interval time.Duration) {
 	timer := time.NewTimer(time.Duration(interval))
 	<-timer.C
@@ -62,10 +66,11 @@ func (m *ReconciliationMetricsUpdater) poll(interval time.Duration) {
 	logger := log.FromContext(ctx).WithValues("component", "cluster-agent-argocd-metrics")
 
 	updater := &reconciliationMetricsUpdater{
-		client:     m.Client,
-		ctx:        ctx,
-		logger:     logger,
-		timeWindow: time.Now().Add(-1 * windowSize),
+		client:             m.Client,
+		ctx:                ctx,
+		logger:             logger,
+		timeWindow:         time.Now().Add(-1 * windowSize),
+		testNamespaceNames: m.testNamespaceNames,
 	}
 	_, _ = sharedutil.CatchPanic(func() error {
 		updater.updateReconciliationMetrics()
@@ -75,7 +80,7 @@ func (m *ReconciliationMetricsUpdater) poll(interval time.Duration) {
 
 func (m *reconciliationMetricsUpdater) updateReconciliationMetrics() {
 	var appTotal, appReconciled float64
-	for _, ns := range gitopsNamespaces() {
+	for _, ns := range m.gitopsNamespaces() {
 		total, reconciled := m.reconciliationMetricsForNamespace(ns)
 		appTotal += total
 		appReconciled += reconciled
@@ -87,9 +92,9 @@ func (m *reconciliationMetricsUpdater) updateReconciliationMetrics() {
 	}
 }
 
-func gitopsNamespaces() []string {
-	if len(testNamespaceNames) > 0 {
-		return testNamespaceNames
+func (m *reconciliationMetricsUpdater) gitopsNamespaces() []string {
+	if len(m.testNamespaceNames) > 0 {
+		return m.testNamespaceNames
 	}
 	return []string{
 		dbutil.GetGitOpsEngineSingleInstanceNamespace(),

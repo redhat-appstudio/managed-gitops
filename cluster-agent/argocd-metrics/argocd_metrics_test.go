@@ -36,6 +36,7 @@ var _ = Describe("Argo CD Metrics", func() {
 		var ctx context.Context
 		var updater reconciliationMetricsUpdater
 		var err error
+		var testNamespaceNames []string
 
 		BeforeEach(func() {
 			scheme, argocdNamespace, kubesystemNamespace, _, err := tests.GenericTestSetup()
@@ -55,9 +56,10 @@ var _ = Describe("Argo CD Metrics", func() {
 
 			ctx = context.Background()
 			updater = reconciliationMetricsUpdater{
-				client:     k8sClient,
-				ctx:        ctx,
-				timeWindow: time.Now().Add(-1 * windowSize),
+				client:             k8sClient,
+				ctx:                ctx,
+				timeWindow:         time.Now().Add(-1 * windowSize),
+				testNamespaceNames: testNamespaceNames,
 			}
 		})
 

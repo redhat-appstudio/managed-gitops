@@ -14,6 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	routev1 "github.com/openshift/api/route/v1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	corev1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -37,14 +38,6 @@ const (
 
 	ArgoCDFinalizerName = "argoproj.io/finalizer"
 )
-
-type ClusterSecretTLSClientConfigJSON struct {
-	Insecure bool `json:"insecure"`
-}
-type ClusterSecretConfigJSON struct {
-	BearerToken     string                           `json:"bearerToken"`
-	TLSClientConfig ClusterSecretTLSClientConfigJSON `json:"tlsClientConfig"`
-}
 
 // ReconcileNamespaceScopedArgoCD will create/update an ArgoCD operand within the specified namespace.
 func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, namespace string, k8sClient client.Client, log logr.Logger) error {
@@ -278,7 +271,7 @@ func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, na
 	}
 
 	// Wait for Argo CD to be installed by gitops operator.
-	err = wait.Poll(1*time.Second, 3*time.Minute, func() (bool, error) {
+	err = wait.PollImmediate(1*time.Second, 3*time.Minute, func() (bool, error) {
 
 		// 'default' AppProject will be created by Argo CD if Argo CD is successfully started.
 		appProject := &appv1.AppProject{
@@ -417,7 +410,7 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 	log.Info(fmt.Sprintf("clusterRoleBinding %q created in namespace %q", clusterRoleBinding.Name, clusterRoleBinding.Namespace))
 
 	// Wait for Secret to contain a bearer token
-	err := wait.Poll(1*time.Second, 3*time.Minute, func() (bool, error) {
+	err := wait.PollImmediate(1*time.Second, 3*time.Minute, func() (bool, error) {
 		secret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      ArgoCDManagerSecretName,
@@ -457,9 +450,9 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 
 	// no need to decode token, it is unmarshalled from base64
 
-	clusterSecretConfigJSON := ClusterSecretConfigJSON{
+	clusterSecretConfigJSON := argosharedutil.ClusterSecretConfigJSON{
 		BearerToken: string(token),
-		TLSClientConfig: ClusterSecretTLSClientConfigJSON{
+		TLSClientConfig: argosharedutil.ClusterSecretTLSClientConfigJSON{
 			Insecure: true,
 		},
 	}
@@ -474,7 +467,7 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-cluster-secret",
 			Namespace: argoCDNamespace,
-			Labels:    map[string]string{"argocd.argoproj.io/secret-type": "cluster"},
+			Labels:    map[string]string{sharedutil.ArgoCDSecretTypeIdentifierKey: sharedutil.ArgoCDSecretClusterTypeValue},
 		},
 		StringData: map[string]string{
 			"name":   ClusterSecretName,

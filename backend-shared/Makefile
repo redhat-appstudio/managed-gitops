@@ -36,10 +36,6 @@ rm -rf $$TMP_DIR ;\
 }
 endef
 
-.PHONY: test
-test: fmt vet
-	go test -p=1 -race -count=1 -coverprofile=coverage.out `go list ./...`
-
 .PHONY: gosec
 gosec: go_sec
 	$(GO_SEC) ./...
@@ -63,4 +59,16 @@ vet:
 .PHONY: clean
 clean:
 	rm -rf vendor/ bin/
+
+# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
+ENVTEST_K8S_VERSION = 1.21
+
+ENVTEST = $(shell pwd)/bin/setup-envtest
+envtest: ## Download envtest-setup locally if necessary.
+	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
+
+test: fmt vet envtest ## Run tests.
+	ACK_GINKGO_DEPRECATIONS=1.16.4 KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -p=1 ./... -coverpkg=./... -coverprofile cover.out
+
+
 	

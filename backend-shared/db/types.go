@@ -114,6 +114,14 @@ type ClusterCredentials struct {
 	// -- Indicates that ArgoCD/GitOps Service should not check the TLS certificate.
 	AllowInsecureSkipTLSVerify bool `pg:"allowinsecure_skiptlsverify"`
 
+	// -- A list of namespaces that Argo CD is able to deploy to using these cluster credentials
+	// -- - This corresponds to the Argo CD cluster secret field of the same name.
+	Namespaces string `pg:"namespaces"`
+
+	// -- Whether or not Argo CD is able to deploy cluster-scoped resources using these cluster credentials
+	// -- - This corresponds to the Argo CD cluster secret field of the same name.
+	ClusterResources bool `pg:"cluster_resources"`
+
 	// -- Created_on field will tell us how old resources are
 	Created_on time.Time `pg:"created_on"`
 }
@@ -253,7 +261,7 @@ type Application struct {
 	// Which Argo CD instance it's hosted on
 	Engine_instance_inst_id string `pg:"engine_instance_inst_id"`
 
-	// Which managed environment it is targetting
+	// Which managed environment it is targeting
 	// Foreign key to ManagedEnvironment.Managedenvironment_id
 	Managed_environment_id string `pg:"managed_environment_id"`
 

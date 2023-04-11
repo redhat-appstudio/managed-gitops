@@ -21,6 +21,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	admissionv1 "k8s.io/api/admissionregistration/v1"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -70,12 +71,12 @@ func EnsureCleanSlateNonKCPVirtualWorkspace() error {
 		return err
 	}
 
-	if err := DeleteNamespace(NewArgoCDInstanceNamespace, clientconfig); err != nil {
-		return err
-	}
-
-	if err := DeleteNamespace(NewArgoCDInstanceDestNamespace, clientconfig); err != nil {
-		return err
+	// Clean up after various old namespaces that are used in tests
+	prevTestNamespacesToDelete := []string{"new-e2e-test-namespace", "new-e2e-test-namespace2", NewArgoCDInstanceNamespace, NewArgoCDInstanceDestNamespace}
+	for _, namespaceName := range prevTestNamespacesToDelete {
+		if err := DeleteNamespace(namespaceName, clientconfig); err != nil {
+			return err
+		}
 	}
 
 	// Clean up after tests that target the default Argo CD E2E instance (used by most E2E tests)
@@ -121,7 +122,7 @@ func cleanUpOldArgoCDApplications(namespaceParam string, destNamespace string, c
 	}
 	argoCDApplicationList := appv1alpha1.ApplicationList{}
 	if err = k8sClient.List(context.Background(), &argoCDApplicationList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
-		return fmt.Errorf("unable to list '%s': %v ", namespaceParam, err)
+		return fmt.Errorf("unable to list '%s': %v . Verify that Argo CD is installed on the cluster", namespaceParam, err)
 	}
 
 	// Delete an Argo CD Application resources that reference the destination namespace
@@ -290,6 +291,68 @@ func cleanUpOldSnapshotEnvironmentBindingAPIs(namespace string, k8sClient client
 	return nil
 }
 
+func cleanUpOldDeploymentTargetClaimAPIs(ns string, k8sClient client.Client) error {
+	dtcList := appstudiosharedv1.DeploymentTargetClaimList{}
+	if err := k8sClient.List(context.Background(), &dtcList, &client.ListOptions{Namespace: ns}); err != nil {
+		return err
+	}
+
+	for i := range dtcList.Items {
+		dtc := dtcList.Items[i]
+		// Make sure that all finalizers are removed before deletion.
+		if err := removeAllFinalizers(k8sClient, &dtc); err != nil {
+			return err
+		}
+
+		if err := k8sClient.Delete(context.Background(), &dtc); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func cleanUpOldDeploymentTargetAPIs(ns string, k8sClient client.Client) error {
+	dtList := appstudiosharedv1.DeploymentTargetList{}
+	if err := k8sClient.List(context.Background(), &dtList, &client.ListOptions{Namespace: ns}); err != nil {
+		return err
+	}
+
+	for i := range dtList.Items {
+		dt := dtList.Items[i]
+		// Make sure that all finalizers are removed before deletion.
+		if err := removeAllFinalizers(k8sClient, &dt); err != nil {
+			return err
+		}
+
+		if err := k8sClient.Delete(context.Background(), &dt); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func removeAllFinalizers(k8sClient client.Client, obj client.Object) error {
+	err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(obj), obj)
+	if err != nil {
+		return err
+	}
+
+	if len(obj.GetFinalizers()) == 0 {
+		return nil
+	}
+
+	obj.SetFinalizers([]string{})
+
+	err = k8sClient.Update(context.Background(), obj)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespaceParam string, clientConfig *rest.Config) error {
 
 	kubeClientSet, err := kubernetes.NewForConfig(clientConfig)
@@ -320,7 +383,7 @@ func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 		// allow argocd to manage the target namespace
 		err = wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
 			secretList, err := kubeClientSet.CoreV1().Secrets(argoCDNamespaceParam).List(context.Background(), metav1.ListOptions{
-				LabelSelector: "argocd.argoproj.io/secret-type=cluster",
+				LabelSelector: sharedutil.ArgoCDSecretTypeIdentifierKey + "=" + sharedutil.ArgoCDSecretClusterTypeValue,
 			})
 			if err != nil {
 				return false, err
@@ -439,6 +502,18 @@ func DeleteNamespace(namespaceParam string, clientConfig *rest.Config) error {
 			return false, nil
 		}
 
+		// Deletes old DeploymentTargetClaim APIs in this namespace
+		if err := cleanUpOldDeploymentTargetClaimAPIs(namespaceParam, k8sClient); err != nil {
+			GinkgoWriter.Printf("unable to delete old DeploymentTargetClaim APIs in '%s': %v\n", namespaceParam, err)
+			return false, nil
+		}
+
+		// Deletes old DeploymentTarget APIs in this namespace
+		if err := cleanUpOldDeploymentTargetAPIs(namespaceParam, k8sClient); err != nil {
+			GinkgoWriter.Printf("unable to delete old DeploymentTarget APIs in '%s': %v\n", namespaceParam, err)
+			return false, nil
+		}
+
 		// Deletes old GitOpsDeployment* APIs in this namespace
 		if err := cleanUpOldGitOpsServiceAPIs(namespaceParam, k8sClient); err != nil {
 			GinkgoWriter.Printf("unable to delete old GitOps Service APIs in '%s': %v\n", namespaceParam, err)
@@ -447,7 +522,7 @@ func DeleteNamespace(namespaceParam string, clientConfig *rest.Config) error {
 
 		// Delete any Argo CD Applications in the Argo CD namespace that target this namespace
 		if err := cleanUpOldArgoCDApplications(dbutil.GetGitOpsEngineSingleInstanceNamespace(), namespaceParam, clientConfig); err != nil {
-			GinkgoWriter.Printf("unable to clean up old Argo CD Applications targetting '%s': %v'\n", namespaceParam, err)
+			GinkgoWriter.Printf("unable to clean up old Argo CD Applications targeting '%s': %v'\n", namespaceParam, err)
 			return false, nil
 		}
 
@@ -677,6 +752,11 @@ func GetKubeClient(config *rest.Config) (client.Client, error) {
 		return nil, err
 	}
 
+	err = admissionv1.AddToScheme(scheme)
+	if err != nil {
+		return nil, err
+	}
+
 	k8sClient, err := client.New(config, client.Options{Scheme: scheme})
 	if err != nil {
 		return nil, err
@@ -899,7 +979,7 @@ func removeKCPFinalizers(k8sClient client.Client, namespaceParam string) (bool, 
 //
 // - In the gitops-service-provider workspace, the function will:
 //   - Delete all Argo CD Cluster Secrets from the Argo CD Namespace
-//   - Clean up old argo cd applications targetting the e2e namespace
+//   - Clean up old argo cd applications targeting the e2e namespace
 //
 // Need two different client ===> client virtual workspace enabled for workspace
 //
@@ -1012,4 +1092,58 @@ func IsRunningInStonesoupEnvironment() bool {
 		return false
 	}
 	return true
+}
+
+// ExtractKubeConfigValues returns contents of k8s config from $KUBE_CONFIG, plus server api url (and error)
+func ExtractKubeConfigValues() (string, string, error) {
+
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+
+	config, err := loadingRules.Load()
+	if err != nil {
+		return "", "", err
+	}
+
+	context, ok := config.Contexts[config.CurrentContext]
+	if !ok || context == nil {
+		return "", "", fmt.Errorf("no context")
+	}
+
+	cluster, ok := config.Clusters[context.Cluster]
+	if !ok || cluster == nil {
+		return "", "", fmt.Errorf("no cluster")
+	}
+
+	var kubeConfigDefault string
+
+	paths := loadingRules.Precedence
+	{
+
+		for _, path := range paths {
+
+			GinkgoWriter.Println("Attempting to read kube config from", path)
+
+			_, err = os.Stat(path)
+			if err != nil {
+				GinkgoWriter.Println("Unable to resolve path", path, err)
+			} else {
+				// Success
+				kubeConfigDefault = path
+				break
+			}
+
+		}
+
+		if kubeConfigDefault == "" {
+			return "", "", fmt.Errorf("unable to retrieve kube config path")
+		}
+	}
+
+	// #nosec G304 no security concerns about reading a file from a variable, in a test
+	kubeConfigContents, err := os.ReadFile(kubeConfigDefault)
+	if err != nil {
+		return "", "", err
+	}
+
+	return string(kubeConfigContents), cluster.Server, nil
 }

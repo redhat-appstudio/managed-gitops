@@ -11,7 +11,6 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
-	dboperations "github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	"gopkg.in/yaml.v2"
@@ -157,7 +156,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			}
 
 			Eventually(func() bool {
-				isComplete, _ := dboperations.IsOperationComplete(ctx, operationDB, dbQueries)
+				isComplete, _ := operations.IsOperationComplete(ctx, operationDB, dbQueries)
 				fmt.Println("- Operation state result achieved : ", isComplete)
 				return isComplete
 			}, "1m", "5s").Should(BeTrue())
@@ -256,7 +255,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			}
 
 			Consistently(func() bool {
-				isComplete, _ := dboperations.IsOperationComplete(ctx, operationDB, dbQueries)
+				isComplete, _ := operations.IsOperationComplete(ctx, operationDB, dbQueries)
 				fmt.Println("- Operation state result achieved : ", isComplete)
 				return isComplete
 			}, "1m", "5s").Should(BeFalse())

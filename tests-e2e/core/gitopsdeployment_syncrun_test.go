@@ -241,15 +241,9 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 				Message: "waiting for completion of hook apps/Deployment/guestbook-ui",
 			}
 
-			syncState := appv1.ApplicationStatus{
-				Sync: appv1.SyncStatus{
-					Status: appv1.SyncStatusCodeOutOfSync,
-				},
-			}
-
 			Eventually(app, "60s", "1s").Should(
 				SatisfyAll(
-					appFixture.HaveSyncStatusCode(syncState),
+					appFixture.HaveSyncStatusCode(appv1.SyncStatusCodeOutOfSync),
 					appFixture.HaveOperationState(opState),
 				),
 			)
@@ -263,7 +257,7 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 
 			Eventually(app, "3m", "1s").Should(
 				SatisfyAll(
-					appFixture.HaveSyncStatusCode(syncState),
+					appFixture.HaveSyncStatusCode(appv1.SyncStatusCodeOutOfSync),
 					appFixture.HaveOperationState(opState),
 				),
 			)
@@ -366,15 +360,9 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 				Message: "waiting for completion of hook apps/Deployment/guestbook-ui",
 			}
 
-			syncState := appv1.ApplicationStatus{
-				Sync: appv1.SyncStatus{
-					Status: appv1.SyncStatusCodeOutOfSync,
-				},
-			}
-
 			Eventually(app, "60s", "1s").Should(
 				SatisfyAll(
-					appFixture.HaveSyncStatusCode(syncState),
+					appFixture.HaveSyncStatusCode(appv1.SyncStatusCodeOutOfSync),
 					appFixture.HaveOperationState(opState),
 				),
 			)

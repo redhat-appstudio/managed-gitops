@@ -45,7 +45,7 @@ func GetGitOpsEngineSingleInstanceNamespace() string {
 
 // GetOrCreateManagedEnvironmentByNamespaceUID returns the managed environment database entry that
 // corresponds to given API namespace.
-//   - this is used in the case where a user is targetting their own API namespace, for example with
+//   - this is used in the case where a user is targeting their own API namespace, for example with
 //     a GitOpsDeployment with a 'nil' destination field (which then defaults to deploying to the same
 //     namespace as the GitOpsDeployment CR.)
 //   - in this case, a ManagedEnv <-KubernetesDBToResourceMapping-> user's API namespace relationship will be created

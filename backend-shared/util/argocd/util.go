@@ -55,3 +55,11 @@ func ConvertArgoCDClusterSecretNameToManagedIdDatabaseRowId(argoCDClusterSecretN
 	return managedEnvID, isLocalEnv_false, nil
 
 }
+
+type ClusterSecretTLSClientConfigJSON struct {
+	Insecure bool `json:"insecure"`
+}
+type ClusterSecretConfigJSON struct {
+	BearerToken     string                           `json:"bearerToken"`
+	TLSClientConfig ClusterSecretTLSClientConfigJSON `json:"tlsClientConfig"`
+}

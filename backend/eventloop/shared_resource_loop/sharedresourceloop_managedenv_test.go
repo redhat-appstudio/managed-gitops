@@ -3,6 +3,7 @@ package shared_resource_loop
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -25,7 +26,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var _ = Describe("SharedResourceEventLoop Test", func() {
+var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func() {
 
 	// This will be used by AfterEach to clean resources
 
@@ -66,7 +67,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				fakeClient: k8sClient,
 			}
 
-			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
+			dbQueries, err = db.NewUnsafePostgresDBQueries(false, true)
 			Expect(err).To(BeNil())
 
 		})
@@ -110,121 +111,127 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(clusterCreds.Serviceaccount_ns).ToNot(BeEmpty())
 		}
 
-		It("should test ReconcileSharedManagedEnvironment: verify create, garbage cleanup, update, and delete, of ManagedEnvironment", func() {
+		DescribeTable("should test ReconcileSharedManagedEnvironment: verify create, garbage cleanup, update, and delete, of ManagedEnvironment",
 
-			managedEnv, secret := buildManagedEnvironmentForSRL()
-			managedEnv.UID = "test-" + uuid.NewUUID()
-			secret.UID = "test-" + uuid.NewUUID()
-			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+			func(createNewServiceAccount bool) {
 
-			err := k8sClient.Create(ctx, &managedEnv)
-			Expect(err).To(BeNil())
+				By("creating ManagedEnvironment/Secret, either with or without createNewServiceAccount parameter")
 
-			err = k8sClient.Create(ctx, &secret)
-			Expect(err).To(BeNil())
+				managedEnv, secret := buildManagedEnvironmentForSRLWithOptionalSA(createNewServiceAccount)
+				managedEnv.UID = "test-" + uuid.NewUUID()
+				secret.UID = "test-" + uuid.NewUUID()
+				eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
 
-			By("calling managed environment for the first time, and verifying the database rows are created")
+				err := k8sClient.Create(ctx, &managedEnv)
+				Expect(err).To(BeNil())
 
-			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
-				false, *namespace, mockFactory, dbQueries, log)
-			Expect(err).To(BeNil())
-			Expect(src.ManagedEnv).To(Not(BeNil()))
+				err = k8sClient.Create(ctx, &secret)
+				Expect(err).To(BeNil())
 
-			verifyResult(managedEnv, src)
+				By("calling reconcileSharedManagedEnv for the first time, and verifying the database rows are created")
 
-			By("calling reconcile on an unchanged resource")
+				src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+					false, *namespace, mockFactory, dbQueries, log)
+				Expect(err).To(BeNil())
+				Expect(src.ManagedEnv).To(Not(BeNil()))
 
-			saList := corev1.ServiceAccountList{}
-			err = k8sClient.List(ctx, &saList)
-			Expect(err).To(BeNil())
+				verifyResult(managedEnv, src)
 
-			src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
-				false, *namespace, mockFactory, dbQueries, log)
-			Expect(err).To(BeNil())
-			Expect(src.ManagedEnv).To(Not(BeNil()))
-			verifyResult(managedEnv, src)
+				By("calling reconcile on an unchanged resource")
 
-			By("ensuring an old APICRToDatabaseMapping that previously had the same name/namespace, is deleted when the new one is reconciled")
+				saList := corev1.ServiceAccountList{}
+				err = k8sClient.List(ctx, &saList)
+				Expect(err).To(BeNil())
 
-			oldAPICRToDBMapping := &db.APICRToDatabaseMapping{
-				APIResourceType:      db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentManagedEnvironment,
-				APIResourceUID:       string(uuid.NewUUID()),
-				APIResourceName:      managedEnv.Name,
-				APIResourceNamespace: managedEnv.Namespace,
-				NamespaceUID:         string(namespace.UID),
-				DBRelationType:       db.APICRToDatabaseMapping_DBRelationType_ManagedEnvironment,
-				DBRelationKey:        "test-doesnt-exist",
-			}
-			err = dbQueries.CreateAPICRToDatabaseMapping(ctx, oldAPICRToDBMapping)
-			Expect(err).To(BeNil())
+				src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+					false, *namespace, mockFactory, dbQueries, log)
+				Expect(err).To(BeNil())
+				Expect(src.ManagedEnv).To(Not(BeNil()))
+				verifyResult(managedEnv, src)
 
-			src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
-				false, *namespace, mockFactory, dbQueries, log)
-			Expect(err).To(BeNil())
+				By("ensuring an old APICRToDatabaseMapping that previously had the same name/namespace, is deleted when the new one is reconciled")
 
-			// Update our copy of the ManagedEnvironment, since the call to reconcile will have added status to it.
-			// This prevents an "object was modified" error when we update it.
-			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
-			Expect(err).To(BeNil())
+				oldAPICRToDBMapping := &db.APICRToDatabaseMapping{
+					APIResourceType:      db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentManagedEnvironment,
+					APIResourceUID:       string(uuid.NewUUID()),
+					APIResourceName:      managedEnv.Name,
+					APIResourceNamespace: managedEnv.Namespace,
+					NamespaceUID:         string(namespace.UID),
+					DBRelationType:       db.APICRToDatabaseMapping_DBRelationType_ManagedEnvironment,
+					DBRelationKey:        "test-doesnt-exist",
+				}
+				err = dbQueries.CreateAPICRToDatabaseMapping(ctx, oldAPICRToDBMapping)
+				Expect(err).To(BeNil())
 
-			By("updating the managed environment, and verifying that the database rows are also updated")
+				src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+					false, *namespace, mockFactory, dbQueries, log)
+				Expect(err).To(BeNil())
 
-			oldClusterCreds := &db.ClusterCredentials{
-				Clustercredentials_cred_id: src.ManagedEnv.Clustercredentials_id,
-			}
-			err = dbQueries.GetClusterCredentialsById(ctx, oldClusterCreds)
-			Expect(err).To(BeNil())
+				// Update our copy of the ManagedEnvironment, since the call to reconcile will have added status to it.
+				// This prevents an "object was modified" error when we update it.
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
+				Expect(err).To(BeNil())
 
-			managedEnv.Spec.APIURL = "https://api2.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443"
-			err = k8sClient.Update(ctx, &managedEnv)
-			Expect(err).To(BeNil())
-			src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
-				false, *namespace, mockFactory, dbQueries, log)
-			Expect(err).To(BeNil())
+				By("updating the managed environment, and verifying that the database rows are also updated")
 
-			By("verifying the old cluster credentials have been deleted, after update")
-			err = dbQueries.GetClusterCredentialsById(ctx, oldClusterCreds)
-			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+				oldClusterCreds := &db.ClusterCredentials{
+					Clustercredentials_cred_id: src.ManagedEnv.Clustercredentials_id,
+				}
+				err = dbQueries.GetClusterCredentialsById(ctx, oldClusterCreds)
+				Expect(err).To(BeNil())
 
-			By("verifying new cluster credentials exist containing the update")
-			err = dbQueries.GetManagedEnvironmentById(ctx, src.ManagedEnv)
-			Expect(err).To(BeNil())
-			Expect(src.ManagedEnv.Clustercredentials_id).ToNot(BeEmpty())
-			newClusterCreds := &db.ClusterCredentials{
-				Clustercredentials_cred_id: src.ManagedEnv.Clustercredentials_id,
-			}
+				managedEnv.Spec.APIURL = "https://api2.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443"
+				err = k8sClient.Update(ctx, &managedEnv)
+				Expect(err).To(BeNil())
+				src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+					false, *namespace, mockFactory, dbQueries, log)
+				Expect(err).To(BeNil())
 
-			err = dbQueries.GetClusterCredentialsById(ctx, newClusterCreds)
-			Expect(err).To(BeNil())
-			Expect(newClusterCreds.Host).To(Equal(managedEnv.Spec.APIURL))
+				By("verifying the old cluster credentials have been deleted, after update")
+				err = dbQueries.GetClusterCredentialsById(ctx, oldClusterCreds)
+				Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
-			By("deleting the managed environment, and verifying that the database rows are also removed")
+				By("verifying new cluster credentials exist containing the update")
+				err = dbQueries.GetManagedEnvironmentById(ctx, src.ManagedEnv)
+				Expect(err).To(BeNil())
+				Expect(src.ManagedEnv.Clustercredentials_id).ToNot(BeEmpty())
+				newClusterCreds := &db.ClusterCredentials{
+					Clustercredentials_cred_id: src.ManagedEnv.Clustercredentials_id,
+				}
 
-			err = k8sClient.Delete(ctx, &managedEnv)
-			Expect(err).To(BeNil())
+				err = dbQueries.GetClusterCredentialsById(ctx, newClusterCreds)
+				Expect(err).To(BeNil())
+				Expect(newClusterCreds.Host).To(Equal(managedEnv.Spec.APIURL))
 
-			oldManagedEnv := src.ManagedEnv
+				By("deleting the managed environment, and verifying that the database rows are also removed")
 
-			src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
-				false, *namespace, mockFactory, dbQueries, log)
-			Expect(err).To(BeNil())
+				err = k8sClient.Delete(ctx, &managedEnv)
+				Expect(err).To(BeNil())
 
-			err = dbQueries.GetManagedEnvironmentById(ctx, oldManagedEnv)
-			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+				oldManagedEnv := src.ManagedEnv
 
-			err = dbQueries.GetClusterCredentialsById(ctx, newClusterCreds)
-			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+				src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+					false, *namespace, mockFactory, dbQueries, log)
+				Expect(err).To(BeNil())
 
-			mappings := []db.APICRToDatabaseMapping{}
-			err = dbQueries.UnsafeListAllAPICRToDatabaseMappings(ctx, &mappings)
-			Expect(err).To(BeNil())
+				err = dbQueries.GetManagedEnvironmentById(ctx, oldManagedEnv)
+				Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
-			By("Verifying that the API CR to database mapping has been removed.")
-			for _, mapping := range mappings {
-				Expect(mapping.APIResourceUID).ToNot(Equal(managedEnv.UID))
-			}
+				err = dbQueries.GetClusterCredentialsById(ctx, newClusterCreds)
+				Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
-		})
+				mappings := []db.APICRToDatabaseMapping{}
+				err = dbQueries.UnsafeListAllAPICRToDatabaseMappings(ctx, &mappings)
+				Expect(err).To(BeNil())
+
+				By("Verifying that the API CR to database mapping has been removed.")
+				for _, mapping := range mappings {
+					Expect(mapping.APIResourceUID).ToNot(Equal(managedEnv.UID))
+				}
+
+			},
+			Entry("createNewServiceAccount = true", true),
+			Entry("createNewServiceAccount = false", false))
 
 		It("should test the case where APICRMapping exists, but the managed env doesnt", func() {
 			managedEnv, secret := buildManagedEnvironmentForSRL()
@@ -290,7 +297,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
 			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
-			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(ConditionReasonSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonSucceeded)))
 
 			By("ensuring the LastTransitionTime is not updated if nothing has changed")
 			lastTransitionTime := managedEnv.Status.Conditions[0].LastTransitionTime
@@ -304,7 +311,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(managedEnv.Status.Conditions[0].LastTransitionTime).To(Equal(lastTransitionTime))
 			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
-			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(ConditionReasonSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonSucceeded)))
 		})
 
 		It("should ensure the condition ConnectionInitializationSucceeded status is True when reconciling and nothing changed", func() {
@@ -331,7 +338,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
 			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
-			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(ConditionReasonSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonSucceeded)))
 
 			By("removing the status condition and reconciling")
 			managedEnv.Status.Conditions = []metav1.Condition{}
@@ -348,7 +355,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
 			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
-			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(ConditionReasonSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonSucceeded)))
 
 			By("setting the status condition false and reconciling")
 			managedEnv.Status.Conditions[0].Status = metav1.ConditionFalse
@@ -365,7 +372,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
 			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
-			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(ConditionReasonSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonSucceeded)))
 		})
 
 		It("should set the condition ConnectionInitializationSucceeded status to False when the connection fails for new environment", func() {
@@ -406,7 +413,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
 			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionFalse))
-			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(ConditionReasonUnableToInstallServiceAccount))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonUnableToInstallServiceAccount)))
 		})
 
 		It("should set the condition ConnectionInitializationSucceeded status to False when the connection fails for existing environment", func() {
@@ -432,7 +439,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			defer mockCtrl.Finish()
 			mockClient := mocks.NewMockClient(mockCtrl)
 
-			mockClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("fake unable to connect"))
+			mockClient.EXPECT().List(gomock.Any(), gomock.Any()).Return(fmt.Errorf("fake unable to connect"))
 			mockClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("fake unable to connect"))
 
 			mockFactory := &SimulateFailingClientMockSRLK8sClientFactory{
@@ -452,7 +459,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
 			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionFalse))
-			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(ConditionReasonUnableToInstallServiceAccount))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonUnableToInstallServiceAccount)))
 		})
 
 		It("should test the case where we are unable to connect to a managed env, so new credentials are acquired, and old ones are deleted", func() {
@@ -480,7 +487,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			defer mockCtrl.Finish()
 			mockClient := mocks.NewMockClient(mockCtrl)
 
-			mockClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(fmt.Errorf("fake unable to connect"))
+			mockClient.EXPECT().List(gomock.Any(), gomock.Any()).Return(fmt.Errorf("fake unable to connect"))
 
 			mockFactory := &SimulateFailingClientMockSRLK8sClientFactory{
 				limit:          1,
@@ -501,7 +508,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
 			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
-			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(ConditionReasonSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonSucceeded)))
 
 			By("verifying the old credentials have been deleted, since we simulated them being invalid")
 			clusterCreds := &db.ClusterCredentials{Clustercredentials_cred_id: oldClusterCredentials}
@@ -618,9 +625,6 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			err = k8sClient.Create(ctx, &managedEnv)
 			Expect(err).To(BeNil())
 
-			// err = k8sClient.Create(ctx, &secret)
-			// Expect(err).To(BeNil())
-
 			By("calling reconcile on the managed env, which is missing a secret")
 			createRC, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
@@ -662,7 +666,69 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 		})
 
-		DescribeTable("Tests whether the tlsConfig value from managedEnv gets maped correctly into the database",
+		It("should reconcile a ManagedEnvironment containing .spec.namespaces and .spec.clusterResources values", func() {
+
+			managedEnv, secret := buildManagedEnvironmentForSRL()
+
+			managedEnv.Spec.Namespaces = []string{"c", "b", "a"}
+			managedEnv.Spec.ClusterResources = true
+
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, &managedEnv)
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Create(ctx, &secret)
+			Expect(err).To(BeNil())
+
+			By("calling reconcile to create database entries for new managed env")
+			createRC, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(err).To(BeNil())
+			Expect(createRC.ManagedEnv).ToNot(BeNil())
+
+			By("ensuring cluster credentials should have expected values")
+			clusterCredentials := db.ClusterCredentials{
+				Clustercredentials_cred_id: createRC.ManagedEnv.Clustercredentials_id,
+			}
+
+			err = dbQueries.GetClusterCredentialsById(ctx, &clusterCredentials)
+			Expect(err).To(BeNil())
+			Expect(clusterCredentials.Namespaces).To(Equal("a,b,c"), "should match values from managed env")
+			Expect(clusterCredentials.ClusterResources).To(Equal(true), "should match values from managed env")
+
+			By("updating the namespace/clusterresources values on the managedenv .spec, to ensure the change is applied")
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
+			Expect(err).To(BeNil())
+
+			managedEnv.Spec.ClusterResources = false
+			managedEnv.Spec.Namespaces = []string{}
+
+			err = k8sClient.Update(ctx, &managedEnv)
+			Expect(err).To(BeNil())
+
+			By("call the reconcile function again")
+			createRC, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(err).To(BeNil())
+			Expect(createRC.ManagedEnv).ToNot(BeNil())
+
+			By("ensuring cluster credentials should have new expected values")
+			clusterCredentials = db.ClusterCredentials{
+				Clustercredentials_cred_id: createRC.ManagedEnv.Clustercredentials_id,
+			}
+
+			err = dbQueries.GetClusterCredentialsById(ctx, &clusterCredentials)
+			Expect(err).To(BeNil())
+			Expect(clusterCredentials.Namespaces).To(Equal(""), "should match values from managed env")
+			Expect(clusterCredentials.ClusterResources).To(Equal(false), "should match values from managed env")
+
+		})
+
+		DescribeTable("Tests whether the tlsConfig value from managedEnv gets mapped correctly into the database",
 			func(tlsVerifyStatus bool) {
 				managedEnv, secret := buildManagedEnvironmentForSRL()
 				managedEnv.UID = "test-" + uuid.NewUUID()
@@ -677,21 +743,76 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				Expect(err).To(BeNil())
 
 				By("first calling reconcile to create database entries for new managed env")
-				firstSrc, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				reconcileRes, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 					false, *namespace, mockFactory, dbQueries, log)
 				Expect(err).To(BeNil())
-				Expect(firstSrc.ManagedEnv).ToNot(BeNil())
+				Expect(reconcileRes.ManagedEnv).ToNot(BeNil())
 
-				getClusterCredentials := firstSrc.ManagedEnv.Clustercredentials_id
-				clusterCreds := &db.ClusterCredentials{Clustercredentials_cred_id: getClusterCredentials}
+				clusterCreds := &db.ClusterCredentials{Clustercredentials_cred_id: reconcileRes.ManagedEnv.Clustercredentials_id}
 				err = dbQueries.GetClusterCredentialsById(ctx, clusterCreds)
 				Expect(err).To(BeNil())
 
 				Expect(managedEnv.Spec.AllowInsecureSkipTLSVerify).To(Equal(clusterCreds.AllowInsecureSkipTLSVerify))
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
+				Expect(err).To(BeNil())
+
+				By("updating allow insecure tls verify, and confirming the database value changes as well")
+				managedEnv.Spec.AllowInsecureSkipTLSVerify = !tlsVerifyStatus
+
+				err = k8sClient.Update(ctx, &managedEnv)
+				Expect(err).To(BeNil())
+
+				By("calling reconcile again to ensure the managed environment db entry is updated with the new value")
+				reconcileRes, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+					false, *namespace, mockFactory, dbQueries, log)
+				Expect(err).To(BeNil())
+				Expect(reconcileRes.ManagedEnv).ToNot(BeNil())
+
+				clusterCreds = &db.ClusterCredentials{Clustercredentials_cred_id: reconcileRes.ManagedEnv.Clustercredentials_id}
+				err = dbQueries.GetClusterCredentialsById(ctx, clusterCreds)
+				Expect(err).To(BeNil())
+
+				Expect(managedEnv.Spec.AllowInsecureSkipTLSVerify).To(Equal(clusterCreds.AllowInsecureSkipTLSVerify))
+
 			},
 			Entry("TLS status set TRUE", bool(managedgitopsv1alpha1.TLSVerifyStatusTrue)),
 			Entry("TLS status set FALSE", bool(managedgitopsv1alpha1.TLSVerifyStatusFalse)),
 		)
+	})
+
+	Context("Unit tests for individual pure functions", func() {
+
+		DescribeTable("Verify that isValidNamespaceName conforms to K8s namespace requirements",
+			func(namespace string, expectedResult bool) {
+				res := isValidNamespaceName(namespace)
+				Expect(res).To(Equal(expectedResult))
+			},
+			Entry("empty namespace", "", false),
+			Entry("short non-empty namespace", "a", true),
+			Entry("63 character long should be valid", strings.Repeat("a", 63), true),
+			Entry("64 character long should be invalid", strings.Repeat("a", 64), false),
+			Entry("hyphens are valid in the middle", "a-a", true),
+			Entry("hyphens are not valid as a prefix", "-a", false),
+			Entry("hyphens are not valid as a suffix", "a-", false),
+			Entry("numbers are value", "123", true),
+			Entry("must be lowercase", "A", false),
+			Entry("other characters are invalid", "invalid_characters", false),
+		)
+
+		DescribeTable("Verify that convertManagedEnvNamespacesFieldToCommaSeparatedList correctly converts a string slice to comma-separated list, rejecting invalid namespaces",
+			func(namespaceSlice []string, expectedResult string, expectError bool) {
+				res, err := convertManagedEnvNamespacesFieldToCommaSeparatedList(namespaceSlice)
+				Expect(res).To(Equal(expectedResult))
+				Expect(err != nil).To(Equal(expectError))
+			},
+			Entry("empty namespace", []string{}, "", false),
+			Entry("a single valid namespace", []string{"a"}, "a", false),
+			Entry("a couple valid namespaces", []string{"a", "b"}, "a,b", false),
+			Entry("a couple valid namespaces in reverse order", []string{"b", "a"}, "a,b", false),
+			Entry("a valid namespace, one invalid namespace", []string{"B", "a"}, "", true),
+		)
+
 	})
 
 })
@@ -734,59 +855,6 @@ func getAllOperationsForResourceID(ctx context.Context, resourceID string, dbQue
 	return res
 }
 
-// func startServiceAccountListenerOnFakeClient(ctx context.Context, k8sClient client.Client) {
-// 	go func() {
-
-// 		var sa *corev1.ServiceAccount
-
-// 		err := wait.Poll(time.Second*1, time.Hour*1, func() (bool, error) {
-
-// 			saList := corev1.ServiceAccountList{}
-
-// 			err := k8sClient.List(ctx, &saList, &client.ListOptions{Namespace: "kube-system"})
-// 			Expect(err).To(BeNil())
-
-// 			for idx := range saList.Items {
-
-// 				item := saList.Items[idx]
-
-// 				sa = &item
-
-// 				if strings.HasPrefix(item.Name, sharedutil.ArgoCDManagerServiceAccountPrefix) {
-// 					return true, nil
-// 				}
-
-// 			}
-
-// 			return false, nil
-// 		})
-// 		Expect(err).To(BeNil())
-
-// 		tokenSecret := &corev1.Secret{
-// 			ObjectMeta: metav1.ObjectMeta{
-// 				Name:      "token-secret",
-// 				Namespace: "kube-system",
-// 				Annotations: map[string]string{
-// 					corev1.ServiceAccountNameKey: sa.Name,
-// 				},
-// 			},
-// 			Data: map[string][]byte{"token": ([]byte)("token")},
-// 			Type: corev1.SecretTypeServiceAccountToken,
-// 		}
-// 		err = k8sClient.Create(ctx, tokenSecret)
-// 		Expect(err).To(BeNil())
-
-// 		sa.Secrets = append(sa.Secrets, corev1.ObjectReference{
-// 			Name:      tokenSecret.Name,
-// 			Namespace: tokenSecret.Namespace,
-// 		})
-
-// 		err = k8sClient.Update(ctx, sa)
-// 		Expect(err).To(BeNil())
-
-// 	}()
-// }
-
 type MockSRLK8sClientFactory struct {
 	fakeClient client.Client
 }
@@ -827,7 +895,12 @@ func (f *SimulateFailingClientMockSRLK8sClientFactory) GetK8sClientForServiceWor
 	return f.realFakeClient, nil
 }
 
+// Build a managed environment object for shared resource loop (SRL) test
 func buildManagedEnvironmentForSRL() (managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, corev1.Secret) {
+	return buildManagedEnvironmentForSRLWithOptionalSA(true)
+}
+
+func buildManagedEnvironmentForSRLWithOptionalSA(createNewServiceAccount bool) (managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, corev1.Secret) {
 
 	kubeConfigContents := generateFakeKubeConfig()
 
@@ -850,6 +923,7 @@ func buildManagedEnvironmentForSRL() (managedgitopsv1alpha1.GitOpsDeploymentMana
 		Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
 			APIURL:                   "https://api.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443",
 			ClusterCredentialsSecret: secret.Name,
+			CreateNewServiceAccount:  createNewServiceAccount,
 		},
 	}
 

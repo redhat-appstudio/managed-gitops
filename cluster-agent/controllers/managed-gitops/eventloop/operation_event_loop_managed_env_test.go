@@ -19,6 +19,7 @@ import (
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
@@ -145,7 +146,7 @@ var _ = Describe("Managed Environment Operation Tests", func() {
 					Name:      clusterSecretName,
 					Namespace: argocdNamespace.Name,
 					Labels: map[string]string{
-						ArgoCDSecretTypeKey:                            ArgoCDSecretTypeValue_ClusterSecret,
+						sharedutil.ArgoCDSecretTypeIdentifierKey:       sharedutil.ArgoCDSecretClusterTypeValue,
 						controllers.ArgoCDClusterSecretDatabaseIDLabel: managedEnvRow.Managedenvironment_id,
 					},
 				},
@@ -204,7 +205,7 @@ var _ = Describe("Managed Environment Operation Tests", func() {
 					Name:      clusterSecretName,
 					Namespace: argocdNamespace.Name,
 					Labels: map[string]string{
-						ArgoCDSecretTypeKey:                            ArgoCDSecretTypeValue_ClusterSecret,
+						sharedutil.ArgoCDSecretTypeIdentifierKey:       sharedutil.ArgoCDSecretClusterTypeValue,
 						controllers.ArgoCDClusterSecretDatabaseIDLabel: deletedManagedEnvId,
 					},
 				},
@@ -489,7 +490,7 @@ var _ = Describe("Managed Environment Operation Tests", func() {
 					Name:      clusterSecretName,
 					Namespace: argocdNamespace.Name,
 					Labels: map[string]string{
-						ArgoCDSecretTypeKey:                            ArgoCDSecretTypeValue_ClusterSecret,
+						sharedutil.ArgoCDSecretTypeIdentifierKey:       sharedutil.ArgoCDSecretClusterTypeValue,
 						controllers.ArgoCDClusterSecretDatabaseIDLabel: applicationDB.Managed_environment_id,
 					},
 				},

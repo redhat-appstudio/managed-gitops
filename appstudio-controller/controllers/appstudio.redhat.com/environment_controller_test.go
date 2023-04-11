@@ -11,11 +11,13 @@ import (
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	corev1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 var _ = Describe("Environment controller tests", func() {
@@ -370,5 +372,431 @@ var _ = Describe("Environment controller tests", func() {
 
 		})
 
+		It("should return an error if both cluster credentials and DeploymentTargetClaim are provided", func() {
+			By("create an environment with both cluster credentials and DTC specified")
+			env := appstudioshared.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-env",
+					Namespace: apiNamespace.Name,
+				},
+				Spec: appstudioshared.EnvironmentSpec{
+					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
+						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+							APIURL:                   "abc",
+							ClusterCredentialsSecret: "test",
+						},
+					},
+					Configuration: appstudioshared.EnvironmentConfiguration{
+						Target: appstudioshared.EnvironmentTarget{
+							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+								ClaimName: "test-dtc",
+							},
+						},
+					},
+				},
+			}
+
+			err := k8sClient.Create(ctx, &env)
+			Expect(err).To(BeNil())
+
+			By("check if an error is returned after reconciling")
+			req := newRequest(env.Namespace, env.Name)
+			res, err := reconciler.Reconcile(ctx, req)
+			Expect(res).To(Equal(reconcile.Result{}))
+			Expect(err).To(BeNil())
+			// TODO: GITOPSRVCE-498: this test should check .status field of environment
+
+			// expectedErrMsg := "environment test-env is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set"
+			// Expect(err.Error()).To(Equal(expectedErrMsg))
+		})
+
+		It("should manage an Environment with DeploymentTargetClaim specified", func() {
+			By("create a DT and DTC with cluster credentials")
+			clusterSecret := corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-secret",
+					Namespace: apiNamespace.Name,
+				},
+			}
+
+			err := k8sClient.Create(ctx, &clusterSecret)
+			Expect(err).To(BeNil())
+
+			dt := appstudioshared.DeploymentTarget{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dt",
+					Namespace: apiNamespace.Name,
+				},
+				Spec: appstudioshared.DeploymentTargetSpec{
+					KubernetesClusterCredentials: appstudioshared.DeploymentTargetKubernetesClusterCredentials{
+						APIURL:                     "https://test-url",
+						ClusterCredentialsSecret:   "test-secret",
+						AllowInsecureSkipTLSVerify: true,
+					},
+				},
+				Status: appstudioshared.DeploymentTargetStatus{
+					Phase: appstudioshared.DeploymentTargetPhase_Bound,
+				},
+			}
+
+			err = k8sClient.Create(ctx, &dt)
+			Expect(err).To(BeNil())
+
+			dtc := appstudioshared.DeploymentTargetClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dtc",
+					Namespace: apiNamespace.Name,
+				},
+				Spec: appstudioshared.DeploymentTargetClaimSpec{
+					TargetName: dt.Name,
+				},
+				Status: appstudioshared.DeploymentTargetClaimStatus{
+					Phase: appstudioshared.DeploymentTargetClaimPhase_Bound,
+				},
+			}
+
+			err = k8sClient.Create(ctx, &dtc)
+			Expect(err).To(BeNil())
+
+			By("create an Environment that refer the above DTC")
+			env := appstudioshared.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-env-1",
+					Namespace: dtc.Namespace,
+				},
+				Spec: appstudioshared.EnvironmentSpec{
+					Configuration: appstudioshared.EnvironmentConfiguration{
+						Target: appstudioshared.EnvironmentTarget{
+							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+								ClaimName: dtc.Name,
+							},
+						},
+					},
+				},
+			}
+			err = k8sClient.Create(ctx, &env)
+			Expect(err).To(BeNil())
+
+			By("reconcile and verify if a ManagedEnvironment is created with the right credentials")
+			req := newRequest(env.Namespace, env.Name)
+			res, err := reconciler.Reconcile(ctx, req)
+			Expect(err).To(BeNil())
+			Expect(res).To(Equal(reconcile.Result{}))
+
+			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "managed-environment-" + env.Name,
+					Namespace: req.Namespace,
+				},
+			}
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
+			Expect(err).To(BeNil())
+
+			By("verify if the environment credentials match with the DT")
+			Expect(managedEnvCR.Spec.APIURL).To(Equal(dt.Spec.KubernetesClusterCredentials.APIURL))
+			Expect(managedEnvCR.Spec.ClusterCredentialsSecret).To(Equal(dt.Spec.KubernetesClusterCredentials.ClusterCredentialsSecret))
+			Expect(managedEnvCR.Spec.AllowInsecureSkipTLSVerify).To(Equal(dt.Spec.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify))
+		})
+
+		It("should return and wait if the specified DTC is not in Bounded phase", func() {
+			dtc := appstudioshared.DeploymentTargetClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dtc",
+					Namespace: apiNamespace.Name,
+				},
+			}
+
+			err := k8sClient.Create(ctx, &dtc)
+			Expect(err).To(BeNil())
+
+			By("create an Environment that refer the above DTC")
+			env := appstudioshared.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-env-1",
+					Namespace: dtc.Namespace,
+				},
+				Spec: appstudioshared.EnvironmentSpec{
+					Configuration: appstudioshared.EnvironmentConfiguration{
+						Target: appstudioshared.EnvironmentTarget{
+							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+								ClaimName: dtc.Name,
+							},
+						},
+					},
+				},
+			}
+			err = k8sClient.Create(ctx, &env)
+			Expect(err).To(BeNil())
+
+			By("reconcile and verify that a ManagedEnvironment is not created")
+			req := newRequest(env.Namespace, env.Name)
+			res, err := reconciler.Reconcile(ctx, req)
+			Expect(err).To(BeNil())
+			Expect(res).To(Equal(reconcile.Result{}))
+
+			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "managed-environment-" + env.Name,
+					Namespace: req.Namespace,
+				},
+			}
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
+			Expect(err).ToNot(BeNil())
+			Expect(apierr.IsNotFound(err)).To(BeTrue())
+		})
+
+		It("should return an error if the DeploymentTarget is not found", func() {
+			dt := appstudioshared.DeploymentTarget{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dt",
+					Namespace: apiNamespace.Name,
+				},
+			}
+
+			err := k8sClient.Create(ctx, &dt)
+			Expect(err).To(BeNil())
+
+			dtc := appstudioshared.DeploymentTargetClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dtc",
+					Namespace: apiNamespace.Name,
+				},
+				Status: appstudioshared.DeploymentTargetClaimStatus{
+					Phase: appstudioshared.DeploymentTargetClaimPhase_Bound,
+				},
+			}
+
+			err = k8sClient.Create(ctx, &dtc)
+			Expect(err).To(BeNil())
+
+			By("create and Environment that refer the above DTC")
+			env := appstudioshared.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-env-1",
+					Namespace: dtc.Namespace,
+				},
+				Spec: appstudioshared.EnvironmentSpec{
+					Configuration: appstudioshared.EnvironmentConfiguration{
+						Target: appstudioshared.EnvironmentTarget{
+							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+								ClaimName: dtc.Name,
+							},
+						},
+					},
+				},
+			}
+			err = k8sClient.Create(ctx, &env)
+			Expect(err).To(BeNil())
+
+			By("reconcile and verify if an error is returned")
+			req := newRequest(env.Namespace, env.Name)
+			res, err := reconciler.Reconcile(ctx, req)
+			Expect(err).To(BeNil())
+			Expect(res).To(Equal(reconcile.Result{}))
+			// TODO: GITOPSRVCE-498: Check if the status is updated with the error
+
+			// expectedErrMsg := "unable to generate expected GitOpsDeploymentManagedEnvironment resource: DeploymentTarget not found for DeploymentTargetClaim: test-dtc"
+			// Expect(err.Error()).To(Equal(expectedErrMsg))
+		})
+
+		It("shouldn't process the Environment if neither credentials nor DTC is provided", func() {
+			By("create an Environment without DTC and credentials")
+			env := appstudioshared.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-env-1",
+					Namespace: apiNamespace.Name,
+				},
+			}
+			err := k8sClient.Create(ctx, &env)
+			Expect(err).To(BeNil())
+
+			By("reconcile and verify that a ManagedEnvironment is not created")
+			req := newRequest(env.Namespace, env.Name)
+			res, err := reconciler.Reconcile(ctx, req)
+			Expect(err).To(BeNil())
+			Expect(res).To(Equal(reconcile.Result{}))
+
+			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "managed-environment-" + env.Name,
+					Namespace: req.Namespace,
+				},
+			}
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
+			Expect(err).ToNot(BeNil())
+			Expect(apierr.IsNotFound(err)).To(BeTrue())
+		})
+
+		Context("Test findObjectsForDeploymentTargetClaim function", func() {
+			It("should map requests if matching Environments are found", func() {
+				dtc := appstudioshared.DeploymentTargetClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-dtc",
+						Namespace: apiNamespace.Name,
+					},
+				}
+
+				By("create Environments that refer the above DTC")
+				env1 := appstudioshared.Environment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-env-1",
+						Namespace: dtc.Namespace,
+					},
+					Spec: appstudioshared.EnvironmentSpec{
+						Configuration: appstudioshared.EnvironmentConfiguration{
+							Target: appstudioshared.EnvironmentTarget{
+								DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+									ClaimName: dtc.Name,
+								},
+							},
+						},
+					},
+				}
+				err := k8sClient.Create(ctx, &env1)
+				Expect(err).To(BeNil())
+
+				env2 := appstudioshared.Environment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-env-2",
+						Namespace: dtc.Namespace,
+					},
+				}
+				env2.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName = dtc.Name
+				env2.ResourceVersion = ""
+				err = k8sClient.Create(ctx, &env2)
+				Expect(err).To(BeNil())
+
+				By("check if the requests are mapped to the correct environments")
+				expectedReqs := map[string]int{
+					env1.Name: 1,
+					env2.Name: 1,
+				}
+				reqs := reconciler.findObjectsForDeploymentTargetClaim(&dtc)
+				Expect(len(reqs)).To(Equal(len(expectedReqs)))
+				for _, r := range reqs {
+					Expect(expectedReqs[r.Name]).To(Equal(1))
+					expectedReqs[r.Name]--
+				}
+			})
+
+			It("shouldn't map any requests if no matching Environment is found", func() {
+				dtc := appstudioshared.DeploymentTargetClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "target-dtc",
+						Namespace: apiNamespace.Name,
+					},
+				}
+
+				reqs := reconciler.findObjectsForDeploymentTargetClaim(&dtc)
+
+				Expect(reqs).To(Equal([]reconcile.Request{}))
+			})
+
+			It("shouldn't map any requests if an incompatible object is passed", func() {
+				dt := appstudioshared.DeploymentTarget{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "target-dt",
+						Namespace: apiNamespace.Name,
+					},
+				}
+
+				reqs := reconciler.findObjectsForDeploymentTargetClaim(&dt)
+
+				Expect(reqs).To(Equal([]reconcile.Request{}))
+			})
+		})
+
+		Context("Test findObjectsForDeploymentTarget function", func() {
+			It("should map requests if matching environments are found", func() {
+				By("create a DT and DTC that target each other")
+				dt := appstudioshared.DeploymentTarget{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-dt",
+						Namespace: apiNamespace.Name,
+					},
+				}
+
+				dtc := appstudioshared.DeploymentTargetClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-dtc",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudioshared.DeploymentTargetClaimSpec{
+						TargetName: dt.Name,
+					},
+				}
+
+				err := k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				By("create Environments that refer the above DTC")
+				env1 := appstudioshared.Environment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-env-1",
+						Namespace: dtc.Namespace,
+					},
+					Spec: appstudioshared.EnvironmentSpec{
+						Configuration: appstudioshared.EnvironmentConfiguration{
+							Target: appstudioshared.EnvironmentTarget{
+								DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+									ClaimName: dtc.Name,
+								},
+							},
+						},
+					},
+				}
+				err = k8sClient.Create(ctx, &env1)
+				Expect(err).To(BeNil())
+
+				env2 := appstudioshared.Environment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-env-2",
+						Namespace: dtc.Namespace,
+					},
+				}
+				env2.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName = dtc.Name
+				env2.ResourceVersion = ""
+				err = k8sClient.Create(ctx, &env2)
+				Expect(err).To(BeNil())
+
+				By("check if the requests are mapped to the correct environments")
+				expectedReqs := map[string]int{
+					env1.Name: 1,
+					env2.Name: 1,
+				}
+				reqs := reconciler.findObjectsForDeploymentTarget(&dt)
+				Expect(len(reqs)).To(Equal(len(expectedReqs)))
+				for _, r := range reqs {
+					Expect(expectedReqs[r.Name]).To(Equal(1))
+					expectedReqs[r.Name]--
+				}
+			})
+
+			It("shouldn't map any requests if no matching environments are found", func() {
+				dt := appstudioshared.DeploymentTarget{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "target-dt",
+						Namespace: apiNamespace.Name,
+					},
+				}
+
+				reqs := reconciler.findObjectsForDeploymentTarget(&dt)
+
+				Expect(reqs).To(Equal([]reconcile.Request{}))
+			})
+
+			It("shouldn't map any requests if an incompatible object is passed", func() {
+				dtc := appstudioshared.DeploymentTargetClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "target-dtc",
+						Namespace: apiNamespace.Name,
+					},
+				}
+
+				reqs := reconciler.findObjectsForDeploymentTarget(&dtc)
+
+				Expect(reqs).To(Equal([]reconcile.Request{}))
+			})
+		})
 	})
 })

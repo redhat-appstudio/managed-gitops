@@ -21,6 +21,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -159,6 +160,30 @@ func main() {
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "GitOpsDeploymentManagedEnvironment")
 		os.Exit(1)
+	}
+
+	// If the webhook is not disabled, start listening on the webhook URL
+	if !strings.EqualFold(os.Getenv("DISABLE_APPSTUDIO_WEBHOOK"), "true") {
+
+		setupLog.Info("setting up webhooks")
+
+		if err = (&managedgitopsv1alpha1.GitOpsDeployment{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "GitOpsDeployment")
+			os.Exit(1)
+		}
+		if err = (&managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "GitOpsDeploymentRepositoryCredential")
+			os.Exit(1)
+		}
+		if err = (&managedgitopsv1alpha1.GitOpsDeploymentSyncRun{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "GitOpsDeploymentSyncRun")
+			os.Exit(1)
+		}
+		if err = (&managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "GitOpsDeploymentManagedEnvironment")
+			os.Exit(1)
+		}
+
 	}
 
 	//+kubebuilder:scaffold:builder

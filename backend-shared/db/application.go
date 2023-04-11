@@ -277,7 +277,7 @@ func (dbq *PostgreSQLDatabaseQueries) RemoveManagedEnvironmentFromAllApplication
 		return 0, err
 	}
 
-	// 1) Retrieve all applications which are targetting this managed_environment
+	// 1) Retrieve all applications which are targeting this managed_environment
 	err := dbq.dbConnection.Model(applications).Context(ctx).Where("managed_environment_id = ?", managedEnvironmentID).Select()
 	if err != nil {
 		return 0, fmt.Errorf("unable to retrieve applications with managed environment id: %v", err)
@@ -305,7 +305,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListApplicationsForManagedEnvironment(ctx 
 		return 0, err
 	}
 
-	// 1) Retrieve all applications which are targetting this managed_environment
+	// 1) Retrieve all applications which are targeting this managed_environment
 	err := dbq.dbConnection.Model(applications).Context(ctx).Where("managed_environment_id = ?", managedEnvironmentID).Select()
 	if err != nil {
 		return 0, fmt.Errorf("unable to retrieve applications with managed environment id: %v", err)

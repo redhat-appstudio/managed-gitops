@@ -10,6 +10,7 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/argoproj.io/application_info_cache"
@@ -311,8 +312,8 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			By("Create secret in cluster with label pointing to DB entry that exists.")
 
 			secret.Labels = map[string]string{
-				SecretDbIdentifierKey:   repoCredentials.RepositoryCredentialsID,
-				SecretTypeIdentifierKey: SecretRepoTypeValue,
+				SecretDbIdentifierKey:                    repoCredentials.RepositoryCredentialsID,
+				sharedutil.ArgoCDSecretTypeIdentifierKey: sharedutil.ArgoCDSecretRepoTypeValue,
 			}
 
 			err = k8sClient.Create(ctx, &secret)
@@ -335,8 +336,8 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			By("Create secret in cluster with label pointing to DB entry that does not exist.")
 
 			secret.Labels = map[string]string{
-				SecretDbIdentifierKey:   "test-cred-id" + string(uuid.NewUUID()),
-				SecretTypeIdentifierKey: SecretRepoTypeValue,
+				SecretDbIdentifierKey:                    "test-cred-id" + string(uuid.NewUUID()),
+				sharedutil.ArgoCDSecretTypeIdentifierKey: sharedutil.ArgoCDSecretRepoTypeValue,
 			}
 
 			err := k8sClient.Create(ctx, &secret)
@@ -371,8 +372,8 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			By("Create secret in cluster with label pointing to DB entry that exists.")
 
 			secret.Labels = map[string]string{
-				SecretDbIdentifierKey:   managedEnvironment.Managedenvironment_id,
-				SecretTypeIdentifierKey: SecretClusterTypeValue,
+				SecretDbIdentifierKey:                    managedEnvironment.Managedenvironment_id,
+				sharedutil.ArgoCDSecretTypeIdentifierKey: sharedutil.ArgoCDSecretClusterTypeValue,
 			}
 
 			err = k8sClient.Create(ctx, &secret)
@@ -395,8 +396,8 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			By("Create secret in cluster with label pointing to DB entry that does not exist.")
 
 			secret.Labels = map[string]string{
-				SecretDbIdentifierKey:   "test-env-id" + string(uuid.NewUUID()),
-				SecretTypeIdentifierKey: SecretClusterTypeValue,
+				SecretDbIdentifierKey:                    "test-env-id" + string(uuid.NewUUID()),
+				sharedutil.ArgoCDSecretTypeIdentifierKey: sharedutil.ArgoCDSecretClusterTypeValue,
 			}
 
 			err := k8sClient.Create(ctx, &secret)
@@ -459,7 +460,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			By("Create secret in cluster with one label.")
 
-			secret.Labels = map[string]string{SecretTypeIdentifierKey: SecretClusterTypeValue}
+			secret.Labels = map[string]string{sharedutil.ArgoCDSecretTypeIdentifierKey: sharedutil.ArgoCDSecretClusterTypeValue}
 
 			err := k8sClient.Create(ctx, &secret)
 			Expect(err).To(BeNil())

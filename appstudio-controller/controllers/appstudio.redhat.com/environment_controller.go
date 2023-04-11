@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/go-logr/logr"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 
 	appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
@@ -31,8 +32,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // EnvironmentReconciler reconciles a Environment object
@@ -87,7 +93,13 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, fmt.Errorf("unable to retrieve Environment: %v", err)
 	}
 
-	desiredManagedEnv, err := generateDesiredResource(ctx, *environment, rClient)
+	if environment.GetDeploymentTargetClaimName() != "" && environment.Spec.UnstableConfigurationFields != nil {
+		log.Error(nil, "Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set")
+		// TODO: GITOPSRVCE-498: Add this error to status
+		return ctrl.Result{}, nil
+	}
+
+	desiredManagedEnv, err := generateDesiredResource(ctx, *environment, rClient, log)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to generate expected GitOpsDeploymentManagedEnvironment resource: %v", err)
 	}
@@ -187,17 +199,77 @@ func updateStatusConditionOfEnvironmentBinding(ctx context.Context, client clien
 	return nil
 }
 
-func generateDesiredResource(ctx context.Context, env appstudioshared.Environment, k8sClient client.Client) (*managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, error) {
+func generateDesiredResource(ctx context.Context, env appstudioshared.Environment, k8sClient client.Client, log logr.Logger) (*managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, error) {
+	var manageEnvDetails managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec
+	// If the Environment has a reference to the DeploymentTargetClaim, use the credential secret
+	// from the bounded DeploymentTarget.
+	claimName := env.GetDeploymentTargetClaimName()
+	if claimName != "" {
+		log.Info("Environment is configured with a DeploymentTargetClaim")
+		dtc := &appstudioshared.DeploymentTargetClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      claimName,
+				Namespace: env.Namespace,
+			},
+		}
 
-	// Don't process the Environment configuration fields if they are empty
-	if env.Spec.UnstableConfigurationFields == nil {
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dtc), dtc); err != nil {
+			if apierr.IsNotFound(err) {
+				log.Error(err, "DeploymentTargetClaim not found while generating the desired Environment resource")
+				return nil, nil
+			}
+			// TODO: GITOPSRVCE-498: Add this error to status.
+			return nil, err
+		}
+
+		// If the DeploymentTargetClaim is not in bounded phase, return and wait
+		// until it reaches bounded phase.
+		if dtc.Status.Phase != appstudioshared.DeploymentTargetClaimPhase_Bound {
+			log.Info("Waiting until the DeploymentTargetClaim associated with Environment reaches Bounded phase", "DeploymentTargetClaim", dtc.Name)
+			return nil, nil
+		}
+
+		// If the DeploymentTargetClaim is bounded, find the corresponding DeploymentTarget.
+		dt, err := getDTBoundByDTC(ctx, k8sClient, dtc)
+		if err != nil {
+			if apierr.IsNotFound(err) {
+				log.Error(err, "DeploymentTarget not found for DeploymentTargetClaim", "DeploymentTargetClaim", dtc.Name)
+				return nil, nil
+			}
+			// TODO: GITOPSRVCE-498: Add this error to status.
+			return nil, err
+		}
+
+		if dt == nil {
+			// TODO: GITOPSRVCE-498: Add this error to status.
+			log.Error(nil, "DeploymentTarget not found for DeploymentTargetClaim", "DeploymentTargetClaim", dtc.Name)
+			return nil, nil
+		}
+
+		log.Info("Using the cluster credentials from the DeploymentTarget", "DeploymentTarget", dt.Name)
+		manageEnvDetails = managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+			APIURL:                     dt.Spec.KubernetesClusterCredentials.APIURL,
+			ClusterCredentialsSecret:   dt.Spec.KubernetesClusterCredentials.ClusterCredentialsSecret,
+			AllowInsecureSkipTLSVerify: dt.Spec.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify,
+		}
+
+	} else if env.Spec.UnstableConfigurationFields != nil {
+		log.Info("Using the cluster credentials specified in the Environment")
+		manageEnvDetails = managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+			APIURL:                     env.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.APIURL,
+			ClusterCredentialsSecret:   env.Spec.UnstableConfigurationFields.ClusterCredentialsSecret,
+			AllowInsecureSkipTLSVerify: env.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify,
+		}
+	} else {
+		// Don't process the Environment configuration fields if they are empty
+		log.Info("Environment neither has cluster credentials nor DeploymentTargetClaim configured")
 		return nil, nil
 	}
 
 	// 1) Retrieve the secret that the Environment is pointing to
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      env.Spec.UnstableConfigurationFields.ClusterCredentialsSecret,
+			Name:      manageEnvDetails.ClusterCredentialsSecret,
 			Namespace: env.Namespace,
 		},
 	}
@@ -218,11 +290,7 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 			UID:        env.UID,
 		},
 	}
-	managedEnv.Spec = managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
-		APIURL:                     env.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.APIURL,
-		ClusterCredentialsSecret:   secret.Name,
-		AllowInsecureSkipTLSVerify: env.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify,
-	}
+	managedEnv.Spec = manageEnvDetails
 
 	return &managedEnv, nil
 }
@@ -241,5 +309,98 @@ func generateEmptyManagedEnvironment(environmentName string, environmentNamespac
 func (r *EnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&appstudioshared.Environment{}).
+		Watches(
+			&source.Kind{Type: &appstudioshared.DeploymentTargetClaim{}},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForDeploymentTargetClaim),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&source.Kind{Type: &appstudioshared.DeploymentTarget{}},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForDeploymentTarget),
+			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
+		).
 		Complete(r)
+}
+
+// findObjectsForDeploymentTargetClaim maps an incoming DTC event to the corresponding Environment request.
+func (r *EnvironmentReconciler) findObjectsForDeploymentTargetClaim(dtc client.Object) []reconcile.Request {
+	ctx := context.Background()
+	handlerLog := log.FromContext(ctx)
+
+	dtc, ok := dtc.(*appstudioshared.DeploymentTargetClaim)
+	if !ok {
+		handlerLog.Error(nil, "incompatible object in the Environment mapping function, expected a DeploymentTargetClaim")
+		return []reconcile.Request{}
+	}
+
+	envList := &appstudioshared.EnvironmentList{}
+	err := r.Client.List(context.Background(), envList, &client.ListOptions{Namespace: dtc.GetNamespace()})
+	if err != nil {
+		handlerLog.Error(err, "failed to list Environments in the Environment mapping function")
+		return []reconcile.Request{}
+	}
+
+	envRequests := []reconcile.Request{}
+	for i := 0; i < len(envList.Items); i++ {
+		env := envList.Items[i]
+		if env.GetDeploymentTargetClaimName() == dtc.GetName() {
+			envRequests = append(envRequests, reconcile.Request{
+				NamespacedName: client.ObjectKeyFromObject(&env),
+			})
+		}
+	}
+
+	return envRequests
+}
+
+// findObjectsForDeploymentTarget maps an incoming DT event to the corresponding Environment request.
+// We should reconcile Environments if the DT credentials get updated.
+func (r *EnvironmentReconciler) findObjectsForDeploymentTarget(dt client.Object) []reconcile.Request {
+	ctx := context.Background()
+	handlerLog := log.FromContext(ctx)
+
+	dtObj, ok := dt.(*appstudioshared.DeploymentTarget)
+	if !ok {
+		handlerLog.Error(nil, "incompatible object in the Environment mapping function, expected a DeploymentTarget")
+		return []reconcile.Request{}
+	}
+
+	// 1. Find all DeploymentTargetClaims that are associated with this DeploymentTarget.
+	dtcList := appstudioshared.DeploymentTargetClaimList{}
+	err := r.List(ctx, &dtcList, &client.ListOptions{Namespace: dt.GetNamespace()})
+	if err != nil {
+		handlerLog.Error(err, "failed to list DeploymentTargetClaims in the mapping function")
+		return []reconcile.Request{}
+	}
+
+	dtcs := []appstudioshared.DeploymentTargetClaim{}
+	for _, d := range dtcList.Items {
+		dtc := d
+		// We only want to reconcile for DTs that have a corresponding DTC.
+		if dtc.Spec.TargetName == dt.GetName() || dtObj.Spec.ClaimRef == dtc.Name {
+			dtcs = append(dtcs, dtc)
+		}
+	}
+
+	// 2. Find all Environments that are associated with this DeploymentTargetClaim.
+	envList := &appstudioshared.EnvironmentList{}
+	err = r.Client.List(context.Background(), envList, &client.ListOptions{Namespace: dt.GetNamespace()})
+	if err != nil {
+		handlerLog.Error(err, "failed to list Environments in the Environment mapping function")
+		return []reconcile.Request{}
+	}
+
+	envRequests := []reconcile.Request{}
+	for i := 0; i < len(envList.Items); i++ {
+		env := envList.Items[i]
+		for _, dtc := range dtcs {
+			if env.GetDeploymentTargetClaimName() == dtc.GetName() {
+				envRequests = append(envRequests, reconcile.Request{
+					NamespacedName: client.ObjectKeyFromObject(&env),
+				})
+			}
+		}
+	}
+
+	return envRequests
 }

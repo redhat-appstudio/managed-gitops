@@ -166,9 +166,6 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			Expect(err).To(BeNil())
 
 			appEventLoopRunnerAction = applicationEventLoopRunner_Action{
-				getK8sClientForGitOpsEngineInstance: func(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
-					return k8sClient, nil
-				},
 				eventResourceName:           gitopsDepl.Name,
 				eventResourceNamespace:      gitopsDepl.Namespace,
 				workspaceClient:             k8sClient,

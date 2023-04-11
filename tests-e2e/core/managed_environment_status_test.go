@@ -4,7 +4,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/managedenvironment"
@@ -21,7 +20,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			By("creating the GitOpsDeploymentManagedEnvironment with a target cluster that does not exist")
 
 			apiServerURL := "https://api2.fake-e2e-test-data.origin-ci-int-gce.dev.rhcloud.com:6443"
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, generateFakeKubeConfig())
+			managedEnv, secret := buildManagedEnvironment(apiServerURL, generateFakeKubeConfig(), true)
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
@@ -39,7 +38,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
 			condition := managedEnv.Status.Conditions[0]
 			Expect(condition.Status).To(Equal(metav1.ConditionFalse))
-			Expect(condition.Reason).To(Equal(shared_resource_loop.ConditionReasonUnableToCreateClient))
+			Expect(condition.Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonUnableToCreateClient)))
 			Expect(condition.Message).To(ContainSubstring("no such host"))
 		})
 
@@ -48,9 +47,9 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 
 			By("creating the GitOpsDeploymentManagedEnvironment with a secret that is missing the kubeconfig data")
 
-			kubeConfigContents, apiServerURL, err := extractKubeConfigValues()
+			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
 			Expect(err).To(BeNil())
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents)
+			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 			delete(secret.StringData, "kubeconfig")
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -69,7 +68,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
 			condition := managedEnv.Status.Conditions[0]
 			Expect(condition.Status).To(Equal(metav1.ConditionFalse))
-			Expect(condition.Reason).To(Equal(shared_resource_loop.ConditionReasonMissingKubeConfigField))
+			Expect(condition.Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonMissingKubeConfigField)))
 			Expect(condition.Message).To(ContainSubstring("missing kubeconfig field in Secret"))
 		})
 
@@ -78,9 +77,9 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 
 			By("creating the GitOpsDeploymentManagedEnvironment with a secret that has bad kubeconfig data")
 
-			kubeConfigContents, apiServerURL, err := extractKubeConfigValues()
+			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
 			Expect(err).To(BeNil())
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents)
+			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 			secret.StringData["kubeconfig"] = "badbadbad"
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -99,18 +98,18 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
 			condition := managedEnv.Status.Conditions[0]
 			Expect(condition.Status).To(Equal(metav1.ConditionFalse))
-			Expect(condition.Reason).To(Equal(shared_resource_loop.ConditionReasonUnableToParseKubeconfigData))
+			Expect(condition.Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonUnableToParseKubeconfigData)))
 			Expect(condition.Message).To(ContainSubstring("json parse error"))
 		})
 
-		It("should have a connection status condition of False when there is no current contex in the kubeconfig", func() {
+		It("should have a connection status condition of False when there is no current context in the kubeconfig", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("creating the GitOpsDeploymentManagedEnvironment with a secret that lacks a kubeconfig context")
 
-			kubeConfigContents, apiServerURL, err := extractKubeConfigValues()
+			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
 			Expect(err).To(BeNil())
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents)
+			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 			secret.StringData["kubeconfig"] = "apiVersion: v1\nkind: Config\n"
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -129,7 +128,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
 			condition := managedEnv.Status.Conditions[0]
 			Expect(condition.Status).To(Equal(metav1.ConditionFalse))
-			Expect(condition.Reason).To(Equal(shared_resource_loop.ConditionReasonUnableToLocateContext))
+			Expect(condition.Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonUnableToLocateContext)))
 			Expect(condition.Message).To(ContainSubstring("the kubeconfig did not have a cluster entry that matched the API URL"))
 		})
 
@@ -138,10 +137,10 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 
 			By("creating the GitOpsDeploymentManagedEnvironment")
 
-			kubeConfigContents, apiServerURL, err := extractKubeConfigValues()
+			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
 			Expect(err).To(BeNil())
 
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents)
+			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())

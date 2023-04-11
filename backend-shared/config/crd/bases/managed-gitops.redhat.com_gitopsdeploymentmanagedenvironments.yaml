@@ -42,8 +42,16 @@ spec:
                 type: boolean
               apiURL:
                 type: string
+              clusterResources:
+                type: boolean
+              createNewServiceAccount:
+                type: boolean
               credentialsSecret:
                 type: string
+              namespaces:
+                items:
+                  type: string
+                type: array
             required:
             - allowInsecureSkipTLSVerify
             - apiURL

@@ -229,10 +229,9 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 			return ctrl.Result{}, nil
 		}
 
-		log.Error(err, "unable to update gitopsdeployments status for Binding")
-		return ctrl.Result{}, fmt.Errorf("unable to update gitopsdeployments status for SnapshotEnvironmentBinding. Error: %w", err)
+		log.Error(err, "unable to update SnapshotEnvironmentBinding status")
+		return ctrl.Result{}, fmt.Errorf("unable to update SnapshotEnvironmentBinding status. Error: %w", err)
 	}
-	sharedutil.LogAPIResourceChangeEvent(binding.Namespace, binding.Name, binding, sharedutil.ResourceModified, log)
 
 	if allErrors != nil {
 		return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("unable to process expected GitOpsDeployment: %w", allErrors)

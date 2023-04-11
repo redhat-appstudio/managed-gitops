@@ -20,6 +20,7 @@ var _ = Describe("Argo CD Metrics Polling", func() {
 		var k8sClient client.Client
 		var updater ReconciliationMetricsUpdater
 		var err error
+		var testNamespaceNames []string
 
 		BeforeEach(func() {
 			scheme, argocdNamespace, kubesystemNamespace, _, err := tests.GenericTestSetup()
@@ -39,7 +40,8 @@ var _ = Describe("Argo CD Metrics Polling", func() {
 
 			ctx = context.Background()
 			updater = ReconciliationMetricsUpdater{
-				Client: k8sClient,
+				Client:             k8sClient,
+				testNamespaceNames: testNamespaceNames,
 			}
 		})
 
@@ -71,7 +73,7 @@ var _ = Describe("Argo CD Metrics Polling", func() {
 					},
 				},
 			}
-			err = updater.Create(ctx, app)
+			err = updater.Client.Create(ctx, app)
 			Expect(err).To(BeNil())
 
 			By("Checking the metric is still zero at this point")

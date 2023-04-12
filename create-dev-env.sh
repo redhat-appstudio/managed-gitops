@@ -211,6 +211,72 @@ if [ "$1" = "kube-auto" ]; then
     echo "Port-forwarding is yet not supported in kcp, skipping ..."
     echo "The pods under this scenario will be running on your workload end, hence 'pods' as a resource is not available with current kubeconfig, skipping ..."
   fi
+
+  # Set up pg_stat_statements for postgresql metrics
+  echo " * Setting up pg_stat_statements for PostgreSQL metrics"
+  # This statement creates the postgresql.auto.conf file and is located in the same folder as the postgresql.conf file
+  # It can located via the command SHOW config_file;
+  psql -h localhost -p 5432 -U postgres -c 'ALTER SYSTEM SET shared_preload_libraries TO pg_stat_statements;' 1> /dev/null
+  # This reloads the config
+  psql -h localhost -p 5432 -U postgres -c 'select pg_reload_conf();' 1> /dev/null
+  # This creates the pg_stat_statements extension if it doesn't already exist
+  psql -h localhost -p 5432 -U postgres -c 'CREATE EXTENSION IF NOT EXISTS pg_stat_statements;'
+
+  # The above requires us to restart the server/service. For our dev env, this should be 'ok' to do.
+  echo " * Need to restart the Postgres pod and wait until Postgres pod is running"
+  # This command forces a delete and recreate of the postgres pod. Set the timeout to be 5s for now because the code
+  # that follows will wait for the pod to be recreated.  That way we see the dots (...) to indicate that you have to wait.
+  kubectl get pod gitops-postgresql-staging-postgresql-0 -n gitops -o yaml | kubectl replace --timeout=5s --force -f - &> /dev/null
+
+  # Now, wait until postgres pod is running
+  echo "   * Wait until Postgres pod is running and ready"
+  counter=0
+  until kubectl -n gitops get pods | grep postgres | grep '1/1' | grep 'Running' &> /dev/null
+  do
+    ((counter++))
+    sleep 1
+    echo -n "."
+    if [ "$counter" -gt 150 ]; then
+      echo " --> Error: PostgreSQL pod cannot start. Quitting ..."
+      echo ""
+      echo "Namespace events:"
+      kubectl get events -n gitops
+      exit 1
+    fi
+  done
+  echo
+  echo "   * Postgres Pod is running."
+  echo " * Finished setting up pg_stat_statements for PostgreSQL metrics"
+  echo " * Restarting port forwarding"
+  # The port forward process needs to be terminated and restarted since we restarted the PostgreSQL service, so
+  # kill the original process.  If we don't kill it, the server will eventually kill it.
+  # Stop port-forwarding
+  if ! kill $KUBE_PID &>/dev/null; then
+    echo " Error: Cannot kill the port-forward process, kill the process yourself and rerun the command"
+    exit 1
+  else
+    wait $KUBE_PID 2>/dev/null
+    echo "   * Previous port-forwarding has been successfully stopped"
+  fi
+  echo "   * Creating a new port-forward process"
+  # Port forward the PostgreSQL service locally again, so we can access it
+  kubectl port-forward --namespace gitops svc/gitops-postgresql-staging 5432:5432 &>/dev/null &
+  PORT_FORWARD_PID=$!
+
+
+  # Checks if 5432 is occupied
+  counter=0
+  until lsof -i:5432 | grep LISTEN
+  do
+    sleep 1
+    if [ "$counter" -gt 10 ]; then
+      echo "Timed out waiting for port-forward process to start. Rerun port-forward command."
+      exit 1
+    fi
+  done
+  echo "   * Port-Forwarding worked"
+  echo "   * Port-forwarding is active. You can stop it with 'kill $PORT_FORWARD_PID'"
+  echo "   * Or you can find the process with typing: 'sudo lsof -i:5432'"
   exit 0
 fi
 

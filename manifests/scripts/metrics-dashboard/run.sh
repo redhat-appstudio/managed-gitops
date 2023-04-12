@@ -108,6 +108,32 @@ echo "* Create GitOps Operator ServiceMonitor"
 kubectl apply -f prometheus/openshift-operators-service-monitor.yaml -n openshift-gitops
 
 # -----------------
+echo
+echo "* Create GitOps Service PostgreSQL datasource and dashboard"
+TMP_DIR=`mktemp -d`
+
+while : ; do
+  kubectl get secrets -n gitops | grep "gitops-postgresql-staging"  > /dev/null 2>&1 && break
+  sleep 1
+done
+
+POSTGRESQL_CLUSTERIP=`kubectl -n gitops get service gitops-postgresql-staging -o jsonpath={.spec.clusterIP}`
+POSTGRESQL_TOKEN=`kubectl -n gitops get secret gitops-postgresql-staging -o jsonpath={.data.postgresql-password} | base64 --decode`
+
+cp -f postgresql/postgresql-data-source.yaml  $TMP_DIR/postgresql-data-source-resolved.yaml
+
+sed -i.bak 's/POSTGRESQL_CLUSTERIP/'$POSTGRESQL_CLUSTERIP'/g' $TMP_DIR/postgresql-data-source-resolved.yaml
+sed -i.bak 's~POSTGRESQL_TOKEN~'$POSTGRESQL_TOKEN'~g' $TMP_DIR/postgresql-data-source-resolved.yaml
+
+kubectl apply -f $TMP_DIR/postgresql-data-source-resolved.yaml
+
+rm -f "$TMP_DIR/postgresql-data-source-resolved.yaml"
+
+kubectl apply -f postgresql/grafana-postgresql-dashboard-cm.yaml
+kubectl apply -f postgresql/grafana-postgresql-dashboard.yaml
+echo "* Finished creating GitOps Service PostgreSQL datasource and dashboard"
+
+# -----------------
 
 
 

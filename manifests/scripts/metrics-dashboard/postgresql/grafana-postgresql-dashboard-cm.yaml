@@ -1,0 +1,178 @@
+apiVersion: v1
+data:
+  postgresql-table-dashboard.json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "grafana",
+              "uid": "-- Grafana --"
+            },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "target": {
+              "limit": 100,
+              "matchAny": false,
+              "tags": [],
+              "type": "dashboard"
+            },
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "id": 3,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "PCC52D03280B7034C"
+          },
+          "description": "Table-based metrics",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "auto",
+                "displayMode": "auto",
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "total_min"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 158
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "avg_ms"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 144
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "calls"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 88
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 21,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "id": 1,
+          "options": {
+            "footer": {
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": []
+          },
+          "pluginVersion": "9.1.6",
+          "targets": [
+            {
+              "datasource": {
+                "type": "postgres",
+                "uid": "PCC52D03280B7034C"
+              },
+              "format": "table",
+              "group": [],
+              "key": "Q-75ab3fad-43fa-42d1-957f-ecaba538884a-0",
+              "metricColumn": "none",
+              "rawQuery": true,
+              "rawSql": "select (total_exec_time / 1000 / 60) as total_min,\n   mean_exec_time as avg_ms,  \n   calls,  \n   query\n FROM pg_stat_statements  Order by 1 desc  limit 500;\n",
+              "refId": "A",
+              "select": [
+                [
+                  {
+                    "params": [
+                      "value"
+                    ],
+                    "type": "column"
+                  }
+                ]
+              ],
+              "timeColumn": "time",
+              "where": [
+                {
+                  "name": "$__timeFilter",
+                  "params": [],
+                  "type": "macro"
+                }
+              ]
+            }
+          ],
+          "title": "GitOps Service PostgreSQL DataSource Metrics",
+          "type": "table"
+        }
+      ],
+      "refresh": "5s",
+      "schemaVersion": 37,
+      "style": "dark",
+      "tags": [],
+      "templating": {
+        "list": []
+      },
+      "time": {
+        "from": "now-6h",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "",
+      "title": "GitOps Service PostgreSQL DataSource Metrics",
+      "uid": "TCkQq2LVz",
+      "version": 2,
+      "weekStart": ""
+    }
+kind: ConfigMap
+metadata:
+  name: grafana-postgresql-table-dashboard
+  namespace: grafana

@@ -166,7 +166,7 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 		}
 
 		var err error
-		expectedDeployments[component.Name], err = generateExpectedGitOpsDeployment(component, *binding, environment)
+		expectedDeployments[component.Name], err = generateExpectedGitOpsDeployment(component, *binding, environment, log)
 		if err != nil {
 			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("invalid target namespace: %v", err)
 		}
@@ -360,7 +360,8 @@ func GenerateBindingGitOpsDeploymentName(binding appstudioshared.SnapshotEnviron
 
 func generateExpectedGitOpsDeployment(component appstudioshared.BindingComponentStatus,
 	binding appstudioshared.SnapshotEnvironmentBinding,
-	environment appstudioshared.Environment) (apibackend.GitOpsDeployment, error) {
+	environment appstudioshared.Environment,
+	logger logr.Logger) (apibackend.GitOpsDeployment, error) {
 
 	res := apibackend.GitOpsDeployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -412,10 +413,13 @@ func generateExpectedGitOpsDeployment(component appstudioshared.BindingComponent
 		}
 	}
 
-	// Append labels to identify the Application, Component and Environment associated with this GitOpsDeployment
-	res.ObjectMeta.Labels[appstudioLabelKey+"/application"] = binding.Spec.Application
-	res.ObjectMeta.Labels[appstudioLabelKey+"/component"] = component.Name
-	res.ObjectMeta.Labels[appstudioLabelKey+"/environment"] = binding.Spec.Environment
+	// Append labels to identify the Application, Component and Environment associated with this GitOpsDeployment.
+	// Label values are limited to a maximum of 63 characters, while resource names by default can be up to 253.
+	// StoneSoup artificially limits these names to 63 characters, but to be safe we truncate the values if they
+	// are too long
+	res.ObjectMeta.Labels[appstudioLabelKey+"/application"] = limitLength(binding.Spec.Application, logger)
+	res.ObjectMeta.Labels[appstudioLabelKey+"/component"] = limitLength(component.Name, logger)
+	res.ObjectMeta.Labels[appstudioLabelKey+"/environment"] = limitLength(binding.Spec.Environment, logger)
 
 	// Ensures that this method only adds 'appstudio.openshift.io' labels
 	// - Note: If you remove this line, you need to search for other uses of 'removeNonAppStudioLabelsFromMap' in the
@@ -425,6 +429,14 @@ func generateExpectedGitOpsDeployment(component appstudioshared.BindingComponent
 	res.ObjectMeta.Labels = convertToNilIfEmptyMap(res.ObjectMeta.Labels)
 
 	return res, nil
+}
+
+func limitLength(str string, logger logr.Logger) string {
+	if len(str) <= 63 {
+		return str
+	}
+	logger.Error(nil, "label value should be at most 63 characters", "value", str)
+	return str[:63]
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -27,7 +27,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
@@ -149,7 +151,34 @@ func processSecret(ctx context.Context, secret corev1.Secret, k8sClient client.C
 func (r *SecretReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Secret{}).
+		WithEventFilter(filterManagedEnvSecrets()).
 		Complete(r)
+}
+
+func filterManagedEnvSecrets() predicate.Predicate {
+	return predicate.Funcs{
+		CreateFunc: func(createEvent event.CreateEvent) bool {
+			return isManagedEnvSecret(createEvent.Object)
+		},
+		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+			return isManagedEnvSecret(deleteEvent.Object)
+		},
+		GenericFunc: func(genericEvent event.GenericEvent) bool {
+			return isManagedEnvSecret(genericEvent.Object)
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			return isManagedEnvSecret(e.ObjectNew)
+		},
+	}
+
+}
+
+func isManagedEnvSecret(o client.Object) bool {
+	if os, ok := o.(*corev1.Secret); ok {
+		return os.Type == sharedutil.ManagedEnvironmentSecretType
+	}
+
+	return false
 }
 
 // isFilteredOutNamespace filters out a set of namepaces that are known not to contain

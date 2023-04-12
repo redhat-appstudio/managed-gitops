@@ -16,10 +16,12 @@ var _ = BeforeSuite(func() {
 })
 
 func TestCore(t *testing.T) {
-	_, reporterConfig := GinkgoConfiguration()
+	suiteConfig, reporterConfig := GinkgoConfiguration()
 	// A test is "slow" if it takes longer than a few minutes
 	reporterConfig.SlowSpecThreshold = time.Duration(6 * time.Minute)
 
+	suiteConfig.Timeout = time.Duration(90 * time.Minute)
+
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Core Suite", reporterConfig)
+	RunSpecs(t, "Core Suite", suiteConfig, reporterConfig)
 }

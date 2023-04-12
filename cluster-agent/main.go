@@ -31,6 +31,7 @@ import (
 	controllers "github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/managed-gitops"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/managed-gitops/eventloop"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/metrics"
+	argocdmetrics "github.com/redhat-appstudio/managed-gitops/cluster-agent/metrics/argocd"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -152,6 +153,11 @@ func main() {
 		Client: mgr.GetClient(),
 	}
 	operationCRMetricUpdater.StartOperationCRMetricUpdater()
+
+	reconciliationMetricsUpdater := argocdmetrics.ReconciliationMetricsUpdater{
+		Client: mgr.GetClient(),
+	}
+	reconciliationMetricsUpdater.Start()
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")

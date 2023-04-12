@@ -1,0 +1,3 @@
+backend: cd backend && make runexec
+cluster-agent: cd cluster-agent && make runexec
+appstudio-controller: cd appstudio-controller && make runexec

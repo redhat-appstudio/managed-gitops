@@ -119,6 +119,18 @@ run: manifests generate fmt vet ## Run a controller from your host.
 # - more on controller log level configuration: https://sdk.operatorframework.io/docs/building-operators/golang/references/logging/
 # - we disable webhook when running locally, because K8s will not be able to connect to our local process (which is a prereq for webhook supprot)
 
+runexec: ## Run a controller from your host using exe in current folder
+ifeq (,$(wildcard ./main))
+runexec: manifests generate fmt vet
+	@echo Building and running appstudio-controller
+	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build ./main.go
+	DISABLE_APPSTUDIO_WEBHOOK=true ./main --zap-log-level info --zap-time-encoding=rfc3339nano
+else
+runexec:
+	@echo Running appstudio-controller using existing main executable.
+	DISABLE_APPSTUDIO_WEBHOOK=true ./main --zap-log-level info --zap-time-encoding=rfc3339nano
+endif
+
 .PHONY: chaos-run
 chaos-run: manifests generate fmt vet ## Chaos Engineering: Simulate a controller that restarts every ~33 seconds.
 	go build -o /tmp/appstudio-controller-manager-chaos main.go
@@ -257,3 +269,8 @@ gosec:
 .PHONY: clean
 clean:
 	rm -rf vendor/ bin/
+
+# Remove the vendor and bin folders
+.PHONY: clean-exec
+clean-exec:
+	rm main

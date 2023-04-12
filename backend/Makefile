@@ -63,6 +63,18 @@ build: generate fmt vet ## Build manager binary.
 run: manifests generate fmt vet ## Run a controller from your host.
 	DISABLE_APPSTUDIO_WEBHOOK=true go run ./main.go --zap-log-level info --zap-time-encoding=rfc3339nano
 
+runexec: ## Run a controller from your host using exe in current folder
+ifeq (,$(wildcard ./main))
+runexec: manifests generate fmt vet
+	@echo Building and running backend
+	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build main.go
+	DISABLE_APPSTUDIO_WEBHOOK=true ./main --zap-log-level info --zap-time-encoding=rfc3339nano
+else
+runexec:
+	@echo Running backend using existing main executable.
+	DISABLE_APPSTUDIO_WEBHOOK=true ./main --zap-log-level info --zap-time-encoding=rfc3339nano
+endif
+
 # more on controller log level configuration: https://sdk.operatorframework.io/docs/building-operators/golang/references/logging/
 
 chaos-run: manifests generate fmt vet ## Chaos Engineering: Simulate a controller that restarts every ~33 seconds.
@@ -186,3 +198,8 @@ gosec: go_sec
 .PHONY: clean
 clean:
 	rm -rf vendor/ bin/
+
+# Remove the vendor and bin folders
+.PHONY: clean-exec
+clean-exec:
+	rm main

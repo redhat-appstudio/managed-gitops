@@ -155,6 +155,8 @@ start: ## Start all the components, compile & run (ensure goreman is installed, 
 start-chaos: ## Start all the components, compile & run (ensure goreman is installed, with 'go install github.com/mattn/goreman@latest')
 	$(GOBIN)/goreman -f Procfile.chaos start
 
+start-execs: ## Start all the components, compile & run using execs in component folders (ensure goreman is installed, with 'go install github.com/mattn/goreman@latest')
+	$(GOBIN)/goreman -f Procfile.runexecs start
 
 clean: ## remove the bin and vendor folders from each component
 	cd $(MAKEFILE_ROOT)/backend-shared && make clean
@@ -163,6 +165,11 @@ clean: ## remove the bin and vendor folders from each component
 	cd $(MAKEFILE_ROOT)/appstudio-controller && make clean
 	cd $(MAKEFILE_ROOT)/tests-e2e && make clean
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && make clean
+
+clean-execs: ## remove the main executables in each component
+	cd $(MAKEFILE_ROOT)/backend && make clean-exec
+	cd $(MAKEFILE_ROOT)/cluster-agent && make clean-exec
+	cd $(MAKEFILE_ROOT)/appstudio-controller && make clean-exec
 
 build: build-backend build-cluster-agent build-appstudio-controller build-init-container-binary ## Build all the components - note: you do not need to do this before running start
 
@@ -278,6 +285,11 @@ start-e2e-kcp-virtual-workspace: ## Starts gitops service in service-provider vi
 
 test-e2e-kcp-virtual-workspace: ## Test E2E against KCP virtual workspaces
 	KUBECONFIG_SERVICE_PROVIDER=/tmp/service-provider-workspace.yaml KUBECONFIG_USER_WORKSPACE=/tmp/user-workspace.yaml  make test-e2e
+
+### --- CI Tests ---
+
+check-backward-compatability: ##  test executed from OpenShift CI
+	ginkgo -focus "GitOpsDeployment Managed Environment E2E tests Create a new GitOpsDeployment targeting a ManagedEnvironment should be healthy and have synced status, and resources should be deployed, when deployed with a ManagedEnv"  -r -v tests-e2e/core
 
 
 ### --- Utilities for other makefile targets ---

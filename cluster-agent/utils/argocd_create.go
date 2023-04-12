@@ -92,7 +92,7 @@ func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, na
 				Sharding: argocdoperator.ArgoCDApplicationControllerShardSpec{},
 			},
 			Dex: &argocdoperator.ArgoCDDexSpec{
-				OpenShiftOAuth: false,
+				OpenShiftOAuth: true,
 				Resources: &corev1.ResourceRequirements{
 					Limits: corev1.ResourceList{
 						corev1.ResourceCPU:    resource.MustParse("500m"),

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -110,24 +111,46 @@ func reconcileRepositoryCredentials(ctx context.Context, dbQueries db.DatabaseQu
 	}
 }
 
-func reconcileRepositoryCredentialStatus(ctx context.Context, client client.Client, dbQueries db.DatabaseQueries, apiCrToDbMappingFromDB db.APICRToDatabaseMapping, objectMeta metav1.ObjectMeta, log logr.Logger) {
+func reconcileRepositoryCredentialStatus(ctx context.Context, apiNamespaceClient client.Client, dbQueries db.DatabaseQueries, apiCrToDbMappingFromDB db.APICRToDatabaseMapping, objectMeta metav1.ObjectMeta, log logr.Logger) {
 
 	gitopsDeploymentRepositoryCredentialCR := managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{ObjectMeta: objectMeta}
+	log = log.WithValues("job", "reconcileRepositoryCredentialStatus")
 
 	// Check if required CR is present in cluster. If yes, skip
-	if isOrphaned := isRowOrphaned(ctx, client, &apiCrToDbMappingFromDB, &gitopsDeploymentRepositoryCredentialCR, log); isOrphaned {
+	if isOrphaned := isRowOrphaned(ctx, apiNamespaceClient, &apiCrToDbMappingFromDB, &gitopsDeploymentRepositoryCredentialCR, log); isOrphaned {
 		return
 	}
 
 	// Sanity test for gitopsDeploymentRepositoryCredentialCR.Spec.Secret to be non-empty value
 	if gitopsDeploymentRepositoryCredentialCR.Spec.Secret == "" {
-		repositoryCredentialStatusConditon := &metav1.Condition{
-			Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
-			Reason:  "SecretNotSpecified",
-			Status:  metav1.ConditionTrue,
-			Message: "Secret cannot be empty",
+		if err := sharedresourceloop.UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, &gitopsDeploymentRepositoryCredentialCR, apiNamespaceClient, nil, log); err != nil {
+			log.Error(err, fmt.Sprintf("error updating status of GitopsDeploymentRepositoryCredential %v", gitopsDeploymentRepositoryCredentialCR))
 		}
-		sharedresourceloop.UpdateGitopsDeploymentRepositoryCredentialStatus(&gitopsDeploymentRepositoryCredentialCR, ctx, client, nil, repositoryCredentialStatusConditon, log)
+		return
+	}
+
+	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind: "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      gitopsDeploymentRepositoryCredentialCR.Spec.Secret,
+			Namespace: apiCrToDbMappingFromDB.APIResourceNamespace, // we assume the secret is in the same namespace as the CR
+		},
+	}
+
+	// Fetch the secret from the cluster
+	if err := apiNamespaceClient.Get(ctx, client.ObjectKey{Name: secret.Name, Namespace: secret.Namespace}, secret); err != nil {
+		log.Error(err, "Secret not found")
+		if err := sharedresourceloop.UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, &gitopsDeploymentRepositoryCredentialCR, apiNamespaceClient, nil, log); err != nil {
+			log.Error(err, fmt.Sprintf("error updating status of GitopsDeploymentRepositoryCredential %v", gitopsDeploymentRepositoryCredentialCR))
+		}
+		return
+	}
+
+	// Update the status of GitopsDeploymentRepositoryCredential
+	if err := sharedresourceloop.UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, &gitopsDeploymentRepositoryCredentialCR, apiNamespaceClient, secret, log); err != nil {
+		log.Error(err, fmt.Sprintf("error updating status of GitopsDeploymentRepositoryCredential %v", gitopsDeploymentRepositoryCredentialCR))
 	}
 
 }

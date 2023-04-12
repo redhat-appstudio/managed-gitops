@@ -21,7 +21,7 @@ import (
 // - When comparing conditions, it will ignore the LastProbeTime/LastTransitionTime fields.
 func HaveConditions(conditions []*metav1.Condition) matcher.GomegaMatcher {
 
-	// sanitizeCondition removes ephemeral fields from the GitOpsDeploymentCondition which should not be compared using
+	// sanitizeCondition removes ephemeral fields from the GitOpsDeploymentRepositoryCredentialCondition which should not be compared using
 	// reflect.DeepEqual
 	sanitizeCondition := func(cond *metav1.Condition) metav1.Condition {
 
@@ -69,7 +69,7 @@ func HaveConditions(conditions []*metav1.Condition) matcher.GomegaMatcher {
 				}
 			}
 			if !conditionExists {
-				fmt.Println("GitOpsDeploymentCondition:", conditionExists, "/ Expected:", conditions, "/ Actual:", gitopsDeploymentRepositoryCredentialCR.Status.Conditions)
+				fmt.Println("GitOpsDeploymentRepositoryCredentialCondition:", conditionExists, "/ Expected:", conditions, "/ Actual:", gitopsDeploymentRepositoryCredentialCR.Status.Conditions)
 				break
 			}
 		}

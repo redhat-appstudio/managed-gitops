@@ -642,7 +642,8 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			delete(gitopsDeployment.ObjectMeta.Labels, appstudioLabelKey+"/application")
 			delete(gitopsDeployment.ObjectMeta.Labels, appstudioLabelKey+"/component")
 			delete(gitopsDeployment.ObjectMeta.Labels, appstudioLabelKey+"/environment")
-			bindingReconciler.Update(ctx, gitopsDeployment)
+			err = bindingReconciler.Update(ctx, gitopsDeployment)
+			Expect(err).To(BeNil())
 
 			By("check that the labels have really been removed")
 			gitopsDeployment = &apibackend.GitOpsDeployment{}

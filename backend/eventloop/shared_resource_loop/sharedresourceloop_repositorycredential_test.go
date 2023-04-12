@@ -35,7 +35,7 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 				"ssh://git@github.com:test.git":                  true,
 			}
 			for k, v := range data {
-				isSSH, _ := IsSSHURL(k)
+				isSSH, _ := isSSHURL(k)
 				Expect(v).To(Equal(isSSH))
 			}
 
@@ -52,7 +52,7 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 			}
 
 			for _, data := range testData {
-				Expect(NormalizeGitURL(data.repoUrl)).To(Equal(data.normalizedRepoUrl))
+				Expect(normalizeGitURL(data.repoUrl)).To(Equal(data.normalizedRepoUrl))
 			}
 		})
 	})
@@ -80,11 +80,6 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 
 			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(gitopsDeploymentRepositoryCredentialCR).Build()
 
-		})
-
-		AfterEach(func() {
-			err := k8sClient.Delete(ctx, gitopsDeploymentRepositoryCredentialCR)
-			Expect(err).To(BeNil())
 		})
 
 		var haveErrOccurredConditionSet = func(expectedRepoCredStatus managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialStatus) matcher.GomegaMatcher {

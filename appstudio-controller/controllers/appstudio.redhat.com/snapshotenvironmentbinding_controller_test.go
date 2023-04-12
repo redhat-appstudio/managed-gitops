@@ -440,7 +440,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}))
 		})
 
-		It("should not append ASEB label without key appstudio.openshift.io into the GitopsDeployment Label", func() {
+		It("should not append ASEB label without key appstudio.openshift.io into the GitopsDeployment Label, but it should add labels identifying the application, environment and component", func() {
 			By("creating SnapshotEnvironmentBinding CR in cluster.")
 			err := bindingReconciler.Create(ctx, binding)
 			Expect(err).To(BeNil())
@@ -623,32 +623,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 		})
 
-		It("should add labels identifying the application, environment and component to a new GitOpsDeployment's labels", func() {
-			By("creating SnapshotEnvironmentBinding CR")
-			err := bindingReconciler.Create(ctx, binding)
-			Expect(err).To(BeNil())
-
-			By("triggering Reconciler")
-			_, err = bindingReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
-
-			By("fetching the GitOpsDeployment object to check if the GitOpsDeployment label field has been updated")
-			gitopsDeploymentKey := client.ObjectKey{
-				Namespace: binding.Namespace,
-				Name:      GenerateBindingGitOpsDeploymentName(*binding, binding.Spec.Components[0].Name),
-			}
-
-			gitopsDeployment := &apibackend.GitOpsDeployment{}
-			err = bindingReconciler.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
-			Expect(err).To(BeNil())
-			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeEmpty())
-			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{
-				appstudioLabelKey + "/application": binding.Spec.Application,
-				appstudioLabelKey + "/component":   binding.Spec.Components[0].Name,
-				appstudioLabelKey + "/environment": binding.Spec.Environment,
-			}))
-		})
-
 		It("should add labels identifying the application, environment and component to an existing GitOpsDeployment's labels", func() {
 			By("creating the GitOpsDeployment by creating a SnapshotEnvironmentBinding CR and reconciling")
 			err := bindingReconciler.Create(ctx, binding)
@@ -687,6 +661,33 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeEmpty())
 			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{
 				appstudioLabelKey + "/application": binding.Spec.Application,
+				appstudioLabelKey + "/component":   binding.Spec.Components[0].Name,
+				appstudioLabelKey + "/environment": binding.Spec.Environment,
+			}))
+		})
+
+		It("should truncate the labels identifying the application to 63 characters", func() {
+			By("creating SnapshotEnvironmentBinding CR")
+			binding.Spec.Application = strings.Repeat("a", 64)
+			err := bindingReconciler.Create(ctx, binding)
+			Expect(err).To(BeNil())
+
+			By("triggering Reconciler")
+			_, err = bindingReconciler.Reconcile(ctx, request)
+			Expect(err).To(BeNil())
+
+			By("fetching the GitOpsDeployment object to check if the GitOpsDeployment label field has been updated")
+			gitopsDeploymentKey := client.ObjectKey{
+				Namespace: binding.Namespace,
+				Name:      GenerateBindingGitOpsDeploymentName(*binding, binding.Spec.Components[0].Name),
+			}
+
+			gitopsDeployment := &apibackend.GitOpsDeployment{}
+			err = bindingReconciler.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
+			Expect(err).To(BeNil())
+			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeEmpty())
+			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{
+				appstudioLabelKey + "/application": strings.Repeat("a", 63),
 				appstudioLabelKey + "/component":   binding.Spec.Components[0].Name,
 				appstudioLabelKey + "/environment": binding.Spec.Environment,
 			}))

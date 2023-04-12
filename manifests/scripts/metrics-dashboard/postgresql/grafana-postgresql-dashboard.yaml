@@ -1,0 +1,13 @@
+apiVersion: integreatly.org/v1alpha1
+kind: GrafanaDashboard
+metadata:
+  name: grafana-postgresql-table-dashboard-from-config-map
+  namespace: grafana
+  labels:
+    app: grafana
+spec:
+  json:
+    ""
+  configMapRef:
+    name: grafana-postgresql-table-dashboard
+    key: postgresql-table-dashboard.json

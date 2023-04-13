@@ -189,7 +189,7 @@ spec:
   # Optional: the ServiceAccount that GitOps Service/Argo CD uses to deploy may not have access to all of the Namespaces on a cluster
   # If not specified, it is assumed that the Argo CD ServiceAccount has read/write at cluster-scope.
   # - If you are familiar with Argo CD: this field is equivalent to the field of the same name in the Argo CD Cluster Secret.
-	namespaces:
+  namespaces:
     - bank-loan-app
     - bank-account-app
 
@@ -197,7 +197,7 @@ spec:
   # attempt to manage cluster-scoped resources.
   # - If .spec.namespaces field is empty, this field is not used.
   # - If you are familiar with Argo CD: this field is equivalent to the field of the same name in the Argo CD Cluster Secret.
-	clusterResources: false
+  clusterResources: false
 
 ---
 # The GitOpsDeploymentManagedEnvironment references a Secret, containing the connection information

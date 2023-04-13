@@ -3,7 +3,7 @@
 # Tip: More info on psql - https://tomcam.github.io/postgres/
 
 POSTGRES_CONTAINER="managed-gitops-postgres"
-POSTGRESQL_DATABASE="postgres"
+export POSTGRESQL_DATABASE="postgres"
 if docker ps | grep $POSTGRES_CONTAINER &>/dev/null; then
   docker exec \
     --user postgres \

@@ -69,3 +69,7 @@ gosec: go_sec ## Run the gosec tool
 .PHONY: clean
 clean: ## Remove the vendor and bin folders
 	rm -rf vendor/ bin/
+
+#required for test execution from OpenShift CI
+test-backward-compatibility:
+	go test ./core -v -ginkgo.focus "GitOpsDeployment Managed Environment E2E tests Create a new GitOpsDeployment targeting a ManagedEnvironment should be healthy and have synced status, and resources should be deployed, when deployed with a ManagedEnv"

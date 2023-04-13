@@ -288,8 +288,8 @@ test-e2e-kcp-virtual-workspace: ## Test E2E against KCP virtual workspaces
 
 ### --- CI Tests ---
 
-check-backward-compatability: ##  test executed from OpenShift CI
-	ginkgo -focus "GitOpsDeployment Managed Environment E2E tests Create a new GitOpsDeployment targeting a ManagedEnvironment should be healthy and have synced status, and resources should be deployed, when deployed with a ManagedEnv"  -r -v tests-e2e/core
+check-backward-compatibility: ##  test executed from OpenShift CI
+	cd $(MAKEFILE_ROOT)/tests-e2e && make test-backward-compatability
 
 
 ### --- Utilities for other makefile targets ---

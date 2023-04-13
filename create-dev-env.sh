@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Checks if a binary is present on the local system
+export POSTGRESQL_DATABASE="postgres"
 exit_if_binary_not_installed() {
   for binary in "$@"; do
     command -v "$binary" >/dev/null 2>&1 || {
@@ -111,7 +112,6 @@ if [ "$1" = "kube" ]; then
   if lsof -i:5432 | grep LISTEN; then
     echo " * Port forwarding is still active for some reason. Investigate further ..."
   fi
-export POSTGRESQL_DATABASE="postgres"
   # Exit now, do not continue with the rest of the bash script
   echo
   echo " ------------------------------------------------"

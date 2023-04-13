@@ -24,8 +24,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
@@ -98,7 +100,8 @@ func (dppelp *DefaultPreProcessEventLoopProcessor) callPreprocessEventLoopForMan
 // SetupWithManager sets up the controller with the Manager.
 func (r *GitOpsDeploymentManagedEnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{}).
+		For(&managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{},
+			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		// Watches(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
 }

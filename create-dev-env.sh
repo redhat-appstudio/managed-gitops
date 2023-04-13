@@ -112,7 +112,6 @@ if [ "$1" = "kube" ]; then
     echo " * Port forwarding is still active for some reason. Investigate further ..."
   fi
 export POSTGRESQL_DATABASE="postgres"
-
   # Exit now, do not continue with the rest of the bash script
   echo
   echo " ------------------------------------------------"

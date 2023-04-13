@@ -490,13 +490,13 @@ func generateValidRepositoryCredentialsConditions(repositoryCredential *managedg
 	if errorOccuredCondition != nil {
 		validRepoUrlCondition = &metav1.Condition{
 			Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
-			Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
+			Reason:  errorOccuredCondition.Reason,
 			Status:  metav1.ConditionFalse,
 			Message: errorOccuredCondition.Message,
 		}
 		validRepoCredCondition = &metav1.Condition{
 			Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
-			Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
+			Reason:  errorOccuredCondition.Reason,
 			Status:  metav1.ConditionFalse,
 			Message: errorOccuredCondition.Message,
 		}

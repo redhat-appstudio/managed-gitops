@@ -247,9 +247,8 @@ func startRepoCredReconciler(mgr ctrl.Manager) {
 	}
 
 	repoCredReconciler := eventloop.RepoCredReconciler{
-		DB:               dbQueries,
-		Client:           mgr.GetClient(),
-		K8sClientFactory: shared_resource_loop.DefaultK8sClientFactory{},
+		DB:     dbQueries,
+		Client: mgr.GetClient(),
 	}
 
 	// Start goroutine for Repository Credential reconciler

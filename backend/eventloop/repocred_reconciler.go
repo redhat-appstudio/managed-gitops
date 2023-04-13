@@ -26,8 +26,7 @@ const (
 // RepoCredReconciler reconciles RepositoryCredential entries
 type RepoCredReconciler struct {
 	client.Client
-	DB               db.DatabaseQueries
-	K8sClientFactory sharedresourceloop.SRLK8sClientFactory
+	DB db.DatabaseQueries
 }
 
 // This function iterates through each entry of RepositoryCredential table in DB and updates the status of the CR.
@@ -47,7 +46,7 @@ func (r *RepoCredReconciler) startTimerForNextCycle() {
 		_, _ = sharedutil.CatchPanic(func() error {
 
 			// Reconcile RepositoryCredentials here
-			reconcileRepositoryCredentials(ctx, r.DB, r.Client, r.K8sClientFactory, log)
+			reconcileRepositoryCredentials(ctx, r.DB, r.Client, log)
 
 			return nil
 		})
@@ -63,7 +62,7 @@ func (r *RepoCredReconciler) startTimerForNextCycle() {
 // Reconcile logic for API CR To Database Mapping table and utility functions.
 // This will reconcile repository credential entries from ACTDM table and RepoistoryCredential table
 // /////////////
-func reconcileRepositoryCredentials(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, k8sClientFactory sharedresourceloop.SRLK8sClientFactory, log logr.Logger) {
+func reconcileRepositoryCredentials(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, log logr.Logger) {
 
 	offSet := 0
 	log = log.WithValues("job", "reconcileRepositoryCredentials")

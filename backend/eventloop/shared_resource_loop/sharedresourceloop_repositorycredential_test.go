@@ -48,6 +48,8 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 			}{
 				{
 					repoUrl: "https://github.com/redhat-appstudio/test.git", normalizedRepoUrl: "https://github.com/redhat-appstudio/test",
+				}, {
+					repoUrl: "git@github.com:redhat-appstudio/managed-gitops.git", normalizedRepoUrl: "git@github.com/redhat-appstudio/managed-gitops",
 				},
 			}
 
@@ -207,6 +209,65 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 			Expect(k8sClient.Status().Update(ctx, gitopsDeploymentRepositoryCredentialCR)).To(BeNil())
 
 			err := UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, gitopsDeploymentRepositoryCredentialCR, k8sClient, &corev1.Secret{}, log.FromContext(ctx))
+			Expect(err).To(BeNil())
+
+			Expect(gitopsDeploymentRepositoryCredentialCR).Should(SatisfyAll(haveErrOccurredConditionSet(expectedRepoCredStatus)))
+		})
+
+		It("should set error conditions if secret was not defined in RepositoryCredentials", func() {
+
+			expectedRepoCredStatus := managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialStatus{
+				Conditions: []*metav1.Condition{
+					{
+						Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
+						Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonSecretNotSpecified,
+						Status:  metav1.ConditionTrue,
+						Message: "Secret field is missing value",
+					}, {
+						Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
+						Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonSecretNotSpecified,
+						Status:  metav1.ConditionFalse,
+						Message: "Secret field is missing value",
+					}, {
+						Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
+						Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonSecretNotSpecified,
+						Status:  metav1.ConditionFalse,
+						Message: "Secret field is missing value",
+					},
+				},
+			}
+
+			err := UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, gitopsDeploymentRepositoryCredentialCR, k8sClient, nil, log.FromContext(ctx))
+			Expect(err).To(BeNil())
+
+			Expect(gitopsDeploymentRepositoryCredentialCR).Should(SatisfyAll(haveErrOccurredConditionSet(expectedRepoCredStatus)))
+		})
+
+		It("should set error conditions if secret specified in RepositoryCredentials was not found", func() {
+			gitopsDeploymentRepositoryCredentialCR.Spec.Secret = "test"
+
+			expectedRepoCredStatus := managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialStatus{
+				Conditions: []*metav1.Condition{
+					{
+						Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
+						Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonSecretNotFound,
+						Status:  metav1.ConditionTrue,
+						Message: "Secret specified not found",
+					}, {
+						Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
+						Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonSecretNotFound,
+						Status:  metav1.ConditionFalse,
+						Message: "Secret specified not found",
+					}, {
+						Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
+						Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonSecretNotFound,
+						Status:  metav1.ConditionFalse,
+						Message: "Secret specified not found",
+					},
+				},
+			}
+
+			err := UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, gitopsDeploymentRepositoryCredentialCR, k8sClient, nil, log.FromContext(ctx))
 			Expect(err).To(BeNil())
 
 			Expect(gitopsDeploymentRepositoryCredentialCR).Should(SatisfyAll(haveErrOccurredConditionSet(expectedRepoCredStatus)))

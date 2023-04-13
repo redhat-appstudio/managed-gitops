@@ -235,7 +235,6 @@ PGADMIN_CONTAINER="managed-gitops-pgadmin"
 RETRIES=30                                            # in seconds
 POSTGRES_DATA_DIR=$(mktemp -d -t postgres-XXXXXXXXXX) # Map the docker data directory into a temporary directory
 POSTGRES_SERVER_IS_UP="docker exec --user postgres -e PGPASSWORD=gitops -i \"$POSTGRES_CONTAINER\" \"psql\" -h localhost -d postgres -U postgres -p 5432 -c \"select 1\" | grep '1 row' >/dev/null 2>&1"
-export POSTGRESQL_DATABASE="postgres"
 # Create docker network if one doesn't exist yet
 echo "* Creating docker network '$NETWORK'"
 ID=$(docker network ls --filter "name=$NETWORK" -q 2>/dev/null)

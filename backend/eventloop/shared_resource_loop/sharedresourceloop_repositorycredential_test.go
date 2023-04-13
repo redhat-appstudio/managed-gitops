@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	matcher "github.com/onsi/gomega/types"
@@ -20,43 +21,34 @@ import (
 
 var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 
-	Context("Shared Resource Loop Repository Credential test", func() {
+	Context("Test isSSHUrl function", func() {
 
-		It("Test IsSSHURL function", func() {
-			data := map[string]bool{
-				"git://github.com/redhat-appstudio/test.git":     false,
-				"git@GITHUB.com:redhat-appstudio/test.git":       true,
-				"git@github.com:test":                            true,
-				"git@github.com:test.git":                        true,
-				"https://github.com/redhat-appstudio/test":       false,
-				"https://github.com/redhat-appstudio/test.git":   false,
-				"ssh://git@GITHUB.com:redhat-appstudio/test":     true,
-				"ssh://git@GITHUB.com:redhat-appstudio/test.git": true,
-				"ssh://git@github.com:test.git":                  true,
-			}
-			for k, v := range data {
-				isSSH, _ := isSSHURL(k)
-				Expect(v).To(Equal(isSSH))
-			}
+		DescribeTable("Test scenarios for normalizeGitURL", func(repoUrl string, expected bool) {
+			isSSH, _ := isSSHURL(repoUrl)
+			Expect(expected).To(Equal(isSSH))
+		},
+			Entry("Url1", "git://github.com/redhat-appstudio/test.git", false),
+			Entry("Url2", "git@GITHUB.com:redhat-appstudio/test.git", true),
+			Entry("Url3", "git@github.com:test", true),
+			Entry("Url4", "git@github.com:test.git", true),
+			Entry("Url5", "https://github.com/redhat-appstudio/test", false),
+			Entry("Url6", "https://github.com/redhat-appstudio/test.git", false),
+			Entry("Url7", "ssh://git@GITHUB.com:redhat-appstudio/test", true),
+			Entry("Url8", "ssh://git@GITHUB.com:redhat-appstudio/test.git", true),
+			Entry("Url9", "ssh://git@github.com:test.git", true),
+		)
+	})
 
-		})
+	Context("Test normalizeGitURL function", func() {
 
-		It("Test NormalizeUrl function", func() {
-			testData := []struct {
-				repoUrl           string
-				normalizedRepoUrl string
-			}{
-				{
-					repoUrl: "https://github.com/redhat-appstudio/test.git", normalizedRepoUrl: "https://github.com/redhat-appstudio/test",
-				}, {
-					repoUrl: "git@github.com:redhat-appstudio/managed-gitops.git", normalizedRepoUrl: "git@github.com/redhat-appstudio/managed-gitops",
-				},
-			}
+		DescribeTable("Test scenarios for normalizeGitURL", func(repoUrl, normalizedRepoUrl string) {
 
-			for _, data := range testData {
-				Expect(normalizeGitURL(data.repoUrl)).To(Equal(data.normalizedRepoUrl))
-			}
-		})
+			Expect(normalizeGitURL(repoUrl)).To(Equal(normalizedRepoUrl))
+		},
+			Entry("Https Url", "https://github.com/redhat-appstudio/test.git", "https://github.com/redhat-appstudio/test"),
+			Entry("Git Url", "git@github.com:redhat-appstudio/managed-gitops.git", "git@github.com/redhat-appstudio/managed-gitops"),
+			Entry("Invalid Url", "https://@github.com:test:git", ""),
+		)
 	})
 
 	Context("Set GitOpsDeploymentRepositoryCredentials status conditions", func() {
@@ -272,5 +264,20 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 
 			Expect(gitopsDeploymentRepositoryCredentialCR).Should(SatisfyAll(haveErrOccurredConditionSet(expectedRepoCredStatus)))
 		})
+	})
+
+	Context("Test validateRepositoryCredentials", func() {
+
+		DescribeTable("Test scenarios for validateRepositoryCredentials", func(repoUrl string, secret *corev1.Secret, expectedString string) {
+
+			err := validateRepositoryCredentials("git@github.com:redhat-appstudio/test.git", secret)
+
+			Expect(err).NotTo(BeNil())
+			Expect(strings.Contains(err.Error(), expectedString)).To(BeTrue())
+
+		},
+			Entry("Test for Invalid Url", "git@github.com:redhat-appstudio/test.git", &corev1.Secret{Data: map[string][]byte{"username": []byte("username"), "password": []byte("password")}}, "not found"),
+			Entry("Test for Valid Url and Invalid Secret", "git@github.com:redhat-appstudio/managed-gitops.git", &corev1.Secret{Data: map[string][]byte{"username": []byte("username"), "password": []byte("password")}}, "not found"),
+		)
 	})
 })

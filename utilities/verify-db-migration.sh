@@ -37,6 +37,7 @@ echo "MIGRATION_SQL_FILE: $MIGRATION_SQL_FILE"
 
 exit_if_binary_not_installed "pg_dump"
 
+export POSTGRESQL_DATABASE="postgres"
 echo "Create a pg_dump file for master schema"
 pg_dump postgresql://postgres:gitops@localhost:5432/$POSTGRESQL_DATABASE > "$MASTER_SQL_FILE" && cat "$MASTER_SQL_FILE"
 

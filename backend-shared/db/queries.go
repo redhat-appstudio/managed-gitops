@@ -366,7 +366,7 @@ func internalNewProductionPostgresDBQueriesWithPort(verbose bool, port int, allo
 
 		var err error
 
-		db, err = ConnectToDatabaseWithPort(verbose, "postgres", port)
+		db, err = ConnectToDatabaseWithPort(verbose, port)
 		if err != nil {
 			return false, err
 		}
@@ -399,7 +399,7 @@ func NewUnsafePostgresDBQueriesWithPort(verbose bool, allowTestUuids bool, port 
 	// We don't add retry logic to this function (unlike the Production function above) because
 	// we want to fail fast during tests.
 
-	db, err := ConnectToDatabaseWithPort(verbose, "postgres", port)
+	db, err := ConnectToDatabaseWithPort(verbose, port)
 	if err != nil {
 		return nil, err
 	}

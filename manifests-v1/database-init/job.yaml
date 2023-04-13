@@ -27,7 +27,7 @@ spec:
 
         env:
           - name: POSTGRES_DB
-            value: postgresql://gitops-postgresql-staging:5432/postgres
+            value: postgresql://gitops-postgresql-staging:5432/{{ env "POSTGRESQL_DATABASE" }}
           - name: POSTGRESQL_PORT_NUMBER
             value: "5432"
           - name: POSTGRESQL_VOLUME_DIR

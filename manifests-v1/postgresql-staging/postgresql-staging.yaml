@@ -107,7 +107,7 @@ spec:
               memory: 256Mi
           env:
             - name: POSTGRESQL_DATABASE
-              value: postgres
+              value: ${POSTGRESQL_DATABASE}
             - name: POSTGRESQL_USER
               value: postgres
             - name: POSTGRESQL_PASSWORD

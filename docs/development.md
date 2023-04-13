@@ -58,8 +58,8 @@ In the end, you will see a similar output:
  | To access the database outside the cluster   |
  ------------------------------------------------
   - Run:            kubectl port-forward --namespace gitops svc/gitops-postgresql-staging 5432:5432 &
-  - Credentials:    HOST=127.0.0.1:5432  USERNAME=postgres  PASSWORD=(password)  DB=postgres
-  - Access Example: psql postgresql://postgres:3CqCKcXLyN@127.0.0.1:5432/postgres -c "select now()"
+  - Credentials:    HOST=127.0.0.1:5432  USERNAME=postgres  PASSWORD=(password)  DB=($POSTGRESQL_DATABASE)
+  - Access Example: psql postgresql://postgres:3CqCKcXLyN@127.0.0.1:5432/$POSTGRESQL_DATABASE -c "select now()"
 
   - To run Backend & ClusterAgent Operators locally: export DB_PASS=(password) && goreman start
  -------------------------------------------------

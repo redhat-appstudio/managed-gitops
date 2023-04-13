@@ -120,8 +120,8 @@ if [ "$1" = "kube" ]; then
   echo " ------------------------------------------------"
 
   echo "  - Run:            kubectl port-forward --namespace gitops svc/gitops-postgresql-staging 5432:5432 &"
-  echo "  - Credentials:    HOST=127.0.0.1:5432  USERNAME=postgres  PASSWORD=$POSTGRES_PASSWORD  DB=postgres"
-  echo "  - Access Example: psql postgresql://postgres:$POSTGRES_PASSWORD@127.0.0.1:5432/postgres -c \"select now()\""
+  echo "  - Credentials:    HOST=127.0.0.1:5432  USERNAME=postgres  PASSWORD=$POSTGRES_PASSWORD  DB=$POSTGRESQL_DATABASE"
+  echo "  - Access Example: psql postgresql://postgres:$POSTGRES_PASSWORD@127.0.0.1:5432/$POSTGRESQL_DATABASE -c \"select now()\""
   echo
   echo "  - To run Backend & ClusterAgent Operators locally: export DB_PASS=$POSTGRES_PASSWORD && goreman start"
   echo " -------------------------------------------------"
@@ -236,7 +236,7 @@ PGADMIN_CONTAINER="managed-gitops-pgadmin"
 RETRIES=30                                            # in seconds
 POSTGRES_DATA_DIR=$(mktemp -d -t postgres-XXXXXXXXXX) # Map the docker data directory into a temporary directory
 POSTGRES_SERVER_IS_UP="docker exec --user postgres -e PGPASSWORD=gitops -i \"$POSTGRES_CONTAINER\" \"psql\" -h localhost -d postgres -U postgres -p 5432 -c \"select 1\" | grep '1 row' >/dev/null 2>&1"
-
+export POSTGRESQL_DATABASE="postgres"
 # Create docker network if one doesn't exist yet
 echo "* Creating docker network '$NETWORK'"
 ID=$(docker network ls --filter "name=$NETWORK" -q 2>/dev/null)
@@ -269,7 +269,7 @@ else
     -p 5432:5432 \
     --network gitops-net \
     -d \
-    postgres:13 \
+    $POSTGRESQL_DATABASE:13 \
     -c log_statement='all' \
     -c log_min_duration_statement=0
 fi
@@ -329,7 +329,7 @@ else
   -e PGPASSWORD=gitops \
   -i "$POSTGRES_CONTAINER" "psql" \
   -h localhost \
-  -d postgres \
+  -d $POSTGRESQL_DATABASE \
   -U postgres \
   -p 5432 \
   -q -f db-schema.sql

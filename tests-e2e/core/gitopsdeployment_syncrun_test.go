@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 
+	argocdoperatorv1alpha1 "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -14,7 +15,7 @@ import (
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	syncRunFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeploymentsyncrun"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
-	corev1 "k8s.io/api/core/v1"
+
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -29,9 +30,9 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			gitOpsDeploymentResource managedgitopsv1alpha1.GitOpsDeployment
 		)
 
-		argocdCM := &corev1.ConfigMap{
+		argocdCR := &argocdoperatorv1alpha1.ArgoCD{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "argocd-cm",
+				Name:      "gitops-service-argocd",
 				Namespace: "gitops-service-argocd",
 			},
 		}
@@ -66,10 +67,10 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 		})
 
 		AfterEach(func() {
-			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(argocdCM), argocdCM)
+			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(argocdCR), argocdCR)
 			Expect(err == nil || apierr.IsNotFound(err)).To(BeTrue())
 
-			removeCustomHealthCheckForDeployment(ctx, k8sClient, argocdCM)
+			removeCustomHealthCheckForDeployment(ctx, k8sClient, argocdCR)
 		})
 
 		It("creating a new GitOpsDeploymentSyncRun should sync an Argo CD Application", func() {
@@ -217,10 +218,10 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 
 			By("configure the Application to get stuck in 'Syncing' state")
 
-			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(argocdCM), argocdCM)
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(argocdCR), argocdCR)
 			Expect(err).To(BeNil())
 
-			addCustomHealthCheckForDeployment(ctx, k8sClient, argocdCM)
+			addCustomHealthCheckForDeployment(ctx, k8sClient, argocdCR)
 
 			By("create a GitOpsDeploymentSyncRun")
 			syncRunCR := buildGitOpsDeploymentSyncRunResource("test-syncrun", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
@@ -263,7 +264,7 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			)
 
 			By("revert the changes done to the argocd-cm configmap")
-			removeCustomHealthCheckForDeployment(ctx, k8sClient, argocdCM)
+			removeCustomHealthCheckForDeployment(ctx, k8sClient, argocdCR)
 		})
 
 		It("deleting the GitOpsDeploymentSyncRun CR should not terminate if no Sync operation is in progress", func() {
@@ -336,10 +337,10 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 
 			By("configure the Application to get stuck in 'Syncing' state")
 
-			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(argocdCM), argocdCM)
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(argocdCR), argocdCR)
 			Expect(err).To(BeNil())
 
-			addCustomHealthCheckForDeployment(ctx, k8sClient, argocdCM)
+			addCustomHealthCheckForDeployment(ctx, k8sClient, argocdCR)
 
 			By("create a GitOpsDeploymentSyncRun")
 			syncRunCR := buildGitOpsDeploymentSyncRunResource("test-syncrun", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
@@ -368,7 +369,7 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			)
 
 			By("terminate the running sync operation by deleting the old sync run CR")
-			removeCustomHealthCheckForDeployment(ctx, k8sClient, argocdCM)
+			removeCustomHealthCheckForDeployment(ctx, k8sClient, argocdCR)
 
 			err = k8sClient.Delete(ctx, &syncRunCR)
 			Expect(err).To(BeNil())
@@ -501,29 +502,34 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 	})
 })
 
-func addCustomHealthCheckForDeployment(ctx context.Context, k8sClient client.Client, argocdCM *corev1.ConfigMap) {
+func addCustomHealthCheckForDeployment(ctx context.Context, k8sClient client.Client, argocdCR *argocdoperatorv1alpha1.ArgoCD) {
 	healthStatusMessage := `hs = {}
 hs.status = "Progressing"
 hs.message = "Custom health check to test Sync operation"
 return hs`
-
 	err := k8s.UntilSuccess(k8sClient, func(k8sClient client.Client) error {
-		if err := k8s.Get(argocdCM, k8sClient); err != nil {
+		if err := k8s.Get(argocdCR, k8sClient); err != nil {
 			return err
 		}
-		argocdCM.Data["resource.customizations.health.apps_Deployment"] = healthStatusMessage
-		return k8sClient.Update(ctx, argocdCM)
+		argocdCR.Spec.ResourceHealthChecks = []argocdoperatorv1alpha1.ResourceHealthCheck{
+			{
+				Group: "apps",
+				Kind:  "Deployment",
+				Check: healthStatusMessage,
+			},
+		}
+		return k8sClient.Update(ctx, argocdCR)
 	})
 	Expect(err).To(BeNil())
 }
 
-func removeCustomHealthCheckForDeployment(ctx context.Context, k8sClient client.Client, argocdCM *corev1.ConfigMap) {
+func removeCustomHealthCheckForDeployment(ctx context.Context, k8sClient client.Client, argocdCR *argocdoperatorv1alpha1.ArgoCD) {
 	err := k8s.UntilSuccess(k8sClient, func(k8sClient client.Client) error {
-		if err := k8s.Get(argocdCM, k8sClient); err != nil {
+		if err := k8s.Get(argocdCR, k8sClient); err != nil {
 			return err
 		}
-		delete(argocdCM.Data, "resource.customizations.health.apps_Deployment")
-		return k8sClient.Update(ctx, argocdCM)
+		argocdCR.Spec.ResourceHealthChecks = []argocdoperatorv1alpha1.ResourceHealthCheck{}
+		return k8sClient.Update(ctx, argocdCR)
 	})
 	Expect(err).To(BeNil())
 }

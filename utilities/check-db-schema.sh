@@ -2,7 +2,7 @@
 
 # Stop exiting and return non-zero error code if an error occurs
 set -ue
-
+export POSTGRESQL_DATABASE="postgres"
 SCRIPTPATH="$(
   cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit
   pwd -P

@@ -330,13 +330,9 @@ func (in *GitOpsDeploymentRepositoryCredentialStatus) DeepCopyInto(out *GitOpsDe
 	*out = *in
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make([]*v1.Condition, len(*in))
+		*out = make([]v1.Condition, len(*in))
 		for i := range *in {
-			if (*in)[i] != nil {
-				in, out := &(*in)[i], &(*out)[i]
-				*out = new(v1.Condition)
-				(*in).DeepCopyInto(*out)
-			}
+			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 }

@@ -48,7 +48,7 @@ type GitOpsDeploymentRepositoryCredentialStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Conditions []*metav1.Condition `json:"conditions,omitempty"`
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -90,14 +90,11 @@ const (
 // If the GitOpsDeploymentRepositoryCredential has a pre-existing condition of a type that is not in the evaluated list,
 // it will be preserved. If the GitOpsDeploymentRepositoryCredential has a pre-existing condition of a type, status, reason that
 // is in the evaluated list, but not in the incoming conditions list, it will be removed.
-func (status *GitOpsDeploymentRepositoryCredentialStatus) SetConditions(conditions []*metav1.Condition) {
-	repoCredConditions := make([]*metav1.Condition, 0)
+func (status *GitOpsDeploymentRepositoryCredentialStatus) SetConditions(conditions []metav1.Condition) {
+	repoCredConditions := make([]metav1.Condition, 0)
 	now := metav1.Now()
 	for i := range conditions {
 		condition := conditions[i]
-		if condition.LastTransitionTime.IsZero() {
-			condition.LastTransitionTime = now
-		}
 		eci := findConditionIndex(status.Conditions, condition.Type)
 		if eci >= 0 && status.Conditions[eci].Message == condition.Message && status.Conditions[eci].Reason == condition.Reason && status.Conditions[eci].Status == condition.Status {
 			// If we already have a condition of this type, status and reason, only update the timestamp if something
@@ -105,6 +102,7 @@ func (status *GitOpsDeploymentRepositoryCredentialStatus) SetConditions(conditio
 			repoCredConditions = append(repoCredConditions, status.Conditions[eci])
 		} else {
 			// Otherwise we use the new incoming condition with an updated timestamp:
+			condition.LastTransitionTime = now
 			repoCredConditions = append(repoCredConditions, condition)
 		}
 	}
@@ -116,7 +114,7 @@ func (status *GitOpsDeploymentRepositoryCredentialStatus) SetConditions(conditio
 	status.Conditions = repoCredConditions
 }
 
-func findConditionIndex(conditions []*metav1.Condition, t string) int {
+func findConditionIndex(conditions []metav1.Condition, t string) int {
 	for i := range conditions {
 		if conditions[i].Type == t {
 			return i

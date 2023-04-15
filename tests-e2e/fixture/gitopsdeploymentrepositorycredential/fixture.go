@@ -19,11 +19,11 @@ import (
 
 // HaveConditions will return a matcher that will check whether a GitOpsDeployment has the expected conditons.
 // - When comparing conditions, it will ignore the LastProbeTime/LastTransitionTime fields.
-func HaveConditions(conditions []*metav1.Condition) matcher.GomegaMatcher {
+func HaveConditions(conditions []metav1.Condition) matcher.GomegaMatcher {
 
 	// sanitizeCondition removes ephemeral fields from the GitOpsDeploymentRepositoryCredentialCondition which should not be compared using
 	// reflect.DeepEqual
-	sanitizeCondition := func(cond *metav1.Condition) metav1.Condition {
+	sanitizeCondition := func(cond metav1.Condition) metav1.Condition {
 
 		res := metav1.Condition{
 			Type:   cond.Type,

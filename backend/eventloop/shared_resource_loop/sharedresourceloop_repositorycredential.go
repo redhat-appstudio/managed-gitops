@@ -441,19 +441,17 @@ func UpdateGitopsDeploymentRepositoryCredentialStatus(ctx context.Context, repos
 	}
 
 	if needToUpdateConditions || len(repositoryCredential.Status.Conditions) < 3 {
-
 		// 1) Attempt to get the latest gitopsDeploymentRepositoryCredentialCR from the namespace
 		if err := client.Get(ctx, types.NamespacedName{Namespace: repositoryCredential.Namespace, Name: repositoryCredential.Name},
 			repositoryCredential); err != nil {
 
 			if apierr.IsNotFound(err) {
-				repositoryCredential = nil
-			} else {
-				// Something went wrong, retry
-				vErr := fmt.Errorf("unexpected error in retrieving repository credentials: %v", err)
-				log.Error(err, vErr.Error(), "DebugErr", errGenericCR, "CR Name", repositoryCredential, "Namespace", repositoryCredential.Namespace)
+				return nil
 			}
-			return nil
+			// Something went wrong, retry
+			vErr := fmt.Errorf("unexpected error in retrieving repository credentials: %v", err)
+			log.Error(err, vErr.Error(), "DebugErr", errGenericCR, "CR Name", repositoryCredential, "Namespace", repositoryCredential.Namespace)
+			return vErr
 		}
 		repositoryCredential.Status.SetConditions(newConditions)
 		// Update the GitOpsDeploymentRepositoryCredential CR
@@ -461,17 +459,19 @@ func UpdateGitopsDeploymentRepositoryCredentialStatus(ctx context.Context, repos
 			log.Error(err, "updating repository credential CR's status condition")
 		}
 	}
-	return nil
 
+	return nil
 }
 
-func generateValidRepositoryCredentialsConditions(repositoryCredential *managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential, ctx context.Context, secret *corev1.Secret) []*metav1.Condition {
+func generateValidRepositoryCredentialsConditions(repositoryCredential *managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential, ctx context.Context, secret *corev1.Secret) []metav1.Condition {
 
-	var errorOccuredCondition, validRepoUrlCondition, validRepoCredCondition *metav1.Condition
+	var validRepoUrlCondition, validRepoCredCondition metav1.Condition
+
+	errorOccuredCondition := metav1.Condition{}
 
 	// Check if Secret mentioned in repositoryCredential exists
 	if repositoryCredential.Spec.Secret == "" {
-		errorOccuredCondition = &metav1.Condition{
+		errorOccuredCondition = metav1.Condition{
 			Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
 			Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonSecretNotSpecified,
 			Status:  metav1.ConditionTrue,
@@ -479,7 +479,7 @@ func generateValidRepositoryCredentialsConditions(repositoryCredential *managedg
 		}
 	} else if secret == nil {
 		// Secret is not sent because secret identified in RepositoryCredential was not found
-		errorOccuredCondition = &metav1.Condition{
+		errorOccuredCondition = metav1.Condition{
 			Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
 			Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonSecretNotFound,
 			Status:  metav1.ConditionTrue,
@@ -487,14 +487,14 @@ func generateValidRepositoryCredentialsConditions(repositoryCredential *managedg
 		}
 	}
 
-	if errorOccuredCondition != nil {
-		validRepoUrlCondition = &metav1.Condition{
+	if errorOccuredCondition != (metav1.Condition{}) {
+		validRepoUrlCondition = metav1.Condition{
 			Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
 			Reason:  errorOccuredCondition.Reason,
 			Status:  metav1.ConditionFalse,
 			Message: errorOccuredCondition.Message,
 		}
-		validRepoCredCondition = &metav1.Condition{
+		validRepoCredCondition = metav1.Condition{
 			Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
 			Reason:  errorOccuredCondition.Reason,
 			Status:  metav1.ConditionFalse,
@@ -505,39 +505,39 @@ func generateValidRepositoryCredentialsConditions(repositoryCredential *managedg
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") {
 				// Repository does not exist
-				validRepoUrlCondition = &metav1.Condition{
+				validRepoUrlCondition = metav1.Condition{
 					Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
 					Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
 					Status:  metav1.ConditionFalse,
-					Message: fmt.Sprintf("Repository %s does not exist: %s", repositoryCredential.Spec.Repository, err.Error()),
+					Message: fmt.Sprintf("Repository does not exist: %s", err.Error()),
 				}
-				validRepoCredCondition = &metav1.Condition{
+				validRepoCredCondition = metav1.Condition{
 					Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
 					Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
 					Status:  metav1.ConditionFalse,
-					Message: fmt.Sprintf("Repository %s does not exist: %s", repositoryCredential.Spec.Repository, err.Error()),
+					Message: fmt.Sprintf("Repository does not exist: %s", err.Error()),
 				}
-				errorOccuredCondition = &metav1.Condition{
+				errorOccuredCondition = metav1.Condition{
 					Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
 					Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInValidRepositoryUrl,
 					Status:  metav1.ConditionTrue,
-					Message: fmt.Sprintf("Repository %s does not exist: %s", repositoryCredential.Spec.Repository, err.Error()),
+					Message: fmt.Sprintf("Repository does not exist: %s", err.Error()),
 				}
 			} else {
 				// Credentials were invalid
-				validRepoUrlCondition = &metav1.Condition{
+				validRepoUrlCondition = metav1.Condition{
 					Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
 					Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonValidRepositoryUrl,
 					Status:  metav1.ConditionTrue,
 					Message: fmt.Sprintf("Repository %s exists", repositoryCredential.Spec.Repository),
 				}
-				validRepoCredCondition = &metav1.Condition{
+				validRepoCredCondition = metav1.Condition{
 					Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
 					Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInvalidCredentials,
 					Status:  metav1.ConditionFalse,
 					Message: fmt.Sprintf("Repository Credentials provided %s for Repository %s are invalid", secret.Name, repositoryCredential.Spec.Repository),
 				}
-				errorOccuredCondition = &metav1.Condition{
+				errorOccuredCondition = metav1.Condition{
 					Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
 					Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonInvalidCredentials,
 					Status:  metav1.ConditionTrue,
@@ -546,19 +546,19 @@ func generateValidRepositoryCredentialsConditions(repositoryCredential *managedg
 			}
 		} else {
 			// No errors occured
-			errorOccuredCondition = &metav1.Condition{
+			errorOccuredCondition = metav1.Condition{
 				Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
 				Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonCredentialsUpToDate,
 				Status:  metav1.ConditionFalse,
 				Message: "RepositoryCredentials are Valid",
 			}
-			validRepoUrlCondition = &metav1.Condition{
+			validRepoUrlCondition = metav1.Condition{
 				Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl,
 				Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonValidRepositoryUrl,
 				Status:  metav1.ConditionTrue,
 				Message: fmt.Sprintf("Repository %s exists", repositoryCredential.Spec.Repository),
 			}
-			validRepoCredCondition = &metav1.Condition{
+			validRepoCredCondition = metav1.Condition{
 				Type:    managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential,
 				Reason:  managedgitopsv1alpha1.RepositoryCredentialReasonCredentialsUpToDate,
 				Status:  metav1.ConditionTrue,
@@ -567,7 +567,7 @@ func generateValidRepositoryCredentialsConditions(repositoryCredential *managedg
 		}
 	}
 
-	return []*metav1.Condition{errorOccuredCondition, validRepoUrlCondition, validRepoCredCondition}
+	return []metav1.Condition{errorOccuredCondition, validRepoUrlCondition, validRepoCredCondition}
 }
 
 func validateRepositoryCredentials(rawRepoURL string, secret *corev1.Secret) error {

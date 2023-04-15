@@ -144,7 +144,7 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)),
 			)
 
-			expectedRepositoryCredentialStatusConditions := []*metav1.Condition{
+			expectedRepositoryCredentialStatusConditions := []metav1.Condition{
 				{
 					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
 					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonCredentialsUpToDate,
@@ -200,7 +200,7 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)),
 			)
 
-			expectedRepositoryCredentialStatusConditions := []*metav1.Condition{
+			expectedRepositoryCredentialStatusConditions := []metav1.Condition{
 				{
 					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
 					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonCredentialsUpToDate,
@@ -240,7 +240,7 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 			}
 			Expect(k8s.CreateSecret(fixture.GitOpsServiceE2ENamespace, secretToken, stringData, k8sClient)).To(Succeed())
 
-			expectedRepositoryCredentialStatusConditions := []*metav1.Condition{
+			expectedRepositoryCredentialStatusConditions := []metav1.Condition{
 				{
 					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
 					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonSecretNotSpecified,
@@ -272,7 +272,7 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 			}
 			Expect(k8s.CreateSecret(fixture.GitOpsServiceE2ENamespace, secretToken, stringData, k8sClient)).To(Succeed())
 
-			expectedRepositoryCredentialStatusConditions = []*metav1.Condition{
+			expectedRepositoryCredentialStatusConditions = []metav1.Condition{
 				{
 					Type:   managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred,
 					Reason: managedgitopsv1alpha1.RepositoryCredentialReasonCredentialsUpToDate,

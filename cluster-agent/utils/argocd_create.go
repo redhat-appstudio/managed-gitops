@@ -91,19 +91,6 @@ func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, na
 				},
 				Sharding: argocdoperator.ArgoCDApplicationControllerShardSpec{},
 			},
-			Dex: &argocdoperator.ArgoCDDexSpec{
-				OpenShiftOAuth: true,
-				Resources: &corev1.ResourceRequirements{
-					Limits: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("500m"),
-						corev1.ResourceMemory: resource.MustParse("256Mi"),
-					},
-					Requests: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("250m"),
-						corev1.ResourceMemory: resource.MustParse("128Mi"),
-					},
-				},
-			},
 			Grafana: argocdoperator.ArgoCDGrafanaSpec{
 				Enabled: false,
 				Ingress: argocdoperator.ArgoCDIngressSpec{
@@ -210,6 +197,22 @@ func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, na
 				CA: argocdoperator.ArgoCDCASpec{},
 			},
 			ResourceExclusions: string(resourceExclusions),
+			SSO: &argocdoperator.ArgoCDSSOSpec{
+				Provider: argocdoperator.SSOProviderTypeDex,
+				Dex: &argocdoperator.ArgoCDDexSpec{
+					OpenShiftOAuth: true,
+					Resources: &corev1.ResourceRequirements{
+						Limits: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("500m"),
+							corev1.ResourceMemory: resource.MustParse("256Mi"),
+						},
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("250m"),
+							corev1.ResourceMemory: resource.MustParse("128Mi"),
+						},
+					},
+				},
+			},
 		},
 	}
 

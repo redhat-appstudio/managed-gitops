@@ -23,18 +23,16 @@ func DTCPendingDynamicProvisioningBySandbox() predicate.Predicate {
 			return false
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			return HasDeploymentTargetClaimStatusChangedToPending(e.ObjectOld, e.ObjectNew) && IsDeploymentTargetClaimMarkedForDynamicProvisioning(e.ObjectNew)
+			return IsDeploymentClaimStatusPending(e.ObjectNew) && IsDeploymentTargetClaimMarkedForDynamicProvisioning(e.ObjectNew)
 		},
 	}
 }
 
-// HasDeploymentTargetClaimStatusChangedToPending returns a boolean indicating whether the DeploymentTargetClaim status
-// phase changed to pending. If the objects passed to this function are not DeploymentTargetClaim, the function will return false.
-func HasDeploymentTargetClaimStatusChangedToPending(objectOld, objectNew client.Object) bool {
-	if oldDTC, ok := objectOld.(*applicationv1alpha1.DeploymentTargetClaim); ok {
-		if newDTC, ok := objectNew.(*applicationv1alpha1.DeploymentTargetClaim); ok {
-			return oldDTC.Status.Phase != applicationv1alpha1.DeploymentTargetClaimPhase_Pending && newDTC.Status.Phase == applicationv1alpha1.DeploymentTargetClaimPhase_Pending
-		}
+// IsDeploymentClaimStatusPending returns a boolean indicating whether the DeploymentTargetClaim status is pending.
+// If the objects passed to this function are not DeploymentTargetClaim, the function will return false.
+func IsDeploymentClaimStatusPending(objectNew client.Object) bool {
+	if dtc, ok := objectNew.(*applicationv1alpha1.DeploymentTargetClaim); ok {
+		return dtc.Status.Phase == applicationv1alpha1.DeploymentTargetClaimPhase_Pending
 	}
 	return false
 }
@@ -42,8 +40,8 @@ func HasDeploymentTargetClaimStatusChangedToPending(objectOld, objectNew client.
 // IsDeploymentTargetClaimMarkedForDynamicProvisioning returns a boolean indicating whether the DeploymentTargetClaim
 // is marked for dynamic provisioning. If the objects passed to this function are not DeploymentTargetClaim, the function will return false.
 func IsDeploymentTargetClaimMarkedForDynamicProvisioning(objectNew client.Object) bool {
-	if newDTC, ok := objectNew.(*applicationv1alpha1.DeploymentTargetClaim); ok {
-		return isMarkedForDynamicProvisioning(*newDTC)
+	if dtc, ok := objectNew.(*applicationv1alpha1.DeploymentTargetClaim); ok {
+		return isMarkedForDynamicProvisioning(*dtc)
 	}
 	return false
 }

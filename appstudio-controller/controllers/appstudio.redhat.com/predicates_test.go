@@ -84,18 +84,8 @@ var _ = Describe("Test Predicates", func() {
 				Expect(instance.Update(contextEvent)).To(BeTrue())
 			})
 
-			It("shouldn ignore the Sandbox deploymentTargetClaim going into Lost phase", func() {
+			It("should ignore the Sandbox deploymentTargetClaim going into Lost phase", func() {
 				dtcNew.Status.Phase = appstudiosharedv1.DeploymentTargetClaimPhase_Lost
-				contextEvent := event.UpdateEvent{
-					ObjectOld: dtc,
-					ObjectNew: dtcNew,
-				}
-				Expect(instance.Update(contextEvent)).To(BeFalse())
-			})
-
-			It("should ignore when the Sandbox deploymentTargetClaim keeps the Pending phase", func() {
-				dtc.Status.Phase = appstudiosharedv1.DeploymentTargetClaimPhase_Pending
-				dtcNew.Status.Phase = appstudiosharedv1.DeploymentTargetClaimPhase_Pending
 				contextEvent := event.UpdateEvent{
 					ObjectOld: dtc,
 					ObjectNew: dtcNew,

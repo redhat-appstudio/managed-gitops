@@ -183,7 +183,7 @@ func createSpaceRequestForDTC(ctx context.Context, k8sClient client.Client, dtc 
 	newSpaceRequest := codereadytoolchainv1alpha1.SpaceRequest{
 		Spec: codereadytoolchainv1alpha1.SpaceRequestSpec{
 			TierName:           environmentTierName,
-			TargetClusterRoles: []string{},
+			TargetClusterRoles: []string{}, // To be updated in the future once cluster roles become defined
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: dtc.Name,
@@ -194,7 +194,12 @@ func createSpaceRequestForDTC(ctx context.Context, k8sClient client.Client, dtc 
 		},
 	}
 
-	err := k8sClient.Create(ctx, &newSpaceRequest)
+	err := ctrl.SetControllerReference(dtc, &newSpaceRequest, k8sClient.Scheme())
+	if err != nil {
+		return nil, err
+	}
+
+	err = k8sClient.Create(ctx, &newSpaceRequest)
 	if err != nil {
 		return nil, err
 	}

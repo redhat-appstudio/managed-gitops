@@ -147,7 +147,8 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 			spaceRequest, err := findMatchingSpaceRequestForDTC(ctx, k8sClient, &dtc)
 			Expect(err).To(BeNil())
 			Expect(spaceRequest).ToNot(BeNil())
-			Expect(spaceRequest.Labels[deploymentTargetClaimLabel] == dtc.Name).To(BeTrue())
+			Expect(spaceRequest.Labels[deploymentTargetClaimLabel]).To(Equal(dtc.Name))
+			Expect(spaceRequest.Spec.TierName).To(Equal(environmentTierName))
 		})
 
 		It("should skip creation of an existing SpaceRequest for a new deploymentTargetClaim that's marked for dynamic provisioning", func() {
@@ -190,7 +191,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 			spaceRequest, err := findMatchingSpaceRequestForDTC(ctx, k8sClient, &dtc)
 			Expect(err).To(BeNil())
 			Expect(spaceRequest).ToNot(BeNil())
-			Expect(spaceRequest.Labels[deploymentTargetClaimLabel] == dtc.Name).To(BeTrue())
+			Expect(spaceRequest.Labels[deploymentTargetClaimLabel]).To(Equal(dtc.Name))
 			Expect(client.ObjectKeyFromObject(spaceRequest)).To(Equal(client.ObjectKeyFromObject(&expected)))
 		})
 

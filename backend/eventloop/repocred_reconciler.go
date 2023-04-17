@@ -7,6 +7,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -115,8 +116,9 @@ func reconcileRepositoryCredentialStatus(ctx context.Context, apiNamespaceClient
 	gitopsDeploymentRepositoryCredentialCR := managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{ObjectMeta: objectMeta}
 	log = log.WithValues("job", "reconcileRepositoryCredentialStatus")
 
-	// Check if required CR is present in cluster. If yes, skip
-	if isOrphaned := isRowOrphaned(ctx, apiNamespaceClient, &apiCrToDbMappingFromDB, &gitopsDeploymentRepositoryCredentialCR, log); isOrphaned {
+	// Check if required CR is present in cluster. If no, skip
+	if err := apiNamespaceClient.Get(ctx, types.NamespacedName{Name: gitopsDeploymentRepositoryCredentialCR.GetName(), Namespace: gitopsDeploymentRepositoryCredentialCR.GetNamespace()}, &gitopsDeploymentRepositoryCredentialCR); err != nil {
+		log.Info(fmt.Sprintf("could not find GitopsDeploymentRepositoryCredential %s in the cluster. Skipping reconciliation.", gitopsDeploymentRepositoryCredentialCR.GetName()))
 		return
 	}
 

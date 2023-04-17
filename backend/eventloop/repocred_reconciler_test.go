@@ -121,13 +121,7 @@ var _ = Describe("RepoCred Reconcile Function Tests", func() {
 			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(repoCredCR), repoCredCR)
 			Expect(err).To(BeNil())
 			Expect(repoCredCR).NotTo(BeNil())
-
-			// By("5. GitOpsDeploymentRepositoryCredential conditions should have been updated")
-			// Eventually(repoCredCR, "12m", "1s").Should(
-			// 	SatisfyAll(
-			// 		Expect(len(repoCredCR.Status.Conditions)).To(Equal(3)),
-			// 	),
-			// )
+			Expect(len(repoCredCR.Status.Conditions)).To(Equal(3))
 
 		})
 	})

@@ -440,7 +440,7 @@ func UpdateGitopsDeploymentRepositoryCredentialStatus(ctx context.Context, repos
 		}
 	}
 
-	if needToUpdateConditions || len(repositoryCredential.Status.Conditions) < 3 {
+	if needToUpdateConditions || len(repositoryCredential.Status.Conditions) != 3 {
 		// 1) Attempt to get the latest gitopsDeploymentRepositoryCredentialCR from the namespace
 		if err := client.Get(ctx, types.NamespacedName{Namespace: repositoryCredential.Namespace, Name: repositoryCredential.Name},
 			repositoryCredential); err != nil {

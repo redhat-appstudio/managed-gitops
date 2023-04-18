@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Checks if a binary is present on the local system
-export POSTGRESQL_DATABASE="postgres"
+POSTGRESQL_DATABASE="${POSTGRESQL_DATABASE:=postgres}"
 exit_if_binary_not_installed() {
   for binary in "$@"; do
     command -v "$binary" >/dev/null 2>&1 || {
@@ -267,7 +267,7 @@ else
     -p 5432:5432 \
     --network gitops-net \
     -d \
-    $POSTGRESQL_DATABASE:13 \
+    postgres:13 \
     -c log_statement='all' \
     -c log_min_duration_statement=0
 fi

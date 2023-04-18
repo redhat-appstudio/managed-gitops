@@ -106,6 +106,9 @@ var _ = Describe("Environment controller tests", func() {
 			_, err = reconciler.Reconcile(ctx, req)
 			Expect(err).To(BeNil())
 
+			By("verify that error condition is not set")
+			Expect(env.Status.Conditions).To(BeNil())
+
 			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "managed-environment-" + env.Name,
@@ -208,6 +211,9 @@ var _ = Describe("Environment controller tests", func() {
 			_, err = reconciler.Reconcile(ctx, req)
 			Expect(err).To(BeNil())
 
+			By("verify that error condition is not set")
+			Expect(env.Status.Conditions).To(BeNil())
+
 			By("retrieving the update ManagedEnvironment")
 			newManagedEnv := generateEmptyManagedEnvironment(env.Name, env.Namespace)
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&newManagedEnv), &newManagedEnv)
@@ -223,6 +229,10 @@ var _ = Describe("Environment controller tests", func() {
 			By("reconciling again, and confirming that nothing changed")
 			_, err = reconciler.Reconcile(ctx, req)
 			Expect(err).To(BeNil())
+
+			By("verify that error condition is not set")
+			Expect(env.Status.Conditions).To(BeNil())
+
 			Expect(newManagedEnv.Spec.APIURL).To(Equal(env.Spec.UnstableConfigurationFields.APIURL),
 				"ManagedEnvironment should continue to match the new Environment spec")
 			Expect(newManagedEnv.Spec.ClusterCredentialsSecret).To(Equal(env.Spec.UnstableConfigurationFields.ClusterCredentialsSecret),

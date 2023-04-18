@@ -108,7 +108,7 @@ Address: 10.96.236.173
 
 #### Connect to the database
 
-Spawn a Postgres Pod and try to access the database using the service.
+Spawn a Postgres Pod and try to access the database using the service. The environment variable `POSTGRESQL_DATABASE` defaults to `postgres` unless it is set to a non-null string. 
 
 ```shell
 kubectl run pgsql-postgresql-client --rm --tty -i --restart='Never' --namespace gitops-postgresql --image docker.io/bitnami/postgresql:11.7.0-debian-10-r9 --env="PGPASSWORD=$PASSWORD" --command -- psql testdb --host gitops-postgresql-staging-headless.gitops-postgresql -U postgres -d $POSTGRESQL_DATABASE -p 5432

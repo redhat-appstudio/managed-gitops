@@ -4,6 +4,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	app "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	envFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/environment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
@@ -72,9 +73,9 @@ var _ = Describe("Environment Status.Conditions tests", func() {
 			By("checking the status component environment condition is true")
 			Eventually(env, "2m", "1s").Should(envFixture.HaveEnvironmentCondition(
 				metav1.Condition{
-					Type:    "ErrorOccurred",
+					Type:    app.EnvironmentConditionErrorOccurred,
 					Status:  metav1.ConditionTrue,
-					Reason:  "ErrorOccurred",
+					Reason:  app.EnvironmentReasonErrorOccurred,
 					Message: "DeploymentTargetClaim not found while generating the desired Environment resource",
 				}))
 		})
@@ -116,9 +117,9 @@ var _ = Describe("Environment Status.Conditions tests", func() {
 			By("checking the status component environment condition is true")
 			Eventually(environment, "2m", "1s").Should(envFixture.HaveEnvironmentCondition(
 				metav1.Condition{
-					Type:    "ErrorOccurred",
+					Type:    app.EnvironmentConditionErrorOccurred,
 					Status:  metav1.ConditionTrue,
-					Reason:  "ErrorOccurred",
+					Reason:  app.EnvironmentReasonErrorOccurred,
 					Message: "Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set",
 				}))
 		})

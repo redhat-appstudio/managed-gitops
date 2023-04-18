@@ -763,6 +763,9 @@ var _ = Describe("Environment E2E tests", func() {
 			err := k8s.Create(&environment, k8sClient)
 			Expect(err).To(Succeed())
 
+			By("verify that status condition is not ")
+			Expect(environment.Status.Conditions).To(BeNil())
+
 			By("checks if managedEnvironment CR has been created and AllowInsecureSkipTLSVerify field is equal to AllowInsecureSkipTLSVerify field of Environment API")
 			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -792,6 +795,9 @@ var _ = Describe("Environment E2E tests", func() {
 
 			err = k8s.Update(&environment, k8sClient)
 			Expect(err).To(BeNil())
+
+			By("verify that status condition is not ")
+			Expect(environment.Status.Conditions).To(BeNil())
 
 			Eventually(managedEnvCR, "2m", "1s").Should(
 				SatisfyAll(
@@ -869,6 +875,9 @@ var _ = Describe("Environment E2E tests", func() {
 
 			err = k8s.Create(&environment, k8sClient)
 			Expect(err).To(Succeed())
+
+			By("verify that status condition is not ")
+			Expect(environment.Status.Conditions).To(BeNil())
 
 			By("verify if the managed environment CR is created with the required fields")
 			managedEnvCR := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
@@ -950,6 +959,9 @@ var _ = Describe("Environment E2E tests", func() {
 
 			err = k8s.Create(&environment, k8sClient)
 			Expect(err).To(Succeed())
+
+			By("verify that status condition is not ")
+			Expect(environment.Status.Conditions).To(BeNil())
 
 			By("verify if the managed environment CR is created with the required fields")
 			managedEnvCR := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{

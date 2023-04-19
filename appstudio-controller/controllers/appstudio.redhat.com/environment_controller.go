@@ -95,7 +95,15 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	if environment.GetDeploymentTargetClaimName() != "" && environment.Spec.UnstableConfigurationFields != nil {
 		log.Error(nil, "Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set")
-		// TODO: GITOPSRVCE-498: Add this error to status
+
+		// Update Status.Conditions field of Environment.
+		if err := updateStatusConditionOfEnvironment(ctx, rClient,
+			"Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set", environment,
+			EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred); err != nil {
+
+			log.Error(nil, "Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set")
+			return ctrl.Result{}, fmt.Errorf("environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set. %v", err)
+		}
 		return ctrl.Result{}, nil
 	}
 
@@ -152,7 +160,54 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 const (
 	SnapshotEnvironmentBindingConditionErrorOccurred = "ErrorOccurred"
 	SnapshotEnvironmentBindingReasonErrorOccurred    = "ErrorOccurred"
+	EnvironmentConditionErrorOccurred                = "ErrorOccurred"
+	EnvironmentReasonErrorOccurred                   = "ErrorOccurred"
 )
+
+// Update Status.Condition field of Environment
+func updateStatusConditionOfEnvironment(ctx context.Context, client client.Client, message string,
+	environment *appstudioshared.Environment, conditionType string,
+	status metav1.ConditionStatus, reason string) error {
+	// Check if condition with same type is already set, if Yes then check if content is same,
+	// If content is not same update LastTransitionTime
+	index := -1
+	for i, Condition := range environment.Status.Conditions {
+		if Condition.Type == conditionType {
+			index = i
+			break
+		}
+	}
+
+	now := metav1.Now()
+
+	if index == -1 {
+		environment.Status.Conditions = append(environment.Status.Conditions,
+			metav1.Condition{
+				Type:               conditionType,
+				Message:            message,
+				LastTransitionTime: now,
+				Status:             status,
+				Reason:             reason,
+			})
+	} else {
+		if environment.Status.Conditions[index].Message != message &&
+			environment.Status.Conditions[index].Reason != reason &&
+			environment.Status.Conditions[index].Status != status {
+			environment.Status.Conditions[index].LastTransitionTime = now
+		}
+		environment.Status.Conditions[index].Reason = reason
+		environment.Status.Conditions[index].Message = message
+		environment.Status.Conditions[index].LastTransitionTime = now
+		environment.Status.Conditions[index].Status = status
+
+	}
+
+	if err := client.Status().Update(ctx, environment); err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // Update Status.Condition field of snapshotEnvironmentBinding
 func updateStatusConditionOfEnvironmentBinding(ctx context.Context, client client.Client, message string,
@@ -216,9 +271,19 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dtc), dtc); err != nil {
 			if apierr.IsNotFound(err) {
 				log.Error(err, "DeploymentTargetClaim not found while generating the desired Environment resource")
+
+				// Update Status.Conditions field of Environment.
+				if err := updateStatusConditionOfEnvironment(ctx, k8sClient,
+					"DeploymentTargetClaim not found while generating the desired Environment resource", &env,
+					EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred); err != nil {
+
+					log.Error(err, "DeploymentTargetClaim not found while generating the desired Environment resource")
+					return nil, fmt.Errorf("deploymentTargetClaim not found while generating the desired Environment resource. %v", err)
+				}
+
 				return nil, nil
 			}
-			// TODO: GITOPSRVCE-498: Add this error to status.
+
 			return nil, err
 		}
 
@@ -236,13 +301,31 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 				log.Error(err, "DeploymentTarget not found for DeploymentTargetClaim", "DeploymentTargetClaim", dtc.Name)
 				return nil, nil
 			}
-			// TODO: GITOPSRVCE-498: Add this error to status.
+
+			// Update Status.Conditions field of Environment.
+			if err := updateStatusConditionOfEnvironment(ctx, k8sClient,
+				"DeploymentTarget not found for DeploymentTargetClaim", &env,
+				EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred); err != nil {
+
+				log.Error(err, "DeploymentTarget not found for DeploymentTargetClaim", "DeploymentTargetClaim", dtc.Name)
+				return nil, fmt.Errorf("deploymentTarget not found for DeploymentTargetClaim. %v", err)
+			}
+
 			return nil, err
 		}
 
 		if dt == nil {
-			// TODO: GITOPSRVCE-498: Add this error to status.
 			log.Error(nil, "DeploymentTarget not found for DeploymentTargetClaim", "DeploymentTargetClaim", dtc.Name)
+
+			// Update Status.Conditions field of Environment.
+			if err := updateStatusConditionOfEnvironment(ctx, k8sClient,
+				"DeploymentTarget not found for DeploymentTargetClaim", &env,
+				EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred); err != nil {
+
+				log.Error(nil, "DeploymentTarget not found for DeploymentTargetClaim", "DeploymentTargetClaim", dtc.Name)
+				return nil, fmt.Errorf("deploymentTarget not found for DeploymentTargetClaim. %v", err)
+			}
+
 			return nil, nil
 		}
 

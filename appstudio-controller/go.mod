@@ -7,7 +7,7 @@ require (
 	github.com/codeready-toolchain/toolchain-common v0.0.0-20230417235430-8258a3281250
 	github.com/onsi/ginkgo/v2 v2.1.4
 	github.com/onsi/gomega v1.20.1
-	github.com/redhat-appstudio/application-api v0.0.0-20230331114710-7a895f1e2fbc
+	github.com/redhat-appstudio/application-api v0.0.0-20230405183341-7a48b1d4c860
 	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0
 	k8s.io/apimachinery v0.25.0
 	k8s.io/client-go v0.25.0

@@ -9,7 +9,7 @@ require (
 	github.com/codeready-toolchain/api v0.0.0-20230417183849-f62ccbf3bd40
 	github.com/codeready-toolchain/toolchain-common v0.0.0-20230417235430-8258a3281250
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
-	github.com/redhat-appstudio/application-api v0.0.0-20230331114710-7a895f1e2fbc
+	github.com/redhat-appstudio/application-api v0.0.0-20230405183341-7a48b1d4c860
 	github.com/redhat-appstudio/managed-gitops/appstudio-controller v0.0.0
 	github.com/redhat-appstudio/managed-gitops/backend v0.0.0
 	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0
@@ -103,7 +103,6 @@ require (
 	go.opentelemetry.io/otel v1.6.3 // indirect
 	go.opentelemetry.io/otel/trace v1.6.3 // indirect
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
-	golang.org/x/crypto v0.6.0 // indirect
 	golang.org/x/exp v0.0.0-20210901193431-a062eea981d2 // indirect
 	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/oauth2 v0.5.0 // indirect
@@ -173,6 +172,10 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
 	go.uber.org/zap v1.21.0
+	golang.org/x/crypto v0.6.0 // indirect
+	golang.org/x/net v0.7.0 // indirect
+	golang.org/x/oauth2 v0.0.0-20220608161450-d0670ef3b1eb // indirect
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/term v0.5.0 // indirect
 	golang.org/x/text v0.7.0 // indirect

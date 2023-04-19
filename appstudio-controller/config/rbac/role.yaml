@@ -84,7 +84,7 @@ rules:
 - apiGroups:
   - appstudio.redhat.com
   resources:
-  - deploymenttargetclass
+  - deploymenttargetclasses
   verbs:
   - get
   - list
@@ -270,28 +270,10 @@ rules:
 - apiGroups:
   - toolchain.dev.openshift.com
   resources:
-  - spacerequest
+  - spacerequests
   verbs:
   - create
   - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - toolchain.dev.openshift.com
-  resources:
-  - spacerequest/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - toolchain.dev.openshift.com
-  resources:
-  - spacerequests
-  verbs:
   - get
   - list
   - patch

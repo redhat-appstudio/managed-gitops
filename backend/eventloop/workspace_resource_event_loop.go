@@ -196,7 +196,7 @@ func internalProcessWorkspaceResourceMessage(ctx context.Context, msg workspaceR
 		}
 
 		// Request that the shared resource loop handle the GitOpsDeploymentRepositoryCredential resource:
-		// - If the GitOpsDeploymentRepositoryCredential doesn't exist, delete the corsponding database table
+		// - If the GitOpsDeploymentRepositoryCredential doesn't exist, delete the corresponding database table
 		// - If the GitOpsDeploymentRepositoryCredential does exist, but not in the DB, then create a RepositoryCredential DB entry
 		// - If the GitOpsDeploymentRepositoryCredential does exist, and also in the DB, then compare and change a RepositoryCredential DB entry
 		// Then, in all 3 cases, create an Operation to update the cluster-agent

@@ -183,7 +183,7 @@ spec:
   #
   # - Default: If false, it is assumed that the credentials provided by the user in the Secret are for a ServiceAccount on the cluster, and
   #   Argo CD will be configred to use the ServiceAccount referenced by the Secret of the user. No new ServiceAccount will be created.
-  #   - This should be used, for example, when the ServiceAccount Argo CD is using will not full cluster access (*/*/* at cluster scope)
+  #   - This should be used, for example, when the ServiceAccount Argo CD does not have full cluster access (*/*/* at cluster scope)
   createNewServiceAccount: false
 
   # Optional: the ServiceAccount that GitOps Service/Argo CD uses to deploy may not have access to all of the Namespaces on a cluster
@@ -195,7 +195,7 @@ spec:
 
   # Optional: If the .spec.namespaces field is non-empty, this field will be used to determine whether Argo CD should 
   # attempt to manage cluster-scoped resources.
-  # - If .spec.namespaces field is empty, this field is not used.
+  # - If .spec.namespaces field is empty, this field is ignored.
   # - If you are familiar with Argo CD: this field is equivalent to the field of the same name in the Argo CD Cluster Secret.
   clusterResources: false
 

@@ -6,6 +6,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
+
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 
@@ -404,10 +405,16 @@ var _ = Describe("Environment controller tests", func() {
 			res, err := reconciler.Reconcile(ctx, req)
 			Expect(res).To(Equal(reconcile.Result{}))
 			Expect(err).To(BeNil())
-			// TODO: GITOPSRVCE-498: this test should check .status field of environment
 
-			// expectedErrMsg := "environment test-env is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set"
-			// Expect(err.Error()).To(Equal(expectedErrMsg))
+			By("Checking status field after calling Reconciler")
+			env = appstudioshared.Environment{}
+			err = reconciler.Get(ctx, req.NamespacedName, &env)
+			Expect(err).To(BeNil())
+			Expect(len(env.Status.Conditions)).To(Equal(1))
+			Expect(env.Status.Conditions[0].Type).To(Equal(EnvironmentConditionErrorOccurred))
+			Expect(env.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
+			Expect(env.Status.Conditions[0].Reason).To(Equal(EnvironmentReasonErrorOccurred))
+			Expect(env.Status.Conditions[0].Message).To(Equal("Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set"))
 		})
 
 		It("should manage an Environment with DeploymentTargetClaim specified", func() {
@@ -593,10 +600,16 @@ var _ = Describe("Environment controller tests", func() {
 			res, err := reconciler.Reconcile(ctx, req)
 			Expect(err).To(BeNil())
 			Expect(res).To(Equal(reconcile.Result{}))
-			// TODO: GITOPSRVCE-498: Check if the status is updated with the error
 
-			// expectedErrMsg := "unable to generate expected GitOpsDeploymentManagedEnvironment resource: DeploymentTarget not found for DeploymentTargetClaim: test-dtc"
-			// Expect(err.Error()).To(Equal(expectedErrMsg))
+			By("Checking status field after calling Reconciler")
+			env = appstudioshared.Environment{}
+			err = reconciler.Get(ctx, req.NamespacedName, &env)
+			Expect(err).To(BeNil())
+			Expect(len(env.Status.Conditions)).To(Equal(1))
+			Expect(env.Status.Conditions[0].Type).To(Equal(EnvironmentConditionErrorOccurred))
+			Expect(env.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
+			Expect(env.Status.Conditions[0].Reason).To(Equal(EnvironmentReasonErrorOccurred))
+			Expect(env.Status.Conditions[0].Message).To(Equal("DeploymentTarget not found for DeploymentTargetClaim"))
 		})
 
 		It("shouldn't process the Environment if neither credentials nor DTC is provided", func() {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -764,7 +765,7 @@ var _ = Describe("Environment E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			By("verify that status condition is not ")
-			Expect(environment.Status.Conditions).To(BeNil())
+			Consistently(environment.Status.Conditions, 20*time.Second, 1*time.Second).Should(BeNil())
 
 			By("checks if managedEnvironment CR has been created and AllowInsecureSkipTLSVerify field is equal to AllowInsecureSkipTLSVerify field of Environment API")
 			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
@@ -797,7 +798,7 @@ var _ = Describe("Environment E2E tests", func() {
 			Expect(err).To(BeNil())
 
 			By("verify that status condition is not ")
-			Expect(environment.Status.Conditions).To(BeNil())
+			Consistently(environment.Status.Conditions, 20*time.Second, 1*time.Second).Should(BeNil())
 
 			Eventually(managedEnvCR, "2m", "1s").Should(
 				SatisfyAll(
@@ -877,7 +878,7 @@ var _ = Describe("Environment E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			By("verify that status condition is not ")
-			Expect(environment.Status.Conditions).To(BeNil())
+			Consistently(environment.Status.Conditions, 20*time.Second, 1*time.Second).Should(BeNil())
 
 			By("verify if the managed environment CR is created with the required fields")
 			managedEnvCR := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
@@ -961,7 +962,7 @@ var _ = Describe("Environment E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			By("verify that status condition is not ")
-			Expect(environment.Status.Conditions).To(BeNil())
+			Consistently(environment.Status.Conditions, 20*time.Second, 1*time.Second).Should(BeNil())
 
 			By("verify if the managed environment CR is created with the required fields")
 			managedEnvCR := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{

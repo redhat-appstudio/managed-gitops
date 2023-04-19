@@ -320,11 +320,10 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 				log.Error(err, "DeploymentTargetClaim not found while generating the desired Environment resource")
 
 				// Update Status.Conditions field of Environment.
-				if cerr := updateStatusConditionOfEnvironment(ctx, k8sClient,
+				if err := updateStatusConditionOfEnvironment(ctx, k8sClient,
 					"DeploymentTargetClaim not found while generating the desired Environment resource", &env,
-					EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred, log); cerr != nil {
+					EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred, log); err != nil {
 
-					log.Error(cerr, "unable to update environment status condition.")
 					return nil, fmt.Errorf("unable to update environment status condition. %v", err)
 				}
 
@@ -448,6 +447,11 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 
 			return nil, fmt.Errorf("unable to update environment status condition. %v", err)
 		}
+		return nil, err
+	}
+
+	// Update Status.Conditions field of Environment as false if error is resolved
+	if err := updateConditionErrorAsResolved(ctx, k8sClient, "", &env, EnvironmentConditionErrorOccurred, metav1.ConditionFalse, EnvironmentReasonErrorOccurred, log); err != nil {
 		return nil, err
 	}
 

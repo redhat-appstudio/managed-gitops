@@ -94,6 +94,8 @@ rules:
   resources:
   - deploymenttargets
   verbs:
+  - create
+  - delete
   - get
   - list
   - patch
@@ -281,6 +283,24 @@ rules:
   - toolchain.dev.openshift.com
   resources:
   - spacerequest/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - toolchain.dev.openshift.com
+  resources:
+  - spacerequests
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - toolchain.dev.openshift.com
+  resources:
+  - spacerequests/status
   verbs:
   - get
   - patch

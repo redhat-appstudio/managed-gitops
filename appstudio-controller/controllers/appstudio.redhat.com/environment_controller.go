@@ -107,16 +107,16 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, nil
 	}
 
-	// Update Status.Conditions field of Environment as false if error is resolved
-	if err := updateConditionErrorAsResolved(ctx, rClient, "", environment, EnvironmentConditionErrorOccurred, metav1.ConditionFalse, EnvironmentReasonErrorOccurred, log); err != nil {
-		return ctrl.Result{}, err
-	}
-
 	desiredManagedEnv, err := generateDesiredResource(ctx, *environment, rClient, log)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("unable to generate expected GitOpsDeploymentManagedEnvironment resource: %v", err)
 	}
 	if desiredManagedEnv == nil {
+		// Update Status.Conditions field of Environment as false if error is resolved
+		if err := updateConditionErrorAsResolved(ctx, rClient, "", environment, EnvironmentConditionErrorOccurred, metav1.ConditionFalse, EnvironmentReasonErrorOccurred, log); err != nil {
+			return ctrl.Result{}, err
+		}
+
 		return ctrl.Result{}, nil
 	}
 
@@ -142,8 +142,14 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	}
 
+	// Update Status.Conditions field of Environment as false if error is resolved
+	if err := updateConditionErrorAsResolved(ctx, rClient, "", environment, EnvironmentConditionErrorOccurred, metav1.ConditionFalse, EnvironmentReasonErrorOccurred, log); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// C) The GitOpsDeploymentManagedEnvironment already exists, so compare it with the desired state, and update it if different.
 	if reflect.DeepEqual(currentManagedEnv.Spec, desiredManagedEnv.Spec) {
+
 		// If the spec field is the same, no more work is needed.
 		return ctrl.Result{}, nil
 	}

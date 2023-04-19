@@ -289,7 +289,7 @@ test-e2e-kcp-virtual-workspace: ## Test E2E against KCP virtual workspaces
 ### --- CI Tests ---
 
 check-backward-compatibility: ##  test executed from OpenShift CI
-	cd $(MAKEFILE_ROOT)/tests-e2e && make test-backward-compatability
+	cd $(MAKEFILE_ROOT)/tests-e2e && make test-backward-compatibility
 
 
 ### --- Utilities for other makefile targets ---

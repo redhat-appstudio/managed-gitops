@@ -20,6 +20,7 @@ import (
 	appFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/application"
 	dtfixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/deploymenttarget"
 	dtcfixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/deploymenttargetclaim"
+	environmentFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/environment"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/managedenvironment"
@@ -764,8 +765,8 @@ var _ = Describe("Environment E2E tests", func() {
 			err := k8s.Create(&environment, k8sClient)
 			Expect(err).To(Succeed())
 
-			By("verify that status condition is not ")
-			Consistently(environment.Status.Conditions, 20*time.Second, 1*time.Second).Should(BeNil())
+			By("verify that Environment's status condition is nil, indicating no errors")
+			Consistently(environment, 20*time.Second, 1*time.Second).Should(environmentFixture.HaveEmptyEnvironmentConditions())
 
 			By("checks if managedEnvironment CR has been created and AllowInsecureSkipTLSVerify field is equal to AllowInsecureSkipTLSVerify field of Environment API")
 			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
@@ -797,8 +798,8 @@ var _ = Describe("Environment E2E tests", func() {
 			err = k8s.Update(&environment, k8sClient)
 			Expect(err).To(BeNil())
 
-			By("verify that status condition is not ")
-			Consistently(environment.Status.Conditions, 20*time.Second, 1*time.Second).Should(BeNil())
+			By("verify that Environment's status condition is nil, indicating no errors")
+			Consistently(environment, 20*time.Second, 1*time.Second).Should(environmentFixture.HaveEmptyEnvironmentConditions())
 
 			Eventually(managedEnvCR, "2m", "1s").Should(
 				SatisfyAll(
@@ -877,8 +878,8 @@ var _ = Describe("Environment E2E tests", func() {
 			err = k8s.Create(&environment, k8sClient)
 			Expect(err).To(Succeed())
 
-			By("verify that status condition is not ")
-			Consistently(environment.Status.Conditions, 20*time.Second, 1*time.Second).Should(BeNil())
+			By("verify that Environment's status condition is nil, indicating no errors")
+			Consistently(environment, 20*time.Second, 1*time.Second).Should(environmentFixture.HaveEmptyEnvironmentConditions())
 
 			By("verify if the managed environment CR is created with the required fields")
 			managedEnvCR := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
@@ -961,8 +962,8 @@ var _ = Describe("Environment E2E tests", func() {
 			err = k8s.Create(&environment, k8sClient)
 			Expect(err).To(Succeed())
 
-			By("verify that status condition is not ")
-			Consistently(environment.Status.Conditions, 20*time.Second, 1*time.Second).Should(BeNil())
+			By("verify that Environment's status condition is nil, indicating no errors")
+			Consistently(environment, 20*time.Second, 1*time.Second).Should(environmentFixture.HaveEmptyEnvironmentConditions())
 
 			By("verify if the managed environment CR is created with the required fields")
 			managedEnvCR := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{

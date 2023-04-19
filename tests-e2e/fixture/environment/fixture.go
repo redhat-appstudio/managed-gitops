@@ -15,6 +15,39 @@ import (
 	k8sFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 )
 
+// This is intentionally NOT exported, for now. Create another function in this file/package that calls this function, and export that.
+func expectedCondition(f func(env appstudiosharedv1.Environment) bool) matcher.GomegaMatcher {
+
+	return WithTransform(func(env appstudiosharedv1.Environment) bool {
+
+		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
+		Expect(err).To(BeNil())
+
+		k8sClient, err := fixture.GetKubeClient(config)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&env), &env)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		return f(env)
+
+	}, BeTrue())
+
+}
+
+func HaveEmptyEnvironmentConditions() matcher.GomegaMatcher {
+
+	return expectedCondition(func(env appstudiosharedv1.Environment) bool {
+		return env.Status.Conditions == nil || len(env.Status.Conditions) == 0
+	})
+}
+
 func HaveEnvironmentCondition(expected metav1.Condition) matcher.GomegaMatcher {
 	sanitizeCondition := func(cond metav1.Condition) metav1.Condition {
 
@@ -28,33 +61,23 @@ func HaveEnvironmentCondition(expected metav1.Condition) matcher.GomegaMatcher {
 		return res
 
 	}
-	return WithTransform(func(enviroment appstudiosharedv1.Environment) bool {
 
-		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
-
-		k8sClient, err := fixture.GetKubeClient(config)
-		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
-			return false
-		}
-
-		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&enviroment), &enviroment)
-		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
-			return false
-		}
-
-		if len(enviroment.Status.Conditions) == 0 {
+	return expectedCondition(func(env appstudiosharedv1.Environment) bool {
+		if len(env.Status.Conditions) == 0 {
 			GinkgoWriter.Println("HaveEnvironmentCondition: Conditions is nil")
 			return false
 		}
-		actual := sanitizeCondition(enviroment.Status.Conditions[0])
+
+		if len(env.Status.Conditions) > 1 {
+			GinkgoWriter.Println("HaveEnviromentCondition does not support more than 1 element in the .status.conditions slice")
+			return false
+		}
+
+		actual := sanitizeCondition(env.Status.Conditions[0])
 		GinkgoWriter.Println("HaveEnvironmentCondition:", "expected: ", expected, "actual: ", actual)
 		return actual.Type == expected.Type &&
 			actual.Status == expected.Status &&
 			actual.Reason == expected.Reason &&
 			actual.Message == expected.Message
-
-	}, BeTrue())
+	})
 }

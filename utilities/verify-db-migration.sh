@@ -37,13 +37,14 @@ echo "MIGRATION_SQL_FILE: $MIGRATION_SQL_FILE"
 
 exit_if_binary_not_installed "pg_dump"
 
+POSTGRESQL_DATABASE="${POSTGRESQL_DATABASE:=postgres}"
 echo "Create a pg_dump file for master schema"
-pg_dump postgresql://postgres:gitops@localhost:5432/postgres > "$MASTER_SQL_FILE" && cat "$MASTER_SQL_FILE"
+pg_dump postgresql://postgres:gitops@localhost:5432/$POSTGRESQL_DATABASE > "$MASTER_SQL_FILE" && cat "$MASTER_SQL_FILE"
 
 echo "Check if downgrading and upgrading by a single version leads to same schema."
 make db-migrate-downgrade
 make db-migrate-upgrade
-pg_dump postgresql://postgres:gitops@localhost:5432/postgres > "$MIGRATION_SQL_FILE" && cat "$MIGRATION_SQL_FILE"
+pg_dump postgresql://postgres:gitops@localhost:5432/$POSTGRESQL_DATABASE > "$MIGRATION_SQL_FILE" && cat "$MIGRATION_SQL_FILE"
 diff -Nur "$MIGRATION_SQL_FILE" "$MASTER_SQL_FILE"
 
 echo "Check if downgrading and upgrading by a two versions leads to same schema."
@@ -51,5 +52,5 @@ make db-migrate-downgrade
 make db-migrate-downgrade
 make db-migrate-upgrade
 make db-migrate-upgrade
-pg_dump postgresql://postgres:gitops@localhost:5432/postgres > "$MIGRATION_SQL_FILE" && cat "$MIGRATION_SQL_FILE"
+pg_dump postgresql://postgres:gitops@localhost:5432/$POSTGRESQL_DATABASE > "$MIGRATION_SQL_FILE" && cat "$MIGRATION_SQL_FILE"
 diff -Nur "$MIGRATION_SQL_FILE" "$MASTER_SQL_FILE"

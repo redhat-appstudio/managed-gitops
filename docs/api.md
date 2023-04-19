@@ -5,12 +5,12 @@ This document describes the APIs supported by the GitOps Service. The examples p
 
 The K8s resource *Go structs* defined in the `managed-gitops` repository, the `application-api` repository, and the corresponding CustomResourceDefinitions (CRDs), are the canonical representations of the current state of this API. This document flows downstream from those.
 
-## Core vs Stonesoup Environment APIs
+## Core vs App Studio Environment APIs
 
-The Stonesoup Environment APIs implement (opinionated) concepts and APIs that are specific to Stonesoup, including `Environment`s, `Application`s, and `Component`s.
-- Applications and Components are examples of Stonesoup-specific concepts that relate to how an application is composed, and are primarily reconciled by the [application-service](https://github.com/redhat-appstudio/application-service) component.
-- Stonesoup Environment APIs implement promotion of application versions between environments, via APIs such as `Environment`, `Snapshot`, and `SnapshotEnvironmentBinding`.
-- Stonesoup API resources are translated by the Stonesoup GitOps Service controllers into one or more Core GitOps Service API resources. For example:
+The App Studio Environment APIs implement (opinionated) concepts and APIs that are specific to App Studio, including `Environment`s, `Application`s, and `Component`s.
+- Applications and Components are examples of App-Studio-specific concepts that relate to how an application is composed, and are primarily reconciled by the [application-service](https://github.com/redhat-appstudio/application-service) component.
+- App Studio Environment APIs implement promotion of application versions between environments, via APIs such as `Environment`, `Snapshot`, and `SnapshotEnvironmentBinding`.
+- App Studio API resources are translated by the AppStudio GitOps Service controllers into one or more Core GitOps Service API resources. For example:
     - A `SnapshotEnvironmentBinding` is reconciled into one or more `GitOpsDeployments`.
     - A `Environment` is usually reconciled into a `GitOpsDeploymentManagedEnvironment` 
 
@@ -171,7 +171,34 @@ spec:
 
   # Optional: If true, the GitOps Service will allow Argo CD to connect to the specified cluster
   # even if it is using an invalid or self-signed TLS certificate.
+  # Defaults to false.
   allowInsecureSkipTLSVerify: false
+
+  # Optional: Controls whether Argo CD will use the ServiceAccount provided by the user in the Secret, or if a new ServiceAccount
+  # should be created.
+  # 
+  # - If true, the GitOps Service will automatically create a ServiceAccount/ClusterRole/ClusterRoleBinding on the target cluster,
+  #   using the credentials provided by the user in the secret. 
+  #   - Argo CD will then be configured to deploy with that new ServiceAccount.
+  #
+  # - Default: If false, it is assumed that the credentials provided by the user in the Secret are for a ServiceAccount on the cluster, and
+  #   Argo CD will be configred to use the ServiceAccount referenced by the Secret of the user. No new ServiceAccount will be created.
+  #   - This should be used, for example, when the ServiceAccount Argo CD does not have full cluster access (*/*/* at cluster scope)
+  createNewServiceAccount: false
+
+  # Optional: the ServiceAccount that GitOps Service/Argo CD uses to deploy may not have access to all of the Namespaces on a cluster
+  # If not specified, it is assumed that the Argo CD ServiceAccount has read/write at cluster-scope.
+  # - If you are familiar with Argo CD: this field is equivalent to the field of the same name in the Argo CD Cluster Secret.
+  namespaces:
+    - bank-loan-app
+    - bank-account-app
+
+  # Optional: If the .spec.namespaces field is non-empty, this field will be used to determine whether Argo CD should 
+  # attempt to manage cluster-scoped resources.
+  # - If .spec.namespaces field is empty, this field is ignored.
+  # - If you are familiar with Argo CD: this field is equivalent to the field of the same name in the Argo CD Cluster Secret.
+  clusterResources: false
+
 ---
 # The GitOpsDeploymentManagedEnvironment references a Secret, containing the connection information
 # - Kubeconfig credentials for the target cluster (as a Secret)
@@ -285,18 +312,18 @@ This resource has no corresponding Argo CD CR equivalent: with Argo CD, a manual
 
 See the [GitOpsDeploymentSyncRun API reference](https://redhat-appstudio.github.io/book/ref/gitops.html#gitopsdeploymentsyncrun) for details of other fields.
 
-## GitOps Service: Stonesoup Environment APIs
+## GitOps Service: App Studio Environment APIs
 
-The Stonesoup Environment API is based on the [Application](https://redhat-appstudio.github.io/book/ref/application-environment-api.html#application), and [Component](https://redhat-appstudio.github.io/book/ref/application-environment-api.html#component) APIs, which are primarily handled by the [application-service](https://github.com/redhat-appstudio/application-service) component. 
+The App Studio Environment API is based on the [Application](https://redhat-appstudio.github.io/book/ref/application-environment-api.html#application), and [Component](https://redhat-appstudio.github.io/book/ref/application-environment-api.html#component) APIs, which are primarily handled by the [application-service](https://github.com/redhat-appstudio/application-service) component. 
 - These APIs are opinionated representations of the constituent parts of a user's application: a application (e.g. a loan application of a bank) contains multiple components (e.g. Node frontend, Java backend, Postgresql database).
 
-The Stonesoup Environment APIs -- which are simultaneously reconciled by multiple Stonesoup components -- are all related to provisioning or deploying K8s resources to external environments, such as external K8s clusters/namespaces or local namespaces.
+The App Studio Environment APIs -- which are simultaneously reconciled by multiple App Studio components -- are all related to provisioning or deploying K8s resources to external environments, such as external K8s clusters/namespaces or local namespaces.
 
 ### Environment
 
 Environment describes a target deployment location for deployments of Kubernetes resources, with the source for those Kubernetes resources coming from a GitOps repository.
 
-An Environment could be namespace on a Stonesoup cluster, an Environment could be a full remote cluster, or an Environment could be another type of environment that is not yet implemented as of this writing.
+An Environment could be namespace on an App Studio cluster, an Environment could be a full remote cluster, or an Environment could be another type of environment that is not yet implemented as of this writing.
 
 
 ```yaml
@@ -387,7 +414,7 @@ spec:
   artifacts:
     # (...) - 
 status:
-  # Conditions field is not currently used by GitOps Service, but is used by other Stonesoup components.
+  # Conditions field is not currently used by GitOps Service, but is used by other App Studio components.
   conditions:
     - # (...)
 ```
@@ -486,7 +513,7 @@ See the [SnapshotEnvironmentBinding API reference](https://redhat-appstudio.gith
 
 PromotionRun currently only supports manual promotion, but was originally conceived to handle both automated and manual promotion. 
 
-Promotion via PromotionRun CR was part of the original Environment API design, but this CR may no longer be required in a Stonesoup, post-Appstudio world, where promotion is primarily handled by HACBS components.
+Promotion via PromotionRun CR was part of the original Environment API design, but this CR may no longer be required, as promotion is primarily handled by HACBS components.
 
 ```yaml
 apiVersion: appstudio.redhat.com/v1alpha1

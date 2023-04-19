@@ -31,6 +31,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
 var _ = Describe("Secret Controller Test", func() {
@@ -131,6 +132,54 @@ var _ = Describe("Secret Controller Test", func() {
 
 		})
 
+	})
+
+	Context("Test filterManagedEnvSecrets predicate", func() {
+		predicate := filterManagedEnvSecrets()
+
+		assertAllEvents := func(obj client.Object, expected bool) {
+			Expect(predicate.Create(event.CreateEvent{
+				Object: obj,
+			})).To(Equal(expected))
+
+			Expect(predicate.Update(event.UpdateEvent{
+				ObjectOld: obj,
+				ObjectNew: obj,
+			})).To(Equal(expected))
+
+			Expect(predicate.Generic(event.GenericEvent{
+				Object: obj,
+			})).To(Equal(expected))
+
+			Expect(predicate.Delete(event.DeleteEvent{
+				Object: obj,
+			})).To(Equal(expected))
+		}
+
+		It("should return false for all events if the object is not a secret", func() {
+			ns := &corev1.Namespace{}
+			assertAllEvents(ns, false)
+		})
+
+		It("should return false if the secret type is not type managed-environment", func() {
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+				Type: "random",
+			}
+			assertAllEvents(secret, false)
+		})
+
+		It("should return true for all events if the secret is of type managed-environment", func() {
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+				Type: sharedutil.ManagedEnvironmentSecretType,
+			}
+			assertAllEvents(secret, true)
+		})
 	})
 })
 

@@ -24,7 +24,7 @@ func checkConn(db *pg.DB) error {
 	return err
 }
 
-func GetAddrAndPassword() (string, string) {
+func GetAddrAndPassword() (string, string, string) {
 	addr := "localhost"
 	if isEnvExist("DB_ADDR") {
 		addr = os.Getenv("DB_ADDR")
@@ -34,12 +34,17 @@ func GetAddrAndPassword() (string, string) {
 	if isEnvExist("DB_PASS") {
 		password = os.Getenv("DB_PASS")
 	}
-	return addr, password
+
+	databaseName := "postgres"
+	if isEnvExist("POSTGRESQL_DATABASE") {
+		databaseName = os.Getenv("POSTGRESQL_DATABASE")
+	}
+	return addr, password, databaseName
 }
 
 // connectToDatabaseWithPort connects to Postgres with a defined port
-func ConnectToDatabaseWithPort(verbose bool, dbName string, port int) (*pg.DB, error) {
-	addr, password := GetAddrAndPassword()
+func ConnectToDatabaseWithPort(verbose bool, port int) (*pg.DB, error) {
+	addr, password, dbName := GetAddrAndPassword()
 	opts := &pg.Options{
 		Addr:     fmt.Sprintf("%s:%v", addr, port),
 		User:     "postgres",

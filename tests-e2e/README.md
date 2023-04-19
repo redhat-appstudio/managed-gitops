@@ -27,6 +27,22 @@ You should be able to run the E2E tests on your local development environment as
     # In a separate terminal window, to run the tests:
     make test-e2e
     ```
+Alternatively, instead of running `make start-e2e` above, you can run `make start-execs` to run the 'same' executables
+for the backend, cluster-agent and appstudio-controller components. (The outputs of which are shown in the goreman terminal)
+The reasons for using this are:
+
+- For testing purposes when you don't make any code changes
+- For testing purposes when you might want to terminate and run `make start-execs` more than once
+- For testing purposes when you want to test the same executable say over a few days and against different clusters
+
+Note that when `make start-execs` is run the first time, it will build the initial executables. Any subsequent calls will 
+not rebuild them unless you run `make clean-execs` or delete the executables directly.
+This allows you to use the same executables for the three components so that on Mac in particular, you will not get the 
+popup warnings to indicate there is an incoming network connection request.
+
+For development, you can still use this target, but remember to run `make clean-execs` after you make code changes, and before
+running `make start-execs`. However, `make start-e2e` is preferred.
+
 
 ## OpenShift CI
 

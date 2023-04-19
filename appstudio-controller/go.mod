@@ -3,6 +3,7 @@ module github.com/redhat-appstudio/managed-gitops/appstudio-controller
 go 1.18
 
 require (
+	github.com/codeready-toolchain/api v0.0.0-20230310071854-7b39e1079260
 	github.com/onsi/ginkgo/v2 v2.1.4
 	github.com/onsi/gomega v1.20.1
 	github.com/redhat-appstudio/application-api v0.0.0-20230331114710-7a895f1e2fbc
@@ -35,6 +36,7 @@ require (
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/openshift/api v0.0.0-20220912161038-458ad9ca9ca5 // indirect
 	github.com/rogpeppe/go-internal v1.6.2 // indirect
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
 	github.com/vmihailenco/bufpool v0.1.11 // indirect
@@ -80,11 +82,11 @@ require (
 	go.uber.org/multierr v1.7.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
 	golang.org/x/crypto v0.0.0-20220313003712-b769efc7c000 // indirect
-	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
+	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
-	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
-	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/term v0.5.0 // indirect
+	golang.org/x/text v0.7.0 // indirect
 	golang.org/x/time v0.0.0-20220224211638-0e9765cccd65 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect

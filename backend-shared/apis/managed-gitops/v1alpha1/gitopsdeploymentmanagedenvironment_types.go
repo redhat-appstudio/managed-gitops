@@ -24,14 +24,54 @@ const (
 	ManagedEnvironmentStatusConnectionInitializationSucceeded = "ConnectionInitializationSucceeded"
 )
 
-// GitOpsDeploymentManagedEnvironmentSpec defines the desired state of GitOpsDeploymentManagedEnvironment
+// The GitOpsDeploymentManagedEnvironment CR describes a remote cluster which the GitOps Service will deploy to, via Argo CD.
+// This resource references a Secret resource, of type managed-gitops.redhat.com/managed-environment, that contains the cluster credentials.
+// The Secret should contain credentials to a ServiceAccount/User account on the target cluster.
+// This is referred to as the Argo CD 'ServiceAccount' below.
 type GitOpsDeploymentManagedEnvironmentSpec struct {
-	APIURL                     string   `json:"apiURL"`
-	ClusterCredentialsSecret   string   `json:"credentialsSecret"`
-	AllowInsecureSkipTLSVerify bool     `json:"allowInsecureSkipTLSVerify"`
-	CreateNewServiceAccount    bool     `json:"createNewServiceAccount,omitempty"`
-	Namespaces                 []string `json:"namespaces,omitempty"`
-	ClusterResources           bool     `json:"clusterResources,omitempty"`
+
+	// APIURL is the URL of the cluster to connect to
+	APIURL string `json:"apiURL"`
+
+	// ClusterCredentialsSecret is a reference to a Secret that contains cluster connection details. The cluster details should be in the form of a kubeconfig file.
+	ClusterCredentialsSecret string `json:"credentialsSecret"`
+
+	// AllowInsecureSkipTLSVerify controls whether Argo CD will accept a Kubernetes API URL with untrusted-TLS certificate.
+	// Optional: If true, the GitOps Service will allow Argo CD to connect to the specified cluster even if it is using an invalid or self-signed TLS certificate.
+	// Defaults to false.
+	AllowInsecureSkipTLSVerify bool `json:"allowInsecureSkipTLSVerify"`
+
+	// CreateNewServiceAccount controls whether Argo CD will use the ServiceAccount provided by the user in the Secret, or if a new ServiceAccount
+	// should be created.
+	//
+	// Optional, default to false.
+	//
+	// - If true, the GitOps Service will automatically create a ServiceAccount/ClusterRole/ClusterRoleBinding on the target cluster,
+	//   using the credentials provided by the user in the secret.
+	//   - Argo CD will then be configured to deploy with that new ServiceAccount.
+	//
+	// - Default: If false, it is assumed that the credentials provided by the user in the Secret are for a ServiceAccount on the cluster, and
+	//   Argo CD will be configred to use the ServiceAccount referenced by the Secret of the user. No new ServiceAccount will be created.
+	//   - This should be used, for example, when the ServiceAccount Argo CD does not have full cluster access (*/*/* at cluster scope)
+	CreateNewServiceAccount bool `json:"createNewServiceAccount,omitempty"`
+
+	// Namespaces allows one to indicate which Namespaces the Secret's ServiceAccount has access to.
+	//
+	// Optional, defaults to empty. If empty, it is assumed that the ServiceAccount has access to all Namespaces.
+	//
+	// The ServiceAccount that GitOps Service/Argo CD uses to deploy may not have access to all of the Namespaces on a cluster.
+	// If not specified, it is assumed that the Argo CD ServiceAccount has read/write at cluster-scope.
+	// - If you are familiar with Argo CD: this field is equivalent to the field of the same name in the Argo CD Cluster Secret.
+	Namespaces []string `json:"namespaces,omitempty"`
+
+	// ClusterResources is used in conjuction with the Namespace field.
+	// If the .spec.namespaces field is non-empty, this field will be used to determine whether Argo CD should
+	// attempt to manage cluster-scoped resources.
+	// - If .spec.namespaces field is empty, this field is ignored.
+	// - If you are familiar with Argo CD: this field is equivalent to the field of the same name in the Argo CD Cluster Secret.
+	//
+	// Optional, default to false.
+	ClusterResources bool `json:"clusterResources,omitempty"`
 }
 
 type AllowInsecureSkipTLSVerify bool

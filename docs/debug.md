@@ -39,7 +39,7 @@ $ kubectl port-forward --namespace gitops-postgresql svc/gitops-postgresql-stagi
 Then run a `psql` command, to verify your access:
 
 ```shell
-psql postgresql://postgres:$PASSWORD@127.0.0.1:5432/postgres -c "select now()"
+psql postgresql://postgres:$PASSWORD@127.0.0.1:5432/$POSTGRESQL_DATABASE -c "select now()"
 ```
 
 _Note: If you are using a plain-text hardcoded password, replace `$PASSWORD` var with yours_.
@@ -108,10 +108,10 @@ Address: 10.96.236.173
 
 #### Connect to the database
 
-Spawn a Postgres Pod and try to access the database using the service.
+Spawn a Postgres Pod and try to access the database using the service. The environment variable `POSTGRESQL_DATABASE` defaults to `postgres` unless it is set to a non-null string. 
 
 ```shell
-kubectl run pgsql-postgresql-client --rm --tty -i --restart='Never' --namespace gitops-postgresql --image docker.io/bitnami/postgresql:11.7.0-debian-10-r9 --env="PGPASSWORD=$PASSWORD" --command -- psql testdb --host gitops-postgresql-staging-headless.gitops-postgresql -U postgres -d postgres -p 5432
+kubectl run pgsql-postgresql-client --rm --tty -i --restart='Never' --namespace gitops-postgresql --image docker.io/bitnami/postgresql:11.7.0-debian-10-r9 --env="PGPASSWORD=$PASSWORD" --command -- psql testdb --host gitops-postgresql-staging-headless.gitops-postgresql -U postgres -d $POSTGRESQL_DATABASE -p 5432
 ```
 
 If you don't see a command prompt, try pressing **Enter** key.

@@ -2,7 +2,7 @@
 
 # Stop exiting and return non-zero error code if an error occurs
 set -ue
-
+POSTGRESQL_DATABASE="${POSTGRESQL_DATABASE:=postgres}"
 SCRIPTPATH="$(
   cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit
   pwd -P
@@ -37,7 +37,7 @@ echo "MIGRATION_SQL_FILE: $MIGRATION_SQL_FILE"
 exit_if_binary_not_installed "pg_dump"
 
 echo "Create a pg_dump file for master schema"
-pg_dump postgresql://postgres:gitops@localhost:5432/postgres > "$MASTER_SQL_FILE" && cat "$MASTER_SQL_FILE"
+pg_dump postgresql://postgres:gitops@localhost:5432/$POSTGRESQL_DATABASE > "$MASTER_SQL_FILE" && cat "$MASTER_SQL_FILE"
 
 echo "Clean the state of db."
 make db-drop
@@ -49,7 +49,7 @@ echo "Remove the schema_migration table."
 make db-drop_smtable
 
 echo "Create a pg_dump file for migration schema"
-pg_dump postgresql://postgres:gitops@localhost:5432/postgres > "$MIGRATION_SQL_FILE" && cat "$MIGRATION_SQL_FILE"
+pg_dump postgresql://postgres:gitops@localhost:5432/$POSTGRESQL_DATABASE > "$MIGRATION_SQL_FILE" && cat "$MIGRATION_SQL_FILE"
 
 echo "Execute diff to check for any discrepencies"
 diff -Nur "$MIGRATION_SQL_FILE" "$MASTER_SQL_FILE"

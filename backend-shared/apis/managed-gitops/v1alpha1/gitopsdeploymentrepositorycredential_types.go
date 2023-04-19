@@ -17,6 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+	"sort"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -33,10 +36,19 @@ type GitOpsDeploymentRepositoryCredentialSpec struct {
 	Secret string `json:"secret"`
 }
 
+// ErrorOccurred / ValidRepositoryURL / ValidRepositoryCredential
+const (
+	GitOpsDeploymentRepositoryCredentialConditionErrorOccurred             = "ErrorOccurred"
+	GitOpsDeploymentRepositoryCredentialConditionValidRepositoryUrl        = "ValidRepositoryURL"
+	GitOpsDeploymentRepositoryCredentialConditionValidRepositoryCredential = "ValidRepositoryCredential"
+)
+
 // GitOpsDeploymentRepositoryCredentialStatus defines the observed state of GitOpsDeploymentRepositoryCredential
 type GitOpsDeploymentRepositoryCredentialStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -62,4 +74,51 @@ type GitOpsDeploymentRepositoryCredentialList struct {
 
 func init() {
 	SchemeBuilder.Register(&GitOpsDeploymentRepositoryCredential{}, &GitOpsDeploymentRepositoryCredentialList{})
+}
+
+const (
+	RepositoryCredentialReasonErrorOccurred        = "ErrorOccurred"
+	RepositoryCredentialReasonCredentialsUpToDate  = "RepositoryCredentialUpToDate"
+	RepositoryCredentialReasonSecretNotSpecified   = "SecretNotSpecified"
+	RepositoryCredentialReasonSecretNotFound       = "SecretNotFound"
+	RepositoryCredentialReasonInvalidCredentials   = "InvalidCredentials"
+	RepositoryCredentialReasonInValidRepositoryUrl = "InvalidRepositoryUrl"
+	RepositoryCredentialReasonValidRepositoryUrl   = "ValidRepositoryUrl"
+)
+
+// SetConditions updates the GitOpsDeploymentRepositoryCredential status conditions for a subset of evaluated types.
+// If the GitOpsDeploymentRepositoryCredential has a pre-existing condition of a type that is not in the evaluated list,
+// it will be preserved. If the GitOpsDeploymentRepositoryCredential has a pre-existing condition of a type, status, reason that
+// is in the evaluated list, but not in the incoming conditions list, it will be removed.
+func (status *GitOpsDeploymentRepositoryCredentialStatus) SetConditions(conditions []metav1.Condition) {
+	repoCredConditions := make([]metav1.Condition, 0)
+	now := metav1.Now()
+	for i := range conditions {
+		condition := conditions[i]
+		eci := findConditionIndex(status.Conditions, condition.Type)
+		if eci >= 0 && status.Conditions[eci].Message == condition.Message && status.Conditions[eci].Reason == condition.Reason && status.Conditions[eci].Status == condition.Status {
+			// If we already have a condition of this type, status and reason, only update the timestamp if something
+			// has changed.
+			repoCredConditions = append(repoCredConditions, status.Conditions[eci])
+		} else {
+			// Otherwise we use the new incoming condition with an updated timestamp:
+			condition.LastTransitionTime = now
+			repoCredConditions = append(repoCredConditions, condition)
+		}
+	}
+	sort.Slice(repoCredConditions, func(i, j int) bool {
+		left := repoCredConditions[i]
+		right := repoCredConditions[j]
+		return fmt.Sprintf("%s/%s/%s/%s/%v", left.Type, left.Message, left.Status, left.Reason, left.LastTransitionTime) < fmt.Sprintf("%s/%s/%s/%s/%v", right.Type, right.Message, right.Status, right.Reason, right.LastTransitionTime)
+	})
+	status.Conditions = repoCredConditions
+}
+
+func findConditionIndex(conditions []metav1.Condition, t string) int {
+	for i := range conditions {
+		if conditions[i].Type == t {
+			return i
+		}
+	}
+	return -1
 }

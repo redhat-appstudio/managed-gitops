@@ -13,7 +13,7 @@ import (
 )
 
 func Migrate(opType string, migrationPath string) error {
-	addr, password := db.GetAddrAndPassword()
+	addr, password, dbName := db.GetAddrAndPassword()
 	port := 5432
 
 	// Base64 strings can contain '/' characters, which mess up URL parsing.
@@ -22,7 +22,7 @@ func Migrate(opType string, migrationPath string) error {
 
 	m, err := migrate.New(
 		migrationPath,
-		fmt.Sprintf("postgresql://postgres:%s@%s:%v/postgres?sslmode=disable", password, addr, port))
+		fmt.Sprintf("postgresql://postgres:%s@%s:%v/%s?sslmode=disable", password, addr, port, dbName))
 	if err != nil {
 		return fmt.Errorf("unable to connect to DB: %v", err)
 	}
@@ -36,7 +36,7 @@ func Migrate(opType string, migrationPath string) error {
 		return nil
 
 	} else if opType == "drop_smtable" {
-		dbq, err := db.ConnectToDatabaseWithPort(true, "postgres", port)
+		dbq, err := db.ConnectToDatabaseWithPort(true, port)
 		if err != nil {
 			return fmt.Errorf("unable to connect to DB: %v", err)
 		} else {

@@ -318,7 +318,7 @@ func handleWorkspaceEventLoopMessage(ctx context.Context, event eventlooptypes.E
 	if !exists {
 
 		var err error
-		applicationEntryVal, err = startApplicationEventQueueLoop(ctx, associatedGitOpsDeploymentName, event,
+		applicationEntryVal, err = startApplicationEventQueueLoop(ctx, event.Event.Client, associatedGitOpsDeploymentName, event,
 			state.sharedResourceEventLoop, state.applEventLoopFactory, log)
 		if err != nil {
 			// We already logged the error in startApplicationEventLoop, no need to log here
@@ -423,7 +423,7 @@ func handleStatusTickerMessage(state workspaceEventLoopInternalState) {
 
 }
 
-func startApplicationEventQueueLoop(ctx context.Context, associatedGitOpsDeploymentName string, event eventlooptypes.EventLoopMessage,
+func startApplicationEventQueueLoop(ctx context.Context, k8sClient client.Client, associatedGitOpsDeploymentName string, event eventlooptypes.EventLoopMessage,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop,
 	applEventLoopFactory applicationEventQueueLoopFactory, log logr.Logger) (workspaceEventLoop_applicationEventLoopEntry, error) {
 
@@ -436,6 +436,7 @@ func startApplicationEventQueueLoop(ctx context.Context, associatedGitOpsDeploym
 		SharedResourceEventLoop:   sharedResourceEventLoop,
 		VwsAPIExportName:          "", // this value will be replaced in startApplicationEventQueueLoop, so is blank
 		InputChan:                 make(chan application_event_loop.RequestMessage),
+		Client:                    k8sClient,
 	}
 
 	// Start the application event loop's goroutine

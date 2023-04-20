@@ -162,11 +162,6 @@ func (pc *ChaosClient) RESTMapper() meta.RESTMapper {
 	return res
 }
 
-func (pc *ChaosClient) SubResource(subResource string) client.SubResourceClient {
-	res := pc.InnerClient.SubResource(subResource)
-	return res
-}
-
 type ChaosClientStatusWrapper struct {
 	innerWriter *client.StatusWriter
 	// parent      *ProxyClient
@@ -175,7 +170,7 @@ type ChaosClientStatusWrapper struct {
 // Update updates the fields corresponding to the status subresource for the
 // given obj. obj must be a struct pointer so that obj can be updated
 // with the content returned by the Server.
-func (pcsw *ChaosClientStatusWrapper) Update(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
+func (pcsw *ChaosClientStatusWrapper) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
 
 	if err := shouldSimulateFailure("Status Update", obj); err != nil {
 		return err
@@ -190,7 +185,7 @@ func (pcsw *ChaosClientStatusWrapper) Update(ctx context.Context, obj client.Obj
 // Patch patches the given object's subresource. obj must be a struct
 // pointer so that obj can be updated with the content returned by the
 // Server.
-func (pcsw *ChaosClientStatusWrapper) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error {
+func (pcsw *ChaosClientStatusWrapper) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 
 	if err := shouldSimulateFailure("Status Patch", obj); err != nil {
 		return err

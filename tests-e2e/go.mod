@@ -7,6 +7,7 @@ require (
 	github.com/argoproj/argo-cd/v2 v2.5.4
 	github.com/argoproj/gitops-engine v0.7.1-0.20221004132320-98ccd3d43fd9
 	github.com/codeready-toolchain/api v0.0.0-20230417183849-f62ccbf3bd40
+	github.com/codeready-toolchain/toolchain-common v0.0.0-20230417235430-8258a3281250
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
 	github.com/redhat-appstudio/application-api v0.0.0-20230421113855-f25d47ce7499
 	github.com/redhat-appstudio/managed-gitops/appstudio-controller v0.0.0

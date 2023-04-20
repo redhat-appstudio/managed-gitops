@@ -239,11 +239,6 @@ func (pc *ProxyClient) RESTMapper() meta.RESTMapper {
 	return res
 }
 
-func (pc *ProxyClient) SubResource(subResource string) client.SubResourceClient {
-	res := pc.InnerClient.SubResource(subResource)
-	return res
-}
-
 type ProxyClientEventReceiver interface {
 	ReceiveEvent(event ProxyClientEvent)
 }
@@ -256,7 +251,7 @@ type ProxyClientStatusWrapper struct {
 // Update updates the fields corresponding to the status subresource for the
 // given obj. obj must be a struct pointer so that obj can be updated
 // with the content returned by the Server.
-func (pcsw *ProxyClientStatusWrapper) Update(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
+func (pcsw *ProxyClientStatusWrapper) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
 
 	res := (*pcsw.innerWriter).Update(ctx, obj, opts...)
 
@@ -266,7 +261,7 @@ func (pcsw *ProxyClientStatusWrapper) Update(ctx context.Context, obj client.Obj
 			Ctx:    ctx,
 			Obj:    &obj,
 			Options: &ProxyClientEventOptions{
-				ResourceUpdate: opts,
+				Update: opts,
 			},
 			ErrorRes: res,
 		}
@@ -280,7 +275,7 @@ func (pcsw *ProxyClientStatusWrapper) Update(ctx context.Context, obj client.Obj
 // Patch patches the given object's subresource. obj must be a struct
 // pointer so that obj can be updated with the content returned by the
 // Server.
-func (pcsw *ProxyClientStatusWrapper) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error {
+func (pcsw *ProxyClientStatusWrapper) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 
 	res := (*pcsw.innerWriter).Patch(ctx, obj, patch, opts...)
 
@@ -291,7 +286,7 @@ func (pcsw *ProxyClientStatusWrapper) Patch(ctx context.Context, obj client.Obje
 			Obj:    &obj,
 			Patch:  &patch,
 			Options: &ProxyClientEventOptions{
-				ResourcePatch: opts,
+				Patch: opts,
 			},
 			ErrorRes: res,
 		}

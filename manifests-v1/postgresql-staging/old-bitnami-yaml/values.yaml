@@ -1,5 +1,5 @@
 values.yaml:
-  postgresqlDatabase: ${POSTGRESQL_DATABASE}
+  postgresqlDatabase: postgres
   postgresqlUsername: postgres
   postgresqlPassword: gitops
 

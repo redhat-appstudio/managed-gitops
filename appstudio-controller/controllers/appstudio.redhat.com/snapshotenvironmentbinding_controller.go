@@ -435,7 +435,7 @@ func limitLength(str string, logger logr.Logger) string {
 	if len(str) <= 63 {
 		return str
 	}
-	logger.Error(nil, "label value should be at most 63 characters", "value", str)
+	logger.Error(nil, "SEVERE: label value in SnapshotEnvironmentBinding should be at most 63 characters", "value", str)
 	return str[:63]
 }
 

@@ -1,7 +1,19 @@
 #!/usr/bin/env bash
 
+# Exit if some commands fails
+set -e
+
 # Show commands in logs
 set -x
+
+# Stop port-forwarding when E2E tests are finished.
+function finish {
+  echo "E2E Test process is finished."
+
+  [ -n "${KUBE_PID}" ] && kill $KUBE_PID && echo "Port-forwarding has been successfully stopped"
+  exit
+}
+trap finish INT EXIT
 
 # Set necessary env variables
 export PATH="$PATH:$(pwd)"
@@ -26,14 +38,6 @@ export DB_PASS=$(kubectl get -n gitops secret gitops-postgresql-staging -o jsonp
 
 # Show commands in logs
 set -x
+
+# Run E2E tests
 make test-e2e
-
-echo "E2E Test process is Finished"
-
-# Stop port-forwarding when E2E tests are finished
-if ! kill $KUBE_PID; then
-  echo "Error: Cannot kill the background port-forward."
-  exit 1
-else
-  echo "Port-forwarding has been successfully stopped"
-fi

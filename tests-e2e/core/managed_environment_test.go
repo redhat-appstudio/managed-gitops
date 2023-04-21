@@ -809,6 +809,86 @@ var _ = Describe("Environment E2E tests", func() {
 
 		})
 
+		It("should ensure the namespace and clusterResources fields of the GitOpsDeploymentManagedEnvironment copied from the same fields in the Environment API", func() {
+			By("creating a new Environment")
+			environment := appstudioshared.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "staging",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Spec: appstudioshared.EnvironmentSpec{
+					DisplayName:        "my-environment",
+					DeploymentStrategy: appstudioshared.DeploymentStrategy_AppStudioAutomated,
+					ParentEnvironment:  "",
+					Tags:               []string{},
+					Configuration: appstudioshared.EnvironmentConfiguration{
+						Env: []appstudioshared.EnvVarPair{},
+					},
+					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
+						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+							TargetNamespace:            fixture.GitOpsServiceE2ENamespace,
+							APIURL:                     apiServerURL,
+							ClusterCredentialsSecret:   secret.Name,
+							AllowInsecureSkipTLSVerify: true,
+							ClusterResources:           true,
+							Namespaces: []string{
+								"namespace-1",
+								"namespace-2",
+							},
+						},
+					},
+				},
+			}
+
+			err := k8s.Create(&environment, k8sClient)
+			Expect(err).To(Succeed())
+
+			By("checking that the  GitOpsManagedEnvironment CR has been created with the namespaces and clusterResouces fields set appropriately")
+			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "managed-environment-" + environment.Name,
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+			}
+
+			Eventually(managedEnvCR, "2m", "1s").Should(
+				SatisfyAll(
+					managedenvironment.HaveClusterResources(environment.Spec.UnstableConfigurationFields.ClusterResources),
+					managedenvironment.HaveNamespaces(environment.Spec.UnstableConfigurationFields.Namespaces),
+				),
+			)
+
+			err = k8s.Get(&environment, k8sClient)
+			Expect(err).To(BeNil())
+
+			By("update the namespaces and clusterResources fields of Environment and verify that it updates the corresponding fields of GitOpsDeploymentManagedEnvironment")
+			environment.Spec.UnstableConfigurationFields = &appstudioshared.UnstableEnvironmentConfiguration{
+				KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+					TargetNamespace:            fixture.GitOpsServiceE2ENamespace,
+					APIURL:                     apiServerURL,
+					ClusterCredentialsSecret:   secret.Name,
+					AllowInsecureSkipTLSVerify: true,
+					ClusterResources:           false,
+					Namespaces: []string{
+						"namespace-1",
+						"namespace-2",
+						"namespace-3",
+					},
+				},
+			}
+
+			err = k8s.Update(&environment, k8sClient)
+			Expect(err).To(BeNil())
+
+			Eventually(managedEnvCR, "2m", "1s").Should(
+				SatisfyAll(
+					managedenvironment.HaveClusterResources(environment.Spec.UnstableConfigurationFields.ClusterResources),
+					managedenvironment.HaveNamespaces(environment.Spec.UnstableConfigurationFields.Namespaces),
+				),
+			)
+
+		})
+
 		It("create an Environment with DeploymentTargetClaim and verify if a valid ManagedEnvironment is created", func() {
 
 			By("create a new DeploymentTarget with the secret credentials")

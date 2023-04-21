@@ -428,6 +428,14 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 		return nil, nil
 	}
 
+	if env.Spec.UnstableConfigurationFields != nil {
+		manageEnvDetails.ClusterResources = env.Spec.UnstableConfigurationFields.ClusterResources
+
+		// Make a copy of the Environment's namespaces field
+		size := len(env.Spec.UnstableConfigurationFields.Namespaces)
+		manageEnvDetails.Namespaces = append(make([]string, 0, size), env.Spec.UnstableConfigurationFields.Namespaces...)
+	}
+
 	// 1) Retrieve the secret that the Environment is pointing to
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

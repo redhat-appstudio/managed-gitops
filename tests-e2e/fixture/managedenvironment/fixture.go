@@ -91,3 +91,57 @@ func HaveCredentials(expectedEnvSpec managedgitopsv1alpha1.GitOpsDeploymentManag
 		return res
 	}, BeTrue())
 }
+
+// HaveClusterResources checks if the ClusterResources field of Environment is equal to clusterResouces.
+func HaveClusterResources(clusterResouces bool) matcher.GomegaMatcher {
+	return WithTransform(func(menv managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment) bool {
+		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+		Expect(err).To(BeNil())
+
+		k8sClient, err := fixture.GetKubeClient(config)
+		if err != nil {
+			fmt.Println(k8s.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&menv), &menv)
+		if err != nil {
+			fmt.Println(k8s.K8sClientError, err)
+			return false
+		}
+
+		res := clusterResouces == menv.Spec.ClusterResources
+
+		fmt.Println("HaveClusterResources:", res, "/ Expected:", clusterResouces, "/ Actual:", menv.Spec.ClusterResources)
+
+		return res
+
+	}, BeTrue())
+}
+
+// HaveNamespaces checks if the HaveNamespaces field of Environment is equal to namespaces.
+func HaveNamespaces(namespaces []string) matcher.GomegaMatcher {
+	return WithTransform(func(menv managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment) bool {
+		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+		Expect(err).To(BeNil())
+
+		k8sClient, err := fixture.GetKubeClient(config)
+		if err != nil {
+			fmt.Println(k8s.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&menv), &menv)
+		if err != nil {
+			fmt.Println(k8s.K8sClientError, err)
+			return false
+		}
+
+		res := reflect.DeepEqual(namespaces, menv.Spec.Namespaces)
+
+		fmt.Println("HaveNamespaces:", res, "/ Expected:", namespaces, "/ Actual:", menv.Spec.Namespaces)
+
+		return res
+
+	}, BeTrue())
+}

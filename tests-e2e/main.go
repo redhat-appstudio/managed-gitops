@@ -18,8 +18,9 @@ package main
 
 import (
 	"flag"
-	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"os"
+
+	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.

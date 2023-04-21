@@ -90,6 +90,11 @@ var _ = Describe("Environment controller tests", func() {
 							APIURL:                     "https://my-api-url",
 							ClusterCredentialsSecret:   secret.Name,
 							AllowInsecureSkipTLSVerify: allowInsecureSkipTLSVerifyParam,
+							ClusterResources:           true,
+							Namespaces: []string{
+								"namespace-1",
+								"namespace-2",
+							},
 						},
 					},
 				},
@@ -123,6 +128,10 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(managedEnvCR.Spec.ClusterCredentialsSecret).To(Equal(env.Spec.UnstableConfigurationFields.ClusterCredentialsSecret),
 				"ManagedEnvironment should match the Environment")
 			Expect(managedEnvCR.Spec.AllowInsecureSkipTLSVerify).To(Equal(env.Spec.UnstableConfigurationFields.AllowInsecureSkipTLSVerify),
+				"ManagedEnvironment should match the Environment")
+			Expect(managedEnvCR.Spec.Namespaces).To(Equal(env.Spec.UnstableConfigurationFields.Namespaces),
+				"ManagedEnvironment should match the Environment")
+			Expect(managedEnvCR.Spec.ClusterResources).To(Equal(env.Spec.UnstableConfigurationFields.ClusterResources),
 				"ManagedEnvironment should match the Environment")
 		}
 
@@ -183,6 +192,11 @@ var _ = Describe("Environment controller tests", func() {
 							APIURL:                     "https://my-api-url",
 							ClusterCredentialsSecret:   secret2.Name,
 							AllowInsecureSkipTLSVerify: allowInsecureSkipTLSVerifyParam,
+							ClusterResources:           true,
+							Namespaces: []string{
+								"namespace-1",
+								"namespace-2",
+							},
 						},
 					},
 				},
@@ -197,6 +211,12 @@ var _ = Describe("Environment controller tests", func() {
 				APIURL:                     "https://old-api-url",
 				ClusterCredentialsSecret:   secret.Name,
 				AllowInsecureSkipTLSVerify: !allowInsecureSkipTLSVerifyParam,
+				ClusterResources:           false,
+				Namespaces: []string{
+					"namespace-1",
+					"namespace-2",
+					"namespace-3",
+				},
 			}
 			err = k8sClient.Create(ctx, &previouslyReconciledManagedEnv)
 			Expect(err).To(BeNil())
@@ -225,6 +245,10 @@ var _ = Describe("Environment controller tests", func() {
 				"ManagedEnvironment should match the Environment, not the old value")
 			Expect(newManagedEnv.Spec.AllowInsecureSkipTLSVerify).To(Equal(env.Spec.UnstableConfigurationFields.AllowInsecureSkipTLSVerify),
 				"ManagedEnvironment should match the Environment, not the old value")
+			Expect(newManagedEnv.Spec.Namespaces).To(Equal(env.Spec.UnstableConfigurationFields.Namespaces),
+				"ManagedEnvironment should match the Environment, not the old value")
+			Expect(newManagedEnv.Spec.ClusterResources).To(Equal(env.Spec.UnstableConfigurationFields.ClusterResources),
+				"ManagedEnvironment should match the Environment, not the old value")
 
 			By("reconciling again, and confirming that nothing changed")
 			_, err = reconciler.Reconcile(ctx, req)
@@ -238,6 +262,10 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(newManagedEnv.Spec.ClusterCredentialsSecret).To(Equal(env.Spec.UnstableConfigurationFields.ClusterCredentialsSecret),
 				"ManagedEnvironment should continue to match the Environment spec")
 			Expect(newManagedEnv.Spec.AllowInsecureSkipTLSVerify).To(Equal(env.Spec.UnstableConfigurationFields.AllowInsecureSkipTLSVerify),
+				"ManagedEnvironment should continue to match the new Environment spec")
+			Expect(newManagedEnv.Spec.Namespaces).To(Equal(env.Spec.UnstableConfigurationFields.Namespaces),
+				"ManagedEnvironment should continue to match the new Environment spec")
+			Expect(newManagedEnv.Spec.ClusterResources).To(Equal(env.Spec.UnstableConfigurationFields.ClusterResources),
 				"ManagedEnvironment should continue to match the new Environment spec")
 		}
 
@@ -648,6 +676,68 @@ var _ = Describe("Environment controller tests", func() {
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
 			Expect(err).ToNot(BeNil())
 			Expect(apierr.IsNotFound(err)).To(BeTrue())
+		})
+
+		It("Should not error out if the namespaces and clusterResources fields are not set in the Environment", func() {
+			var err error
+
+			secret := corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env-secret",
+					Namespace: apiNamespace.Name,
+				},
+				Type: sharedutil.ManagedEnvironmentSecretType,
+				Data: map[string][]byte{
+					"kubeconfig": ([]byte)("{}"),
+				},
+			}
+			err = k8sClient.Create(ctx, &secret)
+			Expect(err).To(BeNil())
+
+			env := appstudioshared.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-env",
+					Namespace: apiNamespace.Name,
+				},
+				Spec: appstudioshared.EnvironmentSpec{
+					DisplayName:        "my-environment",
+					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
+					ParentEnvironment:  "",
+					Tags:               []string{},
+					Configuration:      appstudioshared.EnvironmentConfiguration{},
+					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
+						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+							TargetNamespace:            "my-target-namespace",
+							APIURL:                     "https://my-api-url",
+							ClusterCredentialsSecret:   secret.Name,
+							AllowInsecureSkipTLSVerify: false,
+						},
+					},
+				},
+			}
+			err = k8sClient.Create(ctx, &env)
+			Expect(err).To(BeNil())
+
+			req := ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      env.Name,
+					Namespace: env.Namespace,
+				},
+			}
+			_, err = reconciler.Reconcile(ctx, req)
+			Expect(err).To(BeNil())
+
+			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "managed-environment-" + env.Name,
+					Namespace: req.Namespace,
+				},
+			}
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
+			Expect(err).To(BeNil(), "the ManagedEnvironment object should have been created by the reconciler")
+
+			Expect(managedEnvCR.Spec.Namespaces).To(BeEmpty())
+			Expect(managedEnvCR.Spec.ClusterResources).To(BeFalse())
 		})
 
 		Context("Test findObjectsForDeploymentTargetClaim function", func() {

@@ -29,7 +29,7 @@ func SpaceRequestReadyPredicate() predicate.Predicate {
 	}
 }
 
-//IsSpaceRequestReady checks if SpaceRequest condition is in Ready status.
+// IsSpaceRequestReady checks if SpaceRequest condition is in Ready status.
 func IsSpaceRequestReady(spacerequest *codereadytoolchainv1alpha1.SpaceRequest) bool {
 	return condition.IsTrue(spacerequest.Status.Conditions, codereadytoolchainv1alpha1.ConditionReady)
 }

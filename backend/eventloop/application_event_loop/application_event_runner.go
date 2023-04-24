@@ -89,15 +89,14 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 
 	signalledShutdown := false
 
+	ctx, cancel := context.WithCancel(outerContext)
+	defer cancel()
+
 	for {
 		// Read from input channel: wait for an event on this application
 		newEvent := <-inputChannel
 
-		ctx, cancel := context.WithCancel(outerContext)
-
 		ctx = sharedutil.AddKCPClusterToContext(ctx, newEvent.Request.ClusterName)
-
-		defer cancel()
 
 		// Process the event
 
@@ -107,7 +106,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 
 		// Keep attempting the process the event until no error is returned, or the request is cancelled.
 		attempts := 1
-		backoff := sharedutil.ExponentialBackoff{Min: time.Duration(100 * time.Millisecond), Max: time.Duration(15 * time.Second), Factor: 2, Jitter: true}
+		backoff := sharedutil.ExponentialBackoff{Min: time.Duration(100 * time.Millisecond), Max: time.Duration(60 * time.Second), Factor: 2, Jitter: true}
 	inner_for:
 		for {
 

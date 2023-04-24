@@ -342,8 +342,6 @@ github.com/prometheus/procfs v0.6.0/go.mod h1:cz+aTbrPOrUb4q7XlbU9ygM+/jj0fzG6c1
 github.com/prometheus/procfs v0.7.3/go.mod h1:cz+aTbrPOrUb4q7XlbU9ygM+/jj0fzG6c1xBZuNvfVA=
 github.com/prometheus/procfs v0.8.0 h1:ODq8ZFEaYeCaZOJlZZdJA2AbQR98dSHSM1KW/You5mo=
 github.com/prometheus/procfs v0.8.0/go.mod h1:z7EfXMXOkbkqb9IINtpCn86r/to3BnA0uaxHdg830/4=
-github.com/redhat-appstudio/application-api v0.0.0-20230331114710-7a895f1e2fbc h1:PbC/piJ/XQzt6kuMZmW2NT/6Jrr1SvDCqfBeuEOseOU=
-github.com/redhat-appstudio/application-api v0.0.0-20230331114710-7a895f1e2fbc/go.mod h1:LpcTNLCDMf1CUNTw2bgTiz8M49sUsN2F9T7bOSKcJEo=
 github.com/redhat-appstudio/application-api v0.0.0-20230421113855-f25d47ce7499 h1:cOr4QX/0d+QZ80ef7wjXRsGm7Bnr5RCapTqTPKqgRao=
 github.com/redhat-appstudio/application-api v0.0.0-20230421113855-f25d47ce7499/go.mod h1:LpcTNLCDMf1CUNTw2bgTiz8M49sUsN2F9T7bOSKcJEo=
 github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6LYCDYWNEvQ=

@@ -40,6 +40,7 @@ var _ = Describe("Sandbox Provisioner controller tests", func() {
 				},
 				Spec: appstudiosharedv1.DeploymentTargetClassSpec{
 					Provisioner: appstudiosharedv1.Provisioner_Devsandbox,
+					ReclaimPolicy: "Retain",
 				},
 			}
 

@@ -104,7 +104,7 @@ var _ = Describe("Environment Status.Conditions tests", func() {
 						Env: []appstudioshared.EnvVarPair{},
 						Target: appstudioshared.EnvironmentTarget{
 							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
-								ClaimName: "test-dtc",
+								ClaimName: "testdtc",
 							},
 						},
 					},

@@ -104,6 +104,12 @@ rules:
 - apiGroups:
   - appstudio.redhat.com
   resources:
+  - deploymenttargets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - appstudio.redhat.com
+  resources:
   - deploymenttargets/status
   verbs:
   - get

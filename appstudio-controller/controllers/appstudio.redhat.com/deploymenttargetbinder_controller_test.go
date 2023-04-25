@@ -69,7 +69,12 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 					dtc.Spec.TargetName = dt.Name
 				},
 				)
+
 				err = k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				dtcls := getDeploymentTargetClass(func(dtcls *appstudiosharedv1.DeploymentTargetClass) {})
+				err = k8sClient.Create(ctx, &dtcls)
 				Expect(err).To(BeNil())
 
 				By("reconcile with a DT and DTC that refer each other")
@@ -114,6 +119,159 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
 				Expect(err).To(BeNil())
 				Expect(dt.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetPhase_Released))
+			})
+
+			It("should handle the deletion of a bounded DeploymentTargetClaim", func() {
+				dt := getDeploymentTarget()
+				err := k8sClient.Create(ctx, &dt)
+				Expect(err).To(BeNil())
+
+				dtc := getDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
+					dtc.ObjectMeta.Annotations = map[string]string{
+						appstudiosharedv1.AnnBindCompleted: appstudiosharedv1.AnnBinderValueTrue,
+					}
+					dtc.Status.Phase = appstudiosharedv1.DeploymentTargetClaimPhase_Bound
+					dtc.Spec.TargetName = dt.Name
+				},
+				)
+
+				err = k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				dtcls := getDeploymentTargetClass(func(dtcls *appstudiosharedv1.DeploymentTargetClass) {
+					dtcls.Spec.ReclaimPolicy = "Delete"
+				})
+				err = k8sClient.Create(ctx, &dtcls)
+				Expect(err).To(BeNil())
+
+				By("reconcile with a DT and DTC that refer each other")
+				request := newRequest(dtc.Namespace, dtc.Name)
+				res, err := reconciler.Reconcile(ctx, request)
+				Expect(err).To(BeNil())
+				Expect(res).To(Equal(ctrl.Result{}))
+
+				By("check if the status of DT and DTC is Bound")
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
+				Expect(err).To(BeNil())
+				Expect(dtc.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetClaimPhase_Bound))
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
+				Expect(err).To(BeNil())
+				Expect(dt.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetPhase_Bound))
+
+				By("check if the binding controller has set the finalizer")
+				finalizerFound := false
+				for _, f := range dtc.GetFinalizers() {
+					if f == appstudiosharedv1.FinalizerBinder {
+						finalizerFound = true
+						break
+					}
+				}
+				Expect(finalizerFound).To(BeTrue())
+
+				By("delete the DTC and verify if the DT is removed")
+				err = k8sClient.Delete(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
+				Expect(apierr.IsNotFound(err)).To(BeFalse())
+
+				res, err = reconciler.Reconcile(ctx, request)
+				Expect(err).To(BeNil())
+				Expect(res).To(Equal(ctrl.Result{}))
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
+				Expect(apierr.IsNotFound(err)).To(BeFalse())
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
+				Expect(apierr.IsNotFound(err)).To(BeFalse())
+
+				By("check if the binding controller has set the finalizer")
+				finalizerFound = false
+				for _, f := range dt.GetFinalizers() {
+					if f == FinalizerDT {
+						finalizerFound = true
+						break
+					}
+				}
+				Expect(finalizerFound).To(BeTrue())
+			})
+
+			It("should handle the deletion of a bounded DeploymentTargetClaim with Retain ReclaimPolicy", func() {
+				dt := getDeploymentTarget()
+				err := k8sClient.Create(ctx, &dt)
+				Expect(err).To(BeNil())
+
+				dtc := getDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
+					dtc.ObjectMeta.Annotations = map[string]string{
+						appstudiosharedv1.AnnBindCompleted: appstudiosharedv1.AnnBinderValueTrue,
+					}
+					dtc.Status.Phase = appstudiosharedv1.DeploymentTargetClaimPhase_Bound
+					dtc.Spec.TargetName = dt.Name
+				},
+				)
+
+				err = k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				dtcls := getDeploymentTargetClass(func(dtcls *appstudiosharedv1.DeploymentTargetClass) {
+					dtcls.Spec.ReclaimPolicy = "Retain"
+				})
+				err = k8sClient.Create(ctx, &dtcls)
+				Expect(err).To(BeNil())
+
+				By("reconcile with a DT and DTC that refer each other")
+				request := newRequest(dtc.Namespace, dtc.Name)
+				res, err := reconciler.Reconcile(ctx, request)
+				Expect(err).To(BeNil())
+				Expect(res).To(Equal(ctrl.Result{}))
+
+				By("check if the status of DT and DTC is Bound")
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
+				Expect(err).To(BeNil())
+				Expect(dtc.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetClaimPhase_Bound))
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
+				Expect(err).To(BeNil())
+				Expect(dt.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetPhase_Bound))
+
+				By("check if the binding controller has set the finalizer")
+				finalizerFound := false
+				for _, f := range dtc.GetFinalizers() {
+					if f == appstudiosharedv1.FinalizerBinder {
+						finalizerFound = true
+						break
+					}
+				}
+				Expect(finalizerFound).To(BeTrue())
+
+				By("delete the DTC and verify if the DT is removed")
+				err = k8sClient.Delete(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
+				Expect(apierr.IsNotFound(err)).To(BeFalse())
+
+				res, err = reconciler.Reconcile(ctx, request)
+				Expect(err).To(BeNil())
+				Expect(res).To(Equal(ctrl.Result{}))
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
+				Expect(err).To(BeNil())
+				Expect(dt.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetPhase_Released))
+
+				By("check if the binding controller has set the finalizer")
+				finalizerFound = false
+				for _, f := range dt.GetFinalizers() {
+					if f == FinalizerDT {
+						finalizerFound = true
+						break
+					}
+				}
+				Expect(finalizerFound).To(BeTrue())
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
+				Expect(apierr.IsNotFound(err)).To(BeTrue())
 			})
 
 			It("should handle the deletion of a bounded DeploymentTargetClaim with deleted DeploymentTarget", func() {
@@ -1040,4 +1198,24 @@ func getDeploymentTarget(ops ...func(dt *appstudiosharedv1.DeploymentTarget)) ap
 	}
 
 	return dt
+}
+
+func getDeploymentTargetClass(ops ...func(dtc *appstudiosharedv1.DeploymentTargetClass)) appstudiosharedv1.DeploymentTargetClass {
+	dtcls := appstudiosharedv1.DeploymentTargetClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "test-sandbox-class",
+			Namespace:   "test-ns",
+			Annotations: map[string]string{},
+		},
+		Spec: appstudiosharedv1.DeploymentTargetClassSpec{
+			Provisioner:   appstudiosharedv1.Provisioner_Devsandbox,
+			ReclaimPolicy: "Retain",
+		},
+	}
+
+	for _, o := range ops {
+		o(&dtcls)
+	}
+
+	return dtcls
 }

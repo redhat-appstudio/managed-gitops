@@ -37,6 +37,9 @@ const (
 	DefaultAppProject = "default"
 
 	ArgoCDFinalizerName = "argoproj.io/finalizer"
+
+	argoCDReconciliationTimeoutEnvName  = "ARGOCD_RECONCILIATION_TIMEOUT"
+	argoCDReconciliationTimeoutEnvValue = "60s"
 )
 
 // ReconcileNamespaceScopedArgoCD will create/update an ArgoCD operand within the specified namespace.
@@ -90,6 +93,12 @@ func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, na
 					},
 				},
 				Sharding: argocdoperator.ArgoCDApplicationControllerShardSpec{},
+				Env: []corev1.EnvVar{
+					{
+						Name:  argoCDReconciliationTimeoutEnvName,
+						Value: argoCDReconciliationTimeoutEnvValue,
+					},
+				},
 			},
 			Grafana: argocdoperator.ArgoCDGrafanaSpec{
 				Enabled: false,
@@ -158,6 +167,12 @@ func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, na
 					Requests: corev1.ResourceList{
 						corev1.ResourceCPU:    resource.MustParse("250m"),
 						corev1.ResourceMemory: resource.MustParse("256Mi"),
+					},
+				},
+				Env: []corev1.EnvVar{
+					{
+						Name:  argoCDReconciliationTimeoutEnvName,
+						Value: argoCDReconciliationTimeoutEnvValue,
 					},
 				},
 			},

@@ -8,6 +8,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// Variables to be used for ADR6 logging.
+const (
+	LogLogger_managed_gitops = "managed-gitops"
+)
+
 const (
 	LogLevel_Debug int = 1
 

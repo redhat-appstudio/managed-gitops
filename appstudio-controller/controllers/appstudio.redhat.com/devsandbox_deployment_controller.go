@@ -23,6 +23,7 @@ import (
 
 	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	applicationv1alpha1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -59,7 +60,8 @@ func (r *DevsandboxDeploymentReconciler) Reconcile(ctx context.Context, req ctrl
 	var dt *applicationv1alpha1.DeploymentTarget
 	var err error
 
-	log := log.FromContext(ctx).WithValues("name", req.Name, "namespace", req.Namespace, "component", "devsandboxDeployment")
+	log := log.FromContext(ctx).
+		WithName(sharedutil.LogLogger_managed_gitops)
 
 	spacerequest := codereadytoolchainv1alpha1.SpaceRequest{
 		ObjectMeta: metav1.ObjectMeta{

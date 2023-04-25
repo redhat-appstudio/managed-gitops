@@ -18,7 +18,6 @@ package appstudioredhatcom
 
 import (
 	"context"
-	"fmt"
 
 	appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
@@ -49,9 +48,10 @@ type SnapshotReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
 func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
-	_ = log.FromContext(ctx)
+	log := log.FromContext(ctx).
+		WithName(sharedutil.LogLogger_managed_gitops)
 
-	fmt.Println("Snapshot event: ", req)
+	log.Info("Snapshot event: ", req)
 
 	return ctrl.Result{}, nil
 }

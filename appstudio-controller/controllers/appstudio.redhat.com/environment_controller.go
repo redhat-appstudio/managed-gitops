@@ -62,7 +62,9 @@ type EnvironmentReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
 func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
-	log := log.FromContext(ctx).WithValues("request", req)
+	log := log.FromContext(ctx).
+		WithName(sharedutil.LogLogger_managed_gitops).
+		WithValues("request", req)
 
 	rClient := sharedutil.IfEnabledSimulateUnreliableClient(r.Client)
 
@@ -506,7 +508,8 @@ func (r *EnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // findObjectsForDeploymentTargetClaim maps an incoming DTC event to the corresponding Environment request.
 func (r *EnvironmentReconciler) findObjectsForDeploymentTargetClaim(dtc client.Object) []reconcile.Request {
 	ctx := context.Background()
-	handlerLog := log.FromContext(ctx)
+	handlerLog := log.FromContext(ctx).
+		WithName(sharedutil.LogLogger_managed_gitops)
 
 	dtc, ok := dtc.(*appstudioshared.DeploymentTargetClaim)
 	if !ok {
@@ -538,7 +541,8 @@ func (r *EnvironmentReconciler) findObjectsForDeploymentTargetClaim(dtc client.O
 // We should reconcile Environments if the DT credentials get updated.
 func (r *EnvironmentReconciler) findObjectsForDeploymentTarget(dt client.Object) []reconcile.Request {
 	ctx := context.Background()
-	handlerLog := log.FromContext(ctx)
+	handlerLog := log.FromContext(ctx).
+		WithName(sharedutil.LogLogger_managed_gitops)
 
 	dtObj, ok := dt.(*appstudioshared.DeploymentTarget)
 	if !ok {

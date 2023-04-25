@@ -50,7 +50,8 @@ type ApplicationReconciler struct {
 func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
 	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
-	log := log.FromContext(ctx)
+	log := log.FromContext(ctx).
+		WithName(sharedutil.LogLogger_managed_gitops)
 
 	log.Info("Detected AppStudio Application event:", "request", req)
 

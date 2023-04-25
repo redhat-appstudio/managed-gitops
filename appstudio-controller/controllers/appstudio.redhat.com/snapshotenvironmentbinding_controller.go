@@ -70,7 +70,9 @@ type SnapshotEnvironmentBindingReconciler struct {
 func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 
-	log := log.FromContext(ctx).WithValues("name", req.Name, "namespace", req.Namespace, "component", "bindingReconcile")
+	log := log.FromContext(ctx).
+		WithName(sharedutil.LogLogger_managed_gitops)
+
 	defer log.V(sharedutil.LogLevel_Debug).Info("Snapshot Environment Binding Reconcile() complete.")
 
 	binding := &appstudioshared.SnapshotEnvironmentBinding{}
@@ -294,7 +296,10 @@ const (
 func processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployment apibackend.GitOpsDeployment,
 	binding appstudioshared.SnapshotEnvironmentBinding, k8sClient client.Client) error {
 
-	log := log.FromContext(ctx).WithValues("binding", binding.Name, "gitOpsDeployment", expectedGitopsDeployment.Name, "namespace", binding.Namespace)
+	log := log.FromContext(ctx).
+		WithName(sharedutil.LogLogger_managed_gitops).
+		WithValues("binding", binding.Name, "gitOpsDeployment", expectedGitopsDeployment.Name)
+
 	actualGitOpsDeployment := apibackend.GitOpsDeployment{}
 
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&expectedGitopsDeployment), &actualGitOpsDeployment); err != nil {

@@ -73,7 +73,8 @@ const (
 func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 
-	log := log.FromContext(ctx).WithValues("name", req.Name, "namespace", req.Namespace)
+	log := log.FromContext(ctx).
+		WithName(sharedutil.LogLogger_managed_gitops)
 	defer log.V(sharedutil.LogLevel_Debug).Info("Promotion Run Reconcile() complete.")
 	promotionRun := &appstudioshared.PromotionRun{}
 

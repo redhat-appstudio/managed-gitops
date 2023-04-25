@@ -181,6 +181,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err = (&appstudioredhatcomcontrollers.DeploymentTargetReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "DeploymentTarget")
+		os.Exit(1)
+	}
+
 	if err = (&appstudioredhatcomcontrollers.SandboxProvisionerReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),

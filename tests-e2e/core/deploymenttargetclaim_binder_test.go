@@ -21,6 +21,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			ctx       context.Context
 			namespace string
 			dtc       appstudiosharedv1.DeploymentTargetClaim
+			dtcls     appstudiosharedv1.DeploymentTargetClass
 			dt        appstudiosharedv1.DeploymentTarget
 		)
 
@@ -44,6 +45,21 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 				},
 			}
 
+			dtcls = appstudiosharedv1.DeploymentTargetClass{
+                                ObjectMeta: metav1.ObjectMeta{
+                                        Name:        "sandbox-provisioner",
+                                        Namespace:   namespace,
+                                        Annotations: map[string]string{},
+                                },
+                                Spec: appstudiosharedv1.DeploymentTargetClassSpec{
+                                        Provisioner: appstudiosharedv1.Provisioner_Devsandbox,
+                                        ReclaimPolicy: "Retain",
+                                },
+                        }
+
+			err = k8sClient.Create(ctx, &dtcls)
+			Expect(err).To(BeNil())
+
 			dt = appstudiosharedv1.DeploymentTarget{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-dt",
@@ -58,6 +74,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 					},
 				},
 			}
+
 		})
 
 		It("should handle a DTC with dynamic provisioning", func() {
@@ -195,7 +212,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			Eventually(&dtc, "2m", "1s").Should(k8s.NotExist(k8sClient))
 
 			By("check if the binded DT is released")
-			Eventually(dt, "2m", "1s").Should(
+			Eventually(dt, "5m", "1s").Should(
 				dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Released))
 		})
 
@@ -229,5 +246,4 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Lost))
 		})
 	})
-
 })

@@ -87,7 +87,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 	// Handle deletion if the DTC has a deletion timestamp set.
 	if dtc.GetDeletionTimestamp() != nil {
 		log.Info("Handling a deleted DeploymentTargetClaim")
-		// If the DTC is bound set the status of the corresponding DT to Released
+		// If the DTC is bound set, handle the corresponding DT
 		if isDTCBound(dtc) {
 			dt, err := getDTBoundByDTC(ctx, r.Client, &dtc)
 			if err != nil && !apierr.IsNotFound(err) {
@@ -95,22 +95,52 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 			}
 
 			if dt != nil {
-				err = updateDTStatusPhase(ctx, r.Client, dt, applicationv1alpha1.DeploymentTargetPhase_Released, log)
-				if err != nil {
+				var dtcls *applicationv1alpha1.DeploymentTargetClass
+				if dtcls, err = findMatchingDTClassForDT(ctx, r.Client, *dt); err != nil {
 					return ctrl.Result{}, err
 				}
-				log.Info("DeploymentTarget is released", "DeploymentTarget", dt.Name)
+				// Add the deletion finalizer if it is absent.
+				if addFinalizer(dt, FinalizerDT) {
+					if err = r.Client.Update(ctx, dt); err != nil {
+						return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s to DeploymentTarget %s in namespace %s: %v", FinalizerDT, dt.Name, dt.Namespace, err)
+					}
+					log.Info("Added finalizer to DeploymentTarget", "finalizer", FinalizerDT)
+				}
+
+				if dtcls.Spec.ReclaimPolicy == applicationv1alpha1.ReclaimPolicy_Delete {
+					log.Info("ReclaimPolicy is ReclaimPolicy_Delete")
+					err = r.Client.Delete(ctx, dt)
+					if err != nil {
+						return ctrl.Result{}, err
+					}
+					log.Info("DeploymentTarget is marked to Deleted", "DeploymentTarget", dt.Name)
+					return ctrl.Result{}, nil
+				} else if dtcls.Spec.ReclaimPolicy == applicationv1alpha1.ReclaimPolicy_Retain {
+					log.Info("ReclaimPolicy is ReclaimPolicy_Retain")
+					if removeFinalizer(&dtc, applicationv1alpha1.FinalizerBinder) {
+						if err := r.Client.Update(ctx, &dtc); err != nil {
+							return ctrl.Result{}, fmt.Errorf("failed to remove finalizer %s from DeploymentTargetClaim %s in namespace %s: %v", applicationv1alpha1.FinalizerBinder, dtc.Name, dtc.Namespace, err)
+						}
+						log.Info("Removed finalizer from DeploymentTargetClaim", "finalizer", applicationv1alpha1.FinalizerBinder)
+						err := updateDTStatusPhase(ctx, r.Client, dt, applicationv1alpha1.DeploymentTargetPhase_Released, log)
+						if err != nil {
+							return ctrl.Result{}, fmt.Errorf("failed to update DeploymentTarget %s in namespace %s to Released status", dt.Name, dt.Namespace)
+						}
+						return ctrl.Result{}, nil
+					}
+				} else {
+					return ctrl.Result{}, fmt.Errorf("the ReclaimPolicy is neither Delete nor Retain")
+				}
+				return ctrl.Result{}, nil
 			}
 		}
-
 		if removeFinalizer(&dtc, applicationv1alpha1.FinalizerBinder) {
 			if err := r.Client.Update(ctx, &dtc); err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer %s from DeploymentTargetClaim %s in namespace %s: %v", applicationv1alpha1.FinalizerBinder, dtc.Name, dtc.Namespace, err)
 			}
 			log.Info("Removed finalizer from DeploymentTargetClaim", "finalizer", applicationv1alpha1.FinalizerBinder)
+			return ctrl.Result{}, nil
 		}
-
-		return ctrl.Result{}, nil
 	}
 
 	// If the binding is already done, we need to check if the DTC is still bound to a DT

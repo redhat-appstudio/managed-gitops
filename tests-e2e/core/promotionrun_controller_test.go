@@ -9,8 +9,10 @@ import (
 
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	bindingFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/binding"
 	promotionRunFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/promotionrun"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -24,11 +26,44 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 		BeforeEach(func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
+			clientconfig, err := fixture.GetSystemKubeConfig()
+			Expect(err).Should(BeNil())
+			err = fixture.EnsureDestinationNamespaceExists("new-e2e-test-namespace2", dbutil.GetGitOpsEngineSingleInstanceNamespace(), clientconfig)
+			Expect(err).Should(BeNil())
+
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
+			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
+			Expect(err).To(BeNil())
+
+			By("creating managed environment Secret")
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-managed-env-secret",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Type:       "managed-gitops.redhat.com/managed-environment",
+				StringData: map[string]string{"kubeconfig": kubeConfigContents},
+			}
+
+			err = k8s.Create(secret, k8sClient)
+			Expect(err).To(BeNil())
+
 			By("Create Staging Environment.")
 			environmentStage := buildEnvironmentResource("staging", "Staging Environment", "staging", appstudiosharedv1.EnvironmentType_POC)
+
+			// Staging environment must be in a different namespace from the production environment, else we get a
+			// problem with the same resource being owned by two different applications.
+			// See Jira issue https://issues.redhat.com/browse/GITOPSRVCE-544
+			environmentStage.Spec.UnstableConfigurationFields = &appstudiosharedv1.UnstableEnvironmentConfiguration{
+				KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
+					TargetNamespace:            "new-e2e-test-namespace2",
+					APIURL:                     apiServerURL,
+					ClusterCredentialsSecret:   secret.Name,
+					AllowInsecureSkipTLSVerify: true,
+				},
+			}
 			err = k8s.Create(&environmentStage, k8sClient)
 			Expect(err).To(Succeed())
 
@@ -37,7 +72,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			err = k8s.Create(&environmentProd, k8sClient)
 			Expect(err).To(Succeed())
 
-			By("Create Snapshot.")
+			By("Create Staging Snapshot.")
 			snapshot := buildSnapshotResource("my-snapshot", "new-demo-app", "Staging Snapshot", "Staging Snapshot", "component-a", "quay.io/jgwest-redhat/sample-workload:latest")
 			err = k8s.Create(&snapshot, k8sClient)
 			Expect(err).To(Succeed())
@@ -52,7 +87,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			// don't care about the deployment status
 			err = buildAndUpdateBindingStatus(bindingStage.Spec.Components,
 				"https://github.com/redhat-appstudio/managed-gitops", "main", "fdhyqtw",
-				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/staging", "resources/test-data/component-based-gitops-repository/components/componentB/overlays/staging"}, &bindingStage)
+				[]string{"resources/test-data/component-based-gitops-repository-no-route/components/componentA/overlays/staging", "resources/test-data/component-based-gitops-repository-no-route/components/componentB/overlays/staging"}, &bindingStage)
 			Expect(err).To(Succeed())
 
 			By("Create Production Binding.")
@@ -66,7 +101,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			// don't care about the deployment status
 			err = buildAndUpdateBindingStatus(bindingProd.Spec.Components,
 				"https://github.com/redhat-appstudio/managed-gitops", "main", "fdhyqtw",
-				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/staging", "resources/test-data/component-based-gitops-repository/components/componentB/overlays/staging"}, &bindingProd)
+				[]string{"resources/test-data/component-based-gitops-repository-no-route/components/componentA/overlays/staging", "resources/test-data/component-based-gitops-repository-no-route/components/componentB/overlays/staging"}, &bindingProd)
 			Expect(err).To(Succeed())
 
 			By("Verify that Status.GitOpsDeployments field of Binding is having Component and GitOpsDeployment name.")

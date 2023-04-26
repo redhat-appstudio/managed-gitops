@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 
 	argocdoperator "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -85,7 +86,7 @@ func EnsureCleanSlateNonKCPVirtualWorkspace() error {
 		return err
 	}
 
-	if err := ensureDestinationNamespaceExists(GitOpsServiceE2ENamespace, dbutil.GetGitOpsEngineSingleInstanceNamespace(), clientconfig); err != nil {
+	if err := EnsureDestinationNamespaceExists(GitOpsServiceE2ENamespace, dbutil.GetGitOpsEngineSingleInstanceNamespace(), clientconfig); err != nil {
 		return err
 	}
 
@@ -396,7 +397,7 @@ func removeAllFinalizers(k8sClient client.Client, obj client.Object) error {
 	return nil
 }
 
-func ensureDestinationNamespaceExists(namespaceParam string, argoCDNamespaceParam string, clientConfig *rest.Config) error {
+func EnsureDestinationNamespaceExists(namespaceParam string, argoCDNamespaceParam string, clientConfig *rest.Config) error {
 
 	kubeClientSet, err := kubernetes.NewForConfig(clientConfig)
 	if err != nil {
@@ -1065,7 +1066,7 @@ func EnsureCleanSlateKCPVirtualWorkspace() error {
 		return err
 	}
 
-	if err := ensureDestinationNamespaceExists(GitOpsServiceE2ENamespace, dbutil.GetGitOpsEngineSingleInstanceNamespace(), userConfig); err != nil {
+	if err := EnsureDestinationNamespaceExists(GitOpsServiceE2ENamespace, dbutil.GetGitOpsEngineSingleInstanceNamespace(), userConfig); err != nil {
 		return err
 	}
 

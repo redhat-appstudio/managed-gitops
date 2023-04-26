@@ -2,16 +2,11 @@
 
 # Tip: More info on psql - https://tomcam.github.io/postgres/
 
-POSTGRES_CONTAINER="managed-gitops-postgres"
+
+# Run psql in its own disposable container
+
+PGPASSWORD="${POSTGRES_PASSWORD:-gitops}"
 POSTGRESQL_DATABASE="${POSTGRESQL_DATABASE:=postgres}"
-if docker ps | grep $POSTGRES_CONTAINER &>/dev/null; then
-  docker exec \
-    --user postgres \
-    -e PGPASSWORD=gitops \
-    -it "$POSTGRES_CONTAINER" "psql" \
-    -h localhost -d $POSTGRESQL_DATABASE -U postgres -p 5432 "$*"
-else
-  echo "Error: cannot interact with the PostgreSQL server: '$POSTGRES_CONTAINER' container is not running."
-  echo "Run './create-dev-env.sh script first"
-  exit 1
-fi
+
+docker run -e PGPASSWORD=$PGPASSWORD --network=host --rm -it postgres:13 \
+  psql -h localhost -d $POSTGRESQL_DATABASE -U postgres -p 5432

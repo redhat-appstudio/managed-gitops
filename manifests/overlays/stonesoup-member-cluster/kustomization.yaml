@@ -7,7 +7,7 @@ resources:
 - ../../../appstudio-controller/config/default-no-prometheus
 - ../../../backend/config/default-no-prometheus
 - ../../../cluster-agent/config/default-no-prometheus
-- ../../base/gitops-service-argocd/base
+- ../../base/gitops-service-argocd/overlays/appstudio-staging-and-prod
 - ../appstudio-staging-cluster/prometheus
 
 patchesStrategicMerge:

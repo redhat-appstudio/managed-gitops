@@ -1,0 +1,15 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: gitops-service-argocd
+  namespace: gitops-service-argocd
+spec:
+
+  controller:
+    resources:
+      limits:
+        cpu: "2"
+        memory: 6Gi
+      requests:
+        cpu: "1"
+        memory: 3Gi

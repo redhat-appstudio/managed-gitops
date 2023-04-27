@@ -83,7 +83,8 @@ func operationEventLoopRouter(input chan operationEventLoopEvent) {
 
 	ctx := context.Background()
 
-	log := log.FromContext(ctx).WithName("operation-event-loop")
+	log := log.FromContext(ctx).
+		WithName(sharedutil.LogLogger_managed_gitops)
 
 	taskRetryLoop := sharedutil.NewTaskRetryLoop("cluster-agent")
 

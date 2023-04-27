@@ -30,7 +30,9 @@ func (r *OperationCRMetricUpdater) StartOperationCRMetricUpdater() {
 		<-timer.C
 
 		ctx := context.Background()
-		log := log.FromContext(ctx).WithValues("component", "operation-reconciler")
+		log := log.FromContext(ctx).
+			WithName(sharedutil.LogLogger_managed_gitops)
+
 		_, _ = sharedutil.CatchPanic(func() error {
 			updateOperationCRMetrics(ctx, r.Client, log)
 			return nil

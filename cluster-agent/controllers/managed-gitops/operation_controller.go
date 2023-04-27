@@ -105,7 +105,8 @@ func (g *garbageCollector) startGarbageCollectionCycle() {
 
 			_, _ = sharedutil.CatchPanic(func() error {
 				ctx := context.Background()
-				log := log.FromContext(ctx)
+				log := log.FromContext(ctx).
+					WithName(sharedutil.LogLogger_managed_gitops)
 
 				// get failed/completed operations with non-zero gc interval
 				operations := []db.Operation{}

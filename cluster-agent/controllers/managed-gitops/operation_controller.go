@@ -31,7 +31,6 @@ import (
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	sharedoperations "github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
@@ -133,12 +132,17 @@ func (g *garbageCollector) garbageCollectOperations(ctx context.Context, operati
 				log.Error(err, "failed to delete operation from DB", "operation_id", operation.Operation_id)
 				continue
 			}
-
+			engineInstanceDB := db.GitopsEngineInstance{
+				Gitopsengineinstance_id: operation.Instance_id,
+			}
+			if err = g.db.GetGitopsEngineInstanceById(ctx, &engineInstanceDB); err != nil {
+				log.Error(err, "Unable to fetch GitopsEngineInstance")
+			}
 			// remove the Operation resource from the cluster
 			operationCR := &managedgitopsv1alpha1.Operation{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      sharedoperations.GenerateOperationCRName(operation),
-					Namespace: util.GetGitOpsEngineSingleInstanceNamespace(),
+					Namespace: engineInstanceDB.Namespace_name,
 				},
 			}
 

@@ -394,15 +394,15 @@ func (a *applicationEventLoopRunner_Action) handleDeletedGitOpsDeplSyncRunEvent(
 
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput, clusterUser.Clusteruser_id,
-		dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log)
+		gitopsEngineInstance.Namespace_name, dbQueries, operationClient, log)
 	if err != nil {
-		log.Error(err, "could not create operation, when resource was deleted", "namespace", dbutil.GetGitOpsEngineSingleInstanceNamespace())
+		log.Error(err, "could not create operation, when resource was deleted", "namespace", gitopsEngineInstance.Namespace_name)
 
 		return gitopserrors.NewDevOnlyError(err)
 	}
 
 	// 3) Clean up the operation and database table entries
-	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, !a.testOnlySkipCreateOperation, log); err != nil {
+	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, gitopsEngineInstance.Namespace_name, dbQueries, operationClient, !a.testOnlySkipCreateOperation, log); err != nil {
 		return gitopserrors.NewDevOnlyError(err)
 	}
 
@@ -508,9 +508,9 @@ func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSyncRunEvent(ctx 
 	}
 
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, false, dbOperationInput, clusterUser.Clusteruser_id,
-		dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log)
+		gitopsEngineInstance.Namespace_name, dbQueries, operationClient, log)
 	if err != nil {
-		log.Error(err, "could not create operation", "namespace", dbutil.GetGitOpsEngineSingleInstanceNamespace())
+		log.Error(err, "could not create operation", "namespace", gitopsEngineInstance.Namespace_name)
 
 		// If we were unable to create the operation, delete the resources we created in the previous steps
 		dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log)
@@ -564,7 +564,7 @@ outer_for:
 
 	}
 
-	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, !a.testOnlySkipCreateOperation, log); err != nil {
+	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, gitopsEngineInstance.Namespace_name, dbQueries, operationClient, !a.testOnlySkipCreateOperation, log); err != nil {
 		return gitopserrors.NewDevOnlyError(err)
 	}
 

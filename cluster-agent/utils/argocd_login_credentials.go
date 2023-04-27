@@ -121,7 +121,8 @@ type credentialResponse struct {
 
 func (cs *CredentialService) credentialHandler(input chan credentialRequest) {
 
-	log := log.FromContext(context.Background())
+	log := log.FromContext(context.Background()).
+		WithName(sharedutil.LogLogger_managed_gitops)
 
 	credentials := map[string]argoCDCredentials{}
 

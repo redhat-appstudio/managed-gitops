@@ -64,7 +64,8 @@ type ApplicationReconciler struct {
 // move the current state of the cluster closer to the desired state.
 func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
-	log := log.FromContext(ctx).WithValues("name", req.Name, "namespace", req.Namespace)
+	log := log.FromContext(ctx).
+		WithName(sharedutil.LogLogger_managed_gitops)
 
 	defer log.V(sharedutil.LogLevel_Debug).Info("Application Reconcile() complete.")
 

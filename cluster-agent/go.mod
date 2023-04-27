@@ -16,6 +16,7 @@ require (
 	github.com/prometheus/client_golang v1.12.1
 	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0
 	github.com/stretchr/testify v1.7.1
+	go.uber.org/zap v1.19.1
 	golang.org/x/oauth2 v0.0.0-20220608161450-d0670ef3b1eb
 	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.28.0
@@ -149,7 +150,6 @@ require (
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
-	go.uber.org/zap v1.19.1 // indirect
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
 	golang.org/x/exp v0.0.0-20210901193431-a062eea981d2 // indirect
 	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect

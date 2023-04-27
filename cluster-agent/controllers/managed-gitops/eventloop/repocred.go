@@ -106,7 +106,9 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 		return retry, fmt.Errorf("%v: %v", errOperationIDNotFound, crOperation.Name)
 	}
 
-	l := opConfig.log.WithValues("operationRow", dbOperation.Operation_id)
+	l := opConfig.log.
+		WithValues("operationRow", dbOperation.Operation_id).
+		WithName(sharedutil.LogLogger_managed_gitops)
 
 	// 2) Retrieve the RepositoryCredentials database row that corresponds to the operation
 	dbRepositoryCredentials, err := opConfig.dbQueries.GetRepositoryCredentialsByID(ctx, dbOperation.Resource_id)

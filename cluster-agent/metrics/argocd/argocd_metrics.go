@@ -63,7 +63,8 @@ func (m *ReconciliationMetricsUpdater) poll(interval time.Duration) {
 	<-timer.C
 
 	ctx := context.Background()
-	logger := log.FromContext(ctx).WithValues("component", "cluster-agent-argocd-metrics")
+	logger := log.FromContext(ctx).
+		WithName(sharedutil.LogLogger_managed_gitops)
 
 	updater := &reconciliationMetricsUpdater{
 		client:             m.Client,

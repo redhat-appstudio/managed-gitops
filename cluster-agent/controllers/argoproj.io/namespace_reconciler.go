@@ -44,7 +44,8 @@ func (r *ApplicationReconciler) startTimerForNextCycle() {
 		<-timer.C
 
 		ctx := context.Background()
-		log := log.FromContext(ctx).WithValues("component", "namespace-reconciler")
+		log := log.FromContext(ctx).
+			WithName(sharedutil.LogLogger_managed_gitops)
 
 		_, _ = sharedutil.CatchPanic(func() error {
 			runNamespaceReconcile(ctx, r.DB, r.Client, log)

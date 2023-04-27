@@ -1,4 +1,4 @@
-package core
+package rhtap
 
 import (
 	"context"

@@ -48,7 +48,7 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			By("create a GitOpsDeployment with 'Manual' sync policy")
-			gitOpsDeploymentResource = buildGitOpsDeploymentResource(name,
+			gitOpsDeploymentResource = BuildGitOpsDeploymentResource(name,
 				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual)
 			gitOpsDeploymentResource.Spec.Destination.Environment = ""
@@ -76,7 +76,7 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 		It("creating a new GitOpsDeploymentSyncRun should sync an Argo CD Application", func() {
 
 			By("create a GitOpsDeploymentSyncRun")
-			syncRunCR := buildGitOpsDeploymentSyncRunResource("test-syncrun", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
+			syncRunCR := BuildGitOpsDeploymentSyncRunResource("test-syncrun", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
 
 			err := k8sClient.Create(ctx, &syncRunCR)
 			Expect(err).To(BeNil())
@@ -100,7 +100,7 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 		It("updating the spec of an existing GitOpsDeploymentSyncRun CR should not trigger a new sync", func() {
 
 			By("create a GitOpsDeploymentSyncRun")
-			syncRunCR := buildGitOpsDeploymentSyncRunResource("test-syncrun", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
+			syncRunCR := BuildGitOpsDeploymentSyncRunResource("test-syncrun", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
 
 			err := k8sClient.Create(ctx, &syncRunCR)
 			Expect(err).To(BeNil())
@@ -152,7 +152,7 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 
 		It("applying the same CR with no changes should not trigger a new sync", func() {
 			By("create a GitOpsDeploymentSyncRun")
-			syncRunCR := buildGitOpsDeploymentSyncRunResource("test-syncrun", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
+			syncRunCR := BuildGitOpsDeploymentSyncRunResource("test-syncrun", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
 
 			err := k8sClient.Create(ctx, &syncRunCR)
 			Expect(err).To(BeNil())
@@ -199,7 +199,7 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 		})
 
 		It("deleting the GitOpsDeploymentSyncRun should terminate a running Sync operation", func() {
-			gitOpsDeploymentResource = buildGitOpsDeploymentResource("test-deply-with-presync",
+			gitOpsDeploymentResource = BuildGitOpsDeploymentResource("test-deply-with-presync",
 				"https://github.com/managed-gitops-test-data/deployment-presync-hook", "guestbook",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual)
 			gitOpsDeploymentResource.Spec.Destination.Environment = ""
@@ -224,7 +224,7 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			addCustomHealthCheckForDeployment(ctx, k8sClient, argocdCR)
 
 			By("create a GitOpsDeploymentSyncRun")
-			syncRunCR := buildGitOpsDeploymentSyncRunResource("test-syncrun", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
+			syncRunCR := BuildGitOpsDeploymentSyncRunResource("test-syncrun", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
 
 			err = k8sClient.Create(ctx, &syncRunCR)
 			Expect(err).To(BeNil())
@@ -270,7 +270,7 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 		It("deleting the GitOpsDeploymentSyncRun CR should not terminate if no Sync operation is in progress", func() {
 
 			By("create a GitOpsDeploymentSyncRun")
-			syncRunCR := buildGitOpsDeploymentSyncRunResource("test-syncrun", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
+			syncRunCR := BuildGitOpsDeploymentSyncRunResource("test-syncrun", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
 
 			err := k8sClient.Create(ctx, &syncRunCR)
 			Expect(err).To(BeNil())
@@ -318,7 +318,7 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 
 		It("should sync if the previous sync operation is terminated", func() {
 
-			gitOpsDeploymentResource = buildGitOpsDeploymentResource("test-deply-with-presync",
+			gitOpsDeploymentResource = BuildGitOpsDeploymentResource("test-deply-with-presync",
 				"https://github.com/managed-gitops-test-data/deployment-presync-hook", "guestbook",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual)
 			gitOpsDeploymentResource.Spec.Destination.Environment = ""
@@ -343,7 +343,7 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			addCustomHealthCheckForDeployment(ctx, k8sClient, argocdCR)
 
 			By("create a GitOpsDeploymentSyncRun")
-			syncRunCR := buildGitOpsDeploymentSyncRunResource("test-syncrun", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
+			syncRunCR := BuildGitOpsDeploymentSyncRunResource("test-syncrun", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
 
 			err = k8sClient.Create(ctx, &syncRunCR)
 			Expect(err).To(BeNil())
@@ -375,7 +375,7 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			Expect(err).To(BeNil())
 
 			By("create a new GitOpsDeploymentSyncRun and ensure that the sync status hasn't changed")
-			newSyncRunCR := buildGitOpsDeploymentSyncRunResource("test-syncrun-1", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
+			newSyncRunCR := BuildGitOpsDeploymentSyncRunResource("test-syncrun-1", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
 
 			err = k8sClient.Create(ctx, &newSyncRunCR)
 			Expect(err).To(BeNil())
@@ -396,7 +396,7 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 		})
 
 		It("should handle multiple GitOpsDeploymentSyncRun CRs sequentially", func() {
-			gitOpsDeploymentResource = buildGitOpsDeploymentResource("test-deply",
+			gitOpsDeploymentResource = BuildGitOpsDeploymentResource("test-deply",
 				"https://github.com/managed-gitops-test-data/deployment-presync-hook", "guestbook-without-hook",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual)
 			gitOpsDeploymentResource.Spec.Destination.Environment = ""
@@ -418,7 +418,7 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			}
 
 			for _, cr := range syncRunCRs {
-				syncRunCR := buildGitOpsDeploymentSyncRunResource(cr.name, fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, cr.ref)
+				syncRunCR := BuildGitOpsDeploymentSyncRunResource(cr.name, fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, cr.ref)
 
 				err := k8sClient.Create(ctx, &syncRunCR)
 				Expect(err).To(BeNil())
@@ -470,7 +470,7 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			}
 
 			By("create a GitOpsDeploymentSyncRun")
-			syncRunCR := buildGitOpsDeploymentSyncRunResource("test-syncrun", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
+			syncRunCR := BuildGitOpsDeploymentSyncRunResource("test-syncrun", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
 
 			err := k8sClient.Create(ctx, &syncRunCR)
 			Expect(err).To(BeNil())
@@ -532,19 +532,6 @@ func removeCustomHealthCheckForDeployment(ctx context.Context, k8sClient client.
 		return k8sClient.Update(ctx, argocdCR)
 	})
 	Expect(err).To(BeNil())
-}
-
-func buildGitOpsDeploymentSyncRunResource(name, ns, deplyName, revision string) managedgitopsv1alpha1.GitOpsDeploymentSyncRun {
-	return managedgitopsv1alpha1.GitOpsDeploymentSyncRun{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: ns,
-		},
-		Spec: managedgitopsv1alpha1.GitOpsDeploymentSyncRunSpec{
-			GitopsDeploymentName: deplyName,
-			RevisionID:           revision,
-		},
-	}
 }
 
 func getDefaultSyncRunReason() managedgitopsv1alpha1.SyncRunReasonType {

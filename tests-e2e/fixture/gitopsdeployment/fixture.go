@@ -2,6 +2,7 @@ package gitopsdeployment
 
 import (
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"reflect"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -388,4 +389,34 @@ func UpdateDeploymentStatusWithFunction(gitopsDeployment *managedgitopsv1alpha1.
 		return err
 	})
 
+}
+
+// BuildGitOpsDeploymentResource builds a GitOpsDeployment with 'opinionated' default values, which is self-contained to
+// the GitGitOpsServiceE2ENamespace. This makes it easy to clean up after tests using EnsureCleanSlate.
+// - Defaults to creation in GitOpsServiceE2ENamespace
+// - Defaults to deployment of K8s resources to GitOpsServiceE2ENamespace
+func BuildGitOpsDeploymentResource(name, repoURL, path, deploymentSpecType string) managedgitopsv1alpha1.GitOpsDeployment {
+
+	gitOpsDeploymentResource := managedgitopsv1alpha1.GitOpsDeployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: fixture.GitOpsServiceE2ENamespace,
+		},
+		Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+			Source: managedgitopsv1alpha1.ApplicationSource{
+				RepoURL: repoURL,
+				Path:    path,
+			},
+			Destination: managedgitopsv1alpha1.ApplicationDestination{},
+			Type:        deploymentSpecType,
+		},
+	}
+
+	return gitOpsDeploymentResource
+}
+
+func BuildTargetRevisionGitOpsDeploymentResource(name, repoURL, path, target, deploymentSpecType string) managedgitopsv1alpha1.GitOpsDeployment {
+	gitOpsDeploymentResource := BuildGitOpsDeploymentResource(name, repoURL, path, deploymentSpecType)
+	gitOpsDeploymentResource.Spec.Source.TargetRevision = target
+	return gitOpsDeploymentResource
 }

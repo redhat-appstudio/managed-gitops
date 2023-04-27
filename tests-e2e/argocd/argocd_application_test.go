@@ -1,11 +1,11 @@
-package core
+package argocd
 
 import (
 	"context"
-
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
@@ -13,8 +13,6 @@ import (
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 )
 
 var _ = Describe("Argo CD Application", func() {
@@ -23,7 +21,7 @@ var _ = Describe("Argo CD Application", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("create a new GitOpsDeployment CR")
-			gitOpsDeployment := buildGitOpsDeploymentResource("my-gitops-depl-automated",
+			gitOpsDeployment := BuildGitOpsDeploymentResource("my-gitops-depl-automated",
 				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 

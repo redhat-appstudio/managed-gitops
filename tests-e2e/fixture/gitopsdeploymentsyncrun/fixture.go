@@ -3,6 +3,7 @@ package gitopsdeploymentsyncrun
 import (
 	"context"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"reflect"
 
 	. "github.com/onsi/gomega"
@@ -58,4 +59,17 @@ func HaveConditions(conditions []managedgitopsv1alpha1.GitOpsDeploymentSyncRunCo
 		return true
 
 	}, BeTrue())
+}
+
+func BuildGitOpsDeploymentSyncRunResource(name, ns, deplyName, revision string) managedgitopsv1alpha1.GitOpsDeploymentSyncRun {
+	return managedgitopsv1alpha1.GitOpsDeploymentSyncRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: ns,
+		},
+		Spec: managedgitopsv1alpha1.GitOpsDeploymentSyncRunSpec{
+			GitopsDeploymentName: deplyName,
+			RevisionID:           revision,
+		},
+	}
 }

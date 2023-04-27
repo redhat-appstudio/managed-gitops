@@ -60,7 +60,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8s.Create(&managedEnv, k8sClient)
 			Expect(err).To(BeNil())
 
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource("my-gitops-depl",
+			gitOpsDeploymentResource := BuildGitOpsDeploymentResource("my-gitops-depl",
 				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
@@ -197,7 +197,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			By("by creating a GitOpsDeployment pointing to the ManagedEnvironment")
 
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource("my-gitops-depl",
+			gitOpsDeploymentResource := BuildGitOpsDeploymentResource("my-gitops-depl",
 				"https://github.com/redhat-appstudio/managed-gitops",
 				"resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
@@ -335,7 +335,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8s.Create(&managedEnv, k8sClient)
 			Expect(err).To(BeNil())
 
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource("my-gitops-depl",
+			gitOpsDeploymentResource := BuildGitOpsDeploymentResource("my-gitops-depl",
 				"https://github.com/redhat-appstudio/managed-gitops",
 				"resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
@@ -425,7 +425,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8s.Create(&managedEnv, k8sClient)
 			Expect(err).To(BeNil())
 
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource("my-gitops-depl",
+			gitOpsDeploymentResource := BuildGitOpsDeploymentResource("my-gitops-depl",
 				"https://github.com/redhat-appstudio/managed-gitops",
 				"resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
@@ -565,7 +565,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8s.Create(managedEnv, k8sClient)
 			Expect(err).To(BeNil())
 
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource("my-gitops-depl",
+			gitOpsDeploymentResource := BuildGitOpsDeploymentResource("my-gitops-depl",
 				"https://github.com/redhat-appstudio/managed-gitops",
 				"resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
@@ -595,7 +595,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			By("creating a second GitOpsDeployment, targeting a different namespace without a role and rolebinding on the serviceaccount of the managedenvironment, which should fail")
 
-			gitOpsDeploymentResource2 := buildGitOpsDeploymentResource("my-gitops-depl2",
+			gitOpsDeploymentResource2 := BuildGitOpsDeploymentResource("my-gitops-depl2",
 				"https://github.com/redhat-appstudio/managed-gitops",
 				"resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
@@ -667,7 +667,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			Expect(err).To(BeNil())
 
 			By("create a new GitOpsDeployment that attempts to deploy to the new namespace, using the exist managedenvironment, which should work")
-			gitOpsDeploymentResource3 := buildGitOpsDeploymentResource("my-gitops-depl3",
+			gitOpsDeploymentResource3 := BuildGitOpsDeploymentResource("my-gitops-depl3",
 				"https://github.com/redhat-appstudio/managed-gitops",
 				"resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)

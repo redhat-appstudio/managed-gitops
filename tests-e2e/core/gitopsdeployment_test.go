@@ -129,7 +129,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 		It("Should ensure succesful creation of GitOpsDeployment, by creating the GitOpsDeployment", func() {
 
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource(name,
+			gitOpsDeploymentResource := BuildGitOpsDeploymentResource(name,
 				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			gitOpsDeploymentResource.Spec.Destination.Environment = ""
@@ -192,7 +192,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 		It("Should ensure synchronicity of create and update of GitOpsDeployment, by ensurng no updates are done in existing deployment, if CR is submitted again without any changes", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource(name,
+			gitOpsDeploymentResource := BuildGitOpsDeploymentResource(name,
 				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			gitOpsDeploymentResource.Spec.Destination.Environment = ""
@@ -255,7 +255,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 		It("Should ensure synchronicity of create and update of GitOpsDeployment, by ensuring GitOpsDeployment should update successfully on changing value(s) within Spec", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource(name,
+			gitOpsDeploymentResource := BuildGitOpsDeploymentResource(name,
 				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
@@ -302,7 +302,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			By("creating a new GitOpsDeployment resource")
-			gitOpsDeploymentResource := buildTargetRevisionGitOpsDeploymentResource("gitops-depl-test",
+			gitOpsDeploymentResource := BuildTargetRevisionGitOpsDeploymentResource("gitops-depl-test",
 				"https://github.com/managed-gitops-test-data/deployment-permutations-a", "pathB", "branchA",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
@@ -367,7 +367,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			By("creating a new GitOpsDeployment resource")
-			gitOpsDeploymentResource := buildTargetRevisionGitOpsDeploymentResource("gitops-depl-test",
+			gitOpsDeploymentResource := BuildTargetRevisionGitOpsDeploymentResource("gitops-depl-test",
 				"https://github.com/managed-gitops-test-data/deployment-permutations-a", "pathB", "branchA",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			gitOpsDeploymentResource.Spec.Destination.Environment = ""
@@ -455,7 +455,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("creating a new GitOpsDeployment resource")
-			gitOpsDeploymentResource := buildTargetRevisionGitOpsDeploymentResource("gitops-depl-test",
+			gitOpsDeploymentResource := BuildTargetRevisionGitOpsDeploymentResource("gitops-depl-test",
 				"https://github.com/managed-gitops-test-data/deployment-permutations-a", "pathB", "branchA",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
@@ -517,7 +517,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("creating a new GitOpsDeployment resource")
-			gitOpsDeploymentResource := buildTargetRevisionGitOpsDeploymentResource("gitops-depl-test-status",
+			gitOpsDeploymentResource := BuildTargetRevisionGitOpsDeploymentResource("gitops-depl-test-status",
 				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev", "xyz",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
@@ -574,7 +574,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("creating a new GitOpsDeployment resource")
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource("gitops-depl-test-status",
+			gitOpsDeploymentResource := BuildGitOpsDeploymentResource("gitops-depl-test-status",
 				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
@@ -621,7 +621,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("creating a new GitOpsDeployment resource with the deletion finalizer")
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource("gitops-depl-test-status",
+			gitOpsDeploymentResource := BuildGitOpsDeploymentResource("gitops-depl-test-status",
 				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
@@ -704,7 +704,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("ensuring GitOpsDeployment Fails to create and deploy application when an invalid field input is passed")
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource("test-should-fail",
+			gitOpsDeploymentResource := BuildGitOpsDeploymentResource("test-should-fail",
 				"invalid-url", "path/path/path",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
@@ -739,7 +739,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			for count := 0; count < 3; count++ {
 
 				Expect(fixture.EnsureCleanSlate()).To(Succeed())
-				gitOpsDeploymentResource := buildGitOpsDeploymentResource(name,
+				gitOpsDeploymentResource := BuildGitOpsDeploymentResource(name,
 					repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 					managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 				gitOpsDeploymentResource.Spec.Destination.Environment = ""

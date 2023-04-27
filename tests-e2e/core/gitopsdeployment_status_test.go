@@ -23,7 +23,7 @@ var _ = Describe("GitOpsDeployment Status Tests", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("create a new GitOpsDeployment resource")
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource("gitops-depl-test-status",
+			gitOpsDeploymentResource := BuildGitOpsDeploymentResource("gitops-depl-test-status",
 				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 

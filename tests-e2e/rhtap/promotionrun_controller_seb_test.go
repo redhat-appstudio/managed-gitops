@@ -1,4 +1,4 @@
-package core
+package rhtap
 
 import (
 	"strings"
@@ -43,7 +43,7 @@ var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests
 			Expect(err).To(Succeed())
 
 			By("Create PromotionRun CR.")
-			promotionRun = buildPromotionRunResource("new-demo-app-manual-promotion", "new-demo-app", "my-snapshot", "prod")
+			promotionRun = BuildPromotionRunResource("new-demo-app-manual-promotion", "new-demo-app", "my-snapshot", "prod")
 		})
 
 		It("Creates a SnapshotEnvironmentBinding if one doesn't exist that targets the application/environment.", func() {

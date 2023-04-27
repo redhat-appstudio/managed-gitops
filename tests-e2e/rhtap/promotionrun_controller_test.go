@@ -1,18 +1,17 @@
-package core
+package rhtap
 
 import (
 	"context"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	appstudiocontroller "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
-	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
-	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
-
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	appstudiocontroller "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
+	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	bindingFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/binding"
+	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	promotionRunFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/promotionrun"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -176,7 +175,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			Expect(err).To(Succeed())
 
 			By("Create PromotionRun CR.")
-			promotionRun = buildPromotionRunResource("new-demo-app-manual-promotion", "new-demo-app", "my-snapshot", "prod")
+			promotionRun = BuildPromotionRunResource("new-demo-app-manual-promotion", "new-demo-app", "my-snapshot", "prod")
 		})
 
 		It("Should create GitOpsDeployments and it should be Synced/Healthy.", func() {
@@ -311,22 +310,4 @@ func buildSnapshotResource(name, appName, displayName, displayDescription, compo
 		},
 	}
 	return snapshot
-}
-
-func buildPromotionRunResource(name, appName, snapshotName, targetEnvironment string) appstudiosharedv1.PromotionRun {
-
-	promotionRun := appstudiosharedv1.PromotionRun{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: fixture.GitOpsServiceE2ENamespace,
-		},
-		Spec: appstudiosharedv1.PromotionRunSpec{
-			Snapshot:    snapshotName,
-			Application: appName,
-			ManualPromotion: appstudiosharedv1.ManualPromotionConfiguration{
-				TargetEnvironment: targetEnvironment,
-			},
-		},
-	}
-	return promotionRun
 }

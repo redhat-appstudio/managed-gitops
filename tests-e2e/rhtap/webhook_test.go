@@ -1,19 +1,20 @@
-package core
+package rhtap
 
 import (
 	"context"
 	"fmt"
-	"strings"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
+	gitopsdeployment "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
+	rhtapfixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/rhtappromotion"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
 )
 
 var _ = Describe("Webhook E2E tests", func() {
@@ -127,7 +128,7 @@ var _ = Describe("Webhook E2E tests", func() {
 
 			By("Create PromotionRun CR.")
 
-			promotionRun = buildPromotionRunResource("new-demo-app-manual-promotion", "new-demo-app", "my-snapshot", "prod")
+			promotionRun = BuildPromotionRunResource("new-demo-app-manual-promotion", "new-demo-app", "my-snapshot", "prod")
 			err = k8s.Create(&promotionRun, k8sClient)
 			Expect(err).To(Succeed())
 
@@ -189,7 +190,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource(name,
+			gitOpsDeploymentResource := BuildGitOpsDeploymentResource(name,
 				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				"unknown")
 			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
@@ -211,7 +212,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource(name,
+			gitOpsDeploymentResource := BuildGitOpsDeploymentResource(name,
 				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			gitOpsDeploymentResource.Spec.SyncPolicy = &managedgitopsv1alpha1.SyncPolicy{
@@ -239,7 +240,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource(name,
+			gitOpsDeploymentResource := BuildGitOpsDeploymentResource(name,
 				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			gitOpsDeploymentResource.Spec.SyncPolicy = &managedgitopsv1alpha1.SyncPolicy{
@@ -406,7 +407,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			By("create a GitOpsDeployment with 'Manual' sync policy")
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource(name,
+			gitOpsDeploymentResource := BuildGitOpsDeploymentResource(name,
 				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual)
 			gitOpsDeploymentResource.Spec.Destination.Environment = ""
@@ -415,7 +416,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8sClient.Create(ctx, &gitOpsDeploymentResource)
 			Expect(err).To(BeNil())
 
-			gitOpsDeploymentSyncRun := buildGitOpsDeploymentSyncRunResource("zyxwvutsrqponmlkjihgfedcba-abcdefghijklmnoqrstuvwxyz", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
+			gitOpsDeploymentSyncRun := BuildGitOpsDeploymentSyncRunResource("zyxwvutsrqponmlkjihgfedcba-abcdefghijklmnoqrstuvwxyz", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
 
 			err = k8s.Create(&gitOpsDeploymentSyncRun, k8sClient)
 			Expect(err).NotTo(Succeed())

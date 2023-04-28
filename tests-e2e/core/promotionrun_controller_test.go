@@ -180,7 +180,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			promotionRun = buildPromotionRunResource("new-demo-app-manual-promotion", "new-demo-app", "my-snapshot", "prod")
 		})
 
-		FIt("Should create GitOpsDeployments and it should be Synced/Healthy.", func() {
+		It("Should create GitOpsDeployments and it should be Synced/Healthy.", func() {
 			// ToDo: https://issues.redhat.com/browse/GITOPSRVCE-234
 			if fixture.IsRunningAgainstKCP() {
 				Skip("Skipping this test in KCP until we fix the race condition")

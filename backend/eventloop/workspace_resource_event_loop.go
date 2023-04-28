@@ -89,7 +89,9 @@ func internalWorkspaceResourceEventLoop(inputChan chan workspaceResourceLoopMess
 	workspaceEventLoopInputChannel chan workspaceEventLoopMessage) {
 
 	ctx := context.Background()
-	l := log.FromContext(ctx).WithValues("component", "workspace_resource_event_loop")
+	l := log.FromContext(ctx).
+		WithName(sharedutil.LogLogger_managed_gitops).
+		WithValues("component", "workspace_resource_event_loop")
 
 	dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
 	if err != nil {

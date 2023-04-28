@@ -130,8 +130,10 @@ func applicationEventQueueLoop(ctx context.Context, k8sClient client.Client,
 	aerFactory applicationEventRunnerFactory,
 	vwsAPIExportName string) {
 
-	log := log.FromContext(ctx).WithValues("workspaceID", workspaceID, "gitOpsDeplName", gitopsDeploymentName,
-		"gitopsDeplNamespace", gitopsDeploymentNamespace).WithName("application-event-loop")
+	log := log.FromContext(ctx).
+		WithValues("workspaceID", workspaceID, "gitOpsDeplName", gitopsDeploymentName,
+			"gitopsDeplNamespace", gitopsDeploymentNamespace).
+		WithName(sharedutil.LogLogger_managed_gitops)
 
 	log.Info("applicationEventQueueLoop started.")
 	defer log.Info("applicationEventQueueLoop ended.")

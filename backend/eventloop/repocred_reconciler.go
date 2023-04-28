@@ -42,7 +42,9 @@ func (r *RepoCredReconciler) startTimerForNextCycle() {
 		<-timer.C
 
 		ctx := context.Background()
-		log := log.FromContext(ctx).WithValues("component", "repocred-reconciler")
+		log := log.FromContext(ctx).
+			WithName(sharedutil.LogLogger_managed_gitops).
+			WithValues("component", "repocred-reconciler")
 
 		_, _ = sharedutil.CatchPanic(func() error {
 
@@ -63,10 +65,10 @@ func (r *RepoCredReconciler) startTimerForNextCycle() {
 // Reconcile logic for API CR To Database Mapping table and utility functions.
 // This will reconcile repository credential entries from ACTDM table and RepoistoryCredential table
 // /////////////
-func reconcileRepositoryCredentials(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, log logr.Logger) {
+func reconcileRepositoryCredentials(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, l logr.Logger) {
 
 	offSet := 0
-	log = log.WithValues("job", "reconcileRepositoryCredentials")
+	log := l.WithValues("job", "reconcileRepositoryCredentials")
 
 	// Continuously iterate and fetch batches until all entries of ACTDM table are processed.
 	for {
@@ -111,10 +113,10 @@ func reconcileRepositoryCredentials(ctx context.Context, dbQueries db.DatabaseQu
 	}
 }
 
-func reconcileRepositoryCredentialStatus(ctx context.Context, apiNamespaceClient client.Client, dbQueries db.DatabaseQueries, apiCrToDbMappingFromDB db.APICRToDatabaseMapping, objectMeta metav1.ObjectMeta, log logr.Logger) {
+func reconcileRepositoryCredentialStatus(ctx context.Context, apiNamespaceClient client.Client, dbQueries db.DatabaseQueries, apiCrToDbMappingFromDB db.APICRToDatabaseMapping, objectMeta metav1.ObjectMeta, l logr.Logger) {
 
 	gitopsDeploymentRepositoryCredentialCR := managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{ObjectMeta: objectMeta}
-	log = log.WithValues("job", "reconcileRepositoryCredentialStatus")
+	log := l.WithValues("job", "reconcileRepositoryCredentialStatus")
 
 	// Check if required CR is present in cluster. If no, skip
 	if err := apiNamespaceClient.Get(ctx, types.NamespacedName{Name: gitopsDeploymentRepositoryCredentialCR.GetName(), Namespace: gitopsDeploymentRepositoryCredentialCR.GetNamespace()}, &gitopsDeploymentRepositoryCredentialCR); err != nil {

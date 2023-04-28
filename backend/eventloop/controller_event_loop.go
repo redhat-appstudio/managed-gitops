@@ -68,7 +68,8 @@ type controllerEventLoop_workspaceEntry struct {
 // This channel is non-blocking.
 func controllerEventLoopRouter(input chan eventlooptypes.EventLoopEvent, workspaceEventFactory workspaceEventLoopRouterFactory) {
 
-	eventLoopRouterLog := log.FromContext(context.Background())
+	eventLoopRouterLog := log.FromContext(context.Background()).
+		WithName(sharedutil.LogLogger_managed_gitops)
 
 	eventLoopRouterLog.Info("controllerEventLoopRouter started.")
 	defer eventLoopRouterLog.Error(nil, "SEVERE: controllerEventLoopRouter ended.")

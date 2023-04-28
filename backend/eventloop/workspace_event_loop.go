@@ -94,7 +94,8 @@ func internalStartWorkspaceEventLoopRouter(input chan workspaceEventLoopMessage,
 
 	go func() {
 
-		log := log.FromContext(context.Background())
+		log := log.FromContext(context.Background()).
+			WithName(sharedutil.LogLogger_managed_gitops)
 
 		backoff := sharedutil.ExponentialBackoff{Min: time.Duration(500 * time.Millisecond), Max: time.Duration(15 * time.Second), Factor: 2, Jitter: true}
 
@@ -195,7 +196,9 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, namespaceID 
 
 	ctx := context.Background()
 
-	log := log.FromContext(ctx).WithValues("namespaceID", namespaceID).WithName("workspace-event-loop")
+	log := log.FromContext(ctx).
+		WithName(sharedutil.LogLogger_managed_gitops).
+		WithValues("namespaceID", namespaceID)
 
 	log.Info("workspaceEventLoopRouter started")
 	defer log.Info("workspaceEventLoopRouter ended.")

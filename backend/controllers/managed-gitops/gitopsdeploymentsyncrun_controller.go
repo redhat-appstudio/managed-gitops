@@ -50,7 +50,8 @@ type GitOpsDeploymentSyncRunReconciler struct {
 func (r *GitOpsDeploymentSyncRunReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
 	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
-	_ = log.FromContext(ctx)
+	_ = log.FromContext(ctx).
+		WithName(sharedutil.LogLogger_managed_gitops)
 
 	rClient := sharedutil.IfEnabledSimulateUnreliableClient(r.Client)
 

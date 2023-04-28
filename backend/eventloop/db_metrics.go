@@ -30,7 +30,9 @@ func (r *MetricsReconciler) StartDBMetricsReconcilerForMetrics() {
 		<-timer.C
 
 		ctx := context.Background()
-		log := log.FromContext(ctx).WithValues("component", "database-metrics-reconciler")
+		log := log.FromContext(ctx).
+			WithName(sharedutil.LogLogger_managed_gitops).
+			WithValues("component", "database-metrics-reconciler")
 
 		_, _ = sharedutil.CatchPanic(func() error {
 			operationDbReconcile(ctx, r.DB, r.Client, log)

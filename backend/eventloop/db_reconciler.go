@@ -60,7 +60,9 @@ func (r *DatabaseReconciler) startTimerForNextCycle() {
 		<-timer.C
 
 		ctx := context.Background()
-		log := log.FromContext(ctx).WithValues("component", "database-reconciler")
+		log := log.FromContext(ctx).
+			WithName(sharedutil.LogLogger_managed_gitops).
+			WithValues("component", "database-reconciler")
 
 		_, _ = sharedutil.CatchPanic(func() error {
 
@@ -93,10 +95,10 @@ func (r *DatabaseReconciler) startTimerForNextCycle() {
 
 // cleanOrphanedEntriesfromTable_DTAM loops through the DTAMs in a database and verifies they are still valid. If not, the resources are deleted.
 // - The skipDelay can be used to skip the time.Sleep(), but this should true when called from a unit test.
-func cleanOrphanedEntriesfromTable_DTAM(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, skipDelay bool, log logr.Logger) {
+func cleanOrphanedEntriesfromTable_DTAM(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, skipDelay bool, l logr.Logger) {
 	offSet := 0
 
-	log = log.WithValues("job", "cleanOrphanedEntriesfromTable_DTAM")
+	log := l.WithValues("job", "cleanOrphanedEntriesfromTable_DTAM")
 
 	// Continuously iterate and fetch batches until all entries of DeploymentToApplicationMapping table are processed.
 	for {
@@ -230,9 +232,9 @@ func cleanOrphanedEntriesfromTable_DTAM_DeleteEntry(ctx context.Context, deplToA
 ///////////////
 
 // cleanOrphanedEntriesfromTable_ACTDM loops through the ACTDM in a database and verifies they are still valid. If not, the resources are deleted.
-func cleanOrphanedEntriesfromTable_ACTDM(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, k8sClientFactory sharedresourceloop.SRLK8sClientFactory, skipDelay bool, log logr.Logger) {
+func cleanOrphanedEntriesfromTable_ACTDM(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, k8sClientFactory sharedresourceloop.SRLK8sClientFactory, skipDelay bool, l logr.Logger) {
 	offSet := 0
-	log = log.WithValues("job", "cleanOrphanedEntriesfromTable_ACTDM")
+	log := l.WithValues("job", "cleanOrphanedEntriesfromTable_ACTDM")
 
 	// Continuously iterate and fetch batches until all entries of ACTDM table are processed.
 	for {
@@ -496,9 +498,9 @@ func cleanOrphanedEntriesfromTable(ctx context.Context, dbQueries db.DatabaseQue
 }
 
 // cleanOrphanedEntriesfromTable_RepositoryCredential loops through RepositoryCredentials in database and verifies they are still valid (Having entry in ACTDM). If not, the resources are deleted.
-func cleanOrphanedEntriesfromTable_RepositoryCredential(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfAppsIdsInDTAM []string, skipDelay bool, log logr.Logger) {
+func cleanOrphanedEntriesfromTable_RepositoryCredential(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfAppsIdsInDTAM []string, skipDelay bool, l logr.Logger) {
 
-	log = log.WithValues("job", "cleanOrphanedEntriesfromTable_RepositoryCredential")
+	log := l.WithValues("job", "cleanOrphanedEntriesfromTable_RepositoryCredential")
 
 	offSet := 0
 
@@ -564,9 +566,9 @@ func cleanOrphanedEntriesfromTable_RepositoryCredential(ctx context.Context, dbQ
 }
 
 // cleanOrphanedEntriesfromTable_SyncOperation loops through SyncOperations in database and verifies they are still valid (Having entry in ACTDM). If not, the resources are deleted.
-func cleanOrphanedEntriesfromTable_SyncOperation(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfAppsIdsInDTAM []string, skipDelay bool, log logr.Logger) {
+func cleanOrphanedEntriesfromTable_SyncOperation(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfAppsIdsInDTAM []string, skipDelay bool, l logr.Logger) {
 
-	log = log.WithValues("job", "cleanOrphanedEntriesfromTable_SyncOperation")
+	log := l.WithValues("job", "cleanOrphanedEntriesfromTable_SyncOperation")
 
 	offSet := 0
 	// Continuously iterate and fetch batches until all entries of RepositoryCredentials table are processed.
@@ -634,10 +636,10 @@ func cleanOrphanedEntriesfromTable_SyncOperation(ctx context.Context, dbQueries 
 }
 
 // cleanOrphanedEntriesfromTable_ManagedEnvironment loops through ManagedEnvironments in database and verifies they are still valid (Having entry in ACTDM). If not, the resources are deleted.
-func cleanOrphanedEntriesfromTable_ManagedEnvironment(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfRowIdsInAPICRToDBMapping []string, k8sClientFactory sharedresourceloop.SRLK8sClientFactory, skipDelay bool, log logr.Logger) {
+func cleanOrphanedEntriesfromTable_ManagedEnvironment(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfRowIdsInAPICRToDBMapping []string, k8sClientFactory sharedresourceloop.SRLK8sClientFactory, skipDelay bool, l logr.Logger) {
 
 	// Retrieve the list of K8sToDBResourceMappings, so that we don't deleted any ManagedEnvironmentes referenced in them
-	allK8sToDBResourceMappings := getListOfK8sToDBResourceMapping(ctx, dbQueries, skipDelay, log)
+	allK8sToDBResourceMappings := getListOfK8sToDBResourceMapping(ctx, dbQueries, skipDelay, l)
 
 	// The set of ManagedEnvironments that are referenced in the KubernetesToDBResourceMapping table
 	// map: key is Managed Environment ID, value is unused
@@ -653,7 +655,7 @@ func cleanOrphanedEntriesfromTable_ManagedEnvironment(ctx context.Context, dbQue
 
 	}
 
-	log = log.WithValues("job", "cleanOrphanedEntriesfromTable_ManagedEnvironment")
+	log := l.WithValues("job", "cleanOrphanedEntriesfromTable_ManagedEnvironment")
 
 	offSet := 0
 	// Continuously iterate and fetch batches until all entries of the ManagedEnvironment table are processed.
@@ -710,9 +712,9 @@ func cleanOrphanedEntriesfromTable_ManagedEnvironment(ctx context.Context, dbQue
 }
 
 // cleanOrphanedEntriesfromTable_Application loops through Applications in database and verifies they are still valid (Having entry in DTAM). If not, the resources are deleted.
-func cleanOrphanedEntriesfromTable_Application(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, skipDelay bool, log logr.Logger) {
+func cleanOrphanedEntriesfromTable_Application(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, skipDelay bool, l logr.Logger) {
 
-	log = log.WithValues("job", "cleanOrphanedEntriesfromTable_Application")
+	log := l.WithValues("job", "cleanOrphanedEntriesfromTable_Application")
 
 	// Get list of Applications having entry in DTAM table
 	listOfAppsIdsInDTAM := getListOfCRIdsFromTable(ctx, dbQueries, "Application", skipDelay, log)

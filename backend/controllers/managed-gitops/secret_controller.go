@@ -58,7 +58,8 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
-	_ = log.FromContext(ctx)
+	_ = log.FromContext(ctx).
+		WithName(sharedutil.LogLogger_managed_gitops)
 
 	rClient := sharedutil.IfEnabledSimulateUnreliableClient(r.Client)
 

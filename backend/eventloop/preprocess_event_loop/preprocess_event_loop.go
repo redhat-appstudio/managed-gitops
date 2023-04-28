@@ -50,7 +50,8 @@ func NewPreprocessEventLoop(vwsAPIExportName string) *PreprocessEventLoop {
 func preprocessEventLoopRouter(input chan eventlooptypes.EventLoopEvent, nextStep *eventloop.ControllerEventLoop) {
 
 	ctx := context.Background()
-	log := log.FromContext(ctx)
+	log := log.FromContext(ctx).
+		WithName(sharedutil.LogLogger_managed_gitops)
 
 	for {
 

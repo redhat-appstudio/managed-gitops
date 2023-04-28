@@ -181,7 +181,8 @@ func (srEventLoop *SharedResourceEventLoop) ReconcileRepositoryCredential(ctx co
 	responseChannel := make(chan any)
 
 	// Create a logger with context
-	l := log.FromContext(ctx)
+	l := log.FromContext(ctx).
+		WithName(sharedutil.LogLogger_managed_gitops)
 
 	msg := sharedResourceLoopMessage{
 		log:                l,
@@ -313,7 +314,8 @@ type sharedResourceLoopMessage_getOrCreateClusterUserByNamespaceUIDResponse stru
 func internalSharedResourceEventLoop(inputChan chan sharedResourceLoopMessage) {
 
 	ctx := context.Background()
-	l := log.FromContext(ctx)
+	l := log.FromContext(ctx).
+		WithName(sharedutil.LogLogger_managed_gitops)
 	dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
 	if err != nil {
 		l.Error(err, "SEVERE: internalSharedResourceEventLoop exiting before startup")

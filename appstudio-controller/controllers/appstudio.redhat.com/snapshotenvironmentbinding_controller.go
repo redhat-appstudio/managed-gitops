@@ -70,9 +70,7 @@ type SnapshotEnvironmentBindingReconciler struct {
 func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 
-	log := log.FromContext(ctx).
-		WithName(sharedutil.LogLogger_managed_gitops)
-
+	log := log.FromContext(ctx).WithValues("name", req.Name, "namespace", req.Namespace, "component", "bindingReconcile")
 	defer log.V(sharedutil.LogLevel_Debug).Info("Snapshot Environment Binding Reconcile() complete.")
 
 	binding := &appstudioshared.SnapshotEnvironmentBinding{}
@@ -113,22 +111,33 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 	// that there were issues with the GitOps repository, or if the GitOps repository isn't ready
 	// yet.
 
-	if len(binding.Status.GitOpsRepoConditions) > 0 &&
-		binding.Status.GitOpsRepoConditions[len(binding.Status.GitOpsRepoConditions)-1].Status == metav1.ConditionFalse {
-		// if the SnapshotEventBinding GitOps Repo Conditions status is false - return;
-		// since there was an unexpected issue with refreshing/syncing the GitOps repository
-		log.V(sharedutil.LogLevel_Debug).Info("Can not Reconcile Binding '" + binding.Name + "', since GitOps Repo Conditions status is false.")
+	if len(binding.Status.GitOpsRepoConditions) > 0 {
+		if binding.Status.GitOpsRepoConditions[len(binding.Status.GitOpsRepoConditions)-1].Status == metav1.ConditionFalse {
+			// if the SnapshotEventBinding GitOps Repo Conditions status is false - return;
+			// since there was an unexpected issue with refreshing/syncing the GitOps repository
+			log.V(sharedutil.LogLevel_Debug).Info("Can not Reconcile Binding '" + binding.Name + "', since GitOps Repo Conditions status is false.")
 
-		// Update Status.Conditions field environmentBinding.
-		if err := updateStatusConditionOfEnvironmentBinding(ctx, rClient,
-			"Can not Reconcile Binding '"+binding.Name+"', since GitOps Repo Conditions status is false.", binding,
-			SnapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionTrue, SnapshotEnvironmentBindingReasonErrorOccurred); err != nil {
+			// Update Status.Conditions field environmentBinding.
+			if err := updateStatusConditionOfEnvironmentBinding(ctx, rClient,
+				"Can not Reconcile Binding '"+binding.Name+"', since GitOps Repo Conditions status is false.", binding,
+				SnapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionTrue, SnapshotEnvironmentBindingReasonErrorOccurred); err != nil {
 
-			log.Error(err, "unable to update snapshotEnvironmentBinding status condition.")
-			return ctrl.Result{}, fmt.Errorf("unable to update snapshotEnvironmentBinding status condition. %v", err)
+				log.Error(err, "unable to update snapshotEnvironmentBinding status condition.")
+				return ctrl.Result{}, fmt.Errorf("unable to update snapshotEnvironmentBinding status condition. %v", err)
+			}
+
+			return ctrl.Result{}, nil
+		} else if binding.Status.GitOpsRepoConditions[len(binding.Status.GitOpsRepoConditions)-1].Status == metav1.ConditionTrue {
+			// if the SnapshotEventBinding GitOps Repo Conditions status is true update the
+			// binding condition status
+			if err := updateStatusConditionOfEnvironmentBinding(ctx, rClient,
+				"", binding,
+				SnapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionFalse, SnapshotEnvironmentBindingReasonErrorOccurred); err != nil {
+
+				log.Error(err, "unable to update snapshotEnvironmentBinding status condition.")
+				return ctrl.Result{}, fmt.Errorf("unable to update snapshotEnvironmentBinding status condition. %v", err)
+			}
 		}
-
-		return ctrl.Result{}, nil
 
 	} else if len(binding.Status.Components) == 0 {
 
@@ -296,10 +305,7 @@ const (
 func processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployment apibackend.GitOpsDeployment,
 	binding appstudioshared.SnapshotEnvironmentBinding, k8sClient client.Client) error {
 
-	log := log.FromContext(ctx).
-		WithName(sharedutil.LogLogger_managed_gitops).
-		WithValues("binding", binding.Name, "gitOpsDeployment", expectedGitopsDeployment.Name)
-
+	log := log.FromContext(ctx).WithValues("binding", binding.Name, "gitOpsDeployment", expectedGitopsDeployment.Name, "namespace", binding.Namespace)
 	actualGitOpsDeployment := apibackend.GitOpsDeployment{}
 
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&expectedGitopsDeployment), &actualGitOpsDeployment); err != nil {

@@ -286,7 +286,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).To(BeNil())
 
-			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "SnapshotEventBinding Component status is required to generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding 'appa-staging-binding'")
+			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "SnapshotEventBinding Component status is required to generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding 'appa-staging-binding'", metav1.ConditionTrue)
 
 		})
 
@@ -305,7 +305,43 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).To(BeNil())
 
-			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "Can not Reconcile Binding 'appa-staging-binding', since GitOps Repo Conditions status is false.")
+			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "Can not Reconcile Binding 'appa-staging-binding', since GitOps Repo Conditions status is false.", metav1.ConditionTrue)
+		})
+
+		It("should update the previous binding condition status if there is no longer a repo condition error", func() {
+			By("set a repo condition to false and verify if the binding condition is set")
+			binding.Status.GitOpsRepoConditions = []metav1.Condition{
+				{
+					Status: metav1.ConditionFalse,
+				},
+			}
+
+			// Create SnapshotEnvironmentBinding CR in cluster.
+			err := bindingReconciler.Create(ctx, binding)
+			Expect(err).To(BeNil())
+
+			// Trigger Reconciler
+			_, err = bindingReconciler.Reconcile(ctx, request)
+			Expect(err).To(BeNil())
+
+			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "Can not Reconcile Binding 'appa-staging-binding', since GitOps Repo Conditions status is false.", metav1.ConditionTrue)
+
+			By("update the repo condition and verify if the binding condition is updated")
+			binding.Status.GitOpsRepoConditions = []metav1.Condition{
+				{
+					Status: metav1.ConditionTrue,
+				},
+			}
+			err = bindingReconciler.Update(ctx, binding)
+			Expect(err).To(BeNil())
+
+			// Trigger Reconciler
+			_, err = bindingReconciler.Reconcile(ctx, request)
+			Expect(err).To(BeNil())
+
+			err = bindingReconciler.Get(ctx, client.ObjectKeyFromObject(binding), binding)
+			Expect(err).To(BeNil())
+			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "", metav1.ConditionFalse)
 		})
 
 		It("should not return an error if there are duplicate components in binding.Status.Components", func() {
@@ -341,7 +377,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).To(BeNil())
 
-			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "duplicate component keys found in status field in componentA")
+			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "duplicate component keys found in status field in componentA", metav1.ConditionTrue)
 
 		})
 
@@ -1153,7 +1189,7 @@ func newRequest(namespace, name string) reconcile.Request {
 	}
 }
 
-func checkStatusConditionOfEnvironmentBinding(ctx context.Context, rClient client.Client, binding *appstudiosharedv1.SnapshotEnvironmentBinding, message string) {
+func checkStatusConditionOfEnvironmentBinding(ctx context.Context, rClient client.Client, binding *appstudiosharedv1.SnapshotEnvironmentBinding, message string, status metav1.ConditionStatus) {
 	err := rClient.Get(ctx, client.ObjectKeyFromObject(binding), binding)
 	Expect(err).To(BeNil())
 	Expect(len(binding.Status.BindingConditions) > 0)
@@ -1162,7 +1198,7 @@ func checkStatusConditionOfEnvironmentBinding(ctx context.Context, rClient clien
 		if condition.Type == SnapshotEnvironmentBindingConditionErrorOccurred {
 			Expect(condition.Type).To(Equal(SnapshotEnvironmentBindingConditionErrorOccurred))
 			Expect(condition.Message).To(Equal(message))
-			Expect(condition.Status).To(Equal(metav1.ConditionTrue))
+			Expect(condition.Status).To(Equal(status))
 			Expect(condition.Reason).To(Equal(SnapshotEnvironmentBindingReasonErrorOccurred))
 		}
 	}

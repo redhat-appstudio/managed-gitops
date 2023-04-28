@@ -28,13 +28,13 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 		BeforeEach(func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
-			const serviceAccountName = "gitops-promotion-run-test-service-account"
-			const secondNamespace = "new-e2e-test-namespace2"
-
 			// Staging environment must be in a different namespace from the production environment, else we get a
 			// problem with the same resource being owned by two different applications.
 			// See Jira issue https://issues.redhat.com/browse/GITOPSRVCE-544
 			// To do this, we need to create the namespace and also a managed environment secret
+
+			const serviceAccountName = "gitops-promotion-run-test-service-account"
+			const secondNamespace = "new-e2e-test-namespace2"
 
 			By("creating another namespace for one of the environments")
 			clientconfig, err := fixture.GetSystemKubeConfig()
@@ -67,9 +67,8 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			_, apiServerURL, err := fixture.ExtractKubeConfigValues()
 			Expect(err).To(BeNil())
 
-			kubeConfigContents := generateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, tokenSecret)
-
 			// We actually need a managed environment secret containing a kubeconfig that has the bearer token
+			kubeConfigContents := generateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, tokenSecret)
 			secret := corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-managed-env-secret",

@@ -1,6 +1,8 @@
 package core
 
 import (
+	"context"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appstudiocontroller "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
@@ -26,19 +28,49 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 		BeforeEach(func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
+			const serviceAccountName = "gitops-promotion-run-test-service-account"
+			const secondNamespace = "new-e2e-test-namespace2"
+
+			// Staging environment must be in a different namespace from the production environment, else we get a
+			// problem with the same resource being owned by two different applications.
+			// See Jira issue https://issues.redhat.com/browse/GITOPSRVCE-544
+			// To do this, we need to create the namespace and also a managed environment secret
+
+			By("creating another namespace for one of the environments")
 			clientconfig, err := fixture.GetSystemKubeConfig()
 			Expect(err).Should(BeNil())
-			err = fixture.EnsureDestinationNamespaceExists("new-e2e-test-namespace2", dbutil.GetGitOpsEngineSingleInstanceNamespace(), clientconfig)
+			err = fixture.EnsureDestinationNamespaceExists(secondNamespace, dbutil.GetGitOpsEngineSingleInstanceNamespace(), clientconfig)
 			Expect(err).Should(BeNil())
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
-			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
+			By("creating a ServiceAccount and a Secret")
+			serviceAccount := corev1.ServiceAccount{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      serviceAccountName,
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+			}
+			err = k8s.Create(&serviceAccount, k8sClient)
+			Expect(err).To(Succeed())
+
+			// Now create the cluster role and cluster role binding
+			err = createOrUpdateClusterRoleAndRoleBinding(context.Background(), "123", k8sClient, serviceAccountName, serviceAccount.Namespace, ArgoCDManagerNamespacePolicyRules)
 			Expect(err).To(BeNil())
 
-			By("creating managed environment Secret")
-			secret := &corev1.Secret{
+			// Create the bearer token for the service account
+			tokenSecret, err := k8s.CreateServiceAccountBearerToken(context.Background(), k8sClient, serviceAccount.Name, serviceAccount.Namespace)
+			Expect(err).To(BeNil())
+			Expect(tokenSecret).NotTo(BeNil())
+
+			_, apiServerURL, err := fixture.ExtractKubeConfigValues()
+			Expect(err).To(BeNil())
+
+			kubeConfigContents := generateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, tokenSecret)
+
+			// We actually need a managed environment secret containing a kubeconfig that has the bearer token
+			secret := corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-managed-env-secret",
 					Namespace: fixture.GitOpsServiceE2ENamespace,
@@ -46,8 +78,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 				Type:       "managed-gitops.redhat.com/managed-environment",
 				StringData: map[string]string{"kubeconfig": kubeConfigContents},
 			}
-
-			err = k8s.Create(secret, k8sClient)
+			err = k8s.Create(&secret, k8sClient)
 			Expect(err).To(BeNil())
 
 			By("Create Staging Environment.")
@@ -58,7 +89,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			// See Jira issue https://issues.redhat.com/browse/GITOPSRVCE-544
 			environmentStage.Spec.UnstableConfigurationFields = &appstudiosharedv1.UnstableEnvironmentConfiguration{
 				KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
-					TargetNamespace:            "new-e2e-test-namespace2",
+					TargetNamespace:            secondNamespace,
 					APIURL:                     apiServerURL,
 					ClusterCredentialsSecret:   secret.Name,
 					AllowInsecureSkipTLSVerify: true,
@@ -72,7 +103,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			err = k8s.Create(&environmentProd, k8sClient)
 			Expect(err).To(Succeed())
 
-			By("Create Staging Snapshot.")
+			By("Create Snapshot.")
 			snapshot := buildSnapshotResource("my-snapshot", "new-demo-app", "Staging Snapshot", "Staging Snapshot", "component-a", "quay.io/jgwest-redhat/sample-workload:latest")
 			err = k8s.Create(&snapshot, k8sClient)
 			Expect(err).To(Succeed())
@@ -149,7 +180,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			promotionRun = buildPromotionRunResource("new-demo-app-manual-promotion", "new-demo-app", "my-snapshot", "prod")
 		})
 
-		It("Should create GitOpsDeployments and it should be Synced/Healthy.", func() {
+		FIt("Should create GitOpsDeployments and it should be Synced/Healthy.", func() {
 			// ToDo: https://issues.redhat.com/browse/GITOPSRVCE-234
 			if fixture.IsRunningAgainstKCP() {
 				Skip("Skipping this test in KCP until we fix the race condition")

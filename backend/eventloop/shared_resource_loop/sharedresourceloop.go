@@ -613,7 +613,7 @@ func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, gito
 //
 // This logic would be improved by https://issues.redhat.com/browse/GITOPSRVCE-73 (and others)
 func internalDetermineGitOpsEngineInstance(ctx context.Context, user db.ClusterUser, k8sClient client.Client, dbq db.DatabaseQueries, l logr.Logger) (*db.GitopsEngineInstance, bool, *db.GitopsEngineCluster, gitopserrors.ConditionError) {
-
+	// TODO: GITOPSRVCE-73 - Once we have a way to distribute work between Argo CD instances, update this function.
 	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: dbutil.GetGitOpsEngineSingleInstanceNamespace()}}
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(namespace), namespace); err != nil {
 		devError := fmt.Errorf("unable to retrieve gitopsengine namespace in determineGitOpsEngineInstanceForNewApplication: %w", err)

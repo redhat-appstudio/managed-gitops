@@ -10,6 +10,7 @@ To execute the script, we would need to have some basic requirements:
 - `-i` : provide gitops service image (default: `quay.io/${QUAY_USERNAME}/gitops-service:latest`, QUAY_USERNAME = `redhat-appstudio`)
 - `-u` : provide QUAY registry username (default: `redhat-appstudio`). This will replace the value of QUAY_USERNAME in `quay.io/${QUAY_USERNAME}/gitops-service:latest`
 - `-r` : optional argument to provide the revision of manifests to be used in kustomization.yaml. It could either be a commit id or a branch name. Default value is 'main'.
+- `-h` : to display the help message
 
 **Steps to execute the script:**
 

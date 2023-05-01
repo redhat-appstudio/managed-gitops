@@ -216,11 +216,11 @@ if [ "$1" = "kube-auto" ]; then
   echo " * Setting up pg_stat_statements for PostgreSQL metrics"
   # This statement creates the postgresql.auto.conf file and is located in the same folder as the postgresql.conf file
   # It can located via the command SHOW config_file;
-  ./psql.sh -h localhost -p 5432 -U postgres -c 'ALTER SYSTEM SET shared_preload_libraries TO pg_stat_statements;' 1> /dev/null
+  ./psql.sh -c 'ALTER SYSTEM SET shared_preload_libraries TO pg_stat_statements;' 
   # This reloads the config
-  ./psql.sh -h localhost -p 5432 -U postgres -c 'select pg_reload_conf();' 1> /dev/null
+  ./psql.sh -c 'select pg_reload_conf();' 
   # This creates the pg_stat_statements extension if it doesn't already exist
-  ./psql.sh -h localhost -p 5432 -U postgres -c 'CREATE EXTENSION IF NOT EXISTS pg_stat_statements;'
+  ./psql.sh -c 'CREATE EXTENSION IF NOT EXISTS pg_stat_statements;'
 
   # The above requires us to restart the server/service. For our dev env, this should be 'ok' to do.
   echo " * Need to restart the Postgres pod and wait until Postgres pod is running"

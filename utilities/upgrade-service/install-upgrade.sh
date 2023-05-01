@@ -36,7 +36,7 @@ function install_kubectl() {
 check_pod_status_ready() {
   for binary in "$@"; do
     echo "Binary $binary";
-    pod_name=$(kubectl get pods --no-headers -o custom-columns=":metadata.name" -n gitops | grep "$binary");
+    pod_name=$(kubectl get pods --no-headers --field-selector="status.phase!=Succeeded" -o custom-columns=":metadata.name" -n gitops | grep "$binary");
     echo "Pod name : $pod_name";
     kubectl wait pod --for=condition=Ready $pod_name -n gitops --timeout=300s;
     if [ $? -ne 0 ]; then
@@ -85,6 +85,19 @@ function generate_postgresql_secret {
   fi
 }
 
+# Print help message
+function print_help() {
+  echo "Available flag options are:"
+  echo " [-i] to provide gitops service image (default: quay.io/${QUAY_USERNAME}/gitops-service:latest)"
+  echo " [-u] to provide QUAY registry username (default: redhat-appstudio)"
+  echo " [-r] to provide the revision for fetching manifests. Value can be commit id or a branch name (default: main)"
+  echo " [-h] print help message"
+
+  echo "Example Usage:"
+  echo "sh install-upgrade.sh -i <image_url>"
+  echo "sh install-upgrade.sh -u <quay_username"
+}
+
 # Code execution starts here
 # create a temporary directory and do all the operations inside the directory.
 TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/managed-gitops-install-XXXXXXX")
@@ -105,12 +118,13 @@ QUAY_USERNAME=redhat-appstudio
 # Revision of the kubernetes manifests to be used for the installation
 GIT_REVISION="main"
 
-while getopts ':i:u:r:' OPTION; do
+while getopts ':i:u:r:h:' OPTION; do
   case "$OPTION" in
     i) IMG=${OPTARG};;
     u) QUAY_USERNAME=${OPTARG};;
     r) GIT_REVISION=${OPTARG};;
-    ?) echo "Available flag options are:\n[-i] to provide gitops service image (default: quay.io/${QUAY_USERNAME}/gitops-service:latest)\n[-u] to provide QUAY registry username (default: redhat-appstudio)"; exit;
+    h) print_help; exit;
+    ?) echo "[Error] Invalid Option provided to the script"; print_help; exit;
   esac
 done
 

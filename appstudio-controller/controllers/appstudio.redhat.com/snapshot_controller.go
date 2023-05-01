@@ -51,7 +51,7 @@ func (r *SnapshotReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	log := log.FromContext(ctx).
 		WithName(sharedutil.LogLogger_managed_gitops)
 
-	log.Info("Snapshot event: ", req)
+	log.Info("Snapshot event: ", "request", req)
 
 	return ctrl.Result{}, nil
 }

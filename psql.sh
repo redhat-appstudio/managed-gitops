@@ -9,4 +9,4 @@ PGPASSWORD="${POSTGRES_PASSWORD:-gitops}"
 POSTGRESQL_DATABASE="${POSTGRESQL_DATABASE:=postgres}"
 
 docker run -e PGPASSWORD=$PGPASSWORD --network=host --rm -it postgres:13 \
-  psql -h localhost -d $POSTGRESQL_DATABASE -U postgres -p 5432
+  psql -h localhost -d $POSTGRESQL_DATABASE -U postgres -p 5432 "$*"

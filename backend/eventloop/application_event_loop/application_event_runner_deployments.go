@@ -164,25 +164,6 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 	successfulCleanup := signalledShutdown_true
 	if len(oldDeplToAppMappings) > 0 || isGitOpsDeploymentDeleted(gitopsDeployment) {
 
-		// We should signal shutdown if both conditions are satisfied:
-		// - we have successfully cleaned up old resources
-		// - AND, the CR no longer exists
-		// for idx := range oldDeplToAppMappings {
-		// 	applicationDB := db.Application{
-		// 		Application_id: oldDeplToAppMappings[idx].Application_id,
-		// 	}
-		// 	if err := dbQueries.GetApplicationById(ctx, &applicationDB); err != nil {
-		// 		userError := "Error occured in retrieveing Application row from the database"
-		// 		return signalledShutdown_false, nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, err)
-		// 	}
-		// 	engineInstanceDB := db.GitopsEngineInstance{
-		// 		Gitopsengineinstance_id: applicationDB.Engine_instance_inst_id,
-		// 	}
-		// 	if err := dbQueries.GetGitopsEngineInstanceById(ctx, &engineInstanceDB); err != nil {
-		// 		userError := "Error occured in retrieveing GitopsEngineInstance row from the database"
-		// 		return signalledShutdown_false, nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, err)
-		// 	}
-
 		var deleteErr gitopserrors.UserError
 		successfulCleanup, deleteErr = a.handleDeleteGitOpsDeplEvent(ctx, gitopsDeployment, clusterUser, &oldDeplToAppMappings, dbQueries)
 		if deleteErr != nil {

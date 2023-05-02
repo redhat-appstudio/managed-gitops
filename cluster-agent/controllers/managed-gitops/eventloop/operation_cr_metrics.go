@@ -8,6 +8,7 @@ import (
 	"github.com/go-logr/logr"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -31,7 +32,7 @@ func (r *OperationCRMetricUpdater) StartOperationCRMetricUpdater() {
 
 		ctx := context.Background()
 		log := log.FromContext(ctx).
-			WithName(sharedutil.LogLogger_managed_gitops)
+			WithName(logutil.LogLogger_managed_gitops)
 
 		_, _ = sharedutil.CatchPanic(func() error {
 			updateOperationCRMetrics(ctx, r.Client, log)

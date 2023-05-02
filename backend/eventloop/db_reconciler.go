@@ -16,6 +16,7 @@ import (
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	sharedresourceloop "github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -61,7 +62,7 @@ func (r *DatabaseReconciler) startTimerForNextCycle() {
 
 		ctx := context.Background()
 		log := log.FromContext(ctx).
-			WithName(sharedutil.LogLogger_managed_gitops).
+			WithName(logutil.LogLogger_managed_gitops).
 			WithValues("component", "database-reconciler")
 
 		_, _ = sharedutil.CatchPanic(func() error {

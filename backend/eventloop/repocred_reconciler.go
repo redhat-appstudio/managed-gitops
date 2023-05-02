@@ -15,6 +15,7 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	sharedresourceloop "github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 )
 
@@ -43,7 +44,7 @@ func (r *RepoCredReconciler) startTimerForNextCycle() {
 
 		ctx := context.Background()
 		log := log.FromContext(ctx).
-			WithName(sharedutil.LogLogger_managed_gitops).
+			WithName(logutil.LogLogger_managed_gitops).
 			WithValues("component", "repocred-reconciler")
 
 		_, _ = sharedutil.CatchPanic(func() error {

@@ -10,6 +10,7 @@ import (
 	"github.com/go-logr/logr"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"github.com/redhat-appstudio/managed-gitops/backend/metrics"
 )
 
@@ -31,7 +32,7 @@ func (r *MetricsReconciler) StartDBMetricsReconcilerForMetrics() {
 
 		ctx := context.Background()
 		log := log.FromContext(ctx).
-			WithName(sharedutil.LogLogger_managed_gitops).
+			WithName(logutil.LogLogger_managed_gitops).
 			WithValues("component", "database-metrics-reconciler")
 
 		_, _ = sharedutil.CatchPanic(func() error {

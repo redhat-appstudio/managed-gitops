@@ -14,6 +14,7 @@ import (
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/gitopserrors"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	corev1 "k8s.io/api/core/v1"
@@ -156,7 +157,7 @@ func internalProcessMessage_internalReconcileSharedManagedEnv(ctx context.Contex
 		}
 		if rowsDeleted != 1 {
 			// Warn, but continue.
-			log.V(sharedutil.LogLevel_Warn).Info("unexpected number of rows deleted for APICRToDatabaseMapping", "mapping", apiCRToDBMapping.APIResourceUID)
+			log.V(logutil.LogLevel_Warn).Info("unexpected number of rows deleted for APICRToDatabaseMapping", "mapping", apiCRToDBMapping.APIResourceUID)
 		}
 
 		return constructNewManagedEnv(ctx, gitopsEngineClient, workspaceClient, *clusterUser, isNewUser, managedEnvironmentCR, secretCR, workspaceNamespace, k8sClientFactory, dbQueries, log)
@@ -414,7 +415,7 @@ func replaceExistingManagedEnv(ctx context.Context,
 			fmt.Errorf("unable to delete old cluster credentials '%s': %w", oldClusterCredentialsPrimaryKey, err)
 	}
 	if rowsDeleted != 1 {
-		log.V(sharedutil.LogLevel_Warn).Info("unexpected number of rows deleted when deleting cluster credentials",
+		log.V(logutil.LogLevel_Warn).Info("unexpected number of rows deleted when deleting cluster credentials",
 			"clusterCredentialsID", oldClusterCredentialsPrimaryKey)
 		return SharedResourceManagedEnvContainer{}, createGenericDatabaseErrorEnvInitCondition(managedEnvironmentCR), nil
 	}
@@ -642,7 +643,7 @@ func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 		}
 		if rowsDeleted != 1 {
 			// It's POSSIBLE (but unlikely) the cluster access was deleted while this for loop was in progress, so it's a WARN.
-			log.V(sharedutil.LogLevel_Warn).Info("Unexpected number of cluster accesses rows deleted, when deleting managed env.",
+			log.V(logutil.LogLevel_Warn).Info("Unexpected number of cluster accesses rows deleted, when deleting managed env.",
 				"rowsDeleted", rowsDeleted, "cluster-access", clusterAccess)
 		}
 		log.Info("Deleted ClusterAccess row that referenced to ManagedEnvironment", "userID", clusterAccess.Clusteraccess_user_id, "gitopsEngineInstanceID", clusterAccess.Clusteraccess_gitops_engine_instance_id)

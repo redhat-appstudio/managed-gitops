@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -189,7 +190,7 @@ func (wte *waitingTaskContainer) addTask(entry waitingTaskEntry, log logr.Logger
 
 	// Check if the task already exists in the list (by name)
 	if _, exists := wte.waitingTasksByName[entry.name]; exists {
-		log.V(LogLevel_Debug).Info("skipping duplicate task in addTask", "taskName", entry.name)
+		log.V(logutil.LogLevel_Debug).Info("skipping duplicate task in addTask", "taskName", entry.name)
 		return
 	}
 
@@ -302,7 +303,7 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string
 
 		if msg.msgType == taskRetryLoop_addTask {
 
-			log.V(LogLevel_Debug).Info("Task retry loop: addTask received", "msg", msg)
+			log.V(logutil.LogLevel_Debug).Info("Task retry loop: addTask received", "msg", msg)
 
 			addTaskMsg, ok := (msg.payload).(taskRetryMessage_addTask)
 			if !ok {
@@ -333,7 +334,7 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string
 				continue
 			}
 
-			log.V(LogLevel_Debug).Info("Removing task from retry loop: " + removeTaskMsg.name)
+			log.V(logutil.LogLevel_Debug).Info("Removing task from retry loop: " + removeTaskMsg.name)
 			delete(activeTaskMap, removeTaskMsg.name)
 
 			if taskEntry.cancelFunc != nil {
@@ -362,10 +363,10 @@ func internalTaskRetryLoop(inputChan chan taskRetryLoopMessage, debugName string
 			// Now that the task is complete, remove it from the active map
 			delete(activeTaskMap, workCompletedMsg.name)
 
-			log.V(LogLevel_Debug).Info("Task retry loop: task completed '"+taskEntry.name+"'", "shouldRetry", workCompletedMsg.shouldRetry)
+			log.V(logutil.LogLevel_Debug).Info("Task retry loop: task completed '"+taskEntry.name+"'", "shouldRetry", workCompletedMsg.shouldRetry)
 
 			if workCompletedMsg.shouldRetry {
-				log.V(LogLevel_Debug).Info("Adding failed task '" + taskEntry.name + "' to retry list")
+				log.V(logutil.LogLevel_Debug).Info("Adding failed task '" + taskEntry.name + "' to retry list")
 
 				nextScheduledRetryTime := time.Now().Add(taskEntry.backoff.IncreaseAndReturnNewDuration())
 

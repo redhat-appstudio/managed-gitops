@@ -28,6 +28,7 @@ import (
 	appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	apibackend "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -70,8 +71,11 @@ type SnapshotEnvironmentBindingReconciler struct {
 func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 
-	log := log.FromContext(ctx).WithValues("name", req.Name, "namespace", req.Namespace, "component", "bindingReconcile").WithName(sharedutil.LogLogger_managed_gitops)
-	defer log.V(sharedutil.LogLevel_Debug).Info("Snapshot Environment Binding Reconcile() complete.")
+	log := log.FromContext(ctx).
+		WithName(logutil.LogLogger_managed_gitops).
+		WithValues("name", req.Name, "namespace", req.Namespace, "component", "bindingReconcile")
+
+	defer log.V(logutil.LogLevel_Debug).Info("Snapshot Environment Binding Reconcile() complete.")
 
 	binding := &appstudioshared.SnapshotEnvironmentBinding{}
 
@@ -115,7 +119,7 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 		if binding.Status.GitOpsRepoConditions[len(binding.Status.GitOpsRepoConditions)-1].Status == metav1.ConditionFalse {
 			// if the SnapshotEventBinding GitOps Repo Conditions status is false - return;
 			// since there was an unexpected issue with refreshing/syncing the GitOps repository
-			log.V(sharedutil.LogLevel_Debug).Info("Can not Reconcile Binding '" + binding.Name + "', since GitOps Repo Conditions status is false.")
+			log.V(logutil.LogLevel_Debug).Info("Can not Reconcile Binding '" + binding.Name + "', since GitOps Repo Conditions status is false.")
 
 			// Update Status.Conditions field environmentBinding.
 			if err := updateStatusConditionOfEnvironmentBinding(ctx, rClient,
@@ -141,7 +145,7 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 
 	} else if len(binding.Status.Components) == 0 {
 
-		log.V(sharedutil.LogLevel_Debug).Info("SnapshotEventBinding Component status is required to " +
+		log.V(logutil.LogLevel_Debug).Info("SnapshotEventBinding Component status is required to " +
 			"generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding")
 
 		// Update Status.Conditions field of environmentBinding.
@@ -231,7 +235,7 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 
 	// If our update logic did not modify the binding at all, there is no need to all update.
 	if reflect.DeepEqual(binding, originalBinding) {
-		log.V(sharedutil.LogLevel_Debug).Info("Skipping update of SnapshotEnvironmentBinding, as the resource did not change.")
+		log.V(logutil.LogLevel_Debug).Info("Skipping update of SnapshotEnvironmentBinding, as the resource did not change.")
 		return ctrl.Result{}, nil
 	}
 
@@ -320,7 +324,7 @@ func processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployme
 			log.Error(err, "unable to create expectedGitopsDeployment: '"+expectedGitopsDeployment.Name+"' for Binding: '"+binding.Name+"'")
 			return err
 		}
-		sharedutil.LogAPIResourceChangeEvent(expectedGitopsDeployment.Namespace, expectedGitopsDeployment.Name, expectedGitopsDeployment, sharedutil.ResourceCreated, log)
+		logutil.LogAPIResourceChangeEvent(expectedGitopsDeployment.Namespace, expectedGitopsDeployment.Name, expectedGitopsDeployment, logutil.ResourceCreated, log)
 
 		return nil
 	}
@@ -343,7 +347,7 @@ func processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployme
 		log.Error(err, "unable to update actualGitOpsDeployment: "+actualGitOpsDeployment.Name+" for Binding: "+binding.Name)
 		return fmt.Errorf("unable to update actualGitOpsDeployment '%s', for Binding:%s, Error: %w", actualGitOpsDeployment.Name, binding.Name, err)
 	}
-	sharedutil.LogAPIResourceChangeEvent(expectedGitopsDeployment.Namespace, expectedGitopsDeployment.Name, expectedGitopsDeployment, sharedutil.ResourceModified, log)
+	logutil.LogAPIResourceChangeEvent(expectedGitopsDeployment.Namespace, expectedGitopsDeployment.Name, expectedGitopsDeployment, logutil.ResourceModified, log)
 
 	return nil
 }

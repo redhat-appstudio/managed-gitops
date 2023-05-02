@@ -35,6 +35,7 @@ import (
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/argoproj.io/application_info_cache"
 	"gopkg.in/yaml.v2"
@@ -65,9 +66,9 @@ type ApplicationReconciler struct {
 func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
 	log := log.FromContext(ctx).
-		WithName(sharedutil.LogLogger_managed_gitops)
+		WithName(logutil.LogLogger_managed_gitops)
 
-	defer log.V(sharedutil.LogLevel_Debug).Info("Application Reconcile() complete.")
+	defer log.V(logutil.LogLevel_Debug).Info("Application Reconcile() complete.")
 
 	rClient := sharedutil.IfEnabledSimulateUnreliableClient(r.Client)
 
@@ -90,7 +91,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	//   corresponding Application row primary key.
 	applicationDB := &db.Application{}
 	if databaseID, exists := app.Labels[controllers.ArgoCDApplicationDatabaseIDLabel]; !exists {
-		log.V(sharedutil.LogLevel_Warn).Info("Application CR was missing 'databaseID' label")
+		log.V(logutil.LogLevel_Warn).Info("Application CR was missing 'databaseID' label")
 		return ctrl.Result{}, nil
 	} else {
 		applicationDB.Application_id = databaseID
@@ -98,7 +99,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if _, _, err := r.Cache.GetApplicationById(ctx, applicationDB.Application_id); err != nil {
 		if db.IsResultNotFoundError(err) {
 
-			log.V(sharedutil.LogLevel_Warn).Info("Application CR '" + req.NamespacedName.String() +
+			log.V(logutil.LogLevel_Warn).Info("Application CR '" + req.NamespacedName.String() +
 				"' missing corresponding database entry: " + applicationDB.Application_id)
 
 			adt := applicationDeleteTask{
@@ -215,7 +216,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if err := r.Cache.UpdateApplicationState(ctx, *applicationState); err != nil {
 
 		if strings.Contains(err.Error(), db.ErrorUnexpectedNumberOfRowsAffected) {
-			log.V(sharedutil.LogLevel_Warn).Error(err, "unexpected error on updating existing application state (but the Application might have been deleted)")
+			log.V(logutil.LogLevel_Warn).Error(err, "unexpected error on updating existing application state (but the Application might have been deleted)")
 		} else {
 			log.Error(err, "unexpected error on updating existing application state")
 		}

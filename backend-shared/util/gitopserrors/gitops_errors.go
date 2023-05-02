@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"runtime/debug"
 
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -86,7 +87,8 @@ func NewDevOnlyError(devError error) UserError {
 // This function should be used when an error occurs, and we can provide both user and dev errors around the context of that error.
 func NewUserDevError(userErrorString string, devError error) UserError {
 
-	log := log.FromContext(context.Background())
+	log := log.FromContext(context.Background()).
+		WithName(logutil.LogLogger_managed_gitops)
 
 	if userErrorString == "" {
 		diagnosticMsg := fmt.Sprintf("SEVERE: Asked to create an Error with nil user error message. devError message is '%v'.", devError)

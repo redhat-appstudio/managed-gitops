@@ -13,6 +13,7 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 )
 
 const KubeSystemNamespace = "kube-system"
@@ -184,7 +185,7 @@ func createOperationInternal(ctx context.Context, waitForOperation bool, dbOpera
 
 	// Wait for operation to complete.
 	if waitForOperation {
-		l.V(sharedutil.LogLevel_Debug).Info("Waiting for Operation to complete")
+		l.V(logutil.LogLevel_Debug).Info("Waiting for Operation to complete")
 
 		if err = waitForOperationToComplete(ctx, &dbOperation, dbQueries, l); err != nil {
 			l.Error(err, "operation did not complete", "operation", dbOperation.Operation_id, "namespace", operation.Namespace)
@@ -211,7 +212,7 @@ func CleanupOperation(ctx context.Context, dbOperation db.Operation, k8sOperatio
 			return err
 		}
 		if rowsDeleted != 1 {
-			log.V(sharedutil.LogLevel_Warn).Info("unexpected number of operation rows deleted", "operation-id", dbOperation.Operation_id, "rows", rowsDeleted)
+			log.V(logutil.LogLevel_Warn).Info("unexpected number of operation rows deleted", "operation-id", dbOperation.Operation_id, "rows", rowsDeleted)
 		}
 	}
 
@@ -222,7 +223,7 @@ func CleanupOperation(ctx context.Context, dbOperation db.Operation, k8sOperatio
 			return err
 		}
 	}
-	log.V(sharedutil.LogLevel_Debug).Info("Deleted operation CR: " + k8sOperation.Name)
+	log.V(logutil.LogLevel_Debug).Info("Deleted operation CR: " + k8sOperation.Name)
 
 	return nil
 

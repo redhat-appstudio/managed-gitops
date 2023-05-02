@@ -16,10 +16,10 @@ import (
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
-
 	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/gitopserrors"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/backend/condition"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
@@ -724,7 +724,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	rowsDeleted, err := dbQueries.DeleteApplicationStateById(ctx, deplToAppMapping.Application_id)
 	if err != nil {
 
-		log.V(sharedutil.LogLevel_Warn).Error(err, "unable to delete application state by id")
+		log.V(logutil.LogLevel_Warn).Error(err, "unable to delete application state by id")
 		return false, err
 
 	} else if rowsDeleted == 0 {
@@ -755,7 +755,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 
 	} else if rowsDeleted == 0 {
 		// Log the warning, but continue
-		log.V(sharedutil.LogLevel_Warn).Error(nil, "unexpected number of rows deleted for deplToAppMapping", "rowsDeleted", rowsDeleted)
+		log.V(logutil.LogLevel_Warn).Error(nil, "unexpected number of rows deleted for deplToAppMapping", "rowsDeleted", rowsDeleted)
 	} else {
 		log.Info("While cleaning up after deleted GitOpsDeployment, deleted deplToAppMapping", "deplToAppMapUid", deplToAppMapping.Deploymenttoapplicationmapping_uid_id)
 	}
@@ -776,7 +776,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		log.Error(err, "unable to delete application by id")
 	} else if rowsDeleted == 0 {
 		// Log the error, but continue
-		log.V(sharedutil.LogLevel_Warn).Error(nil, "unexpected number of rows deleted for application", "rowsDeleted", rowsDeleted)
+		log.V(logutil.LogLevel_Warn).Error(nil, "unexpected number of rows deleted for application", "rowsDeleted", rowsDeleted)
 	}
 
 	gitopsEngineInstance, err := a.sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, dbApplication.Engine_instance_inst_id, a.workspaceClient, apiNamespace, a.log)
@@ -961,7 +961,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	}
 	// We don't need to log status updates, e.g. via 'sharedutil.LogAPIResourceChangeEvent'
 
-	log.V(sharedutil.LogLevel_Debug).Info("Updated status in deploymentStatusTick")
+	log.V(logutil.LogLevel_Debug).Info("Updated status in deploymentStatusTick")
 
 	// NOTE: make sure to preserve the existing conditions fields that are in the status field of the CR, when updating the status!
 

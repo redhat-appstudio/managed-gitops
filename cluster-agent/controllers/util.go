@@ -9,6 +9,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -60,7 +61,7 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 	}
 
 	if value, exists := app.Labels[ArgoCDApplicationDatabaseIDLabel]; !exists || value == "" {
-		log.V(sharedutil.LogLevel_Debug).Info("skipping non-GitOps Service application")
+		log.V(logutil.LogLevel_Debug).Info("skipping non-GitOps Service application")
 		return nil
 	}
 
@@ -82,7 +83,7 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 					log.Error(err, "unable to update application with finalizer")
 					return err
 				}
-				sharedutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, sharedutil.ResourceModified, log)
+				logutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, logutil.ResourceModified, log)
 
 			}
 		}
@@ -93,7 +94,7 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 			log.Error(err, "unable to delete application with finalizer")
 			return err
 		}
-		sharedutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, sharedutil.ResourceDeleted, log)
+		logutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, logutil.ResourceDeleted, log)
 
 	}
 
@@ -117,7 +118,7 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 	for {
 
 		if time.Now().After(expirationTime) {
-			log.V(sharedutil.LogLevel_Warn).Error(nil, "Argo CD application finalizer-based delete expired in deleteArgoCDApplication")
+			log.V(logutil.LogLevel_Warn).Error(nil, "Argo CD application finalizer-based delete expired in deleteArgoCDApplication")
 			break
 		}
 
@@ -176,7 +177,7 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 						log.Error(err, "unable to remove finalizer from Application")
 						continue
 					}
-					sharedutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, sharedutil.ResourceModified, log)
+					logutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, logutil.ResourceModified, log)
 
 				}
 			}

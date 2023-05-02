@@ -15,6 +15,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	corev1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -244,7 +245,7 @@ func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, na
 			if err := k8sClient.Create(ctx, newArgoCDNamespace); err != nil {
 				return fmt.Errorf("while creating Argo CD instance, a namespace could not be created: %v", err)
 			}
-			sharedutil.LogAPIResourceChangeEvent(newArgoCDNamespace.Namespace, newArgoCDNamespace.Name, newArgoCDNamespace, sharedutil.ResourceCreated, log)
+			logutil.LogAPIResourceChangeEvent(newArgoCDNamespace.Namespace, newArgoCDNamespace.Name, newArgoCDNamespace, logutil.ResourceCreated, log)
 		} else {
 			return fmt.Errorf("while creating Argo CD instance, an unexpected error on retrieving Namespace: %v", err)
 		}
@@ -266,8 +267,8 @@ func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, na
 
 				return fmt.Errorf("error on creating: %s, %v ", expectedArgoCDOperand.GetName(), errk8s)
 			}
-			sharedutil.LogAPIResourceChangeEvent(expectedArgoCDOperand.Namespace, expectedArgoCDOperand.Name, expectedArgoCDOperand,
-				sharedutil.ResourceCreated, log)
+			logutil.LogAPIResourceChangeEvent(expectedArgoCDOperand.Namespace, expectedArgoCDOperand.Name, expectedArgoCDOperand,
+				logutil.ResourceCreated, log)
 
 		} else {
 			log.Error(err, "unexpected error on retrieving ArgoCD operand")
@@ -283,8 +284,8 @@ func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, na
 				return fmt.Errorf("unexpected error on updating existing ArgoCD operand, %v", err)
 			}
 
-			sharedutil.LogAPIResourceChangeEvent(existingArgoCDOperand.Namespace, existingArgoCDOperand.Name, existingArgoCDOperand,
-				sharedutil.ResourceModified, log)
+			logutil.LogAPIResourceChangeEvent(existingArgoCDOperand.Namespace, existingArgoCDOperand.Name, existingArgoCDOperand,
+				logutil.ResourceModified, log)
 		}
 	}
 
@@ -300,7 +301,7 @@ func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, na
 		}
 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject); err != nil {
 			if apierr.IsNotFound(err) {
-				log.V(sharedutil.LogLevel_Debug).Info("Waiting for AppProject to exist in namespace " + namespace)
+				log.V(logutil.LogLevel_Debug).Info("Waiting for AppProject to exist in namespace " + namespace)
 				return false, nil
 			} else {
 				log.Error(err, "unable to retrieve AppProject")
@@ -330,13 +331,13 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 			if err := k8sClient.Update(ctx, serviceAccount); err != nil {
 				return fmt.Errorf("error on Update %v", err)
 			}
-			sharedutil.LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, sharedutil.ResourceModified, log)
+			logutil.LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, logutil.ResourceModified, log)
 
 		} else {
 			return fmt.Errorf("error on Create %v", err)
 		}
 	}
-	sharedutil.LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, sharedutil.ResourceCreated, log)
+	logutil.LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, logutil.ResourceCreated, log)
 
 	log.Info(fmt.Sprintf("serviceAccount %q created in namespace %q", serviceAccount.Name, serviceAccount.Namespace))
 
@@ -356,13 +357,13 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 			if err := k8sClient.Update(ctx, secret); err != nil {
 				return fmt.Errorf("error on Update %v", err)
 			}
-			sharedutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, sharedutil.ResourceModified, log)
+			logutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, logutil.ResourceModified, log)
 
 		} else {
 			return fmt.Errorf("error on Create %v", err)
 		}
 	}
-	sharedutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, sharedutil.ResourceCreated, log)
+	logutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, logutil.ResourceCreated, log)
 	log.Info(fmt.Sprintf("secret %q created in namespace %q", secret.Name, secret.Namespace))
 
 	clusterRole := rbac.ClusterRole{
@@ -385,13 +386,13 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 			if err := k8sClient.Update(ctx, &clusterRole); err != nil {
 				return fmt.Errorf("error on Update %v", err)
 			}
-			sharedutil.LogAPIResourceChangeEvent(clusterRole.Namespace, clusterRole.Name, clusterRole, sharedutil.ResourceModified, log)
+			logutil.LogAPIResourceChangeEvent(clusterRole.Namespace, clusterRole.Name, clusterRole, logutil.ResourceModified, log)
 
 		} else {
 			return fmt.Errorf("error on Create %v", err)
 		}
 	}
-	sharedutil.LogAPIResourceChangeEvent(clusterRole.Namespace, clusterRole.Name, clusterRole, sharedutil.ResourceCreated, log)
+	logutil.LogAPIResourceChangeEvent(clusterRole.Namespace, clusterRole.Name, clusterRole, logutil.ResourceCreated, log)
 	log.Info(fmt.Sprintf("clusterRole %q created in namespace %q", clusterRole.Name, clusterRole.Namespace))
 
 	clusterRoleBinding := rbac.ClusterRoleBinding{
@@ -418,13 +419,13 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 			if err := k8sClient.Update(ctx, &clusterRoleBinding); err != nil {
 				return fmt.Errorf("error on Update %v", err)
 			}
-			sharedutil.LogAPIResourceChangeEvent(clusterRoleBinding.Namespace, clusterRoleBinding.Name, clusterRoleBinding, sharedutil.ResourceModified, log)
+			logutil.LogAPIResourceChangeEvent(clusterRoleBinding.Namespace, clusterRoleBinding.Name, clusterRoleBinding, logutil.ResourceModified, log)
 
 		} else {
 			return fmt.Errorf("error on Create %v", err)
 		}
 	}
-	sharedutil.LogAPIResourceChangeEvent(clusterRoleBinding.Namespace, clusterRoleBinding.Name, clusterRoleBinding, sharedutil.ResourceCreated, log)
+	logutil.LogAPIResourceChangeEvent(clusterRoleBinding.Namespace, clusterRoleBinding.Name, clusterRoleBinding, logutil.ResourceCreated, log)
 	log.Info(fmt.Sprintf("clusterRoleBinding %q created in namespace %q", clusterRoleBinding.Name, clusterRoleBinding.Namespace))
 
 	// Wait for Secret to contain a bearer token
@@ -442,7 +443,7 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(secret), secret)
 		if err != nil {
 			if apierr.IsNotFound(err) {
-				log.V(sharedutil.LogLevel_Debug).Info("Waiting for Secret to exist in namespace " + secret.Namespace)
+				log.V(logutil.LogLevel_Debug).Info("Waiting for Secret to exist in namespace " + secret.Namespace)
 				return false, nil
 			} else {
 				log.Error(err, "unable to retrieve Secret")
@@ -501,13 +502,13 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 			if err := k8sClient.Update(ctx, clusterSecret); err != nil {
 				return fmt.Errorf("error on Update %v", err)
 			}
-			sharedutil.LogAPIResourceChangeEvent(clusterSecret.Namespace, clusterSecret.Name, clusterSecret, sharedutil.ResourceCreated, log)
+			logutil.LogAPIResourceChangeEvent(clusterSecret.Namespace, clusterSecret.Name, clusterSecret, logutil.ResourceCreated, log)
 
 		} else {
 			return fmt.Errorf("error on Create %v", err)
 		}
 	}
-	sharedutil.LogAPIResourceChangeEvent(clusterSecret.Namespace, clusterSecret.Name, clusterSecret, sharedutil.ResourceCreated, log)
+	logutil.LogAPIResourceChangeEvent(clusterSecret.Namespace, clusterSecret.Name, clusterSecret, logutil.ResourceCreated, log)
 
 	log.Info(fmt.Sprintf("cluster secret %q created ", clusterSecret.Name))
 	return nil

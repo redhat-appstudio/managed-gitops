@@ -14,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
-
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -122,7 +122,7 @@ type credentialResponse struct {
 func (cs *CredentialService) credentialHandler(input chan credentialRequest) {
 
 	log := log.FromContext(context.Background()).
-		WithName(sharedutil.LogLogger_managed_gitops)
+		WithName(logutil.LogLogger_managed_gitops)
 
 	credentials := map[string]argoCDCredentials{}
 

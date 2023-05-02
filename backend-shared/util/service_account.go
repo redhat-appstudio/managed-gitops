@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-logr/logr"
 
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -58,7 +59,7 @@ func getOrCreateServiceAccount(ctx context.Context, k8sClient client.Client, ser
 		log.Error(err, "Unable to create ServiceAccount")
 		return nil, fmt.Errorf("unable to create service account '%s': %w", serviceAccount.Name, err)
 	}
-	LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, ResourceCreated, log)
+	logutil.LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, logutil.ResourceCreated, log)
 
 	log.Info(fmt.Sprintf("ServiceAccount %s created in namespace %s", serviceAccountName, serviceAccountNS))
 
@@ -172,7 +173,7 @@ func createServiceAccountTokenSecret(ctx context.Context, k8sClient client.Clien
 		log.Error(err, "Unable to create ServiceAccountToken Secret")
 		return nil, err
 	}
-	LogAPIResourceChangeEvent(tokenSecret.Namespace, tokenSecret.Name, tokenSecret, ResourceCreated, log)
+	logutil.LogAPIResourceChangeEvent(tokenSecret.Namespace, tokenSecret.Name, tokenSecret, logutil.ResourceCreated, log)
 
 	return tokenSecret, nil
 }
@@ -198,7 +199,7 @@ func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k
 			log.Error(err, "Unable to create ClusterRole")
 			return fmt.Errorf("unable to create clusterrole: %w", err)
 		}
-		LogAPIResourceChangeEvent(clusterRole.Namespace, clusterRole.Name, clusterRole, ResourceCreated, log)
+		logutil.LogAPIResourceChangeEvent(clusterRole.Namespace, clusterRole.Name, clusterRole, logutil.ResourceCreated, log)
 
 	} else {
 		log := log.WithValues("name", clusterRole.Name)
@@ -208,7 +209,7 @@ func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k
 			log.Error(err, "Unable to update ClusterRole")
 			return fmt.Errorf("unable to update cluster role: %w", err)
 		}
-		LogAPIResourceChangeEvent(clusterRole.Namespace, clusterRole.Name, clusterRole, ResourceModified, log)
+		logutil.LogAPIResourceChangeEvent(clusterRole.Namespace, clusterRole.Name, clusterRole, logutil.ResourceModified, log)
 	}
 
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
@@ -243,13 +244,13 @@ func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k
 			log.Error(err, "Unable to update ClusterRoleBinding")
 			return fmt.Errorf("unable to create clusterrole: %w", err)
 		}
-		LogAPIResourceChangeEvent(clusterRoleBinding.Namespace, clusterRoleBinding.Name, clusterRoleBinding, ResourceModified, log)
+		logutil.LogAPIResourceChangeEvent(clusterRoleBinding.Namespace, clusterRoleBinding.Name, clusterRoleBinding, logutil.ResourceModified, log)
 	} else {
 		if err := k8sClient.Create(ctx, clusterRoleBinding); err != nil {
 			log.Error(err, "Unable to create ClusterRoleBinding")
 			return fmt.Errorf("unable to create clusterrole: %w", err)
 		}
-		LogAPIResourceChangeEvent(clusterRoleBinding.Namespace, clusterRoleBinding.Name, clusterRoleBinding, ResourceCreated, log)
+		logutil.LogAPIResourceChangeEvent(clusterRoleBinding.Namespace, clusterRoleBinding.Name, clusterRoleBinding, logutil.ResourceCreated, log)
 	}
 
 	return nil

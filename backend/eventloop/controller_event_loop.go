@@ -3,7 +3,7 @@ package eventloop
 import (
 	"context"
 
-	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -69,7 +69,7 @@ type controllerEventLoop_workspaceEntry struct {
 func controllerEventLoopRouter(input chan eventlooptypes.EventLoopEvent, workspaceEventFactory workspaceEventLoopRouterFactory) {
 
 	eventLoopRouterLog := log.FromContext(context.Background()).
-		WithName(sharedutil.LogLogger_managed_gitops)
+		WithName(logutil.LogLogger_managed_gitops)
 
 	eventLoopRouterLog.Info("controllerEventLoopRouter started.")
 	defer eventLoopRouterLog.Error(nil, "SEVERE: controllerEventLoopRouter ended.")
@@ -80,7 +80,7 @@ func controllerEventLoopRouter(input chan eventlooptypes.EventLoopEvent, workspa
 
 		event := <-input
 
-		eventLoopRouterLog.V(sharedutil.LogLevel_Debug).Info("eventLoop received event",
+		eventLoopRouterLog.V(logutil.LogLevel_Debug).Info("eventLoop received event",
 			"event", eventlooptypes.StringEventLoopEvent(&event), "workspace", event.WorkspaceID)
 
 		workspaceEntryVal, ok := workspaceEntries[event.WorkspaceID]

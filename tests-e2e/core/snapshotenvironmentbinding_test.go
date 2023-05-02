@@ -367,7 +367,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 				ComponentName: binding.Spec.Components[0].Name, GitOpsDeployment: gitOpsDeploymentName,
 			}}
 
-			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments))
+			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments, true))
 
 			//====================================================
 			By("Verify that GitOpsDeployment CR created, is having Spec.Source as given in Binding.")
@@ -388,7 +388,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			//====================================================
 			By("Verify that GitOpsDeployment CR is recreated by GitOps-Service.")
 
-			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments))
+			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveStatusGitOpsDeployments(expectedGitOpsDeployments, true))
 
 			gitOpsDeploymentAfter := buildGitOpsDeploymentObjectMeta(gitOpsDeploymentName, binding.Namespace)
 

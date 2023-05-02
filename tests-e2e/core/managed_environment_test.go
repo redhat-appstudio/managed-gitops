@@ -830,7 +830,7 @@ var _ = Describe("Environment E2E tests", func() {
 							APIURL:                     apiServerURL,
 							ClusterCredentialsSecret:   secret.Name,
 							AllowInsecureSkipTLSVerify: true,
-							ClusterResources:           true,
+							ClusterResources:           false,
 							Namespaces: []string{
 								"namespace-1",
 								"namespace-2",
@@ -868,12 +868,34 @@ var _ = Describe("Environment E2E tests", func() {
 					APIURL:                     apiServerURL,
 					ClusterCredentialsSecret:   secret.Name,
 					AllowInsecureSkipTLSVerify: true,
-					ClusterResources:           false,
+					ClusterResources:           true,
 					Namespaces: []string{
 						"namespace-1",
 						"namespace-2",
 						"namespace-3",
 					},
+				},
+			}
+
+			err = k8s.Update(&environment, k8sClient)
+			Expect(err).To(BeNil())
+
+			Eventually(managedEnvCR, "2m", "1s").Should(
+				SatisfyAll(
+					managedenvironment.HaveClusterResources(environment.Spec.UnstableConfigurationFields.ClusterResources),
+					managedenvironment.HaveNamespaces(environment.Spec.UnstableConfigurationFields.Namespaces),
+				),
+			)
+
+			By("remove the namespaces field from Environment and set clusterResources to false and verify that it updates the corresponding fields of GitOpsDeploymentManagedEnvironment")
+			environment.Spec.UnstableConfigurationFields = &appstudioshared.UnstableEnvironmentConfiguration{
+				KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+					TargetNamespace:            fixture.GitOpsServiceE2ENamespace,
+					APIURL:                     apiServerURL,
+					ClusterCredentialsSecret:   secret.Name,
+					AllowInsecureSkipTLSVerify: true,
+					ClusterResources:           false,
+					Namespaces:                 nil,
 				},
 			}
 

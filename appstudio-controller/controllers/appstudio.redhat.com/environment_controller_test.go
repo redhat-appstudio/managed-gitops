@@ -57,7 +57,7 @@ var _ = Describe("Environment controller tests", func() {
 
 		})
 
-		createEnvironmentTest := func(allowInsecureSkipTLSVerifyParam bool) {
+		createEnvironmentTest := func(allowInsecureSkipTLSVerifyParam, clusterResources bool, namespaces []string) {
 			var err error
 
 			secret := corev1.Secret{
@@ -90,11 +90,8 @@ var _ = Describe("Environment controller tests", func() {
 							APIURL:                     "https://my-api-url",
 							ClusterCredentialsSecret:   secret.Name,
 							AllowInsecureSkipTLSVerify: allowInsecureSkipTLSVerifyParam,
-							ClusterResources:           true,
-							Namespaces: []string{
-								"namespace-1",
-								"namespace-2",
-							},
+							ClusterResources:           clusterResources,
+							Namespaces:                 namespaces,
 						},
 					},
 				},
@@ -136,14 +133,21 @@ var _ = Describe("Environment controller tests", func() {
 		}
 
 		It("should create a GitOpsDeploymentManagedEnvironment, if the Environment is created where AllowInsecureSkipTLSVerify field is true", func() {
-			createEnvironmentTest(true)
+			createEnvironmentTest(true, false, nil)
 		})
 
 		It("should create a GitOpsDeploymentManagedEnvironment, if the Environment is created where AllowInsecureSkipTLSVerify field is false", func() {
-			createEnvironmentTest(false)
+			createEnvironmentTest(false, false, nil)
 		})
 
-		updateEnvTest := func(allowInsecureSkipTLSVerifyParam bool) {
+		It("should create a GitOpsDeploymentManagedEnvironment, if the Environment is created where ClusterResources is true and namespaces are specified", func() {
+			createEnvironmentTest(false, true, []string{
+				"namespace-1",
+				"namespace-2",
+			})
+		})
+
+		updateEnvTest := func(allowInsecureSkipTLSVerifyParam, initialClusterResources, updatedClusterResources bool, initialNamespaces, updatedNamespaces []string) {
 			var err error
 
 			By("creating first managed environment Secret")
@@ -192,11 +196,8 @@ var _ = Describe("Environment controller tests", func() {
 							APIURL:                     "https://my-api-url",
 							ClusterCredentialsSecret:   secret2.Name,
 							AllowInsecureSkipTLSVerify: allowInsecureSkipTLSVerifyParam,
-							ClusterResources:           true,
-							Namespaces: []string{
-								"namespace-1",
-								"namespace-2",
-							},
+							ClusterResources:           initialClusterResources,
+							Namespaces:                 initialNamespaces,
 						},
 					},
 				},
@@ -211,12 +212,8 @@ var _ = Describe("Environment controller tests", func() {
 				APIURL:                     "https://old-api-url",
 				ClusterCredentialsSecret:   secret.Name,
 				AllowInsecureSkipTLSVerify: !allowInsecureSkipTLSVerifyParam,
-				ClusterResources:           false,
-				Namespaces: []string{
-					"namespace-1",
-					"namespace-2",
-					"namespace-3",
-				},
+				ClusterResources:           updatedClusterResources,
+				Namespaces:                 updatedNamespaces,
 			}
 			err = k8sClient.Create(ctx, &previouslyReconciledManagedEnv)
 			Expect(err).To(BeNil())
@@ -254,6 +251,11 @@ var _ = Describe("Environment controller tests", func() {
 			_, err = reconciler.Reconcile(ctx, req)
 			Expect(err).To(BeNil())
 
+			By("retrieving the update ManagedEnvironment")
+			newManagedEnv = generateEmptyManagedEnvironment(env.Name, env.Namespace)
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&newManagedEnv), &newManagedEnv)
+			Expect(err).To(BeNil())
+
 			By("verify that error condition is not set")
 			Expect(env.Status.Conditions).To(BeNil())
 
@@ -270,11 +272,23 @@ var _ = Describe("Environment controller tests", func() {
 		}
 
 		It("should update a GitOpsDeploymentManagedEnvironment,  if the Environment is updated where AllowInsecureSkipTLSVerify field is true", func() {
-			updateEnvTest(true)
+			updateEnvTest(true, false, false, nil, nil)
 		})
 
 		It("should update a GitOpsDeploymentManagedEnvironment, if the Environment is updated where AllowInsecureSkipTLSVerify field is false", func() {
-			updateEnvTest(false)
+			updateEnvTest(false, false, false, nil, nil)
+		})
+
+		It("should update a GitOpsDeploymentManagedEnvironment, if the Environment is updated where ClusterResources and Namespaces fields are updated", func() {
+			updateEnvTest(false, true, false,
+				[]string{
+					"namespace-1",
+					"namespace-2",
+				}, []string{
+					"namespace-1",
+					"namespace-2",
+					"namespace-3",
+				})
 		})
 
 		It("should not return an error, if the Environment is deleted", func() {

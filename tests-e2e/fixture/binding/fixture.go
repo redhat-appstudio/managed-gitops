@@ -16,6 +16,32 @@ import (
 	k8sFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 )
 
+// This is intentionally NOT exported, for now. Create another function in this file/package that calls this function, and export that.
+func expectedCondition(f func(binding appstudiosharedv1.SnapshotEnvironmentBinding) bool) matcher.GomegaMatcher {
+
+	return WithTransform(func(binding appstudiosharedv1.SnapshotEnvironmentBinding) bool {
+
+		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
+		Expect(err).To(BeNil())
+
+		k8sClient, err := fixture.GetKubeClient(config)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&binding), &binding)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		return f(binding)
+
+	}, BeTrue())
+
+}
+
 // UpdateStatusWithFunction updates a SnapshotEnvironmentBinding on a K8s cluster, using the provided function.
 //
 // UpdateStatusWithFunction will handle interfacing with K8s to retrieve the latest value of the
@@ -53,7 +79,9 @@ func UpdateStatusWithFunction(binding *appstudiosharedv1.SnapshotEnvironmentBind
 
 }
 
-func HaveStatusGitOpsDeployments(gitOpsDeployments []appstudiosharedv1.BindingStatusGitOpsDeployment) matcher.GomegaMatcher {
+// HaveStatusGitOpsDeployments waits for a SnapshotEnvironmentBinding to have the expected .status.gitopsDeployments
+// - Optionally, this function can be told to ignore the health, sync status, and commit ID fields, when comparing
+func HaveStatusGitOpsDeployments(gitOpsDeployments []appstudiosharedv1.BindingStatusGitOpsDeployment, ignoreSyncHealthAndCommitID bool) matcher.GomegaMatcher {
 
 	// compare compares two slices, returning true if the contents are equal regardless of the order of elements in the slices
 	compare := func(a []appstudiosharedv1.BindingStatusGitOpsDeployment, b []appstudiosharedv1.BindingStatusGitOpsDeployment) string {
@@ -65,6 +93,18 @@ func HaveStatusGitOpsDeployments(gitOpsDeployments []appstudiosharedv1.BindingSt
 
 			match := false
 			for _, bVal := range b {
+
+				if ignoreSyncHealthAndCommitID {
+					// If the test doesn't care about these fields, clone them and clear the fields, excluding them from comparison
+					aVal = *aVal.DeepCopy()
+					aVal.GitOpsDeploymentCommitID = ""
+					aVal.GitOpsDeploymentHealthStatus = ""
+					aVal.GitOpsDeploymentSyncStatus = ""
+					bVal = *bVal.DeepCopy()
+					bVal.GitOpsDeploymentCommitID = ""
+					bVal.GitOpsDeploymentHealthStatus = ""
+					bVal.GitOpsDeploymentSyncStatus = ""
+				}
 
 				if reflect.DeepEqual(aVal, bVal) {
 					match = true
@@ -80,29 +120,16 @@ func HaveStatusGitOpsDeployments(gitOpsDeployments []appstudiosharedv1.BindingSt
 		return ""
 	}
 
-	return WithTransform(func(binding appstudiosharedv1.SnapshotEnvironmentBinding) bool {
-
-		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
-
-		k8sClient, err := fixture.GetKubeClient(config)
-		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
-			return false
-		}
-
-		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&binding), &binding)
-		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
-			return false
-		}
+	return expectedCondition(func(binding appstudiosharedv1.SnapshotEnvironmentBinding) bool {
 
 		compareContents := compare(gitOpsDeployments, binding.Status.GitOpsDeployments)
 
 		GinkgoWriter.Println("HaveStatusGitOpsDeployments:", compareContents, "/ Expected:", gitOpsDeployments, "/ Actual:", binding.Status.GitOpsDeployments)
 
 		return compareContents == ""
-	}, BeTrue())
+
+	})
+
 }
 
 // HaveGitOpsDeploymentsWithStatusProperties compares the given, expected gitOpsDeployments with the actual SnapshotEnvironmentBinding

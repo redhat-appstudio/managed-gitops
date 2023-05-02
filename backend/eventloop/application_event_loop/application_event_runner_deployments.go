@@ -681,11 +681,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 	}
 
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
-	if engineInstance == nil {
-		err = fmt.Errorf("gitopsengineinstance is nil, expected non-nil:  %v", engineInstance)
-		log.Error(err, "unexpected nil value of required objects")
-		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
-	}
+
 	if engineInstance.Namespace_name == "" {
 		err = fmt.Errorf("gitopsengineinstance namespace is nil, expected non-nil:  %s", engineInstance.Gitopsengineinstance_id)
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)

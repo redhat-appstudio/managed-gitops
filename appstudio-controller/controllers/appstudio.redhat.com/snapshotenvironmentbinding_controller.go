@@ -70,7 +70,7 @@ type SnapshotEnvironmentBindingReconciler struct {
 func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 
-	log := log.FromContext(ctx).WithValues("name", req.Name, "namespace", req.Namespace, "component", "bindingReconcile")
+	log := log.FromContext(ctx).WithValues("name", req.Name, "namespace", req.Namespace, "component", "bindingReconcile").WithName(sharedutil.LogLogger_managed_gitops)
 	defer log.V(sharedutil.LogLevel_Debug).Info("Snapshot Environment Binding Reconcile() complete.")
 
 	binding := &appstudioshared.SnapshotEnvironmentBinding{}
@@ -190,7 +190,7 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 	// - If not, create/update it.
 	for componentName, expectedGitOpsDeployment := range expectedDeployments {
 
-		if err := processExpectedGitOpsDeployment(ctx, expectedGitOpsDeployment, *binding, rClient); err != nil {
+		if err := processExpectedGitOpsDeployment(ctx, expectedGitOpsDeployment, *binding, rClient, log); err != nil {
 
 			errorMessage := fmt.Sprintf("error occurred while processing expected GitOpsDeployment '%s' for SnapshotEnvironmentBinding",
 				expectedGitOpsDeployment.Name)
@@ -303,9 +303,10 @@ const (
 
 // processExpectedGitOpsDeployment processed the GitOpsDeployment that is expected for a particular Component
 func processExpectedGitOpsDeployment(ctx context.Context, expectedGitopsDeployment apibackend.GitOpsDeployment,
-	binding appstudioshared.SnapshotEnvironmentBinding, k8sClient client.Client) error {
+	binding appstudioshared.SnapshotEnvironmentBinding, k8sClient client.Client, l logr.Logger) error {
 
-	log := log.FromContext(ctx).WithValues("binding", binding.Name, "gitOpsDeployment", expectedGitopsDeployment.Name, "namespace", binding.Namespace)
+	log := l.WithValues("binding", binding.Name, "gitOpsDeployment", expectedGitopsDeployment.Name, "bindingNamespace", binding.Namespace)
+
 	actualGitOpsDeployment := apibackend.GitOpsDeployment{}
 
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&expectedGitopsDeployment), &actualGitOpsDeployment); err != nil {

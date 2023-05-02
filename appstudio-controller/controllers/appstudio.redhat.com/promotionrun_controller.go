@@ -28,6 +28,7 @@ import (
 	appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	apibackend "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -74,8 +75,8 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 
 	log := log.FromContext(ctx).
-		WithName(sharedutil.LogLogger_managed_gitops)
-	defer log.V(sharedutil.LogLevel_Debug).Info("Promotion Run Reconcile() complete.")
+		WithName(logutil.LogLogger_managed_gitops)
+	defer log.V(logutil.LogLevel_Debug).Info("Promotion Run Reconcile() complete.")
 	promotionRun := &appstudioshared.PromotionRun{}
 
 	rClient := sharedutil.IfEnabledSimulateUnreliableClient(r.Client)
@@ -99,7 +100,7 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	if promotionRun.Status.State == appstudioshared.PromotionRunState_Complete {
 		// Ignore promotion runs that have completed.
-		log.V(sharedutil.LogLevel_Debug).Info("Promotion '" + promotionRun.Name + "' is already completed")
+		log.V(logutil.LogLevel_Debug).Info("Promotion '" + promotionRun.Name + "' is already completed")
 		return ctrl.Result{}, nil
 	}
 
@@ -157,8 +158,8 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun state: %v", err)
 		}
 
-		sharedutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, sharedutil.ResourceModified, log)
-		log.V(sharedutil.LogLevel_Debug).Info("updated PromotionRun state" + promotionRun.Name)
+		logutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, logutil.ResourceModified, log)
+		log.V(logutil.LogLevel_Debug).Info("updated PromotionRun state" + promotionRun.Name)
 	}
 
 	// Verify: activebindings should not have a value which differs from the value specified in promotionrun.spec
@@ -233,7 +234,7 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, fmt.Errorf("unable to update Binding '%s' snapshot: %v", binding.Name, err)
 		}
 
-		sharedutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, sharedutil.ResourceModified, log)
+		logutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, logutil.ResourceModified, log)
 		log.Info("Updating Binding: " + binding.Name + " to target the Snapshot: " + promotionRun.Spec.Snapshot)
 
 		// Set the time when of first reconcilation on a particular PromotionRun if not set already. This will be used later to check for time out of Promotion.
@@ -254,7 +255,7 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 			return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun active binding: %v", err)
 		}
-		sharedutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, sharedutil.ResourceModified, log)
+		logutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, logutil.ResourceModified, log)
 	}
 
 	// 3) Wait for the environment binding to create all of the expected GitOpsDeployments
@@ -468,7 +469,7 @@ func locateOrCreateTargetManualBinding(ctx context.Context, promotionRun appstud
 	if err != nil {
 		return appstudioshared.SnapshotEnvironmentBinding{}, err
 	}
-	sharedutil.LogAPIResourceChangeEvent(binding.Namespace, binding.Name, &binding, sharedutil.ResourceCreated, logger)
+	logutil.LogAPIResourceChangeEvent(binding.Namespace, binding.Name, &binding, logutil.ResourceCreated, logger)
 	logger.Info("Created SnapshotEnvironmentBinding",
 		"application", promotionRun.Spec.Application,
 		"environment", promotionRun.Spec.ManualPromotion.TargetEnvironment)
@@ -536,7 +537,7 @@ func updateStatusEnvironmentStatus(ctx context.Context, client client.Client, di
 	if err := client.Status().Update(ctx, promotionRun); err != nil {
 		return err
 	}
-	sharedutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, sharedutil.ResourceModified, log)
+	logutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, logutil.ResourceModified, log)
 
 	return nil
 }

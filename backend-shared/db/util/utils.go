@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -228,7 +228,7 @@ func GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx context.Context,
 
 		// At this point, there is necessarily no GitopsEngineInstance, but there is a mapping, so clean up the mapping and then create both below
 
-		log.V(util.LogLevel_Warn).Error(nil,
+		log.V(logutil.LogLevel_Warn).Error(nil,
 			"GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID found a resource mapping, but no engine instance.")
 
 		// We have found a mapping without the corresponding mapped entity, so delete the mapping.
@@ -374,7 +374,7 @@ func GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx context.Context,
 
 		// We have found a mapping without the corresponding mapped entity, so delete the mapping.
 		// (We will recreate the mapping below)
-		log.V(util.LogLevel_Warn).Error(nil, "GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID found a resource mapping, but no engine cluster.")
+		log.V(logutil.LogLevel_Warn).Error(nil, "GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID found a resource mapping, but no engine cluster.")
 
 		if _, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, dbResourceMapping); err != nil {
 			log.Error(err, "Unable to delete KubernetesResourceToDBResourceMapping (while the engine cluster was not found)",
@@ -486,7 +486,7 @@ func DisposeResources(ctx context.Context, resources []db.DisposableResource, db
 			continue
 		}
 
-		log.V(util.LogLevel_Debug).Info(fmt.Sprintf("disposing of resource: %v", resource))
+		log.V(logutil.LogLevel_Debug).Info(fmt.Sprintf("disposing of resource: %v", resource))
 
 		disposeErr := resource.Dispose(ctx, dbq)
 		if disposeErr != nil {
@@ -520,7 +520,7 @@ func DisposeApplicationScopedResources(ctx context.Context, resources []db.AppSc
 			continue
 		}
 
-		log.V(util.LogLevel_Debug).Info(fmt.Sprintf("disposing of resource: %v", resource))
+		log.V(logutil.LogLevel_Debug).Info(fmt.Sprintf("disposing of resource: %v", resource))
 
 		disposeErr := resource.DisposeAppScoped(ctx, dbq)
 		if disposeErr != nil {

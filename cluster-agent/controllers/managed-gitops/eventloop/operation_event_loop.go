@@ -15,6 +15,7 @@ import (
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/metrics"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/utils"
@@ -84,7 +85,7 @@ func operationEventLoopRouter(input chan operationEventLoopEvent) {
 	ctx := context.Background()
 
 	log := log.FromContext(ctx).
-		WithName(sharedutil.LogLogger_managed_gitops)
+		WithName(logutil.LogLogger_managed_gitops)
 
 	taskRetryLoop := sharedutil.NewTaskRetryLoop("cluster-agent")
 
@@ -177,7 +178,7 @@ func getDBOperationForEvent(ctx context.Context, newEvent operationEventLoopEven
 
 		if err := newEvent.client.Get(ctx, client.ObjectKeyFromObject(operationCR), operationCR); err != nil {
 			if apierr.IsNotFound(err) {
-				log.V(sharedutil.LogLevel_Debug).Info("Skipping a request for an operation DB entry that doesn't exist: " + operationCR.Namespace + "/" + operationCR.Name)
+				log.V(logutil.LogLevel_Debug).Info("Skipping a request for an operation DB entry that doesn't exist: " + operationCR.Namespace + "/" + operationCR.Name)
 				return taskCompleteTrue, nil
 
 			} else {
@@ -300,7 +301,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	if err := eventClient.Get(taskContext, client.ObjectKeyFromObject(operationCR), operationCR); err != nil {
 		if apierr.IsNotFound(err) {
 			// If the resource doesn't exist, so our job is done.
-			log.V(sharedutil.LogLevel_Debug).Info("Received a K8s request for an Operation CR that doesn't exist")
+			log.V(logutil.LogLevel_Debug).Info("Received a K8s request for an Operation CR that doesn't exist")
 
 			return nil, shouldRetryFalse, nil
 
@@ -320,7 +321,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 		if db.IsResultNotFoundError(err) {
 			// no corresponding db operation, so no work to do
-			log.V(sharedutil.LogLevel_Warn).Info("Received a K8 request for an Operation resource, but the referenced DB Operation Row doesn't exist")
+			log.V(logutil.LogLevel_Warn).Info("Received a K8 request for an Operation resource, but the referenced DB Operation Row doesn't exist")
 
 			return nil, shouldRetryFalse, nil
 		} else {
@@ -353,7 +354,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 	// If the operation has already completed (e.g. we previously ran it), then just ignore it and return
 	if dbOperation.State == db.OperationState_Completed || dbOperation.State == db.OperationState_Failed {
-		log.V(sharedutil.LogLevel_Debug).Info("Skipping Operation with state of Completed/Failed")
+		log.V(logutil.LogLevel_Debug).Info("Skipping Operation with state of Completed/Failed")
 		return &dbOperation, shouldRetryFalse, nil
 	}
 
@@ -365,7 +366,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 			log.Error(err, "Unable to update Operation state")
 			return nil, shouldRetryTrue, fmt.Errorf("unable to update Operation, err: %v", err)
 		}
-		log.V(sharedutil.LogLevel_Debug).Info("Updated OperationState to InProgress")
+		log.V(logutil.LogLevel_Debug).Info("Updated OperationState to InProgress")
 
 	}
 
@@ -543,7 +544,7 @@ func processOperation_SyncOperation(ctx context.Context, dbOperation db.Operatio
 			return shouldRetryTrue, err
 		} else {
 			// On db row not found, just ignore it and move on.
-			log.V(sharedutil.LogLevel_Debug).Info("SyncOperation '" + dbSyncOperation.SyncOperation_id + "' DB entry was no longer available.")
+			log.V(logutil.LogLevel_Debug).Info("SyncOperation '" + dbSyncOperation.SyncOperation_id + "' DB entry was no longer available.")
 			return shouldRetryFalse, err
 		}
 	}
@@ -744,7 +745,7 @@ outer:
 
 			// If the DB entry no longer exists, then no more work is to be done
 			if db.IsResultNotFoundError(innerErr) {
-				log.V(sharedutil.LogLevel_Debug).Info("SyncOperation '" + dbSyncOperation.SyncOperation_id + "' DB entry was no longer available, during AppSync.")
+				log.V(logutil.LogLevel_Debug).Info("SyncOperation '" + dbSyncOperation.SyncOperation_id + "' DB entry was no longer available, during AppSync.")
 				shouldRetry = shouldRetryFalse
 				err = nil
 				break outer
@@ -756,7 +757,7 @@ outer:
 		// 2) If the user cancelled the SyncOperation (by altering the desired state field), then we should stop waiting
 		// for the appsync to complete, here.
 		if dbSyncOperation.DesiredState != db.SyncOperation_DesiredState_Running {
-			log.V(sharedutil.LogLevel_Debug).Info("SyncOperation '" + dbSyncOperation.SyncOperation_id + "' no longer had desired running state.")
+			log.V(logutil.LogLevel_Debug).Info("SyncOperation '" + dbSyncOperation.SyncOperation_id + "' no longer had desired running state.")
 			shouldRetry = shouldRetryFalse
 			err = nil
 			break outer
@@ -818,7 +819,7 @@ func processOperation_ManagedEnvironment(ctx context.Context, dbOperation db.Ope
 			return shouldRetryTrue, fmt.Errorf("unable to retrieve Argo CD Cluster Secret '%s' in '%s': %v", secret.Name, secret.Namespace, err)
 		}
 	}
-	sharedutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, sharedutil.ResourceDeleted, opConfig.log)
+	logutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, logutil.ResourceDeleted, opConfig.log)
 
 	// Argo CD cluster secret corresponding to environment is successfully deleted.
 	return shouldRetryFalse, nil
@@ -901,7 +902,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 				// error messages mean unsalvageable, and not wait for them.
 				return shouldRetryTrue, err
 			}
-			sharedutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, sharedutil.ResourceCreated, log)
+			logutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, logutil.ResourceCreated, log)
 
 			// Success
 			return shouldRetryFalse, nil
@@ -945,7 +946,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 			// Retry if we were unable to update the Application, for example due to a conflict
 			return shouldRetryTrue, err
 		}
-		sharedutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, sharedutil.ResourceModified, log)
+		logutil.LogAPIResourceChangeEvent(app.Namespace, app.Name, app, logutil.ResourceModified, log)
 
 		log.Info("Updated Argo CD Application CR", "specDiff", specDiff)
 
@@ -1085,7 +1086,7 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 				return fmt.Errorf("unable to delete secret of deleted managed environment: %v", err)
 			}
 		}
-		sharedutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, sharedutil.ResourceDeleted, opConfig.log)
+		logutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, logutil.ResourceDeleted, opConfig.log)
 
 		return nil
 	}
@@ -1141,7 +1142,7 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 			log.Error(err, "unable to create new Argo CD cluster secret")
 			return fmt.Errorf("unable to create expected Argo CD Cluster secret '%s' in '%s'", expectedSecret.Name, expectedSecret.Namespace)
 		}
-		sharedutil.LogAPIResourceChangeEvent(expectedSecret.Namespace, expectedSecret.Name, expectedSecret, sharedutil.ResourceCreated, log)
+		logutil.LogAPIResourceChangeEvent(expectedSecret.Namespace, expectedSecret.Name, expectedSecret, logutil.ResourceCreated, log)
 
 		return nil
 	}
@@ -1158,7 +1159,7 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 		log.Error(err, "unable to update existing Argo CD cluster secret")
 		return fmt.Errorf("unable to update existing secret '%s' in '%s'", existingSecret.Name, existingSecret.Namespace)
 	}
-	sharedutil.LogAPIResourceChangeEvent(existingSecret.Namespace, existingSecret.Name, existingSecret, sharedutil.ResourceModified, log)
+	logutil.LogAPIResourceChangeEvent(existingSecret.Namespace, existingSecret.Name, existingSecret, logutil.ResourceModified, log)
 
 	return nil
 

@@ -23,6 +23,7 @@ import (
 
 	"github.com/go-logr/logr"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 
 	appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
@@ -63,7 +64,7 @@ type EnvironmentReconciler struct {
 func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 	log := log.FromContext(ctx).
-		WithName(sharedutil.LogLogger_managed_gitops).
+		WithName(logutil.LogLogger_managed_gitops).
 		WithValues("request", req)
 
 	rClient := sharedutil.IfEnabledSimulateUnreliableClient(r.Client)
@@ -132,7 +133,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			if err := rClient.Create(ctx, desiredManagedEnv); err != nil {
 				return ctrl.Result{}, fmt.Errorf("unable to create new GitOpsDeploymentManagedEnvironment: %v", err)
 			}
-			sharedutil.LogAPIResourceChangeEvent(desiredManagedEnv.Namespace, desiredManagedEnv.Name, desiredManagedEnv, sharedutil.ResourceCreated, log)
+			logutil.LogAPIResourceChangeEvent(desiredManagedEnv.Namespace, desiredManagedEnv.Name, desiredManagedEnv, logutil.ResourceCreated, log)
 
 			// Success: the resource has been created.
 			return ctrl.Result{}, nil
@@ -165,7 +166,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{},
 			fmt.Errorf("unable to update existing GitOpsDeploymentManagedEnvironment '%s': %v", currentManagedEnv.Name, err)
 	}
-	sharedutil.LogAPIResourceChangeEvent(currentManagedEnv.Namespace, currentManagedEnv.Name, currentManagedEnv, sharedutil.ResourceModified, log)
+	logutil.LogAPIResourceChangeEvent(currentManagedEnv.Namespace, currentManagedEnv.Name, currentManagedEnv, logutil.ResourceModified, log)
 
 	return ctrl.Result{}, nil
 }
@@ -509,7 +510,7 @@ func (r *EnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *EnvironmentReconciler) findObjectsForDeploymentTargetClaim(dtc client.Object) []reconcile.Request {
 	ctx := context.Background()
 	handlerLog := log.FromContext(ctx).
-		WithName(sharedutil.LogLogger_managed_gitops)
+		WithName(logutil.LogLogger_managed_gitops)
 
 	dtc, ok := dtc.(*appstudioshared.DeploymentTargetClaim)
 	if !ok {
@@ -542,7 +543,7 @@ func (r *EnvironmentReconciler) findObjectsForDeploymentTargetClaim(dtc client.O
 func (r *EnvironmentReconciler) findObjectsForDeploymentTarget(dt client.Object) []reconcile.Request {
 	ctx := context.Background()
 	handlerLog := log.FromContext(ctx).
-		WithName(sharedutil.LogLogger_managed_gitops)
+		WithName(logutil.LogLogger_managed_gitops)
 
 	dtObj, ok := dt.(*appstudioshared.DeploymentTarget)
 	if !ok {

@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
-	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -201,7 +201,7 @@ func applicationInfoCacheLoop(inputChan chan applicationInfoCacheRequest) {
 	})
 
 	log := log.FromContext(context.Background()).
-		WithName(sharedutil.LogLogger_managed_gitops)
+		WithName(logutil.LogLogger_managed_gitops)
 
 	cacheAppState := map[string]applicationStateCacheEntry{}
 	cacheApp := map[string]applicationCacheEntry{}

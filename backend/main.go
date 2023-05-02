@@ -36,10 +36,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
-	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
-
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	managedgitopscontrollers "github.com/redhat-appstudio/managed-gitops/backend/controllers/managed-gitops"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/preprocess_event_loop"
@@ -51,7 +51,7 @@ import (
 
 var (
 	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName(sharedutil.LogLogger_managed_gitops)
+	setupLog = ctrl.Log.WithName(logutil.LogLogger_managed_gitops)
 )
 
 func init() {

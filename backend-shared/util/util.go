@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -120,7 +121,8 @@ outer:
 // CatchPanic calls f(), and recovers from panic if one occurs.
 func CatchPanic(f func() error) (isPanic bool, err error) {
 
-	panicLog := log.FromContext(context.Background())
+	panicLog := log.FromContext(context.Background()).
+		WithName(logutil.LogLogger_managed_gitops)
 
 	isPanic = false
 

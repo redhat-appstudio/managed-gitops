@@ -9,6 +9,7 @@ import (
 
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	corev1 "k8s.io/api/core/v1"
@@ -90,7 +91,7 @@ func internalWorkspaceResourceEventLoop(inputChan chan workspaceResourceLoopMess
 
 	ctx := context.Background()
 	l := log.FromContext(ctx).
-		WithName(sharedutil.LogLogger_managed_gitops).
+		WithName(logutil.LogLogger_managed_gitops).
 		WithValues("component", "workspace_resource_event_loop")
 
 	dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
@@ -168,7 +169,7 @@ func internalProcessWorkspaceResourceMessage(ctx context.Context, msg workspaceR
 	dbQueries db.DatabaseQueries, log logr.Logger) (bool, error) {
 	const retry, noRetry = true, false
 
-	log.V(sharedutil.LogLevel_Debug).Info("processWorkspaceResource received message: " + string(msg.messageType))
+	log.V(logutil.LogLevel_Debug).Info("processWorkspaceResource received message: " + string(msg.messageType))
 
 	if msg.apiNamespaceClient == nil {
 		return noRetry, fmt.Errorf("invalid namespace client")
@@ -193,7 +194,7 @@ func internalProcessWorkspaceResourceMessage(ctx context.Context, msg workspaceR
 				return retry, fmt.Errorf("unexpected error in retrieving repo credentials: %v", err)
 			}
 
-			log.V(sharedutil.LogLevel_Warn).Info("Received a message for a repository credential in a namepace that doesn't exist", "namespace", namespace)
+			log.V(logutil.LogLevel_Warn).Info("Received a message for a repository credential in a namepace that doesn't exist", "namespace", namespace)
 			return noRetry, nil
 		}
 
@@ -236,7 +237,7 @@ func internalProcessWorkspaceResourceMessage(ctx context.Context, msg workspaceR
 				return retry, fmt.Errorf("unexpected error in retrieving namespace of managed env CR: %v", err)
 			}
 
-			log.V(sharedutil.LogLevel_Warn).Info("Received a message for a managed end CR in a namespace that doesn't exist", "namespace", namespace)
+			log.V(logutil.LogLevel_Warn).Info("Received a message for a managed end CR in a namespace that doesn't exist", "namespace", namespace)
 			return noRetry, nil
 		}
 

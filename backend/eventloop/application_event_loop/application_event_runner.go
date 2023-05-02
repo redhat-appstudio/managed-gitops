@@ -13,6 +13,7 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -82,10 +83,10 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 
 	outerContext := context.Background()
 	log := log.FromContext(outerContext).
-		WithName(sharedutil.LogLogger_managed_gitops).
+		WithName(logutil.LogLogger_managed_gitops).
 		WithValues("namespaceID", namespaceID, "debugContext", debugContext)
 
-	log.V(sharedutil.LogLevel_Debug).Info("applicationEventLoopRunner started")
+	log.V(logutil.LogLevel_Debug).Info("applicationEventLoopRunner started")
 
 	signalledShutdown := false
 
@@ -101,7 +102,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 		// Process the event
 
 		if !(newEvent.EventType == eventlooptypes.UpdateDeploymentStatusTick && disableDeploymentStatusTickLogging == true) {
-			log.V(sharedutil.LogLevel_Debug).Info("applicationEventLoopRunner - event received", "event", eventlooptypes.StringEventLoopEvent(newEvent))
+			log.V(logutil.LogLevel_Debug).Info("applicationEventLoopRunner - event received", "event", eventlooptypes.StringEventLoopEvent(newEvent))
 		}
 
 		// Keep attempting the process the event until no error is returned, or the request is cancelled.
@@ -111,7 +112,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 		for {
 
 			if !(newEvent.EventType == eventlooptypes.UpdateDeploymentStatusTick && disableDeploymentStatusTickLogging == true) {
-				log.V(sharedutil.LogLevel_Debug).Info("applicationEventLoopRunner - processing event", "event", eventlooptypes.StringEventLoopEvent(newEvent), "attempt", attempts)
+				log.V(logutil.LogLevel_Debug).Info("applicationEventLoopRunner - processing event", "event", eventlooptypes.StringEventLoopEvent(newEvent), "attempt", attempts)
 			}
 
 			// Break if the context is cancelled

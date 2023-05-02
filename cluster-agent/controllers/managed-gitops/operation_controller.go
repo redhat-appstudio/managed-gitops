@@ -33,6 +33,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	sharedoperations "github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/managed-gitops/eventloop"
 )
@@ -106,7 +107,7 @@ func (g *garbageCollector) startGarbageCollectionCycle() {
 			_, _ = sharedutil.CatchPanic(func() error {
 				ctx := context.Background()
 				log := log.FromContext(ctx).
-					WithName(sharedutil.LogLogger_managed_gitops)
+					WithName(logutil.LogLogger_managed_gitops)
 
 				// get failed/completed operations with non-zero gc interval
 				operations := []db.Operation{}
@@ -163,7 +164,7 @@ func (r *removeOperationCRTask) PerformTask(ctx context.Context) (bool, error) {
 		r.log.Error(err, "failed to delete operation from the cluster", "operation_id", r.operation.Spec.OperationID)
 		return true, err
 	}
-	sharedutil.LogAPIResourceChangeEvent(r.operation.Namespace, r.operation.Name, r.operation, sharedutil.ResourceDeleted, r.log)
+	logutil.LogAPIResourceChangeEvent(r.operation.Namespace, r.operation.Name, r.operation, logutil.ResourceDeleted, r.log)
 	r.log.Info("successfully garbage collected operation", "operation_id", r.operation.Spec.OperationID)
 	return false, nil
 }

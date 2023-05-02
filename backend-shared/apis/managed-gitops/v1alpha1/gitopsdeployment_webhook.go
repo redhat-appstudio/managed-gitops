@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	"fmt"
 
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -26,7 +27,7 @@ import (
 )
 
 // log is for logging in this package.
-var gitopsdeploymentlog = logf.Log.WithName("gitopsdeployment-resource")
+var gitopsdeploymentlog = logf.Log.WithName(logutil.LogLogger_managed_gitops)
 
 func (r *GitOpsDeployment) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).

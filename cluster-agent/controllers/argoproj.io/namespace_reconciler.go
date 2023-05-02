@@ -17,6 +17,7 @@ import (
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	corev1 "k8s.io/api/core/v1"
@@ -45,7 +46,7 @@ func (r *ApplicationReconciler) startTimerForNextCycle() {
 
 		ctx := context.Background()
 		log := log.FromContext(ctx).
-			WithName(sharedutil.LogLogger_managed_gitops)
+			WithName(logutil.LogLogger_managed_gitops)
 
 		_, _ = sharedutil.CatchPanic(func() error {
 			runNamespaceReconcile(ctx, r.DB, r.Client, log)
@@ -171,7 +172,7 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 				} else if compare != "" {
 					log.Info("Argo application is not in Sync with DB, updating Argo CD App. Application:" + applicationRowFromDB.Application_id)
 				} else {
-					log.V(sharedutil.LogLevel_Debug).Info("Argo application is in Sync with DB, Application:" + applicationRowFromDB.Application_id)
+					log.V(logutil.LogLevel_Debug).Info("Argo application is in Sync with DB, Application:" + applicationRowFromDB.Application_id)
 					continue
 				}
 			}
@@ -251,7 +252,7 @@ func runSecretCleanup(ctx context.Context, dbQueries db.DatabaseQueries, k8sClie
 		// Sanity check: have we processed this Namespace already
 		if _, exists := namespacesProcessed[instance.Namespace_uid]; exists {
 			// Log it an skip. There really should never be any GitOpsEngineInstances with matching namespace UID
-			log.V(sharedutil.LogLevel_Warn).Error(nil, "there appears to exist multiple GitOpsEngineInstances targeting the same namespace", "namespaceUID", instance.Namespace_uid)
+			log.V(logutil.LogLevel_Warn).Error(nil, "there appears to exist multiple GitOpsEngineInstances targeting the same namespace", "namespaceUID", instance.Namespace_uid)
 			continue
 		}
 		namespacesProcessed[instance.Namespace_uid] = nil
@@ -348,7 +349,7 @@ func cleanK8sOperations(ctx context.Context, dbq db.DatabaseQueries, client clie
 		}
 
 		if dbOperation.State != db.OperationState_Completed && dbOperation.State != db.OperationState_Failed {
-			log.V(sharedutil.LogLevel_Debug).Info("K8s Operation is not ready for cleanup : " + string(k8sOperation.UID) + " DbOperation: " + string(k8sOperation.Spec.OperationID))
+			log.V(logutil.LogLevel_Debug).Info("K8s Operation is not ready for cleanup : " + string(k8sOperation.UID) + " DbOperation: " + string(k8sOperation.Spec.OperationID))
 			continue
 		}
 
@@ -363,7 +364,7 @@ func cleanK8sOperations(ctx context.Context, dbq db.DatabaseQueries, client clie
 			log.Info("Deleted k8s Operation: " + string(k8sOperation.UID) + " for DbOperation: " + string(k8sOperation.Spec.OperationID))
 		}
 	}
-	log.V(sharedutil.LogLevel_Debug).Info("Cleaned all Operations created by Namespace Reconciler.")
+	log.V(logutil.LogLevel_Debug).Info("Cleaned all Operations created by Namespace Reconciler.")
 }
 
 func deleteOrphanedApplications(argoApplications []appv1.Application, processedApplicationIds map[string]any,

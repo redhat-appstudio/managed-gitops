@@ -8,7 +8,7 @@ import (
 	"github.com/go-logr/logr"
 	operation "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
-	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -69,7 +69,7 @@ func deleteArgoCDSecretLeftovers(ctx context.Context, databaseID string, argoCDN
 		// Delete all Argo CD Secret with the corresponding database label (but, there should be only one)
 		// #nosec G601
 		err := eventClient.Delete(ctx, &item)
-		sharedutil.LogAPIResourceChangeEvent(item.Namespace, item.Name, item, sharedutil.ResourceDeleted, l)
+		logutil.LogAPIResourceChangeEvent(item.Namespace, item.Name, item, logutil.ResourceDeleted, l)
 		if err != nil {
 			if apierr.IsNotFound(err) {
 				l.Info("Argo CD Secret (leftover) was already previously deleted", "secret", item.Name, "namespace", item.Namespace)
@@ -108,7 +108,7 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 
 	l := opConfig.log.
 		WithValues("operationRow", dbOperation.Operation_id).
-		WithName(sharedutil.LogLogger_managed_gitops)
+		WithName(logutil.LogLogger_managed_gitops)
 
 	// 2) Retrieve the RepositoryCredentials database row that corresponds to the operation
 	dbRepositoryCredentials, err := opConfig.dbQueries.GetRepositoryCredentialsByID(ctx, dbOperation.Resource_id)
@@ -146,7 +146,7 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 				l.Error(errCreateArgoCDSecret, errPrivateSecretCreate)
 				return retry, errCreateArgoCDSecret
 			}
-			sharedutil.LogAPIResourceChangeEvent(argoCDSecret.Namespace, argoCDSecret.Name, argoCDSecret, sharedutil.ResourceCreated, l)
+			logutil.LogAPIResourceChangeEvent(argoCDSecret.Namespace, argoCDSecret.Name, argoCDSecret, logutil.ResourceCreated, l)
 
 			// The problem with the secret is now resolved, so we can proceed with the operation.
 			l.Info("Argo CD Private Repository secret has been successfully created",
@@ -176,7 +176,7 @@ func processOperation_RepositoryCredentials(ctx context.Context, dbOperation db.
 			l.Error(err, errUpdatePrivateSecret)
 			return retry, err
 		}
-		sharedutil.LogAPIResourceChangeEvent(argoCDSecret.Namespace, argoCDSecret.Name, argoCDSecret, sharedutil.ResourceModified, l)
+		logutil.LogAPIResourceChangeEvent(argoCDSecret.Namespace, argoCDSecret.Name, argoCDSecret, logutil.ResourceModified, l)
 
 	}
 

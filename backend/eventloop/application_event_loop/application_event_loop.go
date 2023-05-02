@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/kcp-dev/logicalcluster/v2"
-	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -133,7 +133,7 @@ func applicationEventQueueLoop(ctx context.Context, k8sClient client.Client,
 	log := log.FromContext(ctx).
 		WithValues("workspaceID", workspaceID, "gitOpsDeplName", gitopsDeploymentName,
 			"gitopsDeplNamespace", gitopsDeploymentNamespace).
-		WithName(sharedutil.LogLogger_managed_gitops)
+		WithName(logutil.LogLogger_managed_gitops)
 
 	log.Info("applicationEventQueueLoop started.")
 	defer log.Info("applicationEventQueueLoop ended.")
@@ -169,7 +169,7 @@ out:
 
 		if eventLoopMessage != nil {
 			if !(eventLoopMessage.EventType == eventlooptypes.UpdateDeploymentStatusTick && disableDeploymentStatusTickLogging) {
-				log.V(sharedutil.LogLevel_Debug).Info("applicationEventQueueLoop received event",
+				log.V(logutil.LogLevel_Debug).Info("applicationEventQueueLoop received event",
 					"event", eventlooptypes.StringEventLoopEvent(eventLoopMessage))
 
 			}
@@ -215,7 +215,7 @@ out:
 				if !deploymentEventRunnerShutdown {
 					waitingDeploymentEvents = append(waitingDeploymentEvents, &newEvent)
 				} else {
-					log.V(sharedutil.LogLevel_Debug).Info("Ignoring post-shutdown deployment event")
+					log.V(logutil.LogLevel_Debug).Info("Ignoring post-shutdown deployment event")
 				}
 
 			} else if eventLoopMessage.ReqResource == eventlooptypes.GitOpsDeploymentSyncRunTypeName {
@@ -223,14 +223,14 @@ out:
 				if !syncOperationEventRunnerShutdown {
 					waitingSyncOperationEvents = append(waitingSyncOperationEvents, &newEvent)
 				} else {
-					log.V(sharedutil.LogLevel_Debug).Info("Ignoring post-shutdown sync operation event")
+					log.V(logutil.LogLevel_Debug).Info("Ignoring post-shutdown sync operation event")
 				}
 			} else if eventLoopMessage.ReqResource == eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName {
 
 				if !deploymentEventRunnerShutdown {
 					waitingDeploymentEvents = append(waitingDeploymentEvents, &newEvent)
 				} else {
-					log.V(sharedutil.LogLevel_Debug).Info("Ignoring post-shutdown managed environment event")
+					log.V(logutil.LogLevel_Debug).Info("Ignoring post-shutdown managed environment event")
 				}
 
 			} else if eventLoopMessage.EventType == eventlooptypes.UpdateDeploymentStatusTick {
@@ -238,7 +238,7 @@ out:
 				if !deploymentEventRunnerShutdown {
 					waitingDeploymentEvents = append(waitingDeploymentEvents, &newEvent)
 				} else {
-					log.V(sharedutil.LogLevel_Debug).Info("Ignoring post-shutdown deployment event")
+					log.V(logutil.LogLevel_Debug).Info("Ignoring post-shutdown deployment event")
 				}
 
 			} else {
@@ -261,7 +261,7 @@ out:
 
 			if !(eventLoopMessage.EventType == eventlooptypes.UpdateDeploymentStatusTick && disableDeploymentStatusTickLogging) {
 
-				log.V(sharedutil.LogLevel_Debug).Info("applicationEventQueueLoop received work complete event")
+				log.V(logutil.LogLevel_Debug).Info("applicationEventQueueLoop received work complete event")
 			}
 
 			if eventLoopMessage.EventType == eventlooptypes.UpdateDeploymentStatusTick {
@@ -333,7 +333,7 @@ out:
 			// Send the work to the runner
 			if !(activeDeploymentEvent.Message.Event.EventType == eventlooptypes.UpdateDeploymentStatusTick &&
 				disableDeploymentStatusTickLogging == true) {
-				log.V(sharedutil.LogLevel_Debug).Info("About to send work to depl event runner",
+				log.V(logutil.LogLevel_Debug).Info("About to send work to depl event runner",
 					"event", eventlooptypes.StringEventLoopEvent(activeDeploymentEvent.Message.Event))
 			}
 
@@ -342,7 +342,7 @@ out:
 			if !(activeDeploymentEvent.Message.Event.EventType == eventlooptypes.UpdateDeploymentStatusTick &&
 				disableDeploymentStatusTickLogging == true) {
 
-				log.V(sharedutil.LogLevel_Debug).Info("Sent work to depl event runner",
+				log.V(logutil.LogLevel_Debug).Info("Sent work to depl event runner",
 					"event", eventlooptypes.StringEventLoopEvent(activeDeploymentEvent.Message.Event))
 
 			}
@@ -356,7 +356,7 @@ out:
 
 			// Send the work to the runner
 			syncOperationEventRunner <- activeSyncOperationEvent.Message.Event
-			log.V(sharedutil.LogLevel_Debug).Info("Sent work to sync op runner",
+			log.V(logutil.LogLevel_Debug).Info("Sent work to sync op runner",
 				"event", eventlooptypes.StringEventLoopEvent(activeSyncOperationEvent.Message.Event))
 
 		}

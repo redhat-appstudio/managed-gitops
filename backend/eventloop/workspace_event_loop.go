@@ -10,6 +10,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/application_event_loop"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
@@ -95,7 +96,7 @@ func internalStartWorkspaceEventLoopRouter(input chan workspaceEventLoopMessage,
 	go func() {
 
 		log := log.FromContext(context.Background()).
-			WithName(sharedutil.LogLogger_managed_gitops)
+			WithName(logutil.LogLogger_managed_gitops)
 
 		backoff := sharedutil.ExponentialBackoff{Min: time.Duration(500 * time.Millisecond), Max: time.Duration(15 * time.Second), Factor: 2, Jitter: true}
 
@@ -197,7 +198,7 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, namespaceID 
 	ctx := context.Background()
 
 	log := log.FromContext(ctx).
-		WithName(sharedutil.LogLogger_managed_gitops).
+		WithName(logutil.LogLogger_managed_gitops).
 		WithValues("namespaceID", namespaceID)
 
 	log.Info("workspaceEventLoopRouter started")
@@ -266,7 +267,7 @@ func handleWorkspaceEventLoopMessage(ctx context.Context, event eventlooptypes.E
 		return
 	}
 
-	log.V(sharedutil.LogLevel_Debug).Info("workspaceEventLoop received event", "event", eventlooptypes.StringEventLoopEvent(event.Event))
+	log.V(logutil.LogLevel_Debug).Info("workspaceEventLoop received event", "event", eventlooptypes.StringEventLoopEvent(event.Event))
 
 	// If it's a GitOpsDeploymentSyncRun:
 	//   - If the SyncRun exists, use the name that was specified
@@ -369,7 +370,7 @@ func handleWorkspaceEventLoopMessage(ctx context.Context, event eventlooptypes.E
 // the applictions event loops about the event.
 func handleManagedEnvProcessedMessage(event eventlooptypes.EventLoopMessage, state workspaceEventLoopInternalState) {
 
-	state.log.V(sharedutil.LogLevel_Debug).Info(fmt.Sprintf("received ManagedEnvironment event, passed event to %d applications",
+	state.log.V(logutil.LogLevel_Debug).Info(fmt.Sprintf("received ManagedEnvironment event, passed event to %d applications",
 		len(state.applicationMap)))
 
 	if event.Event == nil { // Sanity check the event
@@ -511,7 +512,7 @@ func checkIfOrphanedGitOpsDeploymentSyncRun(ctx context.Context, event eventloop
 		}
 		if err := event.Event.Client.Get(ctx, client.ObjectKeyFromObject(syncRunCR), syncRunCR); err != nil {
 			if apierr.IsNotFound(err) {
-				log.V(sharedutil.LogLevel_Debug).Info("skipping potentially orphaned resource that could no longer be found:", "resource", syncRunCR.ObjectMeta)
+				log.V(logutil.LogLevel_Debug).Info("skipping potentially orphaned resource that could no longer be found:", "resource", syncRunCR.ObjectMeta)
 
 				// The SyncRun CR doesn't exist, so try fetching the SyncOperation from the database and extract the name of GitOpsDeployment
 				dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
@@ -547,7 +548,7 @@ func checkIfOrphanedGitOpsDeploymentSyncRun(ctx context.Context, event eventloop
 				return ""
 			}
 
-			log.V(sharedutil.LogLevel_Debug).Info("was unable to locate GitOpsDeployment referenced by GitOpsDeploymentSyncRun, so the SyncRun is still orphaned.")
+			log.V(logutil.LogLevel_Debug).Info("was unable to locate GitOpsDeployment referenced by GitOpsDeploymentSyncRun, so the SyncRun is still orphaned.")
 
 			// Otherwise, the GitOpsDeployment couldn't be found: therefore the SyncRun is orphaned, so continue.
 
@@ -567,7 +568,7 @@ func checkIfOrphanedGitOpsDeploymentSyncRun(ctx context.Context, event eventloop
 		}
 
 		// 4) Add this resource event to that list
-		log.V(sharedutil.LogLevel_Debug).Info("Adding syncrun CR to orphaned resources list, name: " + syncRunCR.Name + ", missing gitopsdepl name: " + syncRunCR.Spec.GitopsDeploymentName)
+		log.V(logutil.LogLevel_Debug).Info("Adding syncrun CR to orphaned resources list, name: " + syncRunCR.Name + ", missing gitopsdepl name: " + syncRunCR.Spec.GitopsDeploymentName)
 		gitopsDeplMap[syncRunCR.Name] = *event.Event
 
 		return ""
@@ -630,7 +631,7 @@ func unorphanResourcesIfPossible(ctx context.Context, event eventlooptypes.Event
 
 		if err := event.Event.Client.Get(ctx, client.ObjectKeyFromObject(gitopsDeplCR), gitopsDeplCR); err != nil {
 			// log as warning, but continue.
-			log.V(sharedutil.LogLevel_Warn).Error(err, "unexpected client error on retrieving gitopsdepl")
+			log.V(logutil.LogLevel_Warn).Error(err, "unexpected client error on retrieving gitopsdepl")
 
 		} else {
 			// Copy the events to a new slice, and remove the events from the orphanedResourced map
@@ -644,7 +645,7 @@ func unorphanResourcesIfPossible(ctx context.Context, event eventlooptypes.Event
 					Event:       &orphanedResourceEvent,
 				})
 
-				log.V(sharedutil.LogLevel_Debug).Info("found parent: " + gitopsDeplCR.Name + " (" + string(gitopsDeplCR.UID) + "), of orphaned resource: " + orphanedResourceEvent.Request.Name)
+				log.V(logutil.LogLevel_Debug).Info("found parent: " + gitopsDeplCR.Name + " (" + string(gitopsDeplCR.UID) + "), of orphaned resource: " + orphanedResourceEvent.Request.Name)
 			}
 			delete(orphanedResources, event.Event.Request.Name)
 
@@ -652,7 +653,7 @@ func unorphanResourcesIfPossible(ctx context.Context, event eventlooptypes.Event
 			// The orphaned events will be reprocessed after the gitopsdepl is processed.
 			go func() {
 				for _, eventToRequeue := range requeueEvents {
-					log.V(sharedutil.LogLevel_Debug).Info("requeueing orphaned resource: " + eventToRequeue.Event.Request.Name +
+					log.V(logutil.LogLevel_Debug).Info("requeueing orphaned resource: " + eventToRequeue.Event.Request.Name +
 						", for parent: " + gitopsDeplCR.Name + " in namespace " + gitopsDeplCR.Namespace)
 					input <- workspaceEventLoopMessage{
 						messageType: workspaceEventLoopMessageType_Event,

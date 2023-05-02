@@ -12,6 +12,7 @@ import (
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/gitopserrors"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -182,7 +183,7 @@ func (srEventLoop *SharedResourceEventLoop) ReconcileRepositoryCredential(ctx co
 
 	// Create a logger with context
 	l := log.FromContext(ctx).
-		WithName(sharedutil.LogLogger_managed_gitops)
+		WithName(logutil.LogLogger_managed_gitops)
 
 	msg := sharedResourceLoopMessage{
 		log:                l,
@@ -315,7 +316,7 @@ func internalSharedResourceEventLoop(inputChan chan sharedResourceLoopMessage) {
 
 	ctx := context.Background()
 	l := log.FromContext(ctx).
-		WithName(sharedutil.LogLogger_managed_gitops)
+		WithName(logutil.LogLogger_managed_gitops)
 	dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
 	if err != nil {
 		l.Error(err, "SEVERE: internalSharedResourceEventLoop exiting before startup")
@@ -337,7 +338,7 @@ func internalSharedResourceEventLoop(inputChan chan sharedResourceLoopMessage) {
 
 func processSharedResourceMessage(ctx context.Context, msg sharedResourceLoopMessage, dbQueries db.DatabaseQueries, l logr.Logger) {
 
-	l.V(sharedutil.LogLevel_Debug).Info("sharedResourceEventLoop received message: "+string(msg.messageType),
+	l.V(logutil.LogLevel_Debug).Info("sharedResourceEventLoop received message: "+string(msg.messageType),
 		"workspace", msg.workspaceNamespace.UID)
 
 	if msg.messageType == sharedResourceLoopMessage_getOrCreateSharedManagedEnv {

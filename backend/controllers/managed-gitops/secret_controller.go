@@ -33,7 +33,7 @@ import (
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
-
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -59,7 +59,7 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 	_ = log.FromContext(ctx).
-		WithName(sharedutil.LogLogger_managed_gitops)
+		WithName(logutil.LogLogger_managed_gitops)
 
 	rClient := sharedutil.IfEnabledSimulateUnreliableClient(r.Client)
 

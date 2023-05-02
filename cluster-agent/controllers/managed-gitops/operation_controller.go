@@ -137,6 +137,7 @@ func (g *garbageCollector) garbageCollectOperations(ctx context.Context, operati
 			}
 			if err = g.db.GetGitopsEngineInstanceById(ctx, &engineInstanceDB); err != nil {
 				log.Error(err, "Unable to fetch GitopsEngineInstance")
+				continue
 			}
 			// remove the Operation resource from the cluster
 			operationCR := &managedgitopsv1alpha1.Operation{

@@ -378,6 +378,16 @@ func (a *applicationEventLoopRunner_Action) handleDeletedGitOpsDeplSyncRunEvent(
 		log.Error(err, "unable to retrieve gitopsengineinstance, on sync run modified", "instanceId", string(application.Engine_instance_inst_id))
 		return gitopserrors.NewDevOnlyError(err)
 	}
+	if gitopsEngineInstance == nil {
+		err = fmt.Errorf("gitopsengineinstance is nil, expected non-nil:  %v", gitopsEngineInstance)
+		log.Error(err, "unexpected nil value of required objects")
+		return gitopserrors.NewDevOnlyError(err)
+	}
+
+	if gitopsEngineInstance.Namespace_name == "" {
+		err = fmt.Errorf("gitopsengineinstance namespace is empty")
+		return gitopserrors.NewDevOnlyError(err)
+	}
 
 	dbOperationInput := db.Operation{
 		Instance_id:   gitopsEngineInstance.Gitopsengineinstance_id,
@@ -447,6 +457,10 @@ func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSyncRunEvent(ctx 
 	if application == nil || gitopsEngineInstance == nil {
 		err := fmt.Errorf("app or engine instance were nil in handleSyncRunModified app: %v, instance: %v", application, gitopsEngineInstance)
 		log.Error(err, "unexpected nil value of required objects")
+		return gitopserrors.NewDevOnlyError(err)
+	}
+	if gitopsEngineInstance.Namespace_name == "" {
+		err := fmt.Errorf("gitopsengineinstance namespace is empty")
 		return gitopserrors.NewDevOnlyError(err)
 	}
 

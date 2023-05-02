@@ -366,7 +366,15 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	}
 
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
-
+	if engineInstance == nil {
+		err = fmt.Errorf("gitopsengineinstance is nil, expected non-nil:  %v", engineInstance)
+		a.log.Error(err, "unexpected nil value of required objects")
+		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
+	}
+	if engineInstance.Namespace_name == "" {
+		err = fmt.Errorf("gitopsengineinstance namespace is nil, expected non-nil:  %s", engineInstance.Gitopsengineinstance_id)
+		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
+	}
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput,
 		clusterUser.Clusteruser_id, engineInstance.Namespace_name, dbQueries, gitopsEngineClient, a.log)
 	if err != nil {
@@ -692,7 +700,15 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 	}
 
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
-
+	if engineInstance == nil {
+		err = fmt.Errorf("gitopsengineinstance is nil, expected non-nil:  %v", engineInstance)
+		log.Error(err, "unexpected nil value of required objects")
+		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
+	}
+	if engineInstance.Namespace_name == "" {
+		err = fmt.Errorf("gitopsengineinstance namespace is nil, expected non-nil:  %s", engineInstance.Gitopsengineinstance_id)
+		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
+	}
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput, clusterUser.Clusteruser_id,
 		engineInstance.Namespace_name, dbQueries, gitopsEngineClient, log)
 	if err != nil {
@@ -818,6 +834,16 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	}
 
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
+	if gitopsEngineInstance == nil {
+		err = fmt.Errorf("gitopsengineinstance is nil, expected non-nil:  %v", gitopsEngineInstance)
+		log.Error(err, "unexpected nil value of required objects")
+		return false, err
+	}
+
+	if gitopsEngineInstance.Namespace_name == "" {
+		err = fmt.Errorf("gitopsengineinstance namespace is nil, expected non-nil:  %s", gitopsEngineInstance.Gitopsengineinstance_id)
+		return false, err
+	}
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput,
 		clusterUser.Clusteruser_id, gitopsEngineInstance.Namespace_name, dbQueries, gitopsEngineClient, log)
 	if err != nil {

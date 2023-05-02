@@ -153,6 +153,7 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 					}
 					if err = dbQueries.GetGitopsEngineInstanceById(ctx, &engineInstanceDB); err != nil {
 						log.Error(err, "Unable to fetch GitopsEngineInstance")
+						continue
 					}
 					_, _, err = operations.CreateOperation(ctx, false, dbOperationInput,
 						specialClusterUser.Clusteruser_id, engineInstanceDB.Namespace_name, dbQueries, client, log)
@@ -200,6 +201,7 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 			}
 			if err := dbQueries.GetGitopsEngineInstanceById(ctx, &engineInstanceDB); err != nil {
 				log.Error(err, "Unable to fetch GitopsEngineInstance")
+				continue
 			}
 			if _, _, err := operations.CreateOperation(ctx, false, dbOperationInput,
 				specialClusterUser.Clusteruser_id, engineInstanceDB.Namespace_name, dbQueries, client, log); err != nil {

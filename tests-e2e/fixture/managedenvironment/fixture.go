@@ -92,8 +92,8 @@ func HaveCredentials(expectedEnvSpec managedgitopsv1alpha1.GitOpsDeploymentManag
 	}, BeTrue())
 }
 
-// HaveClusterResources checks if the ClusterResources field of Environment is equal to clusterResouces.
-func HaveClusterResources(clusterResouces bool) matcher.GomegaMatcher {
+// HaveClusterResources checks if the ClusterResources field of GitOpsDeploymentManagedEnvironment is equal to clusterResouces.
+func HaveClusterResources(clusterResources bool) matcher.GomegaMatcher {
 	return WithTransform(func(menv managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
 		Expect(err).To(BeNil())
@@ -110,16 +110,16 @@ func HaveClusterResources(clusterResouces bool) matcher.GomegaMatcher {
 			return false
 		}
 
-		res := clusterResouces == menv.Spec.ClusterResources
+		res := clusterResources == menv.Spec.ClusterResources
 
-		fmt.Println("HaveClusterResources:", res, "/ Expected:", clusterResouces, "/ Actual:", menv.Spec.ClusterResources)
+		fmt.Println("HaveClusterResources:", res, "/ Expected:", clusterResources, "/ Actual:", menv.Spec.ClusterResources)
 
 		return res
 
 	}, BeTrue())
 }
 
-// HaveNamespaces checks if the HaveNamespaces field of Environment is equal to namespaces.
+// HaveNamespaces checks if the HaveNamespaces field of GitOpsDeploymentManagedEnvironment is equal to namespaces.
 func HaveNamespaces(namespaces []string) matcher.GomegaMatcher {
 	return WithTransform(func(menv managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()

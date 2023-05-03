@@ -385,7 +385,7 @@ func CleanRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCredent
 		l.Info("Deleting Operation CR: " + string(k8sOperation.Name) + " and the related Operation DB entry: " + dbOperation.Operation_id + " ID")
 
 		// Delete the Operation CR and the related DB entry.
-		if err := operations.CleanupOperation(ctx, dbOperation, k8sOperation, ns, dbQueries, client, true, l); err != nil {
+		if err := operations.CleanupOperation(ctx, dbOperation, k8sOperation, dbQueries, client, true, l); err != nil {
 			l.Error(err, "unable to delete Operations for RepositoryCredential.", "Operation CR Name", k8sOperation.Name,
 				"Operation DB ID", dbOperation.Operation_id, "RepositoryCredential ID", dbRepoCred.RepositoryCredentialsID)
 			return err

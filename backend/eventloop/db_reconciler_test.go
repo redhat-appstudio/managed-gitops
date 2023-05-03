@@ -928,7 +928,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 		})
 	})
 
-	Context("Testing cleanOrphanedEntriesfromApplicationTable function for Application table entries.", func() {
+	Context("Testing cleanOrphanedEntriesfromTable_Application function for Application table entries.", func() {
 
 		var log logr.Logger
 		var ctx context.Context
@@ -1087,7 +1087,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 		})
 	})
 
-	Context("Testing cleanOrphanedEntriesfromApplicationTable function for RepositoryCredentials table entries.", func() {
+	Context("Testing cleanOrphanedEntriesfromTable function for RepositoryCredentials table entries.", func() {
 
 		var log logr.Logger
 		var ctx context.Context
@@ -1261,7 +1261,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 		})
 	})
 
-	Context("Testing cleanOrphanedEntriesfromApplicationTable function for SyncOperation table entries.", func() {
+	Context("Testing cleanOrphanedEntriesfromTable function for SyncOperation table entries.", func() {
 
 		var log logr.Logger
 		var ctx context.Context
@@ -1439,7 +1439,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 	})
 
-	Context("Testing cleanOrphanedEntriesfromApplicationTable function for ManagedEnvironment table entries.", func() {
+	Context("Testing cleanOrphanedEntriesfromTable function for ManagedEnvironment table entries.", func() {
 
 		var log logr.Logger
 		var ctx context.Context
@@ -1650,6 +1650,249 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 		})
 
+	})
+
+	Context("Testing cleanOrphanedEntriesfromTable_Operation function for Operation table entries.", func() {
+
+		var log logr.Logger
+		var ctx context.Context
+		var dbq db.AllDatabaseQueries
+		var k8sClient client.WithWatch
+		var clusterAccess *db.ClusterAccess
+		var gitopsEngineInstance *db.GitopsEngineInstance
+
+		BeforeEach(func() {
+			scheme,
+				argocdNamespace,
+				kubesystemNamespace,
+				apiNamespace,
+				err := tests.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			// Create fake client
+			k8sClient = fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(apiNamespace, argocdNamespace, kubesystemNamespace).
+				Build()
+
+			err = db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
+
+			ctx = context.Background()
+			log = logger.FromContext(ctx)
+			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).To(BeNil())
+
+			_, _, _, gitopsEngineInstance, clusterAccess, err = db.CreateSampleData(dbq)
+			Expect(err).To(BeNil())
+
+		})
+
+		It("Should not delete operation entry, if Operation is completed, but its creation time is less than 24 hours.", func() {
+
+			By("create an operation entry in DB")
+
+			operationDb := db.Operation{
+				Operation_id:            "test-operation-1",
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "test-fake-resource-id",
+				Resource_type:           "GitopsEngineInstance",
+				State:                   db.OperationState_Waiting,
+				Operation_owner_user_id: clusterAccess.Clusteraccess_user_id,
+				GC_expiration_time:      2,
+				Last_state_update:       time.Now(),
+			}
+			err := dbq.CreateOperation(ctx, &operationDb, operationDb.Operation_owner_user_id)
+			Expect(err).To(BeNil())
+
+			// Change "State" and "Created_on" fields using UpdateOperation function since CreateOperation does not allow to insert custom "Created_on" and "State" field.
+			err = dbq.GetOperationById(ctx, &operationDb)
+			Expect(err).To(BeNil())
+
+			// Set "State" field to "Completed"
+			operationDb.State = db.OperationState_Completed
+
+			// Set "Created_on" field to more than 23 Hours
+			operationDb.Created_on = time.Now().Add(time.Duration(-23) * time.Hour)
+
+			err = dbq.UpdateOperation(ctx, &operationDb)
+			Expect(err).To(BeNil())
+
+			By("Call clean-up function.")
+
+			cleanOrphanedEntriesfromTable_Operation(ctx, dbq, k8sClient, true, log)
+
+			By("Verify that no entry is deleted from DB.")
+
+			err = dbq.GetOperationById(ctx, &operationDb)
+			Expect(err).To(BeNil())
+		})
+
+		It("Should not delete operation entry, if Operation state is In-Progress, but its creation time is more than 24 hours.", func() {
+
+			By("create an operation entry in DB")
+
+			operationDb := db.Operation{
+				Operation_id:            "test-operation-1",
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "test-fake-resource-id",
+				Resource_type:           "GitopsEngineInstance",
+				State:                   db.OperationState_Waiting,
+				Operation_owner_user_id: clusterAccess.Clusteraccess_user_id,
+				GC_expiration_time:      2,
+				Last_state_update:       time.Now(),
+			}
+			err := dbq.CreateOperation(ctx, &operationDb, operationDb.Operation_owner_user_id)
+			Expect(err).To(BeNil())
+
+			// Change "State" and "Created_on" fields using UpdateOperation function since CreateOperation does not allow to insert custom "Created_on" and "State" field.
+			err = dbq.GetOperationById(ctx, &operationDb)
+			Expect(err).To(BeNil())
+
+			// Set "State" field to "In_Progress"
+			operationDb.State = db.OperationState_In_Progress
+
+			// Set "Created_on" field to more than 23 Hours
+			operationDb.Created_on = time.Now().Add(time.Duration(-25) * time.Hour)
+
+			err = dbq.UpdateOperation(ctx, &operationDb)
+			Expect(err).To(BeNil())
+
+			By("Call clean-up function.")
+
+			cleanOrphanedEntriesfromTable_Operation(ctx, dbq, k8sClient, true, log)
+
+			By("Verify that no entry is deleted from DB.")
+
+			err = dbq.GetOperationById(ctx, &operationDb)
+			Expect(err).To(BeNil())
+		})
+
+		It("Should not delete operation entry, if Operation state is Waiting and its creation time is more than 24 hours.", func() {
+
+			By("create an operation entry in DB")
+
+			operationDb := db.Operation{
+				Operation_id:            "test-operation-1",
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "test-fake-resource-id",
+				Resource_type:           "GitopsEngineInstance",
+				State:                   db.OperationState_Waiting,
+				Operation_owner_user_id: clusterAccess.Clusteraccess_user_id,
+				GC_expiration_time:      2,
+				Last_state_update:       time.Now(),
+			}
+			err := dbq.CreateOperation(ctx, &operationDb, operationDb.Operation_owner_user_id)
+			Expect(err).To(BeNil())
+
+			// Change "Created_on" fields using UpdateOperation function since CreateOperation does not allow to insert custom "Created_on" field.
+			err = dbq.GetOperationById(ctx, &operationDb)
+			Expect(err).To(BeNil())
+
+			// Set "Created_on" field to more than 23 Hours
+			operationDb.Created_on = time.Now().Add(time.Duration(-25) * time.Hour)
+
+			err = dbq.UpdateOperation(ctx, &operationDb)
+			Expect(err).To(BeNil())
+
+			By("Call clean-up function.")
+
+			cleanOrphanedEntriesfromTable_Operation(ctx, dbq, k8sClient, true, log)
+
+			By("Verify that no entry is deleted from DB.")
+
+			err = dbq.GetOperationById(ctx, &operationDb)
+			Expect(err).To(BeNil())
+		})
+
+		It("Should delete operation entry, if Operation state is Completed and its creation time is more than 24 Hours.", func() {
+
+			By("create an operation entry in DB")
+
+			operationDb := db.Operation{
+				Operation_id:            "test-operation-1",
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "test-fake-resource-id",
+				Resource_type:           "GitopsEngineInstance",
+				State:                   db.OperationState_Completed,
+				Operation_owner_user_id: clusterAccess.Clusteraccess_user_id,
+				GC_expiration_time:      2,
+				Last_state_update:       time.Now(),
+			}
+			err := dbq.CreateOperation(ctx, &operationDb, operationDb.Operation_owner_user_id)
+			Expect(err).To(BeNil())
+
+			// Change "Created_on" and "State" fields using UpdateApplication function since CreateApplication does not allow to insert custom "Created_on" and "State" field.
+			err = dbq.GetOperationById(ctx, &operationDb)
+			Expect(err).To(BeNil())
+
+			// Set "State" field to "Completed"
+			operationDb.State = db.OperationState_Completed
+
+			// Set "Created_on" field to more than 24 Hours
+			operationDb.Created_on = time.Now().Add(time.Duration(-25) * time.Hour)
+
+			err = dbq.UpdateOperation(ctx, &operationDb)
+			Expect(err).To(BeNil())
+
+			By("Call clean-up function.")
+
+			cleanOrphanedEntriesfromTable_Operation(ctx, dbq, k8sClient, true, log)
+
+			By("Verify that entry is deleted from DB.")
+
+			err = dbq.GetOperationById(ctx, &operationDb)
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+		})
+
+		It("Should recreate operation CR, if it is missing in cluster also the 'State' is given as 'Waiting' in DB and its creation time is more than 1 hour.", func() {
+
+			By("create an operation entry in DB")
+
+			operationDb := db.Operation{
+				Operation_id:            "test-operation-1",
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "test-fake-resource-id",
+				Resource_type:           "GitopsEngineInstance",
+				State:                   db.OperationState_Waiting,
+				Operation_owner_user_id: clusterAccess.Clusteraccess_user_id,
+				GC_expiration_time:      2,
+				Last_state_update:       time.Now(),
+			}
+			err := dbq.CreateOperation(ctx, &operationDb, operationDb.Operation_owner_user_id)
+			Expect(err).To(BeNil())
+
+			// Change "Created_on" fields using UpdateApplication function since CreateApplication does not allow to insert custom "Created_on" field.
+			err = dbq.GetOperationById(ctx, &operationDb)
+			Expect(err).To(BeNil())
+
+			// Set "Created_on" field to more than 1 Hours
+			operationDb.Created_on = time.Now().Add(time.Duration(-1) * time.Hour)
+
+			err = dbq.UpdateOperation(ctx, &operationDb)
+			Expect(err).To(BeNil())
+
+			By("Call clean-up function.")
+
+			cleanOrphanedEntriesfromTable_Operation(ctx, dbq, k8sClient, true, log)
+
+			By("Verify that no entry is deleted from DB.")
+
+			err = dbq.GetOperationById(ctx, &operationDb)
+			Expect(err).To(BeNil())
+
+			By("Verify that Operation CR is created in Cluster.")
+
+			operationCR := &managedgitopsv1alpha1.Operation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      sharedoperations.GenerateOperationCRName(operationDb),
+					Namespace: gitopsEngineInstance.Namespace_name,
+				},
+			}
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(operationCR), operationCR)
+			Expect(err).To(BeNil())
+		})
 	})
 })
 

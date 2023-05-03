@@ -2,6 +2,7 @@ package argoprojio
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
@@ -22,6 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
 )
 
@@ -53,7 +55,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			processedApplicationIds := map[string]any{"test-my-application-3": false, "test-my-application-5": false}
 
-			deletedArgoApplications := deleteOrphanedApplications(argoApplications, processedApplicationIds, ctx, reconciler.Client, log)
+			deletedArgoApplications := cleanOrphanedCRsfromCluster_Applications(argoApplications, processedApplicationIds, ctx, reconciler.Client, log)
 
 			Expect(len(deletedArgoApplications)).To(Equal(3))
 
@@ -65,7 +67,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 		})
 	})
 
-	Context("Testing CleanK8sOperations function", func() {
+	Context("Testing syncCRsWithDB_Applications_Delete_Operations function", func() {
 		var err error
 		var dbQueries db.AllDatabaseQueries
 		var ctx context.Context
@@ -169,7 +171,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			Expect(len(listOfK8sOperationFirst.Items)).NotTo(Equal(0))
 
 			// Clean Operations
-			cleanK8sOperations(ctx, dbQueries, reconciler.Client, log)
+			syncCRsWithDB_Applications_Delete_Operations(ctx, dbQueries, reconciler.Client, log)
 
 			// Get list of Operations after cleanup.
 			listOfK8sOperationSecond := managedgitopsv1alpha1.OperationList{}
@@ -202,7 +204,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			Expect(len(listOfK8sOperationFirst.Items)).NotTo(Equal(0))
 
 			// Clean Operations
-			cleanK8sOperations(ctx, dbQueries, reconciler.Client, log)
+			syncCRsWithDB_Applications_Delete_Operations(ctx, dbQueries, reconciler.Client, log)
 
 			// Get list of Operations after cleanup.
 			listOfK8sOperationSecond := managedgitopsv1alpha1.OperationList{}
@@ -212,7 +214,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 		})
 	})
 
-	Context("Testing for runSecretCleanup function.", func() {
+	Context("Testing for cleanOrphanedCRsfromCluster_Secret function.", func() {
 		var log logr.Logger
 		var ctx context.Context
 		var secret corev1.Secret
@@ -319,9 +321,9 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			err = k8sClient.Create(ctx, &secret)
 			Expect(err).To(BeNil())
 
-			By("Call runSecretCleanup function.")
+			By("Call cleanOrphanedCRsfromCluster_Secret function.")
 
-			runSecretCleanup(ctx, dbq, k8sClient, log)
+			cleanOrphanedCRsfromCluster_Secret(ctx, dbq, k8sClient, log)
 
 			By("Verify RepositoryCredentials DB entry still exists.")
 
@@ -343,9 +345,9 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			err := k8sClient.Create(ctx, &secret)
 			Expect(err).To(BeNil())
 
-			By("Call runSecretCleanup function.")
+			By("Call cleanOrphanedCRsfromCluster_Secret function.")
 
-			runSecretCleanup(ctx, dbq, k8sClient, log)
+			cleanOrphanedCRsfromCluster_Secret(ctx, dbq, k8sClient, log)
 
 			By("Verify repository secret from cluster is deleted.")
 
@@ -379,9 +381,9 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			err = k8sClient.Create(ctx, &secret)
 			Expect(err).To(BeNil())
 
-			By("Call runSecretCleanup function.")
+			By("Call cleanOrphanedCRsfromCluster_Secret function.")
 
-			runSecretCleanup(ctx, dbq, k8sClient, log)
+			cleanOrphanedCRsfromCluster_Secret(ctx, dbq, k8sClient, log)
 
 			By("Verify ManagedEnvironment DB entry still exists.")
 
@@ -403,9 +405,9 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			err := k8sClient.Create(ctx, &secret)
 			Expect(err).To(BeNil())
 
-			By("Call runSecretCleanup function.")
+			By("Call cleanOrphanedCRsfromCluster_Secret function.")
 
-			runSecretCleanup(ctx, dbq, k8sClient, log)
+			cleanOrphanedCRsfromCluster_Secret(ctx, dbq, k8sClient, log)
 
 			By("Verify cluster secret from cluster is deleted.")
 
@@ -423,9 +425,9 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			err := k8sClient.Create(ctx, &secret)
 			Expect(err).To(BeNil())
 
-			By("Call runSecretCleanup function.")
+			By("Call cleanOrphanedCRsfromCluster_Secret function.")
 
-			runSecretCleanup(ctx, dbq, k8sClient, log)
+			cleanOrphanedCRsfromCluster_Secret(ctx, dbq, k8sClient, log)
 
 			By("Verify cluster secret from cluster is deleted.")
 
@@ -444,9 +446,9 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			err := k8sClient.Create(ctx, &secret)
 			Expect(err).To(BeNil())
 
-			By("Call runSecretCleanup function.")
+			By("Call cleanOrphanedCRsfromCluster_Secret function.")
 
-			runSecretCleanup(ctx, dbq, k8sClient, log)
+			cleanOrphanedCRsfromCluster_Secret(ctx, dbq, k8sClient, log)
 
 			By("Verify cluster secret from cluster is deleted.")
 
@@ -465,13 +467,284 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			err := k8sClient.Create(ctx, &secret)
 			Expect(err).To(BeNil())
 
-			By("Call runSecretCleanup function.")
+			By("Call cleanOrphanedCRsfromCluster_Secret function.")
 
-			runSecretCleanup(ctx, dbq, k8sClient, log)
+			cleanOrphanedCRsfromCluster_Secret(ctx, dbq, k8sClient, log)
 
 			By("Verify cluster secret from cluster is deleted.")
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&secret), &secret)
+			Expect(err).To(BeNil())
+		})
+	})
+
+	Context("Testing for cleanOrphanedCRsfromCluster_Operation function.", func() {
+		var log logr.Logger
+		var ctx context.Context
+		var dbq db.AllDatabaseQueries
+		var k8sClient client.WithWatch
+		var k8sOperationFirst managedgitopsv1alpha1.Operation
+		var gitopsEngineInstance *db.GitopsEngineInstance
+
+		BeforeEach(func() {
+			err := db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
+
+			ctx = context.Background()
+			log = logger.FromContext(ctx)
+			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).To(BeNil())
+
+			scheme, _, _, _, err := tests.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			err = appv1.AddToScheme(scheme)
+			Expect(err).To(BeNil())
+
+			// Fake kube client.
+			k8sClient = fake.NewClientBuilder().WithScheme(scheme).Build()
+
+			_, _, _, gitopsEngineInstance, _, err = db.CreateSampleData(dbq)
+			Expect(err).To(BeNil())
+
+			By("Create Secret CR.")
+
+			// Create K8s operation CR
+			k8sOperationFirst = managedgitopsv1alpha1.Operation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-op-" + string(uuid.NewUUID()),
+					Namespace: "test-ns-1",
+				},
+				Spec: managedgitopsv1alpha1.OperationSpec{
+					OperationID: "test-id-" + string(uuid.NewUUID()),
+				},
+			}
+		})
+
+		It("Should delete Operation if it doesn't point to a DB entry.", func() {
+			k8sOperationSecond := k8sOperationFirst
+
+			// Create 1st CR in cluster
+			err := k8sClient.Create(ctx, &k8sOperationFirst)
+			Expect(err).To(BeNil())
+
+			// Create 2nd CR in cluster
+			k8sOperationSecond.Name = "test-op-" + string(uuid.NewUUID())
+			k8sOperationSecond.Spec.OperationID = "test-id-" + string(uuid.NewUUID())
+			err = k8sClient.Create(ctx, &k8sOperationSecond)
+			Expect(err).To(BeNil())
+
+			By("Calling cleanOrphanedCRsfromCluster_Operation function to delete orphaned Operation CR, if corresponding DB entry is not present.")
+
+			cleanOrphanedCRsfromCluster_Operation(ctx, dbq, k8sClient, log)
+
+			By("Verify that orphaned Operation CRs without a DB entry are deleted.")
+
+			err = k8sClient.Get(ctx, types.NamespacedName{Name: k8sOperationFirst.Name, Namespace: k8sOperationFirst.Namespace}, &k8sOperationFirst)
+			Expect(apierr.IsNotFound(err)).To(BeTrue())
+
+			err = k8sClient.Get(ctx, types.NamespacedName{Name: k8sOperationSecond.Name, Namespace: k8sOperationSecond.Namespace}, &k8sOperationSecond)
+			Expect(apierr.IsNotFound(err)).To(BeTrue())
+		})
+
+		It("Should not delete an Operation if it points to a valid DB entry but operation is in 'Waiting' state.", func() {
+			k8sOperationSecond := k8sOperationFirst
+
+			// Create 1st CR in cluster
+			err := k8sClient.Create(ctx, &k8sOperationFirst)
+			Expect(err).To(BeNil())
+
+			// Create 2nd CR in cluster
+			k8sOperationSecond.Name = "test-op-" + string(uuid.NewUUID())
+			k8sOperationSecond.Spec.OperationID = "test-id-" + string(uuid.NewUUID())
+			err = k8sClient.Create(ctx, &k8sOperationSecond)
+			Expect(err).To(BeNil())
+
+			// Create DB entry for 1st CR.
+			dbOperation := db.Operation{
+				Operation_id:            k8sOperationFirst.Spec.OperationID,
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "test-" + string(uuid.NewUUID()),
+				Resource_type:           "GitopsEngineInstance",
+				State:                   db.OperationState_Waiting,
+				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+			}
+			err = dbq.CreateOperation(ctx, &dbOperation, dbOperation.Operation_owner_user_id)
+			Expect(err).To(BeNil())
+
+			// Create DB entry for 2nd CR.
+			operationSecond := dbOperation
+			operationSecond.Operation_id = k8sOperationSecond.Spec.OperationID
+			operationSecond.Resource_id = "test-" + string(uuid.NewUUID())
+			err = dbq.CreateOperation(ctx, &operationSecond, operationSecond.Operation_owner_user_id)
+			Expect(err).To(BeNil())
+
+			By("Calling cleanOrphanedCRsfromCluster_Operation function to delete orphaned Operation CR, if corresponding DB entry is not present.")
+
+			cleanOrphanedCRsfromCluster_Operation(ctx, dbq, k8sClient, log)
+
+			By("Verify that Operation CRs with a valid DB entry are not deleted.")
+
+			err = k8sClient.Get(ctx, types.NamespacedName{Name: k8sOperationFirst.Name, Namespace: k8sOperationFirst.Namespace}, &k8sOperationFirst)
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Get(ctx, types.NamespacedName{Name: k8sOperationSecond.Name, Namespace: k8sOperationSecond.Namespace}, &k8sOperationSecond)
+			Expect(err).To(BeNil())
+		})
+
+		It("Should delete only those Operation which don't point to a valid DB entry.", func() {
+			k8sOperationSecond := k8sOperationFirst
+
+			// Create 1st CR in cluster
+			err := k8sClient.Create(ctx, &k8sOperationFirst)
+			Expect(err).To(BeNil())
+
+			// Create 2nd CR in cluster
+			k8sOperationSecond.Name = "test-op-" + string(uuid.NewUUID())
+			k8sOperationSecond.Spec.OperationID = "test-id-" + string(uuid.NewUUID())
+			err = k8sClient.Create(ctx, &k8sOperationSecond)
+			Expect(err).To(BeNil())
+
+			// Create DB entry for 1st CR
+			dbOperation := db.Operation{
+				Operation_id:            k8sOperationFirst.Spec.OperationID,
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "test-" + string(uuid.NewUUID()),
+				Resource_type:           "GitopsEngineInstance",
+				State:                   db.OperationState_Waiting,
+				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+			}
+			err = dbq.CreateOperation(ctx, &dbOperation, dbOperation.Operation_owner_user_id)
+			Expect(err).To(BeNil())
+
+			By("Calling cleanOrphanedCRsfromCluster_Operation function to delete orphaned Operation CR, if corresponding DB entry is not present.")
+
+			cleanOrphanedCRsfromCluster_Operation(ctx, dbq, k8sClient, log)
+
+			By("Verify that Operation CR with valid DB entry is not deleted.")
+
+			err = k8sClient.Get(ctx, types.NamespacedName{Name: k8sOperationFirst.Name, Namespace: k8sOperationFirst.Namespace}, &k8sOperationFirst)
+			Expect(err).To(BeNil())
+
+			By("Verify that Operation CR without valid DB entry is deleted.")
+
+			err = k8sClient.Get(ctx, types.NamespacedName{Name: k8sOperationSecond.Name, Namespace: k8sOperationSecond.Namespace}, &k8sOperationSecond)
+			Expect(apierr.IsNotFound(err)).To(BeTrue())
+
+			By("Verify that DB entry for Operation CR is not deleted.")
+
+			err = dbq.GetOperationById(ctx, &dbOperation)
+			Expect(err).To(BeNil())
+		})
+
+		It("Should delete an Operation if it points to a valid DB entry, but 'created_on' is more than waitTimeForK8sResourceDelete and 'State' is set to 'Completed'.", func() {
+			// Create CR in cluster
+			err := k8sClient.Create(ctx, &k8sOperationFirst)
+			Expect(err).To(BeNil())
+
+			// Create DB entry for CR
+			dbOperation := db.Operation{
+				Operation_id:            k8sOperationFirst.Spec.OperationID,
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "test-" + string(uuid.NewUUID()),
+				Resource_type:           "GitopsEngineInstance",
+				State:                   db.OperationState_Waiting,
+				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+			}
+			err = dbq.CreateOperation(ctx, &dbOperation, dbOperation.Operation_owner_user_id)
+			Expect(err).To(BeNil())
+
+			err = dbq.GetOperationById(ctx, &dbOperation)
+			Expect(err).To(BeNil())
+
+			// Change "Created_on" & "State" field using UpdateOperation function since CreateOperation does not allow to insert custom "Created_on" and "State" field.
+
+			// Set "State" to "Completed"
+			dbOperation.State = db.OperationState_Completed
+
+			// Set "Created_on" field to > waitTimeForK8sResourceDelete
+			dbOperation.Created_on = time.Now().Add(-1 * (waitTimeForK8sResourceDelete + 1*time.Second))
+
+			err = dbq.UpdateOperation(ctx, &dbOperation)
+			Expect(err).To(BeNil())
+
+			By("Calling cleanOrphanedCRsfromCluster_Operation function to delete orphaned Operation CR, if corresponding DB entry is not present.")
+
+			cleanOrphanedCRsfromCluster_Operation(ctx, dbq, k8sClient, log)
+
+			By("Verify that Operation CRs with a valid DB entry but marked as Completed is deleted.")
+
+			err = k8sClient.Get(ctx, types.NamespacedName{Name: k8sOperationFirst.Name, Namespace: k8sOperationFirst.Namespace}, &k8sOperationFirst)
+			Expect(apierr.IsNotFound(err)).To(BeTrue())
+		})
+
+		It("Should not delete an Operation if it points to a valid DB entry, but 'created_on' is more than waitTimeForK8sResourceDelete and 'State' is not set to 'Completed'.", func() {
+			err := k8sClient.Create(ctx, &k8sOperationFirst)
+			Expect(err).To(BeNil())
+
+			dbOperation := db.Operation{
+				Operation_id:            k8sOperationFirst.Spec.OperationID,
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "test-" + string(uuid.NewUUID()),
+				Resource_type:           "GitopsEngineInstance",
+				State:                   db.OperationState_Waiting,
+				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+			}
+			err = dbq.CreateOperation(ctx, &dbOperation, dbOperation.Operation_owner_user_id)
+			Expect(err).To(BeNil())
+
+			// Change "Created_on" field using UpdateOperation function since CreateOperation does not allow to insert custom "Created_on" field.
+
+			err = dbq.GetOperationById(ctx, &dbOperation)
+			Expect(err).To(BeNil())
+
+			// Set "Created_on" field to > waitTimeForK8sResourceDelete
+			dbOperation.Created_on = time.Now().Add(-1 * (waitTimeForK8sResourceDelete + 1*time.Second))
+			err = dbq.UpdateOperation(ctx, &dbOperation)
+			Expect(err).To(BeNil())
+
+			By("Calling cleanOrphanedCRsfromCluster_Operation function to delete orphaned Operation CR, if corresponding DB entry is not present.")
+
+			cleanOrphanedCRsfromCluster_Operation(ctx, dbq, k8sClient, log)
+
+			By("Verify that Operation CRs is not deleted.")
+
+			err = k8sClient.Get(ctx, types.NamespacedName{Name: k8sOperationFirst.Name, Namespace: k8sOperationFirst.Namespace}, &k8sOperationFirst)
+			Expect(err).To(BeNil())
+		})
+
+		It("Should not delete an Operation if it points to a valid DB entry, but 'created_on' is less than waitTimeForK8sResourceDelete and 'State' is set to 'Completed'.", func() {
+			err := k8sClient.Create(ctx, &k8sOperationFirst)
+			Expect(err).To(BeNil())
+
+			dbOperation := db.Operation{
+				Operation_id:            k8sOperationFirst.Spec.OperationID,
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "test-" + string(uuid.NewUUID()),
+				Resource_type:           "GitopsEngineInstance",
+				State:                   db.OperationState_Waiting,
+				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+			}
+			err = dbq.CreateOperation(ctx, &dbOperation, dbOperation.Operation_owner_user_id)
+			Expect(err).To(BeNil())
+
+			// Change "State" field using UpdateOperation function since CreateOperation does not allow to insert custom "State" field.
+
+			err = dbq.GetOperationById(ctx, &dbOperation)
+			Expect(err).To(BeNil())
+
+			// Set "State" to "Completed"
+			dbOperation.State = db.OperationState_Completed
+			err = dbq.UpdateOperation(ctx, &dbOperation)
+			Expect(err).To(BeNil())
+
+			By("Calling cleanOrphanedCRsfromCluster_Operation function to delete orphaned Operation CR, if corresponding DB entry is not present.")
+
+			cleanOrphanedCRsfromCluster_Operation(ctx, dbq, k8sClient, log)
+
+			By("Verify that Operation CRs is not deleted.")
+
+			err = k8sClient.Get(ctx, types.NamespacedName{Name: k8sOperationFirst.Name, Namespace: k8sOperationFirst.Namespace}, &k8sOperationFirst)
 			Expect(err).To(BeNil())
 		})
 	})

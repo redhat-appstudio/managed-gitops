@@ -6,11 +6,14 @@ set -e
 # Show commands in logs
 set -x
 
+LOOP_PID=""
+
 # Stop port-forwarding when E2E tests are finished.
 function finish {
   echo "E2E Test process is finished."
-
-  [ -n "${KUBE_PID}" ] && kill $KUBE_PID && echo "Port-forwarding has been successfully stopped"
+  [ -n "${LOOP_PID}" ] && kill $LOOP_PID && echo "port-forwarding loop with the pid $LOOP_PID has been stopped successfully"
+  killall kubectl || true
+  killall goreman || true
   exit
 }
 trap finish INT EXIT
@@ -27,8 +30,10 @@ echo "Using Image $CI_IMAGE"
 make install-all-k8s IMG=$CI_IMAGE
 
 # Port forwarding is needed by E2E to connect with DB
-kubectl port-forward --namespace gitops svc/gitops-postgresql-staging 5432:5432 &
-KUBE_PID=$!
+echo "Starting Port-Forward loop"
+while true; do kubectl port-forward --namespace gitops svc/gitops-postgresql-staging 5432:5432 ; done&
+LOOP_PID=$!
+sleep 2
 
 # Don't print DB Password in logs.
 set +x

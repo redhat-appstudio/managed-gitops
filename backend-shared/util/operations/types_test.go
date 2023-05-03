@@ -202,7 +202,7 @@ var _ = Describe("Testing CleanupOperation function", func() {
 		})
 
 		It("should remove CR and DB entry", func() {
-			err := CleanupOperation(ctx, *dbOperation, *k8sOperation, k8sOperation.Namespace, dbq, k8sClient, true, logr)
+			err := CleanupOperation(ctx, *dbOperation, *k8sOperation, dbq, k8sClient, true, logr)
 			Expect(err).To(BeNil())
 
 			err = dbq.GetOperationById(ctx, dbOperation)
@@ -213,7 +213,7 @@ var _ = Describe("Testing CleanupOperation function", func() {
 		})
 
 		It("shouldn't remove DB entry when deleteDBOperation is disabled", func() {
-			err := CleanupOperation(ctx, *dbOperation, *k8sOperation, k8sOperation.Namespace, dbq, k8sClient, false, logr)
+			err := CleanupOperation(ctx, *dbOperation, *k8sOperation, dbq, k8sClient, false, logr)
 			Expect(err).To(BeNil())
 
 			err = dbq.GetOperationById(ctx, dbOperation)

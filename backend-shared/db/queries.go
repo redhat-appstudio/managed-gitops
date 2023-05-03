@@ -118,6 +118,9 @@ type DatabaseQueries interface {
 	// Get ManagedEnvironment in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
 	GetManagedEnvironmentBatch(ctx context.Context, managedEnvironments *[]ManagedEnvironment, limit, offSet int) error
 
+	// Get Operation in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+	GetOperationBatch(ctx context.Context, operations *[]Operation, limit, offSet int) error
+
 	DeleteKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) (int, error)
 	DeleteClusterCredentialsById(ctx context.Context, id string) (int, error)
 	DeleteClusterUserById(ctx context.Context, id string) (int, error)

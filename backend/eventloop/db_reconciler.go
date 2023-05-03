@@ -79,6 +79,9 @@ func (r *DatabaseReconciler) startTimerForNextCycle() {
 			// Clean orphaned entries from Application table if they dont have related entries in ACTDM table.
 			cleanOrphanedEntriesfromTable_Application(ctx, r.DB, r.Client, false, log)
 
+			// Clean orphaned entries from Operation table.
+			cleanOrphanedEntriesfromTable_Operation(ctx, r.DB, r.Client, false, log)
+
 			return nil
 		})
 
@@ -434,6 +437,7 @@ const (
 	dbType_SyncOperation                  dbTableName = "SyncOperation"
 	dbType_APICRToDatabaseMapping         dbTableName = "APICRToDatabaseMapping"
 	dbType_ManagedEnvironment             dbTableName = "ManagedEnvironment"
+	dbType_Operation                      dbTableName = "Operation"
 )
 
 // deleteDbEntry deletes database entry of a given CR
@@ -454,6 +458,8 @@ func deleteDbEntry(ctx context.Context, dbQueries db.DatabaseQueries, id string,
 		rowsDeleted, err = dbQueries.DeleteApplicationById(ctx, id)
 	case dbType_SyncOperation:
 		rowsDeleted, err = dbQueries.DeleteSyncOperationById(ctx, id)
+	case dbType_Operation:
+		rowsDeleted, err = dbQueries.DeleteOperationById(ctx, id)
 	case dbType_APICRToDatabaseMapping:
 		apiCrToDbMapping, ok := t.(db.APICRToDatabaseMapping)
 		if ok {
@@ -770,6 +776,98 @@ func cleanOrphanedEntriesfromTable_Application(ctx context.Context, dbQueries db
 				if isApplicationPresent {
 					// Create k8s Operation to delete related CRs using Cluster Agent
 					createOperation(ctx, appDB.Engine_instance_inst_id, appDB.Application_id, appArgo.Namespace, db.OperationResourceType_Application, dbQueries, client, log)
+				}
+			}
+		}
+
+		// Skip processed entries in next iteration
+		offSet += rowBatchSize
+	}
+}
+
+// cleanOrphanedEntriesfromTable_Operation loops through Operations in database and verifies they are still valid (Having CR in Cluster). If not, the resources are deleted/Creates.
+func cleanOrphanedEntriesfromTable_Operation(ctx context.Context, dbQueries db.DatabaseQueries, k8sClient client.Client, skipDelay bool, l logr.Logger) {
+
+	log := l.WithValues("job", "cleanOrphanedEntriesfromTable_Operation")
+
+	offSet := 0
+	// Continuously iterate and fetch batches until all entries of Operation table are processed.
+	for {
+		if offSet != 0 && !skipDelay {
+			time.Sleep(sleepIntervalsOfBatches)
+		}
+
+		var listOfOperationFromDB []db.Operation
+
+		// Fetch Operation table entries in batch size as configured above.​
+		if err := dbQueries.GetOperationBatch(ctx, &listOfOperationFromDB, rowBatchSize, offSet); err != nil {
+			log.Error(err, fmt.Sprintf("Error occurred in cleanOrphanedEntriesfromTable_Operation while fetching batch from Offset: %d to %d: ",
+				offSet, offSet+rowBatchSize))
+			break
+		}
+
+		// Break the loop if no entries are left in table to be processed.
+		if len(listOfOperationFromDB) == 0 {
+			log.Info("All Application entries are processed by cleanOrphanedEntriesfromTable_Operation.")
+			break
+		}
+
+		// Iterate over batch received above.
+		for _, opDB := range listOfOperationFromDB {
+
+			// If operation has state "Completed" and created time is more than 24 Hours, then delete entry.
+			if opDB.State == db.OperationState_Completed &&
+				time.Since(opDB.Created_on) > (24*time.Hour) {
+
+				if err := deleteDbEntry(ctx, dbQueries, opDB.Operation_id, dbType_Operation, log, opDB); err != nil {
+					log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_Operation while deleting Operation entry : "+opDB.Operation_id+" from DB.")
+				}
+				// No need to check next condition since Operation is deleted.
+				continue
+			}
+
+			// If operation has state "Waiting" or "In Progress" and created time is more than 1 hour, but CR is missing in cluster, then recreate it.
+			if (opDB.State == db.OperationState_Waiting || opDB.State == db.OperationState_In_Progress) &&
+				time.Since(opDB.Created_on) > time.Hour*1 {
+
+				gitopsEngineInstance := db.GitopsEngineInstance{
+					Gitopsengineinstance_id: opDB.Instance_id,
+				}
+
+				if err := dbQueries.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstance); err != nil {
+					log.Error(err, fmt.Sprintf("error occurred in cleanOrphanedEntriesfromTable_Operation while fetching gitopsEngineInstance: "+gitopsEngineInstance.Gitopsengineinstance_id))
+					continue
+				}
+
+				// Check if Operation CR exists in Cluster, if not then create it.
+				operationCR := &managedgitopsv1alpha1.Operation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      operations.GenerateOperationCRName(opDB),
+						Namespace: gitopsEngineInstance.Namespace_name,
+					},
+					Spec: managedgitopsv1alpha1.OperationSpec{
+						OperationID: opDB.Operation_id,
+					},
+				}
+
+				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(operationCR), operationCR); err != nil {
+					if apierr.IsNotFound(err) {
+						// A) If CR is not found in cluster, proceed to create CR in cluster
+						log.Info("Operation resource " + operationCR.Name + " is not found in Cluster, but in DB entry it is still in " + string(opDB.State) + " state, hence recreating resource in cluster.")
+
+						// Set annotation as an identifier for Operations created by clean up job.
+						operationCR.Annotations = map[string]string{operations.IdentifierKey: operations.IdentifierValue}
+
+						if err := k8sClient.Create(ctx, operationCR, &client.CreateOptions{}); err != nil {
+							log.Error(err, "Unable to create K8s Operation")
+							continue
+						}
+
+						log.Info("Created K8s Operation CR. Operation CR Name: " + operationCR.Name +
+							" Operation CR Namespace" + operationCR.Namespace + ", Operation CR ID" + operationCR.Spec.OperationID)
+					} else {
+						log.Error(err, "error occurred in cleanOrphanedEntriesfromTable_Operation while fetching Operation: "+operationCR.Name)
+					}
 				}
 			}
 		}

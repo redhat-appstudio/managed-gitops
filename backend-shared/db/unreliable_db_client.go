@@ -94,6 +94,15 @@ func (cdb *ChaosDBClient) ListOperationsToBeGarbageCollected(ctx context.Context
 
 }
 
+func (cdb *ChaosDBClient) GetOperationBatch(ctx context.Context, operations *[]Operation, limit, offSet int) error {
+
+	if err := shouldSimulateFailure("GetOperationBatch", operations, limit, offSet); err != nil {
+		return err
+	}
+
+	return cdb.InnerClient.GetOperationBatch(ctx, operations, limit, offSet)
+}
+
 func (cdb *ChaosDBClient) CreateSyncOperation(ctx context.Context, obj *SyncOperation) error {
 
 	if err := shouldSimulateFailure("CreateSyncOperation", obj); err != nil {

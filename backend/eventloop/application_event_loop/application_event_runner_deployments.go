@@ -162,7 +162,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 
 	// 4) Clean up any old GitOpsDeployments that have the same name/namespace as this resource, but that no longer exist
 	successfulCleanup := signalledShutdown_true
-	if len(oldDeplToAppMappings) > 0 {
+	if len(oldDeplToAppMappings) > 0 || isGitOpsDeploymentDeleted(gitopsDeployment) {
 
 		// We should signal shutdown if both conditions are satisfied:
 		// - we have successfully cleaned up old resources

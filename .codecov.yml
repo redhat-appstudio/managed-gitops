@@ -1,8 +1,6 @@
 ignore:
   - "**/*_test.go"
   - "vendor/.*"
-  - "backend-shared/main.go" # placeholder: not executed
-  - "backend-shared/apis/managed-gitops/v1alpha1/zz_generated.deepcopy.go" # generated file, does not need to be included in the coverage
 
   # mock file for testing: these are not included/executed as part of the product code.
   - "backend/condition/mocks/conditions.go"
@@ -10,6 +8,8 @@ ignore:
   - "backend/util/proxyclient.go"
   - "backend/util/server.go"
 
+  - "backend-shared/main.go" # placeholder: not executed
+  - "backend-shared/apis/managed-gitops/v1alpha1/zz_generated.deepcopy.go" # generated file, does not need to be included in the coverage
   - "backend-shared/apis/managed-gitops/v1alpha1/mocks/cr-client.go"
   - "backend-shared/apis/managed-gitops/v1alpha1/mocks/generate.go"
   - "backend-shared/apis/managed-gitops/v1alpha1/mocks/status-writer.go"
@@ -17,8 +17,9 @@ ignore:
   - "backend-shared/apis/managed-gitops/v1alpha1/mocks/structs/gitopsdeployment.go"
   - "backend-shared/db/unreliable_db_client.go"
   - "backend-shared/db/test_utils.go"
+  - "backend-shared/util/profiling.go"
   - "backend-shared/util/proxyclient.go"
-  - "backend-shared/util/chaosclient.go
+  - "backend-shared/util/chaosclient.go"
   - "backend-shared/hack/db-schema-sync-check/main.go"
 
   - "cluster-agent/utils/mocks/ApplicationServiceClient.go"

@@ -226,10 +226,6 @@ func workspaceEventLoopRouter(input chan workspaceEventLoopMessage, namespaceID 
 
 		event := (wrapperEvent.payload).(eventlooptypes.EventLoopMessage)
 
-		if event.Event != nil {
-			ctx = sharedutil.AddKCPClusterToContext(ctx, event.Event.Request.ClusterName)
-		}
-
 		if wrapperEvent.messageType == workspaceEventLoopMessageType_Event {
 			// When the workspace event loop receive an event message, process it
 

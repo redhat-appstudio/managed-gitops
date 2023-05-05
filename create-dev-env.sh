@@ -203,6 +203,7 @@ if [ "$1" = "kube-auto" ]; then
     # Do not stop port-forwarding
     echo "Port-forwarding is active. You can stop it with 'kill $KUBE_PID'"
     echo "Or you can find the process with typing: 'sudo lsof -i:5432'"
+<<<<<<< HEAD
   else
     # This else scenario mainly focus on running e2e test with kcp on Openshift CI or in local KCP/CKCP/CPS setups
     # Decode the password from the secret
@@ -277,6 +278,8 @@ if [ "$1" = "kube-auto" ]; then
   echo "   * Port-Forwarding worked"
   echo "   * Port-forwarding is active. You can stop it with 'kill $PORT_FORWARD_PID'"
   echo "   * Or you can find the process with typing: 'sudo lsof -i:5432'"
+=======
+>>>>>>> 6e6008bf (Fix merge conflicts in go.mod files)
   exit 0
 fi
 

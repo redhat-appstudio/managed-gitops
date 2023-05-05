@@ -5,11 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -41,7 +39,6 @@ var _ = Describe("GitOpsEngine Client Test", Ordered, func() {
 				Build()
 
 			ctx = context.Background()
-			Expect(os.Setenv(sharedutil.RunningAgainstKCPEnv, "true")).To(BeNil())
 
 			// create a fake server to validate the client
 			fakeServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -69,10 +66,6 @@ var _ = Describe("GitOpsEngine Client Test", Ordered, func() {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 				}
 			}))
-		})
-
-		AfterAll(func() {
-			Expect(os.Unsetenv(sharedutil.RunningAgainstKCPEnv)).To(BeNil())
 		})
 
 		getClusterSecret := func(host, token string) *corev1.Secret {

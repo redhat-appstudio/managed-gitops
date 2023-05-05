@@ -181,9 +181,6 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 
 		It("Should create GitOpsDeployments and it should be Synced/Healthy.", func() {
 			// ToDo: https://issues.redhat.com/browse/GITOPSRVCE-234
-			if fixture.IsRunningAgainstKCP() {
-				Skip("Skipping this test in KCP until we fix the race condition")
-			}
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())

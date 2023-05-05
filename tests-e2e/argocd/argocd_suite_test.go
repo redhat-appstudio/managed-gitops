@@ -2,7 +2,6 @@ package core
 
 import (
 	"testing"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -18,7 +17,7 @@ var _ = BeforeSuite(func() {
 func TestArgoCD(t *testing.T) {
 	_, reporterConfig := GinkgoConfiguration()
 	// A test is "slow" if it takes longer than a few minutes
-	reporterConfig.SlowSpecThreshold = time.Duration(6 * time.Minute)
+	//reporterConfig.SlowSpecThreshold = time.Duration(6 * time.Minute)
 
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Argo CD Suite", reporterConfig)

@@ -70,9 +70,6 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 		It("should create an Operation CR in a valid namespace, and we should see the Operation is processed", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 			ctx = context.Background()
-			if fixture.IsRunningAgainstKCP() {
-				Skip("Skipping this test until we support running gitops operator with KCP")
-			}
 
 			By("Creating Operation CR")
 			log := log.FromContext(ctx)
@@ -169,9 +166,6 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 		It("should create an Operation CR in an invalid namespace, a non-Argo CD namespace, and we should see the Operation is never processed", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 			ctx = context.Background()
-			if fixture.IsRunningAgainstKCP() {
-				Skip("Skipping this test until we support running gitops operator with KCP")
-			}
 
 			By("Creating Operation CR")
 			log := log.FromContext(ctx)

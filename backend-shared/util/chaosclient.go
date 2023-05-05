@@ -56,7 +56,7 @@ func IfEnabledSimulateUnreliableClient(kClient client.Client) client.Client {
 // Get retrieves an obj for the given object key from the Kubernetes Cluster.
 // obj must be a struct pointer so that obj can be updated with the response
 // returned by the Server.
-func (pc *ChaosClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+func (pc *ChaosClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 
 	if err := shouldSimulateFailure("Get", obj); err != nil {
 		return err
@@ -162,6 +162,11 @@ func (pc *ChaosClient) RESTMapper() meta.RESTMapper {
 	return res
 }
 
+func (pc *ChaosClient) SubResource(subResource string) client.SubResourceClient {
+	res := pc.InnerClient.SubResource(subResource)
+	return res
+}
+
 type ChaosClientStatusWrapper struct {
 	innerWriter *client.StatusWriter
 	// parent      *ProxyClient
@@ -170,7 +175,7 @@ type ChaosClientStatusWrapper struct {
 // Update updates the fields corresponding to the status subresource for the
 // given obj. obj must be a struct pointer so that obj can be updated
 // with the content returned by the Server.
-func (pcsw *ChaosClientStatusWrapper) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+func (pcsw *ChaosClientStatusWrapper) Update(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
 
 	if err := shouldSimulateFailure("Status Update", obj); err != nil {
 		return err
@@ -185,7 +190,7 @@ func (pcsw *ChaosClientStatusWrapper) Update(ctx context.Context, obj client.Obj
 // Patch patches the given object's subresource. obj must be a struct
 // pointer so that obj can be updated with the content returned by the
 // Server.
-func (pcsw *ChaosClientStatusWrapper) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+func (pcsw *ChaosClientStatusWrapper) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error {
 
 	if err := shouldSimulateFailure("Status Patch", obj); err != nil {
 		return err

@@ -350,7 +350,6 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 	}
 
-	ctx = sharedutil.RemoveKCPClusterFromContext(ctx)
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
 
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput,
@@ -678,7 +677,6 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		Resource_type: db.OperationResourceType_Application,
 	}
 
-	ctx = sharedutil.RemoveKCPClusterFromContext(ctx)
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
 
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput, clusterUser.Clusteruser_id,
@@ -805,7 +803,6 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		Resource_type: db.OperationResourceType_Application,
 	}
 
-	ctx = sharedutil.RemoveKCPClusterFromContext(ctx)
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput,
 		clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, log)
@@ -956,7 +953,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 		return crUpdated_false, nil
 	}
 	// Update the actual object in Kubernetes
-	if err := a.workspaceClient.Status().Update(ctx, gitopsDeployment, &client.UpdateOptions{}); err != nil {
+	if err := a.workspaceClient.Status().Update(ctx, gitopsDeployment, &client.SubResourceUpdateOptions{}); err != nil {
 		return crUpdated_false, err
 	}
 	// We don't need to log status updates, e.g. via 'sharedutil.LogAPIResourceChangeEvent'
@@ -1028,7 +1025,7 @@ func (g *gitOpsDeploymentAdapter) setGitOpsDeploymentCondition(conditionType man
 
 		g.conditionManager.SetCondition(conditions, conditionType, managedgitopsv1alpha1.GitOpsConditionStatus(corev1.ConditionTrue),
 			reason, userError)
-		return g.client.Status().Update(g.ctx, g.gitOpsDeployment, &client.UpdateOptions{})
+		return g.client.Status().Update(g.ctx, g.gitOpsDeployment, &client.SubResourceUpdateOptions{})
 
 	} else {
 		// if error does not exist, check if the condition exists or not
@@ -1039,7 +1036,7 @@ func (g *gitOpsDeploymentAdapter) setGitOpsDeploymentCondition(conditionType man
 				g.conditionManager.SetCondition(conditions, conditionType,
 					managedgitopsv1alpha1.GitOpsConditionStatus(corev1.ConditionFalse), reason, "")
 
-				return g.client.Status().Update(g.ctx, g.gitOpsDeployment, &client.UpdateOptions{})
+				return g.client.Status().Update(g.ctx, g.gitOpsDeployment, &client.SubResourceUpdateOptions{})
 			}
 			// do nothing, if the condition is already marked as resolved
 		}

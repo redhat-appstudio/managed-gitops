@@ -144,18 +144,10 @@ func GetK8sClientForGitOpsEngineInstance(ctx context.Context, gitopsEngineInstan
 		return nil, err
 	}
 
-	if !sharedutil.IsRunningAgainstKCP() {
-		return serviceClient, nil
-	}
-
 	return getGitOpsEngineWorkloadClient(ctx, serviceClient, gitopsEngineInstance)
 }
 
 func getGitOpsEngineWorkloadClient(ctx context.Context, serviceClient client.Client, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
-
-	if !sharedutil.IsRunningAgainstKCP() {
-		return nil, fmt.Errorf("use a service provider client in a non-KCP environment")
-	}
 
 	// In a KCP environment, Argo CD will be installed on a workload cluster. We need to retrieve the credentials required to connect to the Argo CD instance, which is stored in the secret.
 	clusterCreds := &corev1.Secret{

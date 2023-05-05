@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	apisv1alpha1 "github.com/kcp-dev/kcp/pkg/apis/apis/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,17 +16,16 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/controller-runtime/pkg/kcp"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var _ = Describe("ControllerManager test", func() {
 
-	Context("GetControllerManager should return the appropriate manager for KCP/non-KCP envs", func() {
+	Context("GetControllerManager should return the appropriate manager", func() {
 
 		ctx := context.Background()
 		log := log.FromContext(ctx)
-		apiExportName := "test-kcp"
+		apiExportName := "test"
 		var fakeClient client.Client
 		var fakeDiscovery *fakediscovery.FakeDiscovery
 		var fakeServer *httptest.Server
@@ -36,8 +34,6 @@ var _ = Describe("ControllerManager test", func() {
 
 		BeforeEach(func() {
 			scheme := runtime.NewScheme()
-			err := apisv1alpha1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
 
 			fakeClient = fake.NewClientBuilder().WithScheme(scheme).Build()
 
@@ -92,56 +88,14 @@ var _ = Describe("ControllerManager test", func() {
 			fakeServer.Close()
 		})
 
-		When("KCP API groups are absent", func() {
-			It("Should return a standard manager", func() {
-				gotMgr, err := getControllerManager(ctx, cfg, fakeClient, fakeDiscovery, &log, apiExportName, opts)
-				Expect(err).To(BeNil())
+		It("Should return a standard manager", func() {
+			gotMgr, err := getControllerManager(ctx, cfg, fakeClient, fakeDiscovery, &log, apiExportName, opts)
+			Expect(err).To(BeNil())
 
-				expectedMgr, err := ctrl.NewManager(cfg, opts)
-				Expect(err).To(BeNil())
-				Expect(gotMgr.GetConfig()).Should(Equal(expectedMgr.GetConfig()))
-			})
+			expectedMgr, err := ctrl.NewManager(cfg, opts)
+			Expect(err).To(BeNil())
+			Expect(gotMgr.GetConfig()).Should(Equal(expectedMgr.GetConfig()))
 		})
 
-		When("KCP API groups are present", func() {
-			It("Should return a manager that is KCP aware", func() {
-				apiExport := apisv1alpha1.APIExport{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test-kcp",
-					},
-					Spec: apisv1alpha1.APIExportSpec{},
-					Status: apisv1alpha1.APIExportStatus{
-						VirtualWorkspaces: []apisv1alpha1.VirtualWorkspace{
-							{
-								URL: fakeServer.URL,
-							},
-						},
-					},
-				}
-
-				err := fakeClient.Create(ctx, &apiExport)
-				Expect(err).To(BeNil())
-
-				fakeDiscovery = &fakediscovery.FakeDiscovery{
-					Fake: &testing.Fake{
-						Resources: []*metav1.APIResourceList{
-							{
-								GroupVersion: "apis.kcp.dev/v1alpha1",
-							},
-						},
-					},
-				}
-
-				gotMgr, err := getControllerManager(ctx, cfg, fakeClient, fakeDiscovery, &log, apiExportName, opts)
-				Expect(err).To(BeNil())
-
-				expectedMgr, err := kcp.NewClusterAwareManager(cfg, opts)
-				Expect(err).To(BeNil())
-				Expect(gotMgr.GetConfig()).Should(Equal(expectedMgr.GetConfig()))
-
-				err = fakeClient.Delete(ctx, &apiExport)
-				Expect(err).To(BeNil())
-			})
-		})
 	})
 })

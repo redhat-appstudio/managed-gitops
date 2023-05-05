@@ -3,10 +3,8 @@ package fixture
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -22,7 +20,6 @@ import (
 
 	routev1 "github.com/openshift/api/route/v1"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
-	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -46,9 +43,6 @@ const (
 
 	// NewArgoCDInstanceDestNamespace is the destinaton Argo CD Application namespace tests should use if they wish to deploy from a new Argo CD instance
 	NewArgoCDInstanceDestNamespace = "argocd-instance-dest-namespace"
-
-	// ENVGitOpsInKCP is an environment variable that is set when running our e2e tests against KCP
-	ENVGitOpsInKCP = "GITOPS_IN_KCP"
 )
 
 // EnsureCleanSlateNonKCPVirtualWorkspace should be called before every E2E tests:
@@ -419,39 +413,6 @@ func EnsureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 		return err
 	}
 
-	if IsRunningAgainstKCP() {
-		if err = addMissingPermissions(kubeClientSet, namespaceParam, argoCDNamespaceParam); err != nil {
-			return nil
-		}
-
-		// allow argocd to manage the target namespace
-		err = wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
-			secretList, err := kubeClientSet.CoreV1().Secrets(argoCDNamespaceParam).List(context.Background(), metav1.ListOptions{
-				LabelSelector: sharedutil.ArgoCDSecretTypeIdentifierKey + "=" + sharedutil.ArgoCDSecretClusterTypeValue,
-			})
-			if err != nil {
-				return false, err
-			}
-
-			if len(secretList.Items) > 0 {
-				clusterSecret := secretList.Items[0]
-
-				ns := []string{argoCDNamespaceParam, namespaceParam}
-				clusterSecret.Data["namespaces"] = []byte(strings.Join(ns, ","))
-
-				_, err = kubeClientSet.CoreV1().Secrets(argoCDNamespaceParam).Update(context.Background(), &clusterSecret, metav1.UpdateOptions{})
-				if err != nil {
-					return false, err
-				}
-			}
-
-			return true, nil
-		})
-		if err != nil {
-			return err
-		}
-	}
-
 	// Wait for Argo CD to process the namespace, before we exit:
 	// - This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
 	//   set up proper roles for it.
@@ -615,13 +576,6 @@ func DeleteNamespace(namespaceParam string, clientConfig *rest.Config) error {
 			return false, nil
 		}
 
-		if IsRunningAgainstKCP() {
-			if _, err := removeKCPFinalizers(k8sClient, namespaceParam); err != nil {
-				GinkgoWriter.Printf("unable to remove finalizers: %w\n", namespaceParam, err)
-				return false, nil
-			}
-		}
-
 		// Delete the namespace, if it exists
 		namespace := corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -688,65 +642,14 @@ func GetSystemKubeConfig() (*rest.Config, error) {
 	return restConfig, nil
 }
 
-// GetE2ETestUserWorkspaceKubeConfig retrieves the E2ETest User workspace Kubernetes config
-// Return a k8s config that can be used to access user GitOpsDeployment* APIs or Secrets
-// or just the normal openshift/k8s cluster (when not running in KCP);
+// GetE2ETestUserWorkspaceKubeConfig retrieves the normal openshift/k8s cluster.
 func GetE2ETestUserWorkspaceKubeConfig() (*rest.Config, error) {
-
-	if !IsRunningAgainstKCP() || sharedutil.IsKCPVirtualWorkspaceDisabled() {
-		return GetSystemKubeConfig()
-	} else {
-		var kubeconfig *string
-		userEnv, exists := os.LookupEnv("USER_KUBECONFIG")
-		if exists {
-			kubeconfig = flag.String("kubeconfig", filepath.Join("", userEnv), "(optional) absolute path to the kubeconfig file")
-			flag.Parse()
-		} else {
-			return nil, fmt.Errorf("USER_KUBECONFIG env variable not set")
-		}
-
-		restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
-		if err != nil {
-			return nil, err
-		}
-
-		err = setRateLimitOnRestConfig(restConfig)
-		if err != nil {
-			return nil, err
-		}
-
-		return restConfig, nil
-	}
+	return GetSystemKubeConfig()
 }
 
-// GetServiceProviderWorkspaceKubeConfig Return a K8s config that can be used to write to service provider workspace (when running in KCP),
-// or just the normal openshift/k8s cluster (when not running in KCP); For example, to see Argo CD Application CRs
+// GetServiceProviderWorkspaceKubeConfig Return the normal openshift/k8s cluster; For example, to see Argo CD Application CRs
 func GetServiceProviderWorkspaceKubeConfig() (*rest.Config, error) {
-
-	if !IsRunningAgainstKCP() || sharedutil.IsKCPVirtualWorkspaceDisabled() {
-		return GetSystemKubeConfig()
-	} else {
-		var kubeconfig *string
-		userEnv, exists := os.LookupEnv("SERVICE_PROVIDER_KUBECONFIG")
-		if exists {
-			kubeconfig = flag.String("kubeconfig", filepath.Join("", userEnv), "(optional) absolute path to the kubeconfig file")
-			flag.Parse()
-		} else {
-			return nil, fmt.Errorf("SERVICE_PROVIDER_KUBECONFIG env variable not set")
-		}
-
-		restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
-		if err != nil {
-			return nil, err
-		}
-
-		err = setRateLimitOnRestConfig(restConfig)
-		if err != nil {
-			return nil, err
-		}
-
-		return restConfig, nil
-	}
+	return GetSystemKubeConfig()
 }
 
 // GetKubeClientSet returns a Clientset for accesing K8s API resources.
@@ -850,271 +753,9 @@ func ReportRemainingArgoCDApplications(k8sClient client.Client) error {
 	return nil
 }
 
-func addMissingPermissions(kubeClientSet *kubernetes.Clientset, namespace, argocdNamespace string) error {
-	if !IsRunningAgainstKCP() {
-		return nil
-	}
-
-	addNamespacePrefix := func(name string) string {
-		return fmt.Sprintf("%s-%s", argocdNamespace, name)
-	}
-
-	getAdminRole := func(name string) *rbacv1.Role {
-		return &rbacv1.Role{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      addNamespacePrefix(name),
-				Namespace: namespace,
-			},
-			Rules: []rbacv1.PolicyRule{
-				{
-					Verbs:     []string{"*"},
-					Resources: []string{"*"},
-					APIGroups: []string{"*"},
-				},
-			},
-		}
-	}
-
-	getRolebinding := func(name string) *rbacv1.RoleBinding {
-		return &rbacv1.RoleBinding{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      addNamespacePrefix(name),
-				Namespace: namespace,
-			},
-			Subjects: []rbacv1.Subject{
-				{
-					Name:      name,
-					Namespace: argocdNamespace,
-					Kind:      "ServiceAccount",
-				},
-			},
-			RoleRef: rbacv1.RoleRef{
-				APIGroup: "rbac.authorization.k8s.io",
-				Name:     addNamespacePrefix(name),
-				Kind:     "Role",
-			},
-		}
-	}
-
-	_, err := kubeClientSet.RbacV1().Roles(namespace).Create(context.Background(), getAdminRole("argocd-server"), metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-
-	_, err = kubeClientSet.RbacV1().Roles(namespace).Create(context.Background(), getAdminRole("argocd-application-controller"), metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-
-	_, err = kubeClientSet.RbacV1().RoleBindings(namespace).Create(context.Background(), getRolebinding("argocd-server"), metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-
-	_, err = kubeClientSet.RbacV1().RoleBindings(namespace).Create(context.Background(), getRolebinding("argocd-application-controller"), metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func IsRunningAgainstKCP() bool {
-	return os.Getenv(ENVGitOpsInKCP) == "true"
-}
-
-func removeKCPFinalizers(k8sClient client.Client, namespaceParam string) (bool, error) {
-	if !IsRunningAgainstKCP() {
-		return true, nil
-	}
-
-	// Remove KCP finalizers from secrets in this namespace
-	if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
-
-		secretList := corev1.SecretList{}
-		if err = k8sClient.List(context.Background(), &secretList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
-			GinkgoWriter.Println("unable to list secrets in '"+namespaceParam+"'", err)
-			return false, nil
-		}
-
-		for idx := range secretList.Items {
-
-			secret := secretList.Items[idx]
-			if len(secret.Finalizers) > 0 {
-				err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&secret), &secret)
-				if err != nil {
-					GinkgoWriter.Println("unable to get Secret '"+secret.Name+"'", err)
-					return false, nil
-				}
-				secret.Finalizers = []string{}
-				err = k8sClient.Update(context.Background(), &secret)
-				if err != nil {
-					GinkgoWriter.Println("unable to update Secret '"+secret.Name+"'", err)
-					return false, nil
-				}
-			}
-		}
-
-		return true, nil
-	}); err != nil {
-		return false, fmt.Errorf("unable to remove finalizer from secret in namespace '%s': %v", namespaceParam, err)
-	}
-
-	// Remove KCP finalizers from service accounts in this namespace
-	if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
-
-		saList := corev1.ServiceAccountList{}
-		if err = k8sClient.List(context.Background(), &saList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
-			GinkgoWriter.Println("unable to list service accounts in '"+namespaceParam+"'", err)
-			return false, nil
-		}
-
-		for idx := range saList.Items {
-
-			sa := saList.Items[idx]
-			if len(sa.Finalizers) > 0 {
-				err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&sa), &sa)
-				if err != nil {
-					GinkgoWriter.Println("unable to get service account '"+sa.Name+"'", err)
-					return false, nil
-				}
-				sa.Finalizers = []string{}
-				err = k8sClient.Update(context.Background(), &sa)
-				if err != nil {
-					GinkgoWriter.Println("unable to update service account '"+sa.Name+"'", err)
-					return false, nil
-				}
-			}
-		}
-
-		return true, nil
-	}); err != nil {
-		return false, fmt.Errorf("unable to remove finalizer from service account in namespace '%s': %v", namespaceParam, err)
-	}
-
-	// Remove KCP finalizers from configmaps in this namespace
-	if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
-
-		cmList := corev1.ConfigMapList{}
-		if err = k8sClient.List(context.Background(), &cmList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
-			GinkgoWriter.Println("unable to list configmaps in '"+namespaceParam+"'", err)
-			return false, nil
-		}
-
-		for idx := range cmList.Items {
-
-			cm := cmList.Items[idx]
-			if len(cm.Finalizers) > 0 {
-				err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&cm), &cm)
-				if err != nil {
-					GinkgoWriter.Println("unable to get configmap '"+cm.Name+"'", err)
-					return false, nil
-				}
-				cm.Finalizers = []string{}
-				err = k8sClient.Update(context.Background(), &cm)
-				if err != nil {
-					GinkgoWriter.Println("unable to update configmap '"+cm.Name+"'", err)
-					return false, nil
-				}
-			}
-		}
-
-		return true, nil
-	}); err != nil {
-		return false, fmt.Errorf("unable to remove finalizer from configmap in namespace '%s': %v", namespaceParam, err)
-	}
-
-	return true, nil
-}
-
-// EnsureCleanSlateKCPVirtualWorkspace should be called before every E2E tests:
-// it ensures that in KCP Virtual workspace the state of the GitOpsServiceE2ENamespace namespace
-//
-//	(and other resources on the cluster) is reset to scratch before each test, including:
-//
-// - In user workspace, the function will:
-//   - Deleting any old namespaces that exists within the user-workspace
-//   - Deleting any cluster role/rolebindings existing within the user-workspace
-//   - Delete the e2e namespaces, and create a new e2e namespace for testing
-//   - Clean up old kube system resources from the workspace
-//
-// - In the gitops-service-provider workspace, the function will:
-//   - Delete all Argo CD Cluster Secrets from the Argo CD Namespace
-//   - Clean up old argo cd applications targeting the e2e namespace
-//
-// Need two different client ===> client virtual workspace enabled for workspace
-//
-// This ensures that previous E2E tests runs do not interfere with the results of current test runs.
-// This function can also be called after a test, in order to clean up any resources it creates in respective workspaces.
-func EnsureCleanSlateKCPVirtualWorkspace() error {
-
-	if !IsRunningAgainstKCP() {
-		return fmt.Errorf("Tests are not running in a KCP enviroment")
-	}
-
-	// Service Provider WS is where gitops service is running so we can delete from the same clientset
-	userConfig, err := GetE2ETestUserWorkspaceKubeConfig()
-	if err != nil {
-		return err
-	}
-
-	if err := DeleteNamespace(NewArgoCDInstanceNamespace, userConfig); err != nil {
-		return err
-	}
-
-	if err := DeleteNamespace(NewArgoCDInstanceDestNamespace, userConfig); err != nil {
-		return err
-	}
-
-	if err := EnsureDestinationNamespaceExists(GitOpsServiceE2ENamespace, dbutil.GetGitOpsEngineSingleInstanceNamespace(), userConfig); err != nil {
-		return err
-	}
-
-	if err := cleanUpOldKubeSystemResources(userConfig); err != nil {
-		return err
-	}
-
-	// Service Provider WS is where gitops service is running so we can delete from the same clientset
-	serviceConfig, err := GetServiceProviderWorkspaceKubeConfig()
-	if err != nil {
-		return err
-	}
-
-	// Delete all Argo CD Cluster Secrets from the default Argo CD Namespace
-	secretList := &corev1.SecretList{}
-	serviceWSk8sClient, err := GetKubeClient(serviceConfig)
-	if err != nil {
-		return err
-	}
-	if err := serviceWSk8sClient.List(context.Background(), secretList, &client.ListOptions{Namespace: dbutil.GetGitOpsEngineSingleInstanceNamespace()}); err != nil {
-		return err
-	}
-	for idx := range secretList.Items {
-		secret := secretList.Items[idx]
-		if strings.HasPrefix(secret.Name, "managed-env") {
-			if err := serviceWSk8sClient.Delete(context.Background(), &secret); err != nil {
-				return err
-			}
-		}
-	}
-
-	// Clean up after tests that target the default Argo CD E2E instance (used by most E2E tests)
-	if err := cleanUpOldArgoCDApplications(dbutil.GetGitOpsEngineSingleInstanceNamespace(), GitOpsServiceE2ENamespace, serviceConfig); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func EnsureCleanSlate() error {
-
-	if !sharedutil.IsKCPVirtualWorkspaceDisabled() {
-		err := EnsureCleanSlateNonKCPVirtualWorkspace()
-		return err
-	} else {
-		err := EnsureCleanSlateNonKCPVirtualWorkspace()
-		return err
-	}
+	err := EnsureCleanSlateNonKCPVirtualWorkspace()
+	return err
 }
 
 func GetE2ETestUserWorkspaceKubeClient() (client.Client, error) {

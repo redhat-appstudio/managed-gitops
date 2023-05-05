@@ -1,6 +1,7 @@
 package util
 
 import (
+	"flag"
 	"testing"
 	"time"
 
@@ -13,9 +14,18 @@ import (
 
 func TestUtil(t *testing.T) {
 
-	_, reporterConfig := GinkgoConfiguration()
+	suiteConfig, _ := GinkgoConfiguration()
 
-	reporterConfig.SlowSpecThreshold = time.Duration(30 * time.Second)
+	// Define a flag for the poll progress after interval
+	var pollProgressAfter time.Duration
+	// A test is "slow" if it takes longer than a few minutes
+	flag.DurationVar(&pollProgressAfter, "poll-progress-after", 30*time.Second, "Interval for polling progress after")
+
+	// Parse the flags
+	flag.Parse()
+
+	// Set the poll progress after interval in the suite configuration
+	suiteConfig.PollProgressAfter = pollProgressAfter
 
 	// Enable controller-runtime log output
 	opts := zap.Options{

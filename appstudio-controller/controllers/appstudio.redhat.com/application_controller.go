@@ -50,7 +50,6 @@ type ApplicationReconciler struct {
 // move the current state of the cluster closer to the desired state.
 func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
-	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 	log := log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops)
 

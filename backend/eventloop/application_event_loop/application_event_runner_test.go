@@ -166,6 +166,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				WithScheme(scheme).
 				WithObjects(gitopsDepl, workspace, argocdNamespace, kubesystemNamespace).
 				Build()
+
 			k8sClient = &sharedutil.ProxyClient{
 				InnerClient: k8sClientOuter,
 				Informer:    &informer,

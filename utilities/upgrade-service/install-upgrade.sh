@@ -123,8 +123,8 @@ while getopts ':i:u:r:h:' OPTION; do
     i) IMG=${OPTARG};;
     u) QUAY_USERNAME=${OPTARG};;
     r) GIT_REVISION=${OPTARG};;
-    h) print_help; exit;
-    ?) echo "[Error] Invalid Option provided to the script"; print_help; exit;
+    h) print_help; exit 0;
+    ?) echo "[Error] Invalid Option provided to the script"; print_help; exit 1;
   esac
 done
 

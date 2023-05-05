@@ -302,7 +302,8 @@ func deleteUnmatchedDeployments(ctx context.Context, c client.Client, binding *a
 	}
 
 	// Delete all the deployments which aren't in the expectedDeployments map
-	for _, deployment := range deployments.Items {
+	for i := range deployments.Items {
+		deployment := deployments.Items[i]
 		component := deployment.Labels[componentLabelKey]
 		_, exists := expectedDeployments[component]
 		if !exists {

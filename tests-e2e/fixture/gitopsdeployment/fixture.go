@@ -319,6 +319,27 @@ func HasNonNilDeletionTimestamp() matcher.GomegaMatcher {
 	}, BeTrue())
 }
 
+func Exist() matcher.GomegaMatcher {
+	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
+
+		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+		Expect(err).To(BeNil())
+
+		k8sClient, err := fixture.GetKubeClient(config)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitopsDepl), &gitopsDepl)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+		return true
+	}, BeTrue())
+}
+
 // UpdateDeploymentWithFunction will update the GitOpsDeployment by:
 // - retrieving the latest version of the GitOpsDeployment from the cluster
 // - applying the mutation function

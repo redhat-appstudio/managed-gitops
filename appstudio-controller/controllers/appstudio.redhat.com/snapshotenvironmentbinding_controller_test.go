@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	corev1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -218,13 +219,180 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(gitopsDeployment.Spec.Source.Path).To(Equal(binding.Status.Components[0].GitOpsRepository.Path))
 		})
 
+		It("Should remove a GitOpsDeployment when the corresponding component is removed from the binding.", func() {
+
+			By("Creating a Binding with two components")
+			binding.Spec.Components = []appstudiosharedv1.BindingComponent{
+				{
+					Name: "component-a",
+					Configuration: appstudiosharedv1.BindingComponentConfiguration{
+						Env: []appstudiosharedv1.EnvVarPair{
+							{Name: "My_STG_ENV", Value: "1000"},
+						},
+						Replicas: 3,
+					},
+				},
+				{
+					Name: "component-b",
+					Configuration: appstudiosharedv1.BindingComponentConfiguration{
+						Env: []appstudiosharedv1.EnvVarPair{
+							{Name: "My_STG_ENV", Value: "1000"},
+						},
+						Replicas: 3,
+					},
+				},
+			}
+			binding.Status.Components = []appstudiosharedv1.BindingComponentStatus{
+				{
+					Name: "component-a",
+					GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{
+						URL:    "https://github.com/redhat-appstudio/managed-gitops",
+						Branch: "main",
+						Path:   "resources/test-data/sample-gitops-repository/components/componentA/overlays/staging",
+					},
+				},
+				{
+					Name: "component-b",
+					GitOpsRepository: appstudiosharedv1.BindingComponentGitOpsRepository{
+						URL:    "https://github.com/redhat-appstudio/managed-gitops",
+						Branch: "main",
+						Path:   "resources/test-data/sample-gitops-repository/components/componentB/overlays/staging",
+					},
+				},
+			}
+			err := bindingReconciler.Create(ctx, binding)
+			Expect(err).To(BeNil())
+
+			By("Also creating an unrelated GitOps Deployment which should not be removed")
+			unrelatedDeployment := apibackend.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "unrelated-deployment",
+					Namespace: binding.Namespace,
+					Labels: map[string]string{
+						applicationLabelKey: "unrelated-application",
+						environmentLabelKey: "unrelated-environment",
+						componentLabelKey:   "unrelated-component",
+					},
+				},
+			}
+			err = bindingReconciler.Create(ctx, &unrelatedDeployment)
+			Expect(err).To(BeNil())
+
+			By("Triggering the Reconciler to create the GitOps Deployment instance")
+			_, err = bindingReconciler.Reconcile(ctx, request)
+			Expect(err).To(BeNil())
+
+			By("Ensuring the two corresponding GitOps Deployment instances have been created")
+			gitopsDeploymentKey0 := client.ObjectKey{
+				Namespace: binding.Namespace,
+				Name:      GenerateBindingGitOpsDeploymentName(*binding, binding.Spec.Components[0].Name),
+			}
+			gitopsDeployment := &apibackend.GitOpsDeployment{}
+			err = bindingReconciler.Get(ctx, gitopsDeploymentKey0, gitopsDeployment)
+			Expect(err).To(BeNil())
+			gitopsDeploymentKey1 := client.ObjectKey{
+				Namespace: binding.Namespace,
+				Name:      GenerateBindingGitOpsDeploymentName(*binding, binding.Spec.Components[1].Name),
+			}
+			gitopsDeployment = &apibackend.GitOpsDeployment{}
+			err = bindingReconciler.Get(ctx, gitopsDeploymentKey1, gitopsDeployment)
+			Expect(err).To(BeNil())
+
+			By("Ensuring the unrelated deployment still exists")
+			unrelatedDeploymentKey := client.ObjectKey{
+				Namespace: unrelatedDeployment.Namespace,
+				Name:      unrelatedDeployment.Name,
+			}
+			gitopsDeployment = &apibackend.GitOpsDeployment{}
+			err = bindingReconciler.Get(ctx, unrelatedDeploymentKey, gitopsDeployment)
+			Expect(err).To(BeNil())
+
+			By("Deleting the first component and reconciling")
+			err = bindingReconciler.Get(ctx, client.ObjectKeyFromObject(binding), binding)
+			Expect(err).To(BeNil())
+			binding.Spec.Components = binding.Spec.Components[1:]
+			err = bindingReconciler.Update(ctx, binding)
+			Expect(err).To(BeNil())
+			binding.Status.Components = binding.Status.Components[1:]
+			err = bindingReconciler.Status().Update(ctx, binding)
+			Expect(err).To(BeNil())
+			_, err = bindingReconciler.Reconcile(ctx, request)
+			Expect(err).To(BeNil())
+
+			By("Ensuring the deployment associated with the first component has been deleted")
+			gitopsDeployment = &apibackend.GitOpsDeployment{}
+			err = bindingReconciler.Get(ctx, gitopsDeploymentKey0, gitopsDeployment)
+			Expect(err).ToNot(BeNil())
+			Expect(apierr.IsNotFound(err)).To(BeTrue())
+
+			By("Ensuring the deployment associated with the second component still exists")
+			gitopsDeployment = &apibackend.GitOpsDeployment{}
+			err = bindingReconciler.Get(ctx, gitopsDeploymentKey1, gitopsDeployment)
+			Expect(err).To(BeNil())
+
+			By("Ensuring the unrelated deployment still exists")
+			gitopsDeployment = &apibackend.GitOpsDeployment{}
+			err = bindingReconciler.Get(ctx, unrelatedDeploymentKey, gitopsDeployment)
+			Expect(err).To(BeNil())
+
+			By("Deleting the other component and reconciling, so there are no components associated with the binding")
+			err = bindingReconciler.Get(ctx, client.ObjectKeyFromObject(binding), binding)
+			Expect(err).To(BeNil())
+			binding.Spec.Components = []appstudiosharedv1.BindingComponent{}
+			err = bindingReconciler.Update(ctx, binding)
+			Expect(err).To(BeNil())
+			binding.Status.Components = []appstudiosharedv1.BindingComponentStatus{}
+			err = bindingReconciler.Status().Update(ctx, binding)
+			Expect(err).To(BeNil())
+			_, err = bindingReconciler.Reconcile(ctx, request)
+			Expect(err).To(BeNil())
+
+			By("Ensuring the deployment associated with the first component is still deleted")
+			gitopsDeployment = &apibackend.GitOpsDeployment{}
+			err = bindingReconciler.Get(ctx, gitopsDeploymentKey0, gitopsDeployment)
+			Expect(err).ToNot(BeNil())
+			Expect(apierr.IsNotFound(err)).To(BeTrue())
+
+			By("Ensuring the deployment associated with the second component has been deleted")
+			gitopsDeployment = &apibackend.GitOpsDeployment{}
+			err = bindingReconciler.Get(ctx, gitopsDeploymentKey1, gitopsDeployment)
+			Expect(err).ToNot(BeNil())
+			Expect(apierr.IsNotFound(err)).To(BeTrue())
+
+			By("Ensuring the unrelated deployment still exists")
+			gitopsDeployment = &apibackend.GitOpsDeployment{}
+			err = bindingReconciler.Get(ctx, unrelatedDeploymentKey, gitopsDeployment)
+			Expect(err).To(BeNil())
+		})
+
 		It("Should use short name for GitOpsDeployment object.", func() {
-			// Update application name to exceed the limit
-			binding.Spec.Application = strings.Repeat("abcde", 45)
+			// Update the names to exceed the limit
+			// The application name, environment name and component name are each limited to be at most 63 characters.
+			// The GitOpsDeployment name is formed from
+			// binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + componentName
+			environment = appstudiosharedv1.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      strings.Repeat("e", 63),
+					Namespace: binding.Namespace,
+				},
+				Spec: appstudiosharedv1.EnvironmentSpec{
+					DisplayName:        "my-environment",
+					DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
+					ParentEnvironment:  "",
+					Tags:               []string{},
+					Configuration:      appstudiosharedv1.EnvironmentConfiguration{},
+				},
+			}
+			err := bindingReconciler.Create(ctx, &environment)
+			Expect(err).To(BeNil())
+			binding.Spec.Environment = environment.Name
+			binding.ObjectMeta.Labels["appstudio.environment"] = environment.Name
+			binding.Spec.Application = strings.Repeat("a", 63)
+			binding.Name = strings.Repeat("b", 111)
 			request = newRequest(binding.Namespace, binding.Name)
 
 			// Create SnapshotEnvironmentBinding CR in cluster.
-			err := bindingReconciler.Create(ctx, binding)
+			err = bindingReconciler.Create(ctx, binding)
 			Expect(err).To(BeNil())
 
 			// Trigger Reconciler
@@ -245,9 +413,14 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 		})
 
 		It("Should use short name with hash value for GitOpsDeployment, if combination of Binding name and Component name is still longer than 250 characters.", func() {
-			compName := strings.Repeat("abcde", 50)
 
-			// Update application name to exceed the limit
+			// Update the names to exceed the limit
+			// The application name, environment name and component name are each limited to be at most 63 characters.
+			// The GitOpsDeployment name is formed from
+			// binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + componentName
+			binding.Name = strings.Repeat("abcd", 45) + "1234567" // length = 187
+			binding.Spec.Application = strings.Repeat("a", 63)
+			compName := strings.Repeat("c", 63)
 			binding.Status.Components[0].Name = compName
 			request = newRequest(binding.Namespace, binding.Name)
 
@@ -471,10 +644,10 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(err).To(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{
-				appstudioLabelKey:                  "testing",
-				appstudioLabelKey + "/application": binding.Spec.Application,
-				appstudioLabelKey + "/component":   binding.Spec.Components[0].Name,
-				appstudioLabelKey + "/environment": binding.Spec.Environment,
+				appstudioLabelKey:   "testing",
+				applicationLabelKey: binding.Spec.Application,
+				componentLabelKey:   binding.Spec.Components[0].Name,
+				environmentLabelKey: binding.Spec.Environment,
 			}))
 		})
 
@@ -498,9 +671,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(err).To(BeNil())
 
 			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{
-				appstudioLabelKey + "/application": binding.Spec.Application,
-				appstudioLabelKey + "/component":   binding.Spec.Components[0].Name,
-				appstudioLabelKey + "/environment": binding.Spec.Environment,
+				applicationLabelKey: binding.Spec.Application,
+				componentLabelKey:   binding.Spec.Components[0].Name,
+				environmentLabelKey: binding.Spec.Environment,
 			}))
 		})
 
@@ -527,10 +700,10 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(err).To(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{
-				appstudioLabelKey:                  "testing",
-				appstudioLabelKey + "/application": binding.Spec.Application,
-				appstudioLabelKey + "/component":   binding.Spec.Components[0].Name,
-				appstudioLabelKey + "/environment": binding.Spec.Environment,
+				appstudioLabelKey:   "testing",
+				applicationLabelKey: binding.Spec.Application,
+				componentLabelKey:   binding.Spec.Components[0].Name,
+				environmentLabelKey: binding.Spec.Environment,
 			}))
 
 			err = bindingReconciler.Get(ctx, types.NamespacedName{Namespace: binding.Namespace, Name: binding.Name}, binding)
@@ -551,10 +724,10 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(err).To(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{
-				appstudioLabelKey:                  "testing-update",
-				appstudioLabelKey + "/application": binding.Spec.Application,
-				appstudioLabelKey + "/component":   binding.Spec.Components[0].Name,
-				appstudioLabelKey + "/environment": binding.Spec.Environment,
+				appstudioLabelKey:   "testing-update",
+				applicationLabelKey: binding.Spec.Application,
+				componentLabelKey:   binding.Spec.Components[0].Name,
+				environmentLabelKey: binding.Spec.Environment,
 			}))
 
 			err = bindingReconciler.Get(ctx, types.NamespacedName{Namespace: binding.Namespace, Name: binding.Name}, binding)
@@ -575,9 +748,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(err).To(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeEmpty())
 			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{
-				appstudioLabelKey + "/application": binding.Spec.Application,
-				appstudioLabelKey + "/component":   binding.Spec.Components[0].Name,
-				appstudioLabelKey + "/environment": binding.Spec.Environment,
+				applicationLabelKey: binding.Spec.Application,
+				componentLabelKey:   binding.Spec.Components[0].Name,
+				environmentLabelKey: binding.Spec.Environment,
 			}))
 
 		})
@@ -606,10 +779,10 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(err).To(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{
-				appstudioLabelKey:                  "testing",
-				appstudioLabelKey + "/application": binding.Spec.Application,
-				appstudioLabelKey + "/component":   binding.Spec.Components[0].Name,
-				appstudioLabelKey + "/environment": binding.Spec.Environment,
+				appstudioLabelKey:   "testing",
+				applicationLabelKey: binding.Spec.Application,
+				componentLabelKey:   binding.Spec.Components[0].Name,
+				environmentLabelKey: binding.Spec.Environment,
 			}), "reconciler should only copy appstudio labels to the gitops deployment")
 
 			err = bindingReconciler.Get(ctx, types.NamespacedName{Namespace: binding.Namespace, Name: binding.Name}, binding)
@@ -630,10 +803,10 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(err).To(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{
-				appstudioLabelKey:                  "testing-update",
-				appstudioLabelKey + "/application": binding.Spec.Application,
-				appstudioLabelKey + "/component":   binding.Spec.Components[0].Name,
-				appstudioLabelKey + "/environment": binding.Spec.Environment,
+				appstudioLabelKey:   "testing-update",
+				applicationLabelKey: binding.Spec.Application,
+				componentLabelKey:   binding.Spec.Components[0].Name,
+				environmentLabelKey: binding.Spec.Environment,
 			}))
 
 			err = bindingReconciler.Get(ctx, types.NamespacedName{Namespace: binding.Namespace, Name: binding.Name}, binding)
@@ -654,9 +827,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			err = bindingReconciler.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
 			Expect(err).To(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{
-				appstudioLabelKey + "/application": binding.Spec.Application,
-				appstudioLabelKey + "/component":   binding.Spec.Components[0].Name,
-				appstudioLabelKey + "/environment": binding.Spec.Environment,
+				applicationLabelKey: binding.Spec.Application,
+				componentLabelKey:   binding.Spec.Components[0].Name,
+				environmentLabelKey: binding.Spec.Environment,
 			}))
 
 		})
@@ -677,9 +850,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeEmpty())
 
 			By("removing the labels from the GitOpsDeployment resource")
-			delete(gitopsDeployment.ObjectMeta.Labels, appstudioLabelKey+"/application")
-			delete(gitopsDeployment.ObjectMeta.Labels, appstudioLabelKey+"/component")
-			delete(gitopsDeployment.ObjectMeta.Labels, appstudioLabelKey+"/environment")
+			delete(gitopsDeployment.ObjectMeta.Labels, applicationLabelKey)
+			delete(gitopsDeployment.ObjectMeta.Labels, componentLabelKey)
+			delete(gitopsDeployment.ObjectMeta.Labels, environmentLabelKey)
 			err = bindingReconciler.Update(ctx, gitopsDeployment)
 			Expect(err).To(BeNil())
 
@@ -699,36 +872,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(err).To(BeNil())
 			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeEmpty())
 			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{
-				appstudioLabelKey + "/application": binding.Spec.Application,
-				appstudioLabelKey + "/component":   binding.Spec.Components[0].Name,
-				appstudioLabelKey + "/environment": binding.Spec.Environment,
-			}))
-		})
-
-		It("should truncate the labels identifying the application to 63 characters", func() {
-			By("creating SnapshotEnvironmentBinding CR")
-			binding.Spec.Application = strings.Repeat("a", 64)
-			err := bindingReconciler.Create(ctx, binding)
-			Expect(err).To(BeNil())
-
-			By("triggering Reconciler")
-			_, err = bindingReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
-
-			By("fetching the GitOpsDeployment object to check if the GitOpsDeployment label field has been updated")
-			gitopsDeploymentKey := client.ObjectKey{
-				Namespace: binding.Namespace,
-				Name:      GenerateBindingGitOpsDeploymentName(*binding, binding.Spec.Components[0].Name),
-			}
-
-			gitopsDeployment := &apibackend.GitOpsDeployment{}
-			err = bindingReconciler.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
-			Expect(err).To(BeNil())
-			Expect(gitopsDeployment.ObjectMeta.Labels).ToNot(BeEmpty())
-			Expect(gitopsDeployment.ObjectMeta.Labels).To(Equal(map[string]string{
-				appstudioLabelKey + "/application": strings.Repeat("a", 63),
-				appstudioLabelKey + "/component":   binding.Spec.Components[0].Name,
-				appstudioLabelKey + "/environment": binding.Spec.Environment,
+				applicationLabelKey: binding.Spec.Application,
+				componentLabelKey:   binding.Spec.Components[0].Name,
+				environmentLabelKey: binding.Spec.Environment,
 			}))
 		})
 

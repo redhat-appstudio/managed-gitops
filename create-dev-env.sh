@@ -146,21 +146,21 @@ if [ "$1" = "kube-auto" ]; then
   echo " * Postgres secret has been created."
 
   # Wait until postgres pod is running
-  echo " * Wait until Postgres pod is running"
-  counter=0
-  until kubectl -n gitops get pods | grep postgres | grep '1/1' | grep 'Running' &> /dev/null
-  do
-    ((counter++))
-    sleep 1
-    if [ "$counter" -gt 150 ]; then
-      echo " --> Error: PostgreSQL pod cannot start. Quitting ..."
-      echo ""
-      echo "Namespace events:"
-      kubectl get events -n gitops
-      exit 1
-    fi
-  done
-  echo " * Postgres Pod is running."
+    echo " * Wait until Postgres pod is running"
+    counter=0
+    until kubectl -n gitops get pods | grep postgres | grep '1/1' | grep 'Running' &> /dev/null
+    do
+      ((counter++))
+      sleep 1
+      if [ "$counter" -gt 150 ]; then
+        echo " --> Error: PostgreSQL pod cannot start. Quitting ..."
+        echo ""
+        echo "Namespace events:"
+        kubectl get events -n gitops
+        exit 1
+      fi
+    done
+    echo " * Postgres Pod is running."
 
     # With the new migration logic, this block should no longer be required: remove the commented out
     # section once we confirmed it is no longer needed.
@@ -202,7 +202,7 @@ if [ "$1" = "kube-auto" ]; then
     # Do not stop port-forwarding
     echo "Port-forwarding is active. You can stop it with 'kill $KUBE_PID'"
     echo "Or you can find the process with typing: 'sudo lsof -i:5432'"
-  fi
+  
 
   # Set up pg_stat_statements for postgresql metrics
   echo " * Setting up pg_stat_statements for PostgreSQL metrics"

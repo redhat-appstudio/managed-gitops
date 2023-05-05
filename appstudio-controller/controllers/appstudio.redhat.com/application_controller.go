@@ -28,6 +28,7 @@ import (
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 
 	applicationv1alpha1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 )
 
 // ApplicationReconciler reconciles a Application object

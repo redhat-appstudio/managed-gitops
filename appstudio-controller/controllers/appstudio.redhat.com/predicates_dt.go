@@ -22,14 +22,14 @@ func DeploymentTargetDeletePredicate() predicate.Predicate {
 			return false
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			return hasDTDeletionTimestampChanged(e.ObjectOld, e.ObjectNew)
+			return isDTDeletionTimestampNonNil(e.ObjectOld, e.ObjectNew)
 		},
 	}
 }
 
-// hasDTDeletionTimestampChanged returns a boolean indicating whether the deletionTimeStamp is NonZero.
+// isDTDeletionTimestampNonNil returns a boolean indicating whether the deletionTimeStamp is NonZero.
 // If the objects passed to this function are not DeploymentTarget, the function will return false.
-func hasDTDeletionTimestampChanged(objectOld, objectNew client.Object) bool {
+func isDTDeletionTimestampNonNil(_, objectNew client.Object) bool {
 	if newDeploymentTarget, ok := objectNew.(*applicationv1alpha1.DeploymentTarget); ok {
 		return newDeploymentTarget.GetDeletionTimestamp() != nil
 	}

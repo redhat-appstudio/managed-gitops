@@ -434,7 +434,6 @@ func startApplicationEventQueueLoop(ctx context.Context, k8sClient client.Client
 		GitopsDeploymentNamespace: event.Event.Request.Namespace,
 		WorkspaceID:               event.Event.WorkspaceID,
 		SharedResourceEventLoop:   sharedResourceEventLoop,
-		VwsAPIExportName:          "", // this value will be replaced in startApplicationEventQueueLoop, so is blank
 		InputChan:                 make(chan application_event_loop.RequestMessage),
 		Client:                    k8sClient,
 	}
@@ -472,13 +471,6 @@ type defaultApplicationEventLoopFactory struct {
 // The default implementation of startApplicationEventQueueLoop is just a simple wrapper around a call to
 // StartApplicationEventQueueLoop
 func (d defaultApplicationEventLoopFactory) startApplicationEventQueueLoop(ctx context.Context, aeqlParam application_event_loop.ApplicationEventQueueLoop) error {
-
-	if aeqlParam.VwsAPIExportName != "" {
-		return fmt.Errorf("vwsAPIExportName must be empty in defaultApplicationEventLoopFactory")
-	}
-
-	// We always use the vwsAPIExportName value from the factory
-	aeqlParam.VwsAPIExportName = d.vwsAPIExportName
 
 	application_event_loop.StartApplicationEventQueueLoop(ctx, aeqlParam)
 

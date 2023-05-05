@@ -524,10 +524,8 @@ func internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx context.Con
 	dbq db.DatabaseQueries, l logr.Logger) (*db.ClusterUser, bool, error) {
 	isNewUser := false
 
-	// TODO: GITOPSRVCE-19 - KCP support: for now, we assume that the namespace UID that the request occurred in is the user id.
 	clusterUser := db.ClusterUser{User_name: string(workspaceNamespace.UID)}
 
-	// TODO: GITOPSRVCE-41 - We are assuming that user namespace uid == username, which is messy. We should add a new field for unique user id, and username should be human readable and not used for security, etc.
 	err := dbq.GetClusterUserByUsername(ctx, &clusterUser)
 	if err != nil {
 		if db.IsResultNotFoundError(err) {
@@ -678,7 +676,6 @@ func internalGetOrCreateClusterAccess(ctx context.Context, ca *db.ClusterAccess,
 func internalGetOrCreateClusterUserByNamespaceUID(ctx context.Context, namespaceUID string, dbq db.DatabaseQueries, l logr.Logger) (*db.ClusterUser, bool, error) {
 	isNewUser := false
 
-	// TODO: GITOPSRVCE-19 - KCP support: for now, we assume that the namespace UID that the request occurred in is the user id.
 	clusterUser := db.ClusterUser{User_name: namespaceUID}
 
 	err := dbq.GetClusterUserByUsername(ctx, &clusterUser)

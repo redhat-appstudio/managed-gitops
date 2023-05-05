@@ -76,9 +76,6 @@ type ApplicationEventQueueLoop struct {
 	// SharedResourceEventLoop is a reference to the shared resource event loop
 	SharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop
 
-	// VwsAPIExportName is a KCP-only reference to the APIExport related to this API
-	VwsAPIExportName string
-
 	// InputChan is the channel that this Application Event Loop will listen for mesages on.
 	InputChan chan RequestMessage
 
@@ -98,8 +95,7 @@ func StartApplicationEventQueueLoop(ctx context.Context, aeqlParam ApplicationEv
 		aeqlParam.WorkspaceID,
 		aeqlParam.SharedResourceEventLoop,
 		defaultApplicationEventRunnerFactory{}, // use the default factory
-		aeqlParam.VwsAPIExportName)
-
+	)
 }
 
 // startApplicationEventQueueLoopWithFactory allows a custom applicationEventLoop factory to be passed, to replace
@@ -114,7 +110,7 @@ func startApplicationEventQueueLoopWithFactory(ctx context.Context, aeqlParam Ap
 		aeqlParam.WorkspaceID,
 		aeqlParam.SharedResourceEventLoop,
 		aerFactory, // use parameter-provided factory
-		aeqlParam.VwsAPIExportName)
+	)
 
 }
 
@@ -125,8 +121,7 @@ func applicationEventQueueLoop(ctx context.Context, k8sClient client.Client,
 	gitopsDeploymentName string, gitopsDeploymentNamespace string,
 	workspaceID string,
 	sharedResourceEventLoop *shared_resource_loop.SharedResourceEventLoop,
-	aerFactory applicationEventRunnerFactory,
-	vwsAPIExportName string) {
+	aerFactory applicationEventRunnerFactory) {
 
 	log := log.FromContext(ctx).
 		WithValues("workspaceID", workspaceID, "gitOpsDeplName", gitopsDeploymentName,
@@ -156,7 +151,7 @@ func applicationEventQueueLoop(ctx context.Context, k8sClient client.Client,
 	syncOperationEventRunnerShutdown := false
 
 	// Start the ticker, which will -- every X seconds -- instruct the GitOpsDeployment CR fields to update
-	startNewStatusUpdateTimer(ctx, k8sClient, input, vwsAPIExportName, log)
+	startNewStatusUpdateTimer(ctx, k8sClient, input, log)
 
 out:
 	for {
@@ -266,7 +261,7 @@ out:
 				// After we finish processing a previous status tick, start the timer to queue up a new one.
 				// This ensures we are always reminded to do a status update.
 				activeDeploymentEvent = nil
-				startNewStatusUpdateTimer(ctx, k8sClient, input, vwsAPIExportName, log)
+				startNewStatusUpdateTimer(ctx, k8sClient, input, log)
 
 			} else if eventLoopMessage.ReqResource == eventlooptypes.GitOpsDeploymentTypeName ||
 				eventLoopMessage.ReqResource == eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName {
@@ -374,7 +369,7 @@ out:
 
 // startNewStatusUpdateTimer will send a timer tick message to the application event loop in X seconds.
 // This tick informs the runner that it needs to update the status field of the Deployment.
-func startNewStatusUpdateTimer(ctx context.Context, k8sClient client.Client, input chan RequestMessage, vwsAPIExportName string,
+func startNewStatusUpdateTimer(ctx context.Context, k8sClient client.Client, input chan RequestMessage,
 	log logr.Logger) {
 
 	// Up to 1 second of jitter
@@ -398,10 +393,6 @@ func startNewStatusUpdateTimer(ctx context.Context, k8sClient client.Client, inp
 		}
 		input <- tickMessage
 	}()
-}
-
-func getk8sClient(apiExportName string) (client.Client, error) {
-	return eventlooptypes.GetK8sClientForServiceWorkspace()
 }
 
 // applicationEventRunnerFactory is used to start an application loop runner. It is a lightweight wrapper

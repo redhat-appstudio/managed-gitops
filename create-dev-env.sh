@@ -146,22 +146,21 @@ if [ "$1" = "kube-auto" ]; then
   echo " * Postgres secret has been created."
 
   # Wait until postgres pod is running
-  if [ "$GITOPS_IN_KCP" != "true" ]; then
-    echo " * Wait until Postgres pod is running"
-    counter=0
-    until kubectl -n gitops get pods | grep postgres | grep '1/1' | grep 'Running' &> /dev/null
-    do
-      ((counter++))
-      sleep 1
-      if [ "$counter" -gt 150 ]; then
-        echo " --> Error: PostgreSQL pod cannot start. Quitting ..."
-        echo ""
-        echo "Namespace events:"
-        kubectl get events -n gitops
-        exit 1
-      fi
-    done
-    echo " * Postgres Pod is running."
+  echo " * Wait until Postgres pod is running"
+  counter=0
+  until kubectl -n gitops get pods | grep postgres | grep '1/1' | grep 'Running' &> /dev/null
+  do
+    ((counter++))
+    sleep 1
+    if [ "$counter" -gt 150 ]; then
+      echo " --> Error: PostgreSQL pod cannot start. Quitting ..."
+      echo ""
+      echo "Namespace events:"
+      kubectl get events -n gitops
+      exit 1
+    fi
+  done
+  echo " * Postgres Pod is running."
 
     # With the new migration logic, this block should no longer be required: remove the commented out
     # section once we confirmed it is no longer needed.

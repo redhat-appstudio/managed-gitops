@@ -291,6 +291,70 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(gitopsDeploymentUpdatedAt.After(operationDeletedAt)).To(BeTrue())
 		})
 
+		It("should handle deletion even if the DB resources are removed in the previous recociliation", func() {
+			// If the controller terminates while handling the deletion of a GitOpsDeployment with a finalizer, it
+			// should continue where it left and successfully complete the deletion in the next reconciliation.
+
+			// ----------------------------------------------------------------------------
+			By("Create new deployment with the deletion finalizer")
+			// ----------------------------------------------------------------------------
+			var message deploymentModifiedResult
+			_, _, _, message, userDevErr := appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+
+			Expect(userDevErr).To(BeNil())
+			Expect(message).To(Equal(deploymentModifiedResult_Created))
+
+			gitopsDepl.Finalizers = append(gitopsDepl.Finalizers, managedgitopsv1alpha1.DeletionFinalizer)
+			err = k8sClient.Update(ctx, gitopsDepl)
+			Expect(err).To(BeNil())
+
+			// ----------------------------------------------------------------------------
+			By("Verify that database entries are created.")
+			// ----------------------------------------------------------------------------
+
+			var appMappingsFirst []db.DeploymentToApplicationMapping
+			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappingsFirst)
+
+			Expect(err).To(BeNil())
+			Expect(len(appMappingsFirst)).To(Equal(1))
+
+			deplToAppMappingFirst := appMappingsFirst[0]
+			applicationFirst := db.Application{Application_id: deplToAppMappingFirst.Application_id}
+			err = dbQueries.GetApplicationById(context.Background(), &applicationFirst)
+
+			Expect(err).To(BeNil())
+
+			// ----------------------------------------------------------------------------
+			By("Delete the GitOpsDeployment and its associated DB resources")
+			// ----------------------------------------------------------------------------
+			// Here we assume that only DB resources are being deleted in this reconciliation.
+			rows, err := dbQueries.DeleteDeploymentToApplicationMappingByDeplId(ctx, deplToAppMappingFirst.Deploymenttoapplicationmapping_uid_id)
+			Expect(err).To(BeNil())
+			Expect(rows).To(Equal(1))
+
+			rows, err = dbQueries.DeleteApplicationById(ctx, deplToAppMappingFirst.Application_id)
+			Expect(err).To(BeNil())
+			Expect(rows).To(Equal(1))
+
+			err = k8sClient.Delete(ctx, gitopsDepl)
+			Expect(err).To(BeNil())
+
+			// verify that the GitOpsDeployment is not deleted due to the presence of finalizer
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsDepl), gitopsDepl)
+			Expect(err).To(BeNil())
+			Expect(gitopsDepl.DeletionTimestamp).NotTo(BeNil())
+
+			// ----------------------------------------------------------------------------
+			By("Verify if the finalizer is removed and the GitOpsDeployment is deleted in the next reconciliation")
+			// ----------------------------------------------------------------------------
+			_, _, _, message, userDevErr = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(userDevErr).To(BeNil())
+			Expect(message).To(Equal(deploymentModifiedResult_Deleted))
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsDepl), gitopsDepl)
+			Expect(errors.IsNotFound(err)).To(BeTrue())
+		})
+
 		It("Should not deploy application, as request data is not valid.", func() {
 
 			appEventLoopRunnerAction = applicationEventLoopRunner_Action{

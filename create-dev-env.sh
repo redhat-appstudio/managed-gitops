@@ -202,13 +202,6 @@ if [ "$1" = "kube-auto" ]; then
     # Do not stop port-forwarding
     echo "Port-forwarding is active. You can stop it with 'kill $KUBE_PID'"
     echo "Or you can find the process with typing: 'sudo lsof -i:5432'"
-  else
-    # This else scenario mainly focus on running e2e test with kcp on Openshift CI or in local KCP/CKCP/CPS setups
-    # Decode the password from the secret
-    POSTGRES_PASSWORD=$(kubectl get -n gitops secret gitops-postgresql-staging -o jsonpath="{.data.postgresql-password}" | base64 --decode)
-
-    echo "Port-forwarding is yet not supported in kcp, skipping ..."
-    echo "The pods under this scenario will be running on your workload end, hence 'pods' as a resource is not available with current kubeconfig, skipping ..."
   fi
 
   # Set up pg_stat_statements for postgresql metrics

@@ -399,18 +399,73 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			}))
 		})
 
+		It("Should delete the corresponding GitOps Deployment when a component is removed", func() {
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			By("Creating a Binding")
+			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a", "component-b"})
+			err = k8s.Create(&binding, k8sClient)
+			Expect(err).To(Succeed())
+			err = buildAndUpdateBindingStatus(binding.Spec.Components,
+				"https://github.com/redhat-appstudio/managed-gitops",
+				"main", "adcda66", []string{
+					"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging",
+					"resources/test-data/sample-gitops-repository/components/componentB/overlays/staging",
+				}, &binding)
+			Expect(err).To(Succeed())
+
+			gitOpsDeploymentName0 := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[0].Name)
+			gitOpsDeploymentName1 := appstudiocontroller.GenerateBindingGitOpsDeploymentName(binding, binding.Spec.Components[1].Name)
+
+			By("Ensuring both GitOps Deployments exist")
+			gitOpsDeployment := buildGitOpsDeploymentObjectMeta(gitOpsDeploymentName0, binding.Namespace)
+			Eventually(gitOpsDeployment, "2m", "1s").Should(gitopsDeplFixture.Exist())
+			gitOpsDeployment = buildGitOpsDeploymentObjectMeta(gitOpsDeploymentName1, binding.Namespace)
+			Eventually(gitOpsDeployment, "2m", "1s").Should(gitopsDeplFixture.Exist())
+
+			By("Removing the first component")
+			err = buildAndUpdateBindingStatus(binding.Spec.Components[1:],
+				"https://github.com/redhat-appstudio/managed-gitops",
+				"main", "adcda66", []string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &binding)
+			Expect(err).To(Succeed())
+
+			By("Ensuring the first GitOps Deployment has been deleted")
+			gitOpsDeployment = buildGitOpsDeploymentObjectMeta(gitOpsDeploymentName0, binding.Namespace)
+			Eventually(gitOpsDeployment, "2m", "1s").ShouldNot(gitopsDeplFixture.Exist())
+
+			By("Ensuring the second GitOps Deployment still exists")
+			gitOpsDeployment = buildGitOpsDeploymentObjectMeta(gitOpsDeploymentName1, binding.Namespace)
+			Consistently(gitOpsDeployment, "30s", "5s").Should(gitopsDeplFixture.Exist())
+
+			By("Removing the remaining component")
+			err = buildAndUpdateBindingStatus(nil, "", "", "", []string{""}, &binding)
+			Expect(err).To(Succeed())
+
+			By("Ensuring the first GitOps Deployment is still deleted")
+			gitOpsDeployment = buildGitOpsDeploymentObjectMeta(gitOpsDeploymentName0, binding.Namespace)
+			Eventually(gitOpsDeployment, "1m", "1s").ShouldNot(gitopsDeplFixture.Exist())
+
+			By("Ensuring the second GitOps Deployment has been deleted")
+			gitOpsDeployment = buildGitOpsDeploymentObjectMeta(gitOpsDeploymentName1, binding.Namespace)
+			Eventually(gitOpsDeployment, "1m", "1s").ShouldNot(gitopsDeplFixture.Exist())
+		})
+
 		// This test is to verify the scenario when a user creates an SnapshotEnvironmentBinding CR in Cluster but GitOpsDeployment CR default name is too long.
 		// By default the naming convention used for GitOpsDeployment is <Binding Name>-<Application Name>-<Environment Name>-<Components Name> and If name exceeds the max limit then GitOps-Service should follow short name <Binding Name>-<Components Name>.
 		// In this test GitOps-Service should use short naming convention instead of default one.
 		It("Should use short name for GitOpsDeployment, if Name field length is more than max length.", func() {
+			By("Creating an Environment with a long name")
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+			environment = buildEnvironment(strings.Repeat("e", 63), "my-environment")
+			err = k8s.Create(&environment, k8sClient)
+			Expect(err).To(Succeed())
 
 			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
 
-			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
-			binding.Spec.Application = strings.Repeat("abcde", 45)
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
+			binding := buildSnapshotEnvironmentBindingResource(strings.Repeat("b", 111), "new-demo-app", environment.Name, "my-snapshot", 3, []string{"component-a"})
+			binding.Spec.Application = strings.Repeat("a", 63)
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
@@ -451,8 +506,8 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
 
-			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
-			compName := strings.Repeat("abcde", 50)
+			binding := buildSnapshotEnvironmentBindingResource(strings.Repeat("abcde", 50), "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
+			compName := strings.Repeat("wxyz", 5)
 			binding.Spec.Components[0].Name = compName
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()

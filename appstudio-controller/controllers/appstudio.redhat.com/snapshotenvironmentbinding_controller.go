@@ -32,7 +32,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 
@@ -44,6 +46,10 @@ import (
 const (
 	// If the 'appstudioLabelKey' string is present in a label of the SnapshotEnvironmentBinding, that label is copied to child GitOpsDeployments of the SnapshotEnvironmentBinding
 	appstudioLabelKey = "appstudio.openshift.io"
+
+	applicationLabelKey = appstudioLabelKey + "/application"
+	componentLabelKey   = appstudioLabelKey + "/component"
+	environmentLabelKey = appstudioLabelKey + "/environment"
 )
 
 // SnapshotEnvironmentBindingReconciler reconciles a SnapshotEnvironmentBinding object
@@ -157,6 +163,12 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 			return ctrl.Result{}, fmt.Errorf("unable to update snapshotEnvironmentBinding status condition. %v", err)
 		}
 
+		// Delete all existing deployments associated with this binding
+		err := deleteUnmatchedDeployments(ctx, rClient, binding, nil, log)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
 		// if length of the Binding component status is 0 and there is no issue with the GitOps Repo Conditions;
 		// the Application Service controller has not synced the GitOps repository yet, return and requeue.
 		return ctrl.Result{}, nil
@@ -183,8 +195,14 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 		var err error
 		expectedDeployments[component.Name], err = generateExpectedGitOpsDeployment(component, *binding, environment, log)
 		if err != nil {
-			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("invalid target namespace: %v", err)
+			return ctrl.Result{RequeueAfter: time.Second * 10}, err
 		}
+	}
+
+	// Delete any existing deployments which don't have a matching component
+	err := deleteUnmatchedDeployments(ctx, rClient, binding, expectedDeployments, log)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	var statusField []appstudioshared.BindingStatusGitOpsDeployment
@@ -254,6 +272,49 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 	}
 
 	return ctrl.Result{}, nil
+}
+
+// Delete all Deployments which are associated with the given binding but are not contained in the
+// given expectedDeployments map
+func deleteUnmatchedDeployments(ctx context.Context, c client.Client, binding *appstudioshared.SnapshotEnvironmentBinding, expectedDeployments map[string]apibackend.GitOpsDeployment, logger logr.Logger) error {
+	// Find all deployments in the binding's namespace that are labeled with the
+	// binding's application and environment
+	appRequirement, err := labels.NewRequirement(applicationLabelKey, selection.Equals, []string{binding.Spec.Application})
+	if err != nil {
+		logger.Error(err, "error creating label selector requirement", "application", binding.Spec.Application)
+		return err
+	}
+	envRequirement, err := labels.NewRequirement(environmentLabelKey, selection.Equals, []string{binding.Spec.Environment})
+	if err != nil {
+		logger.Error(err, "error creating label selector requirement", "environment", binding.Spec.Environment)
+		return err
+	}
+	selector := labels.NewSelector().Add(*appRequirement, *envRequirement)
+	deployments := apibackend.GitOpsDeploymentList{}
+	options := client.ListOptions{
+		Namespace:     binding.Namespace,
+		LabelSelector: selector,
+	}
+	err = c.List(ctx, &deployments, &options)
+	if err != nil {
+		logger.Error(err, "error retrieving list of existing deployments", "application", binding.Spec.Application, "environment", binding.Spec.Environment)
+		return err
+	}
+
+	// Delete all the deployments which aren't in the expectedDeployments map
+	for _, deployment := range deployments.Items {
+		component := deployment.Labels[componentLabelKey]
+		_, exists := expectedDeployments[component]
+		if !exists {
+			logger.V(logutil.LogLevel_Debug).Info("deleting deployment", "name", deployment.Name)
+			err = c.Delete(ctx, &deployment)
+			if err != nil {
+				logger.Error(err, "error deleting deployment", "name", deployment.Name)
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func addComponentDeploymentCondition(ctx context.Context, binding *appstudioshared.SnapshotEnvironmentBinding, c client.Client, log logr.Logger) error {
@@ -358,6 +419,7 @@ func GenerateBindingGitOpsDeploymentName(binding appstudioshared.SnapshotEnviron
 
 	expectedName := binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + componentName
 
+	// The application name, environment name and component name are each limited to be at most 63 characters.
 	// If the length of the GitOpsDeployment exceeds the K8s maximum, shorten it to just binding+component
 	if len(expectedName) > 250 {
 		expectedShortName := binding.Name + "-" + componentName
@@ -412,7 +474,7 @@ func generateExpectedGitOpsDeployment(component appstudioshared.BindingComponent
 		managedEnvironmentName := generateEmptyManagedEnvironment(environment.Name, environment.Namespace).Name
 
 		if environment.Spec.UnstableConfigurationFields.TargetNamespace == "" {
-			return apibackend.GitOpsDeployment{}, fmt.Errorf("%s: '%s'", errMissingTargetNamespace, environment.Name)
+			return apibackend.GitOpsDeployment{}, fmt.Errorf("invalid target namespace: %s: '%s'", errMissingTargetNamespace, environment.Name)
 		}
 
 		res.Spec.Destination = apibackend.ApplicationDestination{
@@ -432,11 +494,17 @@ func generateExpectedGitOpsDeployment(component appstudioshared.BindingComponent
 
 	// Append labels to identify the Application, Component and Environment associated with this GitOpsDeployment.
 	// Label values are limited to a maximum of 63 characters, while resource names by default can be up to 253.
-	// StoneSoup artificially limits these names to 63 characters, but to be safe we truncate the values if they
-	// are too long
-	res.ObjectMeta.Labels[appstudioLabelKey+"/application"] = limitLength(binding.Spec.Application, logger)
-	res.ObjectMeta.Labels[appstudioLabelKey+"/component"] = limitLength(component.Name, logger)
-	res.ObjectMeta.Labels[appstudioLabelKey+"/environment"] = limitLength(binding.Spec.Environment, logger)
+	// AppStudio has webhooks to artificially limits these names to 63 characters, but to be safe we
+	// error out if they are too long.
+	if err := setLabel(&res, applicationLabelKey, binding.Spec.Application, logger); err != nil {
+		return apibackend.GitOpsDeployment{}, err
+	}
+	if err := setLabel(&res, componentLabelKey, component.Name, logger); err != nil {
+		return apibackend.GitOpsDeployment{}, err
+	}
+	if err := setLabel(&res, environmentLabelKey, binding.Spec.Environment, logger); err != nil {
+		return apibackend.GitOpsDeployment{}, err
+	}
 
 	// Ensures that this method only adds 'appstudio.openshift.io' labels
 	// - Note: If you remove this line, you need to search for other uses of 'removeNonAppStudioLabelsFromMap' in the
@@ -448,12 +516,15 @@ func generateExpectedGitOpsDeployment(component appstudioshared.BindingComponent
 	return res, nil
 }
 
-func limitLength(str string, logger logr.Logger) string {
-	if len(str) <= 63 {
-		return str
+// Sets the given label on the given GitopsDeployment.  Returns an error if the length of the label value
+// is greater than the limit of 63 characters, else returns nil
+func setLabel(deployment *apibackend.GitOpsDeployment, key, value string, logger logr.Logger) error {
+	if len(value) > 63 {
+		err := fmt.Errorf("unable to set label %s on deployment %s: value '%s' for label is longer than 63 characters", key, deployment.Name, value)
+		return err
 	}
-	logger.Error(nil, "SEVERE: label value in SnapshotEnvironmentBinding should be at most 63 characters", "value", str)
-	return str[:63]
+	deployment.ObjectMeta.Labels[key] = value
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

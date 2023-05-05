@@ -99,6 +99,12 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 				if dtcls, err = findMatchingDTClassForDT(ctx, r.Client, *dt); err != nil {
 					return ctrl.Result{}, err
 				}
+
+				if dtcls == nil {
+					log.Error(nil, "unable to locate DeploymentTargetClass matching deploymentTargetClassName", "className", dt.Spec.DeploymentTargetClassName)
+					return ctrl.Result{}, nil
+				}
+
 				// Add the deletion finalizer if it is absent.
 				if addFinalizer(dt, FinalizerDT) {
 					if err = r.Client.Update(ctx, dt); err != nil {

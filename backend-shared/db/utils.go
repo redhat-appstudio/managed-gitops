@@ -358,11 +358,27 @@ func SetupForTestingDBGinkgo() error {
 	err = dbq.UnsafeListAllAppProjectRepositories(ctx, &appProjectRepositories)
 	Expect(err).To(BeNil())
 
-	for _, appProjectRepository := range appProjectRepositories {
-		if strings.HasPrefix(appProjectRepository.AppProjectRepositoryID, "test-") {
-			rowsAffected, err := dbq.DeleteAppProjectRepositoryByClusterUserId(ctx, appProjectRepository.Clusteruser_id)
+	for idx := range appProjectRepositories {
+		item := appProjectRepositories[idx]
+		if strings.HasPrefix(item.RepositoryCredentialsID, "test-") {
+			rowsAffected, err := dbq.DeleteAppProjectRepositoryByRepoCredId(ctx, &item)
 			Expect(err).To(BeNil())
+			if err == nil {
+				Expect(rowsAffected).Should(Equal(1))
+			}
+		}
+	}
 
+	var appProjectManagedEnvs []AppProjectManagedEnvironment
+
+	err = dbq.UnsafeListAllAppProjectManagedEnvironment(ctx, &appProjectManagedEnvs)
+	Expect(err).To(BeNil())
+
+	for idx := range appProjectManagedEnvs {
+		item := appProjectManagedEnvs[idx]
+		if strings.HasPrefix(item.Managed_environment_id, "test-") {
+			rowsAffected, err := dbq.DeleteAppProjectManagedEnvironmentByManagedEnvId(ctx, &item)
+			Expect(err).To(BeNil())
 			if err == nil {
 				Expect(rowsAffected).Should(Equal(1))
 			}
@@ -463,20 +479,6 @@ func SetupForTestingDBGinkgo() error {
 			rowsAffected, err := dbq.DeleteGitopsEngineClusterById(ctx, engineCluster.Gitopsenginecluster_id)
 			Expect(err).To(BeNil())
 
-			if err == nil {
-				Expect(rowsAffected).Should(Equal(1))
-			}
-		}
-	}
-
-	var appProjectManagedEnvs []AppProjectManagedEnvironment
-	err = dbq.UnsafeListAllAppProjectManagedEnvironment(ctx, &appProjectManagedEnvs)
-	Expect(err).To(BeNil())
-	for idx := range appProjectManagedEnvs {
-		item := appProjectManagedEnvs[idx]
-		if strings.HasPrefix(item.Managed_environment_id, "test-") {
-			rowsAffected, err := dbq.DeleteAppProjectManagedEnvironmentByClusterUserId(ctx, &item)
-			Expect(err).To(BeNil())
 			if err == nil {
 				Expect(rowsAffected).Should(Equal(1))
 			}

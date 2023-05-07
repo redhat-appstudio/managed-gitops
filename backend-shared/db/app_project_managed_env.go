@@ -61,35 +61,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateAppProjectManagedEnvironment(ctx con
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UpdateAppProjectManagedEnvironment(ctx context.Context, obj *AppProjectManagedEnvironment) error {
-
-	if err := validateQueryParamsEntity(obj, dbq); err != nil {
-		return err
-	}
-
-	if err := isEmptyValues("UpdateAppProjectManagedEnvironment",
-		"managed_environment_id", obj.Managed_environment_id); err != nil {
-		return err
-	}
-
-	if err := validateFieldLength(obj); err != nil {
-		return err
-	}
-
-	result, err := dbq.dbConnection.Model(obj).WherePK().Context(ctx).Update()
-	if err != nil {
-		return fmt.Errorf("error on updating appProjectManagedEnv %v", err)
-	}
-
-	if result.RowsAffected() != 1 {
-		return fmt.Errorf("unexpected number of rows affected: %d", result.RowsAffected())
-	}
-
-	return nil
-
-}
-
-func (dbq *PostgreSQLDatabaseQueries) GetAppProjectManagedEnvironmentById(ctx context.Context, obj *AppProjectManagedEnvironment) error {
+func (dbq *PostgreSQLDatabaseQueries) GetAppProjectManagedEnvironmentByManagedEnvId(ctx context.Context, obj *AppProjectManagedEnvironment) error {
 
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return err
@@ -122,24 +94,23 @@ func (dbq *PostgreSQLDatabaseQueries) GetAppProjectManagedEnvironmentById(ctx co
 	return nil
 }
 
-// ListAppProjectManagedEnvironmentByClusterUserId returns a list of all AppProjectManagedEnvironment that reference the specified cluster_user_id row
 func (dbq *PostgreSQLDatabaseQueries) ListAppProjectManagedEnvironmentByClusterUserId(ctx context.Context,
-	cluster_user_id string, appProjectManagedEnv []AppProjectManagedEnvironment) ([]AppProjectManagedEnvironment, error) {
+	cluster_user_id string, appProjectManagedEnvs *[]AppProjectManagedEnvironment) error {
 
 	if err := validateQueryParams(cluster_user_id, dbq); err != nil {
-		return nil, err
+		return err
 	}
-	// Retrieve all appProjectManagedEnv which are targeting this cluster_user_id
-	err := dbq.dbConnection.Model(appProjectManagedEnv).Context(ctx).Where("cluster_user_id = ?", cluster_user_id).Select()
+	// Retrieve all appProjectManagedEnvs which are targeting this cluster_user_id
+	err := dbq.dbConnection.Model(appProjectManagedEnvs).Context(ctx).Where("cluster_user_id = ?", cluster_user_id).Select()
 	if err != nil {
-		return nil, fmt.Errorf("unable to retrieve appProjectManagedEnv with cluster_user_id: %v", err)
+		return fmt.Errorf("unable to retrieve appProjectManagedEnvs with cluster_user_id: %v", err)
 	}
 
-	return appProjectManagedEnv, nil
+	return nil
 
 }
 
-func (dbq *PostgreSQLDatabaseQueries) DeleteAppProjectManagedEnvironmentByClusterUserId(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteAppProjectManagedEnvironmentByManagedEnvId(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error) {
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return 0, err
 	}

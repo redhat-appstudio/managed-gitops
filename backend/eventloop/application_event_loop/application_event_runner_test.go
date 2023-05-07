@@ -508,7 +508,7 @@ var _ = FDescribe("ApplicationEventLoop Test", func() {
 
 		})
 
-		FIt("Verify that the .status.reconciledState value of the GitOpsDeployment resource correctly references the name of the GitOpsDeploymentManagedEnvironment resource", func() {
+		It("Verify that the .status.reconciledState value of the GitOpsDeployment resource correctly references the name of the GitOpsDeploymentManagedEnvironment resource", func() {
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
 

@@ -2505,14 +2505,17 @@ func deleteTestResources(ctx context.Context, dbQueries db.AllDatabaseQueries, r
 		Expect(rowsAffected).To(Equal(1))
 	}
 
-	// Delete Application
+	// Delete AppProjectRepository
 	if resourcesToBeDeleted.AppProjectRepositoryID != "" {
-		rowsAffected, err = dbQueries.DeleteAppProjectRepositoryByClusterUserId(ctx, resourcesToBeDeleted.AppProjectRepositoryID)
+		appProjectRepository := &db.AppProjectRepository{
+			RepositoryCredentialsID: resourcesToBeDeleted.AppProjectRepositoryID,
+		}
+		rowsAffected, err = dbQueries.DeleteAppProjectRepositoryByRepoCredId(ctx, appProjectRepository)
 		Expect(err).To(BeNil())
 		Expect(rowsAffected).To(Equal(1))
 	}
 
-	// Delete Application
+	// Delete RepositoryCredentials
 	if resourcesToBeDeleted.RepositoryCredentialsID != "" {
 		rowsAffected, err = dbQueries.DeleteRepositoryCredentialsByID(ctx, resourcesToBeDeleted.RepositoryCredentialsID)
 		Expect(err).To(BeNil())

@@ -280,7 +280,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			}
 		})
 
-		FIt("Should fetch a GitOpsDeploymentRepositoryCredential.", func() {
+		It("Should fetch a GitOpsDeploymentRepositoryCredential.", func() {
 			sharedResourceEventLoop := &SharedResourceEventLoop{inputChannel: make(chan sharedResourceLoopMessage)}
 
 			go internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
@@ -411,7 +411,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				RepoURL:        NormalizeGitURL(dbRepoCred.PrivateURL),
 			}
 
-			err = dbq.GetAppProjectRepositoryByClusterUserId(ctx, appProjectRepositoryDB)
+			err = dbq.GetAppProjectRepositoryByUniqueConstraint(ctx, appProjectRepositoryDB)
 			Expect(err).To(BeNil())
 			Expect(appProjectRepositoryDB).NotTo(BeNil())
 
@@ -484,7 +484,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(dbRepoCred).NotTo(BeNil())
 
 			By("verify whether appProject is created or not")
-			err = dbq.GetAppProjectRepositoryByClusterUserId(ctx, appProjectRepositoryDB)
+			err = dbq.GetAppProjectRepositoryByUniqueConstraint(ctx, appProjectRepositoryDB)
 			Expect(err).To(BeNil())
 			Expect(appProjectRepositoryDB).NotTo(BeNil())
 
@@ -508,7 +508,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(dbRepoCred).ToNot(BeNil())
 
 			By("verify whether appProject is present or not when repoCred is updated")
-			err = dbq.GetAppProjectRepositoryByClusterUserId(ctx, appProjectRepositoryDB)
+			err = dbq.GetAppProjectRepositoryByUniqueConstraint(ctx, appProjectRepositoryDB)
 			Expect(err).To(BeNil())
 			Expect(appProjectRepositoryDB).NotTo(BeNil())
 

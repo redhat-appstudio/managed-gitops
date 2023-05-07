@@ -61,37 +61,8 @@ func (dbq *PostgreSQLDatabaseQueries) CreateAppProjectRepository(ctx context.Con
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) UpdateAppProjectRepository(ctx context.Context, obj *AppProjectRepository) error {
-
-	if err := validateQueryParamsEntity(obj, dbq); err != nil {
-		return err
-	}
-
-	if err := isEmptyValues("UpdateAppProjectRepository",
-		"app_project_repository_id", obj.AppProjectRepositoryID,
-		"clusteruser_id", obj.Clusteruser_id,
-		"repo_url", obj.RepoURL); err != nil {
-		return err
-	}
-
-	if err := validateFieldLength(obj); err != nil {
-		return err
-	}
-
-	result, err := dbq.dbConnection.Model(obj).WherePK().Context(ctx).Update()
-	if err != nil {
-		return fmt.Errorf("error on updating appProjectRepository %v", err)
-	}
-
-	if result.RowsAffected() != 1 {
-		return fmt.Errorf("unexpected number of rows affected: %d", result.RowsAffected())
-	}
-
-	return nil
-
-}
-
-func (dbq *PostgreSQLDatabaseQueries) GetAppProjectRepositoryByClusterUserId(ctx context.Context, obj *AppProjectRepository) error {
+// GetAppProjectRepositoryByUniqueConstraint retrieves AppProjectRepository by unique constraint i.e, cluster_user_id and repo_url.
+func (dbq *PostgreSQLDatabaseQueries) GetAppProjectRepositoryByUniqueConstraint(ctx context.Context, obj *AppProjectRepository) error {
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return err
 	}
@@ -119,7 +90,6 @@ func (dbq *PostgreSQLDatabaseQueries) GetAppProjectRepositoryByClusterUserId(ctx
 	return nil
 }
 
-// ListAppProjectRepositoryByClusterUserId returns a list of all AppProjectRepository that reference the specified cluster_user_id row
 func (dbq *PostgreSQLDatabaseQueries) ListAppProjectRepositoryByClusterUserId(ctx context.Context,
 	cluster_user_id string, appProjectRepositories *[]AppProjectRepository) error {
 
@@ -136,22 +106,26 @@ func (dbq *PostgreSQLDatabaseQueries) ListAppProjectRepositoryByClusterUserId(ct
 
 }
 
-func (dbq *PostgreSQLDatabaseQueries) DeleteAppProjectRepositoryByClusterUserId(ctx context.Context, id string) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteAppProjectRepositoryByRepoCredId(ctx context.Context, obj *AppProjectRepository) (int, error) {
 
-	if err := validateQueryParams(id, dbq); err != nil {
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return 0, err
 	}
 
-	repoCred := &AppProjectRepository{
-		Clusteruser_id: id,
+	if err := isEmptyValues("DeleteAppProjectRepositoryByRepoCredId",
+		"repositorycredentials_id", obj.RepositoryCredentialsID,
+	); err != nil {
+		return 0, err
 	}
 
-	result, err := dbq.dbConnection.Model(repoCred).WherePK().Context(ctx).Delete()
+	deleteResult, err := dbq.dbConnection.Model(obj).
+		Where("repositorycredentials_id = ?", obj.RepositoryCredentialsID).
+		Context(ctx).Delete()
 	if err != nil {
-		return 0, fmt.Errorf("%v: %w", errDeleteRepositoryCredentials, err)
+		return 0, fmt.Errorf("error on deleting AppProjectRepository: %v", err)
 	}
 
-	return result.RowsAffected(), nil
+	return deleteResult.RowsAffected(), nil
 }
 
 // GetAsLogKeyValues returns an []interface that can be passed to log.Info(...).

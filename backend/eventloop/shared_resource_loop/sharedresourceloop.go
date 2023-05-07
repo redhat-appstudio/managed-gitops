@@ -443,8 +443,12 @@ func processSharedResourceMessage(ctx context.Context, msg sharedResourceLoopMes
 func deleteRepoCredFromDB(ctx context.Context, dbQueries db.DatabaseQueries, ID string, l logr.Logger) (bool, error) {
 	const retry, noRetry = true, false
 
+	appProjectRepoCredDB := &db.AppProjectRepository{
+		RepositoryCredentialsID: ID,
+	}
+
 	// Deleting appProjectRepository before RepositoryCredentials as appProjectRepository contains foreign key repositoryCredential
-	appProjectRowsDeleted, err := dbQueries.DeleteAppProjectRepositoryByClusterUserId(ctx, ID)
+	appProjectRowsDeleted, err := dbQueries.DeleteAppProjectRepositoryByRepoCredId(ctx, appProjectRepoCredDB)
 	if err != nil {
 		// Log the error and retry
 		l.Error(err, "Error deleting app appProjectRepository from database: ", "RepositoryCredential ID", ID)
@@ -475,28 +479,6 @@ func deleteRepoCredFromDB(ctx context.Context, dbQueries db.DatabaseQueries, ID 
 
 	// meaning: err == nil && rowsDeleted > 0
 	l.Info("Deleted Repository Credential from the database", "RepositoryCredential ID", ID)
-	return noRetry, nil
-}
-
-func deleteAppProjectRepositoryFromDB(ctx context.Context, dbQueries db.DatabaseQueries, cluster_user_id string, l logr.Logger) (bool, error) {
-	const retry, noRetry = true, false
-
-	// Deleting appProjectRepository before RepositoryCredentials as appProjectRepository contains foreign key repositoryCredential
-	appProjectRowsDeleted, err := dbQueries.DeleteAppProjectRepositoryByClusterUserId(ctx, cluster_user_id)
-	if err != nil {
-		// Log the error and retry
-		l.Error(err, "Error deleting app appProjectRepository from database: ", "RepositoryCredential ID", cluster_user_id)
-		return retry, err
-	}
-
-	if appProjectRowsDeleted == 0 {
-		// Log the error, but continue to delete the other Repository Credentials (this looks morel like a bug in our code)
-		l.Info("No rows deleted from the database", "rowsDeleted", appProjectRowsDeleted, "RepositoryCredential ID", cluster_user_id)
-		return noRetry, err
-	}
-
-	l.Info("Deleted appProjectRepository from the database", "RepositoryCredential ID", cluster_user_id)
-
 	return noRetry, nil
 }
 

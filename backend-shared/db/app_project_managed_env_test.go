@@ -43,40 +43,25 @@ var _ = Describe("AppProjectManagedEnvironment Test", func() {
 
 		By("Verify whether AppProjectManagedEnvironment is retrived")
 		appProjectManagedEnvget := db.AppProjectManagedEnvironment{
-			AppProjectManagedEnvironmentID: appProjectManagedEnv.AppProjectManagedEnvironmentID,
+			Managed_environment_id: appProjectManagedEnv.Managed_environment_id,
 		}
 
-		err = dbq.GetAppProjectManagedEnvironmentById(ctx, &appProjectManagedEnvget)
+		err = dbq.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnvget)
 		Expect(err).To(BeNil())
 		Expect(appProjectManagedEnv).Should(Equal(appProjectManagedEnvget))
 
-		By("Verify whether AppProjectManagedEnvironment is updated")
-		appProjectManagedEnvupdate := db.AppProjectManagedEnvironment{
-			AppProjectManagedEnvironmentID: appProjectManagedEnv.AppProjectManagedEnvironmentID,
-			Clusteruser_id:                 clusterUser.Clusteruser_id,
-			Managed_environment_id:         appProjectManagedEnv.Managed_environment_id,
-			SeqID:                          102,
-		}
-
-		err = dbq.UpdateAppProjectManagedEnvironment(ctx, &appProjectManagedEnvupdate)
-		Expect(err).To(BeNil())
-
-		err = dbq.GetAppProjectManagedEnvironmentById(ctx, &appProjectManagedEnvupdate)
-		Expect(err).To(BeNil())
-		Expect(appProjectManagedEnvupdate).ShouldNot(Equal(appProjectManagedEnvget))
-
 		By("Verify whether AppProjectManagedEnvironment is deleted")
-		rowsAffected, err := dbq.DeleteAppProjectManagedEnvironmentByClusterUserId(ctx, &appProjectManagedEnv)
+		rowsAffected, err := dbq.DeleteAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnv)
 		Expect(err).To(BeNil())
 		Expect(rowsAffected).Should(Equal(1))
 
-		err = dbq.GetAppProjectManagedEnvironmentById(ctx, &appProjectManagedEnv)
+		err = dbq.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnv)
 		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
 		appProjectManagedEnvget = db.AppProjectManagedEnvironment{
 			AppProjectManagedEnvironmentID: "does-not-exist",
 		}
-		err = dbq.GetAppProjectManagedEnvironmentById(ctx, &appProjectManagedEnvget)
+		err = dbq.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnvget)
 		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
 	})

@@ -352,6 +352,8 @@ func deleteManagedEnvironmentDBByAPINameAndNamespace(ctx context.Context, worksp
 			}
 			// If the managed environment can't be found, there is no other work to do, so just continue.
 		} else {
+			// Delete AppProjectManagedEnvironment before deleting ManagedEnvironment, as it contains a foreign key managedenv id.
+
 			// 2b) Whether or not the managed environment DB row exists, clean up all related database entries
 			if err := DeleteManagedEnvironmentResources(ctx, managedEnv.Managedenvironment_id, managedEnv, user, k8sClientFactory, dbQueries, log); err != nil {
 				return fmt.Errorf("unable to delete managed environment row '%s': %v", managedEnv.Managedenvironment_id, err)
@@ -409,7 +411,8 @@ func replaceExistingManagedEnv(ctx context.Context,
 		Managed_environment_id: managedEnvironmentDB.Managedenvironment_id,
 	}
 
-	if err := dbQueries.GetAppProjectManagedEnvironmentById(ctx, &appProjectManagedEnv); err != nil {
+	// Whenever a ManagedEnvironment is updated, check whether the corresponding AppProjectManagedEnvironment has been created. If it has not been created, create it.
+	if err := dbQueries.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnv); err != nil {
 		log.Error(err, "Unable to retrive appProjectManagedEnv", appProjectManagedEnv.GetAsLogKeyValues()...)
 
 		// If AppProjectManagedEnvironment is not present in DB, create it.
@@ -427,7 +430,7 @@ func replaceExistingManagedEnv(ctx context.Context,
 					fmt.Errorf("unable to call CreateAppProjectManagedEnvironment: %w", err)
 			}
 
-			log.Info("Created new AppProjectRepository in DB : "+appProjectManagedEnv.Managed_environment_id, appProjectManagedEnv.GetAsLogKeyValues()...)
+			log.Info("Created new AppProjectManagedEnvironment in DB : "+appProjectManagedEnv.Managed_environment_id, appProjectManagedEnv.GetAsLogKeyValues()...)
 		}
 
 		return SharedResourceManagedEnvContainer{}, connInitCondition,
@@ -496,6 +499,7 @@ func constructNewManagedEnv(ctx context.Context,
 			fmt.Errorf("unable to create managed environment for %s: %w", managedEnvironment.UID, err)
 	}
 
+	// Whenever a ManagedEnvironment is created, the corresponding AppProjectManagedEnvironment should also be created
 	appProjectManagedEnvDB := db.AppProjectManagedEnvironment{
 		Clusteruser_id:         clusterUser.Clusteruser_id,
 		Managed_environment_id: managedEnvDB.Managedenvironment_id,
@@ -692,7 +696,30 @@ func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 
 	}
 
-	// 4) Delete the ManagedEnvironment entry
+	// 4) Delete all appProjectManagedEnvs that reference this managed env
+	appProjectManagedEnvs := []db.AppProjectManagedEnvironment{}
+	if err := dbQueries.ListAppProjectManagedEnvironmentByClusterUserId(ctx, user.Clusteruser_id, &appProjectManagedEnvs); err != nil {
+		// We exit here, because if this doesn't succeed, we won't be able to do any of the other next steps, due to database foreign keys
+		return fmt.Errorf("unable to list appProjectManagedEnvs by cluster user id '%s': %v", managedEnvID, err)
+	}
+
+	for idx := range appProjectManagedEnvs {
+		appProjectManagedEnv := appProjectManagedEnvs[idx]
+
+		rowsDeleted, err := dbQueries.DeleteAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnv)
+		if err != nil {
+			log.Error(err, "Unable to delete appProjectManagedEnv row that referenced to ManagedEnvironment", "managedEnvID", appProjectManagedEnv.Managed_environment_id)
+			return fmt.Errorf("unable to delete cluster access while deleting managed environment '%s': %v", appProjectManagedEnv.Managed_environment_id, err)
+		}
+		if rowsDeleted != 1 {
+			log.V(logutil.LogLevel_Warn).Info("Unexpected number of appProjectManagedEnvs rows deleted, when deleting managed env.",
+				"rowsDeleted", rowsDeleted, "appProject-ManagedEnv", appProjectManagedEnv)
+		}
+		log.Info("Deleted appProjectManagedEnv row that referenced to ManagedEnvironment", "userID", appProjectManagedEnv.Managed_environment_id)
+
+	}
+
+	// 5) Delete the ManagedEnvironment entry
 	rowsDeleted, err := dbQueries.DeleteManagedEnvironmentById(ctx, managedEnvID)
 	if err != nil || rowsDeleted != 1 {
 		log.Error(err, "Unable to delete ManagedEnvironment row")
@@ -700,7 +727,7 @@ func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 	}
 	log.Info("Deleted ManagedEnvironment row")
 
-	// 5) Delete the cluster credentials row of the managed environment
+	// 6) Delete the cluster credentials row of the managed environment
 	if managedEnvCR != nil {
 		log := log.WithValues("clusterCredentialsId", managedEnvCR.Clustercredentials_id)
 
@@ -712,7 +739,7 @@ func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 		log.Info("Deleted ClusterCredentials of the managed environment")
 	}
 
-	// 6) For each Argo CD instances that was involved, create a new Operation to delete the managed environment
+	// 7) For each Argo CD instances that was involved, create a new Operation to delete the managed environment
 	//    (the Argo CD Cluster Secret) of that Argo CD instance.
 	for idx := range gitopsEngineInstances {
 

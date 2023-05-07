@@ -293,34 +293,28 @@ type ApplicationScopedQueries interface {
 	// CreateAppProjectRepository creates AppProjectRepository in database
 	CreateAppProjectRepository(ctx context.Context, obj *AppProjectRepository) error
 
-	// UpdateAppProjectRepository updates AppProjectRepository table in database
-	UpdateAppProjectRepository(ctx context.Context, obj *AppProjectRepository) error
-
-	// GetAppProjectRepositoryByClusterUserId retrieves AppProjectRepository by cluster user id
-	GetAppProjectRepositoryByClusterUserId(ctx context.Context, obj *AppProjectRepository) error
+	// GetAppProjectRepositoryByUniqueConstraint retrieves AppProjectRepository by cluster user id
+	GetAppProjectRepositoryByUniqueConstraint(ctx context.Context, obj *AppProjectRepository) error
 
 	// ListAppProjectRepositoryByClusterUserId retrieves the list of appProjectRepositories
 	ListAppProjectRepositoryByClusterUserId(ctx context.Context,
 		cluster_user_id string, appProjectRepositories *[]AppProjectRepository) error
 
-	// DeleteAppProjectRepositoryByClusterUserId deletes appProjectRepository by id
-	DeleteAppProjectRepositoryByClusterUserId(ctx context.Context, id string) (int, error)
+	// DeleteAppProjectRepositoryByRepoCredId deletes appProjectRepository by id
+	DeleteAppProjectRepositoryByRepoCredId(ctx context.Context, obj *AppProjectRepository) (int, error)
 
 	// CreateAppProjectManagedEnvironment creates appProjectManagedEnv in database
 	CreateAppProjectManagedEnvironment(ctx context.Context, obj *AppProjectManagedEnvironment) error
 
-	// UpdateAppProjectManagedEnvironment updates appProjectManagedEnv table in database
-	UpdateAppProjectManagedEnvironment(ctx context.Context, obj *AppProjectManagedEnvironment) error
+	// GetAppProjectManagedEnvironmentByManagedEnvId retrieves appProjectManagedEnv by managedEnvID
+	GetAppProjectManagedEnvironmentByManagedEnvId(ctx context.Context, obj *AppProjectManagedEnvironment) error
 
-	// GetAppProjectManagedEnvironmentById retrieves appProjectManagedEnv by id
-	GetAppProjectManagedEnvironmentById(ctx context.Context, obj *AppProjectManagedEnvironment) error
-
-	// ListAppProjectManagedEnvironmentByClusterUserId retrieves the list of appProjectManagedEnv
+	// ListAppProjectManagedEnvironmentByClusterUserId returns a list of all AppProjectManagedEnvironment that reference the specified cluster_user_id row.
 	ListAppProjectManagedEnvironmentByClusterUserId(ctx context.Context,
-		cluster_user_id string, appProjectManagedEnv []AppProjectManagedEnvironment) ([]AppProjectManagedEnvironment, error)
+		cluster_user_id string, appProjectManagedEnvs *[]AppProjectManagedEnvironment) error
 
-	// DeleteAppProjectManagedEnvironmentByClusterUserId deletes appProjectRepository by id
-	DeleteAppProjectManagedEnvironmentByClusterUserId(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error)
+	// DeleteAppProjectManagedEnvironmentByManagedEnvId deletes appProjectRepository by managedEnvID
+	DeleteAppProjectManagedEnvironmentByManagedEnvId(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error)
 }
 
 type CloseableQueries interface {

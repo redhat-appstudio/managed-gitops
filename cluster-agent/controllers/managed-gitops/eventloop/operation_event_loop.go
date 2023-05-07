@@ -426,7 +426,6 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 	// 5) Finally, call the corresponding method for processing the particular type of Operation.
 
 	if dbOperation.Resource_type == db.OperationResourceType_Application {
-		fmt.Println("Enter ok1ß")
 		shouldRetry, err := processOperation_Application(taskContext, dbOperation, *operationCR, operationConfigParams)
 		if err != nil {
 			log.Error(err, "error occurred on processing the application operation")

@@ -683,7 +683,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		RepoURL:        sharedloop.NormalizeGitURL(gitopsDeployment.Spec.Source.RepoURL),
 	}
 
-	if err := dbQueries.GetAppProjectRepositoryByClusterUserId(ctx, &appProjectRepoCredDB); err != nil {
+	if err := dbQueries.GetAppProjectRepositoryByUniqueConstraint(ctx, &appProjectRepoCredDB); err != nil {
 		a.log.Error(err, "Unable to retrive appProjectRepository based on GitopsDeployment", appProjectRepoCredDB.GetAsLogKeyValues()...)
 
 		// If AppProjectRepository is not present in DB, create it.

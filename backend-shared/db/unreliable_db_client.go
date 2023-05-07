@@ -986,18 +986,11 @@ func (cdb *ChaosDBClient) CreateAppProjectRepository(ctx context.Context, obj *A
 	return cdb.InnerClient.CreateAppProjectRepository(ctx, obj)
 }
 
-func (cdb *ChaosDBClient) UpdateAppProjectRepository(ctx context.Context, obj *AppProjectRepository) error {
-	if err := shouldSimulateFailure("UpdateAppProjectRepository", obj); err != nil {
+func (cdb *ChaosDBClient) GetAppProjectRepositoryByUniqueConstraint(ctx context.Context, obj *AppProjectRepository) error {
+	if err := shouldSimulateFailure("GetAppProjectRepositoryByUniqueConstraint", obj); err != nil {
 		return err
 	}
-	return cdb.InnerClient.UpdateAppProjectRepository(ctx, obj)
-}
-
-func (cdb *ChaosDBClient) GetAppProjectRepositoryByClusterUserId(ctx context.Context, obj *AppProjectRepository) error {
-	if err := shouldSimulateFailure("GetAppProjectRepositoryByClusterUserId", obj); err != nil {
-		return err
-	}
-	return cdb.InnerClient.GetAppProjectRepositoryByClusterUserId(ctx, obj)
+	return cdb.InnerClient.GetAppProjectRepositoryByUniqueConstraint(ctx, obj)
 }
 
 func (cdb *ChaosDBClient) ListAppProjectRepositoryByClusterUserId(ctx context.Context,
@@ -1008,11 +1001,11 @@ func (cdb *ChaosDBClient) ListAppProjectRepositoryByClusterUserId(ctx context.Co
 	return cdb.InnerClient.ListAppProjectRepositoryByClusterUserId(ctx, cluster_user_id, appProjectRepositories)
 }
 
-func (cdb *ChaosDBClient) DeleteAppProjectRepositoryByClusterUserId(ctx context.Context, id string) (int, error) {
-	if err := shouldSimulateFailure("DeleteAppProjectRepositoryByClusterUserId", id); err != nil {
+func (cdb *ChaosDBClient) DeleteAppProjectRepositoryByRepoCredId(ctx context.Context, obj *AppProjectRepository) (int, error) {
+	if err := shouldSimulateFailure("DeleteAppProjectRepositoryByClusterUserId", obj); err != nil {
 		return 0, err
 	}
-	return cdb.InnerClient.DeleteAppProjectRepositoryByClusterUserId(ctx, id)
+	return cdb.InnerClient.DeleteAppProjectRepositoryByRepoCredId(ctx, obj)
 }
 
 func (cdb *ChaosDBClient) CreateAppProjectManagedEnvironment(ctx context.Context, obj *AppProjectManagedEnvironment) error {
@@ -1022,33 +1015,26 @@ func (cdb *ChaosDBClient) CreateAppProjectManagedEnvironment(ctx context.Context
 	return cdb.InnerClient.CreateAppProjectManagedEnvironment(ctx, obj)
 }
 
-func (cdb *ChaosDBClient) UpdateAppProjectManagedEnvironment(ctx context.Context, obj *AppProjectManagedEnvironment) error {
-	if err := shouldSimulateFailure("UpdateAppProjectManagedEnvironment", obj); err != nil {
+func (cdb *ChaosDBClient) GetAppProjectManagedEnvironmentByManagedEnvId(ctx context.Context, obj *AppProjectManagedEnvironment) error {
+	if err := shouldSimulateFailure("GetAppProjectManagedEnvironmentByManagedEnvId", obj); err != nil {
 		return err
 	}
-	return cdb.InnerClient.UpdateAppProjectManagedEnvironment(ctx, obj)
-}
-
-func (cdb *ChaosDBClient) GetAppProjectManagedEnvironmentById(ctx context.Context, obj *AppProjectManagedEnvironment) error {
-	if err := shouldSimulateFailure("GetAppManagedEnvironmentById", obj); err != nil {
-		return err
-	}
-	return cdb.InnerClient.GetAppProjectManagedEnvironmentById(ctx, obj)
+	return cdb.InnerClient.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, obj)
 }
 
 func (cdb *ChaosDBClient) ListAppProjectManagedEnvironmentByClusterUserId(ctx context.Context,
-	cluster_user_id string, appProjectRepositories []AppProjectManagedEnvironment) ([]AppProjectManagedEnvironment, error) {
-	if err := shouldSimulateFailure("ListAppProjectManagedEnvironmentByClusterUserId", cluster_user_id, appProjectRepositories); err != nil {
-		return nil, err
+	cluster_user_id string, appProjectManagedEnvs *[]AppProjectManagedEnvironment) error {
+	if err := shouldSimulateFailure("ListAppProjectManagedEnvironmentByClusterUserId", cluster_user_id, appProjectManagedEnvs); err != nil {
+		return err
 	}
-	return cdb.InnerClient.ListAppProjectManagedEnvironmentByClusterUserId(ctx, cluster_user_id, appProjectRepositories)
+	return cdb.InnerClient.ListAppProjectManagedEnvironmentByClusterUserId(ctx, cluster_user_id, appProjectManagedEnvs)
 }
 
-func (cdb *ChaosDBClient) DeleteAppProjectManagedEnvironmentByClusterUserId(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error) {
-	if err := shouldSimulateFailure("DeleteAppProjectManagedEnvironmentByClusterUserId", obj); err != nil {
+func (cdb *ChaosDBClient) DeleteAppProjectManagedEnvironmentByManagedEnvId(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error) {
+	if err := shouldSimulateFailure("DeleteAppProjectManagedEnvironmentByManagedEnvId", obj); err != nil {
 		return 0, err
 	}
-	return cdb.InnerClient.DeleteAppProjectManagedEnvironmentByClusterUserId(ctx, obj)
+	return cdb.InnerClient.DeleteAppProjectManagedEnvironmentByManagedEnvId(ctx, obj)
 }
 
 func (cdb *ChaosDBClient) CloseDatabase() {

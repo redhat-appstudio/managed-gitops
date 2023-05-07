@@ -131,11 +131,6 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 				}
 
 			} else {
-				if _, err := deleteAppProjectRepositoryFromDB(ctx, dbQueries, clusterUser.Clusteruser_id, l); err != nil {
-					l.Error(err, "unable to delete app repo cred from DB")
-					return nil, err
-				}
-
 				if _, err := deleteRepoCredFromDB(ctx, dbQueries, repositoryCredentialPrimaryKey, l); err != nil {
 					l.Error(err, "unable to delete repo cred from DB")
 					return nil, err
@@ -351,7 +346,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 				RepoURL:        normalizedRepoURL,
 			}
 
-			if err := dbQueries.GetAppProjectRepositoryByClusterUserId(ctx, &appProjectRepository); err != nil {
+			if err := dbQueries.GetAppProjectRepositoryByUniqueConstraint(ctx, &appProjectRepository); err != nil {
 				l.Error(err, "Unable to retrive appProjectRepository", appProjectRepository.GetAsLogKeyValues()...)
 
 				// If AppProjectRepository is not present in DB, create it.

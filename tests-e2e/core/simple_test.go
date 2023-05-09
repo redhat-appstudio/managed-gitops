@@ -22,7 +22,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			By("creating the GitOpsDeployment")
 
-			gitOpsDeploymentResource := BuildGitOpsDeploymentResource("my-gitops-depl",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl",
 				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 

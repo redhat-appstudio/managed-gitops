@@ -133,7 +133,7 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 			Expect(len(CR.Status.Conditions)).To(Equal(3))
 
 			By("4. Create the GitOpsDeployment CR")
-			gitOpsDeployment := BuildGitOpsDeploymentResource(deploymentCRToken, privateRepoURL, privateRepoPath,
+			gitOpsDeployment := gitopsDeplFixture.BuildGitOpsDeploymentResource(deploymentCRToken, privateRepoURL, privateRepoPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			Expect(k8s.Create(&gitOpsDeployment, k8sClient)).To(Succeed())
 
@@ -189,7 +189,7 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 			Expect(len(CR.Status.Conditions)).To(Equal(3))
 
 			By("4. Create the GitOpsDeployment CR")
-			gitOpsDeployment := BuildGitOpsDeploymentResource(deploymentCRSSH, privateRepoSSH, privateRepoPath,
+			gitOpsDeployment := gitopsDeplFixture.BuildGitOpsDeploymentResource(deploymentCRSSH, privateRepoSSH, privateRepoPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			Expect(k8s.Create(&gitOpsDeployment, k8sClient)).To(Succeed())
 

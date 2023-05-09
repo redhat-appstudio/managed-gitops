@@ -1,23 +1,30 @@
-package rhtap
+package appstudio
 
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
-	gitopsdeployment "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
+	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
+	syncRunFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeploymentsyncrun"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
-	rhtapfixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/rhtappromotion"
+	promotionRunFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/promotionrun"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strings"
 )
 
 var _ = Describe("Webhook E2E tests", func() {
+
+	const (
+		name    = "my-gitops-depl"
+		repoURL = "https://github.com/redhat-appstudio/managed-gitops"
+	)
 
 	// Run tests in order as next CR depends in previous CR.
 	Context("validate CR Webhooks", Ordered, func() {
@@ -128,7 +135,7 @@ var _ = Describe("Webhook E2E tests", func() {
 
 			By("Create PromotionRun CR.")
 
-			promotionRun = BuildPromotionRunResource("new-demo-app-manual-promotion", "new-demo-app", "my-snapshot", "prod")
+			promotionRun = promotionRunFixture.BuildPromotionRunResource("new-demo-app-manual-promotion", "new-demo-app", "my-snapshot", "prod")
 			err = k8s.Create(&promotionRun, k8sClient)
 			Expect(err).To(Succeed())
 
@@ -190,7 +197,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
-			gitOpsDeploymentResource := BuildGitOpsDeploymentResource(name,
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
 				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				"unknown")
 			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
@@ -212,7 +219,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
-			gitOpsDeploymentResource := BuildGitOpsDeploymentResource(name,
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
 				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			gitOpsDeploymentResource.Spec.SyncPolicy = &managedgitopsv1alpha1.SyncPolicy{
@@ -240,7 +247,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
-			gitOpsDeploymentResource := BuildGitOpsDeploymentResource(name,
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
 				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			gitOpsDeploymentResource.Spec.SyncPolicy = &managedgitopsv1alpha1.SyncPolicy{
@@ -407,7 +414,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			By("create a GitOpsDeployment with 'Manual' sync policy")
-			gitOpsDeploymentResource := BuildGitOpsDeploymentResource(name,
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
 				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual)
 			gitOpsDeploymentResource.Spec.Destination.Environment = ""
@@ -416,7 +423,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8sClient.Create(ctx, &gitOpsDeploymentResource)
 			Expect(err).To(BeNil())
 
-			gitOpsDeploymentSyncRun := BuildGitOpsDeploymentSyncRunResource("zyxwvutsrqponmlkjihgfedcba-abcdefghijklmnoqrstuvwxyz", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
+			gitOpsDeploymentSyncRun := syncRunFixture.BuildGitOpsDeploymentSyncRunResource("zyxwvutsrqponmlkjihgfedcba-abcdefghijklmnoqrstuvwxyz", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
 
 			err = k8s.Create(&gitOpsDeploymentSyncRun, k8sClient)
 			Expect(err).NotTo(Succeed())

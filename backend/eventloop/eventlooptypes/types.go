@@ -10,7 +10,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -143,54 +142,7 @@ func GetK8sClientForGitOpsEngineInstance(ctx context.Context, gitopsEngineInstan
 		return nil, err
 	}
 
-	return getGitOpsEngineWorkloadClient(ctx, serviceClient, gitopsEngineInstance)
-}
-
-func getGitOpsEngineWorkloadClient(ctx context.Context, serviceClient client.Client, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
-
-	// In a KCP environment, Argo CD will be installed on a workload cluster. We need to retrieve the credentials required to connect to the Argo CD instance, which is stored in the secret.
-	clusterCreds := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "gitops-engine-cluster",
-			Namespace: "gitops",
-		},
-	}
-	err := serviceClient.Get(ctx, client.ObjectKeyFromObject(clusterCreds), clusterCreds)
-	if err != nil {
-		return nil, fmt.Errorf("unable to find cluster credentials for GitOpsEngine cluster: %v", err)
-	}
-
-	host, ok := clusterCreds.Data["host"]
-	if !ok {
-		return nil, fmt.Errorf("missing host API URL in the GitOpsEngine cluster secret")
-	}
-	bearerToken, ok := clusterCreds.Data["bearer_token"]
-	if !ok {
-		return nil, fmt.Errorf("missing bearer token in the GitOpsEngine cluster secret")
-	}
-
-	// create a new client with the host and bearer token of the GitOpsEngine cluster.
-	config := &rest.Config{
-		Host:        string(host),
-		BearerToken: string(bearerToken),
-		TLSClientConfig: rest.TLSClientConfig{
-			Insecure:   true,
-			ServerName: "",
-		},
-	}
-
-	scheme := runtime.NewScheme()
-	err = corev1.AddToScheme(scheme)
-	if err != nil {
-		return nil, err
-	}
-
-	err = gitopsv1alpha1.AddToScheme(scheme)
-	if err != nil {
-		return nil, err
-	}
-
-	return client.New(config, client.Options{Scheme: scheme})
+	return serviceClient, nil
 }
 
 // GetK8sClientForServiceWorkspace returns a client for service provider workspace

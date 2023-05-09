@@ -47,7 +47,7 @@ if [ "$1" = "kube" ]; then
   done
   echo " * Postgres secret has been created."
 
-   # Wait until postgres pod is running
+  # Wait until postgres pod is running
   echo " * Wait until Postgres pod is running"
   counter=0
   until kubectl -n gitops get pods | grep postgres | grep '1/1' | grep 'Running' &> /dev/null
@@ -146,62 +146,62 @@ if [ "$1" = "kube-auto" ]; then
   echo " * Postgres secret has been created."
 
   # Wait until postgres pod is running
-    echo " * Wait until Postgres pod is running"
-    counter=0
-    until kubectl -n gitops get pods | grep postgres | grep '1/1' | grep 'Running' &> /dev/null
-    do
-      ((counter++))
-      sleep 1
-      if [ "$counter" -gt 150 ]; then
-        echo " --> Error: PostgreSQL pod cannot start. Quitting ..."
-        echo ""
-        echo "Namespace events:"
-        kubectl get events -n gitops
-        exit 1
-      fi
-    done
-    echo " * Postgres Pod is running."
-
-    # With the new migration logic, this block should no longer be required: remove the commented out
-    # section once we confirmed it is no longer needed.
-
-    # Checks if 5432 is occupied
-    if lsof -i:5432 | grep LISTEN; then
-      echo " --> Error: Your local port TCP 5432 is already in use. Quit port-forward."
+  echo " * Wait until Postgres pod is running"
+  counter=0
+  until kubectl -n gitops get pods | grep postgres | grep '1/1' | grep 'Running' &> /dev/null
+  do
+    ((counter++))
+    sleep 1
+    if [ "$counter" -gt 150 ]; then
+      echo " --> Error: PostgreSQL pod cannot start. Quitting ..."
+      echo ""
+      echo "Namespace events:"
+      kubectl get events -n gitops
       exit 1
     fi
-    echo " * Start port-fowarding PostgreSQL to localhost:5432 ..."
+  done
+  echo " * Postgres Pod is running."
+
+  # With the new migration logic, this block should no longer be required: remove the commented out
+  # section once we confirmed it is no longer needed.
+
+  # Checks if 5432 is occupied
+  if lsof -i:5432 | grep LISTEN; then
+    echo " --> Error: Your local port TCP 5432 is already in use. Quit port-forward."
+    exit 1
+  fi
+  echo " * Start port-fowarding PostgreSQL to localhost:5432 ..."
 
 
-    # Port forward the PostgreSQL service locally, so we can access it
-    kubectl port-forward --namespace gitops svc/gitops-postgresql-staging 5432:5432 &>/dev/null &
-    KUBE_PID=$!
+  # Port forward the PostgreSQL service locally, so we can access it
+  kubectl port-forward --namespace gitops svc/gitops-postgresql-staging 5432:5432 &>/dev/null &
+  KUBE_PID=$!
 
-    # Checks if 5432 is occupied
-    counter=0
-    until lsof -i:5432 | grep LISTEN
-    do
-      sleep 1
-      if [ "$counter" -gt 10 ]; then
-        echo ".. retry $counter ..."
-        echo " --> Error: Port-forwarding takes too long. Quiting ..."
-        if ! kill $KUBE_PID; then
-          echo " --> Error: Cannot kill the background port-forward, do it yourself."
-        fi
-        exit 1
+  # Checks if 5432 is occupied
+  counter=0
+  until lsof -i:5432 | grep LISTEN
+  do
+    sleep 1
+    if [ "$counter" -gt 10 ]; then
+      echo ".. retry $counter ..."
+      echo " --> Error: Port-forwarding takes too long. Quiting ..."
+      if ! kill $KUBE_PID; then
+        echo " --> Error: Cannot kill the background port-forward, do it yourself."
       fi
-    done
-    echo " * Port-Forwarding worked"
+      exit 1
+    fi
+  done
+  echo " * Port-Forwarding worked"
 
-    # Decode the password from the secret
-    POSTGRES_PASSWORD=$(kubectl get -n gitops secret gitops-postgresql-staging -o jsonpath="{.data.postgresql-password}" | base64 --decode)
+  # Decode the password from the secret
+  POSTGRES_PASSWORD=$(kubectl get -n gitops secret gitops-postgresql-staging -o jsonpath="{.data.postgresql-password}" | base64 --decode)
 
-    # Call the migration binary to migrate the database to the latest version
-    make db-migrate
+  # Call the migration binary to migrate the database to the latest version
+  make db-migrate
 
-    # Do not stop port-forwarding
-    echo "Port-forwarding is active. You can stop it with 'kill $KUBE_PID'"
-    echo "Or you can find the process with typing: 'sudo lsof -i:5432'"
+  # Do not stop port-forwarding
+  echo "Port-forwarding is active. You can stop it with 'kill $KUBE_PID'"
+  echo "Or you can find the process with typing: 'sudo lsof -i:5432'"
   
 
   # Set up pg_stat_statements for postgresql metrics

@@ -11,7 +11,6 @@ import (
 
 	argocdoperator "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 	routev1 "github.com/openshift/api/route/v1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
@@ -23,7 +22,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -47,17 +45,6 @@ const (
 func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, namespace string, k8sClient client.Client, log logr.Logger) error {
 	policy := "g, system:authenticated, role:admin"
 	scopes := "[groups]"
-
-	resourceExclusions, err := yaml.Marshal([]settings.FilteredResource{
-		{
-			APIGroups: []string{"*.kcp.dev"},
-			Clusters:  []string{"*"},
-			Kinds:     []string{"*"},
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to marshal resource exclusions: %v", err)
-	}
 
 	// The values from manifests/staging-cluster-resources/argo-cd.yaml are converted in a Go struct.
 
@@ -212,7 +199,6 @@ func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, na
 			TLS: argocdoperator.ArgoCDTLSSpec{
 				CA: argocdoperator.ArgoCDCASpec{},
 			},
-			ResourceExclusions: string(resourceExclusions),
 			SSO: &argocdoperator.ArgoCDSSOSpec{
 				Provider: argocdoperator.SSOProviderTypeDex,
 				Dex: &argocdoperator.ArgoCDDexSpec{
@@ -290,7 +276,7 @@ func ReconcileNamespaceScopedArgoCD(ctx context.Context, argocdCRName string, na
 	}
 
 	// Wait for Argo CD to be installed by gitops operator.
-	err = wait.PollImmediate(1*time.Second, 3*time.Minute, func() (bool, error) {
+	err := wait.PollImmediate(1*time.Second, 3*time.Minute, func() (bool, error) {
 
 		// 'default' AppProject will be created by Argo CD if Argo CD is successfully started.
 		appProject := &appv1.AppProject{

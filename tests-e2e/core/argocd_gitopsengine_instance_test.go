@@ -31,10 +31,6 @@ var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", fun
 
 		It("ensures that a standalone ArgoCD gets created successfully when an operation CR of resource-type GitOpsEngineInstance is created", func() {
 
-			if fixture.IsRunningAgainstKCP() {
-				Skip("Skipping this test until we support running gitops operator with KCP")
-			}
-
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).To(BeNil())
 			defer dbq.CloseDatabase()

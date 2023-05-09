@@ -24,7 +24,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 
 	applicationv1alpha1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
@@ -50,7 +49,6 @@ type ApplicationReconciler struct {
 // move the current state of the cluster closer to the desired state.
 func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
-	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 	log := log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops)
 

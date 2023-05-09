@@ -52,7 +52,6 @@ type GitOpsDeploymentReconciler struct {
 // move the current state of the cluster closer to the desired state.
 func (r *GitOpsDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
-	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 	_ = log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops)
 

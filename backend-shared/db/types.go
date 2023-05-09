@@ -321,7 +321,7 @@ type DeploymentToApplicationMapping struct {
 	//lint:ignore U1000 used by go-pg
 	tableName struct{} `pg:"deploymenttoapplicationmapping,alias:dta"` //nolint
 
-	// UID of GitOpsDeployment resource in K8s/KCP namespace
+	// UID of GitOpsDeployment resource in K8s namespace
 	// (value from '.metadata.uid' field of GitOpsDeployment)
 	Deploymenttoapplicationmapping_uid_id string `pg:"deploymenttoapplicationmapping_uid_id,pk"`
 

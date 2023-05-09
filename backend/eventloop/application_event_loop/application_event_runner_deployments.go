@@ -350,7 +350,6 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 	}
 
-	ctx = sharedutil.RemoveKCPClusterFromContext(ctx)
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
 
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput,
@@ -678,7 +677,6 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		Resource_type: db.OperationResourceType_Application,
 	}
 
-	ctx = sharedutil.RemoveKCPClusterFromContext(ctx)
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
 
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput, clusterUser.Clusteruser_id,
@@ -805,7 +803,6 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		Resource_type: db.OperationResourceType_Application,
 	}
 
-	ctx = sharedutil.RemoveKCPClusterFromContext(ctx)
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput,
 		clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, log)

@@ -261,31 +261,6 @@ db-migrate-upgrade:
 db-schema: ## Run db-schema varchar tests
 	cd $(MAKEFILE_ROOT)/backend-shared && go run ./hack/db-schema-sync-check
 
-### --- K C P --- ###
-
-gen-kcp-api-backend-shared: ## Runs utilities/generate-kcp-api-backend-shared.sh to generate kcp api resource schema and export
-	cd $(MAKEFILE_ROOT)/utilities && ./generate-kcp-api-backend-shared.sh
-
-gen-kcp-api-appstudio-shared: ## Runs utilities/generate-kcp-api-appstudio-shared.sh to generate kcp api resource schema and export
-	cd $(MAKEFILE_ROOT)/utilities && ./generate-kcp-api-appstudio-shared.sh
-
-kcp-test-local-e2e: ## Initiates a ckcp within openshift cluster and runs e2e test
-	cd $(MAKEFILE_ROOT)/kcp && ./ckcp/setup-ckcp-on-openshift.sh
-
-gen-kcp-api-all: gen-kcp-api-backend-shared ## Creates all the KCP API Resources for all comfig/crds
-
-apply-kcp-api-all: ## Apply all APIExport to the cluster
-	$(MAKEFILE_ROOT)/utilities/create-apiexports.sh "${APPLICATION_API_COMMIT}"
-
-setup-e2e-kcp-virtual-workspace: ## Sets up the necessary KCP virtual workspaces
-	$(MAKEFILE_ROOT)/kcp/kcp-e2e/setup-ws-e2e.sh
-
-start-e2e-kcp-virtual-workspace: ## Starts gitops service in service-provider virtual KCP workspace
-	$(MAKEFILE_ROOT)/kcp/kcp-e2e/start-ws-e2e.sh
-
-test-e2e-kcp-virtual-workspace: ## Test E2E against KCP virtual workspaces
-	KUBECONFIG_SERVICE_PROVIDER=/tmp/service-provider-workspace.yaml KUBECONFIG_USER_WORKSPACE=/tmp/user-workspace.yaml  make test-e2e
-
 ### --- CI Tests ---
 
 check-backward-compatibility: ##  test executed from OpenShift CI

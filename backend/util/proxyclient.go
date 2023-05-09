@@ -45,6 +45,7 @@ type ProxyClientEventOptions struct {
 	Update      []client.UpdateOption
 	Patch       []client.PatchOption
 	DeleteAllOf []client.DeleteAllOfOption
+	Get         []client.GetOption
 }
 
 type ClientAction string
@@ -67,15 +68,18 @@ const (
 // Get retrieves an obj for the given object key from the Kubernetes Cluster.
 // obj must be a struct pointer so that obj can be updated with the response
 // returned by the Server.
-func (pc *ProxyClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object) error {
-	res := pc.InnerClient.Get(ctx, key, obj)
+func (pc *ProxyClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	res := pc.InnerClient.Get(ctx, key, obj, opts...)
 
 	if pc.Informer != nil {
 		event := ProxyClientEvent{
-			Action:   Get,
-			Ctx:      ctx,
-			Key:      &key,
-			Obj:      &obj,
+			Action: Get,
+			Ctx:    ctx,
+			Key:    &key,
+			Obj:    &obj,
+			Options: &ProxyClientEventOptions{
+				Get: opts,
+			},
 			ErrorRes: res,
 			ExitTime: time.Now(),
 		}

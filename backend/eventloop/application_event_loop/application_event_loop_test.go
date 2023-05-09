@@ -28,7 +28,6 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				GitopsDeploymentNamespace: "",
 				WorkspaceID:               "",
 				SharedResourceEventLoop:   nil,
-				VwsAPIExportName:          "gitops-api",
 				InputChan:                 make(chan RequestMessage),
 			}
 
@@ -74,7 +73,6 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			GitopsDeploymentNamespace: gitopsDeplNamespace,
 			WorkspaceID:               namespaceUID,
 			SharedResourceEventLoop:   nil,
-			VwsAPIExportName:          "gitops-api",
 			InputChan:                 make(chan RequestMessage),
 		}
 

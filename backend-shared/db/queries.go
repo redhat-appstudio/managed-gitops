@@ -230,8 +230,6 @@ type ApplicationScopedQueries interface {
 	// Get applications in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
 	GetApplicationBatch(ctx context.Context, applications *[]Application, limit, offSet int) error
 
-	// TODO: GITOPSRVCE-19 - KCP support: All of the *ByAPINamespaceAndName database queries should only return items that are part of a specific KCP workspace.
-
 	CreateAPICRToDatabaseMapping(ctx context.Context, obj *APICRToDatabaseMapping) error
 
 	// Get APICRToDatabaseMapping in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.

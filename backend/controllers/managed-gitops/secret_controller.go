@@ -57,7 +57,6 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, nil
 	}
 
-	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 	_ = log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops)
 
@@ -87,7 +86,6 @@ func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		// add the ManagedEnv to the list of requests to process.
 		for _, managedEnv := range managedEnvList {
 			managedEnvReq := ctrl.Request{
-				ClusterName: req.ClusterName,
 				NamespacedName: types.NamespacedName{
 					Namespace: managedEnv.Namespace,
 					Name:      managedEnv.Name,

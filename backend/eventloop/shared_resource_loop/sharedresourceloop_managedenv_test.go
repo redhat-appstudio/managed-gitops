@@ -18,7 +18,9 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventloop_test_util"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -460,6 +462,103 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionFalse))
 			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonUnableToInstallServiceAccount)))
+		})
+
+		It("should set the condition ConnectionInitializationSucceeded appropriately when the connection fails because of insufficient permissions to list all namespaces", func() {
+			managedEnv, secret := buildManagedEnvironmentForSRLWithOptionalSA(false)
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, &managedEnv)
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Create(ctx, &secret)
+			Expect(err).To(BeNil())
+
+			By("first calling reconcile to create database entries for new managed env")
+			firstSrc, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(err).To(BeNil())
+			Expect(firstSrc.ManagedEnv).ToNot(BeNil())
+
+			By("next simulating a 'forbidden' error when attempting to list all namespaces")
+			mockCtrl := gomock.NewController(GinkgoT())
+			defer mockCtrl.Finish()
+			mockClient := mocks.NewMockClient(mockCtrl)
+
+			forbidden := errors.NewForbidden(schema.GroupResource{Group: "", Resource: "namespaces"}, "", fmt.Errorf("user can't access namespaces"))
+			mockClient.EXPECT().List(gomock.Any(), gomock.Any()).Return(forbidden)
+			mockClient.EXPECT().List(gomock.Any(), gomock.Any()).Return(forbidden)
+
+			mockFactory := &SimulateFailingClientMockSRLK8sClientFactory{
+				limit:          3,
+				failingClient:  mockClient,
+				realFakeClient: k8sClient,
+			}
+			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(src.ManagedEnv).To(BeNil())
+			Expect(err).ToNot(BeNil())
+			Expect(mockFactory.count).To(Equal(3))
+
+			By("ensuring the .status.condition is set appropriately")
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
+			Expect(err).To(BeNil())
+			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
+			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionUnknown))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonUnableToValidateClusterCredentials)))
+			Expect(managedEnv.Status.Conditions[0].Message).To(Equal("Provided service account does not have permission to access resources in the cluster. Verify that the service account has the correct Role and RoleBinding."))
+		})
+
+		It("should set the condition ConnectionInitializationSucceeded appropriately when the connection fails because of insufficient permissions to get a particular namespaces", func() {
+			managedEnv, secret := buildManagedEnvironmentForSRLWithOptionalSA(false)
+			managedEnv.Spec.Namespaces = []string{namespace.Name}
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, &managedEnv)
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Create(ctx, &secret)
+			Expect(err).To(BeNil())
+
+			By("first calling reconcile to create database entries for new managed env")
+			firstSrc, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(err).To(BeNil())
+			Expect(firstSrc.ManagedEnv).ToNot(BeNil())
+
+			By("next simulating a 'forbidden' error when attempting to get the specific namespace")
+			mockCtrl := gomock.NewController(GinkgoT())
+			defer mockCtrl.Finish()
+			mockClient := mocks.NewMockClient(mockCtrl)
+
+			forbidden := errors.NewForbidden(schema.GroupResource{Group: "", Resource: "namespace"}, "", fmt.Errorf("user can't access namespace"))
+			mockClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(forbidden)
+			mockClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(forbidden)
+
+			mockFactory := &SimulateFailingClientMockSRLK8sClientFactory{
+				limit:          3,
+				failingClient:  mockClient,
+				realFakeClient: k8sClient,
+			}
+			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(src.ManagedEnv).To(BeNil())
+			Expect(err).ToNot(BeNil())
+			Expect(mockFactory.count).To(Equal(3))
+
+			By("ensuring the .status.condition is set appropriately")
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
+			Expect(err).To(BeNil())
+			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
+			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionUnknown))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonUnableToValidateClusterCredentials)))
+			Expect(managedEnv.Status.Conditions[0].Message).To(Equal("Provided service account does not have permission to access resources in the cluster. Verify that the service account has the correct Role and RoleBinding."))
 		})
 
 		It("should test the case where we are unable to connect to a managed env, so new credentials are acquired, and old ones are deleted", func() {

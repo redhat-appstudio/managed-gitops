@@ -18,18 +18,19 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 var _ = Describe("Environment controller tests", func() {
 
-	ctx := context.Background()
-
-	var k8sClient client.Client
-	var reconciler EnvironmentReconciler
-	var apiNamespace corev1.Namespace
-
 	Context("Reconcile function call tests", func() {
+
+		ctx := context.Background()
+
+		var k8sClient client.Client
+		var reconciler EnvironmentReconciler
+		var apiNamespace corev1.Namespace
 
 		BeforeEach(func() {
 			scheme,
@@ -925,5 +926,144 @@ var _ = Describe("Environment controller tests", func() {
 				Expect(reqs).To(Equal([]reconcile.Request{}))
 			})
 		})
+	})
+
+	Context("Unit tests of non-reconcile functions", func() {
+
+		ctx := context.Background()
+
+		var k8sClient client.Client
+		var apiNamespace corev1.Namespace
+
+		log := log.FromContext(ctx)
+
+		BeforeEach(func() {
+			scheme,
+				argocdNamespace,
+				kubesystemNamespace,
+				namespace,
+				err := tests.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			err = appstudioshared.AddToScheme(scheme)
+			Expect(err).To(BeNil())
+
+			apiNamespace = *namespace
+
+			// Create fake client
+			k8sClient = fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(namespace, argocdNamespace, kubesystemNamespace).
+				Build()
+
+		})
+
+		DescribeTable("verify updateStatusConditionOfEnvironment works as expected",
+			func(preCondition []metav1.Condition, newCondition metav1.Condition, expectedResult []metav1.Condition) {
+
+				env := appstudioshared.Environment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "my-env",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudioshared.EnvironmentSpec{
+						DisplayName:        "my-environment",
+						DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
+						ParentEnvironment:  "",
+						Tags:               []string{},
+						Configuration:      appstudioshared.EnvironmentConfiguration{},
+					},
+				}
+				err := k8sClient.Create(ctx, &env)
+				Expect(err).To(BeNil())
+
+				env.Status.Conditions = preCondition
+				err = k8sClient.Update(ctx, &env)
+				Expect(err).To(BeNil())
+
+				err = updateStatusConditionOfEnvironment(ctx, k8sClient, newCondition.Message, &env, EnvironmentConditionErrorOccurred,
+					newCondition.Status, newCondition.Reason, log)
+				Expect(err).To(BeNil())
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
+				Expect(err).To(BeNil())
+
+				Expect(len(env.Status.Conditions)).To(BeNumerically("==", 1))
+
+				expectedCondition := expectedResult[0]
+
+				actualCondition := env.Status.Conditions[0]
+
+				Expect(actualCondition.Message).To(Equal(expectedCondition.Message))
+				Expect(actualCondition.Type).To(Equal(expectedCondition.Type))
+				Expect(actualCondition.Reason).To(Equal(expectedCondition.Reason))
+				Expect(actualCondition.Status).To(Equal(expectedCondition.Status))
+
+			},
+			Entry("add a new condition", []metav1.Condition{}, metav1.Condition{
+				Type:    EnvironmentConditionErrorOccurred,
+				Status:  metav1.ConditionTrue,
+				Reason:  "my-reason",
+				Message: "my-message",
+			}, []metav1.Condition{
+				{
+					Type:    EnvironmentConditionErrorOccurred,
+					Status:  metav1.ConditionTrue,
+					Reason:  "my-reason",
+					Message: "my-message",
+				},
+			}),
+			Entry("replace an existing condition with mismatched reason", []metav1.Condition{{
+				Type:    EnvironmentConditionErrorOccurred,
+				Status:  metav1.ConditionTrue,
+				Reason:  "my-reason",
+				Message: "my-message",
+			}}, metav1.Condition{
+				Type:    EnvironmentConditionErrorOccurred,
+				Status:  metav1.ConditionTrue,
+				Reason:  "my-reason2",
+				Message: "my-message",
+			}, []metav1.Condition{{
+				Type:    EnvironmentConditionErrorOccurred,
+				Status:  metav1.ConditionTrue,
+				Reason:  "my-reason2",
+				Message: "my-message",
+			}}),
+
+			Entry("replace an existing condition with mismatched message", []metav1.Condition{{
+				Type:    EnvironmentConditionErrorOccurred,
+				Status:  metav1.ConditionTrue,
+				Reason:  "my-reason",
+				Message: "my-message",
+			}}, metav1.Condition{
+				Type:    EnvironmentConditionErrorOccurred,
+				Status:  metav1.ConditionTrue,
+				Reason:  "my-reason",
+				Message: "my-message2",
+			}, []metav1.Condition{{
+				Type:    EnvironmentConditionErrorOccurred,
+				Status:  metav1.ConditionTrue,
+				Reason:  "my-reason",
+				Message: "my-message2",
+			}}),
+
+			Entry("replace an existing condition with mismatched status", []metav1.Condition{{
+				Type:    EnvironmentConditionErrorOccurred,
+				Status:  metav1.ConditionTrue,
+				Reason:  "my-reason",
+				Message: "my-message",
+			}}, metav1.Condition{
+				Type:    EnvironmentConditionErrorOccurred,
+				Status:  metav1.ConditionFalse,
+				Reason:  "my-reason",
+				Message: "my-message",
+			}, []metav1.Condition{{
+				Type:    EnvironmentConditionErrorOccurred,
+				Status:  metav1.ConditionFalse,
+				Reason:  "my-reason",
+				Message: "my-message",
+			}}),
+		)
+
 	})
 })

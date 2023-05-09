@@ -79,6 +79,7 @@ func (r *DevsandboxDeploymentReconciler) Reconcile(ctx context.Context, req ctrl
 	}
 
 	if len(spacerequest.Status.NamespaceAccess) > 1 {
+		// TODO: GITOPSRVCE-578: once we support more than one namespace, remove this check.
 		log.Error(nil, "Sandbox provisioner does not currently support SpaceRequests with more than 1 namespace")
 		return ctrl.Result{}, nil
 	}

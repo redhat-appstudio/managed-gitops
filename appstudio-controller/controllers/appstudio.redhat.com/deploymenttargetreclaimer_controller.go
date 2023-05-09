@@ -29,8 +29,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 // DeploymentTargetReconciler reconciles a DeploymentTarget object
@@ -64,7 +67,7 @@ const (
 func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	var err error
 
-	log := log.FromContext(ctx).WithValues("name", req.Name, "namespace", req.Namespace, "component", "deploymentTargetreclaimer")
+	log := log.FromContext(ctx).WithValues("name", req.Name, "namespace", req.Namespace, "component", "deploymentTargetReclaimer")
 
 	dt := applicationv1alpha1.DeploymentTarget{
 		ObjectMeta: metav1.ObjectMeta{
@@ -79,6 +82,19 @@ func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
+	}
+
+	// Retrieve and validate the DeploymentTargetClass of the DT
+	dtClass, err := findMatchingDTClassForDT(ctx, dt, r.Client)
+	if err != nil {
+		if apierr.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
+	}
+	if dtClass.Spec.ReclaimPolicy != applicationv1alpha1.ReclaimPolicy_Delete && dtClass.Spec.ReclaimPolicy != applicationv1alpha1.ReclaimPolicy_Retain {
+		log.Error(nil, "unexpected reclaim policy value on DTClass", "reclaimPolicy", dtClass.Spec.ReclaimPolicy)
+		return ctrl.Result{}, nil
 	}
 
 	// Add the deletion finalizer if it is absent.
@@ -97,51 +113,71 @@ func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Req
 				return ctrl.Result{}, err
 			}
 		}
-		if sr == nil {
+
+		// If the SpaceRequest no longer exists, OR if the class has a Retain policy, then there is no more work to do.
+		if sr == nil || dtClass.Spec.ReclaimPolicy == applicationv1alpha1.ReclaimPolicy_Retain {
 			if removeFinalizer(&dt, FinalizerDT) {
 				if err := r.Client.Update(ctx, &dt); err != nil {
 					return ctrl.Result{}, fmt.Errorf("failed to remove finalizer %s from DeploymentTarget %s in namespace %s: %v", FinalizerDT, dt.Name, dt.Namespace, err)
 				}
 				log.Info("Removed finalizer from DeploymentTarget", "finalizer", FinalizerDT)
-				return ctrl.Result{}, nil
 			}
-			return ctrl.Result{}, err
-		}
-		if sr != nil {
-			if addFinalizer(sr, codereadytoolchainv1alpha1.FinalizerName) {
-				if err := r.Client.Update(ctx, sr); err != nil {
-					return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s for SpaceRequest %s in namespace %s: %v", codereadytoolchainv1alpha1.FinalizerName, sr.Name, sr.Namespace, err)
-				}
-				log.Info("Added finalizer for SpaceRequest", "finalizer", codereadytoolchainv1alpha1.FinalizerName)
-			}
-			// delete the SpaceRequest if it has not been deleted
-			if condition.IsTrue(sr.Status.Conditions, codereadytoolchainv1alpha1.ConditionReady) {
-				err = r.Client.Delete(ctx, sr)
-				if err != nil {
-					return ctrl.Result{}, err
-				}
-			}
-			var readyCond codereadytoolchainv1alpha1.Condition
-			var found bool
-			if readyCond, found = condition.FindConditionByType(sr.Status.Conditions, codereadytoolchainv1alpha1.ConditionReady); !found {
-				return ctrl.Result{}, fmt.Errorf("failed to find ConditionReady for SpaceRequest %s from %s", sr.Name, sr.Namespace)
-			}
-
-			//SpaceRequest still exist after 2 minutes and with condition reason is UnableToTerminate
-			if sr.GetDeletionTimestamp() != nil && time.Now().Add(-time.Minute*2).After(sr.GetDeletionTimestamp().Time) &&
-				readyCond.Reason == "UnableToTerminate" {
-				dt.Status.Phase = applicationv1alpha1.DeploymentTargetPhase_Failed
-				if err := r.Client.Update(ctx, &dt); err != nil {
-					return ctrl.Result{}, err
-				}
-				log.Info("The status of DT %s from %s is updated to Failed", dt.Name, dt.Namespace)
-				return ctrl.Result{}, nil
-			}
-
 			return ctrl.Result{}, nil
 		}
 
-		return ctrl.Result{}, nil
+		if dtClass.Spec.ReclaimPolicy != applicationv1alpha1.ReclaimPolicy_Delete {
+			log.Error(nil, "Unexpected reclaimPolicy: neither Retain nor Delete.")
+			return ctrl.Result{}, nil
+		}
+
+		// The ReclaimPolicy is necessarily delete, from this point on in the block
+
+		if addFinalizer(sr, codereadytoolchainv1alpha1.FinalizerName) {
+			if err := r.Client.Update(ctx, sr); err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s for SpaceRequest %s in namespace %s: %v", codereadytoolchainv1alpha1.FinalizerName, sr.Name, sr.Namespace, err)
+			}
+			log.Info("Added finalizer for SpaceRequest", "finalizer", codereadytoolchainv1alpha1.FinalizerName)
+		}
+
+		var readyCond codereadytoolchainv1alpha1.Condition
+		var found bool
+		if readyCond, found = condition.FindConditionByType(sr.Status.Conditions, codereadytoolchainv1alpha1.ConditionReady); !found {
+			return ctrl.Result{}, fmt.Errorf("failed to find ConditionReady for SpaceRequest %s from %s", sr.Name, sr.Namespace)
+		}
+
+		// Delete the SpaceRequest if it has not been deleted
+		if sr.DeletionTimestamp == nil {
+
+			log.Info("deleting SpaceRequest", "spaceRequest", sr)
+			err = r.Client.Delete(ctx, sr)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+
+			return ctrl.Result{Requeue: true}, nil
+		}
+
+		if dt.Status.Phase == applicationv1alpha1.DeploymentTargetPhase_Failed {
+			// No more work: the DT is already reported as failed
+			return ctrl.Result{}, err
+		}
+
+		// If SpaceRequest still exists after 2 minutes and with condition reason is UnableToTerminate...
+		if time.Now().After(sr.GetDeletionTimestamp().Add(time.Minute*2)) &&
+			readyCond.Reason == codereadytoolchainv1alpha1.SpaceTerminatingFailedReason {
+
+			dt.Status.Phase = applicationv1alpha1.DeploymentTargetPhase_Failed
+			if err := r.Client.Status().Update(ctx, &dt); err != nil {
+				return ctrl.Result{}, err
+			}
+			log.Info("The status of DT is updated to Failed", "dtName", dt.Name, "dtNamespace", dt.Namespace)
+			return ctrl.Result{}, nil
+		}
+
+		log.Info("Requeuing since SpaceRequest is still terminating", "spaceRequestStatusPhase", dt.Status.Phase, "deleteionTimestamp", sr.GetDeletionTimestamp())
+		// OTOH, if if the SpaceRequest has not timed out yet, then requeue
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+
 	}
 
 	return ctrl.Result{}, nil
@@ -179,21 +215,19 @@ func findMatchingSpaceRequestForDT(ctx context.Context, k8sClient client.Client,
 }
 
 // findMatchingDTClassForDT tries to find a DTCLS that matches the given DT in a namespace.
-func findMatchingDTClassForDT(ctx context.Context, k8sClient client.Client, dt applicationv1alpha1.DeploymentTarget) (*applicationv1alpha1.DeploymentTargetClass, error) {
-	dtclsList := applicationv1alpha1.DeploymentTargetClassList{}
-	if err := k8sClient.List(ctx, &dtclsList); err != nil {
-		return nil, err
+func findMatchingDTClassForDT(ctx context.Context, dt applicationv1alpha1.DeploymentTarget, k8sClient client.Client) (applicationv1alpha1.DeploymentTargetClass, error) {
+
+	// Retrieve and validate the DeploymentTargetClass of the DT
+	dtClass := applicationv1alpha1.DeploymentTargetClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: string(dt.Spec.DeploymentTargetClassName),
+		},
+	}
+	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtClass), &dtClass); err != nil {
+		return applicationv1alpha1.DeploymentTargetClass{}, fmt.Errorf("unable to retrieve DeploymentTargetClass '%s' referenced by DeploymentTarget", dtClass.Name)
 	}
 
-	var dtcls *applicationv1alpha1.DeploymentTargetClass
-	for i, d := range dtclsList.Items {
-		if d.Name == string(dt.Spec.DeploymentTargetClassName) {
-			dtcls = &dtclsList.Items[i]
-			break
-		}
-	}
-
-	return dtcls, nil
+	return dtClass, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -201,7 +235,32 @@ func (r *DeploymentTargetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	manager := ctrl.NewControllerManagedBy(mgr).
 		For(&applicationv1alpha1.DeploymentTarget{}).
 		WithEventFilter(predicate.Or(
-			DeploymentTargetDeletePredicate()))
+			DeploymentTargetDeletePredicate())).
+		Watches(
+			&source.Kind{Type: &codereadytoolchainv1alpha1.SpaceRequest{}},
+			handler.EnqueueRequestsFromMapFunc(r.findDeploymentTargetsForSpaceRequests))
 
 	return manager.Complete(r)
+}
+
+func (r *DeploymentTargetReconciler) findDeploymentTargetsForSpaceRequests(sr client.Object) []reconcile.Request {
+
+	srObj, isOk := sr.(*codereadytoolchainv1alpha1.SpaceRequest)
+	if !isOk {
+		ctrl.Log.Error(nil, "SEVERE: type mismatch in mapping function. Expected an event for SpaceRequest object")
+		return []reconcile.Request{}
+	}
+
+	dt, err := findMatchingDTForSpaceRequest(context.Background(), r.Client, srObj)
+	if err != nil {
+		ctrl.Log.Error(err, "unable to find matching DT for space request", "spacerequest", srObj.Name, "namespace", srObj.Namespace)
+		return []reconcile.Request{}
+	}
+
+	if dt == nil {
+		return []reconcile.Request{}
+	}
+
+	return []reconcile.Request{{NamespacedName: client.ObjectKeyFromObject(dt)}}
+
 }

@@ -78,7 +78,12 @@ func (r *DevsandboxDeploymentReconciler) Reconcile(ctx context.Context, req ctrl
 		return ctrl.Result{}, err
 	}
 
-	if !IsSpaceRequestReady(&spacerequest) {
+	if len(spacerequest.Status.NamespaceAccess) > 1 {
+		log.Error(nil, "Sandbox provisioner does not currently support SpaceRequests with more than 1 namespace")
+		return ctrl.Result{}, nil
+	}
+
+	if !doesSpaceRequestHaveReadyTrue(&spacerequest) {
 		return ctrl.Result{}, nil
 	}
 	if dt, err = findMatchingDTForSpaceRequest(ctx, r.Client, &spacerequest); err != nil {
@@ -87,7 +92,7 @@ func (r *DevsandboxDeploymentReconciler) Reconcile(ctx context.Context, req ctrl
 	}
 
 	if dt == nil {
-		dt, err = CreateDeploymentTargetForSpaceRequest(ctx, r.Client, &spacerequest)
+		dt, err = createDeploymentTargetForSpaceRequest(ctx, r.Client, &spacerequest)
 		if err != nil {
 			log.Error(err, "failed to create the DeploymentTarget for a SpaceRequest")
 			return ctrl.Result{}, err
@@ -150,8 +155,8 @@ func findMatchingDTCForSpaceRequest(ctx context.Context, k8sClient client.Client
 	return dtc, nil
 }
 
-// NewDeploymentTarget creates a new DeploymentTarget using the provided info.
-func NewDeploymentTarget(deploymentTargetClassName applicationv1alpha1.DeploymentTargetClassName, dtcNamespace string, namespace string, clusterAPIURL string, secretRef string, dtcName string) *applicationv1alpha1.DeploymentTarget {
+// newDeploymentTarget creates a new DeploymentTarget using the provided info.
+func newDeploymentTarget(deploymentTargetClassName applicationv1alpha1.DeploymentTargetClassName, dtcNamespace string, namespace string, clusterAPIURL string, secretRef string, dtcName string) *applicationv1alpha1.DeploymentTarget {
 	dtName := dtcName + "-dt"
 	deploymentTarget := &applicationv1alpha1.DeploymentTarget{
 		ObjectMeta: metav1.ObjectMeta{
@@ -172,16 +177,16 @@ func NewDeploymentTarget(deploymentTargetClassName applicationv1alpha1.Deploymen
 	return deploymentTarget
 }
 
-// CreateDeploymentTargetForSpaceRequest creates and returns a new DeploymentTarget
+// createDeploymentTargetForSpaceRequest creates and returns a new DeploymentTarget
 // If it's not possible to create it and set the SpaceRequest as the owner, an error will be returned
-func CreateDeploymentTargetForSpaceRequest(ctx context.Context, client client.Client, spacerequest *codereadytoolchainv1alpha1.SpaceRequest) (*applicationv1alpha1.DeploymentTarget, error) {
+func createDeploymentTargetForSpaceRequest(ctx context.Context, client client.Client, spacerequest *codereadytoolchainv1alpha1.SpaceRequest) (*applicationv1alpha1.DeploymentTarget, error) {
 
 	dtc, err := findMatchingDTCForSpaceRequest(ctx, client, spacerequest)
 	if err != nil {
 		return nil, err
 	}
 
-	deploymentTarget := NewDeploymentTarget(
+	deploymentTarget := newDeploymentTarget(
 		dtc.Spec.DeploymentTargetClassName,
 		dtc.Namespace,
 		spacerequest.Status.NamespaceAccess[0].Name,
@@ -193,11 +198,6 @@ func CreateDeploymentTargetForSpaceRequest(ctx context.Context, client client.Cl
 			deploymentTarget.Labels = make(map[string]string)
 		}
 		deploymentTarget.Labels[applicationv1alpha1.AnnTargetProvisioner] = dtc.Annotations[applicationv1alpha1.AnnTargetProvisioner]
-	}
-
-	err = ctrl.SetControllerReference(spacerequest, deploymentTarget, client.Scheme())
-	if err != nil {
-		return nil, err
 	}
 
 	err = client.Create(ctx, deploymentTarget)
@@ -218,6 +218,6 @@ func (r *DevsandboxDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) erro
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&codereadytoolchainv1alpha1.SpaceRequest{}).
 		WithEventFilter(predicate.Or(
-			SpaceRequestReadyPredicate())).
+			spaceRequestReadyPredicate())).
 		Complete(r)
 }

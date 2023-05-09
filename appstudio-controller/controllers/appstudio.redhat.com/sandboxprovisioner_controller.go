@@ -190,7 +190,7 @@ func createSpaceRequestForDTC(ctx context.Context, k8sClient client.Client, dtc 
 			TargetClusterRoles: []string{}, // To be updated in the future once cluster roles become defined
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: dtc.Name,
+			GenerateName: dtc.Name + "-",
 			Namespace:    dtc.Namespace,
 			Labels: map[string]string{
 				deploymentTargetClaimLabel: dtc.Name,
@@ -198,12 +198,7 @@ func createSpaceRequestForDTC(ctx context.Context, k8sClient client.Client, dtc 
 		},
 	}
 
-	err := ctrl.SetControllerReference(dtc, &newSpaceRequest, k8sClient.Scheme())
-	if err != nil {
-		return nil, err
-	}
-
-	err = k8sClient.Create(ctx, &newSpaceRequest)
+	err := k8sClient.Create(ctx, &newSpaceRequest)
 	if err != nil {
 		return nil, err
 	}

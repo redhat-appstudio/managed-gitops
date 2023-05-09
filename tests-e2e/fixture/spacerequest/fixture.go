@@ -6,6 +6,7 @@ import (
 
 	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	matcher "github.com/onsi/gomega/types"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
@@ -13,6 +14,8 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	k8sFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 )
 
 // HasStatus checks if the give SpaceRequest is in a given status.
@@ -87,4 +90,37 @@ func HasANumberOfMatchingDTs(num int) matcher.GomegaMatcher {
 
 		return true
 	}, BeTrue())
+}
+
+func UpdateStatusWithFunction(spaceRequest *codereadytoolchainv1alpha1.SpaceRequest,
+	mutationFn func(spaceRequestParam *codereadytoolchainv1alpha1.SpaceRequestStatus)) error {
+
+	GinkgoWriter.Printf("Updating SpaceRequest for '%v'\n", spaceRequest.ObjectMeta)
+	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+	Expect(err).To(BeNil())
+
+	k8sClient, err := fixture.GetKubeClient(config)
+	if err != nil {
+		fmt.Println(k8sFixture.K8sClientError, err)
+		return err
+	}
+
+	return k8sFixture.UntilSuccess(k8sClient, func(k8sClient client.Client) error {
+
+		// Retrieve the latest version of the SnapshotEnvironmentBinding resource
+		err := k8sFixture.Get(spaceRequest, k8sClient)
+		if err != nil {
+			return err
+		}
+
+		// Call the mutation function, to set the status
+		mutationFn(&spaceRequest.Status)
+
+		// Attempt to update the object with the change made by the mutation function
+		err = k8sFixture.UpdateStatus(spaceRequest, k8sClient)
+
+		// Report back the error, if we hit one
+		return err
+	})
+
 }

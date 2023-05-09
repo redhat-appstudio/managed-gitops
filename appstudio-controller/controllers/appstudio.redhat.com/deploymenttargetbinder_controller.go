@@ -95,17 +95,17 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 			}
 
 			if dt != nil {
-				var dtcls *applicationv1alpha1.DeploymentTargetClass
-				if dtcls, err = findMatchingDTClassForDT(ctx, r.Client, *dt); err != nil {
+				var dtcls applicationv1alpha1.DeploymentTargetClass
+				if dtcls, err = findMatchingDTClassForDT(ctx, *dt, r.Client); err != nil {
 					return ctrl.Result{}, err
 				}
 
-				if dtcls == nil {
+				if dtcls.Name == "" {
 					log.Error(nil, "unable to locate DeploymentTargetClass matching deploymentTargetClassName", "className", dt.Spec.DeploymentTargetClassName)
 					return ctrl.Result{}, nil
 				}
 
-				// Add the deletion finalizer if it is absent.
+				// Add the deletion finalizer to the DT if it is absent.
 				if addFinalizer(dt, FinalizerDT) {
 					if err = r.Client.Update(ctx, dt); err != nil {
 						return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s to DeploymentTarget %s in namespace %s: %v", FinalizerDT, dt.Name, dt.Namespace, err)
@@ -121,6 +121,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 					}
 					log.Info("DeploymentTarget is marked to Deleted", "DeploymentTarget", dt.Name)
 					return ctrl.Result{}, nil
+
 				} else if dtcls.Spec.ReclaimPolicy == applicationv1alpha1.ReclaimPolicy_Retain {
 					log.Info("ReclaimPolicy is ReclaimPolicy_Retain")
 					if removeFinalizer(&dtc, applicationv1alpha1.FinalizerBinder) {
@@ -135,7 +136,8 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 						return ctrl.Result{}, nil
 					}
 				} else {
-					return ctrl.Result{}, fmt.Errorf("the ReclaimPolicy is neither Delete nor Retain")
+					log.Error(nil, "the ReclaimPolicy is neither Delete nor Retain")
+					return ctrl.Result{}, nil
 				}
 				return ctrl.Result{}, nil
 			}

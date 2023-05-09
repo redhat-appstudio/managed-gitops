@@ -3,13 +3,13 @@ package deploymenttargetclaim
 import (
 	"context"
 	"fmt"
+
 	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 
 	. "github.com/onsi/gomega"
 	matcher "github.com/onsi/gomega/types"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
-	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	k8sFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -33,7 +33,7 @@ func HasStatusPhase(phase appstudiosharedv1.DeploymentTargetClaimPhase) matcher.
 		}
 
 		if dtc.Status.Phase != phase {
-			fmt.Printf("Phase mismatch for DTC %s: Expected: %s Actual %s\n", dtc.Name, phase, dtc.Status.Phase)
+			fmt.Printf("Phase mismatch for DTC %s: Expected: %s, Actual: %s\n", dtc.Name, phase, dtc.Status.Phase)
 			return false
 		}
 
@@ -49,13 +49,13 @@ func HasAnnotation(key, value string) matcher.GomegaMatcher {
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
-			fmt.Println(k8s.K8sClientError, err)
+			fmt.Println(k8sFixture.K8sClientError, err)
 			return false
 		}
 
 		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&dtc), &dtc)
 		if err != nil {
-			fmt.Println(k8s.K8sClientError, err)
+			fmt.Println(k8sFixture.K8sClientError, err)
 			return false
 		}
 
@@ -88,13 +88,13 @@ func HasANumberOfMatchingSpaceRequests(num int) matcher.GomegaMatcher {
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
-			fmt.Println(k8s.K8sClientError, err)
+			fmt.Println(k8sFixture.K8sClientError, err)
 			return false
 		}
 
 		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&dtc), &dtc)
 		if err != nil {
-			fmt.Println(k8s.K8sClientError, err)
+			fmt.Println(k8sFixture.K8sClientError, err)
 			return false
 		}
 
@@ -108,7 +108,7 @@ func HasANumberOfMatchingSpaceRequests(num int) matcher.GomegaMatcher {
 
 		err = k8sClient.List(context.Background(), &spaceRequestList, opts...)
 		if err != nil {
-			fmt.Println(k8s.K8sClientError, err)
+			fmt.Println(k8sFixture.K8sClientError, err)
 			return false
 		}
 

@@ -50,7 +50,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 			By("Step 0 - creating a DeploymentTargetClass based on devsandbox provisoner")
 			dtclass := &appstudiosharedv1.DeploymentTargetClass{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "isolation-level-namespace",
+					Name: "test-isolation-level-namespace",
 				},
 				Spec: appstudiosharedv1.DeploymentTargetClassSpec{
 					Provisioner:   appstudiosharedv1.Provisioner_Devsandbox,

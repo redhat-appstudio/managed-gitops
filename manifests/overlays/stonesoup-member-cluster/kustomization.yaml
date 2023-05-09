@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
 - ../../base/crd/overlays/stonesoup
 - ../../base/gitops-namespace
+- ../../base/cluster-scoped
 - ../../../appstudio-controller/config/default-no-prometheus
 - ../../../backend/config/default-no-prometheus
 - ../../../cluster-agent/config/default-no-prometheus

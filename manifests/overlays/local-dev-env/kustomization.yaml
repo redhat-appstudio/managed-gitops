@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
 - ../../base/crd/overlays/local-dev
 - ../../base/gitops-namespace
+- ../../base/cluster-scoped
 # - ../../base/gitops-service-argocd
 
 # Uncomment to use a custom image:

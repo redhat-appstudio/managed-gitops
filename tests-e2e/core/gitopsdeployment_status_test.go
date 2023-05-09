@@ -18,12 +18,13 @@ import (
 )
 
 var _ = Describe("GitOpsDeployment Status Tests", func() {
+
 	Context("Status field of GitOpsDeployment is updated accurately", func() {
 		It("GitOpsDeployment .status.resources field is populated with the right resources", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("create a new GitOpsDeployment resource")
-			gitOpsDeploymentResource := BuildGitOpsDeploymentResource("gitops-depl-test-status",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("gitops-depl-test-status",
 				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
@@ -101,6 +102,14 @@ var _ = Describe("GitOpsDeployment Status Tests", func() {
 })
 
 var _ = Describe("GitOpsDeployment Status.Conditions tests", func() {
+
+	const (
+		// ArgoCDReconcileWaitTime is the length of time to watch for Argo CD/GitOps Service to deploy the resources
+		// of an Application (e.g. to reconcile the Application resource)
+		// We set this to be at least twice the default reconciliation time (3 minutes) to avoid a race condition in updating ConfigMaps
+		// in Argo CD. This is an imperfect solution.
+		ArgoCDReconcileWaitTime = "7m"
+	)
 
 	Context("Errors are set properly in Status.Conditions field of GitOpsDeployment", func() {
 

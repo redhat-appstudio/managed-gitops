@@ -1,4 +1,4 @@
-package rhtap
+package appstudio
 
 import (
 	"context"

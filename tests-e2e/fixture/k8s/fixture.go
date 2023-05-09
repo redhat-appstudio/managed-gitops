@@ -6,6 +6,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 
@@ -232,4 +233,86 @@ func createServiceAccountTokenSecret(ctx context.Context, k8sClient client.Clien
 	}
 
 	return tokenSecret, nil
+}
+
+const (
+	ArgoCDManagerClusterRoleNamePrefix        = "argocd-manager-cluster-role-"
+	ArgoCDManagerClusterRoleBindingNamePrefix = "argocd-manager-cluster-role-binding-"
+)
+
+var (
+	ArgoCDManagerNamespacePolicyRules = []rbacv1.PolicyRule{
+		{
+			APIGroups: []string{"*"},
+			Resources: []string{"*"},
+			Verbs:     []string{"*"},
+		},
+	}
+)
+
+func CreateOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k8sClient client.Client,
+	serviceAccountName string, serviceAccountNamespace string, policyRules []rbacv1.PolicyRule) error {
+
+	clusterRole := &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: ArgoCDManagerClusterRoleNamePrefix + uuid,
+		},
+	}
+	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(clusterRole), clusterRole); err != nil {
+
+		clusterRole.Rules = policyRules
+		if err := k8sClient.Create(ctx, clusterRole); err != nil {
+			return fmt.Errorf("unable to create clusterrole: %w", err)
+		}
+	}
+
+	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: ArgoCDManagerClusterRoleBindingNamePrefix + uuid,
+		},
+	}
+
+	clusterRoleBinding.RoleRef = rbacv1.RoleRef{
+		APIGroup: "rbac.authorization.k8s.io",
+		Kind:     "ClusterRole",
+		Name:     clusterRole.Name,
+	}
+
+	clusterRoleBinding.Subjects = []rbacv1.Subject{{
+		Kind:      rbacv1.ServiceAccountKind,
+		Name:      serviceAccountName,
+		Namespace: serviceAccountNamespace,
+	}}
+
+	if err := k8sClient.Create(ctx, clusterRoleBinding); err != nil {
+		return fmt.Errorf("unable to create clusterrole: %w", err)
+	}
+
+	return nil
+}
+
+func GenerateKubeConfig(serverURL string, currentNamespace string, token string) string {
+
+	return `
+apiVersion: v1
+kind: Config
+clusters:
+  - cluster:
+      insecure-skip-tls-verify: true
+      server: ` + serverURL + `
+    name: cluster-name
+contexts:
+  - context:
+      cluster: cluster-name
+      namespace: ` + currentNamespace + `
+      user: user-name
+    name: context-name
+current-context: context-name
+preferences: {}
+users:
+  - name: user-name
+    user:
+      token: ` + token + `
+`
+
 }

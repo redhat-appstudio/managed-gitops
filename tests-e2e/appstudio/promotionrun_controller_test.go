@@ -1,4 +1,4 @@
-package rhtap
+package appstudio
 
 import (
 	"context"
@@ -55,7 +55,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			Expect(err).To(Succeed())
 
 			// Now create the cluster role and cluster role binding
-			err = createOrUpdateClusterRoleAndRoleBinding(context.Background(), "123", k8sClient, serviceAccountName, serviceAccount.Namespace, ArgoCDManagerNamespacePolicyRules)
+			err = k8s.CreateOrUpdateClusterRoleAndRoleBinding(context.Background(), "123", k8sClient, serviceAccountName, serviceAccount.Namespace, k8s.ArgoCDManagerNamespacePolicyRules)
 			Expect(err).To(BeNil())
 
 			// Create the bearer token for the service account
@@ -67,7 +67,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			Expect(err).To(BeNil())
 
 			// We actually need a managed environment secret containing a kubeconfig that has the bearer token
-			kubeConfigContents := generateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, tokenSecret)
+			kubeConfigContents := k8s.GenerateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, tokenSecret)
 			secret := corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-managed-env-secret",
@@ -175,7 +175,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			Expect(err).To(Succeed())
 
 			By("Create PromotionRun CR.")
-			promotionRun = BuildPromotionRunResource("new-demo-app-manual-promotion", "new-demo-app", "my-snapshot", "prod")
+			promotionRun = promotionRunFixture.BuildPromotionRunResource("new-demo-app-manual-promotion", "new-demo-app", "my-snapshot", "prod")
 		})
 
 		It("Should create GitOpsDeployments and it should be Synced/Healthy.", func() {

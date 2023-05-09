@@ -56,7 +56,8 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 		})
 
 		Context("Test the lifecycle of a DeploymentTargetClaim", func() {
-			It("should handle the deletion of a bounded DeploymentTargetClaim", func() {
+
+			It("should handle the deletion of a bounded DeploymentTargetClaim with class of Retain", func() {
 				dt := getDeploymentTarget()
 				err := k8sClient.Create(ctx, &dt)
 				Expect(err).To(BeNil())
@@ -73,7 +74,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				err = k8sClient.Create(ctx, &dtc)
 				Expect(err).To(BeNil())
 
-				dtcls := getDeploymentTargetClass(func(dtcls *appstudiosharedv1.DeploymentTargetClass) {})
+				dtcls := generateDeploymentTargetClass()
 				err = k8sClient.Create(ctx, &dtcls)
 				Expect(err).To(BeNil())
 
@@ -121,7 +122,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				Expect(dt.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetPhase_Released))
 			})
 
-			It("should handle the deletion of a bounded DeploymentTargetClaim", func() {
+			It("should handle the deletion of a bounded DeploymentTargetClaim with class of Delete", func() {
 				dt := getDeploymentTarget()
 				err := k8sClient.Create(ctx, &dt)
 				Expect(err).To(BeNil())
@@ -138,7 +139,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				err = k8sClient.Create(ctx, &dtc)
 				Expect(err).To(BeNil())
 
-				dtcls := getDeploymentTargetClass(func(dtcls *appstudiosharedv1.DeploymentTargetClass) {
+				dtcls := generateDeploymentTargetClass(func(dtcls *appstudiosharedv1.DeploymentTargetClass) {
 					dtcls.Spec.ReclaimPolicy = "Delete"
 				})
 				err = k8sClient.Create(ctx, &dtcls)
@@ -214,7 +215,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				err = k8sClient.Create(ctx, &dtc)
 				Expect(err).To(BeNil())
 
-				dtcls := getDeploymentTargetClass(func(dtcls *appstudiosharedv1.DeploymentTargetClass) {
+				dtcls := generateDeploymentTargetClass(func(dtcls *appstudiosharedv1.DeploymentTargetClass) {
 					dtcls.Spec.ReclaimPolicy = "Retain"
 				})
 				err = k8sClient.Create(ctx, &dtcls)
@@ -1200,11 +1201,10 @@ func getDeploymentTarget(ops ...func(dt *appstudiosharedv1.DeploymentTarget)) ap
 	return dt
 }
 
-func getDeploymentTargetClass(ops ...func(dtc *appstudiosharedv1.DeploymentTargetClass)) appstudiosharedv1.DeploymentTargetClass {
+func generateDeploymentTargetClass(ops ...func(dtc *appstudiosharedv1.DeploymentTargetClass)) appstudiosharedv1.DeploymentTargetClass {
 	dtcls := appstudiosharedv1.DeploymentTargetClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "test-sandbox-class",
-			Namespace:   "test-ns",
 			Annotations: map[string]string{},
 		},
 		Spec: appstudiosharedv1.DeploymentTargetClassSpec{

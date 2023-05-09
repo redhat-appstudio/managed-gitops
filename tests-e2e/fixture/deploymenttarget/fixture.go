@@ -20,18 +20,18 @@ func HasStatusPhase(phase appstudiosharedv1.DeploymentTargetPhase) matcher.Gomeg
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
+			fmt.Println("HasStatusPhase:", k8sFixture.K8sClientError, err)
 			return false
 		}
 
 		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&dt), &dt)
 		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
+			fmt.Println("HasStatusPhase:", k8sFixture.K8sClientError, err)
 			return false
 		}
 
 		if dt.Status.Phase != phase {
-			fmt.Printf("Phase mismatch for DT %s: Expected: %s Actual %s\n", dt.Name, phase, dt.Status.Phase)
+			fmt.Printf("Phase mismatch for DT %s: Expected: %s, Actual: %s\n", dt.Name, phase, dt.Status.Phase)
 			return false
 		}
 

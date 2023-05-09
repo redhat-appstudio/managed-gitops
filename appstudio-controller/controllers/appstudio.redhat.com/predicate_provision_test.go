@@ -60,7 +60,7 @@ var _ = Describe("Test Predicates", func() {
 
 		})
 		Context("Test SpaceRequestReadyPredicate predicate", func() {
-			instance := SpaceRequestReadyPredicate()
+			instance := spaceRequestReadyPredicate()
 
 			It("should ignore when creating a SpaceRequest", func() {
 				spacerequest.Status.Conditions[0].Status = corev1.ConditionTrue
@@ -85,25 +85,25 @@ var _ = Describe("Test Predicates", func() {
 			})
 
 			It("should ignore when the NamespaceAccess Not setted", func() {
-				Expect(IsSpaceRequestReady(spacerequestnew)).To(BeFalse())
+				Expect(doesSpaceRequestHaveReadyTrue(spacerequestnew)).To(BeFalse())
 				spacerequestnew.Status.Conditions[0].Status = corev1.ConditionTrue
 				namespaceaccess := []codereadytoolchainv1alpha1.NamespaceAccess{}
 				spacerequestnew.Status.NamespaceAccess = namespaceaccess
-				Expect(IsSpaceRequestReady(spacerequestnew)).To(BeTrue())
+				Expect(doesSpaceRequestHaveReadyTrue(spacerequestnew)).To(BeTrue())
 				contextEvent := event.UpdateEvent{
 					ObjectOld: spacerequest,
 					ObjectNew: spacerequestnew,
 				}
-				Expect(hasSpaceRequestChangedToReady(spacerequest, spacerequestnew)).To(BeFalse())
+				Expect(predicateIsReadySpaceRequest(spacerequest, spacerequestnew)).To(BeFalse())
 				Expect(instance.Update(contextEvent)).To(BeFalse())
 			})
 
 			It("should pick up on the SpaceRequest into Ready Status", func() {
 				spacerequestnew.Status.Conditions[0].Status = corev1.ConditionTrue
-				Expect(IsSpaceRequestReady(spacerequestnew)).To(BeTrue())
+				Expect(doesSpaceRequestHaveReadyTrue(spacerequestnew)).To(BeTrue())
 				spacerequestnew.Status.NamespaceAccess[0].Name = "test-ns"
 				spacerequestnew.Status.NamespaceAccess[0].SecretRef = "test-secret"
-				Expect(hasSpaceRequestChangedToReady(spacerequest, spacerequestnew)).To(BeTrue())
+				Expect(predicateIsReadySpaceRequest(spacerequest, spacerequestnew)).To(BeTrue())
 				contextEvent := event.UpdateEvent{
 					ObjectOld: spacerequest,
 					ObjectNew: spacerequestnew,

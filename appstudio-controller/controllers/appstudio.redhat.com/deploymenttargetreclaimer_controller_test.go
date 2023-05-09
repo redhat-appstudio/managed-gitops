@@ -58,17 +58,24 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 		Context("Test the reclaim of a DeploymentTarget", func() {
 
 			It("Failed to delete SpaceRequest and DeploymentTarget", func() {
-				dt := getReclaimDeploymentTarget(func(dt *appstudiosharedv1.DeploymentTarget) {
-				})
 
-				err := k8sClient.Create(ctx, &dt)
+				By("creating a default DeploymentTargetClass")
+				dtcls := generateDeploymentTargetClass(func(dtc *appstudiosharedv1.DeploymentTargetClass) {
+					dtc.Spec.ReclaimPolicy = appstudiosharedv1.ReclaimPolicy_Delete
+				})
+				err := k8sClient.Create(ctx, &dtcls)
 				Expect(err).To(BeNil())
 
-				sr := getReclaimSpaceRequest(func(sr *codereadytoolchainv1alpha1.SpaceRequest) {
+				By("creating a default DeploymentTarget")
+				dt := generateReclaimDeploymentTarget()
+				err = k8sClient.Create(ctx, &dt)
+				Expect(err).To(BeNil())
+
+				By("creating a SpaceRequest")
+				sr := generateReclaimSpaceRequest(func(sr *codereadytoolchainv1alpha1.SpaceRequest) {
 					sr.Spec.TierName = "appstudio-env"
 					sr.Status.Conditions[0].Status = corev1.ConditionFalse
 				})
-
 				err = k8sClient.Create(ctx, &sr)
 				Expect(err).To(BeNil())
 
@@ -78,9 +85,9 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 				Expect(err).To(BeNil())
 				Expect(res).To(Equal(ctrl.Result{}))
 
+				By("check if the DT has set the finalizer")
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
 				Expect(err).To(BeNil())
-				By("check if the DT has set the finalizer")
 				finalizerFound := false
 				for _, f := range dt.GetFinalizers() {
 					if f == FinalizerDT {
@@ -90,16 +97,23 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 				}
 				Expect(finalizerFound).To(BeTrue())
 
+				By("deleting the DT")
 				err = k8sClient.Delete(ctx, &dt)
 				Expect(err).To(BeNil())
 
 				res, err = reconciler.Reconcile(ctx, request)
 				Expect(err).To(BeNil())
-				Expect(res).To(Equal(ctrl.Result{}))
+				Expect(res).To(Equal(ctrl.Result{Requeue: true}), "should requeue after deleting the SpaceRequest")
+
+				res, err = reconciler.Reconcile(ctx, request)
+				Expect(err).To(BeNil())
+				Expect(res).To(Equal(ctrl.Result{RequeueAfter: 30 * time.Second}),
+					"should requeue because the SpaceRequest hasn't been cleaned up yet")
 
 				err = k8sClient.Delete(ctx, &sr)
 				Expect(err).To(BeNil())
 
+				// TODO: GITOPSRVCE-576 - Replace this with mocked time
 				time.Sleep(2 * time.Minute)
 
 				res, err = reconciler.Reconcile(ctx, request)
@@ -117,7 +131,7 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 	})
 })
 
-func getReclaimSpaceRequest(ops ...func(spacerequest *codereadytoolchainv1alpha1.SpaceRequest)) codereadytoolchainv1alpha1.SpaceRequest {
+func generateReclaimSpaceRequest(ops ...func(spacerequest *codereadytoolchainv1alpha1.SpaceRequest)) codereadytoolchainv1alpha1.SpaceRequest {
 	spacerequest := codereadytoolchainv1alpha1.SpaceRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-spacerequest",
@@ -154,7 +168,7 @@ func getReclaimSpaceRequest(ops ...func(spacerequest *codereadytoolchainv1alpha1
 	return spacerequest
 }
 
-func getReclaimDeploymentTarget(ops ...func(dt *appstudiosharedv1.DeploymentTarget)) appstudiosharedv1.DeploymentTarget {
+func generateReclaimDeploymentTarget(ops ...func(dt *appstudiosharedv1.DeploymentTarget)) appstudiosharedv1.DeploymentTarget {
 	dt := appstudiosharedv1.DeploymentTarget{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "test-dt",

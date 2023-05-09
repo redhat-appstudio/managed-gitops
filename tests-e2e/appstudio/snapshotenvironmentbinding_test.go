@@ -420,9 +420,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			By("Ensuring both GitOps Deployments exist")
 			gitOpsDeployment := buildGitOpsDeploymentObjectMeta(gitOpsDeploymentName0, binding.Namespace)
-			Eventually(gitOpsDeployment, "2m", "1s").Should(gitopsDeplFixture.Exist())
+			Eventually(&gitOpsDeployment, "2m", "1s").Should(k8s.ExistByName(k8sClient))
 			gitOpsDeployment = buildGitOpsDeploymentObjectMeta(gitOpsDeploymentName1, binding.Namespace)
-			Eventually(gitOpsDeployment, "2m", "1s").Should(gitopsDeplFixture.Exist())
+			Eventually(&gitOpsDeployment, "2m", "1s").Should(k8s.ExistByName(k8sClient))
 
 			By("Removing the first component")
 			err = buildAndUpdateBindingStatus(binding.Spec.Components[1:],
@@ -432,11 +432,11 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			By("Ensuring the first GitOps Deployment has been deleted")
 			gitOpsDeployment = buildGitOpsDeploymentObjectMeta(gitOpsDeploymentName0, binding.Namespace)
-			Eventually(gitOpsDeployment, "2m", "1s").ShouldNot(gitopsDeplFixture.Exist())
+			Eventually(&gitOpsDeployment, "2m", "1s").ShouldNot(k8s.ExistByName(k8sClient))
 
 			By("Ensuring the second GitOps Deployment still exists")
 			gitOpsDeployment = buildGitOpsDeploymentObjectMeta(gitOpsDeploymentName1, binding.Namespace)
-			Consistently(gitOpsDeployment, "30s", "5s").Should(gitopsDeplFixture.Exist())
+			Consistently(&gitOpsDeployment, "30s", "5s").Should(k8s.ExistByName(k8sClient))
 
 			By("Removing the remaining component")
 			err = buildAndUpdateBindingStatus(nil, "", "", "", []string{""}, &binding)
@@ -444,11 +444,11 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			By("Ensuring the first GitOps Deployment is still deleted")
 			gitOpsDeployment = buildGitOpsDeploymentObjectMeta(gitOpsDeploymentName0, binding.Namespace)
-			Eventually(gitOpsDeployment, "1m", "1s").ShouldNot(gitopsDeplFixture.Exist())
+			Eventually(&gitOpsDeployment, "1m", "1s").ShouldNot(k8s.ExistByName(k8sClient))
 
 			By("Ensuring the second GitOps Deployment has been deleted")
 			gitOpsDeployment = buildGitOpsDeploymentObjectMeta(gitOpsDeploymentName1, binding.Namespace)
-			Eventually(gitOpsDeployment, "1m", "1s").ShouldNot(gitopsDeplFixture.Exist())
+			Eventually(&gitOpsDeployment, "1m", "1s").ShouldNot(k8s.ExistByName(k8sClient))
 		})
 
 		// This test is to verify the scenario when a user creates an SnapshotEnvironmentBinding CR in Cluster but GitOpsDeployment CR default name is too long.

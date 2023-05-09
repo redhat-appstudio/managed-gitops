@@ -685,7 +685,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.Get(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(BeNil())
 
-			Eventually(gitOpsDeploymentResource, "60s", "1s").Should(k8s.HasNonNilDeletionTimestamp(k8sClient))
+			Eventually(&gitOpsDeploymentResource, "60s", "1s").Should(k8s.HasNonNilDeletionTimestamp(k8sClient))
 
 			// check if the GitOps Service has not removed the finalizer before the dependent resources are deleted.
 			Consistently(&gitOpsDeploymentResource, "30s", "1s").Should(k8s.ExistByName(k8sClient))

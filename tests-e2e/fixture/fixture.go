@@ -295,6 +295,11 @@ func cleanUpOldDeploymentTargetClaimAPIs(ns string, k8sClient client.Client) err
 
 	for i := range dtcList.Items {
 		dtc := dtcList.Items[i]
+
+		if err := k8sClient.Delete(context.Background(), &dtc); err != nil {
+			return err
+		}
+
 		// Make sure that all finalizers are removed before deletion.
 		if err := removeAllFinalizers(k8sClient, &dtc); err != nil {
 			return err
@@ -316,6 +321,11 @@ func cleanUpOldDeploymentTargetAPIs(ns string, k8sClient client.Client) error {
 
 	for i := range dtList.Items {
 		dt := dtList.Items[i]
+
+		if err := k8sClient.Delete(context.Background(), &dt); err != nil {
+			return err
+		}
+
 		// Make sure that all finalizers are removed before deletion.
 		if err := removeAllFinalizers(k8sClient, &dt); err != nil {
 			return err
@@ -337,6 +347,11 @@ func cleanUpOldDeploymentTargetClassAPIs(ns string, k8sClient client.Client) err
 
 	for i := range dtclsList.Items {
 		dtcls := dtclsList.Items[i]
+
+		if err := k8sClient.Delete(context.Background(), &dtcls); err != nil {
+			return err
+		}
+
 		// Make sure that all finalizers are removed before deletion.
 		if err := removeAllFinalizers(k8sClient, &dtcls); err != nil {
 			return err
@@ -358,6 +373,11 @@ func cleanUpOldSpaceRequestAPIs(ns string, k8sClient client.Client) error {
 
 	for i := range spaceRequestList.Items {
 		spaceRequest := spaceRequestList.Items[i]
+
+		if err := k8sClient.Delete(context.Background(), &spaceRequest); err != nil {
+			return err
+		}
+
 		// Make sure that all finalizers are removed before deletion.
 		if err := removeAllFinalizers(k8sClient, &spaceRequest); err != nil {
 			return err

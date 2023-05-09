@@ -536,7 +536,7 @@ func createNewManagedEnv(ctx context.Context, managedEnvironment managedgitopsv1
 	clusterCredentials, connInitCondition, err := createNewClusterCredentials(ctx, managedEnvironment, secret, k8sClientFactory, dbQueries, log, workspaceClient)
 	if err != nil {
 		return nil, connInitCondition,
-			fmt.Errorf("unable to create new cluster credentials for managed env, while creating new managed env: %v", err)
+			fmt.Errorf("unable to create new cluster credentials for managed env, while creating new managed env: %w", err)
 	}
 
 	managedEnv := &db.ManagedEnvironment{
@@ -830,7 +830,7 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 		}
 
 		if val.Token == "" {
-			msg := "unable to extract service account token for context " + matchingContextName
+			msg := fmt.Sprintf("kubeconfig must have a service account token for the user in context \"%s\". client-certificate is not supported at this time.", matchingContextName)
 			return db.ClusterCredentials{}, connectionInitializedCondition{
 				managedEnvCR: managedEnvironment,
 				status:       metav1.ConditionFalse,

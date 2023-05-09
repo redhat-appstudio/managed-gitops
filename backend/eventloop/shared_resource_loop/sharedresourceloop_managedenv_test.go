@@ -2,6 +2,7 @@ package shared_resource_loop
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -728,6 +729,56 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 
 		})
 
+		It("should produce a useful error message if the user in the kubeconfig doesn't have a token", func() {
+			By("creating ManagedEnvironment/Secret, without creating a new ServiceAccount")
+
+			kubeConfigContents := generateFakeKubeConfigWithoutToken()
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env-secret",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Type: sharedutil.ManagedEnvironmentSecretType,
+				Data: map[string][]byte{
+					KubeconfigKey: ([]byte)(kubeConfigContents),
+				},
+			}
+			managedEnv := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+					APIURL:                   "https://api.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443",
+					ClusterCredentialsSecret: secret.Name,
+					CreateNewServiceAccount:  false,
+				},
+			}
+
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, managedEnv)
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Create(ctx, secret)
+			Expect(err).To(BeNil())
+
+			By("calling reconcileSharedManagedEnv, which should produce the error")
+
+			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(src.ManagedEnv).To(BeNil())
+			Expect(err).To(Not(BeNil()))
+			// Find the root error
+			for tmp := err; tmp != nil; tmp = errors.Unwrap(tmp) {
+				err = tmp
+			}
+			Expect(err.Error()).To(HavePrefix("kubeconfig must have a service account token for the user in context"))
+			Expect(err.Error()).To(HaveSuffix("client-certificate is not supported at this time."))
+		})
+
 		DescribeTable("Tests whether the tlsConfig value from managedEnv gets mapped correctly into the database",
 			func(tlsVerifyStatus bool) {
 				managedEnv, secret := buildManagedEnvironmentForSRL()
@@ -965,4 +1016,31 @@ users:
     user:
       token: sha256~abcDef1gHIjkLmNOp-q19QRtUV1_w9x2yzabcdEFgh4
 `
+}
+
+func generateFakeKubeConfigWithoutToken() string {
+	// This config has been sanitized of any real credentials.
+	return `
+apiVersion: v1
+kind: Config
+clusters:
+  - cluster:
+      insecure-skip-tls-verify: true
+      server: https://api.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443
+    name: api-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+contexts:
+  - context:
+      cluster: api-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+      namespace: jgw
+      user: kube:admin/api-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+    name: default/api-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin
+current-context: default/api-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin
+preferences: {}
+users:
+  - name: kube:admin/api-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+    user:
+      client-certificate-data: Rk9PCg==
+      client-key-data: QkFSCg==
+`
+
 }

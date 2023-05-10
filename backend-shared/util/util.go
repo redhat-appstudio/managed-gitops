@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -16,6 +18,8 @@ import (
 const (
 	// ArgoCDDefaultDestinationInCluster is 'in-cluster' which is the spec destination value that Argo CD recognizes
 	ArgoCDDefaultDestinationInCluster = "in-cluster"
+
+	SelfHealIntervalEnVar = "SELF_HEAL_INTERVAL" // Interval in minutes between self-healing runs
 )
 
 // #nosec G101
@@ -155,4 +159,18 @@ func GetRESTConfig() (*rest.Config, error) {
 	res.QPS = 100
 	res.Burst = 250
 	return res, nil
+}
+
+func SelfHealInterval(defaultValue time.Duration, logger logr.Logger) time.Duration {
+	interval := os.Getenv(SelfHealIntervalEnVar)
+	if interval == "" {
+		return defaultValue
+	}
+	value, err := strconv.Atoi(interval)
+	if err != nil {
+		msg := fmt.Sprintf("value of env var %s can't be converted to int", SelfHealIntervalEnVar)
+		logger.Error(err, msg)
+		return defaultValue
+	}
+	return time.Duration(value) * time.Minute
 }

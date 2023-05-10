@@ -24,10 +24,10 @@ import (
 )
 
 const (
-	rowBatchSize               = 100              // Number of rows needs to be fetched in each batch.
-	databaseReconcilerInterval = 30 * time.Minute // Interval in Minutes to reconcile Database.
-	sleepIntervalsOfBatches    = 1 * time.Second  // Interval in Millisecond between each batch.
-	waitTimeforRowDelete       = 1 * time.Hour    // Number of hours to wait before deleting DB row
+	rowBatchSize                      = 100              // Number of rows needs to be fetched in each batch.
+	defaultDatabaseReconcilerInterval = 30 * time.Minute // Interval in Minutes to reconcile Database.
+	sleepIntervalsOfBatches           = 1 * time.Second  // Interval in Millisecond between each batch.
+	waitTimeforRowDelete              = 1 * time.Hour    // Number of hours to wait before deleting DB row
 )
 
 // A 'dangling' DB entry (for lack of a better term) is a row in the database that points to a K8s resource that no longer exists
@@ -51,19 +51,24 @@ type DatabaseReconciler struct {
 
 // This function iterates through each entry of DTAM and ACTDM tables in DB and ensures that the required CRs is present in cluster.
 func (r *DatabaseReconciler) StartDatabaseReconciler() {
-	r.startTimerForNextCycle()
+	ctx := context.Background()
+	log := log.FromContext(ctx).
+		WithName(logutil.LogLogger_managed_gitops).
+		WithValues("component", "database-reconciler")
+	databaseReconcilerInterval := sharedutil.SelfHealInterval(defaultDatabaseReconcilerInterval, log)
+	if databaseReconcilerInterval > 0 {
+		r.startTimerForNextCycle(ctx, databaseReconcilerInterval, log)
+		log.Info(fmt.Sprintf("Database reconciliation has been scheduled every %s", databaseReconcilerInterval.String()))
+	} else {
+		log.Info("Database reconciliation has been disabled")
+	}
 }
 
-func (r *DatabaseReconciler) startTimerForNextCycle() {
+func (r *DatabaseReconciler) startTimerForNextCycle(ctx context.Context, databaseReconcilerInterval time.Duration, log logr.Logger) {
 	go func() {
 		// Timer to trigger Reconciler
-		timer := time.NewTimer(time.Duration(databaseReconcilerInterval))
+		timer := time.NewTimer(databaseReconcilerInterval)
 		<-timer.C
-
-		ctx := context.Background()
-		log := log.FromContext(ctx).
-			WithName(logutil.LogLogger_managed_gitops).
-			WithValues("component", "database-reconciler")
 
 		_, _ = sharedutil.CatchPanic(func() error {
 
@@ -87,7 +92,7 @@ func (r *DatabaseReconciler) startTimerForNextCycle() {
 
 		// Kick off the timer again, once the old task runs.
 		// This ensures that at least 'databaseReconcilerInterval' time elapses from the end of one run to the beginning of another.
-		r.startTimerForNextCycle()
+		r.startTimerForNextCycle(ctx, databaseReconcilerInterval, log)
 	}()
 
 }

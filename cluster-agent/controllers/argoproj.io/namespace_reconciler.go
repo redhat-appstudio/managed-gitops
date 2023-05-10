@@ -27,29 +27,34 @@ import (
 )
 
 const (
-	appRowBatchSize              = 50               // Number of rows needs to be fetched in each batch.
-	namespaceReconcilerInterval  = 30 * time.Minute // Interval in Minutes to reconcile workspace/namespace.
-	sleepIntervalsOfBatches      = 1 * time.Second  // Interval in Millisecond between each batch.
-	SecretDbIdentifierKey        = "databaseID"     //Secret label key to point DB entry.
-	waitTimeforRowDelete         = 1 * time.Hour    // Number of hours to wait before deleting DB row
-	waitTimeForK8sResourceDelete = 1 * time.Hour    // Number of hours to wait before deleting k8s resource
+	appRowBatchSize                    = 50               // Number of rows needs to be fetched in each batch.
+	defaultNamespaceReconcilerInterval = 30 * time.Minute // Interval in Minutes to reconcile workspace/namespace.
+	sleepIntervalsOfBatches            = 1 * time.Second  // Interval in Millisecond between each batch.
+	SecretDbIdentifierKey              = "databaseID"     //Secret label key to point DB entry.
+	waitTimeforRowDelete               = 1 * time.Hour    // Number of hours to wait before deleting DB row
+	waitTimeForK8sResourceDelete       = 1 * time.Hour    // Number of hours to wait before deleting k8s resource
 
 )
 
 // This function iterates through each Workspace/Namespace present in DB and ensures that the state of resources in Cluster is in Sync with DB.
 func (r *ApplicationReconciler) StartNamespaceReconciler() {
-	r.startTimerForNextCycle()
+	ctx := context.Background()
+	log := log.FromContext(ctx).
+		WithName(logutil.LogLogger_managed_gitops)
+	namespaceReconcilerInterval := sharedutil.SelfHealInterval(defaultNamespaceReconcilerInterval, log)
+	if namespaceReconcilerInterval > 0 {
+		r.startTimerForNextCycle(ctx, namespaceReconcilerInterval, log)
+		log.Info(fmt.Sprintf("Namespace reconciliation has been scheduled every %s", namespaceReconcilerInterval.String()))
+	} else {
+		log.Info("Namespace reconciliation has been disabled")
+	}
 }
 
-func (r *ApplicationReconciler) startTimerForNextCycle() {
+func (r *ApplicationReconciler) startTimerForNextCycle(ctx context.Context, namespaceReconcilerInterval time.Duration, log logr.Logger) {
 	go func() {
 		// Timer to trigger Reconciler
-		timer := time.NewTimer(time.Duration(namespaceReconcilerInterval))
+		timer := time.NewTimer(namespaceReconcilerInterval)
 		<-timer.C
-
-		ctx := context.Background()
-		log := log.FromContext(ctx).
-			WithName(logutil.LogLogger_managed_gitops)
 
 		_, _ = sharedutil.CatchPanic(func() error {
 
@@ -61,13 +66,15 @@ func (r *ApplicationReconciler) startTimerForNextCycle() {
 
 			// Clean orphaned and purposeless Operation CRs from Cluster.
 			cleanOrphanedCRsfromCluster_Operation(ctx, r.DB, r.Client, log)
+			log.Info(fmt.Sprintf("Namespace Reconciler finished an iteration at %s. "+
+				"Next iteration will be triggered after %v Minutes", time.Now().String(), namespaceReconcilerInterval))
 
 			return nil
 		})
 
 		// Kick off the timer again, once the old task runs.
 		// This ensures that at least 'namespaceReconcilerInterval' time elapses from the end of one run to the beginning of another.
-		r.startTimerForNextCycle()
+		r.startTimerForNextCycle(ctx, namespaceReconcilerInterval, log)
 	}()
 
 }
@@ -229,9 +236,6 @@ func syncCRsWithDB_Applications(ctx context.Context, dbQueries db.DatabaseQuerie
 
 	// Start a goroutine, because DeleteArgoCDApplication() function from cluster-agent/controllers may take some time to delete application.
 	go cleanOrphanedCRsfromCluster_Applications(argoApplications, processedApplicationIds, ctx, client, log)
-
-	log.Info(fmt.Sprintf("Namespace Reconciler finished an iteration at %s. "+
-		"Next iteration will be triggered after %v Minutes", time.Now().String(), namespaceReconcilerInterval))
 }
 
 func syncCRsWithDB_Applications_Delete_Operations(ctx context.Context, dbq db.DatabaseQueries, client client.Client, log logr.Logger) {

@@ -116,7 +116,7 @@ build: generate fmt vet ## Build manager binary.
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build -o bin/manager main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./main.go --zap-log-level info --zap-time-encoding=rfc3339nano
+	SELF_HEAL_INTERVAL=0 go run ./main.go --zap-log-level info --zap-time-encoding=rfc3339nano
 # more on controller log level configuration: https://sdk.operatorframework.io/docs/building-operators/golang/references/logging/
 
 runexec: ## Run a controller from your host using exe in current folder
@@ -133,7 +133,7 @@ endif
 
 chaos-run: manifests generate fmt vet ## Chaos Engineering: Simulate a controller that restarts every ~33 seconds.
 	go build -o /tmp/cluster-agent-manager-chaos main.go
-	KILL_INTERVAL="45" KILL_INITIAL="10" ../utilities/random-kill.sh /tmp/cluster-agent-manager-chaos --zap-log-level info --zap-time-encoding=rfc3339nano
+	SELF_HEAL_INTERVAL=0 KILL_INTERVAL="45" KILL_INITIAL="10" ../utilities/random-kill.sh /tmp/cluster-agent-manager-chaos --zap-log-level info --zap-time-encoding=rfc3339nano
 	rm /tmp/cluster-agent-manager-chaos
 
 # docker-build: test ## Build docker image with the manager.

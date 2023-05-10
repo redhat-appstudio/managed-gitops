@@ -61,7 +61,7 @@ build: generate fmt vet ## Build manager binary.
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build -o bin/manager main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
-	DISABLE_APPSTUDIO_WEBHOOK=true go run ./main.go --zap-log-level info --zap-time-encoding=rfc3339nano
+	SELF_HEAL_INTERVAL=0 DISABLE_APPSTUDIO_WEBHOOK=true go run ./main.go --zap-log-level info --zap-time-encoding=rfc3339nano
 
 runexec: ## Run a controller from your host using exe in current folder
 ifeq (,$(wildcard ./main))
@@ -79,7 +79,7 @@ endif
 
 chaos-run: manifests generate fmt vet ## Chaos Engineering: Simulate a controller that restarts every ~33 seconds.
 	go build -o /tmp/backend-manager-chaos  main.go
-	DISABLE_APPSTUDIO_WEBHOOK=true KILL_INTERVAL="45" KILL_INITIAL="10" ../utilities/random-kill.sh /tmp/backend-manager-chaos --zap-log-level info --zap-time-encoding=rfc3339nano
+	SELF_HEAL_INTERVAL=0 DISABLE_APPSTUDIO_WEBHOOK=true KILL_INTERVAL="45" KILL_INITIAL="10" ../utilities/random-kill.sh /tmp/backend-manager-chaos --zap-log-level info --zap-time-encoding=rfc3339nano
 	rm /tmp/backend-manager-chaos
 
 ##@ Deployment

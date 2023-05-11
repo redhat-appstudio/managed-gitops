@@ -18,6 +18,11 @@ import (
 
 var _ = Describe("Argo CD Application", func() {
 	Context("Creating GitOpsDeployment should result in an Argo CD Application", func() {
+		BeforeEach(func() {
+			By("Delete old namespaces, and kube-system resources")
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+		})
+
 		It("Argo CD Application should have has prune, allowEmpty and selfHeal enabled", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 

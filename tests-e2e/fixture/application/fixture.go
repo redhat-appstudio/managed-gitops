@@ -160,6 +160,36 @@ func HaveSyncOption(expectedSyncOption string) matcher.GomegaMatcher {
 	}, BeTrue())
 }
 
+func HaveRetryOption(expectedRetryOption *appv1alpha1.RetryStrategy) matcher.GomegaMatcher {
+
+	return WithTransform(func(app appv1alpha1.Application) bool {
+
+		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
+		Expect(err).To(BeNil())
+
+		k8sClient, err := fixture.GetKubeClient(config)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&app), &app)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		res := false
+		if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Retry != nil {
+			res = reflect.DeepEqual(expectedRetryOption, app.Spec.SyncPolicy.Retry)
+		}
+
+		fmt.Println("HaveRetry:", app.Spec.SyncPolicy.Retry, "/ Expected:", expectedRetryOption, "/ Actual:", res)
+
+		return res
+	}, BeTrue())
+}
+
 func HaveHealthStatusCode(expectedHealth health.HealthStatusCode) matcher.GomegaMatcher {
 
 	return expectedCondition(func(app appv1alpha1.Application) bool {

@@ -1160,6 +1160,14 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 			SyncOptions: fauxargocd.SyncOptions{
 				prunePropagationPolicy,
 			},
+			Retry: &fauxargocd.RetryStrategy{
+				Limit: -1,
+				Backoff: &fauxargocd.Backoff{
+					Duration:    "5s",
+					Factor:      getInt64Pointer(2),
+					MaxDuration: "3m",
+				},
+			},
 		}
 
 	} else {
@@ -1239,4 +1247,9 @@ func retrieveComparedToFieldInApplicationState(reconciledState string) (fauxargo
 	}
 
 	return *comparedTo, err
+}
+
+func getInt64Pointer(i int) *int64 {
+	i64 := int64(i)
+	return &i64
 }

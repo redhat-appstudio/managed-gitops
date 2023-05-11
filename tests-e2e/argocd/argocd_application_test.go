@@ -62,7 +62,12 @@ var _ = Describe("Argo CD Application", func() {
 				},
 			}
 			Eventually(app, "60s", "1s").Should(appFixture.HaveAutomatedSyncPolicy(appv1alpha1.SyncPolicyAutomated{Prune: true, SelfHeal: true, AllowEmpty: true}))
+			Eventually(app, "60s", "1s").Should(appFixture.HaveRetryOption(&appv1alpha1.RetryStrategy{Limit: -1, Backoff: &appv1alpha1.Backoff{Duration: "5s", Factor: getInt64Pointer(2), MaxDuration: "3m"}}))
 		})
-
 	})
 })
+
+func getInt64Pointer(i int) *int64 {
+	i64 := int64(i)
+	return &i64
+}

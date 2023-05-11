@@ -10,6 +10,8 @@ import (
 	. "github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	sharedresourceloop "github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	fixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
@@ -129,7 +131,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			}
 		}
 
-		It("Should ensure succesful creation of GitOpsDeployment, by creating the GitOpsDeployment", func() {
+		It("Should ensure succesful creation of GitOpsDeployment, by creating the GitOpsDeployment and ensure that appProjectRepository row has been created referencing to gitopsDeployment", func() {
 
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
@@ -187,6 +189,33 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
+
+			By("verify whether appProjectRepository row pointing to GitopsDeployment has been created in database ")
+
+			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
+			Expect(err).To(BeNil())
+
+			var clusterUser string
+			cluserUsersList := []db.ClusterUser{}
+
+			Eventually(func() bool {
+				err = dbQueries.UnsafeListAllClusterUsers(ctx, &cluserUsersList)
+				return Expect(err).To(BeNil())
+			}, time.Second*250).Should(BeTrue())
+
+			for _, v := range cluserUsersList {
+				clusterUser = v.Clusteruser_id
+			}
+
+			appProjectReposiroryDB := db.AppProjectRepository{
+				Clusteruser_id: clusterUser,
+				RepoURL:        sharedresourceloop.NormalizeGitURL(gitOpsDeploymentResource.Spec.Source.RepoURL),
+			}
+
+			Eventually(func() bool {
+				err = dbQueries.GetAppProjectRepositoryByUniqueConstraint(ctx, &appProjectReposiroryDB)
+				return Expect(err).To(BeNil())
+			}, time.Second*100).Should(BeTrue())
 
 			expectAllResourcesToBeDeleted(expectedResourceStatusList)
 

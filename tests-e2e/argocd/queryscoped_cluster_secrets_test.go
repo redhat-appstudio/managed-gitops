@@ -73,6 +73,8 @@ var _ = Describe("Argo CD Application tests", func() {
 					Expect(err).To(BeNil())
 				}
 			}
+
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 		}
 
 		// For each user, create: Namespace, ServiceAccounts, Roles/RoleBindings, and optionally, ClusterRole/ClusterRoleBindings.

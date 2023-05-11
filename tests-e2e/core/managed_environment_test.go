@@ -692,10 +692,6 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 		It("should verify whether appProjectManagedEnv row is created in database pointing to the managedEnv row", func() {
 
-			if fixture.IsRunningAgainstKCP() {
-				Skip("Skipping this test until we support running gitops operator with KCP")
-			}
-
 			By("creating the GitOpsDeploymentManagedEnvironment")
 
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
@@ -712,7 +708,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8s.Create(&managedEnv, k8sClient)
 			Expect(err).To(BeNil())
 
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource("my-gitops-depl",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl",
 				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name

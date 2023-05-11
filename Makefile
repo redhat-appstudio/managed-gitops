@@ -273,7 +273,7 @@ ensure-gitops-ns-exists:
 	kubectl create namespace gitops 2> /dev/null || true
 
 ensure-workload-gitops-ns-exists:
-	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl create namespace gitops 2> /dev/null || true
+	kubectl create namespace gitops 2> /dev/null || true
 
 
 

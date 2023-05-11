@@ -46,16 +46,16 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			}
 
 			dtcls = appstudiosharedv1.DeploymentTargetClass{
-                                ObjectMeta: metav1.ObjectMeta{
-                                        Name:        "sandbox-provisioner",
-                                        Namespace:   namespace,
-                                        Annotations: map[string]string{},
-                                },
-                                Spec: appstudiosharedv1.DeploymentTargetClassSpec{
-                                        Provisioner: appstudiosharedv1.Provisioner_Devsandbox,
-                                        ReclaimPolicy: "Retain",
-                                },
-                        }
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "sandbox-provisioner",
+					Namespace:   namespace,
+					Annotations: map[string]string{},
+				},
+				Spec: appstudiosharedv1.DeploymentTargetClassSpec{
+					Provisioner:   appstudiosharedv1.Provisioner_Devsandbox,
+					ReclaimPolicy: "Retain",
+				},
+			}
 
 			err = k8sClient.Create(ctx, &dtcls)
 			Expect(err).To(BeNil())

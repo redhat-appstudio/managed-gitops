@@ -75,6 +75,14 @@ var _ = Describe("Application Event Runner Deployments", func() {
 					SyncOptions: fauxargocd.SyncOptions{
 						prunePropagationPolicy,
 					},
+					Retry: &fauxargocd.RetryStrategy{
+						Limit: -1,
+						Backoff: &fauxargocd.Backoff{
+							Duration:    "5s",
+							Factor:      getInt64Pointer(2),
+							MaxDuration: "3m",
+						},
+					},
 				}
 			}
 

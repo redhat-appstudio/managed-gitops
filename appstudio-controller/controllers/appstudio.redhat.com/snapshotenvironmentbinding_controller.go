@@ -120,10 +120,10 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 			// since there was an unexpected issue with refreshing/syncing the GitOps repository
 			log.V(logutil.LogLevel_Debug).Info("Can not Reconcile Binding '" + binding.Name + "', since GitOps Repo Conditions status is false.")
 
-			// Update Status.Conditions field environmentBinding.
-			if err := updateStatusConditionOfEnvironmentBinding(ctx, rClient,
+			// Update .status.bindingConditions field EnvironmentBinding with the error
+			if err := updateBindingConditionOfSEB(ctx, rClient,
 				"Can not Reconcile Binding '"+binding.Name+"', since GitOps Repo Conditions status is false.", binding,
-				SnapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionTrue, SnapshotEnvironmentBindingReasonErrorOccurred); err != nil {
+				SnapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionTrue, SnapshotEnvironmentBindingReasonErrorOccurred, log); err != nil {
 
 				log.Error(err, "unable to update snapshotEnvironmentBinding status condition.")
 				return ctrl.Result{}, fmt.Errorf("unable to update snapshotEnvironmentBinding status condition. %v", err)
@@ -131,11 +131,12 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 
 			return ctrl.Result{}, nil
 		} else if binding.Status.GitOpsRepoConditions[len(binding.Status.GitOpsRepoConditions)-1].Status == metav1.ConditionTrue {
+
 			// if the SnapshotEventBinding GitOps Repo Conditions status is true update the
-			// binding condition status
-			if err := updateStatusConditionOfEnvironmentBinding(ctx, rClient,
+			// binding condition status to false
+			if err := updateBindingConditionOfSEB(ctx, rClient,
 				"", binding,
-				SnapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionFalse, SnapshotEnvironmentBindingReasonErrorOccurred); err != nil {
+				SnapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionFalse, SnapshotEnvironmentBindingReasonErrorOccurred, log); err != nil {
 
 				log.Error(err, "unable to update snapshotEnvironmentBinding status condition.")
 				return ctrl.Result{}, fmt.Errorf("unable to update snapshotEnvironmentBinding status condition. %v", err)
@@ -148,9 +149,9 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 			"generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding")
 
 		// Update Status.Conditions field of environmentBinding.
-		if err := updateStatusConditionOfEnvironmentBinding(ctx, rClient, "SnapshotEventBinding Component status is required to "+
+		if err := updateBindingConditionOfSEB(ctx, rClient, "SnapshotEventBinding Component status is required to "+
 			"generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding '"+binding.Name+"'",
-			binding, SnapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionTrue, SnapshotEnvironmentBindingReasonErrorOccurred); err != nil {
+			binding, SnapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionTrue, SnapshotEnvironmentBindingReasonErrorOccurred, log); err != nil {
 
 			log.Error(err, "unable to update snapshotEnvironmentBinding status condition.")
 			return ctrl.Result{}, fmt.Errorf("unable to update snapshotEnvironmentBinding status condition. %v", err)
@@ -170,7 +171,7 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 		if _, exists := expectedDeployments[component.Name]; exists {
 
 			// Update Status.Conditions field of environmentBinding.
-			if err := updateStatusConditionOfEnvironmentBinding(ctx, rClient, errDuplicateKeysFound+" in "+component.Name, binding, SnapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionTrue, SnapshotEnvironmentBindingReasonErrorOccurred); err != nil {
+			if err := updateBindingConditionOfSEB(ctx, rClient, errDuplicateKeysFound+" in "+component.Name, binding, SnapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionTrue, SnapshotEnvironmentBindingReasonErrorOccurred, log); err != nil {
 				log.Error(err, "unable to update snapshotEnvironmentBinding status condition.")
 				return ctrl.Result{}, fmt.Errorf("unable to update snapshotEnvironmentBinding status condition. %v", err)
 			}
@@ -238,6 +239,7 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 		return ctrl.Result{}, nil
 	}
 
+	log.Info("Updating SnapshotEnvironmentBinding status")
 	if err := rClient.Status().Update(ctx, binding); err != nil {
 		if apierr.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -556,5 +558,68 @@ func isRequestNamespaceBeingDeleted(ctx context.Context, namespaceName string, k
 	}
 
 	return false, nil
+
+}
+
+// Update .status.bindingConditions field of SnapshotEnvironmentBinding
+func updateBindingConditionOfSEB(ctx context.Context, client client.Client, message string,
+	binding *appstudioshared.SnapshotEnvironmentBinding, conditionType string,
+	status metav1.ConditionStatus, reason string, log logr.Logger) error {
+
+	newCondition := metav1.Condition{
+		Type:    conditionType,
+		Message: message,
+		Status:  status,
+		Reason:  reason,
+	}
+
+	changed, newConditions := insertOrUpdateConditionsInSlice(newCondition, binding.Status.BindingConditions)
+
+	if changed {
+		binding.Status.BindingConditions = newConditions
+
+		if err := client.Status().Update(ctx, binding); err != nil {
+			log.Error(err, "unable to update .status.binditionCondition of SEB")
+			return err
+		}
+		log.Info("updated .status.bindingCondition of SnapshotEnvironmentBinding")
+	}
+
+	return nil
+}
+
+// insertOrUpdateConditionsInSlice is a generic function for inserting/updating metav1.Condition into a slice of []metav1.Condition
+func insertOrUpdateConditionsInSlice(newCondition metav1.Condition, existingConditions []metav1.Condition) (bool, []metav1.Condition) {
+
+	// Check if condition with same type is already set, if Yes then check if content is same,
+	// If content is not same update LastTransitionTime
+
+	index := -1
+	for i, Condition := range existingConditions {
+		if Condition.Type == newCondition.Type {
+			index = i
+			break
+		}
+	}
+
+	now := metav1.Now()
+
+	changed := false
+
+	if index == -1 {
+		newCondition.LastTransitionTime = now
+		existingConditions = append(existingConditions, newCondition)
+		changed = true
+
+	} else if existingConditions[index].Message != newCondition.Message ||
+		existingConditions[index].Reason != newCondition.Reason ||
+		existingConditions[index].Status != newCondition.Status {
+
+		newCondition.LastTransitionTime = now
+		existingConditions[index] = newCondition
+		changed = true
+	}
+
+	return changed, existingConditions
 
 }

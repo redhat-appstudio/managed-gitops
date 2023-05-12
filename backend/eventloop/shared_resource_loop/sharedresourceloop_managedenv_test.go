@@ -19,7 +19,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventloop_test_util"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/uuid"
@@ -488,7 +488,7 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			defer mockCtrl.Finish()
 			mockClient := mocks.NewMockClient(mockCtrl)
 
-			forbidden := errors.NewForbidden(schema.GroupResource{Group: "", Resource: "namespaces"}, "", fmt.Errorf("user can't access namespaces"))
+			forbidden := k8serrors.NewForbidden(schema.GroupResource{Group: "", Resource: "namespaces"}, "", fmt.Errorf("user can't access namespaces"))
 			mockClient.EXPECT().List(gomock.Any(), gomock.Any()).Return(forbidden)
 			mockClient.EXPECT().List(gomock.Any(), gomock.Any()).Return(forbidden)
 
@@ -537,7 +537,7 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			defer mockCtrl.Finish()
 			mockClient := mocks.NewMockClient(mockCtrl)
 
-			forbidden := errors.NewForbidden(schema.GroupResource{Group: "", Resource: "namespace"}, "", fmt.Errorf("user can't access namespace"))
+			forbidden := k8serrors.NewForbidden(schema.GroupResource{Group: "", Resource: "namespace"}, "", fmt.Errorf("user can't access namespace"))
 			mockClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(forbidden)
 			mockClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(forbidden)
 

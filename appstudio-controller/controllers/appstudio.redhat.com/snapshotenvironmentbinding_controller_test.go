@@ -18,6 +18,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	apibackend "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
@@ -1182,9 +1184,11 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 		ctx := context.Background()
 
-		var k8sClient client.Client
+		var k8sClient sharedutil.ProxyClient
 		var apiNamespace corev1.Namespace
 		log := log.FromContext(ctx)
+
+		var eventReceiver sharedutil.ListEventReceiver
 
 		BeforeEach(func() {
 			scheme,
@@ -1200,16 +1204,22 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			apiNamespace = *namespace
 
 			// Create fake client
-			k8sClient = fake.NewClientBuilder().
+			fakeK8sClient := fake.NewClientBuilder().
 				WithScheme(scheme).
 				WithObjects(namespace, argocdNamespace, kubesystemNamespace).
 				Build()
 
+			k8sClient = sharedutil.ProxyClient{
+				InnerClient: fakeK8sClient,
+				Informer:    &eventReceiver,
+			}
+
 		})
 
 		DescribeTable("verify updateBindingConditionOfSEB works as expected",
-			func(preCondition []metav1.Condition, newCondition metav1.Condition, expectedResult []metav1.Condition) {
+			func(preCondition []metav1.Condition, newCondition metav1.Condition, expectedResult []metav1.Condition, expectUpdateStatusCalled bool) {
 
+				By("creating an initial SEB with the pre- state of bindingConditions")
 				env := appstudiosharedv1.SnapshotEnvironmentBinding{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "my-seb",
@@ -1219,14 +1229,19 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 				err := k8sClient.Create(ctx, &env)
 				Expect(err).To(BeNil())
-
 				env.Status.BindingConditions = preCondition
 				err = k8sClient.Update(ctx, &env)
 				Expect(err).To(BeNil())
 
-				err = updateBindingConditionOfSEB(ctx, k8sClient, newCondition.Message, &env, EnvironmentConditionErrorOccurred,
+				By("reseting the list of events after we updated the binding conditions")
+				eventReceiver.Events = []sharedutil.ProxyClientEvent{}
+
+				By("calling the binding condition update function")
+				err = updateBindingConditionOfSEB(ctx, &k8sClient, newCondition.Message, &env, EnvironmentConditionErrorOccurred,
 					newCondition.Status, newCondition.Reason, log)
 				Expect(err).To(BeNil())
+
+				By("Verifying the status bindingConditions field was updated as expected")
 
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
 				Expect(err).To(BeNil())
@@ -1242,6 +1257,23 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				Expect(actualCondition.Reason).To(Equal(expectedCondition.Reason))
 				Expect(actualCondition.Status).To(Equal(expectedCondition.Status))
 
+				statusUpdated := false
+				for _, event := range eventReceiver.Events {
+					if event.Action == sharedutil.StatusUpdate {
+						statusUpdated = true
+					}
+				}
+				Expect(statusUpdated).To(Equal(expectUpdateStatusCalled),
+					"Verify that the status of the SEB is only updated if we expected it to be: it should only be updated if one of the conditions actually changed")
+
+				if expectUpdateStatusCalled {
+					Expect(time.Now().Add(-1*time.Minute).Before(actualCondition.LastTransitionTime.Time)).To(BeTrue(),
+						"if the status was updated, then the last transition time should be within the last minute or so")
+				} else {
+					Expect(time.Now().After(actualCondition.LastTransitionTime.Time)).To(BeTrue(),
+						"if the status was not updated, then the last transition time should be empty")
+				}
+
 			},
 			Entry("add a new condition", []metav1.Condition{}, metav1.Condition{
 				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
@@ -1255,7 +1287,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 					Reason:  "my-reason",
 					Message: "my-message",
 				},
-			}),
+			}, true),
 			Entry("replace an existing condition with mismatched reason", []metav1.Condition{{
 				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
 				Status:  metav1.ConditionTrue,
@@ -1271,7 +1303,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				Status:  metav1.ConditionTrue,
 				Reason:  "my-reason2",
 				Message: "my-message",
-			}}),
+			}}, true),
 
 			Entry("replace an existing condition with mismatched message", []metav1.Condition{{
 				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
@@ -1288,7 +1320,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				Status:  metav1.ConditionTrue,
 				Reason:  "my-reason",
 				Message: "my-message2",
-			}}),
+			}}, true),
 
 			Entry("replace an existing condition with mismatched status", []metav1.Condition{{
 				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
@@ -1305,7 +1337,24 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				Status:  metav1.ConditionFalse,
 				Reason:  "my-reason",
 				Message: "my-message",
-			}}),
+			}}, true),
+
+			Entry("if nothing has changed, update should not be called", []metav1.Condition{{
+				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+				Status:  metav1.ConditionTrue,
+				Reason:  "my-reason",
+				Message: "my-message",
+			}}, metav1.Condition{
+				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+				Status:  metav1.ConditionTrue,
+				Reason:  "my-reason",
+				Message: "my-message",
+			}, []metav1.Condition{{
+				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+				Status:  metav1.ConditionTrue,
+				Reason:  "my-reason",
+				Message: "my-message",
+			}}, false),
 		)
 
 	})

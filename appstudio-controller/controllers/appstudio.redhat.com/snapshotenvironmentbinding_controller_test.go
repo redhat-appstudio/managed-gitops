@@ -1177,6 +1177,139 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 		})
 
 	})
+
+	Context("Unit tests of non-reconcile functions", func() {
+
+		ctx := context.Background()
+
+		var k8sClient client.Client
+		var apiNamespace corev1.Namespace
+		log := log.FromContext(ctx)
+
+		BeforeEach(func() {
+			scheme,
+				argocdNamespace,
+				kubesystemNamespace,
+				namespace,
+				err := tests.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			err = appstudiosharedv1.AddToScheme(scheme)
+			Expect(err).To(BeNil())
+
+			apiNamespace = *namespace
+
+			// Create fake client
+			k8sClient = fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(namespace, argocdNamespace, kubesystemNamespace).
+				Build()
+
+		})
+
+		DescribeTable("verify updateBindingConditionOfSEB works as expected",
+			func(preCondition []metav1.Condition, newCondition metav1.Condition, expectedResult []metav1.Condition) {
+
+				env := appstudiosharedv1.SnapshotEnvironmentBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "my-seb",
+						Namespace: apiNamespace.Name,
+					},
+				}
+
+				err := k8sClient.Create(ctx, &env)
+				Expect(err).To(BeNil())
+
+				env.Status.BindingConditions = preCondition
+				err = k8sClient.Update(ctx, &env)
+				Expect(err).To(BeNil())
+
+				err = updateBindingConditionOfSEB(ctx, k8sClient, newCondition.Message, &env, EnvironmentConditionErrorOccurred,
+					newCondition.Status, newCondition.Reason, log)
+				Expect(err).To(BeNil())
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
+				Expect(err).To(BeNil())
+
+				Expect(len(env.Status.BindingConditions)).To(BeNumerically("==", 1))
+
+				expectedCondition := expectedResult[0]
+
+				actualCondition := env.Status.BindingConditions[0]
+
+				Expect(actualCondition.Message).To(Equal(expectedCondition.Message))
+				Expect(actualCondition.Type).To(Equal(expectedCondition.Type))
+				Expect(actualCondition.Reason).To(Equal(expectedCondition.Reason))
+				Expect(actualCondition.Status).To(Equal(expectedCondition.Status))
+
+			},
+			Entry("add a new condition", []metav1.Condition{}, metav1.Condition{
+				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+				Status:  metav1.ConditionTrue,
+				Reason:  "my-reason",
+				Message: "my-message",
+			}, []metav1.Condition{
+				{
+					Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+					Status:  metav1.ConditionTrue,
+					Reason:  "my-reason",
+					Message: "my-message",
+				},
+			}),
+			Entry("replace an existing condition with mismatched reason", []metav1.Condition{{
+				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+				Status:  metav1.ConditionTrue,
+				Reason:  "my-reason",
+				Message: "my-message",
+			}}, metav1.Condition{
+				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+				Status:  metav1.ConditionTrue,
+				Reason:  "my-reason2",
+				Message: "my-message",
+			}, []metav1.Condition{{
+				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+				Status:  metav1.ConditionTrue,
+				Reason:  "my-reason2",
+				Message: "my-message",
+			}}),
+
+			Entry("replace an existing condition with mismatched message", []metav1.Condition{{
+				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+				Status:  metav1.ConditionTrue,
+				Reason:  "my-reason",
+				Message: "my-message",
+			}}, metav1.Condition{
+				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+				Status:  metav1.ConditionTrue,
+				Reason:  "my-reason",
+				Message: "my-message2",
+			}, []metav1.Condition{{
+				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+				Status:  metav1.ConditionTrue,
+				Reason:  "my-reason",
+				Message: "my-message2",
+			}}),
+
+			Entry("replace an existing condition with mismatched status", []metav1.Condition{{
+				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+				Status:  metav1.ConditionTrue,
+				Reason:  "my-reason",
+				Message: "my-message",
+			}}, metav1.Condition{
+				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+				Status:  metav1.ConditionFalse,
+				Reason:  "my-reason",
+				Message: "my-message",
+			}, []metav1.Condition{{
+				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+				Status:  metav1.ConditionFalse,
+				Reason:  "my-reason",
+				Message: "my-message",
+			}}),
+		)
+
+	})
+
 })
 
 // newRequest contains the information necessary to reconcile a Kubernetes object.

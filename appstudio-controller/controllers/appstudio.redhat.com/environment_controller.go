@@ -177,46 +177,31 @@ const (
 	EnvironmentReasonErrorOccurred                   = "ErrorOccurred"
 )
 
-// Update Status.Condition field of Environment
+// Update .status.conditions field of Environment
 func updateStatusConditionOfEnvironment(ctx context.Context, client client.Client, message string,
 	environment *appstudioshared.Environment, conditionType string,
 	status metav1.ConditionStatus, reason string, log logr.Logger) error {
-	// Check if condition with same type is already set, if Yes then check if content is same,
-	// If content is not same update LastTransitionTime
-	index := -1
-	for i, Condition := range environment.Status.Conditions {
-		if Condition.Type == conditionType {
-			index = i
-			break
+
+	newCondition := metav1.Condition{
+		Type:    conditionType,
+		Message: message,
+		Status:  status,
+		Reason:  reason,
+	}
+
+	changed, newConditions := insertOrUpdateConditionsInSlice(newCondition, environment.Status.Conditions)
+
+	if changed {
+		environment.Status.Conditions = newConditions
+
+		if err := client.Status().Update(ctx, environment); err != nil {
+			log.Error(err, "unable to update environment status condition.")
+			return err
 		}
 	}
 
-	now := metav1.Now()
-
-	if index == -1 {
-		environment.Status.Conditions = append(environment.Status.Conditions,
-			metav1.Condition{
-				Type:               conditionType,
-				Message:            message,
-				LastTransitionTime: now,
-				Status:             status,
-				Reason:             reason,
-			})
-	} else if environment.Status.Conditions[index].Message != message ||
-		environment.Status.Conditions[index].Reason != reason ||
-		environment.Status.Conditions[index].Status != status {
-		environment.Status.Conditions[index].Reason = reason
-		environment.Status.Conditions[index].Message = message
-		environment.Status.Conditions[index].Status = status
-		environment.Status.Conditions[index].LastTransitionTime = now
-	}
-
-	if err := client.Status().Update(ctx, environment); err != nil {
-		log.Error(err, "unable to update environment status condition.")
-		return err
-	}
-
 	return nil
+
 }
 
 // Update status condition when error is resolved
@@ -262,51 +247,6 @@ func FindCondition(conditions *[]metav1.Condition, conditionType string) (*metav
 	*conditions = append(*conditions, metav1.Condition{Type: conditionType})
 
 	return &(*conditions)[len(*conditions)-1], false
-}
-
-// Update Status.Condition field of snapshotEnvironmentBinding
-func updateStatusConditionOfEnvironmentBinding(ctx context.Context, client client.Client, message string,
-	binding *appstudioshared.SnapshotEnvironmentBinding, conditionType string,
-	status metav1.ConditionStatus, reason string) error {
-	// Check if condition with same type is already set, if Yes then check if content is same,
-	// If content is not same update LastTransitionTime
-	index := -1
-	for i, Condition := range binding.Status.BindingConditions {
-		if Condition.Type == conditionType {
-			index = i
-			break
-		}
-	}
-
-	now := metav1.Now()
-
-	if index == -1 {
-		binding.Status.BindingConditions = append(binding.Status.BindingConditions,
-			metav1.Condition{
-				Type:               conditionType,
-				Message:            message,
-				LastTransitionTime: now,
-				Status:             status,
-				Reason:             reason,
-			})
-	} else {
-		if binding.Status.BindingConditions[index].Message != message &&
-			binding.Status.BindingConditions[index].Reason != reason &&
-			binding.Status.BindingConditions[index].Status != status {
-			binding.Status.BindingConditions[index].LastTransitionTime = now
-		}
-		binding.Status.BindingConditions[index].Reason = reason
-		binding.Status.BindingConditions[index].Message = message
-		binding.Status.BindingConditions[index].LastTransitionTime = now
-		binding.Status.BindingConditions[index].Status = status
-
-	}
-
-	if err := client.Status().Update(ctx, binding); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func generateDesiredResource(ctx context.Context, env appstudioshared.Environment, k8sClient client.Client, log logr.Logger) (*managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, error) {

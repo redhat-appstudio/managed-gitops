@@ -222,8 +222,13 @@ func (pc *ProxyClient) DeleteAllOf(ctx context.Context, obj client.Object, opts 
 
 // StatusWriter knows how to update status subresource of a Kubernetes object.
 func (pc *ProxyClient) Status() client.StatusWriter {
-	res := pc.InnerClient.Status()
-	return res
+
+	wrapper := ProxyClientStatusWrapper{
+		innerWriter: pc.InnerClient.Status(),
+		parent:      pc,
+	}
+
+	return &wrapper
 }
 
 // Scheme returns the scheme this client is using.
@@ -244,7 +249,7 @@ type ProxyClientEventReceiver interface {
 }
 
 type ProxyClientStatusWrapper struct {
-	innerWriter *client.StatusWriter
+	innerWriter client.StatusWriter
 	parent      *ProxyClient
 }
 
@@ -253,7 +258,7 @@ type ProxyClientStatusWrapper struct {
 // with the content returned by the Server.
 func (pcsw *ProxyClientStatusWrapper) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
 
-	res := (*pcsw.innerWriter).Update(ctx, obj, opts...)
+	res := (pcsw.innerWriter).Update(ctx, obj, opts...)
 
 	if pcsw.parent.Informer != nil {
 		event := ProxyClientEvent{
@@ -277,7 +282,7 @@ func (pcsw *ProxyClientStatusWrapper) Update(ctx context.Context, obj client.Obj
 // Server.
 func (pcsw *ProxyClientStatusWrapper) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 
-	res := (*pcsw.innerWriter).Patch(ctx, obj, patch, opts...)
+	res := (pcsw.innerWriter).Patch(ctx, obj, patch, opts...)
 
 	if pcsw.parent.Informer != nil {
 		event := ProxyClientEvent{

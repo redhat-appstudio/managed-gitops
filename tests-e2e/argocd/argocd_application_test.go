@@ -25,9 +25,7 @@ var _ = Describe("Argo CD Application", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 		})
 
-		It("Argo CD Application should have has prune, allowEmpty and selfHeal enabled", func() {
-
-			ctx := context.Background()
+		It("Argo CD Application should have has prune, allowEmpty and selfHeal enabled and verify whether AppProject resource has been created", func() {
 
 			By("create a new GitOpsDeployment CR")
 			gitOpsDeployment := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl-automated",
@@ -63,15 +61,17 @@ var _ = Describe("Argo CD Application", func() {
 			Expect(err).To(BeNil())
 
 			var clusterUser string
-			operationsList := []db.Operation{}
+			clusterAccessList := []db.ClusterAccess{}
 
 			Eventually(func() bool {
-				err = dbQueries.UnsafeListAllOperations(ctx, &operationsList)
+				err = dbQueries.UnsafeListAllClusterAccess(context.Background(), &clusterAccessList)
 				return Expect(err).To(BeNil())
-			}, time.Second*250).Should(BeTrue())
+			}, time.Second*500).Should(BeTrue())
 
-			for _, v := range operationsList {
-				clusterUser = v.Operation_owner_user_id
+			for _, v := range clusterAccessList {
+				if v.Clusteraccess_gitops_engine_instance_id == dbApplication.Engine_instance_inst_id {
+					clusterUser = v.Clusteraccess_user_id
+				}
 			}
 
 			By("Verify whether appProject resource is created or not")
@@ -82,7 +82,7 @@ var _ = Describe("Argo CD Application", func() {
 				},
 			}
 
-			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
+			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(appProject), appProject)
 			Expect(err).To(BeNil())
 			Expect(appProject).ToNot(BeNil())
 

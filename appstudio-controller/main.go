@@ -166,6 +166,11 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "PromotionRun")
 			os.Exit(1)
 		}
+
+		if err = (&applicationv1alpha1.Environment{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Environment")
+			os.Exit(1)
+		}
 	}
 
 	if err = (&appstudioredhatcomcontrollers.DeploymentTargetClaimReconciler{

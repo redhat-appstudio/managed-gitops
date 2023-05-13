@@ -184,6 +184,37 @@ var _ = Describe("Webhook E2E tests", func() {
 			Expect(strings.Contains(err.Error(), fmt.Sprintf("spec cannot be updated to %s", promotionRun.Spec)))
 		})
 
+		It("Should validate Environment CR Webhooks.", func() {
+			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			if !isWebhookInstalled("environments", k8sClient) {
+				Skip("skipping as environments webhook is not installed")
+			}
+
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			By("Validate that Environment name longer than 63 char is not allowed.")
+
+			environment := buildEnvironment(strings.Repeat("abcde", 13), "my-environment")
+			err = k8s.Create(&environment, k8sClient)
+			Expect(err).NotTo(Succeed())
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("invalid environment name: %s", environment.Name)))
+
+			By("Validate that Environment name starting with capital letter is not allowed.")
+
+			environment.Name = "Staging"
+			err = k8s.Create(&environment, k8sClient)
+			Expect(err).NotTo(Succeed())
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("Invalid value: %s", environment.Name)))
+
+			By("Validate that Environment name having small letters is allowed.")
+
+			environment.Name = "staging"
+			err = k8s.Create(&environment, k8sClient)
+			Expect(err).To(Succeed())
+		})
+
 		It("Should validate create GitOpsDeployment CR Webhooks for invalid .spec.Type field.", func() {
 
 			if !isWebhookInstalled("gitopsdeployments", k8sClient) {

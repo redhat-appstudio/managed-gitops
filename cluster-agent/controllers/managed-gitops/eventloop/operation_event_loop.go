@@ -854,6 +854,14 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		},
 	}
 
+	// Before Creating or updating ArgoCD Application CR generate AppProject
+	appProject, err := buildAppProject(ctx, dbOperation, opConfig, dbApplication, log)
+	if err != nil {
+		log.Error(err, "Failed to call generateAppProject function")
+		return shouldRetryTrue, err
+	}
+
+	// Check if the AppProject exists and is consistent.
 	existingAppProject := &appv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      appProjectPrefix + dbOperation.Operation_owner_user_id,
@@ -861,8 +869,30 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		},
 	}
 
-	var generatedAppProject *appv1.AppProject
+	if err := opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(existingAppProject), existingAppProject); err != nil {
+		if apierr.IsNotFound(err) {
+			// If appProject doesn't exist, create it.
+			if err := opConfig.eventClient.Create(ctx, appProject, &client.CreateOptions{}); err != nil {
+				log.Error(err, "Unable to create AppProject CR")
+				return shouldRetryTrue, err
+			}
 
+			logutil.LogAPIResourceChangeEvent(appProject.Namespace, appProject.Name, appProject, logutil.ResourceCreated, log)
+
+		} else if !appProjectEqual(existingAppProject, appProject) {
+			// If appProject doesn't match with the existing appProject, update it.
+			existingAppProject = appProject
+			if err := opConfig.eventClient.Update(ctx, existingAppProject, &client.UpdateOptions{}); err != nil {
+				log.Error(err, "Unable to update AppProject CR")
+				return shouldRetryTrue, err
+			}
+			logutil.LogAPIResourceChangeEvent(existingAppProject.Namespace, existingAppProject.Name, existingAppProject, logutil.ResourceCreated, log)
+		} else {
+			log.Error(err, "unable to retrieve existing AppProject from namespace")
+			return shouldRetryTrue, err
+		}
+
+	}
 	// Retrieve the Argo CD Application from the namespace
 	if err := opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(app), app); err != nil {
 
@@ -891,39 +921,6 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 					log.Error(err, "unable to ensure that managed environment exists")
 					return shouldRetryTrue, err
 				}
-			}
-
-			// Generate AppProject before creating Argo CD Application CR.
-			generatedAppProject, err = generateAppProject(ctx, dbOperation, opConfig, dbApplication, log)
-			if err != nil {
-				log.Error(err, "Failed to call generateAppProject function")
-				return shouldRetryTrue, err
-			}
-
-			// Generate the Appproject if it doesn't exist and Compare the generated AppProject with AppProject in the namespace.
-			if err := opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(existingAppProject), existingAppProject); err != nil {
-				if !apierr.IsNotFound(err) {
-					log.Error(err, "unable to retrieve existing AppProject from namespace")
-					return shouldRetryTrue, err
-				}
-
-				// If AppProject doesn't exists Create it by calling generateAppProject to create AppProject before creating Argo CD Application CR.
-				generatedAppProject, err = generateAppProject(ctx, dbOperation, opConfig, dbApplication, log)
-				if err != nil {
-					log.Error(err, "Failed to call generateAppProject function")
-					return shouldRetryTrue, err
-				}
-			}
-
-			// If generatedAppProject is not equal to existingAppProject in namespace update it else done.
-			if !(generatedAppProject == existingAppProject) {
-				if err := opConfig.eventClient.Update(ctx, existingAppProject, &client.UpdateOptions{}); err != nil {
-					log.Error(err, "Unable to update AppProject CR")
-					return shouldRetryTrue, err
-				}
-				sharedutil.LogAPIResourceChangeEvent(existingAppProject.Namespace, existingAppProject.Name, existingAppProject, sharedutil.ResourceCreated, log)
-			} else {
-				return shouldRetryFalse, nil
 			}
 
 			if err := opConfig.eventClient.Create(ctx, app, &client.CreateOptions{}); err != nil {
@@ -970,32 +967,6 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		app.Spec.Source = specFieldApp.Spec.Source
 		app.Spec.Project = specFieldApp.Spec.Project
 		app.Spec.SyncPolicy = specFieldApp.Spec.SyncPolicy
-
-		// If AppProject is not present create it orelse update it
-		if err := opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(existingAppProject), existingAppProject); err != nil {
-			if !apierr.IsNotFound(err) {
-				log.Error(err, "unable to retrieve existing AppProject from namespace")
-				return shouldRetryTrue, err
-			}
-
-			// If AppProject doesn't exists Create it by calling generateAppProject to create AppProject before creating Argo CD Application CR.
-			generatedAppProject, err = generateAppProject(ctx, dbOperation, opConfig, dbApplication, log)
-			if err != nil {
-				log.Error(err, "Failed to call generateAppProject function")
-				return shouldRetryTrue, err
-			}
-		}
-
-		// If generatedAppProject is not equal to existingAppProject in namespace update it else done.
-		if !(generatedAppProject == existingAppProject) {
-			if err := opConfig.eventClient.Update(ctx, existingAppProject, &client.UpdateOptions{}); err != nil {
-				log.Error(err, "Unable to update AppProject CR")
-				return shouldRetryTrue, err
-			}
-			sharedutil.LogAPIResourceChangeEvent(existingAppProject.Namespace, existingAppProject.Name, existingAppProject, sharedutil.ResourceCreated, log)
-		} else {
-			return shouldRetryFalse, nil
-		}
 
 		if err := opConfig.eventClient.Update(ctx, app); err != nil {
 			log.Error(err, "unable to update application after difference detected.")
@@ -1294,7 +1265,7 @@ func generateExpectedClusterSecret(ctx context.Context, application db.Applicati
 
 }
 
-func generateAppProject(ctx context.Context, dbOperation db.Operation, opConfig operationConfig, dbApplication *db.Application, log logr.Logger) (*appv1.AppProject, error) {
+func buildAppProject(ctx context.Context, dbOperation db.Operation, opConfig operationConfig, dbApplication *db.Application, log logr.Logger) (*appv1.AppProject, error) {
 
 	// Create AppProject resource before creating Argo CD Application CR
 	var appProjectRepositories []db.AppProjectRepository
@@ -1328,12 +1299,31 @@ func generateAppProject(ctx context.Context, dbOperation db.Operation, opConfig 
 		},
 	}
 
-	if err := opConfig.eventClient.Create(ctx, appProject, &client.CreateOptions{}); err != nil {
-		log.Error(err, "Unable to create AppProject CR")
-		return nil, err
-	}
-	sharedutil.LogAPIResourceChangeEvent(appProject.Namespace, appProject.Name, appProject, sharedutil.ResourceCreated, log)
-
 	return appProject, nil
 
+}
+
+func appProjectEqual(existingAppProject, generatedAppProject *appv1.AppProject) bool {
+
+	if existingAppProject == nil || generatedAppProject == nil {
+		return false
+	}
+	if len(existingAppProject.Spec.SourceRepos) != len(generatedAppProject.Spec.SourceRepos) {
+		return false
+	}
+	for i := range existingAppProject.Spec.SourceRepos {
+		if existingAppProject.Spec.SourceRepos[i] != generatedAppProject.Spec.SourceRepos[i] {
+			return false
+		}
+	}
+	if len(existingAppProject.Spec.Destinations) != len(generatedAppProject.Spec.Destinations) {
+		return false
+	}
+	for i := range existingAppProject.Spec.Destinations {
+		if existingAppProject.Spec.Destinations[i] != generatedAppProject.Spec.Destinations[i] {
+			return false
+		}
+	}
+
+	return true
 }

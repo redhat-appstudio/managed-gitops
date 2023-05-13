@@ -690,6 +690,84 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 		})
 
+		It("should verify whether appProjectManagedEnv row is created in database pointing to the managedEnv row", func() {
+
+			if fixture.IsRunningAgainstKCP() {
+				Skip("Skipping this test until we support running gitops operator with KCP")
+			}
+
+			By("creating the GitOpsDeploymentManagedEnvironment")
+
+			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
+			Expect(err).To(BeNil())
+
+			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
+
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			err = k8s.Create(&secret, k8sClient)
+			Expect(err).To(BeNil())
+
+			err = k8s.Create(&managedEnv, k8sClient)
+			Expect(err).To(BeNil())
+
+			gitOpsDeploymentResource := buildGitOpsDeploymentResource("my-gitops-depl",
+				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
+			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
+			Expect(err).To(BeNil())
+
+			By("ensuring GitOpsDeployment should have expected health and status and reconciledState")
+
+			expectedReconciledStateField := managedgitopsv1alpha1.ReconciledState{
+				Source: managedgitopsv1alpha1.GitOpsDeploymentSource{
+					RepoURL: gitOpsDeploymentResource.Spec.Source.RepoURL,
+					Path:    gitOpsDeploymentResource.Spec.Source.Path,
+				},
+				Destination: managedgitopsv1alpha1.GitOpsDeploymentDestination{
+					Name:      gitOpsDeploymentResource.Spec.Destination.Environment,
+					Namespace: gitOpsDeploymentResource.Spec.Destination.Namespace,
+				},
+			}
+
+			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
+					gitopsDeplFixture.HaveReconciledState(expectedReconciledStateField)))
+
+			secretList := corev1.SecretList{}
+
+			err = k8sClient.List(context.Background(), &secretList, &client.ListOptions{Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace})
+			Expect(err).To(BeNil())
+
+			dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
+			Expect(err).To(BeNil())
+			defer dbQueries.CloseDatabase()
+
+			mapping := &db.APICRToDatabaseMapping{
+				APIResourceType: db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentManagedEnvironment,
+				APIResourceUID:  string(managedEnv.UID),
+				DBRelationType:  db.APICRToDatabaseMapping_DBRelationType_ManagedEnvironment,
+			}
+			err = dbQueries.GetDatabaseMappingForAPICR(context.Background(), mapping)
+			Expect(err).To(BeNil())
+
+			By("Verify whether AppProjectManagedEnv is created or not")
+			appProjectManagedEnvDB := db.AppProjectManagedEnvironment{
+				Managed_environment_id: mapping.DBRelationKey,
+			}
+
+			Eventually(func() bool {
+				err = dbQueries.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnvDB)
+				return Expect(err).To(BeNil())
+			}, time.Second*60).Should(BeTrue())
+
+		})
+
 	})
 })
 

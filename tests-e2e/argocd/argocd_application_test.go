@@ -2,6 +2,7 @@ package argocd
 
 import (
 	"context"
+	"time"
 
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -14,6 +15,7 @@ import (
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("Argo CD Application", func() {
@@ -24,6 +26,8 @@ var _ = Describe("Argo CD Application", func() {
 		})
 
 		It("Argo CD Application should have has prune, allowEmpty and selfHeal enabled", func() {
+
+			ctx := context.Background()
 
 			By("create a new GitOpsDeployment CR")
 			gitOpsDeployment := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl-automated",
@@ -57,6 +61,30 @@ var _ = Describe("Argo CD Application", func() {
 			}
 			err = dbQueries.GetApplicationById(context.Background(), dbApplication)
 			Expect(err).To(BeNil())
+
+			var clusterUser string
+			operationsList := []db.Operation{}
+
+			Eventually(func() bool {
+				err = dbQueries.UnsafeListAllOperations(ctx, &operationsList)
+				return Expect(err).To(BeNil())
+			}, time.Second*250).Should(BeTrue())
+
+			for _, v := range operationsList {
+				clusterUser = v.Operation_owner_user_id
+			}
+
+			By("Verify whether appProject resource is created or not")
+			appProject := &appv1alpha1.AppProject{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "app-project-" + clusterUser,
+					Namespace: dbutil.GetGitOpsEngineSingleInstanceNamespace(),
+				},
+			}
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
+			Expect(err).To(BeNil())
+			Expect(appProject).ToNot(BeNil())
 
 			By("verify that the Argo CD Application has prune, allowEmpty and selfHeal enabled")
 			app := appv1alpha1.Application{

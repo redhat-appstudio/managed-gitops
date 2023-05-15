@@ -66,7 +66,7 @@ var _ = Describe("Argo CD Application", func() {
 			Eventually(func() bool {
 				err = dbQueries.UnsafeListAllClusterAccess(context.Background(), &clusterAccessList)
 				return Expect(err).To(BeNil())
-			}, time.Second*500).Should(BeTrue())
+			}, time.Second*100).Should(BeTrue())
 
 			for _, v := range clusterAccessList {
 				if v.Clusteraccess_gitops_engine_instance_id == dbApplication.Engine_instance_inst_id {

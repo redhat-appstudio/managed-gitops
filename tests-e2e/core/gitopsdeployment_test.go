@@ -6,11 +6,13 @@ import (
 	"sync"
 	"time"
 
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	sharedresourceloop "github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	fixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
@@ -152,6 +154,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
 				),
 			)
+
 			expectedResourceStatusList := []managedgitopsv1alpha1.ResourceStatus{
 				{
 					Group:     "",
@@ -185,26 +188,39 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				),
 			)
 
-			By("deleting the GitOpsDeployment resource and waiting for the resources to be deleted")
-
-			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
-			Expect(err).To(Succeed())
+			app := &appv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      argocd.GenerateArgoCDApplicationName(string(gitOpsDeploymentResource.UID)),
+					Namespace: "gitops-service-argocd",
+				},
+			}
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
+			Expect(err).To(BeNil())
 
 			By("verify whether appProjectRepository row pointing to GitopsDeployment has been created in database ")
 
 			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
 			Expect(err).To(BeNil())
 
+			dbApplication := &db.Application{
+				Application_id: app.Labels["databaseID"],
+			}
+
+			err = dbQueries.GetApplicationById(ctx, dbApplication)
+			Expect(err).To(BeNil())
+
 			var clusterUser string
-			cluserUsersList := []db.ClusterUser{}
+			clusterAccessList := []db.ClusterAccess{}
 
 			Eventually(func() bool {
-				err = dbQueries.UnsafeListAllClusterUsers(ctx, &cluserUsersList)
+				err = dbQueries.UnsafeListAllClusterAccess(context.Background(), &clusterAccessList)
 				return Expect(err).To(BeNil())
-			}, time.Second*250).Should(BeTrue())
+			}, time.Second*100).Should(BeTrue())
 
-			for _, v := range cluserUsersList {
-				clusterUser = v.Clusteruser_id
+			for _, v := range clusterAccessList {
+				if v.Clusteraccess_gitops_engine_instance_id == dbApplication.Engine_instance_inst_id {
+					clusterUser = v.Clusteraccess_user_id
+				}
 			}
 
 			appProjectReposiroryDB := db.AppProjectRepository{
@@ -216,6 +232,11 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				err = dbQueries.GetAppProjectRepositoryByUniqueConstraint(ctx, &appProjectReposiroryDB)
 				return Expect(err).To(BeNil())
 			}, time.Second*100).Should(BeTrue())
+
+			By("deleting the GitOpsDeployment resource and waiting for the resources to be deleted")
+
+			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
+			Expect(err).To(Succeed())
 
 			expectAllResourcesToBeDeleted(expectedResourceStatusList)
 

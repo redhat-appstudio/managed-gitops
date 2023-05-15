@@ -323,14 +323,20 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		RepoURL:                 sharedloop.NormalizeGitURL(specFieldInput.sourceRepoURL),
 	}
 
-	if err := dbQueries.CreateAppProjectRepository(ctx, &appProjectRepoCredDB); err != nil {
-		a.log.Error(err, "Unable to create appProjectRepository based on GitopsDeployment...", appProjectRepoCredDB.GetAsLogKeyValues()...)
+	if err := dbQueries.GetAppProjectRepositoryByUniqueConstraint(ctx, &appProjectRepoCredDB); err != nil {
+		a.log.Info("Unable to retrieve AppProjectRepository from database based on GitopsDeployment, so we need to create it: "+appProjectRepoCredDB.AppProjectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
 
-		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
+		if db.IsResultNotFoundError(err) {
+
+			if err := dbQueries.CreateAppProjectRepository(ctx, &appProjectRepoCredDB); err != nil {
+				a.log.Error(err, "Unable to create appProjectRepository based on GitopsDeployment", appProjectRepoCredDB.GetAsLogKeyValues()...)
+
+				return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
+			}
+
+			a.log.Info("Created new AppProjectRepository in DB based on GitopsDeployment: "+appProjectRepoCredDB.AppProjectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
+		}
 	}
-
-	a.log.Info("Created new AppProjectRepository in DB based on GitopsDeployment: "+appProjectRepoCredDB.AppProjectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
-
 	if err := dbQueries.CreateApplication(ctx, &application); err != nil {
 		a.log.Error(err, "Unable to create application", application.GetAsLogKeyValues()...)
 

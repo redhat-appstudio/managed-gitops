@@ -92,8 +92,8 @@ function generate_postgresql_secret {
 function get_prev_image() {
   for image in $(${KUBECTL} get deploy/gitops-appstudio-service-controller-manager -n gitops -o jsonpath='{..image}' 2>/dev/null)
   do
-    if [[ "${image}" == *"controller-manager"* ]]; then
-      PREV_IMG="${image}"
+    if [[ "${image}" != *"proxy"* ]]; then
+      PREV_IMAGE="${image}"
       break
     fi
   done
@@ -124,7 +124,7 @@ function print_help() {
 
   echo "Example Usage:"
   echo "sh install-upgrade.sh -i <image_url>"
-  echo "sh install-upgrade.sh -u <quay_username"
+  echo "sh install-upgrade.sh -u <quay_username>"
 }
 
 # Code execution starts here
@@ -152,8 +152,8 @@ while getopts ':i:u:r:h:' OPTION; do
     i) IMG=${OPTARG};;
     u) QUAY_USERNAME=${OPTARG};;
     r) GIT_REVISION=${OPTARG};;
-    h) print_help; exit 0;
-    ?) echo "[Error] Invalid Option provided to the script"; print_help; exit 1;
+    h) print_help; exit 0;;
+    ?) echo "[Error] Invalid Option provided to the script"; print_help; exit 1;;
   esac
 done
 

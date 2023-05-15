@@ -28,7 +28,7 @@ var _ = Describe("Argo CD Application", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 			By("create a new GitOpsDeployment CR")
 
-			gitOpsDeployment := buildGitOpsDeploymentResource("my-gitops-depl-automated",
+			gitOpsDeployment := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl-automated",
 				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 

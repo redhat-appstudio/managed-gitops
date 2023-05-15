@@ -1,4 +1,4 @@
-package core
+package appstudio
 
 import (
 	"strings"
@@ -8,7 +8,8 @@ import (
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	promotionRunFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/promotionrun"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests.", func() {
@@ -43,7 +44,7 @@ var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests
 			Expect(err).To(Succeed())
 
 			By("Create PromotionRun CR.")
-			promotionRun = buildPromotionRunResource("new-demo-app-manual-promotion", "new-demo-app", "my-snapshot", "prod")
+			promotionRun = promotionRunFixture.BuildPromotionRunResource("new-demo-app-manual-promotion", "new-demo-app", "my-snapshot", "prod")
 		})
 
 		It("Creates a SnapshotEnvironmentBinding if one doesn't exist that targets the application/environment.", func() {
@@ -57,7 +58,7 @@ var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests
 			By("Check binding was created.")
 			bindingName := generatedBindingName(&promotionRun)
 			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{
-				ObjectMeta: v1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name:      bindingName,
 					Namespace: promotionRun.Namespace,
 				},
@@ -81,7 +82,7 @@ var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests
 			By("Check binding was created.")
 			bindingName := generatedBindingName(&promotionRun)
 			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{
-				ObjectMeta: v1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name:      bindingName,
 					Namespace: promotionRun.Namespace,
 				},
@@ -105,7 +106,7 @@ var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests
 			By("Check binding was created.")
 			bindingName := generatedBindingName(&promotionRun)
 			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{
-				ObjectMeta: v1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name:      bindingName,
 					Namespace: promotionRun.Namespace,
 				},
@@ -129,7 +130,7 @@ var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests
 			By("Check no binding was created.")
 			bindingName := generatedBindingName(&promotionRun)
 			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{
-				ObjectMeta: v1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name:      bindingName,
 					Namespace: promotionRun.Namespace,
 				},
@@ -145,7 +146,7 @@ func generatedBindingName(promotionRun *appstudiosharedv1.PromotionRun) string {
 
 func buildComponentResource(name, componentName, appName string) appstudiosharedv1.Component {
 	return appstudiosharedv1.Component{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: fixture.GitOpsServiceE2ENamespace,
 		},

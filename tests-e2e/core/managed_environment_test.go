@@ -44,10 +44,6 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 		It("should be healthy and have synced status, and resources should be deployed, when deployed with a ManagedEnv", func() {
 
-			if fixture.IsRunningAgainstKCP() {
-				Skip("Skipping this test until we support running gitops operator with KCP")
-			}
-
 			By("creating the GitOpsDeploymentManagedEnvironment")
 
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
@@ -64,7 +60,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8s.Create(&managedEnv, k8sClient)
 			Expect(err).To(BeNil())
 
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource("my-gitops-depl",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl",
 				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
@@ -176,7 +172,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			// Now create the cluster role and cluster role binding
-			err = createOrUpdateClusterRoleAndRoleBinding(ctx, "123", k8sClient, serviceAccountName, serviceAccount.Namespace, ArgoCDManagerNamespacePolicyRules)
+			err = k8s.CreateOrUpdateClusterRoleAndRoleBinding(ctx, "123", k8sClient, serviceAccountName, serviceAccount.Namespace, k8s.ArgoCDManagerNamespacePolicyRules)
 			Expect(err).To(BeNil())
 
 			// Create Service Account and wait for bearer token
@@ -189,7 +185,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			_, apiServerURL, err := extractKubeConfigValues()
 			Expect(err).To(BeNil())
 
-			kubeConfigContents := generateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, tokenSecret)
+			kubeConfigContents := k8s.GenerateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, tokenSecret)
 
 			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, false)
 
@@ -201,7 +197,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			By("by creating a GitOpsDeployment pointing to the ManagedEnvironment")
 
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource("my-gitops-depl",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl",
 				"https://github.com/redhat-appstudio/managed-gitops",
 				"resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
@@ -315,7 +311,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			// Now create the cluster role and cluster role binding
-			err = createOrUpdateClusterRoleAndRoleBinding(ctx, "123", k8sClient, serviceAccountName, serviceAccount.Namespace, ArgoCDManagerNamespacePolicyRules)
+			err = k8s.CreateOrUpdateClusterRoleAndRoleBinding(ctx, "123", k8sClient, serviceAccountName, serviceAccount.Namespace, k8s.ArgoCDManagerNamespacePolicyRules)
 			Expect(err).To(BeNil())
 
 			// Create Service Account and wait for bearer token
@@ -329,7 +325,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			Expect(err).To(BeNil())
 
 			// Set the tokenSecret to be "" to intentionally fail
-			kubeConfigContents := generateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, "")
+			kubeConfigContents := k8s.GenerateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, "")
 
 			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, false)
 
@@ -339,7 +335,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8s.Create(&managedEnv, k8sClient)
 			Expect(err).To(BeNil())
 
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource("my-gitops-depl",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl",
 				"https://github.com/redhat-appstudio/managed-gitops",
 				"resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
@@ -406,7 +402,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				},
 			}
 			// Now create the cluster role and cluster role binding
-			err = createOrUpdateClusterRoleAndRoleBinding(ctx, "123", k8sClient, serviceAccountName, serviceAccount.Namespace, insufficientPermissions)
+			err = k8s.CreateOrUpdateClusterRoleAndRoleBinding(ctx, "123", k8sClient, serviceAccountName, serviceAccount.Namespace, insufficientPermissions)
 			Expect(err).To(BeNil())
 
 			// Create Service Account and wait for bearer token
@@ -419,7 +415,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			_, apiServerURL, err := extractKubeConfigValues()
 			Expect(err).To(BeNil())
 
-			kubeConfigContents := generateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, tokenSecret)
+			kubeConfigContents := k8s.GenerateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, tokenSecret)
 
 			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, false)
 
@@ -429,7 +425,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8s.Create(&managedEnv, k8sClient)
 			Expect(err).To(BeNil())
 
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource("my-gitops-depl",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl",
 				"https://github.com/redhat-appstudio/managed-gitops",
 				"resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
@@ -539,7 +535,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			_, apiServerURL, err := extractKubeConfigValues()
 			Expect(err).To(BeNil())
 
-			kubeConfigContents := generateKubeConfig(apiServerURL, newNamespace.Name, tokenSecret)
+			kubeConfigContents := k8s.GenerateKubeConfig(apiServerURL, newNamespace.Name, tokenSecret)
 
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -569,7 +565,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8s.Create(managedEnv, k8sClient)
 			Expect(err).To(BeNil())
 
-			gitOpsDeploymentResource := buildGitOpsDeploymentResource("my-gitops-depl",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl",
 				"https://github.com/redhat-appstudio/managed-gitops",
 				"resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
@@ -599,7 +595,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			By("creating a second GitOpsDeployment, targeting a different namespace without a role and rolebinding on the serviceaccount of the managedenvironment, which should fail")
 
-			gitOpsDeploymentResource2 := buildGitOpsDeploymentResource("my-gitops-depl2",
+			gitOpsDeploymentResource2 := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl2",
 				"https://github.com/redhat-appstudio/managed-gitops",
 				"resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
@@ -671,7 +667,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			Expect(err).To(BeNil())
 
 			By("create a new GitOpsDeployment that attempts to deploy to the new namespace, using the exist managedenvironment, which should work")
-			gitOpsDeploymentResource3 := buildGitOpsDeploymentResource("my-gitops-depl3",
+			gitOpsDeploymentResource3 := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl3",
 				"https://github.com/redhat-appstudio/managed-gitops",
 				"resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
@@ -1166,32 +1162,6 @@ func extractKubeConfigValues() (string, string, error) {
 	return string(kubeConfigContents), cluster.Server, nil
 }
 
-func generateKubeConfig(serverURL string, currentNamespace string, token string) string {
-
-	return `
-apiVersion: v1
-kind: Config
-clusters:
-  - cluster:
-      insecure-skip-tls-verify: true
-      server: ` + serverURL + `
-    name: cluster-name
-contexts:
-  - context:
-      cluster: cluster-name
-      namespace: ` + currentNamespace + `
-      user: user-name
-    name: context-name
-current-context: context-name
-preferences: {}
-users:
-  - name: user-name
-    user:
-      token: ` + token + `
-`
-
-}
-
 func buildManagedEnvironment(apiServerURL string, kubeConfigContents string, createNewServiceAccount bool) (managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, corev1.Secret) {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1216,60 +1186,4 @@ func buildManagedEnvironment(apiServerURL string, kubeConfigContents string, cre
 	}
 
 	return *managedEnv, *secret
-}
-
-const (
-	ArgoCDManagerClusterRoleNamePrefix        = "argocd-manager-cluster-role-"
-	ArgoCDManagerClusterRoleBindingNamePrefix = "argocd-manager-cluster-role-binding-"
-)
-
-var (
-	ArgoCDManagerNamespacePolicyRules = []rbacv1.PolicyRule{
-		{
-			APIGroups: []string{"*"},
-			Resources: []string{"*"},
-			Verbs:     []string{"*"},
-		},
-	}
-)
-
-func createOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k8sClient client.Client,
-	serviceAccountName string, serviceAccountNamespace string, policyRules []rbacv1.PolicyRule) error {
-
-	clusterRole := &rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: ArgoCDManagerClusterRoleNamePrefix + uuid,
-		},
-	}
-	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(clusterRole), clusterRole); err != nil {
-
-		clusterRole.Rules = policyRules
-		if err := k8sClient.Create(ctx, clusterRole); err != nil {
-			return fmt.Errorf("unable to create clusterrole: %w", err)
-		}
-	}
-
-	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: ArgoCDManagerClusterRoleBindingNamePrefix + uuid,
-		},
-	}
-
-	clusterRoleBinding.RoleRef = rbacv1.RoleRef{
-		APIGroup: "rbac.authorization.k8s.io",
-		Kind:     "ClusterRole",
-		Name:     clusterRole.Name,
-	}
-
-	clusterRoleBinding.Subjects = []rbacv1.Subject{{
-		Kind:      rbacv1.ServiceAccountKind,
-		Name:      serviceAccountName,
-		Namespace: serviceAccountNamespace,
-	}}
-
-	if err := k8sClient.Create(ctx, clusterRoleBinding); err != nil {
-		return fmt.Errorf("unable to create clusterrole: %w", err)
-	}
-
-	return nil
 }

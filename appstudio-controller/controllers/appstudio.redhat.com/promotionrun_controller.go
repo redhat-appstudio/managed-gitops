@@ -72,7 +72,6 @@ const (
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
 
 func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 
 	log := log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops)

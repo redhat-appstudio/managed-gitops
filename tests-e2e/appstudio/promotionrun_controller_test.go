@@ -1,18 +1,17 @@
-package core
+package appstudio
 
 import (
 	"context"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	appstudiocontroller "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
-	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
-	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
-
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	appstudiocontroller "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
+	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	bindingFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/binding"
+	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	promotionRunFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/promotionrun"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,7 +55,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			Expect(err).To(Succeed())
 
 			// Now create the cluster role and cluster role binding
-			err = createOrUpdateClusterRoleAndRoleBinding(context.Background(), "123", k8sClient, serviceAccountName, serviceAccount.Namespace, ArgoCDManagerNamespacePolicyRules)
+			err = k8s.CreateOrUpdateClusterRoleAndRoleBinding(context.Background(), "123", k8sClient, serviceAccountName, serviceAccount.Namespace, k8s.ArgoCDManagerNamespacePolicyRules)
 			Expect(err).To(BeNil())
 
 			// Create the bearer token for the service account
@@ -68,7 +67,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			Expect(err).To(BeNil())
 
 			// We actually need a managed environment secret containing a kubeconfig that has the bearer token
-			kubeConfigContents := generateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, tokenSecret)
+			kubeConfigContents := k8s.GenerateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, tokenSecret)
 			secret := corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-managed-env-secret",
@@ -176,14 +175,11 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			Expect(err).To(Succeed())
 
 			By("Create PromotionRun CR.")
-			promotionRun = buildPromotionRunResource("new-demo-app-manual-promotion", "new-demo-app", "my-snapshot", "prod")
+			promotionRun = promotionRunFixture.BuildPromotionRunResource("new-demo-app-manual-promotion", "new-demo-app", "my-snapshot", "prod")
 		})
 
 		It("Should create GitOpsDeployments and it should be Synced/Healthy.", func() {
 			// ToDo: https://issues.redhat.com/browse/GITOPSRVCE-234
-			if fixture.IsRunningAgainstKCP() {
-				Skip("Skipping this test in KCP until we fix the race condition")
-			}
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
@@ -314,22 +310,4 @@ func buildSnapshotResource(name, appName, displayName, displayDescription, compo
 		},
 	}
 	return snapshot
-}
-
-func buildPromotionRunResource(name, appName, snapshotName, targetEnvironment string) appstudiosharedv1.PromotionRun {
-
-	promotionRun := appstudiosharedv1.PromotionRun{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: fixture.GitOpsServiceE2ENamespace,
-		},
-		Spec: appstudiosharedv1.PromotionRunSpec{
-			Snapshot:    snapshotName,
-			Application: appName,
-			ManualPromotion: appstudiosharedv1.ManualPromotionConfiguration{
-				TargetEnvironment: targetEnvironment,
-			},
-		},
-	}
-	return promotionRun
 }

@@ -1,4 +1,4 @@
-package core
+package argocd
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
@@ -13,17 +14,19 @@ import (
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 )
 
 var _ = Describe("Argo CD Application", func() {
 	Context("Creating GitOpsDeployment should result in an Argo CD Application", func() {
-		It("Argo CD Application should have has prune, allowEmpty and selfHeal enabled", func() {
+		BeforeEach(func() {
+			By("Delete old namespaces, and kube-system resources")
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+		})
+
+		It("Argo CD Application should have has prune, allowEmpty and selfHeal enabled", func() {
 
 			By("create a new GitOpsDeployment CR")
-			gitOpsDeployment := buildGitOpsDeploymentResource("my-gitops-depl-automated",
+			gitOpsDeployment := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl-automated",
 				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 

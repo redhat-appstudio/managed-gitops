@@ -1,6 +1,7 @@
 package hotfix
 
 import (
+	"flag"
 	"testing"
 	"time"
 
@@ -17,9 +18,18 @@ var _ = BeforeSuite(func() {
 
 func TestHotfix(t *testing.T) {
 
-	_, reporterConfig := GinkgoConfiguration()
-	reporterConfig.SlowSpecThreshold = time.Duration(1 * time.Minute)
+	suiteConfig, _ := GinkgoConfiguration()
+
+	// Define a flag for the poll progress after interval
+	var pollProgressAfter time.Duration
+	flag.DurationVar(&pollProgressAfter, "poll-progress-after", 1*time.Minute, "Interval for polling progress after")
+
+	// Parse the flags
+	flag.Parse()
+
+	// Set the poll progress after interval in the suite configuration
+	suiteConfig.PollProgressAfter = pollProgressAfter
 
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Hotfix Suite", reporterConfig)
+	RunSpecs(t, "Hotfix Suite", suiteConfig)
 }

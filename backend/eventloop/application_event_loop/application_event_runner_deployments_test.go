@@ -26,7 +26,7 @@ var _ = Describe("Application Event Runner Deployments", func() {
 		getFakeArgoCDSpecInput := func(automated, unsanitized bool) argoCDSpecInput {
 			input := argoCDSpecInput{
 				crName:               "sample-depl",
-				crNamespace:          "kcp-workspace",
+				crNamespace:          "workspace",
 				destinationNamespace: "prod",
 				destinationName:      "in-cluster",
 				sourceRepoURL:        "https://github.com/test/test",

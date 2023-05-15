@@ -54,7 +54,6 @@ type GitOpsDeploymentRepositoryCredentialReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.9.2/pkg/reconcile
 func (r *GitOpsDeploymentRepositoryCredentialReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
-	ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
 	_ = log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops)
 

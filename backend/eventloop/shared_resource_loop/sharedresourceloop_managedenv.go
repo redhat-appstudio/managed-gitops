@@ -536,7 +536,7 @@ func createNewManagedEnv(ctx context.Context, managedEnvironment managedgitopsv1
 	clusterCredentials, connInitCondition, err := createNewClusterCredentials(ctx, managedEnvironment, secret, k8sClientFactory, dbQueries, log, workspaceClient)
 	if err != nil {
 		return nil, connInitCondition,
-			fmt.Errorf("unable to create new cluster credentials for managed env, while creating new managed env: %v", err)
+			fmt.Errorf("unable to create new cluster credentials for managed env, while creating new managed env: %w", err)
 	}
 
 	managedEnv := &db.ManagedEnvironment{
@@ -830,7 +830,7 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 		}
 
 		if val.Token == "" {
-			msg := "unable to extract service account token for context " + matchingContextName
+			msg := fmt.Sprintf("kubeconfig must have a service account token for the user in context \"%s\". client-certificate is not supported at this time.", matchingContextName)
 			return db.ClusterCredentials{}, connectionInitializedCondition{
 				managedEnvCR: managedEnvironment,
 				status:       metav1.ConditionFalse,
@@ -880,11 +880,15 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 
 			log.Error(err, "Unable to verify ClusterCredentials using provided token", clusterCredentials.GetAsLogKeyValues()...)
 
+			message := "Unable to validate the credentials provided in the ManagedEnvironment Secret. Verify the API URL, and service account token are correct."
+			if apierr.IsForbidden(err) {
+				message = "Provided service account does not have permission to access resources in the cluster. Verify that the service account has the correct Role and RoleBinding."
+			}
 			return db.ClusterCredentials{}, connectionInitializedCondition{
 				managedEnvCR: managedEnvironment,
 				status:       metav1.ConditionUnknown,
 				reason:       managedgitopsv1alpha1.ConditionReasonUnableToValidateClusterCredentials,
-				message:      "Unable to validate the credentials provided in the ManagedEnvironment Secret. Verify the API URL, and service account token are correct.",
+				message:      message,
 			}, fmt.Errorf("unable to create cluster credentials for host '%s': %w", clusterCredentials.Host, err)
 
 		}
@@ -1099,7 +1103,7 @@ func verifyClusterCredentialsWithNamespaceList(ctx context.Context, clusterCreds
 			},
 		}
 		if err := clientObj.Get(ctx, client.ObjectKeyFromObject(&firstNamespaceName), &firstNamespaceName); err != nil {
-			return false, fmt.Errorf("unable to verify cluster credentials by retrieve a namespace in the namespace list '%s': %w",
+			return false, fmt.Errorf("unable to verify cluster credentials by retrieving a namespace in the namespace list '%s': %w",
 				firstNamespaceName.Name, err)
 		}
 

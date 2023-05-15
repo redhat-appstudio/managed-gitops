@@ -97,8 +97,6 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 		// Read from input channel: wait for an event on this application
 		newEvent := <-inputChannel
 
-		ctx = sharedutil.AddKCPClusterToContext(ctx, newEvent.Request.ClusterName)
-
 		// Process the event
 
 		if !(newEvent.EventType == eventlooptypes.UpdateDeploymentStatusTick && disableDeploymentStatusTickLogging == true) {

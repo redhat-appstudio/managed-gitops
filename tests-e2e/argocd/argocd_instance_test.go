@@ -1,4 +1,4 @@
-package core
+package argocd
 
 import (
 	"context"
@@ -44,10 +44,6 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 		})
 
 		It("should create ArgoCD resource and application, wait for it to be installed and synced", func() {
-
-			if fixture.IsRunningAgainstKCP() {
-				Skip("Skipping this test until we support running gitops operator with KCP")
-			}
 
 			By("creating ArgoCD resource")
 			ctx := context.Background()

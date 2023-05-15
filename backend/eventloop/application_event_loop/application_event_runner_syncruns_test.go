@@ -25,7 +25,7 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 
 		var (
 			dbQueries         db.AllDatabaseQueries
-			k8sClient         client.Client
+			k8sClient         *sharedutil.ProxyClient
 			gitopsDepl        *managedgitopsv1alpha1.GitOpsDeployment
 			applicationAction applicationEventLoopRunner_Action
 			informer          sharedutil.ListEventReceiver

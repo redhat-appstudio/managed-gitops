@@ -223,8 +223,6 @@ func internalProcessWorkspaceResourceMessage(ctx context.Context, msg workspaceR
 
 		req := evlMessage.Event.Request
 
-		ctx = sharedutil.AddKCPClusterToContext(ctx, req.ClusterName)
-
 		// Retrieve the namespace that the managed environment is contained within
 		namespace := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{

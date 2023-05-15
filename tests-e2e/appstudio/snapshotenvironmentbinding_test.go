@@ -1,4 +1,4 @@
-package core
+package appstudio
 
 import (
 	"context"
@@ -506,9 +506,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 		It("should create a GitOpsDeployment that references cluster credentials specified in Environment", func() {
 			// ToDo: solve GITOPSRVC-217, and remove this constraint
-			if fixture.IsRunningAgainstKCP() {
-				Skip("Skipping this test because of race condition when running on KCP based env")
-			}
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())

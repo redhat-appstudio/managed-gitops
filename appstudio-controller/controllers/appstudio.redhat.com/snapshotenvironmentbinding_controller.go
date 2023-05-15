@@ -164,7 +164,7 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 		}
 
 		// Delete all existing deployments associated with this binding
-		err := deleteUnmatchedDeployments(ctx, rClient, binding, nil, log)
+		err := deleteUnmatchedDeployments(ctx, *binding, nil, rClient, log)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -200,7 +200,7 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 	}
 
 	// Delete any existing deployments which don't have a matching component
-	err := deleteUnmatchedDeployments(ctx, rClient, binding, expectedDeployments, log)
+	err := deleteUnmatchedDeployments(ctx, *binding, expectedDeployments, rClient, log)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -276,16 +276,17 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 
 // Delete all Deployments which are associated with the given binding but are not contained in the
 // given expectedDeployments map
-func deleteUnmatchedDeployments(ctx context.Context, c client.Client, binding *appstudioshared.SnapshotEnvironmentBinding, expectedDeployments map[string]apibackend.GitOpsDeployment, logger logr.Logger) error {
+func deleteUnmatchedDeployments(ctx context.Context, binding appstudioshared.SnapshotEnvironmentBinding, expectedDeployments map[string]apibackend.GitOpsDeployment, k8sClient client.Client, logger logr.Logger) error {
+
 	// Find all deployments in the binding's namespace that are labeled with the
 	// binding's application and environment
 	appRequirement, err := labels.NewRequirement(applicationLabelKey, selection.Equals, []string{binding.Spec.Application})
-	if err != nil {
+	if err != nil || appRequirement == nil {
 		logger.Error(err, "error creating label selector requirement", "application", binding.Spec.Application)
 		return err
 	}
 	envRequirement, err := labels.NewRequirement(environmentLabelKey, selection.Equals, []string{binding.Spec.Environment})
-	if err != nil {
+	if err != nil || envRequirement == nil {
 		logger.Error(err, "error creating label selector requirement", "environment", binding.Spec.Environment)
 		return err
 	}
@@ -295,8 +296,7 @@ func deleteUnmatchedDeployments(ctx context.Context, c client.Client, binding *a
 		Namespace:     binding.Namespace,
 		LabelSelector: selector,
 	}
-	err = c.List(ctx, &deployments, &options)
-	if err != nil {
+	if err := k8sClient.List(ctx, &deployments, &options); err != nil {
 		logger.Error(err, "error retrieving list of existing deployments", "application", binding.Spec.Application, "environment", binding.Spec.Environment)
 		return err
 	}
@@ -305,14 +305,34 @@ func deleteUnmatchedDeployments(ctx context.Context, c client.Client, binding *a
 	for i := range deployments.Items {
 		deployment := deployments.Items[i]
 		component := deployment.Labels[componentLabelKey]
+
+		// Sanity check: we should only delete a GitOpsDeployment if it is owned by the corresponding SnapshotEnvironmentBinding via ownerref
+		if len(deployment.OwnerReferences) == 0 {
+			continue
+		}
+		ownerRefMatch := false
+		for _, ownerRef := range deployment.OwnerReferences {
+			if ownerRef.UID == binding.UID {
+				ownerRefMatch = true
+				break
+			}
+		}
+		if !ownerRefMatch {
+			continue
+		}
+
+		// We should only delete a GitOpsDeployment that is not in our expected component list
 		_, exists := expectedDeployments[component]
 		if !exists {
-			logger.V(logutil.LogLevel_Debug).Info("deleting deployment", "name", deployment.Name)
-			err = c.Delete(ctx, &deployment)
-			if err != nil {
+
+			if err := k8sClient.Delete(ctx, &deployment); err != nil {
 				logger.Error(err, "error deleting deployment", "name", deployment.Name)
 				return err
 			}
+			logger.Info("Deleted deployment which was no longer referenced by the SnapshotEnvironmentBinding", "deploymentName", deployment.Name)
+
+			logutil.LogAPIResourceChangeEvent(deployment.Namespace, deployment.Name, deployment, logutil.ResourceDeleted, logger)
+
 		}
 	}
 	return nil
@@ -497,13 +517,13 @@ func generateExpectedGitOpsDeployment(component appstudioshared.BindingComponent
 	// Label values are limited to a maximum of 63 characters, while resource names by default can be up to 253.
 	// AppStudio has webhooks to artificially limits these names to 63 characters, but to be safe we
 	// error out if they are too long.
-	if err := setLabel(&res, applicationLabelKey, binding.Spec.Application, logger); err != nil {
+	if err := setLabel(&res, applicationLabelKey, binding.Spec.Application); err != nil {
 		return apibackend.GitOpsDeployment{}, err
 	}
-	if err := setLabel(&res, componentLabelKey, component.Name, logger); err != nil {
+	if err := setLabel(&res, componentLabelKey, component.Name); err != nil {
 		return apibackend.GitOpsDeployment{}, err
 	}
-	if err := setLabel(&res, environmentLabelKey, binding.Spec.Environment, logger); err != nil {
+	if err := setLabel(&res, environmentLabelKey, binding.Spec.Environment); err != nil {
 		return apibackend.GitOpsDeployment{}, err
 	}
 
@@ -519,7 +539,7 @@ func generateExpectedGitOpsDeployment(component appstudioshared.BindingComponent
 
 // Sets the given label on the given GitopsDeployment.  Returns an error if the length of the label value
 // is greater than the limit of 63 characters, else returns nil
-func setLabel(deployment *apibackend.GitOpsDeployment, key, value string, logger logr.Logger) error {
+func setLabel(deployment *apibackend.GitOpsDeployment, key, value string) error {
 	if len(value) > 63 {
 		err := fmt.Errorf("unable to set label %s on deployment %s: value '%s' for label is longer than 63 characters", key, deployment.Name, value)
 		return err
@@ -651,7 +671,7 @@ func updateBindingConditionOfSEB(ctx context.Context, client client.Client, mess
 		binding.Status.BindingConditions = newConditions
 
 		if err := client.Status().Update(ctx, binding); err != nil {
-			log.Error(err, "unable to update .status.binditionCondition of SEB")
+			log.Error(err, "unable to update .status.bindingCondition of SEB")
 			return err
 		}
 		log.Info("updated .status.bindingCondition of SnapshotEnvironmentBinding")

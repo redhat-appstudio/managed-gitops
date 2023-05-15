@@ -393,6 +393,11 @@ func cleanOrphanedEntriesfromTable_ACTDM_GitOpsDeploymentSyncRun(ctx context.Con
 		return
 	}
 
+	if syncOperationDb.Application_id == "" {
+		log.Info("Application row not found for SyncOperation", "syncOperationID", syncOperationDb.SyncOperation_id, "applicationID", syncOperationDb.Application_id)
+		return
+	}
+
 	applicationDb = db.Application{Application_id: syncOperationDb.Application_id}
 	if err := dbQueries.GetApplicationById(ctx, &applicationDb); err != nil {
 		log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_ACTDM_GitOpsDeploymentSyncRun while fetching Application by Id : "+syncOperationDb.Application_id+" from DB.")

@@ -358,6 +358,11 @@ func (a *applicationEventLoopRunner_Action) handleDeletedGitOpsDeplSyncRunEvent(
 	log := a.log
 	log.Info("Received GitOpsDeploymentSyncRun event for a GitOpsDeploymentSyncRun resource that no longer exists")
 
+	if syncOperation.Application_id == "" {
+		log.Info("Application row not found for SyncOperation", "syncOperationID", syncOperation.SyncOperation_id, "applicationID", syncOperation.Application_id)
+		return nil
+	}
+
 	// 1) Update the state of the SyncOperation DB table to say that we want to terminate it, if it is runing
 	syncOperation.DesiredState = db.SyncOperation_DesiredState_Terminated
 	if err := dbQueries.UpdateSyncOperation(ctx, &syncOperation); err != nil {

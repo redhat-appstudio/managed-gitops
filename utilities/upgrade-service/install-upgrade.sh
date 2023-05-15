@@ -108,7 +108,7 @@ function apply_kustomize_manifests() {
     attempt=${retry_count}
     retry_count=$((retry_count+1))
     echo "[INFO] (Attempt ${attempt}) Executing kustomize build command"
-    ${KUSTOMIZE} build ${TEMP_DIR} > ${TEMP_DIR}/kustomize-build-output.yaml || continue
+    ${KUSTOMIZE} build ${TEMP_DIR} | COMMON_IMAGE=${IMG} envsubst  > ${TEMP_DIR}/kustomize-build-output.yaml || continue
     echo "[INFO] (Attempt ${attempt}) Creating k8s resources from kustomize manifests"
     ${KUBECTL} apply -f ${TEMP_DIR}/kustomize-build-output.yaml && break
   done

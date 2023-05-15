@@ -263,7 +263,12 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			err := bindingReconciler.Create(ctx, binding)
 			Expect(err).To(BeNil())
 
-			By("Also creating an unrelated GitOps Deployment which should not be removed")
+			err = bindingReconciler.Get(context.Background(), client.ObjectKeyFromObject(binding), binding)
+			Expect(err).To(BeNil())
+
+			Expect(len(binding.Status.Components)).To(BeNumerically(">", 0))
+
+			By("Also creating an unrelated GitOpsDeployment which should not be removed")
 			unrelatedDeployment := apibackend.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "unrelated-deployment",
@@ -278,11 +283,11 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			err = bindingReconciler.Create(ctx, &unrelatedDeployment)
 			Expect(err).To(BeNil())
 
-			By("Triggering the Reconciler to create the GitOps Deployment instance")
+			By("Triggering the Reconciler to create the GitOpsDeployment instance")
 			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).To(BeNil())
 
-			By("Ensuring the two corresponding GitOps Deployment instances have been created")
+			By("Ensuring the two corresponding GitOpsDeployment instances have been created")
 			gitopsDeploymentKey0 := client.ObjectKey{
 				Namespace: binding.Namespace,
 				Name:      GenerateBindingGitOpsDeploymentName(*binding, binding.Spec.Components[0].Name),
@@ -307,7 +312,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			err = bindingReconciler.Get(ctx, unrelatedDeploymentKey, gitopsDeployment)
 			Expect(err).To(BeNil())
 
-			By("Deleting the first component and reconciling")
+			By("Removing the first component and reconciling")
 			err = bindingReconciler.Get(ctx, client.ObjectKeyFromObject(binding), binding)
 			Expect(err).To(BeNil())
 			binding.Spec.Components = binding.Spec.Components[1:]
@@ -1365,7 +1370,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 		DescribeTable("verify updateBindingConditionOfSEB works as expected",
 			func(preCondition []metav1.Condition, newCondition metav1.Condition, expectedResult []metav1.Condition, expectUpdateStatusCalled bool) {
 
-				By("creating an initial SEB with the pre- state of bindingConditions")
+				By("creating an initial SEB with the initial state of status.bindingConditions")
 				env := appstudiosharedv1.SnapshotEnvironmentBinding{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "my-seb",
@@ -1379,7 +1384,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				err = k8sClient.Update(ctx, &env)
 				Expect(err).To(BeNil())
 
-				By("reseting the list of events after we updated the binding conditions")
+				By("resetting the list of events after we updated the binding conditions")
 				eventReceiver.Events = []sharedutil.ProxyClientEvent{}
 
 				By("calling the binding condition update function")

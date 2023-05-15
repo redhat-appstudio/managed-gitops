@@ -34,12 +34,12 @@ type PreprocessEventLoop struct {
 	nextStep              *eventloop.ControllerEventLoop
 }
 
-func NewPreprocessEventLoop(vwsAPIExportName string) *PreprocessEventLoop {
+func NewPreprocessEventLoop() *PreprocessEventLoop {
 	channel := make(chan eventlooptypes.EventLoopEvent)
 
 	res := &PreprocessEventLoop{}
 	res.eventLoopInputChannel = channel
-	res.nextStep = eventloop.NewControllerEventLoop(vwsAPIExportName)
+	res.nextStep = eventloop.NewControllerEventLoop()
 
 	go preprocessEventLoopRouter(channel, res.nextStep)
 

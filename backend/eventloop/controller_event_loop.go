@@ -26,12 +26,10 @@ type ControllerEventLoop struct {
 	EventLoopInputChannel chan eventlooptypes.EventLoopEvent
 }
 
-func NewControllerEventLoop(vwsAPIExportName string) *ControllerEventLoop {
+func NewControllerEventLoop() *ControllerEventLoop {
 
 	channel := make(chan eventlooptypes.EventLoopEvent)
-	go controllerEventLoopRouter(channel, defaultWorkspaceEventLoopRouterFactory{
-		vwsAPIExportName: vwsAPIExportName,
-	})
+	go controllerEventLoopRouter(channel, defaultWorkspaceEventLoopRouterFactory{})
 
 	res := &ControllerEventLoop{
 		EventLoopInputChannel: channel,
@@ -115,13 +113,12 @@ type workspaceEventLoopRouterFactory interface {
 }
 
 type defaultWorkspaceEventLoopRouterFactory struct {
-	vwsAPIExportName string
 }
 
 var _ workspaceEventLoopRouterFactory = defaultWorkspaceEventLoopRouterFactory{}
 
 func (d defaultWorkspaceEventLoopRouterFactory) startWorkspaceEventLoopRouter(workspaceID string) WorkspaceEventLoopRouterStruct {
 
-	return newWorkspaceEventLoopRouter(workspaceID, d.vwsAPIExportName)
+	return newWorkspaceEventLoopRouter(workspaceID)
 
 }

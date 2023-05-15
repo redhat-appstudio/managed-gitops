@@ -38,15 +38,13 @@ import (
 
 // Start a workspace event loop router go routine, which is responsible for handling API namespace events and
 // then passing them to the controller loop.
-func newWorkspaceEventLoopRouter(workspaceID string, vwsAPIExportName string) WorkspaceEventLoopRouterStruct {
+func newWorkspaceEventLoopRouter(workspaceID string) WorkspaceEventLoopRouterStruct {
 
 	res := WorkspaceEventLoopRouterStruct{
 		channel: make(chan workspaceEventLoopMessage),
 	}
 
-	internalStartWorkspaceEventLoopRouter(res.channel, workspaceID, defaultApplicationEventLoopFactory{
-		vwsAPIExportName: vwsAPIExportName,
-	})
+	internalStartWorkspaceEventLoopRouter(res.channel, workspaceID, defaultApplicationEventLoopFactory{})
 
 	return res
 }
@@ -465,7 +463,6 @@ type applicationEventQueueLoopFactory interface {
 }
 
 type defaultApplicationEventLoopFactory struct {
-	vwsAPIExportName string
 }
 
 // The default implementation of startApplicationEventQueueLoop is just a simple wrapper around a call to

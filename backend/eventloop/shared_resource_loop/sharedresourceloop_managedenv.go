@@ -511,7 +511,7 @@ func wrapManagedEnv(ctx context.Context, managedEnv db.ManagedEnvironment, works
 		Clusteraccess_gitops_engine_instance_id: engineInstance.Gitopsengineinstance_id,
 	}
 
-	err1, isNewClusterAccess := internalGetOrCreateClusterAccess(ctx, &ca, dbQueries, log)
+	isNewClusterAccess, err1 := internalGetOrCreateClusterAccess(ctx, &ca, dbQueries, log)
 	if err1 != nil {
 		log.Error(err1, "unable to create cluster access")
 		msg := gitopserrors.UnknownError

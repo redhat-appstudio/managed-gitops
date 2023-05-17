@@ -138,7 +138,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 
 				// We need to fire-up an Operation as well
 				l.Info("Creating an Operation for the deleted RepositoryCredential DB row", "RepositoryCredential ID", repositoryCredentialPrimaryKey)
-				if err, operationDBID = createRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries,
+				if operationDBID, err = createRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries,
 					apiNamespaceClient, shouldWait, l); err != nil {
 
 					l.Error(err, "Error creating an Operation for the deleted RepositoryCredential DB row", "RepositoryCredential ID", repositoryCredentialPrimaryKey)
@@ -267,7 +267,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 
 		l.Info(fmt.Sprintf("Created a ApiCRToDBMapping: (APIResourceType: %s, APIResourceUID: %s, DBRelationType: %s)", newApiCRToDBMapping.APIResourceType, newApiCRToDBMapping.APIResourceUID, newApiCRToDBMapping.DBRelationType))
 
-		err, operationDBID := createRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, shouldWait, l)
+		operationDBID, err := createRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, shouldWait, l)
 		if err != nil {
 			return nil, err
 		}
@@ -322,7 +322,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 				return nil, err
 			}
 
-			if err, operationDBID = createRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, shouldWait, l); err != nil {
+			if operationDBID, err = createRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, shouldWait, l); err != nil {
 				return nil, err
 			}
 
@@ -399,7 +399,7 @@ func CleanRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCredent
 }
 
 func createRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCredentials, clusterUser *db.ClusterUser, ns string,
-	dbQueries db.DatabaseQueries, apiNamespaceClient client.Client, shouldWait bool, l logr.Logger) (error, string) {
+	dbQueries db.DatabaseQueries, apiNamespaceClient client.Client, shouldWait bool, l logr.Logger) (string, error) {
 
 	dbOperationInput := db.Operation{
 		Instance_id:             dbRepoCred.EngineClusterID,
@@ -413,12 +413,12 @@ func createRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCreden
 		apiNamespaceClient, l)
 	if err != nil {
 		errV := fmt.Errorf("unable to create operation: %v", err)
-		return errV, ""
+		return "", errV
 	}
 
 	l.Info("operation has been created", "CR", operationCR, "DB", operationDB)
 
-	return nil, operationDB.Operation_id
+	return operationDB.Operation_id, nil
 }
 
 // Updates the given repository credential CR's status condition to match the given condition and additional checks.

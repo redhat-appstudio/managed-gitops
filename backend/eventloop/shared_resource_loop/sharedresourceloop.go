@@ -582,7 +582,7 @@ func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, gito
 		Clusteraccess_gitops_engine_instance_id: engineInstance.Gitopsengineinstance_id,
 	}
 
-	err, isNewClusterAccess := internalGetOrCreateClusterAccess(ctx, &ca, dbQueries, l)
+	isNewClusterAccess, err := internalGetOrCreateClusterAccess(ctx, &ca, dbQueries, l)
 	if err != nil {
 		return SharedResourceManagedEnvContainer{}, createUnknownErrorEnvInitCondition(), fmt.Errorf("unable to create cluster access: %v", err)
 	}
@@ -650,26 +650,26 @@ func internalDetermineGitOpsEngineInstance(ctx context.Context, user db.ClusterU
 }
 
 // The bool return value is 'true' if ClusterAccess is created; 'false' if it already exists in DB or in case of failure.
-func internalGetOrCreateClusterAccess(ctx context.Context, ca *db.ClusterAccess, dbq db.DatabaseQueries, l logr.Logger) (error, bool) {
+func internalGetOrCreateClusterAccess(ctx context.Context, ca *db.ClusterAccess, dbq db.DatabaseQueries, l logr.Logger) (bool, error) {
 
 	if err := dbq.GetClusterAccessByPrimaryKey(ctx, ca); err != nil {
 
 		if !db.IsResultNotFoundError(err) {
-			return err, false
+			return false, err
 		}
 	} else {
-		return nil, false
+		return false, nil
 	}
 
 	if err := dbq.CreateClusterAccess(ctx, ca); err != nil {
 		l.Error(err, "Unable to create ClusterAccess", ca.GetAsLogKeyValues()...)
 
-		return err, false
+		return false, err
 	}
 	l.Info(fmt.Sprintf("Created ClusterAccess for UserID: %s, for ManagedEnvironment: %s", ca.Clusteraccess_user_id,
 		ca.Clusteraccess_managed_environment_id), ca.GetAsLogKeyValues()...)
 
-	return nil, true
+	return true, nil
 }
 
 // The bool return value is 'true' if ClusterUser is created; 'false' if it already exists in DB or in case of failure.

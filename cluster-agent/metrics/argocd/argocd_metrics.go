@@ -99,6 +99,7 @@ func (m *reconciliationMetricsUpdater) gitopsNamespaces() []string {
 		return m.testNamespaceNames
 	}
 	return []string{
+		// TODO: GITOPSRVCE-73 - Once we have a way to distribute work between Argo CD instances, update this function.
 		dbutil.GetGitOpsEngineSingleInstanceNamespace(),
 	}
 }

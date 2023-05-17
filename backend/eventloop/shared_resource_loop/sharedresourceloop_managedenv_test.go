@@ -1057,7 +1057,7 @@ func buildManagedEnvironmentForSRLWithOptionalSA(createNewServiceAccount bool) (
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-my-managed-env-secret",
-			Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+			Namespace: "test-k8s-namespace",
 		},
 		Type: sharedutil.ManagedEnvironmentSecretType,
 		Data: map[string][]byte{
@@ -1068,7 +1068,7 @@ func buildManagedEnvironmentForSRLWithOptionalSA(createNewServiceAccount bool) (
 	managedEnv := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-my-managed-env",
-			Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+			Namespace: "test-k8s-namespace",
 		},
 		Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
 			APIURL:                   "https://api.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443",

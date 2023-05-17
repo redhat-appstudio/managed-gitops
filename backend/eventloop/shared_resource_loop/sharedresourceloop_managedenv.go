@@ -11,7 +11,6 @@ import (
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
-	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/gitopserrors"
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
@@ -620,7 +619,7 @@ func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 
 		// Don't wait for the Operation to complete, just create it and continue with the next.
 		_, _, err = operations.CreateOperation(ctx, false, operation, user.Clusteruser_id,
-			dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, client, log)
+			gitopsEngineInstance.Namespace_name, dbQueries, client, log)
 		// TODO: GITOPSRVCE-174 - Add garbage collection of this operation once 174 is finished.
 		if err != nil {
 			return fmt.Errorf("unable to create operation for applicaton '%s': %v", app.Application_id, err)
@@ -694,7 +693,7 @@ func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 
 		// TODO: GITOPSRVCE-174 - Add garbage collection of this operation once 174 is finished.
 		_, _, err = operations.CreateOperation(ctx, false, operation, user.Clusteruser_id,
-			dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, client, log)
+			gitopsEngineInstance.Namespace_name, dbQueries, client, log)
 		if err != nil {
 			return fmt.Errorf("unable to create operation for deleted managed environment: %v", err)
 		}

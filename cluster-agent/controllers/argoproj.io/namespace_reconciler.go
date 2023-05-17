@@ -148,9 +148,15 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 						Resource_id:   applicationRowFromDB.Application_id,
 						Resource_type: db.OperationResourceType_Application,
 					}
-
+					engineInstanceDB := db.GitopsEngineInstance{
+						Gitopsengineinstance_id: dbOperationInput.Instance_id,
+					}
+					if err = dbQueries.GetGitopsEngineInstanceById(ctx, &engineInstanceDB); err != nil {
+						log.Error(err, "Unable to fetch GitopsEngineInstance")
+						continue
+					}
 					_, _, err = operations.CreateOperation(ctx, false, dbOperationInput,
-						specialClusterUser.Clusteruser_id, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, client, log)
+						specialClusterUser.Clusteruser_id, engineInstanceDB.Namespace_name, dbQueries, client, log)
 					if err != nil {
 						log.Error(err, "Namespace Reconciler is unable to create operation: "+dbOperationInput.ShortString())
 					}
@@ -190,9 +196,15 @@ func runNamespaceReconcile(ctx context.Context, dbQueries db.DatabaseQueries, cl
 				Resource_id:   applicationRowFromDB.Application_id,
 				Resource_type: db.OperationResourceType_Application,
 			}
-
+			engineInstanceDB := db.GitopsEngineInstance{
+				Gitopsengineinstance_id: dbOperationInput.Instance_id,
+			}
+			if err := dbQueries.GetGitopsEngineInstanceById(ctx, &engineInstanceDB); err != nil {
+				log.Error(err, "Unable to fetch GitopsEngineInstance")
+				continue
+			}
 			if _, _, err := operations.CreateOperation(ctx, false, dbOperationInput,
-				specialClusterUser.Clusteruser_id, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, client, log); err != nil {
+				specialClusterUser.Clusteruser_id, engineInstanceDB.Namespace_name, dbQueries, client, log); err != nil {
 				log.Error(err, "Namespace Reconciler is unable to create operation: "+dbOperationInput.ShortString())
 				continue
 			}
@@ -354,9 +366,15 @@ func cleanK8sOperations(ctx context.Context, dbq db.DatabaseQueries, client clie
 		}
 
 		log.Info("Deleting Operation created by Namespace Reconciler." + string(k8sOperation.UID))
-
+		engineInstanceDB := db.GitopsEngineInstance{
+			Gitopsengineinstance_id: dbOperation.Instance_id,
+		}
+		if err = dbq.GetGitopsEngineInstanceById(ctx, &engineInstanceDB); err != nil {
+			log.Error(err, "Unable to fetch GitopsEngineInstance")
+			continue
+		}
 		// Delete the k8s operation now.
-		if err := operations.CleanupOperation(ctx, dbOperation, k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(),
+		if err := operations.CleanupOperation(ctx, dbOperation, k8sOperation, engineInstanceDB.Namespace_name,
 			dbq, client, false, log); err != nil {
 
 			log.Error(err, "Unable to Delete k8s Operation"+string(k8sOperation.UID)+" for DbOperation: "+string(k8sOperation.Spec.OperationID))

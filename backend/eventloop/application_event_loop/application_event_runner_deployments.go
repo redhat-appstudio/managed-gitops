@@ -164,16 +164,12 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 	successfulCleanup := signalledShutdown_true
 	if len(oldDeplToAppMappings) > 0 || isGitOpsDeploymentDeleted(gitopsDeployment) {
 
-		// We should signal shutdown if both conditions are satisfied:
-		// - we have successfully cleaned up old resources
-		// - AND, the CR no longer exists
-
 		var deleteErr gitopserrors.UserError
-		successfulCleanup, deleteErr = a.handleDeleteGitOpsDeplEvent(ctx, gitopsDeployment, clusterUser, dbutil.GetGitOpsEngineSingleInstanceNamespace(),
-			&oldDeplToAppMappings, dbQueries)
+		successfulCleanup, deleteErr = a.handleDeleteGitOpsDeplEvent(ctx, gitopsDeployment, clusterUser, &oldDeplToAppMappings, dbQueries)
 		if deleteErr != nil {
 			return signalledShutdown_false, nil, nil, deploymentModifiedResult_Failed, deleteErr
 		}
+		//}
 	}
 
 	// 5) Finally, handle the resource event, based on whether it is a create, update, or no-op
@@ -186,7 +182,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 			// then this is the first time we have seen the GitOpsDepl CR.
 			// Create it in the DB and create the operation.
 			application, gitopsEngineInstance, deplModifiedResult, err :=
-				a.handleNewGitOpsDeplEvent(ctx, *gitopsDeployment, clusterUser, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries)
+				a.handleNewGitOpsDeplEvent(ctx, *gitopsDeployment, clusterUser, dbQueries)
 
 			// Since the GitOpsDeployment still exists, don't signal shutdown
 			return signalledShutdown_false, application, gitopsEngineInstance, deplModifiedResult, err
@@ -195,7 +191,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 
 			// 5b) if both exist: it's an update (or a no-op)
 			application, gitopsEngineInstance, deplModifiedResult, err := a.handleUpdatedGitOpsDeplEvent(ctx, currentDeplToAppMapping,
-				*gitopsDeployment, clusterUser, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries)
+				*gitopsDeployment, clusterUser, dbQueries)
 
 			// Since the GitOpsDeployment still exists, don't signal shutdown
 			return signalledShutdown_false, application, gitopsEngineInstance, deplModifiedResult, err
@@ -221,7 +217,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleDeploym
 //   - references to the Application and GitOpsEngineInstance database fields.
 //   - error is non-nil, if an error occurred
 func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.Context,
-	gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment, clusterUser *db.ClusterUser, operationNamespace string,
+	gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment, clusterUser *db.ClusterUser,
 	dbQueries db.ApplicationScopedQueries) (*db.Application, *db.GitopsEngineInstance, deploymentModifiedResult, gitopserrors.UserError) {
 
 	a.log.Info("Received GitOpsDeployment event for a new GitOpsDeployment resource")
@@ -351,15 +347,23 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	}
 
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
-
+	if engineInstance == nil {
+		err = fmt.Errorf("gitopsengineinstance is nil, expected non-nil:  %v", engineInstance)
+		a.log.Error(err, "unexpected nil value of required objects")
+		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
+	}
+	if engineInstance.Namespace_name == "" {
+		err = fmt.Errorf("gitopsengineinstance namespace is nil, expected non-nil:  %s", engineInstance.Gitopsengineinstance_id)
+		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
+	}
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput,
-		clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, a.log)
+		clusterUser.Clusteruser_id, engineInstance.Namespace_name, dbQueries, gitopsEngineClient, a.log)
 	if err != nil {
-		a.log.Error(err, "could not create operation", "namespace", operationNamespace)
+		a.log.Error(err, "could not create operation", "namespace", engineInstance.Namespace_name)
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 	}
 
-	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, !a.testOnlySkipCreateOperation, a.log); err != nil {
+	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, engineInstance.Namespace_name, dbQueries, gitopsEngineClient, !a.testOnlySkipCreateOperation, a.log); err != nil {
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 	}
 
@@ -375,7 +379,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 // - true if the goroutine responsible for this application can shutdown (e.g. because the GitOpsDeployment no longer exists, so no longer needs to be processed), false otherwise.
 // - error is non-nil, if an error occurred
 func (a applicationEventLoopRunner_Action) handleDeleteGitOpsDeplEvent(ctx context.Context, gitopsDepl *managedgitopsv1alpha1.GitOpsDeployment, clusterUser *db.ClusterUser,
-	operationNamespace string, deplToAppMappingList *[]db.DeploymentToApplicationMapping,
+	deplToAppMappingList *[]db.DeploymentToApplicationMapping,
 	dbQueries db.ApplicationScopedQueries) (bool, gitopserrors.UserError) {
 
 	if deplToAppMappingList == nil || clusterUser == nil { // sanity check
@@ -402,7 +406,7 @@ func (a applicationEventLoopRunner_Action) handleDeleteGitOpsDeplEvent(ctx conte
 		deplToAppMapping := (*deplToAppMappingList)[idx]
 
 		// Clean up the database entries
-		itemSignalledShutdown, err := a.cleanOldGitOpsDeploymentEntry(ctx, &deplToAppMapping, clusterUser, operationNamespace, apiNamespace, dbQueries)
+		itemSignalledShutdown, err := a.cleanOldGitOpsDeploymentEntry(ctx, &deplToAppMapping, clusterUser, apiNamespace, dbQueries)
 		if err != nil {
 			// If we were unable to fully clean up a gitopsdeployment, then don't shutdown the goroutine
 			signalShutdown = false
@@ -517,9 +521,8 @@ func (a applicationEventLoopRunner_Action) reconcileManagedEnvironmentOfGitOpsDe
 // - references to the Application and GitOpsEngineInstance database fields.
 // - error is non-nil, if an error occurred
 func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx context.Context, deplToAppMapping *db.DeploymentToApplicationMapping,
-	gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment, clusterUser *db.ClusterUser, operationNamespace string,
+	gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment, clusterUser *db.ClusterUser,
 	dbQueries db.ApplicationScopedQueries) (*db.Application, *db.GitopsEngineInstance, deploymentModifiedResult, gitopserrors.UserError) {
-
 	if deplToAppMapping == nil || gitopsDeployment.UID == "" || clusterUser == nil {
 		return nil, nil, deploymentModifiedResult_Failed,
 			gitopserrors.NewDevOnlyError(fmt.Errorf("unexpected nil param in handleUpdatedGitOpsDeplEvent: %v %v %v",
@@ -678,15 +681,18 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 	}
 
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
-
+	if engineInstance.Namespace_name == "" {
+		err = fmt.Errorf("gitopsengineinstance namespace is nil, expected non-nil:  %s", engineInstance.Gitopsengineinstance_id)
+		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
+	}
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput, clusterUser.Clusteruser_id,
-		operationNamespace, dbQueries, gitopsEngineClient, log)
+		engineInstance.Namespace_name, dbQueries, gitopsEngineClient, log)
 	if err != nil {
 		log.Error(err, "could not create operation")
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 	}
 
-	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, !a.testOnlySkipCreateOperation, log); err != nil {
+	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, engineInstance.Namespace_name, dbQueries, gitopsEngineClient, !a.testOnlySkipCreateOperation, log); err != nil {
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 	}
 
@@ -695,7 +701,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 }
 
 func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx context.Context,
-	deplToAppMapping *db.DeploymentToApplicationMapping, clusterUser *db.ClusterUser, operationNamespace string,
+	deplToAppMapping *db.DeploymentToApplicationMapping, clusterUser *db.ClusterUser,
 	apiNamespace corev1.Namespace, dbQueries db.ApplicationScopedQueries) (bool, error) {
 
 	dbApplicationFound := true
@@ -804,15 +810,25 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	}
 
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
+	if gitopsEngineInstance == nil {
+		err = fmt.Errorf("gitopsengineinstance is nil, expected non-nil:  %v", gitopsEngineInstance)
+		log.Error(err, "unexpected nil value of required objects")
+		return false, err
+	}
+
+	if gitopsEngineInstance.Namespace_name == "" {
+		err = fmt.Errorf("gitopsengineinstance namespace is nil, expected non-nil:  %s", gitopsEngineInstance.Gitopsengineinstance_id)
+		return false, err
+	}
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput,
-		clusterUser.Clusteruser_id, operationNamespace, dbQueries, gitopsEngineClient, log)
+		clusterUser.Clusteruser_id, gitopsEngineInstance.Namespace_name, dbQueries, gitopsEngineClient, log)
 	if err != nil {
 		log.Error(err, "unable to create operation", "operation", dbOperationInput.ShortString())
 		return false, err
 	}
 
 	// 6) Finally, clean up the operation
-	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, operationNamespace, dbQueries, gitopsEngineClient, !a.testOnlySkipCreateOperation, log); err != nil {
+	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, gitopsEngineInstance.Namespace_name, dbQueries, gitopsEngineClient, !a.testOnlySkipCreateOperation, log); err != nil {
 		log.Error(err, "unable to cleanup operation", "operation", dbOperationInput.ShortString())
 		return false, err
 	}

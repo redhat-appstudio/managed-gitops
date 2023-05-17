@@ -136,7 +136,7 @@ func GetWorkspaceIDFromNamespaceID(namespace corev1.Namespace) string {
 // Returns a normal client that targets the same cluster as backend.
 func GetK8sClientForGitOpsEngineInstance(ctx context.Context, gitopsEngineInstance *db.GitopsEngineInstance) (client.Client, error) {
 
-	// TODO: GITOPSRVCE-73: When we support multiple Argo CD instances (and multiple instances on separate clusters), this logic should be updated.
+	// TODO: GITOPSRVCE-66: Update this once we support using Argo CD instances that are running on a separate cluster	serviceClient, err := GetK8sClientForServiceWorkspace()
 	serviceClient, err := GetK8sClientForServiceWorkspace()
 	if err != nil {
 		return nil, err

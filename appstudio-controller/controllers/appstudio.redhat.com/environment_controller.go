@@ -410,6 +410,14 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 		return nil, true, err
 	}
 
+	// Ensure that the secret has the right type as expected by the managed Environment controller.
+	if secret.Type != sharedutil.ManagedEnvironmentSecretType {
+		secret.Type = sharedutil.ManagedEnvironmentSecretType
+		if err := k8sClient.Update(ctx, secret); err != nil {
+			return nil, fmt.Errorf("unable to update the type of cluster credential secret to managed-environment: %v", err)
+		}
+	}
+
 	// Update Status.Conditions field of Environment as false if error is resolved
 	if err := updateConditionErrorAsResolved(ctx, k8sClient, "", &env, EnvironmentConditionErrorOccurred, metav1.ConditionFalse, EnvironmentReasonErrorOccurred, log); err != nil {
 		return nil, true, err

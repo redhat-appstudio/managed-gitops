@@ -342,6 +342,60 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(err).ToNot(BeNil())
 		})
 
+		It("should update the secret type if it isn't of type managed-environment", func() {
+			By("creating an Environment resource pointing to a Secret of type Opaque")
+			secret := corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env-secret",
+					Namespace: apiNamespace.Name,
+				},
+				Type: corev1.SecretTypeOpaque,
+				Data: map[string][]byte{
+					"kubeconfig": ([]byte)("{}"),
+				},
+			}
+			err := k8sClient.Create(ctx, &secret)
+			Expect(err).To(BeNil())
+
+			env := appstudioshared.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-env",
+					Namespace: apiNamespace.Name,
+				},
+				Spec: appstudioshared.EnvironmentSpec{
+					DisplayName:        "my-environment",
+					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
+					ParentEnvironment:  "",
+					Tags:               []string{},
+					Configuration:      appstudioshared.EnvironmentConfiguration{},
+					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
+						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+							TargetNamespace:          "my-target-namespace",
+							APIURL:                   "https://my-api-url",
+							ClusterCredentialsSecret: secret.Name,
+						},
+					},
+				},
+			}
+			err = k8sClient.Create(ctx, &env)
+			Expect(err).To(BeNil())
+
+			By("reconciling the Environment")
+			req := ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      env.Name,
+					Namespace: env.Namespace,
+				},
+			}
+			_, err = reconciler.Reconcile(ctx, req)
+			Expect(err).To(BeNil())
+
+			By("verify if the secret type is updated")
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&secret), &secret)
+			Expect(err).To(BeNil())
+			Expect(string(secret.Type)).To(Equal(sharedutil.ManagedEnvironmentSecretType))
+		})
+
 		It("should not return an error if the Environment does not container UnstableConfigurationFields", func() {
 
 			By("creating an Environment resource pointing to a Secret that doesn't exist")

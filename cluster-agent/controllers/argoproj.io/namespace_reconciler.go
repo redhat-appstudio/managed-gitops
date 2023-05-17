@@ -371,6 +371,7 @@ func cleanK8sOperations(ctx context.Context, dbq db.DatabaseQueries, client clie
 		}
 		if err = dbq.GetGitopsEngineInstanceById(ctx, &engineInstanceDB); err != nil {
 			log.Error(err, "Unable to fetch GitopsEngineInstance")
+			continue
 		}
 		// Delete the k8s operation now.
 		if err := operations.CleanupOperation(ctx, dbOperation, k8sOperation, engineInstanceDB.Namespace_name,

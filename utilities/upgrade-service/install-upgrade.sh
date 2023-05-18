@@ -3,8 +3,6 @@
 KUSTOMIZE_VERSION=${KUSTOMIZE_VERSION:-"v4.5.7"}
 KUBECTL_VERSION=${KUBECTL_VERSION:-"v1.26.0"}
 
-
-
 # deletes the temp directory
 function cleanup() {
   rm -rf "${TEMP_DIR}"
@@ -34,6 +32,9 @@ function install_kubectl() {
 
 # Check if a pod is ready, if it fails to get ready, rollback to PREV_IMAGE
 check_pod_status_ready() {
+  # Wait for the deployment rollout to complete before trying to list the pods
+  # to ensure that only pods corresponding to the new version is considered.
+  ${KUBECTL} rollout status deploy -n gitops --timeout=5m
   for binary in "$@"; do
     echo "Binary $binary";
     pod_name=$(kubectl get pods --no-headers --field-selector="status.phase!=Succeeded" -o custom-columns=":metadata.name" -n gitops | grep "$binary");
@@ -65,13 +66,13 @@ function create_kustomization_init_file() {
   echo "apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - https://github.com/redhat-appstudio/managed-gitops/manifests/base/crd/overlays/local-dev?ref=${GIT_REVISION}
-  - https://github.com/redhat-appstudio/managed-gitops/manifests/base/gitops-namespace?ref=${GIT_REVISION}
-  - https://github.com/redhat-appstudio/managed-gitops/manifests/base/gitops-service-argocd/base?ref=${GIT_REVISION}
-  - https://github.com/redhat-appstudio/managed-gitops/manifests/base/postgresql-staging?ref=${GIT_REVISION}
-  - https://github.com/redhat-appstudio/managed-gitops/appstudio-controller/config/default?ref=${GIT_REVISION}
-  - https://github.com/redhat-appstudio/managed-gitops/backend/config/default?ref=${GIT_REVISION}
-  - https://github.com/redhat-appstudio/managed-gitops/cluster-agent/config/default?ref=${GIT_REVISION}" > ${TEMP_DIR}/kustomization.yaml
+  - https://github.com/redhat-appstudio/managed-gitops/manifests/base/crd/overlays/local-dev?ref=${GIT_REVISION}&timeout=90s
+  - https://github.com/redhat-appstudio/managed-gitops/manifests/base/gitops-namespace?ref=${GIT_REVISION}&timeout=90s
+  - https://github.com/redhat-appstudio/managed-gitops/manifests/base/gitops-service-argocd/base?ref=${GIT_REVISION}&timeout=90s
+  - https://github.com/redhat-appstudio/managed-gitops/manifests/base/postgresql-staging?ref=${GIT_REVISION}&timeout=90s
+  - https://github.com/redhat-appstudio/managed-gitops/appstudio-controller/config/default?ref=${GIT_REVISION}&timeout=90s
+  - https://github.com/redhat-appstudio/managed-gitops/backend/config/default?ref=${GIT_REVISION}&timeout=90s
+  - https://github.com/redhat-appstudio/managed-gitops/cluster-agent/config/default?ref=${GIT_REVISION}&timeout=90s" > ${TEMP_DIR}/kustomization.yaml
   cat ${TEMP_DIR}/kustomization.yaml
 }
 
@@ -85,6 +86,34 @@ function generate_postgresql_secret {
   fi
 }
 
+# Checks if the gitops-appstudio-service-controller-manager is already installed in the system.
+# if so, stores the previous version which would be used for rollback in case of
+# a failure during installation.
+function get_prev_image() {
+  for image in $(${KUBECTL} get deploy/gitops-appstudio-service-controller-manager -n gitops -o jsonpath='{..image}' 2>/dev/null)
+  do
+    if [[ "${image}" != *"proxy"* ]]; then
+      PREV_IMAGE="${image}"
+      break
+    fi
+  done
+}
+
+# Build and apply the kustomize manifests with retries
+function apply_kustomize_manifests() {
+  MAX_RETRIES=3
+  retry_count=1
+  until [ "${retry_count}" -gt ${MAX_RETRIES} ]
+  do
+    attempt=${retry_count}
+    retry_count=$((retry_count+1))
+    echo "[INFO] (Attempt ${attempt}) Executing kustomize build command"
+    ${KUSTOMIZE} build ${TEMP_DIR} | COMMON_IMAGE=${IMG} envsubst  > ${TEMP_DIR}/kustomize-build-output.yaml || continue
+    echo "[INFO] (Attempt ${attempt}) Creating k8s resources from kustomize manifests"
+    ${KUBECTL} apply -f ${TEMP_DIR}/kustomize-build-output.yaml && break
+  done
+}
+
 # Print help message
 function print_help() {
   echo "Available flag options are:"
@@ -95,7 +124,7 @@ function print_help() {
 
   echo "Example Usage:"
   echo "sh install-upgrade.sh -i <image_url>"
-  echo "sh install-upgrade.sh -u <quay_username"
+  echo "sh install-upgrade.sh -u <quay_username>"
 }
 
 # Code execution starts here
@@ -123,8 +152,8 @@ while getopts ':i:u:r:h:' OPTION; do
     i) IMG=${OPTARG};;
     u) QUAY_USERNAME=${OPTARG};;
     r) GIT_REVISION=${OPTARG};;
-    h) print_help; exit 0;
-    ?) echo "[Error] Invalid Option provided to the script"; print_help; exit 1;
+    h) print_help; exit 0;;
+    ?) echo "[Error] Invalid Option provided to the script"; print_help; exit 1;;
   esac
 done
 
@@ -134,7 +163,7 @@ fi
 
 echo "IMAGE $IMG";
 
-PREV_IMAGE=$(${KUBECTL} get deploy/gitops-appstudio-service-controller-manager -n gitops -o jsonpath='{..image}');
+get_prev_image
 echo "PREV IMAGE : $PREV_IMAGE";
 
 if [ "$PREV_IMAGE" = "$IMG" ]; then
@@ -148,8 +177,7 @@ echo "Upgrading from $PREV_IMAGE to $IMG";
 create_kustomization_init_file
 
 # Set the right container image and apply the manifests
-echo "[INFO] Applying the manifests generated using kustomize"
-${KUSTOMIZE} build ${TEMP_DIR} |  COMMON_IMAGE=${IMG} envsubst | ${KUBECTL} apply -f -
+apply_kustomize_manifests
 
 # Create Postgresql DB password secret
 generate_postgresql_secret

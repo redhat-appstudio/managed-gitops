@@ -56,7 +56,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 		})
 		AfterEach(func() {
 			log := log.FromContext(ctx)
-			err = operations.CleanupOperation(ctx, *operationDB, *operationCR, operationCR.Namespace, dbQueries, k8sClient, true, log)
+			err = operations.CleanupOperation(ctx, *operationDB, *operationCR, dbQueries, k8sClient, true, log)
 			Expect(err).To(BeNil())
 			err = db.SetupForTestingDBGinkgo()
 			Expect(err).To(BeNil())

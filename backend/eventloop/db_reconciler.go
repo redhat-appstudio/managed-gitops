@@ -438,6 +438,10 @@ const (
 	dbType_APICRToDatabaseMapping         dbTableName = "APICRToDatabaseMapping"
 	dbType_ManagedEnvironment             dbTableName = "ManagedEnvironment"
 	dbType_Operation                      dbTableName = "Operation"
+	dbType_ClusterAccess                  dbTableName = "ClusterAccess"
+	dbType_ClusterUser                    dbTableName = "ClusterUser"
+	dbType_GitopsEngineCluster            dbTableName = "GitopsEngineCluster"
+	dbType_ClusterCredentials             dbTableName = "ClusterCredentials"
 )
 
 // deleteDbEntry deletes database entry of a given CR
@@ -448,6 +452,10 @@ func deleteDbEntry(ctx context.Context, dbQueries db.DatabaseQueries, id string,
 	// Delete row according to type
 	switch dbRow {
 
+	case dbType_ClusterUser:
+		rowsDeleted, err = dbQueries.DeleteClusterUserById(ctx, id)
+	case dbType_ClusterCredentials:
+		rowsDeleted, err = dbQueries.DeleteClusterCredentialsById(ctx, id)
 	case dbType_RespositoryCredential:
 		rowsDeleted, err = dbQueries.DeleteRepositoryCredentialsByID(ctx, id)
 	case dbType_ApplicationState:
@@ -484,8 +492,9 @@ func deleteDbEntry(ctx context.Context, dbQueries db.DatabaseQueries, id string,
 }
 
 ///////////////
-// Clean-up logic for RepositoryCredentials, SyncOperation, ManagedEnvironment, Application tables and utility functions
+// Clean-up logic for RepositoryCredentials, SyncOperation, ManagedEnvironment, Application, Operation, ClusterUser, ClusterCredential tables and utility functions
 // This will clean orphaned entries from RepositoryCredential, SyncOperation, ManagedEnvironment, Application tables if they dont have related entries in DTAM/ACTDM tables.
+// and clean Operation, ClusterUser, ClusterCredential tables if they are no longer in use.
 ///////////////
 
 // cleanOrphanedEntriesfromTable loops through ACTDM in database and returns list of resource IDs for each CR type (i.e. RepositoryCredential, ManagedEnvironment, SyncOperation) .
@@ -724,7 +733,7 @@ func cleanOrphanedEntriesfromTable_Application(ctx context.Context, dbQueries db
 	log := l.WithValues("job", "cleanOrphanedEntriesfromTable_Application")
 
 	// Get list of Applications having entry in DTAM table
-	listOfAppsIdsInDTAM := getListOfCRIdsFromTable(ctx, dbQueries, "Application", skipDelay, log)
+	listOfAppsIdsInDTAM := getListOfCRIdsFromTable(ctx, dbQueries, dbType_Application, skipDelay, log)
 
 	offSet := 0
 	// Continuously iterate and fetch batches until all entries of Application table are processed.
@@ -877,6 +886,118 @@ func cleanOrphanedEntriesfromTable_Operation(ctx context.Context, dbQueries db.D
 	}
 }
 
+// cleanOrphanedEntriesfromTable_ClusterUser loops through ClusterUsers in database and verifies they are still valid in use. If not, these users are deleted.
+func cleanOrphanedEntriesfromTable_ClusterUser(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, skipDelay bool, l logr.Logger) {
+	log := l.WithValues("job", "cleanOrphanedEntriesfromTable_ClusterUser")
+
+	// Get list of ClusterAccess entries from table
+	listOfClusterAccessIds := getListOfClusterAccessIdsFromTable(ctx, dbQueries, skipDelay, log)
+
+	// Get list of RepositoryCredential entries from table
+	listOfRepoCredIds := getListOfRespositoryCredentialIdsFromTable(ctx, dbQueries, skipDelay, log)
+
+	// Get list of Operations entries from table
+	listOfOperationIds := getListOfOperationIdsFromTable(ctx, dbQueries, skipDelay, log)
+
+	offSet := 0
+	// Continuously iterate and fetch batches until all entries of ClusterUser table are processed.
+	for {
+		if offSet != 0 && !skipDelay {
+			time.Sleep(sleepIntervalsOfBatches)
+		}
+
+		var listOfClusterUserFromDB []db.ClusterUser
+
+		// Fetch ClusterUser table entries in batch size as configured above.​
+		if err := dbQueries.GetClusterUserBatch(ctx, &listOfClusterUserFromDB, rowBatchSize, offSet); err != nil {
+			log.Error(err, fmt.Sprintf("Error occurred in cleanOrphanedEntriesfromTable_ClusterUser while fetching batch from Offset: %d to %d: ",
+				offSet, offSet+rowBatchSize))
+			break
+		}
+
+		// Break the loop if no entries are left in table to be processed.
+		if len(listOfClusterUserFromDB) == 0 {
+			log.Info("All ClusterUser entries are processed by cleanOrphanedEntriesfromTable_ClusterUser.")
+			break
+		}
+
+		// Iterate over batch received above.
+		for _, userDB := range listOfClusterUserFromDB {
+			// Check if ClusterUser don't have entry in ClusterAccess or RespositoryCredential or Operation tables,
+			// and if user is not 'Special User'
+			// and if created time is more than waitTimeforRowDelete
+			// then delete the user
+			if !(slices.Contains(listOfClusterAccessIds[dbType_ClusterAccess], userDB.Clusteruser_id) ||
+				slices.Contains(listOfRepoCredIds[dbType_RespositoryCredential], userDB.Clusteruser_id) ||
+				slices.Contains(listOfOperationIds[dbType_Operation], userDB.Clusteruser_id)) &&
+				userDB.Clusteruser_id != db.SpecialClusterUserName &&
+				time.Since(userDB.Created_on) > waitTimeforRowDelete {
+
+				// 1) Remove the user from database
+				if err := deleteDbEntry(ctx, dbQueries, userDB.Clusteruser_id, dbType_ClusterUser, log, nil); err != nil {
+					log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_ClusterUser while deleting ClusterUser entry : "+userDB.Clusteruser_id+" from DB.")
+				}
+			}
+		}
+
+		// Skip processed entries in next iteration
+		offSet += rowBatchSize
+	}
+}
+
+// cleanOrphanedEntriesfromTable_ClusterCredential loops through ClusterCredentials in database and verifies they are still in use. If not, the credentials are deleted.
+func cleanOrphanedEntriesfromTable_ClusterCredential(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, skipDelay bool, l logr.Logger) {
+	log := l.WithValues("job", "cleanOrphanedEntriesfromTable_ClusterCredential")
+
+	// Get list of ManagedEnvironment entries from table
+	listOfManagedEnvironmentIds := getListOfManagedEnvironmentIdsFromTable(ctx, dbQueries, skipDelay, log)
+
+	// Get list of GitopsEngineCluster entries from table
+	listOfGitopsEngineClusterIds := getListOfGitopsEngineClusterIdsFromTable(ctx, dbQueries, skipDelay, log)
+
+	offSet := 0
+	// Continuously iterate and fetch batches until all entries of ClusterCredentials table are processed.
+	for {
+		if offSet != 0 && !skipDelay {
+			time.Sleep(sleepIntervalsOfBatches)
+		}
+
+		var listOfClusterCredentialsFromDB []db.ClusterCredentials
+
+		// Fetch ClusterCredentials table entries in batch size as configured above.​
+		if err := dbQueries.GetClusterCredentialsBatch(ctx, &listOfClusterCredentialsFromDB, rowBatchSize, offSet); err != nil {
+			log.Error(err, fmt.Sprintf("Error occurred in cleanOrphanedEntriesfromTable_ClusterCredential while fetching batch from Offset: %d to %d: ",
+				offSet, offSet+rowBatchSize))
+			break
+		}
+
+		// Break the loop if no entries are left in table to be processed.
+		if len(listOfClusterCredentialsFromDB) == 0 {
+			log.Info("All ClusterCredentials entries are processed by cleanOrphanedEntriesfromTable_ClusterCredential.")
+			break
+		}
+
+		// Iterate over batch received above.
+		for _, clusterCred := range listOfClusterCredentialsFromDB {
+			// Check if ClusterCredentials don't have entry in ManagedEnvironment or GitopsEngineCluster tables,
+			// and if created time is more than waitTimeforRowDelete
+			// if not, then delete the entry
+			if !(slices.Contains(listOfManagedEnvironmentIds[dbType_ManagedEnvironment], clusterCred.Clustercredentials_cred_id) ||
+				slices.Contains(listOfGitopsEngineClusterIds[dbType_GitopsEngineCluster], clusterCred.Clustercredentials_cred_id)) &&
+				time.Since(clusterCred.Created_on) > waitTimeforRowDelete {
+
+				// 1) Remove the ClusterCredentials from the database
+				if err := deleteDbEntry(ctx, dbQueries, clusterCred.Clustercredentials_cred_id, dbType_ClusterCredentials, log, nil); err != nil {
+					log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_ClusterCredential while deleting ClusterCredentials entry : "+clusterCred.Clustercredentials_cred_id+" from DB.")
+				}
+			}
+		}
+
+		// Skip processed entries in next iteration
+		offSet += rowBatchSize
+	}
+}
+
 func getListOfK8sToDBResourceMapping(ctx context.Context, dbQueries db.DatabaseQueries, skipDelay bool, log logr.Logger) []db.KubernetesToDBResourceMapping {
 
 	offSet := 0
@@ -979,6 +1100,197 @@ func getListOfCRIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, 
 		offSet += rowBatchSize
 	}
 
+	return crIdMap
+}
+
+// getListOfClusterAccessIdsFromTable loops through ClusterAccess in database and returns list of resource IDs.
+func getListOfClusterAccessIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, skipDelay bool, log logr.Logger) map[dbTableName][]string {
+
+	offSet := 0
+
+	// Create Map to store resource IDs according to type, Ex: {"ClusterAccess" : []}
+	crIdMap := make(map[dbTableName][]string)
+
+	// Continuously iterate and fetch batches until all entries of table processed.
+	for {
+		if offSet != 0 && !skipDelay {
+			time.Sleep(sleepIntervalsOfBatches)
+		}
+
+		var tempList []db.ClusterAccess
+
+		// Fetch ClusterAccess table entries in batch size as configured above.​
+		if err := dbQueries.GetClusterAccessBatch(ctx, &tempList, rowBatchSize, offSet); err != nil {
+			log.Error(err, fmt.Sprintf("Error occurred in cleanOrphanedEntriesfromTable_ClusterUser while fetching batch from Offset: %d to %d: ",
+				offSet, offSet+rowBatchSize))
+			break
+		}
+
+		// Break the loop if no entries are left in table to be processed.
+		if len(tempList) == 0 {
+			break
+		}
+
+		for _, clusterAccess := range tempList {
+			crIdMap[dbType_ClusterAccess] = append(crIdMap[dbType_ClusterAccess], clusterAccess.Clusteraccess_user_id)
+		}
+
+		// Skip processed entries in next iteration
+		offSet += rowBatchSize
+	}
+
+	return crIdMap
+}
+
+// getListOfRespositoryCredentialIdsFromTable loops through RepositoryCredentials in database and returns list of resource IDs.
+func getListOfRespositoryCredentialIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, skipDelay bool, log logr.Logger) map[dbTableName][]string {
+
+	offSet := 0
+
+	// Create Map to store resource IDs according to type, Ex: {"RepositoryCredential" : []}
+	crIdMap := make(map[dbTableName][]string)
+
+	// Continuously iterate and fetch batches until all entries of table processed.
+	for {
+		if offSet != 0 && !skipDelay {
+			time.Sleep(sleepIntervalsOfBatches)
+		}
+
+		var tempList []db.RepositoryCredentials
+
+		// Fetch RepositoryCredentials table entries in batch size as configured above.​
+		if err := dbQueries.GetRepositoryCredentialsBatch(ctx, &tempList, rowBatchSize, offSet); err != nil {
+			log.Error(err, fmt.Sprintf("Error occurred in cleanOrphanedEntriesfromTable_ClusterUser while fetching batch from Offset: %d to %d: ",
+				offSet, offSet+rowBatchSize))
+			break
+		}
+
+		// Break the loop if no entries are left in table to be processed.
+		if len(tempList) == 0 {
+			break
+		}
+
+		for _, repositoryCredentials := range tempList {
+			crIdMap[dbType_RespositoryCredential] = append(crIdMap[dbType_RespositoryCredential], repositoryCredentials.UserID)
+		}
+
+		// Skip processed entries in next iteration
+		offSet += rowBatchSize
+	}
+	return crIdMap
+}
+
+// getListOfManagedEnvironmentIdsFromTable loops through ManagedEnvironments in database and returns list of resource IDs.
+func getListOfManagedEnvironmentIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, skipDelay bool, log logr.Logger) map[dbTableName][]string {
+
+	offSet := 0
+
+	// Create Map to store resource IDs according to type, Ex: {"ManagedEnvironment" : []}
+	crIdMap := make(map[dbTableName][]string)
+
+	// Continuously iterate and fetch batches until all entries of table processed.
+	for {
+		if offSet != 0 && !skipDelay {
+			time.Sleep(sleepIntervalsOfBatches)
+		}
+
+		var tempList []db.ManagedEnvironment
+
+		// Fetch ManagedEnvironment table entries in batch size as configured above.​
+		if err := dbQueries.GetManagedEnvironmentBatch(ctx, &tempList, rowBatchSize, offSet); err != nil {
+			log.Error(err, fmt.Sprintf("Error occurred in cleanOrphanedEntriesfromTable_ClusterUser while fetching batch from Offset: %d to %d: ",
+				offSet, offSet+rowBatchSize))
+			break
+		}
+
+		// Break the loop if no entries are left in table to be processed.
+		if len(tempList) == 0 {
+			break
+		}
+
+		for _, managedEnvironment := range tempList {
+			crIdMap[dbType_ManagedEnvironment] = append(crIdMap[dbType_ManagedEnvironment], managedEnvironment.Clustercredentials_id)
+		}
+
+		// Skip processed entries in next iteration
+		offSet += rowBatchSize
+	}
+	return crIdMap
+}
+
+// getListOfGitopsEngineClusterIdsFromTable loops through GitopsEngineCluster and returns list of resource IDs.
+func getListOfGitopsEngineClusterIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, skipDelay bool, log logr.Logger) map[dbTableName][]string {
+
+	offSet := 0
+
+	// Create Map to store resource IDs according to type, Ex: {"GitopsEngineCluster" : []}
+	crIdMap := make(map[dbTableName][]string)
+
+	// Continuously iterate and fetch batches until all entries of table processed.
+	for {
+		if offSet != 0 && !skipDelay {
+			time.Sleep(sleepIntervalsOfBatches)
+		}
+
+		var tempList []db.GitopsEngineCluster
+
+		// Fetch GitopsEngineCluster table entries in batch size as configured above.​
+		if err := dbQueries.GetGitopsEngineClusterBatch(ctx, &tempList, rowBatchSize, offSet); err != nil {
+			log.Error(err, fmt.Sprintf("Error occurred in cleanOrphanedEntriesfromTable_ClusterUser while fetching batch from Offset: %d to %d: ",
+				offSet, offSet+rowBatchSize))
+			break
+		}
+
+		// Break the loop if no entries are left in table to be processed.
+		if len(tempList) == 0 {
+			break
+		}
+
+		for _, gitopsEngineCluster := range tempList {
+			crIdMap[dbType_GitopsEngineCluster] = append(crIdMap[dbType_GitopsEngineCluster], gitopsEngineCluster.Clustercredentials_id)
+		}
+
+		// Skip processed entries in next iteration
+		offSet += rowBatchSize
+	}
+	return crIdMap
+}
+
+// getListOfOperationIdsFromTable loops through Operation in database and returns list of resource IDs.
+func getListOfOperationIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, skipDelay bool, log logr.Logger) map[dbTableName][]string {
+
+	offSet := 0
+
+	// Create Map to store resource IDs according to type, Ex: {"Operation" : []}
+	crIdMap := make(map[dbTableName][]string)
+
+	// Continuously iterate and fetch batches until all entries of table processed.
+	for {
+		if offSet != 0 && !skipDelay {
+			time.Sleep(sleepIntervalsOfBatches)
+		}
+
+		var tempList []db.Operation
+
+		// Fetch Operation table entries in batch size as configured above.​
+		if err := dbQueries.GetOperationBatch(ctx, &tempList, rowBatchSize, offSet); err != nil {
+			log.Error(err, fmt.Sprintf("Error occurred in cleanOrphanedEntriesfromTable_ClusterUser while fetching batch from Offset: %d to %d: ",
+				offSet, offSet+rowBatchSize))
+			break
+		}
+
+		// Break the loop if no entries are left in table to be processed.
+		if len(tempList) == 0 {
+			break
+		}
+
+		for _, Operation := range tempList {
+			crIdMap[dbType_Operation] = append(crIdMap[dbType_Operation], Operation.Operation_owner_user_id)
+		}
+
+		// Skip processed entries in next iteration
+		offSet += rowBatchSize
+	}
 	return crIdMap
 }
 

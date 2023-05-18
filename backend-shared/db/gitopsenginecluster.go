@@ -208,6 +208,18 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteGitopsEngineClusterById(ctx context.
 	return deleteResult.RowsAffected(), nil
 }
 
+// Get GitopsEngineCluster in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+// For example if you want GitopsEngineCluster starting from 51-150 then set the limit to 100 and offset to 50.
+func (dbq *PostgreSQLDatabaseQueries) GetGitopsEngineClusterBatch(ctx context.Context, gitopsEngineCluster *[]GitopsEngineCluster, limit, offSet int) error {
+	return dbq.dbConnection.
+		Model(gitopsEngineCluster).
+		Order("seq_id ASC").
+		Limit(limit).   // Batch size
+		Offset(offSet). // offset+1 is starting point of batch
+		Context(ctx).
+		Select()
+}
+
 func (obj *GitopsEngineCluster) Dispose(ctx context.Context, dbq DatabaseQueries) error {
 	if dbq == nil {
 		return fmt.Errorf("missing database interface in GitOpsEngineCluster dispose")

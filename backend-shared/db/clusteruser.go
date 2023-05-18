@@ -185,6 +185,18 @@ func (dbq *PostgreSQLDatabaseQueries) GetOrCreateSpecialClusterUser(ctx context.
 	return nil
 }
 
+// Get ClusterUser in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+// For example if you want ClusterUser starting from 51-150 then set the limit to 100 and offset to 50.
+func (dbq *PostgreSQLDatabaseQueries) GetClusterUserBatch(ctx context.Context, clusterUser *[]ClusterUser, limit, offSet int) error {
+	return dbq.dbConnection.
+		Model(clusterUser).
+		Order("seq_id ASC").
+		Limit(limit).   // Batch size
+		Offset(offSet). // offset+1 is starting point of batch
+		Context(ctx).
+		Select()
+}
+
 var _ DisposableResource = &ClusterUser{}
 
 func (obj *ClusterUser) Dispose(ctx context.Context, dbq DatabaseQueries) error {

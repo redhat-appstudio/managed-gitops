@@ -69,8 +69,8 @@ var _ = Describe("Types Test", func() {
 			err = dbq.UnsafeListAllAppProjectRepositories(ctx, &appProjectRepository)
 			Expect(err).To(BeNil())
 
-			var appProjectManagedEnv []db.AppProjectRepository
-			err = dbq.UnsafeListAllAppProjectRepositories(ctx, &appProjectManagedEnv)
+			var appProjectManagedEnv []db.AppProjectManagedEnvironment
+			err = dbq.UnsafeListAllAppProjectManagedEnvironments(ctx, &appProjectManagedEnv)
 			Expect(err).To(BeNil())
 		})
 

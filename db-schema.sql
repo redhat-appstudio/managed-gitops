@@ -619,6 +619,8 @@ ManagedEnvironment -> ClusterCredentials
 AppProjectRepository -> ClusterUser
 AppProjectRepository -> RepositoryCredentials
 
+AppProjectManagedEnvironment -> ManagedEnviroment
+
 ClusterCredentials -> .
 
 ClusterUser -> .

@@ -242,6 +242,7 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			for _, v := range operationsList {
 				if v.Resource_id == applicationFirst.Application_id {
 					clusterUser = v.Operation_owner_user_id
+					break
 				}
 			}
 

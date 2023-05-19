@@ -324,8 +324,6 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	}
 
 	if err := dbQueries.GetAppProjectRepositoryByUniqueConstraint(ctx, &appProjectRepoCredDB); err != nil {
-		a.log.Info("Unable to retrieve AppProjectRepository from database based on GitopsDeployment, so we need to create it: "+appProjectRepoCredDB.AppProjectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
-
 		if db.IsResultNotFoundError(err) {
 
 			if err := dbQueries.CreateAppProjectRepository(ctx, &appProjectRepoCredDB); err != nil {
@@ -335,6 +333,10 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 			}
 
 			a.log.Info("Created new AppProjectRepository in DB based on GitopsDeployment: "+appProjectRepoCredDB.AppProjectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
+		} else {
+			a.log.Info("Unable to retrieve AppProjectRepository from database based on GitopsDeployment, so we need to create it: "+appProjectRepoCredDB.AppProjectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
+
+			return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 		}
 	}
 	if err := dbQueries.CreateApplication(ctx, &application); err != nil {
@@ -690,7 +692,6 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 	}
 
 	if err := dbQueries.GetAppProjectRepositoryByUniqueConstraint(ctx, &appProjectRepoCredDB); err != nil {
-		a.log.Error(err, "Unable to retrive appProjectRepository based on GitopsDeployment", appProjectRepoCredDB.GetAsLogKeyValues()...)
 
 		// If AppProjectRepository is not present in DB, create it.
 		if db.IsResultNotFoundError(err) {
@@ -708,6 +709,9 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 
 			a.log.Info("Created new AppProjectRepository in DB based on GitopsDeploymentkkkk: "+appProjectRepoCredDB.AppProjectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
 
+		} else {
+			a.log.Error(err, "Unable to retrive appProjectRepository based on GitopsDeployment", appProjectRepoCredDB.GetAsLogKeyValues()...)
+			return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 		}
 
 	}

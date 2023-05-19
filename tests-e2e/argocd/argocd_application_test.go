@@ -71,6 +71,7 @@ var _ = Describe("Argo CD Application", func() {
 			for _, v := range clusterAccessList {
 				if v.Clusteraccess_gitops_engine_instance_id == dbApplication.Engine_instance_inst_id {
 					clusterUser = v.Clusteraccess_user_id
+					break
 				}
 			}
 

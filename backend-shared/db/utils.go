@@ -371,7 +371,7 @@ func SetupForTestingDBGinkgo() error {
 
 	var appProjectManagedEnvs []AppProjectManagedEnvironment
 
-	err = dbq.UnsafeListAllAppProjectManagedEnvironment(ctx, &appProjectManagedEnvs)
+	err = dbq.UnsafeListAllAppProjectManagedEnvironments(ctx, &appProjectManagedEnvs)
 	Expect(err).To(BeNil())
 
 	for idx := range appProjectManagedEnvs {

@@ -58,7 +58,7 @@ type UnsafeDatabaseQueries interface {
 	UnsafeListAllAPICRToDatabaseMappings(ctx context.Context, mappings *[]APICRToDatabaseMapping) error
 	UnsafeListAllRepositoryCredentials(ctx context.Context, repositoryCredentials *[]RepositoryCredentials) error
 	UnsafeListAllAppProjectRepositories(ctx context.Context, appRepositories *[]AppProjectRepository) error
-	UnsafeListAllAppProjectManagedEnvironment(ctx context.Context, appProjectManagedEnv *[]AppProjectManagedEnvironment) error
+	UnsafeListAllAppProjectManagedEnvironments(ctx context.Context, appProjectManagedEnv *[]AppProjectManagedEnvironment) error
 }
 
 type AllDatabaseQueries interface {

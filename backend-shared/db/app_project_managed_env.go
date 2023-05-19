@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllAppProjectManagedEnvironment(ctx context.Context, appProjectManagedEnv *[]AppProjectManagedEnvironment) error {
+func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllAppProjectManagedEnvironments(ctx context.Context, appProjectManagedEnv *[]AppProjectManagedEnvironment) error {
 
 	if err := validateUnsafeQueryParamsNoPK(dbq); err != nil {
 		return err
@@ -19,10 +19,6 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllAppProjectManagedEnvironment(
 }
 
 func (dbq *PostgreSQLDatabaseQueries) CreateAppProjectManagedEnvironment(ctx context.Context, obj *AppProjectManagedEnvironment) error {
-
-	if dbq.dbConnection == nil {
-		return fmt.Errorf("database connection is nil")
-	}
 
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return err

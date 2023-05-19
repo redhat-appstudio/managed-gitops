@@ -358,7 +358,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 					}
 
 					if err := dbQueries.CreateAppProjectRepository(ctx, &appProjectRepoCredDB); err != nil {
-						l.Error(err, "Unable to create appProjectRepository..", appProjectRepoCredDB.GetAsLogKeyValues()...)
+						l.Error(err, "Unable to create appProjectRepository", appProjectRepoCredDB.GetAsLogKeyValues()...)
 
 						return nil, err
 					}

@@ -857,7 +857,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 	// Before Creating or updating ArgoCD Application CR generate AppProject
 	appProject, err := buildAppProject(ctx, dbOperation, opConfig, dbApplication, log)
 	if err != nil {
-		log.Error(err, "Failed to call generateAppProject function")
+		log.Error(err, "Call to buildAppProject function failed")
 		return shouldRetryTrue, err
 	}
 
@@ -869,30 +869,38 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		},
 	}
 
-	if err := opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(existingAppProject), existingAppProject); err != nil {
+	if err = opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(existingAppProject), existingAppProject); err != nil {
 		if apierr.IsNotFound(err) {
 			// If appProject doesn't exist, create it.
 			if err := opConfig.eventClient.Create(ctx, appProject, &client.CreateOptions{}); err != nil {
 				log.Error(err, "Unable to create AppProject CR")
 				return shouldRetryTrue, err
 			}
-
 			logutil.LogAPIResourceChangeEvent(appProject.Namespace, appProject.Name, appProject, logutil.ResourceCreated, log)
-
-		} else if !appProjectEqual(existingAppProject, appProject) {
-			// If appProject doesn't match with the existing appProject, update it.
-			existingAppProject = appProject
-			if err := opConfig.eventClient.Update(ctx, existingAppProject, &client.UpdateOptions{}); err != nil {
-				log.Error(err, "Unable to update AppProject CR")
-				return shouldRetryTrue, err
-			}
-			logutil.LogAPIResourceChangeEvent(existingAppProject.Namespace, existingAppProject.Name, existingAppProject, logutil.ResourceCreated, log)
 		} else {
 			log.Error(err, "unable to retrieve existing AppProject from namespace")
 			return shouldRetryTrue, err
 		}
-
 	}
+
+	// If generated appProject doesn't match with the existing appProject, update it.
+	if !appProjectEqual(existingAppProject, appProject) {
+		if err = opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject); err != nil {
+			log.Error(err, "Unable to retrieve generated AppProject CR")
+			return shouldRetryTrue, err
+		}
+
+		// Update existingAppProject with generated appProject
+		existingAppProject = appProject
+
+		if err := opConfig.eventClient.Update(ctx, existingAppProject, &client.UpdateOptions{}); err != nil {
+			log.Error(err, "Unable to update AppProject CR")
+			return shouldRetryTrue, err
+		}
+
+		logutil.LogAPIResourceChangeEvent(existingAppProject.Namespace, existingAppProject.Name, existingAppProject, logutil.ResourceCreated, log)
+	}
+
 	// Retrieve the Argo CD Application from the namespace
 	if err := opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(app), app); err != nil {
 
@@ -1270,7 +1278,7 @@ func buildAppProject(ctx context.Context, dbOperation db.Operation, opConfig ope
 	// Create AppProject resource before creating Argo CD Application CR
 	var appProjectRepositories []db.AppProjectRepository
 	if err := opConfig.dbQueries.ListAppProjectRepositoryByClusterUserId(ctx, dbOperation.Operation_owner_user_id, &appProjectRepositories); err != nil {
-		log.Error(err, "unable to list AppProjectRepositories based on cluster uset id")
+		log.Error(err, "unable to list AppProjectRepositories based on cluster user id")
 		return nil, err
 	}
 
@@ -1308,19 +1316,43 @@ func appProjectEqual(existingAppProject, generatedAppProject *appv1.AppProject) 
 	if existingAppProject == nil || generatedAppProject == nil {
 		return false
 	}
+
+	// Check if length of existingAppProject.Spec.SourceRepos is equal to generatedAppProject.Spec.SourceRepos
 	if len(existingAppProject.Spec.SourceRepos) != len(generatedAppProject.Spec.SourceRepos) {
 		return false
 	}
-	for i := range existingAppProject.Spec.SourceRepos {
-		if existingAppProject.Spec.SourceRepos[i] != generatedAppProject.Spec.SourceRepos[i] {
+
+	// Create a map to store the presence of each repository in existingAppProject.Spec.SourceRepos
+	existingRepoMap := make(map[string]bool)
+
+	// Populate the map with the repositories from existingAppProject.Spec.SourceRepos
+	for _, repo := range existingAppProject.Spec.SourceRepos {
+		existingRepoMap[repo] = true
+	}
+
+	// Check if each repository in generatedAppProject.Spec.SourceRepos is present in the map
+	for _, repo := range generatedAppProject.Spec.SourceRepos {
+		if _, ok := existingRepoMap[repo]; !ok {
 			return false
 		}
 	}
+
+	// Check if length of existingAppProject.Spec.Destinations is equal to generatedAppProject.Spec.Destinations
 	if len(existingAppProject.Spec.Destinations) != len(generatedAppProject.Spec.Destinations) {
 		return false
 	}
-	for i := range existingAppProject.Spec.Destinations {
-		if existingAppProject.Spec.Destinations[i] != generatedAppProject.Spec.Destinations[i] {
+
+	// Create a map to store the presence of each destination in existingAppProject.Spec.Destinations
+	existingDestMap := make(map[appv1.ApplicationDestination]bool)
+
+	// Populate the map with the destination from existingAppProject.Spec.Destinations
+	for _, repo := range existingAppProject.Spec.Destinations {
+		existingDestMap[repo] = true
+	}
+
+	// Check if each repository in  generatedAppProject.Spec.Destinations is present in the map
+	for _, repo := range generatedAppProject.Spec.Destinations {
+		if _, ok := existingDestMap[repo]; !ok {
 			return false
 		}
 	}

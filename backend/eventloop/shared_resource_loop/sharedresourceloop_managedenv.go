@@ -353,7 +353,6 @@ func deleteManagedEnvironmentDBByAPINameAndNamespace(ctx context.Context, worksp
 			// If the managed environment can't be found, there is no other work to do, so just continue.
 		} else {
 			// Delete AppProjectManagedEnvironment before deleting ManagedEnvironment, as it contains a foreign key managedenv id.
-
 			// 2b) Whether or not the managed environment DB row exists, clean up all related database entries
 			if err := DeleteManagedEnvironmentResources(ctx, managedEnv.Managedenvironment_id, managedEnv, user, k8sClientFactory, dbQueries, log); err != nil {
 				return fmt.Errorf("unable to delete managed environment row '%s': %v", managedEnv.Managedenvironment_id, err)

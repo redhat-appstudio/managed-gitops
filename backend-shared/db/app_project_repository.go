@@ -20,10 +20,6 @@ func (dbq *PostgreSQLDatabaseQueries) UnsafeListAllAppProjectRepositories(ctx co
 
 func (dbq *PostgreSQLDatabaseQueries) CreateAppProjectRepository(ctx context.Context, obj *AppProjectRepository) error {
 
-	if dbq.dbConnection == nil {
-		return fmt.Errorf("database connection is nil")
-	}
-
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return err
 	}

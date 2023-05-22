@@ -736,6 +736,107 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(apierr.IsNotFound(err)).To(BeTrue())
 		})
 
+		It("shouldn't create a new secret if the incoming secret is of type managed-environment", func() {
+			By("create a DT and DTC with cluster credentials")
+			clusterSecret := corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-secret",
+					Namespace: apiNamespace.Name,
+				},
+				Type: sharedutil.ManagedEnvironmentSecretType,
+			}
+
+			err := k8sClient.Create(ctx, &clusterSecret)
+			Expect(err).To(BeNil())
+
+			dt := appstudioshared.DeploymentTarget{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dt",
+					Namespace: apiNamespace.Name,
+				},
+				Spec: appstudioshared.DeploymentTargetSpec{
+					KubernetesClusterCredentials: appstudioshared.DeploymentTargetKubernetesClusterCredentials{
+						APIURL:                     "https://test-url",
+						ClusterCredentialsSecret:   "test-secret",
+						AllowInsecureSkipTLSVerify: true,
+					},
+				},
+				Status: appstudioshared.DeploymentTargetStatus{
+					Phase: appstudioshared.DeploymentTargetPhase_Bound,
+				},
+			}
+
+			err = k8sClient.Create(ctx, &dt)
+			Expect(err).To(BeNil())
+
+			dtc := appstudioshared.DeploymentTargetClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dtc",
+					Namespace: apiNamespace.Name,
+				},
+				Spec: appstudioshared.DeploymentTargetClaimSpec{
+					TargetName: dt.Name,
+				},
+				Status: appstudioshared.DeploymentTargetClaimStatus{
+					Phase: appstudioshared.DeploymentTargetClaimPhase_Bound,
+				},
+			}
+
+			err = k8sClient.Create(ctx, &dtc)
+			Expect(err).To(BeNil())
+
+			By("create an Environment that refer the above DTC")
+			env := appstudioshared.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-env-1",
+					Namespace: dtc.Namespace,
+				},
+				Spec: appstudioshared.EnvironmentSpec{
+					Configuration: appstudioshared.EnvironmentConfiguration{
+						Target: appstudioshared.EnvironmentTarget{
+							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+								ClaimName: dtc.Name,
+							},
+						},
+					},
+				},
+			}
+			err = k8sClient.Create(ctx, &env)
+			Expect(err).To(BeNil())
+
+			By("reconcile and verify if a ManagedEnvironment is created")
+			req := newRequest(env.Namespace, env.Name)
+			res, err := reconciler.Reconcile(ctx, req)
+			Expect(err).To(BeNil())
+			Expect(res).To(Equal(reconcile.Result{}))
+
+			By("verify if a new managed-environment secret is not created")
+			managedEnvSecret := corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      generateManagedEnvSecretName(env.Name),
+					Namespace: env.Namespace,
+				},
+			}
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret)
+			Expect(apierr.IsNotFound(err)).To(BeTrue())
+
+			By("verify if the ManagedEnvironment is using the incoming secret")
+
+			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "managed-environment-" + env.Name,
+					Namespace: req.Namespace,
+				},
+			}
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
+			Expect(err).To(BeNil())
+
+			By("verify if the environment credentials match with the DT")
+			Expect(managedEnvCR.Spec.APIURL).To(Equal(dt.Spec.KubernetesClusterCredentials.APIURL))
+			Expect(managedEnvCR.Spec.ClusterCredentialsSecret).To(Equal(clusterSecret.Name))
+			Expect(managedEnvCR.Spec.AllowInsecureSkipTLSVerify).To(Equal(dt.Spec.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify))
+		})
+
 		It("Should not error out if the namespaces and clusterResources fields are not set in the Environment", func() {
 			var err error
 

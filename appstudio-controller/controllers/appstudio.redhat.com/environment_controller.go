@@ -52,6 +52,7 @@ type EnvironmentReconciler struct {
 const (
 	// Managed Environment secret label is added to the secrets created by the Environment controller.
 	// It is used to identify the Environment that is associated with the secret.
+	// #nosec G101
 	managedEnvironmentSecretLabel = "appstudio.openshift.io/environment-secret"
 )
 

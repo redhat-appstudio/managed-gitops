@@ -2,6 +2,7 @@ package appstudioredhatcom
 
 import (
 	"context"
+	"reflect"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -342,60 +343,6 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(err).ToNot(BeNil())
 		})
 
-		It("should update the secret type if it isn't of type managed-environment", func() {
-			By("creating an Environment resource pointing to a Secret of type Opaque")
-			secret := corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-my-managed-env-secret",
-					Namespace: apiNamespace.Name,
-				},
-				Type: corev1.SecretTypeOpaque,
-				Data: map[string][]byte{
-					"kubeconfig": ([]byte)("{}"),
-				},
-			}
-			err := k8sClient.Create(ctx, &secret)
-			Expect(err).To(BeNil())
-
-			env := appstudioshared.Environment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "my-env",
-					Namespace: apiNamespace.Name,
-				},
-				Spec: appstudioshared.EnvironmentSpec{
-					DisplayName:        "my-environment",
-					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
-					ParentEnvironment:  "",
-					Tags:               []string{},
-					Configuration:      appstudioshared.EnvironmentConfiguration{},
-					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
-						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
-							TargetNamespace:          "my-target-namespace",
-							APIURL:                   "https://my-api-url",
-							ClusterCredentialsSecret: secret.Name,
-						},
-					},
-				},
-			}
-			err = k8sClient.Create(ctx, &env)
-			Expect(err).To(BeNil())
-
-			By("reconciling the Environment")
-			req := ctrl.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      env.Name,
-					Namespace: env.Namespace,
-				},
-			}
-			_, err = reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
-
-			By("verify if the secret type is updated")
-			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&secret), &secret)
-			Expect(err).To(BeNil())
-			Expect(string(secret.Type)).To(Equal(sharedutil.ManagedEnvironmentSecretType))
-		})
-
 		It("should not return an error if the Environment does not container UnstableConfigurationFields", func() {
 
 			By("creating an Environment resource pointing to a Secret that doesn't exist")
@@ -597,6 +544,19 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(err).To(BeNil())
 			Expect(res).To(Equal(reconcile.Result{}))
 
+			By("verify if a new managed-environment secret is created")
+			managedEnvSecret := corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      generateManagedEnvSecretName(env.Name),
+					Namespace: env.Namespace,
+				},
+			}
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret)
+			Expect(err).To(BeNil())
+			Expect(string(managedEnvSecret.Type)).To(Equal(sharedutil.ManagedEnvironmentSecretType))
+			Expect(reflect.DeepEqual(managedEnvSecret.Data, clusterSecret.Data)).To(BeTrue())
+			Expect(managedEnvSecret.GetLabels()[managedEnvironmentSecretLabel]).To(Equal(env.Name))
+
 			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "managed-environment-" + env.Name,
@@ -608,8 +568,37 @@ var _ = Describe("Environment controller tests", func() {
 
 			By("verify if the environment credentials match with the DT")
 			Expect(managedEnvCR.Spec.APIURL).To(Equal(dt.Spec.KubernetesClusterCredentials.APIURL))
-			Expect(managedEnvCR.Spec.ClusterCredentialsSecret).To(Equal(dt.Spec.KubernetesClusterCredentials.ClusterCredentialsSecret))
+			Expect(managedEnvCR.Spec.ClusterCredentialsSecret).To(Equal(managedEnvSecret.Name))
 			Expect(managedEnvCR.Spec.AllowInsecureSkipTLSVerify).To(Equal(dt.Spec.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify))
+
+			By("update the credential secret and verify if the managed-environment secret is updated")
+			clusterSecret.Data = map[string][]byte{
+				"kubeconfig": []byte("updated"),
+			}
+			err = k8sClient.Update(ctx, &clusterSecret)
+			Expect(err).To(BeNil())
+
+			res, err = reconciler.Reconcile(ctx, req)
+			Expect(err).To(BeNil())
+			Expect(res).To(Equal(reconcile.Result{}))
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret)
+			Expect(err).To(BeNil())
+			Expect(reflect.DeepEqual(managedEnvSecret.Data, clusterSecret.Data)).To(BeTrue())
+
+			By("delete the credential secret and verify if the managed-environment secret is deleted")
+			err = k8sClient.Delete(ctx, &clusterSecret)
+			Expect(err).To(BeNil())
+
+			res, err = reconciler.Reconcile(ctx, req)
+			Expect(err).ToNot(BeNil())
+			expectedErr := `unable to generate expected GitOpsDeploymentManagedEnvironment resource: the secret 'test-secret' referenced by the Environment resource was not found: secrets "test-secret" not found`
+			Expect(err.Error()).To(Equal(expectedErr))
+			Expect(res).To(Equal(reconcile.Result{}))
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret)
+			Expect(err).ToNot(BeNil())
+			Expect(apierr.IsNotFound(err)).To(BeTrue())
 		})
 
 		It("should return and wait if the specified DTC is not in Bounded phase", func() {
@@ -964,6 +953,140 @@ var _ = Describe("Environment controller tests", func() {
 
 				reqs := reconciler.findObjectsForDeploymentTarget(&dt)
 
+				Expect(reqs).To(Equal([]reconcile.Request{}))
+			})
+
+			It("shouldn't map any requests if an incompatible object is passed", func() {
+				dtc := appstudioshared.DeploymentTargetClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "target-dtc",
+						Namespace: apiNamespace.Name,
+					},
+				}
+
+				reqs := reconciler.findObjectsForDeploymentTarget(&dtc)
+
+				Expect(reqs).To(Equal([]reconcile.Request{}))
+			})
+		})
+
+		Context("Test findObjectsForSecrets function", func() {
+			It("should map requests created by the SpaceRequest controller", func() {
+				By("create a credential secret")
+				secret := corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-secret",
+						Namespace: apiNamespace.Namespace,
+					},
+					Type: corev1.SecretTypeOpaque,
+				}
+
+				err := k8sClient.Create(ctx, &secret)
+				Expect(err).To(BeNil())
+
+				By("create a DT and DTC that target each other")
+				dt := appstudioshared.DeploymentTarget{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-dt",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudioshared.DeploymentTargetSpec{
+						KubernetesClusterCredentials: appstudioshared.DeploymentTargetKubernetesClusterCredentials{
+							ClusterCredentialsSecret: secret.Name,
+						},
+					},
+				}
+
+				err = k8sClient.Create(ctx, &dt)
+				Expect(err).To(BeNil())
+
+				dtc := appstudioshared.DeploymentTargetClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-dtc",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudioshared.DeploymentTargetClaimSpec{
+						TargetName: dt.Name,
+					},
+				}
+
+				err = k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				By("create Environments that refer the above DTC")
+				env1 := appstudioshared.Environment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-env-1",
+						Namespace: dtc.Namespace,
+					},
+					Spec: appstudioshared.EnvironmentSpec{
+						Configuration: appstudioshared.EnvironmentConfiguration{
+							Target: appstudioshared.EnvironmentTarget{
+								DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+									ClaimName: dtc.Name,
+								},
+							},
+						},
+					},
+				}
+				err = k8sClient.Create(ctx, &env1)
+				Expect(err).To(BeNil())
+
+				env2 := appstudioshared.Environment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-env-2",
+						Namespace: dtc.Namespace,
+					},
+				}
+				env2.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName = dtc.Name
+				err = k8sClient.Create(ctx, &env2)
+				Expect(err).To(BeNil())
+
+				By("check if the requests are mapped to the correct environments")
+				expectedReqs := map[string]int{
+					env1.Name: 1,
+					env2.Name: 1,
+				}
+				reqs := reconciler.findObjectsForSecret(&secret)
+				Expect(len(reqs)).To(Equal(len(expectedReqs)))
+				for _, r := range reqs {
+					Expect(expectedReqs[r.Name]).To(Equal(1))
+					expectedReqs[r.Name]--
+				}
+			})
+
+			It("should map requests for managed-environment secrets", func() {
+				secret := corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-secret",
+						Namespace: apiNamespace.Name,
+						Labels: map[string]string{
+							managedEnvironmentSecretLabel: "test-env",
+						},
+					},
+					Type: sharedutil.ManagedEnvironmentSecretType,
+				}
+
+				reqs := reconciler.findObjectsForSecret(&secret)
+				Expect(reqs).To(Equal([]reconcile.Request{
+					{
+						NamespacedName: types.NamespacedName{
+							Name:      "test-env",
+							Namespace: secret.Namespace,
+						},
+					},
+				}))
+			})
+
+			It("shouldn't map any requests if no matching object is found", func() {
+				secret := corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-secret",
+						Namespace: apiNamespace.Name,
+					},
+				}
+
+				reqs := reconciler.findObjectsForSecret(&secret)
 				Expect(reqs).To(Equal([]reconcile.Request{}))
 			})
 

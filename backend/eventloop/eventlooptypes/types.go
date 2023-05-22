@@ -8,7 +8,6 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,40 +44,6 @@ type EventLoopEvent struct {
 
 	// WorkspaceID is the UID of the namespace that contains the request
 	WorkspaceID string
-}
-
-// GetReqResourceAsClientObject converts the resource into a simple client.Object: it will be of
-// the expected type (GitOpsDeployment/SyncRun/etc), but only contain the name and namespace.
-func (ele *EventLoopEvent) GetReqResourceAsSimpleClientObject() (client.Object, error) {
-
-	var resource client.Object
-
-	if ele.ReqResource == GitOpsDeploymentTypeName {
-		resource = &gitopsv1alpha1.GitOpsDeployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      ele.Request.Name,
-				Namespace: ele.Request.Namespace,
-			},
-		}
-	} else if ele.ReqResource == GitOpsDeploymentSyncRunTypeName {
-		resource = &gitopsv1alpha1.GitOpsDeploymentSyncRun{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      ele.Request.Name,
-				Namespace: ele.Request.Namespace,
-			},
-		}
-	} else if ele.ReqResource == GitOpsDeploymentRepositoryCredentialTypeName {
-		resource = &gitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      ele.Request.Name,
-				Namespace: ele.Request.Namespace,
-			},
-		}
-	} else {
-		return nil, fmt.Errorf("SEVERE - unexpected request resource type: %v", string(ele.ReqResource))
-	}
-
-	return resource, nil
 }
 
 // Packages an EventLoopEvent as a message between event loop channels.

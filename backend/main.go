@@ -105,7 +105,6 @@ func main() {
 		setupLog.Error(err, "Fatal Error: Unsuccessful Migration")
 		os.Exit(1)
 	}
-	go initializeRoutes()
 
 	restConfig, err := sharedutil.GetRESTConfig()
 	if err != nil {
@@ -273,6 +272,7 @@ func startDBMetricsReconciler(mgr ctrl.Manager) {
 	databaseReconciler.StartDBMetricsReconcilerForMetrics()
 }
 
+// nolint:unused
 func initializeRoutes() {
 
 	// Intializing the server for routing endpoints

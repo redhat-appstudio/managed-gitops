@@ -6,6 +6,9 @@ ignore:
 
   # mock file for testing: these are not included/executed as part of the product code.
   - "backend/condition/mocks/conditions.go"
+  - "backend/util/createHook.go"
+  - "backend/util/proxyclient.go"
+  - "backend/util/server.go"
   - "backend-shared/apis/managed-gitops/v1alpha1/mocks/cr-client.go"
   - "backend-shared/apis/managed-gitops/v1alpha1/mocks/generate.go"
   - "backend-shared/apis/managed-gitops/v1alpha1/mocks/status-writer.go"

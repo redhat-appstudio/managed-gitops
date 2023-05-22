@@ -28,6 +28,7 @@ import (
 	appstudioshared "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,6 +48,12 @@ type EnvironmentReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
+
+const (
+	// Managed Environment secret label is added to the secrets created by the Environment controller.
+	// It is used to identify the Environment that is associated with the secret.
+	managedEnvironmentSecretLabel = "appstudio.openshift.io/environment-secret"
+)
 
 //+kubebuilder:rbac:groups=appstudio.redhat.com,resources=environments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=appstudio.redhat.com,resources=environments/status,verbs=get;update;patch
@@ -386,6 +393,18 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 			Namespace: env.Namespace,
 		},
 	}
+
+	managedEnvSecret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      generateManagedEnvSecretName(env.Name),
+			Namespace: secret.Namespace,
+			Labels: map[string]string{
+				managedEnvironmentSecretLabel: env.Name,
+			},
+		},
+		Type: sharedutil.ManagedEnvironmentSecretType,
+	}
+
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(secret), secret); err != nil {
 		if apierr.IsNotFound(err) {
 
@@ -395,6 +414,13 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 				EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred, log); err != nil {
 
 				return nil, true, fmt.Errorf("unable to update environment status condition. %v", err)
+			}
+
+			// Delete the managed Environment secret
+			if err := k8sClient.Delete(ctx, &managedEnvSecret); err != nil {
+				if !apierr.IsNotFound(err) {
+					return nil, true, fmt.Errorf("unable to delete the secret for managed Environment: %s", env.Name)
+				}
 			}
 
 			return nil, true, fmt.Errorf("the secret '%s' referenced by the Environment resource was not found: %v", secret.Name, err)
@@ -412,39 +438,29 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 
 	// We should only reconcile secrets created by the SpaceRequest controller.
 	managedEnv := generateEmptyManagedEnvironment(env.Name, env.Namespace)
-	managedEnvSecret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      secret.Name + "-managed",
-			Namespace: secret.Namespace,
-		},
-	}
 
-	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret); err != nil {
-		if !apierr.IsNotFound(err) {
-			return nil, fmt.Errorf("failed to fetch the secret %s for managed Environment %s", managedEnvSecret.Name, managedEnv.Name)
-		}
+	// We only want to reconcile managed environment secrets for secrets coming from SpaceRequest.
+	if claimName != "" {
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret); err != nil {
+			if !apierr.IsNotFound(err) {
+				return nil, fmt.Errorf("failed to fetch the secret %s for managed Environment %s", managedEnvSecret.Name, managedEnv.Name)
+			}
 
-		// Create a new managed environment secret if it is not found
-		managedEnvSecret.Data = secret.Data
-		if err := k8sClient.Create(ctx, &managedEnvSecret); err != nil {
-			return nil, fmt.Errorf("failed to create a secret for managed Environment %s", managedEnv.Name)
-		}
-	} else {
-		// The managed Environment secret is found. Now compare it with the original secret and update if required.
-		if !reflect.DeepEqual(secret.Data, managedEnvSecret.Data) {
+			// Create a new managed environment secret if it is not found
 			managedEnvSecret.Data = secret.Data
-			if err := k8sClient.Update(ctx, &managedEnvSecret); err != nil {
-				return nil, fmt.Errorf("failed to update the secret for managed Environment %s", managedEnv.Name)
+			if err := k8sClient.Create(ctx, &managedEnvSecret); err != nil {
+				return nil, fmt.Errorf("failed to create a secret for managed Environment %s", managedEnv.Name)
+			}
+		} else {
+			// The managed Environment secret is found. Compare it with the original secret and update if required.
+			if !reflect.DeepEqual(secret.Data, managedEnvSecret.Data) {
+				managedEnvSecret.Data = secret.Data
+				if err := k8sClient.Update(ctx, &managedEnvSecret); err != nil {
+					return nil, fmt.Errorf("failed to update the secret for managed Environment %s", managedEnv.Name)
+				}
 			}
 		}
-	}
-
-	// Ensure that the secret has the right type as expected by the managed Environment controller.
-	if secret.Type != sharedutil.ManagedEnvironmentSecretType {
-		secret.Type = sharedutil.ManagedEnvironmentSecretType
-		if err := k8sClient.Update(ctx, secret); err != nil {
-			return nil, fmt.Errorf("unable to update the type of cluster credential secret to managed-environment: %v", err)
-		}
+		manageEnvDetails.ClusterCredentialsSecret = managedEnvSecret.Name
 	}
 
 	// Update Status.Conditions field of Environment as false if error is resolved
@@ -464,6 +480,10 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 	managedEnv.Spec = manageEnvDetails
 
 	return &managedEnv, false, nil
+}
+
+func generateManagedEnvSecretName(envName string) string {
+	return fmt.Sprintf("managed-environment-secret-%s", envName)
 }
 
 func generateEmptyManagedEnvironment(environmentName string, environmentNamespace string) managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment {
@@ -584,20 +604,48 @@ func (r *EnvironmentReconciler) findObjectsForDeploymentTarget(dt client.Object)
 }
 
 // findObjectsForSecret finds all the Environment objects that are using this incoming secret.
+// There are two types of secrets that we want to reconcile:
+// 1. Secret created by the SpaceRequest controller
+// 2. Secret created for the managed Environment
 func (r *EnvironmentReconciler) findObjectsForSecret(secret client.Object) []reconcile.Request {
 	ctx := context.Background()
 	handlerLog := log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops)
 
-	if _, ok := secret.(*appstudioshared.DeploymentTargetClaim); !ok {
+	secretObj, ok := secret.(*corev1.Secret)
+	if !ok {
 		handlerLog.Error(nil, "incompatible object in the Environment mapping function, expected a Secret")
 		return []reconcile.Request{}
 	}
 
+	// Check if the secret is created by the Environment controller
+	if secretObj.Type == sharedutil.ManagedEnvironmentSecretType {
+		envName := secretObj.GetLabels()[managedEnvironmentSecretLabel]
+		if envName != "" {
+			return []reconcile.Request{
+				{
+					NamespacedName: types.NamespacedName{
+						Name:      envName,
+						Namespace: secret.GetNamespace(),
+					},
+				},
+			}
+		}
+		return []reconcile.Request{}
+	}
+
+	// If the secret is created by the SpaceRequest controller, find the corresponding Environment.
 	envList := &appstudioshared.EnvironmentList{}
 	err := r.Client.List(context.Background(), envList, &client.ListOptions{Namespace: secret.GetNamespace()})
 	if err != nil {
 		handlerLog.Error(err, "failed to list Environments in the Environment mapping function")
+		return []reconcile.Request{}
+	}
+
+	dtList := appstudioshared.DeploymentTargetList{}
+	err = r.Client.List(ctx, &dtList, &client.ListOptions{Namespace: secret.GetNamespace()})
+	if err != nil {
+		handlerLog.Error(err, "failed to list DeploymentTargets in the mapping function")
 		return []reconcile.Request{}
 	}
 
@@ -623,16 +671,9 @@ func (r *EnvironmentReconciler) findObjectsForSecret(secret client.Object) []rec
 		}
 
 		// 2. Find the corresponding DT for the DTC
-		dtList := appstudioshared.DeploymentTargetList{}
-		err = r.Client.List(ctx, &dtList, &client.ListOptions{Namespace: env.Namespace})
-		if err != nil {
-			handlerLog.Error(err, "failed to list DeploymentTargets in the mapping function")
-			return []reconcile.Request{}
-		}
-
 		dt := appstudioshared.DeploymentTarget{}
 		for _, d := range dtList.Items {
-			if dtc.Spec.TargetName == d.GetName() || d.Spec.ClaimRef == dtc.Name {
+			if dtc.Spec.TargetName == d.Name || d.Spec.ClaimRef == dtc.Name {
 				dt = d
 				break
 			}
@@ -641,7 +682,7 @@ func (r *EnvironmentReconciler) findObjectsForSecret(secret client.Object) []rec
 		// 3. We only want to reconcile for secrets that are part of the DT configured for a given Environment.
 		if dt.Spec.KubernetesClusterCredentials.ClusterCredentialsSecret == secret.GetName() {
 			envRequests = append(envRequests, reconcile.Request{
-				NamespacedName: client.ObjectKeyFromObject(secret),
+				NamespacedName: client.ObjectKeyFromObject(&env),
 			})
 		}
 	}

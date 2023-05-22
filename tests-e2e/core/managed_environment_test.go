@@ -1088,7 +1088,7 @@ var _ = Describe("Environment E2E tests", func() {
 			Eventually(managedEnvCR, "2m", "1s").Should(k8s.ExistByName(k8sClient))
 
 			Expect(managedEnvCR.Spec.APIURL).To(Equal(dt.Spec.KubernetesClusterCredentials.APIURL))
-			Expect(managedEnvCR.Spec.ClusterCredentialsSecret).To(Equal(clusterSecret.Name))
+			Expect(managedEnvCR.Spec.ClusterCredentialsSecret).To(Equal("managed-environment-secret-test-env"))
 			Expect(managedEnvCR.Spec.AllowInsecureSkipTLSVerify).To(Equal(dt.Spec.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify))
 
 			By("verify if a new managed-environment secret is created")
@@ -1122,7 +1122,7 @@ var _ = Describe("Environment E2E tests", func() {
 			err = k8s.Delete(&clusterSecret, k8sClient)
 			Expect(err).To(BeNil())
 
-			Eventually(managedEnvSecret, "2m", "1s").Should(k8s.NotExist(k8sClient))
+			Eventually(&managedEnvSecret, "2m", "1s").Should(k8s.NotExist(k8sClient))
 		})
 
 		It("should update the Managed Environment if the DeploymentTarget credential is modified", func() {

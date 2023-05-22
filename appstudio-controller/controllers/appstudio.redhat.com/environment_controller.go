@@ -453,6 +453,7 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 			if err := k8sClient.Create(ctx, &managedEnvSecret); err != nil {
 				return nil, fmt.Errorf("failed to create a secret for managed Environment %s", managedEnv.Name)
 			}
+			log.Info("Created a new secret for managed Environment", "ManagedEnvironment", managedEnv.Name, "Environment", env.Name)
 		} else {
 			// The managed Environment secret is found. Compare it with the original secret and update if required.
 			if !reflect.DeepEqual(secret.Data, managedEnvSecret.Data) {
@@ -460,6 +461,7 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 				if err := k8sClient.Update(ctx, &managedEnvSecret); err != nil {
 					return nil, fmt.Errorf("failed to update the secret for managed Environment %s", managedEnv.Name)
 				}
+				log.Info("Updated the managed Environment secret", "ManagedEnvironment", managedEnv.Name)
 			}
 		}
 		manageEnvDetails.ClusterCredentialsSecret = managedEnvSecret.Name
@@ -505,7 +507,7 @@ func (r *EnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(
 			&source.Kind{Type: &corev1.Secret{}},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSecret),
-			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).
 		Watches(
 			&source.Kind{Type: &appstudioshared.DeploymentTargetClaim{}},

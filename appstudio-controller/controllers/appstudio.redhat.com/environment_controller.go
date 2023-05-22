@@ -440,7 +440,8 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 	managedEnv := generateEmptyManagedEnvironment(env.Name, env.Namespace)
 
 	// We only want to reconcile managed environment secrets for secrets coming from SpaceRequest.
-	if claimName != "" {
+	// Skip reconciling if the secret is already of type ManagedEnvironment.
+	if claimName != "" && secret.Type != sharedutil.ManagedEnvironmentSecretType {
 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret); err != nil {
 			if !apierr.IsNotFound(err) {
 				return nil, fmt.Errorf("failed to fetch the secret %s for managed Environment %s", managedEnvSecret.Name, managedEnv.Name)

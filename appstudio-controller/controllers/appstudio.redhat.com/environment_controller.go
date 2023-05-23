@@ -62,7 +62,8 @@ const (
 //+kubebuilder:rbac:groups=managed-gitops.redhat.com,resources=gitopsdeploymentmanagedenvironments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch
 //+kubebuilder:rbac:groups=managed-gitops.redhat.com,resources=gitopsdeploymentmanagedenvironments,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;
+//+kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch
+//+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;delete;
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -445,13 +446,13 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 	if claimName != "" && secret.Type != sharedutil.ManagedEnvironmentSecretType {
 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret); err != nil {
 			if !apierr.IsNotFound(err) {
-				return nil, fmt.Errorf("failed to fetch the secret %s for managed Environment %s", managedEnvSecret.Name, managedEnv.Name)
+				return nil, false, fmt.Errorf("failed to fetch the secret %s for managed Environment %s: %v", managedEnvSecret.Name, managedEnv.Name, err)
 			}
 
 			// Create a new managed environment secret if it is not found
 			managedEnvSecret.Data = secret.Data
 			if err := k8sClient.Create(ctx, &managedEnvSecret); err != nil {
-				return nil, fmt.Errorf("failed to create a secret for managed Environment %s", managedEnv.Name)
+				return nil, false, fmt.Errorf("failed to create a secret for managed Environment %s: %v", managedEnv.Name, err)
 			}
 			log.Info("Created a new secret for managed Environment", "ManagedEnvironment", managedEnv.Name, "Environment", env.Name)
 		} else {
@@ -459,7 +460,7 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 			if !reflect.DeepEqual(secret.Data, managedEnvSecret.Data) {
 				managedEnvSecret.Data = secret.Data
 				if err := k8sClient.Update(ctx, &managedEnvSecret); err != nil {
-					return nil, fmt.Errorf("failed to update the secret for managed Environment %s", managedEnv.Name)
+					return nil, false, fmt.Errorf("failed to update the secret for managed Environment %s: %v", managedEnv.Name, err)
 				}
 				log.Info("Updated the managed Environment secret", "ManagedEnvironment", managedEnv.Name)
 			}

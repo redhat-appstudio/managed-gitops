@@ -1,19 +1,18 @@
-package argocd
+package core
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"strings"
 
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
-	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
-	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
-	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/application"
+
+	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	k8s "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -23,7 +22,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-var _ = Describe("Argo CD Application tests", func() {
+var _ = Describe("Query-scoped GitOpsDeployment tests", func() {
+
 	Context("Verify that adding a query parameter to an Argo CD cluster secret will cause Argo CD to treat it as a different cluster", func() {
 
 		argoCDNamespace := dbutil.GetGitOpsEngineSingleInstanceNamespace()
@@ -31,6 +31,55 @@ var _ = Describe("Argo CD Application tests", func() {
 		var k8sClient client.Client
 
 		users := []string{"user-a", "user-b"}
+
+		// Wait for X number of Argo CD Applications to exist in the Argo CD namespace
+		// - optionally, this function may also be used to delete any existing Argo CD Applications.
+		eventuallyThereShouldBeXArgoCDApplications := func(expectedApplications int, deleteArgoCDApplications bool, removeFinalizers bool) {
+			var argoCDApplicationList appv1alpha1.ApplicationList
+			Eventually(func() bool {
+				err := k8sClient.List(context.Background(), &argoCDApplicationList)
+				if err != nil {
+					fmt.Println(err)
+					return false
+				}
+
+				if deleteArgoCDApplications {
+					// Remove finalizers from Argo CD Applications
+					for _, argoCDApp := range argoCDApplicationList.Items {
+
+						err := k8sClient.Delete(context.Background(), &argoCDApp)
+						if err != nil {
+							fmt.Println(err)
+							return false
+						}
+					}
+				}
+
+				if removeFinalizers {
+
+					// Remove finalizers from Argo CD Applications
+					for _, argoCDApp := range argoCDApplicationList.Items {
+
+						err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&argoCDApp), &argoCDApp)
+						if err != nil {
+							fmt.Println(err)
+							return false
+						}
+						argoCDApp.Finalizers = []string{}
+						err = k8sClient.Update(context.Background(), &argoCDApp)
+						if err != nil {
+							fmt.Println(err)
+							return false
+						}
+					}
+				}
+
+				fmt.Println("Argo CD Applications:", len(argoCDApplicationList.Items))
+				return len(argoCDApplicationList.Items) == expectedApplications
+
+			}, "60s", "1s").Should(BeTrue(), "only X Argo CD Application should be present after we wait a minute for the old to be deleted")
+
+		}
 
 		// Clean up all the resources that this test creates
 		cleanupTestResources := func() {
@@ -50,9 +99,6 @@ var _ = Describe("Argo CD Application tests", func() {
 			}
 
 			for _, userName := range users {
-				err = application.DeleteArgoCDApplication("test-"+userName, argoCDNamespace)
-				Expect(err).To(BeNil())
-
 				err = fixture.DeleteNamespace(userName, config)
 				Expect(err).To(BeNil())
 			}
@@ -71,7 +117,10 @@ var _ = Describe("Argo CD Application tests", func() {
 				}
 			}
 
+			eventuallyThereShouldBeXArgoCDApplications(0, true, true)
+
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
 		}
 
 		// For each user, create: Namespace, ServiceAccounts, Roles/RoleBindings, and optionally, ClusterRole/ClusterRoleBindings.
@@ -90,29 +139,48 @@ var _ = Describe("Argo CD Application tests", func() {
 			}
 
 			By("creating Argo CD Cluster secrets for those user's service accounts, scoped to deploy only to their namespace")
-			for userName, userToken := range userServiceAccountTokens {
 
-				jsonString, err := generateClusterSecretJSON(userToken)
-				Expect(err).To(BeNil())
+			for destUserNamespace := range userServiceAccountTokens {
 
-				_, apiURL, err := fixture.ExtractKubeConfigValues()
-				Expect(err).To(BeNil())
+				for userName, userToken := range userServiceAccountTokens {
 
-				clusterResourcesField := ""
-				namespacesField := ""
+					_, apiServerURL, err := fixture.ExtractKubeConfigValues()
+					Expect(err).To(BeNil())
 
-				if !clusterScopedSecrets {
-					clusterResourcesField = "false"
-					namespacesField = userName
+					// We actually need a managed environment secret containing a kubeconfig that has the bearer token
+					kubeConfigContents := k8s.GenerateKubeConfig(apiServerURL, userName, userToken)
+					secret := corev1.Secret{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "managed-env-deploys-to-" + userName,
+							Namespace: destUserNamespace,
+						},
+						Type:       "managed-gitops.redhat.com/managed-environment",
+						StringData: map[string]string{"kubeconfig": kubeConfigContents},
+					}
+					err = k8s.Create(&secret, k8sClient)
+					Expect(err).To(BeNil())
+
+					managedEnv := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+						ObjectMeta: metav1.ObjectMeta{
+							Namespace: secret.Namespace,
+							Name:      secret.Name,
+						},
+						Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+							APIURL:                     apiServerURL,
+							ClusterCredentialsSecret:   secret.Name,
+							AllowInsecureSkipTLSVerify: true,
+							CreateNewServiceAccount:    false,
+						},
+					}
+
+					if !clusterScopedSecrets {
+						managedEnv.Spec.Namespaces = []string{userName}
+					}
+
+					err = k8s.Create(&managedEnv, k8sClient)
+					Expect(err).To(BeNil())
+
 				}
-
-				secret := buildArgoCDClusterSecret("test-"+userName, argoCDNamespace, "test-"+userName, apiURL+"?user="+userName,
-					jsonString, clusterResourcesField, namespacesField)
-
-				Expect(secret.Data["server"]).To(ContainSubstring("?"), "the api url must contain a query parameter character, for these tests to be valid")
-
-				err = k8sClient.Create(context.Background(), &secret)
-				Expect(err).To(BeNil())
 
 			}
 		}
@@ -130,7 +198,6 @@ var _ = Describe("Argo CD Application tests", func() {
 		AfterEach(func() {
 
 			_ = fixture.ReportRemainingArgoCDApplications(k8sClient)
-
 			cleanupTestResources()
 		})
 
@@ -142,37 +209,36 @@ var _ = Describe("Argo CD Application tests", func() {
 
 				for _, userName := range users {
 
-					By("creating an Argo CD application to deploy to the user's namespace")
+					By("creating a GitOpsDeployment to deploy to the user's namespace")
 
-					argoCDApplication := appv1alpha1.Application{
+					gitopsDeployment := managedgitopsv1alpha1.GitOpsDeployment{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:       "test-" + userName,
-							Namespace:  argoCDNamespace,
-							Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+							Name:      "test-" + userName,
+							Namespace: userName,
+							// Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 						},
-						Spec: appv1alpha1.ApplicationSpec{
-							Source: appv1alpha1.ApplicationSource{
+						Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+							Source: managedgitopsv1alpha1.ApplicationSource{
 								RepoURL: "https://github.com/redhat-appstudio/managed-gitops/",
 								Path:    "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 							},
-							Destination: appv1alpha1.ApplicationDestination{
-								Name:      "test-" + userName,
-								Namespace: userName,
+							Destination: managedgitopsv1alpha1.ApplicationDestination{
+								Environment: "managed-env-deploys-to-" + userName,
+								Namespace:   userName,
 							},
-							SyncPolicy: &appv1alpha1.SyncPolicy{
-								Automated: &appv1alpha1.SyncPolicyAutomated{Prune: true, SelfHeal: true},
-							},
+							Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated,
 						},
 					}
-					err := k8sClient.Create(context.Background(), &argoCDApplication)
+
+					err := k8sClient.Create(context.Background(), &gitopsDeployment)
 					Expect(err).To(BeNil())
 
 					By("ensuring GitOpsDeployment should have expected health and status")
 
-					Eventually(argoCDApplication, "2m", "1s").Should(
+					Eventually(gitopsDeployment, "2m", "1s").Should(
 						SatisfyAll(
-							application.HaveSyncStatusCode(appv1alpha1.SyncStatusCodeSynced),
-							application.HaveHealthStatusCode(health.HealthStatusHealthy)))
+							gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
+							gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)))
 
 					By("ensuring the resources of the GitOps repo are successfully deployed")
 
@@ -185,9 +251,28 @@ var _ = Describe("Argo CD Application tests", func() {
 					Eventually(componentADepl, "60s", "1s").Should(k8s.ExistByName(k8sClient))
 					Eventually(componentBDepl, "60s", "1s").Should(k8s.ExistByName(k8sClient))
 
-					By("deleting the Argo CD Application")
+					By("finding the Argo CD Application that corresponds to the GitOpsDeployment")
+					var argoCDApplicationList appv1alpha1.ApplicationList
+					err = k8sClient.List(context.Background(), &argoCDApplicationList)
+					Expect(err).To(BeNil())
+					Expect(len(argoCDApplicationList.Items)).To(Equal(1))
 
-					err = k8sClient.Delete(context.Background(), &argoCDApplication)
+					item := argoCDApplicationList.Items[0]
+
+					clusterSecret := corev1.Secret{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      item.Spec.Destination.Name,
+							Namespace: item.Namespace,
+						},
+					}
+					By("ensuring the Secret that is pointed to by the Argo CD Application has the expected query parameter")
+					err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&clusterSecret), &clusterSecret)
+					Expect(err).To(BeNil())
+					Expect(clusterSecret.Data["server"]).To(ContainSubstring("?managedEnvironment="))
+
+					By("deleting the GitOpsDeployment")
+
+					err = k8sClient.Delete(context.Background(), &gitopsDeployment)
 					Expect(err).To(BeNil())
 
 					By("ensuring the resources of the GitOps repo are successfully deleted")
@@ -213,54 +298,63 @@ var _ = Describe("Argo CD Application tests", func() {
 				// we should use user-a serviceaccount to deploy to user-b namespace, and vice versa
 				otherUser := users[(idx+1)%2]
 
-				By("creating an Argo CD application to deploy to the user's namespace")
+				By("creating a GitOpsDeployment to deploy to the user's namespace")
 
-				argoCDApplication := appv1alpha1.Application{
+				gitopsDeployment := managedgitopsv1alpha1.GitOpsDeployment{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:       "test-" + userName,
-						Namespace:  argoCDNamespace,
-						Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+						Name:      "test-" + userName,
+						Namespace: userName,
+						// Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 					},
-					Spec: appv1alpha1.ApplicationSpec{
-						Source: appv1alpha1.ApplicationSource{
+					Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+						Source: managedgitopsv1alpha1.ApplicationSource{
 							RepoURL: "https://github.com/redhat-appstudio/managed-gitops/",
 							Path:    "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 						},
-						Destination: appv1alpha1.ApplicationDestination{
-							Name:      "test-" + userName,
-							Namespace: otherUser, // Attempt to deploy into a Namespace we don't have access to
+						Destination: managedgitopsv1alpha1.ApplicationDestination{
+							Environment: "managed-env-deploys-to-" + userName,
+							Namespace:   otherUser,
 						},
-						SyncPolicy: &appv1alpha1.SyncPolicy{
-							Automated: &appv1alpha1.SyncPolicyAutomated{Prune: true, SelfHeal: true},
-						},
+						Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated,
 					},
 				}
-				err := k8sClient.Create(context.Background(), &argoCDApplication)
+
+				err := k8sClient.Create(context.Background(), &gitopsDeployment)
 				Expect(err).To(BeNil())
 
-				By("ensuring Argo CD Application should have expected health and status")
+				By("ensuring GitOpDeployment should have expected health and status")
 
 				// If Argo CD cluster secret is cluster-scoped: it can see the application is out of sync
-				expectedStatusCode := appv1alpha1.SyncStatusCodeOutOfSync
+				expectedStatusCode := managedgitopsv1alpha1.SyncStatusCodeOutOfSync
 				if !clusterScoped {
 					// If the Argo CD application is namespaced-scoped: it cannot access the resources in the other user's namespace
-					expectedStatusCode = appv1alpha1.SyncStatusCodeUnknown
+					expectedStatusCode = managedgitopsv1alpha1.SyncStatusCodeUnknown
 				}
 
-				Eventually(argoCDApplication, "1m", "1s").Should(
+				Eventually(gitopsDeployment, "2m", "1s").Should(
 					SatisfyAll(
-						application.HaveSyncStatusCode(expectedStatusCode),
-						application.HaveHealthStatusCode(health.HealthStatusMissing)))
+						gitopsDeplFixture.HaveSyncStatusCode(expectedStatusCode),
+						gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeMissing)))
 
-				Consistently(argoCDApplication, "30s", "1s").Should(
+				Consistently(gitopsDeployment, "30s", "1s").Should(
 					SatisfyAll(
-						application.HaveSyncStatusCode(expectedStatusCode),
-						application.HaveHealthStatusCode(health.HealthStatusMissing)))
+						gitopsDeplFixture.HaveSyncStatusCode(expectedStatusCode),
+						gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeMissing)))
 
 				By("ensuring the expected failure message is present")
 
-				err = k8s.Get(&argoCDApplication, k8sClient)
+				err = k8s.Get(&gitopsDeployment, k8sClient)
 				Expect(err).To(BeNil())
+
+				By("finding the Argo CD Application that corresponds to the GitOpsDeployment")
+
+				eventuallyThereShouldBeXArgoCDApplications(1, false, false)
+
+				var argoCDApplicationList appv1alpha1.ApplicationList
+				err = k8sClient.List(context.Background(), &argoCDApplicationList)
+				Expect(err).To(BeNil())
+
+				argoCDApplication := argoCDApplicationList.Items[0]
 
 				if clusterScoped {
 					// If Argo CD cluster secret is cluster scoped, we should expect this message:
@@ -288,6 +382,13 @@ var _ = Describe("Argo CD Application tests", func() {
 					Expect(containsExpectedCondition).To(BeTrue())
 				}
 
+				By("deleting the GitOpsDeployment")
+
+				err = k8sClient.Delete(context.Background(), &gitopsDeployment)
+				Expect(err).To(BeNil())
+
+				eventuallyThereShouldBeXArgoCDApplications(0, false, true)
+
 			}
 
 		},
@@ -296,44 +397,3 @@ var _ = Describe("Argo CD Application tests", func() {
 
 	})
 })
-
-func buildArgoCDClusterSecret(secretName, secretNamespace, clusterName, clusterServer, clusterConfigJSON, clusterResources, clusterNamespaces string) corev1.Secret {
-	res := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
-			Namespace: secretNamespace,
-			Labels: map[string]string{
-				sharedutil.ArgoCDSecretTypeIdentifierKey: sharedutil.ArgoCDSecretClusterTypeValue,
-			},
-		},
-		Data: map[string][]byte{
-			"name":   ([]byte)(clusterName),
-			"server": ([]byte)(clusterServer),
-			"config": ([]byte)(string(clusterConfigJSON)),
-		},
-	}
-
-	if clusterResources != "" {
-		res.Data["clusterResources"] = ([]byte)(clusterResources)
-	}
-
-	if clusterNamespaces != "" {
-		res.Data["namespaces"] = ([]byte)(clusterNamespaces)
-	}
-
-	return res
-}
-
-func generateClusterSecretJSON(bearerToken string) (string, error) {
-
-	clusterSecretConfigJSON := argosharedutil.ClusterSecretConfigJSON{
-		BearerToken: bearerToken,
-		TLSClientConfig: argosharedutil.ClusterSecretTLSClientConfigJSON{
-			Insecure: true,
-		},
-	}
-
-	jsonString, err := json.Marshal(clusterSecretConfigJSON)
-	return string(jsonString), err
-
-}

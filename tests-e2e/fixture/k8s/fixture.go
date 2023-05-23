@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
 
 	matcher "github.com/onsi/gomega/types"
@@ -315,4 +316,141 @@ users:
       token: ` + token + `
 `
 
+}
+
+func GenerateReadOnlyClusterRoleandBinding(user string) (rbacv1.ClusterRole, rbacv1.ClusterRoleBinding) {
+
+	clusterRole := rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "read-all-" + user,
+		},
+		Rules: []rbacv1.PolicyRule{{
+			Verbs:     []string{"get", "list", "watch"},
+			Resources: []string{"*"},
+			APIGroups: []string{"*"},
+		}},
+	}
+
+	clusterRoleBinding := rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "read-all-" + user,
+		},
+		Subjects: []rbacv1.Subject{{
+			Kind:      rbacv1.ServiceAccountKind,
+			Namespace: user,
+			Name:      user + "-sa",
+		}},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     clusterRole.Name,
+		},
+	}
+
+	return clusterRole, clusterRoleBinding
+}
+
+func CreateNamespaceScopedUserAccount(ctx context.Context, user string, createReadOnlyClusterRoleBinding bool,
+	k8sClient client.Client, log logr.Logger) (string, error) {
+
+	ns := corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: user,
+		},
+	}
+	if err := k8sClient.Create(ctx, &ns); err != nil {
+		return "", fmt.Errorf("error on creating namespace: %v", err)
+	}
+
+	saName := user + "-sa"
+
+	sa, err := GetOrCreateServiceAccount(ctx, k8sClient, saName, ns.Name, log)
+	if err != nil {
+		return "", fmt.Errorf("error on get/create service account: %v", err)
+	}
+
+	role := rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "allow-all",
+			Namespace: ns.Name,
+		},
+		Rules: []rbacv1.PolicyRule{{
+			Verbs:     []string{"*"},
+			Resources: []string{"*"},
+			APIGroups: []string{"*"},
+		}},
+	}
+	if err := k8sClient.Create(ctx, &role); err != nil {
+		return "", fmt.Errorf("error on creating role: %v", err)
+	}
+
+	roleBinding := rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "allow-all-binding",
+			Namespace: ns.Name,
+		},
+		Subjects: []rbacv1.Subject{{
+			Kind:      rbacv1.ServiceAccountKind,
+			Name:      sa.Name,
+			Namespace: sa.Namespace,
+		}},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     role.Name,
+		},
+	}
+	if err := k8sClient.Create(ctx, &roleBinding); err != nil {
+		return "", fmt.Errorf("error on creating rolebinding: %v", err)
+	}
+
+	if createReadOnlyClusterRoleBinding {
+		clusterRole, clusterRoleBinding := GenerateReadOnlyClusterRoleandBinding(user)
+
+		if err := k8sClient.Create(ctx, &clusterRole); err != nil {
+			return "", fmt.Errorf("error on creating role: %v", err)
+		}
+
+		if err := k8sClient.Create(ctx, &clusterRoleBinding); err != nil {
+			return "", fmt.Errorf("error on creating role: %v", err)
+		}
+	}
+
+	token, err := CreateServiceAccountBearerToken(ctx, k8sClient, sa.Name, ns.Name)
+	if err != nil {
+		return "", fmt.Errorf("error on getting bearer token: %v", err)
+	}
+
+	return token, nil
+}
+
+func GetOrCreateServiceAccount(ctx context.Context, k8sClient client.Client, serviceAccountName string, serviceAccountNS string,
+	log logr.Logger) (*corev1.ServiceAccount, error) {
+
+	serviceAccount := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceAccountName,
+			Namespace: serviceAccountNS,
+		},
+	}
+
+	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(serviceAccount), serviceAccount); err != nil {
+		if !apierr.IsNotFound(err) {
+			return nil, fmt.Errorf("unable to retrieve service account '%s': %w", serviceAccount.Name, err)
+		}
+	} else {
+		// Found it, so just return it
+		return serviceAccount, nil
+	}
+
+	log = log.WithValues("serviceAccount", serviceAccountName, "namespace", serviceAccountNS)
+
+	if err := k8sClient.Create(ctx, serviceAccount); err != nil {
+		log.Error(err, "Unable to create ServiceAccount")
+		return nil, fmt.Errorf("unable to create service account '%s': %w", serviceAccount.Name, err)
+	}
+
+	log.Info(fmt.Sprintf("ServiceAccount %s created in namespace %s", serviceAccountName, serviceAccountNS))
+
+	return serviceAccount, nil
 }

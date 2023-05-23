@@ -6,6 +6,7 @@ metadata:
 spec:
 
   controller:
+    logLevel: "info"
     resources:
       limits:
         cpu: "2"
@@ -13,3 +14,7 @@ spec:
       requests:
         cpu: "1"
         memory: 3Gi
+  repo:
+    logLevel: "info"
+  server:
+    logLevel: "info"

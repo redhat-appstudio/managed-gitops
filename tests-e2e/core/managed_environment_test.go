@@ -15,6 +15,7 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	argocdutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	clusteragenteventloop "github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/managed-gitops/eventloop"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
@@ -725,7 +726,7 @@ var _ = Describe("Environment E2E tests", func() {
 					Name:      "my-managed-env-secret",
 					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
-				Type:       "managed-gitops.redhat.com/managed-environment",
+				Type:       sharedutil.ManagedEnvironmentSecretType,
 				StringData: map[string]string{"kubeconfig": kubeConfigContents},
 			}
 
@@ -1213,6 +1214,7 @@ var _ = Describe("Environment E2E tests", func() {
 					Name:      "new-secret",
 					Namespace: dt.Namespace,
 				},
+				Type: sharedutil.ManagedEnvironmentSecretType,
 			}
 			err = k8s.Create(&newSecret, k8sClient)
 			Expect(err).To(BeNil())

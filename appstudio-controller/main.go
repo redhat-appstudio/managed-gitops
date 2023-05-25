@@ -184,6 +184,7 @@ func main() {
 	if err = (&appstudioredhatcomcontrollers.DeploymentTargetReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+		Clock:  sharedutil.NewClock(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "DeploymentTarget")
 		os.Exit(1)

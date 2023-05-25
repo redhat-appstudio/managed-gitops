@@ -8,10 +8,12 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -113,8 +115,8 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 				err = k8sClient.Delete(ctx, &sr)
 				Expect(err).To(BeNil())
 
-				// TODO: GITOPSRVCE-576 - Replace this with mocked time
-				time.Sleep(2 * time.Minute)
+				// Use a mock clock and forward the time by two minutes.
+				reconciler.Clock = sharedutil.NewMockClock(time.Now().Add(2 * time.Minute))
 
 				res, err = reconciler.Reconcile(ctx, request)
 				Expect(err).To(BeNil())

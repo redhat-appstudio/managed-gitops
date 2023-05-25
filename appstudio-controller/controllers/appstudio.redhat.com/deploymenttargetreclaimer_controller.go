@@ -24,6 +24,7 @@ import (
 	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
 	applicationv1alpha1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -40,6 +41,7 @@ import (
 type DeploymentTargetReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	Clock  sharedutil.Clock
 }
 
 const (
@@ -165,8 +167,13 @@ func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, nil
 	}
 
+	// Initialize the clock if it isn't already to avoid panic.
+	if r.Clock == nil {
+		r.Clock = sharedutil.NewClock()
+	}
+
 	// If SpaceRequest still exists after 2 minutes and has a condition reason of  UnableToTerminate...
-	if time.Now().After(sr.GetDeletionTimestamp().Add(time.Minute*2)) &&
+	if r.Clock.Now().After(sr.GetDeletionTimestamp().Add(time.Minute*2)) &&
 		readyCond.Reason == codereadytoolchainv1alpha1.SpaceTerminatingFailedReason {
 
 		dt.Status.Phase = applicationv1alpha1.DeploymentTargetPhase_Failed

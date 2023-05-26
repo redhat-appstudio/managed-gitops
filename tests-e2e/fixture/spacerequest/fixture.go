@@ -107,7 +107,7 @@ func UpdateStatusWithFunction(spaceRequest *codereadytoolchainv1alpha1.SpaceRequ
 
 	return k8sFixture.UntilSuccess(k8sClient, func(k8sClient client.Client) error {
 
-		// Retrieve the latest version of the SnapshotEnvironmentBinding resource
+		// Retrieve the latest version of the SpaceRequest resource
 		err := k8sFixture.Get(spaceRequest, k8sClient)
 		if err != nil {
 			return err

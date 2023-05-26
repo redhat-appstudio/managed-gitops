@@ -128,6 +128,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 				for _, spaceRequest := range spaceRequestList.Items {
 
 					if strings.HasPrefix(spaceRequest.Name, dtc.Name) {
+						fmt.Println("- SpaceRequest match found:", spaceRequest.Name)
 						expectedSpaceRequest = *spaceRequest.DeepCopy()
 						return true
 					} else {
@@ -386,17 +387,17 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 
 		})
 
-		It("should ensure that if the SpaceRequest fails to delete, DT is set to failed, and that if the SpaceRequest is eventually deleted, so will the DT and DTC", func() {
+		It("ensures that when deleting a DT with DeploymentTargetClass of Delete, that the DTC is not deleted", func() {
 			dtc, matchingDT, _ := createTest(appstudiosharedv1.ReclaimPolicy_Delete)
 
 			Eventually(func() bool {
 
+				// Remove the finalizer from the DeploymentTarget
 				err := k8s.Get(&matchingDT, k8sClient)
 				if err != nil {
 					fmt.Println(err)
 					return false
 				}
-
 				matchingDT.Finalizers = []string{}
 				err = k8s.Update(&matchingDT, k8sClient)
 				if err != nil {
@@ -404,17 +405,19 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 					return false
 				}
 
+				// Delete the DeploymentTarget
 				err = k8s.Delete(&matchingDT, k8sClient)
 				if err != nil {
 					fmt.Println(err)
 					return false
 				}
 
+				// The DeploymentTarget should be deleted
 				err = k8s.Get(&matchingDT, k8sClient)
-
 				return err != nil && apierr.IsNotFound(err) == true
 			}).Should(BeTrue())
 
+			// After the DeploymentTarget is deleted, the DeploymentTargetClaim should continue to exist
 			Consistently(&dtc, "30s", "1s").Should(k8s.ExistByName(k8sClient))
 		})
 	})

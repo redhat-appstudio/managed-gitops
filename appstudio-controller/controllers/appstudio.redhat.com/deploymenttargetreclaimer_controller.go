@@ -162,7 +162,7 @@ func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	if dt.Status.Phase == applicationv1alpha1.DeploymentTargetPhase_Failed {
 		// No more work: the DT is already reported as failed
-		return ctrl.Result{}, err
+		return ctrl.Result{}, nil
 	}
 
 	// If SpaceRequest still exists after 2 minutes and has a condition reason of  UnableToTerminate...

@@ -179,7 +179,7 @@ func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	log.Info("Requeuing since SpaceRequest is still terminating", "spaceRequestStatusPhase", dt.Status.Phase, "deleteionTimestamp", sr.GetDeletionTimestamp())
 
-	// OTOH, if if the SpaceRequest has not timed out yet, then requeue
+	// OTOH, if the SpaceRequest has not timed out yet, then requeue
 	return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 
 }

@@ -126,7 +126,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if desiredManagedEnv == nil {
 		// Update Status.Conditions field of Environment as false if error is resolved
 		if err := updateConditionErrorAsResolved(ctx, rClient, "", environment, EnvironmentConditionErrorOccurred, metav1.ConditionFalse, EnvironmentReasonErrorOccurred, log); err != nil {
-			return ctrl.Result{}, fmt.Errorf("unabled to 'updateConditionErrorAsResolved': %v", err)
+			return ctrl.Result{}, fmt.Errorf("unable to 'updateConditionErrorAsResolved': %v", err)
 		}
 
 		return ctrl.Result{}, nil
@@ -237,7 +237,7 @@ func updateConditionErrorAsResolved(ctx context.Context, client client.Client, m
 	return nil
 }
 
-// FindCondition finds the suitable Condition object by looking into the conditions list and returns true if already exists
+// findCondition finds the suitable Condition object by looking into the conditions list and returns true if already exists
 // but, if none exists, it appends one and returns false
 func findCondition(conditions []metav1.Condition, conditionType string) (metav1.Condition, bool) {
 	for i, condition := range conditions {

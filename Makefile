@@ -33,26 +33,33 @@ help: ## Display this help menu
 
 # Deploy only the bare minimum to K8s: CRDs
 
-deploy-local-dev-env: kustomize ## Only deploy CRDs to K8s
+pre-deploy-crds: kustomize
+	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/base/crd/overlays/local-dev  | kubectl apply -f -
+
+pre-undeploy-crds: kustomize
+	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/local-dev-env | kubectl delete -f - 
+
+
+deploy-local-dev-env: pre-deploy-crds  ## Only deploy CRDs to K8s
 	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/local-dev-env | kubectl apply -f - 
 
-undeploy-local-dev-env: kustomize ## Remove CRDs from K8s
+undeploy-local-dev-env: pre-undeploy-crds ## Remove CRDs from K8s
 	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/local-dev-env | kubectl delete -f - 
 
 # Deploy bare minimum + postgres: CRDs, and postgresql, but not controllers
 
-deploy-local-dev-env-with-k8s-db: kustomize postgresql-secret-on-k8s ## Only deploy CRDs, postgres workload/secret, to K8s
+deploy-local-dev-env-with-k8s-db: pre-deploy-crds postgresql-secret-on-k8s ## Only deploy CRDs, postgres workload/secret, to K8s
 	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/local-dev-env-with-k8s-db | kubectl apply -f - 
 
-undeploy-local-dev-env-with-k8s-db: kustomize ## Remove CRDs, postgres workload/secret  from K8s
+undeploy-local-dev-env-with-k8s-db: pre-undeploy-crds ## Remove CRDs, postgres workload/secret  from K8s
 	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/local-dev-env-with-k8s-db | kubectl delete -f - 
 
 # Deploy everything to K8s, including the controllers and postgres workloads
 
-deploy-k8s-env: kustomize postgresql-secret-on-k8s ## Deploy all controller/DB workloads to K8s, use e.g. IMG=quay.io/pgeorgia/gitops-service:latest to specify a specific image
+deploy-k8s-env: pre-deploy-crds postgresql-secret-on-k8s ## Deploy all controller/DB workloads to K8s, use e.g. IMG=quay.io/pgeorgia/gitops-service:latest to specify a specific image
 	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/k8s-env |  COMMON_IMAGE=${IMG} envsubst | kubectl apply -f - 
 
-undeploy-k8s-env: kustomize ## Remove all controller/DB workloads from K8s.
+undeploy-k8s-env: pre-undeploy-crds ## Remove all controller/DB workloads from K8s.
 	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/k8s-env | kubectl delete -f - 
 
 

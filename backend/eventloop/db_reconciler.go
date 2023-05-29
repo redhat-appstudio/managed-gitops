@@ -107,7 +107,8 @@ func (r *DatabaseReconciler) startTimerForNextCycle(ctx context.Context, databas
 func cleanOrphanedEntriesfromTable_DTAM(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, skipDelay bool, l logr.Logger) {
 	offSet := 0
 
-	log := l.WithValues("job", "cleanOrphanedEntriesfromTable_DTAM")
+	log := l.WithValues(sharedutil.JobKey, sharedutil.JobKeyValue).
+		WithValues(sharedutil.JobTypeKey, "DB_DTAM")
 
 	// Continuously iterate and fetch batches until all entries of DeploymentToApplicationMapping table are processed.
 	for {
@@ -243,7 +244,9 @@ func cleanOrphanedEntriesfromTable_DTAM_DeleteEntry(ctx context.Context, deplToA
 // cleanOrphanedEntriesfromTable_ACTDM loops through the ACTDM in a database and verifies they are still valid. If not, the resources are deleted.
 func cleanOrphanedEntriesfromTable_ACTDM(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, k8sClientFactory sharedresourceloop.SRLK8sClientFactory, skipDelay bool, l logr.Logger) {
 	offSet := 0
-	log := l.WithValues("job", "cleanOrphanedEntriesfromTable_ACTDM")
+
+	log := l.WithValues(sharedutil.JobKey, sharedutil.JobKeyValue).
+		WithValues(sharedutil.JobTypeKey, "DB_ACTDM")
 
 	// Continuously iterate and fetch batches until all entries of ACTDM table are processed.
 	for {
@@ -333,6 +336,7 @@ func cleanOrphanedEntriesfromTable_ACTDM_ManagedEnvironment(ctx context.Context,
 		log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_ACTDM_ManagedEnvironment while cleaning ManagedEnvironment entry "+apiCrToDbMappingFromDB.DBRelationKey+" from DB.")
 		return
 	}
+	log.Info("Managed-gitops clean up job for DB deleted ManagedEnvironment: " + apiCrToDbMappingFromDB.DBRelationKey + " entry from DB.")
 }
 
 func cleanOrphanedEntriesfromTable_ACTDM_RepositoryCredential(ctx context.Context, client client.Client, dbQueries db.DatabaseQueries, apiCrToDbMappingFromDB db.APICRToDatabaseMapping, objectMeta metav1.ObjectMeta, log logr.Logger) {
@@ -415,6 +419,8 @@ func cleanOrphanedEntriesfromTable_ACTDM_GitOpsDeploymentSyncRun(ctx context.Con
 		log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_ACTDM_GitOpsDeploymentSyncRun while fetching Application by Id : "+syncOperationDb.Application_id+" from DB.")
 		return
 	}
+
+	log.Info("Managed-gitops clean up job for DB deleted SyncOperation: " + apiCrToDbMappingFromDB.DBRelationKey + " entry from DB.")
 
 	// Create k8s Operation to delete related CRs using Cluster Agent
 	createOperation(ctx, applicationDb.Engine_instance_inst_id, syncOperationDb.SyncOperation_id, syncRunK8s.Namespace, db.OperationResourceType_SyncOperation, dbQueries, client, log)
@@ -503,7 +509,7 @@ func deleteDbEntry(ctx context.Context, dbQueries db.DatabaseQueries, id string,
 		// Log the warning, but continue
 		logger.Info("No rows were found in table, while cleaning up after deleted "+string(dbRow), "rowsDeleted", rowsDeleted)
 	} else {
-		logger.Info(string(dbRow)+" rows were successfully deleted, while cleaning up after deleted "+string(dbRow), "rowsDeleted", rowsDeleted)
+		logger.Info("Managed-gitops clean up job for DB deleted" + string(dbRow) + " : " + id + " entry from DB.")
 	}
 	return nil
 }
@@ -533,7 +539,8 @@ func cleanOrphanedEntriesfromTable(ctx context.Context, dbQueries db.DatabaseQue
 // cleanOrphanedEntriesfromTable_RepositoryCredential loops through RepositoryCredentials in database and verifies they are still valid (Having entry in ACTDM). If not, the resources are deleted.
 func cleanOrphanedEntriesfromTable_RepositoryCredential(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfAppsIdsInDTAM []string, skipDelay bool, l logr.Logger) {
 
-	log := l.WithValues("job", "cleanOrphanedEntriesfromTable_RepositoryCredential")
+	log := l.WithValues(sharedutil.JobKey, sharedutil.JobKeyValue).
+		WithValues(sharedutil.JobTypeKey, "DB_RepositoryCredential")
 
 	offSet := 0
 
@@ -577,12 +584,8 @@ func cleanOrphanedEntriesfromTable_RepositoryCredential(ctx context.Context, dbQ
 					isEngineInstancePresent = false
 				}
 
-				_, err = dbQueries.DeleteRepositoryCredentialsByID(ctx, repCred.RepositoryCredentialsID)
-				if err != nil {
-					log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_RepositoryCredential while cleaning repository credentials entry "+repCred.RepositoryCredentialsID+" from DB.")
-					continue
-				} else {
-					log.Info("Repository Credential entry: " + repCred.RepositoryCredentialsID + " is successfully deleted by cleanOrphanedEntriesfromTable_RepositoryCredential function.")
+				if err := deleteDbEntry(ctx, dbQueries, repCred.RepositoryCredentialsID, dbType_RespositoryCredential, log, repCred); err != nil {
+					log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_RepositoryCredential while deleting RepositoryCredential entry : "+repCred.RepositoryCredentialsID+" from DB.")
 				}
 
 				// Skip if GitOpsEngineInstance was not found, as we need namespace for creating Operation CR.
@@ -601,7 +604,8 @@ func cleanOrphanedEntriesfromTable_RepositoryCredential(ctx context.Context, dbQ
 // cleanOrphanedEntriesfromTable_SyncOperation loops through SyncOperations in database and verifies they are still valid (Having entry in ACTDM). If not, the resources are deleted.
 func cleanOrphanedEntriesfromTable_SyncOperation(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfAppsIdsInDTAM []string, skipDelay bool, l logr.Logger) {
 
-	log := l.WithValues("job", "cleanOrphanedEntriesfromTable_SyncOperation")
+	log := l.WithValues(sharedutil.JobKey, sharedutil.JobKeyValue).
+		WithValues(sharedutil.JobTypeKey, "DB_SyncOperation")
 
 	offSet := 0
 	// Continuously iterate and fetch batches until all entries of RepositoryCredentials table are processed.
@@ -647,12 +651,8 @@ func cleanOrphanedEntriesfromTable_SyncOperation(ctx context.Context, dbQueries 
 					isApplicationPresent = false
 				}
 
-				_, err := dbQueries.DeleteSyncOperationById(ctx, syncOperation.SyncOperation_id)
-				if err != nil {
-					log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_SyncOperation while cleaning SyncOperation entry "+syncOperation.SyncOperation_id+" from DB.")
-					continue
-				} else {
-					log.Info("SyncOperation entry: " + syncOperation.SyncOperation_id + " is successfully deleted by cleanOrphanedEntriesfromTable_SyncOperation function.")
+				if err := deleteDbEntry(ctx, dbQueries, syncOperation.SyncOperation_id, dbType_SyncOperation, log, syncOperation); err != nil {
+					log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_SyncOperation while deleting SyncOperation entry : "+syncOperation.SyncOperation_id+" from DB.")
 				}
 
 				// Skip if Application was not found, as we need namespace for creating Operation CR.
@@ -671,6 +671,9 @@ func cleanOrphanedEntriesfromTable_SyncOperation(ctx context.Context, dbQueries 
 // cleanOrphanedEntriesfromTable_ManagedEnvironment loops through ManagedEnvironments in database and verifies they are still valid (Having entry in ACTDM). If not, the resources are deleted.
 func cleanOrphanedEntriesfromTable_ManagedEnvironment(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfRowIdsInAPICRToDBMapping []string, k8sClientFactory sharedresourceloop.SRLK8sClientFactory, skipDelay bool, l logr.Logger) {
 
+	log := l.WithValues(sharedutil.JobKey, sharedutil.JobKeyValue).
+		WithValues(sharedutil.JobTypeKey, "DB_ManagedEnvironment")
+
 	// Retrieve the list of K8sToDBResourceMappings, so that we don't deleted any ManagedEnvironmentes referenced in them
 	allK8sToDBResourceMappings := getListOfK8sToDBResourceMapping(ctx, dbQueries, skipDelay, l)
 
@@ -687,8 +690,6 @@ func cleanOrphanedEntriesfromTable_ManagedEnvironment(ctx context.Context, dbQue
 		managedEnvIDsInK8sToDBTable[k8sToDBResourceMapping.DBRelationKey] = true
 
 	}
-
-	log := l.WithValues("job", "cleanOrphanedEntriesfromTable_ManagedEnvironment")
 
 	offSet := 0
 	// Continuously iterate and fetch batches until all entries of the ManagedEnvironment table are processed.
@@ -736,6 +737,7 @@ func cleanOrphanedEntriesfromTable_ManagedEnvironment(ctx context.Context, dbQue
 					log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_ManagedEnvironment while cleaning ManagedEnvironment entry "+managedEnvironment.Managedenvironment_id+" from DB.")
 					return
 				}
+				log.Info("Managed-gitops clean up job for DB deleted ManagedEnvironment: " + managedEnvironment.Managedenvironment_id + " entry from DB.")
 			}
 		}
 
@@ -747,7 +749,8 @@ func cleanOrphanedEntriesfromTable_ManagedEnvironment(ctx context.Context, dbQue
 // cleanOrphanedEntriesfromTable_Application loops through Applications in database and verifies they are still valid (Having entry in DTAM). If not, the resources are deleted.
 func cleanOrphanedEntriesfromTable_Application(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, skipDelay bool, l logr.Logger) {
 
-	log := l.WithValues("job", "cleanOrphanedEntriesfromTable_Application")
+	log := l.WithValues(sharedutil.JobKey, sharedutil.JobKeyValue).
+		WithValues(sharedutil.JobTypeKey, "DB_Application")
 
 	// Get list of Applications having entry in DTAM table
 	listOfAppsIdsInDTAM := getListOfCRIdsFromTable(ctx, dbQueries, dbType_Application, skipDelay, log)
@@ -790,12 +793,8 @@ func cleanOrphanedEntriesfromTable_Application(ctx context.Context, dbQueries db
 					isApplicationPresent = false
 				}
 
-				_, err := dbQueries.DeleteApplicationById(ctx, appDB.Application_id)
-				if err != nil {
-					log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_Application while cleaning Application entry "+appDB.Application_id+" from DB.")
-					continue
-				} else {
-					log.Info("Application entry: " + appDB.Application_id + " is successfully deleted by cleanOrphanedEntriesfromTable_Application.")
+				if err := deleteDbEntry(ctx, dbQueries, appDB.Application_id, dbType_Application, log, appDB); err != nil {
+					log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_Application while deleting Application entry : "+appDB.Application_id+" from DB.")
 				}
 
 				// Skip if Application was not found, as we need namespace for creating Operation CR.
@@ -814,7 +813,8 @@ func cleanOrphanedEntriesfromTable_Application(ctx context.Context, dbQueries db
 // cleanOrphanedEntriesfromTable_Operation loops through Operations in database and verifies they are still valid (Having CR in Cluster). If not, the resources are deleted/Creates.
 func cleanOrphanedEntriesfromTable_Operation(ctx context.Context, dbQueries db.DatabaseQueries, k8sClient client.Client, skipDelay bool, l logr.Logger) {
 
-	log := l.WithValues("job", "cleanOrphanedEntriesfromTable_Operation")
+	log := l.WithValues(sharedutil.JobKey, sharedutil.JobKeyValue).
+		WithValues(sharedutil.JobTypeKey, "DB_Operation")
 
 	offSet := 0
 	// Continuously iterate and fetch batches until all entries of Operation table are processed.
@@ -848,6 +848,7 @@ func cleanOrphanedEntriesfromTable_Operation(ctx context.Context, dbQueries db.D
 				if err := deleteDbEntry(ctx, dbQueries, opDB.Operation_id, dbType_Operation, log, opDB); err != nil {
 					log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_Operation while deleting Operation entry : "+opDB.Operation_id+" from DB.")
 				}
+
 				// No need to check next condition since Operation is deleted.
 				continue
 			}
@@ -889,7 +890,7 @@ func cleanOrphanedEntriesfromTable_Operation(ctx context.Context, dbQueries db.D
 							continue
 						}
 
-						log.Info("Created K8s Operation CR. Operation CR Name: " + operationCR.Name +
+						log.Info("Managed-gitops clean up job for DB created K8s Operation CR. Operation CR Name: " + operationCR.Name +
 							" Operation CR Namespace" + operationCR.Namespace + ", Operation CR ID" + operationCR.Spec.OperationID)
 					} else {
 						log.Error(err, "error occurred in cleanOrphanedEntriesfromTable_Operation while fetching Operation: "+operationCR.Name)

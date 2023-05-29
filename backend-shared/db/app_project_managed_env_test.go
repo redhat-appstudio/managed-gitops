@@ -66,7 +66,7 @@ var _ = Describe("AppProjectManagedEnvironment Test", func() {
 		Expect(appProjectManagedEnvupdate).ShouldNot(Equal(appProjectManagedEnvget))
 
 		By("Verify whether AppProjectManagedEnvironment is deleted")
-		rowsAffected, err := dbq.DeleteAppProjectManagedEnvironmentById(ctx, appProjectManagedEnv.AppProjectManagedEnvironmentID)
+		rowsAffected, err := dbq.DeleteAppProjectManagedEnvironmentByClusterUserId(ctx, &appProjectManagedEnv)
 		Expect(err).To(BeNil())
 		Expect(rowsAffected).Should(Equal(1))
 

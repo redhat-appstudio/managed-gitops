@@ -878,6 +878,69 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err.Error()).To(HaveSuffix("client-certificate is not supported at this time."))
 		})
 
+		It("should test whether appProjectEnvironment is created", func() {
+			managedEnv, secret := buildManagedEnvironmentForSRL()
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, &managedEnv)
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Create(ctx, &secret)
+			Expect(err).To(BeNil())
+
+			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(err).To(BeNil())
+			Expect(src.ManagedEnv).ToNot(BeNil())
+
+			By("Verifying whether appProjectManagedEnv is created or no")
+			appProjectManagedEnvDB := db.AppProjectManagedEnvironment{
+				Clusteruser_id:         src.ClusterUser.Clusteruser_id,
+				Managed_environment_id: src.ManagedEnv.Managedenvironment_id,
+			}
+
+			err = dbQueries.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnvDB)
+			Expect(err).To(BeNil())
+
+		})
+
+		It("should test whether appProjectEnvironment exists when ManagedEnv is updated", func() {
+			managedEnv, secret := buildManagedEnvironmentForSRL()
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, &managedEnv)
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Create(ctx, &secret)
+			Expect(err).To(BeNil())
+
+			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(err).To(BeNil())
+			Expect(src.ManagedEnv).ToNot(BeNil())
+
+			err = dbQueries.GetManagedEnvironmentById(ctx, src.ManagedEnv)
+			Expect(err).To(BeNil())
+
+			src.ManagedEnv.Name = "test-updated-name"
+
+			err = dbQueries.UpdateManagedEnvironment(ctx, src.ManagedEnv)
+			Expect(err).To(BeNil())
+
+			appProjectManagedEnvDB := db.AppProjectManagedEnvironment{
+				Clusteruser_id:         src.ClusterUser.Clusteruser_id,
+				Managed_environment_id: src.ManagedEnv.Managedenvironment_id,
+			}
+
+			err = dbQueries.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnvDB)
+			Expect(err).To(BeNil())
+
+		})
+
 		DescribeTable("Tests whether the tlsConfig value from managedEnv gets mapped correctly into the database",
 			func(tlsVerifyStatus bool) {
 				managedEnv, secret := buildManagedEnvironmentForSRL()

@@ -23,6 +23,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/backend/condition"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
+	sharedloop "github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	"github.com/redhat-appstudio/managed-gitops/backend/metrics"
 	goyaml "gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
@@ -313,6 +314,22 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		Managed_environment_id:  targetManagedEnvId,
 		Spec_field:              specFieldText,
 	}
+
+	// Create AppProjectRepository row based on GitopsDeployment and
+	// The RepositoryCredentialsID field is nil when creating an AppProjectRepository based on GitopsDeployment because the value of AppProjectRepository is generated based on an Application.
+	appProjectRepoCredDB := db.AppProjectRepository{
+		Clusteruser_id:          clusterUser.Clusteruser_id,
+		RepositoryCredentialsID: "",
+		RepoURL:                 sharedloop.NormalizeGitURL(specFieldInput.sourceRepoURL),
+	}
+
+	if err := dbQueries.CreateAppProjectRepository(ctx, &appProjectRepoCredDB); err != nil {
+		a.log.Error(err, "Unable to create appProjectRepository based on GitopsDeployment...", appProjectRepoCredDB.GetAsLogKeyValues()...)
+
+		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
+	}
+
+	a.log.Info("Created new AppProjectRepository in DB based on GitopsDeployment: "+appProjectRepoCredDB.AppProjectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
 
 	if err := dbQueries.CreateApplication(ctx, &application); err != nil {
 		a.log.Error(err, "Unable to create application", application.GetAsLogKeyValues()...)
@@ -658,6 +675,35 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 	if !shouldUpdateApplication {
 		log.Info("Processed GitOpsDeployment event: No Application row change detected")
 		return application, engineInstance, deploymentModifiedResult_NoChange, nil
+	}
+
+	// Before Updating Application ensure that AppProjectRepository row has been created or no.
+	appProjectRepoCredDB := db.AppProjectRepository{
+		Clusteruser_id: clusterUser.Clusteruser_id,
+		RepoURL:        sharedloop.NormalizeGitURL(gitopsDeployment.Spec.Source.RepoURL),
+	}
+
+	if err := dbQueries.GetAppProjectRepositoryByClusterUserId(ctx, &appProjectRepoCredDB); err != nil {
+		a.log.Error(err, "Unable to retrive appProjectRepository based on GitopsDeployment", appProjectRepoCredDB.GetAsLogKeyValues()...)
+
+		// If AppProjectRepository is not present in DB, create it.
+		if db.IsResultNotFoundError(err) {
+			appProjectRepoCredDB := db.AppProjectRepository{
+				Clusteruser_id:          clusterUser.Clusteruser_id,
+				RepositoryCredentialsID: "",
+				RepoURL:                 sharedloop.NormalizeGitURL(gitopsDeployment.Spec.Source.RepoURL),
+			}
+
+			if err := dbQueries.CreateAppProjectRepository(ctx, &appProjectRepoCredDB); err != nil {
+				a.log.Error(err, "Unable to create appProjectRepository based on GitopsDeployment", appProjectRepoCredDB.GetAsLogKeyValues()...)
+
+				return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
+			}
+
+			a.log.Info("Created new AppProjectRepository in DB based on GitopsDeploymentkkkk: "+appProjectRepoCredDB.AppProjectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
+
+		}
+
 	}
 
 	if err := dbQueries.UpdateApplication(ctx, application); err != nil {

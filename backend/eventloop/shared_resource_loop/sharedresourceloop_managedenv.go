@@ -404,7 +404,37 @@ func replaceExistingManagedEnv(ctx context.Context,
 	}
 	log.Info("Updated ManagedEnvironment with new cluster credentials ID", managedEnvironmentDB.GetAsLogKeyValues()...)
 
-	// 3) Delete the old credentials
+	// Check whether the AppProjectManagedEnvironment exists. If the AppProjectManagedEnvironment have been updated and the AppProjectManagedEnvironment is not present, create it.
+	appProjectManagedEnv := db.AppProjectManagedEnvironment{
+		Managed_environment_id: managedEnvironmentDB.Managedenvironment_id,
+	}
+
+	if err := dbQueries.GetAppProjectManagedEnvironmentById(ctx, &appProjectManagedEnv); err != nil {
+		log.Error(err, "Unable to retrive appProjectManagedEnv", appProjectManagedEnv.GetAsLogKeyValues()...)
+
+		// If AppProjectManagedEnvironment is not present in DB, create it.
+		if db.IsResultNotFoundError(err) {
+			appProjectManagedEnv := db.AppProjectManagedEnvironment{
+				Clusteruser_id:         clusterUser.Clusteruser_id,
+				Managed_environment_id: managedEnvironmentDB.Managedenvironment_id,
+			}
+
+			if err := dbQueries.CreateAppProjectManagedEnvironment(ctx, &appProjectManagedEnv); err != nil {
+				log.Error(err, "Unable to create appProjectManagedEnv", appProjectManagedEnv.GetAsLogKeyValues()...)
+
+				return SharedResourceManagedEnvContainer{},
+					createGenericDatabaseErrorEnvInitCondition(managedEnvironmentCR),
+					fmt.Errorf("unable to call CreateAppProjectManagedEnvironment: %w", err)
+			}
+
+			log.Info("Created new AppProjectRepository in DB : "+appProjectManagedEnv.Managed_environment_id, appProjectManagedEnv.GetAsLogKeyValues()...)
+		}
+
+		return SharedResourceManagedEnvContainer{}, connInitCondition,
+			fmt.Errorf("unable to call GetAppProjectManagedEnvironmentById: %v", err)
+	}
+
+	// 4) Delete the old credentials
 	rowsDeleted, err := dbQueries.DeleteClusterCredentialsById(ctx, oldClusterCredentialsPrimaryKey)
 	if err != nil {
 		log.Error(err, "Unable to delete old ClusterCredentials row which is no longer used by ManagedEnv", "clusterCredentials", oldClusterCredentialsPrimaryKey)
@@ -420,7 +450,7 @@ func replaceExistingManagedEnv(ctx context.Context,
 	}
 	log.Info("Deleted old ClusterCredentials row which is no longer used by ManagedEnv", "clusterCredentials", oldClusterCredentialsPrimaryKey)
 
-	// 4) Retrieve/create the other env vars for the managed env, and return
+	// 5) Retrieve/create the other env vars for the managed env, and return
 	engineInstance, isNewEngineInstance, clusterAccess,
 		isNewClusterAccess, engineCluster, uerr := wrapManagedEnv(ctx,
 		managedEnvironmentDB, workspaceNamespace, clusterUser, gitopsEngineClient, dbQueries, log)
@@ -465,6 +495,19 @@ func constructNewManagedEnv(ctx context.Context,
 		return newSharedResourceManagedEnvContainer(), connInitErr,
 			fmt.Errorf("unable to create managed environment for %s: %w", managedEnvironment.UID, err)
 	}
+
+	appProjectManagedEnvDB := db.AppProjectManagedEnvironment{
+		Clusteruser_id:         clusterUser.Clusteruser_id,
+		Managed_environment_id: managedEnvDB.Managedenvironment_id,
+	}
+
+	if err := dbQueries.CreateAppProjectManagedEnvironment(ctx, &appProjectManagedEnvDB); err != nil {
+		log.Error(err, "Unable to create new AppProjectManagedEnvironment")
+		return newSharedResourceManagedEnvContainer(), connInitErr,
+			fmt.Errorf("unable to create AppProjectManagedEnvironment for %s: %w", appProjectManagedEnvDB.Clusteruser_id, err)
+	}
+
+	log.Info("Created new AppProjectManagedEnvironment")
 
 	engineInstance, isNewEngineInstance, clusterAccess,
 		isNewClusterAccess, engineCluster, uerr := wrapManagedEnv(ctx,

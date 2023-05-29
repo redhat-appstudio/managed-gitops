@@ -62,7 +62,7 @@ var _ = Describe("AppProjectRepository Test", func() {
 			AppProjectRepositoryID: appProjectRepository.AppProjectRepositoryID,
 		}
 
-		err = dbq.GetAppProjectRepositoryById(ctx, &appProjectRepositoryget)
+		err = dbq.GetAppProjectRepositoryByClusterUserId(ctx, &appProjectRepositoryget)
 		Expect(err).To(BeNil())
 		Expect(appProjectRepository).Should(Equal(appProjectRepositoryget))
 
@@ -78,22 +78,22 @@ var _ = Describe("AppProjectRepository Test", func() {
 		err = dbq.UpdateAppProjectRepository(ctx, &appProjectRepositoryupdate)
 		Expect(err).To(BeNil())
 
-		err = dbq.GetAppProjectRepositoryById(ctx, &appProjectRepositoryupdate)
+		err = dbq.GetAppProjectRepositoryByClusterUserId(ctx, &appProjectRepositoryupdate)
 		Expect(err).To(BeNil())
 		Expect(appProjectRepositoryupdate).ShouldNot(Equal(appProjectRepositoryget))
 
 		By("Verify whether AppProjectRepository is deleted")
-		rowsAffected, err := dbq.DeleteAppProjectRepositoryById(ctx, appProjectRepository.AppProjectRepositoryID)
+		rowsAffected, err := dbq.DeleteAppProjectRepositoryByClusterUserId(ctx, appProjectRepository.AppProjectRepositoryID)
 		Expect(err).To(BeNil())
 		Expect(rowsAffected).Should(Equal(1))
 
-		err = dbq.GetAppProjectRepositoryById(ctx, &appProjectRepository)
+		err = dbq.GetAppProjectRepositoryByClusterUserId(ctx, &appProjectRepository)
 		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
 		appProjectRepositoryget = db.AppProjectRepository{
 			AppProjectRepositoryID: "does-not-exist",
 		}
-		err = dbq.GetAppProjectRepositoryById(ctx, &appProjectRepositoryget)
+		err = dbq.GetAppProjectRepositoryByClusterUserId(ctx, &appProjectRepositoryget)
 		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
 	})

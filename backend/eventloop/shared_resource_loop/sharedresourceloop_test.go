@@ -280,7 +280,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			}
 		})
 
-		It("Should fetch a GitOpsDeploymentRepositoryCredential.", func() {
+		FIt("Should fetch a GitOpsDeploymentRepositoryCredential.", func() {
 			sharedResourceEventLoop := &SharedResourceEventLoop{inputChannel: make(chan sharedResourceLoopMessage)}
 
 			go internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
@@ -405,6 +405,16 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(err).To(BeNil())
 			Expect(dbRepoCred).NotTo(BeNil())
 
+			By("verify whether appProject is created or not")
+			appProjectRepositoryDB := &db.AppProjectRepository{
+				Clusteruser_id: usrNew.Clusteruser_id,
+				RepoURL:        NormalizeGitURL(dbRepoCred.PrivateURL),
+			}
+
+			err = dbq.GetAppProjectRepositoryByClusterUserId(ctx, appProjectRepositoryDB)
+			Expect(err).To(BeNil())
+			Expect(appProjectRepositoryDB).NotTo(BeNil())
+
 			var operationDB db.Operation
 			var operations []db.Operation
 
@@ -473,6 +483,11 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(err).To(BeNil())
 			Expect(dbRepoCred).NotTo(BeNil())
 
+			By("verify whether appProject is created or not")
+			err = dbq.GetAppProjectRepositoryByClusterUserId(ctx, appProjectRepositoryDB)
+			Expect(err).To(BeNil())
+			Expect(appProjectRepositoryDB).NotTo(BeNil())
+
 			// Check if there are any new operations, if they are deleted (previously) there should be none
 			primaryKey = dbRepoCred.RepositoryCredentialsID
 			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, primaryKey, db.OperationResourceType_RepositoryCredentials, &operations, usrNew.Clusteruser_id)
@@ -491,6 +506,11 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, false, l)
 			Expect(err).To(BeNil())
 			Expect(dbRepoCred).ToNot(BeNil())
+
+			By("verify whether appProject is present or not when repoCred is updated")
+			err = dbq.GetAppProjectRepositoryByClusterUserId(ctx, appProjectRepositoryDB)
+			Expect(err).To(BeNil())
+			Expect(appProjectRepositoryDB).NotTo(BeNil())
 
 			// Check if there are any operations
 			operationList = &managedgitopsv1alpha1.OperationList{}

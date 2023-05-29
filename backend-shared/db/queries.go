@@ -296,15 +296,15 @@ type ApplicationScopedQueries interface {
 	// UpdateAppProjectRepository updates AppProjectRepository table in database
 	UpdateAppProjectRepository(ctx context.Context, obj *AppProjectRepository) error
 
-	// GetAppProjectRepositoryById retrieves AppProjectRepository by id
-	GetAppProjectRepositoryById(ctx context.Context, obj *AppProjectRepository) error
+	// GetAppProjectRepositoryByClusterUserId retrieves AppProjectRepository by cluster user id
+	GetAppProjectRepositoryByClusterUserId(ctx context.Context, obj *AppProjectRepository) error
 
 	// ListAppProjectRepositoryByClusterUserId retrieves the list of appProjectRepositories
 	ListAppProjectRepositoryByClusterUserId(ctx context.Context,
-		cluster_user_id string, appProjectRepositories []AppProjectRepository) ([]AppProjectRepository, error)
+		cluster_user_id string, appProjectRepositories *[]AppProjectRepository) error
 
-	// DeleteAppProjectRepositoryById deletes appProjectRepository by id
-	DeleteAppProjectRepositoryById(ctx context.Context, id string) (int, error)
+	// DeleteAppProjectRepositoryByClusterUserId deletes appProjectRepository by id
+	DeleteAppProjectRepositoryByClusterUserId(ctx context.Context, id string) (int, error)
 
 	// CreateAppProjectManagedEnvironment creates appProjectManagedEnv in database
 	CreateAppProjectManagedEnvironment(ctx context.Context, obj *AppProjectManagedEnvironment) error
@@ -319,8 +319,8 @@ type ApplicationScopedQueries interface {
 	ListAppProjectManagedEnvironmentByClusterUserId(ctx context.Context,
 		cluster_user_id string, appProjectManagedEnv []AppProjectManagedEnvironment) ([]AppProjectManagedEnvironment, error)
 
-	// DeleteAppProjectManagedEnvironmentyId deletes appProjectRepository by id
-	DeleteAppProjectManagedEnvironmentById(ctx context.Context, id string) (int, error)
+	// DeleteAppProjectManagedEnvironmentByClusterUserId deletes appProjectRepository by id
+	DeleteAppProjectManagedEnvironmentByClusterUserId(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error)
 }
 
 type CloseableQueries interface {

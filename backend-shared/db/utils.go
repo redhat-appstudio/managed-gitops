@@ -353,6 +353,22 @@ func SetupForTestingDBGinkgo() error {
 		}
 	}
 
+	var appProjectRepositories []AppProjectRepository
+
+	err = dbq.UnsafeListAllAppProjectRepositories(ctx, &appProjectRepositories)
+	Expect(err).To(BeNil())
+
+	for _, appProjectRepository := range appProjectRepositories {
+		if strings.HasPrefix(appProjectRepository.AppProjectRepositoryID, "test-") {
+			rowsAffected, err := dbq.DeleteAppProjectRepositoryByClusterUserId(ctx, appProjectRepository.Clusteruser_id)
+			Expect(err).To(BeNil())
+
+			if err == nil {
+				Expect(rowsAffected).Should(Equal(1))
+			}
+		}
+	}
+
 	var operations []Operation
 	err = dbq.UnsafeListAllOperations(ctx, &operations)
 	Expect(err).To(BeNil())
@@ -367,38 +383,6 @@ func SetupForTestingDBGinkgo() error {
 			Expect(rowsAffected).Should(Equal(1))
 			Expect(err).To(BeNil())
 
-		}
-	}
-
-	var appProjectRepositories []AppProjectRepository
-
-	err = dbq.UnsafeListAllAppProjectRepositories(ctx, &appProjectRepositories)
-	Expect(err).To(BeNil())
-
-	for _, appProjectRepository := range appProjectRepositories {
-		if strings.HasPrefix(appProjectRepository.AppProjectRepositoryID, "test-") {
-			rowsAffected, err := dbq.DeleteAppProjectRepositoryById(ctx, appProjectRepository.AppProjectRepositoryID)
-			Expect(err).To(BeNil())
-
-			if err == nil {
-				Expect(rowsAffected).Should(Equal(1))
-			}
-		}
-	}
-
-	var appProjectManagedEnv []AppProjectManagedEnvironment
-
-	err = dbq.UnsafeListAllAppProjectManagedEnvironment(ctx, &appProjectManagedEnv)
-	Expect(err).To(BeNil())
-
-	for _, appProjectRepository := range appProjectManagedEnv {
-		if strings.HasPrefix(appProjectRepository.AppProjectManagedEnvironmentID, "test-") {
-			rowsAffected, err := dbq.DeleteAppProjectRepositoryById(ctx, appProjectRepository.AppProjectManagedEnvironmentID)
-			Expect(err).To(BeNil())
-
-			if err == nil {
-				Expect(rowsAffected).Should(Equal(1))
-			}
 		}
 	}
 
@@ -479,6 +463,20 @@ func SetupForTestingDBGinkgo() error {
 			rowsAffected, err := dbq.DeleteGitopsEngineClusterById(ctx, engineCluster.Gitopsenginecluster_id)
 			Expect(err).To(BeNil())
 
+			if err == nil {
+				Expect(rowsAffected).Should(Equal(1))
+			}
+		}
+	}
+
+	var appProjectManagedEnvs []AppProjectManagedEnvironment
+	err = dbq.UnsafeListAllAppProjectManagedEnvironment(ctx, &appProjectManagedEnvs)
+	Expect(err).To(BeNil())
+	for idx := range appProjectManagedEnvs {
+		item := appProjectManagedEnvs[idx]
+		if strings.HasPrefix(item.Managed_environment_id, "test-") {
+			rowsAffected, err := dbq.DeleteAppProjectManagedEnvironmentByClusterUserId(ctx, &item)
+			Expect(err).To(BeNil())
 			if err == nil {
 				Expect(rowsAffected).Should(Equal(1))
 			}

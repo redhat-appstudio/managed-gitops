@@ -47,7 +47,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-var _ = Describe("ApplicationEventLoop Test", func() {
+var _ = FDescribe("ApplicationEventLoop Test", func() {
 
 	Context("Handle sync run modified", func() {
 
@@ -66,7 +66,8 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
 					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual,
 					Source: managedgitopsv1alpha1.ApplicationSource{
-						Path: "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+						Path:    "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+						RepoURL: "https://github.com/test/test",
 					},
 				},
 			}
@@ -148,7 +149,8 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				},
 				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
 					Source: managedgitopsv1alpha1.ApplicationSource{
-						Path: "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+						Path:    "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+						RepoURL: "https://github.com/test/test",
 					},
 				},
 			}
@@ -254,7 +256,8 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				},
 				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
 					Source: managedgitopsv1alpha1.ApplicationSource{
-						Path: "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+						Path:    "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+						RepoURL: "https://github.com/test/test",
 					},
 				},
 			}
@@ -439,6 +442,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 					Namespace: workspace.Name,
 					UID:       uuid.NewUUID(),
 				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						RepoURL: "https://github.com/test/test",
+					},
+				},
 			}
 
 			k8sClient := fake.
@@ -500,7 +508,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 		})
 
-		It("Verify that the .status.reconciledState value of the GitOpsDeployment resource correctly references the name of the GitOpsDeploymentManagedEnvironment resource", func() {
+		FIt("Verify that the .status.reconciledState value of the GitOpsDeployment resource correctly references the name of the GitOpsDeploymentManagedEnvironment resource", func() {
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
 
@@ -588,6 +596,14 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
 			}
 			err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironment)
+			Expect(err).To(BeNil())
+
+			appProjectMangedEnv := db.AppProjectManagedEnvironment{
+				AppProjectManagedEnvironmentID: "test-app-managedenv-id",
+				Managed_environment_id:         managedEnvironment.Managedenvironment_id,
+				Clusteruser_id:                 "test-user",
+			}
+			err = dbQueries.CreateAppProjectManagedEnvironment(ctx, &appProjectMangedEnv)
 			Expect(err).To(BeNil())
 
 			// ----------------------------------------------------------------------------
@@ -828,7 +844,8 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				},
 				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
 					Source: managedgitopsv1alpha1.ApplicationSource{
-						Path: "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+						Path:    "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+						RepoURL: "https://github.com/test/test",
 					},
 				},
 			}
@@ -891,7 +908,8 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				},
 				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
 					Source: managedgitopsv1alpha1.ApplicationSource{
-						Path: "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+						Path:    "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+						RepoURL: "https://github.com/test/test",
 					},
 				},
 			}

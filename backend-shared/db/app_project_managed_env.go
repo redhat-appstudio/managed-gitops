@@ -68,8 +68,6 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateAppProjectManagedEnvironment(ctx con
 	}
 
 	if err := isEmptyValues("UpdateAppProjectManagedEnvironment",
-		"app_project_managedenv_id", obj.AppProjectManagedEnvironmentID,
-		"clusteruser_id", obj.Clusteruser_id,
 		"managed_environment_id", obj.Managed_environment_id); err != nil {
 		return err
 	}
@@ -97,14 +95,14 @@ func (dbq *PostgreSQLDatabaseQueries) GetAppProjectManagedEnvironmentById(ctx co
 		return err
 	}
 
-	if IsEmpty(obj.AppProjectManagedEnvironmentID) {
-		return fmt.Errorf("app_project_managedenv_id is nil")
+	if IsEmpty(obj.Managed_environment_id) {
+		return fmt.Errorf("managed_environment_id is nil")
 	}
 
 	var results []AppProjectManagedEnvironment
 
 	if err := dbq.dbConnection.Model(&results).
-		Where("app_project_managedenv_id = ?", obj.AppProjectManagedEnvironmentID).
+		Where("managed_environment_id = ?", obj.Managed_environment_id).
 		Context(ctx).
 		Select(); err != nil {
 
@@ -112,11 +110,11 @@ func (dbq *PostgreSQLDatabaseQueries) GetAppProjectManagedEnvironmentById(ctx co
 	}
 
 	if len(results) == 0 {
-		return NewResultNotFoundError(fmt.Sprintf("AppProjectManagedEnvironment '%s'", obj.AppProjectManagedEnvironmentID))
+		return NewResultNotFoundError(fmt.Sprintf("AppProjectManagedEnvironment '%s'", obj.Managed_environment_id))
 	}
 
 	if len(results) > 1 {
-		return fmt.Errorf("multiple results found on retrieving appProjectManagedenv: %v", obj.AppProjectManagedEnvironmentID)
+		return fmt.Errorf("multiple results found on retrieving appProjectManagedenv: %v", obj.Managed_environment_id)
 	}
 
 	*obj = results[0]
@@ -141,20 +139,36 @@ func (dbq *PostgreSQLDatabaseQueries) ListAppProjectManagedEnvironmentByClusterU
 
 }
 
-func (dbq *PostgreSQLDatabaseQueries) DeleteAppProjectManagedEnvironmentById(ctx context.Context, id string) (int, error) {
-
-	if err := validateQueryParams(id, dbq); err != nil {
+func (dbq *PostgreSQLDatabaseQueries) DeleteAppProjectManagedEnvironmentByClusterUserId(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error) {
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return 0, err
 	}
 
-	result := &AppProjectManagedEnvironment{
-		AppProjectManagedEnvironmentID: id,
+	if err := isEmptyValues("DeleteAppProjectManagedEnvironmentByClusterUserId",
+		"managed_environment_id", obj.Managed_environment_id,
+	); err != nil {
+		return 0, err
 	}
 
-	deleteResult, err := dbq.dbConnection.Model(result).WherePK().Context(ctx).Delete()
+	deleteResult, err := dbq.dbConnection.Model(obj).
+		Where("managed_environment_id = ?", obj.Managed_environment_id).
+		Context(ctx).Delete()
 	if err != nil {
-		return 0, fmt.Errorf("error on deleting appProjectManagedEnvi: %v", err)
+		return 0, fmt.Errorf("error on deleting appProjectManagedEnvironment: %v", err)
 	}
 
 	return deleteResult.RowsAffected(), nil
+
+}
+
+// GetAsLogKeyValues returns an []interface that can be passed to log.Info(...).
+// e.g. log.Info("Creating database resource", obj.GetAsLogKeyValues()...)
+func (obj *AppProjectManagedEnvironment) GetAsLogKeyValues() []interface{} {
+	if obj == nil {
+		return []interface{}{}
+	}
+
+	return []interface{}{"app_project_managedenv_id", obj.AppProjectManagedEnvironmentID,
+		"cluster_user_id", obj.Clusteruser_id,
+		"managed_environment_id", obj.Managed_environment_id}
 }

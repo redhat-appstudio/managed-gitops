@@ -1648,6 +1648,126 @@ var _ = Describe("Operation Controller", func() {
 				Entry("TLS status set FALSE", bool(managedgitopsv1alpha1.TLSVerifyStatusFalse)),
 			)
 
+			It("Verify whether AppProject has been created or not when processing operation application", func() {
+				By("Close database connection")
+				defer dbQueries.CloseDatabase()
+				defer testTeardown()
+
+				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
+				Expect(err).To(BeNil())
+
+				_, dummyApplicationSpecString, err := createDummyApplicationData()
+				Expect(err).To(BeNil())
+
+				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
+				Expect(gitopsEngineCluster).ToNot(BeNil())
+				Expect(err).To(BeNil())
+
+				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
+				gitopsEngineInstance := &db.GitopsEngineInstance{
+					Gitopsengineinstance_id: "test-fake-engine-instance",
+					Namespace_name:          namespace,
+					Namespace_uid:           string(workspace.UID),
+					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+				}
+				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
+				Expect(err).To(BeNil())
+
+				applicationDB := &db.Application{
+					Application_id:          "test-my-application",
+					Name:                    name,
+					Spec_field:              dummyApplicationSpecString,
+					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				}
+
+				By("Create Application in Database")
+				err = dbQueries.CreateApplication(ctx, applicationDB)
+				Expect(err).To(BeNil())
+
+				By("Creating new operation row in database")
+				operationDB := &db.Operation{
+					Operation_id:            "test-operation",
+					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+					Resource_id:             applicationDB.Application_id,
+					Resource_type:           "Application",
+					State:                   db.OperationState_Waiting,
+					Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				}
+
+				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+				Expect(err).To(BeNil())
+
+				By("Creating Operation CR")
+				operationCR := &managedgitopsv1alpha1.Operation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: namespace,
+					},
+					Spec: managedgitopsv1alpha1.OperationSpec{
+						OperationID: operationDB.Operation_id,
+					},
+				}
+
+				err = task.event.client.Create(ctx, operationCR)
+				Expect(err).To(BeNil())
+
+				By("Create a RepositoryCredentials DB entry.")
+
+				repoCredentials := db.RepositoryCredentials{
+					RepositoryCredentialsID: "test-cred-id" + string(uuid.NewUUID()),
+					UserID:                  testClusterUser.Clusteruser_id,
+					PrivateURL:              "https://test-private-url",
+					AuthUsername:            "test-auth-username",
+					AuthPassword:            "test-auth-password",
+					AuthSSHKey:              "test-auth-ssh-key",
+					SecretObj:               "test-secret-obj",
+					EngineClusterID:         gitopsEngineInstance.Gitopsengineinstance_id,
+				}
+				err = dbQueries.CreateRepositoryCredentials(ctx, &repoCredentials)
+				Expect(err).To(BeNil())
+
+				dbAppProjectRepo := &db.AppProjectRepository{
+					AppProjectRepositoryID:  "test-appProject-repo-id",
+					Clusteruser_id:          testClusterUser.Clusteruser_id,
+					RepositoryCredentialsID: repoCredentials.RepositoryCredentialsID,
+					RepoURL:                 "test-url",
+				}
+
+				err = dbQueries.CreateAppProjectRepository(ctx, dbAppProjectRepo)
+				Expect(err).To(BeNil())
+
+				retry, err := task.PerformTask(ctx)
+				Expect(err).To(BeNil())
+				Expect(retry).To(BeFalse())
+
+				By("Verify whether AppProject has been created")
+				appProject := &appv1.AppProject{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      appProjectPrefix + operationDB.Operation_owner_user_id,
+						Namespace: namespace,
+					},
+				}
+
+				err = task.event.client.Get(ctx, types.NamespacedName{Namespace: appProject.Namespace, Name: appProject.Name}, appProject)
+				Expect(err).To(BeNil())
+
+				By("deleting resources and cleaning up db entries created by test.")
+
+				resourcesToBeDeleted := testResources{
+					Application_id:          applicationDB.Application_id,
+					Operation_id:            []string{operationDB.Operation_id},
+					Gitopsenginecluster_id:  gitopsEngineCluster.Gitopsenginecluster_id,
+					Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
+					ClusterCredentials_id:   gitopsEngineCluster.Clustercredentials_id,
+					RepositoryCredentialsID: repoCredentials.RepositoryCredentialsID,
+					AppProjectRepositoryID:  dbAppProjectRepo.AppProjectRepositoryID,
+				}
+
+				deleteTestResources(ctx, dbQueries, resourcesToBeDeleted)
+
+			})
+
 		})
 
 		Context("Process SyncOperation", func() {
@@ -2362,6 +2482,8 @@ type testResources struct {
 	Managedenvironment_id         string
 	kubernetesToDBResourceMapping db.KubernetesToDBResourceMapping
 	SyncOperation_id              string
+	RepositoryCredentialsID       string
+	AppProjectRepositoryID        string
 }
 
 // Delete resources from table
@@ -2379,6 +2501,20 @@ func deleteTestResources(ctx context.Context, dbQueries db.AllDatabaseQueries, r
 	// Delete Application
 	if resourcesToBeDeleted.Application_id != "" {
 		rowsAffected, err = dbQueries.DeleteApplicationById(ctx, resourcesToBeDeleted.Application_id)
+		Expect(err).To(BeNil())
+		Expect(rowsAffected).To(Equal(1))
+	}
+
+	// Delete Application
+	if resourcesToBeDeleted.AppProjectRepositoryID != "" {
+		rowsAffected, err = dbQueries.DeleteAppProjectRepositoryByClusterUserId(ctx, resourcesToBeDeleted.AppProjectRepositoryID)
+		Expect(err).To(BeNil())
+		Expect(rowsAffected).To(Equal(1))
+	}
+
+	// Delete Application
+	if resourcesToBeDeleted.RepositoryCredentialsID != "" {
+		rowsAffected, err = dbQueries.DeleteRepositoryCredentialsByID(ctx, resourcesToBeDeleted.RepositoryCredentialsID)
 		Expect(err).To(BeNil())
 		Expect(rowsAffected).To(Equal(1))
 	}

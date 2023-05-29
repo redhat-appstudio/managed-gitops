@@ -526,7 +526,7 @@ CREATE TABLE AppProjectRepository (
 	-- Describes which repositorycredentials the user has access to (UID)
 	-- Foreign key to: RepositoryCredentials.repositorycredentials_id
 	repositorycredentials_id VARCHAR (48),
-	CONSTRAINT fk_repositorycredentials_id FOREIGN KEY (repositorycredentials_id) REFERENCES RepositoryCredentials(repositorycredentials_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
+	CONSTRAINT fk_repositorycredentials_id FOREIGN KEY (repositorycredentials_id) REFERENCES RepositoryCredentials(repositorycredentials_id) ON DELETE SET NULL ON UPDATE NO ACTION,
 	
 	-- Normalized Repo URL
 	repo_url VARCHAR (256) NOT NULL,

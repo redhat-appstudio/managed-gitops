@@ -27,9 +27,10 @@ import (
 )
 
 const (
-	errGenericCR        = "unable to retrieve CR from the cluster"
-	errUpdateDBRepoCred = "unable to update repository credential in the database"
-	errCreateDBRepoCred = "unable to create repository credential in the database"
+	errGenericCR                   = "unable to retrieve CR from the cluster"
+	errUpdateDBRepoCred            = "unable to update repository credential in the database"
+	errCreateDBRepoCred            = "unable to create repository credential in the database"
+	errCreateDBAppProjecRepository = "unable to create appProject repository in the database"
 )
 
 func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
@@ -130,6 +131,11 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 				}
 
 			} else {
+				if _, err := deleteAppProjectRepositoryFromDB(ctx, dbQueries, clusterUser.Clusteruser_id, l); err != nil {
+					l.Error(err, "unable to delete app repo cred from DB")
+					return nil, err
+				}
+
 				if _, err := deleteRepoCredFromDB(ctx, dbQueries, repositoryCredentialPrimaryKey, l); err != nil {
 					l.Error(err, "unable to delete repo cred from DB")
 					return nil, err
@@ -239,6 +245,21 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 		}
 		l.Info("Created RepositoryCredential in the DB", "repositoryCredential", dbRepoCred.RepositoryCredentialsID)
 
+		normalizedRepoURL := NormalizeGitURL(dbRepoCred.PrivateURL)
+
+		appProjectRepoCredDB := db.AppProjectRepository{
+			Clusteruser_id:          clusterUser.Clusteruser_id,
+			RepositoryCredentialsID: dbRepoCred.RepositoryCredentialsID,
+			RepoURL:                 normalizedRepoURL,
+		}
+
+		if err := dbQueries.CreateAppProjectRepository(ctx, &appProjectRepoCredDB); err != nil {
+			l.Error(err, "Error creating AppProjectRepository row in DB", "DebugErr", errCreateDBAppProjecRepository, "CR Name", repositoryCredentialCRName, "Namespace", resourceNS)
+			return nil, fmt.Errorf("unable to create appProject repository in the database: %v", err)
+		}
+
+		l.Info("Created new AppProjectRepository in the DB", "appProjectRepository", appProjectRepoCredDB.AppProjectRepositoryID)
+
 		// Create the mapping
 		newApiCRToDBMapping := db.APICRToDatabaseMapping{
 			APIResourceType:      db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentRepositoryCredential,
@@ -319,6 +340,37 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 				"DB Row", dbRepoCred.RepositoryCredentialsID)
 			if err := dbQueries.UpdateRepositoryCredentials(ctx, &dbRepoCred); err != nil {
 				l.Error(err, errUpdateDBRepoCred)
+				return nil, err
+			}
+
+			normalizedRepoURL := NormalizeGitURL(dbRepoCred.PrivateURL)
+
+			// Check whether the AppProjectRepository exists. If the RepositoryCredentials have been updated and the AppProjectRepository is not present, create it.
+			appProjectRepository := db.AppProjectRepository{
+				Clusteruser_id: clusterUser.Clusteruser_id,
+				RepoURL:        normalizedRepoURL,
+			}
+
+			if err := dbQueries.GetAppProjectRepositoryByClusterUserId(ctx, &appProjectRepository); err != nil {
+				l.Error(err, "Unable to retrive appProjectRepository", appProjectRepository.GetAsLogKeyValues()...)
+
+				// If AppProjectRepository is not present in DB, create it.
+				if db.IsResultNotFoundError(err) {
+					appProjectRepoCredDB := db.AppProjectRepository{
+						Clusteruser_id:          clusterUser.Clusteruser_id,
+						RepositoryCredentialsID: dbRepoCred.RepositoryCredentialsID,
+						RepoURL:                 normalizedRepoURL,
+					}
+
+					if err := dbQueries.CreateAppProjectRepository(ctx, &appProjectRepoCredDB); err != nil {
+						l.Error(err, "Unable to create appProjectRepository..", appProjectRepoCredDB.GetAsLogKeyValues()...)
+
+						return nil, err
+					}
+
+					l.Info("Created new AppProjectRepository in DB : "+appProjectRepoCredDB.AppProjectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
+				}
+
 				return nil, err
 			}
 
@@ -572,7 +624,7 @@ func generateValidRepositoryCredentialsConditions(repositoryCredential *managedg
 
 func validateRepositoryCredentials(rawRepoURL string, secret *corev1.Secret) error {
 
-	normalizedRepoUrl := normalizeGitURL(rawRepoURL)
+	normalizedRepoUrl := NormalizeGitURL(rawRepoURL)
 	rem := git.NewRemote(memory.NewStorage(), &config.RemoteConfig{
 		Name: "origin",
 		URLs: []string{normalizedRepoUrl},
@@ -624,7 +676,7 @@ var (
 
 // normalizeGitURL normalizes a git URL for purposes of comparison, as well as preventing redundant
 // local clones (by normalizing various forms of a URL to a consistent location).
-func normalizeGitURL(repo string) string {
+func NormalizeGitURL(repo string) string {
 	repo = strings.ToLower(strings.TrimSpace(repo))
 	if yes, _ := isSSHURL(repo); yes {
 		if !strings.HasPrefix(repo, "ssh://") {

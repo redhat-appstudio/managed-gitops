@@ -43,7 +43,7 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 
 		DescribeTable("Test scenarios for normalizeGitURL", func(repoUrl, normalizedRepoUrl string) {
 
-			Expect(normalizeGitURL(repoUrl)).To(Equal(normalizedRepoUrl))
+			Expect(NormalizeGitURL(repoUrl)).To(Equal(normalizedRepoUrl))
 		},
 			Entry("Https Url", "https://github.com/redhat-appstudio/test.git", "https://github.com/redhat-appstudio/test"),
 			Entry("Git Url", "git@github.com:redhat-appstudio/managed-gitops.git", "git@github.com/redhat-appstudio/managed-gitops"),

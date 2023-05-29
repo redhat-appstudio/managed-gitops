@@ -29,6 +29,10 @@ const (
 	ArgoCDSecretRepoTypeValue     = "repository"                     // Secret type for Repository Secret
 
 	ManagedEnvironmentSecretType = "managed-gitops.redhat.com/managed-environment"
+
+	JobKey      = "job"                    // Clean up job key
+	JobKeyValue = "managed-gitops-cleanup" // Clean up job value
+	JobTypeKey  = "jobType"                // Key to identify clean up job type
 )
 
 // ExponentialBackoff: the more times in a row something fails, the longer we wait.

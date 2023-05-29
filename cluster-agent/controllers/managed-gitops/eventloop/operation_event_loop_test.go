@@ -513,6 +513,8 @@ var _ = Describe("Operation Controller", func() {
 			err = k8sClient.Create(context.Background(), newArgoCDNamespace)
 			Expect(err).To(BeNil())
 
+			task.event.request.Namespace = newArgoCDNamespace.Name
+
 			gitopsEngineInstance := db.GitopsEngineInstance{
 				Gitopsengineinstance_id: "test-fake-engine-instance-id-1",
 				Namespace_name:          newArgoCDNamespace.Name,
@@ -587,9 +589,13 @@ var _ = Describe("Operation Controller", func() {
 			Expect(err).To(BeNil())
 			Expect(retry).To(BeFalse())
 
+			By("check if the Operation state is updated to InProgress")
+			err = dbQueries.GetOperationById(ctx, operationDB)
+			Expect(err).To(BeNil())
+			Expect(operationDB.State).To(Equal(db.OperationState_In_Progress))
 		})
 
-		It("ensures that if the kube-system namespace does not having a matching namespace uid, an error is not returned, but retry it true", func() {
+		It("ensures that if the kube-system namespace does not having a matching namespace uid, an error is not returned, but retry is true", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()

@@ -331,13 +331,15 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		}
 	}
 
+	// 3) Find the Argo CD instance that is targeted by this operation.
 	dbGitopsEngineInstance := &db.GitopsEngineInstance{
 		Gitopsengineinstance_id: dbOperation.Instance_id,
 	}
 	if err := dbQueries.GetGitopsEngineInstanceById(taskContext, dbGitopsEngineInstance); err != nil {
 
 		if db.IsResultNotFoundError(err) {
-			return nil, shouldRetryFalse, err
+			log.Error(err, "Received operation on gitops engine instance that doesn't exist")
+			return nil, shouldRetryFalse, nil
 		} else {
 			// some other generic error
 			log.Error(err, "Unable to retrieve gitopsEngineInstance due to generic error: "+dbGitopsEngineInstance.Gitopsengineinstance_id)
@@ -370,24 +372,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 	}
 
-	// 3) Find the Argo CD instance that is targeted by this operation.
-	dbGitopsEngineInstance = &db.GitopsEngineInstance{
-		Gitopsengineinstance_id: dbOperation.Instance_id,
-	}
-	if err := dbQueries.GetGitopsEngineInstanceById(taskContext, dbGitopsEngineInstance); err != nil {
-
-		if db.IsResultNotFoundError(err) {
-			// log as warning
-			log.Error(err, "Receive operation on gitops engine instance that doesn't exist")
-
-			// no corresponding db operation, so no work to do
-			return &dbOperation, shouldRetryFalse, nil
-		} else {
-			// some other generic error
-			log.Error(err, "Unexpected error on retrieving GitOpsEngineInstance in internalPerformTask")
-			return &dbOperation, shouldRetryTrue, err
-		}
-	}
+	log.Info("Operation state", "state", dbOperation.State)
 
 	// Sanity test: find the gitops engine cluster, by kube-system, and ensure that the
 	// gitopsengineinstance matches the gitops engine cluster we are running on.
@@ -1094,34 +1079,6 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 	// If the secret is otherwise empty, no work is required
 	if expectedSecret.Name == "" {
 		return nil
-	}
-
-	managedEnv := &db.ManagedEnvironment{
-		Managedenvironment_id: application.Managed_environment_id,
-	}
-
-	if err := opConfig.dbQueries.GetManagedEnvironmentById(ctx, managedEnv); err != nil {
-		if db.IsResultNotFoundError(err) {
-			// Application refers to a managed environment that doesn't exist: no more work to do.
-			// Return true to indicate that the managed environment cluster secret should be deleted.
-			return nil
-		} else {
-			log.Error(err, "unable to retrieve managed environment in operation event loop", "managedEnvironmentID", managedEnv.Managedenvironment_id)
-			return fmt.Errorf("unable to get managed environment '%s': %v", managedEnv.Managedenvironment_id, err)
-		}
-	}
-	clusterCredentials := &db.ClusterCredentials{
-		Clustercredentials_cred_id: managedEnv.Clustercredentials_id,
-	}
-	if err := opConfig.dbQueries.GetClusterCredentialsById(ctx, clusterCredentials); err != nil {
-		if db.IsResultNotFoundError(err) {
-			// Managed environment refers to cluster credentials which no longer exist: no more work to do.
-			// Return true to indicate that the managed environment cluster secret should be deleted.
-			return nil
-		} else {
-			log.Error(err, "unable to retrieve cluster credentials in operation event loop", "clusterCredentialsID", clusterCredentials.Clustercredentials_cred_id)
-			return fmt.Errorf("unable to get cluster credentials '%s': %v", clusterCredentials.Clustercredentials_cred_id, err)
-		}
 	}
 
 	existingSecret := &corev1.Secret{

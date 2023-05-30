@@ -1,0 +1,3 @@
+backend: cd backend && make run-no-self-heal
+cluster-agent: cd cluster-agent && make run-no-self-heal
+appstudio-controller: cd appstudio-controller && make run

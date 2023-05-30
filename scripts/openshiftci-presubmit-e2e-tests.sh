@@ -27,7 +27,7 @@ make install-argocd-openshift
 # Deploy GitOps Service components
 # Use Image built by CI, image name is provided as env variable 'CI_IMAGE' by CI
 echo "Using Image $CI_IMAGE"
-make install-all-k8s IMG=$CI_IMAGE
+make install-all-k8s-e2e IMG=$CI_IMAGE
 
 # Port forwarding is needed by E2E to connect with DB
 echo "Starting Port-Forward loop"

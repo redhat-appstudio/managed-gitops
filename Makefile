@@ -62,6 +62,11 @@ deploy-k8s-env: pre-deploy-crds postgresql-secret-on-k8s ## Deploy all controlle
 undeploy-k8s-env: pre-undeploy-crds ## Remove all controller/DB workloads from K8s.
 	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/k8s-env | kubectl delete -f - 
 
+deploy-k8s-env-e2e: kustomize postgresql-secret-on-k8s ## Deploy all controller/DB workloads to K8s for e2e tests, use e.g. IMG=quay.io/pgeorgia/gitops-service:latest to specify a specific image
+	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/k8s-env-e2e | COMMON_IMAGE=${IMG} envsubst | kubectl apply -f -
+
+undeploy-k8s-env-e2e: kustomize ## Remove all controller/DB e2e test workloads from K8s.
+	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/k8s-env-e2e | kubectl delete -f -
 
 
 ### --- P o s t g r e s --- ###
@@ -151,6 +156,8 @@ devenv-k8s-e2e: deploy-local-dev-env-with-k8s-db port-forward-postgres-auto ## S
 
 install-all-k8s: deploy-k8s-env port-forward-postgres-manual ## Installs e.g. make install-all-k8s IMG=quay.io/pgeorgia/gitops-service:latest
 
+install-all-k8s-e2e: deploy-k8s-env-e2e port-forward-postgres-manual ## Installs for e2e tests e.g. make install-all-k8s-e2e IMG=quay.io/pgeorgia/gitops-service:latest
+
 uninstall-all-k8s: undeploy-k8s-env
 	kubectl delete namespace gitops
 
@@ -192,7 +199,8 @@ setup-e2e-openshift: install-argocd-openshift devenv-k8s-e2e ## Setup steps for 
 
 setup-e2e-local: install-argocd-openshift devenv-docker reset-db ## Setup steps for E2E tests to run with Local Openshift Cluster
 
-start-e2e: start ## Start the managed gitops processes for E2E tests. At the moment this is just a wrapper over 'start' target
+start-e2e: ## Start the managed gitops processes for E2E tests.
+	$(GOBIN)/goreman -f Procfile.no-self-heal start
 
 test-e2e: ## Kick off the E2E tests. Ensure that 'start-e2e' and 'setup-e2e-openshift' have run.
 	cd $(MAKEFILE_ROOT)/tests-e2e && make test

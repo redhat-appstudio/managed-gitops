@@ -380,7 +380,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 				// Update RepositorycredentialsID of AppProjectRepository with RepositorycredentialsID of RepositoryCredential.
 			} else if appProjectRepoCredDB.RepositorycredentialsID != dbRepoCred.RepositoryCredentialsID || appProjectRepoCredDB.RepoURL != dbRepoCred.PrivateURL {
 				appProjectRepoCredDB.RepositorycredentialsID = dbRepoCred.RepositoryCredentialsID
-				appProjectRepoCredDB.RepoURL = dbRepoCred.PrivateURL
+				appProjectRepoCredDB.RepoURL = NormalizeGitURL(dbRepoCred.PrivateURL)
 				if err := dbQueries.UpdateAppProjectRepository(ctx, &appProjectRepoCredDB); err != nil {
 					l.Error(err, "Error updating AppProjectRepository row in DB", "DebugErr", errUpdateDBAppProjectRepository, "CR Name", repositoryCredentialCRName, "Namespace", resourceNS)
 					return nil, fmt.Errorf("unable to update appProject repository in the database: %v", err)

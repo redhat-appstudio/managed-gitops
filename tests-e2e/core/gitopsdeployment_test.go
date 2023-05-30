@@ -12,7 +12,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
+	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	sharedresourceloop "github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	fixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
@@ -188,44 +188,29 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				),
 			)
 
-			app := &appv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      argocd.GenerateArgoCDApplicationName(string(gitOpsDeploymentResource.UID)),
-					Namespace: "gitops-service-argocd",
-				},
-			}
-			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
-			Expect(err).To(BeNil())
-
 			By("verify whether appProjectRepository row pointing to GitopsDeployment has been created in database ")
 
 			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
 			Expect(err).To(BeNil())
 
-			dbApplication := &db.Application{
-				Application_id: app.Labels["databaseID"],
+			namespace := corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: gitOpsDeploymentResource.Namespace,
+				},
 			}
 
-			err = dbQueries.GetApplicationById(ctx, dbApplication)
+			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&namespace), &namespace)
 			Expect(err).To(BeNil())
 
-			var clusterUser string
-			clusterAccessList := []db.ClusterAccess{}
-
-			Eventually(func() bool {
-				err = dbQueries.UnsafeListAllClusterAccess(context.Background(), &clusterAccessList)
-				return Expect(err).To(BeNil())
-			}, time.Second*100).Should(BeTrue())
-
-			for _, v := range clusterAccessList {
-				if v.Clusteraccess_gitops_engine_instance_id == dbApplication.Engine_instance_inst_id {
-					clusterUser = v.Clusteraccess_user_id
-					break
-				}
+			clusterUser := db.ClusterUser{
+				User_name: string(namespace.UID),
 			}
 
+			err = dbQueries.GetClusterUserByUsername(ctx, &clusterUser)
+			Expect(err).To(BeNil())
+
 			appProjectRepositoryDB := db.AppProjectRepository{
-				Clusteruser_id: clusterUser,
+				Clusteruser_id: clusterUser.Clusteruser_id,
 				RepoURL:        sharedresourceloop.NormalizeGitURL(gitOpsDeploymentResource.Spec.Source.RepoURL),
 			}
 
@@ -858,8 +843,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 		It("Verify whether AppProject is pointing to the non-default AppProject and it includes the git repository referenced in the gitOpsDeployment repo", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
-			By("creating a new GitOpsDeployment resource")
-			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("gitops-depl-test-status",
+			By("create a new GitOpsDeployment CR")
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
 				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
@@ -869,26 +854,40 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
-			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
+			By("GitOpsDeployment should have expected health and status")
+			Eventually(gitOpsDeploymentResource, "4m", "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
-					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
-				),
-			)
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)))
 
-			By("Ensure a corresponding Argo CD Application is created")
-			app := &appv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      argocd.GenerateArgoCDApplicationName(string(gitOpsDeploymentResource.UID)),
-					Namespace: gitOpsDeploymentResource.Namespace,
-				},
-			}
-			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
-			Expect(err).To(BeNil())
-
+			By("get the Application name created by the GitOpsDeployment resource")
 			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
 			Expect(err).To(BeNil())
 
+			appMapping := &db.DeploymentToApplicationMapping{
+				Deploymenttoapplicationmapping_uid_id: string(gitOpsDeploymentResource.UID),
+			}
+			err = dbQueries.GetDeploymentToApplicationMappingByDeplId(context.Background(), appMapping)
+			Expect(err).To(BeNil())
+
+			dbApplication := &db.Application{
+				Application_id: appMapping.Application_id,
+			}
+			err = dbQueries.GetApplicationById(context.Background(), dbApplication)
+			Expect(err).To(BeNil())
+
+			By("verify that the Argo CD Application has been created")
+			app := &appv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      dbApplication.Name,
+					Namespace: dbutil.GetGitOpsEngineSingleInstanceNamespace(),
+				},
+			}
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
+			Expect(err).To(BeNil())
+
+			By("get namespece to fetch cluster user id")
 			namespace := corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: gitOpsDeploymentResource.Namespace,
@@ -905,6 +904,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = dbQueries.GetClusterUserByUsername(ctx, &clusterUser)
 			Expect(err).To(BeNil())
 
+			By("verify that AppProject has been created")
 			appProject := &appv1.AppProject{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "app-project-" + clusterUser.Clusteruser_id,
@@ -915,7 +915,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
 			Expect(err).To(BeNil())
 
-			By("Verify whether AppProject is pointing to non-default project value")
+			By("verify whether AppProject is pointing to non-default project value")
 			Expect(app.Spec.Project).To(Equal(appProject.Name))
 
 			By("Verify whether AppProject includes the git repository referenced in the repo")
@@ -960,6 +960,10 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				}
 				return false
 			}, 30*time.Second, 1*time.Second).Should(BeTrue())
+
+			By("Delete GitOpsDeployment Resource")
+			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
+			Expect(err).To(Succeed())
 
 		})
 

@@ -116,7 +116,7 @@ build: generate fmt vet ## Build manager binary.
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build -o bin/manager main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
-	SELF_HEAL_INTERVAL=0 go run ./main.go --zap-log-level info --zap-time-encoding=rfc3339nano
+	go run ./main.go --zap-log-level info --zap-time-encoding=rfc3339nano
 # more on controller log level configuration: https://sdk.operatorframework.io/docs/building-operators/golang/references/logging/
 
 run-no-self-heal: manifests generate fmt vet ## Run a controller from your host.

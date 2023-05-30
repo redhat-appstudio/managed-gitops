@@ -9,5 +9,5 @@ spec:
       containers:
       - env:
         - name: SELF_HEAL_INTERVAL
-          value: "0" 
+          value: "0"
         name: manager

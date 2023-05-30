@@ -237,9 +237,10 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 						}
 					}
 
+					managedEnvSecretName := "managed-environment-secret-" + env.Name
 					if matchFound {
-						// ManagedEnvironment secret should match SpaceRequest secret
-						if item.Spec.ClusterCredentialsSecret == expectedSpaceRequest.Status.NamespaceAccess[0].SecretRef {
+						// ManagedEnvironment secret should match the secret created by the Environment controller.
+						if item.Spec.ClusterCredentialsSecret == managedEnvSecretName {
 							return true
 						}
 					}

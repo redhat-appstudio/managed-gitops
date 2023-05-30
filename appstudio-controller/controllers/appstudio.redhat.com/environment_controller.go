@@ -418,7 +418,7 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 				return nil, true, fmt.Errorf("unable to update environment status condition. %v", err)
 			}
 
-			// Delete the managed Environment secret
+			// Delete the managed Environment secret if the orginal secret is not found.
 			if err := k8sClient.Delete(ctx, &managedEnvSecret); err != nil {
 				if !apierr.IsNotFound(err) {
 					return nil, true, fmt.Errorf("unable to delete the secret for managed Environment: %s", env.Name)

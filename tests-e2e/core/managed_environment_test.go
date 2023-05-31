@@ -590,6 +590,9 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(BeNil())
 
+			err = k8s.Get(&gitOpsDeploymentResource, k8sClient)
+			Expect(err).ToNot(BeNil())
+
 			By("creating a second GitOpsDeployment, targeting a different namespace without a role and rolebinding on the serviceaccount of the managedenvironment, which should fail")
 
 			gitOpsDeploymentResource2 := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl2",
@@ -609,6 +612,9 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			err = k8s.Delete(&gitOpsDeploymentResource2, k8sClient)
 			Expect(err).To(BeNil())
+
+			err = k8s.Get(&gitOpsDeploymentResource2, k8sClient)
+			Expect(err).ToNot(BeNil())
 
 			By("creating a new namespace, and adding a role and rolebinding to the existing serviceaccount and managedenvironment ")
 
@@ -689,6 +695,12 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			Eventually(componentBDeployment).Should(k8s.ExistByName(k8sClient),
 				"we check that at least one of the resources is deployed to the new namespace")
+
+			err = k8s.Delete(&gitOpsDeploymentResource3, k8sClient)
+			Expect(err).To(BeNil())
+
+			err = k8s.Get(&gitOpsDeploymentResource3, k8sClient)
+			Expect(err).ToNot(BeNil())
 
 		})
 

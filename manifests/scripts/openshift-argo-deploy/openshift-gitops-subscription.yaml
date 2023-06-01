@@ -13,3 +13,5 @@ spec:
     env:
       - name: DISABLE_DEFAULT_ARGOCD_INSTANCE
         value: "true"
+      - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
+        value: "gitops-service-argocd"

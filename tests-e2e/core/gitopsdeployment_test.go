@@ -1167,9 +1167,6 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				namespace := &corev1.Namespace{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: fmt.Sprintf("user-%d", i),
-						Labels: map[string]string{
-							"argocd.argoproj.io/managed-by": "gitops-service-argocd",
-						},
 					},
 				}
 
@@ -1203,9 +1200,6 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			namespace := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: fmt.Sprintf("user-%d", i),
-					Labels: map[string]string{
-						"argocd.argoproj.io/managed-by": "gitops-service-argocd",
-					},
 				},
 			}
 

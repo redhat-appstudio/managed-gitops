@@ -74,9 +74,6 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 			destinationNamespace := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: fixture.NewArgoCDInstanceDestNamespace,
-					Labels: map[string]string{
-						"argocd.argoproj.io/managed-by": argocdNamespace,
-					},
 				},
 			}
 			err = k8sClient.Create(ctx, destinationNamespace)

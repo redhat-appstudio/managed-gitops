@@ -62,10 +62,10 @@ deploy-k8s-env: pre-deploy-crds postgresql-secret-on-k8s ## Deploy all controlle
 undeploy-k8s-env: pre-undeploy-crds ## Remove all controller/DB workloads from K8s.
 	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/k8s-env | kubectl delete -f - 
 
-deploy-k8s-env-e2e: kustomize postgresql-secret-on-k8s ## Deploy all controller/DB workloads to K8s for e2e tests, use e.g. IMG=quay.io/pgeorgia/gitops-service:latest to specify a specific image
+deploy-k8s-env-e2e: pre-deploy-crds postgresql-secret-on-k8s ## Deploy all controller/DB workloads to K8s for e2e tests, use e.g. IMG=quay.io/pgeorgia/gitops-service:latest to specify a specific image
 	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/k8s-env-e2e | COMMON_IMAGE=${IMG} envsubst | kubectl apply -f -
 
-undeploy-k8s-env-e2e: kustomize ## Remove all controller/DB e2e test workloads from K8s.
+undeploy-k8s-env-e2e: pre-undeploy-crds ## Remove all controller/DB e2e test workloads from K8s.
 	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/k8s-env-e2e | kubectl delete -f -
 
 

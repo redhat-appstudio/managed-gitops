@@ -4,7 +4,9 @@ kind: Kustomization
 resources:
 - ../../base/crd/overlays/stonesoup
 - ../../base/gitops-namespace
-- ../../base/cluster-scoped
+# This is not needed: these kustomize overlay is used to run appstudio-e2e tests in infra-deployments, 
+# and these tests assume that there is no DeploymentTargetClass defined.
+#       - ../../base/cluster-scoped
 - ../../../appstudio-controller/config/default-no-prometheus
 - ../../../backend/config/default-no-prometheus
 - ../../../cluster-agent/config/default-no-prometheus

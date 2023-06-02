@@ -172,11 +172,7 @@ func applicationEventLoopRunner(inputChannel chan *eventlooptypes.EventLoopEvent
 				} else {
 					log.Error(nil, "SEVERE: Unrecognized event type", "event type", newEvent.EventType)
 				}
-
-				// TODO: GITOPSRVCE-85: Implement detection of workspace/api proxy delete, here, and handle cleanup
-
 				return err
-
 			})
 
 			if err == nil {

@@ -858,14 +858,16 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Expect(err).To(BeNil())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
-				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, true, log)
+				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, MockSRLK8sClientFactory{fakeClient: k8sClient}, true, log)
 
 				By("Verify that entries for the GitOpsDeploymentSyncRun which is not available in cluster, are deleted from DB.")
 
 				err = dbq.GetSyncOperationById(ctx, &syncOperationDb)
+				Expect(err).ToNot(BeNil())
 				Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 				err = dbq.GetAPICRForDatabaseUID(ctx, &apiCRToDatabaseMappingDb)
+				Expect(err).ToNot(BeNil())
 				Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 				By("Verify that entries for the GitOpsDeploymentSyncRun which is available in cluster, are not deleted from DB.")
@@ -883,7 +885,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Expect(err).To(BeNil())
 
 				var operationlist []db.Operation
-				err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, syncOperationDbTemp.Application_id, db.OperationResourceType_SyncOperation, &operationlist, specialClusterUser.Clusteruser_id)
+				err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, syncOperationDb.SyncOperation_id, db.OperationResourceType_SyncOperation, &operationlist, specialClusterUser.Clusteruser_id)
 				Expect(err).To(BeNil())
 				Expect(len(operationlist)).ShouldNot(Equal(0))
 
@@ -924,6 +926,46 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 				err = dbq.GetAPICRForDatabaseUID(ctx, &apiCRToDatabaseMappingDb)
 				Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+			})
+
+			It("should delete the SyncRun CR without creating an Operation if the Application is already deleted", func() {
+				defer dbq.CloseDatabase()
+
+				apiCRToDatabaseMappingDb.APIResourceName = "fake-resource"
+				err := dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
+				Expect(err).To(BeNil())
+
+				By("remove the Application_ID foreign key")
+				rows, err := dbq.UpdateSyncOperationRemoveApplicationField(ctx, syncOperationDb.Application_id)
+				Expect(err).To(BeNil())
+				Expect(rows).To(Equal(1))
+
+				err = dbq.GetSyncOperationById(ctx, &syncOperationDb)
+				Expect(err).To(BeNil())
+				Expect(syncOperationDb.Application_id).To(BeEmpty())
+
+				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
+				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, true, log)
+
+				By("Verify that entries for the GitOpsDeploymentSyncRun which is not available in cluster, are deleted from DB.")
+
+				err = dbq.GetSyncOperationById(ctx, &syncOperationDb)
+				Expect(err).ToNot(BeNil())
+				Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+
+				err = dbq.GetAPICRForDatabaseUID(ctx, &apiCRToDatabaseMappingDb)
+				Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+
+				By("Verify that Operation for the GitOpsDeploymentSyncRun is not created in cluster and DB.")
+
+				var specialClusterUser db.ClusterUser
+				err = dbq.GetOrCreateSpecialClusterUser(context.Background(), &specialClusterUser)
+				Expect(err).To(BeNil())
+
+				operationList := managedgitopsv1alpha1.OperationList{}
+				err = k8sClient.List(ctx, &operationList)
+				Expect(err).To(BeNil())
+				Expect(len(operationList.Items)).To(Equal(0))
 			})
 		})
 	})

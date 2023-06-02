@@ -393,8 +393,20 @@ func cleanOrphanedEntriesfromTable_ACTDM_GitOpsDeploymentSyncRun(ctx context.Con
 		return
 	}
 
+	if err := deleteDbEntry(ctx, dbQueries, apiCrToDbMappingFromDB.DBRelationKey, dbType_SyncOperation, log, syncRunK8s); err != nil {
+		log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_ACTDM_GitOpsDeploymentSyncRun while deleting GitOpsDeploymentSyncRun entry : "+apiCrToDbMappingFromDB.DBRelationKey+" from DB.")
+		return
+	}
+
+	// There is no need to create an Operation if the Application ID is empty possibly due to its deletion.
+	// We can delete the SyncRun CR and return.
 	if syncOperationDb.Application_id == "" {
-		log.Info("Application row not found for SyncOperation", "syncOperationID", syncOperationDb.SyncOperation_id, "applicationID", syncOperationDb.Application_id)
+		log.Info("Application row not found for SyncOperation. This is normally because the Application has already been deleted.", "syncOperationID", syncOperationDb.SyncOperation_id, "applicationID", syncOperationDb.Application_id)
+
+		if err := client.Delete(ctx, &syncRunK8s); err != nil {
+			log.Error(err, "failed to remove GitOpsDeploymentSyncRun when the Application is already deleted")
+			return
+		}
 		return
 	}
 
@@ -404,13 +416,8 @@ func cleanOrphanedEntriesfromTable_ACTDM_GitOpsDeploymentSyncRun(ctx context.Con
 		return
 	}
 
-	if err := deleteDbEntry(ctx, dbQueries, apiCrToDbMappingFromDB.DBRelationKey, dbType_SyncOperation, log, syncRunK8s); err != nil {
-		log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_ACTDM_GitOpsDeploymentSyncRun while deleting GitOpsDeploymentSyncRun entry : "+apiCrToDbMappingFromDB.DBRelationKey+" from DB.")
-		return
-	}
-
 	// Create k8s Operation to delete related CRs using Cluster Agent
-	createOperation(ctx, applicationDb.Engine_instance_inst_id, applicationDb.Application_id, syncRunK8s.Namespace, db.OperationResourceType_SyncOperation, dbQueries, client, log)
+	createOperation(ctx, applicationDb.Engine_instance_inst_id, syncOperationDb.SyncOperation_id, syncRunK8s.Namespace, db.OperationResourceType_SyncOperation, dbQueries, client, log)
 }
 
 // isRowOrphaned function checks if the given CR pointed by APICRToDBMapping is present in the cluster.

@@ -359,7 +359,7 @@ func (a *applicationEventLoopRunner_Action) handleDeletedGitOpsDeplSyncRunEvent(
 	log.Info("Received GitOpsDeploymentSyncRun event for a GitOpsDeploymentSyncRun resource that no longer exists")
 
 	if syncOperation.Application_id == "" {
-		log.Info("Application row not found for SyncOperation", "syncOperationID", syncOperation.SyncOperation_id, "applicationID", syncOperation.Application_id)
+		log.Info("Application row not found for SyncOperation. This is normally because the Application has already been deleted.", "syncOperationID", syncOperation.SyncOperation_id, "applicationID", syncOperation.Application_id)
 		return nil
 	}
 

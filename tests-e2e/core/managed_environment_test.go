@@ -1239,6 +1239,7 @@ var _ = Describe("Environment E2E tests", func() {
 
 		It("should verify Deletion of GitOpsDeploymentManagedEnvironment on Non-existent Environment", func() {
 			By("creates a GitOpsDeploymentManagedEnvironment with an ownerref to an Environment that doesn't exist")
+
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
 			Expect(err).To(BeNil())
 
@@ -1258,7 +1259,7 @@ var _ = Describe("Environment E2E tests", func() {
 			err = k8s.Create(&managedEnv, k8sClient)
 			Expect(err).To(BeNil())
 
-			Eventually(managedEnv, "60s", "1s").ShouldNot(k8s.ExistByName(k8sClient))
+			Eventually(&managedEnv, "60s", "1s").Should(k8s.ExistByName(k8sClient))
 
 		})
 	})

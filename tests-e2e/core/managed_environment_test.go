@@ -862,10 +862,8 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				Managed_environment_id: mapping.DBRelationKey,
 			}
 
-			Eventually(func() bool {
-				err = dbQueries.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnvDB)
-				return Expect(err).To(BeNil())
-			}, time.Second*60).Should(BeTrue())
+			err = dbQueries.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnvDB)
+			Expect(err).To(BeNil())
 
 			By("Ensure AppProject now references managedEnvironment A")
 			appProject := &appv1alpha1.AppProject{
@@ -951,10 +949,8 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				managedEnvReferences2 = append(managedEnvReferences2, v.Name)
 			}
 
-			Eventually(func() {
-				Expect(managedEnvReferences2).ToNot(ContainElement("managed-env-" + mapping.DBRelationKey))
-				Expect(managedEnvReferences2).To(ContainElement("managed-env-" + mapping1.DBRelationKey))
-			}, "2m", "1s")
+			Expect(managedEnvReferences2).ToNot(ContainElement("managed-env-" + mapping.DBRelationKey))
+			Expect(managedEnvReferences2).To(ContainElement("managed-env-" + mapping1.DBRelationKey))
 
 			By("Delete managedenv B and the gitopsdeployment that references it")
 			err = k8s.Delete(&managedEnvB, k8sClient)
@@ -964,10 +960,8 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			Expect(err).To(BeNil())
 
 			By("Ensure the AppProject doesn't exist.")
-			Eventually(func() bool {
-				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
-				return Expect(err).ToNot(BeNil())
-			}, "2m", "1s")
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
+			Expect(err).ToNot(BeNil())
 
 		})
 

@@ -29,6 +29,7 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -403,6 +404,16 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 			Labels: map[string]string{
 				managedEnvironmentSecretLabel: env.Name,
 			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion:         env.APIVersion,
+					Kind:               env.Kind,
+					Name:               env.Name,
+					UID:                env.UID,
+					BlockOwnerDeletion: pointer.Bool(true),
+					Controller:         pointer.Bool(true),
+				},
+			},
 		},
 		Type: sharedutil.ManagedEnvironmentSecretType,
 	}
@@ -425,6 +436,8 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 				}
 			}
 
+			logutil.LogAPIResourceChangeEvent(managedEnvSecret.Namespace, managedEnvSecret.Name, managedEnvSecret, logutil.ResourceDeleted, log)
+
 			return nil, true, fmt.Errorf("the secret '%s' referenced by the Environment resource was not found: %v", secret.Name, err)
 		}
 
@@ -438,7 +451,6 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 		return nil, true, err
 	}
 
-	// We should only reconcile secrets created by the SpaceRequest controller.
 	managedEnv := generateEmptyManagedEnvironment(env.Name, env.Namespace)
 
 	// We only want to reconcile managed environment secrets for secrets coming from SpaceRequest.
@@ -454,7 +466,8 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 			if err := k8sClient.Create(ctx, &managedEnvSecret); err != nil {
 				return nil, false, fmt.Errorf("failed to create a secret for managed Environment %s: %v", managedEnv.Name, err)
 			}
-			log.Info("Created a new secret for managed Environment", "ManagedEnvironment", managedEnv.Name, "Environment", env.Name)
+
+			logutil.LogAPIResourceChangeEvent(managedEnvSecret.Namespace, managedEnvSecret.Name, managedEnvSecret, logutil.ResourceCreated, log)
 		} else {
 			// The managed Environment secret is found. Compare it with the original secret and update if required.
 			if !reflect.DeepEqual(secret.Data, managedEnvSecret.Data) {
@@ -462,7 +475,8 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 				if err := k8sClient.Update(ctx, &managedEnvSecret); err != nil {
 					return nil, false, fmt.Errorf("failed to update the secret for managed Environment %s: %v", managedEnv.Name, err)
 				}
-				log.Info("Updated the managed Environment secret", "ManagedEnvironment", managedEnv.Name)
+
+				logutil.LogAPIResourceChangeEvent(managedEnvSecret.Namespace, managedEnvSecret.Name, managedEnvSecret, logutil.ResourceModified, log)
 			}
 		}
 		manageEnvDetails.ClusterCredentialsSecret = managedEnvSecret.Name
@@ -620,6 +634,11 @@ func (r *EnvironmentReconciler) findObjectsForSecret(secret client.Object) []rec
 	secretObj, ok := secret.(*corev1.Secret)
 	if !ok {
 		handlerLog.Error(nil, "incompatible object in the Environment mapping function, expected a Secret")
+		return []reconcile.Request{}
+	}
+
+	// Filter secrets to avoid unnecessary API calls on them.
+	if secretObj.Type != corev1.SecretTypeOpaque && secretObj.Type != sharedutil.ManagedEnvironmentSecretType {
 		return []reconcile.Request{}
 	}
 

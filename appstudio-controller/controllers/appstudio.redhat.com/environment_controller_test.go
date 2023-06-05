@@ -553,8 +553,11 @@ var _ = Describe("Environment controller tests", func() {
 			}
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret)
 			Expect(err).To(BeNil())
+
 			Expect(string(managedEnvSecret.Type)).To(Equal(sharedutil.ManagedEnvironmentSecretType))
 			Expect(reflect.DeepEqual(managedEnvSecret.Data, clusterSecret.Data)).To(BeTrue())
+			Expect(managedEnvSecret.OwnerReferences[0].Name).To(Equal(env.Name))
+			Expect(managedEnvSecret.OwnerReferences[0].UID).To(Equal(env.UID))
 			Expect(managedEnvSecret.GetLabels()[managedEnvironmentSecretLabel]).To(Equal(env.Name))
 
 			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
@@ -1199,8 +1202,39 @@ var _ = Describe("Environment controller tests", func() {
 					},
 				}
 
-				reqs := reconciler.findObjectsForDeploymentTarget(&dtc)
+				reqs := reconciler.findObjectsForSecret(&dtc)
 
+				Expect(reqs).To(Equal([]reconcile.Request{}))
+			})
+
+			It("shouldn't map any requests if the secret is not of the expected type", func() {
+				By("create secrets of different types that are not supported")
+				secret := corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-secret-docker",
+						Namespace: apiNamespace.Namespace,
+					},
+					Type: corev1.SecretTypeDockercfg,
+				}
+
+				err := k8sClient.Create(ctx, &secret)
+				Expect(err).To(BeNil())
+
+				secretAuth := corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-secret-auth",
+						Namespace: apiNamespace.Namespace,
+					},
+					Type: corev1.SecretTypeBasicAuth,
+				}
+
+				err = k8sClient.Create(ctx, &secretAuth)
+				Expect(err).To(BeNil())
+
+				reqs := reconciler.findObjectsForSecret(&secret)
+				Expect(reqs).To(Equal([]reconcile.Request{}))
+
+				reqs = reconciler.findObjectsForSecret(&secretAuth)
 				Expect(reqs).To(Equal([]reconcile.Request{}))
 			})
 		})

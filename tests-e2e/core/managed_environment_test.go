@@ -29,7 +29,6 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -711,7 +710,7 @@ var _ = Describe("Environment E2E tests", func() {
 			apiServerURL       string
 			secret             *corev1.Secret
 		)
-		ctx := context.Background()
+
 		BeforeEach(func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
@@ -1259,11 +1258,7 @@ var _ = Describe("Environment E2E tests", func() {
 			err = k8s.Create(&managedEnv, k8sClient)
 			Expect(err).To(BeNil())
 
-			Eventually(func() bool {
-				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
-				Expect(apierr.IsNotFound(err)).To(BeTrue())
-				return Expect(err).ToNot(BeNil())
-			}, 1*time.Minute)
+			Eventually(managedEnv, "60s", "1s").ShouldNot(k8s.ExistByName(k8sClient))
 
 		})
 	})

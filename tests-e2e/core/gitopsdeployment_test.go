@@ -978,10 +978,18 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err := k8s.Create(&gitOpsDeploymentResource1, k8sClient)
 			Expect(err).To(Succeed())
 
+			createResourceStatusList_deploymentPermutations := createResourceStatusListFunction_deploymentPermutations()
+
+			createResourceStatusList_deploymentPermutations = append(createResourceStatusList_deploymentPermutations,
+				getResourceStatusList_deploymentPermutations("deployment-permutations-a-brancha-pathb")...)
+			err = k8s.Get(&gitOpsDeploymentResource1, k8sClient)
+			Expect(err).To(Succeed())
+
 			Eventually(gitOpsDeploymentResource1, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
+					gitopsDeplFixture.HaveResources(createResourceStatusList_deploymentPermutations),
 				),
 			)
 
@@ -1026,10 +1034,18 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.Create(&gitOpsDeploymentResource2, k8sClient)
 			Expect(err).To(Succeed())
 
+			expectedResourceStatusList := createResourceStatusListFunction_deploymentPermutations()
+			expectedResourceStatusList = append(expectedResourceStatusList,
+				getResourceStatusList_deploymentPermutations("deployment-permutations-b-branchb-pathc")...)
+
+			err = k8s.Get(&gitOpsDeploymentResource2, k8sClient)
+			Expect(err).To(Succeed())
+
 			Eventually(gitOpsDeploymentResource2, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
+					gitopsDeplFixture.HaveResources(expectedResourceStatusList),
 				),
 			)
 
@@ -1051,10 +1067,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
 			Expect(err).To(BeNil())
 
-			Eventually(func() {
-				Expect(appProject.Spec.SourceRepos).ToNot(ContainElement(gitOpsDeploymentResource1.Spec.Source.RepoURL))
-				Expect(appProject.Spec.SourceRepos).To(ContainElement(gitOpsDeploymentResource2.Spec.Source.RepoURL))
-			}, "2m", "1s")
+			Expect(appProject.Spec.SourceRepos).NotTo(ContainElement(gitOpsDeploymentResource1.Spec.Source.RepoURL))
+			Expect(appProject.Spec.SourceRepos).To(ContainElement(gitOpsDeploymentResource2.Spec.Source.RepoURL))
 
 			By("Delete gitopdeployment pointing to repo B")
 			err = k8s.Delete(&gitOpsDeploymentResource2, k8sClient)
@@ -1064,13 +1078,10 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			Expect(err).ToNot(Succeed())
 
 			By("Ensure the AppProject doesn't exist.")
-			Eventually(func() bool {
-				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
-				return Expect(err).ToNot(BeNil())
-			}, "2m", "1s")
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
+			Expect(err).ToNot(BeNil())
 
 		})
-
 	})
 
 	Context("Simulates simple interactions of X active users interacting with the service", func() {

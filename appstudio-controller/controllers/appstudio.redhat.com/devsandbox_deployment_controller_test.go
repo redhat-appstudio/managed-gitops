@@ -84,6 +84,9 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 			dt, err := findMatchingDTForSpaceRequest(ctx, k8sClient, &spacerequest)
 			Expect(err).To(BeNil())
 			Expect(dt).NotTo(BeNil())
+			Expect(dt.Annotations).ToNot(BeNil())
+			Expect(dt.Annotations[annDynamicallyProvisioned]).To(Equal(string(appstudiosharedv1.Provisioner_Devsandbox)))
+
 		})
 
 		It("should return an error when handling a SpaceRequest that doesn't have a matching DTC", func() {

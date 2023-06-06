@@ -1244,11 +1244,15 @@ var _ = Describe("Environment E2E tests", func() {
 			Expect(err).To(BeNil())
 
 			managedEnv, _ := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
+
+			fakeEnvName := "name"
+
+			managedEnv.Name = "managed-environment-" + fakeEnvName
 			managedEnv.OwnerReferences = []metav1.OwnerReference{
 				{
 					Kind:       "Environment",
-					Name:       "name",
-					APIVersion: "SomeOtherAPIVersion",
+					Name:       fakeEnvName,
+					APIVersion: managedgitopsv1alpha1.GroupVersion.Group + "/" + managedgitopsv1alpha1.GroupVersion.Version,
 					UID:        "123",
 				},
 			}
@@ -1259,7 +1263,7 @@ var _ = Describe("Environment E2E tests", func() {
 			err = k8s.Create(&managedEnv, k8sClient)
 			Expect(err).To(BeNil())
 
-			Eventually(&managedEnv, "60s", "1s").Should(k8s.ExistByName(k8sClient))
+			Eventually(&managedEnv, "60s", "1s").ShouldNot(k8s.ExistByName(k8sClient))
 
 		})
 	})

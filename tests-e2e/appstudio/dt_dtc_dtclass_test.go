@@ -196,8 +196,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 
 			}, "60s", "1s").Should(BeTrue())
 
-			// TODO: GITOPSRVCE-579 - Uncomment this, once 579 is fixed.
-			// Expect(matchingDT).To(k8s.HasAnnotation("provisioner.appstudio.redhat.com/provisioned-by", "appstudio.redhat.com/devsandbox"))
+			Expect(&matchingDT).To(k8s.HasAnnotation("provisioner.appstudio.redhat.com/provisioned-by", "appstudio.redhat.com/devsandbox", k8sClient))
 
 			Expect(string(matchingDT.Spec.DeploymentTargetClassName)).Should(Equal(dtclass.Name))
 

@@ -3,7 +3,6 @@ package util
 import (
 	"encoding/json"
 	"fmt"
-
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -36,19 +35,31 @@ func LogAPIResourceChangeEvent(resourceNamespace string, resourceName string, re
 		log.Error(nil, "resource passed to LogAPIResourceChangeEvent was nil")
 		return
 	}
-	secret, isSecret := (resource).(*corev1.Secret)
+	_, isSecret := (resource).(*corev1.Secret)
 	if isSecret {
-		// Make a copy of the resource, before we modify it
-		secret = secret.DeepCopy()
-		// Remove the data field, as this contains data that should not be logged.
-		secret.Data = map[string][]byte{}
-		resource = secret
+		log.Info(fmt.Sprintf("API Resource changed for secret resource: %s, name: %s, namespace: %s", string(resourceChangeType), resourceName, resourceNamespace))
+		return
 	}
-	jsonRepresentation, err := json.Marshal(resource)
 
+	jsonRepresentation, err := json.Marshal(resource)
 	if err != nil {
 		log.Error(err, "SEVERE: Unable to marshal log to JSON.")
 		return
+	}
+	var resourceMap map[string]interface{}
+	errUnmarshall := json.Unmarshal(jsonRepresentation, &resourceMap)
+	if errUnmarshall != nil {
+		log.Error(errUnmarshall, "SEVERE: Unable to unmarshal JSON.")
+		return
+	}
+	mf := resourceMap["metadata"].(map[string]interface{})
+	if mf != nil && mf["managedFields"] != nil {
+		mf["managedFields"] = nil
+		modifiedJsonRep, err := json.Marshal(resourceMap)
+		if err != nil {
+			log.Error(err, "SEVERE: Unable to marshal resource to JSON.")
+		}
+		jsonRepresentation = modifiedJsonRep
 	}
 
 	log.Info(fmt.Sprintf("API Resource changed: %s", string(resourceChangeType)), "namespace",

@@ -890,14 +890,13 @@ func cleanOrphanedEntriesfromTable_Operation(ctx context.Context, dbQueries db.D
 func cleanOrphanedEntriesfromTable_ClusterUser(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, skipDelay bool, l logr.Logger) {
 	log := l.WithValues("job", "cleanOrphanedEntriesfromTable_ClusterUser")
 
-	// Get list of ClusterAccess entries from table
-	listOfClusterAccessIds := getListOfClusterAccessIdsFromTable(ctx, dbQueries, skipDelay, log)
+	// Retrieve a list of user ids from the other tables that reference ClusterUser
 
-	// Get list of RepositoryCredential entries from table
-	listOfRepoCredIds := getListOfRespositoryCredentialIdsFromTable(ctx, dbQueries, skipDelay, log)
+	listOfUserIDsFromClusterAccess := getListOfUserIDsfromClusterAccessTable(ctx, dbQueries, skipDelay, log)
 
-	// Get list of Operations entries from table
-	listOfOperationIds := getListOfOperationIdsFromTable(ctx, dbQueries, skipDelay, log)
+	listOfUserIDsFromRepoCred := getListOfUserIDsFromRespositoryCredentialsTable(ctx, dbQueries, skipDelay, log)
+
+	listOfUserIDsFromOperation := getListOfUserIDsfromOperationTable(ctx, dbQueries, skipDelay, log)
 
 	offSet := 0
 	// Continuously iterate and fetch batches until all entries of ClusterUser table are processed.
@@ -927,9 +926,9 @@ func cleanOrphanedEntriesfromTable_ClusterUser(ctx context.Context, dbQueries db
 			// and if user is not 'Special User'
 			// and if created time is more than waitTimeforRowDelete
 			// then delete the user
-			if !(slices.Contains(listOfClusterAccessIds[dbType_ClusterAccess], userDB.Clusteruser_id) ||
-				slices.Contains(listOfRepoCredIds[dbType_RespositoryCredential], userDB.Clusteruser_id) ||
-				slices.Contains(listOfOperationIds[dbType_Operation], userDB.Clusteruser_id)) &&
+			if !(slices.Contains(listOfUserIDsFromClusterAccess[dbType_ClusterAccess], userDB.Clusteruser_id) ||
+				slices.Contains(listOfUserIDsFromRepoCred[dbType_RespositoryCredential], userDB.Clusteruser_id) ||
+				slices.Contains(listOfUserIDsFromOperation[dbType_Operation], userDB.Clusteruser_id)) &&
 				userDB.Clusteruser_id != db.SpecialClusterUserName &&
 				time.Since(userDB.Created_on) > waitTimeforRowDelete {
 
@@ -949,11 +948,11 @@ func cleanOrphanedEntriesfromTable_ClusterUser(ctx context.Context, dbQueries db
 func cleanOrphanedEntriesfromTable_ClusterCredential(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, skipDelay bool, l logr.Logger) {
 	log := l.WithValues("job", "cleanOrphanedEntriesfromTable_ClusterCredential")
 
-	// Get list of ManagedEnvironment entries from table
-	listOfManagedEnvironmentIds := getListOfManagedEnvironmentIdsFromTable(ctx, dbQueries, skipDelay, log)
+	// Retrieve a list of cluster credentials from the other tables that reference ClusterCredential table
 
-	// Get list of GitopsEngineCluster entries from table
-	listOfGitopsEngineClusterIds := getListOfGitopsEngineClusterIdsFromTable(ctx, dbQueries, skipDelay, log)
+	listOfClusterCredsFromManagedEnv := getListOfClusterCredentialIDsfromManagedEnvironmenTable(ctx, dbQueries, skipDelay, log)
+
+	listOfClusterCredsFromGitOpsEngine := getListOfClusterCredentialIDsFromGitopsEngineTable(ctx, dbQueries, skipDelay, log)
 
 	offSet := 0
 	// Continuously iterate and fetch batches until all entries of ClusterCredentials table are processed.
@@ -982,8 +981,8 @@ func cleanOrphanedEntriesfromTable_ClusterCredential(ctx context.Context, dbQuer
 			// Check if ClusterCredentials don't have entry in ManagedEnvironment or GitopsEngineCluster tables,
 			// and if created time is more than waitTimeforRowDelete
 			// if not, then delete the entry
-			if !(slices.Contains(listOfManagedEnvironmentIds[dbType_ManagedEnvironment], clusterCred.Clustercredentials_cred_id) ||
-				slices.Contains(listOfGitopsEngineClusterIds[dbType_GitopsEngineCluster], clusterCred.Clustercredentials_cred_id)) &&
+			if !(slices.Contains(listOfClusterCredsFromManagedEnv[dbType_ManagedEnvironment], clusterCred.Clustercredentials_cred_id) ||
+				slices.Contains(listOfClusterCredsFromGitOpsEngine[dbType_GitopsEngineCluster], clusterCred.Clustercredentials_cred_id)) &&
 				time.Since(clusterCred.Created_on) > waitTimeforRowDelete {
 
 				// 1) Remove the ClusterCredentials from the database
@@ -1103,8 +1102,8 @@ func getListOfCRIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, 
 	return crIdMap
 }
 
-// getListOfClusterAccessIdsFromTable loops through ClusterAccess in database and returns list of resource IDs.
-func getListOfClusterAccessIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, skipDelay bool, log logr.Logger) map[dbTableName][]string {
+// getListOfUserIDsfromClusterAccessTable loops through ClusterAccess in database and returns list of user IDs.
+func getListOfUserIDsfromClusterAccessTable(ctx context.Context, dbQueries db.DatabaseQueries, skipDelay bool, log logr.Logger) map[dbTableName][]string {
 
 	offSet := 0
 
@@ -1142,8 +1141,8 @@ func getListOfClusterAccessIdsFromTable(ctx context.Context, dbQueries db.Databa
 	return crIdMap
 }
 
-// getListOfRespositoryCredentialIdsFromTable loops through RepositoryCredentials in database and returns list of resource IDs.
-func getListOfRespositoryCredentialIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, skipDelay bool, log logr.Logger) map[dbTableName][]string {
+// getListOfUserIDsFromRespositoryCredentialsTable loops through RepositoryCredentials in database and returns list of resource IDs.
+func getListOfUserIDsFromRespositoryCredentialsTable(ctx context.Context, dbQueries db.DatabaseQueries, skipDelay bool, log logr.Logger) map[dbTableName][]string {
 
 	offSet := 0
 
@@ -1180,8 +1179,8 @@ func getListOfRespositoryCredentialIdsFromTable(ctx context.Context, dbQueries d
 	return crIdMap
 }
 
-// getListOfManagedEnvironmentIdsFromTable loops through ManagedEnvironments in database and returns list of resource IDs.
-func getListOfManagedEnvironmentIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, skipDelay bool, log logr.Logger) map[dbTableName][]string {
+// getListOfClusterCredentialIDsfromManagedEnvironmenTable loops through ManagedEnvironments in database and returns list of resource IDs.
+func getListOfClusterCredentialIDsfromManagedEnvironmenTable(ctx context.Context, dbQueries db.DatabaseQueries, skipDelay bool, log logr.Logger) map[dbTableName][]string {
 
 	offSet := 0
 
@@ -1218,8 +1217,8 @@ func getListOfManagedEnvironmentIdsFromTable(ctx context.Context, dbQueries db.D
 	return crIdMap
 }
 
-// getListOfGitopsEngineClusterIdsFromTable loops through GitopsEngineCluster and returns list of resource IDs.
-func getListOfGitopsEngineClusterIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, skipDelay bool, log logr.Logger) map[dbTableName][]string {
+// getListOfClusterCredentialIDsFromGitopsEngineTable loops through GitopsEngineCluster and returns list of resource IDs.
+func getListOfClusterCredentialIDsFromGitopsEngineTable(ctx context.Context, dbQueries db.DatabaseQueries, skipDelay bool, log logr.Logger) map[dbTableName][]string {
 
 	offSet := 0
 
@@ -1256,8 +1255,8 @@ func getListOfGitopsEngineClusterIdsFromTable(ctx context.Context, dbQueries db.
 	return crIdMap
 }
 
-// getListOfOperationIdsFromTable loops through Operation in database and returns list of resource IDs.
-func getListOfOperationIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, skipDelay bool, log logr.Logger) map[dbTableName][]string {
+// getListOfUserIDsfromOperationTable loops through Operation in database and returns list of resource IDs.
+func getListOfUserIDsfromOperationTable(ctx context.Context, dbQueries db.DatabaseQueries, skipDelay bool, log logr.Logger) map[dbTableName][]string {
 
 	offSet := 0
 

@@ -36,7 +36,7 @@ import (
 
 const (
 	// Indicates the name of the provisioner that provisioned the DT.
-	annDynamicallyProvisioned = "provionser.appstudio.redhat.com/provisioned-by"
+	annDynamicallyProvisioned = "provisioner.appstudio.redhat.com/provisioned-by"
 )
 
 // DevsandboxDeploymentReconciler reconciles a SpaceRequest object

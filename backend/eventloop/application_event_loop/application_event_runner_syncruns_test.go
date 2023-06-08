@@ -226,6 +226,67 @@ var _ = Describe("Application Event Runner SyncRuns", func() {
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 		})
 
+		It("should delete the SyncOperation DB resources without creating an Operation if the Application ID is empty", func() {
+			mapping := db.APICRToDatabaseMapping{
+				APIResourceType:      db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
+				APIResourceName:      gitopsDeplSyncRun.Name,
+				APIResourceNamespace: gitopsDeplSyncRun.Namespace,
+				APIResourceUID:       string(gitopsDeplSyncRun.UID),
+				DBRelationType:       db.APICRToDatabaseMapping_DBRelationType_SyncOperation,
+			}
+			err := dbQueries.GetDatabaseMappingForAPICR(ctx, &mapping)
+			Expect(err).To(BeNil())
+
+			syncOperation := db.SyncOperation{SyncOperation_id: mapping.DBRelationKey}
+			err = dbQueries.GetSyncOperationById(ctx, &syncOperation)
+			Expect(err).To(BeNil())
+
+			By("remove the application ID field of the SyncOperation")
+			rows, err := dbQueries.UpdateSyncOperationRemoveApplicationField(ctx, syncOperation.Application_id)
+			Expect(err).To(BeNil())
+			Expect(rows).To(Equal(1))
+
+			err = dbQueries.GetSyncOperationById(ctx, &syncOperation)
+			Expect(err).To(BeNil())
+			Expect(syncOperation.Application_id).To(BeEmpty())
+
+			By("delete the GitOpsDeploymentSyncRun and check if the SyncOperation is deleted")
+			err = k8sClient.Delete(ctx, gitopsDeplSyncRun)
+			Expect(err).To(BeNil())
+
+			By("remove old event entries so that we can verify if new events are created")
+			informer = sharedutil.ListEventReceiver{}
+			k8sClient.Informer = &informer
+			applicationAction.k8sClientFactory = MockSRLK8sClientFactory{
+				fakeClient: k8sClient,
+			}
+
+			By("check if the application event runner goroutine can be shutdown")
+			userDevErr := applicationAction.applicationEventRunner_handleSyncRunModifiedInternal(ctx, dbQueries)
+			Expect(userDevErr).To(BeNil())
+
+			By("check if the sync operation row is deleted")
+			err = dbQueries.GetSyncOperationById(ctx, &syncOperation)
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+
+			By("verify if a new Operation is not created")
+			operationCreated, operationDeleted := false, false
+			for _, event := range informer.Events {
+				if event.Action == sharedutil.Create && event.ObjectTypeOf() == "Operation" {
+					operationCreated = true
+				}
+				if event.Action == sharedutil.Delete && event.ObjectTypeOf() == "Operation" {
+					operationDeleted = true
+				}
+			}
+			Expect(operationDeleted).To(BeFalse())
+			Expect(operationCreated).To(BeFalse())
+
+			By("check if the APICRToDatabaseMapping row is deleted")
+			err = dbQueries.GetDatabaseMappingForAPICR(ctx, &mapping)
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+		})
+
 		It("should throw an error when a SyncRun points to a GitOpsDeployment that doesn't exist", func() {
 			invalidGitOpsDeplSyncRun := managedgitopsv1alpha1.GitOpsDeploymentSyncRun{
 				ObjectMeta: metav1.ObjectMeta{

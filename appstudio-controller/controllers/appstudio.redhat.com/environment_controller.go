@@ -93,28 +93,50 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			Namespace: req.Namespace,
 		},
 	}
-	gitOpsDeplManagedEnv := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "managed-environment-" + environment.Name,
-			Namespace: environment.Namespace,
-		},
-	}
+
 	if err := rClient.Get(ctx, client.ObjectKeyFromObject(environment), environment); err != nil {
-		if apierr.IsNotFound(err) {
-			log.Info("Environment resource no longer exists")
-			// A) The Environment resource could not be found: the owner reference on the GitOpsDeploymentManagedEnvironment
-			// should ensure that it is cleaned up, so no more work is required.
-			// As the environment resource no longer exists, the corresponding GitOpsDeploymentManagedEnvironment should be deleted.
-			if err = rClient.Get(ctx, client.ObjectKeyFromObject(&gitOpsDeplManagedEnv), &gitOpsDeplManagedEnv); err == nil {
-				if err = rClient.Delete(ctx, &gitOpsDeplManagedEnv); err != nil {
-					log.Info("Unable to delete GitOpsDeploymentManagedEnvironment")
-				}
-				log.Info("The GitOpsDeploymentManagedEnvironment corresponding to the Environment resource has been deleted.")
+
+		if !apierr.IsNotFound(err) {
+			// If a generic error occurred, return it
+			log.Error(err, "unable to retrieve Environment resource")
+			return ctrl.Result{}, fmt.Errorf("unable to retrieve Environment resource: %v", err)
+		}
+
+		// If the Environment resource no longer exists...
+
+		gitOpsDeplManagedEnv := generateEmptyManagedEnvironment(environment.Name, environment.Namespace)
+
+		// A) The Environment resource could not be found: As the environment resource no longer exists, the
+		// corresponding GitOpsDeploymentManagedEnvironment should be deleted.
+		if err := rClient.Get(ctx, client.ObjectKeyFromObject(&gitOpsDeplManagedEnv), &gitOpsDeplManagedEnv); err != nil {
+
+			if apierr.IsNotFound(err) {
+				// The GitOpsDeploymentManagedEnvironment no longer exists, so no more work to do
+				return ctrl.Result{}, nil
 			}
+
+			log.Error(err, "unable to retrieve GitOpsDeploymentManagedEnvironment")
+			return ctrl.Result{}, fmt.Errorf("unable to retrieve GitOpsDeploymentManagedEnvironment: %v", err)
+		}
+
+		// The GitOpsDeploymentManagedEnvironment exists, so delete it....
+		if err := rClient.Delete(ctx, &gitOpsDeplManagedEnv); err != nil {
+
+			if !apierr.IsNotFound(err) {
+				log.Error(err, "Unable to delete GitOpsDeploymentManagedEnvironment")
+				return ctrl.Result{}, fmt.Errorf("unable to delete GitOpsDeploymentMangedEnvironment resource: %v", err)
+			}
+
+			// Otherwise, our work is done, as it no longer exists.
 			return ctrl.Result{}, nil
 		}
 
-		return ctrl.Result{}, fmt.Errorf("unable to retrieve Environment: %v", err)
+		logutil.LogAPIResourceChangeEvent(gitOpsDeplManagedEnv.Namespace, gitOpsDeplManagedEnv.Name, gitOpsDeplManagedEnv, logutil.ResourceDeleted, log)
+
+		log.Info("The GitOpsDeploymentManagedEnvironment corresponding to the Environment resource has been deleted.")
+
+		return ctrl.Result{}, nil
+
 	}
 
 	if environment.GetDeploymentTargetClaimName() != "" && environment.Spec.UnstableConfigurationFields != nil {
@@ -546,7 +568,42 @@ func (r *EnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForDeploymentTarget),
 			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
 		).
+		Watches(
+			&source.Kind{Type: &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{}},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForGitOpsDeploymentManagedEnvironment),
+			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
+		).
 		Complete(r)
+}
+
+// findObjectsForGitOpsDeploymentManagedEnvironment maps an incoming GitOpsDeploymentManagedEnvironment event to the
+// corresponding Environment request.
+func (r *EnvironmentReconciler) findObjectsForGitOpsDeploymentManagedEnvironment(managedEnv client.Object) []reconcile.Request {
+	ctx := context.Background()
+	handlerLog := log.FromContext(ctx).
+		WithName(logutil.LogLogger_managed_gitops)
+
+	managedEnv, ok := managedEnv.(*managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment)
+	if !ok {
+		handlerLog.Error(nil, "incompatible object in the Environment mapping function, expected a GitOpsDeploymentManagedEnvironment")
+		return []reconcile.Request{}
+	}
+
+	envRequests := []reconcile.Request{}
+
+	// Only queue based on ManagedEnvironments that have an ownerref to an appstudio Environment
+	for _, ownerRef := range managedEnv.GetOwnerReferences() {
+		if ownerRef.Kind == "Environment" &&
+			ownerRef.APIVersion == managedgitopsv1alpha1.GroupVersion.Group+"/"+managedgitopsv1alpha1.GroupVersion.Version {
+
+			envRequests = append(envRequests, reconcile.Request{
+				NamespacedName: types.NamespacedName{Namespace: managedEnv.GetNamespace(), Name: ownerRef.Name},
+			})
+		}
+	}
+
+	return envRequests
+
 }
 
 // findObjectsForDeploymentTargetClaim maps an incoming DTC event to the corresponding Environment request.
@@ -562,8 +619,7 @@ func (r *EnvironmentReconciler) findObjectsForDeploymentTargetClaim(dtc client.O
 	}
 
 	envList := &appstudioshared.EnvironmentList{}
-	err := r.Client.List(context.Background(), envList, &client.ListOptions{Namespace: dtc.GetNamespace()})
-	if err != nil {
+	if err := r.Client.List(context.Background(), envList, &client.ListOptions{Namespace: dtc.GetNamespace()}); err != nil {
 		handlerLog.Error(err, "failed to list Environments in the Environment mapping function")
 		return []reconcile.Request{}
 	}

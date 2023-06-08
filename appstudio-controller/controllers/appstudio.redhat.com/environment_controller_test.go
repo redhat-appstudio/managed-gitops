@@ -471,7 +471,7 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(env.Status.Conditions[0].Message).To(Equal("Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set"))
 		})
 
-		It("should manage an Environment with DeploymentTargetClaim specified", func() {
+		It("should manage an Environment with DeploymentTargetClaim specified and verify GitOpsDeploymentManagedEnvironment has been deleted when Environment resource is deleted", func() {
 			By("create a DT and DTC with cluster credentials")
 			clusterSecret := corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -600,6 +600,19 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret)
+			Expect(err).ToNot(BeNil())
+			Expect(apierr.IsNotFound(err)).To(BeTrue())
+
+			By("delete environment resource")
+			err = k8sClient.Delete(ctx, &env)
+			Expect(err).To(BeNil())
+
+			res, err = reconciler.Reconcile(ctx, req)
+			Expect(err).To(BeNil())
+			Expect(res).To(Equal(reconcile.Result{}))
+
+			By("verify whether the GitOpsDeploymentManagedEnvironment has been deleted when the Environment resource is deleted.")
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
 			Expect(err).ToNot(BeNil())
 			Expect(apierr.IsNotFound(err)).To(BeTrue())
 		})

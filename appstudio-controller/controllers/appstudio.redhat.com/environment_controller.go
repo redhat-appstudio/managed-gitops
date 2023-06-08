@@ -93,12 +93,24 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			Namespace: req.Namespace,
 		},
 	}
+	gitOpsDeplManagedEnv := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "managed-environment-" + environment.Name,
+			Namespace: environment.Namespace,
+		},
+	}
 	if err := rClient.Get(ctx, client.ObjectKeyFromObject(environment), environment); err != nil {
-
 		if apierr.IsNotFound(err) {
 			log.Info("Environment resource no longer exists")
 			// A) The Environment resource could not be found: the owner reference on the GitOpsDeploymentManagedEnvironment
 			// should ensure that it is cleaned up, so no more work is required.
+			// As the environment resource no longer exists, the corresponding GitOpsDeploymentManagedEnvironment should be deleted.
+			if err = rClient.Get(ctx, client.ObjectKeyFromObject(&gitOpsDeplManagedEnv), &gitOpsDeplManagedEnv); err == nil {
+				if err = rClient.Delete(ctx, &gitOpsDeplManagedEnv); err != nil {
+					log.Info("Unable to delete GitOpsDeploymentManagedEnvironment")
+				}
+				log.Info("The GitOpsDeploymentManagedEnvironment corresponding to the Environment resource has been deleted.")
+			}
 			return ctrl.Result{}, nil
 		}
 

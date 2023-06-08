@@ -360,6 +360,37 @@ func (a *applicationEventLoopRunner_Action) handleDeletedGitOpsDeplSyncRunEvent(
 
 	if syncOperation.Application_id == "" {
 		log.Info("Application row not found for SyncOperation. This is normally because the Application has already been deleted.", "syncOperationID", syncOperation.SyncOperation_id, "applicationID", syncOperation.Application_id)
+
+		// Since there is no Application, remove the DB resources without creating an Operation.
+
+		if len(apiCRToDBList) != 1 {
+			err := fmt.Errorf("SEVERE - More than one APICRToDB entry found while deleting SyncOperation: %s", syncOperation.SyncOperation_id)
+			log.Error(err, err.Error())
+			return gitopserrors.NewDevOnlyError(err)
+		}
+
+		apiCRToDB := apiCRToDBList[0]
+		rowsDeleted, err := dbQueries.DeleteSyncOperationById(ctx, apiCRToDB.DBRelationKey)
+		if err != nil {
+			log.Error(err, "unable to delete sync operation db entry on sync operation delete", "key", apiCRToDB.DBRelationKey)
+			return gitopserrors.NewDevOnlyError(err)
+		} else if rowsDeleted == 0 {
+			log.V(logutil.LogLevel_Warn).Error(err, "unexpected number of rows deleted on sync db entry delete", "key", apiCRToDB.DBRelationKey)
+		} else {
+			log.Info("Sync Operation deleted with ID: " + apiCRToDB.DBRelationKey)
+		}
+
+		rowsDeleted, err = dbQueries.DeleteAPICRToDatabaseMapping(ctx, &apiCRToDB)
+		if err != nil {
+			log.Error(err, "unable to delete apiCRToDBmapping", "mapping", apiCRToDB.APIResourceUID)
+			return gitopserrors.NewDevOnlyError(err)
+
+		} else if rowsDeleted == 0 {
+			log.V(logutil.LogLevel_Warn).Error(err, "unexpected number of rows deleted of apiCRToDBmapping", "mapping", apiCRToDB.APIResourceUID)
+		} else {
+			log.Info("Deleted APICRToDatabaseMapping")
+		}
+
 		return nil
 	}
 

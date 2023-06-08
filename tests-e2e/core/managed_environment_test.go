@@ -710,6 +710,7 @@ var _ = Describe("Environment E2E tests", func() {
 			apiServerURL       string
 			secret             *corev1.Secret
 		)
+
 		BeforeEach(func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
@@ -1234,6 +1235,36 @@ var _ = Describe("Environment E2E tests", func() {
 				ClusterCredentialsSecret: dt.Spec.KubernetesClusterCredentials.ClusterCredentialsSecret,
 			}
 			Eventually(*managedEnvCR, "2m", "1s").Should(managedenvironment.HaveCredentials(expectedEnvSpec))
+		})
+
+		It("should verify Deletion of GitOpsDeploymentManagedEnvironment on Non-existent Environment", func() {
+			By("creates a GitOpsDeploymentManagedEnvironment with an ownerref to an Environment that doesn't exist")
+
+			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
+			Expect(err).To(BeNil())
+
+			managedEnv, _ := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
+
+			fakeEnvName := "name"
+
+			managedEnv.Name = "managed-environment-" + fakeEnvName
+			managedEnv.OwnerReferences = []metav1.OwnerReference{
+				{
+					Kind:       "Environment",
+					Name:       fakeEnvName,
+					APIVersion: managedgitopsv1alpha1.GroupVersion.Group + "/" + managedgitopsv1alpha1.GroupVersion.Version,
+					UID:        "123",
+				},
+			}
+
+			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			err = k8s.Create(&managedEnv, k8sClient)
+			Expect(err).To(BeNil())
+
+			Eventually(&managedEnv, "60s", "1s").ShouldNot(k8s.ExistByName(k8sClient))
+
 		})
 	})
 })

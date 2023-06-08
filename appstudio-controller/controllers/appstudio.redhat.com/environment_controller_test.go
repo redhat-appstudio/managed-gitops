@@ -24,14 +24,13 @@ import (
 )
 
 var _ = Describe("Environment controller tests", func() {
+	ctx := context.Background()
+
+	var k8sClient client.Client
+	var reconciler EnvironmentReconciler
+	var apiNamespace corev1.Namespace
 
 	Context("Reconcile function call tests", func() {
-
-		ctx := context.Background()
-
-		var k8sClient client.Client
-		var reconciler EnvironmentReconciler
-		var apiNamespace corev1.Namespace
 
 		BeforeEach(func() {
 			scheme,
@@ -113,12 +112,8 @@ var _ = Describe("Environment controller tests", func() {
 			By("verify that error condition is not set")
 			Expect(env.Status.Conditions).To(BeNil())
 
-			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "managed-environment-" + env.Name,
-					Namespace: req.Namespace,
-				},
-			}
+			managedEnvCR := generateEmptyManagedEnvironment(env.Name, req.Namespace)
+
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
 			Expect(err).To(BeNil(), "the ManagedEnvironment object should have been created by the reconciler")
 
@@ -471,7 +466,7 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(env.Status.Conditions[0].Message).To(Equal("Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set"))
 		})
 
-		It("should manage an Environment with DeploymentTargetClaim specified", func() {
+		It("should manage an Environment with DeploymentTargetClaim specified and verify GitOpsDeploymentManagedEnvironment has been deleted when Environment resource is deleted", func() {
 			By("create a DT and DTC with cluster credentials")
 			clusterSecret := corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -560,12 +555,7 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(managedEnvSecret.OwnerReferences[0].UID).To(Equal(env.UID))
 			Expect(managedEnvSecret.GetLabels()[managedEnvironmentSecretLabel]).To(Equal(env.Name))
 
-			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "managed-environment-" + env.Name,
-					Namespace: req.Namespace,
-				},
-			}
+			managedEnvCR := generateEmptyManagedEnvironment(env.Name, req.Namespace)
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
 			Expect(err).To(BeNil())
 
@@ -600,6 +590,19 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret)
+			Expect(err).ToNot(BeNil())
+			Expect(apierr.IsNotFound(err)).To(BeTrue())
+
+			By("delete environment resource")
+			err = k8sClient.Delete(ctx, &env)
+			Expect(err).To(BeNil())
+
+			res, err = reconciler.Reconcile(ctx, req)
+			Expect(err).To(BeNil())
+			Expect(res).To(Equal(reconcile.Result{}))
+
+			By("verify whether the GitOpsDeploymentManagedEnvironment has been deleted when the Environment resource is deleted.")
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
 			Expect(err).ToNot(BeNil())
 			Expect(apierr.IsNotFound(err)).To(BeTrue())
 		})
@@ -640,12 +643,7 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(err).To(BeNil())
 			Expect(res).To(Equal(reconcile.Result{}))
 
-			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "managed-environment-" + env.Name,
-					Namespace: req.Namespace,
-				},
-			}
+			managedEnvCR := generateEmptyManagedEnvironment(env.Name, req.Namespace)
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
 			Expect(err).ToNot(BeNil())
 			Expect(apierr.IsNotFound(err)).To(BeTrue())
@@ -728,12 +726,7 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(err).To(BeNil())
 			Expect(res).To(Equal(reconcile.Result{}))
 
-			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "managed-environment-" + env.Name,
-					Namespace: req.Namespace,
-				},
-			}
+			managedEnvCR := generateEmptyManagedEnvironment(env.Name, req.Namespace)
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
 			Expect(err).ToNot(BeNil())
 			Expect(apierr.IsNotFound(err)).To(BeTrue())
@@ -825,12 +818,7 @@ var _ = Describe("Environment controller tests", func() {
 
 			By("verify if the ManagedEnvironment is using the incoming secret")
 
-			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "managed-environment-" + env.Name,
-					Namespace: req.Namespace,
-				},
-			}
+			managedEnvCR := generateEmptyManagedEnvironment(env.Name, req.Namespace)
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
 			Expect(err).To(BeNil())
 
@@ -889,12 +877,7 @@ var _ = Describe("Environment controller tests", func() {
 			_, err = reconciler.Reconcile(ctx, req)
 			Expect(err).To(BeNil())
 
-			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "managed-environment-" + env.Name,
-					Namespace: req.Namespace,
-				},
-			}
+			managedEnvCR := generateEmptyManagedEnvironment(env.Name, req.Namespace)
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
 			Expect(err).To(BeNil(), "the ManagedEnvironment object should have been created by the reconciler")
 
@@ -1242,11 +1225,6 @@ var _ = Describe("Environment controller tests", func() {
 
 	Context("Unit tests of non-reconcile functions", func() {
 
-		ctx := context.Background()
-
-		var k8sClient client.Client
-		var apiNamespace corev1.Namespace
-
 		log := log.FromContext(ctx)
 
 		BeforeEach(func() {
@@ -1375,6 +1353,75 @@ var _ = Describe("Environment controller tests", func() {
 				Reason:  "my-reason",
 				Message: "my-message",
 			}}),
+		)
+
+	})
+
+	Context("test findObjectsForGitOpsDeploymentManagedEnvironment", func() {
+
+		BeforeEach(func() {
+			scheme,
+				argocdNamespace,
+				kubesystemNamespace,
+				namespace,
+				err := tests.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			err = appstudioshared.AddToScheme(scheme)
+			Expect(err).To(BeNil())
+
+			apiNamespace = *namespace
+
+			// Create fake client
+			k8sClient = fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(namespace, argocdNamespace, kubesystemNamespace).
+				Build()
+
+			reconciler = EnvironmentReconciler{
+				Client: k8sClient,
+				Scheme: scheme,
+			}
+
+		})
+
+		DescribeTable("Various tests of inputs to function",
+			func(managedEnv managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, expected []reconcile.Request) {
+
+				// The elements in the output of the function should match the elements in 'expected', regardless of order
+				res := reconciler.findObjectsForGitOpsDeploymentManagedEnvironment(&managedEnv)
+				Expect(res).To(ConsistOf(expected))
+
+			}, Entry("managedenvironment with no owner refs should return no results", managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "managed-env", Namespace: apiNamespace.Name,
+					OwnerReferences: []metav1.OwnerReference{},
+				},
+			}, []reconcile.Request{}),
+			Entry("managedenvironment with owner ref to another kind should return no results", managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "managed-env", Namespace: apiNamespace.Name,
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Kind:       "Environment",
+							Name:       "name",
+							APIVersion: "SomeOtherAPIVersion",
+						},
+					},
+				},
+			}, []reconcile.Request{}),
+			Entry("managedenvironment with ownerref to Environment should return a result", managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "managed-env", Namespace: apiNamespace.Name,
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							Kind:       "Environment",
+							Name:       "name",
+							APIVersion: managedgitopsv1alpha1.GroupVersion.Group + "/" + managedgitopsv1alpha1.GroupVersion.Version,
+						},
+					},
+				},
+			}, []reconcile.Request{{NamespacedName: types.NamespacedName{Namespace: apiNamespace.Name, Name: "name"}}}),
 		)
 
 	})

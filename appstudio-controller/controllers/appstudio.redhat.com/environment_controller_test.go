@@ -24,6 +24,11 @@ import (
 )
 
 var _ = Describe("Environment controller tests", func() {
+	ctx := context.Background()
+
+	var k8sClient client.Client
+	var reconciler EnvironmentReconciler
+	var apiNamespace corev1.Namespace
 
 	ctx := context.Background()
 
@@ -819,12 +824,7 @@ var _ = Describe("Environment controller tests", func() {
 
 			By("verify if the ManagedEnvironment is using the incoming secret")
 
-			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "managed-environment-" + env.Name,
-					Namespace: req.Namespace,
-				},
-			}
+			managedEnvCR := generateEmptyManagedEnvironment(env.Name, req.Namespace)
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
 			Expect(err).To(BeNil())
 

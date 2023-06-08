@@ -30,12 +30,6 @@ var _ = Describe("Environment controller tests", func() {
 	var reconciler EnvironmentReconciler
 	var apiNamespace corev1.Namespace
 
-	ctx := context.Background()
-
-	var k8sClient client.Client
-	var reconciler EnvironmentReconciler
-	var apiNamespace corev1.Namespace
-
 	Context("Reconcile function call tests", func() {
 
 		BeforeEach(func() {

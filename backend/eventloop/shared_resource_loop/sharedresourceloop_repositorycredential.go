@@ -41,7 +41,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 
 	resourceNS := repositoryCredentialCRNamespace.Name
 
-	clusterUser, _, err := internalGetOrCreateClusterUserByNamespaceUID(ctx, string(repositoryCredentialCRNamespace.UID), dbQueries, l)
+	clusterUser, _, err := internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx, repositoryCredentialCRNamespace, dbQueries, l)
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve cluster user while processing GitOpsRepositoryCredentials: '%s' in namespace: '%s': %v",
 			repositoryCredentialCRName, string(repositoryCredentialCRNamespace.UID), err)

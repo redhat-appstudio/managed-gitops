@@ -139,6 +139,8 @@ type ClusterUser struct {
 
 	// -- Created_on field will tell us how old resources are
 	Created_on time.Time `pg:"created_on"`
+
+	Display_name string `pg:"display_name"`
 }
 
 type ClusterAccess struct {

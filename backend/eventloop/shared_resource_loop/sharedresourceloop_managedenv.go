@@ -75,7 +75,7 @@ func internalProcessMessage_internalReconcileSharedManagedEnv(ctx context.Contex
 		return internalProcessMessage_GetOrCreateSharedResources(ctx, gitopsEngineClient, workspaceNamespace, dbQueries, log)
 	}
 
-	clusterUser, isNewUser, err := internalGetOrCreateClusterUserByNamespaceUID(ctx, string(workspaceNamespace.UID), dbQueries, log)
+	clusterUser, isNewUser, err := internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx, workspaceNamespace, dbQueries, log)
 	if err != nil || clusterUser == nil {
 		return newSharedResourceManagedEnvContainer(), createUnknownErrorEnvInitCondition(),
 			fmt.Errorf("unable to retrieve cluster user in processMessage, '%s': %v", string(workspaceNamespace.UID), err)

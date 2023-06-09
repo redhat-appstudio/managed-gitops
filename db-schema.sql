@@ -133,7 +133,10 @@ CREATE TABLE ClusterUser (
 	seq_id serial,
 
 	 -- When ClusterUser was created, which allow us to tell how old the resources are
-	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    -- We can use display_name to store the name of user's namespace
+	display_name VARCHAR (128)
 );
 
 

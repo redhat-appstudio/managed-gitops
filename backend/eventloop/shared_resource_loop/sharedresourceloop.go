@@ -530,7 +530,7 @@ func internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx context.Con
 	if err != nil {
 		if db.IsResultNotFoundError(err) {
 			isNewUser = true
-
+			clusterUser.Display_name = string(workspaceNamespace.Name)
 			if err := dbq.CreateClusterUser(ctx, &clusterUser); err != nil {
 				l.Error(err, "Unable to create ClusterUser with User ID: "+clusterUser.Clusteruser_id, clusterUser.GetAsLogKeyValues()...)
 				return nil, false, err
@@ -540,6 +540,13 @@ func internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx context.Con
 		} else {
 			return nil, false, err
 		}
+	} else if clusterUser.Display_name == "" {
+		clusterUser.Display_name = string(workspaceNamespace.Name)
+		if err := dbq.UpdateClusterUser(ctx, &clusterUser); err != nil {
+			l.Error(err, "Unable to update ClusterUser with User ID: "+clusterUser.Clusteruser_id, clusterUser.GetAsLogKeyValues()...)
+			return nil, false, err
+		}
+		l.Info("Updated Cluster User with User ID: "+clusterUser.Clusteruser_id, clusterUser.GetAsLogKeyValues()...)
 	}
 
 	return &clusterUser, isNewUser, nil
@@ -556,7 +563,7 @@ func internalProcessMessage_GetOrCreateSharedResources(ctx context.Context, gito
 	workspaceNamespace corev1.Namespace, dbQueries db.DatabaseQueries,
 	l logr.Logger) (SharedResourceManagedEnvContainer, connectionInitializedCondition, error) {
 
-	clusterUser, isNewUser, err := internalGetOrCreateClusterUserByNamespaceUID(ctx, string(workspaceNamespace.UID), dbQueries, l)
+	clusterUser, isNewUser, err := internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx, workspaceNamespace, dbQueries, l)
 	if err != nil {
 		return SharedResourceManagedEnvContainer{}, createUnknownErrorEnvInitCondition(),
 			fmt.Errorf("unable to retrieve cluster user in processMessage, '%s': %v", string(workspaceNamespace.UID), err)
@@ -670,29 +677,4 @@ func internalGetOrCreateClusterAccess(ctx context.Context, ca *db.ClusterAccess,
 		ca.Clusteraccess_managed_environment_id), ca.GetAsLogKeyValues()...)
 
 	return true, nil
-}
-
-// The bool return value is 'true' if ClusterUser is created; 'false' if it already exists in DB or in case of failure.
-func internalGetOrCreateClusterUserByNamespaceUID(ctx context.Context, namespaceUID string, dbq db.DatabaseQueries, l logr.Logger) (*db.ClusterUser, bool, error) {
-	isNewUser := false
-
-	clusterUser := db.ClusterUser{User_name: namespaceUID}
-
-	err := dbq.GetClusterUserByUsername(ctx, &clusterUser)
-	if err != nil {
-		if db.IsResultNotFoundError(err) {
-			isNewUser = true
-
-			if err := dbq.CreateClusterUser(ctx, &clusterUser); err != nil {
-				l.Error(err, "Unable to create ClusterUser", clusterUser.GetAsLogKeyValues()...)
-				return nil, false, err
-			}
-			l.Info("Created ClusterUser", clusterUser.GetAsLogKeyValues()...)
-
-		} else {
-			return nil, false, err
-		}
-	}
-
-	return &clusterUser, isNewUser, nil
 }

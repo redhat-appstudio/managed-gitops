@@ -602,6 +602,16 @@ func (cdb *ChaosDBClient) GetClusterUserBatch(ctx context.Context, clusterUser *
 	return cdb.InnerClient.GetClusterUserBatch(ctx, clusterUser, limit, offSet)
 }
 
+func (cdb *ChaosDBClient) UpdateClusterUser(ctx context.Context, clusterUser *ClusterUser) error {
+
+	if err := shouldSimulateFailure("UpdateClusterUser", clusterUser); err != nil {
+		return err
+	}
+
+	return cdb.InnerClient.UpdateClusterUser(ctx, clusterUser)
+
+}
+
 func (cdb *ChaosDBClient) CheckedGetGitopsEngineClusterById(ctx context.Context, gitopsEngineCluster *GitopsEngineCluster, ownerId string) error {
 
 	if err := shouldSimulateFailure("CheckedGetGitopsEngineClusterById", gitopsEngineCluster, ownerId); err != nil {

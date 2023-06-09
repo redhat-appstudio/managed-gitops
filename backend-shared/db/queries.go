@@ -101,6 +101,9 @@ type DatabaseQueries interface {
 	GetClusterAccessByPrimaryKey(ctx context.Context, obj *ClusterAccess) error
 	GetDBResourceMappingForKubernetesResource(ctx context.Context, obj *KubernetesToDBResourceMapping) error
 
+	// UpdateClusterUser updates the ClusterUser in database.
+	UpdateClusterUser(ctx context.Context, obj *ClusterUser) error
+
 	// Given a KubernetesResourceType, DBRelationType, and DBRelationKey, look for a KubernetesToDBResourceMapping that match those
 	// and return the corresponding KubernetesResourceUID in the 'obj'
 	GetKubernetesResourceMappingForDatabaseResource(ctx context.Context, obj *KubernetesToDBResourceMapping) error

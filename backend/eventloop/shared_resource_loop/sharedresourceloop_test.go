@@ -581,5 +581,37 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 		})
 
+		It("Should add display_name to existing clusterUser if display_name is empty", func() {
+			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).To(BeNil())
+
+			defer dbq.CloseDatabase()
+
+			By("Create cluster user")
+			clusterUserDb := &db.ClusterUser{
+				Clusteruser_id: "test-repocred-user-id",
+				User_name:      string(namespace.UID),
+			}
+			err = dbq.CreateClusterUser(ctx, clusterUserDb)
+			Expect(err).To(BeNil())
+
+			sharedResourceEventLoop := &SharedResourceEventLoop{inputChannel: make(chan sharedResourceLoopMessage)}
+
+			go internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
+
+			user,
+				isNewUser,
+				err := sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, k8sClient, *namespace, l)
+
+			Expect(err).To(BeNil())
+			Expect(user).NotTo(BeNil())
+			Expect(isNewUser).To(BeFalse())
+			Expect(user.Display_name).ToNot(BeEmpty())
+			Expect(user.Display_name).To(Equal(namespace.Name))
+
+			resourcesToBeDeleted = testResources{Clusteruser_id: clusterUserDb.Clusteruser_id}
+
+		})
+
 	})
 })

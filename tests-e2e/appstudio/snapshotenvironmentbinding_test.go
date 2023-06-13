@@ -559,8 +559,169 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			}))
 		})
 
+		It("ensures that GitOpsDeployments .spec.destination.namespace field always matching the expected Environment value", func() {
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			By("creating a new Environment targetting a fake remote cluster")
+			environment := appstudiosharedv1.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-env",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Spec: appstudiosharedv1.EnvironmentSpec{
+					DisplayName:        "my-env",
+					DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
+					ParentEnvironment:  "",
+					Tags:               []string{},
+					Configuration: appstudiosharedv1.EnvironmentConfiguration{
+						Env: []appstudiosharedv1.EnvVarPair{},
+					},
+					// The cluster doesn't need to be real for this test
+					UnstableConfigurationFields: &appstudiosharedv1.UnstableEnvironmentConfiguration{
+						KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
+							TargetNamespace:            "namespace1",
+							APIURL:                     "https://fake-url-does-not-exist.redhat.com",
+							ClusterCredentialsSecret:   "my-secret",
+							AllowInsecureSkipTLSVerify: true,
+						},
+					},
+				},
+			}
+			err = k8s.Create(&environment, k8sClient)
+			Expect(err).To(BeNil())
+
+			By("building a SnapshotEnvironmentBinding targeting that Environment")
+			seb := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", environment.Name, "my-snapshot", 3, []string{"component-a"})
+
+			err = k8s.Create(&seb, k8sClient)
+			Expect(err).To(BeNil())
+
+			By("mocking the ApplicationService updating the Environment status")
+			// Update the status field
+			err = buildAndUpdateBindingStatus(seb.Spec.Components,
+				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
+				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &seb)
+			Expect(err).To(Succeed())
+
+			gitopsDepl := managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appstudiocontroller.GenerateBindingGitOpsDeploymentName(seb, "component-a"),
+					Namespace: seb.Namespace,
+				},
+			}
+			Eventually(gitopsDepl, "60s", "1s").
+				Should(gitopsDeplFixture.HaveTargetNamespace(environment.Spec.UnstableConfigurationFields.TargetNamespace),
+					"should match the Environment's current target ns value")
+
+			By("updating the Environment to target another namespace")
+			err = k8s.UpdateWithoutConflict(&environment, k8sClient, func(obj client.Object) {
+
+				envObj, ok := obj.(*appstudiosharedv1.Environment)
+
+				Expect(ok).To(BeTrue())
+				envObj.Spec.UnstableConfigurationFields.TargetNamespace = "another-namespace"
+
+			})
+			Expect(err).To(BeNil())
+
+			Eventually(gitopsDepl, "60s", "1s").Should(gitopsDeplFixture.HaveTargetNamespace("another-namespace"), "should match the updated value")
+
+			By("create a new DeploymentTarget pointing to fake secret credentials")
+			dt := appstudiosharedv1.DeploymentTarget{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dt",
+					Namespace: seb.Namespace,
+				},
+				Spec: appstudiosharedv1.DeploymentTargetSpec{
+					DeploymentTargetClassName: "test-class",
+					// Likewise, for this test we don't need real values
+					KubernetesClusterCredentials: appstudiosharedv1.DeploymentTargetKubernetesClusterCredentials{
+						APIURL:                     "https://fake-url.redhat.com",
+						ClusterCredentialsSecret:   "fake-secret",
+						DefaultNamespace:           "some-other-dtc-namespace",
+						AllowInsecureSkipTLSVerify: true,
+					},
+				},
+			}
+			err = k8s.Create(&dt, k8sClient)
+			Expect(err).To(BeNil())
+
+			By("create a DeploymentTargetClaim that can bind to the above DeploymentTarget")
+			dtc := appstudiosharedv1.DeploymentTargetClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dtc",
+					Namespace: dt.Namespace,
+				},
+				Spec: appstudiosharedv1.DeploymentTargetClaimSpec{
+					TargetName:                dt.Name,
+					DeploymentTargetClassName: dt.Spec.DeploymentTargetClassName,
+				},
+			}
+			err = k8s.Create(&dtc, k8sClient)
+			Expect(err).To(BeNil())
+
+			By("updating the Environment to instead point to the DeploymentTargetClaim")
+			err = k8s.UpdateWithoutConflict(&environment, k8sClient, func(obj client.Object) {
+
+				envObj, ok := obj.(*appstudiosharedv1.Environment)
+				Expect(ok).To(BeTrue())
+				envObj.Spec.UnstableConfigurationFields = nil
+				envObj.Spec.Configuration = appstudiosharedv1.EnvironmentConfiguration{
+					Env: []appstudiosharedv1.EnvVarPair{},
+					Target: appstudiosharedv1.EnvironmentTarget{
+						DeploymentTargetClaim: appstudiosharedv1.DeploymentTargetClaimConfig{
+							ClaimName: dtc.Name,
+						},
+					},
+				}
+
+			})
+			Expect(err).To(BeNil())
+
+			Eventually(gitopsDepl, "60s", "1s").
+				Should(gitopsDeplFixture.HaveTargetNamespace(dt.Spec.KubernetesClusterCredentials.DefaultNamespace))
+
+			By("update the DeploymentTarget to point to another namespace")
+			err = k8s.UpdateWithoutConflict(&dt, k8sClient, func(obj client.Object) {
+
+				dtObj, ok := obj.(*appstudiosharedv1.DeploymentTarget)
+				Expect(ok).To(BeTrue())
+
+				dtObj.Spec.KubernetesClusterCredentials.DefaultNamespace = "some-other-dtc-namespace"
+			})
+			Expect(err).To(BeNil())
+
+			Eventually(gitopsDepl, "60s", "1s").
+				Should(gitopsDeplFixture.HaveTargetNamespace("some-other-dtc-namespace"), "should match the new value set in DeploymentTarget")
+
+			By("updating the Environment back from DTC-based credentials, back to K8s cluster credentials, and using another namespace")
+			err = k8s.UpdateWithoutConflict(&environment, k8sClient, func(obj client.Object) {
+
+				envObj, ok := obj.(*appstudiosharedv1.Environment)
+				Expect(ok).To(BeTrue())
+
+				envObj.Spec.Configuration = appstudiosharedv1.EnvironmentConfiguration{
+					Env: []appstudiosharedv1.EnvVarPair{},
+				}
+				envObj.Spec.UnstableConfigurationFields = &appstudiosharedv1.UnstableEnvironmentConfiguration{
+					KubernetesClusterCredentials: appstudiosharedv1.KubernetesClusterCredentials{
+						TargetNamespace:            "namespace1",
+						APIURL:                     "https://fake-url-does-not-exist.redhat.com",
+						ClusterCredentialsSecret:   "my-secret",
+						AllowInsecureSkipTLSVerify: true,
+					},
+				}
+
+			})
+			Expect(err).To(BeNil())
+
+			Eventually(gitopsDepl, "60s", "1s").
+				Should(gitopsDeplFixture.HaveTargetNamespace("namespace1"), "should match the final NS value set above")
+
+		})
+
 		It("should create a GitOpsDeployment that references cluster credentials specified in Environment", func() {
-			// ToDo: solve GITOPSRVC-217, and remove this constraint
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
@@ -917,7 +1078,7 @@ func buildAndUpdateBindingStatus(components []appstudiosharedv1.BindingComponent
 }
 
 // buildSnapshotEnvironmentBindingResource builds the SnapshotEnvironmentBinding CR
-func buildSnapshotEnvironmentBindingResource(name, appName, envName, snapShotName string, replica int, componentNames []string) appstudiosharedv1.SnapshotEnvironmentBinding {
+func buildSnapshotEnvironmentBindingResource(name, appName, envName, snapshotName string, replica int, componentNames []string) appstudiosharedv1.SnapshotEnvironmentBinding {
 	// Create SnapshotEnvironmentBinding CR.
 	binding := appstudiosharedv1.SnapshotEnvironmentBinding{
 		ObjectMeta: metav1.ObjectMeta{
@@ -931,7 +1092,7 @@ func buildSnapshotEnvironmentBindingResource(name, appName, envName, snapShotNam
 		Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
 			Application: appName,
 			Environment: envName,
-			Snapshot:    snapShotName,
+			Snapshot:    snapshotName,
 		},
 	}
 	components := []appstudiosharedv1.BindingComponent{}

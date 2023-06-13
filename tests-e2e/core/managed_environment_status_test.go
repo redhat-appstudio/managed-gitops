@@ -20,7 +20,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			By("creating the GitOpsDeploymentManagedEnvironment with a target cluster that does not exist")
 
 			apiServerURL := "https://api2.fake-e2e-test-data.origin-ci-int-gce.dev.rhcloud.com:6443"
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, generateFakeKubeConfig(), true)
+			managedEnv, secret := buildManagedEnvironment(apiServerURL, k8s.GenerateFakeKubeConfig(), true)
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
@@ -163,40 +163,3 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 		})
 	})
 })
-
-func generateFakeKubeConfig() string {
-	// This config has been sanitized of any real credentials.
-	return `
-apiVersion: v1
-kind: Config
-clusters:
-  - cluster:
-      insecure-skip-tls-verify: true
-      server: https://api.fake-e2e-test-data.origin-ci-int-gce.dev.rhcloud.com:6443
-    name: api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
-  - cluster:
-      insecure-skip-tls-verify: true
-      server: https://api2.fake-e2e-test-data.origin-ci-int-gce.dev.rhcloud.com:6443
-    name: api2-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
-contexts:
-  - context:
-      cluster: api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
-      namespace: jgw
-      user: kube:admin/api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
-    name: default/api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin
-  - context:
-      cluster: api2-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
-      namespace: jgw
-      user: kube:admin/api2-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
-    name: default/api2-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin
-current-context: default/api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin
-preferences: {}
-users:
-  - name: kube:admin/api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
-    user:
-      token: sha256~ABCdEF1gHiJKlMnoP-Q19qrTuv1_W9X2YZABCDefGH4
-  - name: kube:admin/api2-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
-    user:
-      token: sha256~abcDef1gHIjkLmNOp-q19QRtUV1_w9x2yzabcdEFgh4
-`
-}

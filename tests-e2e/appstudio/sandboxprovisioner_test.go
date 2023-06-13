@@ -1,7 +1,8 @@
-package core
+package appstudio
 
 import (
 	"context"
+
 	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -39,7 +40,7 @@ var _ = Describe("Sandbox Provisioner controller tests", func() {
 					Annotations: map[string]string{},
 				},
 				Spec: appstudiosharedv1.DeploymentTargetClassSpec{
-					Provisioner: appstudiosharedv1.Provisioner_Devsandbox,
+					Provisioner:   appstudiosharedv1.Provisioner_Devsandbox,
 					ReclaimPolicy: "Retain",
 				},
 			}

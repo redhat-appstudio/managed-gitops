@@ -53,4 +53,5 @@ func LogAPIResourceChangeEvent(resourceNamespace string, resourceName string, re
 
 	log.Info(fmt.Sprintf("API Resource changed: %s", string(resourceChangeType)), "namespace",
 		resourceNamespace, "name", resourceName, "object", string(jsonRepresentation))
+
 }

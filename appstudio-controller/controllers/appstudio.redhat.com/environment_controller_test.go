@@ -2,6 +2,7 @@ package appstudioredhatcom
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -335,7 +336,12 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			_, err = reconciler.Reconcile(ctx, req)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
+			Expect(err).To(BeNil())
+			ExpectEnvironmentConditionErrorOccured("the secret secret-that-doesnt-exist referenced by the Environment resource was not found", env)
+
 		})
 
 		It("should not return an error if the Environment does not container UnstableConfigurationFields", func() {
@@ -366,60 +372,6 @@ var _ = Describe("Environment controller tests", func() {
 			}
 			_, err = reconciler.Reconcile(ctx, req)
 			Expect(err).To(BeNil())
-		})
-
-		It("should return an error if the TargetNamespace field is missing", func() {
-
-			var err error
-
-			By("creating managed environment Secret")
-			secret := corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-my-managed-env-secret",
-					Namespace: apiNamespace.Name,
-				},
-				Type: sharedutil.ManagedEnvironmentSecretType,
-				Data: map[string][]byte{
-					"kubeconfig": ([]byte)("{}"),
-				},
-			}
-			err = k8sClient.Create(ctx, &secret)
-			Expect(err).To(BeNil())
-
-			By("creating an Environment resource pointing with an invalid target namespace field")
-			env := appstudioshared.Environment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "my-env",
-					Namespace: apiNamespace.Name,
-				},
-				Spec: appstudioshared.EnvironmentSpec{
-					DisplayName:        "my-environment",
-					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
-					ParentEnvironment:  "",
-					Tags:               []string{},
-					Configuration:      appstudioshared.EnvironmentConfiguration{},
-					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
-						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
-							TargetNamespace:          "",
-							APIURL:                   "https://my-api-url",
-							ClusterCredentialsSecret: "my-secret",
-						},
-					},
-				},
-			}
-			err = k8sClient.Create(ctx, &env)
-			Expect(err).To(BeNil())
-
-			By("reconciling the ManagedEnvironment")
-			req := ctrl.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      env.Name,
-					Namespace: env.Namespace,
-				},
-			}
-			_, err = reconciler.Reconcile(ctx, req)
-			Expect(err).ToNot(BeNil())
-
 		})
 
 		It("should return an error if both cluster credentials and DeploymentTargetClaim are provided", func() {
@@ -459,14 +411,171 @@ var _ = Describe("Environment controller tests", func() {
 			env = appstudioshared.Environment{}
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
 			Expect(err).To(BeNil())
-			Expect(len(env.Status.Conditions)).To(Equal(1))
-			Expect(env.Status.Conditions[0].Type).To(Equal(EnvironmentConditionErrorOccurred))
-			Expect(env.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
-			Expect(env.Status.Conditions[0].Reason).To(Equal(EnvironmentReasonErrorOccurred))
-			Expect(env.Status.Conditions[0].Message).To(Equal("Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set"))
+			ExpectEnvironmentConditionErrorOccured("Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set", env)
+
 		})
 
-		It("should manage an Environment with DeploymentTargetClaim specified and verify GitOpsDeploymentManagedEnvironment has been deleted when Environment resource is deleted", func() {
+		DescribeTable("should reconcile an Environment that references a DeploymentTargetClaim, and verify GitOpsDeploymentManagedEnvironment has been deleted when Environment resource is deleted", func(dtHasNamespaceField bool) {
+
+			By("create a DT and DTC with cluster credentials")
+			clusterSecret := corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-secret",
+					Namespace: apiNamespace.Name,
+				},
+			}
+
+			err := k8sClient.Create(ctx, &clusterSecret)
+			Expect(err).To(BeNil())
+
+			dt := appstudioshared.DeploymentTarget{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dt",
+					Namespace: apiNamespace.Name,
+				},
+				Spec: appstudioshared.DeploymentTargetSpec{
+					KubernetesClusterCredentials: appstudioshared.DeploymentTargetKubernetesClusterCredentials{
+						APIURL:                     "https://test-url",
+						ClusterCredentialsSecret:   "test-secret",
+						AllowInsecureSkipTLSVerify: true,
+					},
+				},
+				Status: appstudioshared.DeploymentTargetStatus{
+					Phase: appstudioshared.DeploymentTargetPhase_Bound,
+				},
+			}
+
+			if dtHasNamespaceField {
+				// We set the default namespace to test that this value will be set in the GitOpsDeploymentManagedGnvironment
+				dt.Spec.KubernetesClusterCredentials.DefaultNamespace = "my-namespace"
+			}
+
+			err = k8sClient.Create(ctx, &dt)
+			Expect(err).To(BeNil())
+
+			dtc := appstudioshared.DeploymentTargetClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dtc",
+					Namespace: apiNamespace.Name,
+				},
+				Spec: appstudioshared.DeploymentTargetClaimSpec{
+					TargetName: dt.Name,
+				},
+				Status: appstudioshared.DeploymentTargetClaimStatus{
+					Phase: appstudioshared.DeploymentTargetClaimPhase_Bound,
+				},
+			}
+
+			err = k8sClient.Create(ctx, &dtc)
+			Expect(err).To(BeNil())
+
+			By("create an Environment that refers to the above DTC")
+			env := appstudioshared.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-env-1",
+					Namespace: dtc.Namespace,
+				},
+				Spec: appstudioshared.EnvironmentSpec{
+					Configuration: appstudioshared.EnvironmentConfiguration{
+						Target: appstudioshared.EnvironmentTarget{
+							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+								ClaimName: dtc.Name,
+							},
+						},
+					},
+				},
+			}
+			err = k8sClient.Create(ctx, &env)
+			Expect(err).To(BeNil())
+
+			By("reconcile and verify if a ManagedEnvironment is created with the right credentials")
+			req := newRequest(env.Namespace, env.Name)
+			res, err := reconciler.Reconcile(ctx, req)
+			Expect(err).To(BeNil())
+			Expect(res).To(Equal(reconcile.Result{}))
+
+			By("verify if a new managed-environment secret is created")
+			managedEnvSecret := corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      generateManagedEnvSecretName(env.Name),
+					Namespace: env.Namespace,
+				},
+			}
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret)
+			Expect(err).To(BeNil())
+
+			Expect(string(managedEnvSecret.Type)).To(Equal(sharedutil.ManagedEnvironmentSecretType))
+			Expect(reflect.DeepEqual(managedEnvSecret.Data, clusterSecret.Data)).To(BeTrue())
+			Expect(managedEnvSecret.OwnerReferences[0].Name).To(Equal(env.Name))
+			Expect(managedEnvSecret.OwnerReferences[0].UID).To(Equal(env.UID))
+			Expect(managedEnvSecret.GetLabels()[managedEnvironmentSecretLabel]).To(Equal(env.Name))
+
+			managedEnvCR := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "managed-environment-" + env.Name,
+					Namespace: req.Namespace,
+				},
+			}
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
+			Expect(err).To(BeNil())
+
+			By("verify if the environment credentials match with the DT")
+			Expect(managedEnvCR.Spec.APIURL).To(Equal(dt.Spec.KubernetesClusterCredentials.APIURL))
+			Expect(managedEnvCR.Spec.ClusterCredentialsSecret).To(Equal(managedEnvSecret.Name))
+			Expect(managedEnvCR.Spec.AllowInsecureSkipTLSVerify).To(Equal(dt.Spec.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify))
+
+			if dtHasNamespaceField {
+				Expect(managedEnvCR.Spec.Namespaces).To(Equal([]string{"my-namespace"}), "if the DT contains a Namespace, that same value should also be set in the GitOpsDeploymentManagedEnvironment")
+			}
+
+			By("update the credential secret and verify if the managed-environment secret is updated")
+			clusterSecret.Data = map[string][]byte{
+				"kubeconfig": []byte("updated"),
+			}
+			err = k8sClient.Update(ctx, &clusterSecret)
+			Expect(err).To(BeNil())
+
+			res, err = reconciler.Reconcile(ctx, req)
+			Expect(err).To(BeNil())
+			Expect(res).To(Equal(reconcile.Result{}))
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret)
+			Expect(err).To(BeNil())
+			Expect(reflect.DeepEqual(managedEnvSecret.Data, clusterSecret.Data)).To(BeTrue())
+
+			By("delete the credential secret and verify if the managed-environment secret is deleted")
+			err = k8sClient.Delete(ctx, &clusterSecret)
+			Expect(err).To(BeNil())
+
+			res, err = reconciler.Reconcile(ctx, req)
+			Expect(err).To(BeNil())
+			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env); err != nil {
+				Expect(err).To(BeNil())
+			}
+			ExpectEnvironmentConditionErrorOccured("the secret test-secret referenced by the Environment resource was not found", env)
+			Expect(res).To(Equal(reconcile.Result{}))
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret)
+			Expect(err).ToNot(BeNil())
+			Expect(apierr.IsNotFound(err)).To(BeTrue())
+
+			By("delete environment resource")
+			err = k8sClient.Delete(ctx, &env)
+			Expect(err).To(BeNil())
+
+			res, err = reconciler.Reconcile(ctx, req)
+			Expect(err).To(BeNil())
+			Expect(res).To(Equal(reconcile.Result{}))
+
+			By("verify whether the GitOpsDeploymentManagedEnvironment has been deleted when the Environment resource is deleted.")
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
+			Expect(err).ToNot(BeNil())
+			Expect(apierr.IsNotFound(err)).To(BeTrue())
+
+		},
+			Entry("Initial DeploymentTarget contains a value in DefaultNamespace field", true),
+			Entry("Initial DeploymentTarget does NOT contain a DefaultNamespace field", false))
+
+		It("should manage an Environment with DeploymentTargetClaim specified", func() {
 			By("create a DT and DTC with cluster credentials")
 			clusterSecret := corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -584,9 +693,12 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(err).To(BeNil())
 
 			res, err = reconciler.Reconcile(ctx, req)
-			Expect(err).ToNot(BeNil())
-			expectedErr := `unable to generate expected GitOpsDeploymentManagedEnvironment resource: the secret 'test-secret' referenced by the Environment resource was not found: secrets "test-secret" not found`
-			Expect(err.Error()).To(Equal(expectedErr))
+			Expect(err).To(BeNil())
+
+			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env); err != nil {
+				Expect(err).To(BeNil())
+			}
+			ExpectEnvironmentConditionErrorOccured("the secret test-secret referenced by the Environment resource was not found", env)
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret)
@@ -649,15 +761,53 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(apierr.IsNotFound(err)).To(BeTrue())
 		})
 
-		It("should return an error if the DeploymentTarget is not found", func() {
-			dt := appstudioshared.DeploymentTarget{
+		It("should set an error condition, but not return an error, if the Environment references a DTC that doesn't exist", func() {
+
+			By("create an Environment that refers to a non-existent DTC")
+			env := appstudioshared.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-env-1",
+					Namespace: apiNamespace.Name,
+				},
+				Spec: appstudioshared.EnvironmentSpec{
+					Configuration: appstudioshared.EnvironmentConfiguration{
+						Target: appstudioshared.EnvironmentTarget{
+							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+								ClaimName: "a-dtc-that-does-not-exist",
+							},
+						},
+					},
+				},
+			}
+			err := k8sClient.Create(ctx, &env)
+			Expect(err).To(BeNil())
+
+			By("reconcile and verify if an error is returned")
+			req := newRequest(env.Namespace, env.Name)
+			res, err := reconciler.Reconcile(ctx, req)
+			Expect(err).To(BeNil())
+			Expect(res).To(Equal(reconcile.Result{}))
+
+			By("Checking status field after calling Reconciler")
+			env = appstudioshared.Environment{}
+			err = reconciler.Get(ctx, req.NamespacedName, &env)
+			Expect(err).To(BeNil())
+
+			ExpectEnvironmentConditionErrorOccured("DeploymentTargetClaim not found while generating the desired Environment resource", env)
+
+		})
+
+		It("should set an error condition, but not return a Reconcile error, if Environment's DTC has no bound DT", func() {
+
+			// Create a DeploymentTarget that isn't referenced
+			unusedDT := appstudioshared.DeploymentTarget{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-dt",
 					Namespace: apiNamespace.Name,
 				},
 			}
 
-			err := k8sClient.Create(ctx, &dt)
+			err := k8sClient.Create(ctx, &unusedDT)
 			Expect(err).To(BeNil())
 
 			dtc := appstudioshared.DeploymentTargetClaim{
@@ -702,11 +852,58 @@ var _ = Describe("Environment controller tests", func() {
 			env = appstudioshared.Environment{}
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
 			Expect(err).To(BeNil())
-			Expect(len(env.Status.Conditions)).To(Equal(1))
-			Expect(env.Status.Conditions[0].Type).To(Equal(EnvironmentConditionErrorOccurred))
-			Expect(env.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
-			Expect(env.Status.Conditions[0].Reason).To(Equal(EnvironmentReasonErrorOccurred))
-			Expect(env.Status.Conditions[0].Message).To(Equal("DeploymentTarget not found for DeploymentTargetClaim"))
+
+			ExpectEnvironmentConditionErrorOccured("DeploymentTarget not found for DeploymentTargetClaim", env)
+		})
+
+		It("should set an error condition, but not return a Reconcile error, if Environment's DTC references a DeploymentTarget that doesn't exist", func() {
+
+			dtc := appstudioshared.DeploymentTargetClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dtc",
+					Namespace: apiNamespace.Name,
+				},
+				Spec: appstudioshared.DeploymentTargetClaimSpec{
+					TargetName: "a-non-existent-dt",
+				},
+				Status: appstudioshared.DeploymentTargetClaimStatus{
+					Phase: appstudioshared.DeploymentTargetClaimPhase_Bound,
+				},
+			}
+
+			err := k8sClient.Create(ctx, &dtc)
+			Expect(err).To(BeNil())
+
+			By("create and Environment that refer the above DTC")
+			env := appstudioshared.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-env-1",
+					Namespace: dtc.Namespace,
+				},
+				Spec: appstudioshared.EnvironmentSpec{
+					Configuration: appstudioshared.EnvironmentConfiguration{
+						Target: appstudioshared.EnvironmentTarget{
+							DeploymentTargetClaim: appstudioshared.DeploymentTargetClaimConfig{
+								ClaimName: dtc.Name,
+							},
+						},
+					},
+				},
+			}
+			err = k8sClient.Create(ctx, &env)
+			Expect(err).To(BeNil())
+
+			By("reconcile and verify if an error is returned")
+			req := newRequest(env.Namespace, env.Name)
+			res, err := reconciler.Reconcile(ctx, req)
+			Expect(err).To(BeNil())
+			Expect(res).To(Equal(reconcile.Result{}))
+
+			By("Checking status field after calling Reconciler")
+			env = appstudioshared.Environment{}
+			err = reconciler.Get(ctx, req.NamespacedName, &env)
+			Expect(err).To(BeNil())
+			ExpectEnvironmentConditionErrorOccured("DeploymentTargetClaim references a DeploymentTarget that does not exist", env)
 		})
 
 		It("shouldn't process the Environment if neither credentials nor DTC is provided", func() {
@@ -1426,3 +1623,16 @@ var _ = Describe("Environment controller tests", func() {
 
 	})
 })
+
+func ExpectEnvironmentConditionErrorOccured(envMessage string, env appstudioshared.Environment) {
+
+	// WithOffset tells Gingko to ignore this function when reporting the failing line in the test
+
+	ExpectWithOffset(1, len(env.Status.Conditions)).To(Equal(1), "a single condition should exist")
+	ExpectWithOffset(1, env.Status.Conditions[0].Type).To(Equal(EnvironmentConditionErrorOccurred), "type should be EnvironmentConditionErrorOccurred")
+	ExpectWithOffset(1, env.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue), "should be true")
+	ExpectWithOffset(1, env.Status.Conditions[0].Reason).To(Equal(EnvironmentReasonErrorOccurred), "reason should be EnvironmentConditionErrorOccurred")
+
+	fmt.Println("The Environment's condition message is", env.Status.Conditions[0].Message)
+	ExpectWithOffset(1, env.Status.Conditions[0].Message).To(Equal(envMessage), "message should be as provided")
+}

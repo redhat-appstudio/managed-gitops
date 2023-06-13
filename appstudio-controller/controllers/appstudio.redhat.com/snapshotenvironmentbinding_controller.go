@@ -261,6 +261,10 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 		}
 	}
 
+	if allErrors != nil {
+		return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("unable to process expected GitOpsDeployment: %w", allErrors)
+	}
+
 	// Update the status field with statusField vars (even if an error occurred)
 	binding.Status.GitOpsDeployments = statusField
 	if err := addComponentDeploymentCondition(ctx, binding, rClient, log); err != nil {
@@ -282,10 +286,6 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 
 		log.Error(err, "unable to update SnapshotEnvironmentBinding status")
 		return ctrl.Result{}, fmt.Errorf("unable to update SnapshotEnvironmentBinding status. Error: %w", err)
-	}
-
-	if allErrors != nil {
-		return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("unable to process expected GitOpsDeployment: %w", allErrors)
 	}
 
 	return ctrl.Result{}, nil
@@ -506,8 +506,10 @@ func generateExpectedGitOpsDeployment(ctx context.Context, component appstudiosh
 		},
 	}
 
+	// If the Environment references a DeploymentTargetClaim...
 	if environment.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName != "" {
 
+		// Retrieve the DTC
 		dtc := appstudioshared.DeploymentTargetClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      environment.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName,
@@ -523,16 +525,17 @@ func generateExpectedGitOpsDeployment(ctx context.Context, component appstudiosh
 			} else {
 				return apibackend.GitOpsDeployment{}, gitopserrors.NewDevOnlyError(devErr)
 			}
-
 		}
 
-		dt, err := findMatchingDTForDTC(ctx, k8sClient, dtc)
+		// Locate the corresponding DT, so we can pull the credentials from the DT
+		dt, err := getDTBoundByDTC(ctx, k8sClient, dtc)
 		if dt == nil || err != nil {
-			devErr := fmt.Errorf("error on locating DeploymentTarget of DeploymentTargetClaim '%s': %v", dtc.Name, err)
+			devErr := fmt.Errorf("unable to locate DeploymentTarget of DeploymentTargetClaim '%s'. %v", dtc.Name, err)
 
 			return apibackend.GitOpsDeployment{}, gitopserrors.NewUserDevError("unable to locate DeploymentTarget the references DeploymentTargetClaim", devErr)
 		}
 
+		// Update the .spec.destination field of the GitOpsDeployment to point to the managed environment and Namespace from the DT
 		managedEnvironmentName := generateEmptyManagedEnvironment(environment.Name, environment.Namespace).Name
 
 		res.Spec.Destination = apibackend.ApplicationDestination{
@@ -611,7 +614,137 @@ func (r *SnapshotEnvironmentBindingReconciler) SetupWithManager(mgr ctrl.Manager
 			&source.Kind{Type: &appstudioshared.Environment{}},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForEnvironment),
 			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
+		).
+		Watches(
+			&source.Kind{Type: &appstudioshared.DeploymentTarget{}},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForDeploymentTarget),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
+		Watches(
+			&source.Kind{Type: &appstudioshared.DeploymentTargetClaim{}},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForDeploymentTargetClaim),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
 		).Complete(r)
+}
+
+// findObjectsForDeploymentTarget maps an incoming DT event to the corresponding Environment request.
+// We should reconcile Environments if the DT credentials get updated.
+func (r *SnapshotEnvironmentBindingReconciler) findObjectsForDeploymentTargetClaim(dtc client.Object) []reconcile.Request {
+	ctx := context.Background()
+	handlerLog := log.FromContext(ctx).
+		WithName(logutil.LogLogger_managed_gitops)
+
+	dtcObj, ok := dtc.(*appstudioshared.DeploymentTargetClaim)
+	if !ok {
+		handlerLog.Error(nil, "incompatible object in the SEB DeploymentTargetClaim mapping function, expected a DeploymentTargetClaim")
+		return []reconcile.Request{}
+	}
+
+	// 1. Find all Environments that are associated with this DeploymentTargetClaim.
+	envList := &appstudioshared.EnvironmentList{}
+	if err := r.Client.List(context.Background(), envList, &client.ListOptions{Namespace: dtcObj.GetNamespace()}); err != nil {
+		handlerLog.Error(err, "failed to list Environments in the SEB DeploymentTargetClaim mapping function")
+		return []reconcile.Request{}
+	}
+
+	environmentByName := map[string]bool{} // The keys of this map contain Environments that are referenced by the DTC (which references the DTC)
+	for _, env := range envList.Items {
+
+		// If the DTCs match the Environment's claim name, it's a match
+		if env.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName == dtcObj.Name {
+			environmentByName[env.Name] = true
+		}
+	}
+
+	// 2. Find SnapshotEnvironmentBindings in the namespace that match one of the Enviroments inside the 'environmentByName' map
+	snapshotEnvList := &appstudioshared.SnapshotEnvironmentBindingList{}
+	if err := r.Client.List(context.Background(), snapshotEnvList, &client.ListOptions{Namespace: dtcObj.GetNamespace()}); err != nil {
+		handlerLog.Error(err, "failed to list SnapshotEnvironmentBindings in the SEB DeploymentTargetClaim mapping function")
+		return []reconcile.Request{}
+	}
+	snapshotRequests := []reconcile.Request{}
+	for index := range snapshotEnvList.Items {
+		snapshotEnvBinding := snapshotEnvList.Items[index]
+
+		if _, exists := environmentByName[snapshotEnvBinding.Spec.Environment]; exists {
+			snapshotRequests = append(snapshotRequests, reconcile.Request{
+				NamespacedName: client.ObjectKeyFromObject(&snapshotEnvBinding),
+			})
+		}
+	}
+
+	return snapshotRequests
+}
+
+// findObjectsForDeploymentTarget maps an incoming DT event to the corresponding Environment request.
+// We should reconcile Environments if the DT credentials get updated.
+func (r *SnapshotEnvironmentBindingReconciler) findObjectsForDeploymentTarget(dt client.Object) []reconcile.Request {
+	ctx := context.Background()
+	handlerLog := log.FromContext(ctx).
+		WithName(logutil.LogLogger_managed_gitops)
+
+	dtObj, ok := dt.(*appstudioshared.DeploymentTarget)
+	if !ok {
+		handlerLog.Error(nil, "incompatible object in the SEB DeploymentTarget mapping function, expected a DeploymentTarget")
+		return []reconcile.Request{}
+	}
+
+	// 1. Find all DeploymentTargetClaims that are associated with this DeploymentTarget.
+	dtcList := appstudioshared.DeploymentTargetClaimList{}
+	if err := r.List(ctx, &dtcList, &client.ListOptions{Namespace: dt.GetNamespace()}); err != nil {
+		handlerLog.Error(err, "failed to list DeploymentTargetClaims in the SEB DT mapping function")
+		return []reconcile.Request{}
+	}
+	dtcs := []appstudioshared.DeploymentTargetClaim{}
+	for _, d := range dtcList.Items {
+		dtc := d
+		// We only want to reconcile for DTs that have a corresponding DTC.
+		if dtc.Spec.TargetName == dt.GetName() || dtObj.Spec.ClaimRef == dtc.Name {
+			dtcs = append(dtcs, dtc)
+		}
+	}
+
+	// 2. Find all Environments that are associated with this DeploymentTargetClaim.
+	envList := &appstudioshared.EnvironmentList{}
+	if err := r.Client.List(context.Background(), envList, &client.ListOptions{Namespace: dt.GetNamespace()}); err != nil {
+		handlerLog.Error(err, "failed to list Environments in the SEB DeploymentTarget mapping function")
+		return []reconcile.Request{}
+	}
+	environmentByName := map[string]bool{} // The keys of this map contain Environments that are referenced by the DTC (which references the DTC)
+	for _, env := range envList.Items {
+
+		matchFound := false
+		for _, dtc := range dtcs {
+			// If at least one of the DTCs match the Environment's claim name, it's a match
+			if env.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName == dtc.Name {
+				matchFound = true
+				break
+			}
+		}
+
+		if matchFound { // at least one match: the Environment is bound to the DTC
+			environmentByName[env.Name] = true
+		}
+	}
+
+	// 3. Find SnapshotEnvironmentBindings in the namespace that match one of the Enviroments inside the 'environmentByName' map
+	snapshotEnvList := &appstudioshared.SnapshotEnvironmentBindingList{}
+	if err := r.Client.List(context.Background(), snapshotEnvList, &client.ListOptions{Namespace: dt.GetNamespace()}); err != nil {
+		handlerLog.Error(err, "failed to list SnapshotEnvironmentBindings in the SEB DeploymentTarget mapping function")
+		return []reconcile.Request{}
+	}
+	snapshotRequests := []reconcile.Request{}
+	for index := range snapshotEnvList.Items {
+		snapshotEnvBinding := snapshotEnvList.Items[index]
+
+		if _, exists := environmentByName[snapshotEnvBinding.Spec.Environment]; exists {
+			snapshotRequests = append(snapshotRequests, reconcile.Request{
+				NamespacedName: client.ObjectKeyFromObject(&snapshotEnvBinding),
+			})
+		}
+	}
+
+	return snapshotRequests
 }
 
 // findObjectsForManagedEnvironment will reconcile on any ManagedEnvironments that are (indirectly) referenced by SEBs
@@ -623,20 +756,21 @@ func (r *SnapshotEnvironmentBindingReconciler) findObjectsForEnvironment(envPara
 	// 1) Cast the Environment obj
 	envObj, ok := envParam.(*appstudioshared.Environment)
 	if !ok {
-		handlerLog.Error(nil, "incompatible object in the ManagedEnvironment mapping function, expected a Secret")
+		handlerLog.Error(nil, "incompatible object in the Environment mapping function, expected a Secret")
 		return []reconcile.Request{}
 	}
 
 	// 2) Retrieve all the SEBs in the same Namespace as the Environment
 	var snapshotEnvBindings appstudioshared.SnapshotEnvironmentBindingList
 	if err := r.Client.List(context.Background(), &snapshotEnvBindings, &client.ListOptions{Namespace: envObj.Namespace}); err != nil {
-		handlerLog.Error(err, "failed to get SnapshotEnvironmentBindings list in the ManagedEnvironment mapping function")
+		handlerLog.Error(err, "failed to get SnapshotEnvironmentBindings list in the Environment mapping function")
 		return []reconcile.Request{}
 	}
 
 	// 3) Reconcile any SEBs that reference this Environment
 	var res []reconcile.Request
-	for _, seb := range snapshotEnvBindings.Items {
+	for idx := range snapshotEnvBindings.Items {
+		seb := snapshotEnvBindings.Items[idx]
 		if seb.Spec.Environment == envObj.Name {
 			res = append(res, reconcile.Request{
 				NamespacedName: client.ObjectKeyFromObject(&seb),

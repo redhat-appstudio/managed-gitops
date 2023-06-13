@@ -388,7 +388,7 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 		}
 
 		// If the DeploymentTargetClaim is bounded, find the corresponding DeploymentTarget.
-		dt, err := getDTBoundByDTC(ctx, k8sClient, dtc)
+		dt, err := getDTBoundByDTC(ctx, k8sClient, *dtc)
 		if err != nil {
 			if apierr.IsNotFound(err) {
 				log.Error(err, "DeploymentTargetClaim references a DeploymentTarget that does not exist", "DeploymentTargetClaim", dtc.Name)
@@ -601,7 +601,7 @@ func (r *EnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(
 			&source.Kind{Type: &corev1.Secret{}},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSecret),
-			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}), // secret doesn't have a generation, so we use RV
 		).
 		Watches(
 			&source.Kind{Type: &appstudioshared.DeploymentTargetClaim{}},

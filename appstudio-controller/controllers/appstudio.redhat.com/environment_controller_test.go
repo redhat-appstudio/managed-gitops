@@ -340,7 +340,7 @@ var _ = Describe("Environment controller tests", func() {
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
 			Expect(err).To(BeNil())
-			ExpectEnvironmentConditionErrorOccured("the secret secret-that-doesnt-exist referenced by the Environment resource was not found", env)
+			expectEnvironmentConditionErrorOccured("the secret secret-that-doesnt-exist referenced by the Environment resource was not found", env)
 
 		})
 
@@ -411,7 +411,7 @@ var _ = Describe("Environment controller tests", func() {
 			env = appstudioshared.Environment{}
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
 			Expect(err).To(BeNil())
-			ExpectEnvironmentConditionErrorOccured("Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set", env)
+			expectEnvironmentConditionErrorOccured("Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set", env)
 
 		})
 
@@ -552,7 +552,7 @@ var _ = Describe("Environment controller tests", func() {
 			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env); err != nil {
 				Expect(err).To(BeNil())
 			}
-			ExpectEnvironmentConditionErrorOccured("the secret test-secret referenced by the Environment resource was not found", env)
+			expectEnvironmentConditionErrorOccured("the secret test-secret referenced by the Environment resource was not found", env)
 			Expect(res).To(Equal(reconcile.Result{}))
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret)
 			Expect(err).ToNot(BeNil())
@@ -698,7 +698,7 @@ var _ = Describe("Environment controller tests", func() {
 			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env); err != nil {
 				Expect(err).To(BeNil())
 			}
-			ExpectEnvironmentConditionErrorOccured("the secret test-secret referenced by the Environment resource was not found", env)
+			expectEnvironmentConditionErrorOccured("the secret test-secret referenced by the Environment resource was not found", env)
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret)
@@ -793,7 +793,7 @@ var _ = Describe("Environment controller tests", func() {
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
 			Expect(err).To(BeNil())
 
-			ExpectEnvironmentConditionErrorOccured("DeploymentTargetClaim not found while generating the desired Environment resource", env)
+			expectEnvironmentConditionErrorOccured("DeploymentTargetClaim not found while generating the desired Environment resource", env)
 
 		})
 
@@ -853,7 +853,7 @@ var _ = Describe("Environment controller tests", func() {
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
 			Expect(err).To(BeNil())
 
-			ExpectEnvironmentConditionErrorOccured("DeploymentTarget not found for DeploymentTargetClaim", env)
+			expectEnvironmentConditionErrorOccured("DeploymentTarget not found for DeploymentTargetClaim", env)
 		})
 
 		It("should set an error condition, but not return a Reconcile error, if Environment's DTC references a DeploymentTarget that doesn't exist", func() {
@@ -903,7 +903,7 @@ var _ = Describe("Environment controller tests", func() {
 			env = appstudioshared.Environment{}
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
 			Expect(err).To(BeNil())
-			ExpectEnvironmentConditionErrorOccured("DeploymentTargetClaim references a DeploymentTarget that does not exist", env)
+			expectEnvironmentConditionErrorOccured("DeploymentTargetClaim references a DeploymentTarget that does not exist", env)
 		})
 
 		It("shouldn't process the Environment if neither credentials nor DTC is provided", func() {
@@ -1624,7 +1624,8 @@ var _ = Describe("Environment controller tests", func() {
 	})
 })
 
-func ExpectEnvironmentConditionErrorOccured(envMessage string, env appstudioshared.Environment) {
+// expectEnvironmentConditionErrorOccured verifies that an EnvironmentConditionErrorOccurred is set, with the appropriate message
+func expectEnvironmentConditionErrorOccured(envMessage string, env appstudioshared.Environment) {
 
 	// WithOffset tells Gingko to ignore this function when reporting the failing line in the test
 

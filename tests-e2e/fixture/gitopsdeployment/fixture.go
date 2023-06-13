@@ -326,6 +326,7 @@ func HaveReconciledState(reconciledState managedgitopsv1alpha1.ReconciledState) 
 func HaveTargetNamespace(targetNamespace string) matcher.GomegaMatcher {
 
 	return expectedCondition(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
+		fmt.Println("Waiting for gitopsDepl.Spec.Destination.Namespace. expected:", targetNamespace, ", actual:", gitopsDepl.Spec.Destination.Namespace)
 		return gitopsDepl.Spec.Destination.Namespace == targetNamespace
 	})
 

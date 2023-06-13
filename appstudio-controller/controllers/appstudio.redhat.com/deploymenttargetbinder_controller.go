@@ -89,7 +89,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 		log.Info("Handling a deleted DeploymentTargetClaim")
 		// If the DTC is bound set, handle the corresponding DT
 		if isDTCBound(dtc) {
-			dt, err := getDTBoundByDTC(ctx, r.Client, &dtc)
+			dt, err := getDTBoundByDTC(ctx, r.Client, dtc)
 			if err != nil && !apierr.IsNotFound(err) {
 				return ctrl.Result{}, err
 			}
@@ -346,7 +346,7 @@ func handleBoundedDeploymentTargetClaim(ctx context.Context, k8sClient client.Cl
 		}
 	}
 
-	dt, err := getDTBoundByDTC(ctx, k8sClient, &dtc)
+	dt, err := getDTBoundByDTC(ctx, k8sClient, dtc)
 	if err != nil && !apierr.IsNotFound(err) {
 		return fmt.Errorf("failed to get a DeploymentTarget for the given DeploymentTargetClaim %s", dtc.Name)
 	}
@@ -402,7 +402,9 @@ func handleDynamicDTCProvisioning(ctx context.Context, k8sClient client.Client, 
 }
 
 // findMatchingDTForDTC tries to find a DT that matches the given DTC in a namespace.
-// NOTE: this function returns nil if no matching DT was found.
+// NOTE:
+// - this function will only return DT that are 'Available' in .status.phase
+// - this function returns nil if no matching DT was found.
 func findMatchingDTForDTC(ctx context.Context, k8sClient client.Client, dtc applicationv1alpha1.DeploymentTargetClaim) (*applicationv1alpha1.DeploymentTarget, error) {
 	dtList := applicationv1alpha1.DeploymentTargetList{}
 	if err := k8sClient.List(ctx, &dtList, &client.ListOptions{Namespace: dtc.Namespace}); err != nil {
@@ -544,7 +546,7 @@ func removeFinalizer(obj client.Object, finalizer string) bool {
 // getDTBoundByDTC will get the DT that is bound to a given DTC.
 // It returns the DT targeted by DTC if DTC.Spec.TargetName is set.
 // Else it will fetch the DT that is claiming the current DTC.
-func getDTBoundByDTC(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim) (*applicationv1alpha1.DeploymentTarget, error) {
+func getDTBoundByDTC(ctx context.Context, k8sClient client.Client, dtc applicationv1alpha1.DeploymentTargetClaim) (*applicationv1alpha1.DeploymentTarget, error) {
 	if dtc.Spec.TargetName != "" {
 		dt := &applicationv1alpha1.DeploymentTarget{
 			ObjectMeta: metav1.ObjectMeta{
@@ -556,7 +558,7 @@ func getDTBoundByDTC(ctx context.Context, k8sClient client.Client, dtc *applicat
 			return nil, err
 		}
 
-		if err := checkForBindingConflict(*dtc, *dt); err != nil {
+		if err := checkForBindingConflict(dtc, *dt); err != nil {
 			return nil, err
 		}
 

@@ -627,6 +627,29 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			Eventually(gitopsDepl, "60s", "1s").Should(gitopsDeplFixture.HaveTargetNamespace("another-namespace"), "should match the updated value")
 
+			var clusterSecret corev1.Secret
+			By("create a secret of type Opaque, based on a managed environment type Secret")
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-managed-env-secret",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Type:       sharedutil.ManagedEnvironmentSecretType,
+				StringData: map[string]string{"kubeconfig": k8s.GenerateFakeKubeConfig()},
+			}
+
+			clusterSecret = corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-opaque-secret",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Type: corev1.SecretTypeOpaque,
+			}
+			clusterSecret.Data = secret.Data
+
+			err = k8s.Create(&clusterSecret, k8sClient)
+			Expect(err).To(BeNil())
+
 			By("create a new DeploymentTarget pointing to fake secret credentials")
 			dt := appstudiosharedv1.DeploymentTarget{
 				ObjectMeta: metav1.ObjectMeta{
@@ -638,7 +661,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 					// Likewise, for this test we don't need real values
 					KubernetesClusterCredentials: appstudiosharedv1.DeploymentTargetKubernetesClusterCredentials{
 						APIURL:                     "https://fake-url.redhat.com",
-						ClusterCredentialsSecret:   "fake-secret",
+						ClusterCredentialsSecret:   clusterSecret.Name,
 						DefaultNamespace:           "some-other-dtc-namespace",
 						AllowInsecureSkipTLSVerify: true,
 					},

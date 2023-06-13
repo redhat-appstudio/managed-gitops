@@ -1243,6 +1243,7 @@ var _ = Describe("Environment E2E tests", func() {
 			expectedEnvSpec := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
 				APIURL:                   dt.Spec.KubernetesClusterCredentials.APIURL,
 				ClusterCredentialsSecret: dt.Spec.KubernetesClusterCredentials.ClusterCredentialsSecret,
+				Namespaces:               []string{dt.Spec.KubernetesClusterCredentials.DefaultNamespace},
 			}
 			Eventually(*managedEnvCR, "2m", "1s").Should(managedenvironment.HaveCredentials(expectedEnvSpec))
 		})

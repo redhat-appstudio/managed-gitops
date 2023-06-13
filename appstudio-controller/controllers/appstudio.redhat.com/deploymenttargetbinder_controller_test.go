@@ -788,7 +788,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				err = k8sClient.Create(ctx, &dtc)
 				Expect(err).To(BeNil())
 
-				boundedDT, err := getDTBoundByDTC(ctx, k8sClient, &dtc)
+				boundedDT, err := getDTBoundByDTC(ctx, k8sClient, dtc)
 				Expect(err).To(BeNil())
 				Expect(boundedDT).ToNot(BeNil())
 				Expect(client.ObjectKeyFromObject(boundedDT)).To(Equal(client.ObjectKeyFromObject(&dt)))
@@ -801,7 +801,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				err := k8sClient.Create(ctx, &dtc)
 				Expect(err).To(BeNil())
 
-				boundedDT, err := getDTBoundByDTC(ctx, k8sClient, &dtc)
+				boundedDT, err := getDTBoundByDTC(ctx, k8sClient, dtc)
 				Expect(apierr.IsNotFound(err)).To(BeTrue())
 				Expect(boundedDT).To(BeNil())
 			})
@@ -824,7 +824,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				err = k8sClient.Create(ctx, &fakedt)
 				Expect(err).To(BeNil())
 
-				boundedDT, err := getDTBoundByDTC(ctx, k8sClient, &dtc)
+				boundedDT, err := getDTBoundByDTC(ctx, k8sClient, dtc)
 				Expect(err).To(BeNil())
 				Expect(boundedDT).ToNot(BeNil())
 				Expect(client.ObjectKeyFromObject(boundedDT)).To(Equal(client.ObjectKeyFromObject(&dt)))
@@ -851,7 +851,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				Expect(err).To(BeNil())
 
 				By("check if an error is a second DT is detected and an error is returned")
-				dt, err := getDTBoundByDTC(ctx, k8sClient, &dtc)
+				dt, err := getDTBoundByDTC(ctx, k8sClient, dtc)
 				Expect(dt).To(BeNil())
 				Expect(err).ToNot(BeNil())
 				expectedErr := fmt.Errorf("multiple DeploymentTargets found for a bounded DeploymentTargetClaim %s", dtc.Name)

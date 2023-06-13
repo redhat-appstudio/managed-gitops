@@ -962,6 +962,329 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 	})
 
+	Context("Test SnapshotEnvironmentBinding's findObjectsForDeploymentTarget function", func() {
+
+		var apiNamespace *corev1.Namespace
+		var k8sClient client.WithWatch
+		var bindingReconciler SnapshotEnvironmentBindingReconciler
+		ctx := context.Background()
+
+		BeforeEach(func() {
+			scheme,
+				argocdNamespace,
+				kubesystemNamespace,
+				testApiNamespace,
+				err := tests.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			apiNamespace = testApiNamespace
+
+			// Create fake client
+			k8sClient = fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(testApiNamespace, argocdNamespace, kubesystemNamespace).
+				Build()
+
+			bindingReconciler = SnapshotEnvironmentBindingReconciler{
+				Client: k8sClient,
+				Scheme: scheme,
+			}
+
+			err = appstudiosharedv1.AddToScheme(scheme)
+			Expect(err).To(BeNil())
+
+		})
+
+		When("the function is passed an object that is not DeploymentTarget", func() {
+
+			It("should return an empty set", func() {
+				seb := appstudiosharedv1.SnapshotEnvironmentBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "my-seb",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
+						Application: "my-app",
+						Environment: "some-other-env",
+						Snapshot:    "my-snapshot",
+						Components:  []appstudiosharedv1.BindingComponent{},
+					},
+				}
+
+				Expect(bindingReconciler.findObjectsForDeploymentTarget(&seb)).To(BeEmpty())
+			})
+
+		})
+
+		When("the function is passed a valid chain of DT to DTC to Environment to SEB", func() {
+
+			It("should succesfully return the namespaced name of the SEB ", func() {
+
+				By("create a new DeploymentTarget")
+				dt := appstudiosharedv1.DeploymentTarget{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-dt",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudiosharedv1.DeploymentTargetSpec{
+						DeploymentTargetClassName: "test-class",
+						// Likewise, for this test we don't need real values
+						KubernetesClusterCredentials: appstudiosharedv1.DeploymentTargetKubernetesClusterCredentials{
+							APIURL:                     "https://fake-url.redhat.com",
+							ClusterCredentialsSecret:   "not-a-real-secret",
+							DefaultNamespace:           "some-other-dtc-namespace",
+							AllowInsecureSkipTLSVerify: true,
+						},
+					},
+				}
+				err := k8sClient.Create(ctx, &dt)
+				Expect(err).To(BeNil())
+
+				By("create a DeploymentTargetClaim that can bind to the above DeploymentTarget")
+				dtc := appstudiosharedv1.DeploymentTargetClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-dtc",
+						Namespace: dt.Namespace,
+					},
+					Spec: appstudiosharedv1.DeploymentTargetClaimSpec{
+						TargetName:                dt.Name,
+						DeploymentTargetClassName: dt.Spec.DeploymentTargetClassName,
+					},
+				}
+				err = k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				By("creating a new Environment that references the DeploymentTarget")
+				env := appstudiosharedv1.Environment{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Environment",
+						APIVersion: appstudiosharedv1.GroupVersion.Identifier(),
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "my-env",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudiosharedv1.EnvironmentSpec{
+						DisplayName: "my-env",
+						Configuration: appstudiosharedv1.EnvironmentConfiguration{
+							Target: appstudiosharedv1.EnvironmentTarget{
+								DeploymentTargetClaim: appstudiosharedv1.DeploymentTargetClaimConfig{
+									ClaimName: dtc.Name,
+								},
+							},
+						},
+					},
+				}
+				err = k8sClient.Create(ctx, &env)
+				Expect(err).To(BeNil())
+
+				seb := appstudiosharedv1.SnapshotEnvironmentBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "my-seb",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
+						Application: "my-app",
+						Environment: env.Name,
+						Snapshot:    "my-snapshot",
+						Components:  []appstudiosharedv1.BindingComponent{},
+					},
+				}
+				err = k8sClient.Create(ctx, &seb)
+				Expect(err).To(BeNil())
+
+				Expect(bindingReconciler.findObjectsForDeploymentTarget(&dt)).To(ConsistOf([]reconcile.Request{
+					{NamespacedName: client.ObjectKeyFromObject(&seb)},
+				}))
+
+			})
+		})
+	})
+
+	Context("Test SnapshotEnvironmentBinding's findObjectsForDeploymentTargetClaim function", func() {
+
+		var apiNamespace *corev1.Namespace
+		var k8sClient client.WithWatch
+		var bindingReconciler SnapshotEnvironmentBindingReconciler
+		ctx := context.Background()
+
+		BeforeEach(func() {
+			scheme,
+				argocdNamespace,
+				kubesystemNamespace,
+				testApiNamespace,
+				err := tests.GenericTestSetup()
+			Expect(err).To(BeNil())
+
+			apiNamespace = testApiNamespace
+
+			// Create fake client
+			k8sClient = fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(testApiNamespace, argocdNamespace, kubesystemNamespace).
+				Build()
+
+			bindingReconciler = SnapshotEnvironmentBindingReconciler{
+				Client: k8sClient,
+				Scheme: scheme,
+			}
+
+			err = appstudiosharedv1.AddToScheme(scheme)
+			Expect(err).To(BeNil())
+
+		})
+
+		When("the function is passed an object that is not DeploymentTargetClaim", func() {
+
+			It("should return an empty set", func() {
+				seb := appstudiosharedv1.SnapshotEnvironmentBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "my-seb",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
+						Application: "my-app",
+						Environment: "some-other-env",
+						Snapshot:    "my-snapshot",
+						Components:  []appstudiosharedv1.BindingComponent{},
+					},
+				}
+
+				Expect(bindingReconciler.findObjectsForDeploymentTargetClaim(&seb)).To(BeEmpty())
+			})
+
+		})
+
+		When("the function is passed a valid chain of DTC to Environment to SEB", func() {
+
+			It("should succesfully return the namespaced name of the SEB ", func() {
+
+				By("create a DeploymentTargetClaim that can bind to the above DeploymentTarget")
+				dtc := appstudiosharedv1.DeploymentTargetClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-dtc",
+						Namespace: apiNamespace.Namespace,
+					},
+					Spec: appstudiosharedv1.DeploymentTargetClaimSpec{
+						TargetName:                "some-dt",
+						DeploymentTargetClassName: "some-test-class",
+					},
+				}
+				err := k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				By("creating a new Environment that references the DeploymentTarget")
+				env := appstudiosharedv1.Environment{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Environment",
+						APIVersion: appstudiosharedv1.GroupVersion.Identifier(),
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "my-env",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudiosharedv1.EnvironmentSpec{
+						DisplayName: "my-env",
+						Configuration: appstudiosharedv1.EnvironmentConfiguration{
+							Target: appstudiosharedv1.EnvironmentTarget{
+								DeploymentTargetClaim: appstudiosharedv1.DeploymentTargetClaimConfig{
+									ClaimName: dtc.Name,
+								},
+							},
+						},
+					},
+				}
+				err = k8sClient.Create(ctx, &env)
+				Expect(err).To(BeNil())
+
+				By("creating a SnapshotEnvironmentBinding that references the Environment")
+				seb := appstudiosharedv1.SnapshotEnvironmentBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "my-seb",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
+						Application: "my-app",
+						Environment: env.Name,
+						Snapshot:    "my-snapshot",
+						Components:  []appstudiosharedv1.BindingComponent{},
+					},
+				}
+				err = k8sClient.Create(ctx, &seb)
+				Expect(err).To(BeNil())
+
+				Expect(bindingReconciler.findObjectsForDeploymentTargetClaim(&dtc)).To(ConsistOf([]reconcile.Request{
+					{NamespacedName: client.ObjectKeyFromObject(&seb)},
+				}))
+
+			})
+		})
+
+		When("the function is passed a DTC that points to Environment, but the Environment does not link to the SEB", func() {
+
+			It("should succesfully return empty set", func() {
+
+				By("create a DeploymentTargetClaim that can bind to the above DeploymentTarget")
+				dtc := appstudiosharedv1.DeploymentTargetClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-dtc",
+						Namespace: apiNamespace.Namespace,
+					},
+					Spec: appstudiosharedv1.DeploymentTargetClaimSpec{
+						TargetName:                "some-dt",
+						DeploymentTargetClassName: "some-test-class",
+					},
+				}
+				err := k8sClient.Create(ctx, &dtc)
+				Expect(err).To(BeNil())
+
+				By("creating a new Environment that references the DeploymentTarget")
+				env := appstudiosharedv1.Environment{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Environment",
+						APIVersion: appstudiosharedv1.GroupVersion.Identifier(),
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "my-env",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudiosharedv1.EnvironmentSpec{
+						DisplayName: "my-env",
+						Configuration: appstudiosharedv1.EnvironmentConfiguration{
+							Target: appstudiosharedv1.EnvironmentTarget{
+								DeploymentTargetClaim: appstudiosharedv1.DeploymentTargetClaimConfig{
+									ClaimName: dtc.Name,
+								},
+							},
+						},
+					},
+				}
+				err = k8sClient.Create(ctx, &env)
+				Expect(err).To(BeNil())
+
+				By("creating a SnapshotEnvironmentBinding that DOESN'T reference the Environment")
+				seb := appstudiosharedv1.SnapshotEnvironmentBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "my-seb",
+						Namespace: apiNamespace.Name,
+					},
+					Spec: appstudiosharedv1.SnapshotEnvironmentBindingSpec{
+						Application: "my-app",
+						Environment: "some-other-environment",
+						Snapshot:    "my-snapshot",
+						Components:  []appstudiosharedv1.BindingComponent{},
+					},
+				}
+				err = k8sClient.Create(ctx, &seb)
+				Expect(err).To(BeNil())
+
+				Expect(bindingReconciler.findObjectsForDeploymentTargetClaim(&dtc)).To(BeEmpty())
+
+			})
+		})
+
+	})
+
 	Context("Test SnapshotEnvironmentBinding's findObjectsForEnvironment function", func() {
 		ctx := context.Background()
 		var apiNamespace *corev1.Namespace

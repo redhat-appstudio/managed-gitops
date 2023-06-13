@@ -291,6 +291,44 @@ func CreateOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k
 	return nil
 }
 
+// Generate generic fake kube config
+func GenerateFakeKubeConfig() string {
+	// This config has been sanitized of any real credentials.
+	return `
+apiVersion: v1
+kind: Config
+clusters:
+  - cluster:
+      insecure-skip-tls-verify: true
+      server: https://api.fake-e2e-test-data.origin-ci-int-gce.dev.rhcloud.com:6443
+    name: api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+  - cluster:
+      insecure-skip-tls-verify: true
+      server: https://api2.fake-e2e-test-data.origin-ci-int-gce.dev.rhcloud.com:6443
+    name: api2-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+contexts:
+  - context:
+      cluster: api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+      namespace: jgw
+      user: kube:admin/api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+    name: default/api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin
+  - context:
+      cluster: api2-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+      namespace: jgw
+      user: kube:admin/api2-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+    name: default/api2-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin
+current-context: default/api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin
+preferences: {}
+users:
+  - name: kube:admin/api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+    user:
+      token: sha256~ABCdEF1gHiJKlMnoP-Q19qrTuv1_W9X2YZABCDefGH4
+  - name: kube:admin/api2-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+    user:
+      token: sha256~abcDef1gHIjkLmNOp-q19QRtUV1_w9x2yzabcdEFgh4
+`
+}
+
 func GenerateKubeConfig(serverURL string, currentNamespace string, token string) string {
 
 	return `

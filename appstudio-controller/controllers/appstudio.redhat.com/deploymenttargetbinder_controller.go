@@ -402,6 +402,7 @@ func handleDynamicDTCProvisioning(ctx context.Context, k8sClient client.Client, 
 }
 
 // findMatchingDTForDTC tries to find a DT that matches the given DTC in a namespace.
+// NOTE: this function returns nil if no matching DT was found.
 func findMatchingDTForDTC(ctx context.Context, k8sClient client.Client, dtc applicationv1alpha1.DeploymentTargetClaim) (*applicationv1alpha1.DeploymentTarget, error) {
 	dtList := applicationv1alpha1.DeploymentTargetList{}
 	if err := k8sClient.List(ctx, &dtList, &client.ListOptions{Namespace: dtc.Namespace}); err != nil {

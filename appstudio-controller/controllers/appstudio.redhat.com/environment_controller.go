@@ -72,6 +72,7 @@ const (
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
 func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+
 	log := log.FromContext(ctx).
 		WithName(logutil.LogLogger_managed_gitops).
 		WithValues("request", req)
@@ -139,41 +140,82 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	}
 
+	// Reconcile the Environment into a ManagedEnvironment, based on Environment CR contents
+	// - 'res' and 'err' work as normal for a Reconcile function
+	// - 'statusUpdated' is true if an error occurred during reconciliation, which caused the .status.Conditions[EnvironmentConditionErrorOccurred] field to be set. It is false otherwise.
+	res, err, statusUpdated := reconcileEnvironment(ctx, *environment, rClient, log)
+
+	// This allows us to tell the difference between two different cases:
+	// - User input error: API consumer specified an invalid value to our API, such as a missing Secret. We should not reconcile in this case.
+	// - Generic error: Any other generic error where it is not related to user input. We SHOULD re-reconcile in these cases.
+	// This allows us to avoid constantly reconciling on known user input errors.
+
+	if err == nil && !statusUpdated {
+		// If no error occurred, and the .status.Conditions[EnvironmentConditionErrorOccurred] was not set, then reset
+		// the condition as resolved.
+
+		// Re-retrieve the Environment contents
+		if err := rClient.Get(ctx, client.ObjectKeyFromObject(environment), environment); err != nil {
+
+			if apierr.IsNotFound(err) {
+				log.Info("Environment resource no longer exists")
+				// A) The Environment resource could not be found: the owner reference on the GitOpsDeploymentManagedEnvironment
+				// should ensure that it is cleaned up, so no more work is required.
+				return ctrl.Result{}, nil
+			}
+
+			return ctrl.Result{}, fmt.Errorf("unable to retrieve Environment: %v", err)
+		}
+
+		if err := updateConditionErrorAsResolved(ctx, rClient, "", environment, EnvironmentConditionErrorOccurred, metav1.ConditionFalse, EnvironmentReasonErrorOccurred, log); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	return res, err
+}
+
+// reconcileEnvironment reconciles the Environment into a ManagedEnvironment, based on Environment CR contents
+// - 'res' and 'err' work as normal for a Reconcile function
+// - 'statusUpdated' is true if an error occurred during reconciliation, which caused the .status.Conditions[EnvironmentConditionErrorOccurred] field to be set. It is false otherwise.
+func reconcileEnvironment(ctx context.Context, environment appstudioshared.Environment, rClient client.Client, log logr.Logger) (ctrl.Result, error, bool) {
+
+	// Utility constants: true if .status.Conditions[EnvironmentConditionErrorOccurred] was set, false otherwise.
+	const (
+		errorConditionSet_true  = true
+		errorConditionSet_false = false
+	)
+
 	if environment.GetDeploymentTargetClaimName() != "" && environment.Spec.UnstableConfigurationFields != nil {
 		log.Error(nil, "Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set")
 
 		// Update Status.Conditions field of Environment.
 		if err := updateStatusConditionOfEnvironment(ctx, rClient,
-			"Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set", environment,
+			"Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set", &environment,
 			EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred, log); err != nil {
 
-			return ctrl.Result{}, fmt.Errorf("unable to update environment status condition. %v", err)
+			return ctrl.Result{}, fmt.Errorf("unable to update environment status condition. %v", err), errorConditionSet_false
 
 		}
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, nil, errorConditionSet_true
 	}
 
 	// generateDesiredResource will return two types of error:
-	// - semanticErrOccurred_dontContinue = true - a error in user input; this does not require re-reconcilition
-	// - err != nil - any other error which does require reconciliation
-	desiredManagedEnv, semanticErrOccurred_dontContinue, err := generateDesiredResource(ctx, *environment, rClient, log)
+	// - err != nil: a serious error that should be re-reconciled
+	// - err == nil && semanticErrOccurred_dontContinue = true - a error in user input; this does not require re-reconciliation, so we can just exit without requeing
+	desiredManagedEnv, semanticErrOccurred_dontContinue, err := generateDesiredResource(ctx, environment, rClient, log)
 
-	// A serious error occurred
+	// A serious error occurred, then reconcile
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("unable to generate expected GitOpsDeploymentManagedEnvironment resource: %v", err)
+		return ctrl.Result{}, fmt.Errorf("unable to generate expected GitOpsDeploymentManagedEnvironment resource: %v", err), errorConditionSet_true
 
 	} else if semanticErrOccurred_dontContinue {
-		// If an error occurred, but reconciling will not fix it, then we should not re-reconcile: we just exit without continuing
-		return ctrl.Result{}, nil
+		// If a user error occurred, but reconciling will not fix it, then we should not re-reconcile: we just exit without continuing
+		return ctrl.Result{}, nil, errorConditionSet_true
 	}
 
 	if desiredManagedEnv == nil {
-		// Update Status.Conditions field of Environment as false if error is resolved
-		if err := updateConditionErrorAsResolved(ctx, rClient, "", environment, EnvironmentConditionErrorOccurred, metav1.ConditionFalse, EnvironmentReasonErrorOccurred, log); err != nil {
-			return ctrl.Result{}, fmt.Errorf("unable to 'updateConditionErrorAsResolved': %v", err)
-		}
-
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, nil, errorConditionSet_false
 	}
 
 	currentManagedEnv := generateEmptyManagedEnvironment(environment.Name, environment.Namespace)
@@ -184,30 +226,25 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 			log.Info("Creating GitOpsDeploymentManagedEnvironment", "managedEnv", desiredManagedEnv.Name)
 			if err := rClient.Create(ctx, desiredManagedEnv); err != nil {
-				return ctrl.Result{}, fmt.Errorf("unable to create new GitOpsDeploymentManagedEnvironment: %v", err)
+				return ctrl.Result{}, fmt.Errorf("unable to create new GitOpsDeploymentManagedEnvironment: %v", err), errorConditionSet_false
 			}
 			logutil.LogAPIResourceChangeEvent(desiredManagedEnv.Namespace, desiredManagedEnv.Name, desiredManagedEnv, logutil.ResourceCreated, log)
 
 			// Success: the resource has been created.
-			return ctrl.Result{}, nil
+			return ctrl.Result{}, nil, errorConditionSet_false
 
 		} else {
 			// For any other error, return it
 			return ctrl.Result{}, fmt.Errorf("unable to retrieve existing GitOpsDeploymentManagedEnvironment '%s': %v",
-				currentManagedEnv.Name, err)
+				currentManagedEnv.Name, err), errorConditionSet_false
 		}
-	}
-
-	// Update Status.Conditions field of Environment as false if error is resolved
-	if err := updateConditionErrorAsResolved(ctx, rClient, "", environment, EnvironmentConditionErrorOccurred, metav1.ConditionFalse, EnvironmentReasonErrorOccurred, log); err != nil {
-		return ctrl.Result{}, err
 	}
 
 	// C) The GitOpsDeploymentManagedEnvironment already exists, so compare it with the desired state, and update it if different.
 	if reflect.DeepEqual(currentManagedEnv.Spec, desiredManagedEnv.Spec) {
 
 		// If the spec field is the same, no more work is needed.
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, nil, errorConditionSet_false
 	}
 
 	log.Info("Updating GitOpsDeploymentManagedEnvironment as a change was detected", "managedEnv", desiredManagedEnv.Name)
@@ -217,11 +254,11 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	if err := rClient.Update(ctx, &currentManagedEnv); err != nil {
 		return ctrl.Result{},
-			fmt.Errorf("unable to update existing GitOpsDeploymentManagedEnvironment '%s': %v", currentManagedEnv.Name, err)
+			fmt.Errorf("unable to update existing GitOpsDeploymentManagedEnvironment '%s': %v", currentManagedEnv.Name, err), errorConditionSet_false
 	}
 	logutil.LogAPIResourceChangeEvent(currentManagedEnv.Namespace, currentManagedEnv.Name, currentManagedEnv, logutil.ResourceModified, log)
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{}, nil, errorConditionSet_false
 }
 
 const (
@@ -298,7 +335,13 @@ func findCondition(conditions []metav1.Condition, conditionType string) (metav1.
 // - err != nil - any other error which does require reconciliation
 func generateDesiredResource(ctx context.Context, env appstudioshared.Environment, k8sClient client.Client, log logr.Logger) (*managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, bool, error) {
 
-	var manageEnvDetails managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec
+	// Utility constants: return true if .status.conditions[EnvironmentConditionErrorOccurred] was set, false otherwise.
+	const (
+		errorConditionSet_true  = true
+		errorConditionSet_false = false
+	)
+
+	var managedEnvDetails managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec
 	// If the Environment has a reference to the DeploymentTargetClaim, use the credential secret
 	// from the bounded DeploymentTarget.
 	claimName := env.GetDeploymentTargetClaimName()
@@ -320,10 +363,10 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 					"DeploymentTargetClaim not found while generating the desired Environment resource", &env,
 					EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred, log); err != nil {
 
-					return nil, true, fmt.Errorf("unable to update environment status condition. %v", err)
+					return nil, errorConditionSet_false, fmt.Errorf("unable to update environment status condition. %v", err)
 				}
 
-				return nil, true, nil
+				return nil, errorConditionSet_true, nil
 			}
 
 			// Update Status.Conditions field of Environment.
@@ -331,39 +374,34 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 				"Unable to find DeploymentTarget for DeploymentTargetClaim", &env,
 				EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred, log); err != nil {
 
-				return nil, true, fmt.Errorf("unable to update environment status condition. %v", err)
+				return nil, errorConditionSet_false, fmt.Errorf("unable to update environment status condition. %v", err)
 			}
 
-			return nil, true, err
-		}
-
-		// Update Status.Conditions field of Environment as false if error is resolved
-		if err := updateConditionErrorAsResolved(ctx, k8sClient, "", &env, EnvironmentConditionErrorOccurred, metav1.ConditionFalse, EnvironmentReasonErrorOccurred, log); err != nil {
-			return nil, true, err
+			return nil, errorConditionSet_true, err
 		}
 
 		// If the DeploymentTargetClaim is not in bounded phase, return and wait
 		// until it reaches bounded phase.
 		if dtc.Status.Phase != appstudioshared.DeploymentTargetClaimPhase_Bound {
 			log.Info("Waiting until the DeploymentTargetClaim associated with Environment reaches Bounded phase", "DeploymentTargetClaim", dtc.Name)
-			return nil, false, nil
+			return nil, errorConditionSet_false, nil
 		}
 
 		// If the DeploymentTargetClaim is bounded, find the corresponding DeploymentTarget.
 		dt, err := getDTBoundByDTC(ctx, k8sClient, dtc)
 		if err != nil {
 			if apierr.IsNotFound(err) {
-				log.Error(err, "DeploymentTarget not found for DeploymentTargetClaim", "DeploymentTargetClaim", dtc.Name)
+				log.Error(err, "DeploymentTargetClaim references a DeploymentTarget that does not exist", "DeploymentTargetClaim", dtc.Name)
 
 				// Update Status.Conditions field of Environment.
 				if err := updateStatusConditionOfEnvironment(ctx, k8sClient,
-					"DeploymentTarget not found for DeploymentTargetClaim", &env,
+					"DeploymentTargetClaim references a DeploymentTarget that does not exist", &env,
 					EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred, log); err != nil {
 
-					return nil, true, fmt.Errorf("unable to update environment status condition. %v", err)
+					return nil, errorConditionSet_false, fmt.Errorf("unable to update environment status condition. %v", err)
 				}
 
-				return nil, true, nil
+				return nil, errorConditionSet_true, nil
 			}
 
 			// Update Status.Conditions field of Environment.
@@ -371,10 +409,11 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 				"Unable to find the DeploymentTarget for DeploymentTargetClaim", &env,
 				EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred, log); err != nil {
 
-				return nil, true, fmt.Errorf("unable to update environment status condition. %v", err)
+				return nil, errorConditionSet_false, fmt.Errorf("unable to update environment status condition. %v", err)
 			}
 
-			return nil, true, err
+			// A generic error occurred
+			return nil, errorConditionSet_true, err
 		}
 
 		if dt == nil {
@@ -385,48 +424,52 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 				"DeploymentTarget not found for DeploymentTargetClaim", &env,
 				EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred, log); err != nil {
 
-				return nil, true, fmt.Errorf("unable to update environment status condition. %v", err)
+				return nil, errorConditionSet_false, fmt.Errorf("unable to update environment status condition. %v", err)
 			}
 
-			return nil, true, nil
+			return nil, errorConditionSet_true, nil
 		}
 
-		// Update Status.Conditions field of Environment as false if error is resolved
-		if err = updateConditionErrorAsResolved(ctx, k8sClient, "", &env, EnvironmentConditionErrorOccurred, metav1.ConditionFalse, EnvironmentReasonErrorOccurred, log); err != nil {
-			return nil, true, err
+		var namespacesField []string
+
+		if dt.Spec.KubernetesClusterCredentials.DefaultNamespace != "" {
+			namespacesField = append(namespacesField, dt.Spec.KubernetesClusterCredentials.DefaultNamespace)
 		}
+
 		log.Info("Using the cluster credentials from the DeploymentTarget", "DeploymentTarget", dt.Name)
-		manageEnvDetails = managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+		managedEnvDetails = managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
 			APIURL:                     dt.Spec.KubernetesClusterCredentials.APIURL,
 			ClusterCredentialsSecret:   dt.Spec.KubernetesClusterCredentials.ClusterCredentialsSecret,
 			AllowInsecureSkipTLSVerify: dt.Spec.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify,
+			Namespaces:                 namespacesField,
 		}
 
 	} else if env.Spec.UnstableConfigurationFields != nil {
 		log.Info("Using the cluster credentials specified in the Environment")
-		manageEnvDetails = managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+		managedEnvDetails = managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
 			APIURL:                     env.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.APIURL,
 			ClusterCredentialsSecret:   env.Spec.UnstableConfigurationFields.ClusterCredentialsSecret,
 			AllowInsecureSkipTLSVerify: env.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify,
 		}
 	} else {
-		// Don't process the Environment configuration fields if they are empty
+		// Don't process the Environment configuration fields if they are empty:
+		// - This is not an error, this just means the Environment is deploying to the same namespace that the Environment CR itself is defined in. In this case, we don't need a ManagedEnvironment, and thus our work is done.
 		log.Info("Environment neither has cluster credentials nor DeploymentTargetClaim configured")
-		return nil, false, nil
+		return nil, errorConditionSet_false, nil
 	}
 
 	if env.Spec.UnstableConfigurationFields != nil {
-		manageEnvDetails.ClusterResources = env.Spec.UnstableConfigurationFields.ClusterResources
+		managedEnvDetails.ClusterResources = env.Spec.UnstableConfigurationFields.ClusterResources
 
 		// Make a copy of the Environment's namespaces field
 		size := len(env.Spec.UnstableConfigurationFields.Namespaces)
-		manageEnvDetails.Namespaces = append(make([]string, 0, size), env.Spec.UnstableConfigurationFields.Namespaces...)
+		managedEnvDetails.Namespaces = append(make([]string, 0, size), env.Spec.UnstableConfigurationFields.Namespaces...)
 	}
 
 	// 1) Retrieve the secret that the Environment is pointing to
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      manageEnvDetails.ClusterCredentialsSecret,
+			Name:      managedEnvDetails.ClusterCredentialsSecret,
 			Namespace: env.Namespace,
 		},
 	}
@@ -455,24 +498,30 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(secret), secret); err != nil {
 		if apierr.IsNotFound(err) {
 
+			log.Info("the secret referenced by the Environment resource was not found:", "secretName", secret.Name)
+
 			// Update Status.Conditions field of Environment.
 			if err := updateStatusConditionOfEnvironment(ctx, k8sClient,
 				"the secret "+secret.Name+" referenced by the Environment resource was not found", &env,
 				EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred, log); err != nil {
 
-				return nil, true, fmt.Errorf("unable to update environment status condition. %v", err)
+				return nil, errorConditionSet_false, fmt.Errorf("unable to update environment status condition. %v", err)
 			}
 
 			// Delete the managed Environment secret if the orginal secret is not found.
 			if err := k8sClient.Delete(ctx, &managedEnvSecret); err != nil {
 				if !apierr.IsNotFound(err) {
-					return nil, true, fmt.Errorf("unable to delete the secret for managed Environment: %s", env.Name)
+					log.Error(err, "unexpected error occurred on deleting the managedenv secret")
+					return nil, errorConditionSet_false, fmt.Errorf("unable to delete the secret for managed Environment: %s", env.Name)
 				}
+
+				// The managed env secret also doesn't exist, so exit
+				return nil, errorConditionSet_true, nil
 			}
 
 			logutil.LogAPIResourceChangeEvent(managedEnvSecret.Namespace, managedEnvSecret.Name, managedEnvSecret, logutil.ResourceDeleted, log)
 
-			return nil, true, fmt.Errorf("the secret '%s' referenced by the Environment resource was not found: %v", secret.Name, err)
+			return nil, errorConditionSet_true, nil
 		}
 
 		// Update Status.Conditions field of Environment.
@@ -480,9 +529,10 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 			"Secret referenced by the Environment resource was not found", &env,
 			EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred, log); err != nil {
 
-			return nil, true, fmt.Errorf("unable to update environment status condition. %v", err)
+			return nil, errorConditionSet_false, fmt.Errorf("unable to update environment status condition. %v", err)
 		}
-		return nil, true, err
+
+		return nil, errorConditionSet_true, err
 	}
 
 	managedEnv := generateEmptyManagedEnvironment(env.Name, env.Namespace)
@@ -492,13 +542,13 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 	if claimName != "" && secret.Type != sharedutil.ManagedEnvironmentSecretType {
 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret); err != nil {
 			if !apierr.IsNotFound(err) {
-				return nil, false, fmt.Errorf("failed to fetch the secret %s for managed Environment %s: %v", managedEnvSecret.Name, managedEnv.Name, err)
+				return nil, errorConditionSet_false, fmt.Errorf("failed to fetch the secret %s for managed Environment %s: %v", managedEnvSecret.Name, managedEnv.Name, err)
 			}
 
 			// Create a new managed environment secret if it is not found
 			managedEnvSecret.Data = secret.Data
 			if err := k8sClient.Create(ctx, &managedEnvSecret); err != nil {
-				return nil, false, fmt.Errorf("failed to create a secret for managed Environment %s: %v", managedEnv.Name, err)
+				return nil, errorConditionSet_false, fmt.Errorf("failed to create a secret for managed Environment %s: %v", managedEnv.Name, err)
 			}
 
 			logutil.LogAPIResourceChangeEvent(managedEnvSecret.Namespace, managedEnvSecret.Name, managedEnvSecret, logutil.ResourceCreated, log)
@@ -507,18 +557,13 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 			if !reflect.DeepEqual(secret.Data, managedEnvSecret.Data) {
 				managedEnvSecret.Data = secret.Data
 				if err := k8sClient.Update(ctx, &managedEnvSecret); err != nil {
-					return nil, false, fmt.Errorf("failed to update the secret for managed Environment %s: %v", managedEnv.Name, err)
+					return nil, errorConditionSet_false, fmt.Errorf("failed to update the secret for managed Environment %s: %v", managedEnv.Name, err)
 				}
 
 				logutil.LogAPIResourceChangeEvent(managedEnvSecret.Namespace, managedEnvSecret.Name, managedEnvSecret, logutil.ResourceModified, log)
 			}
 		}
-		manageEnvDetails.ClusterCredentialsSecret = managedEnvSecret.Name
-	}
-
-	// Update Status.Conditions field of Environment as false if error is resolved
-	if err := updateConditionErrorAsResolved(ctx, k8sClient, "", &env, EnvironmentConditionErrorOccurred, metav1.ConditionFalse, EnvironmentReasonErrorOccurred, log); err != nil {
-		return nil, true, err
+		managedEnvDetails.ClusterCredentialsSecret = managedEnvSecret.Name
 	}
 
 	// 2) Generate (but don't apply) the corresponding GitOpsDeploymentManagedEnvironment resource
@@ -530,9 +575,9 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 			UID:        env.UID,
 		},
 	}
-	managedEnv.Spec = manageEnvDetails
+	managedEnv.Spec = managedEnvDetails
 
-	return &managedEnv, false, nil
+	return &managedEnv, errorConditionSet_false, nil
 }
 
 func generateManagedEnvSecretName(envName string) string {
@@ -556,7 +601,7 @@ func (r *EnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(
 			&source.Kind{Type: &corev1.Secret{}},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForSecret),
-			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
 		).
 		Watches(
 			&source.Kind{Type: &appstudioshared.DeploymentTargetClaim{}},
@@ -633,7 +678,6 @@ func (r *EnvironmentReconciler) findObjectsForDeploymentTargetClaim(dtc client.O
 			})
 		}
 	}
-
 	return envRequests
 }
 

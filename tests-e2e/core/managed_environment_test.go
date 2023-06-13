@@ -910,7 +910,7 @@ var _ = Describe("Environment E2E tests", func() {
 
 		})
 
-		It("create an Environment with DeploymentTargetClaim and verify if a valid ManagedEnvironment is created", func() {
+		DescribeTable("create an Environment with DeploymentTargetClaim and verify if a valid ManagedEnvironment is created", func(defaultNamespaceFieldVal string) {
 
 			By("create a new DeploymentTarget with the secret credentials")
 			dt := appstudioshared.DeploymentTarget{
@@ -923,7 +923,7 @@ var _ = Describe("Environment E2E tests", func() {
 					KubernetesClusterCredentials: appstudioshared.DeploymentTargetKubernetesClusterCredentials{
 						APIURL:                     apiServerURL,
 						ClusterCredentialsSecret:   secret.Name,
-						DefaultNamespace:           fixture.GitOpsServiceE2ENamespace,
+						DefaultNamespace:           defaultNamespaceFieldVal,
 						AllowInsecureSkipTLSVerify: true,
 					},
 				},
@@ -994,7 +994,17 @@ var _ = Describe("Environment E2E tests", func() {
 			Expect(managedEnvCR.Spec.APIURL).To(Equal(dt.Spec.KubernetesClusterCredentials.APIURL))
 			Expect(managedEnvCR.Spec.ClusterCredentialsSecret).To(Equal(dt.Spec.KubernetesClusterCredentials.ClusterCredentialsSecret))
 			Expect(managedEnvCR.Spec.AllowInsecureSkipTLSVerify).To(Equal(dt.Spec.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify))
-		})
+
+			// In both cases the ManagedEnv Namespaces value should match the value from DT
+			if dt.Spec.KubernetesClusterCredentials.DefaultNamespace != "" {
+				Expect(managedEnvCR.Spec.Namespaces).To(Equal([]string{dt.Spec.KubernetesClusterCredentials.DefaultNamespace}))
+			} else {
+				Expect(managedEnvCR.Spec.Namespaces).To(BeEmpty())
+			}
+
+		},
+			Entry("DT default namespace field is non-empty", fixture.GitOpsServiceE2ENamespace),
+			Entry("DT default namespace field is empty", ""))
 
 		It("create an Environment with secret from SpaceRequest controller and verify if a new ManagedEnvironment secret is created", func() {
 			By("create a secret of type Opaque")

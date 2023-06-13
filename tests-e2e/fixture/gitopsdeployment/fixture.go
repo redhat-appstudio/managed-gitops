@@ -20,6 +20,32 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 )
 
+// This is intentionally NOT exported, for now. Create another function in this file/package that calls this function, and export that.
+func expectedCondition(f func(_ managedgitopsv1alpha1.GitOpsDeployment) bool) matcher.GomegaMatcher {
+
+	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
+
+		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
+		Expect(err).To(BeNil())
+
+		k8sClient, err := fixture.GetKubeClient(config)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitopsDepl), &gitopsDepl)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		return f(gitopsDepl)
+
+	}, BeTrue())
+
+}
+
 // HaveLabel will succeed if the GitOpsDeployment contains the specified label, and fail otherwise.
 func HaveLabel(key, value string) matcher.GomegaMatcher {
 
@@ -295,6 +321,14 @@ func HaveReconciledState(reconciledState managedgitopsv1alpha1.ReconciledState) 
 
 		return res
 	}, BeTrue())
+}
+
+func HaveTargetNamespace(targetNamespace string) matcher.GomegaMatcher {
+
+	return expectedCondition(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
+		return gitopsDepl.Spec.Destination.Namespace == targetNamespace
+	})
+
 }
 
 // UpdateDeploymentWithFunction will update the GitOpsDeployment by:

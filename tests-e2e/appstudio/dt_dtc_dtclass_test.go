@@ -1,4 +1,4 @@
-package core
+package appstudio
 
 import (
 	"context"
@@ -61,7 +61,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 			err := k8s.Create(dtclass, k8sClient)
 			Expect(err).To(BeNil())
 
-			By("Step 1 - Create a DeploymentTargetClaim that references the class ")
+			By("Step 1 - Create a DeploymentTargetClaim that references the class")
 			dtc := appstudiosharedv1.DeploymentTargetClaim{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "staging-dtc",
@@ -147,7 +147,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 					Namespace: dtc.Namespace,
 				},
 				StringData: map[string]string{
-					"some-data": generateFakeKubeConfig(),
+					"some-data": k8s.GenerateFakeKubeConfig(),
 				},
 			}
 			err = k8s.Create(&secret, k8sClient)

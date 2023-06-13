@@ -248,7 +248,9 @@ func cleanUpOldHASApplicationAPIs(namespace string, k8sClient client.Client) err
 	for i := range applicationList.Items {
 		application := applicationList.Items[i]
 		if err := k8sClient.Delete(context.Background(), &application); err != nil {
-			return err
+			if !apierr.IsNotFound(err) {
+				return err
+			}
 		}
 	}
 
@@ -297,7 +299,9 @@ func cleanUpOldDeploymentTargetClaimAPIs(ns string, k8sClient client.Client) err
 		dtc := dtcList.Items[i]
 
 		if err := k8sClient.Delete(context.Background(), &dtc); err != nil {
-			return err
+			if !apierr.IsNotFound(err) { // ignore not found
+				return err
+			}
 		}
 
 		// Make sure that all finalizers are removed before deletion.
@@ -306,7 +310,9 @@ func cleanUpOldDeploymentTargetClaimAPIs(ns string, k8sClient client.Client) err
 		}
 
 		if err := k8sClient.Delete(context.Background(), &dtc); err != nil {
-			return err
+			if !apierr.IsNotFound(err) { // ignore not found
+				return err
+			}
 		}
 	}
 
@@ -323,7 +329,9 @@ func cleanUpOldDeploymentTargetAPIs(ns string, k8sClient client.Client) error {
 		dt := dtList.Items[i]
 
 		if err := k8sClient.Delete(context.Background(), &dt); err != nil {
-			return err
+			if !apierr.IsNotFound(err) { // ignore not found
+				return err
+			}
 		}
 
 		// Make sure that all finalizers are removed before deletion.
@@ -332,7 +340,9 @@ func cleanUpOldDeploymentTargetAPIs(ns string, k8sClient client.Client) error {
 		}
 
 		if err := k8sClient.Delete(context.Background(), &dt); err != nil {
-			return err
+			if !apierr.IsNotFound(err) { // ignore not found
+				return err
+			}
 		}
 	}
 
@@ -392,9 +402,14 @@ func cleanUpOldSpaceRequestAPIs(ns string, k8sClient client.Client) error {
 }
 
 func removeAllFinalizers(k8sClient client.Client, obj client.Object) error {
-	err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(obj), obj)
-	if err != nil {
-		return err
+
+	if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(obj), obj); err != nil {
+		if !apierr.IsNotFound(err) {
+			return err
+		} else {
+			// ignore not found
+			return nil
+		}
 	}
 
 	if len(obj.GetFinalizers()) == 0 {
@@ -403,8 +418,7 @@ func removeAllFinalizers(k8sClient client.Client, obj client.Object) error {
 
 	obj.SetFinalizers([]string{})
 
-	err = k8sClient.Update(context.Background(), obj)
-	if err != nil {
+	if err := k8sClient.Update(context.Background(), obj); err != nil {
 		return err
 	}
 

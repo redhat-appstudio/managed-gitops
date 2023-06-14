@@ -1,6 +1,21 @@
 ignore:
-- "**/*_test.go"
-- "vendor/.*"
+  - "**/*_test.go"
+  - "vendor/.*"
+  - "backend-shared/main.go" # placeholder: not executed
+  - "backend-shared/apis/managed-gitops/v1alpha1/zz_generated.deepcopy.go" # generated file, does not need to be included in the coverage
+
+  # mock file for testing: these are not included/executed as part of the product code.
+  - "backend/condition/mocks/conditions.go"
+  - "backend-shared/apis/managed-gitops/v1alpha1/mocks/cr-client.go"
+  - "backend-shared/apis/managed-gitops/v1alpha1/mocks/generate.go"
+  - "backend-shared/apis/managed-gitops/v1alpha1/mocks/status-writer.go"
+  - "backend-shared/apis/managed-gitops/v1alpha1/mocks/structs/builders.go"
+  - "backend-shared/apis/managed-gitops/v1alpha1/mocks/structs/gitopsdeployment.go"
+  - "cluster-agent/utils/mocks/ApplicationServiceClient.go"
+  - "cluster-agent/utils/mocks/SessionServiceClient.go"
+  - "cluster-agent/utils/mocks/SettingsServiceClient.go"
+  - "cluster-agent/utils/mocks/VersionServiceClient.go"
+
 
 github_checks:
   annotations: false

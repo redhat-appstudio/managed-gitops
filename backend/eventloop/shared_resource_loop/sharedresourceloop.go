@@ -530,7 +530,7 @@ func internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx context.Con
 	if err != nil {
 		if db.IsResultNotFoundError(err) {
 			isNewUser = true
-			clusterUser.Display_name = string(workspaceNamespace.Name)
+			clusterUser.Display_name = workspaceNamespace.Name
 			if err := dbq.CreateClusterUser(ctx, &clusterUser); err != nil {
 				l.Error(err, "Unable to create ClusterUser with User ID: "+clusterUser.Clusteruser_id, clusterUser.GetAsLogKeyValues()...)
 				return nil, false, err
@@ -541,7 +541,7 @@ func internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx context.Con
 			return nil, false, err
 		}
 	} else if clusterUser.Display_name == "" {
-		clusterUser.Display_name = string(workspaceNamespace.Name)
+		clusterUser.Display_name = workspaceNamespace.Name
 		if err := dbq.UpdateClusterUser(ctx, &clusterUser); err != nil {
 			l.Error(err, "Unable to update ClusterUser with User ID: "+clusterUser.Clusteruser_id, clusterUser.GetAsLogKeyValues()...)
 			return nil, false, err

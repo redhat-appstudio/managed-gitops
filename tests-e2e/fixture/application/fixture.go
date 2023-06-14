@@ -89,6 +89,17 @@ func DeleteArgoCDApplication(argocdAppName string, argoCDNamespace string) error
 	return nil
 }
 
+func HaveStatusConditionMessage(expectedMessage string) matcher.GomegaMatcher {
+	return expectedCondition(func(app appv1alpha1.Application) bool {
+		for i := range app.Status.Conditions {
+			if app.Status.Conditions[i].Message == expectedMessage {
+				return true
+			}
+		}
+		return false
+	})
+}
+
 func HasDestinationField(expectedDestination appv1alpha1.ApplicationDestination) matcher.GomegaMatcher {
 
 	return expectedCondition(func(app appv1alpha1.Application) bool {

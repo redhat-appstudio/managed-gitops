@@ -25,6 +25,7 @@ const (
 	ManagedEnvironmentClustercredentialsIDLength                            = 48
 	ClusterUserClusteruserIDLength                                          = 48
 	ClusterUserUserNameLength                                               = 256
+	ClusterUserDisplayNameLength                                            = 128
 	ClusterAccessClusteraccessUserIDLength                                  = 48
 	ClusterAccessClusteraccessManagedEnvironmentIDLength                    = 48
 	ClusterAccessClusteraccessGitopsEngineInstanceIDLength                  = 48
@@ -76,7 +77,6 @@ const (
 	RepositoryCredentialsRepoCredSshLength                                  = 1024
 	RepositoryCredentialsRepoCredSecretLength                               = 48
 	RepositoryCredentialsRepoCredEngineIDLength                             = 48
-	ClusterUserDisplayNameLength                                            = 128
 )
 
 // TruncateVarchar converts string to "str..." if chars is > maxLength
@@ -128,6 +128,7 @@ var DbFieldMap = map[string]int{
 	"ManagedEnvironmentClustercredentialsIDLength":                            ManagedEnvironmentClustercredentialsIDLength,
 	"ClusterUserClusteruserIDLength":                                          ClusterUserClusteruserIDLength,
 	"ClusterUserUserNameLength":                                               ClusterUserUserNameLength,
+	"ClusterUserDisplayNameLength":                                            ClusterUserDisplayNameLength,
 	"ClusterAccessClusteraccessUserIDLength":                                  ClusterAccessClusteraccessUserIDLength,
 	"ClusterAccessClusteraccessManagedEnvironmentIDLength":                    ClusterAccessClusteraccessManagedEnvironmentIDLength,
 	"ClusterAccessClusteraccessGitopsEngineInstanceIDLength":                  ClusterAccessClusteraccessGitopsEngineInstanceIDLength,
@@ -193,7 +194,6 @@ var DbFieldMap = map[string]int{
 	"RepositoryCredentialsRepoCredSshLength":                                  RepositoryCredentialsRepoCredSshLength,
 	"RepositoryCredentialsRepoCredSecretLength":                               RepositoryCredentialsRepoCredSecretLength,
 	"RepositoryCredentialsRepoCredEngineIDLength":                             RepositoryCredentialsRepoCredEngineIDLength,
-	"ClusterUserDisplayNameLength":                                            ClusterUserDisplayNameLength,
 }
 
 // Get value of constants based on constant variable name given as String.

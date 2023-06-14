@@ -30,6 +30,18 @@ var _ = Describe("ArgoCD AppProject E2E tests", func() {
 			secret     corev1.Secret
 		)
 
+		cleanup := func() {
+			// Ensure there's no lingering app project or secret
+			err := k8sClient.Delete(ctx, &appProject)
+			if err != nil {
+				Expect(errors.IsNotFound(err)).To(BeTrue())
+			}
+			err = k8sClient.Delete(ctx, &secret)
+			if err != nil {
+				Expect(errors.IsNotFound(err)).To(BeTrue())
+			}
+		}
+
 		BeforeEach(func() {
 			By("Delete old namespaces and kube-system resources")
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
@@ -92,14 +104,12 @@ var _ = Describe("ArgoCD AppProject E2E tests", func() {
 			}
 
 			// Ensure there's no lingering app project or secret
-			err = k8sClient.Delete(ctx, &appProject)
-			if err != nil {
-				Expect(errors.IsNotFound(err)).To(BeTrue())
-			}
-			err = k8sClient.Delete(ctx, &secret)
-			if err != nil {
-				Expect(errors.IsNotFound(err)).To(BeTrue())
-			}
+			cleanup()
+		})
+
+		AfterEach(func() {
+			// Ensure there's no lingering app project or secret
+			cleanup()
 		})
 
 		It("Should succeed if the app project and the application both use an https url", func() {

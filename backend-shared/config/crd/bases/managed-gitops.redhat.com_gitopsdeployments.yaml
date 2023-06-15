@@ -230,9 +230,17 @@ spec:
                 description: SyncStatus contains information about the currently observed
                   live and desired states of an application
                 properties:
+                  finished_at:
+                    description: Finished_At is the time at which the sync finished.
+                    format: date-time
+                    type: string
                   revision:
                     description: Revision contains information about the revision
                       the comparison has been performed to
+                    type: string
+                  started_at:
+                    description: Started_At is the time at which the sync started.
+                    format: date-time
                     type: string
                   status:
                     description: Status is the sync state of the comparison

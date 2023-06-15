@@ -136,6 +136,8 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			applicationState.Sync_Status = db.TruncateVarchar(string(app.Status.Sync.Status), db.ApplicationStateSyncStatusLength)
 			applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationStateRevisionLength)
 			sanitizeHealthAndStatus(applicationState)
+			applicationState.Sync_Started_At = app.Status.OperationState.StartedAt.Time
+			applicationState.Sync_Finished_At = app.Status.OperationState.FinishedAt.Time
 
 			// Get the list of resources created by deployment and convert it into a compressed YAML string.
 			var err error

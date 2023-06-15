@@ -3,6 +3,7 @@ package util
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -47,9 +48,9 @@ func LogAPIResourceChangeEvent(resourceNamespace string, resourceName string, re
 		return
 	}
 	var resourceMap map[string]interface{}
-	errUnmarshall := json.Unmarshal(jsonRepresentation, &resourceMap)
-	if errUnmarshall != nil {
-		log.Error(errUnmarshall, "SEVERE: Unable to unmarshal JSON.")
+	errUnmarshal := json.Unmarshal(jsonRepresentation, &resourceMap)
+	if errUnmarshal != nil {
+		log.Error(errUnmarshal, "SEVERE: Unable to unmarshal JSON.")
 		return
 	}
 	mf := resourceMap["metadata"].(map[string]interface{})

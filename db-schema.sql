@@ -308,7 +308,13 @@ CREATE TABLE ApplicationState (
 	reconciled_state VARCHAR (4096),
 
 	-- sync_error is a string, which contains the Argo CD Application's .status.conditions.message which is of type SyncError
-	sync_error VARCHAR (4096)
+	sync_error VARCHAR (4096),
+
+	-- indicates when the sync operation started.
+	sync_started_at TIMESTAMP,
+
+	-- indicates when the sync operation finished.
+	sync_finished_at TIMESTAMP
 );
 
 -- Represents the relationship from GitOpsDeployment CR in the API namespace, to an Application table row.

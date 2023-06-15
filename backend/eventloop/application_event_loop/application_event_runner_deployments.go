@@ -1000,6 +1000,8 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	gitopsDeployment.Status.Health.Message = applicationState.Message
 	gitopsDeployment.Status.Sync.Status = managedgitopsv1alpha1.SyncStatusCode(applicationState.Sync_Status)
 	gitopsDeployment.Status.Sync.Revision = applicationState.Revision
+	gitopsDeployment.Status.Sync.Started_At = metav1.NewTime(applicationState.Sync_Started_At)
+	gitopsDeployment.Status.Sync.Finished_At = metav1.NewTime(applicationState.Sync_Finished_At)
 
 	// We update the GitopsDeployment .status.conditions with SyncError condition, if the sync_error column of ApplicationState row is non empty
 	// - The sync_error column of ApplicationState row is based on the .status.conditions[type="ApplicationConditionSyncError"].message field.

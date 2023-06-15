@@ -173,6 +173,12 @@ type SyncStatus struct {
 	Status SyncStatusCode `json:"status"`
 	// Revision contains information about the revision the comparison has been performed to
 	Revision string `json:"revision,omitempty"`
+
+	// Started_At is the time at which the sync started.
+	Started_At metav1.Time `json:"started_at,omitempty"`
+
+	// Finished_At is the time at which the sync finished.
+	Finished_At metav1.Time `json:"finished_at,omitempty"`
 }
 
 // SyncStatusCode is a type which represents possible comparison results

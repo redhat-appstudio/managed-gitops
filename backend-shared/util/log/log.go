@@ -36,8 +36,9 @@ func LogAPIResourceChangeEvent(resourceNamespace string, resourceName string, re
 		log.Error(nil, "resource passed to LogAPIResourceChangeEvent was nil")
 		return
 	}
-	_, isSecret := (resource).(*corev1.Secret)
-	if isSecret {
+	_, isSecretPointer := (resource).(*corev1.Secret)
+	_, isSecretObj := (resource).(corev1.Secret)
+	if isSecretPointer || isSecretObj {
 		log.Info(fmt.Sprintf("API Resource changed for secret resource: %s, name: %s, namespace: %s", string(resourceChangeType), resourceName, resourceNamespace))
 		return
 	}

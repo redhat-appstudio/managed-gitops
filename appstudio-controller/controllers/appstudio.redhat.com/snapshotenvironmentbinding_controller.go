@@ -618,7 +618,8 @@ func (r *SnapshotEnvironmentBindingReconciler) SetupWithManager(mgr ctrl.Manager
 		Watches(
 			&source.Kind{Type: &appstudioshared.DeploymentTarget{}},
 			handler.EnqueueRequestsFromMapFunc(r.findObjectsForDeploymentTarget),
-			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+			// When/if we start using DT's .status field, switch this ResourceVersionChangedPredicate:
+			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
 		).
 		Watches(
 			&source.Kind{Type: &appstudioshared.DeploymentTargetClaim{}},

@@ -210,6 +210,6 @@ func createSpaceRequestForDTC(ctx context.Context, k8sClient client.Client, dtc 
 func (r *SandboxProvisionerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&applicationv1alpha1.DeploymentTargetClaim{}).
-		WithEventFilter(DTCPendingDynamicProvisioningBySandbox()).
+		WithEventFilter(dtcPendingDynamicProvisioningBySandbox()).
 		Complete(r)
 }

@@ -302,7 +302,7 @@ var _ = Describe("Environment controller tests", func() {
 
 		})
 
-		It("should return an error if the Environment references a Secret that doesn't exist", func() {
+		It("should update the Environment status condition if the Environment references a Secret that doesn't exist, but should not return an error", func() {
 
 			By("creating an Environment resource pointing to a Secret that doesn't exist")
 			env := appstudioshared.Environment{
@@ -328,7 +328,7 @@ var _ = Describe("Environment controller tests", func() {
 			err := k8sClient.Create(ctx, &env)
 			Expect(err).To(BeNil())
 
-			By("reconciling the ManagedEnvironment")
+			By("reconciling the Environment")
 			req := ctrl.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      env.Name,

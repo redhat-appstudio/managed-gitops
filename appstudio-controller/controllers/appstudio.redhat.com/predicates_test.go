@@ -53,7 +53,7 @@ var _ = Describe("Test Predicates", func() {
 
 		})
 		Context("Test DTCPendingDynamicProvisioningBySandbox predicate", func() {
-			instance := DTCPendingDynamicProvisioningBySandbox()
+			instance := dtcPendingDynamicProvisioningBySandbox()
 
 			It("should ignore creating events", func() {
 				contextEvent := event.CreateEvent{

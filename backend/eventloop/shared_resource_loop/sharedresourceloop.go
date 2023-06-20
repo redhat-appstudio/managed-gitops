@@ -470,7 +470,7 @@ func deleteRepoCredFromDB(ctx context.Context, dbQueries db.DatabaseQueries, ID 
 	}
 
 	if rowsDeleted == 0 {
-		// Log the error, but continue to delete the other Repository Credentials (this looks morel like a bug in our code)
+		// Log the error, but continue to delete the other Repository Credentials
 		l.Info("No rows deleted from the database", "rowsDeleted", rowsDeleted, "RepositoryCredential ID", ID)
 		return noRetry, err
 	}

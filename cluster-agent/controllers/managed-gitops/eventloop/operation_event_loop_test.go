@@ -718,10 +718,6 @@ var _ = Describe("Operation Controller", func() {
 				defer dbQueries.CloseDatabase()
 
 				appProject := &appv1.AppProject{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "AppProject",
-						APIVersion: "argoproj.io/v1alpha1",
-					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      appProjectPrefix + testClusterUser.Clusteruser_id,
 						Namespace: namespace,
@@ -1478,7 +1474,7 @@ var _ = Describe("Operation Controller", func() {
 						Destinations: []appv1.ApplicationDestination{
 							{
 								Namespace: "test",
-								Server:    managedEnvPrefix + applicationDB.Managed_environment_id,
+								Server:    argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: applicationDB.Managed_environment_id}),
 							},
 						},
 					},

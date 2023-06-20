@@ -815,7 +815,6 @@ const (
 	// as indicating that Argo CD should deploy to the local cluster (the cluster that Argo CD is installed on).
 	ArgoCDDefaultDestinationInCluster = "in-cluster"
 	appProjectPrefix                  = "app-project-"
-	managedEnvPrefix                  = "managed-env-"
 )
 
 // processOperation_Application handles an Operation that targets an Application.
@@ -844,6 +843,11 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		}
 	}
 
+	if shouldRetry, err := createOrUpdateAppProjectWithValidation(ctx, dbOperation, opConfig, log); err != nil {
+		log.Error(err, "failed to call createOrUpdateAppProjectWithValidation function")
+		return shouldRetry, err
+	}
+
 	log = log.WithValues("argoCDApplicationName", dbApplication.Name)
 
 	app := &appv1.Application{
@@ -853,18 +857,13 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		},
 	}
 
-	if shouldRetry, err := createOrUpdateAppProjectWithValidation(ctx, dbOperation, opConfig, log); err != nil {
-		log.Error(err, "failed to call createOrUpdateAppProjectWithValidation function")
-		return shouldRetry, err
-	}
-
 	// Retrieve the Argo CD Application from the namespace
 	if err := opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(app), app); err != nil {
 
 		if apierr.IsNotFound(err) {
 			// The Application CR doesn't exist, so we need to create it
 
-			// However, we should not create the Argo CD Appliction if the Application row does not have a valid ManagedEnvironment foreign key
+			// However, we should not create the Argo CD Application if the Application row does not have a valid ManagedEnvironment foreign key
 			if dbApplication.Managed_environment_id == "" {
 				return shouldRetryFalse, nil
 			}
@@ -1028,15 +1027,16 @@ func deleteArgoCDApplicationOfDeletedApplicationRow(ctx context.Context, dbAppli
 		return shouldRetryTrue, err
 	}
 
-	appProject := appv1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      appProjectPrefix + dbOperation.Operation_owner_user_id,
-			Namespace: opConfig.argoCDNamespace.Name,
-		},
-	}
-
 	// Delete the AppProject resource if the combined count of appProjectRepositoryCount and appProjectManagedEnvCount equals zero.
 	if appProjectRepositoryCount+appProjectManagedEnvCount == 0 {
+
+		appProject := appv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      appProjectPrefix + dbOperation.Operation_owner_user_id,
+				Namespace: opConfig.argoCDNamespace.Name,
+			},
+		}
+
 		if err := opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(&appProject), &appProject); err != nil {
 			log.Error(err, "Unable to retrieve AppProject resource")
 			return shouldRetryTrue, err
@@ -1330,6 +1330,7 @@ func generateExpectedClusterSecret(ctx context.Context, application db.Applicati
 func buildAppProject(ctx context.Context, dbOperation db.Operation, opConfig operationConfig, log logr.Logger) (*appv1.AppProject, error) {
 
 	// Create AppProject resource before creating Argo CD Application CR
+
 	var appProjectRepositories []db.AppProjectRepository
 	if err := opConfig.dbQueries.ListAppProjectRepositoryByClusterUserId(ctx, dbOperation.Operation_owner_user_id, &appProjectRepositories); err != nil {
 		log.Error(err, "unable to list AppProjectRepositories based on cluster user id")

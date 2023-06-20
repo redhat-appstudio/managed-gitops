@@ -715,8 +715,9 @@ func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 			if rowsDeleted != 1 {
 				log.V(logutil.LogLevel_Warn).Info("Unexpected number of appProjectManagedEnvs rows deleted, when deleting managed env.",
 					"rowsDeleted", rowsDeleted, "appProject-ManagedEnv", appProjectManagedEnv)
+			} else {
+				log.Info("Deleted appProjectManagedEnv row that referenced to ManagedEnvironment", "userID", appProjectManagedEnv.Managed_environment_id)
 			}
-			log.Info("Deleted appProjectManagedEnv row that referenced to ManagedEnvironment", "userID", appProjectManagedEnv.Managed_environment_id)
 			break
 		}
 	}

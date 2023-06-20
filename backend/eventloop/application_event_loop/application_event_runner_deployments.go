@@ -1226,8 +1226,8 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 		sourceTargetRevision: sanitize(fieldsParam.sourceTargetRevision),
 		syncOptions:          sanitizeArray(fieldsParam.syncOptions),
 		automated:            fieldsParam.automated,
+		project:              sanitize(fieldsParam.project),
 		// MAKE SURE YOU SANITIZE ANY NEW FIELDS THAT ARE ADDED!!!!
-		project: sanitize(fieldsParam.project),
 		// Hopefully you are getting the message, here :)
 	}
 

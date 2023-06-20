@@ -234,8 +234,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 			EngineClusterID: gitopsEngineInstance.Gitopsengineinstance_id, // comply with the constraint 'fk_gitopsengineinstance_id',
 		}
 
-		err = dbQueries.CreateRepositoryCredentials(ctx, &dbRepoCred)
-		if err != nil {
+		if err := dbQueries.CreateRepositoryCredentials(ctx, &dbRepoCred); err != nil {
 			l.Error(err, "Error creating RepositoryCredential row in DB", "DebugErr", errCreateDBRepoCred, "CR Name", repositoryCredentialCRName, "Namespace", resourceNS)
 			return nil, fmt.Errorf("unable to create repository credential in the database: %v", err)
 		}

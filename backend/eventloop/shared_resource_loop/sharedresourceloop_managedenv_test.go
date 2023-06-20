@@ -879,7 +879,9 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err.Error()).To(HaveSuffix("client-certificate is not supported at this time."))
 		})
 
-		It("should test whether appProjectEnvironment is created and deleted based on managedEnv and also verify whether AppProjectManagedEnvironment is owned by the same user is not deleted.", func() {
+		It("should test whether appProjectEnvironment is created and deleted based on managedEnv, and also verifies that a AppProjectManagedEnvironment that is owned by the same user is not deleted.", func() {
+
+			By("create ManagedEnvironment and Secret for it")
 			managedEnv, secret := buildManagedEnvironmentForSRL()
 			managedEnv.UID = "test-" + uuid.NewUUID()
 			secret.UID = "test-" + uuid.NewUUID()
@@ -917,7 +919,7 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironmentDb)
 			Expect(err).To(BeNil())
 
-			By("Creating an AppProjectManagedEnvironment to verify the deletion logic where AppProjectManagedEnvironment is owned by the same user is not deleted.")
+			By("Creating an AppProjectManagedEnvironment to verify the deletion logic, when AppProjectManagedEnvironment is owned by the same user is not deleted.")
 			appProjectManagedEnv := db.AppProjectManagedEnvironment{
 				AppProjectManagedenvID: "test-app-managedenv-id-1",
 				Managed_environment_id: managedEnvironmentDb.Managedenvironment_id,
@@ -926,7 +928,7 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			err = dbQueries.CreateAppProjectManagedEnvironment(ctx, &appProjectManagedEnv)
 			Expect(err).To(BeNil())
 
-			By("Verify whether appProjectManagedEnv is created or no")
+			By("Verify whether appProjectManagedEnv is created or not")
 			getAppProjectManagedEnvDB := db.AppProjectManagedEnvironment{
 				Clusteruser_id:         src.ClusterUser.Clusteruser_id,
 				Managed_environment_id: src.ManagedEnv.Managedenvironment_id,
@@ -935,7 +937,7 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			err = dbQueries.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &getAppProjectManagedEnvDB)
 			Expect(err).To(BeNil())
 
-			By("Verify whether appProjectManagedEnv is deleted once managedEnv is deleted")
+			By("By deleting the managed env CR, and verifying that the appProjectManagedEnv row is deleted")
 			err = k8sClient.Delete(ctx, &managedEnv)
 			Expect(err).To(BeNil())
 
@@ -948,13 +950,15 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).ToNot(BeNil())
 			Expect(err.Error()).To(ContainSubstring("no rows in result set"))
 
-			By("Verify whether AppProjectManagedEnvironment is owned by the same user is not deleted.")
+			By("Verify that another unrelated AppProjectManagedEnvironment, which is owned by the same user, is not deleted.")
 			err = dbQueries.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnv)
 			Expect(err).To(BeNil())
 
 		})
 
 		It("should test whether appProjectEnvironment exists when ManagedEnv is updated", func() {
+
+			By("creating ManagedEnv, and a Secret for it")
 			managedEnv, secret := buildManagedEnvironmentForSRL()
 			managedEnv.UID = "test-" + uuid.NewUUID()
 			secret.UID = "test-" + uuid.NewUUID()
@@ -966,19 +970,21 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			err = k8sClient.Create(ctx, &secret)
 			Expect(err).To(BeNil())
 
+			By("calling ReconcileSharedManagedEnvironment")
 			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).To(BeNil())
 			Expect(src.ManagedEnv).ToNot(BeNil())
 
 			err = dbQueries.GetManagedEnvironmentById(ctx, src.ManagedEnv)
-			Expect(err).To(BeNil())
+			Expect(err).To(BeNil(), "it should still exist")
 
+			By("updating the human readable name of the ManagedEnvironment")
 			src.ManagedEnv.Name = "test-updated-name"
-
 			err = dbQueries.UpdateManagedEnvironment(ctx, src.ManagedEnv)
 			Expect(err).To(BeNil())
 
+			By("verifying the AppProjectManagedEnvironment still exists")
 			appProjectManagedEnvDB := db.AppProjectManagedEnvironment{
 				Clusteruser_id:         src.ClusterUser.Clusteruser_id,
 				Managed_environment_id: src.ManagedEnv.Managedenvironment_id,
@@ -990,6 +996,8 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 		})
 
 		It("should test whether appProjectEnvironment does not exist; if it doesn't, then create it while updating managedEnv.", func() {
+
+			By("creating ManagedEnvironment and Secret")
 			managedEnv, secret := buildManagedEnvironmentForSRL()
 			managedEnv.UID = "test-" + uuid.NewUUID()
 			secret.UID = "test-" + uuid.NewUUID()
@@ -1001,25 +1009,26 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			err = k8sClient.Create(ctx, &secret)
 			Expect(err).To(BeNil())
 
+			By("calling ReconcileSharedManagedEnv")
 			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).To(BeNil())
 			Expect(src.ManagedEnv).ToNot(BeNil())
 
+			By("verifying the AppProjectManagedEnvironment exists")
 			appProjectManagedEnvDB := db.AppProjectManagedEnvironment{
 				Clusteruser_id:         src.ClusterUser.Clusteruser_id,
 				Managed_environment_id: src.ManagedEnv.Managedenvironment_id,
 			}
-
 			err = dbQueries.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnvDB)
 			Expect(err).To(BeNil())
 
-			By("Delete existing AppProjectManagedEnvironment to test the non existance of AppProjectManagedEnvironment")
+			By("Delete existing AppProjectManagedEnvironment to allow us to test the non existance of AppProjectManagedEnvironment")
 			row, err := dbQueries.DeleteAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnvDB)
 			Expect(err).To(BeNil())
 			Expect(row).To(Equal(1))
 
-			By("Update ManagedEnv")
+			By("Update the GitOpsDeploymentManagedEnvironment object with a new URL")
 			err = k8sClient.Get(ctx, types.NamespacedName{Namespace: managedEnv.Namespace, Name: managedEnv.Name}, &managedEnv)
 			Expect(err).To(BeNil())
 
@@ -1027,6 +1036,7 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			err = k8sClient.Update(ctx, &managedEnv)
 			Expect(err).To(BeNil())
 
+			By("calling ReconcileSharedManagedEnv and verifying that the ManagedEnvironment row was created")
 			src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).To(BeNil())
@@ -1035,7 +1045,6 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).To(BeNil())
 
 			src.ManagedEnv.Name = "test-updated-name"
-
 			err = dbQueries.UpdateManagedEnvironment(ctx, src.ManagedEnv)
 			Expect(err).To(BeNil())
 

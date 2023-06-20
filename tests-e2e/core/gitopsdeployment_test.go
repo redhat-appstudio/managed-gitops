@@ -245,14 +245,13 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			By("deleting the GitOpsDeployment resource and waiting for the resources to be deleted")
 			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
+			expectAllResourcesToBeDeleted(expectedResourceStatusList)
 
 			By("Ensure the AppProject doesn't exist.")
 			Eventually(func() bool {
 				err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(appProject), appProject)
 				return apierr.IsNotFound(err)
 			}, time.Minute, time.Second*5).Should(BeTrue())
-
-			expectAllResourcesToBeDeleted(expectedResourceStatusList)
 
 		})
 
@@ -904,7 +903,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
 			Expect(err).To(BeNil())
 
-			By("get namespece to fetch cluster user id")
+			By("get namespace to fetch cluster user id")
 			namespace := corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: gitOpsDeploymentResource.Namespace,

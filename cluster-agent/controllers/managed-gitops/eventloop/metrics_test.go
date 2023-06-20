@@ -132,10 +132,6 @@ var _ = Describe("OperationDB Metrics Controller", func() {
 			defer dbQueries.CloseDatabase()
 
 			appProject := &appv1.AppProject{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "AppProject",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      appProjectPrefix + testClusterUser.Clusteruser_id,
 					Namespace: namespace,

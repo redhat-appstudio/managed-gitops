@@ -873,7 +873,9 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
-					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
+					// We intentionally don't test sync here, because these two GitOpsDeployments
+					// are deploying on top of each other. Whether they are synced
+					// is not relevant for this test.
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)))
 
 			dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
@@ -949,7 +951,8 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			Eventually(gitOpsDeploymentResource1, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
-					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
+					// We intentionally don't test sync here, because these two GitOpsDeployments
+					// are deploying on top of each other.
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)))
 
 			mapping1 := &db.APICRToDatabaseMapping{

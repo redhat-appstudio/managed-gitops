@@ -116,23 +116,50 @@ func cleanUpOldArgoCDApplications(namespaceParam string, destNamespace string, c
 	if err != nil {
 		return err
 	}
-	argoCDApplicationList := appv1alpha1.ApplicationList{}
-	if err = k8sClient.List(context.Background(), &argoCDApplicationList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
-		return fmt.Errorf("unable to list '%s': %v . Verify that Argo CD is installed on the cluster", namespaceParam, err)
-	}
 
-	// Delete an Argo CD Application resources that reference the destination namespace
-	for idx := range argoCDApplicationList.Items {
+	// Delete (and remove finalizers) from any Argo CD Applications in this Namespace
+	if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
 
-		app := argoCDApplicationList.Items[idx]
-		if app.Spec.Destination.Namespace == destNamespace {
-			GinkgoWriter.Println("Deleting Argo CD Application:", app.Name)
-			if err := k8sClient.Delete(context.Background(), &app); err != nil {
-				if !apierr.IsNotFound(err) {
-					return fmt.Errorf("unable to delete '%s': %v", namespaceParam, err)
+		// List all the Argo CD Applications in 'namespaceParam' namespace
+		argoCDApplicationList := appv1alpha1.ApplicationList{}
+		if err = k8sClient.List(context.Background(), &argoCDApplicationList, &client.ListOptions{Namespace: namespaceParam}); err != nil {
+			return false, fmt.Errorf("unable to list '%s': %v . Verify that Argo CD is installed on the cluster", namespaceParam, err)
+		}
+
+		matchesFound := 0
+
+		// Delete all Argo CD Application resources that reference the destination namespace
+		for idx := range argoCDApplicationList.Items {
+
+			app := argoCDApplicationList.Items[idx]
+			if app.Spec.Destination.Namespace == destNamespace {
+
+				matchesFound++
+
+				// Remove any finalizers on the Application, so they can be deleted
+				if len(app.Finalizers) > 0 {
+					app.Finalizers = []string{}
+					if err := k8sClient.Update(context.Background(), &app); err != nil {
+						GinkgoWriter.Println("an error occurred on removing finalizer", err)
+						return false, nil
+					}
 				}
+
+				GinkgoWriter.Println("Deleting Argo CD Application:", app.Name)
+				if err := k8sClient.Delete(context.Background(), &app); err != nil {
+					if !apierr.IsNotFound(err) {
+						return false, fmt.Errorf("unable to delete '%s': %v", namespaceParam, err)
+					}
+				}
+
 			}
 		}
+
+		// Keep trying until there are no Argo CD Applications left in the Namespace
+		return matchesFound == 0, nil
+
+	}); err != nil {
+		return err
 	}
 
 	return nil

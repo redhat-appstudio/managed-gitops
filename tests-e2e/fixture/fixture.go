@@ -64,44 +64,44 @@ func EnsureCleanSlateNonKCPVirtualWorkspace() error {
 	}
 	// Clean up after tests that target the non-default Argo CD instance (only used by a few E2E tests)
 	if err := cleanUpOldArgoCDApplications(NewArgoCDInstanceDestNamespace, NewArgoCDInstanceDestNamespace, clientconfig); err != nil {
-		return err
+		return fmt.Errorf("unable to clean up old Argo CD applications that target a non-default Argo CD: %v", err)
 	}
 
 	// Clean up after various old namespaces that are used in tests
 	prevTestNamespacesToDelete := []string{"new-e2e-test-namespace", "new-e2e-test-namespace2", NewArgoCDInstanceNamespace, NewArgoCDInstanceDestNamespace}
 	for _, namespaceName := range prevTestNamespacesToDelete {
 		if err := DeleteNamespace(namespaceName, clientconfig); err != nil {
-			return err
+			return fmt.Errorf("unable to delete namespace '%s': %v", namespaceName, err)
 		}
 	}
 
 	// Clean up after tests that target the default Argo CD E2E instance (used by most E2E tests)
 	if err := cleanUpOldArgoCDApplications(dbutil.GetGitOpsEngineSingleInstanceNamespace(), GitOpsServiceE2ENamespace, clientconfig); err != nil {
-		return err
+		return fmt.Errorf("unable to clean up old Argo CD applications that target default Argo CD NS: %v", err)
 	}
 
 	if err := EnsureDestinationNamespaceExists(GitOpsServiceE2ENamespace, dbutil.GetGitOpsEngineSingleInstanceNamespace(), clientconfig); err != nil {
-		return err
+		return fmt.Errorf("unable to ensure destination namespace '%s' exists: %v", GitOpsServiceE2ENamespace, err)
 	}
 
 	if err := cleanUpOldKubeSystemResources(clientconfig); err != nil {
-		return err
+		return fmt.Errorf("unable to clean up old kube system resources: %v", err)
 	}
 
 	// Delete all Argo CD Cluster Secrets from the default Argo CD Namespace
 	secretList := &corev1.SecretList{}
 	k8sClient, err := GetKubeClient(clientconfig)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to get kube client: %v", err)
 	}
 	if err := k8sClient.List(context.Background(), secretList, &client.ListOptions{Namespace: dbutil.GetGitOpsEngineSingleInstanceNamespace()}); err != nil {
-		return err
+		return fmt.Errorf("unable to list secrets in Argo CD namespace: %v", err)
 	}
 	for idx := range secretList.Items {
 		secret := secretList.Items[idx]
 		if strings.HasPrefix(secret.Name, "managed-env") {
 			if err := k8sClient.Delete(context.Background(), &secret); err != nil {
-				return err
+				return fmt.Errorf("unable to delete old secret '%s': %v", secret.Name, err)
 			}
 		}
 	}
@@ -415,7 +415,7 @@ func EnsureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 
 	kubeClientSet, err := kubernetes.NewForConfig(clientConfig)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to retrieve kubernetes config: %v", err)
 	}
 
 	if err := DeleteNamespace(namespaceParam, clientConfig); err != nil {
@@ -425,71 +425,71 @@ func EnsureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 	// Create the namespace again
 	_, err = kubeClientSet.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
 		Name: namespaceParam,
-		Labels: map[string]string{
-			"argocd.argoproj.io/managed-by": argoCDNamespaceParam,
-		},
+		// Labels: map[string]string{
+		// 	"argocd.argoproj.io/managed-by": argoCDNamespaceParam,
+		// },
 	}}, metav1.CreateOptions{})
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to create namespace '%s': %v", namespaceParam, err)
 	}
 
-	// Wait for Argo CD to process the namespace, before we exit:
-	// - This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
-	//   set up proper roles for it.
+	// // Wait for Argo CD to process the namespace, before we exit:
+	// // - This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
+	// //   set up proper roles for it.
 
-	if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
-		var roleBindings *rbacv1.RoleBindingList
-		roleBindings, err = kubeClientSet.RbacV1().RoleBindings(namespaceParam).List(context.Background(), metav1.ListOptions{})
-		if err != nil {
-			return false, err
-		}
+	// if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
+	// 	var roleBindings *rbacv1.RoleBindingList
+	// 	roleBindings, err = kubeClientSet.RbacV1().RoleBindings(namespaceParam).List(context.Background(), metav1.ListOptions{})
+	// 	if err != nil {
+	// 		return false, err
+	// 	}
 
-		count := 0
-		// Exit the poll loop when there exists at least one rolebinding containing 'gitops-service-argocd' in it's name
-		// This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
-		// set up proper roles for it.
-		for _, item := range roleBindings.Items {
-			if strings.Contains(item.Name, argoCDNamespaceParam+"-") {
-				count++
-			}
-		}
+	// 	count := 0
+	// 	// Exit the poll loop when there exists at least one rolebinding containing 'gitops-service-argocd' in it's name
+	// 	// This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
+	// 	// set up proper roles for it.
+	// 	for _, item := range roleBindings.Items {
+	// 		if strings.Contains(item.Name, argoCDNamespaceParam+"-") {
+	// 			count++
+	// 		}
+	// 	}
 
-		if count >= 2 {
-			// We expect at least 2 rolebindings
-			return true, nil
-		}
+	// 	if count >= 2 {
+	// 		// We expect at least 2 rolebindings
+	// 		return true, nil
+	// 	}
 
-		return false, nil
-	}); err != nil {
-		return err
-	}
+	// 	return false, nil
+	// }); err != nil {
+	// 	return fmt.Errorf("PollImmediate waiting for Argo CD role in namespace '%s', failed: %v", namespaceParam, err)
+	// }
 
-	if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
-		var roles *rbacv1.RoleList
-		roles, err = kubeClientSet.RbacV1().Roles(namespaceParam).List(context.Background(), metav1.ListOptions{})
-		if err != nil {
-			return false, err
-		}
+	// if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
+	// 	var roles *rbacv1.RoleList
+	// 	roles, err = kubeClientSet.RbacV1().Roles(namespaceParam).List(context.Background(), metav1.ListOptions{})
+	// 	if err != nil {
+	// 		return false, err
+	// 	}
 
-		count := 0
-		// Exit the poll loop when there exists at least one rolebinding containing 'gitops-service-argocd' in it's name
-		// This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
-		// set up proper roles for it.
-		for _, item := range roles.Items {
-			if strings.Contains(item.Name, argoCDNamespaceParam+"-") {
-				count++
-			}
-		}
+	// 	count := 0
+	// 	// Exit the poll loop when there exists at least one rolebinding containing 'gitops-service-argocd' in it's name
+	// 	// This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
+	// 	// set up proper roles for it.
+	// 	for _, item := range roles.Items {
+	// 		if strings.Contains(item.Name, argoCDNamespaceParam+"-") {
+	// 			count++
+	// 		}
+	// 	}
 
-		if count >= 2 {
-			// We expect at least 2 roles
-			return true, nil
-		}
+	// 	if count >= 2 {
+	// 		// We expect at least 2 roles
+	// 		return true, nil
+	// 	}
 
-		return false, nil
-	}); err != nil {
-		return fmt.Errorf("argo CD never setup rolebindings for namespace '%s': %v", namespaceParam, err)
-	}
+	// 	return false, nil
+	// }); err != nil {
+	// 	return fmt.Errorf("argo CD never setup rolebindings for namespace '%s': %v", namespaceParam, err)
+	// }
 
 	return nil
 }

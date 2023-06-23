@@ -42,6 +42,14 @@ var _ = Describe("ClusterUser Tests", func() {
 			err = dbq.GetClusterUserById(ctx, retrieveUser)
 			Expect(err).To(BeNil())
 			Expect(retrieveUser.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
+			Expect(retrieveUser.Display_name).To(BeEmpty())
+
+			retrieveUser.Display_name = "test-display-name"
+			err = dbq.UpdateClusterUser(ctx, retrieveUser)
+			Expect(err).To(BeNil())
+			Expect(retrieveUser.Display_name).ToNot(BeEmpty())
+			Expect(retrieveUser.Display_name).To(Equal("test-display-name"))
+
 			rowsAffected, err := dbq.DeleteClusterUserById(ctx, retrieveUser.Clusteruser_id)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).Should(Equal(1))

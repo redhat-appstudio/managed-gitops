@@ -120,7 +120,6 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 						return ctrl.Result{}, err
 					}
 					log.Info("DeploymentTarget is marked to Deleted", "DeploymentTarget", dt.Name)
-					return ctrl.Result{}, nil
 
 				} else if dtcls.Spec.ReclaimPolicy == applicationv1alpha1.ReclaimPolicy_Retain {
 					log.Info("ReclaimPolicy is ReclaimPolicy_Retain")
@@ -129,15 +128,19 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 							return ctrl.Result{}, fmt.Errorf("failed to remove finalizer %s from DeploymentTargetClaim %s in namespace %s: %v", applicationv1alpha1.FinalizerBinder, dtc.Name, dtc.Namespace, err)
 						}
 						log.Info("Removed finalizer from DeploymentTargetClaim", "finalizer", applicationv1alpha1.FinalizerBinder)
-						err := updateDTStatusPhase(ctx, r.Client, dt, applicationv1alpha1.DeploymentTargetPhase_Released, log)
-						if err != nil {
-							return ctrl.Result{}, fmt.Errorf("failed to update DeploymentTarget %s in namespace %s to Released status", dt.Name, dt.Namespace)
-						}
-						return ctrl.Result{}, nil
+					}
+
+					dt.Spec.ClaimRef = ""
+					if err := r.Client.Update(ctx, dt); err != nil {
+						return ctrl.Result{}, fmt.Errorf("failed to update the claimRef: %v", err)
+					}
+
+					err := updateDTStatusPhase(ctx, r.Client, dt, applicationv1alpha1.DeploymentTargetPhase_Released, log)
+					if err != nil {
+						return ctrl.Result{}, fmt.Errorf("failed to update DeploymentTarget %s in namespace %s to Released status", dt.Name, dt.Namespace)
 					}
 				} else {
 					log.Error(nil, "the ReclaimPolicy is neither Delete nor Retain")
-					return ctrl.Result{}, nil
 				}
 				return ctrl.Result{}, nil
 			}

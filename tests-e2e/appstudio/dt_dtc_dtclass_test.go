@@ -323,6 +323,10 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 
 			Eventually(matchingDT, "30s", "1s").Should(dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Released))
 
+			By("Ensure the claimRef is unset from the DT")
+			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&matchingDT), &matchingDT)
+			Expect(err).To(BeNil())
+			Expect(matchingDT.Spec.ClaimRef).Should(BeEmpty())
 		})
 
 		It("should ensure that if the SpaceRequest fails to delete, DT is set to failed, and that if the SpaceRequest is eventually deleted, so will the DT and DTC", func() {

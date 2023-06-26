@@ -120,6 +120,9 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
 				Expect(err).To(BeNil())
 				Expect(dt.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetPhase_Released))
+
+				By("verify if the claimRef of the DT is unset")
+				Expect(dt.Spec.ClaimRef).Should(BeEmpty())
 			})
 
 			It("should handle the deletion of a bounded DeploymentTargetClaim with class of Delete", func() {

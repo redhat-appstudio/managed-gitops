@@ -545,7 +545,7 @@ func cleanOrphanedEntriesfromTable(ctx context.Context, dbQueries db.DatabaseQue
 }
 
 // cleanOrphanedEntriesfromTable_RepositoryCredential loops through RepositoryCredentials in database and verifies they are still valid (Having entry in ACTDM). If not, the resources are deleted.
-func cleanOrphanedEntriesfromTable_RepositoryCredential(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfAppsIdsInDTAM []string, skipDelay bool, l logr.Logger) {
+func cleanOrphanedEntriesfromTable_RepositoryCredential(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfAppsIdsInDTAM map[string]bool, skipDelay bool, l logr.Logger) {
 
 	log := l.WithValues(sharedutil.JobKey, sharedutil.JobKeyValue).
 		WithValues(sharedutil.JobTypeKey, "DB_RepositoryCredential")
@@ -578,7 +578,7 @@ func cleanOrphanedEntriesfromTable_RepositoryCredential(ctx context.Context, dbQ
 
 			// Check if repository credential has entry in ACTDM table, if not then delete the repository credential
 			// If created time is less than waitTimeforRowDelete then ignore dont delete even if ACTDM entry is missing.
-			if !slices.Contains(listOfAppsIdsInDTAM, repCred.RepositoryCredentialsID) &&
+			if !listOfAppsIdsInDTAM[repCred.RepositoryCredentialsID] &&
 				time.Since(repCred.Created_on) > waitTimeforRowDelete {
 				// Fetch GitopsEngineInstance as we need namespace name for creating Operation CR.
 				gitopsEngineInstance := db.GitopsEngineInstance{
@@ -610,7 +610,7 @@ func cleanOrphanedEntriesfromTable_RepositoryCredential(ctx context.Context, dbQ
 }
 
 // cleanOrphanedEntriesfromTable_SyncOperation loops through SyncOperations in database and verifies they are still valid (Having entry in ACTDM). If not, the resources are deleted.
-func cleanOrphanedEntriesfromTable_SyncOperation(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfAppsIdsInDTAM []string, skipDelay bool, l logr.Logger) {
+func cleanOrphanedEntriesfromTable_SyncOperation(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfAppsIdsInDTAM map[string]bool, skipDelay bool, l logr.Logger) {
 
 	log := l.WithValues(sharedutil.JobKey, sharedutil.JobKeyValue).
 		WithValues(sharedutil.JobTypeKey, "DB_SyncOperation")
@@ -642,7 +642,7 @@ func cleanOrphanedEntriesfromTable_SyncOperation(ctx context.Context, dbQueries 
 
 			// Check if SyncOperation has entry in ACTDM table, if not then delete the repository credential
 			// If created time is less than waitTimeforRowDelete then ignore dont delete even if ACTDM entry is missing.
-			if !slices.Contains(listOfAppsIdsInDTAM, syncOperation.SyncOperation_id) &&
+			if !listOfAppsIdsInDTAM[syncOperation.SyncOperation_id] &&
 				time.Since(syncOperation.Created_on) > waitTimeforRowDelete {
 
 				isApplicationPresent := true
@@ -677,7 +677,7 @@ func cleanOrphanedEntriesfromTable_SyncOperation(ctx context.Context, dbQueries 
 }
 
 // cleanOrphanedEntriesfromTable_ManagedEnvironment loops through ManagedEnvironments in database and verifies they are still valid (Having entry in ACTDM). If not, the resources are deleted.
-func cleanOrphanedEntriesfromTable_ManagedEnvironment(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfRowIdsInAPICRToDBMapping []string, k8sClientFactory sharedresourceloop.SRLK8sClientFactory, skipDelay bool, l logr.Logger) {
+func cleanOrphanedEntriesfromTable_ManagedEnvironment(ctx context.Context, dbQueries db.DatabaseQueries, client client.Client, listOfRowIdsInAPICRToDBMapping map[string]bool, k8sClientFactory sharedresourceloop.SRLK8sClientFactory, skipDelay bool, l logr.Logger) {
 
 	log := l.WithValues(sharedutil.JobKey, sharedutil.JobKeyValue).
 		WithValues(sharedutil.JobTypeKey, "DB_ManagedEnvironment")
@@ -731,7 +731,7 @@ func cleanOrphanedEntriesfromTable_ManagedEnvironment(ctx context.Context, dbQue
 			// - ManagedEnvironment does NOT have an entry in APICRToDBMapping table
 			// - ManagedEnvironment does NOT have an entry in the K8sToDBResourceMapping table
 			// - The time that has elapsed from when the managed environment was created is greater than waitTimeforRowDelete
-			if !slices.Contains(listOfRowIdsInAPICRToDBMapping, managedEnvironment.Managedenvironment_id) &&
+			if !listOfRowIdsInAPICRToDBMapping[managedEnvironment.Managedenvironment_id] &&
 				!isManagedEnvInK8sToDBResourceMappingTable &&
 				time.Since(managedEnvironment.Created_on) > waitTimeforRowDelete {
 
@@ -790,7 +790,7 @@ func cleanOrphanedEntriesfromTable_Application(ctx context.Context, dbQueries db
 
 			// Check if application has entry in DTAM table, if not then delete the application
 			// If created time is less than waitTimeforRowDelete then ignore dont delete even if ACTDM entry is missing.
-			if !slices.Contains(listOfAppsIdsInDTAM[dbType_Application], appDB.Application_id) &&
+			if !listOfAppsIdsInDTAM[dbType_Application][appDB.Application_id] &&
 				time.Since(appDB.Created_on) > waitTimeforRowDelete {
 
 				// Fetch Application from DB and convert Spec into an Object as we need namespace for creating Operations CR.
@@ -1069,12 +1069,17 @@ func getListOfK8sToDBResourceMapping(ctx context.Context, dbQueries db.DatabaseQ
 }
 
 // getListOfCRIdsFromTable loops through DTAMs or APICRToDBMappigs in database and returns list of resource IDs for each CR type (i.e. RepositoryCredential, ManagedEnvironment, SyncOperation).
-func getListOfCRIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, tableType dbTableName, skipDelay bool, log logr.Logger) map[dbTableName][]string {
+func getListOfCRIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, tableType dbTableName, skipDelay bool, log logr.Logger) map[dbTableName]map[string]bool {
 
 	offSet := 0
 
-	// Create Map to store resource IDs according to type, Ex: {"RepositoryCredential" : [], "ManagedEnvironment" : [], "SyncOperation" : []}
-	crIdMap := make(map[dbTableName][]string)
+	// Create Map of Maps to store resource IDs according to type, Ex: {"RepositoryCredential" : {"id1":true, "id2":true}, "ManagedEnvironment" : {}, "SyncOperation" : {}}
+	crIdMap := map[dbTableName]map[string]bool{}
+	crIdMap[dbType_Application],
+		crIdMap[dbType_RespositoryCredential],
+		crIdMap[dbType_ManagedEnvironment],
+		crIdMap[dbType_SyncOperation] = map[string]bool{}, map[string]bool{},
+		map[string]bool{}, map[string]bool{}
 
 	// Continuously iterate and fetch batches until all entries of table processed.
 	for {
@@ -1099,7 +1104,7 @@ func getListOfCRIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, 
 			}
 
 			for _, deplToAppMapping := range tempList {
-				crIdMap[dbType_Application] = append(crIdMap[dbType_Application], deplToAppMapping.Application_id)
+				crIdMap[dbType_Application][deplToAppMapping.Application_id] = true
 			}
 		} else { // If resource type is RepositoryCredential/ManagedEnvironment/SyncOperation then get list of IDs from ACTDM table.
 
@@ -1120,11 +1125,11 @@ func getListOfCRIdsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, 
 			// Save list of IDs in map according to resource type.
 			for _, deplToAppMapping := range tempList {
 				if deplToAppMapping.DBRelationType == db.APICRToDatabaseMapping_DBRelationType_RepositoryCredential {
-					crIdMap[dbType_RespositoryCredential] = append(crIdMap[dbType_RespositoryCredential], deplToAppMapping.DBRelationKey)
+					crIdMap[dbType_RespositoryCredential][deplToAppMapping.DBRelationKey] = true
 				} else if deplToAppMapping.DBRelationType == db.APICRToDatabaseMapping_DBRelationType_ManagedEnvironment {
-					crIdMap[dbType_ManagedEnvironment] = append(crIdMap[dbType_ManagedEnvironment], deplToAppMapping.DBRelationKey)
+					crIdMap[dbType_ManagedEnvironment][deplToAppMapping.DBRelationKey] = true
 				} else if deplToAppMapping.DBRelationType == db.APICRToDatabaseMapping_DBRelationType_SyncOperation {
-					crIdMap[dbType_SyncOperation] = append(crIdMap[dbType_SyncOperation], deplToAppMapping.DBRelationKey)
+					crIdMap[dbType_SyncOperation][deplToAppMapping.DBRelationKey] = true
 				} else {
 					log.Error(nil, "SEVERE: unknown database table type", "type", deplToAppMapping.DBRelationType)
 				}

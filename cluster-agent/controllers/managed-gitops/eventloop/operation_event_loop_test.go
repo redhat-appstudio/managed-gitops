@@ -717,6 +717,23 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 				defer dbQueries.CloseDatabase()
 
+				appProject := &appv1.AppProject{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "AppProject",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      appProjectPrefix + testClusterUser.Clusteruser_id,
+						Namespace: namespace,
+					},
+					Spec: appv1.AppProjectSpec{
+						SourceRepos: []string{"test-url"},
+					},
+				}
+
+				err = task.event.client.Create(ctx, appProject)
+				Expect(err).To(BeNil())
+
 				applicationCR := &appv1.Application{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "Application",

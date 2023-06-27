@@ -10,11 +10,14 @@ import (
 	"reflect"
 	"strings"
 
+	"sigs.k8s.io/yaml"
+
 	"github.com/go-logr/logr"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
@@ -456,23 +459,6 @@ func (a applicationEventLoopRunner_Action) handleDeleteGitOpsDeplEvent(ctx conte
 				return false, gitopserrors.NewDevOnlyError(err)
 			}
 
-			appProjectRepoCredDB := db.AppProjectRepository{
-				Clusteruser_id: clusterUser.Clusteruser_id,
-			}
-			// remove AppProjectRepository from DB as GitopsDeployment is deleted
-			appProjectRowsDeleted, err := dbQueries.DeleteAppProjectRepositoryByClusterUser(ctx, &appProjectRepoCredDB)
-			if err != nil {
-				// Log the error and retry
-				a.log.Error(err, "Error deleting app appProjectRepository from database: ", "ClusterUserID", appProjectRepoCredDB.Clusteruser_id)
-				return false, gitopserrors.NewDevOnlyError(err)
-			}
-
-			if appProjectRowsDeleted == 0 {
-				a.log.V(logutil.LogLevel_Warn).Info("No rows deleted from the database", "rowsDeleted", appProjectRowsDeleted, "ClusterUserID", appProjectRepoCredDB.Clusteruser_id)
-			}
-
-			a.log.Info("Deleted appProjectRepository from the database pointing to gitopsDeployment")
-
 		}
 		return signalShutdown, nil
 
@@ -860,6 +846,29 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		log.V(logutil.LogLevel_Warn).Error(nil, "unexpected number of rows deleted for application", "rowsDeleted", rowsDeleted)
 	}
 
+	specFieldAppFromDB := appv1.Application{}
+
+	if err := yaml.Unmarshal([]byte(dbApplication.Spec_field), &specFieldAppFromDB); err != nil {
+		log.Error(err, "SEVERE: unable to unmarshal DB application spec field")
+		return false, err
+	}
+
+	appProjectRepoCredDB := db.AppProjectRepository{
+		Clusteruser_id: clusterUser.Clusteruser_id,
+		RepoURL:        specFieldAppFromDB.Spec.Source.RepoURL,
+	}
+
+	// 5) Remove AppProjectRepository from database as GitopsDeployment is deleted
+	a.log.Info("GitOpsDeployment was deleted, so deleting AppProjectRepository row from database")
+	rowsDeleted, err = dbQueries.DeleteAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepoCredDB)
+	if err != nil {
+		// Log the error, but continue
+		log.Error(err, "unable to delete appProject by cluster_user_id and repoURL")
+	} else if rowsDeleted == 0 {
+		// Log the error, but continue
+		log.V(logutil.LogLevel_Warn).Error(nil, "unexpected number of rows deleted for appProject", "rowsDeleted", rowsDeleted)
+	}
+
 	gitopsEngineInstance, err := a.sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, dbApplication.Engine_instance_inst_id, a.workspaceClient, apiNamespace, a.log)
 	if err != nil {
 		log := log.WithValues("gitopsEngineID", dbApplication.Engine_instance_inst_id)
@@ -873,7 +882,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		}
 	}
 
-	// 5) Now that we've deleted the Application row, create the operation that will cause the Argo CD application
+	// 6) Now that we've deleted the Application row, create the operation that will cause the Argo CD application
 	// to be deleted.
 	gitopsEngineClient, err := a.k8sClientFactory.GetK8sClientForGitOpsEngineInstance(ctx, gitopsEngineInstance)
 	if err != nil {
@@ -904,7 +913,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		return false, err
 	}
 
-	// 6) Finally, clean up the operation
+	// 7) Finally, clean up the operation
 	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbQueries, gitopsEngineClient, !a.testOnlySkipCreateOperation, log); err != nil {
 		log.Error(err, "unable to cleanup operation", "operation", dbOperationInput.ShortString())
 		return false, err

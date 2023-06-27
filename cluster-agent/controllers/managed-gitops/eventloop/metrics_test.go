@@ -131,6 +131,23 @@ var _ = Describe("OperationDB Metrics Controller", func() {
 		It("should count total number of operation DB rows in completed state", func() {
 			defer dbQueries.CloseDatabase()
 
+			appProject := &appv1.AppProject{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "AppProject",
+					APIVersion: "argoproj.io/v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appProjectPrefix + testClusterUser.Clusteruser_id,
+					Namespace: namespace,
+				},
+				Spec: appv1.AppProjectSpec{
+					SourceRepos: []string{"test-url"},
+				},
+			}
+
+			err = task.event.client.Create(ctx, appProject)
+			Expect(err).To(BeNil())
+
 			By("creating Operation CR")
 			operationCR := &managedgitopsv1alpha1.Operation{
 				ObjectMeta: metav1.ObjectMeta{

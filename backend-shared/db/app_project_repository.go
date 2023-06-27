@@ -155,26 +155,37 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteAppProjectRepositoryByRepoCredId(ctx
 	return deleteResult.RowsAffected(), nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) DeleteAppProjectRepositoryByClusterUser(ctx context.Context, obj *AppProjectRepository) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteAppProjectRepositoryByClusterUserAndRepoURL(ctx context.Context, obj *AppProjectRepository) (int, error) {
 
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return 0, err
 	}
 
-	if err := isEmptyValues("DeleteAppProjectRepositoryByClusterUser",
+	if err := isEmptyValues("DeleteAppProjectRepositoryByClusterUserAndRepoURL",
 		"clusteruser_id", obj.Clusteruser_id,
+		"repo_url", obj.RepoURL,
 	); err != nil {
 		return 0, err
 	}
 
 	deleteResult, err := dbq.dbConnection.Model(obj).
-		Where("clusteruser_id = ?", obj.Clusteruser_id).
+		Where("clusteruser_id = ? AND repo_url = ?", obj.Clusteruser_id, obj.RepoURL).
 		Context(ctx).Delete()
 	if err != nil {
-		return 0, fmt.Errorf("error on deleting AppProjectRepository based on clusteruser_id: %v", err)
+		return 0, fmt.Errorf("error on deleting AppProjectRepository based on clusteruser_id and repo_url: %v", err)
 	}
 
 	return deleteResult.RowsAffected(), nil
+}
+
+func (dbq *PostgreSQLDatabaseQueries) CountAppProjectRepositoryByClusterUserID(ctx context.Context, obj *AppProjectRepository) (int, error) {
+
+	count, err := dbq.dbConnection.Model(obj).Where("clusteruser_id = ?", obj.Clusteruser_id).Count()
+	if err != nil {
+		return 0, fmt.Errorf("error on counting total number of AppProjectRepository exists for the user: %w", err)
+	}
+
+	return count, nil
 }
 
 // GetAsLogKeyValues returns an []interface that can be passed to log.Info(...).

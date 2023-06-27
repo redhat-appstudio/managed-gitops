@@ -340,7 +340,6 @@ func cleanOrphanedEntriesfromTable_ACTDM_ManagedEnvironment(ctx context.Context,
 }
 
 func cleanOrphanedEntriesfromTable_ACTDM_RepositoryCredential(ctx context.Context, client client.Client, dbQueries db.DatabaseQueries, apiCrToDbMappingFromDB db.APICRToDatabaseMapping, objectMeta metav1.ObjectMeta, log logr.Logger) {
-
 	// Process if CR is of GitOpsDeploymentRepositoryCredential type.
 	repoCredentialK8s := managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{ObjectMeta: objectMeta}
 

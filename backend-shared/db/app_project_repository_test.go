@@ -67,6 +67,11 @@ var _ = Describe("AppProjectRepository Test", func() {
 		Expect(err).To(BeNil())
 		Expect(appProjectRepository).Should(Equal(appProjectRepositoryget))
 
+		By("Verify CountAppProjectRepositoryByClusterUserID")
+		appProjectRepositoryCount, err := dbq.CountAppProjectRepositoryByClusterUserID(ctx, &appProjectRepositoryget)
+		Expect(err).To(BeNil())
+		Expect(appProjectRepositoryCount).To(Equal(1))
+
 		By("Verify whether AppProjectRepository is deleted")
 		rowsAffected, err := dbq.DeleteAppProjectRepositoryByRepoCredId(ctx, &appProjectRepository)
 		Expect(err).To(BeNil())
@@ -97,7 +102,7 @@ var _ = Describe("AppProjectRepository Test", func() {
 		Expect(err).To(BeNil())
 
 		By("Verify whether AppProjectRepository is deleted based on clusteruser_is")
-		rowsAffected, err = dbq.DeleteAppProjectRepositoryByClusterUser(ctx, &appProjectRepository1)
+		rowsAffected, err = dbq.DeleteAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepository1)
 		Expect(err).To(BeNil())
 		Expect(rowsAffected).Should(Equal(1))
 

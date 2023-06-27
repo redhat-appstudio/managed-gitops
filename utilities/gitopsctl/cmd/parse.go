@@ -4,17 +4,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// downloadCmd represents the download command
-var downloadCmd = &cobra.Command{
-	Use:   "download",
-	Short: "Download various artifacts, including OpenShift CI test logs",
-	Long:  `A subcommand that allows downloading various artifacts, including OpenShift-CI test logs.`,
+// parseCmd represents the download command
+var parseCmd = &cobra.Command{
+	Use:   "parse",
+	Short: "",
+	Long:  ``,
 	// Run: func(cmd *cobra.Command, args []string) {
 	// },
 }
 
 func init() {
-	rootCmd.AddCommand(downloadCmd)
+	rootCmd.AddCommand(parseCmd)
 
 	// Here you will define your flags and configuration settings.
 

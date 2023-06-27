@@ -1,4 +1,4 @@
-package cmd
+package downloadjob
 
 import (
 	"fmt"
@@ -7,116 +7,104 @@ import (
 	"os"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"golang.org/x/net/html"
 )
-
-// jobCmd represents the job command
-var jobCmd = &cobra.Command{
-	Use:   "job",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-
-		if len(args) == 0 {
-			fmt.Println("* Error: missing URL argument")
-			return
-		} else if len(args) != 1 {
-			fmt.Println("* Error: too many arguments")
-			return
-		}
-
-		url := args[0]
-
-		if !strings.HasPrefix(url, "https://") {
-			fmt.Println("* Error: URL must begin with https://")
-			return
-		}
-
-		fmt.Println("* Retrieving artifacts page")
-
-		artifactsURL, err := downloadAndExtractArtifactsURL(url)
-		if err != nil {
-			fmt.Println("* Error:", err.Error())
-			return
-		}
-
-		fmt.Println("* Creating list of all files within CI job")
-		allFiles, err := extractAllFileURLsFromArtifactsPage(artifactsURL, 0)
-		if err != nil {
-			fmt.Println("* Error:", err)
-			return
-		}
-
-		entriesToDownload := []downloadURLWorkerEntry{}
-
-		for _, fileURL := range allFiles {
-
-			if skipFileDownload(fileURL) {
-				continue
-			}
-
-			// remove https:// and host
-
-			filePath := fileURL[8:]
-			filePath = filePath[strings.Index(filePath, "/"):]
-
-			// remove everything before this constant
-			pullConstantStr := "pull-ci-redhat-appstudio-managed-gitops-main-managed-gitops-e2e-tests"
-			idx := strings.Index(filePath, pullConstantStr)
-			if idx == -1 {
-				pullConstantStr = "pull-ci-redhat-appstudio-infra-deployments-main-appstudio-e2e-tests"
-				idx = strings.Index(filePath, pullConstantStr)
-				if idx == -1 {
-					fmt.Println("unexpected negative index in removing e2e-tests string constant:", filePath)
-					return
-				}
-			}
-			filePath = filePath[idx+len(pullConstantStr)+1:]
-
-			// remove the job number
-			idx = strings.Index(filePath, "/")
-			if idx == -1 {
-				fmt.Println("unexpected negative index in removing job number")
-				return
-			}
-			filePath = filePath[idx+1:]
-
-			// Don't try to download directories
-			if strings.HasSuffix(filePath, "/") {
-				continue
-			}
-
-			entriesToDownload = append(entriesToDownload, downloadURLWorkerEntry{
-				url:  fileURL,
-				path: "./downloaded/" + filePath,
-			})
-
-			// downloadAsFile(fileURL, )
-		}
-
-		// for _, entryToDownload := range entriesToDownload {
-
-		// 	fmt.Println(entryToDownload.path)
-		// }
-
-		fmt.Println("* Downloading", len(entriesToDownload), "files")
-
-		downloadURLsMultithreaded(entriesToDownload)
-
-		fmt.Println("* Download complete")
-	},
-}
 
 const (
 	debugEnabled = false
 )
 
+func RunDownloadJobCommand(url string) {
+
+	if err := runDownloadJobCommandInternal(url); err != nil {
+		fmt.Println("* Error:", err.Error())
+		os.Exit(1)
+		return
+	}
+}
+
+func runDownloadJobCommandInternal(url string) error {
+
+	fmt.Println("* Retrieving artifacts page")
+
+	// I'm sure there's a much better way to parse this, but here we re.
+
+	artifactsURL, err := downloadAndExtractArtifactsURL(url)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("* Creating list of all files within CI job")
+	allFiles, err := extractAllFileURLsFromArtifactsPage(artifactsURL, 0)
+	if err != nil {
+		return err
+	}
+
+	entriesToDownload := []downloadURLWorkerEntry{}
+
+	for _, fileURL := range allFiles {
+
+		if skipFileDownload(fileURL) {
+			continue
+		}
+
+		// remove https:// and host
+
+		filePath := fileURL[8:]
+		filePath = filePath[strings.Index(filePath, "/"):]
+
+		// remove everything before this constant
+
+		// Look for a known set of expects job names in the URL. New ones likely need to added here.
+		validPullConstantStrs := []string{"pull-ci-redhat-appstudio-managed-gitops-main-managed-gitops-e2e-tests",
+			"pull-ci-redhat-appstudio-infra-deployments-main-appstudio-e2e-tests"}
+
+		var pullConstantStr string
+		idx := -1
+		for _, validPullConstantStr := range validPullConstantStrs {
+
+			idx = strings.Index(filePath, validPullConstantStr)
+			if idx != -1 {
+				pullConstantStr = validPullConstantStr
+				break
+			}
+		}
+
+		if idx == -1 {
+			return fmt.Errorf("unable to extract the pull constant string from the URL. This occurs when first run on a new repository. To fix this, add the pull-ci string to  'validPullConstantStrs'. path was: %s", filePath)
+		}
+
+		filePath = filePath[idx+len(pullConstantStr)+1:]
+
+		// remove the job number
+		idx = strings.Index(filePath, "/")
+		if idx == -1 {
+			return fmt.Errorf("unexpected negative index in removing job number. filepath was: %s", filePath)
+		}
+		filePath = filePath[idx+1:]
+
+		// Don't try to download directories
+		if strings.HasSuffix(filePath, "/") {
+			continue
+		}
+
+		entriesToDownload = append(entriesToDownload, downloadURLWorkerEntry{
+			url:  fileURL,
+			path: "./downloaded/" + filePath,
+		})
+
+	}
+
+	fmt.Println("* Downloading", len(entriesToDownload), "files")
+
+	downloadURLsMultithreaded(entriesToDownload)
+
+	fmt.Println("* Download complete")
+
+	return nil
+}
+
+// skipFileDownload filters out URLs from download: returns true if a URL should not be downloaded, false otherwise
 func skipFileDownload(url string) bool {
 
 	// remove everything before, and including, '/artifacts/'
@@ -155,9 +143,11 @@ func skipFileDownload(url string) bool {
 
 }
 
+// skipTraverseURL will return true if we should avoid traversing (recursing scanning) a given URL, false otherwise.
 func skipTraverseURL(url string) bool {
 
-	// various string constants which mean we don't need to both traversing the URL
+	// various string constants where we need not bother traversing the URL
+	// - these are generally never going to be relevant to us in gitops service
 	toSkip := []string{
 		"jvm-build-service", "o11y", "quality-dashboard", "spi-system",
 		"rp_preproc", "kube-rbac-proxy", "haproxy", "pipelines-as-code",
@@ -357,18 +347,4 @@ func downloadURLAsBytes(url string) ([]byte, error) {
 	}
 
 	return body, nil
-}
-
-func init() {
-	downloadCmd.AddCommand(jobCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// jobCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// jobCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

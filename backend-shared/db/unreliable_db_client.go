@@ -1009,17 +1009,24 @@ func (cdb *ChaosDBClient) UpdateAppProjectRepository(ctx context.Context, obj *A
 }
 
 func (cdb *ChaosDBClient) DeleteAppProjectRepositoryByRepoCredId(ctx context.Context, obj *AppProjectRepository) (int, error) {
-	if err := shouldSimulateFailure("DeleteAppProjectRepositoryByClusterUserId", obj); err != nil {
+	if err := shouldSimulateFailure("DeleteAppProjectRepositoryByRepoCredId", obj); err != nil {
 		return 0, err
 	}
 	return cdb.InnerClient.DeleteAppProjectRepositoryByRepoCredId(ctx, obj)
 }
 
-func (cdb *ChaosDBClient) DeleteAppProjectRepositoryByClusterUser(ctx context.Context, obj *AppProjectRepository) (int, error) {
+func (cdb *ChaosDBClient) DeleteAppProjectRepositoryByClusterUserAndRepoURL(ctx context.Context, obj *AppProjectRepository) (int, error) {
 	if err := shouldSimulateFailure("DeleteAppProjectRepositoryByClusterUser", obj); err != nil {
 		return 0, err
 	}
-	return cdb.InnerClient.DeleteAppProjectRepositoryByClusterUser(ctx, obj)
+	return cdb.InnerClient.DeleteAppProjectRepositoryByClusterUserAndRepoURL(ctx, obj)
+}
+
+func (cdb *ChaosDBClient) CountAppProjectRepositoryByClusterUserID(ctx context.Context, obj *AppProjectRepository) (int, error) {
+	if err := shouldSimulateFailure("CountAppProjectRepositoryByClusterUserID", obj); err != nil {
+		return 0, err
+	}
+	return cdb.InnerClient.CountAppProjectRepositoryByClusterUserID(ctx, obj)
 }
 
 func (cdb *ChaosDBClient) CreateAppProjectManagedEnvironment(ctx context.Context, obj *AppProjectManagedEnvironment) error {
@@ -1049,6 +1056,13 @@ func (cdb *ChaosDBClient) DeleteAppProjectManagedEnvironmentByManagedEnvId(ctx c
 		return 0, err
 	}
 	return cdb.InnerClient.DeleteAppProjectManagedEnvironmentByManagedEnvId(ctx, obj)
+}
+
+func (cdb *ChaosDBClient) CountAppProjectManagedEnvironmentByClusterUserID(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error) {
+	if err := shouldSimulateFailure("CountAppProjectManagedEnvironmentByClusterUserID", obj); err != nil {
+		return 0, err
+	}
+	return cdb.InnerClient.CountAppProjectManagedEnvironmentByClusterUserID(ctx, obj)
 }
 
 func (cdb *ChaosDBClient) CloseDatabase() {

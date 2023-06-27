@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/common"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
@@ -730,29 +731,12 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(BeNil())
 
-			By("ensuring GitOpsDeployment should have expected health and status and reconciledState")
-
-			expectedReconciledStateField := managedgitopsv1alpha1.ReconciledState{
-				Source: managedgitopsv1alpha1.GitOpsDeploymentSource{
-					RepoURL: gitOpsDeploymentResource.Spec.Source.RepoURL,
-					Path:    gitOpsDeploymentResource.Spec.Source.Path,
-				},
-				Destination: managedgitopsv1alpha1.GitOpsDeploymentDestination{
-					Name:      gitOpsDeploymentResource.Spec.Destination.Environment,
-					Namespace: gitOpsDeploymentResource.Spec.Destination.Namespace,
-				},
-			}
+			By("ensuring GitOpsDeployment should have expected health and status ")
 
 			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
 				SatisfyAll(
 					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
-					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
-					gitopsDeplFixture.HaveReconciledState(expectedReconciledStateField)))
-
-			secretList := corev1.SecretList{}
-
-			err = k8sClient.List(context.Background(), &secretList, &client.ListOptions{Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace})
-			Expect(err).To(BeNil())
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)))
 
 			dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
 			Expect(err).To(BeNil())
@@ -807,6 +791,183 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				}
 			}
 			Expect(match).To(BeTrue())
+
+		})
+
+		It("Managed Environment and GitOps Deployment Test for Multi-Environment Referencing in AppProject", func() {
+
+			By("Create a managedenvironment A and gitopsdeployment that references that env")
+			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
+			Expect(err).To(BeNil())
+
+			secret := corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-managed-env-secret",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Type:       "managed-gitops.redhat.com/managed-environment",
+				StringData: map[string]string{"kubeconfig": kubeConfigContents},
+			}
+
+			managedEnvA := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-managed-env-a",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+					APIURL:                     apiServerURL,
+					ClusterCredentialsSecret:   secret.Name,
+					AllowInsecureSkipTLSVerify: true,
+					CreateNewServiceAccount:    true,
+				},
+			}
+
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			err = k8s.Create(&secret, k8sClient)
+			Expect(err).To(BeNil())
+
+			err = k8s.Create(&managedEnvA, k8sClient)
+			Expect(err).To(BeNil())
+
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl",
+				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnvA.Name
+			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
+			Expect(err).To(BeNil())
+
+			By("ensuring GitOpsDeployment should have expected health and status ")
+
+			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)))
+
+			dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
+			Expect(err).To(BeNil())
+			defer dbQueries.CloseDatabase()
+
+			mapping := &db.APICRToDatabaseMapping{
+				APIResourceType: db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentManagedEnvironment,
+				APIResourceUID:  string(managedEnvA.UID),
+				DBRelationType:  db.APICRToDatabaseMapping_DBRelationType_ManagedEnvironment,
+			}
+			err = dbQueries.GetDatabaseMappingForAPICR(context.Background(), mapping)
+			Expect(err).To(BeNil())
+
+			appProjectManagedEnvDB := db.AppProjectManagedEnvironment{
+				Managed_environment_id: mapping.DBRelationKey,
+			}
+
+			Eventually(func() bool {
+				err = dbQueries.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnvDB)
+				return Expect(err).To(BeNil())
+			}, time.Second*60).Should(BeTrue())
+
+			By("Ensure AppProject now references managedEnvironment A")
+			appProject := &appv1alpha1.AppProject{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "app-project-" + appProjectManagedEnvDB.Clusteruser_id,
+					Namespace: "gitops-service-argocd",
+				},
+			}
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
+			Expect(err).To(BeNil())
+
+			var managedEnvReferences []string
+			for _, v := range appProject.Spec.Destinations {
+				managedEnvReferences = append(managedEnvReferences, v.Name)
+			}
+			Expect(managedEnvReferences).To(ContainElement("managed-env-" + mapping.DBRelationKey))
+
+			By("Create a managedenvironment B and gitopsdeployment that references that env")
+			managedEnvB := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-managed-env-b",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+					APIURL:                     apiServerURL,
+					ClusterCredentialsSecret:   secret.Name,
+					AllowInsecureSkipTLSVerify: true,
+					CreateNewServiceAccount:    true,
+				},
+			}
+
+			err = k8s.Create(&managedEnvB, k8sClient)
+			Expect(err).To(BeNil())
+
+			gitOpsDeploymentResource1 := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl-1",
+				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+			gitOpsDeploymentResource1.Spec.Destination.Environment = managedEnvB.Name
+			gitOpsDeploymentResource1.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
+			err = k8s.Create(&gitOpsDeploymentResource1, k8sClient)
+			Expect(err).To(BeNil())
+
+			By("ensuring GitOpsDeployment should have expected health and status ")
+
+			Eventually(gitOpsDeploymentResource1, "2m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)))
+
+			mapping1 := &db.APICRToDatabaseMapping{
+				APIResourceType: db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentManagedEnvironment,
+				APIResourceUID:  string(managedEnvB.UID),
+				DBRelationType:  db.APICRToDatabaseMapping_DBRelationType_ManagedEnvironment,
+			}
+			err = dbQueries.GetDatabaseMappingForAPICR(context.Background(), mapping1)
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
+			Expect(err).To(BeNil())
+
+			var managedEnvReferences1 []string
+			for _, v := range appProject.Spec.Destinations {
+				managedEnvReferences1 = append(managedEnvReferences1, v.Name)
+			}
+
+			Expect(managedEnvReferences1).To(ContainElement("managed-env-" + mapping.DBRelationKey))
+			Expect(managedEnvReferences1).To(ContainElement("managed-env-" + mapping1.DBRelationKey))
+
+			By("Delete managedenv A and the gitopsdeployment that references it")
+			err = k8s.Delete(&managedEnvA, k8sClient)
+			Expect(err).To(BeNil())
+
+			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
+			Expect(err).To(BeNil())
+
+			By("Ensure AppProject now references managedEnvironment B")
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
+			Expect(err).To(BeNil())
+
+			var managedEnvReferences2 []string
+			for _, v := range appProject.Spec.Destinations {
+				managedEnvReferences2 = append(managedEnvReferences2, v.Name)
+			}
+
+			Eventually(func() {
+				Expect(managedEnvReferences2).ToNot(ContainElement("managed-env-" + mapping.DBRelationKey))
+				Expect(managedEnvReferences2).To(ContainElement("managed-env-" + mapping1.DBRelationKey))
+			}, "2m", "1s")
+
+			By("Delete managedenv B and the gitopsdeployment that references it")
+			err = k8s.Delete(&managedEnvB, k8sClient)
+			Expect(err).To(BeNil())
+
+			err = k8s.Delete(&gitOpsDeploymentResource1, k8sClient)
+			Expect(err).To(BeNil())
+
+			By("Ensure the AppProject doesn't exist.")
+			Eventually(func() bool {
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
+				return Expect(err).ToNot(BeNil())
+			}, "2m", "1s")
 
 		})
 

@@ -306,8 +306,11 @@ type ApplicationScopedQueries interface {
 	// DeleteAppProjectRepositoryByRepoCredId deletes appProjectRepository by repo id
 	DeleteAppProjectRepositoryByRepoCredId(ctx context.Context, obj *AppProjectRepository) (int, error)
 
-	// DeleteAppProjectRepositoryByClusterUser deletes appProjectRepository by clusteruser_id and repo_url
-	DeleteAppProjectRepositoryByClusterUser(ctx context.Context, obj *AppProjectRepository) (int, error)
+	// DeleteAppProjectRepositoryByClusterUserAndRepoURL deletes appProjectRepository by clusteruser_id and repo_url
+	DeleteAppProjectRepositoryByClusterUserAndRepoURL(ctx context.Context, obj *AppProjectRepository) (int, error)
+
+	// CountAppProjectRepositoryByClusterUserID number of appProjectRepository by clusteruser_id
+	CountAppProjectRepositoryByClusterUserID(ctx context.Context, obj *AppProjectRepository) (int, error)
 
 	// CreateAppProjectManagedEnvironment creates appProjectManagedEnv in database
 	CreateAppProjectManagedEnvironment(ctx context.Context, obj *AppProjectManagedEnvironment) error
@@ -315,12 +318,15 @@ type ApplicationScopedQueries interface {
 	// GetAppProjectManagedEnvironmentByManagedEnvId retrieves appProjectManagedEnv by managedEnvID
 	GetAppProjectManagedEnvironmentByManagedEnvId(ctx context.Context, obj *AppProjectManagedEnvironment) error
 
-	// ListAppProjectManagedEnvironmentByClusterUserId returns a list of all AppProjectManagedEnvironment that reference the specified clusteruser_id row.
+	// ListAppProjectManagedEnvironmentByClusterUserId returns a list of all appProjectManagedEnv that reference the specified clusteruser_id row.
 	ListAppProjectManagedEnvironmentByClusterUserId(ctx context.Context,
 		clusteruser_id string, appProjectManagedEnvs *[]AppProjectManagedEnvironment) error
 
-	// DeleteAppProjectManagedEnvironmentByManagedEnvId deletes appProjectRepository by managedEnvID
+	// DeleteAppProjectManagedEnvironmentByManagedEnvId deletes appProjectManagedEnv by managedEnvID
 	DeleteAppProjectManagedEnvironmentByManagedEnvId(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error)
+
+	// CountAppProjectManagedEnvironmentByClusterUserID number of appProjectManagedEnv by clusteruser_id
+	CountAppProjectManagedEnvironmentByClusterUserID(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error)
 }
 
 type CloseableQueries interface {

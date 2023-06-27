@@ -967,6 +967,110 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 		})
 
+		It("Validate the expected behavior of GitOps deployments and their impact on the AppProject configuration", func() {
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			By("creating a new GitOpsDeployment resource targeting a repo A")
+			gitOpsDeploymentResource1 := gitopsDeplFixture.BuildTargetRevisionGitOpsDeploymentResource("gitops-depl-test",
+				"https://github.com/managed-gitops-test-data/deployment-permutations-a", "pathB", "branchA",
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+
+			err := k8s.Create(&gitOpsDeploymentResource1, k8sClient)
+			Expect(err).To(Succeed())
+
+			Eventually(gitOpsDeploymentResource1, ArgoCDReconcileWaitTime, "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
+				),
+			)
+
+			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
+			Expect(err).To(BeNil())
+
+			By("Retrieve namespace to get cluster user id")
+			namespace := corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: gitOpsDeploymentResource1.Namespace,
+				},
+			}
+
+			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&namespace), &namespace)
+			Expect(err).To(BeNil())
+
+			clusterUser := db.ClusterUser{
+				User_name: string(namespace.UID),
+			}
+
+			err = dbQueries.GetClusterUserByUsername(ctx, &clusterUser)
+			Expect(err).To(BeNil())
+
+			By("Verify whether AppProject includes the git repository referenced in the repo A")
+			appProject := &appv1.AppProject{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "app-project-" + clusterUser.Clusteruser_id,
+					Namespace: "gitops-service-argocd",
+				},
+			}
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
+			Expect(err).To(BeNil())
+
+			Expect(appProject.Spec.SourceRepos).To(ContainElement(gitOpsDeploymentResource1.Spec.Source.RepoURL))
+
+			By("Creating a second gitopsdeployment targetting repo B")
+			gitOpsDeploymentResource2 := gitopsDeplFixture.BuildTargetRevisionGitOpsDeploymentResource("gitops-depl-test-1",
+				"https://github.com/managed-gitops-test-data/deployment-permutations-b", "pathC", "branchB",
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+
+			err = k8s.Create(&gitOpsDeploymentResource2, k8sClient)
+			Expect(err).To(Succeed())
+
+			Eventually(gitOpsDeploymentResource2, ArgoCDReconcileWaitTime, "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
+				),
+			)
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
+			Expect(err).To(BeNil())
+
+			Expect(appProject.Spec.SourceRepos).To(ContainElement(gitOpsDeploymentResource1.Spec.Source.RepoURL))
+			Expect(appProject.Spec.SourceRepos).To(ContainElement(gitOpsDeploymentResource2.Spec.Source.RepoURL))
+
+			By("Delete gitopdeployment pointing to repo A")
+			err = k8s.Delete(&gitOpsDeploymentResource1, k8sClient)
+			Expect(err).To(Succeed())
+
+			err = k8s.Get(&gitOpsDeploymentResource1, k8sClient)
+			Expect(err).ToNot(Succeed())
+
+			By("Ensure the AppProject now only contains repo B")
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
+			Expect(err).To(BeNil())
+
+			Eventually(func() {
+				Expect(appProject.Spec.SourceRepos).ToNot(ContainElement(gitOpsDeploymentResource1.Spec.Source.RepoURL))
+				Expect(appProject.Spec.SourceRepos).To(ContainElement(gitOpsDeploymentResource2.Spec.Source.RepoURL))
+			}, "2m", "1s")
+
+			By("Delete gitopdeployment pointing to repo B")
+			err = k8s.Delete(&gitOpsDeploymentResource2, k8sClient)
+			Expect(err).To(Succeed())
+
+			err = k8s.Get(&gitOpsDeploymentResource2, k8sClient)
+			Expect(err).ToNot(Succeed())
+
+			By("Ensure the AppProject doesn't exist.")
+			Eventually(func() bool {
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
+				return Expect(err).ToNot(BeNil())
+			}, "2m", "1s")
+
+		})
+
 	})
 
 	Context("Simulates simple interactions of X active users interacting with the service", func() {

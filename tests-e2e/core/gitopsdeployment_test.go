@@ -13,8 +13,10 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	sharedresourceloop "github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	fixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
+	appProjectFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/appproject"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	appsv1 "k8s.io/api/apps/v1"
@@ -214,10 +216,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				RepoURL:        sharedresourceloop.NormalizeGitURL(gitOpsDeploymentResource.Spec.Source.RepoURL),
 			}
 
-			Eventually(func() bool {
-				err = dbQueries.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepositoryDB)
-				return Expect(err).To(BeNil())
-			}, time.Second*100).Should(BeTrue())
+			err = dbQueries.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepositoryDB)
+			Expect(err).To(BeNil())
 
 			By("Ensure AppProject is resource has been created")
 			appProject := &appv1.AppProject{
@@ -230,10 +230,27 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
 			Expect(err).To(BeNil())
 
-			By("deleting the GitOpsDeployment resource and waiting for the resources to be deleted")
+			By("Verify whether Argo CD Application CR references AppProject via the .spec.project")
+			app := &appv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      argocd.GenerateArgoCDApplicationName(string(gitOpsDeploymentResource.UID)),
+					Namespace: "gitops-service-argocd",
+				},
+			}
 
+			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(app), app)
+			Expect(err).To(BeNil())
+			Expect(app.Spec.Project).To(Equal(appProject.Name))
+
+			By("deleting the GitOpsDeployment resource and waiting for the resources to be deleted")
 			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
+
+			By("Ensure the AppProject doesn't exist.")
+			Eventually(func() bool {
+				err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(appProject), appProject)
+				return apierr.IsNotFound(err)
+			}, time.Minute, time.Second*5).Should(BeTrue())
 
 			expectAllResourcesToBeDeleted(expectedResourceStatusList)
 
@@ -1024,7 +1041,13 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
 			Expect(err).To(BeNil())
 
-			Expect(appProject.Spec.SourceRepos).To(ContainElement(gitOpsDeploymentResource1.Spec.Source.RepoURL))
+			Eventually(appProject, ArgoCDReconcileWaitTime, "1s").Should(
+				SatisfyAll(
+					appProjectFixture.HaveAppProjectSourceRepos(appv1.AppProjectSpec{
+						SourceRepos: []string{gitOpsDeploymentResource1.Spec.Source.RepoURL},
+					}),
+				),
+			)
 
 			By("Creating a second gitopsdeployment targetting repo B")
 			gitOpsDeploymentResource2 := gitopsDeplFixture.BuildTargetRevisionGitOpsDeploymentResource("gitops-depl-test-1",
@@ -1052,8 +1075,14 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
 			Expect(err).To(BeNil())
 
-			Expect(appProject.Spec.SourceRepos).To(ContainElement(gitOpsDeploymentResource1.Spec.Source.RepoURL))
-			Expect(appProject.Spec.SourceRepos).To(ContainElement(gitOpsDeploymentResource2.Spec.Source.RepoURL))
+			Eventually(appProject, ArgoCDReconcileWaitTime, "1s").Should(
+				SatisfyAll(
+					appProjectFixture.HaveAppProjectSourceRepos(appv1.AppProjectSpec{
+						SourceRepos: []string{gitOpsDeploymentResource1.Spec.Source.RepoURL,
+							gitOpsDeploymentResource2.Spec.Source.RepoURL},
+					}),
+				),
+			)
 
 			By("Delete gitopdeployment pointing to repo A")
 			err = k8s.Delete(&gitOpsDeploymentResource1, k8sClient)
@@ -1067,8 +1096,13 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
 			Expect(err).To(BeNil())
 
-			Expect(appProject.Spec.SourceRepos).NotTo(ContainElement(gitOpsDeploymentResource1.Spec.Source.RepoURL))
-			Expect(appProject.Spec.SourceRepos).To(ContainElement(gitOpsDeploymentResource2.Spec.Source.RepoURL))
+			Eventually(appProject, ArgoCDReconcileWaitTime, "1s").Should(
+				SatisfyAll(
+					appProjectFixture.HaveAppProjectSourceRepos(appv1.AppProjectSpec{
+						SourceRepos: []string{gitOpsDeploymentResource2.Spec.Source.RepoURL},
+					}),
+				),
+			)
 
 			By("Delete gitopdeployment pointing to repo B")
 			err = k8s.Delete(&gitOpsDeploymentResource2, k8sClient)
@@ -1078,8 +1112,10 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			Expect(err).ToNot(Succeed())
 
 			By("Ensure the AppProject doesn't exist.")
-			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
-			Expect(err).ToNot(BeNil())
+			Eventually(func() bool {
+				err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(appProject), appProject)
+				return apierr.IsNotFound(err)
+			}, time.Minute, time.Second*5).Should(BeTrue())
 
 		})
 	})

@@ -500,7 +500,7 @@ type RepositoryCredentials struct {
 	Created_on time.Time `pg:"created_on"`
 }
 
-// AppProjectRepository
+// AppProjectRepository is created by referring to the RepositoryCredentials
 type AppProjectRepository struct {
 
 	//lint:ignore U1000 used by go-pg
@@ -522,7 +522,7 @@ type AppProjectRepository struct {
 	Created_on time.Time `pg:"created_on"`
 }
 
-// AppProjectManagedEnvironment
+// AppProjectManagedEnvironment is created by referring to the ManagedEnvironment
 type AppProjectManagedEnvironment struct {
 
 	//lint:ignore U1000 used by go-pg
@@ -530,7 +530,7 @@ type AppProjectManagedEnvironment struct {
 
 	AppProjectManagedenvID string `pg:"app_project_managedenv_id,pk,notnull"`
 
-	// -- ClusterUser.clusteruser_id
+	// -- Foreign key to: ClusterUser.clusteruser_id
 	Clusteruser_id string `pg:"clusteruser_id"`
 
 	// -- Foreign key to: ManagedEnvironment.managed_environment_id

@@ -1,13 +1,18 @@
 package core
 
 import (
+	"context"
+
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("GitOpsDeployment Status Tests", func() {
@@ -86,6 +91,18 @@ var _ = Describe("GitOpsDeployment Status Tests", func() {
 					gitopsDeplFixture.HaveResources(expectedResourceStatusList),
 				),
 			)
+
+			By("verify if the operationState field is populated")
+			app := &appv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      argocd.GenerateArgoCDApplicationName(string(gitOpsDeploymentResource.UID)),
+					Namespace: "gitops-service-argocd",
+				},
+			}
+			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(app), app)
+			Expect(err).To(BeNil())
+
+			Expect(gitopsDeplFixture.HaveOperationStateFunc(app.Status.OperationState, gitOpsDeploymentResource)).To(BeTrue())
 
 			By("delete the GitOpsDeployment resource")
 			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)

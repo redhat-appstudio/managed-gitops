@@ -9,6 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
@@ -777,7 +778,7 @@ var _ = Describe("Application Controller", func() {
 		})
 	})
 
-	Context("Test compressResourceData function", func() {
+	Context("Test compressObject function", func() {
 		It("Should compress resource data into byte array", func() {
 			resourceStatus := appv1.ResourceStatus{
 				Group:     "apps",
@@ -795,7 +796,37 @@ var _ = Describe("Application Controller", func() {
 			var resources []appv1.ResourceStatus
 			resources = append(resources, resourceStatus)
 
-			byteArr, err := compressResourceData(resources)
+			byteArr, err := compressObject(resources)
+
+			Expect(err).To(BeNil())
+			Expect(byteArr).NotTo(BeEmpty())
+		})
+
+		It("Should compress operationState data into byte array", func() {
+			operationState := appv1.OperationState{
+				Operation: appv1.Operation{
+					InitiatedBy: appv1.OperationInitiator{
+						Automated: true,
+					},
+					Retry: appv1.RetryStrategy{
+						Limit: -1,
+					},
+				},
+				SyncResult: &appv1.SyncOperationResult{
+					Resources: appv1.ResourceResults{
+						&appv1.ResourceResult{
+							Group:     "",
+							HookPhase: common.OperationRunning,
+							Namespace: "jane",
+							Status:    common.ResultCodeSynced,
+						},
+					},
+				},
+				StartedAt:  metav1.Time{Time: time.Now()},
+				FinishedAt: &metav1.Time{Time: time.Now()},
+			}
+
+			byteArr, err := compressObject(operationState)
 
 			Expect(err).To(BeNil())
 			Expect(byteArr).NotTo(BeEmpty())
@@ -806,7 +837,7 @@ var _ = Describe("Application Controller", func() {
 			var resources []appv1.ResourceStatus
 			resources = append(resources, resourceStatus)
 
-			byteArr, err := compressResourceData(resources)
+			byteArr, err := compressObject(resources)
 
 			Expect(err).To(BeNil())
 			Expect(byteArr).NotTo(BeEmpty())
@@ -815,7 +846,7 @@ var _ = Describe("Application Controller", func() {
 		It("Should work for empty Resource Array", func() {
 			var resources []appv1.ResourceStatus
 
-			byteArr, err := compressResourceData(resources)
+			byteArr, err := compressObject(resources)
 
 			Expect(err).To(BeNil())
 			Expect(byteArr).NotTo(BeEmpty())

@@ -1184,13 +1184,13 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			Expect(opStateOut).NotTo(BeNil())
 			Expect(opStateOut.Operation.InitiatedBy.Automated).To(BeTrue())
-			Expect(opStateOut.Operation.Retry.Limit).To(Equal(-1))
+			Expect(opStateOut.Operation.Retry.Limit).To(Equal(int64(-1)))
 			Expect(opStateOut.SyncResult.Resources[0].Group).To(Equal(""))
 			Expect(opStateOut.SyncResult.Resources[0].HookPhase).To(Equal(managedgitopsv1alpha1.OperationRunning))
 			Expect(opStateOut.SyncResult.Resources[0].Namespace).To(Equal("jane"))
 			Expect(opStateOut.SyncResult.Resources[0].Status).To(Equal(managedgitopsv1alpha1.ResultCodeSynced))
-			Expect(opStateOut.StartedAt).To(Equal(operationState.StartedAt))
-			Expect(opStateOut.FinishedAt).To(Equal(operationState.FinishedAt))
+			Expect(opStateOut.StartedAt.Equal(&operationState.StartedAt)).To(BeTrue())
+			Expect(opStateOut.FinishedAt.Equal(operationState.FinishedAt)).To(BeTrue())
 
 		})
 

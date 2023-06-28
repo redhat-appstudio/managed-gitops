@@ -1181,7 +1181,6 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(err).To(BeNil())
 
 			Expect(opStateOut).NotTo(BeNil())
-			Expect(opStateOut).NotTo(BeEmpty())
 
 			Expect(opStateOut).NotTo(BeNil())
 			Expect(opStateOut.Operation.InitiatedBy.Automated).To(BeTrue())

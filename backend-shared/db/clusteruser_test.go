@@ -47,6 +47,8 @@ var _ = Describe("ClusterUser Tests", func() {
 			retrieveUser.Display_name = "test-display-name"
 			err = dbq.UpdateClusterUser(ctx, retrieveUser)
 			Expect(err).To(BeNil())
+			err = dbq.GetClusterUserByUsername(ctx, retrieveUser)
+			Expect(err).To(BeNil())
 			Expect(retrieveUser.Display_name).ToNot(BeEmpty())
 			Expect(retrieveUser.Display_name).To(Equal("test-display-name"))
 

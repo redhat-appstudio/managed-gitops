@@ -1000,8 +1000,6 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	gitopsDeployment.Status.Health.Message = applicationState.Message
 	gitopsDeployment.Status.Sync.Status = managedgitopsv1alpha1.SyncStatusCode(applicationState.Sync_Status)
 	gitopsDeployment.Status.Sync.Revision = applicationState.Revision
-	gitopsDeployment.Status.Sync.Started_At = metav1.NewTime(applicationState.Sync_Started_At)
-	gitopsDeployment.Status.Sync.Finished_At = metav1.NewTime(applicationState.Sync_Finished_At)
 
 	// We update the GitopsDeployment .status.conditions with SyncError condition, if the sync_error column of ApplicationState row is non empty
 	// - The sync_error column of ApplicationState row is based on the .status.conditions[type="ApplicationConditionSyncError"].message field.
@@ -1025,7 +1023,13 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	var err error
 	gitopsDeployment.Status.Resources, err = decompressResourceData(applicationState.Resources)
 	if err != nil {
-		log.Error(err, "unable to decompress byte array received from table.")
+		log.Error(err, "unable to decompress resources byte array received from table.")
+		return crUpdated_false, err
+	}
+
+	gitopsDeployment.Status.OperationState, err = decompressOperationState(applicationState.OperationState)
+	if err != nil {
+		log.Error(err, "unable to decompress operationState byte array received from table.")
 		return crUpdated_false, err
 	}
 
@@ -1320,12 +1324,49 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 func decompressResourceData(resourceData []byte) ([]managedgitopsv1alpha1.ResourceStatus, error) {
 	var resourceList []managedgitopsv1alpha1.ResourceStatus
 
+	objBytes, err := decompressObject(resourceData)
+	if err != nil {
+		return resourceList, fmt.Errorf("failed to decompress resource data: %v", err)
+	}
+
+	// Convert resource string into ResourceStatus Array
+	err = goyaml.Unmarshal(objBytes, &resourceList)
+	if err != nil {
+		return resourceList, fmt.Errorf("unable to Unmarshal resource data: %v", err)
+	}
+
+	return resourceList, nil
+}
+
+// Decompress byte array received from table and then convert it into OperationState.
+func decompressOperationState(operationStateBytes []byte) (*managedgitopsv1alpha1.OperationState, error) {
+	if len(operationStateBytes) == 0 {
+		return nil, nil
+	}
+
+	operationState := &managedgitopsv1alpha1.OperationState{}
+
+	objBytes, err := decompressObject(operationStateBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decompress operationState data: %v", err)
+	}
+
+	// Convert byte array to OperationState object
+	err = goyaml.Unmarshal(objBytes, operationState)
+	if err != nil {
+		return nil, fmt.Errorf("unable to Unmarshal operationState data: %v", err)
+	}
+
+	return operationState, nil
+}
+
+func decompressObject(compressedObj []byte) ([]byte, error) {
 	// Decompress data to get actual resource string
-	bufferIn := bytes.NewBuffer(resourceData)
+	bufferIn := bytes.NewBuffer(compressedObj)
 	gzipReader, err := gzip.NewReader(bufferIn)
 
 	if err != nil {
-		return resourceList, fmt.Errorf("unable to create gzipReader: %v", err)
+		return nil, fmt.Errorf("unable to create gzipReader: %v", err)
 	}
 
 	var bufferOut bytes.Buffer
@@ -1338,21 +1379,15 @@ func decompressResourceData(resourceData []byte) ([]managedgitopsv1alpha1.Resour
 			if err == io.EOF {
 				break
 			}
-			return resourceList, fmt.Errorf("unable to convert resource data to string: %v", err)
+			return nil, fmt.Errorf("unable to convert resource data to string: %v", err)
 		}
 	}
 
 	if err := gzipReader.Close(); err != nil {
-		return resourceList, fmt.Errorf("unable to close gzip reader connection: %v", err)
+		return nil, fmt.Errorf("unable to close gzip reader connection: %v", err)
 	}
 
-	// Convert resource string into ResourceStatus Array
-	err = goyaml.Unmarshal(bufferOut.Bytes(), &resourceList)
-	if err != nil {
-		return resourceList, fmt.Errorf("unable to Unmarshal resource data: %v", err)
-	}
-
-	return resourceList, nil
+	return bufferOut.Bytes(), nil
 }
 
 func retrieveComparedToFieldInApplicationState(reconciledState string) (fauxargocd.FauxComparedTo, error) {

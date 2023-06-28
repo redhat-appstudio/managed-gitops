@@ -297,17 +297,13 @@ type ApplicationState struct {
 	// -- * Unknown
 	Sync_Status string `pg:"sync_status"`
 
-	// Indicates the time at which the Application started syncing.
-	Sync_Started_At time.Time `pg:"sync_started_at"`
-
-	// Indicates the time at which the Application finished syncing.
-	Sync_Finished_At time.Time `pg:"sync_finished_at"`
-
 	Message string `pg:"message"`
 
 	Revision string `pg:"revision"`
 
 	Resources []byte `pg:"resources"`
+
+	OperationState []byte `pg:"operation_state"`
 
 	// -- human_readable_health ( 512 ) NOT NULL,
 	// -- human_readable_sync ( 512 ) NOT NULL,

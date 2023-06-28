@@ -136,15 +136,22 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			applicationState.Sync_Status = db.TruncateVarchar(string(app.Status.Sync.Status), db.ApplicationStateSyncStatusLength)
 			applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationStateRevisionLength)
 			sanitizeHealthAndStatus(applicationState)
-			applicationState.Sync_Started_At = app.Status.OperationState.StartedAt.Time
-			applicationState.Sync_Finished_At = app.Status.OperationState.FinishedAt.Time
 
 			// Get the list of resources created by deployment and convert it into a compressed YAML string.
 			var err error
-			applicationState.Resources, err = compressResourceData(app.Status.Resources)
+			applicationState.Resources, err = compressObject(app.Status.Resources)
 			if err != nil {
 				log.Error(err, "unable to compress resource data into byte array.")
 				return ctrl.Result{}, err
+			}
+
+			if app.Status.OperationState != nil {
+				// Compress the Application OperationState and copy it.
+				applicationState.OperationState, err = compressObject(app.Status.OperationState)
+				if err != nil {
+					log.Error(err, "unable to compress operationState data into byte array.")
+					return ctrl.Result{}, err
+				}
 			}
 
 			// storeInComparedToFieldInApplicationState will read 'comparedTo' field of an Argo CD Application, and write the
@@ -189,10 +196,18 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// Get the list of resources created by deployment and convert it into a compressed YAML string.
 	var err error
-	applicationState.Resources, err = compressResourceData(app.Status.Resources)
+	applicationState.Resources, err = compressObject(app.Status.Resources)
 	if err != nil {
 		log.Error(err, "unable to compress resource data into byte array.")
 		return ctrl.Result{}, err
+	}
+
+	if app.Status.OperationState != nil {
+		applicationState.OperationState, err = compressObject(app.Status.OperationState)
+		if err != nil {
+			log.Error(err, "unable to compress operationState into byte array.")
+			return ctrl.Result{}, err
+		}
 	}
 
 	// storeInComparedToFieldInApplicationState will read 'comparedTo' field of an Argo CD Application, and write the
@@ -267,15 +282,15 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// Convert ResourceStatus Array into String and then compress it into Byte Array​
-func compressResourceData(resources []appv1.ResourceStatus) ([]byte, error) {
+// compressObject marshals the given object into byte array and compresses it
+func compressObject(obj interface{}) ([]byte, error) {
 	var byteArr []byte
 	var buffer bytes.Buffer
 
-	// Convert ResourceStatus object into String.
-	resourceStr, err := yaml.Marshal(&resources)
+	// Marshal the object into bytes.
+	objBytes, err := yaml.Marshal(obj)
 	if err != nil {
-		return byteArr, fmt.Errorf("unable to Marshal resource data. %v", err)
+		return byteArr, fmt.Errorf("unable to Marshal the object. %v", err)
 	}
 
 	// Compress string data
@@ -284,10 +299,10 @@ func compressResourceData(resources []appv1.ResourceStatus) ([]byte, error) {
 		return byteArr, fmt.Errorf("unable to create Buffer writer. %v", err)
 	}
 
-	_, err = gzipWriter.Write([]byte(string(resourceStr)))
+	_, err = gzipWriter.Write(objBytes)
 
 	if err != nil {
-		return byteArr, fmt.Errorf("unable to compress resource string. %v", err)
+		return byteArr, fmt.Errorf("unable to compress the object bytes. %v", err)
 	}
 
 	if err := gzipWriter.Close(); err != nil {

@@ -1119,6 +1119,89 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 		})
 	})
 
+	Context("Check decompressOperationState function.", func() {
+		It("Should decompress operationState data and return actual operationState object.", func() {
+			// ----------------------------------------------------------------------------
+			By("Creating sample operationState data.")
+			// ----------------------------------------------------------------------------
+
+			operationState := managedgitopsv1alpha1.OperationState{
+				Operation: managedgitopsv1alpha1.ApplicationOperation{
+					InitiatedBy: managedgitopsv1alpha1.OperationInitiator{
+						Automated: true,
+					},
+					Retry: managedgitopsv1alpha1.RetryStrategy{
+						Limit: -1,
+					},
+				},
+				SyncResult: &managedgitopsv1alpha1.SyncOperationResult{
+					Resources: managedgitopsv1alpha1.ResourceResults{
+						{
+							Group:     "",
+							HookPhase: managedgitopsv1alpha1.OperationRunning,
+							Namespace: "jane",
+							Status:    managedgitopsv1alpha1.ResultCodeSynced,
+						},
+					},
+				},
+				StartedAt:  metav1.Time{Time: time.Now()},
+				FinishedAt: &metav1.Time{Time: time.Now()},
+			}
+
+			// ----------------------------------------------------------------------------
+			By("Convert sample OperationState object into byte array")
+			// ----------------------------------------------------------------------------
+			operationStateBytes, err := yaml.Marshal(operationState)
+			Expect(err).To(BeNil())
+
+			// ----------------------------------------------------------------------------
+			By("Compress sample data to be passed as input for decompressOperationState function.")
+			// ----------------------------------------------------------------------------
+			var buffer bytes.Buffer
+			gzipWriter, err := gzip.NewWriterLevel(&buffer, gzip.BestSpeed)
+
+			Expect(err).To(BeNil())
+
+			_, err = gzipWriter.Write(operationStateBytes)
+			Expect(err).To(BeNil())
+
+			err = gzipWriter.Close()
+			Expect(err).To(BeNil())
+
+			// ----------------------------------------------------------------------------
+			By("Decompress data and verify the OperationState")
+			// ----------------------------------------------------------------------------
+
+			var opStateOut *managedgitopsv1alpha1.OperationState
+
+			opStateOut, err = decompressOperationState(buffer.Bytes())
+
+			Expect(err).To(BeNil())
+
+			Expect(opStateOut).NotTo(BeNil())
+			Expect(opStateOut).NotTo(BeEmpty())
+
+			Expect(opStateOut).NotTo(BeNil())
+			Expect(opStateOut.Operation.InitiatedBy.Automated).To(BeTrue())
+			Expect(opStateOut.Operation.Retry.Limit).To(Equal(-1))
+			Expect(opStateOut.SyncResult.Resources[0].Group).To(Equal(""))
+			Expect(opStateOut.SyncResult.Resources[0].HookPhase).To(Equal(managedgitopsv1alpha1.OperationRunning))
+			Expect(opStateOut.SyncResult.Resources[0].Namespace).To(Equal("jane"))
+			Expect(opStateOut.SyncResult.Resources[0].Status).To(Equal(managedgitopsv1alpha1.ResultCodeSynced))
+			Expect(opStateOut.StartedAt).To(Equal(operationState.StartedAt))
+			Expect(opStateOut.FinishedAt).To(Equal(operationState.FinishedAt))
+
+		})
+
+		It("Shouldn't decompress if an empty operationState byte array is provided", func() {
+			operationState, err := decompressOperationState([]byte{})
+
+			Expect(err).To(BeNil())
+
+			Expect(operationState).To(BeNil())
+		})
+	})
+
 	Context("Test removeFinalizerIfExist function", func() {
 
 		var (

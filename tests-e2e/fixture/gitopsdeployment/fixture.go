@@ -17,6 +17,8 @@ import (
 	k8sFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 )
 
@@ -206,6 +208,65 @@ func HaveResourcesFunc(resourceStatusList []managedgitopsv1alpha1.ResourceStatus
 	}
 	return resourceExists
 
+}
+
+// HaveOperationState checks if the .status.operationState field of GitOpsDeployment have the required status.
+func HaveOperationState(operationState *appv1.OperationState) matcher.GomegaMatcher {
+	return WithTransform(func(gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment) bool {
+
+		return HaveOperationStateFunc(operationState, gitopsDeployment)
+
+	}, BeTrue())
+}
+
+// HaveOperationStateFunc can be called for non-Gomega-based comparisons.
+func HaveOperationStateFunc(operationState *appv1.OperationState, gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment) bool {
+	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+	Expect(err).To(BeNil())
+
+	k8sClient, err := fixture.GetKubeClient(config)
+	if err != nil {
+		fmt.Println(k8sFixture.K8sClientError, err)
+		return false
+	}
+
+	err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitopsDeployment), &gitopsDeployment)
+	if err != nil {
+		fmt.Println(k8sFixture.K8sClientError, err)
+		return false
+	}
+
+	opStateMatches := string(operationState.Phase) == string(gitopsDeployment.Status.OperationState.Phase)
+	if !opStateMatches {
+		fmt.Println("HaveOperationState:", opStateMatches, "/ Expected Phase:", operationState.Phase, "/ Actual Phase:", gitopsDeployment.Status.OperationState.Phase)
+		return false
+	}
+
+	opStateMatches = operationState.Message == gitopsDeployment.Status.OperationState.Message
+	if !opStateMatches {
+		fmt.Println("HaveOperationState:", opStateMatches, "/ Expected Message:", operationState.Message, "/ Actual Message:", gitopsDeployment.Status.OperationState.Message)
+		return false
+	}
+
+	opStateMatches = len(operationState.SyncResult.Resources) == len(gitopsDeployment.Status.OperationState.SyncResult.Resources)
+	if !opStateMatches {
+		fmt.Println("HaveOperationState:", opStateMatches, "/ Expected Resources:", len(operationState.SyncResult.Resources), "/ Actual Resources:", len(gitopsDeployment.Status.OperationState.SyncResult.Resources))
+		return false
+	}
+
+	opStateMatches = operationState.StartedAt.Equal(&gitopsDeployment.Status.OperationState.StartedAt)
+	if !opStateMatches {
+		fmt.Println("HaveOperationState:", opStateMatches, "/ Expected StartedAt:", operationState.StartedAt, "/ Actual StartedAt:", gitopsDeployment.Status.OperationState.StartedAt)
+		return false
+	}
+
+	opStateMatches = operationState.FinishedAt.Equal(gitopsDeployment.Status.OperationState.FinishedAt)
+	if !opStateMatches {
+		fmt.Println("HaveOperationState:", opStateMatches, "/ Expected FinishedAt:", operationState.FinishedAt, "/ Actual FinishedAt:", gitopsDeployment.Status.OperationState.FinishedAt)
+		return false
+	}
+
+	return true
 }
 
 func HaveSpecSource(source managedgitopsv1alpha1.ApplicationSource) matcher.GomegaMatcher {

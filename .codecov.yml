@@ -12,6 +12,7 @@ ignore:
   - "backend-shared/apis/managed-gitops/v1alpha1/mocks/structs/builders.go"
   - "backend-shared/apis/managed-gitops/v1alpha1/mocks/structs/gitopsdeployment.go"
   - "cluster-agent/utils/mocks/ApplicationServiceClient.go"
+  - "cluster-agent/utils/mocks/Client.go"
   - "cluster-agent/utils/mocks/SessionServiceClient.go"
   - "cluster-agent/utils/mocks/SettingsServiceClient.go"
   - "cluster-agent/utils/mocks/VersionServiceClient.go"

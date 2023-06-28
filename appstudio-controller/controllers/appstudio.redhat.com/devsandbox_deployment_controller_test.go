@@ -85,7 +85,7 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 			Expect(err).To(BeNil())
 			Expect(dt).NotTo(BeNil())
 			Expect(dt.Annotations).ToNot(BeNil())
-			Expect(dt.Annotations[annDynamicallyProvisioned]).To(Equal(string(appstudiosharedv1.Provisioner_Devsandbox)))
+			Expect(dt.Annotations[appstudiosharedv1.AnnDynamicallyProvisioned]).To(Equal(string(appstudiosharedv1.Provisioner_Devsandbox)))
 
 		})
 

@@ -34,11 +34,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
-const (
-	// Indicates the name of the provisioner that provisioned the DT.
-	annDynamicallyProvisioned = "provisioner.appstudio.redhat.com/provisioned-by"
-)
-
 // DevsandboxDeploymentReconciler reconciles a SpaceRequest object
 type DevsandboxDeploymentReconciler struct {
 	client.Client
@@ -209,7 +204,7 @@ func createDeploymentTargetForSpaceRequest(ctx context.Context, client client.Cl
 	if deploymentTarget.Annotations == nil {
 		deploymentTarget.Annotations = make(map[string]string)
 	}
-	deploymentTarget.Annotations[annDynamicallyProvisioned] = string(applicationv1alpha1.Provisioner_Devsandbox)
+	deploymentTarget.Annotations[applicationv1alpha1.AnnDynamicallyProvisioned] = string(applicationv1alpha1.Provisioner_Devsandbox)
 
 	err = client.Create(ctx, deploymentTarget)
 	if err != nil {

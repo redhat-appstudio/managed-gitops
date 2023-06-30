@@ -1,0 +1,10 @@
+DROP INDEX idx_APICRToDatabaseMapping1;
+DROP INDEX idx_APICRToDatabaseMapping2;
+DROP INDEX idx_APICRToDatabaseMapping3;
+DROP INDEX idx_gitopsenginecluster_clustercredentials;
+DROP INDEX idx_clusteruser_user_name;
+DROP INDEX idx_managed_environment_id;
+DROP INDEX idx_operation_1;
+DROP INDEX idx_deploymenttoapplicationmapping_1;
+DROP INDEX idx_deploymenttoapplicationmapping_2;
+DROP INDEX idx_deploymenttoapplicationmapping_3;

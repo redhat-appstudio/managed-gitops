@@ -128,8 +128,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListClusterAccessesByManagedEnvironmentID(
 
 	var dbResults []ClusterAccess
 
-	// TODO: GITOPSRVCE-68 - PERF - Add index for this
-
+	// Index Name is idx_managed_environment_id
 	if err := dbq.dbConnection.Model(&dbResults).
 		Where("clusteraccess_managed_environment_id = ?", managedEnvironmentID).
 		Context(ctx).

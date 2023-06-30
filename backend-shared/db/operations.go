@@ -249,7 +249,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListOperationsByResourceIdAndTypeAndOwnerI
 
 	var dbResults []Operation
 
-	// TODO: GITOPSRVCE-68 - PERF - Add index for this
+	// Index Name is idx_operation_1
 
 	if err := dbq.dbConnection.Model(&dbResults).
 		Where("op.resource_id = ?", resourceID).

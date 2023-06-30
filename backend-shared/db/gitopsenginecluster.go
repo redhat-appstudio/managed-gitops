@@ -104,7 +104,7 @@ func (dbq *PostgreSQLDatabaseQueries) CheckedListGitopsEngineClusterByCredential
 		Where("gitops_engine_cluster.clustercredentials_id = ?", credentialId).
 		Context(ctx).
 		Select(); err != nil {
-		// TODO: GITOPSRVCE-68 - PERF -  Add an index for this function, if it's actually used for anything
+		// Index Name is idx_gitopsenginecluster_clustercredentials
 
 		return fmt.Errorf("error on retrieving GetGitopsEngineClusterByCredentialId: %v", err)
 	}

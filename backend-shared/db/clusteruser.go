@@ -83,8 +83,6 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterUser(ctx context.Context, obj
 
 func (dbq *PostgreSQLDatabaseQueries) GetClusterUserByUsername(ctx context.Context, clusterUser *ClusterUser) error {
 
-	// TODO: GITOPSRVCE-68 - PERF - Add an index for this, if anything actually calls it
-
 	if err := validateQueryParamsEntity(clusterUser, dbq); err != nil {
 		return err
 	}
@@ -95,6 +93,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetClusterUserByUsername(ctx context.Conte
 
 	var dbResults []ClusterUser
 
+	// Index Name is idx_clusteruser_user_name
 	if err := dbq.dbConnection.Model(&dbResults).
 		Where("cu.user_name = ?", clusterUser.User_name).
 		Context(ctx).

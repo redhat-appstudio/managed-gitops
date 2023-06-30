@@ -83,7 +83,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetDatabaseMappingForAPICR(ctx context.Con
 	var result []APICRToDatabaseMapping
 
 	if err := dbq.dbConnection.Model(&result).
-		// TODO: GITOPSRVCE-68 - PERF - Add a DB index for this
+		// Index Name is idx_APICRToDatabaseMapping1
 		Where("atdbm.api_resource_type = ?", obj.APIResourceType).
 		Where("atdbm.api_resource_uid = ?", obj.APIResourceUID).
 		Where("atdbm.db_relation_type = ?", obj.DBRelationType).
@@ -128,8 +128,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListAPICRToDatabaseMappingByAPINamespaceAn
 
 	var dbResults []APICRToDatabaseMapping
 
-	// TODO: GITOPSRVCE-68 - PERF - Add index for this
-
+	// Index Name is idx_APICRToDatabaseMapping2
 	if err := dbq.dbConnection.Model(&dbResults).
 		Where("atdbm.api_resource_type = ?", apiCRResourceType).
 		Where("atdbm.api_resource_name = ?", crName).
@@ -190,7 +189,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetAPICRForDatabaseUID(ctx context.Context
 	var result []APICRToDatabaseMapping
 
 	if err := dbq.dbConnection.Model(&result).
-		// TODO: GITOPSRVCE-68 - PERF - Add a DB index for this
+		// Index Name is idx_APICRToDatabaseMapping3
 		Where("atdbm.api_resource_type = ?", obj.APIResourceType).
 		Where("atdbm.db_relation_type = ?", obj.DBRelationType).
 		Where("atdbm.db_relation_key = ?", obj.DBRelationKey).

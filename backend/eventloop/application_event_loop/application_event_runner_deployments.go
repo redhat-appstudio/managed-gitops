@@ -855,7 +855,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 
 	appProjectRepoCredDB := db.AppProjectRepository{
 		Clusteruser_id: clusterUser.Clusteruser_id,
-		RepoURL:        specFieldAppFromDB.Spec.Source.RepoURL,
+		RepoURL:        sharedloop.NormalizeGitURL(specFieldAppFromDB.Spec.Source.RepoURL),
 	}
 
 	// 5) Remove AppProjectRepository from database as GitopsDeployment is deleted

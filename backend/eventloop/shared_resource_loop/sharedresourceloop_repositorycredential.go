@@ -240,37 +240,10 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 		}
 		l.Info("Created RepositoryCredential in the DB", "repositoryCredential", dbRepoCred.RepositoryCredentialsID)
 
-		normalizedRepoURL := NormalizeGitURL(dbRepoCred.PrivateURL)
-
-		appProjectRepoCredDB := db.AppProjectRepository{
-			Clusteruser_id:          clusterUser.Clusteruser_id,
-			RepositorycredentialsID: dbRepoCred.RepositoryCredentialsID,
-			RepoURL:                 normalizedRepoURL,
-		}
-
-		// Retrieve AppProjectRepository to check if AppProjectRepository is already present or not.
-		if err := dbQueries.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepoCredDB); err != nil {
-			// If AppProjectRepository doesn't exist in database Create it.
-			if db.IsResultNotFoundError(err) {
-				if err := dbQueries.CreateAppProjectRepository(ctx, &appProjectRepoCredDB); err != nil {
-					l.Error(err, "Error creating AppProjectRepository row in DB", "DebugErr", errCreateDBAppProjectRepository, "CR Name", repositoryCredentialCRName, "Namespace", resourceNS)
-					return nil, fmt.Errorf("unable to create appProject repository in the database: %v", err)
-				}
-
-				l.Info("Created new AppProjectRepository in the DB", "appProjectRepository", appProjectRepoCredDB.AppProjectRepositoryID)
-			} else {
-				l.Error(err, "Unable to retrieve appProject repository from database")
-				return nil, fmt.Errorf("unable to retrieve appProject repository from database: %v", err)
-			}
-		}
-
-		// Update RepositorycredentialsID of AppProjectRepository with RepositorycredentialsID of RepositoryCredential.
-		if appProjectRepoCredDB.RepositorycredentialsID != dbRepoCred.RepositoryCredentialsID {
-			appProjectRepoCredDB.RepositorycredentialsID = dbRepoCred.RepositoryCredentialsID
-			if err := dbQueries.UpdateAppProjectRepository(ctx, &appProjectRepoCredDB); err != nil {
-				l.Error(err, "Error updating AppProjectRepository row in DB", "DebugErr", errUpdateDBAppProjectRepository, "CR Name", repositoryCredentialCRName, "Namespace", resourceNS)
-				return nil, fmt.Errorf("unable to update appProject repository in the database: %v", err)
-			}
+		// Create or Update AppProjectRepository
+		if err := processAppProjectRepository(ctx, dbQueries, dbRepoCred, clusterUser, repositoryCredentialCRName, resourceNS, l); err != nil {
+			l.Error(err, "Failed to call processAppProjectRepository function")
+			return nil, fmt.Errorf("unable to call processAppProjectRepository function: %v", err)
 		}
 
 		// Create the mapping
@@ -355,35 +328,10 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 				return nil, err
 			}
 
-			normalizedRepoURL := NormalizeGitURL(dbRepoCred.PrivateURL)
-
-			appProjectRepoCredDB := db.AppProjectRepository{
-				Clusteruser_id:          clusterUser.Clusteruser_id,
-				RepositorycredentialsID: dbRepoCred.RepositoryCredentialsID,
-				RepoURL:                 normalizedRepoURL,
-			}
-
-			// Retrieve AppProjectRepository to check if AppProjectRepository is already present or not.
-			if err := dbQueries.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepoCredDB); err != nil {
-				// If AppProjectRepository doesn't exist in database Create it.
-				if db.IsResultNotFoundError(err) {
-					if err := dbQueries.CreateAppProjectRepository(ctx, &appProjectRepoCredDB); err != nil {
-						l.Error(err, "Error creating AppProjectRepository row in DB", "DebugErr", errCreateDBAppProjectRepository, "CR Name", repositoryCredentialCRName, "Namespace", resourceNS)
-						return nil, fmt.Errorf("unable to create appProject repository in the database: %v", err)
-					}
-					l.Info("Created new AppProjectRepository in the DB", "appProjectRepository", appProjectRepoCredDB.AppProjectRepositoryID)
-				} else {
-					l.Error(err, "Unable to retrieve appProject repository from database")
-					return nil, fmt.Errorf("unable to retrieve appProject repository from database: %v", err)
-				}
-				// Update RepositorycredentialsID of AppProjectRepository with RepositorycredentialsID of RepositoryCredential.
-			} else if appProjectRepoCredDB.RepositorycredentialsID != dbRepoCred.RepositoryCredentialsID || appProjectRepoCredDB.RepoURL != dbRepoCred.PrivateURL {
-				appProjectRepoCredDB.RepositorycredentialsID = dbRepoCred.RepositoryCredentialsID
-				appProjectRepoCredDB.RepoURL = NormalizeGitURL(dbRepoCred.PrivateURL)
-				if err := dbQueries.UpdateAppProjectRepository(ctx, &appProjectRepoCredDB); err != nil {
-					l.Error(err, "Error updating AppProjectRepository row in DB", "DebugErr", errUpdateDBAppProjectRepository, "CR Name", repositoryCredentialCRName, "Namespace", resourceNS)
-					return nil, fmt.Errorf("unable to update appProject repository in the database: %v", err)
-				}
+			// Create or Update AppProjectRepository
+			if err := processAppProjectRepository(ctx, dbQueries, dbRepoCred, clusterUser, repositoryCredentialCRName, resourceNS, l); err != nil {
+				l.Error(err, "Failed to call processAppProjectRepository function")
+				return nil, fmt.Errorf("unable to call processAppProjectRepository function: %v", err)
 			}
 
 			if operationDBID, err = createRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, shouldWait, l); err != nil {
@@ -714,4 +662,39 @@ func isSSHURL(url string) (bool, string) {
 		return true, matches[2]
 	}
 	return false, ""
+}
+
+func processAppProjectRepository(ctx context.Context, dbQueries db.DatabaseQueries, dbRepoCred db.RepositoryCredentials, clusterUser *db.ClusterUser, repositoryCredentialCRName string, resourceNS string, l logr.Logger) error {
+	normalizedRepoURL := NormalizeGitURL(dbRepoCred.PrivateURL)
+
+	appProjectRepoCredDB := db.AppProjectRepository{
+		Clusteruser_id:          clusterUser.Clusteruser_id,
+		RepositorycredentialsID: dbRepoCred.RepositoryCredentialsID,
+		RepoURL:                 normalizedRepoURL,
+	}
+
+	// Retrieve AppProjectRepository to check if AppProjectRepository is already present or not.
+	if err := dbQueries.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepoCredDB); err != nil {
+		// If AppProjectRepository doesn't exist in database Create it.
+		if db.IsResultNotFoundError(err) {
+			if err := dbQueries.CreateAppProjectRepository(ctx, &appProjectRepoCredDB); err != nil {
+				l.Error(err, "Error creating AppProjectRepository row in DB", "DebugErr", errCreateDBAppProjectRepository, "CR Name", repositoryCredentialCRName, "Namespace", resourceNS)
+				return fmt.Errorf("unable to create appProject repository in the database: %v", err)
+			}
+
+			l.Info("Created new AppProjectRepository in the DB", "appProjectRepository", appProjectRepoCredDB.AppProjectRepositoryID)
+		} else {
+			l.Error(err, "Unable to retrieve appProject repository from database")
+			return fmt.Errorf("unable to retrieve appProject repository from database: %v", err)
+		}
+		// Update RepositorycredentialsID of AppProjectRepository with RepositorycredentialsID of RepositoryCredential.
+	} else if appProjectRepoCredDB.RepositorycredentialsID != dbRepoCred.RepositoryCredentialsID {
+		appProjectRepoCredDB.RepositorycredentialsID = dbRepoCred.RepositoryCredentialsID
+		if err := dbQueries.UpdateAppProjectRepository(ctx, &appProjectRepoCredDB); err != nil {
+			l.Error(err, "Error updating AppProjectRepository row in DB", "DebugErr", errUpdateDBAppProjectRepository, "CR Name", repositoryCredentialCRName, "Namespace", resourceNS)
+			return fmt.Errorf("unable to update appProject repository in the database: %v", err)
+		}
+	}
+
+	return nil
 }

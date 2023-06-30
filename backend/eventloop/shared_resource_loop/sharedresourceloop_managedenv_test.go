@@ -995,7 +995,7 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 
 		})
 
-		It("should test whether appProjectEnvironment does not exist; if it doesn't, then create it while updating managedEnv.", func() {
+		It("should test whether appProjectEnvironment does not exist; if it doesn't, then create it while updating managedEnv Cr.", func() {
 
 			By("creating ManagedEnvironment and Secret")
 			managedEnv, secret := buildManagedEnvironmentForSRL()
@@ -1042,10 +1042,6 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err).To(BeNil())
 
 			err = dbQueries.GetManagedEnvironmentById(ctx, src.ManagedEnv)
-			Expect(err).To(BeNil())
-
-			src.ManagedEnv.Name = "test-updated-name"
-			err = dbQueries.UpdateManagedEnvironment(ctx, src.ManagedEnv)
 			Expect(err).To(BeNil())
 
 			By("Verify whether AppProject is created or not")

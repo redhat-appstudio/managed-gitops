@@ -963,19 +963,34 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.Create(&gitopsRepoCred, k8sClient)
 			Expect(err).To(Succeed())
 
+			Eventually(appProject, ArgoCDReconcileWaitTime, "1s").Should(
+				SatisfyAll(
+					appProjectFixture.HaveAppProjectSourceRepos(appv1.AppProjectSpec{
+						SourceRepos: []string{gitOpsDeploymentResource.Spec.Source.RepoURL},
+					}),
+				),
+			)
+
+			Consistently(appProject, ArgoCDReconcileWaitTime, "1s").Should(
+				SatisfyAll(
+					appProjectFixture.HaveAppProjectSourceRepos(appv1.AppProjectSpec{
+						SourceRepos: []string{gitOpsDeploymentResource.Spec.Source.RepoURL},
+					}),
+				),
+			)
+
 			By("Delete GitOpsDeploymentRepositoryCredential")
 			err = k8s.Delete(&gitopsRepoCred, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("Verify that AppProject should still include the git repository after 30 seconds")
-			Eventually(func() bool {
-				for _, value := range appProject.Spec.SourceRepos {
-					if value == gitOpsDeploymentResource.Spec.Source.RepoURL {
-						return true
-					}
-				}
-				return false
-			}, 30*time.Second, 1*time.Second).Should(BeTrue())
+			Eventually(appProject, "30s", "1s").Should(
+				SatisfyAll(
+					appProjectFixture.HaveAppProjectSourceRepos(appv1.AppProjectSpec{
+						SourceRepos: []string{gitOpsDeploymentResource.Spec.Source.RepoURL},
+					}),
+				),
+			)
 
 			By("Delete GitOpsDeployment Resource")
 			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)

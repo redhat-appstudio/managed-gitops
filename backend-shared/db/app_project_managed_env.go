@@ -29,14 +29,14 @@ func (dbq *PostgreSQLDatabaseQueries) CreateAppProjectManagedEnvironment(ctx con
 	}
 
 	if dbq.allowTestUuids {
-		if IsEmpty(obj.AppProjectManagedEnvironmentID) {
-			obj.AppProjectManagedEnvironmentID = generateUuid()
+		if IsEmpty(obj.AppProjectManagedenvID) {
+			obj.AppProjectManagedenvID = generateUuid()
 		}
 	} else {
-		if !IsEmpty(obj.AppProjectManagedEnvironmentID) {
+		if !IsEmpty(obj.AppProjectManagedenvID) {
 			return fmt.Errorf("primary key should be empty")
 		}
-		obj.AppProjectManagedEnvironmentID = generateUuid()
+		obj.AppProjectManagedenvID = generateUuid()
 	}
 
 	if err := isEmptyValues("CreateAppProjectManagedEnvironment",
@@ -95,15 +95,15 @@ func (dbq *PostgreSQLDatabaseQueries) GetAppProjectManagedEnvironmentByManagedEn
 }
 
 func (dbq *PostgreSQLDatabaseQueries) ListAppProjectManagedEnvironmentByClusterUserId(ctx context.Context,
-	cluster_user_id string, appProjectManagedEnvs *[]AppProjectManagedEnvironment) error {
+	clusteruser_id string, appProjectManagedEnvs *[]AppProjectManagedEnvironment) error {
 
-	if err := validateQueryParams(cluster_user_id, dbq); err != nil {
+	if err := validateQueryParams(clusteruser_id, dbq); err != nil {
 		return err
 	}
-	// Retrieve all appProjectManagedEnvs which are targeting this cluster_user_id
-	err := dbq.dbConnection.Model(appProjectManagedEnvs).Context(ctx).Where("cluster_user_id = ?", cluster_user_id).Select()
+	// Retrieve all appProjectManagedEnvs which are targeting this clusteruser_id
+	err := dbq.dbConnection.Model(appProjectManagedEnvs).Context(ctx).Where("clusteruser_id = ?", clusteruser_id).Select()
 	if err != nil {
-		return fmt.Errorf("unable to retrieve appProjectManagedEnvs with cluster_user_id: %v", err)
+		return fmt.Errorf("unable to retrieve appProjectManagedEnvs with clusteruser_id: %v", err)
 	}
 
 	return nil
@@ -139,7 +139,7 @@ func (obj *AppProjectManagedEnvironment) GetAsLogKeyValues() []interface{} {
 		return []interface{}{}
 	}
 
-	return []interface{}{"app_project_managedenv_id", obj.AppProjectManagedEnvironmentID,
-		"cluster_user_id", obj.Clusteruser_id,
+	return []interface{}{"app_project_managedenv_id", obj.AppProjectManagedenvID,
+		"clusteruser_id", obj.Clusteruser_id,
 		"managed_environment_id", obj.Managed_environment_id}
 }

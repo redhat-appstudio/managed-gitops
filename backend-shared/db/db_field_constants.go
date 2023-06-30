@@ -79,11 +79,11 @@ const (
 	RepositoryCredentialsRepoCredEngineIDLength                             = 48
 	AppProjectRepositoryAppProjectRepositoryIDLength                        = 48
 	AppProjectRepositoryClusteruserIDLength                                 = 48
-	AppProjectRepositoryRepositoryCredentialsIDLength                       = 48
+	AppProjectRepositoryRepositorycredentialsIDLength                       = 48
 	AppProjectRepositoryRepoURLLength                                       = 256
-	AppProjectManagedEnvironmentAppProjectManagedEnvironmentIDLength        = 48
-	AppProjectManagedEnvironmentClusteruserIDLength                         = 48
+	AppProjectManagedEnvironmentAppProjectManagedenvIDLength                = 48
 	AppProjectManagedEnvironmentManagedEnvironmentIDLength                  = 48
+	AppProjectManagedEnvironmentClusteruserIDLength                         = 48
 )
 
 // TruncateVarchar converts string to "str..." if chars is > maxLength
@@ -203,11 +203,11 @@ var DbFieldMap = map[string]int{
 	"RepositoryCredentialsRepoCredEngineIDLength":                             RepositoryCredentialsRepoCredEngineIDLength,
 	"AppProjectRepositoryAppProjectRepositoryIDLength":                        AppProjectRepositoryAppProjectRepositoryIDLength,
 	"AppProjectRepositoryClusteruserIDLength":                                 AppProjectRepositoryClusteruserIDLength,
-	"AppProjectRepositoryRepositoryCredentialsIDLength":                       AppProjectRepositoryRepositoryCredentialsIDLength,
+	"AppProjectRepositoryRepositorycredentialsIDLength":                       AppProjectRepositoryRepositorycredentialsIDLength,
 	"AppProjectRepositoryRepoURLLength":                                       AppProjectRepositoryRepoURLLength,
-	"AppProjectManagedEnvironmentAppProjectManagedEnvironmentIDLength":        AppProjectManagedEnvironmentAppProjectManagedEnvironmentIDLength,
-	"AppProjectManagedEnvironmentClusteruserIDLength":                         AppProjectManagedEnvironmentClusteruserIDLength,
+	"AppProjectManagedEnvironmentAppProjectManagedenvIDLength":                AppProjectManagedEnvironmentAppProjectManagedenvIDLength,
 	"AppProjectManagedEnvironmentManagedEnvironmentIDLength":                  AppProjectManagedEnvironmentManagedEnvironmentIDLength,
+	"AppProjectManagedEnvironmentClusteruserIDLength":                         AppProjectManagedEnvironmentClusteruserIDLength,
 }
 
 // Get value of constants based on constant variable name given as String.

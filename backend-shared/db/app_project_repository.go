@@ -61,7 +61,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateAppProjectRepository(ctx context.Con
 	return nil
 }
 
-// GetAppProjectRepositoryByUniqueConstraint retrieves AppProjectRepository by unique constraint i.e, cluster_user_id and repo_url.
+// GetAppProjectRepositoryByUniqueConstraint retrieves AppProjectRepository by unique constraint i.e, clusteruser_id and repo_url.
 func (dbq *PostgreSQLDatabaseQueries) GetAppProjectRepositoryByUniqueConstraint(ctx context.Context, obj *AppProjectRepository) error {
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return err
@@ -70,7 +70,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetAppProjectRepositoryByUniqueConstraint(
 	var results []AppProjectRepository
 
 	if err := dbq.dbConnection.Model(&results).
-		Where("cluster_user_id = ? AND repo_url = ?", obj.Clusteruser_id, obj.RepoURL).
+		Where("clusteruser_id = ? AND repo_url = ?", obj.Clusteruser_id, obj.RepoURL).
 		Context(ctx).
 		Select(); err != nil {
 
@@ -91,15 +91,15 @@ func (dbq *PostgreSQLDatabaseQueries) GetAppProjectRepositoryByUniqueConstraint(
 }
 
 func (dbq *PostgreSQLDatabaseQueries) ListAppProjectRepositoryByClusterUserId(ctx context.Context,
-	cluster_user_id string, appProjectRepositories *[]AppProjectRepository) error {
+	clusteruser_id string, appProjectRepositories *[]AppProjectRepository) error {
 
-	if err := validateQueryParams(cluster_user_id, dbq); err != nil {
+	if err := validateQueryParams(clusteruser_id, dbq); err != nil {
 		return err
 	}
-	// Retrieve all appProjectRepository which are targeting this cluster_user_id
-	err := dbq.dbConnection.Model(appProjectRepositories).Context(ctx).Where("cluster_user_id = ?", cluster_user_id).Select()
+	// Retrieve all appProjectRepository which are targeting this clusteruser_id
+	err := dbq.dbConnection.Model(appProjectRepositories).Context(ctx).Where("clusteruser_id = ?", clusteruser_id).Select()
 	if err != nil {
-		return fmt.Errorf("unable to retrieve appProjectRepository with cluster_user_id: %v", err)
+		return fmt.Errorf("unable to retrieve appProjectRepository with clusteruser_id: %v", err)
 	}
 
 	return nil
@@ -113,13 +113,13 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteAppProjectRepositoryByRepoCredId(ctx
 	}
 
 	if err := isEmptyValues("DeleteAppProjectRepositoryByRepoCredId",
-		"repositorycredentials_id", obj.RepositoryCredentialsID,
+		"repositorycredentials_id", obj.RepositorycredentialsID,
 	); err != nil {
 		return 0, err
 	}
 
 	deleteResult, err := dbq.dbConnection.Model(obj).
-		Where("repositorycredentials_id = ?", obj.RepositoryCredentialsID).
+		Where("repositorycredentials_id = ?", obj.RepositorycredentialsID).
 		Context(ctx).Delete()
 	if err != nil {
 		return 0, fmt.Errorf("error on deleting AppProjectRepository: %v", err)
@@ -136,7 +136,7 @@ func (obj *AppProjectRepository) GetAsLogKeyValues() []interface{} {
 	}
 
 	return []interface{}{"app_project_repository_id", obj.AppProjectRepositoryID,
-		"cluster_user_id", obj.Clusteruser_id,
-		"repositorycredentials_id", obj.RepositoryCredentialsID,
+		"clusteruser_id", obj.Clusteruser_id,
+		"repositorycredentials_id", obj.RepositorycredentialsID,
 		"repo_url", obj.RepoURL}
 }

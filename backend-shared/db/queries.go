@@ -298,7 +298,7 @@ type ApplicationScopedQueries interface {
 
 	// ListAppProjectRepositoryByClusterUserId retrieves the list of appProjectRepositories
 	ListAppProjectRepositoryByClusterUserId(ctx context.Context,
-		cluster_user_id string, appProjectRepositories *[]AppProjectRepository) error
+		clusteruser_id string, appProjectRepositories *[]AppProjectRepository) error
 
 	// DeleteAppProjectRepositoryByRepoCredId deletes appProjectRepository by id
 	DeleteAppProjectRepositoryByRepoCredId(ctx context.Context, obj *AppProjectRepository) (int, error)
@@ -309,9 +309,9 @@ type ApplicationScopedQueries interface {
 	// GetAppProjectManagedEnvironmentByManagedEnvId retrieves appProjectManagedEnv by managedEnvID
 	GetAppProjectManagedEnvironmentByManagedEnvId(ctx context.Context, obj *AppProjectManagedEnvironment) error
 
-	// ListAppProjectManagedEnvironmentByClusterUserId returns a list of all AppProjectManagedEnvironment that reference the specified cluster_user_id row.
+	// ListAppProjectManagedEnvironmentByClusterUserId returns a list of all AppProjectManagedEnvironment that reference the specified clusteruser_id row.
 	ListAppProjectManagedEnvironmentByClusterUserId(ctx context.Context,
-		cluster_user_id string, appProjectManagedEnvs *[]AppProjectManagedEnvironment) error
+		clusteruser_id string, appProjectManagedEnvs *[]AppProjectManagedEnvironment) error
 
 	// DeleteAppProjectManagedEnvironmentByManagedEnvId deletes appProjectRepository by managedEnvID
 	DeleteAppProjectManagedEnvironmentByManagedEnvId(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error)

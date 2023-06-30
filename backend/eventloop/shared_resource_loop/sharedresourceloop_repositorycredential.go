@@ -244,7 +244,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 
 		appProjectRepoCredDB := db.AppProjectRepository{
 			Clusteruser_id:          clusterUser.Clusteruser_id,
-			RepositoryCredentialsID: dbRepoCred.RepositoryCredentialsID,
+			RepositorycredentialsID: dbRepoCred.RepositoryCredentialsID,
 			RepoURL:                 normalizedRepoURL,
 		}
 
@@ -353,7 +353,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 				if db.IsResultNotFoundError(err) {
 					appProjectRepoCredDB := db.AppProjectRepository{
 						Clusteruser_id:          clusterUser.Clusteruser_id,
-						RepositoryCredentialsID: dbRepoCred.RepositoryCredentialsID,
+						RepositorycredentialsID: dbRepoCred.RepositoryCredentialsID,
 						RepoURL:                 normalizedRepoURL,
 					}
 

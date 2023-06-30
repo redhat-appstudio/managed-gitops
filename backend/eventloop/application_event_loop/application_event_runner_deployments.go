@@ -319,7 +319,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	// The RepositoryCredentialsID field is nil when creating an AppProjectRepository based on GitopsDeployment because the value of AppProjectRepository is generated based on an Application.
 	appProjectRepoCredDB := db.AppProjectRepository{
 		Clusteruser_id:          clusterUser.Clusteruser_id,
-		RepositoryCredentialsID: "",
+		RepositorycredentialsID: "",
 		RepoURL:                 sharedloop.NormalizeGitURL(specFieldInput.sourceRepoURL),
 	}
 
@@ -690,7 +690,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		if db.IsResultNotFoundError(err) {
 			appProjectRepoCredDB := db.AppProjectRepository{
 				Clusteruser_id:          clusterUser.Clusteruser_id,
-				RepositoryCredentialsID: "",
+				RepositorycredentialsID: "",
 				RepoURL:                 sharedloop.NormalizeGitURL(gitopsDeployment.Spec.Source.RepoURL),
 			}
 

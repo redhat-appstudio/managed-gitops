@@ -99,6 +99,15 @@ var _ = Describe("Test to populate the database fields", func() {
 			err = dbq.CreateAPICRToDatabaseMapping(ctx, &atdm)
 			Expect(err).To(BeNil())
 
+			By("Create an AppProjectRepository pointing to the RepoCred")
+			appProjectRepo := AddTest_PreAppProjectRepository
+			err = dbq.CreateAppProjectRepository(ctx, &appProjectRepo)
+			Expect(err).To(BeNil())
+
+			By("Create an AppProjectManagedEnv pointing to the ManagedEnv")
+			appProjectManagedEnv := AddTest_PreAppProjectManagedEnv
+			err = dbq.CreateAppProjectManagedEnvironment(ctx, &appProjectManagedEnv)
+			Expect(err).To(BeNil())
 		})
 
 	})

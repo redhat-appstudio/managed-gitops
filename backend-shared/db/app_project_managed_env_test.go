@@ -32,10 +32,10 @@ var _ = Describe("AppProjectManagedEnvironment Test", func() {
 
 		By("Verify whether AppProjectManagedEnvironment is created")
 		appProjectManagedEnv := db.AppProjectManagedEnvironment{
-			AppProjectManagedEnvironmentID: "test-app-project-managed-env",
-			Clusteruser_id:                 clusterUser.Clusteruser_id,
-			Managed_environment_id:         managedEnvironment.Managedenvironment_id,
-			SeqID:                          int64(seq),
+			AppProjectManagedenvID: "test-app-project-managed-env",
+			Clusteruser_id:         clusterUser.Clusteruser_id,
+			Managed_environment_id: managedEnvironment.Managedenvironment_id,
+			SeqID:                  int64(seq),
 		}
 
 		err = dbq.CreateAppProjectManagedEnvironment(ctx, &appProjectManagedEnv)
@@ -59,7 +59,7 @@ var _ = Describe("AppProjectManagedEnvironment Test", func() {
 		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
 		appProjectManagedEnvget = db.AppProjectManagedEnvironment{
-			AppProjectManagedEnvironmentID: "does-not-exist",
+			Managed_environment_id: "does-not-exist",
 		}
 		err = dbq.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnvget)
 		Expect(true).To(Equal(db.IsResultNotFoundError(err)))

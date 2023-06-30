@@ -1991,7 +1991,7 @@ var _ = Describe("Operation Controller", func() {
 				dbAppProjectRepo := &db.AppProjectRepository{
 					AppProjectRepositoryID:  "test-appProject-repo-id",
 					Clusteruser_id:          testClusterUser.Clusteruser_id,
-					RepositoryCredentialsID: repoCredentials.RepositoryCredentialsID,
+					RepositorycredentialsID: repoCredentials.RepositoryCredentialsID,
 					RepoURL:                 "test-url",
 				}
 
@@ -2449,7 +2449,7 @@ var _ = Describe("Operation Controller", func() {
 				dbAppProjectRepo := &db.AppProjectRepository{
 					AppProjectRepositoryID:  "test-appProject-repo-id",
 					Clusteruser_id:          testClusterUser.Clusteruser_id,
-					RepositoryCredentialsID: repoCredentials.RepositoryCredentialsID,
+					RepositorycredentialsID: repoCredentials.RepositoryCredentialsID,
 					RepoURL:                 "test-url",
 				}
 
@@ -3228,7 +3228,7 @@ func deleteTestResources(ctx context.Context, dbQueries db.AllDatabaseQueries, r
 	// Delete AppProjectRepository
 	if resourcesToBeDeleted.AppProjectRepositoryID != "" {
 		appProjectRepository := &db.AppProjectRepository{
-			RepositoryCredentialsID: resourcesToBeDeleted.RepositoryCredentialsID,
+			RepositorycredentialsID: resourcesToBeDeleted.RepositoryCredentialsID,
 		}
 		rowsAffected, err = dbQueries.DeleteAppProjectRepositoryByRepoCredId(ctx, appProjectRepository)
 		Expect(err).To(BeNil())

@@ -456,9 +456,7 @@ func deleteRepoCredFromDB(ctx context.Context, dbQueries db.DatabaseQueries, ID 
 	}
 
 	if appProjectRowsDeleted == 0 {
-		// Log the error, but continue to delete the other Repository Credentials (this looks morel like a bug in our code)
-		l.Info("No rows deleted from the database", "rowsDeleted", appProjectRowsDeleted, "RepositoryCredential ID", ID)
-		return noRetry, err
+		l.V(logutil.LogLevel_Warn).Info("No rows deleted from the database", "rowsDeleted", appProjectRowsDeleted, "RepositoryCredential ID", ID)
 	}
 
 	l.Info("Deleted appProjectRepository from the database", "RepositoryCredential ID", ID)
@@ -496,7 +494,7 @@ func compareAndModifyClusterResourceWithDatabaseRow(cr managedgitopsv1alpha1.Git
 	if cr.Spec.Repository != dbr.PrivateURL {
 		l.Info("Repository URL changed", "old", dbr.PrivateURL, "new", cr.Spec.Repository)
 		dbr.PrivateURL = cr.Spec.Repository
-		isSecretUpdateNeeded = true
+		isRepoUpdateNeeded = true
 	}
 
 	// Fetch these data from the secret

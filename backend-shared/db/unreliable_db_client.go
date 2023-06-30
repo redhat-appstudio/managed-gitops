@@ -986,11 +986,11 @@ func (cdb *ChaosDBClient) CreateAppProjectRepository(ctx context.Context, obj *A
 	return cdb.InnerClient.CreateAppProjectRepository(ctx, obj)
 }
 
-func (cdb *ChaosDBClient) GetAppProjectRepositoryByUniqueConstraint(ctx context.Context, obj *AppProjectRepository) error {
-	if err := shouldSimulateFailure("GetAppProjectRepositoryByUniqueConstraint", obj); err != nil {
+func (cdb *ChaosDBClient) GetAppProjectRepositoryByClusterUserAndRepoURL(ctx context.Context, obj *AppProjectRepository) error {
+	if err := shouldSimulateFailure("GetAppProjectRepositoryByClusterUserAndRepoURL", obj); err != nil {
 		return err
 	}
-	return cdb.InnerClient.GetAppProjectRepositoryByUniqueConstraint(ctx, obj)
+	return cdb.InnerClient.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, obj)
 }
 
 func (cdb *ChaosDBClient) ListAppProjectRepositoryByClusterUserId(ctx context.Context,
@@ -1001,11 +1001,25 @@ func (cdb *ChaosDBClient) ListAppProjectRepositoryByClusterUserId(ctx context.Co
 	return cdb.InnerClient.ListAppProjectRepositoryByClusterUserId(ctx, clusteruser_id, appProjectRepositories)
 }
 
+func (cdb *ChaosDBClient) UpdateAppProjectRepository(ctx context.Context, obj *AppProjectRepository) error {
+	if err := shouldSimulateFailure("UpdateAppProjectRepository", obj); err != nil {
+		return err
+	}
+	return cdb.InnerClient.UpdateAppProjectRepository(ctx, obj)
+}
+
 func (cdb *ChaosDBClient) DeleteAppProjectRepositoryByRepoCredId(ctx context.Context, obj *AppProjectRepository) (int, error) {
 	if err := shouldSimulateFailure("DeleteAppProjectRepositoryByClusterUserId", obj); err != nil {
 		return 0, err
 	}
 	return cdb.InnerClient.DeleteAppProjectRepositoryByRepoCredId(ctx, obj)
+}
+
+func (cdb *ChaosDBClient) DeleteAppProjectRepositoryByClusterUser(ctx context.Context, obj *AppProjectRepository) (int, error) {
+	if err := shouldSimulateFailure("DeleteAppProjectRepositoryByClusterUser", obj); err != nil {
+		return 0, err
+	}
+	return cdb.InnerClient.DeleteAppProjectRepositoryByClusterUser(ctx, obj)
 }
 
 func (cdb *ChaosDBClient) CreateAppProjectManagedEnvironment(ctx context.Context, obj *AppProjectManagedEnvironment) error {

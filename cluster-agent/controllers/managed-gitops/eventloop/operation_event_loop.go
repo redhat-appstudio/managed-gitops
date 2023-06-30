@@ -869,7 +869,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		},
 	}
 
-	if err = opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(existingAppProject), existingAppProject); err != nil {
+	if err := opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(existingAppProject), existingAppProject); err != nil {
 		if apierr.IsNotFound(err) {
 			// If appProject doesn't exist, create it.
 			if err := opConfig.eventClient.Create(ctx, appProject, &client.CreateOptions{}); err != nil {
@@ -881,18 +881,10 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 			log.Error(err, "unable to retrieve existing AppProject from namespace")
 			return shouldRetryTrue, err
 		}
-	}
-
-	// If generated appProject doesn't match with the existing appProject, update it.
-	if !appProjectEqual(existingAppProject, appProject) {
-		if err = opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject); err != nil {
-			log.Error(err, "Unable to retrieve generated AppProject CR")
-			return shouldRetryTrue, err
-		}
-
+		// If generated appProject doesn't match with the existing appProject, update it.
+	} else if !appProjectEqual(existingAppProject, appProject) {
 		// Update existingAppProject with generated appProject
-		existingAppProject = appProject
-
+		existingAppProject.Spec = appProject.Spec
 		if err := opConfig.eventClient.Update(ctx, existingAppProject, &client.UpdateOptions{}); err != nil {
 			log.Error(err, "Unable to update AppProject CR")
 			return shouldRetryTrue, err
@@ -1288,6 +1280,42 @@ func buildAppProject(ctx context.Context, dbOperation db.Operation, opConfig ope
 		repoURLs = append(repoURLs, repo.RepoURL)
 	}
 
+	var clusterSecretNames []string
+
+	var appProjectManagedEnvs []db.AppProjectManagedEnvironment
+	if err := opConfig.dbQueries.ListAppProjectManagedEnvironmentByClusterUserId(ctx, dbOperation.Operation_owner_user_id, &appProjectManagedEnvs); err != nil {
+		log.Error(err, "unable to list appProjectManagedEnvs by cluster user id")
+		return nil, err
+	}
+
+	for _, appProjectManagedEnv := range appProjectManagedEnvs {
+
+		managedEnv := db.ManagedEnvironment{
+			Managedenvironment_id: appProjectManagedEnv.Managed_environment_id,
+		}
+
+		if err := opConfig.dbQueries.GetManagedEnvironmentById(ctx, &managedEnv); err != nil {
+			log.Error(err, "unable to retrieve managedEnv by id")
+			return nil, err
+		}
+
+		clusterSecretNames = append(clusterSecretNames, argosharedutil.GenerateArgoCDClusterSecretName(managedEnv))
+	}
+
+	var destinations []appv1.ApplicationDestination
+	for _, clusterSecretName := range clusterSecretNames {
+		destinations = append(destinations, appv1.ApplicationDestination{
+			Name:      clusterSecretName,
+			Namespace: "*",
+		})
+	}
+
+	// Make sure we also add the local cluster
+	destinations = append(destinations, appv1.ApplicationDestination{
+		Name:      ArgoCDDefaultDestinationInCluster,
+		Namespace: "*",
+	})
+
 	appProject := &appv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: appProjectPrefix + dbOperation.Operation_owner_user_id,
@@ -1297,13 +1325,8 @@ func buildAppProject(ctx context.Context, dbOperation db.Operation, opConfig ope
 			Namespace: opConfig.argoCDNamespace.Name,
 		},
 		Spec: appv1.AppProjectSpec{
-			SourceRepos: repoURLs,
-			Destinations: []appv1.ApplicationDestination{
-				{
-					Namespace: "*",
-					Server:    managedEnvPrefix + dbApplication.Managed_environment_id,
-				},
-			},
+			SourceRepos:  repoURLs,
+			Destinations: destinations,
 		},
 	}
 

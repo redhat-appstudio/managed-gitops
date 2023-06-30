@@ -44,6 +44,7 @@ const (
 	deploymentModifiedResult_NoChange deploymentModifiedResult = "noChangeInApp"
 
 	prunePropagationPolicy = "PrunePropagationPolicy=background"
+	appProjectPrefix       = "app-project-"
 )
 
 // This file is responsible for processing events related to GitOpsDeployment CR.
@@ -273,6 +274,30 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, devError)
 	}
 
+	// Create AppProjectRepository row based on GitopsDeployment and
+	// The RepositoryCredentialsID field is nil when creating an AppProjectRepository based on GitopsDeployment because the value of AppProjectRepository is generated based on an Application.
+	appProjectRepoCredDB := db.AppProjectRepository{
+		Clusteruser_id:          clusterUser.Clusteruser_id,
+		RepositorycredentialsID: "",
+		RepoURL:                 sharedloop.NormalizeGitURL(gitopsDeployment.Spec.Source.RepoURL),
+	}
+
+	if err := dbQueries.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepoCredDB); err != nil {
+		if db.IsResultNotFoundError(err) {
+			if err := dbQueries.CreateAppProjectRepository(ctx, &appProjectRepoCredDB); err != nil {
+				a.log.Error(err, "Unable to create appProjectRepository based on GitopsDeployment", appProjectRepoCredDB.GetAsLogKeyValues()...)
+
+				return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
+			}
+
+			a.log.Info("Created new AppProjectRepository in DB based on GitopsDeployment: "+appProjectRepoCredDB.AppProjectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
+		} else {
+			a.log.Error(err, "Unable to retrieve AppProjectRepository from database based on GitopsDeployment: "+appProjectRepoCredDB.AppProjectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
+
+			return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
+		}
+	}
+
 	specFieldInput := argoCDSpecInput{
 		crName:               appName,
 		crNamespace:          engineInstance.Namespace_name,
@@ -284,6 +309,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		sourceTargetRevision: gitopsDeployment.Spec.Source.TargetRevision,
 		// syncOptions:       if non-empty, it gets updated below.
 		automated: strings.EqualFold(gitopsDeployment.Spec.Type, managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated),
+		project:   appProjectPrefix + appProjectRepoCredDB.Clusteruser_id,
 	}
 
 	if gitopsDeployment.Spec.SyncPolicy != nil && len(gitopsDeployment.Spec.SyncPolicy.SyncOptions) != 0 {
@@ -315,30 +341,6 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		Spec_field:              specFieldText,
 	}
 
-	// Create AppProjectRepository row based on GitopsDeployment and
-	// The RepositoryCredentialsID field is nil when creating an AppProjectRepository based on GitopsDeployment because the value of AppProjectRepository is generated based on an Application.
-	appProjectRepoCredDB := db.AppProjectRepository{
-		Clusteruser_id:          clusterUser.Clusteruser_id,
-		RepositorycredentialsID: "",
-		RepoURL:                 sharedloop.NormalizeGitURL(specFieldInput.sourceRepoURL),
-	}
-
-	if err := dbQueries.GetAppProjectRepositoryByUniqueConstraint(ctx, &appProjectRepoCredDB); err != nil {
-		if db.IsResultNotFoundError(err) {
-
-			if err := dbQueries.CreateAppProjectRepository(ctx, &appProjectRepoCredDB); err != nil {
-				a.log.Error(err, "Unable to create appProjectRepository based on GitopsDeployment", appProjectRepoCredDB.GetAsLogKeyValues()...)
-
-				return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
-			}
-
-			a.log.Info("Created new AppProjectRepository in DB based on GitopsDeployment: "+appProjectRepoCredDB.AppProjectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
-		} else {
-			a.log.Info("Unable to retrieve AppProjectRepository from database based on GitopsDeployment, so we need to create it: "+appProjectRepoCredDB.AppProjectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
-
-			return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
-		}
-	}
 	if err := dbQueries.CreateApplication(ctx, &application); err != nil {
 		a.log.Error(err, "Unable to create application", application.GetAsLogKeyValues()...)
 
@@ -453,6 +455,24 @@ func (a applicationEventLoopRunner_Action) handleDeleteGitOpsDeplEvent(ctx conte
 				a.log.Error(err, "failed to remove the deletion finalizer from GitOpsDeployment", "name", gitopsDepl.Name, "namespace", gitopsDepl.Namespace)
 				return false, gitopserrors.NewDevOnlyError(err)
 			}
+
+			appProjectRepoCredDB := db.AppProjectRepository{
+				Clusteruser_id: clusterUser.Clusteruser_id,
+			}
+			// remove AppProjectRepository from DB as GitopsDeployment is deleted
+			appProjectRowsDeleted, err := dbQueries.DeleteAppProjectRepositoryByClusterUser(ctx, &appProjectRepoCredDB)
+			if err != nil {
+				// Log the error and retry
+				a.log.Error(err, "Error deleting app appProjectRepository from database: ", "ClusterUserID", appProjectRepoCredDB.Clusteruser_id)
+				return false, gitopserrors.NewDevOnlyError(err)
+			}
+
+			if appProjectRowsDeleted == 0 {
+				a.log.V(logutil.LogLevel_Warn).Info("No rows deleted from the database", "rowsDeleted", appProjectRowsDeleted, "ClusterUserID", appProjectRepoCredDB.Clusteruser_id)
+			}
+
+			a.log.Info("Deleted appProjectRepository from the database pointing to gitopsDeployment")
+
 		}
 		return signalShutdown, nil
 
@@ -628,6 +648,37 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, devError)
 	}
 
+	// Before Updating Application ensure that AppProjectRepository row has been created or no.
+	appProjectRepoCredDB := db.AppProjectRepository{
+		Clusteruser_id: clusterUser.Clusteruser_id,
+		RepoURL:        sharedloop.NormalizeGitURL(gitopsDeployment.Spec.Source.RepoURL),
+	}
+
+	if err := dbQueries.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepoCredDB); err != nil {
+
+		// If AppProjectRepository is not present in DB, create it.
+		if db.IsResultNotFoundError(err) {
+			appProjectRepoCredDB := db.AppProjectRepository{
+				Clusteruser_id:          clusterUser.Clusteruser_id,
+				RepositorycredentialsID: "",
+				RepoURL:                 sharedloop.NormalizeGitURL(gitopsDeployment.Spec.Source.RepoURL),
+			}
+
+			if err := dbQueries.CreateAppProjectRepository(ctx, &appProjectRepoCredDB); err != nil {
+				a.log.Error(err, "Unable to create appProjectRepository based on GitopsDeployment", appProjectRepoCredDB.GetAsLogKeyValues()...)
+
+				return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
+			}
+
+			a.log.Info("Created new AppProjectRepository in DB based on GitopsDeployment: "+appProjectRepoCredDB.AppProjectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
+
+		} else {
+			a.log.Error(err, "Unable to retrieve appProjectRepository based on GitopsDeployment", appProjectRepoCredDB.GetAsLogKeyValues()...)
+			return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
+		}
+
+	}
+
 	specFieldInput := argoCDSpecInput{
 		crName:               application.Name,
 		crNamespace:          engineInstance.Namespace_name,
@@ -638,6 +689,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		sourceTargetRevision: gitopsDeployment.Spec.Source.TargetRevision,
 		// syncOptions:       if non-empty, it gets updated below.
 		automated: strings.EqualFold(gitopsDeployment.Spec.Type, managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated),
+		project:   appProjectPrefix + appProjectRepoCredDB.Clusteruser_id,
 	}
 
 	if gitopsDeployment.Spec.SyncPolicy != nil && len(gitopsDeployment.Spec.SyncPolicy.SyncOptions) != 0 {
@@ -683,37 +735,6 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 	if !shouldUpdateApplication {
 		log.Info("Processed GitOpsDeployment event: No Application row change detected")
 		return application, engineInstance, deploymentModifiedResult_NoChange, nil
-	}
-
-	// Before Updating Application ensure that AppProjectRepository row has been created or no.
-	appProjectRepoCredDB := db.AppProjectRepository{
-		Clusteruser_id: clusterUser.Clusteruser_id,
-		RepoURL:        sharedloop.NormalizeGitURL(gitopsDeployment.Spec.Source.RepoURL),
-	}
-
-	if err := dbQueries.GetAppProjectRepositoryByUniqueConstraint(ctx, &appProjectRepoCredDB); err != nil {
-
-		// If AppProjectRepository is not present in DB, create it.
-		if db.IsResultNotFoundError(err) {
-			appProjectRepoCredDB := db.AppProjectRepository{
-				Clusteruser_id:          clusterUser.Clusteruser_id,
-				RepositorycredentialsID: "",
-				RepoURL:                 sharedloop.NormalizeGitURL(gitopsDeployment.Spec.Source.RepoURL),
-			}
-
-			if err := dbQueries.CreateAppProjectRepository(ctx, &appProjectRepoCredDB); err != nil {
-				a.log.Error(err, "Unable to create appProjectRepository based on GitopsDeployment", appProjectRepoCredDB.GetAsLogKeyValues()...)
-
-				return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
-			}
-
-			a.log.Info("Created new AppProjectRepository in DB based on GitopsDeploymentkkkk: "+appProjectRepoCredDB.AppProjectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
-
-		} else {
-			a.log.Error(err, "Unable to retrive appProjectRepository based on GitopsDeployment", appProjectRepoCredDB.GetAsLogKeyValues()...)
-			return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
-		}
-
 	}
 
 	if err := dbQueries.UpdateApplication(ctx, application); err != nil {
@@ -1155,6 +1176,8 @@ type argoCDSpecInput struct {
 	syncOptions          []string
 	// MAKE SURE YOU SANITIZE ANY NEW FIELDS THAT ARE ADDED!!!!
 	automated bool
+	// MAKE SURE YOU SANITIZE ANY NEW FIELDS THAT ARE ADDED!!!!
+	project string
 
 	// Hopefully you are getting the message, here :)
 }
@@ -1195,7 +1218,7 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 		syncOptions:          sanitizeArray(fieldsParam.syncOptions),
 		automated:            fieldsParam.automated,
 		// MAKE SURE YOU SANITIZE ANY NEW FIELDS THAT ARE ADDED!!!!
-
+		project: sanitize(fieldsParam.project),
 		// Hopefully you are getting the message, here :)
 	}
 
@@ -1218,7 +1241,7 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 				Name:      fields.destinationName,
 				Namespace: fields.destinationNamespace,
 			},
-			Project: "default",
+			Project: fields.project,
 		},
 	}
 
@@ -1268,6 +1291,7 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return string(resBytes), nil
 }
 

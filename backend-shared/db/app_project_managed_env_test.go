@@ -41,7 +41,7 @@ var _ = Describe("AppProjectManagedEnvironment Test", func() {
 		err = dbq.CreateAppProjectManagedEnvironment(ctx, &appProjectManagedEnv)
 		Expect(err).To(BeNil())
 
-		By("Verify whether AppProjectManagedEnvironment is retrived")
+		By("Verify whether AppProjectManagedEnvironment is retrieved")
 		appProjectManagedEnvget := db.AppProjectManagedEnvironment{
 			Managed_environment_id: appProjectManagedEnv.Managed_environment_id,
 		}

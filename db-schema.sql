@@ -70,6 +70,8 @@ CREATE TABLE GitopsEngineCluster (
 
 );
 
+CREATE INDEX idx_gitopsenginecluster_clustercredentials ON GitopsEngineCluster(clustercredentials_id);
+
 -- GitopsEngineInstance
 -- Represents an Argo CD instance on a cluster; the specific cluster is pointed to by the enginecluster field, and the
 -- namespace of the Argo CD install is listed here.
@@ -139,6 +141,7 @@ CREATE TABLE ClusterUser (
 	display_name VARCHAR (128)
 );
 
+CREATE INDEX idx_clusteruser_user_name ON ClusterUser(user_name);
 
 
 -- ClusterAccess
@@ -175,6 +178,7 @@ CREATE TABLE ClusterAccess (
 -- Add an index on user_id+managed_cluster, and userid+gitops_manager_instance_Id
 CREATE INDEX idx_userid_cluster ON ClusterAccess(clusteraccess_user_id, clusteraccess_managed_environment_id);
 CREATE INDEX idx_userid_instance ON ClusterAccess(clusteraccess_user_id, clusteraccess_gitops_engine_instance_id);
+CREATE INDEX idx_managed_environment_id ON ClusterAccess(clusteraccess_managed_environment_id);
 
 
 
@@ -237,6 +241,9 @@ CREATE TABLE Operation (
 	gc_expiration_time INT
 
 );
+
+CREATE INDEX idx_operation_1 ON Operation(resource_id, resource_type, operation_owner_user_id);
+
 
 -- Application represents an Argo CD Application CR within an Argo CD namespace.
 CREATE TABLE Application (
@@ -344,6 +351,11 @@ CREATE TABLE DeploymentToApplicationMapping (
 
 );
 
+CREATE INDEX idx_deploymenttoapplicationmapping_1 ON DeploymentToApplicationMapping(namespace_uid);
+CREATE INDEX idx_deploymenttoapplicationmapping_2 ON DeploymentToApplicationMapping(name, namespace, namespace_uid);
+CREATE INDEX idx_deploymenttoapplicationmapping_3 ON DeploymentToApplicationMapping(application_id);
+
+
 -- Represents a generic relationship between: Kubernetes CR <->  Database table
 -- The Kubernetes CR can be either in the API namespace, or in/on a GitOpsEngine cluster namespace.
 --
@@ -444,7 +456,10 @@ CREATE TABLE APICRToDatabaseMapping  (
 	PRIMARY KEY(api_resource_type, api_resource_uid, db_relation_type, db_relation_key)
 
 );
--- TODO: GITOPSRVCE-68 - PERF - Add index to APICRToDatabaseMapping to correspond to the access patterns we are using.
+
+CREATE INDEX idx_APICRToDatabaseMapping1 ON APICRToDatabaseMapping(api_resource_type, api_resource_uid, db_relation_type);
+CREATE INDEX idx_APICRToDatabaseMapping2 ON APICRToDatabaseMapping(api_resource_type, db_relation_type, db_relation_key, api_resource_namespace_uid, db_relation_type);
+CREATE INDEX idx_APICRToDatabaseMapping3 ON APICRToDatabaseMapping(api_resource_type, db_relation_type, db_relation_key);
 
 -- Sync Operation tracks a sync request from the API. This will correspond to a sync operation on an Argo CD Application, which 
 -- will cause Argo CD to deploy the K8s resources from Git, to the target environment. This is also known as manual sync.

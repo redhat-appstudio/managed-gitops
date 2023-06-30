@@ -370,6 +370,38 @@ func SetupForTestingDBGinkgo() error {
 		}
 	}
 
+	var appProjectRepositories []AppProjectRepository
+
+	err = dbq.UnsafeListAllAppProjectRepositories(ctx, &appProjectRepositories)
+	Expect(err).To(BeNil())
+
+	for _, appProjectRepository := range appProjectRepositories {
+		if strings.HasPrefix(appProjectRepository.AppProjectRepositoryID, "test-") {
+			rowsAffected, err := dbq.DeleteAppProjectRepositoryById(ctx, appProjectRepository.AppProjectRepositoryID)
+			Expect(err).To(BeNil())
+
+			if err == nil {
+				Expect(rowsAffected).Should(Equal(1))
+			}
+		}
+	}
+
+	var appProjectManagedEnv []AppProjectManagedEnvironment
+
+	err = dbq.UnsafeListAllAppProjectManagedEnvironment(ctx, &appProjectManagedEnv)
+	Expect(err).To(BeNil())
+
+	for _, appProjectRepository := range appProjectManagedEnv {
+		if strings.HasPrefix(appProjectRepository.AppProjectManagedEnvironmentID, "test-") {
+			rowsAffected, err := dbq.DeleteAppProjectRepositoryById(ctx, appProjectRepository.AppProjectManagedEnvironmentID)
+			Expect(err).To(BeNil())
+
+			if err == nil {
+				Expect(rowsAffected).Should(Equal(1))
+			}
+		}
+	}
+
 	// Delete all RepositoryCredential database rows that start with 'test-' in the primary key of the row.
 	err = removeAnyRepositoryCredentialsTestEntries(ctx, dbq)
 	Expect(err).To(BeNil())

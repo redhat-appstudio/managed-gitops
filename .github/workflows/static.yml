@@ -183,7 +183,7 @@ jobs:
       - name: "Migrate database to version x"
         run: |
           cd $GITHUB_WORKSPACE/utilities/db-migration
-          go run main.go migrate_to 13
+          go run main.go migrate_to 14
 
       - name: "Run migration tests to add data in database"
         run: |

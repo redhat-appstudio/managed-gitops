@@ -64,6 +64,14 @@ var _ = Describe("Types Test", func() {
 			var operations []db.Operation
 			err = dbq.UnsafeListAllOperations(ctx, &operations)
 			Expect(err).To(BeNil())
+
+			var appProjectRepository []db.AppProjectRepository
+			err = dbq.UnsafeListAllAppProjectRepositories(ctx, &appProjectRepository)
+			Expect(err).To(BeNil())
+
+			var appProjectManagedEnv []db.AppProjectRepository
+			err = dbq.UnsafeListAllAppProjectRepositories(ctx, &appProjectManagedEnv)
+			Expect(err).To(BeNil())
 		})
 
 		It("Should CheckedCreate and CheckedDelete an application", func() {

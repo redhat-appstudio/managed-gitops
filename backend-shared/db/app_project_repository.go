@@ -57,8 +57,8 @@ func (dbq *PostgreSQLDatabaseQueries) CreateAppProjectRepository(ctx context.Con
 	return nil
 }
 
-// GetAppProjectRepositoryByUniqueConstraint retrieves AppProjectRepository by unique constraint i.e, clusteruser_id and repo_url.
-func (dbq *PostgreSQLDatabaseQueries) GetAppProjectRepositoryByUniqueConstraint(ctx context.Context, obj *AppProjectRepository) error {
+// GetAppProjectRepositoryByClusterUserAndRepoURL retrieves AppProjectRepository by unique constraint i.e, clusteruser_id and repo_url.
+func (dbq *PostgreSQLDatabaseQueries) GetAppProjectRepositoryByClusterUserAndRepoURL(ctx context.Context, obj *AppProjectRepository) error {
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return err
 	}
@@ -102,6 +102,37 @@ func (dbq *PostgreSQLDatabaseQueries) ListAppProjectRepositoryByClusterUserId(ct
 
 }
 
+func (dbq *PostgreSQLDatabaseQueries) UpdateAppProjectRepository(ctx context.Context, obj *AppProjectRepository) error {
+
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
+		return err
+	}
+
+	if err := isEmptyValues("UpdateAppProjectRepository",
+		"app_project_repository_id", obj.AppProjectRepositoryID,
+		"clusteruser_id", obj.Clusteruser_id,
+		"repositorycredentials_id", obj.RepositorycredentialsID,
+		"repo_url", obj.RepoURL); err != nil {
+		return err
+	}
+
+	if err := validateFieldLength(obj); err != nil {
+		return err
+	}
+
+	result, err := dbq.dbConnection.Model(obj).WherePK().Context(ctx).Update()
+	if err != nil {
+		return fmt.Errorf("error on updating appProjectRepository %v", err)
+	}
+
+	if result.RowsAffected() != 1 {
+		return fmt.Errorf("unexpected number of rows affected: %d", result.RowsAffected())
+	}
+
+	return nil
+
+}
+
 func (dbq *PostgreSQLDatabaseQueries) DeleteAppProjectRepositoryByRepoCredId(ctx context.Context, obj *AppProjectRepository) (int, error) {
 
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
@@ -119,6 +150,28 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteAppProjectRepositoryByRepoCredId(ctx
 		Context(ctx).Delete()
 	if err != nil {
 		return 0, fmt.Errorf("error on deleting AppProjectRepository: %v", err)
+	}
+
+	return deleteResult.RowsAffected(), nil
+}
+
+func (dbq *PostgreSQLDatabaseQueries) DeleteAppProjectRepositoryByClusterUser(ctx context.Context, obj *AppProjectRepository) (int, error) {
+
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
+		return 0, err
+	}
+
+	if err := isEmptyValues("DeleteAppProjectRepositoryByClusterUser",
+		"clusteruser_id", obj.Clusteruser_id,
+	); err != nil {
+		return 0, err
+	}
+
+	deleteResult, err := dbq.dbConnection.Model(obj).
+		Where("clusteruser_id = ?", obj.Clusteruser_id).
+		Context(ctx).Delete()
+	if err != nil {
+		return 0, fmt.Errorf("error on deleting AppProjectRepository based on clusteruser_id: %v", err)
 	}
 
 	return deleteResult.RowsAffected(), nil

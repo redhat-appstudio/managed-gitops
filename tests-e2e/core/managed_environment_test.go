@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	. "github.com/onsi/ginkgo/v2"
@@ -17,6 +18,7 @@ import (
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
+
 	argocdutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	clusteragenteventloop "github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/managed-gitops/eventloop"
 	appFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/application"
@@ -690,7 +692,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 		})
 
-		It("should verify whether appProjectManagedEnv row is created in database pointing to the managedEnv row", func() {
+		It("should verify whether appProjectManagedEnv row is created in database pointing to the managedEnv row and ensure AppProject resource has been created", func() {
 
 			By("creating the GitOpsDeploymentManagedEnvironment")
 
@@ -761,6 +763,38 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				err = dbQueries.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnvDB)
 				return Expect(err).To(BeNil())
 			}, time.Second*60).Should(BeTrue())
+
+			By("verify that the Argo CD Application references the AppProject, and that the AppProject references the managed environment that was created above")
+
+			appProject := &appv1alpha1.AppProject{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "app-project-" + appProjectManagedEnvDB.Clusteruser_id,
+					Namespace: "gitops-service-argocd",
+				},
+			}
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
+			Expect(err).To(BeNil())
+
+			app := &appv1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      argocdutil.GenerateArgoCDApplicationName(string(gitOpsDeploymentResource.UID)),
+					Namespace: "gitops-service-argocd",
+				},
+			}
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
+			Expect(err).To(BeNil())
+
+			Expect(app.Spec.Project).To(Equal(appProject.Name))
+
+			match := false
+			for _, v := range appProject.Spec.Destinations {
+				if v.Name == "managed-env-"+mapping.DBRelationKey {
+					match = true
+					break
+				}
+			}
+			Expect(match).To(BeTrue())
 
 		})
 

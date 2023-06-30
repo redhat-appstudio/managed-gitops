@@ -1349,6 +1349,9 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 				Expect(appProject).ToNot(BeNil())
 
+				By("Verify whether Project field of Application CR is pointing to AppProject")
+				Expect(applicationCR2.Spec.Project).To(Equal(appProject.Name))
+
 			})
 
 			DescribeTable("Checks whether the user updated tls-certificate verification maps correctly from database to cluster secret",
@@ -2935,7 +2938,7 @@ func createApplicationWithSyncOption(syncOptionParam string) (appv1.Application,
 				Namespace: "guestbook",
 				Server:    "https://kubernetes.default.svc",
 			},
-			Project: "default",
+			Project: "app-project-test-user",
 			SyncPolicy: &appv1.SyncPolicy{
 				SyncOptions: syncOptions,
 			},

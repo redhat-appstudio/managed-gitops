@@ -57,13 +57,13 @@ var _ = Describe("AppProjectRepository Test", func() {
 		err = dbq.CreateAppProjectRepository(ctx, &appProjectRepository)
 		Expect(err).To(BeNil())
 
-		By("Verify whether AppProjectRepository is retrived")
+		By("Verify whether AppProjectRepository is retrieved")
 		appProjectRepositoryget := db.AppProjectRepository{
 			Clusteruser_id: clusterUser.Clusteruser_id,
 			RepoURL:        repoCred.PrivateURL,
 		}
 
-		err = dbq.GetAppProjectRepositoryByUniqueConstraint(ctx, &appProjectRepositoryget)
+		err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepositoryget)
 		Expect(err).To(BeNil())
 		Expect(appProjectRepository).Should(Equal(appProjectRepositoryget))
 
@@ -72,14 +72,34 @@ var _ = Describe("AppProjectRepository Test", func() {
 		Expect(err).To(BeNil())
 		Expect(rowsAffected).Should(Equal(1))
 
-		err = dbq.GetAppProjectRepositoryByUniqueConstraint(ctx, &appProjectRepository)
+		err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepository)
 		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
 		appProjectRepositoryget = db.AppProjectRepository{
 			AppProjectRepositoryID: "does-not-exist",
 		}
-		err = dbq.GetAppProjectRepositoryByUniqueConstraint(ctx, &appProjectRepositoryget)
+		err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepositoryget)
 		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
+
+		By("Verify whether AppProjectRepository is created")
+		appProjectRepository1 := db.AppProjectRepository{
+			AppProjectRepositoryID:  "test-app-project-repository-1",
+			Clusteruser_id:          clusterUser.Clusteruser_id,
+			RepositorycredentialsID: repoCred.RepositoryCredentialsID,
+			RepoURL:                 repoCred.PrivateURL,
+			SeqID:                   int64(seq),
+		}
+
+		err = dbq.CreateAppProjectRepository(ctx, &appProjectRepository1)
+		Expect(err).To(BeNil())
+
+		err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepository1)
+		Expect(err).To(BeNil())
+
+		By("Verify whether AppProjectRepository is deleted based on clusteruser_is")
+		rowsAffected, err = dbq.DeleteAppProjectRepositoryByClusterUser(ctx, &appProjectRepository1)
+		Expect(err).To(BeNil())
+		Expect(rowsAffected).Should(Equal(1))
 
 	})
 

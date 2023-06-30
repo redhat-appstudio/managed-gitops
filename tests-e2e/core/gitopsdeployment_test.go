@@ -224,15 +224,26 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				}
 			}
 
-			appProjectReposiroryDB := db.AppProjectRepository{
+			appProjectRepositoryDB := db.AppProjectRepository{
 				Clusteruser_id: clusterUser,
 				RepoURL:        sharedresourceloop.NormalizeGitURL(gitOpsDeploymentResource.Spec.Source.RepoURL),
 			}
 
 			Eventually(func() bool {
-				err = dbQueries.GetAppProjectRepositoryByUniqueConstraint(ctx, &appProjectReposiroryDB)
+				err = dbQueries.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepositoryDB)
 				return Expect(err).To(BeNil())
 			}, time.Second*100).Should(BeTrue())
+
+			By("Ensure AppProject is resource has been created")
+			appProject := &appv1.AppProject{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "app-project-" + appProjectRepositoryDB.Clusteruser_id,
+					Namespace: "gitops-service-argocd",
+				},
+			}
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
+			Expect(err).To(BeNil())
 
 			By("deleting the GitOpsDeployment resource and waiting for the resources to be deleted")
 
@@ -841,6 +852,114 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				expectAllResourcesToBeDeleted(expectedResourceStatusList)
 
 			}
+
+		})
+
+		It("Verify whether AppProject is pointing to the non-default AppProject and it includes the git repository referenced in the gitOpsDeployment repo", func() {
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			By("creating a new GitOpsDeployment resource")
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("gitops-depl-test-status",
+				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
+			Expect(err).To(Succeed())
+
+			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy),
+				),
+			)
+
+			By("Ensure a corresponding Argo CD Application is created")
+			app := &appv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      argocd.GenerateArgoCDApplicationName(string(gitOpsDeploymentResource.UID)),
+					Namespace: gitOpsDeploymentResource.Namespace,
+				},
+			}
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
+			Expect(err).To(BeNil())
+
+			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
+			Expect(err).To(BeNil())
+
+			namespace := corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: gitOpsDeploymentResource.Namespace,
+				},
+			}
+
+			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&namespace), &namespace)
+			Expect(err).To(BeNil())
+
+			clusterUser := db.ClusterUser{
+				User_name: string(namespace.UID),
+			}
+
+			err = dbQueries.GetClusterUserByUsername(ctx, &clusterUser)
+			Expect(err).To(BeNil())
+
+			appProject := &appv1.AppProject{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "app-project-" + clusterUser.Clusteruser_id,
+					Namespace: "gitops-service-argocd",
+				},
+			}
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
+			Expect(err).To(BeNil())
+
+			By("Verify whether AppProject is pointing to non-default project value")
+			Expect(app.Spec.Project).To(Equal(appProject.Name))
+
+			By("Verify whether AppProject includes the git repository referenced in the repo")
+			match := false
+			var appProjectRepoURL string
+			for _, value := range appProject.Spec.SourceRepos {
+				if value == gitOpsDeploymentResource.Spec.Source.RepoURL {
+					match = true
+					appProjectRepoURL = value
+					break
+				}
+			}
+
+			Expect(match).To(BeTrue())
+			Expect(appProjectRepoURL).To(Equal(gitOpsDeploymentResource.Spec.Source.RepoURL))
+
+			By("Create GitOpsDeploymentRepositoryCredential referencing to the the above repo")
+			gitopsRepoCred := managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      repoCredCRToken,
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialSpec{
+					Repository: gitOpsDeploymentResource.Spec.Source.RepoURL,
+					Secret:     secretToken,
+				},
+			}
+
+			err = k8s.Create(&gitopsRepoCred, k8sClient)
+			Expect(err).To(Succeed())
+
+			By("Delete GitOpsDeploymentRepositoryCredential")
+			err = k8s.Delete(&gitopsRepoCred, k8sClient)
+			Expect(err).To(Succeed())
+
+			By("Verify that AppProject should still include the git repository after 30 seconds")
+			Eventually(func() bool {
+				for _, value := range appProject.Spec.SourceRepos {
+					if value == gitOpsDeploymentResource.Spec.Source.RepoURL {
+						return true
+					}
+				}
+				return false
+			}, 30*time.Second, 1*time.Second).Should(BeTrue())
 
 		})
 

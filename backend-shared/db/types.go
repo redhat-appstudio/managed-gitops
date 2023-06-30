@@ -517,6 +517,9 @@ type AppProjectRepository struct {
 	SeqID int64 `pg:"seq_id"`
 
 	RepoURL string `pg:"repo_url,notnull"`
+
+	// -- Created_on field will tell us how old resources are
+	Created_on time.Time `pg:"created_on"`
 }
 
 // AppProjectManagedEnvironment
@@ -534,6 +537,9 @@ type AppProjectManagedEnvironment struct {
 	Managed_environment_id string `pg:"managed_environment_id"`
 
 	SeqID int64 `pg:"seq_id"`
+
+	// -- Created_on field will tell us how old resources are
+	Created_on time.Time `pg:"created_on"`
 }
 
 // hasEmptyValues returns error if any of the notnull tagged fields are empty.

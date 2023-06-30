@@ -29,6 +29,9 @@ type testResources struct {
 	Gitopsengineinstance_id string
 	EngineCluster_id        string
 	Clustercredentials_id   []string
+	RepositoryCredential_id string
+	AppProjectRepository    *db.AppProjectRepository
+	OperationID             string
 }
 
 var _ = Describe("SharedResourceEventLoop Test", func() {
@@ -79,6 +82,20 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				Expect(err).To(BeNil())
 
 				defer dbq.CloseDatabase()
+
+				// Delete RepositoryCredential
+				if resourcesToBeDeleted.RepositoryCredential_id != "" {
+					rowsAffected, err := dbq.DeleteRepositoryCredentialsByID(ctx, resourcesToBeDeleted.RepositoryCredential_id)
+					Expect(rowsAffected).To(Equal(1))
+					Expect(err).To(BeNil())
+				}
+
+				// Delete Operation
+				if resourcesToBeDeleted.OperationID != "" {
+					rowsAffected, err := dbq.DeleteOperationById(ctx, resourcesToBeDeleted.OperationID)
+					Expect(rowsAffected).To(Equal(1))
+					Expect(err).To(BeNil())
+				}
 
 				// Delete clusterAccess
 				if resourcesToBeDeleted.clusterAccess != nil {
@@ -411,7 +428,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				RepoURL:        NormalizeGitURL(dbRepoCred.PrivateURL),
 			}
 
-			err = dbq.GetAppProjectRepositoryByUniqueConstraint(ctx, appProjectRepositoryDB)
+			err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, appProjectRepositoryDB)
 			Expect(err).To(BeNil())
 			Expect(appProjectRepositoryDB).NotTo(BeNil())
 
@@ -484,7 +501,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(dbRepoCred).NotTo(BeNil())
 
 			By("verify whether appProject is created or not")
-			err = dbq.GetAppProjectRepositoryByUniqueConstraint(ctx, appProjectRepositoryDB)
+			err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, appProjectRepositoryDB)
 			Expect(err).To(BeNil())
 			Expect(appProjectRepositoryDB).NotTo(BeNil())
 
@@ -508,7 +525,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(dbRepoCred).ToNot(BeNil())
 
 			By("verify whether appProject is present or not when repoCred is updated")
-			err = dbq.GetAppProjectRepositoryByUniqueConstraint(ctx, appProjectRepositoryDB)
+			err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, appProjectRepositoryDB)
 			Expect(err).To(BeNil())
 			Expect(appProjectRepositoryDB).NotTo(BeNil())
 
@@ -601,35 +618,300 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 		})
 
+<<<<<<< HEAD
 		It("Should add display_name to existing clusterUser if display_name is empty", func() {
+=======
+		It("Should verify AppProjectRepository is updated to point to the repoCred row in database.", func() {
+
+			err := db.SetupForTestingDBGinkgo()
+			Expect(err).To(BeNil())
+
+			By("Create GitopsDeployment")
+			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-gitopsdeployment",
+					Namespace: namespace.Name,
+					UID:       uuid.NewUUID(),
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						RepoURL: "http://github.com/jgwest/my-repo",
+					},
+					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated,
+				},
+			}
+
+			err = k8sClient.Create(context.Background(), gitopsDepl)
+			Expect(err).To(BeNil())
+
+>>>>>>> 6b88a901 (Fix merge conflicts)
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).To(BeNil())
 
 			defer dbq.CloseDatabase()
 
+<<<<<<< HEAD
 			By("Create cluster user")
 			clusterUserDb := &db.ClusterUser{
 				Clusteruser_id: "test-repocred-user-id",
 				User_name:      string(namespace.UID),
+=======
+			clusterCredentials := db.ClusterCredentials{
+				Clustercredentials_cred_id: string(uuid.NewUUID()),
+			}
+
+			gitopsEngineCluster := db.GitopsEngineCluster{
+				Gitopsenginecluster_id: string(uuid.NewUUID()),
+				Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+			}
+
+			gitopsEngineInstance := db.GitopsEngineInstance{
+				Gitopsengineinstance_id: string(uuid.NewUUID()),
+				Namespace_name:          "gitops-service-argocd",
+				Namespace_uid:           string(namespace.UID),
+				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+			}
+
+			err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
+			Expect(err).To(BeNil())
+
+			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
+			Expect(err).To(BeNil())
+
+			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
+			Expect(err).To(BeNil())
+
+			var repositoryCredentialCRNamespace v1.Namespace
+			repositoryCredentialCRNamespace.Name = gitopsEngineInstance.Namespace_name
+			repositoryCredentialCRNamespace.UID = types.UID(gitopsEngineInstance.Namespace_uid)
+
+			By("Create DB entry for ClusterUser")
+			clusterUserDb := &db.ClusterUser{
+				Clusteruser_id: "test-repocred-user-id",
+				User_name:      string(repositoryCredentialCRNamespace.UID),
+>>>>>>> 6b88a901 (Fix merge conflicts)
 			}
 			err = dbq.CreateClusterUser(ctx, clusterUserDb)
 			Expect(err).To(BeNil())
 
+<<<<<<< HEAD
+=======
+			By("Create AppProjectRepository pointing to GitopsDeployment")
+			appProjectRepoDB := &db.AppProjectRepository{
+				AppProjectRepositoryID:  "test-appProject-ID",
+				Clusteruser_id:          clusterUserDb.Clusteruser_id,
+				RepositorycredentialsID: "",
+				RepoURL:                 NormalizeGitURL(gitopsDepl.Spec.Source.RepoURL),
+			}
+
+			err = dbq.CreateAppProjectRepository(ctx, appProjectRepoDB)
+			Expect(err).To(BeNil())
+
+			By("Create new GitOpsDeploymentRepositoryCredential")
+			cr := &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-gitopsdeploymentrepositorycredential",
+					Namespace: gitopsEngineInstance.Namespace_name,
+					UID:       uuid.NewUUID(),
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialSpec{
+					Repository: "http://github.com/jgwest/my-repo",
+					Secret:     "test-secret",
+				}}
+
+			err = k8sClient.Create(ctx, cr)
+			Expect(err).To(BeNil())
+
+			var k8sClientFactory SRLK8sClientFactory
+
+			By("Create new Secret")
+			secret := &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-secret",
+					Namespace: gitopsEngineInstance.Namespace_name,
+				},
+				Data: map[string][]byte{
+					"username": []byte("test-username"),
+					"password": []byte("test-password"),
+				},
+			}
+			err = k8sClient.Create(ctx, secret)
+			Expect(err).To(BeNil())
+
+			dbRepoCred, err := internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, false, l)
+			Expect(err).To(BeNil())
+			Expect(dbRepoCred).NotTo(BeNil())
+
+			err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, appProjectRepoDB)
+			Expect(err).To(BeNil())
+			Expect(appProjectRepoDB).NotTo(BeNil())
+
+			By("Verify whether AppProjectRepoCred is updated to point to the repoCred row in the database.")
+			Expect(appProjectRepoDB.RepositorycredentialsID).ToNot(BeNil())
+			Expect(appProjectRepoDB.RepositorycredentialsID).To(Equal(dbRepoCred.RepositoryCredentialsID))
+
+			By("Deleting resources created by test.")
+			resourcesToBeDeleted = testResources{
+				Clustercredentials_id: []string{
+					clusterCredentials.Clustercredentials_cred_id,
+				},
+				Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+			}
+
+		})
+
+		It("Should verify AppProjectRepository is updated/created when RepoCred CR is updated", func() {
+>>>>>>> 6b88a901 (Fix merge conflicts)
 			sharedResourceEventLoop := &SharedResourceEventLoop{inputChannel: make(chan sharedResourceLoopMessage)}
 
 			go internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
 
+<<<<<<< HEAD
 			user,
+=======
+			By("Create new engine instance which will be used by `GetGitopsEngineInstanceById` fucntion")
+			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).To(BeNil())
+
+			defer dbq.CloseDatabase()
+
+			clusterCredentials := db.ClusterCredentials{
+				Clustercredentials_cred_id: string(uuid.NewUUID()),
+			}
+
+			gitopsEngineCluster := db.GitopsEngineCluster{
+				Gitopsenginecluster_id: string(uuid.NewUUID()),
+				Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+			}
+
+			gitopsEngineInstance := db.GitopsEngineInstance{
+				Gitopsengineinstance_id: string(uuid.NewUUID()),
+				Namespace_name:          "gitops-service-argocd",
+				Namespace_uid:           string(namespace.UID),
+				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+			}
+
+			err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
+			Expect(err).To(BeNil())
+
+			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
+			Expect(err).To(BeNil())
+
+			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
+			Expect(err).To(BeNil())
+
+			By("Fetch the same engineInstance by ID")
+			engineInstanceNew, err := sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx,
+				gitopsEngineInstance.Gitopsengineinstance_id, k8sClient, *namespace, l)
+
+			Expect(err).To(BeNil())
+			Expect(engineInstanceNew.EngineCluster_id).NotTo(BeNil())
+
+			By("At first assuming there are no existing users, hence creating new.")
+			usrOld,
+>>>>>>> 6b88a901 (Fix merge conflicts)
 				isNewUser,
 				err := sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, k8sClient, *namespace, l)
 
 			Expect(err).To(BeNil())
+<<<<<<< HEAD
 			Expect(user).NotTo(BeNil())
 			Expect(isNewUser).To(BeFalse())
 			Expect(user.Display_name).ToNot(BeEmpty())
 			Expect(user.Display_name).To(Equal(namespace.Name))
 
 			resourcesToBeDeleted = testResources{Clusteruser_id: clusterUserDb.Clusteruser_id}
+=======
+			Expect(usrOld).NotTo(BeNil())
+			Expect(isNewUser).To(BeTrue())
+
+			By("User is created in previous call, then same user should be returned instead of creating new.")
+			usrNew,
+				isNewUser,
+				err := sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, k8sClient, *namespace, l)
+
+			Expect(err).To(BeNil())
+			Expect(usrNew).NotTo(BeNil())
+			Expect(isNewUser).To(BeFalse())
+			Expect(usrNew.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
+			Expect(usrOld).To(Equal(usrNew))
+
+			// To be used by AfterEach to clean up the resources created by test
+			resourcesToBeDeleted = testResources{
+				Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				EngineCluster_id:        gitopsEngineInstance.EngineCluster_id,
+				Clustercredentials_id: []string{
+					clusterCredentials.Clustercredentials_cred_id,
+				},
+			}
+
+			By("Create new GitOpsDeploymentRepositoryCredential")
+			cr := &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-gitopsdeploymenrepositorycredential",
+					Namespace: gitopsEngineInstance.Namespace_name,
+					UID:       uuid.NewUUID(),
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialSpec{
+					Repository: "https://fakegithub.com/test/test-repository",
+					Secret:     "test-secret",
+				}}
+
+			err = k8sClient.Create(ctx, cr)
+			Expect(err).To(BeNil())
+
+			By("Fetch the GitOpsDeploymentRepositoryCredential created")
+			cred := &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{}
+			err = k8sClient.Get(ctx, types.NamespacedName{Name: cr.Name, Namespace: cr.Namespace}, cred)
+			Expect(err).To(BeNil())
+
+			var repositoryCredentialCRNamespace v1.Namespace
+			repositoryCredentialCRNamespace.Name = gitopsEngineInstance.Namespace_name
+			repositoryCredentialCRNamespace.UID = types.UID(gitopsEngineInstance.Namespace_uid)
+
+			var k8sClientFactory SRLK8sClientFactory
+
+			By("Create new Secret")
+			secret := &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-secret",
+					Namespace: gitopsEngineInstance.Namespace_name,
+				},
+				Data: map[string][]byte{
+					"username": []byte("test-username"),
+					"password": []byte("test-password"),
+				},
+			}
+			err = k8sClient.Create(ctx, secret)
+			Expect(err).To(BeNil())
+
+			dbRepoCred, err := internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, false, l)
+			Expect(err).To(BeNil())
+			Expect(dbRepoCred).NotTo(BeNil())
+
+			By("verify whether appProject is created or not")
+			appProjectRepositoryDB := &db.AppProjectRepository{
+				Clusteruser_id: usrNew.Clusteruser_id,
+				RepoURL:        NormalizeGitURL(dbRepoCred.PrivateURL),
+			}
+
+			err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, appProjectRepositoryDB)
+			Expect(err).To(BeNil())
+			Expect(appProjectRepositoryDB).NotTo(BeNil())
+
+			By("Update RepoCred URL to verify whether it updates GitopsRepositoryCredential CR")
+			dbRepoCred.PrivateURL = "http://github.com/jgwest/my-repo"
+
+			err = dbq.UpdateRepositoryCredentials(ctx, dbRepoCred)
+			Expect(err).To(BeNil())
+
+			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, false, l)
+			Expect(err).To(BeNil())
+			Expect(dbRepoCred).NotTo(BeNil())
+			Expect(dbRepoCred.PrivateURL).To(Equal(cr.Spec.Repository))
+			Expect(appProjectRepositoryDB.RepoURL).To(Equal(dbRepoCred.PrivateURL))
+>>>>>>> 6b88a901 (Fix merge conflicts)
 
 		})
 

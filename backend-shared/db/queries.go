@@ -293,15 +293,21 @@ type ApplicationScopedQueries interface {
 	// CreateAppProjectRepository creates AppProjectRepository in database
 	CreateAppProjectRepository(ctx context.Context, obj *AppProjectRepository) error
 
-	// GetAppProjectRepositoryByUniqueConstraint retrieves AppProjectRepository by cluster user id
-	GetAppProjectRepositoryByUniqueConstraint(ctx context.Context, obj *AppProjectRepository) error
+	// GetAppProjectRepositoryByClusterUserAndRepoURL retrieves AppProjectRepository by cluster user id and repoURL
+	GetAppProjectRepositoryByClusterUserAndRepoURL(ctx context.Context, obj *AppProjectRepository) error
 
 	// ListAppProjectRepositoryByClusterUserId retrieves the list of appProjectRepositories
 	ListAppProjectRepositoryByClusterUserId(ctx context.Context,
 		clusteruser_id string, appProjectRepositories *[]AppProjectRepository) error
 
-	// DeleteAppProjectRepositoryByRepoCredId deletes appProjectRepository by id
+	// UpdateAppProjectRepository updates AppProjectRepository
+	UpdateAppProjectRepository(ctx context.Context, obj *AppProjectRepository) error
+
+	// DeleteAppProjectRepositoryByRepoCredId deletes appProjectRepository by repo id
 	DeleteAppProjectRepositoryByRepoCredId(ctx context.Context, obj *AppProjectRepository) (int, error)
+
+	// DeleteAppProjectRepositoryByClusterUser deletes appProjectRepository by clusteruser_id and repo_url
+	DeleteAppProjectRepositoryByClusterUser(ctx context.Context, obj *AppProjectRepository) (int, error)
 
 	// CreateAppProjectManagedEnvironment creates appProjectManagedEnv in database
 	CreateAppProjectManagedEnvironment(ctx context.Context, obj *AppProjectManagedEnvironment) error

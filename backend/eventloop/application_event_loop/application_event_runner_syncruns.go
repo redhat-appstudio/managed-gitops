@@ -206,7 +206,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		if err := dbQueries.ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx, db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
 			a.eventResourceName, a.eventResourceNamespace, eventlooptypes.GetWorkspaceIDFromNamespaceID(namespace),
 			db.APICRToDatabaseMapping_DBRelationType_SyncOperation, &apiCRToDBList); err != nil {
-			userError := "unable to retrive data related to previous GitOpsDeploymentSyncRun in the namespace, due to an unknown error"
+			userError := "unable to retrieve data related to previous GitOpsDeploymentSyncRun in the namespace, due to an unknown error"
 			log.Error(err, "unable to find API CR to DB Mapping, by API name/namespace/uid",
 				"name", a.eventResourceName, "namespace", a.eventResourceNamespace, "UID", string(namespace.UID))
 			return gitopserrors.NewUserDevError(userError, err)

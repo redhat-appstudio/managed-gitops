@@ -177,12 +177,12 @@ var _ = Describe("Test utility functions.", func() {
 			By("If called 2nd time, it should return existing ManagedEnvironment, instead of creating new and flag should be False.")
 			// ----------------------------------------------------------------------------
 
-			retriveManagedEnvironment, isNew, err := GetOrCreateManagedEnvironmentByNamespaceUID(ctx, workspace, dbQueries, log)
+			retrieveManagedEnvironment, isNew, err := GetOrCreateManagedEnvironmentByNamespaceUID(ctx, workspace, dbQueries, log)
 			Expect(err).To(BeNil())
 			Expect(isNew).To(BeFalse())
-			Expect(retriveManagedEnvironment.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
-			retriveManagedEnvironment.Created_on = managedEnvironment.Created_on
-			Expect(retriveManagedEnvironment).To(Equal(managedEnvironment))
+			Expect(retrieveManagedEnvironment.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
+			retrieveManagedEnvironment.Created_on = managedEnvironment.Created_on
+			Expect(retrieveManagedEnvironment).To(Equal(managedEnvironment))
 
 			// ----------------------------------------------------------------------------
 			By("Delete resources created by test.")
@@ -654,10 +654,10 @@ var _ = Describe("Test utility functions.", func() {
 			By("Existing GitopsEngineCluster instance should be returned.")
 			// ----------------------------------------------------------------------------
 
-			retriveGitopsEngineCluster, err := GetGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(workSpaceUid), dbQueries, log)
+			retrieveGitopsEngineCluster, err := GetGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(workSpaceUid), dbQueries, log)
 
 			Expect(err).To(BeNil())
-			Expect(gitopsEngineCluster).To(Equal(retriveGitopsEngineCluster))
+			Expect(gitopsEngineCluster).To(Equal(retrieveGitopsEngineCluster))
 
 			// ----------------------------------------------------------------------------
 			By("To cleanup the resource created by test")
@@ -743,12 +743,12 @@ var _ = Describe("Test utility functions.", func() {
 			// ----------------------------------------------------------------------------
 
 			// Check GitopsEngineInstance is created.
-			retriveGitopsEngineInstance := db.GitopsEngineInstance{
+			retrieveGitopsEngineInstance := db.GitopsEngineInstance{
 				Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
 			}
-			err = dbQueries.GetGitopsEngineInstanceById(ctx, &retriveGitopsEngineInstance)
+			err = dbQueries.GetGitopsEngineInstanceById(ctx, &retrieveGitopsEngineInstance)
 			Expect(err).To(BeNil())
-			Expect(&retriveGitopsEngineInstance).To(Equal(gitopsEngineInstance))
+			Expect(&retrieveGitopsEngineInstance).To(Equal(gitopsEngineInstance))
 
 			// Check KubernetesToDBResourceMapping is created for GitopsEngineInstance and GitopsEngineCluster
 			var foundGitopsEngineInstanceMapping, foundGitopsEngineClusterMapping bool
@@ -792,12 +792,12 @@ var _ = Describe("Test utility functions.", func() {
 			// ----------------------------------------------------------------------------
 
 			// Check GitopsEngineInstance is created.
-			retriveGitopsEngineInstance := db.GitopsEngineInstance{
+			retrieveGitopsEngineInstance := db.GitopsEngineInstance{
 				Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
 			}
-			err = dbQueries.GetGitopsEngineInstanceById(ctx, &retriveGitopsEngineInstance)
+			err = dbQueries.GetGitopsEngineInstanceById(ctx, &retrieveGitopsEngineInstance)
 			Expect(err).To(BeNil())
-			Expect(&retriveGitopsEngineInstance).To(Equal(gitopsEngineInstance))
+			Expect(&retrieveGitopsEngineInstance).To(Equal(gitopsEngineInstance))
 
 			var foundOldGitopsEngineInstanceMapping, foundNewGitopsEngineInstanceMapping, foundGitopsEngineClusterMapping bool
 
@@ -845,12 +845,12 @@ var _ = Describe("Test utility functions.", func() {
 			// ----------------------------------------------------------------------------
 
 			// Check GitopsEngineInstance is created.
-			retriveGitopsEngineInstance := db.GitopsEngineInstance{
+			retrieveGitopsEngineInstance := db.GitopsEngineInstance{
 				Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
 			}
-			err = dbQueries.GetGitopsEngineInstanceById(ctx, &retriveGitopsEngineInstance)
+			err = dbQueries.GetGitopsEngineInstanceById(ctx, &retrieveGitopsEngineInstance)
 			Expect(err).To(BeNil())
-			Expect(&retriveGitopsEngineInstance).To(Equal(gitopsEngineInstance))
+			Expect(&retrieveGitopsEngineInstance).To(Equal(gitopsEngineInstance))
 
 			// Check KubernetesToDBResourceMapping is created for GitopsEngineInstance and GitopsEngineCluster
 			var foundGitopsEngineInstanceMapping, foundGitopsEngineClusterMapping bool

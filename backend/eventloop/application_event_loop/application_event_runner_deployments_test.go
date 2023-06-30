@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -36,6 +35,7 @@ var _ = Describe("Application Event Runner Deployments", func() {
 				sourceRepoURL:        "https://github.com/test/test",
 				sourcePath:           "environments/prod",
 				automated:            automated,
+				project:              "app-project-cluster-user-id",
 			}
 
 			if unsanitized {
@@ -66,7 +66,7 @@ var _ = Describe("Application Event Runner Deployments", func() {
 						Name:      input.destinationName,
 						Namespace: input.destinationNamespace,
 					},
-					Project: "default",
+					Project: "app-project-cluster-user-id",
 				},
 			}
 			if automated {
@@ -191,7 +191,7 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			}
 		})
 
-		It("Checks whether the CreateNamespace=true SyncOption gets inserted/updated into the spec_field of Application table and ensure AppProjectRepository has been created", func() {
+		It("Checks whether the CreateNamespace=true SyncOption gets inserted/updated into the spec_field of Application table", func() {
 
 			By("Create new deployment.")
 
@@ -230,30 +230,6 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			_, _, _, message, userDevErr = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
 			Expect(message).To(Equal(deploymentModifiedResult_Updated))
-
-			var clusterUser string
-			operationsList := []db.Operation{}
-
-			Eventually(func() bool {
-				err = dbQueries.UnsafeListAllOperations(ctx, &operationsList)
-				return Expect(err).To(BeNil())
-			}, time.Second*250).Should(BeTrue())
-
-			for _, v := range operationsList {
-				if v.Resource_id == applicationFirst.Application_id {
-					clusterUser = v.Operation_owner_user_id
-					break
-				}
-			}
-
-			By("Verify whether appProjectRepositoy row has been created")
-			appProjectRepo := db.AppProjectRepository{
-				Clusteruser_id: clusterUser,
-				RepoURL:        gitopsDepl.Spec.Source.RepoURL,
-			}
-
-			err = dbQueries.GetAppProjectRepositoryByUniqueConstraint(ctx, &appProjectRepo)
-			Expect(err).To(BeNil())
 
 			By("Verify that the database entries have been updated.")
 
@@ -314,10 +290,6 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			err = k8sClient.Update(ctx, gitopsDepl)
 			Expect(err).To(BeNil())
 
-			By("Verify whether appProjectRepositoy row exists after update")
-			err = dbQueries.GetAppProjectRepositoryByUniqueConstraint(ctx, &appProjectRepo)
-			Expect(err).To(BeNil())
-
 			By("This should update the existing application.")
 
 			_, _, _, message, userDevErr = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
@@ -325,7 +297,6 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			Expect(message).To(Equal(deploymentModifiedResult_Failed))
 
 		})
-
 	})
 })
 

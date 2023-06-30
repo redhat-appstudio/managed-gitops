@@ -2,7 +2,6 @@ package argocd
 
 import (
 	"context"
-	"time"
 
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -15,7 +14,6 @@ import (
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("Argo CD Application", func() {
@@ -25,7 +23,7 @@ var _ = Describe("Argo CD Application", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 		})
 
-		It("Argo CD Application should have has prune, allowEmpty and selfHeal enabled and verify whether AppProject resource has been created", func() {
+		It("Argo CD Application should have has prune, allowEmpty and selfHeal enabled", func() {
 
 			By("create a new GitOpsDeployment CR")
 			gitOpsDeployment := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl-automated",
@@ -59,33 +57,6 @@ var _ = Describe("Argo CD Application", func() {
 			}
 			err = dbQueries.GetApplicationById(context.Background(), dbApplication)
 			Expect(err).To(BeNil())
-
-			var clusterUser string
-			clusterAccessList := []db.ClusterAccess{}
-
-			Eventually(func() bool {
-				err = dbQueries.UnsafeListAllClusterAccess(context.Background(), &clusterAccessList)
-				return Expect(err).To(BeNil())
-			}, time.Second*100).Should(BeTrue())
-
-			for _, v := range clusterAccessList {
-				if v.Clusteraccess_gitops_engine_instance_id == dbApplication.Engine_instance_inst_id {
-					clusterUser = v.Clusteraccess_user_id
-					break
-				}
-			}
-
-			By("Verify whether appProject resource is created or not")
-			appProject := &appv1alpha1.AppProject{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "app-project-" + clusterUser,
-					Namespace: dbutil.GetGitOpsEngineSingleInstanceNamespace(),
-				},
-			}
-
-			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(appProject), appProject)
-			Expect(err).To(BeNil())
-			Expect(appProject).ToNot(BeNil())
 
 			By("verify that the Argo CD Application has prune, allowEmpty and selfHeal enabled")
 			app := appv1alpha1.Application{

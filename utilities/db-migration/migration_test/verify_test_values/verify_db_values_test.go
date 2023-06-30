@@ -184,6 +184,21 @@ var _ = Describe("Test to verify that the data added to database is still presen
 			addtestvalues.AddTest_PreATDMForSyncOperation.SeqID = atdm.SeqID
 			Expect(addtestvalues.AddTest_PreATDMForSyncOperation).To(Equal(atdm))
 
+			By("Get AppProjectMangedEnv pointing to the MangedEnv")
+			appProjectManagedEnv := db.AppProjectManagedEnvironment{
+				Managed_environment_id: managedEnvironmentDb.Managedenvironment_id,
+			}
+			err = dbq.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnv)
+			Expect(err).To(BeNil())
+
+			By("Get AppProjectRepo pointing to the RepoCred")
+			appProjectRepo := db.AppProjectRepository{
+				Clusteruser_id: clusterUser.Clusteruser_id,
+				RepoURL:        "https://test-private-url",
+			}
+			err = dbq.GetAppProjectRepositoryByUniqueConstraint(ctx, &appProjectRepo)
+			Expect(err).To(BeNil())
+
 		})
 
 	})

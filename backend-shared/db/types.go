@@ -509,10 +509,10 @@ type AppProjectRepository struct {
 	AppProjectRepositoryID string `pg:"app_project_repository_id,pk,notnull"`
 
 	// -- Foreign key to: ClusterUser.clusteruser_id
-	Clusteruser_id string `pg:"cluster_user_id"`
+	Clusteruser_id string `pg:"clusteruser_id"`
 
 	// -- Foreign key to: RepositoryCredentials.repositorycredentials_id
-	RepositoryCredentialsID string `pg:"repositorycredentials_id"`
+	RepositorycredentialsID string `pg:"repositorycredentials_id"`
 
 	SeqID int64 `pg:"seq_id"`
 
@@ -525,10 +525,10 @@ type AppProjectManagedEnvironment struct {
 	//lint:ignore U1000 used by go-pg
 	tableName struct{} `pg:"appprojectmanagedenvironment"` //nolint
 
-	AppProjectManagedEnvironmentID string `pg:"app_project_managedenv_id,pk,notnull"`
+	AppProjectManagedenvID string `pg:"app_project_managedenv_id,pk,notnull"`
 
 	// -- ClusterUser.clusteruser_id
-	Clusteruser_id string `pg:"cluster_user_id"`
+	Clusteruser_id string `pg:"clusteruser_id"`
 
 	// -- Foreign key to: ManagedEnvironment.managed_environment_id
 	Managed_environment_id string `pg:"managed_environment_id"`

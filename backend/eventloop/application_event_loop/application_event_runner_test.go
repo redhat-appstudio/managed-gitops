@@ -47,7 +47,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-var _ = FDescribe("ApplicationEventLoop Test", func() {
+var _ = Describe("ApplicationEventLoop Test", func() {
 
 	Context("Handle sync run modified", func() {
 
@@ -599,9 +599,9 @@ var _ = FDescribe("ApplicationEventLoop Test", func() {
 			Expect(err).To(BeNil())
 
 			appProjectMangedEnv := db.AppProjectManagedEnvironment{
-				AppProjectManagedEnvironmentID: "test-app-managedenv-id",
-				Managed_environment_id:         managedEnvironment.Managedenvironment_id,
-				Clusteruser_id:                 "test-user",
+				AppProjectManagedenvID: "test-app-managedenv-id",
+				Managed_environment_id: managedEnvironment.Managedenvironment_id,
+				Clusteruser_id:         "test-user",
 			}
 			err = dbQueries.CreateAppProjectManagedEnvironment(ctx, &appProjectMangedEnv)
 			Expect(err).To(BeNil())

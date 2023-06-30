@@ -49,8 +49,8 @@ var _ = Describe("AppProjectRepository Test", func() {
 		appProjectRepository := db.AppProjectRepository{
 			AppProjectRepositoryID:  "test-app-project-repository",
 			Clusteruser_id:          clusterUser.Clusteruser_id,
-			RepositoryCredentialsID: repoCred.RepositoryCredentialsID,
-			RepoURL:                 "https-url",
+			RepositorycredentialsID: repoCred.RepositoryCredentialsID,
+			RepoURL:                 repoCred.PrivateURL,
 			SeqID:                   int64(seq),
 		}
 
@@ -59,7 +59,8 @@ var _ = Describe("AppProjectRepository Test", func() {
 
 		By("Verify whether AppProjectRepository is retrived")
 		appProjectRepositoryget := db.AppProjectRepository{
-			AppProjectRepositoryID: appProjectRepository.AppProjectRepositoryID,
+			Clusteruser_id: clusterUser.Clusteruser_id,
+			RepoURL:        repoCred.PrivateURL,
 		}
 
 		err = dbq.GetAppProjectRepositoryByUniqueConstraint(ctx, &appProjectRepositoryget)

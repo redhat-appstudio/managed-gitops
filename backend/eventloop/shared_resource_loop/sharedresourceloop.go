@@ -444,7 +444,7 @@ func deleteRepoCredFromDB(ctx context.Context, dbQueries db.DatabaseQueries, ID 
 	const retry, noRetry = true, false
 
 	appProjectRepoCredDB := &db.AppProjectRepository{
-		RepositoryCredentialsID: ID,
+		RepositorycredentialsID: ID,
 	}
 
 	// Deleting appProjectRepository before RepositoryCredentials as appProjectRepository contains foreign key repositoryCredential

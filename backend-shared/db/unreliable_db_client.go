@@ -994,11 +994,11 @@ func (cdb *ChaosDBClient) GetAppProjectRepositoryByUniqueConstraint(ctx context.
 }
 
 func (cdb *ChaosDBClient) ListAppProjectRepositoryByClusterUserId(ctx context.Context,
-	cluster_user_id string, appProjectRepositories *[]AppProjectRepository) error {
-	if err := shouldSimulateFailure("ListAppProjectRepositoryByClusterUserId", cluster_user_id, appProjectRepositories); err != nil {
+	clusteruser_id string, appProjectRepositories *[]AppProjectRepository) error {
+	if err := shouldSimulateFailure("ListAppProjectRepositoryByClusterUserId", clusteruser_id, appProjectRepositories); err != nil {
 		return err
 	}
-	return cdb.InnerClient.ListAppProjectRepositoryByClusterUserId(ctx, cluster_user_id, appProjectRepositories)
+	return cdb.InnerClient.ListAppProjectRepositoryByClusterUserId(ctx, clusteruser_id, appProjectRepositories)
 }
 
 func (cdb *ChaosDBClient) DeleteAppProjectRepositoryByRepoCredId(ctx context.Context, obj *AppProjectRepository) (int, error) {
@@ -1023,11 +1023,11 @@ func (cdb *ChaosDBClient) GetAppProjectManagedEnvironmentByManagedEnvId(ctx cont
 }
 
 func (cdb *ChaosDBClient) ListAppProjectManagedEnvironmentByClusterUserId(ctx context.Context,
-	cluster_user_id string, appProjectManagedEnvs *[]AppProjectManagedEnvironment) error {
-	if err := shouldSimulateFailure("ListAppProjectManagedEnvironmentByClusterUserId", cluster_user_id, appProjectManagedEnvs); err != nil {
+	clusteruser_id string, appProjectManagedEnvs *[]AppProjectManagedEnvironment) error {
+	if err := shouldSimulateFailure("ListAppProjectManagedEnvironmentByClusterUserId", clusteruser_id, appProjectManagedEnvs); err != nil {
 		return err
 	}
-	return cdb.InnerClient.ListAppProjectManagedEnvironmentByClusterUserId(ctx, cluster_user_id, appProjectManagedEnvs)
+	return cdb.InnerClient.ListAppProjectManagedEnvironmentByClusterUserId(ctx, clusteruser_id, appProjectManagedEnvs)
 }
 
 func (cdb *ChaosDBClient) DeleteAppProjectManagedEnvironmentByManagedEnvId(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error) {

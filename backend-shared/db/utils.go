@@ -360,7 +360,7 @@ func SetupForTestingDBGinkgo() error {
 
 	for idx := range appProjectRepositories {
 		item := appProjectRepositories[idx]
-		if strings.HasPrefix(item.RepositoryCredentialsID, "test-") {
+		if strings.HasPrefix(item.RepositorycredentialsID, "test-") {
 			rowsAffected, err := dbq.DeleteAppProjectRepositoryByRepoCredId(ctx, &item)
 			Expect(err).To(BeNil())
 			if err == nil {

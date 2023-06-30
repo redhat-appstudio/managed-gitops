@@ -500,6 +500,42 @@ type RepositoryCredentials struct {
 	Created_on time.Time `pg:"created_on"`
 }
 
+// AppProjectRepository
+type AppProjectRepository struct {
+
+	//lint:ignore U1000 used by go-pg
+	tableName struct{} `pg:"appprojectrepository"` //nolint
+
+	AppProjectRepositoryID string `pg:"app_project_repository_id,pk,notnull"`
+
+	// -- Foreign key to: ClusterUser.clusteruser_id
+	Clusteruser_id string `pg:"cluster_user_id"`
+
+	// -- Foreign key to: RepositoryCredentials.repositorycredentials_id
+	RepositoryCredentialsID string `pg:"repositorycredentials_id"`
+
+	SeqID int64 `pg:"seq_id"`
+
+	RepoURL string `pg:"repo_url,notnull"`
+}
+
+// AppProjectManagedEnvironment
+type AppProjectManagedEnvironment struct {
+
+	//lint:ignore U1000 used by go-pg
+	tableName struct{} `pg:"appprojectmanagedenvironment"` //nolint
+
+	AppProjectManagedEnvironmentID string `pg:"app_project_managedenv_id,pk,notnull"`
+
+	// -- ClusterUser.clusteruser_id
+	Clusteruser_id string `pg:"cluster_user_id"`
+
+	// -- Foreign key to: ManagedEnvironment.managed_environment_id
+	Managed_environment_id string `pg:"managed_environment_id"`
+
+	SeqID int64 `pg:"seq_id"`
+}
+
 // hasEmptyValues returns error if any of the notnull tagged fields are empty.
 func (rc *RepositoryCredentials) hasEmptyValues(fieldNamesToIgnore ...string) error {
 	s := reflect.ValueOf(rc).Elem()

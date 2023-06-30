@@ -57,6 +57,8 @@ type UnsafeDatabaseQueries interface {
 	UnsafeListAllKubernetesResourceToDBResourceMapping(ctx context.Context, kubernetesToDBResourceMapping *[]KubernetesToDBResourceMapping) error
 	UnsafeListAllAPICRToDatabaseMappings(ctx context.Context, mappings *[]APICRToDatabaseMapping) error
 	UnsafeListAllRepositoryCredentials(ctx context.Context, repositoryCredentials *[]RepositoryCredentials) error
+	UnsafeListAllAppProjectRepositories(ctx context.Context, appRepositories *[]AppProjectRepository) error
+	UnsafeListAllAppProjectManagedEnvironment(ctx context.Context, appProjectManagedEnv *[]AppProjectManagedEnvironment) error
 }
 
 type AllDatabaseQueries interface {
@@ -287,6 +289,38 @@ type ApplicationScopedQueries interface {
 	// GetAPICRForDatabaseUID retrieves the name/namespace/uid of an API Resources (such as GitOpsDeploymentManagedEnvironment)
 	// based on the primary key of the corresponding database row (for example, ManagedEnvironment)
 	GetAPICRForDatabaseUID(ctx context.Context, apiCRToDatabaseMapping *APICRToDatabaseMapping) error
+
+	// CreateAppProjectRepository creates AppProjectRepository in database
+	CreateAppProjectRepository(ctx context.Context, obj *AppProjectRepository) error
+
+	// UpdateAppProjectRepository updates AppProjectRepository table in database
+	UpdateAppProjectRepository(ctx context.Context, obj *AppProjectRepository) error
+
+	// GetAppProjectRepositoryById retrieves AppProjectRepository by id
+	GetAppProjectRepositoryById(ctx context.Context, obj *AppProjectRepository) error
+
+	// ListAppProjectRepositoryByClusterUserId retrieves the list of appProjectRepositories
+	ListAppProjectRepositoryByClusterUserId(ctx context.Context,
+		cluster_user_id string, appProjectRepositories []AppProjectRepository) ([]AppProjectRepository, error)
+
+	// DeleteAppProjectRepositoryById deletes appProjectRepository by id
+	DeleteAppProjectRepositoryById(ctx context.Context, id string) (int, error)
+
+	// CreateAppProjectManagedEnvironment creates appProjectManagedEnv in database
+	CreateAppProjectManagedEnvironment(ctx context.Context, obj *AppProjectManagedEnvironment) error
+
+	// UpdateAppProjectManagedEnvironment updates appProjectManagedEnv table in database
+	UpdateAppProjectManagedEnvironment(ctx context.Context, obj *AppProjectManagedEnvironment) error
+
+	// GetAppProjectManagedEnvironmentById retrieves appProjectManagedEnv by id
+	GetAppProjectManagedEnvironmentById(ctx context.Context, obj *AppProjectManagedEnvironment) error
+
+	// ListAppProjectManagedEnvironmentByClusterUserId retrieves the list of appProjectManagedEnv
+	ListAppProjectManagedEnvironmentByClusterUserId(ctx context.Context,
+		cluster_user_id string, appProjectManagedEnv []AppProjectManagedEnvironment) ([]AppProjectManagedEnvironment, error)
+
+	// DeleteAppProjectManagedEnvironmentyId deletes appProjectRepository by id
+	DeleteAppProjectManagedEnvironmentById(ctx context.Context, id string) (int, error)
 }
 
 type CloseableQueries interface {

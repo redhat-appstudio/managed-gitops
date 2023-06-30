@@ -354,17 +354,26 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	a.log.Info("Created new Application in DB: "+application.Application_id, application.GetAsLogKeyValues()...)
 
 	// Create ApplicationOwner row in DB
-	applicationOwner := db.ApplicationOwner{
+	applicationOwner := &db.ApplicationOwner{
 		ApplicationOwnerApplicationID: application.Application_id,
 		ApplicationOwnerUserID:        clusterUser.Clusteruser_id,
 	}
 
-	if err := dbQueries.CreateApplicationOwner(ctx, &applicationOwner); err != nil {
-		a.log.Error(err, "Unable to create application owner row in database", applicationOwner.GetAsLogKeyValues()...)
+	// Fetch applicationOwner from database, if not found create it.
+	if err := dbQueries.GetApplicationOwnerByPrimaryKey(ctx, applicationOwner); err != nil {
+		if db.IsResultNotFoundError(err) {
+			if err := dbQueries.CreateApplicationOwner(ctx, applicationOwner); err != nil {
+				a.log.Error(err, "Unable to create application owner row in database", applicationOwner.GetAsLogKeyValues()...)
 
-		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
+				return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
+			}
+			a.log.Info("Created new Application Owner in DB: "+applicationOwner.ApplicationOwnerApplicationID, applicationOwner.GetAsLogKeyValues()...)
+
+		} else {
+			a.log.Error(err, "unable to retrieve applicationOwner", "applicationOwner", applicationOwner)
+			return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
+		}
 	}
-	a.log.Info("Created new Application Owner in DB: "+applicationOwner.ApplicationOwnerApplicationID, applicationOwner.GetAsLogKeyValues()...)
 
 	requiredDeplToAppMapping := &db.DeploymentToApplicationMapping{
 		Deploymenttoapplicationmapping_uid_id: string(gitopsDeployment.UID),
@@ -759,7 +768,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		log.Error(err, "Unable to retrieve application owner")
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 	}
-	log.Info("Processed GitOpsDeployment event: Application owner exits after updating in application in database")
+	log.Info("Processed GitOpsDeployment event: Application owner exists after updating in application in database")
 
 	// Create the operation
 	gitopsEngineClient, err := a.k8sClientFactory.GetK8sClientForGitOpsEngineInstance(ctx, engineInstance)

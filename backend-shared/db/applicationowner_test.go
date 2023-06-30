@@ -58,6 +58,7 @@ var _ = Describe("ApplicationOwner Tests", func() {
 
 			err = dbq.GetApplicationOwnerByPrimaryKey(ctx, &applicationOwner)
 			Expect(err).ToNot(BeNil())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 		})
 	})

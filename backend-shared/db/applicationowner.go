@@ -75,8 +75,8 @@ func (dbq *PostgreSQLDatabaseQueries) GetApplicationOwnerByPrimaryKey(ctx contex
 	}
 
 	if err := isEmptyValues("GetApplicationOwnerByPrimaryKey",
-		"application_owner_application_id = ?", obj.ApplicationOwnerApplicationID,
-		"application_owner_user_id = ?", obj.ApplicationOwnerUserID); err != nil {
+		"application_owner_application_id", obj.ApplicationOwnerApplicationID,
+		"application_owner_user_id", obj.ApplicationOwnerUserID); err != nil {
 		return err
 	}
 
@@ -111,7 +111,7 @@ func (obj *ApplicationOwner) GetAsLogKeyValues() []interface{} {
 		return []interface{}{}
 	}
 
-	return []interface{}{"application_owner_application_id = ?", obj.ApplicationOwnerApplicationID,
-		"application_owner_user_id = ?", obj.ApplicationOwnerUserID}
+	return []interface{}{"application_owner_application_id", obj.ApplicationOwnerApplicationID,
+		"application_owner_user_id", obj.ApplicationOwnerUserID}
 
 }

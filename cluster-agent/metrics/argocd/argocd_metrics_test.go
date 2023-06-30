@@ -79,10 +79,6 @@ var _ = Describe("Argo CD Metrics", func() {
 		It("Reconciliation metrics are zero if the argocd application has not been reconciled", func() {
 			By("Creating an ArgoCD application that has not been reconciled")
 			app := &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "application-01",
 					Namespace: testNamespaceNames[0],
@@ -100,10 +96,6 @@ var _ = Describe("Argo CD Metrics", func() {
 		It("Reconciliation metrics are zero if the argocd application has been reconciled more than 3 minutes ago", func() {
 			By("Creating an ArgoCD application with a reconcile time greater than three minutes ago")
 			app := &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "application-01",
 					Namespace: testNamespaceNames[0],
@@ -126,10 +118,6 @@ var _ = Describe("Argo CD Metrics", func() {
 		It("Argocd applications in the other namespaces do not contribute to the metrics", func() {
 			By("Creating an ArgoCD application in another namespace")
 			app := &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "application-01",
 					Namespace: "bogus",
@@ -152,10 +140,6 @@ var _ = Describe("Argo CD Metrics", func() {
 		It("Reconciliation metrics are 100% if the argocd application has been reconciled withing the last 3 minutes", func() {
 			By("Creating an ArgoCD application with a reconcile time within the last three minutes")
 			app := &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "application-01",
 					Namespace: testNamespaceNames[0],
@@ -178,10 +162,6 @@ var _ = Describe("Argo CD Metrics", func() {
 		It("Reconciliation metrics are 50% if one of two argocd applications have been reconciled withing the last 3 minutes", func() {
 			By("Creating an ArgoCD application reconciled within the last three minutes")
 			app := &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "application-01",
 					Namespace: testNamespaceNames[0],
@@ -197,10 +177,6 @@ var _ = Describe("Argo CD Metrics", func() {
 
 			By("Creating an ArgoCD application reconciled more than three minutes ago")
 			app = &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "application-02",
 					Namespace: testNamespaceNames[0],
@@ -223,10 +199,6 @@ var _ = Describe("Argo CD Metrics", func() {
 		It("Reconciliation metrics are 100% if two argocd applications in different gitops argocd namespaces have been reconciled withing the last 3 minutes", func() {
 			By("Creating an ArgoCD application reconciled within the last three minutes")
 			app := &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "application-01",
 					Namespace: testNamespaceNames[0],
@@ -242,10 +214,6 @@ var _ = Describe("Argo CD Metrics", func() {
 
 			By("Creating a second ArgoCD application reconciled within the last three minutes")
 			app = &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "application-02",
 					Namespace: testNamespaceNames[1],

@@ -212,7 +212,6 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 			BeforeEach(func() {
 				By(" --- create the ArgoCD secret with wrong values and missing argocd labels & annotations ---")
 				secret = &corev1.Secret{
-					TypeMeta: metav1.TypeMeta{},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-fake-secret-wrong-values",
 						Namespace: namespace,
@@ -315,7 +314,6 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 			BeforeEach(func() {
 				By(" --- creating the ArgoCD secret with wrong values and missing argocd labels & annotations ---")
 				secret = &corev1.Secret{
-					TypeMeta: metav1.TypeMeta{},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-fake-obsolete-secret",
 						Namespace: namespace,
@@ -385,7 +383,6 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 			BeforeEach(func() {
 				By(" --- creating the ArgoCD secret 1 with wrong values and missing argocd labels & annotations ---")
 				secret1 = &corev1.Secret{
-					TypeMeta: metav1.TypeMeta{},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-fake-obsolete-secret-1",
 						Namespace: namespace,
@@ -411,7 +408,6 @@ var _ = Describe("Testing Repository Credentials Operation", func() {
 
 				By(" --- creating the ArgoCD secret 2 with wrong values and missing argocd labels & annotations ---")
 				secret2 = &corev1.Secret{
-					TypeMeta: metav1.TypeMeta{},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-fake-obsolete-secret-2",
 						Namespace: namespace,

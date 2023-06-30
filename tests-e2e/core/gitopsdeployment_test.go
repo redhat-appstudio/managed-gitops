@@ -971,7 +971,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				),
 			)
 
-			Consistently(appProject, ArgoCDReconcileWaitTime, "1s").Should(
+			Consistently(appProject, "20s", "1s").Should(
 				SatisfyAll(
 					appProjectFixture.HaveAppProjectSourceRepos(appv1.AppProjectSpec{
 						SourceRepos: []string{gitOpsDeploymentResource.Spec.Source.RepoURL},

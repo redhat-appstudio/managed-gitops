@@ -731,10 +731,6 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 
 				applicationCR := &appv1.Application{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
-						APIVersion: "argoproj.io/v1alpha1",
-					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      name,
 						Namespace: namespace,
@@ -1989,10 +1985,6 @@ var _ = Describe("Operation Controller", func() {
 
 			It("Verify whether appProject CR is not deleted if appProjectManagedEnv/appProjectRepo row still exists", func() {
 				applicationCR := &appv1.Application{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
-						APIVersion: "argoproj.io/v1alpha1",
-					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      name,
 						Namespace: namespace,
@@ -2969,10 +2961,6 @@ func createDummyApplicationData() (appv1.Application, string, error) {
 func createCustomizedDummyApplicationData(repoPath string) (appv1.Application, string, error) {
 	// Create dummy Application Spec to be saved in DB
 	dummyApplicationSpec := appv1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "operation",
 			Namespace: "my-user",
@@ -3013,10 +3001,6 @@ func createApplicationWithSyncOption(syncOptionParam string) (appv1.Application,
 
 	// Create dummy Application Spec to be saved in DB
 	dummyApplicationSpec := appv1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "operation",
 			Namespace: "my-user",

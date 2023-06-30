@@ -3,3 +3,5 @@ kind: Kustomization
 resources:
 - argo-cd-namespace.yaml
 - argo-cd.yaml
+- argo-cd-clusterrole.yaml
+- argo-cd-clusterrolebinding.yaml

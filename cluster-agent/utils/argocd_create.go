@@ -468,7 +468,6 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 	}
 
 	clusterSecret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-cluster-secret",
 			Namespace: argoCDNamespace,

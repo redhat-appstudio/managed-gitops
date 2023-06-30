@@ -194,10 +194,6 @@ var _ = Describe("Tests for the small number of utility functions in cluster-age
 		createDummyApplicationData := func() (fauxargocd.FauxApplication, string, appv1.Application, error) {
 			// Create dummy ArgoCD Application CR.
 			dummyArgoCdApplication := appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-my-application",
 					Namespace: "gitops-service-argocd",

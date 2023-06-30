@@ -59,10 +59,6 @@ var _ = Describe("Argo CD Metrics Polling", func() {
 
 			By("Creating an argocd application")
 			app := &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "application-01",
 					Namespace: testNamespaceNames[0],

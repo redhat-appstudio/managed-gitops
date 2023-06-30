@@ -1037,6 +1037,12 @@ func deleteArgoCDApplicationOfDeletedApplicationRow(ctx context.Context, dbAppli
 		}
 
 		if err := opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(&appProject), &appProject); err != nil {
+
+			if apierr.IsNotFound(err) {
+				// If the AppProject no longer exists, our work is done.
+				return shouldRetryFalse, nil
+			}
+
 			log.Error(err, "Unable to retrieve AppProject resource")
 			return shouldRetryTrue, err
 		} else {

@@ -71,10 +71,6 @@ var _ = Describe("Application Controller", func() {
 			Expect(err).To(BeNil())
 
 			guestbookApp = &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
 					Namespace: namespace,
@@ -272,10 +268,6 @@ var _ = Describe("Application Controller", func() {
 			ctx = context.Background()
 
 			guestbookApp = &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
 					Namespace: namespace,
@@ -386,10 +378,6 @@ var _ = Describe("Application Controller", func() {
 			ctx = context.Background()
 
 			guestbookApp = &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
 					Namespace: namespace,
@@ -641,10 +629,6 @@ var _ = Describe("Application Controller", func() {
 			ctx = context.Background()
 
 			guestbookApp := &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
 					Namespace: namespace,

@@ -2094,8 +2094,8 @@ var _ = Describe("Operation Controller", func() {
 				var isAppProjectEqual bool
 
 				By("verify whether existingAppProject and generatedAppProject are nil and it should return false")
-				existingAppProject := &appv1.AppProject{}
-				generatedAppProject := &appv1.AppProject{}
+				var existingAppProject *appv1.AppProject
+				var generatedAppProject *appv1.AppProject
 
 				existingAppProject = nil
 				generatedAppProject = nil

@@ -958,7 +958,6 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 
 // Delete all Argo CD Applications that reference a specific Application row
 func deleteArgoCDApplicationOfDeletedApplicationRow(ctx context.Context, dbApplicationID string, dbOperation db.Operation, opConfig operationConfig, log logr.Logger) (bool, error) {
-
 	// Find the Application that has the corresponding databaseID label
 	list := appv1.ApplicationList{}
 	labelSelector := labels.NewSelector()

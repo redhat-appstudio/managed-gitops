@@ -711,7 +711,7 @@ var _ = Describe("Operation Controller", func() {
 
 		Context("Process Application Operation Test", func() {
 
-			It("Verify that When an Operation row points to an Application row that doesn't exist, any Argo Application CR that relates to that Application row should be removed.", func() {
+			It("Verify that When an Operation row points to an Application row that doesn't exist, any Argo Application CR and AppProject CR that relates to that Application row should be removed.", func() {
 				By("Close database connection")
 				err = db.SetupForTestingDBGinkgo()
 				Expect(err).To(BeNil())
@@ -823,10 +823,12 @@ var _ = Describe("Operation Controller", func() {
 				Expect(operationDB.State).To(Equal(db.OperationState_Completed))
 
 				By("Verifying whether Application CR is deleted")
-				Eventually(func() bool {
-					err := k8sClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, applicationCR)
-					return apierr.IsNotFound(err)
-				}).Should(BeTrue())
+				err = k8sClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, applicationCR)
+				Expect(apierr.IsNotFound(err)).To(BeTrue())
+
+				By("Verifying whether AppProject CR is deleted")
+				err = k8sClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, appProject)
+				Expect(apierr.IsNotFound(err)).To(BeTrue())
 
 				kubernetesToDBResourceMapping := db.KubernetesToDBResourceMapping{
 					KubernetesResourceType: "Namespace",
@@ -1358,16 +1360,34 @@ var _ = Describe("Operation Controller", func() {
 					},
 				}
 
+				var appProjectRepositories []db.AppProjectRepository
+				err = dbQueries.UnsafeListAllAppProjectRepositories(ctx, &appProjectRepositories)
+				Expect(err).To(BeNil())
+
+				var repoURLs []string
+				for _, v := range appProjectRepositories {
+					if v.Clusteruser_id == operationDB.Operation_owner_user_id {
+						repoURLs = append(repoURLs, v.RepoURL)
+					}
+				}
+
 				err = task.event.client.Get(ctx, types.NamespacedName{Namespace: appProject.Namespace, Name: appProject.Name}, appProject)
 				Expect(err).To(BeNil())
 				Expect(appProject).ToNot(BeNil())
+				Expect(appProject.Name).To(Equal(appProjectPrefix + operationDB.Operation_owner_user_id))
+				Expect(appProject.Namespace).To(Equal(namespace))
+				Expect(appProject.Spec.SourceRepos).To(Equal(repoURLs))
+				Expect(appProject.Spec.Destinations).To(Equal([]appv1.ApplicationDestination{{
+					Namespace: "*",
+					Name:      "in-cluster",
+				}}))
 
 				By("Verify whether Project field of Application CR is pointing to AppProject")
 				Expect(applicationCR2.Spec.Project).To(Equal(appProject.Name))
 
 			})
 
-			It("Verify whether the existing app project is updated when the generated app project is not the same as the existing app project.", func() {
+			It("Verify whether the existing app project is updated when the generated app project differs from the existing app project.", func() {
 				By("Close database connection")
 				defer dbQueries.CloseDatabase()
 				defer testTeardown()
@@ -1456,12 +1476,8 @@ var _ = Describe("Operation Controller", func() {
 				err = dbQueries.CreateAppProjectRepository(ctx, dbAppProjectRepo)
 				Expect(err).To(BeNil())
 
-				By("Creating appProject to verify the consistency of AppProject")
+				By("Creating existingAppProject to verify the consistency of AppProject")
 				existingAppProject := &appv1.AppProject{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "AppProject",
-						APIVersion: "argoproj.io/v1alpha1",
-					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name: appProjectPrefix + operationDB.Operation_owner_user_id,
 						Annotations: map[string]string{
@@ -1487,7 +1503,7 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 				Expect(retry).To(BeFalse())
 
-				By("Verify whether the created AppProject is equal to the existing AppProject.")
+				By("Verify whether the generated AppProject is equal to the existing AppProject.")
 				appProject := &appv1.AppProject{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      appProjectPrefix + operationDB.Operation_owner_user_id,
@@ -1933,9 +1949,27 @@ var _ = Describe("Operation Controller", func() {
 					},
 				}
 
+				var appProjectRepositories []db.AppProjectRepository
+				err = dbQueries.UnsafeListAllAppProjectRepositories(ctx, &appProjectRepositories)
+				Expect(err).To(BeNil())
+
+				var repoURLs []string
+				for _, v := range appProjectRepositories {
+					if v.Clusteruser_id == operationDB.Operation_owner_user_id {
+						repoURLs = append(repoURLs, v.RepoURL)
+					}
+				}
+
 				err = task.event.client.Get(ctx, types.NamespacedName{Namespace: appProject.Namespace, Name: appProject.Name}, appProject)
 				Expect(err).To(BeNil())
 				Expect(appProject).ToNot(BeNil())
+				Expect(appProject.Name).To(Equal(appProjectPrefix + operationDB.Operation_owner_user_id))
+				Expect(appProject.Namespace).To(Equal(namespace))
+				Expect(appProject.Spec.SourceRepos).To(Equal(repoURLs))
+				Expect(appProject.Spec.Destinations).To(Equal([]appv1.ApplicationDestination{{
+					Namespace: "*",
+					Name:      "in-cluster",
+				}}))
 
 				By("deleting resources and cleaning up db entries created by test.")
 
@@ -1951,6 +1985,182 @@ var _ = Describe("Operation Controller", func() {
 
 				deleteTestResources(ctx, dbQueries, resourcesToBeDeleted)
 
+			})
+
+			It("Verify whether appProject CR is not deleted if appProjectManagedEnv/appProjectRepo row still exists", func() {
+				applicationCR := &appv1.Application{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: namespace,
+						Labels: map[string]string{
+							dbID: "doesnt-exist",
+						},
+						DeletionTimestamp: &metav1.Time{
+							Time: time.Now(),
+						},
+					},
+				}
+
+				err = task.event.client.Create(ctx, applicationCR)
+				Expect(err).To(BeNil())
+
+				// The Argo CD Applications used by GitOps Service use finalizers, so the Applicaitonwill not be deleted until the finalizer is removed.
+				// Normally it us Argo CD's job to do this, but since this is a unit test, there is no Argo CD. Instead we wait for the deletiontimestamp
+				// to be set (by the delete call of PerformTask, and then just remove the finalize and update, simulating what Argo CD does)
+				go func() {
+					err = wait.PollImmediate(1*time.Second, 1*time.Minute, func() (bool, error) {
+						if applicationCR.DeletionTimestamp != nil {
+							err = k8sClient.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
+							Expect(err).To(BeNil())
+
+							applicationCR.Finalizers = nil
+
+							err = k8sClient.Update(ctx, applicationCR)
+							Expect(err).To(BeNil())
+
+							err = task.event.client.Delete(ctx, applicationCR)
+							return true, nil
+						}
+						return false, nil
+					})
+				}()
+
+				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
+				Expect(gitopsEngineCluster).ToNot(BeNil())
+				Expect(err).To(BeNil())
+
+				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
+				gitopsEngineInstance := &db.GitopsEngineInstance{
+					Gitopsengineinstance_id: "test-fake-engine-instance",
+					Namespace_name:          namespace,
+					Namespace_uid:           string(workspace.UID),
+					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+				}
+				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
+				Expect(err).To(BeNil())
+				By("Creating Operation row in database")
+				operationDB := &db.Operation{
+					Operation_id:            "test-operation",
+					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+					Resource_id:             "doesnt-exist",
+					Resource_type:           "Application",
+					State:                   db.OperationState_Waiting,
+					Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				}
+
+				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+				Expect(err).To(BeNil())
+
+				By("Creating Operation CR")
+				operationCR := &managedgitopsv1alpha1.Operation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: namespace,
+					},
+					Spec: managedgitopsv1alpha1.OperationSpec{
+						OperationID: operationDB.Operation_id,
+					},
+				}
+
+				err = task.event.client.Create(ctx, operationCR)
+				Expect(err).To(BeNil())
+
+				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
+				Expect(err).To(BeNil())
+
+				By("Creating AppProjectManagedEnvironment")
+				appProjectManagedEnv := db.AppProjectManagedEnvironment{
+					AppProjectManagedenvID: "test-app-managedenv-id-1",
+					Managed_environment_id: managedEnvironment.Managedenvironment_id,
+					Clusteruser_id:         operationDB.Operation_owner_user_id,
+				}
+				err = dbQueries.CreateAppProjectManagedEnvironment(ctx, &appProjectManagedEnv)
+				Expect(err).To(BeNil())
+
+				retry, err := task.PerformTask(ctx)
+				Expect(err).To(BeNil())
+				Expect(retry).To(BeFalse())
+
+				appProject := &appv1.AppProject{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      appProjectPrefix + operationDB.Operation_owner_user_id,
+						Namespace: namespace,
+					},
+				}
+
+				err = task.event.client.Get(ctx, types.NamespacedName{Namespace: appProject.Namespace, Name: appProject.Name}, appProject)
+				Expect(err).To(BeNil())
+				Expect(appProject).ToNot(BeNil())
+
+			})
+
+			It("Verify appProjectEqual function works as expected", func() {
+				existingAppProject := &appv1.AppProject{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: appProjectPrefix + "test-user-id",
+						Annotations: map[string]string{
+							"username": "test",
+						},
+						Namespace: namespace,
+					},
+					Spec: appv1.AppProjectSpec{
+						SourceRepos: []string{"test-url"},
+						Destinations: []appv1.ApplicationDestination{
+							{
+								Namespace: "test",
+								Server:    argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: "test-application-id"}),
+							},
+						},
+					},
+				}
+
+				generatedAppProject := &appv1.AppProject{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: appProjectPrefix + "test-user-id",
+						Annotations: map[string]string{
+							"username": "test",
+						},
+						Namespace: namespace,
+					},
+					Spec: appv1.AppProjectSpec{
+						SourceRepos: []string{"test-url"},
+						Destinations: []appv1.ApplicationDestination{
+							{
+								Namespace: "test",
+								Server:    argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: "test-application-id"}),
+							},
+						},
+					},
+				}
+
+				isAppProjectEqual := appProjectEqual(existingAppProject, generatedAppProject)
+				Expect(isAppProjectEqual).To(BeTrue())
+
+				generatedAppProject = &appv1.AppProject{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: appProjectPrefix + "test-user-id-2",
+						Annotations: map[string]string{
+							"username": "test",
+						},
+						Namespace: namespace,
+					},
+					Spec: appv1.AppProjectSpec{
+						SourceRepos: []string{"test-url-1"},
+						Destinations: []appv1.ApplicationDestination{
+							{
+								Namespace: "test",
+								Server:    argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: "test-application-id"}),
+							},
+						},
+					},
+				}
+
+				isAppProjectEqual = appProjectEqual(existingAppProject, generatedAppProject)
+				Expect(isAppProjectEqual).To(BeFalse())
 			})
 
 		})

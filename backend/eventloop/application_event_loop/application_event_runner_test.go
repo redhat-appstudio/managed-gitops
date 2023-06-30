@@ -598,14 +598,6 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironment)
 			Expect(err).To(BeNil())
 
-			appProjectManagedEnv := db.AppProjectManagedEnvironment{
-				AppProjectManagedenvID: "test-app-managedenv-id",
-				Managed_environment_id: managedEnvironment.Managedenvironment_id,
-				Clusteruser_id:         "test-user",
-			}
-			err = dbQueries.CreateAppProjectManagedEnvironment(ctx, &appProjectManagedEnv)
-			Expect(err).To(BeNil())
-
 			// ----------------------------------------------------------------------------
 			By("Create apiCRToDBMapping in database")
 			// ----------------------------------------------------------------------------

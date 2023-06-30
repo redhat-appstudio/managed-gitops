@@ -2091,68 +2091,70 @@ var _ = Describe("Operation Controller", func() {
 			})
 
 			It("Verify appProjectEqual function works as expected", func() {
-				existingAppProject := &appv1.AppProject{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: appProjectPrefix + "test-user-id",
-						Annotations: map[string]string{
-							"username": "test",
-						},
-						Namespace: namespace,
-					},
-					Spec: appv1.AppProjectSpec{
-						SourceRepos: []string{"test-url"},
-						Destinations: []appv1.ApplicationDestination{
-							{
-								Namespace: "test",
-								Server:    argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: "test-application-id"}),
-							},
-						},
-					},
-				}
+				var isAppProjectEqual bool
 
-				generatedAppProject := &appv1.AppProject{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: appProjectPrefix + "test-user-id",
-						Annotations: map[string]string{
-							"username": "test",
-						},
-						Namespace: namespace,
-					},
-					Spec: appv1.AppProjectSpec{
-						SourceRepos: []string{"test-url"},
-						Destinations: []appv1.ApplicationDestination{
-							{
-								Namespace: "test",
-								Server:    argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: "test-application-id"}),
-							},
-						},
-					},
-				}
+				By("verify whether existingAppProject and generatedAppProject are nil and it should return false")
+				existingAppProject := &appv1.AppProject{}
+				generatedAppProject := &appv1.AppProject{}
 
-				isAppProjectEqual := appProjectEqual(existingAppProject, generatedAppProject)
-				Expect(isAppProjectEqual).To(BeTrue())
-
-				generatedAppProject = &appv1.AppProject{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: appProjectPrefix + "test-user-id-2",
-						Annotations: map[string]string{
-							"username": "test",
-						},
-						Namespace: namespace,
-					},
-					Spec: appv1.AppProjectSpec{
-						SourceRepos: []string{"test-url-1"},
-						Destinations: []appv1.ApplicationDestination{
-							{
-								Namespace: "test",
-								Server:    argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: "test-application-id"}),
-							},
-						},
-					},
-				}
+				existingAppProject = nil
+				generatedAppProject = nil
 
 				isAppProjectEqual = appProjectEqual(existingAppProject, generatedAppProject)
 				Expect(isAppProjectEqual).To(BeFalse())
+
+				By("verify whether existingAppProject and generatedAppProject have different lengths of SourceRepos and it should return false")
+				existingAppProject = &appv1.AppProject{}
+				generatedAppProject = &appv1.AppProject{}
+
+				existingAppProject.Spec.SourceRepos = []string{"repo1", "repo2"}
+				generatedAppProject.Spec.SourceRepos = []string{"repo1"}
+
+				isAppProjectEqual = appProjectEqual(existingAppProject, generatedAppProject)
+				Expect(isAppProjectEqual).To(BeFalse())
+
+				By("verify whether existingAppProject and generatedAppProject have different repositories in SourceRepos and it should return false")
+				existingAppProject = &appv1.AppProject{}
+				generatedAppProject = &appv1.AppProject{}
+
+				existingAppProject.Spec.SourceRepos = []string{"repo1", "repo2"}
+				generatedAppProject.Spec.SourceRepos = []string{"repo1", "repo3"}
+
+				isAppProjectEqual = appProjectEqual(existingAppProject, generatedAppProject)
+				Expect(isAppProjectEqual).To(BeFalse())
+
+				By("verify whether existingAppProject and generatedAppProject have different lengths of Destinations and it should return false")
+				existingAppProject = &appv1.AppProject{}
+				generatedAppProject = &appv1.AppProject{}
+
+				existingAppProject.Spec.Destinations = []appv1.ApplicationDestination{{Name: "dest1"}, {Name: "dest2"}}
+				generatedAppProject.Spec.Destinations = []appv1.ApplicationDestination{{Name: "dest1"}}
+
+				isAppProjectEqual = appProjectEqual(existingAppProject, generatedAppProject)
+				Expect(isAppProjectEqual).To(BeFalse())
+
+				By("verify whether existingAppProject and generatedAppProject have different Destinations and it should return false")
+				existingAppProject = &appv1.AppProject{}
+				generatedAppProject = &appv1.AppProject{}
+
+				existingAppProject.Spec.Destinations = []appv1.ApplicationDestination{{Name: "dest1"}, {Name: "dest2"}}
+				generatedAppProject.Spec.Destinations = []appv1.ApplicationDestination{{Name: "dest1"}, {Name: "dest3"}}
+
+				isAppProjectEqual = appProjectEqual(existingAppProject, generatedAppProject)
+				Expect(isAppProjectEqual).To(BeFalse())
+
+				By("verify whether existingAppProject and generatedAppProject have the same SourceRepos and Destinations and it should return true")
+				existingAppProject = &appv1.AppProject{}
+				generatedAppProject = &appv1.AppProject{}
+
+				existingAppProject.Spec.SourceRepos = []string{"repo1", "repo2"}
+				generatedAppProject.Spec.SourceRepos = []string{"repo1", "repo2"}
+				existingAppProject.Spec.Destinations = []appv1.ApplicationDestination{{Name: "dest1"}, {Name: "dest2"}}
+				generatedAppProject.Spec.Destinations = []appv1.ApplicationDestination{{Name: "dest1"}, {Name: "dest2"}}
+
+				isAppProjectEqual = appProjectEqual(existingAppProject, generatedAppProject)
+				Expect(isAppProjectEqual).To(BeTrue())
+
 			})
 
 		})

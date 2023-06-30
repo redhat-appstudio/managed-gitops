@@ -1,7 +1,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: appstudio-openshift-gitops-argocd-application-controlle
+  name: appstudio-openshift-gitops-argocd-application-controller
 rules:
   - apiGroups:
       - '*'

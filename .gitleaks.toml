@@ -9,6 +9,10 @@
     '''M0NxQ0tjWEx5Tg==''',
   ]
 
+  paths = [
+    '''docs/api.md''',
+  ]
+
 # How to test this:
 #
 # git clone https://gitlab.corp.redhat.com/infosec-public/apps/config/leak-patterns.git

@@ -600,3 +600,132 @@ spec:
 ```
 
 See the [Operation API reference](https://redhat-appstudio.github.io/book/ref/gitops.html#operation) for details.
+
+
+## DeploymentTarget/DeploymentTargetClaim/DeploymentTargetClass
+
+See [ADR-8](https://github.com/redhat-appstudio/book/blob/main/ADR/0008-environment-provisioning.md) for details on `DeploymentTarget` (DT) / `DeploymentTargetClaim` (DTC) / `DeploymentTargetClass` (DTClass) provisioning. See [DT/DTC/DTClass step by step](deployment-target-claim-class-steps.md) for an example of how the DT/DTC/DTClass CRs operate at each step. 
+
+In short:
+- This API is patterned off of the `PersistentVolume`/`PersistentVolumeClaim`/`StorageClass` API.
+- A `DeploymentTarget` refers to a target namespace/cluster to deploy to (in the same way that a PersistentVolume represents a volume, e.g. data storage).
+- A `DeploymentTargetClaim` binds to a DeploymentTarget, becoming the owner of the DeploymentTarget (in the same way that a PersistentVolumeClaim binds to a PersistentVolume, which then allows the user to store data via the PersistentVolumeClaim)
+- A `DeploymentTargetClass` indicates the type of target to be provisioned: at present, we only support SpaceRequest provisioning, which is the ability to request a temporary Namespace on an RHTAP cluster to deploy to.
+- Finally, in order to deploy to a cluster/namespace that is bound to a DeploymentTargetClaim, you must reference that DeploymentTargetClaim from the `.spec` field of AppStudio Environment (see below for example).
+
+
+In order to deploy (using GitOps Service) to a cluster/namespace referenced by a DeploymentTargetClaim, one needs to create an AppStudio Environment resource that references that DeploymentTargetClaim, via the Enviroinment's `.spec.configuration.target.deploymentTargetClaim.claimName` field:
+```yaml
+apiVersion: appstudio.redhat.com/v1alpha1
+kind: Environment
+metadata:
+  name: prod
+spec:
+  # (...)
+  
+  configuration:
+
+	# Target is used to reference a DeploymentTargetClaim for a target Environment.
+	# The Environment controller uses the referenced DeploymentTargetClaim to access its bounded
+    # DeploymentTarget with cluster credential secret.
+    target:
+      deploymentTargetClaim:
+        claimName: staging-dtc # refers to a name of DTClaim in the Namespace
+```
+
+The `DeploymentTargetClaim` API resource is similar to Kubernetes' PersistentVolumeClaim resource. DeploymentTarget is Namespace-scoped:
+```yaml
+apiVersion: appstudio.redhat.com/v1alpha1
+kind: DeploymentTargetClaim
+metadata:
+  name: prod-dtc
+  annotations:
+    # Annotation to indicate that the binding controller completed the binding process. 
+    dt.appstudio.redhat.com/bind-complete: true
+
+    # Annotation to indicate that the binding controller bind the DTC to a DT.
+    # In practice it means that the controller set the DTC.spec.target to the value of DT.Name
+    dt.appstudio.redhat.com/bound-by-controller: true
+spec:
+  # Reference to a cluster-scoped DeploymentTargetClass that provisioned the DT to which this DTC is bound
+  deploymentTargetClassName: isolation-level-namespace
+  
+  # Name of a DeploymentTarget within the Namespace to which this DeploymentTargetClaim should be bound.
+  targetName: dtc-9rpj6-dt-wrn7s
+
+status:
+
+  # Pending: DTC is waiting for the binding controller or user to bind it with a DT that satisfies it.
+  # Bound: The DTC was bounded to a DT that satisfies it, by the binding controller.
+  # Lost: The DTC lost its bounded DT. The DT doesn’t exist anymore because it got deleted.
+  phase: Bound
+```
+
+
+The `DeploymentTarget` API resource is similar to Kubernetes' PersistentVolume resource. DeploymentTarget is Namespace-scoped:
+```yaml
+apiVersion: appstudio.redhat.com/v1alpha1
+kind: DeploymentTarget
+metadata:
+  name: prod-dt
+  annotations:
+    # the name of the provisioner that provisioned this DT: shoud match .spec.provisioner field of a DeploymentTargetClass
+    provisioner.appstudio.redhat.com/provisioned-by: appstudio.redhat.com/devsandbox
+
+spec:
+  # Reference to cluster-scoped DeploymentTargetClass which provisioned this DeploymentTarget.
+  deploymentTargetClassName: "isolation-level-namespace"
+  
+  # Reference to the DeploymentTargetClaim (in the same Namespace) that a DeploymentTarget is bound to (if it is bound)
+  claimRef: "dtc-52m96"
+  
+  # K8s credentials that a consumer of this API can use to connect to a ServiceAccount on a target cluster with read/write permissions to a given Namespace
+  kubernetesCredentials:
+    
+    # Namespace that the credential provides access to
+    defaultNamespace: "jgwest-jk9881c-env"
+    
+    # URL to a cluster's Kubernetes API endpoint
+    apiURL: 'https://api.stone-stg-m01.7ayg.p1.openshiftapps.com:6443'
+    
+    # A reference to a Secret in the Namespace.
+    # The Secret should contain a kubeconfig file within the 'data.kubeconfig' field.
+    clusterCredentialsSecret: "dtc-1abc2-de3f4-gh5ij"
+
+    # Whether or not the consumer of this Secret should allow/expect that the k8s API endpoint is using a self-signed certificate.
+    allowInsecureSkipTLSVerify: "true / false"
+
+
+status:
+
+  # Available: DT waits for a Claim to be bound to.
+  # Pending: DT is not yet available for binding.
+  # Bound: DT was bounded to a DTC.
+  # Released: DT was previously bound to a DTC, and the DTC was deleted, BUT the external resources were not freed (for example, because the DeploymentTargetClass had a reclaimPolicy of Retain)
+  # Failed: DT was released from its claim, but there was a failure during the release of external resources.
+  phase: Available / Pending / Bound / Released / Failed
+
+
+```
+
+The DeploymentTargetClass API is similar to Kubernetes' StorageClass resource. It is cluster-scoped:
+```yaml
+apiVersion: appstudio.redhat.com/v1alpha1
+kind: DeploymentTargetClass
+metadata:
+  name: isolation-level-namespace
+spec:
+
+  # The name of the provisioner that handles this class. 
+  # As of this writing (August 2023) only one provisioner is supported, 'appstudio.redhat.com/devsandbox'
+  provisioner: "appstudio.redhat.com/devsandbox"
+  
+  # The reclaimPolicy field will tell the provisioner what to do with the DT
+  # once its corresponding DTC is deleted, the values can be Retain or Delete.  
+  # Retain: When the DTC is deleted, do not delete the DT: only release the DT so it can be bound to another DTC at a later time
+  # Delete: When the DTC is deleted, also delete the DT
+  reclaimPolicy: Retain / Delete
+  
+  parameters: {} # As of this writing (August 2023) there are no supported parameters.
+  
+```  

@@ -35,6 +35,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 )
 
 // DeploymentTargetReconciler reconciles a DeploymentTarget object
@@ -104,6 +106,35 @@ func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s to DeploymentTarget %s in namespace %s: %v", FinalizerDT, dt.Name, dt.Namespace, err)
 		}
 		log.Info("Added finalizer to DeploymentTarget", "finalizer", FinalizerDT)
+	}
+
+	// If the DeploymentTarget is not deleted, verify if it has a corresponding DTC
+	if dt.Spec.ClaimRef != "" && dt.DeletionTimestamp == nil {
+		dtc := &applicationv1alpha1.DeploymentTargetClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      dt.Spec.ClaimRef,
+				Namespace: dt.Namespace,
+			},
+		}
+
+		err = r.Client.Get(ctx, client.ObjectKeyFromObject(dtc), dtc)
+		if err != nil {
+			if !apierr.IsNotFound(err) {
+				return ctrl.Result{}, err
+			}
+
+			// If the DTC is already deleted and the reclaim policy is Retain, unset the claimRef field of the DeploymentTarget.
+			if dtClass.Spec.ReclaimPolicy == applicationv1alpha1.ReclaimPolicy_Retain {
+				dt.Spec.ClaimRef = ""
+				if err := r.Client.Update(ctx, &dt); err != nil {
+					return ctrl.Result{}, err
+				}
+
+				log.Info("ClaimRef of DeploymentTarget is unset since its corresponding DeploymentTargetClaim is already deleted", "DeploymentTarget", dt.Name)
+
+				logutil.LogAPIResourceChangeEvent(dt.Namespace, dt.Name, dt, logutil.ResourceModified, log)
+			}
+		}
 	}
 
 	if dt.DeletionTimestamp == nil {

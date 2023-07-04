@@ -129,6 +129,31 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&sr), &sr)
 				Expect(apierr.IsNotFound(err)).To(BeFalse())
 			})
+
+			It("should unset the claimRef of DT if its corresponding DTC is deleted with Retain policy", func() {
+				By("creating a default DeploymentTargetClass with Retain policy")
+				dtcls := generateDeploymentTargetClass(func(dtc *appstudiosharedv1.DeploymentTargetClass) {
+					dtc.Spec.ReclaimPolicy = appstudiosharedv1.ReclaimPolicy_Retain
+				})
+				err := k8sClient.Create(ctx, &dtcls)
+				Expect(err).To(BeNil())
+
+				By("creating a default DeploymentTarget pointing to a non-existing DTC")
+				dt := generateReclaimDeploymentTarget()
+				err = k8sClient.Create(ctx, &dt)
+				Expect(err).To(BeNil())
+				Expect(dt.Spec.ClaimRef).To(Equal("test-dtc"))
+
+				By("reconcile and verify if the claimRef field is unset")
+				request := newRequest(dt.Namespace, dt.Name)
+				res, err := reconciler.Reconcile(ctx, request)
+				Expect(err).To(BeNil())
+				Expect(res).To(Equal(ctrl.Result{}))
+
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
+				Expect(err).To(BeNil())
+				Expect(dt.Spec.ClaimRef).To(Equal(""))
+			})
 		})
 	})
 })

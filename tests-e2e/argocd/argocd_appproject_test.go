@@ -91,7 +91,6 @@ var _ = Describe("ArgoCD AppProject E2E tests", func() {
 			}
 
 			secret = corev1.Secret{
-				TypeMeta: metav1.TypeMeta{},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-app-project-secret",
 					Namespace: app.Namespace,

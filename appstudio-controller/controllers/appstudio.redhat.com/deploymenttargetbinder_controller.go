@@ -82,8 +82,6 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 			return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s to DeploymentTargetClaim %s in namespace %s: %v", applicationv1alpha1.FinalizerBinder, dtc.Name, dtc.Namespace, err)
 		}
 		log.Info("Added finalizer to DeploymentTargetClaim", "finalizer", applicationv1alpha1.FinalizerBinder)
-
-		logutil.LogAPIResourceChangeEvent(dtc.Namespace, dtc.Name, dtc, logutil.ResourceModified, log)
 	}
 
 	// Handle deletion if the DTC has a deletion timestamp set.
@@ -356,7 +354,6 @@ func handleBoundedDeploymentTargetClaim(ctx context.Context, k8sClient client.Cl
 				return err
 			}
 			log.Info("Deleted the provisioner annotation from DeploymentTargetClaim because the class name was not set", "annotation", applicationv1alpha1.AnnTargetProvisioner)
-			logutil.LogAPIResourceChangeEvent(dtc.Namespace, dtc.Name, dtc, logutil.ResourceModified, log)
 		} else if provisioner != string(dtc.Spec.DeploymentTargetClassName) {
 			// If the class name exists, but doesn't match the provisioner value
 			// update the annotation with the correct provisioner value.
@@ -365,8 +362,6 @@ func handleBoundedDeploymentTargetClaim(ctx context.Context, k8sClient client.Cl
 				return err
 			}
 			log.Info("Updated the provisioner annotation with the correct class name", "annotation", applicationv1alpha1.AnnTargetProvisioner, "className", string(dtc.Spec.DeploymentTargetClassName))
-
-			logutil.LogAPIResourceChangeEvent(dtc.Namespace, dtc.Name, dtc, logutil.ResourceModified, log)
 		}
 	}
 
@@ -420,8 +415,6 @@ func handleDynamicDTCProvisioning(ctx context.Context, k8sClient client.Client, 
 	}
 
 	log.Info("Added the provisioner annotation to the DeploymentTargetClaim", "annotation", applicationv1alpha1.AnnTargetProvisioner)
-
-	logutil.LogAPIResourceChangeEvent(dtc.Namespace, dtc.Name, dtc, logutil.ResourceModified, log)
 
 	// set the DTC to Pending phase and wait for the Provisioner to create a DT
 	return updateDTCStatusPhase(ctx, k8sClient, dtc, applicationv1alpha1.DeploymentTargetClaimPhase_Pending, log)
@@ -505,8 +498,6 @@ func updateDTCStatusPhase(ctx context.Context, k8sClient client.Client, dtc *app
 
 	log.Info("Updated the status of DeploymentTargetClaim to phase", "phase", dtc.Status.Phase)
 
-	logutil.LogAPIResourceChangeEvent(dtc.Namespace, dtc.Name, dtc, logutil.ResourceModified, log)
-
 	return nil
 }
 
@@ -522,8 +513,6 @@ func updateDTStatusPhase(ctx context.Context, k8sClient client.Client, dt *appli
 	}
 
 	log.Info("Updated the status of DeploymentTarget to phase", "DeploymentTarget", dt.Name, "phase", dt.Status.Phase)
-
-	logutil.LogAPIResourceChangeEvent(dt.Namespace, dt.Name, dt, logutil.ResourceModified, log)
 
 	return nil
 }

@@ -100,6 +100,7 @@ func (r *DevsandboxDeploymentReconciler) Reconcile(ctx context.Context, req ctrl
 		}
 
 		log.Info("DeploymentTarget has been created for SpaceRequest", "SpaceRequest.Name", spacerequest.Name, "SpaceRequest.Namespace", spacerequest.Namespace)
+		logutil.LogAPIResourceChangeEvent(dt.Namespace, dt.Name, dt, logutil.ResourceCreated, log)
 	}
 
 	log.Info("A DeploymentTarget for the SpaceRequest exists", "DeploymentTarget.Name", dt.Name, "Namespace", dt.Namespace)

@@ -130,6 +130,9 @@ var _ = Describe("ArgoCD AppProject E2E tests", func() {
 		// This test requires the following environment variable to be set.
 		//		GITHUB_SSH_KEY: The SSH key of the private GitHub repository
 		// If the variable is not set, the test will be skipped.
+		// We use git@github.com:managed-gitops-test-data/private-repo-test.git instead of
+		// git@github.com:redhat-appstudio/managed-gitops because we need a repo that
+		// has a public key associated with it.
 		It("Should succeed if the app project and the application both use a git url", func() {
 			const giturl = "git@github.com:managed-gitops-test-data/private-repo-test.git"
 

@@ -17,7 +17,6 @@ import (
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	dtfixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/deploymenttarget"
 	dtcfixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/deploymenttargetclaim"
-	envFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/environment"
 	environmentFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/environment"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -81,7 +80,7 @@ var _ = Describe("Environment Status.Conditions tests", func() {
 			Expect(err).To(Succeed())
 
 			By("checking the status component environment condition is true")
-			Eventually(env, "2m", "1s").Should(envFixture.HaveEnvironmentCondition(
+			Eventually(env, "2m", "1s").Should(environmentFixture.HaveEnvironmentCondition(
 				metav1.Condition{
 					Type:    app.EnvironmentConditionErrorOccurred,
 					Status:  metav1.ConditionTrue,
@@ -125,7 +124,7 @@ var _ = Describe("Environment Status.Conditions tests", func() {
 			Expect(err).To(Succeed())
 
 			By("checking the status component environment condition is true")
-			Eventually(environment, "2m", "1s").Should(envFixture.HaveEnvironmentCondition(
+			Eventually(environment, "2m", "1s").Should(environmentFixture.HaveEnvironmentCondition(
 				metav1.Condition{
 					Type:    app.EnvironmentConditionErrorOccurred,
 					Status:  metav1.ConditionTrue,

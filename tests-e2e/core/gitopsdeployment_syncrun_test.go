@@ -57,8 +57,6 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			gitOpsDeploymentResource = gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
 				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual)
-			gitOpsDeploymentResource.Spec.Destination.Environment = ""
-			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
 			err = k8sClient.Create(ctx, &gitOpsDeploymentResource)
 			Expect(err).To(BeNil())
@@ -208,8 +206,6 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			gitOpsDeploymentResource = gitopsDeplFixture.BuildGitOpsDeploymentResource("test-deply-with-presync",
 				"https://github.com/managed-gitops-test-data/deployment-presync-hook", "guestbook",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual)
-			gitOpsDeploymentResource.Spec.Destination.Environment = ""
-			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
 			err := k8sClient.Create(ctx, &gitOpsDeploymentResource)
 			Expect(err).To(BeNil())
@@ -327,8 +323,6 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			gitOpsDeploymentResource = gitopsDeplFixture.BuildGitOpsDeploymentResource("test-deply-with-presync",
 				"https://github.com/managed-gitops-test-data/deployment-presync-hook", "guestbook",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual)
-			gitOpsDeploymentResource.Spec.Destination.Environment = ""
-			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
 			err := k8sClient.Create(ctx, &gitOpsDeploymentResource)
 			Expect(err).To(BeNil())
@@ -405,8 +399,6 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			gitOpsDeploymentResource = gitopsDeplFixture.BuildGitOpsDeploymentResource("test-deply",
 				"https://github.com/managed-gitops-test-data/deployment-presync-hook", "guestbook-without-hook",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual)
-			gitOpsDeploymentResource.Spec.Destination.Environment = ""
-			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
 			err := k8sClient.Create(ctx, &gitOpsDeploymentResource)
 			Expect(err).To(BeNil())

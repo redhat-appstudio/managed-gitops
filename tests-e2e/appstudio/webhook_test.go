@@ -310,7 +310,6 @@ var _ = Describe("Webhook E2E tests", func() {
 					managedgitopsv1alpha1.SyncOptions_CreateNamespace_true,
 				},
 			}
-			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
@@ -536,8 +535,6 @@ var _ = Describe("Webhook E2E tests", func() {
 			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
 				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual)
-			gitOpsDeploymentResource.Spec.Destination.Environment = ""
-			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
 			err = k8sClient.Create(ctx, &gitOpsDeploymentResource)
 			Expect(err).To(BeNil())

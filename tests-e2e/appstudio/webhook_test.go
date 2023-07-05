@@ -15,6 +15,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	promotionRunFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/promotionrun"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -265,7 +266,30 @@ var _ = Describe("Webhook E2E tests", func() {
 			Expect(err.Error()).Should(ContainSubstring("the specified sync option in .spec.syncPolicy.syncOptions is either mispelled or is not supported by GitOpsDeployment"))
 		})
 
-		It("Should validate update GitOpsDeployment CR Webhooks for invalid for invalid syncOptions.", func() {
+		It("Should validate create GitOpsDeployment CR Webhooks for empty Environment field with non-empty namespace", func() {
+			if !isWebhookInstalled("gitopsdeployments", k8sClient) {
+				Skip("skipping as gitopsdeployments webhook is not installed")
+			}
+
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			ctx = context.Background()
+
+			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
+				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+			gitOpsDeploymentResource.Spec.Destination.Environment = ""
+			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
+
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
+			Expect(err).NotTo(Succeed())
+			Expect(err.Error()).Should(ContainSubstring("the environment field should not be empty when the namespace is non-empty"))
+		})
+
+		It("Should validate update GitOpsDeployment CR Webhooks for invalid syncOptions.", func() {
 
 			if !isWebhookInstalled("gitopsdeployments", k8sClient) {
 				Skip("skipping as gitopsdeployments webhook is not installed")
@@ -303,6 +327,70 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8s.Update(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).NotTo(Succeed())
 			Expect(err.Error()).Should(ContainSubstring("the specified sync option in .spec.syncPolicy.syncOptions is either mispelled or is not supported by GitOpsDeployment"))
+
+		})
+
+		It("Should validate update GitOpsDeployment CR Webhooks for empty Environment field with non-empty namespace.", func() {
+
+			if !isWebhookInstalled("gitopsdeployments", k8sClient) {
+				Skip("skipping as gitopsdeployments webhook is not installed")
+			}
+
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			ctx = context.Background()
+
+			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
+			Expect(err).To(BeNil())
+
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-managed-env-secret",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Type:       "managed-gitops.redhat.com/managed-environment",
+				StringData: map[string]string{"kubeconfig": kubeConfigContents},
+			}
+
+			managedEnv := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-managed-env",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+					APIURL:                     apiServerURL,
+					ClusterCredentialsSecret:   secret.Name,
+					AllowInsecureSkipTLSVerify: true,
+					CreateNewServiceAccount:    true,
+				},
+			}
+
+			err = k8s.Create(secret, k8sClient)
+			Expect(err).To(BeNil())
+
+			err = k8s.Create(managedEnv, k8sClient)
+			Expect(err).To(BeNil())
+
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
+				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
+			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
+
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
+			Expect(err).To(Succeed())
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&gitOpsDeploymentResource), &gitOpsDeploymentResource)
+			Expect(err).To(Succeed())
+
+			gitOpsDeploymentResource.Spec.Destination.Environment = ""
+
+			err = k8s.Update(&gitOpsDeploymentResource, k8sClient)
+			Expect(err).NotTo(Succeed())
+			Expect(err.Error()).Should(ContainSubstring("the environment field should not be empty when the namespace is non-empty"))
 
 		})
 

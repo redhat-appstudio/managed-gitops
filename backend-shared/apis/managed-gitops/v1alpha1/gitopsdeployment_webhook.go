@@ -97,5 +97,9 @@ func (r *GitOpsDeployment) ValidateGitOpsDeployment() error {
 		}
 	}
 
+	if r.Spec.Destination.Environment == "" && r.Spec.Destination.Namespace != "" {
+		return fmt.Errorf("the environment field should not be empty when the namespace is non-empty")
+	}
+
 	return nil
 }

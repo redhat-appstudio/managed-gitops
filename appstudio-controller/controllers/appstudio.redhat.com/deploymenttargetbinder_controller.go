@@ -156,7 +156,6 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer %s from DeploymentTargetClaim %s in namespace %s: %v", applicationv1alpha1.FinalizerBinder, dtc.Name, dtc.Namespace, err)
 			}
 			log.Info("Removed finalizer from DeploymentTargetClaim", "finalizer", applicationv1alpha1.FinalizerBinder)
-
 			return ctrl.Result{}, nil
 		}
 	}
@@ -292,8 +291,6 @@ func bindDeploymentTargetClaimToTarget(ctx context.Context, k8sClient client.Cli
 			}
 		}
 		log.Info("Added bound-by-controller annotation and updated the target name for DeploymentTargetClaim since the binding controller found the matching DeploymentTarget")
-
-		logutil.LogAPIResourceChangeEvent(dtc.Namespace, dtc.Name, dtc, logutil.ResourceModified, log)
 	}
 
 	// Set the status of DT and DTC to Bound
@@ -321,7 +318,6 @@ func bindDeploymentTargetClaimToTarget(ctx context.Context, k8sClient client.Cli
 		}
 
 		log.Info("Added bind-complete annotation since the DeploymentTargetClaim is bounded", "annotation", applicationv1alpha1.AnnBindCompleted)
-
 		return nil
 	}
 
@@ -491,7 +487,6 @@ func updateDTCStatusPhase(ctx context.Context, k8sClient client.Client, dtc *app
 	}
 
 	log.Info("Updated the status of DeploymentTargetClaim to phase", "phase", dtc.Status.Phase)
-
 	return nil
 }
 
@@ -507,7 +502,6 @@ func updateDTStatusPhase(ctx context.Context, k8sClient client.Client, dt *appli
 	}
 
 	log.Info("Updated the status of DeploymentTarget to phase", "DeploymentTarget", dt.Name, "phase", dt.Status.Phase)
-
 	return nil
 }
 

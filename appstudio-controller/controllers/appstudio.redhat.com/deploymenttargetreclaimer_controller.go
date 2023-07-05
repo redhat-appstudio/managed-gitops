@@ -36,8 +36,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 )
 
 // DeploymentTargetReconciler reconciles a DeploymentTarget object
@@ -107,7 +105,6 @@ func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s to DeploymentTarget %s in namespace %s: %v", FinalizerDT, dt.Name, dt.Namespace, err)
 		}
 		log.Info("Added finalizer to DeploymentTarget", "finalizer", FinalizerDT)
-		logutil.LogAPIResourceChangeEvent(dt.Namespace, dt.Name, dt, logutil.ResourceModified, log)
 	}
 
 	// If the DeploymentTarget is not deleted, verify if it has a corresponding DTC

@@ -142,8 +142,6 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
 				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
-			gitOpsDeploymentResource.Spec.Destination.Environment = ""
-			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
@@ -178,7 +176,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				},
 				Destination: managedgitopsv1alpha1.GitOpsDeploymentDestination{
 					Name:      gitOpsDeploymentResource.Spec.Destination.Environment,
-					Namespace: gitOpsDeploymentResource.Spec.Destination.Namespace,
+					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
 			}
 
@@ -265,8 +263,6 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
 				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
-			gitOpsDeploymentResource.Spec.Destination.Environment = ""
-			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
@@ -300,7 +296,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				},
 				Destination: managedgitopsv1alpha1.GitOpsDeploymentDestination{
 					Name:      gitOpsDeploymentResource.Spec.Destination.Environment,
-					Namespace: gitOpsDeploymentResource.Spec.Destination.Namespace,
+					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
 			}
 
@@ -440,8 +436,6 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			gitOpsDeploymentResource := gitopsDeplFixture.BuildTargetRevisionGitOpsDeploymentResource("gitops-depl-test",
 				"https://github.com/managed-gitops-test-data/deployment-permutations-a", "pathB", "branchA",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
-			gitOpsDeploymentResource.Spec.Destination.Environment = ""
-			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
@@ -460,7 +454,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				},
 				Destination: managedgitopsv1alpha1.GitOpsDeploymentDestination{
 					Name:      gitOpsDeploymentResource.Spec.Destination.Environment,
-					Namespace: gitOpsDeploymentResource.Spec.Destination.Namespace,
+					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
 			}
 
@@ -496,7 +490,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				},
 				Destination: managedgitopsv1alpha1.GitOpsDeploymentDestination{
 					Name:      gitOpsDeploymentResource.Spec.Destination.Environment,
-					Namespace: gitOpsDeploymentResource.Spec.Destination.Namespace,
+					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
 			}
 
@@ -812,8 +806,6 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
 					repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 					managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
-				gitOpsDeploymentResource.Spec.Destination.Environment = ""
-				gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
 				k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 				Expect(err).To(Succeed())

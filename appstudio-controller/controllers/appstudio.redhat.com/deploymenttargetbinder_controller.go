@@ -111,8 +111,6 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 						return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s to DeploymentTarget %s in namespace %s: %v", FinalizerDT, dt.Name, dt.Namespace, err)
 					}
 					log.Info("Added finalizer to DeploymentTarget", "finalizer", FinalizerDT)
-
-					logutil.LogAPIResourceChangeEvent(dt.Namespace, dt.Name, dt, logutil.ResourceModified, log)
 				}
 
 				if dtcls.Spec.ReclaimPolicy == applicationv1alpha1.ReclaimPolicy_Delete {
@@ -158,8 +156,6 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer %s from DeploymentTargetClaim %s in namespace %s: %v", applicationv1alpha1.FinalizerBinder, dtc.Name, dtc.Namespace, err)
 			}
 			log.Info("Removed finalizer from DeploymentTargetClaim", "finalizer", applicationv1alpha1.FinalizerBinder)
-
-			logutil.LogAPIResourceChangeEvent(dtc.Namespace, dtc.Name, dtc, logutil.ResourceModified, log)
 
 			return ctrl.Result{}, nil
 		}
@@ -325,8 +321,6 @@ func bindDeploymentTargetClaimToTarget(ctx context.Context, k8sClient client.Cli
 		}
 
 		log.Info("Added bind-complete annotation since the DeploymentTargetClaim is bounded", "annotation", applicationv1alpha1.AnnBindCompleted)
-
-		logutil.LogAPIResourceChangeEvent(dtc.Namespace, dtc.Name, dtc, logutil.ResourceModified, log)
 
 		return nil
 	}

@@ -159,7 +159,6 @@ func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Req
 				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer %s from DeploymentTarget %s in namespace %s: %v", FinalizerDT, dt.Name, dt.Namespace, err)
 			}
 			log.Info("Removed finalizer from DeploymentTarget", "finalizer", FinalizerDT)
-			logutil.LogAPIResourceChangeEvent(dt.Namespace, dt.Name, dt, logutil.ResourceModified, log)
 		}
 		return ctrl.Result{}, nil
 	}
@@ -176,7 +175,6 @@ func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s for SpaceRequest %s in namespace %s: %v", codereadytoolchainv1alpha1.FinalizerName, sr.Name, sr.Namespace, err)
 		}
 		log.Info("Added finalizer for SpaceRequest", "finalizer", codereadytoolchainv1alpha1.FinalizerName)
-		logutil.LogAPIResourceChangeEvent(sr.Namespace, sr.Name, sr, logutil.ResourceModified, log)
 	}
 
 	var readyCond codereadytoolchainv1alpha1.Condition
@@ -217,7 +215,6 @@ func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			return ctrl.Result{}, err
 		}
 		log.Info("The status of DT is updated to Failed", "dtName", dt.Name, "dtNamespace", dt.Namespace)
-		logutil.LogAPIResourceChangeEvent(dt.Namespace, dt.Name, dt, logutil.ResourceModified, log)
 		return ctrl.Result{}, nil
 	}
 

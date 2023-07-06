@@ -13,6 +13,7 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	sharedresourceloop "github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	fixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
@@ -229,18 +230,21 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
 			Expect(err).To(BeNil())
-
-			By("Verify whether Argo CD Application CR references AppProject via the .spec.project")
 			app := &appv1.Application{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      argocd.GenerateArgoCDApplicationName(string(gitOpsDeploymentResource.UID)),
 					Namespace: "gitops-service-argocd",
 				},
 			}
-
 			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(app), app)
 			Expect(err).To(BeNil())
-			Expect(app.Spec.Project).To(Equal(appProject.Name))
+			if util.AppProjectIsolationEnabled() {
+				By("verifying whether Argo CD Application CR references AppProject via the .spec.project")
+				Expect(app.Spec.Project).To(Equal(appProject.Name))
+			} else {
+				By("verifying whether Argo CD Application CR uses default AppProject")
+				Expect(app.Spec.Project).To(Equal("default"))
+			}
 
 			By("deleting the GitOpsDeployment resource and waiting for the resources to be deleted")
 			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
@@ -932,7 +936,11 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			Expect(err).To(BeNil())
 
 			By("verify whether AppProject is pointing to non-default project value")
-			Expect(app.Spec.Project).To(Equal(appProject.Name))
+			if util.AppProjectIsolationEnabled() {
+				Expect(app.Spec.Project).To(Equal(appProject.Name))
+			} else {
+				Expect(app.Spec.Project).To(Equal("default"))
+			}
 
 			By("Verify whether AppProject includes the git repository referenced in the repo")
 			match := false

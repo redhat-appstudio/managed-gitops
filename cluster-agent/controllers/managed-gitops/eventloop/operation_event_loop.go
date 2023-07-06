@@ -227,6 +227,7 @@ type processOperationEventTask struct {
 }
 
 // PerformTask takes as input an Operation resource event, and processes it based on the contents of that event.
+// - For example, an Operation points to an Application row, the contents of that row will be compared with the corresponding Argo CD Application CR
 //
 // Returns bool (true if the task should be retried, for example because it failed, false otherwise),
 // and error (an error to log on failure).

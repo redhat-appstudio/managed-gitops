@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	"k8s.io/client-go/tools/clientcmd"
@@ -780,7 +781,11 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
 			Expect(err).To(BeNil())
 
-			Expect(app.Spec.Project).To(Equal(appProject.Name))
+			if util.AppProjectIsolationEnabled() {
+				Expect(app.Spec.Project).To(Equal(appProject.Name))
+			} else {
+				Expect(app.Spec.Project).To(Equal("default"))
+			}
 
 			Eventually(appProject, "2m", "1s").Should(
 				SatisfyAll(

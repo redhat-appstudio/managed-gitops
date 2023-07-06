@@ -315,6 +315,11 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		project:   appProjectPrefix + appProjectRepoCredDB.Clusteruser_id,
 	}
 
+	// If AppProject-based isolation is disabled, then just default to using 'default' as the project field in the Argo CD Application
+	if !sharedutil.AppProjectIsolationEnabled() {
+		specFieldInput.project = "default"
+	}
+
 	if gitopsDeployment.Spec.SyncPolicy != nil && len(gitopsDeployment.Spec.SyncPolicy.SyncOptions) != 0 {
 		userErr := checkValidSyncOption(gitopsDeployment.Spec.SyncPolicy.SyncOptions)
 
@@ -676,6 +681,11 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		// syncOptions:       if non-empty, it gets updated below.
 		automated: strings.EqualFold(gitopsDeployment.Spec.Type, managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated),
 		project:   appProjectPrefix + appProjectRepoCredDB.Clusteruser_id,
+	}
+
+	// If AppProject-based isolation is disabled, then just default to using 'default' as the project field in the Argo CD Application
+	if !sharedutil.AppProjectIsolationEnabled() {
+		specFieldInput.project = "default"
 	}
 
 	if gitopsDeployment.Spec.SyncPolicy != nil && len(gitopsDeployment.Spec.SyncPolicy.SyncOptions) != 0 {

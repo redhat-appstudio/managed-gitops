@@ -302,6 +302,30 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 })
 
 var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() {
+
+	// expectFauxArgoCDAppToMatchGitOpsDeployment compares the Spec_field row of an Application with the corresponding GitOpsDeployment, to ensure that Spec_field (the Spec field of the Argo CD Application) accurately reflects what the user defined in the GitOpsDeployment.
+	expectFauxArgoCDAppToMatchGitOpsDeployment := func(applicationFirst db.Application, gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) {
+
+		var appArgo fauxargocd.FauxApplication
+		err := yaml.Unmarshal([]byte(applicationFirst.Spec_field), &appArgo)
+		Expect(err).To(BeNil())
+
+		Expect(managedgitopsv1alpha1.ApplicationSource{
+			RepoURL:        appArgo.Spec.Source.RepoURL,
+			Path:           appArgo.Spec.Source.Path,
+			TargetRevision: appArgo.Spec.Source.TargetRevision,
+		}).To(Equal(gitopsDepl.Spec.Source))
+
+		Expect(appArgo.Spec.Destination.Namespace).To(Equal(gitopsDepl.Spec.Destination.Namespace))
+		Expect(appArgo.Spec.SyncPolicy.Automated != nil).To(Equal(gitopsDepl.Spec.Type == managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated))
+
+		if sharedutil.AppProjectIsolationEnabled() {
+			Expect(appArgo.Spec.Project).To(SatisfyAll(HavePrefix("app-project-"), HaveLen(48)), "must be a valid app project uuid")
+		} else {
+			Expect(appArgo.Spec.Project).To(Equal("default"))
+		}
+	}
+
 	Context("Handle deployment modified", func() {
 		var err error
 		var workspaceID string
@@ -399,8 +423,9 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			deplToAppMappingFirst := appMappingsFirst[0]
 			applicationFirst := db.Application{Application_id: deplToAppMappingFirst.Application_id}
 			err = dbQueries.GetApplicationById(context.Background(), &applicationFirst)
-
 			Expect(err).To(BeNil())
+
+			expectFauxArgoCDAppToMatchGitOpsDeployment(applicationFirst, *gitopsDepl)
 
 			//############################################################################
 
@@ -475,6 +500,8 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			err = dbQueries.GetManagedEnvironmentById(ctx, &managedEnvironment)
 			Expect(err).To(BeNil())
 
+			expectFauxArgoCDAppToMatchGitOpsDeployment(applicationSecond, *gitopsDepl)
+
 			//############################################################################
 
 			// ----------------------------------------------------------------------------
@@ -544,7 +571,7 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			Expect(gitopsDeploymentUpdatedAt.After(operationDeletedAt)).To(BeTrue())
 		})
 
-		It("should handle deletion even if the DB resources are removed in the previous recociliation", func() {
+		It("should handle deletion even if the DB resources are removed in the previous reconciliation", func() {
 			// If the controller terminates while handling the deletion of a GitOpsDeployment with a finalizer, it
 			// should continue where it left and successfully complete the deletion in the next reconciliation.
 
@@ -574,6 +601,7 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			deplToAppMappingFirst := appMappingsFirst[0]
 			applicationFirst := db.Application{Application_id: deplToAppMappingFirst.Application_id}
 			err = dbQueries.GetApplicationById(context.Background(), &applicationFirst)
+			expectFauxArgoCDAppToMatchGitOpsDeployment(applicationFirst, *gitopsDepl)
 
 			Expect(err).To(BeNil())
 
@@ -659,6 +687,7 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			applicationFirst := db.Application{Application_id: deplToAppMappingFirst.Application_id}
 			err = dbQueries.GetApplicationById(context.Background(), &applicationFirst)
 			Expect(err).To(BeNil())
+			expectFauxArgoCDAppToMatchGitOpsDeployment(applicationFirst, *gitopsDepl)
 
 			//--------------------------------------------------------------------------------------
 			// Now create new client and event loop runner object.
@@ -738,7 +767,7 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			Expect(operationDeleted).To(BeTrue())
 		})
 
-		It("create a deployment and ensure it processed, then delete it an ensure that is processed", func() {
+		It("creates a deployment and ensure it was processed, then deletes it and ensure that it was processed", func() {
 			_, _, _, _, userDevErr := appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
 
@@ -768,6 +797,7 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 
 			err = dbQueries.GetApplicationById(context.Background(), &application)
 			Expect(err).To(BeNil())
+			expectFauxArgoCDAppToMatchGitOpsDeployment(application, *gitopsDepl)
 
 			gitopsEngineInstance := db.GitopsEngineInstance{
 				Gitopsengineinstance_id: application.Engine_instance_inst_id,

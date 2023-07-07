@@ -1008,11 +1008,11 @@ func (cdb *ChaosDBClient) UpdateAppProjectRepository(ctx context.Context, obj *A
 	return cdb.InnerClient.UpdateAppProjectRepository(ctx, obj)
 }
 
-func (cdb *ChaosDBClient) DeleteAppProjectRepositoryByRepoCredId(ctx context.Context, obj *AppProjectRepository) (int, error) {
-	if err := shouldSimulateFailure("DeleteAppProjectRepositoryByRepoCredId", obj); err != nil {
+func (cdb *ChaosDBClient) DeleteAppProjectRepositoryByAppProjectRepositoryID(ctx context.Context, obj *AppProjectRepository) (int, error) {
+	if err := shouldSimulateFailure("DeleteAppProjectRepositoryByAppProjectRepositoryID", obj); err != nil {
 		return 0, err
 	}
-	return cdb.InnerClient.DeleteAppProjectRepositoryByRepoCredId(ctx, obj)
+	return cdb.InnerClient.DeleteAppProjectRepositoryByAppProjectRepositoryID(ctx, obj)
 }
 
 func (cdb *ChaosDBClient) DeleteAppProjectRepositoryByClusterUserAndRepoURL(ctx context.Context, obj *AppProjectRepository) (int, error) {

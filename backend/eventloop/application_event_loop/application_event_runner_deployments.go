@@ -22,7 +22,6 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/backend/condition"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
-	sharedloop "github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	"github.com/redhat-appstudio/managed-gitops/backend/metrics"
 	goyaml "gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
@@ -273,28 +272,8 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, devError)
 	}
 
-	// Create AppProjectRepository row based on GitopsDeployment and
-	// The RepositoryCredentialsID field is nil when creating an AppProjectRepository based on GitopsDeployment because the value of AppProjectRepository is generated based on an Application.
-	appProjectRepoCredDB := db.AppProjectRepository{
-		Clusteruser_id:          clusterUser.Clusteruser_id,
-		RepositorycredentialsID: "",
-		RepoURL:                 sharedloop.NormalizeGitURL(gitopsDeployment.Spec.Source.RepoURL),
-	}
-
-	if err := dbQueries.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepoCredDB); err != nil {
-		if db.IsResultNotFoundError(err) {
-			if err := dbQueries.CreateAppProjectRepository(ctx, &appProjectRepoCredDB); err != nil {
-				a.log.Error(err, "Unable to create appProjectRepository based on GitopsDeployment", appProjectRepoCredDB.GetAsLogKeyValues()...)
-
-				return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
-			}
-
-			a.log.Info("Created new AppProjectRepository in DB based on GitopsDeployment: "+appProjectRepoCredDB.AppprojectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
-		} else {
-			a.log.Error(err, "Unable to retrieve AppProjectRepository from database based on GitopsDeployment: "+appProjectRepoCredDB.AppprojectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
-
-			return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
-		}
+	if err := a.sharedResourceEventLoop.ReconcileAppProjectRepositories(ctx, gitopsDeployment.Spec.Source.RepoURL, a.workspaceClient, gitopsDeplNamespace, a.log); err != nil {
+		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(fmt.Errorf("unexpected error on reconciling appproject repos: %w", err))
 	}
 
 	specFieldInput := argoCDSpecInput{
@@ -308,7 +287,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		sourceTargetRevision: gitopsDeployment.Spec.Source.TargetRevision,
 		// syncOptions:       if non-empty, it gets updated below.
 		automated: strings.EqualFold(gitopsDeployment.Spec.Type, managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated),
-		project:   appProjectPrefix + appProjectRepoCredDB.Clusteruser_id,
+		project:   appProjectPrefix + clusterUser.Clusteruser_id,
 	}
 
 	// If AppProject-based isolation is disabled, then just default to using 'default' as the project field in the Argo CD Application
@@ -475,14 +454,15 @@ func (a applicationEventLoopRunner_Action) handleDeleteGitOpsDeplEvent(ctx conte
 	}
 
 	if allErrors == nil {
-		if isGitOpsDeploymentDeleted(gitopsDepl) {
+
+		if gitopsDepl != nil && isGitOpsDeploymentDeleted(gitopsDepl) {
 			// remove the finalizer if all the dependencies are cleaned up
-			if err := removeFinalizerIfExist(ctx, a.workspaceClient, gitopsDepl, managedgitopsv1alpha1.DeletionFinalizer); err != nil {
+			if err := removeFinalizerIfExists(ctx, a.workspaceClient, gitopsDepl, managedgitopsv1alpha1.DeletionFinalizer); err != nil {
 				a.log.Error(err, "failed to remove the deletion finalizer from GitOpsDeployment", "name", gitopsDepl.Name, "namespace", gitopsDepl.Namespace)
 				return false, gitopserrors.NewDevOnlyError(err)
 			}
-
 		}
+
 		return signalShutdown, nil
 
 	} else {
@@ -491,7 +471,7 @@ func (a applicationEventLoopRunner_Action) handleDeleteGitOpsDeplEvent(ctx conte
 
 }
 
-func removeFinalizerIfExist(ctx context.Context, k8sClient client.Client, gitopsDepl *managedgitopsv1alpha1.GitOpsDeployment, finalizer string) error {
+func removeFinalizerIfExists(ctx context.Context, k8sClient client.Client, gitopsDepl *managedgitopsv1alpha1.GitOpsDeployment, finalizer string) error {
 	if gitopsDepl == nil {
 		return nil
 	}
@@ -577,6 +557,7 @@ func (a applicationEventLoopRunner_Action) reconcileManagedEnvironmentOfGitOpsDe
 func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx context.Context, deplToAppMapping *db.DeploymentToApplicationMapping,
 	gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment, clusterUser *db.ClusterUser,
 	dbQueries db.ApplicationScopedQueries) (*db.Application, *db.GitopsEngineInstance, deploymentModifiedResult, gitopserrors.UserError) {
+
 	if deplToAppMapping == nil || gitopsDeployment.UID == "" || clusterUser == nil {
 		return nil, nil, deploymentModifiedResult_Failed,
 			gitopserrors.NewDevOnlyError(fmt.Errorf("unexpected nil param in handleUpdatedGitOpsDeplEvent: %v %v %v",
@@ -657,35 +638,8 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, devError)
 	}
 
-	// Before updating Application ensure that AppProjectRepository row has been created (if necessary)
-	appProjectRepoCredDB := db.AppProjectRepository{
-		Clusteruser_id: clusterUser.Clusteruser_id,
-		RepoURL:        sharedloop.NormalizeGitURL(gitopsDeployment.Spec.Source.RepoURL),
-	}
-
-	if err := dbQueries.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepoCredDB); err != nil {
-
-		// If AppProjectRepository is not present in DB, create it.
-		if db.IsResultNotFoundError(err) {
-			appProjectRepoCredDB := db.AppProjectRepository{
-				Clusteruser_id:          clusterUser.Clusteruser_id,
-				RepositorycredentialsID: "",
-				RepoURL:                 sharedloop.NormalizeGitURL(gitopsDeployment.Spec.Source.RepoURL),
-			}
-
-			if err := dbQueries.CreateAppProjectRepository(ctx, &appProjectRepoCredDB); err != nil {
-				a.log.Error(err, "Unable to create appProjectRepository based on GitopsDeployment", appProjectRepoCredDB.GetAsLogKeyValues()...)
-
-				return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
-			}
-
-			a.log.Info("Created new AppProjectRepository in DB based on GitopsDeployment: "+appProjectRepoCredDB.AppprojectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
-
-		} else {
-			a.log.Error(err, "Unable to retrieve appProjectRepository based on GitopsDeployment", appProjectRepoCredDB.GetAsLogKeyValues()...)
-			return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
-		}
-
+	if err := a.sharedResourceEventLoop.ReconcileAppProjectRepositories(ctx, gitopsDeployment.Spec.Source.RepoURL, a.workspaceClient, apiNamespace, a.log); err != nil {
+		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(fmt.Errorf("unexpected error on reconciling appproject repos: %w", err))
 	}
 
 	specFieldInput := argoCDSpecInput{
@@ -698,7 +652,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		sourceTargetRevision: gitopsDeployment.Spec.Source.TargetRevision,
 		// syncOptions:       if non-empty, it gets updated below.
 		automated: strings.EqualFold(gitopsDeployment.Spec.Type, managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated),
-		project:   appProjectPrefix + appProjectRepoCredDB.Clusteruser_id,
+		project:   appProjectPrefix + clusterUser.Clusteruser_id,
 	}
 
 	// If AppProject-based isolation is disabled, then just default to using 'default' as the project field in the Argo CD Application
@@ -813,9 +767,15 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 
 }
 
+// Returns true/false if the GitOpsDeployment was successfully cleaned up (and thus the runner can be shutdown), and an error
 func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx context.Context,
 	deplToAppMapping *db.DeploymentToApplicationMapping, clusterUser *db.ClusterUser,
 	apiNamespace corev1.Namespace, dbQueries db.ApplicationScopedQueries) (bool, error) {
+
+	const (
+		signalledShutdown_true  = true
+		signalledShutdown_false = false
+	)
 
 	dbApplicationFound := true
 
@@ -831,7 +791,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 			dbApplicationFound = false
 			// Log the error, but continue.
 		} else {
-			return false, err
+			return signalledShutdown_false, err
 		}
 	}
 
@@ -842,7 +802,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	if err != nil {
 
 		log.V(logutil.LogLevel_Warn).Error(err, "unable to delete application state by id")
-		return false, err
+		return signalledShutdown_false, err
 
 	} else if rowsDeleted == 0 {
 		// Log the warning, but continue
@@ -856,7 +816,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	rowsUpdated, err := dbQueries.UpdateSyncOperationRemoveApplicationField(ctx, deplToAppMapping.Application_id)
 	if err != nil {
 		log.Error(err, "unable to update old sync operations", "applicationId", deplToAppMapping.Application_id)
-		return false, err
+		return signalledShutdown_false, err
 
 	} else if rowsUpdated == 0 {
 		log.Info("no SyncOperation rows updated, for updating old syncoperations on GitOpsDeployment deletion")
@@ -868,7 +828,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	rowsDeleted, err = dbQueries.DeleteDeploymentToApplicationMappingByDeplId(ctx, deplToAppMapping.Deploymenttoapplicationmapping_uid_id)
 	if err != nil {
 		log.Error(err, "unable to delete deplToAppMapping by id", "deplToAppMapUid", deplToAppMapping.Deploymenttoapplicationmapping_uid_id)
-		return false, err
+		return signalledShutdown_false, err
 
 	} else if rowsDeleted == 0 {
 		// Log the warning, but continue
@@ -880,7 +840,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	if !dbApplicationFound {
 		log.Info("While cleaning up old gitopsdepl entries, the Application row wasn't found. No more work to do.")
 		// If the Application CR no longer exists, then our work is done.
-		return true, nil
+		return signalledShutdown_true, nil
 	}
 
 	// 4) Remove ApplicationOwner from database
@@ -911,23 +871,13 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 
 	if err := yaml.Unmarshal([]byte(dbApplication.Spec_field), &specFieldAppFromDB); err != nil {
 		log.Error(err, "SEVERE: unable to unmarshal DB application spec field")
-		return false, err
+		return signalledShutdown_false, err
 	}
 
-	appProjectRepoCredDB := db.AppProjectRepository{
-		Clusteruser_id: clusterUser.Clusteruser_id,
-		RepoURL:        sharedloop.NormalizeGitURL(specFieldAppFromDB.Spec.Source.RepoURL),
-	}
-
-	// 5) Remove AppProjectRepository from database as GitopsDeployment is deleted
-	a.log.Info("GitOpsDeployment was deleted, so deleting AppProjectRepository row from database")
-	rowsDeleted, err = dbQueries.DeleteAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepoCredDB)
-	if err != nil {
-		// Log the error, but continue
-		log.Error(err, "unable to delete appProject by cluster_user_id and repoURL")
-	} else if rowsDeleted == 0 {
-		// Log the error, but continue
-		log.V(logutil.LogLevel_Warn).Error(nil, "unexpected number of rows deleted for appProject", "rowsDeleted", rowsDeleted)
+	// Ensure the the AppProjectRepository database entries accurately reflect the current state of the GitOpsDeployments/RepositoryCredentials in the Namespace
+	if err := a.sharedResourceEventLoop.ReconcileAppProjectRepositories(ctx, "", a.workspaceClient, apiNamespace, a.log); err != nil {
+		log.Error(err, "unable to reconcile app project repositories")
+		return signalledShutdown_false, err
 	}
 
 	gitopsEngineInstance, err := a.sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, dbApplication.Engine_instance_inst_id, a.workspaceClient, apiNamespace, a.log)
@@ -936,10 +886,10 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 
 		if db.IsResultNotFoundError(err) {
 			log.Error(err, "GitOpsEngineInstance could not be retrieved during gitopsdepl deletion handling")
-			return false, err
+			return signalledShutdown_false, err
 		} else {
 			log.Error(err, "Error occurred on attempting to retrieve gitops engine instance")
-			return false, err
+			return signalledShutdown_false, err
 		}
 	}
 
@@ -948,7 +898,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	gitopsEngineClient, err := a.k8sClientFactory.GetK8sClientForGitOpsEngineInstance(ctx, gitopsEngineInstance)
 	if err != nil {
 		log.Error(err, "could not retrieve client for gitops engine instance", "instance", gitopsEngineInstance.Gitopsengineinstance_id)
-		return false, err
+		return signalledShutdown_false, err
 	}
 	dbOperationInput := db.Operation{
 		Instance_id:   dbApplication.Engine_instance_inst_id,
@@ -960,27 +910,27 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	if gitopsEngineInstance == nil {
 		err = fmt.Errorf("gitopsengineinstance is nil, expected non-nil:  %v", gitopsEngineInstance)
 		log.Error(err, "unexpected nil value of required objects")
-		return false, err
+		return signalledShutdown_false, err
 	}
 
 	if gitopsEngineInstance.Namespace_name == "" {
 		err = fmt.Errorf("gitopsengineinstance namespace is nil, expected non-nil:  %s", gitopsEngineInstance.Gitopsengineinstance_id)
-		return false, err
+		return signalledShutdown_false, err
 	}
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput,
 		clusterUser.Clusteruser_id, gitopsEngineInstance.Namespace_name, dbQueries, gitopsEngineClient, log)
 	if err != nil {
 		log.Error(err, "unable to create operation", "operation", dbOperationInput.ShortString())
-		return false, err
+		return signalledShutdown_false, err
 	}
 
 	// 7) Finally, clean up the operation
 	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbQueries, gitopsEngineClient, !a.testOnlySkipCreateOperation, log); err != nil {
 		log.Error(err, "unable to cleanup operation", "operation", dbOperationInput.ShortString())
-		return false, err
+		return signalledShutdown_false, err
 	}
 
-	return true, nil
+	return signalledShutdown_true, nil
 
 }
 

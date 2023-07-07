@@ -197,6 +197,46 @@ type DatabaseQueries interface {
 
 	// Get KubernetesToDBResourceMapping in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offset'.
 	GetKubernetesToDBResourceMappingBatch(ctx context.Context, k8sToDBResourceMapping *[]KubernetesToDBResourceMapping, limit, offset int) error
+
+	// CreateAppProjectRepository creates AppProjectRepository in database
+	CreateAppProjectRepository(ctx context.Context, obj *AppProjectRepository) error
+
+	// GetAppProjectRepositoryByClusterUserAndRepoURL retrieves AppProjectRepository by cluster user id and repoURL
+	GetAppProjectRepositoryByClusterUserAndRepoURL(ctx context.Context, obj *AppProjectRepository) error
+
+	// ListAppProjectRepositoryByClusterUserId retrieves the list of appProjectRepositories
+	ListAppProjectRepositoryByClusterUserId(ctx context.Context,
+		clusteruser_id string, appProjectRepositories *[]AppProjectRepository) error
+
+	// UpdateAppProjectRepository updates AppProjectRepository
+	UpdateAppProjectRepository(ctx context.Context, obj *AppProjectRepository) error
+
+	// DeleteAppProjectRepositoryByRepoCredId deletes appProjectRepository by repo id
+	// DeleteAppProjectRepositoryByRepoCredId(ctx context.Context, obj *AppProjectRepository) (int, error)
+
+	DeleteAppProjectRepositoryByAppProjectRepositoryID(ctx context.Context, obj *AppProjectRepository) (int, error)
+
+	// DeleteAppProjectRepositoryByClusterUserAndRepoURL deletes appProjectRepository by clusteruser_id and repo_url
+	DeleteAppProjectRepositoryByClusterUserAndRepoURL(ctx context.Context, obj *AppProjectRepository) (int, error)
+
+	// CountAppProjectRepositoryByClusterUserID number of appProjectRepository by clusteruser_id
+	CountAppProjectRepositoryByClusterUserID(ctx context.Context, obj *AppProjectRepository) (int, error)
+
+	// CreateAppProjectManagedEnvironment creates appProjectManagedEnv in database
+	CreateAppProjectManagedEnvironment(ctx context.Context, obj *AppProjectManagedEnvironment) error
+
+	// GetAppProjectManagedEnvironmentByManagedEnvId retrieves appProjectManagedEnv by managedEnvID
+	GetAppProjectManagedEnvironmentByManagedEnvId(ctx context.Context, obj *AppProjectManagedEnvironment) error
+
+	// ListAppProjectManagedEnvironmentByClusterUserId returns a list of all appProjectManagedEnv that reference the specified clusteruser_id row.
+	ListAppProjectManagedEnvironmentByClusterUserId(ctx context.Context,
+		clusteruser_id string, appProjectManagedEnvs *[]AppProjectManagedEnvironment) error
+
+	// DeleteAppProjectManagedEnvironmentByManagedEnvId deletes appProjectManagedEnv by managedEnvID
+	DeleteAppProjectManagedEnvironmentByManagedEnvId(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error)
+
+	// CountAppProjectManagedEnvironmentByClusterUserID number of appProjectManagedEnv by clusteruser_id
+	CountAppProjectManagedEnvironmentByClusterUserID(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error)
 }
 
 // ApplicationScopedQueries are the set of database queries that act on application DB resources:
@@ -291,43 +331,6 @@ type ApplicationScopedQueries interface {
 	// based on the primary key of the corresponding database row (for example, ManagedEnvironment)
 	GetAPICRForDatabaseUID(ctx context.Context, apiCRToDatabaseMapping *APICRToDatabaseMapping) error
 
-	// CreateAppProjectRepository creates AppProjectRepository in database
-	CreateAppProjectRepository(ctx context.Context, obj *AppProjectRepository) error
-
-	// GetAppProjectRepositoryByClusterUserAndRepoURL retrieves AppProjectRepository by cluster user id and repoURL
-	GetAppProjectRepositoryByClusterUserAndRepoURL(ctx context.Context, obj *AppProjectRepository) error
-
-	// ListAppProjectRepositoryByClusterUserId retrieves the list of appProjectRepositories
-	ListAppProjectRepositoryByClusterUserId(ctx context.Context,
-		clusteruser_id string, appProjectRepositories *[]AppProjectRepository) error
-
-	// UpdateAppProjectRepository updates AppProjectRepository
-	UpdateAppProjectRepository(ctx context.Context, obj *AppProjectRepository) error
-
-	// DeleteAppProjectRepositoryByRepoCredId deletes appProjectRepository by repo id
-	DeleteAppProjectRepositoryByRepoCredId(ctx context.Context, obj *AppProjectRepository) (int, error)
-
-	// DeleteAppProjectRepositoryByClusterUserAndRepoURL deletes appProjectRepository by clusteruser_id and repo_url
-	DeleteAppProjectRepositoryByClusterUserAndRepoURL(ctx context.Context, obj *AppProjectRepository) (int, error)
-
-	// CountAppProjectRepositoryByClusterUserID number of appProjectRepository by clusteruser_id
-	CountAppProjectRepositoryByClusterUserID(ctx context.Context, obj *AppProjectRepository) (int, error)
-
-	// CreateAppProjectManagedEnvironment creates appProjectManagedEnv in database
-	CreateAppProjectManagedEnvironment(ctx context.Context, obj *AppProjectManagedEnvironment) error
-
-	// GetAppProjectManagedEnvironmentByManagedEnvId retrieves appProjectManagedEnv by managedEnvID
-	GetAppProjectManagedEnvironmentByManagedEnvId(ctx context.Context, obj *AppProjectManagedEnvironment) error
-
-	// ListAppProjectManagedEnvironmentByClusterUserId returns a list of all appProjectManagedEnv that reference the specified clusteruser_id row.
-	ListAppProjectManagedEnvironmentByClusterUserId(ctx context.Context,
-		clusteruser_id string, appProjectManagedEnvs *[]AppProjectManagedEnvironment) error
-
-	// DeleteAppProjectManagedEnvironmentByManagedEnvId deletes appProjectManagedEnv by managedEnvID
-	DeleteAppProjectManagedEnvironmentByManagedEnvId(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error)
-
-	// CountAppProjectManagedEnvironmentByClusterUserID number of appProjectManagedEnv by clusteruser_id
-	CountAppProjectManagedEnvironmentByClusterUserID(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error)
 	CreateApplicationOwner(ctx context.Context, obj *ApplicationOwner) error
 	DeleteApplicationOwner(ctx context.Context, applicationowner_application_id string) (int, error)
 	GetApplicationOwnerByApplicationID(ctx context.Context, obj *ApplicationOwner) error

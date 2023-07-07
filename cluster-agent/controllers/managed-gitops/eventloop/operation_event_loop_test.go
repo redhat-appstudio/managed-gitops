@@ -2897,10 +2897,8 @@ func deleteTestResources(ctx context.Context, dbQueries db.AllDatabaseQueries, r
 
 	// Delete AppProjectRepository
 	if resourcesToBeDeleted.AppProjectRepositoryID != "" {
-		appProjectRepository := &db.AppProjectRepository{
-			RepositorycredentialsID: resourcesToBeDeleted.RepositoryCredentialsID,
-		}
-		rowsAffected, err = dbQueries.DeleteAppProjectRepositoryByRepoCredId(ctx, appProjectRepository)
+
+		rowsAffected, err = dbQueries.DeleteAppProjectRepositoryByAppProjectRepositoryID(ctx, &db.AppProjectRepository{AppprojectRepositoryID: resourcesToBeDeleted.AppProjectRepositoryID})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).To(Equal(1))
 	}

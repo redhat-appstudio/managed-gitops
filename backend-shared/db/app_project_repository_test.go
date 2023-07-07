@@ -73,7 +73,7 @@ var _ = Describe("AppProjectRepository Test", func() {
 		Expect(appProjectRepositoryCount).To(Equal(1))
 
 		By("Verify whether AppProjectRepository is deleted")
-		rowsAffected, err := dbq.DeleteAppProjectRepositoryByRepoCredId(ctx, &appProjectRepository)
+		rowsAffected, err := dbq.DeleteAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepository)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).Should(Equal(1))
 

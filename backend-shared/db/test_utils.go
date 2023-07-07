@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/gomega"
@@ -95,6 +96,11 @@ func SetupForTestingDBGinkgo() error {
 	dbq, err := NewUnsafePostgresDBQueries(true, true)
 	Expect(err).ToNot(HaveOccurred())
 
+	var specialClusterUser ClusterUser
+	if err := dbq.GetOrCreateSpecialClusterUser(ctx, &specialClusterUser); err != nil {
+		return fmt.Errorf("unable to get or create special cluster user: %w", err)
+	}
+
 	defer dbq.CloseDatabase()
 
 	var applicationOwners []ApplicationOwner
@@ -168,8 +174,8 @@ func SetupForTestingDBGinkgo() error {
 
 	for idx := range appProjectRepositories {
 		item := appProjectRepositories[idx]
-		if strings.HasPrefix(item.RepositorycredentialsID, "test-") {
-			rowsAffected, err := dbq.DeleteAppProjectRepositoryByRepoCredId(ctx, &item)
+		if strings.HasPrefix(item.Clusteruser_id, "test-") {
+			rowsAffected, err := dbq.DeleteAppProjectRepositoryByClusterUserAndRepoURL(ctx, &item)
 			Expect(err).ToNot(HaveOccurred())
 			if err == nil {
 				Expect(rowsAffected).Should(Equal(1))
@@ -202,7 +208,7 @@ func SetupForTestingDBGinkgo() error {
 		// Clean up any operations that reference GitOpsEngineInstance that are going to be deleted below.
 		_, instanceToBeDeleted := gitopsEngineInstanceUIDsToDelete[operation.Instance_id]
 
-		if instanceToBeDeleted || strings.HasPrefix(operation.Operation_id, "test-") || strings.HasPrefix(operation.Operation_owner_user_id, "test-") {
+		if instanceToBeDeleted || strings.HasPrefix(operation.Operation_id, "test-") || strings.HasPrefix(operation.Operation_owner_user_id, "test-") || operation.Operation_owner_user_id == specialClusterUser.Clusteruser_id {
 			rowsAffected, err := dbq.CheckedDeleteOperationById(ctx, operation.Operation_id, operation.Operation_owner_user_id)
 			Expect(rowsAffected).Should(Equal(1))
 			Expect(err).ToNot(HaveOccurred())

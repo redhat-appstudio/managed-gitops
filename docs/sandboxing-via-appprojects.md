@@ -106,8 +106,6 @@ As of this writing, the current short-term solution to this (and which is unrela
 
 **New database table - AppProjectRepository:**
 
-
-
 * `ClusterUser (foreign key)`
     * DB index on this field, to allow us to quickly retrieve all items for a particular user.
 * `RepositoryCredential (foreign key, nullable)`
@@ -120,8 +118,8 @@ This row tracks which Git repository URLs a particular user can access.
 
 There should also exist a uniqueness constraint on the _(cluster user, normalized repository url) tuple_, to eliminate the case where multiple AppProjectRepository point to the same Git repository (which itself wouldn’t be the end of the world, but this is an easy way to eliminate this risk).
 
-To generate a list of all of the repositories a user can access, so that we can insert those values into an AppProject, one would do: `SELECT * from AppProjectRepository WHERE user = (user id)``
-* As above, ensuring we have an index on user should keep this query efficient.
+To generate a list of all of the repositories a user can access, so that we can insert those values into an AppProject, one would do: `SELECT * from AppProjectRepository WHERE user = (user id)`
+* As above, ensuring we have an index on user that should ensure this query remains efficient.
 
 **New database table - AppProjectManagedEnvironment:**
 
@@ -188,8 +186,6 @@ The backend component will receive the create/modify event in application_event_
 **New behaviour - when an Operation pointing to an Application is reconciled:**
 
 When we process an Operation that points to an Application, before we generate (or update) the corresponding Argo CD Application, we should do the following:
-
-
 
 * Generate the expected AppProject resource:
     * Get the ClusterUser from the operation_owner_user_id

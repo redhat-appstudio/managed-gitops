@@ -133,23 +133,23 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateAppProjectRepository(ctx context.Con
 
 }
 
-func (dbq *PostgreSQLDatabaseQueries) DeleteAppProjectRepositoryByRepoCredId(ctx context.Context, obj *AppProjectRepository) (int, error) {
+func (dbq *PostgreSQLDatabaseQueries) DeleteAppProjectRepositoryByAppProjectRepositoryID(ctx context.Context, obj *AppProjectRepository) (int, error) {
 
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return 0, err
 	}
 
-	if err := isEmptyValues("DeleteAppProjectRepositoryByRepoCredId",
-		"repositorycredentials_id", obj.RepositorycredentialsID,
+	if err := isEmptyValues("DeleteAppProjectRepositoryByAppProjectRepositoryID",
+		"appprojectRepositoryID", obj.AppprojectRepositoryID,
 	); err != nil {
 		return 0, err
 	}
 
 	deleteResult, err := dbq.dbConnection.Model(obj).
-		Where("repositorycredentials_id = ?", obj.RepositorycredentialsID).
+		Where("appproject_repository_id = ?", obj.AppprojectRepositoryID).
 		Context(ctx).Delete()
 	if err != nil {
-		return 0, fmt.Errorf("error on deleting AppProjectRepository: %v", err)
+		return 0, fmt.Errorf("error on deleting AppProjectRepository by primary key: %v", err)
 	}
 
 	return deleteResult.RowsAffected(), nil

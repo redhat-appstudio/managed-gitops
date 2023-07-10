@@ -17,12 +17,13 @@ func main() {
 	// March 6th, 2023 - Fix an issue with incorrect GitOpsEngineInstance on Stonesoup prod member clusters
 	// - Jonathan West
 
-	patchMultitenantCluster()
-	patchRHTenantCluster()
+	// patchMultitenantCluster()
+	// patchRHTenantCluster()
 
 	os.Exit(0)
 }
 
+//nolint:unused
 func patchMultitenantCluster() {
 
 	// KubernetesToDBResourceMapping entry:
@@ -68,6 +69,7 @@ func patchMultitenantCluster() {
 
 }
 
+//nolint:unused
 func patchRHTenantCluster() {
 
 	// KubernetesToDBResourceMapping entry:

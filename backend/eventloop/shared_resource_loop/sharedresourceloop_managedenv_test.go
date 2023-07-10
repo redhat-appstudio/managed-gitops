@@ -1044,7 +1044,7 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			err = dbQueries.GetManagedEnvironmentById(ctx, src.ManagedEnv)
 			Expect(err).To(BeNil())
 
-			By("Verify whether AppProject is created or not")
+			By("verifying whether AppProject is created or not")
 			appProjectManagedEnvDB = db.AppProjectManagedEnvironment{
 				Clusteruser_id:         src.ClusterUser.Clusteruser_id,
 				Managed_environment_id: src.ManagedEnv.Managedenvironment_id,

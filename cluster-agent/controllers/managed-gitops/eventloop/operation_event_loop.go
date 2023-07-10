@@ -1030,13 +1030,13 @@ func deleteArgoCDApplicationOfDeletedApplicationRow(ctx context.Context, dbAppli
 	// Delete the AppProject resource if the combined count of appProjectRepositoryCount and appProjectManagedEnvCount equals zero.
 	if appProjectRepositoryCount+appProjectManagedEnvCount == 0 {
 
+		// Retrieve the AppProject: if we find that it exists, then delete it.
 		appProject := appv1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      appProjectPrefix + dbOperation.Operation_owner_user_id,
 				Namespace: opConfig.argoCDNamespace.Name,
 			},
 		}
-
 		if err := opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(&appProject), &appProject); err != nil {
 
 			if apierr.IsNotFound(err) {
@@ -1075,7 +1075,7 @@ func createOrUpdateAppProjectWithValidation(ctx context.Context, dbOperation db.
 		return shouldRetryTrue, err
 	}
 
-	// Verify if the AppProject exists and is consistent.
+	// Verify if the AppProject CR exists and is consistent with the generated value, from above.
 	existingAppProject := &appv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      appProjectPrefix + dbOperation.Operation_owner_user_id,

@@ -180,7 +180,7 @@ func SelfHealInterval(defaultValue time.Duration, logger logr.Logger) time.Durat
 	return time.Duration(value) * time.Minute
 }
 
-// AppProjectIsolationEnabled is a feature flag for AppProject-based isolation. To enable it, set the below Environment variable on the controllers.
+// AppProjectIsolationEnabled is a feature flag for AppProject-based isolation. To enable it, set the environment variable on the controllers.
 func AppProjectIsolationEnabled() bool {
 
 	// If the environment variable exists, and equals (case insensitive) "true", then enable AppProject-based isolation

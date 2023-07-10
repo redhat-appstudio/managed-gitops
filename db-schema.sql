@@ -135,7 +135,7 @@ CREATE TABLE ClusterUser (
 	 -- When ClusterUser was created, which allow us to tell how old the resources are
 	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    -- We can use display_name to store the name of user's namespace
+	-- We can use display_name to store the name of user's namespace
 	display_name VARCHAR (128)
 );
 
@@ -263,7 +263,7 @@ CREATE TABLE Application (
 	CONSTRAINT fk_managedenvironment_id FOREIGN KEY (managed_environment_id) REFERENCES ManagedEnvironment(managedenvironment_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 	
 	seq_id serial,
-    
+
 	-- When Application was created, which allow us to tell how old the resources are
 	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 
@@ -289,7 +289,7 @@ CREATE TABLE ApplicationState (
 	-- message field comes directly from Argo CD Application CR's .status.healthStatus.Message
 	message VARCHAR (1024),
 
-    -- revision field comes directly from Argo CD Application CR's .status.SyncStatus.Revision field
+	-- revision field comes directly from Argo CD Application CR's .status.SyncStatus.Revision field
 	revision VARCHAR (1024),
 
 	-- sync_status field comes directly from Argo CD Application CR's .status.SyncStatus field
@@ -467,7 +467,7 @@ CREATE TABLE SyncOperation (
 
 	seq_id serial,
 
-    -- When SyncOperation was created, which allow us to tell how old the resources are
+	-- When SyncOperation was created, which allow us to tell how old the resources are
 	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 
 );
@@ -476,38 +476,38 @@ CREATE TABLE SyncOperation (
 -- This database table will then correspond to an Argo CD repository secret in the namespace of the target Argo CD instance.
 CREATE TABLE RepositoryCredentials (
 
-    -- Primary Key, that is an auto-generated UID
-    repositorycredentials_id VARCHAR ( 48 ) NOT NULL UNIQUE PRIMARY KEY,
+	-- Primary Key, that is an auto-generated UID
+	repositorycredentials_id VARCHAR ( 48 ) NOT NULL UNIQUE PRIMARY KEY,
 
-    -- User of GitOps service that wants to use a private repository
-    -- Foreign key to: ClusterUser.Clusteruser_id
-    repo_cred_user_id VARCHAR (48) NOT NULL,
-    CONSTRAINT fk_clusteruser_id FOREIGN KEY (repo_cred_user_id) REFERENCES ClusterUser(clusteruser_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
+	-- User of GitOps service that wants to use a private repository
+	-- Foreign key to: ClusterUser.Clusteruser_id
+	repo_cred_user_id VARCHAR (48) NOT NULL,
+	CONSTRAINT fk_clusteruser_id FOREIGN KEY (repo_cred_user_id) REFERENCES ClusterUser(clusteruser_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 
-    -- URL of the Git repository (example: https://github.com/my-org/my-repo)
-    repo_cred_url VARCHAR (512) NOT NULL,
+	-- URL of the Git repository (example: https://github.com/my-org/my-repo)
+	repo_cred_url VARCHAR (512) NOT NULL,
 
-    -- Authorized username login for accessing the private Git repo
-    repo_cred_user VARCHAR (256),
+	-- Authorized username login for accessing the private Git repo
+	repo_cred_user VARCHAR (256),
 
-    -- Authorized password login for accessing the private Git repo
-    repo_cred_pass VARCHAR (1024),
+	-- Authorized password login for accessing the private Git repo
+	repo_cred_pass VARCHAR (1024),
 
-    -- Alternative authentication method using an authorized private SSH key
-    repo_cred_ssh VARCHAR (1024),
+	-- Alternative authentication method using an authorized private SSH key
+	repo_cred_ssh VARCHAR (1024),
 
-    -- The name of the Secret resource in the Argo CD Repository, in the GitOps Engine instance
-    repo_cred_secret VARCHAR(48) NOT NULL,
+	-- The name of the Secret resource in the Argo CD Repository, in the GitOps Engine instance
+	repo_cred_secret VARCHAR(48) NOT NULL,
 
-    -- The internal RedHat Managed cluster where the GitOps Engine (e.g. ArgoCD) is running
-    -- NOTE: It is expected the 'repo_cred_secret' to be stored there as well.
-    -- Foreign key to: GitopsEngineInstance.Gitopsengineinstance_id
-    repo_cred_engine_id VARCHAR(48) NOT NULL,
-    CONSTRAINT fk_gitopsengineinstance_id FOREIGN KEY (repo_cred_engine_id) REFERENCES GitopsEngineInstance(gitopsengineinstance_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
+	-- The internal RedHat Managed cluster where the GitOps Engine (e.g. ArgoCD) is running
+	-- NOTE: It is expected the 'repo_cred_secret' to be stored there as well.
+	-- Foreign key to: GitopsEngineInstance.Gitopsengineinstance_id
+	repo_cred_engine_id VARCHAR(48) NOT NULL,
+	CONSTRAINT fk_gitopsengineinstance_id FOREIGN KEY (repo_cred_engine_id) REFERENCES GitopsEngineInstance(gitopsengineinstance_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 
-    seq_id serial,
+	seq_id serial,
 
-    -- When RepositoryCredentials was created, which allow us to tell how old the resources are
+	-- When RepositoryCredentials was created, which allow us to tell how old the resources are
 	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 
 );
@@ -515,8 +515,8 @@ CREATE TABLE RepositoryCredentials (
 -- AppProjectRepository is used by ArgoCD AppProject
 CREATE TABLE AppProjectRepository (
 
-    -- Primary Key, that is an auto-generated UID
-	app_project_repository_id VARCHAR(48) NOT NULL PRIMARY KEY,
+	-- Primary Key, that is an auto-generated UID
+	appproject_repository_id VARCHAR(48) NOT NULL PRIMARY KEY,
 
 	-- Describes whose cluster this is (UID)
 	-- Foreign key to: ClusterUser.clusteruser_id
@@ -543,13 +543,13 @@ CREATE INDEX idx_userid_cluster_rc ON AppProjectRepository(clusteruser_id);
 -- AppProjectManagedEnvironment is used by ArgoCD AppProject
 CREATE TABLE AppProjectManagedEnvironment (
 
-    -- Primary Key, that is an auto-generated UID
-	app_project_managedenv_id VARCHAR(48) NOT NULL PRIMARY KEY,
+	-- Primary Key, that is an auto-generated UID
+	appproject_managedenv_id VARCHAR(48) NOT NULL PRIMARY KEY,
 
 	-- Describes whose cluster this is (UID)
 	-- Foreign key to: ClusterUser.clusteruser_id
 	clusteruser_id VARCHAR (48) NOT NULL,
-    CONSTRAINT fk_clusteruser_id FOREIGN KEY (clusteruser_id) REFERENCES ClusterUser(clusteruser_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
+	CONSTRAINT fk_clusteruser_id FOREIGN KEY (clusteruser_id) REFERENCES ClusterUser(clusteruser_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 
 	-- Describes which managedenvironment the user has access to (UID)
 	-- Foreign key to: ManagedEnvironment.managed_environment_id

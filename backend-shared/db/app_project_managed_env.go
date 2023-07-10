@@ -145,7 +145,7 @@ func (obj *AppProjectManagedEnvironment) GetAsLogKeyValues() []interface{} {
 		return []interface{}{}
 	}
 
-	return []interface{}{"app_project_managedenv_id", obj.AppProjectManagedenvID,
+	return []interface{}{"appproject_managedenv_id", obj.AppProjectManagedenvID,
 		"clusteruser_id", obj.Clusteruser_id,
 		"managed_environment_id", obj.Managed_environment_id}
 }

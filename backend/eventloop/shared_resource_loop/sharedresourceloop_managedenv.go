@@ -405,7 +405,6 @@ func replaceExistingManagedEnv(ctx context.Context,
 	}
 	log.Info("Updated ManagedEnvironment with new cluster credentials ID", managedEnvironmentDB.GetAsLogKeyValues()...)
 
-	// Check whether the AppProjectManagedEnvironment exists. If the AppProjectManagedEnvironment have been updated and the AppProjectManagedEnvironment is not present, create it.
 	appProjectManagedEnv := db.AppProjectManagedEnvironment{
 		Managed_environment_id: managedEnvironmentDB.Managedenvironment_id,
 	}

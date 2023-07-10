@@ -639,7 +639,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, devError)
 	}
 
-	// Before Updating Application ensure that AppProjectRepository row has been created or no.
+	// Before updating Application ensure that AppProjectRepository row has been created (if necessary)
 	appProjectRepoCredDB := db.AppProjectRepository{
 		Clusteruser_id: clusterUser.Clusteruser_id,
 		RepoURL:        sharedloop.NormalizeGitURL(gitopsDeployment.Spec.Source.RepoURL),

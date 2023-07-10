@@ -722,7 +722,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			err = dbq.CreateClusterUser(ctx, clusterUserDb)
 			Expect(err).To(BeNil())
 
-			By("Create AppProjectRepository pointing to GitopsDeployment")
+			By("creating a AppProjectRepository that is based on the contents of the GitOpsDeployment")
 			appProjectRepoDB := &db.AppProjectRepository{
 				AppProjectRepositoryID:  "test-appProject-ID",
 				Clusteruser_id:          clusterUserDb.Clusteruser_id,

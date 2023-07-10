@@ -1512,7 +1512,7 @@ var _ = Describe("Operation Controller", func() {
 				Expect(appProject).ToNot(BeNil())
 				Expect(existingAppProject).ToNot(Equal(appProject))
 
-				By("Check whether existingAppProject is updated or no")
+				By("checking whether existingAppProject is updated")
 				err = task.event.client.Get(ctx, types.NamespacedName{Namespace: existingAppProject.Namespace, Name: existingAppProject.Name}, existingAppProject)
 				Expect(err).To(BeNil())
 				Expect(appProject).ToNot(BeNil())
@@ -1966,6 +1966,7 @@ var _ = Describe("Operation Controller", func() {
 					Namespace: "*",
 					Name:      "in-cluster",
 				}}))
+				Expect(appProject.Annotations["username"]).To(Equal(testClusterUser.Clusteruser_id))
 
 				By("deleting resources and cleaning up db entries created by test.")
 

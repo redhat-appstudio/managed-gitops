@@ -1,8 +1,8 @@
 -- AppProjectRepository is used by ArgoCD AppProject
 CREATE TABLE AppProjectRepository (
 
-    -- Primary Key, that is an auto-generated UID
-	app_project_repository_id VARCHAR(48) NOT NULL PRIMARY KEY,
+	-- Primary Key, that is an auto-generated UID
+	appproject_repository_id VARCHAR(48) NOT NULL PRIMARY KEY,
 
 	-- Describes whose cluster this is (UID)
 	-- Foreign key to: ClusterUser.clusteruser_id
@@ -29,13 +29,13 @@ CREATE INDEX idx_userid_cluster_rc ON AppProjectRepository(clusteruser_id);
 -- AppProjectManagedEnvironment is used by ArgoCD AppProject
 CREATE TABLE AppProjectManagedEnvironment (
 
-    -- Primary Key, that is an auto-generated UID
-	app_project_managedenv_id VARCHAR(48) NOT NULL PRIMARY KEY,
+	-- Primary Key, that is an auto-generated UID
+	appproject_managedenv_id VARCHAR(48) NOT NULL PRIMARY KEY,
 
 	-- Describes whose cluster this is (UID)
 	-- Foreign key to: ClusterUser.clusteruser_id
 	clusteruser_id VARCHAR (48) NOT NULL,
-    CONSTRAINT fk_clusteruser_id FOREIGN KEY (clusteruser_id) REFERENCES ClusterUser(clusteruser_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
+	CONSTRAINT fk_clusteruser_id FOREIGN KEY (clusteruser_id) REFERENCES ClusterUser(clusteruser_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 
 	-- Describes which managedenvironment the user has access to (UID)
 	-- Foreign key to: ManagedEnvironment.managed_environment_id

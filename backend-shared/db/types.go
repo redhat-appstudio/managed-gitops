@@ -506,7 +506,7 @@ type AppProjectRepository struct {
 	//lint:ignore U1000 used by go-pg
 	tableName struct{} `pg:"appprojectrepository"` //nolint
 
-	AppProjectRepositoryID string `pg:"app_project_repository_id,pk,notnull"`
+	AppProjectRepositoryID string `pg:"appproject_repository_id,pk,notnull"`
 
 	// -- Foreign key to: ClusterUser.clusteruser_id
 	Clusteruser_id string `pg:"clusteruser_id"`
@@ -528,7 +528,7 @@ type AppProjectManagedEnvironment struct {
 	//lint:ignore U1000 used by go-pg
 	tableName struct{} `pg:"appprojectmanagedenvironment"` //nolint
 
-	AppProjectManagedenvID string `pg:"app_project_managedenv_id,pk,notnull"`
+	AppProjectManagedenvID string `pg:"appproject_managedenv_id,pk,notnull"`
 
 	// -- Foreign key to: ClusterUser.clusteruser_id
 	Clusteruser_id string `pg:"clusteruser_id"`

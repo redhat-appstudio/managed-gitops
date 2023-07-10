@@ -77,11 +77,11 @@ const (
 	RepositoryCredentialsRepoCredSshLength                                  = 1024
 	RepositoryCredentialsRepoCredSecretLength                               = 48
 	RepositoryCredentialsRepoCredEngineIDLength                             = 48
-	AppProjectRepositoryAppProjectRepositoryIDLength                        = 48
+	AppProjectRepositoryAppprojectRepositoryIDLength                        = 48
 	AppProjectRepositoryClusteruserIDLength                                 = 48
 	AppProjectRepositoryRepositorycredentialsIDLength                       = 48
 	AppProjectRepositoryRepoURLLength                                       = 256
-	AppProjectManagedEnvironmentAppProjectManagedenvIDLength                = 48
+	AppProjectManagedEnvironmentAppprojectManagedenvIDLength                = 48
 	AppProjectManagedEnvironmentManagedEnvironmentIDLength                  = 48
 	AppProjectManagedEnvironmentClusteruserIDLength                         = 48
 )
@@ -201,11 +201,11 @@ var DbFieldMap = map[string]int{
 	"RepositoryCredentialsRepoCredSshLength":                                  RepositoryCredentialsRepoCredSshLength,
 	"RepositoryCredentialsRepoCredSecretLength":                               RepositoryCredentialsRepoCredSecretLength,
 	"RepositoryCredentialsRepoCredEngineIDLength":                             RepositoryCredentialsRepoCredEngineIDLength,
-	"AppProjectRepositoryAppProjectRepositoryIDLength":                        AppProjectRepositoryAppProjectRepositoryIDLength,
+	"AppProjectRepositoryAppprojectRepositoryIDLength":                        AppProjectRepositoryAppprojectRepositoryIDLength,
 	"AppProjectRepositoryClusteruserIDLength":                                 AppProjectRepositoryClusteruserIDLength,
 	"AppProjectRepositoryRepositorycredentialsIDLength":                       AppProjectRepositoryRepositorycredentialsIDLength,
 	"AppProjectRepositoryRepoURLLength":                                       AppProjectRepositoryRepoURLLength,
-	"AppProjectManagedEnvironmentAppProjectManagedenvIDLength":                AppProjectManagedEnvironmentAppProjectManagedenvIDLength,
+	"AppProjectManagedEnvironmentAppprojectManagedenvIDLength":                AppProjectManagedEnvironmentAppprojectManagedenvIDLength,
 	"AppProjectManagedEnvironmentManagedEnvironmentIDLength":                  AppProjectManagedEnvironmentManagedEnvironmentIDLength,
 	"AppProjectManagedEnvironmentClusteruserIDLength":                         AppProjectManagedEnvironmentClusteruserIDLength,
 }

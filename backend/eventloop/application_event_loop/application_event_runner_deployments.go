@@ -293,9 +293,9 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 				return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 			}
 
-			a.log.Info("Created new AppProjectRepository in DB based on GitopsDeployment: "+appProjectRepoCredDB.AppProjectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
+			a.log.Info("Created new AppProjectRepository in DB based on GitopsDeployment: "+appProjectRepoCredDB.AppprojectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
 		} else {
-			a.log.Error(err, "Unable to retrieve AppProjectRepository from database based on GitopsDeployment: "+appProjectRepoCredDB.AppProjectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
+			a.log.Error(err, "Unable to retrieve AppProjectRepository from database based on GitopsDeployment: "+appProjectRepoCredDB.AppprojectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
 
 			return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 		}
@@ -661,7 +661,7 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 				return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
 			}
 
-			a.log.Info("Created new AppProjectRepository in DB based on GitopsDeployment: "+appProjectRepoCredDB.AppProjectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
+			a.log.Info("Created new AppProjectRepository in DB based on GitopsDeployment: "+appProjectRepoCredDB.AppprojectRepositoryID, appProjectRepoCredDB.GetAsLogKeyValues()...)
 
 		} else {
 			a.log.Error(err, "Unable to retrieve appProjectRepository based on GitopsDeployment", appProjectRepoCredDB.GetAsLogKeyValues()...)

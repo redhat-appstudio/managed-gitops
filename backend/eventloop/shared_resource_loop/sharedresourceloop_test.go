@@ -724,7 +724,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			By("creating a AppProjectRepository that is based on the contents of the GitOpsDeployment")
 			appProjectRepoDB := &db.AppProjectRepository{
-				AppProjectRepositoryID:  "test-appProject-ID",
+				AppprojectRepositoryID:  "test-appProject-ID",
 				Clusteruser_id:          clusterUserDb.Clusteruser_id,
 				RepositorycredentialsID: "",
 				RepoURL:                 NormalizeGitURL(gitopsDepl.Spec.Source.RepoURL),

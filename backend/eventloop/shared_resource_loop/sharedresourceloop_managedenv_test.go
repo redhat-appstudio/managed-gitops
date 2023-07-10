@@ -921,7 +921,7 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 
 			By("Creating an AppProjectManagedEnvironment to verify the deletion logic, when AppProjectManagedEnvironment is owned by the same user is not deleted.")
 			appProjectManagedEnv := db.AppProjectManagedEnvironment{
-				AppProjectManagedenvID: "test-app-managedenv-id-1",
+				AppprojectManagedenvID: "test-app-managedenv-id-1",
 				Managed_environment_id: managedEnvironmentDb.Managedenvironment_id,
 				Clusteruser_id:         src.ClusterUser.Clusteruser_id,
 			}

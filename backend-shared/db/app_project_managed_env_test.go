@@ -32,7 +32,7 @@ var _ = Describe("AppProjectManagedEnvironment Test", func() {
 
 		By("Verify whether AppProjectManagedEnvironment is created")
 		appProjectManagedEnv := db.AppProjectManagedEnvironment{
-			AppProjectManagedenvID: "test-app-project-managed-env",
+			AppprojectManagedenvID: "test-app-project-managed-env",
 			Clusteruser_id:         clusterUser.Clusteruser_id,
 			Managed_environment_id: managedEnvironment.Managedenvironment_id,
 			SeqID:                  int64(seq),

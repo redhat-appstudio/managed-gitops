@@ -1463,7 +1463,7 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 
 				dbAppProjectRepo := &db.AppProjectRepository{
-					AppProjectRepositoryID:  "test-appProject-repo-id",
+					AppprojectRepositoryID:  "test-appProject-repo-id",
 					Clusteruser_id:          testClusterUser.Clusteruser_id,
 					RepositorycredentialsID: repoCredentials.RepositoryCredentialsID,
 					RepoURL:                 "test-url",
@@ -1528,7 +1528,7 @@ var _ = Describe("Operation Controller", func() {
 					Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
 					ClusterCredentials_id:   gitopsEngineCluster.Clustercredentials_id,
 					RepositoryCredentialsID: repoCredentials.RepositoryCredentialsID,
-					AppProjectRepositoryID:  dbAppProjectRepo.AppProjectRepositoryID,
+					AppProjectRepositoryID:  dbAppProjectRepo.AppprojectRepositoryID,
 				}
 
 				deleteTestResources(ctx, dbQueries, resourcesToBeDeleted)
@@ -1924,7 +1924,7 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).To(BeNil())
 
 				dbAppProjectRepo := &db.AppProjectRepository{
-					AppProjectRepositoryID:  "test-appProject-repo-id",
+					AppprojectRepositoryID:  "test-appProject-repo-id",
 					Clusteruser_id:          testClusterUser.Clusteruser_id,
 					RepositorycredentialsID: repoCredentials.RepositoryCredentialsID,
 					RepoURL:                 "test-url",
@@ -1977,7 +1977,7 @@ var _ = Describe("Operation Controller", func() {
 					Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
 					ClusterCredentials_id:   gitopsEngineCluster.Clustercredentials_id,
 					RepositoryCredentialsID: repoCredentials.RepositoryCredentialsID,
-					AppProjectRepositoryID:  dbAppProjectRepo.AppProjectRepositoryID,
+					AppProjectRepositoryID:  dbAppProjectRepo.AppprojectRepositoryID,
 				}
 
 				deleteTestResources(ctx, dbQueries, resourcesToBeDeleted)
@@ -2067,7 +2067,7 @@ var _ = Describe("Operation Controller", func() {
 
 				By("Creating AppProjectManagedEnvironment")
 				appProjectManagedEnv := db.AppProjectManagedEnvironment{
-					AppProjectManagedenvID: "test-app-managedenv-id-1",
+					AppprojectManagedenvID: "test-app-managedenv-id-1",
 					Managed_environment_id: managedEnvironment.Managedenvironment_id,
 					Clusteruser_id:         operationDB.Operation_owner_user_id,
 				}

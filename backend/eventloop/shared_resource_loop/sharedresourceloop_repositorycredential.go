@@ -682,7 +682,7 @@ func processAppProjectRepository(ctx context.Context, dbQueries db.DatabaseQueri
 				return fmt.Errorf("unable to create appProject repository in the database: %v", err)
 			}
 
-			l.Info("Created new AppProjectRepository in the DB", "appProjectRepository", appProjectRepoCredDB.AppProjectRepositoryID)
+			l.Info("Created new AppProjectRepository in the DB", "appProjectRepository", appProjectRepoCredDB.AppprojectRepositoryID)
 		} else {
 			l.Error(err, "Unable to retrieve appProject repository from database")
 			return fmt.Errorf("unable to retrieve appProject repository from database: %v", err)

@@ -25,14 +25,14 @@ func (dbq *PostgreSQLDatabaseQueries) CreateAppProjectRepository(ctx context.Con
 	}
 
 	if dbq.allowTestUuids {
-		if IsEmpty(obj.AppProjectRepositoryID) {
-			obj.AppProjectRepositoryID = generateUuid()
+		if IsEmpty(obj.AppprojectRepositoryID) {
+			obj.AppprojectRepositoryID = generateUuid()
 		}
 	} else {
-		if !IsEmpty(obj.AppProjectRepositoryID) {
+		if !IsEmpty(obj.AppprojectRepositoryID) {
 			return fmt.Errorf("primary key should be empty")
 		}
-		obj.AppProjectRepositoryID = generateUuid()
+		obj.AppprojectRepositoryID = generateUuid()
 	}
 
 	if err := isEmptyValues("CreateAppProjectRepository",
@@ -109,7 +109,7 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateAppProjectRepository(ctx context.Con
 	}
 
 	if err := isEmptyValues("UpdateAppProjectRepository",
-		"appproject_repository_id", obj.AppProjectRepositoryID,
+		"appproject_repository_id", obj.AppprojectRepositoryID,
 		"clusteruser_id", obj.Clusteruser_id,
 		"repositorycredentials_id", obj.RepositorycredentialsID,
 		"repo_url", obj.RepoURL); err != nil {
@@ -195,7 +195,7 @@ func (obj *AppProjectRepository) GetAsLogKeyValues() []interface{} {
 		return []interface{}{}
 	}
 
-	return []interface{}{"appproject_repository_id", obj.AppProjectRepositoryID,
+	return []interface{}{"appproject_repository_id", obj.AppprojectRepositoryID,
 		"clusteruser_id", obj.Clusteruser_id,
 		"repositorycredentials_id", obj.RepositorycredentialsID,
 		"repo_url", obj.RepoURL}

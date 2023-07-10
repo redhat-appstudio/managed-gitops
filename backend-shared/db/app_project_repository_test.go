@@ -47,7 +47,7 @@ var _ = Describe("AppProjectRepository Test", func() {
 
 		By("Verify whether AppProjectRepository is created")
 		appProjectRepository := db.AppProjectRepository{
-			AppProjectRepositoryID:  "test-app-project-repository",
+			AppprojectRepositoryID:  "test-app-project-repository",
 			Clusteruser_id:          clusterUser.Clusteruser_id,
 			RepositorycredentialsID: repoCred.RepositoryCredentialsID,
 			RepoURL:                 repoCred.PrivateURL,
@@ -81,14 +81,14 @@ var _ = Describe("AppProjectRepository Test", func() {
 		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
 		appProjectRepositoryget = db.AppProjectRepository{
-			AppProjectRepositoryID: "does-not-exist",
+			AppprojectRepositoryID: "does-not-exist",
 		}
 		err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepositoryget)
 		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
 		By("Verify whether AppProjectRepository is created")
 		appProjectRepository1 := db.AppProjectRepository{
-			AppProjectRepositoryID:  "test-app-project-repository-1",
+			AppprojectRepositoryID:  "test-app-project-repository-1",
 			Clusteruser_id:          clusterUser.Clusteruser_id,
 			RepositorycredentialsID: repoCred.RepositoryCredentialsID,
 			RepoURL:                 repoCred.PrivateURL,

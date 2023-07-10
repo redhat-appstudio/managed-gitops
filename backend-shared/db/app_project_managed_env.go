@@ -25,14 +25,14 @@ func (dbq *PostgreSQLDatabaseQueries) CreateAppProjectManagedEnvironment(ctx con
 	}
 
 	if dbq.allowTestUuids {
-		if IsEmpty(obj.AppProjectManagedenvID) {
-			obj.AppProjectManagedenvID = generateUuid()
+		if IsEmpty(obj.AppprojectManagedenvID) {
+			obj.AppprojectManagedenvID = generateUuid()
 		}
 	} else {
-		if !IsEmpty(obj.AppProjectManagedenvID) {
+		if !IsEmpty(obj.AppprojectManagedenvID) {
 			return fmt.Errorf("primary key should be empty")
 		}
-		obj.AppProjectManagedenvID = generateUuid()
+		obj.AppprojectManagedenvID = generateUuid()
 	}
 
 	if err := isEmptyValues("CreateAppProjectManagedEnvironment",
@@ -145,7 +145,7 @@ func (obj *AppProjectManagedEnvironment) GetAsLogKeyValues() []interface{} {
 		return []interface{}{}
 	}
 
-	return []interface{}{"appproject_managedenv_id", obj.AppProjectManagedenvID,
+	return []interface{}{"appproject_managedenv_id", obj.AppprojectManagedenvID,
 		"clusteruser_id", obj.Clusteruser_id,
 		"managed_environment_id", obj.Managed_environment_id}
 }

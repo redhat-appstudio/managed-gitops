@@ -514,6 +514,54 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(managedEnv.Status.Conditions[0].Message).To(Equal("Provided service account does not have permission to access resources in the cluster. Verify that the service account has the correct Role and RoleBinding."))
 		})
 
+		It("should set the condition ConnectionInitializationSucceeded appropriately when the connection fails because the cluster certificate is signed by an unknown authority", func() {
+			managedEnv, secret := buildManagedEnvironmentForSRLWithOptionalSA(false)
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, &managedEnv)
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Create(ctx, &secret)
+			Expect(err).To(BeNil())
+
+			By("first calling reconcile to create database entries for new managed env")
+			firstSrc, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(err).To(BeNil())
+			Expect(firstSrc.ManagedEnv).ToNot(BeNil())
+
+			By("next simulating a 'cert signed by unknown authority' error when attempting to list all namespaces")
+			mockCtrl := gomock.NewController(GinkgoT())
+			defer mockCtrl.Finish()
+			mockClient := mocks.NewMockClient(mockCtrl)
+
+			certError := fmt.Errorf("Get \"https://mycluster.example.com:6443/api?timeout=32s\": x509: certificate signed by unknown authority")
+			mockClient.EXPECT().List(gomock.Any(), gomock.Any()).Return(certError)
+			mockClient.EXPECT().List(gomock.Any(), gomock.Any()).Return(certError)
+
+			mockFactory := &SimulateFailingClientMockSRLK8sClientFactory{
+				limit:          3,
+				failingClient:  mockClient,
+				realFakeClient: k8sClient,
+			}
+			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(src.ManagedEnv).To(BeNil())
+			Expect(err).ToNot(BeNil())
+			Expect(mockFactory.count).To(Equal(3))
+
+			By("ensuring the .status.condition is set appropriately")
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
+			Expect(err).To(BeNil())
+			Expect(len(managedEnv.Status.Conditions)).To(Equal(1))
+			Expect(managedEnv.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
+			Expect(managedEnv.Status.Conditions[0].Status).To(Equal(metav1.ConditionUnknown))
+			Expect(managedEnv.Status.Conditions[0].Reason).To(Equal(string(managedgitopsv1alpha1.ConditionReasonUnableToValidateClusterCredentials)))
+			Expect(managedEnv.Status.Conditions[0].Message).To(Equal("Certificate signed by unknown authority. Note that the '.spec.allowInsecureSkipTLSVerify' field can be used to ignore this error."))
+		})
+
 		It("should set the condition ConnectionInitializationSucceeded appropriately when the connection fails because of insufficient permissions to get a particular namespaces", func() {
 			managedEnv, secret := buildManagedEnvironmentForSRLWithOptionalSA(false)
 			managedEnv.Spec.Namespaces = []string{namespace.Name}

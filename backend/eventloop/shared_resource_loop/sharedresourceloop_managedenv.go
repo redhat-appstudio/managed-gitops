@@ -954,6 +954,8 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 			message := "Unable to validate the credentials provided in the ManagedEnvironment Secret. Verify the API URL, and service account token are correct."
 			if apierr.IsForbidden(err) {
 				message = "Provided service account does not have permission to access resources in the cluster. Verify that the service account has the correct Role and RoleBinding."
+			} else if isCertificateSignedByUnknownAuthority(err) {
+				message = "Certificate signed by unknown authority. Note that the '.spec.allowInsecureSkipTLSVerify' field can be used to ignore this error."
 			}
 			return db.ClusterCredentials{}, connectionInitializedCondition{
 				managedEnvCR: managedEnvironment,
@@ -1018,6 +1020,18 @@ func locateContextThatMatchesAPIURL(config *clientcmdapi.Config, apiURL string) 
 	}
 
 	return matchingContextName, *matchingContext, nil
+}
+
+func isCertificateSignedByUnknownAuthority(err error) bool {
+	if err == nil {
+		return false
+	}
+	var cause error
+	for err != nil {
+		cause = err
+		err = errors.Unwrap(err)
+	}
+	return strings.HasSuffix(cause.Error(), "x509: certificate signed by unknown authority")
 }
 
 // sanityTestCredentials returns true if we were able to successfully connect with the credentials, false otherwise.

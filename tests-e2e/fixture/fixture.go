@@ -433,63 +433,74 @@ func EnsureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 		return fmt.Errorf("unable to create namespace '%s': %v", namespaceParam, err)
 	}
 
-	// // Wait for Argo CD to process the namespace, before we exit:
-	// // - This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
-	// //   set up proper roles for it.
+	// We used to wait here, prior to moving to Cluster Scoped Argo CD
+	// eg. Call: waitForArgoCDToProcessNamespace(namespaceParam, argoCDNamespaceParam, kubeClientSet)
 
-	// if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
-	// 	var roleBindings *rbacv1.RoleBindingList
-	// 	roleBindings, err = kubeClientSet.RbacV1().RoleBindings(namespaceParam).List(context.Background(), metav1.ListOptions{})
-	// 	if err != nil {
-	// 		return false, err
-	// 	}
+	return nil
+}
 
-	// 	count := 0
-	// 	// Exit the poll loop when there exists at least one rolebinding containing 'gitops-service-argocd' in it's name
-	// 	// This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
-	// 	// set up proper roles for it.
-	// 	for _, item := range roleBindings.Items {
-	// 		if strings.Contains(item.Name, argoCDNamespaceParam+"-") {
-	// 			count++
-	// 		}
-	// 	}
+// Wait for Argo CD to process the namespace, before we exit:
+//   - This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
+//     set up proper roles for it.
+func waitForArgoCDToProcessNamespace(namespaceParam string, argoCDNamespaceParam string, kubeClientSet *kubernetes.Clientset) error {
 
-	// 	if count >= 2 {
-	// 		// We expect at least 2 rolebindings
-	// 		return true, nil
-	// 	}
+	// Wait for Argo CD to process the namespace, before we exit:
+	// - This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
+	//   set up proper roles for it.
 
-	// 	return false, nil
-	// }); err != nil {
-	// 	return fmt.Errorf("PollImmediate waiting for Argo CD role in namespace '%s', failed: %v", namespaceParam, err)
-	// }
+	if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
+		var roleBindings *rbacv1.RoleBindingList
+		roleBindings, err = kubeClientSet.RbacV1().RoleBindings(namespaceParam).List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			return false, err
+		}
 
-	// if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
-	// 	var roles *rbacv1.RoleList
-	// 	roles, err = kubeClientSet.RbacV1().Roles(namespaceParam).List(context.Background(), metav1.ListOptions{})
-	// 	if err != nil {
-	// 		return false, err
-	// 	}
+		count := 0
+		// Exit the poll loop when there exists at least one rolebinding containing 'gitops-service-argocd' in it's name
+		// This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
+		// set up proper roles for it.
+		for _, item := range roleBindings.Items {
+			if strings.Contains(item.Name, argoCDNamespaceParam+"-") {
+				count++
+			}
+		}
 
-	// 	count := 0
-	// 	// Exit the poll loop when there exists at least one rolebinding containing 'gitops-service-argocd' in it's name
-	// 	// This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
-	// 	// set up proper roles for it.
-	// 	for _, item := range roles.Items {
-	// 		if strings.Contains(item.Name, argoCDNamespaceParam+"-") {
-	// 			count++
-	// 		}
-	// 	}
+		if count >= 2 {
+			// We expect at least 2 rolebindings
+			return true, nil
+		}
 
-	// 	if count >= 2 {
-	// 		// We expect at least 2 roles
-	// 		return true, nil
-	// 	}
+		return false, nil
+	}); err != nil {
+		return fmt.Errorf("PollImmediate waiting for Argo CD role in namespace '%s', failed: %v", namespaceParam, err)
+	}
 
-	// 	return false, nil
-	// }); err != nil {
-	// 	return fmt.Errorf("argo CD never setup rolebindings for namespace '%s': %v", namespaceParam, err)
-	// }
+	if err := wait.PollImmediate(time.Second*1, time.Minute*2, func() (done bool, err error) {
+		var roles *rbacv1.RoleList
+		roles, err = kubeClientSet.RbacV1().Roles(namespaceParam).List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			return false, err
+		}
+
+		count := 0
+		// Exit the poll loop when there exists at least one rolebinding containing 'gitops-service-argocd' in it's name
+		// This helps us avoid a race condition where the namespace is created, but Argo CD has not yet
+		// set up proper roles for it.
+		for _, item := range roles.Items {
+			if strings.Contains(item.Name, argoCDNamespaceParam+"-") {
+				count++
+			}
+		}
+
+		if count >= 2 {
+			// We expect at least 2 roles
+			return true, nil
+		}
+
+		return false, nil
+	}); err != nil {
+		return fmt.Errorf("argo CD never setup rolebindings for namespace '%s': %v", namespaceParam, err)
+	}
 
 	return nil
 }

@@ -87,6 +87,12 @@ func (r *DatabaseReconciler) startTimerForNextCycle(ctx context.Context, databas
 			// Clean orphaned entries from Operation table.
 			cleanOrphanedEntriesfromTable_Operation(ctx, r.DB, r.Client, false, log)
 
+			// Clean orphaned entries from ClusterUser table.
+			cleanOrphanedEntriesfromTable_ClusterUser(ctx, r.DB, r.Client, false, log)
+
+			// Clean orphaned entries from ClusterCredential table.
+			cleanOrphanedEntriesfromTable_ClusterCredential(ctx, r.DB, r.Client, false, log)
+
 			return nil
 		})
 

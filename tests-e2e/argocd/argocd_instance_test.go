@@ -76,6 +76,13 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 					Name: fixture.NewArgoCDInstanceDestNamespace,
 				},
 			}
+
+			if fixture.EnableNamespaceBackedArgoCD {
+				destinationNamespace.Labels = map[string]string{
+					"argocd.argoproj.io/managed-by": argocdNamespace,
+				}
+			}
+
 			err = k8sClient.Create(ctx, destinationNamespace)
 			Expect(err).To(BeNil())
 

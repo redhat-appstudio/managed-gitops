@@ -45,6 +45,12 @@ const (
 	NewArgoCDInstanceDestNamespace = "argocd-instance-dest-namespace"
 )
 
+const (
+	// EnableNamespaceBackedArgoCD is currently disabled, due to concerns with performance issues when Argo CD is running in namespace-scoped mode.
+	// When enabled, this will ensure that certain tests/fixtures add the managed by label to Namespace.
+	EnableNamespaceBackedArgoCD = false
+)
+
 // EnsureCleanSlateNonKCPVirtualWorkspace should be called before every E2E tests:
 // it ensures that the state of the GitOpsServiceE2ENamespace namespace (and other resources on the cluster) is reset
 // to scratch before each test, including:
@@ -463,19 +469,30 @@ func EnsureDestinationNamespaceExists(namespaceParam string, argoCDNamespacePara
 		return fmt.Errorf("unable to delete namespace '%s': %v", namespaceParam, err)
 	}
 
-	// Create the namespace again
-	_, err = kubeClientSet.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+	namespaceToCreate := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
 		Name: namespaceParam,
-		// Labels: map[string]string{
-		// 	"argocd.argoproj.io/managed-by": argoCDNamespaceParam,
-		// },
-	}}, metav1.CreateOptions{})
+	}}
+
+	if EnableNamespaceBackedArgoCD {
+		namespaceToCreate.Labels = map[string]string{
+			"argocd.argoproj.io/managed-by": argoCDNamespaceParam,
+		}
+	}
+
+	// Create the namespace again
+	_, err = kubeClientSet.CoreV1().Namespaces().Create(context.Background(), &namespaceToCreate, metav1.CreateOptions{})
+
 	if err != nil {
 		return fmt.Errorf("unable to create namespace '%s': %v", namespaceParam, err)
 	}
 
 	// We used to wait here, prior to moving to Cluster Scoped Argo CD
 	// eg. Call: waitForArgoCDToProcessNamespace(namespaceParam, argoCDNamespaceParam, kubeClientSet)
+	if EnableNamespaceBackedArgoCD {
+		if err := waitForArgoCDToProcessNamespace(namespaceParam, argoCDNamespaceParam, kubeClientSet); err != nil {
+			return fmt.Errorf("unable to wait for Argo CD to process namespace: %w", err)
+		}
+	}
 
 	return nil
 }

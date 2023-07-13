@@ -1170,6 +1170,12 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 					},
 				}
 
+				if fixture.EnableNamespaceBackedArgoCD {
+					namespace.Labels = map[string]string{
+						"argocd.argoproj.io/managed-by": "gitops-service-argocd",
+					}
+				}
+
 				if err = k8sClient.Delete(context.Background(), namespace); err != nil {
 					Expect(apierr.IsNotFound(err)).To(BeTrue())
 				}
@@ -1201,6 +1207,12 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: fmt.Sprintf("user-%d", i),
 				},
+			}
+
+			if fixture.EnableNamespaceBackedArgoCD {
+				namespace.Labels = map[string]string{
+					"argocd.argoproj.io/managed-by": "gitops-service-argocd",
+				}
 			}
 
 			if err := k8s.Create(namespace, k8sClient); err != nil {

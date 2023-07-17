@@ -26,6 +26,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
+const (
+	error_invalid_name = "name should not be zyxwvutsrqponmlkjihgfedcba-abcdefghijklmnoqrstuvwxyz"
+	invalid_name       = "zyxwvutsrqponmlkjihgfedcba-abcdefghijklmnoqrstuvwxyz"
+)
+
 // log is for logging in this package.
 var gitopsdeploymentsyncrunlog = logf.Log.WithName(logutil.LogLogger_managed_gitops)
 
@@ -53,8 +58,8 @@ var _ webhook.Validator = &GitOpsDeploymentSyncRun{}
 func (r *GitOpsDeploymentSyncRun) ValidateCreate() error {
 	gitopsdeploymentsyncrunlog.Info("validate create", "name", r.Name)
 
-	if r.Name == "zyxwvutsrqponmlkjihgfedcba-abcdefghijklmnoqrstuvwxyz" {
-		return fmt.Errorf("name should not be zyxwvutsrqponmlkjihgfedcba-abcdefghijklmnoqrstuvwxyz")
+	if r.Name == invalid_name {
+		return fmt.Errorf(error_invalid_name)
 	}
 
 	return nil

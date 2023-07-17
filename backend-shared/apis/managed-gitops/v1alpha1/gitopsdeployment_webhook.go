@@ -26,6 +26,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
+const (
+	error_nonempty_namespace_empty_environment = "the environment field should not be empty when the namespace is non-empty"
+	error_invalid_sync_option                  = "the specified sync option in .spec.syncPolicy.syncOptions is either mispelled or is not supported by GitOpsDeployment"
+	error_invalid_spec_type                    = "spec type must be manual or automated"
+)
+
 // log is for logging in this package.
 var gitopsdeploymentlog = logf.Log.WithName(logutil.LogLogger_managed_gitops)
 
@@ -82,7 +88,7 @@ func (r *GitOpsDeployment) ValidateGitOpsDeployment() error {
 
 	// Check whether Type is manual or automated
 	if !(r.Spec.Type == GitOpsDeploymentSpecType_Automated || r.Spec.Type == GitOpsDeploymentSpecType_Manual) {
-		return fmt.Errorf("spec type must be manual or automated")
+		return fmt.Errorf(error_invalid_spec_type)
 	}
 
 	// Check whether sync options are valid
@@ -91,14 +97,14 @@ func (r *GitOpsDeployment) ValidateGitOpsDeployment() error {
 
 			if !(syncOptionString == SyncOptions_CreateNamespace_true ||
 				syncOptionString == SyncOptions_CreateNamespace_false) {
-				return fmt.Errorf("the specified sync option in .spec.syncPolicy.syncOptions is either mispelled or is not supported by GitOpsDeployment")
+				return fmt.Errorf(error_invalid_sync_option)
 			}
 
 		}
 	}
 
 	if r.Spec.Destination.Environment == "" && r.Spec.Destination.Namespace != "" {
-		return fmt.Errorf("the environment field should not be empty when the namespace is non-empty")
+		return fmt.Errorf(error_nonempty_namespace_empty_environment)
 	}
 
 	return nil

@@ -1,12 +1,9 @@
 package application_event_loop
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"reflect"
 	"strings"
 
@@ -1324,7 +1321,7 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 func decompressResourceData(resourceData []byte) ([]managedgitopsv1alpha1.ResourceStatus, error) {
 	var resourceList []managedgitopsv1alpha1.ResourceStatus
 
-	objBytes, err := decompressObject(resourceData)
+	objBytes, err := sharedutil.DecompressObject(resourceData)
 	if err != nil {
 		return resourceList, fmt.Errorf("failed to decompress resource data: %v", err)
 	}
@@ -1346,7 +1343,7 @@ func decompressOperationState(operationStateBytes []byte) (*managedgitopsv1alpha
 
 	operationState := &managedgitopsv1alpha1.OperationState{}
 
-	objBytes, err := decompressObject(operationStateBytes)
+	objBytes, err := sharedutil.DecompressObject(operationStateBytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decompress operationState data: %v", err)
 	}
@@ -1358,36 +1355,6 @@ func decompressOperationState(operationStateBytes []byte) (*managedgitopsv1alpha
 	}
 
 	return operationState, nil
-}
-
-func decompressObject(compressedObj []byte) ([]byte, error) {
-	// Decompress data to get actual resource string
-	bufferIn := bytes.NewBuffer(compressedObj)
-	gzipReader, err := gzip.NewReader(bufferIn)
-
-	if err != nil {
-		return nil, fmt.Errorf("unable to create gzipReader: %v", err)
-	}
-
-	var bufferOut bytes.Buffer
-
-	// Using CopyN with For loop to avoid gosec error "Potential DoS vulnerability via decompression bomb",
-	// occurred while using below code
-	for {
-		_, err := io.CopyN(&bufferOut, gzipReader, 131072)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return nil, fmt.Errorf("unable to convert resource data to string: %v", err)
-		}
-	}
-
-	if err := gzipReader.Close(); err != nil {
-		return nil, fmt.Errorf("unable to close gzip reader connection: %v", err)
-	}
-
-	return bufferOut.Bytes(), nil
 }
 
 func retrieveComparedToFieldInApplicationState(reconciledState string) (fauxargocd.FauxComparedTo, error) {

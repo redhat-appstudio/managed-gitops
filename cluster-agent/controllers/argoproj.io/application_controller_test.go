@@ -175,6 +175,108 @@ var _ = Describe("Application Controller", func() {
 			Expect(applicationState.Health).To(Equal(string(guestbookApp.Status.Health.Status)))
 			Expect(applicationState.Sync_Status).To(Equal(string(guestbookApp.Status.Sync.Status)))
 
+			By("verify that the OperationState is not populated since the Application's OperationState doesn't exist")
+			Expect(applicationState.OperationState).To(BeNil())
+		})
+
+		It("Verify if the OperationState DB field is populated with Application CR's .status.OperationState", func() {
+			By("Close database connection")
+			defer dbQueries.CloseDatabase()
+			defer testTeardown()
+
+			ctx = context.Background()
+
+			By("add a sample operation state")
+			guestbookApp.Status.OperationState = &appv1.OperationState{
+				Message:    "sample message",
+				RetryCount: 10,
+			}
+
+			By("Add databaseID label to applicationID")
+			databaseID := guestbookApp.Labels[dbID]
+			applicationDB := &db.Application{
+				Application_id:          databaseID,
+				Name:                    name,
+				Spec_field:              "{}",
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+
+			applicationState := &db.ApplicationState{
+				Applicationstate_application_id: applicationDB.Application_id,
+			}
+
+			By("Create a new ArgoCD Application")
+			err = reconciler.Create(ctx, guestbookApp)
+			Expect(err).To(BeNil())
+
+			By("Create Application in Database")
+			err = reconciler.DB.CreateApplication(ctx, applicationDB)
+			Expect(err).To(BeNil())
+
+			By("Call reconcile function")
+			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
+			Expect(err).To(BeNil())
+			Expect(result).ToNot(BeNil())
+
+			By("Verify Application State is created in database")
+			err = reconciler.DB.GetApplicationStateById(ctx, applicationState)
+			Expect(err).To(BeNil())
+
+			By("Verify that Health and Status of ArgoCD Application is equal to the Health and Status of Application in database")
+			Expect(applicationState.Health).To(Equal(string(guestbookApp.Status.Health.Status)))
+			Expect(applicationState.Sync_Status).To(Equal(string(guestbookApp.Status.Sync.Status)))
+
+			By("verify that the OperationState is populated in the ApplicationState")
+			Expect(applicationState.OperationState).ToNot(BeNil())
+
+			compareOpState := func(appState *db.ApplicationState, app *appv1.Application) {
+				opStateBytes, err := sharedutil.DecompressObject(applicationState.OperationState)
+				Expect(err).To(BeNil())
+				Expect(opStateBytes).ToNot(BeNil())
+
+				opState := &managedgitopsv1alpha1.OperationState{}
+				err = yaml.Unmarshal(opStateBytes, opState)
+				Expect(err).To(BeNil())
+
+				Expect(opState.Message).To(Equal(guestbookApp.Status.OperationState.Message))
+				Expect(opState.RetryCount).To(Equal(guestbookApp.Status.OperationState.RetryCount))
+			}
+
+			compareOpState(applicationState, guestbookApp)
+
+			By("remove .status.OperationState and verify if the ApplicationState is updated")
+			guestbookApp.Status.OperationState = nil
+			err = reconciler.Update(ctx, guestbookApp)
+			Expect(err).To(BeNil())
+
+			result, err = reconciler.Reconcile(ctx, newRequest(namespace, name))
+			Expect(err).To(BeNil())
+			Expect(result).ToNot(BeNil())
+
+			By("verify that the OperationState is updated in the ApplicationState")
+			err = reconciler.DB.GetApplicationStateById(ctx, applicationState)
+			Expect(err).To(BeNil())
+			Expect(applicationState.OperationState).To(BeNil())
+
+			By("add .status.OperationState and verify if the ApplicationState is updated")
+			guestbookApp.Status.OperationState = &appv1.OperationState{
+				Message:    "sample message",
+				RetryCount: 10,
+			}
+			err = reconciler.Update(ctx, guestbookApp)
+			Expect(err).To(BeNil())
+
+			result, err = reconciler.Reconcile(ctx, newRequest(namespace, name))
+			Expect(err).To(BeNil())
+			Expect(result).ToNot(BeNil())
+
+			By("verify that the OperationState is updated in the ApplicationState")
+			err = reconciler.DB.GetApplicationStateById(ctx, applicationState)
+			Expect(err).To(BeNil())
+			Expect(applicationState.OperationState).ToNot(BeNil())
+
+			compareOpState(applicationState, guestbookApp)
 		})
 
 		It("Update an existing Application table in the database, call Reconcile on the Argo CD Application, and verify an existing ApplicationState DB entry is updated", func() {
@@ -796,7 +898,7 @@ var _ = Describe("Application Controller", func() {
 			var resources []appv1.ResourceStatus
 			resources = append(resources, resourceStatus)
 
-			byteArr, err := compressObject(resources)
+			byteArr, err := sharedutil.CompressObject(resources)
 
 			Expect(err).To(BeNil())
 			Expect(byteArr).NotTo(BeEmpty())
@@ -826,7 +928,7 @@ var _ = Describe("Application Controller", func() {
 				FinishedAt: &metav1.Time{Time: time.Now()},
 			}
 
-			byteArr, err := compressObject(operationState)
+			byteArr, err := sharedutil.CompressObject(operationState)
 
 			Expect(err).To(BeNil())
 			Expect(byteArr).NotTo(BeEmpty())
@@ -837,7 +939,7 @@ var _ = Describe("Application Controller", func() {
 			var resources []appv1.ResourceStatus
 			resources = append(resources, resourceStatus)
 
-			byteArr, err := compressObject(resources)
+			byteArr, err := sharedutil.CompressObject(resources)
 
 			Expect(err).To(BeNil())
 			Expect(byteArr).NotTo(BeEmpty())
@@ -846,7 +948,7 @@ var _ = Describe("Application Controller", func() {
 		It("Should work for empty Resource Array", func() {
 			var resources []appv1.ResourceStatus
 
-			byteArr, err := compressObject(resources)
+			byteArr, err := sharedutil.CompressObject(resources)
 
 			Expect(err).To(BeNil())
 			Expect(byteArr).NotTo(BeEmpty())

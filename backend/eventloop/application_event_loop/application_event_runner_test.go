@@ -1,8 +1,6 @@
 package application_event_loop
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/json"
 
@@ -20,7 +18,6 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	"github.com/redhat-appstudio/managed-gitops/backend/util"
-	"gopkg.in/yaml.v2"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -308,23 +305,41 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			var resources []managedgitopsv1alpha1.ResourceStatus
 			resources = append(resources, resourceStatus)
 
-			var buffer bytes.Buffer
-			// Convert ResourceStatus object into String.
-			resourceStr, err := yaml.Marshal(&resources)
+			compressedResources, err := sharedutil.CompressObject(&resources)
 			Expect(err).To(BeNil())
+			Expect(compressedResources).ToNot(BeNil())
 
-			// Compress the data
-			gzipWriter, err := gzip.NewWriterLevel(&buffer, gzip.BestSpeed)
-			Expect(err).To(BeNil())
-
-			_, err = gzipWriter.Write([]byte(string(resourceStr)))
-			Expect(err).To(BeNil())
-
-			err = gzipWriter.Close()
-			Expect(err).To(BeNil())
+			By("add sample OperationState field to the ApplicationState")
+			operationState := managedgitopsv1alpha1.OperationState{
+				Message: "Sample message",
+				Operation: managedgitopsv1alpha1.ApplicationOperation{
+					InitiatedBy: managedgitopsv1alpha1.OperationInitiator{
+						Automated: true,
+					},
+					Retry: managedgitopsv1alpha1.RetryStrategy{
+						Limit: -1,
+					},
+				},
+				SyncResult: &managedgitopsv1alpha1.SyncOperationResult{
+					Resources: managedgitopsv1alpha1.ResourceResults{
+						{
+							Group:     "",
+							HookPhase: managedgitopsv1alpha1.OperationRunning,
+							Namespace: "jane",
+							Status:    managedgitopsv1alpha1.ResultCodeSynced,
+						},
+					},
+				},
+				StartedAt:  metav1.Time{Time: time.Now()},
+				FinishedAt: &metav1.Time{Time: time.Now()},
+			}
 
 			reconciledStateString, reconciledobj, err := dummyApplicationComparedToField()
 			Expect(err).To(BeNil())
+
+			compressedOpState, err := sharedutil.CompressObject(operationState)
+			Expect(err).To(BeNil())
+			Expect(compressedOpState).ToNot(BeNil())
 
 			applicationState := &db.ApplicationState{
 				Applicationstate_application_id: deplToAppMapping.Application_id,
@@ -332,9 +347,10 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				Sync_Status:                     string(managedgitopsv1alpha1.SyncStatusCodeSynced),
 				Revision:                        "abcdefg",
 				Message:                         "Success",
-				Resources:                       buffer.Bytes(),
+				Resources:                       compressedResources,
 				ReconciledState:                 reconciledStateString,
 				SyncError:                       "test-sync-error",
+				OperationState:                  compressedOpState,
 			}
 
 			err = dbQueries.CreateApplicationState(ctx, applicationState)
@@ -357,6 +373,10 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(gitopsDeployment.Status.ReconciledState.Destination.Namespace).To(BeEmpty())
 			Expect(gitopsDeployment.Status.ReconciledState.Destination.Name).To(BeEmpty())
 			Expect(gitopsDeployment.Status.Conditions).To(BeNil())
+			Expect(gitopsDeployment.Status.OperationState).ToNot(BeNil())
+			Expect(gitopsDeployment.Status.OperationState.Message).To(Equal(operationState.Message))
+			Expect(gitopsDeployment.Status.OperationState.StartedAt.Equal(&operationState.StartedAt)).To(BeTrue())
+			Expect(gitopsDeployment.Status.OperationState.FinishedAt.Equal(operationState.FinishedAt)).To(BeTrue())
 
 			// ----------------------------------------------------------------------------
 			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status.")
@@ -396,7 +416,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				Sync_Status:                     string(managedgitopsv1alpha1.SyncStatusCodeSynced),
 				Revision:                        "abcdefg",
 				Message:                         "Success",
-				Resources:                       buffer.Bytes(),
+				Resources:                       compressedResources,
 				ReconciledState:                 reconciledStateString,
 				SyncError:                       "",
 			}
@@ -657,20 +677,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			var resources []managedgitopsv1alpha1.ResourceStatus
 			resources = append(resources, resourceStatus)
 
-			var buffer bytes.Buffer
-			// Convert ResourceStatus object into String.
-			resourceStr, err := yaml.Marshal(&resources)
+			compressedResources, err := sharedutil.CompressObject(resources)
 			Expect(err).To(BeNil())
-
-			// Compress the data
-			gzipWriter, err := gzip.NewWriterLevel(&buffer, gzip.BestSpeed)
-			Expect(err).To(BeNil())
-
-			_, err = gzipWriter.Write([]byte(string(resourceStr)))
-			Expect(err).To(BeNil())
-
-			err = gzipWriter.Close()
-			Expect(err).To(BeNil())
+			Expect(compressedResources).ToNot(BeNil())
 
 			// Create ReconciledState
 			fauxcomparedTo := fauxargocd.FauxComparedTo{
@@ -694,7 +703,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				Sync_Status:                     string(managedgitopsv1alpha1.SyncStatusCodeSynced),
 				Revision:                        "abcdefg",
 				Message:                         "Success",
-				Resources:                       buffer.Bytes(),
+				Resources:                       compressedResources,
 				ReconciledState:                 string(fauxcomparedToBytes),
 			}
 
@@ -992,24 +1001,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			resourcesIn = append(resourcesIn, resourceStatus)
 
 			// ----------------------------------------------------------------------------
-			By("Convert sample ResourceStatus objects into String.")
-			// ----------------------------------------------------------------------------
-			resourceStr, err := yaml.Marshal(&resourcesIn)
-			Expect(err).To(BeNil())
-
-			// ----------------------------------------------------------------------------
 			By("Compress sample data to be passed as input for decompressResourceData function.")
 			// ----------------------------------------------------------------------------
-			var buffer bytes.Buffer
-			gzipWriter, err := gzip.NewWriterLevel(&buffer, gzip.BestSpeed)
-
+			compressedResources, err := sharedutil.CompressObject(resourcesIn)
 			Expect(err).To(BeNil())
-
-			_, err = gzipWriter.Write([]byte(string(resourceStr)))
-			Expect(err).To(BeNil())
-
-			err = gzipWriter.Close()
-			Expect(err).To(BeNil())
+			Expect(compressedResources).ToNot(BeNil())
 
 			// ----------------------------------------------------------------------------
 			By("Decompress data and convert it to String, then convert String into ResourceStatus Array.")
@@ -1017,7 +1013,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			var resourcesOut []managedgitopsv1alpha1.ResourceStatus
 
-			resourcesOut, err = decompressResourceData(buffer.Bytes())
+			resourcesOut, err = decompressResourceData(compressedResources)
 
 			Expect(err).To(BeNil())
 
@@ -1044,24 +1040,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			resourcesIn = append(resourcesIn, resourceStatus)
 
 			// ----------------------------------------------------------------------------
-			By("Convert sample ResourceStatus objects into String.")
-			// ----------------------------------------------------------------------------
-			resourceStr, err := yaml.Marshal(&resourcesIn)
-			Expect(err).To(BeNil())
-
-			// ----------------------------------------------------------------------------
 			By("Compress sample data to be passed as input for decompressResourceData function.")
 			// ----------------------------------------------------------------------------
-			var buffer bytes.Buffer
-			gzipWriter, err := gzip.NewWriterLevel(&buffer, gzip.BestSpeed)
-
+			compressedResources, err := sharedutil.CompressObject(resourcesIn)
 			Expect(err).To(BeNil())
-
-			_, err = gzipWriter.Write([]byte(string(resourceStr)))
-			Expect(err).To(BeNil())
-
-			err = gzipWriter.Close()
-			Expect(err).To(BeNil())
+			Expect(compressedResources).ToNot(BeNil())
 
 			// ----------------------------------------------------------------------------
 			By("Decompress data and convert it to String, then convert String into ResourceStatus Array.")
@@ -1069,7 +1052,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			var resourcesOut []managedgitopsv1alpha1.ResourceStatus
 
-			resourcesOut, err = decompressResourceData(buffer.Bytes())
+			resourcesOut, err = decompressResourceData(compressedResources)
 
 			Expect(err).To(BeNil())
 
@@ -1088,23 +1071,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			var resourcesIn []managedgitopsv1alpha1.ResourceStatus
 
 			// ----------------------------------------------------------------------------
-			By("Convert sample ResourceStatus objects into String.")
-			// ----------------------------------------------------------------------------
-			resourceStr, err := yaml.Marshal(&resourcesIn)
-			Expect(err).To(BeNil())
-
-			// ----------------------------------------------------------------------------
 			By("Compress sample data to be passed as input for decompressResourceData function.")
 			// ----------------------------------------------------------------------------
-			var buffer bytes.Buffer
-			gzipWriter, err := gzip.NewWriterLevel(&buffer, gzip.BestSpeed)
+			compressedResources, err := sharedutil.CompressObject(resourcesIn)
 			Expect(err).To(BeNil())
-
-			_, err = gzipWriter.Write([]byte(string(resourceStr)))
-			Expect(err).To(BeNil())
-
-			err = gzipWriter.Close()
-			Expect(err).To(BeNil())
+			Expect(compressedResources).ToNot(BeNil())
 
 			// ----------------------------------------------------------------------------
 			By("Decompress data and convert it to String, then convert String into ResourceStatus Array.")
@@ -1112,7 +1083,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			var resourcesOut []managedgitopsv1alpha1.ResourceStatus
 
-			resourcesOut, err = decompressResourceData(buffer.Bytes())
+			resourcesOut, err = decompressResourceData(compressedResources)
 
 			Expect(err).To(BeNil())
 
@@ -1151,24 +1122,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			}
 
 			// ----------------------------------------------------------------------------
-			By("Convert sample OperationState object into byte array")
-			// ----------------------------------------------------------------------------
-			operationStateBytes, err := yaml.Marshal(operationState)
-			Expect(err).To(BeNil())
-
-			// ----------------------------------------------------------------------------
 			By("Compress sample data to be passed as input for decompressOperationState function.")
 			// ----------------------------------------------------------------------------
-			var buffer bytes.Buffer
-			gzipWriter, err := gzip.NewWriterLevel(&buffer, gzip.BestSpeed)
-
+			compressedOpState, err := sharedutil.CompressObject(operationState)
 			Expect(err).To(BeNil())
-
-			_, err = gzipWriter.Write(operationStateBytes)
-			Expect(err).To(BeNil())
-
-			err = gzipWriter.Close()
-			Expect(err).To(BeNil())
+			Expect(compressedOpState).ToNot(BeNil())
 
 			// ----------------------------------------------------------------------------
 			By("Decompress data and verify the OperationState")
@@ -1176,7 +1134,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			var opStateOut *managedgitopsv1alpha1.OperationState
 
-			opStateOut, err = decompressOperationState(buffer.Bytes())
+			opStateOut, err = decompressOperationState(compressedOpState)
 
 			Expect(err).To(BeNil())
 

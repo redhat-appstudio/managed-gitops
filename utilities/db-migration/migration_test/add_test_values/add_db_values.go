@@ -69,6 +69,7 @@ var (
 		Sync_Status:                     "Synced",
 		ReconciledState:                 "test-reconcile",
 		SyncError:                       "test-sync-error",
+		OperationState:                  []byte("operation_state"),
 	}
 
 	AddTest_PreDTAM = db.DeploymentToApplicationMapping{

@@ -17,8 +17,6 @@ limitations under the License.
 package argoprojio
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -38,7 +36,6 @@ import (
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/argoproj.io/application_info_cache"
-	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -139,7 +136,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 			// Get the list of resources created by deployment and convert it into a compressed YAML string.
 			var err error
-			applicationState.Resources, err = compressObject(app.Status.Resources)
+			applicationState.Resources, err = sharedutil.CompressObject(app.Status.Resources)
 			if err != nil {
 				log.Error(err, "unable to compress resource data into byte array.")
 				return ctrl.Result{}, err
@@ -147,7 +144,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 			if app.Status.OperationState != nil {
 				// Compress the Application OperationState and copy it.
-				applicationState.OperationState, err = compressObject(app.Status.OperationState)
+				applicationState.OperationState, err = sharedutil.CompressObject(app.Status.OperationState)
 				if err != nil {
 					log.Error(err, "unable to compress operationState data into byte array.")
 					return ctrl.Result{}, err
@@ -196,14 +193,14 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// Get the list of resources created by deployment and convert it into a compressed YAML string.
 	var err error
-	applicationState.Resources, err = compressObject(app.Status.Resources)
+	applicationState.Resources, err = sharedutil.CompressObject(app.Status.Resources)
 	if err != nil {
 		log.Error(err, "unable to compress resource data into byte array.")
 		return ctrl.Result{}, err
 	}
 
 	if app.Status.OperationState != nil {
-		applicationState.OperationState, err = compressObject(app.Status.OperationState)
+		applicationState.OperationState, err = sharedutil.CompressObject(app.Status.OperationState)
 		if err != nil {
 			log.Error(err, "unable to compress operationState into byte array.")
 			return ctrl.Result{}, err
@@ -280,36 +277,6 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&appv1.Application{}).
 		Complete(r)
-}
-
-// compressObject marshals the given object into byte array and compresses it
-func compressObject(obj interface{}) ([]byte, error) {
-	var byteArr []byte
-	var buffer bytes.Buffer
-
-	// Marshal the object into bytes.
-	objBytes, err := yaml.Marshal(obj)
-	if err != nil {
-		return byteArr, fmt.Errorf("unable to Marshal the object. %v", err)
-	}
-
-	// Compress string data
-	gzipWriter, err := gzip.NewWriterLevel(&buffer, gzip.BestSpeed)
-	if err != nil {
-		return byteArr, fmt.Errorf("unable to create Buffer writer. %v", err)
-	}
-
-	_, err = gzipWriter.Write(objBytes)
-
-	if err != nil {
-		return byteArr, fmt.Errorf("unable to compress the object bytes. %v", err)
-	}
-
-	if err := gzipWriter.Close(); err != nil {
-		return byteArr, fmt.Errorf("unable to close gzip writer connection. %v", err)
-	}
-
-	return buffer.Bytes(), nil
 }
 
 // storeInComparedToFieldInApplicationState will read 'comparedTo' field of an Argo CD Application, and write the

@@ -565,6 +565,7 @@ CREATE TABLE AppProjectManagedEnvironment (
 );
 -- Add an index on clusteruser_id
 CREATE INDEX idx_userid_cluster_me ON AppProjectManagedEnvironment(clusteruser_id);
+
 -- ApplicationOwner indicates which Applications are owned by which user(s)
 CREATE TABLE ApplicationOwner (
 

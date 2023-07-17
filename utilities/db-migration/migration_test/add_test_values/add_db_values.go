@@ -147,4 +147,9 @@ var (
 		Managed_environment_id: AddTest_PreManagedEnvironment.Managedenvironment_id,
 		Clusteruser_id:         AddTest_PreClusterUser.Clusteruser_id,
 	}
+
+	AddTest_PreApplicationOwner = db.ApplicationOwner{
+		ApplicationOwnerApplicationID: AddTest_PreApplicationDB.Application_id,
+		ApplicationOwnerUserID:        AddTest_PreClusterUser.Clusteruser_id,
+	}
 )

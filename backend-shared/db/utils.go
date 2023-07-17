@@ -310,10 +310,9 @@ func SetupForTestingDBGinkgo() error {
 	Expect(err).To(BeNil())
 
 	for _, applicationOwner := range applicationOwners {
-		if strings.HasPrefix(applicationOwner.ApplicationOwnerApplicationID, "test-") ||
-			strings.HasPrefix(applicationOwner.ApplicationOwnerUserID, "test-") {
+		if strings.HasPrefix(applicationOwner.ApplicationOwnerApplicationID, "test-") {
 
-			rowsAffected, err := dbq.DeleteApplicationOwner(ctx, applicationOwner.ApplicationOwnerApplicationID, applicationOwner.ApplicationOwnerUserID)
+			rowsAffected, err := dbq.DeleteApplicationOwner(ctx, applicationOwner.ApplicationOwnerApplicationID)
 			Expect(err).To(BeNil())
 
 			if err == nil {

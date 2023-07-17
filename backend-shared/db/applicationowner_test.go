@@ -49,14 +49,14 @@ var _ = Describe("ApplicationOwner Tests", func() {
 			err = dbq.CreateApplicationOwner(ctx, &applicationOwner)
 			Expect(err).To(BeNil())
 
-			err = dbq.GetApplicationOwnerByPrimaryKey(ctx, &applicationOwner)
+			err = dbq.GetApplicationOwnerByApplicationID(ctx, &applicationOwner)
 			Expect(err).To(BeNil())
 
-			rowsAffected, err := dbq.DeleteApplicationOwner(ctx, applicationOwner.ApplicationOwnerApplicationID, applicationOwner.ApplicationOwnerUserID)
+			rowsAffected, err := dbq.DeleteApplicationOwner(ctx, applicationOwner.ApplicationOwnerApplicationID)
 			Expect(err).To(BeNil())
 			Expect(rowsAffected).To(Equal(1))
 
-			err = dbq.GetApplicationOwnerByPrimaryKey(ctx, &applicationOwner)
+			err = dbq.GetApplicationOwnerByApplicationID(ctx, &applicationOwner)
 			Expect(err).ToNot(BeNil())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 

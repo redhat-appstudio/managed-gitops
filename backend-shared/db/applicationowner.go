@@ -44,21 +44,12 @@ func (dbq *PostgreSQLDatabaseQueries) CreateApplicationOwner(ctx context.Context
 	return nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) DeleteApplicationOwner(ctx context.Context, applicationowner_application_id string, applicationowner_user_id string) (int, error) {
-
-	if IsEmpty(applicationowner_application_id) {
-		return 0, fmt.Errorf("primary key applicationowner_application_id id should not be empty")
-	}
-
-	if IsEmpty(applicationowner_user_id) {
-		return 0, fmt.Errorf("primary key applicationowner_user_id should not be empty")
-	}
+func (dbq *PostgreSQLDatabaseQueries) DeleteApplicationOwner(ctx context.Context, applicationowner_application_id string) (int, error) {
 
 	result := &ApplicationOwner{}
 
 	deleteResult, err := dbq.dbConnection.Model(result).
 		Where("application_owner_application_id = ?", applicationowner_application_id).
-		Where("application_owner_user_id = ?", applicationowner_user_id).
 		Context(ctx).
 		Delete()
 	if err != nil {
@@ -68,15 +59,14 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteApplicationOwner(ctx context.Context
 	return deleteResult.RowsAffected(), nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) GetApplicationOwnerByPrimaryKey(ctx context.Context, obj *ApplicationOwner) error {
+func (dbq *PostgreSQLDatabaseQueries) GetApplicationOwnerByApplicationID(ctx context.Context, obj *ApplicationOwner) error {
 
 	if err := validateQueryParamsEntity(obj, dbq); err != nil {
 		return err
 	}
 
-	if err := isEmptyValues("GetApplicationOwnerByPrimaryKey",
-		"application_owner_application_id", obj.ApplicationOwnerApplicationID,
-		"application_owner_user_id", obj.ApplicationOwnerUserID); err != nil {
+	if err := isEmptyValues("GetApplicationOwnerByApplicationID",
+		"application_owner_application_id", obj.ApplicationOwnerApplicationID); err != nil {
 		return err
 	}
 
@@ -84,11 +74,10 @@ func (dbq *PostgreSQLDatabaseQueries) GetApplicationOwnerByPrimaryKey(ctx contex
 
 	err := dbq.dbConnection.Model(&dbResults).
 		Where("application_owner_application_id = ?", obj.ApplicationOwnerApplicationID).
-		Where("application_owner_user_id = ?", obj.ApplicationOwnerUserID).
 		Context(ctx).Select()
 
 	if err != nil {
-		return fmt.Errorf("unable to retrieve ApplicationOwner in GetApplicationOwnerByPrimaryKey: %v", err)
+		return fmt.Errorf("unable to retrieve ApplicationOwner in GetApplicationOwnerByApplicationID: %v", err)
 	}
 
 	if len(dbResults) == 0 {
@@ -96,7 +85,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetApplicationOwnerByPrimaryKey(ctx contex
 	}
 
 	if len(dbResults) != 1 {
-		return fmt.Errorf("unexpected number of results for GetApplicationOwnerByPrimaryKey")
+		return fmt.Errorf("unexpected number of results for GetApplicationOwnerByApplicationID")
 	}
 
 	*obj = dbResults[0]

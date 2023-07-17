@@ -470,6 +470,7 @@ const (
 	dbType_ClusterUser                    dbTableName = "ClusterUser"
 	dbType_GitopsEngineCluster            dbTableName = "GitopsEngineCluster"
 	dbType_ClusterCredentials             dbTableName = "ClusterCredentials"
+	dbType_ApplicationOwner               dbTableName = "ApplicationOwner"
 )
 
 // deleteDbEntry deletes database entry of a given CR
@@ -490,6 +491,8 @@ func deleteDbEntry(ctx context.Context, dbQueries db.DatabaseQueries, id string,
 		rowsDeleted, err = dbQueries.DeleteApplicationStateById(ctx, id)
 	case dbType_DeploymentToApplicationMapping:
 		rowsDeleted, err = dbQueries.DeleteDeploymentToApplicationMappingByDeplId(ctx, id)
+	case dbType_ApplicationOwner:
+		rowsDeleted, err = dbQueries.DeleteApplicationOwner(ctx, id)
 	case dbType_Application:
 		rowsDeleted, err = dbQueries.DeleteApplicationById(ctx, id)
 	case dbType_SyncOperation:
@@ -796,6 +799,16 @@ func cleanOrphanedEntriesfromTable_Application(ctx context.Context, dbQueries db
 				if err := yaml.Unmarshal([]byte(appDB.Spec_field), &appArgo); err != nil {
 					log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_Application while unmarshalling application: "+appDB.Application_id)
 					isApplicationPresent = false
+				}
+
+				applicationOwner := db.ApplicationOwner{
+					ApplicationOwnerApplicationID: appDB.Application_id,
+				}
+
+				if err := dbQueries.GetApplicationOwnerByApplicationID(ctx, &applicationOwner); err != nil {
+					log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_Application while retrieving applicationOwner entry: "+appDB.Application_id)
+				} else if err := deleteDbEntry(ctx, dbQueries, applicationOwner.ApplicationOwnerApplicationID, dbType_ApplicationOwner, log, appDB); err != nil {
+					log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_Application while deleting ApplicationOwner entry : "+appDB.Application_id+" from DB.")
 				}
 
 				if err := deleteDbEntry(ctx, dbQueries, appDB.Application_id, dbType_Application, log, appDB); err != nil {

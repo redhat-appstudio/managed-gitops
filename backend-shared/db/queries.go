@@ -329,8 +329,8 @@ type ApplicationScopedQueries interface {
 	// CountAppProjectManagedEnvironmentByClusterUserID number of appProjectManagedEnv by clusteruser_id
 	CountAppProjectManagedEnvironmentByClusterUserID(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error)
 	CreateApplicationOwner(ctx context.Context, obj *ApplicationOwner) error
-	DeleteApplicationOwner(ctx context.Context, applicationowner_application_id string, applicationowner_user_id string) (int, error)
-	GetApplicationOwnerByPrimaryKey(ctx context.Context, obj *ApplicationOwner) error
+	DeleteApplicationOwner(ctx context.Context, applicationowner_application_id string) (int, error)
+	GetApplicationOwnerByApplicationID(ctx context.Context, obj *ApplicationOwner) error
 }
 
 type CloseableQueries interface {

@@ -232,6 +232,8 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, fmt.Errorf("unable to update Binding '%s' snapshot: %v", binding.Name, err)
 		}
 
+		logutil.LogAPIResourceChangeEvent(binding.Namespace, binding.Name, binding, logutil.ResourceModified, log)
+
 		log.Info("Updating Binding: " + binding.Name + " to target the Snapshot: " + promotionRun.Spec.Snapshot)
 
 		// Set the time when of first reconcilation on a particular PromotionRun if not set already. This will be used later to check for time out of Promotion.

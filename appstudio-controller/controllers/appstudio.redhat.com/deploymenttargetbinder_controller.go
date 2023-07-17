@@ -273,6 +273,7 @@ func bindDeploymentTargetClaimToTarget(ctx context.Context, k8sClient client.Cli
 		if dtc.Spec.TargetName != dt.Name {
 			dtc.Spec.TargetName = dt.Name
 			updated = true
+			logutil.LogAPIResourceChangeEvent(dtc.Namespace, dtc.Name, dtc, logutil.ResourceModified, log)
 		}
 
 		if dtc.Annotations == nil {

@@ -3,7 +3,7 @@ module github.com/redhat-appstudio/managed-gitops/backend
 go 1.18
 
 require (
-	github.com/argoproj/argo-cd/v2 v2.5.4
+	github.com/argoproj/argo-cd/v2 v2.5.16
 	github.com/emicklei/go-restful/v3 v3.9.0
 	github.com/go-git/go-git/v5 v5.6.1
 	github.com/go-logr/logr v1.2.3

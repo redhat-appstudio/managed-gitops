@@ -27,6 +27,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
+const error_invalid_cluster_api_url = "cluster api url must start with https://"
+
 // log is for logging in this package.
 var gitopsdeploymentmanagedenvironmentlog = logf.Log.WithName(logutil.LogLogger_managed_gitops)
 
@@ -87,7 +89,7 @@ func (r *GitOpsDeploymentManagedEnvironment) ValidateGitOpsDeploymentManagedEnv(
 		}
 
 		if apiURL.Scheme != "https" {
-			return fmt.Errorf("cluster api url must start with https://")
+			return fmt.Errorf(error_invalid_cluster_api_url)
 		}
 	}
 

@@ -46,11 +46,11 @@ var _ = Describe("GitOpsDeploymentSyncRun validation webhook", func() {
 			err := k8sClient.Create(ctx, namespace)
 			Expect(err).To(BeNil())
 
-			gitopsDeplSyncRunCr.Name = "zyxwvutsrqponmlkjihgfedcba-abcdefghijklmnoqrstuvwxyz"
+			gitopsDeplSyncRunCr.Name = invalid_name
 			err = k8sClient.Create(ctx, gitopsDeplSyncRunCr)
 
 			Expect(err).Should(Not(Succeed()))
-			Expect(err.Error()).Should(ContainSubstring("name should not be zyxwvutsrqponmlkjihgfedcba-abcdefghijklmnoqrstuvwxyz"))
+			Expect(err.Error()).Should(ContainSubstring(error_invalid_name))
 
 		})
 	})

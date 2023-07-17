@@ -52,7 +52,7 @@ var _ = Describe("GitOpsDeploymentRepositoryCredential validation webhook", func
 			err = k8sClient.Create(ctx, repoCredentialCr)
 
 			Expect(err).Should(Not(Succeed()))
-			Expect(err.Error()).Should(ContainSubstring("repository must begin with ssh:// or https://"))
+			Expect(err.Error()).Should(ContainSubstring(error_invalid_repository))
 
 		})
 	})
@@ -71,7 +71,7 @@ var _ = Describe("GitOpsDeploymentRepositoryCredential validation webhook", func
 			repoCredentialCr.Spec.Repository = "smtp://repo-url"
 			err = k8sClient.Update(ctx, repoCredentialCr)
 			Expect(err).Should(HaveOccurred())
-			Expect(err.Error()).Should(ContainSubstring("repository must begin with ssh:// or https://"))
+			Expect(err.Error()).Should(ContainSubstring(error_invalid_repository))
 
 			err = k8sClient.Delete(context.Background(), repoCredentialCr)
 			Expect(err).To(BeNil())

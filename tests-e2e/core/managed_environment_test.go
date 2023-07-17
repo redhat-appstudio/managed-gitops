@@ -809,6 +809,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			By("Removing reference to the managed environment from the GitOpsDeployment resource")
 			gitOpsDeploymentResource.Spec.Destination.Environment = ""
+			gitOpsDeploymentResource.Spec.Destination.Namespace = ""
 
 			err = k8s.Update(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(BeNil())

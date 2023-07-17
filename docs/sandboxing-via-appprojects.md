@@ -23,7 +23,7 @@ Thus, when thinking about how to constrain users, we can use the ClusterUser row
 The ClusterUser table is very simple:
 * `User_name string` (reference to the user’s API namespace)
 * `Created_on timestamp` (when the ClusterUser row was added added to the DB)
-
+* ( ... plus other fields such as `display_name` ... )
 
 # Our Goal
 

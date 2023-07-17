@@ -310,7 +310,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(compressedResources).ToNot(BeNil())
 
 			By("add sample OperationState field to the ApplicationState")
-			operationState := managedgitopsv1alpha1.OperationState{
+			operationState := &managedgitopsv1alpha1.OperationState{
 				Message: "Sample message",
 				Operation: managedgitopsv1alpha1.ApplicationOperation{
 					InitiatedBy: managedgitopsv1alpha1.OperationInitiator{
@@ -330,8 +330,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 						},
 					},
 				},
-				StartedAt:  metav1.Time{Time: time.Now()},
-				FinishedAt: &metav1.Time{Time: time.Now()},
+				RetryCount: 1,
 			}
 
 			reconciledStateString, reconciledobj, err := dummyApplicationComparedToField()
@@ -373,10 +372,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(gitopsDeployment.Status.ReconciledState.Destination.Namespace).To(BeEmpty())
 			Expect(gitopsDeployment.Status.ReconciledState.Destination.Name).To(BeEmpty())
 			Expect(gitopsDeployment.Status.Conditions).To(BeNil())
-			Expect(gitopsDeployment.Status.OperationState).ToNot(BeNil())
-			Expect(gitopsDeployment.Status.OperationState.Message).To(Equal(operationState.Message))
-			Expect(gitopsDeployment.Status.OperationState.StartedAt.Equal(&operationState.StartedAt)).To(BeTrue())
-			Expect(gitopsDeployment.Status.OperationState.FinishedAt.Equal(operationState.FinishedAt)).To(BeTrue())
+			Expect(gitopsDeployment.Status.OperationState).To(BeNil())
 
 			// ----------------------------------------------------------------------------
 			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status.")
@@ -402,6 +398,12 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(gitopsDeployment.Status.ReconciledState.Source.RepoURL).To(Equal(reconciledobj.Source.RepoURL))
 			Expect(gitopsDeployment.Status.ReconciledState.Source.Branch).To(Equal(reconciledobj.Source.TargetRevision))
 			Expect(gitopsDeployment.Status.ReconciledState.Destination.Namespace).To(Equal(reconciledobj.Destination.Namespace))
+
+			Expect(gitopsDeployment.Status.OperationState).ToNot(BeNil())
+			Expect(gitopsDeployment.Status.OperationState.Message).To(Equal(operationState.Message))
+			Expect(gitopsDeployment.Status.OperationState.RetryCount).To(Equal(operationState.RetryCount))
+			Expect(gitopsDeployment.Status.OperationState.Operation).To(Equal(operationState.Operation))
+			Expect(gitopsDeployment.Status.OperationState.SyncResult).To(Equal(operationState.SyncResult))
 
 			matchingCondition, _ := conditions.NewConditionManager().FindCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError)
 			Expect(matchingCondition).ToNot(BeNil())
@@ -1132,9 +1134,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			By("Decompress data and verify the OperationState")
 			// ----------------------------------------------------------------------------
 
-			var opStateOut *managedgitopsv1alpha1.OperationState
-
-			opStateOut, err = decompressOperationState(compressedOpState)
+			opStateOut, err := decompressOperationState(compressedOpState)
 
 			Expect(err).To(BeNil())
 

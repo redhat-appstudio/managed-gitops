@@ -185,12 +185,13 @@ func cleanUpOldKubeSystemResources(clientConfig *rest.Config) error {
 
 	for idx := range saList.Items {
 		sa := saList.Items[idx]
-		// Skip any service accounts that DON'T contain argocd
-		if !strings.Contains(sa.Name, "argocd") {
+		// Skip any service accounts that DON'T contain argocd, and skip argocd-manager
+		if !strings.Contains(sa.Name, "argocd") || sa.Name == "argocd-manager" {
 			continue
 		}
 
 		if err := k8sClient.Delete(context.Background(), &sa); err != nil {
+			fmt.Println("unable to delete service account", sa)
 			return err
 		}
 	}

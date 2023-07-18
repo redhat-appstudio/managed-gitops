@@ -33,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
@@ -84,6 +83,14 @@ func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
+	// Add the deletion finalizer if it is absent.
+	if addFinalizer(&dt, FinalizerDT) {
+		if err := r.Client.Update(ctx, &dt); err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s to DeploymentTarget %s in namespace %s: %v", FinalizerDT, dt.Name, dt.Namespace, err)
+		}
+		log.Info("Added finalizer to DeploymentTarget", "finalizer", FinalizerDT)
+	}
+
 	// Retrieve and sanity check the DeploymentTargetClass of the DT
 	dtClass, err := findMatchingDTClassForDT(ctx, dt, r.Client)
 	if err != nil {
@@ -99,14 +106,6 @@ func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, nil
 	}
 
-	// Add the deletion finalizer if it is absent.
-	if addFinalizer(&dt, FinalizerDT) {
-		if err = r.Client.Update(ctx, &dt); err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to add finalizer %s to DeploymentTarget %s in namespace %s: %v", FinalizerDT, dt.Name, dt.Namespace, err)
-		}
-		log.Info("Added finalizer to DeploymentTarget", "finalizer", FinalizerDT)
-	}
-
 	// If the DeploymentTarget is not deleted, verify if it has a corresponding DTC
 	if dt.Spec.ClaimRef != "" && dt.DeletionTimestamp == nil {
 		dtc := &applicationv1alpha1.DeploymentTargetClaim{
@@ -116,8 +115,7 @@ func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Req
 			},
 		}
 
-		err = r.Client.Get(ctx, client.ObjectKeyFromObject(dtc), dtc)
-		if err != nil {
+		if err := r.Client.Get(ctx, client.ObjectKeyFromObject(dtc), dtc); err != nil {
 			if !apierr.IsNotFound(err) {
 				return ctrl.Result{}, err
 			}
@@ -140,6 +138,8 @@ func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		// The DeploymentTarget is not currently being deleted, so no more work to do.
 		return ctrl.Result{}, nil
 	}
+
+	// From this point on in this function, the DeletionTimestamp is necessarily set
 
 	// Handle deletion if the DT has a deletion timestamp set.
 	var sr *codereadytoolchainv1alpha1.SpaceRequest
@@ -165,7 +165,7 @@ func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, nil
 	}
 
-	// The ReclaimPolicy is necessarily deleted, from this point on in the function
+	// The ReclaimPolicy is necessarily equal to 'Delete', from this point on in the function
 
 	if addFinalizer(sr, codereadytoolchainv1alpha1.FinalizerName) {
 		if err := r.Client.Update(ctx, sr); err != nil {
@@ -183,9 +183,8 @@ func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	// Delete the SpaceRequest if it has not been deleted
 	if sr.DeletionTimestamp == nil {
 
-		log.Info("deleting SpaceRequest", "spaceRequest", sr)
-		err = r.Client.Delete(ctx, sr)
-		if err != nil {
+		log.Info("Deleting SpaceRequest", "spaceRequest", sr)
+		if err := r.Client.Delete(ctx, sr); err != nil {
 			return ctrl.Result{}, err
 		}
 		logutil.LogAPIResourceChangeEvent(sr.Namespace, sr.Name, sr, logutil.ResourceDeleted, log)
@@ -203,7 +202,7 @@ func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		r.Clock = sharedutil.NewClock()
 	}
 
-	// If SpaceRequest still exists after 2 minutes and has a condition reason of  UnableToTerminate...
+	// If SpaceRequest still exists after 2 minutes and has a condition reason of UnableToTerminate...
 	if r.Clock.Now().After(sr.GetDeletionTimestamp().Add(time.Minute*2)) &&
 		readyCond.Reason == codereadytoolchainv1alpha1.SpaceTerminatingFailedReason {
 
@@ -215,7 +214,7 @@ func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, nil
 	}
 
-	log.Info("Requeuing since SpaceRequest is still terminating", "spaceRequestStatusPhase", dt.Status.Phase, "deleteionTimestamp", sr.GetDeletionTimestamp())
+	log.Info("Requeuing DeploymentTarget, since SpaceRequest is still terminating", "spaceRequestStatusPhase", dt.Status.Phase, "deletionTimestamp", sr.GetDeletionTimestamp())
 
 	// OTOH, if the SpaceRequest has not timed out yet, then requeue
 	return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
@@ -273,8 +272,6 @@ func findMatchingDTClassForDT(ctx context.Context, dt applicationv1alpha1.Deploy
 func (r *DeploymentTargetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	manager := ctrl.NewControllerManagedBy(mgr).
 		For(&applicationv1alpha1.DeploymentTarget{}).
-		WithEventFilter(predicate.Or(
-			DeploymentTargetDeletePredicate())).
 		Watches(
 			&source.Kind{Type: &codereadytoolchainv1alpha1.SpaceRequest{}},
 			handler.EnqueueRequestsFromMapFunc(r.findDeploymentTargetsForSpaceRequests))

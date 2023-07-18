@@ -167,7 +167,7 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			return ctrl.Result{}, fmt.Errorf("unable to retrieve Environment: %v", err)
 		}
 
-		if err := updateConditionErrorAsResolved(ctx, rClient, "", environment, EnvironmentConditionErrorOccurred, metav1.ConditionFalse, EnvironmentReasonErrorOccurred, log); err != nil {
+		if err := updateConditionErrorAsResolved(ctx, rClient, environment, log); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
@@ -190,9 +190,9 @@ func reconcileEnvironment(ctx context.Context, environment appstudioshared.Envir
 		log.Error(nil, "Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set")
 
 		// Update Status.Conditions field of Environment.
-		if err := updateStatusConditionOfEnvironment(ctx, rClient,
+		if err := updateEnvironmentReconciledStatusCondition(ctx, rClient,
 			"Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set", &environment,
-			EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred, log); err != nil {
+			metav1.ConditionFalse, EnvironmentReasonInvalid, log); err != nil {
 
 			return ctrl.Result{}, fmt.Errorf("unable to update environment status condition. %v", err), errorConditionSet_false
 
@@ -266,25 +266,78 @@ const (
 	SnapshotEnvironmentBindingReasonErrorOccurred    = "ErrorOccurred"
 	EnvironmentConditionErrorOccurred                = "ErrorOccurred"
 	EnvironmentReasonErrorOccurred                   = "ErrorOccurred"
+
+	EnvironmentConditionReconciled                 = "Reconciled"
+	EnvironmentReasonDeploymentTargetClaimNotFound = "DeploymentTargetClaimNotFound"
+	EnvironmentReasonDeploymentTargetNotFound      = "DeploymentTargetNotFound"
+	EnvironmentReasonInvalid                       = "InvalidEnvironment"
+	EnvironmentReasonSecretNotFound                = "SecretNotFound"
 )
 
-// Update .status.conditions field of Environment
-func updateStatusConditionOfEnvironment(ctx context.Context, client client.Client, message string,
-	environment *appstudioshared.Environment, conditionType string,
+func updateEnvironmentReconciledStatusCondition(ctx context.Context, client client.Client,
+	message string, environment *appstudioshared.Environment,
 	status metav1.ConditionStatus, reason string, log logr.Logger) error {
 
-	newCondition := metav1.Condition{
-		Type:    conditionType,
+	// The code to set the EnvironmentConditionErrorOccurred condition should be removed once all
+	// clients have moved to using the new EnvironmentConditionReconciled condition
+	newCondition1 := metav1.Condition{
+		Type:    EnvironmentConditionErrorOccurred,
+		Message: message,
+		Reason:  EnvironmentReasonErrorOccurred,
+	}
+	if status == metav1.ConditionTrue {
+		newCondition1.Status = metav1.ConditionFalse
+	} else if status == metav1.ConditionFalse {
+		newCondition1.Status = metav1.ConditionTrue
+	} else {
+		newCondition1.Status = status
+	}
+
+	newCondition2 := metav1.Condition{
+		Type:    EnvironmentConditionReconciled,
 		Message: message,
 		Status:  status,
 		Reason:  reason,
 	}
 
-	changed, newConditions := insertOrUpdateConditionsInSlice(newCondition, environment.Status.Conditions)
+	changed1, newConditions := insertOrUpdateConditionsInSlice(newCondition1, environment.Status.Conditions)
+	changed2, newConditions := insertOrUpdateConditionsInSlice(newCondition2, newConditions)
+
+	if changed1 || changed2 {
+		environment.Status.Conditions = newConditions
+		if err := client.Status().Update(ctx, environment); err != nil {
+			log.Error(err, "unable to update environment status condition.")
+			return err
+		}
+	}
+	return nil
+}
+
+func updateConditionErrorAsResolved(ctx context.Context, client client.Client,
+	environment *appstudioshared.Environment, log logr.Logger) error {
+
+	changed := false
+	conditions := environment.Status.Conditions
+
+	// The code to update the EnvironmentConditionErrorOccurred condition should be removed once all
+	// clients have moved to using the new EnvironmentConditionReconciled condition
+	cond1 := findCondition(environment.Status.Conditions, EnvironmentConditionErrorOccurred)
+	if cond1 >= 0 && conditions[cond1].Status != metav1.ConditionFalse {
+		conditions[cond1].Status = metav1.ConditionFalse
+		conditions[cond1].Reason = conditions[cond1].Reason + "Resolved"
+		conditions[cond1].Message = ""
+		changed = true
+	}
+
+	cond2 := findCondition(environment.Status.Conditions, EnvironmentConditionReconciled)
+	if cond2 >= 0 && conditions[cond2].Status != metav1.ConditionTrue {
+		conditions[cond2].Status = metav1.ConditionTrue
+		conditions[cond2].Reason = conditions[cond2].Reason + "Resolved"
+		conditions[cond2].Message = ""
+		changed = true
+	}
 
 	if changed {
-		environment.Status.Conditions = newConditions
-
 		if err := client.Status().Update(ctx, environment); err != nil {
 			log.Error(err, "unable to update environment status condition.")
 			return err
@@ -292,42 +345,16 @@ func updateStatusConditionOfEnvironment(ctx context.Context, client client.Clien
 	}
 
 	return nil
-
 }
 
-func updateConditionErrorAsResolved(ctx context.Context, client client.Client, message string,
-	environment *appstudioshared.Environment, conditionType string,
-	status metav1.ConditionStatus, reason string, log logr.Logger) error {
-
-	cond, present := findCondition(environment.Status.Conditions, EnvironmentConditionErrorOccurred)
-
-	if !present {
-		return nil
-	}
-
-	reason = reason + "Resolved"
-
-	// Check the condition and mark it as resolved, if it's resolved
-	if cond.Reason != reason {
-		if err := updateStatusConditionOfEnvironment(ctx, client,
-			"", environment, EnvironmentConditionErrorOccurred, metav1.ConditionFalse, reason, log); err != nil {
-			return fmt.Errorf("unable to update status of Environment: %v", err)
-		}
-	}
-
-	return nil
-}
-
-// findCondition finds the suitable Condition object by looking into the conditions list and returns true if already exists
-// but, if none exists, it appends one and returns false
-func findCondition(conditions []metav1.Condition, conditionType string) (metav1.Condition, bool) {
+// findCondition returns the index of the given conditionType in the given list of conditions, or -1 if there is no such condition
+func findCondition(conditions []metav1.Condition, conditionType string) int {
 	for i, condition := range conditions {
 		if condition.Type == conditionType {
-			return conditions[i], true
+			return i
 		}
 	}
-
-	return metav1.Condition{}, false
+	return -1
 }
 
 // generateDesiredResource will return two types of error:
@@ -359,9 +386,9 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 				log.Error(err, "DeploymentTargetClaim not found while generating the desired Environment resource", "expectedDTC", dtc)
 
 				// Update Status.Conditions field of Environment.
-				if err := updateStatusConditionOfEnvironment(ctx, k8sClient,
+				if err := updateEnvironmentReconciledStatusCondition(ctx, k8sClient,
 					"DeploymentTargetClaim not found while generating the desired Environment resource", &env,
-					EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred, log); err != nil {
+					metav1.ConditionFalse, EnvironmentReasonDeploymentTargetClaimNotFound, log); err != nil {
 
 					return nil, errorConditionSet_false, fmt.Errorf("unable to update environment status condition. %v", err)
 				}
@@ -370,9 +397,9 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 			}
 
 			// Update Status.Conditions field of Environment.
-			if err := updateStatusConditionOfEnvironment(ctx, k8sClient,
+			if err := updateEnvironmentReconciledStatusCondition(ctx, k8sClient,
 				"Unable to find DeploymentTarget for DeploymentTargetClaim", &env,
-				EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred, log); err != nil {
+				metav1.ConditionFalse, EnvironmentReasonDeploymentTargetNotFound, log); err != nil {
 
 				return nil, errorConditionSet_false, fmt.Errorf("unable to update environment status condition. %v", err)
 			}
@@ -394,9 +421,9 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 				log.Error(err, "DeploymentTargetClaim references a DeploymentTarget that does not exist", "DeploymentTargetClaim", dtc.Name)
 
 				// Update Status.Conditions field of Environment.
-				if err := updateStatusConditionOfEnvironment(ctx, k8sClient,
+				if err := updateEnvironmentReconciledStatusCondition(ctx, k8sClient,
 					"DeploymentTargetClaim references a DeploymentTarget that does not exist", &env,
-					EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred, log); err != nil {
+					metav1.ConditionFalse, EnvironmentReasonDeploymentTargetNotFound, log); err != nil {
 
 					return nil, errorConditionSet_false, fmt.Errorf("unable to update environment status condition. %v", err)
 				}
@@ -405,9 +432,9 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 			}
 
 			// Update Status.Conditions field of Environment.
-			if err := updateStatusConditionOfEnvironment(ctx, k8sClient,
+			if err := updateEnvironmentReconciledStatusCondition(ctx, k8sClient,
 				"Unable to find the DeploymentTarget for DeploymentTargetClaim", &env,
-				EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred, log); err != nil {
+				metav1.ConditionFalse, EnvironmentReasonDeploymentTargetNotFound, log); err != nil {
 
 				return nil, errorConditionSet_false, fmt.Errorf("unable to update environment status condition. %v", err)
 			}
@@ -420,9 +447,9 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 			log.Error(nil, "DeploymentTarget not found for DeploymentTargetClaim", "DeploymentTargetClaim", dtc.Name)
 
 			// Update Status.Conditions field of Environment.
-			if err := updateStatusConditionOfEnvironment(ctx, k8sClient,
+			if err := updateEnvironmentReconciledStatusCondition(ctx, k8sClient,
 				"DeploymentTarget not found for DeploymentTargetClaim", &env,
-				EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred, log); err != nil {
+				metav1.ConditionFalse, EnvironmentReasonDeploymentTargetNotFound, log); err != nil {
 
 				return nil, errorConditionSet_false, fmt.Errorf("unable to update environment status condition. %v", err)
 			}
@@ -501,9 +528,9 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 			log.Info("the secret referenced by the Environment resource was not found:", "secretName", secret.Name)
 
 			// Update Status.Conditions field of Environment.
-			if err := updateStatusConditionOfEnvironment(ctx, k8sClient,
+			if err := updateEnvironmentReconciledStatusCondition(ctx, k8sClient,
 				"the secret "+secret.Name+" referenced by the Environment resource was not found", &env,
-				EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred, log); err != nil {
+				metav1.ConditionFalse, EnvironmentReasonSecretNotFound, log); err != nil {
 
 				return nil, errorConditionSet_false, fmt.Errorf("unable to update environment status condition. %v", err)
 			}
@@ -525,9 +552,9 @@ func generateDesiredResource(ctx context.Context, env appstudioshared.Environmen
 		}
 
 		// Update Status.Conditions field of Environment.
-		if err := updateStatusConditionOfEnvironment(ctx, k8sClient,
+		if err := updateEnvironmentReconciledStatusCondition(ctx, k8sClient,
 			"Secret referenced by the Environment resource was not found", &env,
-			EnvironmentConditionErrorOccurred, metav1.ConditionTrue, EnvironmentReasonErrorOccurred, log); err != nil {
+			metav1.ConditionFalse, EnvironmentReasonSecretNotFound, log); err != nil {
 
 			return nil, errorConditionSet_false, fmt.Errorf("unable to update environment status condition. %v", err)
 		}

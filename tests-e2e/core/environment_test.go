@@ -79,12 +79,19 @@ var _ = Describe("Environment Status.Conditions tests", func() {
 			err := k8s.Create(&env, k8sClient)
 			Expect(err).To(Succeed())
 
-			By("checking the status component environment condition is true")
+			By("checking the status component environment condition is correct")
 			Eventually(env, "2m", "1s").Should(environmentFixture.HaveEnvironmentCondition(
 				metav1.Condition{
 					Type:    app.EnvironmentConditionErrorOccurred,
 					Status:  metav1.ConditionTrue,
 					Reason:  app.EnvironmentReasonErrorOccurred,
+					Message: "DeploymentTargetClaim not found while generating the desired Environment resource",
+				}))
+			Eventually(env, "2m", "1s").Should(environmentFixture.HaveEnvironmentCondition(
+				metav1.Condition{
+					Type:    app.EnvironmentConditionReconciled,
+					Status:  metav1.ConditionFalse,
+					Reason:  app.EnvironmentReasonDeploymentTargetClaimNotFound,
 					Message: "DeploymentTargetClaim not found while generating the desired Environment resource",
 				}))
 		})
@@ -123,12 +130,19 @@ var _ = Describe("Environment Status.Conditions tests", func() {
 			err = k8s.Create(&environment, k8sClient)
 			Expect(err).To(Succeed())
 
-			By("checking the status component environment condition is true")
+			By("checking the status component environment condition is correct")
 			Eventually(environment, "2m", "1s").Should(environmentFixture.HaveEnvironmentCondition(
 				metav1.Condition{
 					Type:    app.EnvironmentConditionErrorOccurred,
 					Status:  metav1.ConditionTrue,
 					Reason:  app.EnvironmentReasonErrorOccurred,
+					Message: "Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set",
+				}))
+			Eventually(environment, "2m", "1s").Should(environmentFixture.HaveEnvironmentCondition(
+				metav1.Condition{
+					Type:    app.EnvironmentConditionReconciled,
+					Status:  metav1.ConditionFalse,
+					Reason:  app.EnvironmentReasonInvalid,
 					Message: "Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set",
 				}))
 		})

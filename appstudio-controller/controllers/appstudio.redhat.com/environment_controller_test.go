@@ -340,8 +340,96 @@ var _ = Describe("Environment controller tests", func() {
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
 			Expect(err).To(BeNil())
-			expectEnvironmentConditionErrorOccured("the secret secret-that-doesnt-exist referenced by the Environment resource was not found", env)
+			expectEnvironmentStatusConditionError("the secret secret-that-doesnt-exist referenced by the Environment resource was not found", EnvironmentReasonSecretNotFound, env)
 
+		})
+
+		It("should update the Environment status condition when an error is resolved", func() {
+
+			By("creating an Environment resource pointing to a Secret that doesn't exist")
+			env := appstudioshared.Environment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-env",
+					Namespace: apiNamespace.Name,
+				},
+				Spec: appstudioshared.EnvironmentSpec{
+					DisplayName:        "my-environment",
+					DeploymentStrategy: appstudioshared.DeploymentStrategy_Manual,
+					ParentEnvironment:  "",
+					Tags:               []string{},
+					Configuration:      appstudioshared.EnvironmentConfiguration{},
+					UnstableConfigurationFields: &appstudioshared.UnstableEnvironmentConfiguration{
+						KubernetesClusterCredentials: appstudioshared.KubernetesClusterCredentials{
+							TargetNamespace:          "my-target-namespace",
+							APIURL:                   "https://my-api-url",
+							ClusterCredentialsSecret: "secret-that-doesnt-exist",
+						},
+					},
+				},
+			}
+			err := k8sClient.Create(ctx, &env)
+			Expect(err).To(BeNil())
+
+			By("reconciling the Environment")
+			req := ctrl.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      env.Name,
+					Namespace: env.Namespace,
+				},
+			}
+			_, err = reconciler.Reconcile(ctx, req)
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
+			Expect(err).To(BeNil())
+			expectEnvironmentStatusConditionError("the secret secret-that-doesnt-exist referenced by the Environment resource was not found", EnvironmentReasonSecretNotFound, env)
+
+			By("fixing the error")
+			secret := corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env-secret",
+					Namespace: apiNamespace.Name,
+				},
+				Type: sharedutil.ManagedEnvironmentSecretType,
+				Data: map[string][]byte{
+					"kubeconfig": ([]byte)("{}"),
+				},
+			}
+			err = k8sClient.Create(ctx, &secret)
+			Expect(err).To(BeNil())
+
+			env.Spec.UnstableConfigurationFields.ClusterCredentialsSecret = secret.Name
+			Expect(k8sClient.Update(ctx, &env)).To(Succeed())
+
+			By("reconciling again")
+			_, err = reconciler.Reconcile(ctx, req)
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
+			Expect(err).To(BeNil())
+			Expect(env.Status.Conditions[0].Type).To(Equal(EnvironmentConditionErrorOccurred))
+			Expect(env.Status.Conditions[0].Status).To(Equal(metav1.ConditionFalse))
+			Expect(env.Status.Conditions[0].Reason).To(Equal(EnvironmentReasonErrorOccurred + "Resolved"))
+			Expect(env.Status.Conditions[0].Message).To(BeEmpty())
+			Expect(env.Status.Conditions[1].Type).To(Equal(EnvironmentConditionReconciled))
+			Expect(env.Status.Conditions[1].Status).To(Equal(metav1.ConditionTrue))
+			Expect(env.Status.Conditions[1].Reason).To(Equal(EnvironmentReasonSecretNotFound + "Resolved"))
+			Expect(env.Status.Conditions[1].Message).To(BeEmpty())
+
+			By("ensuring that another reconcile has no effect on the condition")
+			_, err = reconciler.Reconcile(ctx, req)
+			Expect(err).To(BeNil())
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
+			Expect(err).To(BeNil())
+			Expect(env.Status.Conditions[0].Type).To(Equal(EnvironmentConditionErrorOccurred))
+			Expect(env.Status.Conditions[0].Status).To(Equal(metav1.ConditionFalse))
+			Expect(env.Status.Conditions[0].Reason).To(Equal(EnvironmentReasonErrorOccurred + "Resolved"))
+			Expect(env.Status.Conditions[0].Message).To(BeEmpty())
+			Expect(env.Status.Conditions[1].Type).To(Equal(EnvironmentConditionReconciled))
+			Expect(env.Status.Conditions[1].Status).To(Equal(metav1.ConditionTrue))
+			Expect(env.Status.Conditions[1].Reason).To(Equal(EnvironmentReasonSecretNotFound + "Resolved"))
+			Expect(env.Status.Conditions[1].Message).To(BeEmpty())
 		})
 
 		It("should not return an error if the Environment does not container UnstableConfigurationFields", func() {
@@ -411,7 +499,7 @@ var _ = Describe("Environment controller tests", func() {
 			env = appstudioshared.Environment{}
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
 			Expect(err).To(BeNil())
-			expectEnvironmentConditionErrorOccured("Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set", env)
+			expectEnvironmentStatusConditionError("Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set", EnvironmentReasonInvalid, env)
 
 		})
 
@@ -552,7 +640,7 @@ var _ = Describe("Environment controller tests", func() {
 			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env); err != nil {
 				Expect(err).To(BeNil())
 			}
-			expectEnvironmentConditionErrorOccured("the secret test-secret referenced by the Environment resource was not found", env)
+			expectEnvironmentStatusConditionError("the secret test-secret referenced by the Environment resource was not found", EnvironmentReasonSecretNotFound, env)
 			Expect(res).To(Equal(reconcile.Result{}))
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret)
 			Expect(err).ToNot(BeNil())
@@ -698,7 +786,7 @@ var _ = Describe("Environment controller tests", func() {
 			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env); err != nil {
 				Expect(err).To(BeNil())
 			}
-			expectEnvironmentConditionErrorOccured("the secret test-secret referenced by the Environment resource was not found", env)
+			expectEnvironmentStatusConditionError("the secret test-secret referenced by the Environment resource was not found", EnvironmentReasonSecretNotFound, env)
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret)
@@ -793,7 +881,7 @@ var _ = Describe("Environment controller tests", func() {
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
 			Expect(err).To(BeNil())
 
-			expectEnvironmentConditionErrorOccured("DeploymentTargetClaim not found while generating the desired Environment resource", env)
+			expectEnvironmentStatusConditionError("DeploymentTargetClaim not found while generating the desired Environment resource", EnvironmentReasonDeploymentTargetClaimNotFound, env)
 
 		})
 
@@ -853,7 +941,7 @@ var _ = Describe("Environment controller tests", func() {
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
 			Expect(err).To(BeNil())
 
-			expectEnvironmentConditionErrorOccured("DeploymentTarget not found for DeploymentTargetClaim", env)
+			expectEnvironmentStatusConditionError("DeploymentTarget not found for DeploymentTargetClaim", EnvironmentReasonDeploymentTargetNotFound, env)
 		})
 
 		It("should set an error condition, but not return a Reconcile error, if Environment's DTC references a DeploymentTarget that doesn't exist", func() {
@@ -903,7 +991,7 @@ var _ = Describe("Environment controller tests", func() {
 			env = appstudioshared.Environment{}
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
 			Expect(err).To(BeNil())
-			expectEnvironmentConditionErrorOccured("DeploymentTargetClaim references a DeploymentTarget that does not exist", env)
+			expectEnvironmentStatusConditionError("DeploymentTargetClaim references a DeploymentTarget that does not exist", EnvironmentReasonDeploymentTargetNotFound, env)
 		})
 
 		It("shouldn't process the Environment if neither credentials nor DTC is provided", func() {
@@ -1468,88 +1556,156 @@ var _ = Describe("Environment controller tests", func() {
 				err = k8sClient.Update(ctx, &env)
 				Expect(err).To(BeNil())
 
-				err = updateStatusConditionOfEnvironment(ctx, k8sClient, newCondition.Message, &env, EnvironmentConditionErrorOccurred,
+				err = updateEnvironmentReconciledStatusCondition(ctx, k8sClient, newCondition.Message, &env,
 					newCondition.Status, newCondition.Reason, log)
 				Expect(err).To(BeNil())
 
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
 				Expect(err).To(BeNil())
 
-				Expect(len(env.Status.Conditions)).To(BeNumerically("==", 1))
+				Expect(len(env.Status.Conditions)).To(BeNumerically("==", 2))
 
 				expectedCondition := expectedResult[0]
-
 				actualCondition := env.Status.Conditions[0]
-
 				Expect(actualCondition.Message).To(Equal(expectedCondition.Message))
 				Expect(actualCondition.Type).To(Equal(expectedCondition.Type))
 				Expect(actualCondition.Reason).To(Equal(expectedCondition.Reason))
 				Expect(actualCondition.Status).To(Equal(expectedCondition.Status))
 
+				expectedCondition = expectedResult[1]
+				actualCondition = env.Status.Conditions[1]
+				Expect(actualCondition.Message).To(Equal(expectedCondition.Message))
+				Expect(actualCondition.Type).To(Equal(expectedCondition.Type))
+				Expect(actualCondition.Reason).To(Equal(expectedCondition.Reason))
+				Expect(actualCondition.Status).To(Equal(expectedCondition.Status))
 			},
-			Entry("add a new condition", []metav1.Condition{}, metav1.Condition{
-				Type:    EnvironmentConditionErrorOccurred,
-				Status:  metav1.ConditionTrue,
-				Reason:  "my-reason",
-				Message: "my-message",
-			}, []metav1.Condition{
-				{
-					Type:    EnvironmentConditionErrorOccurred,
+			Entry("add a new condition",
+				[]metav1.Condition{},
+				metav1.Condition{
 					Status:  metav1.ConditionTrue,
 					Reason:  "my-reason",
 					Message: "my-message",
 				},
-			}),
-			Entry("replace an existing condition with mismatched reason", []metav1.Condition{{
-				Type:    EnvironmentConditionErrorOccurred,
-				Status:  metav1.ConditionTrue,
-				Reason:  "my-reason",
-				Message: "my-message",
-			}}, metav1.Condition{
-				Type:    EnvironmentConditionErrorOccurred,
-				Status:  metav1.ConditionTrue,
-				Reason:  "my-reason2",
-				Message: "my-message",
-			}, []metav1.Condition{{
-				Type:    EnvironmentConditionErrorOccurred,
-				Status:  metav1.ConditionTrue,
-				Reason:  "my-reason2",
-				Message: "my-message",
-			}}),
-
-			Entry("replace an existing condition with mismatched message", []metav1.Condition{{
-				Type:    EnvironmentConditionErrorOccurred,
-				Status:  metav1.ConditionTrue,
-				Reason:  "my-reason",
-				Message: "my-message",
-			}}, metav1.Condition{
-				Type:    EnvironmentConditionErrorOccurred,
-				Status:  metav1.ConditionTrue,
-				Reason:  "my-reason",
-				Message: "my-message2",
-			}, []metav1.Condition{{
-				Type:    EnvironmentConditionErrorOccurred,
-				Status:  metav1.ConditionTrue,
-				Reason:  "my-reason",
-				Message: "my-message2",
-			}}),
-
-			Entry("replace an existing condition with mismatched status", []metav1.Condition{{
-				Type:    EnvironmentConditionErrorOccurred,
-				Status:  metav1.ConditionTrue,
-				Reason:  "my-reason",
-				Message: "my-message",
-			}}, metav1.Condition{
-				Type:    EnvironmentConditionErrorOccurred,
-				Status:  metav1.ConditionFalse,
-				Reason:  "my-reason",
-				Message: "my-message",
-			}, []metav1.Condition{{
-				Type:    EnvironmentConditionErrorOccurred,
-				Status:  metav1.ConditionFalse,
-				Reason:  "my-reason",
-				Message: "my-message",
-			}}),
+				[]metav1.Condition{
+					{
+						Type:    EnvironmentConditionErrorOccurred,
+						Status:  metav1.ConditionFalse,
+						Reason:  EnvironmentReasonErrorOccurred,
+						Message: "my-message",
+					},
+					{
+						Type:    EnvironmentConditionReconciled,
+						Status:  metav1.ConditionTrue,
+						Reason:  "my-reason",
+						Message: "my-message",
+					},
+				},
+			),
+			Entry("replace an existing condition with mismatched reason",
+				[]metav1.Condition{
+					{
+						Type:    EnvironmentConditionErrorOccurred,
+						Status:  metav1.ConditionTrue,
+						Reason:  "my-reason",
+						Message: "my-message",
+					},
+					{
+						Type:    EnvironmentConditionReconciled,
+						Status:  metav1.ConditionFalse,
+						Reason:  "my-reason",
+						Message: "my-message",
+					},
+				},
+				metav1.Condition{
+					Status:  metav1.ConditionFalse,
+					Reason:  "my-reason2",
+					Message: "my-message",
+				},
+				[]metav1.Condition{
+					{
+						Type:    EnvironmentConditionErrorOccurred,
+						Status:  metav1.ConditionTrue,
+						Reason:  EnvironmentReasonErrorOccurred,
+						Message: "my-message",
+					},
+					{
+						Type:    EnvironmentConditionReconciled,
+						Status:  metav1.ConditionFalse,
+						Reason:  "my-reason2",
+						Message: "my-message",
+					},
+				},
+			),
+			Entry("replace an existing condition with mismatched message",
+				[]metav1.Condition{
+					{
+						Type:    EnvironmentConditionErrorOccurred,
+						Status:  metav1.ConditionTrue,
+						Reason:  EnvironmentReasonErrorOccurred,
+						Message: "my-message",
+					},
+					{
+						Type:    EnvironmentConditionReconciled,
+						Status:  metav1.ConditionFalse,
+						Reason:  "my-reason",
+						Message: "my-message",
+					},
+				},
+				metav1.Condition{
+					Status:  metav1.ConditionFalse,
+					Reason:  "my-reason",
+					Message: "my-message2",
+				},
+				[]metav1.Condition{
+					{
+						Type:    EnvironmentConditionErrorOccurred,
+						Status:  metav1.ConditionTrue,
+						Reason:  EnvironmentReasonErrorOccurred,
+						Message: "my-message2",
+					},
+					{
+						Type:    EnvironmentConditionReconciled,
+						Status:  metav1.ConditionFalse,
+						Reason:  "my-reason",
+						Message: "my-message2",
+					},
+				},
+			),
+			Entry("replace an existing condition with mismatched status",
+				[]metav1.Condition{
+					{
+						Type:    EnvironmentConditionErrorOccurred,
+						Status:  metav1.ConditionTrue,
+						Reason:  EnvironmentReasonErrorOccurred,
+						Message: "my-message",
+					},
+					{
+						Type:    EnvironmentConditionReconciled,
+						Status:  metav1.ConditionFalse,
+						Reason:  "my-reason",
+						Message: "my-message",
+					},
+				},
+				metav1.Condition{
+					Status:  metav1.ConditionTrue,
+					Reason:  "my-reason",
+					Message: "my-message",
+				},
+				[]metav1.Condition{
+					{
+						Type:    EnvironmentConditionErrorOccurred,
+						Status:  metav1.ConditionFalse,
+						Reason:  EnvironmentReasonErrorOccurred,
+						Message: "my-message",
+					},
+					{
+						Type:    EnvironmentConditionReconciled,
+						Status:  metav1.ConditionTrue,
+						Reason:  "my-reason",
+						Message: "my-message",
+					},
+				},
+			),
 		)
 
 	})
@@ -1624,16 +1780,27 @@ var _ = Describe("Environment controller tests", func() {
 	})
 })
 
-// expectEnvironmentConditionErrorOccured verifies that an EnvironmentConditionErrorOccurred is set, with the appropriate message
-func expectEnvironmentConditionErrorOccured(envMessage string, env appstudioshared.Environment) {
+// expectEnvironmentStatusConditionError verifies that both a Reconciled and an EnvironmentConditionErrorOccurred
+// status conditions are set, with the appropriate message, and in the case of the Reconciled condition, with the
+// appropriate reason.
+func expectEnvironmentStatusConditionError(envMessage, envReason string, env appstudioshared.Environment) {
 
 	// WithOffset tells Gingko to ignore this function when reporting the failing line in the test
 
-	ExpectWithOffset(1, len(env.Status.Conditions)).To(Equal(1), "a single condition should exist")
+	ExpectWithOffset(1, len(env.Status.Conditions)).To(Equal(2), "two conditions should exist")
+
 	ExpectWithOffset(1, env.Status.Conditions[0].Type).To(Equal(EnvironmentConditionErrorOccurred), "type should be EnvironmentConditionErrorOccurred")
 	ExpectWithOffset(1, env.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue), "should be true")
 	ExpectWithOffset(1, env.Status.Conditions[0].Reason).To(Equal(EnvironmentReasonErrorOccurred), "reason should be EnvironmentConditionErrorOccurred")
 
 	fmt.Println("The Environment's condition message is", env.Status.Conditions[0].Message)
 	ExpectWithOffset(1, env.Status.Conditions[0].Message).To(Equal(envMessage), "message should be as provided")
+
+	ExpectWithOffset(1, env.Status.Conditions[1].Type).To(Equal(EnvironmentConditionReconciled), "type should be EnvironmentConditionErrorOccurred")
+	ExpectWithOffset(1, env.Status.Conditions[1].Status).To(Equal(metav1.ConditionFalse), "should be false")
+	ExpectWithOffset(1, env.Status.Conditions[1].Reason).To(Equal(envReason), "reason should be "+envReason)
+
+	fmt.Println("The Environment's condition message is", env.Status.Conditions[0].Message)
+	ExpectWithOffset(1, env.Status.Conditions[1].Message).To(Equal(envMessage), "message should be as provided")
+
 }

@@ -59,6 +59,7 @@ type UnsafeDatabaseQueries interface {
 	UnsafeListAllRepositoryCredentials(ctx context.Context, repositoryCredentials *[]RepositoryCredentials) error
 	UnsafeListAllAppProjectRepositories(ctx context.Context, appRepositories *[]AppProjectRepository) error
 	UnsafeListAllAppProjectManagedEnvironments(ctx context.Context, appProjectManagedEnv *[]AppProjectManagedEnvironment) error
+	UnsafeListAllApplicationOwners(ctx context.Context, obj *[]ApplicationOwner) error
 }
 
 type AllDatabaseQueries interface {
@@ -327,6 +328,9 @@ type ApplicationScopedQueries interface {
 
 	// CountAppProjectManagedEnvironmentByClusterUserID number of appProjectManagedEnv by clusteruser_id
 	CountAppProjectManagedEnvironmentByClusterUserID(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error)
+	CreateApplicationOwner(ctx context.Context, obj *ApplicationOwner) error
+	DeleteApplicationOwner(ctx context.Context, applicationowner_application_id string, applicationowner_user_id string) (int, error)
+	GetApplicationOwnerByPrimaryKey(ctx context.Context, obj *ApplicationOwner) error
 }
 
 type CloseableQueries interface {

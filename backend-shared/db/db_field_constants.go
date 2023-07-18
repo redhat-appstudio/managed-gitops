@@ -84,6 +84,8 @@ const (
 	AppProjectManagedEnvironmentAppprojectManagedenvIDLength                = 48
 	AppProjectManagedEnvironmentManagedEnvironmentIDLength                  = 48
 	AppProjectManagedEnvironmentClusteruserIDLength                         = 48
+	ApplicationOwnerApplicationOwnerApplicationIDLength                     = 48
+	ApplicationOwnerApplicationOwnerUserIDLength                            = 48
 )
 
 // TruncateVarchar converts string to "str..." if chars is > maxLength
@@ -208,6 +210,8 @@ var DbFieldMap = map[string]int{
 	"AppProjectManagedEnvironmentAppprojectManagedenvIDLength":                AppProjectManagedEnvironmentAppprojectManagedenvIDLength,
 	"AppProjectManagedEnvironmentManagedEnvironmentIDLength":                  AppProjectManagedEnvironmentManagedEnvironmentIDLength,
 	"AppProjectManagedEnvironmentClusteruserIDLength":                         AppProjectManagedEnvironmentClusteruserIDLength,
+	"ApplicationOwnerApplicationOwnerApplicationIDLength":                     ApplicationOwnerApplicationOwnerApplicationIDLength,
+	"ApplicationOwnerApplicationOwnerUserIDLength":                            ApplicationOwnerApplicationOwnerUserIDLength,
 }
 
 // Get value of constants based on constant variable name given as String.

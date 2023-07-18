@@ -353,6 +353,19 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	}
 	a.log.Info("Created new Application in DB: "+application.Application_id, application.GetAsLogKeyValues()...)
 
+	// Create ApplicationOwner row in DB
+	applicationOwner := db.ApplicationOwner{
+		ApplicationOwnerApplicationID: application.Application_id,
+		ApplicationOwnerUserID:        clusterUser.Clusteruser_id,
+	}
+
+	if err := dbQueries.CreateApplicationOwner(ctx, &applicationOwner); err != nil {
+		a.log.Error(err, "Unable to create application owner row in database", applicationOwner.GetAsLogKeyValues()...)
+
+		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
+	}
+	a.log.Info("Created new Application Owner in DB: "+applicationOwner.ApplicationOwnerApplicationID, applicationOwner.GetAsLogKeyValues()...)
+
 	requiredDeplToAppMapping := &db.DeploymentToApplicationMapping{
 		Deploymenttoapplicationmapping_uid_id: string(gitopsDeployment.UID),
 		Application_id:                        application.Application_id,
@@ -737,6 +750,17 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 	}
 	log.Info("Processed GitOpsDeployment event: Application updated in database from latest API changes")
 
+	applicationOwner := &db.ApplicationOwner{
+		ApplicationOwnerApplicationID: application.Application_id,
+		ApplicationOwnerUserID:        clusterUser.Clusteruser_id,
+	}
+
+	if err := dbQueries.GetApplicationOwnerByPrimaryKey(ctx, applicationOwner); err != nil {
+		log.Error(err, "Unable to retrieve application owner")
+		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(err)
+	}
+	log.Info("Processed GitOpsDeployment event: Application owner exits after updating in application in database")
+
 	// Create the operation
 	gitopsEngineClient, err := a.k8sClientFactory.GetK8sClientForGitOpsEngineInstance(ctx, engineInstance)
 	if err != nil {
@@ -840,9 +864,20 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		return true, nil
 	}
 
+	// 4) Remove ApplicationOwner from database
+	log.Info("GitOpsDeployment was deleted, so deleting ApplicationOwner row from database")
+	rowsDeleted, err = dbQueries.DeleteApplicationOwner(ctx, deplToAppMapping.Application_id, clusterUser.Clusteruser_id)
+	if err != nil {
+		// Log the error, but continue
+		log.Error(err, "unable to delete application owner by id")
+	} else if rowsDeleted == 0 {
+		// Log the error, but continue
+		log.V(logutil.LogLevel_Warn).Error(nil, "unexpected number of rows deleted for application owner ", "rowsDeleted", rowsDeleted)
+	}
+
 	// If the Application table entry still exists, finish the cleanup...
 
-	// 4) Remove the Application from the database
+	// 5) Remove the Application from the database
 	log.Info("GitOpsDeployment was deleted, so deleting Application row from database")
 	rowsDeleted, err = dbQueries.DeleteApplicationById(ctx, deplToAppMapping.Application_id)
 	if err != nil {

@@ -355,6 +355,37 @@ users:
 `
 }
 
+// HasFinalizers matches on whether or not a K8s object has the given finalizer(s)s
+func HasFinalizers(expectedFinalizers []string, k8sClient client.Client) matcher.GomegaMatcher {
+	return WithTransform(func(k8sObj client.Object) bool {
+
+		if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(k8sObj), k8sObj); err != nil {
+			fmt.Println(K8sClientError, err)
+			return false
+		}
+
+		for _, expectedFinalizer := range expectedFinalizers {
+
+			match := true
+
+			for _, finalizer := range k8sObj.GetFinalizers() {
+
+				if finalizer == expectedFinalizer {
+					match = true
+					break
+				}
+			}
+
+			if !match {
+				fmt.Println("Finalizer", expectedFinalizers, "not found on", k8sObj.GetName())
+				return false
+			}
+		}
+
+		return true
+	}, BeTrue())
+}
+
 func HasAnnotation(key, value string, k8sClient client.Client) matcher.GomegaMatcher {
 	return WithTransform(func(k8sObj client.Object) bool {
 

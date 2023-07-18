@@ -9,6 +9,8 @@ import (
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 
+	appstudiocontrollers "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
+
 	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
@@ -183,7 +185,6 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 				err = k8s.List(&deploymentTargetList, dtc.Namespace, k8sClient)
 				Expect(err).To(BeNil())
 
-				fmt.Println()
 				for _, dt := range deploymentTargetList.Items {
 					if strings.HasPrefix(dt.Name, dtc.Name+"-dt-") {
 						matchingDT = *dt.DeepCopy()
@@ -200,16 +201,18 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 
 			Expect(string(matchingDT.Spec.DeploymentTargetClassName)).Should(Equal(dtclass.Name))
 
-			Eventually(matchingDT.Spec.KubernetesClusterCredentials.DefaultNamespace, "60s", "1s").
+			Expect(matchingDT.Spec.KubernetesClusterCredentials.DefaultNamespace).
 				Should(Equal(expectedSpaceRequest.Status.NamespaceAccess[0].Name))
-			Eventually(matchingDT.Spec.KubernetesClusterCredentials.APIURL, "60s", "1s").
+			Expect(matchingDT.Spec.KubernetesClusterCredentials.APIURL).
 				Should(Equal(expectedSpaceRequest.Status.TargetClusterURL))
-			Eventually(matchingDT.Spec.KubernetesClusterCredentials.ClusterCredentialsSecret, "60s", "1s").
+			Expect(matchingDT.Spec.KubernetesClusterCredentials.ClusterCredentialsSecret).
 				Should(Equal(expectedSpaceRequest.Status.NamespaceAccess[0].SecretRef))
 
 			By("Step 7 - DT should be bound")
 
 			Eventually(matchingDT, "60s", "1s").Should(dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Bound))
+
+			Eventually(&matchingDT).Should(k8s.HasFinalizers([]string{appstudiocontrollers.FinalizerDT}, k8sClient))
 
 			By("Step 8 - DTC should be bound")
 

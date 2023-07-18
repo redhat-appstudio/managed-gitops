@@ -6,6 +6,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	appstudiocontrollers "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	dtfixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/deploymenttarget"
 	dtcfixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/deploymenttargetclaim"
@@ -100,6 +101,8 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 				dtcfixture.HasAnnotation(appstudiosharedv1.AnnBindCompleted, appstudiosharedv1.AnnBinderValueTrue),
 			))
 
+			Eventually(&dt).Should(k8s.HasFinalizers([]string{appstudiocontrollers.FinalizerDT}, k8sClient))
+
 			Eventually(dt, "2m", "1s").Should(
 				dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Bound))
 		})
@@ -128,6 +131,8 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 
 			Eventually(dt, "2m", "1s").Should(
 				dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Bound))
+
+			Eventually(&dt).Should(k8s.HasFinalizers([]string{appstudiocontrollers.FinalizerDT}, k8sClient))
 		})
 
 		It("should bind with a best match DT in the absence of provisioner/user created DT", func() {

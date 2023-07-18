@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -55,6 +56,38 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 				Client: k8sClient,
 				Scheme: scheme,
 			}
+		})
+
+		Context("Test the creation of a DeploymentTarget", func() {
+
+			When("A DeploymentTarget which is not referenced by any other CRs is created", func() {
+				It("should set the finalizer on the DeploymentTarget", func() {
+
+					By("creating a default DeploymentTarget")
+					dt := generateReclaimDeploymentTarget()
+					err := k8sClient.Create(ctx, &dt)
+					Expect(err).To(BeNil())
+
+					By("reconcile with a DeploymentTarget")
+					request := newRequest(dt.Namespace, dt.Name)
+					res, err := reconciler.Reconcile(ctx, request)
+					Expect(err).To(BeNil())
+					Expect(res).To(Equal(ctrl.Result{}))
+
+					By("check if the DT has set the finalizer")
+					err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
+					Expect(err).To(BeNil())
+					finalizerFound := false
+					for _, f := range dt.GetFinalizers() {
+						if f == FinalizerDT {
+							finalizerFound = true
+							break
+						}
+					}
+					Expect(finalizerFound).To(BeTrue())
+
+				})
+			})
 		})
 
 		Context("Test the reclaim of a DeploymentTarget", func() {
@@ -154,7 +187,175 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 				Expect(err).To(BeNil())
 				Expect(dt.Spec.ClaimRef).To(Equal(""))
 			})
+
+			When("a DT is deleted, but the SpaceRequest no longer exists", func() {
+
+				It("should unset the finalizer from the DT", func() {
+
+					By("creating a default DeploymentTargetClass with Delete policy")
+					dtcls := generateDeploymentTargetClass(func(dtc *appstudiosharedv1.DeploymentTargetClass) {
+						dtc.Spec.ReclaimPolicy = appstudiosharedv1.ReclaimPolicy_Delete
+					})
+					err := k8sClient.Create(ctx, &dtcls)
+					Expect(err).To(BeNil())
+
+					By("creating a default DeploymentTarget pointing to a non-existing DTC")
+					dt := generateReclaimDeploymentTarget()
+					dt.Finalizers = append(dt.Finalizers, FinalizerDT)
+					now := metav1.Now()
+					dt.DeletionTimestamp = &now
+					err = k8sClient.Create(ctx, &dt)
+					Expect(err).To(BeNil())
+
+					By("creating a DTClaim that matches the DeploymentTarget")
+					dtc := &appstudiosharedv1.DeploymentTargetClaim{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "test-dtc",
+							Namespace: "test-deployment",
+						},
+					}
+					Expect(k8sClient.Create(ctx, dtc)).To(Succeed())
+
+					By("not creating a SpaceRequest for the DT/DTC to reference")
+
+					Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)).To(Succeed())
+
+					request := newRequest(dt.Namespace, dt.Name)
+					res, err := reconciler.Reconcile(ctx, request)
+					Expect(err).To(BeNil())
+					Expect(res).To(Equal(ctrl.Result{}))
+
+					err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
+					Expect(apierr.IsNotFound(err)).To(BeTrue(), "the finalizer should have been removed, since the SpaceRequest doesn't exist")
+				})
+			})
+
+			When("a DT is deleted, but the DeploymentTargetClass is retain", func() {
+
+				It("should unset the finalizer from the DT", func() {
+
+					By("creating a default DeploymentTargetClass with Retain policy")
+					dtcls := generateDeploymentTargetClass(func(dtc *appstudiosharedv1.DeploymentTargetClass) {
+						dtc.Spec.ReclaimPolicy = appstudiosharedv1.ReclaimPolicy_Retain
+					})
+					err := k8sClient.Create(ctx, &dtcls)
+					Expect(err).To(BeNil())
+
+					By("creating a default DeploymentTarget pointing to a non-existing DTC")
+					dt := generateReclaimDeploymentTarget()
+					dt.Finalizers = append(dt.Finalizers, FinalizerDT)
+					now := metav1.Now()
+					dt.DeletionTimestamp = &now
+					err = k8sClient.Create(ctx, &dt)
+					Expect(err).To(BeNil())
+
+					By("creating a DeploymentTargetClaim that is referenced by the DT")
+					dtc := &appstudiosharedv1.DeploymentTargetClaim{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "test-dtc",
+							Namespace: "test-deployment",
+						},
+					}
+					Expect(k8sClient.Create(ctx, dtc)).To(Succeed())
+
+					By("creating a SpaceRequest that references the DTC")
+					spaceRequest := &codereadytoolchainv1alpha1.SpaceRequest{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "my-sr",
+							Namespace: dtc.Namespace,
+							Labels: map[string]string{
+								deploymentTargetClaimLabel: dtc.Name,
+							},
+						},
+					}
+					Expect(k8sClient.Create(context.Background(), spaceRequest)).To(Succeed())
+
+					Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)).To(Succeed())
+
+					request := newRequest(dt.Namespace, dt.Name)
+					res, err := reconciler.Reconcile(ctx, request)
+					Expect(err).To(BeNil())
+					Expect(res).To(Equal(ctrl.Result{}))
+
+					err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
+					Expect(apierr.IsNotFound(err)).To(BeTrue(), "the finalizer should have been removed, since the policy is Retain")
+
+				})
+			})
+
 		})
+
+		Context("Test findDeploymentTargetsForSpaceRequests", func() {
+
+			When("there is no matching DT for the space request", func() {
+				It("should return an empty set", func() {
+
+					spaceRequest := &codereadytoolchainv1alpha1.SpaceRequest{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "my-sr",
+							Namespace: "test-namespce",
+						},
+					}
+					Expect(k8sClient.Create(context.Background(), spaceRequest)).To(Succeed())
+
+					req := reconciler.findDeploymentTargetsForSpaceRequests(spaceRequest)
+					Expect(req).To(BeEmpty())
+				})
+			})
+
+			When("an invalid object is passed", func() {
+				It("should return an empty set", func() {
+
+					notASpaceRequest := &appstudiosharedv1.DeploymentTarget{}
+
+					req := reconciler.findDeploymentTargetsForSpaceRequests(notASpaceRequest)
+					Expect(req).To(BeEmpty())
+				})
+			})
+
+			When("there is a matching DT for the space request", func() {
+
+				It("should return the matching DT", func() {
+
+					dtc := &appstudiosharedv1.DeploymentTargetClaim{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "my-dtc",
+							Namespace: "test-namespace",
+						},
+					}
+					Expect(k8sClient.Create(context.Background(), dtc)).To(Succeed())
+
+					spaceRequest := &codereadytoolchainv1alpha1.SpaceRequest{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "my-sr",
+							Namespace: dtc.Namespace,
+							Labels: map[string]string{
+								deploymentTargetClaimLabel: dtc.Name,
+							},
+						},
+					}
+					Expect(k8sClient.Create(context.Background(), spaceRequest)).To(Succeed())
+
+					dt := &appstudiosharedv1.DeploymentTarget{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "my-dt",
+							Namespace: spaceRequest.Namespace,
+						},
+						Spec: appstudiosharedv1.DeploymentTargetSpec{
+							ClaimRef: dtc.Name,
+						},
+					}
+					Expect(k8sClient.Create(context.Background(), dt)).To(Succeed())
+
+					req := reconciler.findDeploymentTargetsForSpaceRequests(spaceRequest)
+					Expect(req).To(HaveLen(1))
+					Expect(req[0].NamespacedName).To(Equal(types.NamespacedName{Namespace: dt.Namespace, Name: dt.Name}))
+
+				})
+
+			})
+		})
+
 	})
 })
 

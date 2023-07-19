@@ -107,8 +107,8 @@ github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/argoproj-labs/argocd-operator v0.5.0 h1:dJIjEL4uy/H5PKf75AqTkNQctfXESy6ctRTwMnokxIQ=
 github.com/argoproj-labs/argocd-operator v0.5.0/go.mod h1:/sMLNAq4teuLSbAx/+pMBZM7ENLsXxrLjsG7E8NcSGI=
-github.com/argoproj/argo-cd/v2 v2.5.4 h1:AoPjSHfqXavl22vFH7yKVVwV0s//aCJnu0amuazGvMY=
-github.com/argoproj/argo-cd/v2 v2.5.4/go.mod h1:3ToENm286PFVlZKNMutBzOwNyhevz4fw9dcgyiq3FIY=
+github.com/argoproj/argo-cd/v2 v2.5.16 h1:zGIGNGlPNsKvTO7GGoSyr+MULzQhUCGQ7TyOcD9aZ7Q=
+github.com/argoproj/argo-cd/v2 v2.5.16/go.mod h1:nxVSyPpPPIUl/PFacLGKxx2L1p2y0I2OuguVi9J14I0=
 github.com/argoproj/gitops-engine v0.7.1-0.20230512020822-b4dd8b8c3976 h1:8i12dOcimhwrJxUznzZR/NW4JpIL5DXZjkI3Bl3yh38=
 github.com/argoproj/gitops-engine v0.7.1-0.20230512020822-b4dd8b8c3976/go.mod h1:WpA/B7tgwfz+sdNE3LqrTrb7ArEY1FOPI2pAGI0hfPc=
 github.com/argoproj/pkg v0.13.7-0.20221221191914-44694015343d h1:7fXEKF3OQ9i1PrgieA6FLrXOL3UAKyiotomn0RHevds=

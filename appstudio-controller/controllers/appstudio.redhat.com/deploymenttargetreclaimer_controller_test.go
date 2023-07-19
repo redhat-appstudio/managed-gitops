@@ -63,9 +63,16 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 			When("A DeploymentTarget which is not referenced by any other CRs is created", func() {
 				It("should set the finalizer on the DeploymentTarget", func() {
 
+					By("creating a default DeploymentTargetClass")
+					dtcls := generateDeploymentTargetClass(func(dtc *appstudiosharedv1.DeploymentTargetClass) {
+						dtc.Spec.ReclaimPolicy = appstudiosharedv1.ReclaimPolicy_Delete
+					})
+					err := k8sClient.Create(ctx, &dtcls)
+					Expect(err).To(BeNil())
+
 					By("creating a default DeploymentTarget")
 					dt := generateReclaimDeploymentTarget()
-					err := k8sClient.Create(ctx, &dt)
+					err = k8sClient.Create(ctx, &dt)
 					Expect(err).To(BeNil())
 
 					By("reconcile with a DeploymentTarget")

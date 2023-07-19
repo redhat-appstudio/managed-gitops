@@ -14,7 +14,6 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
@@ -908,7 +907,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 		log.V(logutil.LogLevel_Warn).Error(nil, "unexpected number of rows deleted for application", "rowsDeleted", rowsDeleted)
 	}
 
-	specFieldAppFromDB := appv1.Application{}
+	specFieldAppFromDB := fauxargocd.FauxApplication{}
 
 	if err := yaml.Unmarshal([]byte(dbApplication.Spec_field), &specFieldAppFromDB); err != nil {
 		log.Error(err, "SEVERE: unable to unmarshal DB application spec field")

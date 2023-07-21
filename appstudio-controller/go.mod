@@ -46,7 +46,7 @@ require (
 	github.com/vmihailenco/tagparser v0.1.2 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
-	mellium.im/sasl v0.2.1 // indirect
+	mellium.im/sasl v0.3.1 // indirect
 )
 
 require (

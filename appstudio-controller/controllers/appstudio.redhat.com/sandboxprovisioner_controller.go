@@ -120,6 +120,7 @@ func (r *SandboxProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.R
 			log.Error(err, "failed to create a new SpaceRequest for the DeploymentTargetClaim")
 			return ctrl.Result{}, err
 		}
+		logutil.LogAPIResourceChangeEvent(spaceRequest.Namespace, spaceRequest.Name, spaceRequest, logutil.ResourceCreated, log)
 	}
 
 	log.Info("A SpaceRequest for the DeploymentTargetClaim exists", "SpaceRequest.Name", spaceRequest.Name, "Namespace", spaceRequest.Namespace)

@@ -121,6 +121,8 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 					}
 					log.Info("DeploymentTarget is marked to Deleted", "DeploymentTarget", dt.Name)
 
+					logutil.LogAPIResourceChangeEvent(dt.Namespace, dt.Name, dt, logutil.ResourceDeleted, log)
+
 				} else if dtcls.Spec.ReclaimPolicy == applicationv1alpha1.ReclaimPolicy_Retain {
 					log.Info("ReclaimPolicy is ReclaimPolicy_Retain")
 					if removeFinalizer(&dtc, applicationv1alpha1.FinalizerBinder) {
@@ -265,6 +267,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 // setting the dtc.spec.targetName to the DT name and adding the "bound-by-controller" annotation to the DTC.
 // It also updates the phase of the DT and DTC to bound.
 func bindDeploymentTargetClaimToTarget(ctx context.Context, k8sClient client.Client, dtc *applicationv1alpha1.DeploymentTargetClaim, dt *applicationv1alpha1.DeploymentTarget, isBoundByController bool, log logr.Logger) error {
+
 	// Add bound-by-controller annotation if we are binding a DT that was matched by the binding controller.
 	if isBoundByController {
 		updated := false
@@ -287,8 +290,10 @@ func bindDeploymentTargetClaimToTarget(ctx context.Context, k8sClient client.Cli
 			if err := k8sClient.Update(ctx, dtc); err != nil {
 				return err
 			}
+			logutil.LogAPIResourceChangeEvent(dtc.Namespace, dtc.Name, dtc, logutil.ResourceModified, log)
+
+			log.Info("Added bound-by-controller annotation and/or updated the target name for DeploymentTargetClaim since the binding controller found the matching DeploymentTarget")
 		}
-		log.Info("Added bound-by-controller annotation and updated the target name for DeploymentTargetClaim since the binding controller found the matching DeploymentTarget")
 	}
 
 	// Set the status of DT and DTC to Bound

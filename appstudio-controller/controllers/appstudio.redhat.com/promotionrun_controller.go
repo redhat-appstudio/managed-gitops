@@ -157,7 +157,6 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun state: %v", err)
 		}
 
-		logutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, logutil.ResourceModified, log)
 		log.V(logutil.LogLevel_Debug).Info("updated PromotionRun state" + promotionRun.Name)
 	}
 
@@ -233,7 +232,8 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, fmt.Errorf("unable to update Binding '%s' snapshot: %v", binding.Name, err)
 		}
 
-		logutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, logutil.ResourceModified, log)
+		logutil.LogAPIResourceChangeEvent(binding.Namespace, binding.Name, binding, logutil.ResourceModified, log)
+
 		log.Info("Updating Binding: " + binding.Name + " to target the Snapshot: " + promotionRun.Spec.Snapshot)
 
 		// Set the time when of first reconcilation on a particular PromotionRun if not set already. This will be used later to check for time out of Promotion.
@@ -254,7 +254,6 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 			return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun active binding: %v", err)
 		}
-		logutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, logutil.ResourceModified, log)
 	}
 
 	// 3) Wait for the environment binding to create all of the expected GitOpsDeployments
@@ -536,7 +535,6 @@ func updateStatusEnvironmentStatus(ctx context.Context, client client.Client, di
 	if err := client.Status().Update(ctx, promotionRun); err != nil {
 		return err
 	}
-	logutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, logutil.ResourceModified, log)
 
 	return nil
 }

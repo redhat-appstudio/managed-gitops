@@ -25,6 +25,7 @@ import (
 	"github.com/codeready-toolchain/toolchain-common/pkg/condition"
 	applicationv1alpha1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,8 +36,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 )
 
 // DeploymentTargetReconciler reconciles a DeploymentTarget object
@@ -189,6 +188,7 @@ func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+		logutil.LogAPIResourceChangeEvent(sr.Namespace, sr.Name, sr, logutil.ResourceDeleted, log)
 
 		return ctrl.Result{Requeue: true}, nil
 	}

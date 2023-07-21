@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
+	"github.com/go-logr/logr"
 	applicationv1alpha1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -93,13 +94,14 @@ func (r *DevsandboxDeploymentReconciler) Reconcile(ctx context.Context, req ctrl
 	}
 
 	if dt == nil {
-		dt, err = createDeploymentTargetForSpaceRequest(ctx, r.Client, &spacerequest)
+		dt, err = createDeploymentTargetForSpaceRequest(ctx, r.Client, &spacerequest, log)
 		if err != nil {
 			log.Error(err, "failed to create the DeploymentTarget for a SpaceRequest")
 			return ctrl.Result{}, err
 		}
 
 		log.Info("DeploymentTarget has been created for SpaceRequest", "SpaceRequest.Name", spacerequest.Name, "SpaceRequest.Namespace", spacerequest.Namespace)
+		logutil.LogAPIResourceChangeEvent(dt.Namespace, dt.Name, dt, logutil.ResourceCreated, log)
 	}
 
 	log.Info("A DeploymentTarget for the SpaceRequest exists", "DeploymentTarget.Name", dt.Name, "Namespace", dt.Namespace)
@@ -180,7 +182,7 @@ func newDeploymentTarget(deploymentTargetClassName applicationv1alpha1.Deploymen
 
 // createDeploymentTargetForSpaceRequest creates and returns a new DeploymentTarget
 // If it's not possible to create it and set the SpaceRequest as the owner, an error will be returned
-func createDeploymentTargetForSpaceRequest(ctx context.Context, client client.Client, spacerequest *codereadytoolchainv1alpha1.SpaceRequest) (*applicationv1alpha1.DeploymentTarget, error) {
+func createDeploymentTargetForSpaceRequest(ctx context.Context, client client.Client, spacerequest *codereadytoolchainv1alpha1.SpaceRequest, log logr.Logger) (*applicationv1alpha1.DeploymentTarget, error) {
 
 	dtc, err := findMatchingDTCForSpaceRequest(ctx, client, spacerequest)
 	if err != nil {
@@ -210,6 +212,8 @@ func createDeploymentTargetForSpaceRequest(ctx context.Context, client client.Cl
 	if err != nil {
 		return nil, err
 	}
+
+	logutil.LogAPIResourceChangeEvent(deploymentTarget.Namespace, deploymentTarget.Name, deploymentTarget, logutil.ResourceCreated, log)
 
 	deploymentTarget.Status.Phase = applicationv1alpha1.DeploymentTargetPhase_Available // set phrase to "Available"
 	if err := client.Update(ctx, deploymentTarget); err != nil {

@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/yaml.v2"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -161,15 +162,10 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 			applicationState.ReconciledState = reconciledState
 
-			// Look for SyncError condition in the Argo CD Application status field, and if found, update the database row
-			syncErrorMessageFromArgoApplication := ""
-			for _, argoAppCondition := range app.Status.Conditions {
-				if argoAppCondition.Type == appv1.ApplicationConditionSyncError {
-					// Update syncError field of appliactionState only if type is SyncError
-					syncErrorMessageFromArgoApplication = db.TruncateVarchar(argoAppCondition.Message, db.ApplicationStateSyncErrorLength)
-				}
+			if err := setApplicationConditions(applicationState, app.Status.Conditions); err != nil {
+				log.Error(err, "failed to set Application conditions in ApplicationState DB")
+				return ctrl.Result{}, err
 			}
-			applicationState.SyncError = syncErrorMessageFromArgoApplication
 
 			if errCreate := r.Cache.CreateApplicationState(ctx, *applicationState); errCreate != nil {
 				log.Error(errCreate, "unexpected error on writing new application state")
@@ -217,15 +213,10 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	applicationState.ReconciledState = reconciledState
 
-	// Look for SyncError condition in the Argo CD Application status field, and if found, update the database row
-	syncErrorMessageFromArgoApplication := ""
-	for _, argoAppCondition := range app.Status.Conditions {
-		if argoAppCondition.Type == appv1.ApplicationConditionSyncError {
-			// Update syncError field of appliactionState only if type is SyncError
-			syncErrorMessageFromArgoApplication = db.TruncateVarchar(argoAppCondition.Message, db.ApplicationStateSyncErrorLength)
-		}
+	if err := setApplicationConditions(applicationState, app.Status.Conditions); err != nil {
+		log.Error(err, "failed to set Application conditions in ApplicationState DB")
+		return ctrl.Result{}, err
 	}
-	applicationState.SyncError = syncErrorMessageFromArgoApplication
 
 	if err := r.Cache.UpdateApplicationState(ctx, *applicationState); err != nil {
 
@@ -330,4 +321,21 @@ func storeInComparedToFieldInApplicationState(argoCDAppParam appv1.Application, 
 	applicationState.ReconciledState = (string)(comparedToBytes)
 
 	return applicationState.ReconciledState, nil
+}
+
+func setApplicationConditions(appState *db.ApplicationState, conditions []appv1.ApplicationCondition) error {
+	if len(conditions) == 0 {
+		return nil
+	}
+
+	for _, c := range conditions {
+		c.Message = db.TruncateVarchar(c.Message, db.ApplicationStateConditionMessageLength)
+	}
+
+	conditionBytes, err := yaml.Marshal(conditions)
+	if err != nil {
+		return err
+	}
+	appState.Conditions = conditionBytes
+	return nil
 }

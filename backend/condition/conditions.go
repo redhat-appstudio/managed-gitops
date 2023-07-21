@@ -33,9 +33,8 @@ func (c *ConditionManager) SetCondition(conditions *[]v1alpha1.GitOpsDeploymentC
 
 		condition.LastTransitionTime = &now
 	}
-	if message != "" {
-		condition.Message = message
-	}
+
+	condition.Message = message
 	condition.LastProbeTime = now
 	condition.Reason = reason
 	condition.Status = status

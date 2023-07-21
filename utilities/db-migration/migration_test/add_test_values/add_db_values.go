@@ -68,8 +68,8 @@ var (
 		Health:                          "Healthy",
 		Sync_Status:                     "Synced",
 		ReconciledState:                 "test-reconcile",
-		SyncError:                       "test-sync-error",
 		OperationState:                  []byte("operation_state"),
+		Conditions:                      []byte("conditions"),
 	}
 
 	AddTest_PreDTAM = db.DeploymentToApplicationMapping{

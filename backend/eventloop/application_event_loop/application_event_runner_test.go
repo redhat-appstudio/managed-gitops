@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/gitopserrors"
+	"gopkg.in/yaml.v2"
 
 	"github.com/golang/mock/gomock"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1/mocks"
@@ -340,6 +341,20 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(compressedOpState).ToNot(BeNil())
 
+			appConditions := []managedgitopsv1alpha1.ApplicationCondition{
+				{
+					Type:    managedgitopsv1alpha1.ApplicationConditionComparisonError,
+					Message: "comparision error",
+				},
+				{
+					Type:    managedgitopsv1alpha1.ApplicationConditionSharedResourceWarning,
+					Message: "shared resource warning",
+				},
+			}
+
+			conditionBytes, err := yaml.Marshal(appConditions)
+			Expect(err).To(BeNil())
+
 			applicationState := &db.ApplicationState{
 				Applicationstate_application_id: deplToAppMapping.Application_id,
 				Health:                          string(managedgitopsv1alpha1.HeathStatusCodeHealthy),
@@ -348,8 +363,8 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				Message:                         "Success",
 				Resources:                       compressedResources,
 				ReconciledState:                 reconciledStateString,
-				SyncError:                       "test-sync-error",
 				OperationState:                  compressedOpState,
+				Conditions:                      conditionBytes,
 			}
 
 			err = dbQueries.CreateApplicationState(ctx, applicationState)
@@ -405,13 +420,17 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(gitopsDeployment.Status.OperationState.Operation).To(Equal(operationState.Operation))
 			Expect(gitopsDeployment.Status.OperationState.SyncResult).To(Equal(operationState.SyncResult))
 
-			matchingCondition, _ := conditions.NewConditionManager().FindCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError)
-			Expect(matchingCondition).ToNot(BeNil())
-			Expect(matchingCondition.Message).To(Equal(applicationState.SyncError))
-			Expect(matchingCondition.Status).To(Equal(managedgitopsv1alpha1.GitOpsConditionStatusTrue))
-			Expect(matchingCondition.Type).To(Equal(managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError))
+			By("verify if conditions from both ApplicationState and GitOpsDeployment match")
+			for _, c := range appConditions {
+				matchingCondition, _ := conditions.NewConditionManager().FindCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionType(c.Type))
 
-			By("Update SyncError in ApplicationState to be empty")
+				Expect(matchingCondition).ToNot(BeNil())
+				Expect(matchingCondition.Message).To(Equal(c.Message))
+				Expect(matchingCondition.Type).To(Equal(managedgitopsv1alpha1.GitOpsDeploymentConditionType(c.Type)))
+				Expect(matchingCondition.Status).To(Equal(managedgitopsv1alpha1.GitOpsConditionStatusTrue))
+			}
+
+			By("Update conditions in ApplicationState to be empty")
 			applicationState = &db.ApplicationState{
 				Applicationstate_application_id: deplToAppMapping.Application_id,
 				Health:                          string(managedgitopsv1alpha1.HeathStatusCodeHealthy),
@@ -420,14 +439,10 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				Message:                         "Success",
 				Resources:                       compressedResources,
 				ReconciledState:                 reconciledStateString,
-				SyncError:                       "",
 			}
 
 			err = dbQueries.UpdateApplicationState(ctx, applicationState)
 			Expect(err).ToNot(HaveOccurred())
-
-			By("Verify whether status condition of syncError is true")
-			Expect(gitopsDeployment.Status.Conditions[0].Status).To(Equal(managedgitopsv1alpha1.GitOpsConditionStatusTrue))
 
 			updated, err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
 			Expect(err).ToNot(HaveOccurred())
@@ -436,10 +451,12 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
 			Expect(clientErr).ToNot(HaveOccurred())
 
-			By("Verify status condition of syncError is false as applicationState.SyncError is empty and gitopsDeployment syncError condition is true and updated from true to false after calling deploymentStatusTick")
-			matchingCondition, _ = conditions.NewConditionManager().FindCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError)
-			Expect(matchingCondition).ToNot(BeNil())
-			Expect(matchingCondition.Status).To(Equal(managedgitopsv1alpha1.GitOpsConditionStatusFalse))
+			By("Verify that the status of existing GitOpsDeployment conditions is false as applicationState.conditions is empty")
+			for _, c := range gitopsDeployment.Status.Conditions {
+				Expect(c).ToNot(BeNil())
+				Expect(c.Message).To(BeEmpty())
+				Expect(c.Status).To(Equal(managedgitopsv1alpha1.GitOpsConditionStatusFalse))
+			}
 
 			By("attempting to update the deployment status tick, even though nothing has changed.")
 			updated, err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)

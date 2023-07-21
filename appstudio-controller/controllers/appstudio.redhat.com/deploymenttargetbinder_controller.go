@@ -453,6 +453,11 @@ func findMatchingDTForDTC(ctx context.Context, k8sClient client.Client, dtc appl
 // 3. DT should have the cluster credentials.
 func doesDTMatchDTC(dt applicationv1alpha1.DeploymentTarget, dtc applicationv1alpha1.DeploymentTargetClaim) (err error) {
 	mismatchErr := mismatchErrWrap(dt.Name, dtc.Name, dtc.Namespace)
+
+	if dt.Spec.ClaimRef != "" && dt.Spec.ClaimRef != dtc.Name {
+		return mismatchErr("DeploymentTarget already references another DeploymentTargetClaim via DeploymentTarget's .spec.claimRef field")
+	}
+
 	if dt.Spec.DeploymentTargetClassName != dtc.Spec.DeploymentTargetClassName {
 		return mismatchErr("deploymentTargetClassName does not match")
 	}

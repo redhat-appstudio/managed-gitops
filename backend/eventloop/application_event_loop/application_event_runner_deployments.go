@@ -1052,21 +1052,26 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 	gitopsDeployment.Status.Sync.Status = managedgitopsv1alpha1.SyncStatusCode(applicationState.Sync_Status)
 	gitopsDeployment.Status.Sync.Revision = applicationState.Revision
 
-	// We update the GitopsDeployment .status.conditions with SyncError condition, if the sync_error column of ApplicationState row is non empty
-	// - The sync_error column of ApplicationState row is based on the .status.conditions[type="ApplicationConditionSyncError"].message field.
-	// - This allows us to pass Argo CD sync errors back to the user.
+	// We update the GitopsDeployment .status.conditions with the conditions from the Argo CD Application, if the conditions column of ApplicationState row is non empty.
+	newGitopsDeplConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{}
+	if len(applicationState.Conditions) != 0 {
+		if err := yaml.Unmarshal(applicationState.Conditions, &newGitopsDeplConditions); err != nil {
+			log.Error(err, "failed to unmarshal ApplicationState conditions")
+			return crUpdated_false, err
+		}
+	}
 
-	if applicationState.SyncError != "" {
-		condition.NewConditionManager().SetCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError,
-			managedgitopsv1alpha1.GitOpsConditionStatusTrue, managedgitopsv1alpha1.GitopsDeploymentReasonSyncError, applicationState.SyncError)
-	} else {
-		conditionManager := condition.NewConditionManager()
-		// Update syncError Condition as false if applicationState.SyncError field in database is empty by checking if the condition field is empty or not
-		if conditionManager.HasCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError) {
-			reason := managedgitopsv1alpha1.GitopsDeploymentReasonSyncError + "Resolved"
-			if cond, _ := conditionManager.FindCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError); cond.Reason != reason {
-				conditionManager.SetCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError, managedgitopsv1alpha1.GitOpsConditionStatusFalse, reason, "")
-			}
+	conditionManager := condition.NewConditionManager()
+	for _, c := range newGitopsDeplConditions {
+		// If the new condition already exists, then update it with the latest values.
+		conditionManager.SetCondition(&gitopsDeployment.Status.Conditions, c.Type, managedgitopsv1alpha1.GitOpsConditionStatusTrue, managedgitopsv1alpha1.GitOpsDeploymentReasonType(c.Type), c.Message)
+	}
+
+	// Go through the existing conditions and check if they are present in the list of new conditions. If they are absent then it can marked as resolved.
+	for _, c := range gitopsDeployment.Status.Conditions {
+		reason := c.Type + "resolved"
+		if !conditionManager.HasCondition(&newGitopsDeplConditions, c.Type) && c.Reason != managedgitopsv1alpha1.GitOpsDeploymentReasonType(reason) {
+			conditionManager.SetCondition(&gitopsDeployment.Status.Conditions, c.Type, managedgitopsv1alpha1.GitOpsConditionStatusFalse, managedgitopsv1alpha1.GitOpsDeploymentReasonType(reason), "")
 		}
 	}
 

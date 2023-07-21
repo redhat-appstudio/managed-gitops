@@ -314,8 +314,8 @@ CREATE TABLE ApplicationState (
 	-- of the Argo CD cluster secret.
 	reconciled_state VARCHAR (4096),
 
-	-- sync_error is a string, which contains the Argo CD Application's .status.conditions.message which is of type SyncError
-	sync_error VARCHAR (4096),
+	-- conditions field comes directly from Argo CD Application CR's .status.conditions field
+	conditions bytea,
 
 	-- operation_state comes directly from Argo CD Application CR's .status.operationState field 
 	operation_state bytea

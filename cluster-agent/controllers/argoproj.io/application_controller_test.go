@@ -304,7 +304,7 @@ var _ = Describe("Application Controller", func() {
 				Health:                          "Progressing",
 				Sync_Status:                     "OutOfSync",
 				ReconciledState:                 reconciledStateString,
-				SyncError:                       "test-sync-error",
+				Conditions:                      []byte("sample-condition"),
 			}
 
 			By("Create Application in Database")
@@ -667,7 +667,7 @@ var _ = Describe("Application Controller", func() {
 			Expect(reconciledStateObj.Destination.Namespace).To(Equal(guestbookApp.Status.Sync.ComparedTo.Destination.Namespace))
 		})
 
-		It("Test to check whether syncError field is stored in database", func() {
+		It("Test to check whether conditions field is stored in database", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
@@ -675,12 +675,19 @@ var _ = Describe("Application Controller", func() {
 
 			ctx = context.Background()
 
-			app := appv1.ApplicationCondition{
-				Type:               "SyncError",
-				Message:            "Failed to sync",
-				LastTransitionTime: &metav1.Time{Time: time.Now()},
+			appConditions := []appv1.ApplicationCondition{
+				{
+					Type:               appv1.ApplicationConditionSyncError,
+					Message:            "Failed to sync",
+					LastTransitionTime: &metav1.Time{Time: time.Now()},
+				},
+				{
+					Type:               appv1.ApplicationConditionOrphanedResourceWarning,
+					Message:            "orphaned resource warning",
+					LastTransitionTime: &metav1.Time{Time: time.Now()},
+				},
 			}
-			guestbookApp.Status.Conditions = append(guestbookApp.Status.Conditions, app)
+			guestbookApp.Status.Conditions = append(guestbookApp.Status.Conditions, appConditions...)
 
 			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
@@ -704,7 +711,7 @@ var _ = Describe("Application Controller", func() {
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateDB)
 			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
-			Expect(applicationStateDB.SyncError).To(BeEmpty())
+			Expect(applicationStateDB.Conditions).To(BeNil())
 
 			By("Create a new ArgoCD Application")
 			err = reconciler.Create(ctx, guestbookApp)
@@ -719,11 +726,11 @@ var _ = Describe("Application Controller", func() {
 			Expect(applicationStateDB.ReconciledState).ToNot(BeNil())
 			Expect(err).ToNot(HaveOccurred())
 
-			By("Verifying that the ApplicationState DB row has been updated to match the Application SyncError")
-			Expect(applicationStateDB.SyncError).To(Equal("Failed to sync"))
+			By("Verifying that the ApplicationState DB row has been updated to match the Application conditions")
+			Expect(len(applicationStateDB.Conditions)).To(Equal(len(guestbookApp.Status.Conditions)))
 		})
 
-		It("Test to verify the conditions.Type is not equal to 'SyncError' then db field should be empty", func() {
+		It("Test to verify if the conditions is empty if there are no Application conditions", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
@@ -769,13 +776,6 @@ var _ = Describe("Application Controller", func() {
 							},
 						},
 					},
-					Conditions: []appv1.ApplicationCondition{
-						{
-							Type:               appv1.ApplicationConditionUnknownError,
-							Message:            "testing error",
-							LastTransitionTime: &metav1.Time{Time: time.Now()},
-						},
-					},
 				},
 			}
 
@@ -801,7 +801,7 @@ var _ = Describe("Application Controller", func() {
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateDB)
 			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
-			Expect(applicationStateDB.SyncError).To(BeEmpty())
+			Expect(applicationStateDB.Conditions).To(BeEmpty())
 
 			By("Create a new ArgoCD Application")
 			err = reconciler.Create(ctx, guestbookApp)
@@ -816,11 +816,11 @@ var _ = Describe("Application Controller", func() {
 			Expect(applicationStateDB.ReconciledState).ToNot(BeNil())
 			Expect(err).ToNot(HaveOccurred())
 
-			By("Verifying that the ApplicationState DB row has been updated to match the Application SyncError")
-			Expect(applicationStateDB.SyncError).To(BeEmpty())
+			By("Verifying that the ApplicationState DB row has been updated to match the Application conditions")
+			Expect(applicationStateDB.Conditions).To(BeEmpty())
 		})
 
-		It("Test to check whether existing value in syncError field is updated to new value when conditions.Message of ArgoCD Application changes", func() {
+		It("Test to check whether existing condition value is updated to new value when conditions.Message of ArgoCD Application changes", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
@@ -847,7 +847,7 @@ var _ = Describe("Application Controller", func() {
 				Health:                          "Healthy",
 				Sync_Status:                     "Synced",
 				ReconciledState:                 reconciledStateString,
-				SyncError:                       "test-sync-error",
+				Conditions:                      []byte("sample-error"),
 			}
 
 			By("Create a new ArgoCD Application")
@@ -875,8 +875,15 @@ var _ = Describe("Application Controller", func() {
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateget)
 			Expect(err).ToNot(HaveOccurred())
 
-			By("Verifying that the ApplicationState DB row has been updated to match the Application SyncError")
-			Expect(applicationStateget.SyncError).To(Equal("Failed to sync"))
+			By("Verifying that the ApplicationState DB row has been updated to match the Application Conditions")
+			Expect(len(applicationStateget.Conditions)).To(Equal(1))
+
+			appConditions := []appv1.ApplicationCondition{}
+			err = yaml.Unmarshal(applicationState.Conditions, appConditions)
+			Expect(err).To(BeNil())
+			Expect(len(appConditions)).To(Equal(1))
+			Expect(appConditions[0].Type).To(Equal("SyncError"))
+			Expect(appConditions[0].Message).To(Equal("Failed to sync"))
 		})
 	})
 

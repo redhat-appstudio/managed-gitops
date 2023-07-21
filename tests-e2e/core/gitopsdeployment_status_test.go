@@ -196,5 +196,46 @@ var _ = Describe("GitOpsDeployment Status.Conditions tests", func() {
 				),
 			)
 		})
+
+		It("ensures that the conditions are propagated from Application to GitOpsDeployment", func() {
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			By("create an invalid GitOpsDeployment application with invalid Repo URL")
+			gitOpsDeploymentResource := managedgitopsv1alpha1.GitOpsDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "managed-environment-gitops-depl",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+					Source: managedgitopsv1alpha1.ApplicationSource{
+						RepoURL: "https://github.com/redhat-appstudio/managed-gito",
+						Path:    "/path",
+					},
+					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated,
+				},
+			}
+
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
+			Expect(err).To(Succeed())
+
+			errMessage := `rpc error: code = Unknown desc = authentication required`
+			expectedConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{
+				{
+					Type:    managedgitopsv1alpha1.ApplicationConditionComparisonError,
+					Message: errMessage,
+					Status:  managedgitopsv1alpha1.GitOpsConditionStatusTrue,
+					Reason:  managedgitopsv1alpha1.ApplicationConditionComparisonError,
+				},
+			}
+
+			Eventually(gitOpsDeploymentResource, "5m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveConditions(expectedConditions),
+				),
+			)
+		})
 	})
 })

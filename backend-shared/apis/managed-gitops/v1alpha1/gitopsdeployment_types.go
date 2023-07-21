@@ -450,6 +450,42 @@ const (
 	GitOpsConditionStatusUnknown GitOpsConditionStatus = "Unknown"
 )
 
+// ApplicationCondition indicates the condition reported by the Argo CD Application CR.
+type ApplicationCondition struct {
+	// Type is an application condition type
+	Type ApplicationConditionType `json:"type"`
+
+	// Message contains human-readable message indicating details about condition
+	Message string `json:"message"`
+}
+
+// ApplicationConditionType represents type of application condition. Type name has following convention:
+// prefix "Error" means error condition
+// prefix "Warning" means warning condition
+// prefix "Info" means informational condition
+type ApplicationConditionType string
+
+const (
+	// ApplicationConditionDeletionError indicates that controller failed to delete application
+	ApplicationConditionDeletionError = "DeletionError"
+	// ApplicationConditionInvalidSpecError indicates that application source is invalid
+	ApplicationConditionInvalidSpecError = "InvalidSpecError"
+	// ApplicationConditionComparisonError indicates controller failed to compare application state
+	ApplicationConditionComparisonError = "ComparisonError"
+	// ApplicationConditionSyncError indicates controller failed to automatically sync the application
+	ApplicationConditionSyncError = "SyncError"
+	// ApplicationConditionUnknownError indicates an unknown controller error
+	ApplicationConditionUnknownError = "UnknownError"
+	// ApplicationConditionSharedResourceWarning indicates that controller detected resources which belongs to more than one application
+	ApplicationConditionSharedResourceWarning = "SharedResourceWarning"
+	// ApplicationConditionRepeatedResourceWarning indicates that application source has resource with same Group, Kind, Name, Namespace multiple times
+	ApplicationConditionRepeatedResourceWarning = "RepeatedResourceWarning"
+	// ApplicationConditionExcludedResourceWarning indicates that application has resource which is configured to be excluded
+	ApplicationConditionExcludedResourceWarning = "ExcludedResourceWarning"
+	// ApplicationConditionOrphanedResourceWarning indicates that application has orphaned resources
+	ApplicationConditionOrphanedResourceWarning = "OrphanedResourceWarning"
+)
+
 type GitOpsDeploymentReasonType string
 
 const (

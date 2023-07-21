@@ -47,7 +47,7 @@ const (
 	ApplicationStateRevisionLength                                          = 1024
 	ApplicationStateSyncStatusLength                                        = 30
 	ApplicationStateReconciledStateLength                                   = 4096
-	ApplicationStateSyncErrorLength                                         = 4096
+	ApplicationStateConditionMessageLength                                  = 4096
 	DeploymentToApplicationMappingDeploymenttoapplicationmappingUIDIDLength = 48
 	DeploymentToApplicationMappingNameLength                                = 256
 	DeploymentToApplicationMappingNamespaceLength                           = 96
@@ -160,7 +160,6 @@ var DbFieldMap = map[string]int{
 	"ApplicationStateSyncStatusLength":                                        ApplicationStateSyncStatusLength,
 	"ApplicationStateResourcesLength":                                         262144, /*Size is defined here because table doesn't have byte Array limit.*/
 	"ApplicationStateReconciledStateLength":                                   ApplicationStateReconciledStateLength,
-	"ApplicationStateSyncErrorLength":                                         ApplicationStateSyncErrorLength,
 	"DeploymentToApplicationMappingDeploymenttoapplicationmappingUIDIDLength": DeploymentToApplicationMappingDeploymenttoapplicationmappingUIDIDLength,
 	"DeploymentToApplicationMappingNameLength":                                DeploymentToApplicationMappingNameLength,
 	"DeploymentToApplicationMappingDeploymentNameLength":                      DeploymentToApplicationMappingNameLength,

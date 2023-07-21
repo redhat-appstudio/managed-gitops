@@ -1127,6 +1127,70 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			err = dbq.GetApplicationById(ctx, &application)
 			Expect(err).To(BeNil())
 		})
+
+		It("Should verify when an orphaned Application is deleted, ApplicationOwner is deleted as well", func() {
+			defer dbq.CloseDatabase()
+
+			By("Create application row without DTAM entry.")
+
+			// Create dummy Application Spec to be saved in DB
+			dummyApplicationSpec := fauxargocd.FauxApplication{
+				FauxObjectMeta: fauxargocd.FauxObjectMeta{
+					Namespace: "argocd",
+				},
+			}
+			dummyApplicationSpecBytes, err := yaml.Marshal(dummyApplicationSpec)
+			Expect(err).To(BeNil())
+
+			applicationNew := db.Application{
+				Application_id:          "test-app-" + string(uuid.NewUUID()),
+				Name:                    "test-app-" + string(uuid.NewUUID()),
+				Spec_field:              string(dummyApplicationSpecBytes),
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+			err = dbq.CreateApplication(ctx, &applicationNew)
+			Expect(err).To(BeNil())
+
+			// Create DB entry for ClusterUser
+			clusterUserDb := &db.ClusterUser{
+				Clusteruser_id: "test-repocred-user-id",
+				User_name:      "test-repocred-user",
+			}
+			err = dbq.CreateClusterUser(ctx, clusterUserDb)
+			Expect(err).To(BeNil())
+
+			applicationOwner := db.ApplicationOwner{
+				ApplicationOwnerApplicationID: applicationNew.Application_id,
+				ApplicationOwnerUserID:        clusterUserDb.Clusteruser_id,
+			}
+
+			err = dbq.CreateApplicationOwner(ctx, &applicationOwner)
+			Expect(err).To(BeNil())
+
+			// Change "Created_on" field using UpdateApplication function since CreateApplication does not allow to insert custom "Created_on" field.
+			err = dbq.GetApplicationById(ctx, &applicationNew)
+			Expect(err).To(BeNil())
+
+			// Set "Created_on" field more than waitTimeforRowDelete
+			applicationNew.Created_on = time.Now().Add(time.Duration(-(waitTimeforRowDelete + 1)))
+			err = dbq.UpdateApplication(ctx, &applicationNew)
+			Expect(err).To(BeNil())
+
+			By("Call clean-up function.")
+			cleanOrphanedEntriesfromTable_Application(ctx, dbq, k8sClient, true, log)
+
+			By("Verify that application row is deleted from DB.")
+			err = dbq.GetApplicationById(ctx, &applicationNew)
+			Expect(err).NotTo(BeNil())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+
+			By("Verify that applicationOwner row is deleted from DB.")
+			err = dbq.GetApplicationOwnerByApplicationID(ctx, &applicationOwner)
+			Expect(err).NotTo(BeNil())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+
+		})
 	})
 
 	Context("Testing cleanOrphanedEntriesfromTable function for RepositoryCredentials table entries.", func() {

@@ -1065,6 +1065,27 @@ func (cdb *ChaosDBClient) CountAppProjectManagedEnvironmentByClusterUserID(ctx c
 	return cdb.InnerClient.CountAppProjectManagedEnvironmentByClusterUserID(ctx, obj)
 }
 
+func (cdb *ChaosDBClient) CreateApplicationOwner(ctx context.Context, obj *ApplicationOwner) error {
+	if err := shouldSimulateFailure("CreateApplicationOwner", obj); err != nil {
+		return err
+	}
+	return cdb.InnerClient.CreateApplicationOwner(ctx, obj)
+}
+
+func (cdb *ChaosDBClient) DeleteApplicationOwner(ctx context.Context, applicationowner_application_id string) (int, error) {
+	if err := shouldSimulateFailure("DeleteApplicationOwner", applicationowner_application_id); err != nil {
+		return 0, err
+	}
+	return cdb.InnerClient.DeleteApplicationOwner(ctx, applicationowner_application_id)
+}
+
+func (cdb *ChaosDBClient) GetApplicationOwnerByApplicationID(ctx context.Context, obj *ApplicationOwner) error {
+	if err := shouldSimulateFailure("GetApplicationOwnerByApplicationID", obj); err != nil {
+		return err
+	}
+	return cdb.InnerClient.GetApplicationOwnerByApplicationID(ctx, obj)
+}
+
 func (cdb *ChaosDBClient) CloseDatabase() {
 	cdb.InnerClient.CloseDatabase()
 }

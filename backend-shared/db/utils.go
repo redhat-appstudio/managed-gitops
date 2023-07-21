@@ -305,6 +305,22 @@ func SetupForTestingDBGinkgo() error {
 
 	defer dbq.CloseDatabase()
 
+	var applicationOwners []ApplicationOwner
+	err = dbq.UnsafeListAllApplicationOwners(ctx, &applicationOwners)
+	Expect(err).To(BeNil())
+
+	for _, applicationOwner := range applicationOwners {
+		if strings.HasPrefix(applicationOwner.ApplicationOwnerApplicationID, "test-") {
+
+			rowsAffected, err := dbq.DeleteApplicationOwner(ctx, applicationOwner.ApplicationOwnerApplicationID)
+			Expect(err).To(BeNil())
+
+			if err == nil {
+				Expect(rowsAffected).Should(Equal(1))
+			}
+		}
+	}
+
 	var syncOperations []SyncOperation
 
 	err = dbq.UnsafeListAllSyncOperations(ctx, &syncOperations)

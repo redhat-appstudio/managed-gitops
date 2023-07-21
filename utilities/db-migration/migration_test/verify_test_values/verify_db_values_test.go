@@ -199,6 +199,14 @@ var _ = Describe("Test to verify that the data added to database is still presen
 			err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepo)
 			Expect(err).To(BeNil())
 
+			By("Get ApplicationOwner pointing to the Application")
+			applicationOwner := db.ApplicationOwner{
+				ApplicationOwnerApplicationID: applicationDB.Application_id,
+			}
+
+			err = dbq.GetApplicationOwnerByApplicationID(ctx, &applicationOwner)
+			Expect(err).To(BeNil())
+
 		})
 
 	})

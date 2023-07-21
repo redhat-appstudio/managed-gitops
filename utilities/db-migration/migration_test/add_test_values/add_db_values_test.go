@@ -108,6 +108,12 @@ var _ = Describe("Test to populate the database fields", func() {
 			appProjectManagedEnv := AddTest_PreAppProjectManagedEnv
 			err = dbq.CreateAppProjectManagedEnvironment(ctx, &appProjectManagedEnv)
 			Expect(err).To(BeNil())
+
+			By("Create an ApplicationOwner pointing to the Application")
+			applicationOwner := AddTest_PreApplicationOwner
+			err = dbq.CreateApplicationOwner(ctx, &applicationOwner)
+			Expect(err).To(BeNil())
+
 		})
 
 	})

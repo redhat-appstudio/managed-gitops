@@ -544,6 +544,24 @@ type AppProjectManagedEnvironment struct {
 	Created_on time.Time `pg:"created_on"`
 }
 
+// ApplicationOwner indicates which Applications are owned by which user(s)
+type ApplicationOwner struct {
+
+	//lint:ignore U1000 used by go-pg
+	tableName struct{} `pg:"applicationowner"` //nolint
+
+	// -- Foreign key to Application.application_id
+	ApplicationOwnerApplicationID string `pg:"application_owner_application_id,pk,notnull"`
+
+	// -- Foreign key to: ClusterUser.clusteruser_id
+	ApplicationOwnerUserID string `pg:"application_owner_user_id,pk,notnull"`
+
+	SeqID int64 `pg:"seq_id"`
+
+	// -- When ClusterUser was created, which allows us to tell how old the resources are
+	Created_on time.Time `pg:"created_on"`
+}
+
 // hasEmptyValues returns error if any of the notnull tagged fields are empty.
 func (rc *RepositoryCredentials) hasEmptyValues(fieldNamesToIgnore ...string) error {
 	s := reflect.ValueOf(rc).Elem()

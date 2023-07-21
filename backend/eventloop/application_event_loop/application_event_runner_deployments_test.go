@@ -613,6 +613,16 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			Expect(err).To(BeNil())
 			Expect(rows).To(Equal(1))
 
+			clusterUser := db.ClusterUser{
+				User_name: string(workspace.UID),
+			}
+			err = dbQueries.GetClusterUserByUsername(context.Background(), &clusterUser)
+			Expect(err).To(BeNil())
+
+			rows, err = dbQueries.DeleteApplicationOwner(ctx, deplToAppMappingFirst.Application_id)
+			Expect(err).To(BeNil())
+			Expect(rows).To(Equal(1))
+
 			rows, err = dbQueries.DeleteApplicationById(ctx, deplToAppMappingFirst.Application_id)
 			Expect(err).To(BeNil())
 			Expect(rows).To(Equal(1))
@@ -955,6 +965,121 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			Expect(userDevErr).To(BeNil())
 			Expect(res).To(Equal(deploymentModifiedResult_NoChange),
 				"since the Namespace is being deleted, the request should not be acted upon")
+		})
+
+		It("Should verify whether ApplicationOwner row has been created, retrieved and deleted.", func() {
+			By("Create new deployment.")
+			var message deploymentModifiedResult
+			_, _, _, message, userDevErr := appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(userDevErr).To(BeNil())
+			Expect(message).To(Equal(deploymentModifiedResult_Created))
+
+			var appMappings []db.DeploymentToApplicationMapping
+			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
+
+			Expect(err).To(BeNil())
+			Expect(len(appMappings)).To(Equal(1))
+
+			deplToAppMappingFirst := appMappings[0]
+			application := db.Application{Application_id: deplToAppMappingFirst.Application_id}
+			err = dbQueries.GetApplicationById(context.Background(), &application)
+			Expect(err).To(BeNil())
+
+			clusterUser := db.ClusterUser{
+				User_name: string(workspace.UID),
+			}
+			err = dbQueries.GetClusterUserByUsername(context.Background(), &clusterUser)
+			Expect(err).To(BeNil())
+
+			By("Verify whether ApplicationOwner has been created in database")
+			applicationOwner := db.ApplicationOwner{
+				ApplicationOwnerApplicationID: application.Application_id,
+			}
+
+			err = dbQueries.GetApplicationOwnerByApplicationID(context.Background(), &applicationOwner)
+			Expect(err).To(BeNil())
+
+			By("Verify whether ApplicationOwner exists when Application row is updated")
+			err = dbQueries.GetApplicationById(context.Background(), &application)
+			Expect(err).To(BeNil())
+
+			application.Spec_field = "test-update-application"
+			err := dbQueries.UpdateApplication(ctx, &application)
+			Expect(err).To(BeNil())
+
+			_, _, _, result, userDevErr := appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(userDevErr).To(BeNil())
+			Expect(result).To(Equal(deploymentModifiedResult_Updated))
+
+			err = dbQueries.GetApplicationOwnerByApplicationID(context.Background(), &applicationOwner)
+			Expect(err).To(BeNil())
+
+			By("Verify whether ApplicationOwner has been deleted")
+			err = k8sClient.Delete(ctx, gitopsDepl)
+			Expect(err).To(BeNil())
+
+			_, _, _, message, userDevErr = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(userDevErr).To(BeNil())
+			Expect(message).To(Equal(deploymentModifiedResult_Deleted))
+
+			err = dbQueries.GetApplicationOwnerByApplicationID(context.Background(), &applicationOwner)
+			Expect(err).ToNot(BeNil())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+
+		})
+
+		It("Should verify whether ApplicationOwner is recreated while updating application if ApplicationOwner doesn't exists", func() {
+			By("Create new deployment.")
+			var message deploymentModifiedResult
+			_, _, _, message, userDevErr := appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(userDevErr).To(BeNil())
+			Expect(message).To(Equal(deploymentModifiedResult_Created))
+
+			var appMappings []db.DeploymentToApplicationMapping
+			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
+
+			Expect(err).To(BeNil())
+			Expect(len(appMappings)).To(Equal(1))
+
+			deplToAppMappingFirst := appMappings[0]
+			application := db.Application{Application_id: deplToAppMappingFirst.Application_id}
+			err = dbQueries.GetApplicationById(context.Background(), &application)
+			Expect(err).To(BeNil())
+
+			clusterUser := db.ClusterUser{
+				User_name: string(workspace.UID),
+			}
+			err = dbQueries.GetClusterUserByUsername(context.Background(), &clusterUser)
+			Expect(err).To(BeNil())
+
+			By("Verify whether ApplicationOwner has been created in database")
+			applicationOwner := db.ApplicationOwner{
+				ApplicationOwnerApplicationID: application.Application_id,
+			}
+
+			err = dbQueries.GetApplicationOwnerByApplicationID(context.Background(), &applicationOwner)
+			Expect(err).To(BeNil())
+
+			By("Verify whether ApplicationOwner exists when Application row is updated")
+			err = dbQueries.GetApplicationById(context.Background(), &application)
+			Expect(err).To(BeNil())
+
+			application.Spec_field = "test-update-application"
+			err := dbQueries.UpdateApplication(ctx, &application)
+			Expect(err).To(BeNil())
+
+			By("Delete ApplicationOwner")
+			rowsAffected, err := dbQueries.DeleteApplicationOwner(ctx, applicationOwner.ApplicationOwnerApplicationID)
+			Expect(rowsAffected).To(Equal(1))
+			Expect(err).To(BeNil())
+
+			_, _, _, result, userDevErr := appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
+			Expect(userDevErr).To(BeNil())
+			Expect(result).To(Equal(deploymentModifiedResult_Updated))
+
+			By("Verify whether ApplicationOwner is recreated while updating application")
+			err = dbQueries.GetApplicationOwnerByApplicationID(context.Background(), &applicationOwner)
+			Expect(err).To(BeNil())
 		})
 	})
 })

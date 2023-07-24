@@ -329,7 +329,7 @@ func setApplicationConditions(appState *db.ApplicationState, conditions []appv1.
 	}
 
 	for _, c := range conditions {
-		c.Message = db.TruncateVarchar(c.Message, db.ApplicationStateConditionMessageLength)
+		c.Message = db.TruncateVarchar(c.Message, db.ApplicationStateMessageLength)
 	}
 
 	conditionBytes, err := yaml.Marshal(conditions)

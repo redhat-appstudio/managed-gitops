@@ -314,11 +314,11 @@ CREATE TABLE ApplicationState (
 	-- of the Argo CD cluster secret.
 	reconciled_state VARCHAR (4096),
 
-	-- conditions field comes directly from Argo CD Application CR's .status.conditions field
-	conditions bytea,
-
 	-- operation_state comes directly from Argo CD Application CR's .status.operationState field 
-	operation_state bytea
+	operation_state bytea,
+
+	-- conditions field comes directly from Argo CD Application CR's .status.conditions field
+	conditions bytea
 );
 
 -- Represents the relationship from GitOpsDeployment CR in the API namespace, to an Application table row.

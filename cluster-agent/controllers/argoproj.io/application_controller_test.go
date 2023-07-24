@@ -727,7 +727,10 @@ var _ = Describe("Application Controller", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("Verifying that the ApplicationState DB row has been updated to match the Application conditions")
-			Expect(len(applicationStateDB.Conditions)).To(Equal(len(guestbookApp.Status.Conditions)))
+			resultConditions := []appv1.ApplicationCondition{}
+			err = yaml.Unmarshal(applicationStateDB.Conditions, &resultConditions)
+			Expect(err).To(BeNil())
+			Expect(len(resultConditions)).To(Equal(len(guestbookApp.Status.Conditions)))
 		})
 
 		It("Test to verify if the conditions is empty if there are no Application conditions", func() {
@@ -841,13 +844,24 @@ var _ = Describe("Application Controller", func() {
 			Expect(reconciledObj.Destination.Namespace).ToNot(Equal(guestbookApp.Status.Sync.ComparedTo.Destination.Namespace))
 			Expect(err).ToNot(HaveOccurred())
 
+			appConditions := []appv1.ApplicationCondition{
+				{
+					Type:               appv1.ApplicationConditionSyncError,
+					Message:            "Failed to sync",
+					LastTransitionTime: &metav1.Time{Time: time.Now()},
+				},
+			}
+
+			conditionBytes, err := yaml.Marshal(&appConditions)
+			Expect(err).To(BeNil())
+
 			// applicationState which already exists in database
 			applicationState := &db.ApplicationState{
 				Applicationstate_application_id: applicationDB.Application_id,
 				Health:                          "Healthy",
 				Sync_Status:                     "Synced",
 				ReconciledState:                 reconciledStateString,
-				Conditions:                      []byte("sample-error"),
+				Conditions:                      conditionBytes,
 			}
 
 			By("Create a new ArgoCD Application")
@@ -871,19 +885,52 @@ var _ = Describe("Application Controller", func() {
 				Applicationstate_application_id: applicationDB.Application_id,
 			}
 
-			By("Verify ReconcidedState in ApplicationState is updated in database")
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateget)
 			Expect(err).ToNot(HaveOccurred())
 
-			By("Verifying that the ApplicationState DB row has been updated to match the Application Conditions")
-			Expect(len(applicationStateget.Conditions)).To(Equal(1))
-
-			appConditions := []appv1.ApplicationCondition{}
-			err = yaml.Unmarshal(applicationState.Conditions, appConditions)
+			outputConditions := []appv1.ApplicationCondition{}
+			err = yaml.Unmarshal(applicationStateget.Conditions, &outputConditions)
 			Expect(err).To(BeNil())
-			Expect(len(appConditions)).To(Equal(1))
-			Expect(appConditions[0].Type).To(Equal("SyncError"))
-			Expect(appConditions[0].Message).To(Equal("Failed to sync"))
+
+			compareConditions := func(cond1, cond2 []appv1.ApplicationCondition) {
+				Expect(len(cond1)).To(Equal(len(cond2)))
+
+				for i, cond := range cond1 {
+					other := cond2[i]
+					Expect(cond.Type).To(Equal(other.Type))
+					Expect(cond.Message).To(Equal(other.Message))
+				}
+			}
+
+			compareConditions(appConditions, outputConditions)
+
+			By("update ApplicationState conditions")
+			newConditions := []appv1.ApplicationCondition{
+				{
+					Type:               appv1.ApplicationConditionComparisonError,
+					Message:            "Failed to compare",
+					LastTransitionTime: &metav1.Time{Time: time.Now()},
+				},
+			}
+
+			conditionBytes, err = yaml.Marshal(&newConditions)
+			Expect(err).To(BeNil())
+
+			applicationState.Conditions = conditionBytes
+			err = reconciler.DB.UpdateApplicationState(ctx, applicationState)
+			Expect(err).To(BeNil())
+
+			By("Call reconcile function")
+			result, err = reconciler.Reconcile(ctx, newRequest(namespace, name))
+			Expect(err).To(BeNil())
+			Expect(result).ToNot(BeNil())
+
+			By("Verifying that the ApplicationState DB row has been updated to match the Application Conditions")
+
+			err = yaml.Unmarshal(applicationState.Conditions, &outputConditions)
+			Expect(err).To(BeNil())
+
+			compareConditions(outputConditions, newConditions)
 		})
 	})
 

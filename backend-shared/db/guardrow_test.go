@@ -172,6 +172,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Sync_Status:                     "Unknown",
 				Resources:                       make([]byte, 10),
 				Conditions:                      []byte("sample"),
+				ReconciledState:                 "sample",
 			}
 
 			err = dbq.CreateApplicationState(ctx, applicationStateSecond)
@@ -182,6 +183,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Sync_Status:                     "Sync",
 				Resources:                       make([]byte, 10),
 				Conditions:                      []byte("sample"),
+				ReconciledState:                 "sample",
 			}
 
 			err = dbq.UpdateApplicationState(ctx, applicationStateSecond)

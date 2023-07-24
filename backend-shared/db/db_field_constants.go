@@ -47,7 +47,6 @@ const (
 	ApplicationStateRevisionLength                                          = 1024
 	ApplicationStateSyncStatusLength                                        = 30
 	ApplicationStateReconciledStateLength                                   = 4096
-	ApplicationStateConditionMessageLength                                  = 4096
 	DeploymentToApplicationMappingDeploymenttoapplicationmappingUIDIDLength = 48
 	DeploymentToApplicationMappingNameLength                                = 256
 	DeploymentToApplicationMappingNamespaceLength                           = 96

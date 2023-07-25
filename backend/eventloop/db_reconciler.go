@@ -811,6 +811,16 @@ func cleanOrphanedEntriesfromTable_Application(ctx context.Context, dbQueries db
 					log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_Application while deleting ApplicationOwner entry : "+appDB.Application_id+" from DB.")
 				}
 
+				applicationState := db.ApplicationState{
+					Applicationstate_application_id: appDB.Application_id,
+				}
+
+				if err := dbQueries.GetApplicationStateById(ctx, &applicationState); err != nil {
+					log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_Application while retrieving applicationState from DB: "+applicationState.Applicationstate_application_id)
+				} else if err := deleteDbEntry(ctx, dbQueries, applicationState.Applicationstate_application_id, dbType_ApplicationState, log, applicationState); err != nil {
+					log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_Application while deleting ApplicationState entry : "+applicationState.Applicationstate_application_id+" from DB.")
+				}
+
 				if err := deleteDbEntry(ctx, dbQueries, appDB.Application_id, dbType_Application, log, appDB); err != nil {
 					log.Error(err, "Error occurred in cleanOrphanedEntriesfromTable_Application while deleting Application entry : "+appDB.Application_id+" from DB.")
 				}

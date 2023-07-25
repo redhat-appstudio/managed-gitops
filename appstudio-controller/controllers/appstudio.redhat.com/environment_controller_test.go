@@ -432,7 +432,7 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(env.Status.Conditions[1].Message).To(BeEmpty())
 		})
 
-		It("should not return an error if the Environment does not container UnstableConfigurationFields", func() {
+		It("should not return an error if the Environment does not contain UnstableConfigurationFields", func() {
 
 			By("creating an Environment resource pointing to a Secret that doesn't exist")
 			env := appstudioshared.Environment{

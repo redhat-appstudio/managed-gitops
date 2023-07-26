@@ -6,6 +6,34 @@
 version: 2
 updates:
   - package-ecosystem: "gomod"
+    directory: "/appstudio-controller"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "gomod"
+    directory: "/backend-shared"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "gomod"
+    directory: "/backend"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "gomod"
     directory: "/cluster-agent"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "gomod"
+    directory: "/tests-e2e"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "gomod"
+    directory: "/utilities/db-migration"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "gomod"
+    directory: "/utilities/init-container"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "gomod"
+    directory: "/utilities/load-test"
     schedule:
       interval: "daily"

@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/emicklei/go-restful/v3 v3.9.0
 	github.com/go-git/go-git/v5 v5.6.1
-	github.com/go-logr/logr v1.2.3
+	github.com/go-logr/logr v1.2.4
 	github.com/golang/mock v1.6.0
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/onsi/ginkgo/v2 v2.7.0

@@ -109,8 +109,8 @@ github.com/argoproj-labs/argocd-operator v0.5.0 h1:dJIjEL4uy/H5PKf75AqTkNQctfXES
 github.com/argoproj-labs/argocd-operator v0.5.0/go.mod h1:/sMLNAq4teuLSbAx/+pMBZM7ENLsXxrLjsG7E8NcSGI=
 github.com/argoproj/argo-cd/v2 v2.5.16 h1:zGIGNGlPNsKvTO7GGoSyr+MULzQhUCGQ7TyOcD9aZ7Q=
 github.com/argoproj/argo-cd/v2 v2.5.16/go.mod h1:nxVSyPpPPIUl/PFacLGKxx2L1p2y0I2OuguVi9J14I0=
-github.com/argoproj/gitops-engine v0.7.1-0.20230512020822-b4dd8b8c3976 h1:8i12dOcimhwrJxUznzZR/NW4JpIL5DXZjkI3Bl3yh38=
-github.com/argoproj/gitops-engine v0.7.1-0.20230512020822-b4dd8b8c3976/go.mod h1:WpA/B7tgwfz+sdNE3LqrTrb7ArEY1FOPI2pAGI0hfPc=
+github.com/argoproj/gitops-engine v0.7.3 h1:0ZlRTReAJG5Y1PviQ8ZIJq/+VowxWe2uFwoXqYcbtXU=
+github.com/argoproj/gitops-engine v0.7.3/go.mod h1:pRgVpLW7pZqf7n3COJ7UcDepk4cI61LAcJd64Q3Jq/c=
 github.com/argoproj/pkg v0.13.7-0.20221221191914-44694015343d h1:7fXEKF3OQ9i1PrgieA6FLrXOL3UAKyiotomn0RHevds=
 github.com/argoproj/pkg v0.13.7-0.20221221191914-44694015343d/go.mod h1:RKjj5FJ6KxtktOY49GJSG49qO6Z4lH7RnrVCaS3tf18=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=

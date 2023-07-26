@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/argoproj-labs/argocd-operator v0.5.0
 	github.com/argoproj/argo-cd/v2 v2.5.16
-	github.com/argoproj/gitops-engine v0.7.1-0.20230512020822-b4dd8b8c3976
+	github.com/argoproj/gitops-engine v0.7.3
 	github.com/codeready-toolchain/api v0.0.0-20230417183849-f62ccbf3bd40
 	github.com/codeready-toolchain/toolchain-common v0.0.0-20230417235430-8258a3281250
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible

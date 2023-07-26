@@ -9,31 +9,47 @@ updates:
     directory: "/appstudio-controller"
     schedule:
       interval: "daily"
+    ignore:
+      - dependency-name: "sigs.k8s.io/controller-runtime"
   - package-ecosystem: "gomod"
     directory: "/backend-shared"
     schedule:
       interval: "daily"
+    ignore:
+      - dependency-name: "sigs.k8s.io/controller-runtime"
   - package-ecosystem: "gomod"
     directory: "/backend"
     schedule:
       interval: "daily"
+    ignore:
+      - dependency-name: "sigs.k8s.io/controller-runtime"
   - package-ecosystem: "gomod"
     directory: "/cluster-agent"
     schedule:
       interval: "daily"
+    ignore:
+      - dependency-name: "sigs.k8s.io/controller-runtime"
   - package-ecosystem: "gomod"
     directory: "/tests-e2e"
     schedule:
       interval: "daily"
+    ignore:
+      - dependency-name: "sigs.k8s.io/controller-runtime"
   - package-ecosystem: "gomod"
     directory: "/utilities/db-migration"
     schedule:
       interval: "daily"
+    ignore:
+      - dependency-name: "sigs.k8s.io/controller-runtime"
   - package-ecosystem: "gomod"
     directory: "/utilities/init-container"
     schedule:
       interval: "daily"
+    ignore:
+      - dependency-name: "sigs.k8s.io/controller-runtime"
   - package-ecosystem: "gomod"
     directory: "/utilities/load-test"
     schedule:
       interval: "daily"
+    ignore:
+      - dependency-name: "sigs.k8s.io/controller-runtime"

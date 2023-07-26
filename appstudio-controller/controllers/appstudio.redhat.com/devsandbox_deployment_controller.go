@@ -20,6 +20,8 @@ package appstudioredhatcom
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 
 	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	"github.com/go-logr/logr"
@@ -175,6 +177,11 @@ func newDeploymentTarget(deploymentTargetClassName applicationv1alpha1.Deploymen
 			},
 			ClaimRef: dtcName,
 		},
+	}
+
+	// Set AllowInsecureSkipTLSVerify field of DT to True ,if it is a dev cluster.
+	if strings.EqualFold(os.Getenv("DEV_ONLY_IGNORE_SELFSIGNED_CERT_IN_DEPLOYMENT_TARGET"), "true") {
+		deploymentTarget.Spec.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify = true
 	}
 
 	return deploymentTarget

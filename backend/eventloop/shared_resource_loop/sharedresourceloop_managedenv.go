@@ -863,6 +863,11 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 			err
 	}
 
+	// Ignore the self-signed certificate
+	if managedEnvironment.Spec.AllowInsecureSkipTLSVerify {
+		restConfig.Insecure = true
+	}
+
 	k8sClient, err := k8sClientFactory.BuildK8sClient(restConfig)
 	if err != nil {
 		err := fmt.Errorf("unable to create k8s client from restConfig from managed environment secret: %w", err)
@@ -1173,6 +1178,11 @@ func verifyClusterCredentialsWithNamespaceList(ctx context.Context, clusterCreds
 	configParam, _, err := sanityTestCredentials(clusterCreds)
 	if err != nil {
 		return false, err
+	}
+
+	// Ignore the self-signed certificate
+	if managedEnvCR.Spec.AllowInsecureSkipTLSVerify {
+		configParam.Insecure = true
 	}
 
 	clientObj, err := k8sClientFactory.BuildK8sClient(configParam)

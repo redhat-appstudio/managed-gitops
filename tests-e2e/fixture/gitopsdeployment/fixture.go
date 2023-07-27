@@ -149,6 +149,9 @@ func HaveSyncStatusCodeFunc(status managedgitopsv1alpha1.SyncStatusCode, gitopsD
 		return false
 	}
 
+	fmt.Println("### Name ==== ", gitopsDepl.Name)
+	fmt.Println("### Namespace ==== ", gitopsDepl.Namespace)
+
 	res := status == gitopsDepl.Status.Sync.Status
 	fmt.Println("HaveSyncStatusCode:", res, "/ Expected:", status, "/ Actual:", gitopsDepl.Status.Sync.Status)
 

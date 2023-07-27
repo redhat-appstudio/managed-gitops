@@ -46,3 +46,5 @@ set -x
 
 # Run E2E tests
 make test-e2e
+
+sleep 900

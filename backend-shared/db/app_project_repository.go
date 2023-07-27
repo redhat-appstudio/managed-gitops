@@ -111,7 +111,6 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateAppProjectRepository(ctx context.Con
 	if err := isEmptyValues("UpdateAppProjectRepository",
 		"appproject_repository_id", obj.AppprojectRepositoryID,
 		"clusteruser_id", obj.Clusteruser_id,
-		"repositorycredentials_id", obj.RepositorycredentialsID,
 		"repo_url", obj.RepoURL); err != nil {
 		return err
 	}
@@ -197,6 +196,5 @@ func (obj *AppProjectRepository) GetAsLogKeyValues() []interface{} {
 
 	return []interface{}{"appproject_repository_id", obj.AppprojectRepositoryID,
 		"clusteruser_id", obj.Clusteruser_id,
-		"repositorycredentials_id", obj.RepositorycredentialsID,
 		"repo_url", obj.RepoURL}
 }

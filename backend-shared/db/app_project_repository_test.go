@@ -47,11 +47,10 @@ var _ = Describe("AppProjectRepository Test", func() {
 
 		By("Verify whether AppProjectRepository is created")
 		appProjectRepository := db.AppProjectRepository{
-			AppprojectRepositoryID:  "test-app-project-repository",
-			Clusteruser_id:          clusterUser.Clusteruser_id,
-			RepositorycredentialsID: repoCred.RepositoryCredentialsID,
-			RepoURL:                 repoCred.PrivateURL,
-			SeqID:                   int64(seq),
+			AppprojectRepositoryID: "test-app-project-repository",
+			Clusteruser_id:         clusterUser.Clusteruser_id,
+			RepoURL: repoCred.PrivateURL,
+			SeqID:   int64(seq),
 		}
 
 		err = dbq.CreateAppProjectRepository(ctx, &appProjectRepository)
@@ -88,11 +87,10 @@ var _ = Describe("AppProjectRepository Test", func() {
 
 		By("Verify whether AppProjectRepository is created")
 		appProjectRepository1 := db.AppProjectRepository{
-			AppprojectRepositoryID:  "test-app-project-repository-1",
-			Clusteruser_id:          clusterUser.Clusteruser_id,
-			RepositorycredentialsID: repoCred.RepositoryCredentialsID,
-			RepoURL:                 repoCred.PrivateURL,
-			SeqID:                   int64(seq),
+			AppprojectRepositoryID: "test-app-project-repository-1",
+			Clusteruser_id:         clusterUser.Clusteruser_id,
+			RepoURL: repoCred.PrivateURL,
+			SeqID:   int64(seq),
 		}
 
 		err = dbq.CreateAppProjectRepository(ctx, &appProjectRepository1)

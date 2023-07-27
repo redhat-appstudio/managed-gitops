@@ -1,0 +1,1 @@
+ALTER TABLE AppProjectRepository ADD COLUMN repositorycredentials_id VARCHAR ( 48 );

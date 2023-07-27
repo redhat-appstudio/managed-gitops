@@ -722,10 +722,9 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			By("creating a AppProjectRepository that is based on the contents of the GitOpsDeployment")
 			appProjectRepoDB := &db.AppProjectRepository{
-				AppprojectRepositoryID:  "test-appProject-ID",
-				Clusteruser_id:          clusterUserDb.Clusteruser_id,
-				RepositorycredentialsID: "",
-				RepoURL:                 normalizeGitURL(gitopsDepl.Spec.Source.RepoURL),
+				AppprojectRepositoryID: "test-appProject-ID",
+				Clusteruser_id:         clusterUserDb.Clusteruser_id,
+				RepoURL:                normalizeGitURL(gitopsDepl.Spec.Source.RepoURL),
 			}
 
 			err = dbq.CreateAppProjectRepository(ctx, appProjectRepoDB)
@@ -767,10 +766,6 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, appProjectRepoDB)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(appProjectRepoDB).NotTo(BeNil())
-
-			By("Verify whether AppProjectRepoCred is updated to point to the repoCred row in the database.")
-			Expect(appProjectRepoDB.RepositorycredentialsID).ToNot(BeNil())
-			// Expect(appProjectRepoDB.RepositorycredentialsID).To(Equal(dbRepoCred.RepositoryCredentialsID))
 
 			By("Deleting resources created by test.")
 			resourcesToBeDeleted = testResources{

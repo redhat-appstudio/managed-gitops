@@ -644,9 +644,8 @@ func reconcileAppProjectRepositories(ctx context.Context, gitRepoURLUnnormalized
 		}
 
 		newAppProjectRepo := db.AppProjectRepository{
-			Clusteruser_id:          clusterUser.Clusteruser_id,
-			RepositorycredentialsID: "",
-			RepoURL:                 gitURLOfMissingAppProjectRepoRow,
+			Clusteruser_id: clusterUser.Clusteruser_id,
+			RepoURL:        gitURLOfMissingAppProjectRepoRow,
 		}
 		if err := dbQueries.CreateAppProjectRepository(ctx, &newAppProjectRepo); err != nil {
 			return fmt.Errorf("unable to create AppProjectRepository: %w . repository: %v", err, newAppProjectRepo)

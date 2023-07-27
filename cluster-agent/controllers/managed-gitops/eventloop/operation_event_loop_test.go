@@ -1463,10 +1463,9 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				dbAppProjectRepo := &db.AppProjectRepository{
-					AppprojectRepositoryID:  "test-appProject-repo-id",
-					Clusteruser_id:          testClusterUser.Clusteruser_id,
-					RepositorycredentialsID: repoCredentials.RepositoryCredentialsID,
-					RepoURL:                 "test-url",
+					AppprojectRepositoryID: "test-appProject-repo-id",
+					Clusteruser_id:         testClusterUser.Clusteruser_id,
+					RepoURL:                "test-url",
 				}
 
 				err = dbQueries.CreateAppProjectRepository(ctx, dbAppProjectRepo)
@@ -1924,10 +1923,9 @@ var _ = Describe("Operation Controller", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				dbAppProjectRepo := &db.AppProjectRepository{
-					AppprojectRepositoryID:  "test-appProject-repo-id",
-					Clusteruser_id:          testClusterUser.Clusteruser_id,
-					RepositorycredentialsID: repoCredentials.RepositoryCredentialsID,
-					RepoURL:                 "test-url",
+					AppprojectRepositoryID: "test-appProject-repo-id",
+					Clusteruser_id:         testClusterUser.Clusteruser_id,
+					RepoURL:                "test-url",
 				}
 
 				err = dbQueries.CreateAppProjectRepository(ctx, dbAppProjectRepo)

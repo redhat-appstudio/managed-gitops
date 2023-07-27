@@ -108,9 +108,6 @@ As of this writing, the current short-term solution to this (and which is unrela
 
 * `ClusterUser (foreign key)`
     * DB index on this field, to allow us to quickly retrieve all items for a particular user.
-* `RepositoryCredential (foreign key, nullable)`
-    * If there exist private credentials for this repository URL, they will be referenced by this field.
-    * Note: there may not exist private credentials for a repository URL, because, for example, the Git repository is public (and therefore a GitOpsDeploymentRepositoryCredential is not needed).
 * `Normalized repository URL (string, non-nullable)`
     * (Argo CD has a function we can use for normalization of the repo URL)
 
@@ -136,12 +133,10 @@ As above, SELECTing on the ClusterUser field would allow us to generate the list
 When reconciling a GitOpsDeploymentManagedEnvironment (in _sharedresourceloop_managedenv.go_) or a GitOpsDeploymentRepositoryCredential (in _repocred_reconciler.go_):
 
 
-
 * When a ManagedEnvironment/RepoCred is created, ensure the corresponding _AppProjectRepository/AppProjectManagedEnvironment_ is created, pointing to that ManagedEnv/RepoCred.
 * Likewise when a ManagedEnvironment/RepoCred is modified, or deleted, ensure the corresponding AppProject* row is removed.
 
 When reconciling an Application (in application_event_runner_deployments.go):
-
 
 
 * When an Application is created/modified, ensure there exists an AppProjectRepository for the source field of the repository URL.
@@ -174,8 +169,6 @@ The backend component will receive the create/modify event in application_event_
 * Normally, the next step once we receive the GitOpsDeployment event is to process it, which involves creating/modifying a row in the Application table: for example, converting the above into a new Application row, containing a spec_field with the above contents.
 * But, new for this story is this: before we create the Application row, we should also first create an AppProjectRepository row containing these values:
     * **clusterUser:** clusteruser id based on the namespace that the GitOpsDeployment is in
-    * **repositoryCredential:** empty (a “” string), in this case, because the this AppProjectRepository value is being generated based on an Application, and not from a RepositoryCredential
-        * This field is nil (“”) if it was generated from a GitOpsDeployment, and should be a foreign key to a RepositoryCredential if it was generated from a RepositoryCredential.
     * **Normalized repository url:** https://github.com/redhat-appstudio/managed-gitops 
         * This value is based on the .spec.repoURL field of the GitOpsDeployment
 * Next, after we continue as usual: we create/modify the Application row like we normally do in this file.
@@ -200,14 +193,10 @@ When we process an Operation that points to an Application, before we generate (
 
 And then, after we ensure the AppProject is consistent, when we generate the Argo CD Application, we should:
 
-
-
 * (Always) ensure the ‘project’ field of the Application matches the ID of the AppProject
     * This includes ensuring that existing Applications are updated, if they previously has ‘project: default’
 
 If an Application is deleted (e.g. we get an Operation that points to a deleted Application):
-
-
 
 * For example, in `deleteArgoCDApplicationOfDeletedApplicationRow`
 * We should:

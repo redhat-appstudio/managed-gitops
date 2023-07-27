@@ -329,7 +329,6 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if !promotionRun.Status.PromotionStartTime.IsZero() && (metav1.Now().Sub(promotionRun.Status.PromotionStartTime.Time).Minutes() > PromotionRunTimeOutLimit) {
-
 		promotionRun.Status.CompletionResult = appstudioshared.PromotionRunCompleteResult_Failure
 		promotionRun.Status.State = appstudioshared.PromotionRunState_Complete
 
@@ -339,6 +338,14 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			log.Error(err, "unable to update PromotionRun environment status: "+promotionRun.Name)
 			return ctrl.Result{}, fmt.Errorf("unable to update promotionRun %v", err)
 		}
+
+		// Update status conditions
+		if err = updateStatusConditions(ctx, rClient, fmt.Sprintf("Promotion Failed. Could not be completed in %d Minutes.", PromotionRunTimeOutLimit), promotionRun, appstudioshared.PromotionRunConditionErrorOccurred,
+			appstudioshared.PromotionRunConditionStatusTrue, appstudioshared.PromotionRunReasonErrorOccurred); err != nil {
+			log.Error(err, "unable to update PromotionRun status conditions.")
+			return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun status conditions %v", err)
+		}
+
 		return ctrl.Result{}, nil
 	}
 

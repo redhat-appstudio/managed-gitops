@@ -978,7 +978,8 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 func checkStatusCondition(ctx context.Context, rClient client.Client, promotionRun *appstudiosharedv1.PromotionRun, message string) {
 	err := rClient.Get(ctx, client.ObjectKeyFromObject(promotionRun), promotionRun)
 	Expect(err).ToNot(HaveOccurred())
-	Expect(promotionRun.Status.Conditions).ToNot(BeEmpty())
+	conditionsLen := len(promotionRun.Status.Conditions)
+	Expect(conditionsLen).Should(BeNumerically(">", 0))
 
 	for _, condition := range promotionRun.Status.Conditions {
 		if condition.Type == appstudiosharedv1.PromotionRunConditionErrorOccurred {

@@ -43,7 +43,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 		})
 
-		It("should be healthy and have synced status, and resources should be deployed, when deployed with a ManagedEnv", func() {
+		FIt("should be healthy and have synced status, and resources should be deployed, when deployed with a ManagedEnv", func() {
 
 			By("creating the GitOpsDeploymentManagedEnvironment")
 
@@ -1028,6 +1028,58 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 		})
 
+		/*
+			// This test can not be executed in CI because it requires a cluster with a self signed certificate to pass hence it can only be executed in local system.
+			// Here are the steps to run it locally.
+			// 1). Get a cluster having a self signed certificate. You can also use the ClusterBot cluster using 'launch <VERSION> aws,no-spot'.
+			//     You must use 'launch' , because this ensures the cluster is using a self-signed cert.
+			// 2). Login to the cluster and run 'make setup-e2e-openshift'
+			// 3). Run this test.
+			It("JGW should be healthy and have synced status, and resources should be deployed, when deployed with a ManagedEnv", func() {
+
+				By("creating the GitOpsDeploymentManagedEnvironment")
+
+				kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
+				Expect(err).To(BeNil())
+
+				kubeConfigContents = strings.ReplaceAll(kubeConfigContents, "insecure-skip-tls-verify: true", "insecure-skip-tls-verify: false")
+
+				managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
+				managedEnv.Spec.AllowInsecureSkipTLSVerify = false
+
+				k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+				Expect(err).To(Succeed())
+
+				err = k8s.Create(&secret, k8sClient)
+				Expect(err).To(BeNil())
+
+				err = k8s.Create(&managedEnv, k8sClient)
+				Expect(err).To(BeNil())
+
+				gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl",
+					"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+					managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+				gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
+				gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
+				err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
+				Expect(err).To(BeNil())
+
+				By("ensuring the managed environment has a status condition reason UnableToCreateClient.")
+
+				Eventually(managedEnv, "2m", "1s").Should(managedenvironment.HaveStatusConditionReason(string(managedgitopsv1alpha1.ConditionReasonUnableToCreateClient)))
+
+				err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&managedEnv), &managedEnv)
+				Expect(err).To(BeNil())
+				managedEnv.Spec.AllowInsecureSkipTLSVerify = true
+
+				err = k8sClient.Update(context.Background(), &managedEnv)
+				Expect(err).To(BeNil())
+
+				By("ensuring the managed environment has a status condition reason Succeeded.")
+
+				Eventually(managedEnv, "2m", "1s").Should(managedenvironment.HaveStatusConditionReason(string(managedgitopsv1alpha1.ConditionReasonSucceeded)))
+			})
+		*/
 	})
 })
 

@@ -40,6 +40,32 @@ func HaveStatusCondition(conditionType string) matcher.GomegaMatcher {
 	}, BeTrue())
 }
 
+func HaveStatusConditionReason(reason string) matcher.GomegaMatcher {
+	return WithTransform(func(menv managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment) bool {
+		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+		Expect(err).To(BeNil())
+
+		k8sClient, err := fixture.GetKubeClient(config)
+		if err != nil {
+			fmt.Println(k8s.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&menv), &menv)
+		if err != nil {
+			fmt.Println(k8s.K8sClientError, err)
+			return false
+		}
+
+		for _, condition := range menv.Status.Conditions {
+			if condition.Reason == reason {
+				return true
+			}
+		}
+		return false
+	}, BeTrue())
+}
+
 // HaveAllowInsecureSkipTLSVerify checks if AllowInsecureSkipTLSVerify field of Environment is equal to ManagedEnvironment.
 func HaveAllowInsecureSkipTLSVerify(allowInsecureSkipTLSVerify bool) matcher.GomegaMatcher {
 	return WithTransform(func(menv managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment) bool {

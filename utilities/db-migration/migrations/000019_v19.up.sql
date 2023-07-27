@@ -1,0 +1,1 @@
+ALTER TABLE AppProjectRepository DROP COLUMN repositorycredentials_id;

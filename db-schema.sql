@@ -540,11 +540,6 @@ CREATE TABLE AppProjectRepository (
 	-- Foreign key to: ClusterUser.clusteruser_id
 	clusteruser_id VARCHAR (48) NOT NULL,
 	CONSTRAINT fk_clusteruser_id FOREIGN KEY (clusteruser_id) REFERENCES ClusterUser(clusteruser_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
-
-	-- Describes which repositorycredentials the user has access to (UID)
-	-- Foreign key to: RepositoryCredentials.repositorycredentials_id
-	repositorycredentials_id VARCHAR ( 48 ),
-	CONSTRAINT fk_repositorycredentials_id FOREIGN KEY (repositorycredentials_id) REFERENCES RepositoryCredentials(repositorycredentials_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 	
 	-- Normalized Repo URL
 	repo_url VARCHAR (256) NOT NULL,

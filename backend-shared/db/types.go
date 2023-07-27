@@ -514,9 +514,6 @@ type AppProjectRepository struct {
 	// -- Foreign key to: ClusterUser.clusteruser_id
 	Clusteruser_id string `pg:"clusteruser_id"`
 
-	// -- Foreign key to: RepositoryCredentials.repositorycredentials_id
-	RepositorycredentialsID string `pg:"repositorycredentials_id"`
-
 	SeqID int64 `pg:"seq_id"`
 
 	RepoURL string `pg:"repo_url,notnull"`

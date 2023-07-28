@@ -580,7 +580,7 @@ func generateValidRepositoryCredentialsConditions(repositoryCredential *managedg
 
 func validateRepositoryCredentials(rawRepoURL string, secret *corev1.Secret) error {
 
-	normalizedRepoUrl := normalizeGitURL(rawRepoURL)
+	normalizedRepoUrl := NormalizeGitURL(rawRepoURL)
 	rem := git.NewRemote(memory.NewStorage(), &config.RemoteConfig{
 		Name: "origin",
 		URLs: []string{normalizedRepoUrl},
@@ -630,9 +630,9 @@ var (
 	sshURLRegex = regexp.MustCompile("^(ssh://)?([^/:]*?)@[^@]+$")
 )
 
-// normalizeGitURL normalizes a git URL for purposes of comparison, as well as preventing redundant
+// NormalizeGitURL normalizes a git URL for purposes of comparison, as well as preventing redundant
 // local clones (by normalizing various forms of a URL to a consistent location).
-func normalizeGitURL(repo string) string {
+func NormalizeGitURL(repo string) string {
 	repo = strings.ToLower(strings.TrimSpace(repo))
 	if yes, _ := isSSHURL(repo); yes {
 		if !strings.HasPrefix(repo, "ssh://") {

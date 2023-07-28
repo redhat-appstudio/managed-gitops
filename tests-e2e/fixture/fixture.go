@@ -337,7 +337,11 @@ func cleanUpOldSnapshotEnvironmentBindingAPIs(namespace string, k8sClient client
 func cleanUpOldDeploymentTargetClaimAPIs(ns string, k8sClient client.Client) error {
 	dtcList := appstudiosharedv1.DeploymentTargetClaimList{}
 	if err := k8sClient.List(context.Background(), &dtcList, &client.ListOptions{Namespace: ns}); err != nil {
-		return err
+		if !apierr.IsNotFound(err) {
+			return err
+		} else { // ignore not found
+			return nil
+		}
 	}
 
 	for i := range dtcList.Items {

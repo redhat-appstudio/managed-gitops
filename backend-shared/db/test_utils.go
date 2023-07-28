@@ -174,8 +174,8 @@ func SetupForTestingDBGinkgo() error {
 
 	for idx := range appProjectRepositories {
 		item := appProjectRepositories[idx]
-		if strings.HasPrefix(item.Clusteruser_id, "test-") {
-			rowsAffected, err := dbq.DeleteAppProjectRepositoryByClusterUserAndRepoURL(ctx, &item)
+		if strings.HasPrefix(item.Clusteruser_id, "test-") || strings.HasPrefix(item.RepoURL, "http://github.com/test-") {
+			rowsAffected, err := dbq.DeleteAppProjectRepositoryByAppProjectRepositoryID(ctx, &item)
 			Expect(err).ToNot(HaveOccurred())
 			if err == nil {
 				Expect(rowsAffected).Should(Equal(1))

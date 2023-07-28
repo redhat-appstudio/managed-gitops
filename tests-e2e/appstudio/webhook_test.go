@@ -66,6 +66,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8sClient.Update(ctx, &snapshot)
 
 			Expect(err).NotTo(Succeed())
+			fmt.Println("ERROR - >", err.Error())
 			Expect(strings.Contains(err.Error(), fmt.Sprintf("application cannot be updated to %s", snapshot.Spec.Application))).To(BeTrue())
 			snapshot.Spec.Application = temp // Revert value for next test
 

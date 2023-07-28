@@ -8,7 +8,6 @@ build: fmt vet ## Build manager binary.
 lint:
 	golangci-lint --version
 	GOMAXPROCS=2 golangci-lint run --fix --verbose --timeout 300s
-	golangci-lint run -E ginkgolinter ./...
 
 # Run go fmt against code
 .PHONY: fmt

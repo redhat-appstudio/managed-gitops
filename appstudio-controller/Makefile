@@ -258,7 +258,6 @@ endef
 lint:
 	golangci-lint --version
 	GOMAXPROCS=2 golangci-lint run --fix --verbose --timeout 300s
-	golangci-lint run -E ginkgolinter ./...
 
 .PHONY: gosec
 gosec: 

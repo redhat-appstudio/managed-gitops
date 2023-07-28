@@ -40,7 +40,7 @@ var _ = Describe("ConditionManager", func() {
 			conditionManager.SetCondition(&sut, errorOccured, status, reason, message)
 			obj = getFirst(sut)
 
-			Expect(sut).To(HaveLen(1))
+			Expect((sut)).To(HaveLen(1))
 			Expect(obj.LastProbeTime).NotTo(Equal(probe))
 			Expect(obj.LastTransitionTime).To(Equal(transition))
 			Expect(obj.Message).To(Equal(message))

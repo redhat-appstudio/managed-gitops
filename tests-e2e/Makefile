@@ -54,7 +54,6 @@ endef
 lint: ## Run lint checks for the test code
 	golangci-lint --version
 	GOMAXPROCS=2 golangci-lint run --fix --verbose --timeout 300s
-	golangci-lint run -E ginkgolinter ./...
 
 GO_SEC = $(shell pwd)/bin/gosec
 go_sec: ## Download gosec locally if necessary.

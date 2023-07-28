@@ -198,7 +198,7 @@ gosec: go_sec
 # Remove the vendor and bin folders
 .PHONY: clean
 clean:
-	rm -rf vendor/ bin/
+	rm -rf vendor/ bin/ cover.out
 
 # Remove the vendor and bin folders
 .PHONY: clean-exec

@@ -36,16 +36,16 @@ type testResources struct {
 
 var _ = Describe("SharedResourceEventLoop Test", func() {
 
-	// This will be used by AfterEach to clean resources
-	var resourcesToBeDeleted testResources
-
-	var ctx context.Context
-	var k8sClient *sharedutil.ProxyClient
-	var namespace *v1.Namespace
-
-	l := log.FromContext(context.Background())
-
 	Context("Shared Resource Event Loop test", func() {
+
+		// This will be used by AfterEach to clean resources
+		var resourcesToBeDeleted testResources
+
+		var ctx context.Context
+		var k8sClient *sharedutil.ProxyClient
+		var namespace *v1.Namespace
+
+		l := log.FromContext(context.Background())
 
 		// Create a fake k8s client before each test
 		BeforeEach(func() {
@@ -78,7 +78,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			// After each test delete the resources created by it.
 			DeferCleanup(func() {
-				dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+				dbq, err := db.NewUnsafePostgresDBQueries(false, true)
 				Expect(err).ToNot(HaveOccurred())
 
 				defer dbq.CloseDatabase()
@@ -257,7 +257,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(engineInstanceOld.EngineCluster_id).To(BeEmpty())
 
 			// Create new engine instance which will be used by "GetGitopsEngineInstanceById" fucntion
-			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+			dbq, err := db.NewUnsafePostgresDBQueries(false, true)
 			Expect(err).ToNot(HaveOccurred())
 
 			defer dbq.CloseDatabase()
@@ -310,7 +310,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			go internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
 
 			// Create new engine instance which will be used by "GetGitopsEngineInstanceById" fucntion
-			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+			dbq, err := db.NewUnsafePostgresDBQueries(false, true)
 			Expect(err).ToNot(HaveOccurred())
 
 			defer dbq.CloseDatabase()
@@ -430,7 +430,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			By("verify whether appProject is created or not")
 			appProjectRepositoryDB := &db.AppProjectRepository{
 				Clusteruser_id: usrNew.Clusteruser_id,
-				RepoURL:        normalizeGitURL(dbRepoCred.PrivateURL),
+				RepoURL:        NormalizeGitURL(dbRepoCred.PrivateURL),
 			}
 
 			err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, appProjectRepositoryDB)
@@ -624,7 +624,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 		})
 
 		It("Should add display_name to existing clusterUser if display_name is empty", func() {
-			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+			dbq, err := db.NewUnsafePostgresDBQueries(false, true)
 			Expect(err).ToNot(HaveOccurred())
 
 			defer dbq.CloseDatabase()
@@ -678,7 +678,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			err = k8sClient.Create(context.Background(), gitopsDepl)
 			Expect(err).ToNot(HaveOccurred())
 
-			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+			dbq, err := db.NewUnsafePostgresDBQueries(false, true)
 			Expect(err).ToNot(HaveOccurred())
 
 			defer dbq.CloseDatabase()
@@ -724,7 +724,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			appProjectRepoDB := &db.AppProjectRepository{
 				AppprojectRepositoryID: "test-appProject-ID",
 				Clusteruser_id:         clusterUserDb.Clusteruser_id,
-				RepoURL:                normalizeGitURL(gitopsDepl.Spec.Source.RepoURL),
+				RepoURL:                NormalizeGitURL(gitopsDepl.Spec.Source.RepoURL),
 			}
 
 			err = dbq.CreateAppProjectRepository(ctx, appProjectRepoDB)
@@ -787,8 +787,8 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			go internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
 
-			By("Create new engine instance which will be used by `GetGitopsEngineInstanceById` fucntion")
-			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+			By("Create new engine instance which will be used by `GetGitopsEngineInstanceById` function")
+			dbq, err := db.NewUnsafePostgresDBQueries(false, true)
 			Expect(err).ToNot(HaveOccurred())
 
 			defer dbq.CloseDatabase()
@@ -899,7 +899,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			By("verify whether appProject is created or not")
 			appProjectRepositoryDB := &db.AppProjectRepository{
 				Clusteruser_id: usrNew.Clusteruser_id,
-				RepoURL:        normalizeGitURL(dbRepoCred.PrivateURL),
+				RepoURL:        NormalizeGitURL(dbRepoCred.PrivateURL),
 			}
 
 			err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, appProjectRepositoryDB)
@@ -928,7 +928,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			By("Verify whether AppProjectRepositoryDB is created with the new Repo URL as Repo URL has been updated in repositoryCredential row")
 			getappProjectRepositoryDB := &db.AppProjectRepository{
 				Clusteruser_id: usrNew.Clusteruser_id,
-				RepoURL:        normalizeGitURL(dbRepoCred.PrivateURL),
+				RepoURL:        NormalizeGitURL(dbRepoCred.PrivateURL),
 			}
 
 			err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, getappProjectRepositoryDB)
@@ -942,4 +942,174 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 		})
 
 	})
+
+	Context("reconcileAppProjectRepositories tests", func() {
+
+		// This will be used by AfterEach to clean resources
+		var ctx context.Context
+		var k8sClient *sharedutil.ProxyClient
+		var namespace v1.Namespace
+
+		var dbq db.AllDatabaseQueries
+
+		var clusterUser db.ClusterUser
+
+		l := log.FromContext(context.Background())
+
+		gitRepoURL := "http://github.com/test-my-fake-org/my-fake-repo"
+
+		// Create a fake k8s client before each test
+		BeforeEach(func() {
+
+			err := db.SetupForTestingDBGinkgo()
+			Expect(err).ToNot(HaveOccurred())
+
+			ctx = context.Background()
+			scheme,
+				argocdNamespace,
+				kubesystemNamespace,
+				namespaceTemp, err := tests.GenericTestSetup()
+
+			Expect(err).ToNot(HaveOccurred())
+
+			namespace = *namespaceTemp
+
+			k8sClientOuter := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(&namespace, argocdNamespace, kubesystemNamespace).
+				Build()
+
+			k8sClient = &sharedutil.ProxyClient{
+				InnerClient: k8sClientOuter,
+			}
+
+			dbq, err = db.NewUnsafePostgresDBQueries(false, true)
+			Expect(err).ToNot(HaveOccurred())
+
+			clusterUserPtr, _, err := internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx, namespace, dbq, l)
+			Expect(err).ToNot(HaveOccurred())
+
+			clusterUser = *clusterUserPtr
+
+		})
+
+		When("AppProject exists in GitOpsDeployment, but not in database", func() {
+
+			It("should create a new AppProjectRepository in the database", func() {
+
+				By("creating a GitOpsDeployment referencing a git repo")
+
+				gitopsDepl := managedgitopsv1alpha1.GitOpsDeployment{
+					ObjectMeta: metav1.ObjectMeta{Name: "my-gitops-depl", Namespace: namespace.Name},
+					Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+						Source: managedgitopsv1alpha1.ApplicationSource{
+							RepoURL: gitRepoURL,
+						},
+					},
+				}
+				Expect(k8sClient.Create(ctx, &gitopsDepl)).Error().ToNot(HaveOccurred())
+
+				By("calling the function being tested")
+				Expect(reconcileAppProjectRepositories(ctx, gitRepoURL, namespace, k8sClient, dbq, l)).Error().ToNot(HaveOccurred())
+
+				By("verifying the AppProjectRepository new exists in the database")
+				res := []db.AppProjectRepository{}
+				Expect(dbq.ListAppProjectRepositoryByClusterUserId(ctx, clusterUser.Clusteruser_id, &res)).Error().ToNot(HaveOccurred())
+
+				Expect(res).To(HaveLen(1))
+
+				appProjectRepo := res[0]
+				Expect(appProjectRepo.RepoURL).To(Equal(gitRepoURL))
+				Expect(appProjectRepo.Clusteruser_id).To(Equal(clusterUser.Clusteruser_id))
+
+			})
+		})
+
+		When("AppProject exists in GitOpsDeploymentRepositoryCredential, but not in database", func() {
+
+			It("should create a new AppProjectRepository in the database", func() {
+
+				By("creating a GitOpsDeployment referencing a git repo")
+
+				gitopsRepoCred := managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
+					ObjectMeta: metav1.ObjectMeta{Name: "my-gitops-depl", Namespace: namespace.Name},
+					Spec: managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialSpec{
+						Repository: gitRepoURL,
+					},
+				}
+				Expect(k8sClient.Create(ctx, &gitopsRepoCred)).Error().ToNot(HaveOccurred())
+
+				By("calling the function being tested")
+				Expect(reconcileAppProjectRepositories(ctx, gitRepoURL, namespace, k8sClient, dbq, l)).Error().ToNot(HaveOccurred())
+
+				By("verifying the AppProjectRepository new exists in the database")
+				res := []db.AppProjectRepository{}
+				Expect(dbq.ListAppProjectRepositoryByClusterUserId(ctx, clusterUser.Clusteruser_id, &res)).Error().ToNot(HaveOccurred())
+
+				Expect(res).To(HaveLen(1))
+
+				appProjectRepo := res[0]
+				Expect(appProjectRepo.RepoURL).To(Equal(gitRepoURL))
+				Expect(appProjectRepo.Clusteruser_id).To(Equal(clusterUser.Clusteruser_id))
+
+			})
+		})
+
+		When("AppProject exists in database, but not in either GitOpsDeployment or GitOpsDeploymentRepositoryCredential", func() {
+
+			It("should delete the AppProjectRepository database entry", func() {
+
+				By("creating an AppProjectRepository without a corresponding GitOpsDeployment")
+
+				orphanedDBEntry := db.AppProjectRepository{
+					AppprojectRepositoryID: "test-app-project-repo",
+					Clusteruser_id:         clusterUser.Clusteruser_id,
+					RepoURL:                gitRepoURL,
+				}
+
+				Expect(dbq.CreateAppProjectRepository(ctx, &orphanedDBEntry)).Error().ToNot(HaveOccurred())
+
+				By("calling the function under test")
+				Expect(reconcileAppProjectRepositories(ctx, gitRepoURL, namespace, k8sClient, dbq, l)).Error().ToNot(HaveOccurred())
+
+				By("verifying the AppProjectRepository no longer exists in the database")
+				res := []db.AppProjectRepository{}
+				Expect(dbq.ListAppProjectRepositoryByClusterUserId(ctx, clusterUser.Clusteruser_id, &res)).Error().ToNot(HaveOccurred())
+
+				Expect(res).To(BeEmpty())
+
+			})
+		})
+
+		When("AppProject would normally be deleted from database, but the gitRepoURL parameter of reconcileAppProjectRepositories does not match", func() {
+
+			It("should not delete the AppProjectRepository database entry", func() {
+
+				gitRepoURL := "http://github.com/test-my-fake-org/my-fake-repo"
+
+				By("creating an AppProjectRepository without a corresponding GitOpsDeployment")
+
+				orphanedDBEntry := db.AppProjectRepository{
+					AppprojectRepositoryID: "test-app-project-repo",
+					Clusteruser_id:         clusterUser.Clusteruser_id,
+					RepoURL:                gitRepoURL,
+				}
+
+				Expect(dbq.CreateAppProjectRepository(ctx, &orphanedDBEntry)).Error().ToNot(HaveOccurred())
+
+				someOtherGitRepoURL := "http://github.com/a-different-fake-org-from-above/my-fake-repo"
+
+				By("calling the function under test with a different git repo than the one in the AppProjectRepository")
+				Expect(reconcileAppProjectRepositories(ctx, someOtherGitRepoURL, namespace, k8sClient, dbq, l)).Error().ToNot(HaveOccurred())
+
+				By("verifying the AppProjectRepository still exists in the database")
+				res := []db.AppProjectRepository{}
+				Expect(dbq.ListAppProjectRepositoryByClusterUserId(ctx, clusterUser.Clusteruser_id, &res)).Error().ToNot(HaveOccurred())
+
+				Expect(res).To(HaveLen(1))
+
+			})
+		})
+	})
+
 })

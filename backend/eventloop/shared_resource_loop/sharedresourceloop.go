@@ -62,10 +62,10 @@ func (srEventLoop *SharedResourceEventLoop) ReconcileAppProjectRepositories(ctx 
 		log:                l,
 		workspaceClient:    workspaceClient,
 		workspaceNamespace: workspaceNamespace,
-		messageType:        sharedResourceLoopMessage_reconcileAppProjectRepository,
+		messageType:        sharedResourceLoopMessage_reconcileAppProjectRepositories,
 		responseChannel:    responseChannel,
 		ctx:                ctx,
-		payload: sharedResourceLoopMessage_reconcileAppProjectRepositoryRequest{
+		payload: sharedResourceLoopMessage_reconcileAppProjectRepositoriesRequest{
 			repoURLUnnormalizedFromRequest: repoURLUnnormalized,
 		},
 	}
@@ -274,7 +274,7 @@ const (
 	sharedResourceLoopMessage_getOrCreateClusterUserByNamespaceUID sharedResourceLoopMessageType = "getOrCreateClusterUserByNamespaceUID"
 	sharedResourceLoopMessage_getGitopsEngineInstanceById          sharedResourceLoopMessageType = "getGitopsEngineInstanceById"
 	sharedResourceLoopMessage_reconcileRepositoryCredential        sharedResourceLoopMessageType = "reconcileRepositoryCredential"
-	sharedResourceLoopMessage_reconcileAppProjectRepository        sharedResourceLoopMessageType = "reconcileAppProjectRepository"
+	sharedResourceLoopMessage_reconcileAppProjectRepositories      sharedResourceLoopMessageType = "reconcileAppProjectRepositories"
 )
 
 type sharedResourceLoopMessage struct {
@@ -318,7 +318,7 @@ type sharedResourceLoopMessage_reconcileRepositoryCredentialResponse struct {
 	repositoryCredential *db.RepositoryCredentials
 }
 
-type sharedResourceLoopMessage_reconcileAppProjectRepositoryRequest struct {
+type sharedResourceLoopMessage_reconcileAppProjectRepositoriesRequest struct {
 	repoURLUnnormalizedFromRequest string
 }
 
@@ -486,9 +486,9 @@ func processSharedResourceMessage(ctx context.Context, msg sharedResourceLoopMes
 			msg.responseChannel <- response
 		}()
 
-	} else if msg.messageType == sharedResourceLoopMessage_reconcileAppProjectRepository {
+	} else if msg.messageType == sharedResourceLoopMessage_reconcileAppProjectRepositories {
 
-		payload, ok := (msg.payload).(sharedResourceLoopMessage_reconcileAppProjectRepositoryRequest)
+		payload, ok := (msg.payload).(sharedResourceLoopMessage_reconcileAppProjectRepositoriesRequest)
 		if !ok {
 			err := fmt.Errorf("SEVERE: unexpected payload")
 			l.Error(err, "")
@@ -519,7 +519,7 @@ func processSharedResourceMessage(ctx context.Context, msg sharedResourceLoopMes
 
 }
 
-func internalProcessMessage_reconcileAppProjectRepositories(ctx context.Context, payload sharedResourceLoopMessage_reconcileAppProjectRepositoryRequest, namespace corev1.Namespace, workspaceClient client.Client, dbQueries db.DatabaseQueries, l logr.Logger) error {
+func internalProcessMessage_reconcileAppProjectRepositories(ctx context.Context, payload sharedResourceLoopMessage_reconcileAppProjectRepositoriesRequest, namespace corev1.Namespace, workspaceClient client.Client, dbQueries db.DatabaseQueries, l logr.Logger) error {
 
 	return reconcileAppProjectRepositories(ctx, payload.repoURLUnnormalizedFromRequest, namespace, workspaceClient, dbQueries, l)
 }
@@ -533,7 +533,7 @@ func internalProcessMessage_reconcileAppProjectRepositories(ctx context.Context,
 //   - If 'gitRepoURLUnnormalizedOfRequest' is empty (""), then all resources will be processed.
 func reconcileAppProjectRepositories(ctx context.Context, gitRepoURLUnnormalizedOfRequest string, namespace corev1.Namespace, workspaceClient client.Client, dbQueries db.DatabaseQueries, l logr.Logger) error {
 
-	normalizedGitURLOfRequest := normalizeGitURL(gitRepoURLUnnormalizedOfRequest)
+	normalizedGitURLOfRequest := NormalizeGitURL(gitRepoURLUnnormalizedOfRequest)
 
 	clusterUser, _, err := internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx, namespace, dbQueries, l)
 	if err != nil || clusterUser == nil {
@@ -564,7 +564,7 @@ func reconcileAppProjectRepositories(ctx context.Context, gitRepoURLUnnormalized
 	expectedDBEntries := map[string]db.AppProjectRepository{}
 
 	for _, repoCred := range repoCreds.Items {
-		gitURLOfRepoCred := normalizeGitURL(repoCred.Spec.Repository)
+		gitURLOfRepoCred := NormalizeGitURL(repoCred.Spec.Repository)
 
 		// Skip processing this resource if it's for another repository URL
 		// - But don't skip if the request URL is empty
@@ -574,16 +574,13 @@ func reconcileAppProjectRepositories(ctx context.Context, gitRepoURLUnnormalized
 
 		expectedEntry := db.AppProjectRepository{
 			Clusteruser_id: clusterUser.Clusteruser_id,
-			// RepositorycredentialsID: "",
-			// JGW-TODO: figure out what this is used for
-			// JGW-TODO: update the app project doc
-			RepoURL: gitURLOfRepoCred,
+			RepoURL:        gitURLOfRepoCred,
 		}
 		expectedDBEntries[gitURLOfRepoCred] = expectedEntry
 	}
 
 	for _, gitopsDepl := range gitopsDeployments.Items {
-		gitURLOfGitOpsDepl := normalizeGitURL(gitopsDepl.Spec.Source.RepoURL)
+		gitURLOfGitOpsDepl := NormalizeGitURL(gitopsDepl.Spec.Source.RepoURL)
 
 		// Skip processing this resource if it's for another repository URL
 		// - But don't skip if the request URL is empty
@@ -593,9 +590,7 @@ func reconcileAppProjectRepositories(ctx context.Context, gitRepoURLUnnormalized
 
 		expectedEntry := db.AppProjectRepository{
 			Clusteruser_id: clusterUser.Clusteruser_id,
-			// RepositorycredentialsID: "",
-			// JGW-TODO: figure out what this is used for
-			RepoURL: gitURLOfGitOpsDepl,
+			RepoURL:        gitURLOfGitOpsDepl,
 		}
 		expectedDBEntries[gitURLOfGitOpsDepl] = expectedEntry
 	}
@@ -604,7 +599,7 @@ func reconcileAppProjectRepositories(ctx context.Context, gitRepoURLUnnormalized
 
 	for _, appProjectRepoInNamepace := range appProjectReposInNamepace {
 
-		gitURLOfDatabaseRow := normalizeGitURL(appProjectRepoInNamepace.RepoURL)
+		gitURLOfDatabaseRow := NormalizeGitURL(appProjectRepoInNamepace.RepoURL)
 
 		// Skip processing this resource if it's for another repository URL
 		// - But don't skip if the request URL is empty
@@ -635,7 +630,7 @@ func reconcileAppProjectRepositories(ctx context.Context, gitRepoURLUnnormalized
 	// C) Finally, the entries that are still defined in 'expectedDBEntries' need to be created, as they exist as a CR, but not in the DB.
 	for _, expectedToExist := range expectedDBEntries {
 
-		gitURLOfMissingAppProjectRepoRow := normalizeGitURL(expectedToExist.RepoURL)
+		gitURLOfMissingAppProjectRepoRow := NormalizeGitURL(expectedToExist.RepoURL)
 
 		// Skip processing this resource if it's for another repository URL
 		// - But don't skip if the request URL is empty

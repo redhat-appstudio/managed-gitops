@@ -117,7 +117,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 							Event: &eventlooptypes.EventLoopEvent{
 								EventType:   eventlooptypes.SyncRunModified,
 								ReqResource: eventlooptypes.GitOpsDeploymentSyncRunTypeName,
-								WorkspaceID: string(workspaceUID),
+								WorkspaceID: workspaceUID,
 							},
 							ShutdownSignalled: false,
 						},
@@ -160,7 +160,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 							Event: &eventlooptypes.EventLoopEvent{
 								EventType:   eventlooptypes.SyncRunModified,
 								ReqResource: eventlooptypes.GitOpsDeploymentSyncRunTypeName,
-								WorkspaceID: string(workspaceUID),
+								WorkspaceID: workspaceUID,
 							},
 							ShutdownSignalled: false,
 						},
@@ -225,7 +225,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 							Event: &eventlooptypes.EventLoopEvent{
 								EventType:   eventlooptypes.DeploymentModified,
 								ReqResource: eventlooptypes.GitOpsDeploymentTypeName,
-								WorkspaceID: string(workspaceUID),
+								WorkspaceID: workspaceUID,
 							},
 							ShutdownSignalled: false,
 						},
@@ -268,7 +268,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 							Event: &eventlooptypes.EventLoopEvent{
 								EventType:   eventlooptypes.DeploymentModified,
 								ReqResource: eventlooptypes.GitOpsDeploymentTypeName,
-								WorkspaceID: string(workspaceUID),
+								WorkspaceID: workspaceUID,
 							},
 							ShutdownSignalled: false,
 						},
@@ -335,7 +335,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 							Event: &eventlooptypes.EventLoopEvent{
 								EventType:   eventlooptypes.ManagedEnvironmentModified,
 								ReqResource: eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName,
-								WorkspaceID: string(workspaceUID),
+								WorkspaceID: workspaceUID,
 							},
 							ShutdownSignalled: false,
 						},
@@ -382,7 +382,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 							MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
 							Event: &eventlooptypes.EventLoopEvent{
 								EventType:   eventlooptypes.UpdateDeploymentStatusTick,
-								WorkspaceID: string(workspaceUID),
+								WorkspaceID: workspaceUID,
 							},
 							ShutdownSignalled: false,
 						},
@@ -408,7 +408,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 							MessageType: eventlooptypes.ApplicationEventLoopMessageType_WorkComplete,
 							Event: &eventlooptypes.EventLoopEvent{
 								EventType:   eventlooptypes.UpdateDeploymentStatusTick,
-								WorkspaceID: string(workspaceUID),
+								WorkspaceID: workspaceUID,
 							},
 							ShutdownSignalled: false,
 						},

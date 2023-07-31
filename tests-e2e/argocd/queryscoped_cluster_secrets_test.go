@@ -35,26 +35,26 @@ var _ = Describe("Argo CD Application tests", func() {
 		// Clean up all the resources that this test creates
 		cleanupTestResources := func() {
 			config, err := fixture.GetSystemKubeConfig()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			var secretList corev1.SecretList
 			err = k8sClient.List(context.Background(), &secretList, &client.ListOptions{Namespace: argoCDNamespace})
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			for index := range secretList.Items {
 				secret := secretList.Items[index]
 				if strings.HasPrefix(secret.Name, "test-") {
 					err = k8s.Delete(&secret, k8sClient)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 			}
 
 			for _, userName := range users {
 				err = application.DeleteArgoCDApplication("test-"+userName, argoCDNamespace)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				err = fixture.DeleteNamespace(userName, config)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			}
 
 			By("cleaning up old ClusterRole/ClusterRoleBinding")
@@ -62,12 +62,12 @@ var _ = Describe("Argo CD Application tests", func() {
 				clusterRole, clusterRoleBinding := k8s.GenerateReadOnlyClusterRoleandBinding(userName)
 				err = k8sClient.Delete(context.Background(), &clusterRole)
 				if err != nil && !apierr.IsNotFound(err) {
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 
 				err = k8sClient.Delete(context.Background(), &clusterRoleBinding)
 				if err != nil && !apierr.IsNotFound(err) {
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 			}
 
@@ -85,7 +85,7 @@ var _ = Describe("Argo CD Application tests", func() {
 
 			for _, userName := range users {
 				userToken, err := k8s.CreateNamespaceScopedUserAccount(context.Background(), userName, clusterScopedSecrets, k8sClient, klog)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				userServiceAccountTokens[userName] = userToken
 			}
 
@@ -93,10 +93,10 @@ var _ = Describe("Argo CD Application tests", func() {
 			for userName, userToken := range userServiceAccountTokens {
 
 				jsonString, err := generateClusterSecretJSON(userToken)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				_, apiURL, err := fixture.ExtractKubeConfigValues()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				clusterResourcesField := ""
 				namespacesField := ""
@@ -112,17 +112,17 @@ var _ = Describe("Argo CD Application tests", func() {
 				Expect(secret.Data["server"]).To(ContainSubstring("?"), "the api url must contain a query parameter character, for these tests to be valid")
 
 				err = k8sClient.Create(context.Background(), &secret)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 			}
 		}
 
 		BeforeEach(func() {
 			kubeConfig, err := fixture.GetSystemKubeConfig()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			k8sClient, err = fixture.GetKubeClient(kubeConfig)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			cleanupTestResources()
 		})
@@ -165,7 +165,7 @@ var _ = Describe("Argo CD Application tests", func() {
 						},
 					}
 					err := k8sClient.Create(context.Background(), &argoCDApplication)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					By("ensuring GitOpsDeployment should have expected health and status")
 
@@ -188,7 +188,7 @@ var _ = Describe("Argo CD Application tests", func() {
 					By("deleting the Argo CD Application")
 
 					err = k8sClient.Delete(context.Background(), &argoCDApplication)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					By("ensuring the resources of the GitOps repo are successfully deleted")
 
@@ -206,7 +206,7 @@ var _ = Describe("Argo CD Application tests", func() {
 
 			createServiceAccountsAndSecretsForTest(clusterScoped)
 
-			Expect(len(users)).To(Equal(2))
+			Expect(users).To(HaveLen(2))
 
 			for idx, userName := range users {
 
@@ -236,7 +236,7 @@ var _ = Describe("Argo CD Application tests", func() {
 					},
 				}
 				err := k8sClient.Create(context.Background(), &argoCDApplication)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("ensuring Argo CD Application should have expected health and status")
 
@@ -260,7 +260,7 @@ var _ = Describe("Argo CD Application tests", func() {
 				By("ensuring the expected failure message is present")
 
 				err = k8s.Get(&argoCDApplication, k8sClient)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				if clusterScoped {
 					// If Argo CD cluster secret is cluster scoped, we should expect this message:

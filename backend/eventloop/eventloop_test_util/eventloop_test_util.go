@@ -27,7 +27,7 @@ func StartServiceAccountListenerOnFakeClient(ctx context.Context, managedEnviron
 			"token": ([]byte)("token"),
 		}
 		err := k8sClient.Update(ctx, &secret)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		// Locate the ServiceAccount that is pointed to by the Secret, and update that ServiceAccount
 		// - Add the Secret to the list of token secrets in the Service account
@@ -43,7 +43,7 @@ func StartServiceAccountListenerOnFakeClient(ctx context.Context, managedEnviron
 				},
 			}
 			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&serviceAccount), &serviceAccount)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			serviceAccount.Secrets = append(serviceAccount.Secrets, corev1.ObjectReference{
 				Name:      secret.Name,
@@ -51,7 +51,7 @@ func StartServiceAccountListenerOnFakeClient(ctx context.Context, managedEnviron
 			})
 
 			err = k8sClient.Update(ctx, &serviceAccount)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 		}
 	}
@@ -66,7 +66,7 @@ func StartServiceAccountListenerOnFakeClient(ctx context.Context, managedEnviron
 
 			secretList := corev1.SecretList{}
 			err := k8sClient.List(ctx, &secretList, &client.ListOptions{Namespace: "kube-system"})
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			for idx := range secretList.Items {
 
@@ -85,7 +85,7 @@ func StartServiceAccountListenerOnFakeClient(ctx context.Context, managedEnviron
 
 			return false, nil
 		})
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 	}()
 }

@@ -49,10 +49,10 @@ var _ = Describe("ArgoCD AppProject E2E tests", func() {
 			ctx = context.Background()
 
 			config, err = fixture.GetSystemKubeConfig()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			k8sClient, err = fixture.GetKubeClient(config)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			appProject = appv1.AppProject{
 				ObjectMeta: metav1.ObjectMeta{

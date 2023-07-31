@@ -48,7 +48,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			By("creating the GitOpsDeploymentManagedEnvironment")
 
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 
@@ -56,10 +56,10 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			err = k8s.Create(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Create(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl",
 				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
@@ -67,7 +67,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
 			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring GitOpsDeployment should have expected health and status and reconciledState")
 
@@ -91,10 +91,10 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			secretList := corev1.SecretList{}
 
 			err = k8sClient.List(context.Background(), &secretList, &client.ListOptions{Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace})
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbQueries.CloseDatabase()
 
 			mapping := &db.APICRToDatabaseMapping{
@@ -103,7 +103,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				DBRelationType:  db.APICRToDatabaseMapping_DBRelationType_ManagedEnvironment,
 			}
 			err = dbQueries.GetDatabaseMappingForAPICR(context.Background(), mapping)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			argoCDClusterSecret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -129,10 +129,10 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			By("deleting the secret and managed environment")
 			err = k8s.Delete(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Delete(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(argoCDClusterSecret, "60s", "1s").ShouldNot(k8s.ExistByName(k8sClient),
 				"once the ManagedEnvironment is deleted, the Argo CD cluster secret should be deleted as well.")
@@ -174,27 +174,27 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			// Now create the cluster role and cluster role binding
 			err = k8s.CreateOrUpdateClusterRoleAndRoleBinding(ctx, "123", k8sClient, serviceAccountName, serviceAccount.Namespace, k8s.ArgoCDManagerNamespacePolicyRules)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create Service Account and wait for bearer token
 			tokenSecret, err := k8s.CreateServiceAccountBearerToken(ctx, k8sClient, serviceAccount.Name, serviceAccount.Namespace)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(tokenSecret).NotTo(BeNil())
 
 			By("creating the GitOpsDeploymentManagedEnvironment and Secret")
 
 			_, apiServerURL, err := extractKubeConfigValues()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			kubeConfigContents := k8s.GenerateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, tokenSecret)
 
 			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, false)
 
 			err = k8s.Create(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Create(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("by creating a GitOpsDeployment pointing to the ManagedEnvironment")
 
@@ -206,7 +206,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
 			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring GitOpsDeployment should have expected health and status and reconciledState")
 
@@ -230,10 +230,10 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			secretList := corev1.SecretList{}
 
 			err = k8sClient.List(context.Background(), &secretList, &client.ListOptions{Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace})
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbQueries.CloseDatabase()
 
 			mapping := &db.APICRToDatabaseMapping{
@@ -242,7 +242,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				DBRelationType:  db.APICRToDatabaseMapping_DBRelationType_ManagedEnvironment,
 			}
 			err = dbQueries.GetDatabaseMappingForAPICR(context.Background(), mapping)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			argoCDClusterSecret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -266,10 +266,10 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			By("deleting the secret and managed environment")
 			err = k8s.Delete(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Delete(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(argoCDClusterSecret, "60s", "1s").ShouldNot(k8s.ExistByName(k8sClient),
 				"once the ManagedEnvironment is deleted, the Argo CD cluster secret should be deleted as well.")
@@ -313,17 +313,17 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			// Now create the cluster role and cluster role binding
 			err = k8s.CreateOrUpdateClusterRoleAndRoleBinding(ctx, "123", k8sClient, serviceAccountName, serviceAccount.Namespace, k8s.ArgoCDManagerNamespacePolicyRules)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create Service Account and wait for bearer token
 			tokenSecret, err := k8s.CreateServiceAccountBearerToken(ctx, k8sClient, serviceAccount.Name, serviceAccount.Namespace)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(tokenSecret).NotTo(BeNil())
 
 			By("creating the GitOpsDeploymentManagedEnvironment")
 
 			_, apiServerURL, err := extractKubeConfigValues()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Set the tokenSecret to be "" to intentionally fail
 			kubeConfigContents := k8s.GenerateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, "")
@@ -331,10 +331,10 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, false)
 
 			err = k8s.Create(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Create(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl",
 				"https://github.com/redhat-appstudio/managed-gitops",
@@ -344,7 +344,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
 			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring GitOpsDeployment has the expected error condition")
 
@@ -365,10 +365,10 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			By("deleting the secret and managed environment")
 			err = k8s.Delete(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Delete(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Delete(&serviceAccount, k8sClient)
 			Expect(err).To(Succeed())
@@ -404,27 +404,27 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			}
 			// Now create the cluster role and cluster role binding
 			err = k8s.CreateOrUpdateClusterRoleAndRoleBinding(ctx, "123", k8sClient, serviceAccountName, serviceAccount.Namespace, insufficientPermissions)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create Service Account and wait for bearer token
 			tokenSecret, err := k8s.CreateServiceAccountBearerToken(ctx, k8sClient, serviceAccount.Name, serviceAccount.Namespace)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(tokenSecret).NotTo(BeNil())
 
 			By("creating the GitOpsDeploymentManagedEnvironment")
 
 			_, apiServerURL, err := extractKubeConfigValues()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			kubeConfigContents := k8s.GenerateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, tokenSecret)
 
 			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, false)
 
 			err = k8s.Create(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Create(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl",
 				"https://github.com/redhat-appstudio/managed-gitops",
@@ -434,7 +434,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
 			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring GitOpsDeployment has the expected error condition")
 
@@ -455,10 +455,10 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			By("deleting the secret and managed environment")
 			err = k8s.Delete(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Delete(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Delete(&serviceAccount, k8sClient)
 			Expect(err).To(Succeed())
@@ -496,7 +496,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			tokenSecret, err := k8s.CreateServiceAccountBearerToken(ctx, k8sClient, serviceAccount.Name, serviceAccount.Namespace)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(tokenSecret).ToNot(BeEmpty())
 
 			namespaceRole := rbacv1.Role{
@@ -511,7 +511,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				}},
 			}
 			err = k8s.Create(&namespaceRole, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			namespaceRoleBinding := rbacv1.RoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
@@ -529,12 +529,12 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				},
 			}
 			err = k8s.Create(&namespaceRoleBinding, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("creating the GitOpsDeploymentManagedEnvironment and its Secret, using that service account token")
 
 			_, apiServerURL, err := extractKubeConfigValues()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			kubeConfigContents := k8s.GenerateKubeConfig(apiServerURL, newNamespace.Name, tokenSecret)
 
@@ -547,7 +547,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				StringData: map[string]string{"kubeconfig": kubeConfigContents},
 			}
 			err = k8s.Create(secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			managedEnv := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -564,7 +564,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			}
 
 			err = k8s.Create(managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl",
 				"https://github.com/redhat-appstudio/managed-gitops",
@@ -574,7 +574,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
 			gitOpsDeploymentResource.Spec.Destination.Namespace = newNamespace.Name
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(gitOpsDeploymentResource, "2m", "1s").Should(
 				SatisfyAll(
@@ -592,10 +592,10 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				"we check that at least one of the resources is deployed to the expected namespace")
 
 			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Get(&gitOpsDeploymentResource, k8sClient)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 
 			By("creating a second GitOpsDeployment, targeting a different namespace without a role and rolebinding on the serviceaccount of the managedenvironment, which should fail")
 
@@ -607,7 +607,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			gitOpsDeploymentResource2.Spec.Destination.Environment = managedEnv.Name
 			gitOpsDeploymentResource2.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 			err = k8s.Create(&gitOpsDeploymentResource2, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(gitOpsDeploymentResource2, "2m", "1s").Should(
 				SatisfyAll(
@@ -615,10 +615,10 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeMissing)))
 
 			err = k8s.Delete(&gitOpsDeploymentResource2, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Get(&gitOpsDeploymentResource2, k8sClient)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 
 			By("creating a new namespace, and adding a role and rolebinding to the existing serviceaccount and managedenvironment ")
 
@@ -645,7 +645,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				}},
 			}
 			err = k8s.Create(&namespaceRole2, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			namespaceRoleBinding2 := rbacv1.RoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
@@ -663,15 +663,15 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				},
 			}
 			err = k8s.Create(&namespaceRoleBinding2, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("updating the managedenvironment, adding the second namespace to the list of managed namespaces")
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(managedEnv), managedEnv)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			managedEnv.Spec.Namespaces = []string{newNamespace.Name, newNamespace2.Name}
 
 			err = k8sClient.Update(ctx, managedEnv)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create a new GitOpsDeployment that attempts to deploy to the new namespace, using the exist managedenvironment, which should work")
 			gitOpsDeploymentResource3 := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl3",
@@ -682,7 +682,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			gitOpsDeploymentResource3.Spec.Destination.Environment = managedEnv.Name
 			gitOpsDeploymentResource3.Spec.Destination.Namespace = newNamespace2.Name
 			err = k8s.Create(&gitOpsDeploymentResource3, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(gitOpsDeploymentResource3, "2m", "1s").Should(
 				SatisfyAll(
@@ -701,10 +701,10 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				"we check that at least one of the resources is deployed to the new namespace")
 
 			err = k8s.Delete(&gitOpsDeploymentResource3, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Get(&gitOpsDeploymentResource3, k8sClient)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 
 		})
 
@@ -713,7 +713,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			By("creating the GitOpsDeploymentManagedEnvironment")
 
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 
@@ -721,10 +721,10 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			err = k8s.Create(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Create(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl",
 				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
@@ -732,7 +732,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
 			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring GitOpsDeployment should have expected health and status ")
 
@@ -742,7 +742,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)))
 
 			dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbQueries.CloseDatabase()
 
 			mapping := &db.APICRToDatabaseMapping{
@@ -751,7 +751,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				DBRelationType:  db.APICRToDatabaseMapping_DBRelationType_ManagedEnvironment,
 			}
 			err = dbQueries.GetDatabaseMappingForAPICR(context.Background(), mapping)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Verify whether AppProjectManagedEnv is created or not")
 			appProjectManagedEnvDB := db.AppProjectManagedEnvironment{
@@ -759,7 +759,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			}
 
 			err = dbQueries.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnvDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify that the Argo CD Application references the AppProject, and that the AppProject references the managed environment that was created above")
 			appProject := &appv1alpha1.AppProject{
@@ -770,7 +770,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			}
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			app := &appv1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{
@@ -779,7 +779,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				},
 			}
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			if util.AppProjectIsolationEnabled() {
 				Expect(app.Spec.Project).To(Equal(appProject.Name))
@@ -802,7 +802,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			By("Delete GitOpsDeploymentManagedEnvironment")
 			err = k8s.Delete(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Get(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
@@ -812,7 +812,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			gitOpsDeploymentResource.Spec.Destination.Namespace = ""
 
 			err = k8s.Update(&gitOpsDeploymentResource, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Verify whether AppProject CR no longer references the old ManagedEnvironment")
 			Eventually(appProject, "2m", "1s").ShouldNot(
@@ -834,7 +834,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			By("Create a managedenvironment A and gitopsdeployment that references that env")
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			secret := corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -862,10 +862,10 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			err = k8s.Create(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Create(&managedEnvA, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl-1",
 				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
@@ -873,7 +873,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnvA.Name
 			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring GitOpsDeployment should have expected health and status ")
 
@@ -885,7 +885,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)))
 
 			dbQueries, err := db.NewSharedProductionPostgresDBQueries(false)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbQueries.CloseDatabase()
 
 			mapping := &db.APICRToDatabaseMapping{
@@ -894,14 +894,14 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				DBRelationType:  db.APICRToDatabaseMapping_DBRelationType_ManagedEnvironment,
 			}
 			err = dbQueries.GetDatabaseMappingForAPICR(context.Background(), mapping)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			appProjectManagedEnvDB := db.AppProjectManagedEnvironment{
 				Managed_environment_id: mapping.DBRelationKey,
 			}
 
 			err = dbQueries.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnvDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Ensure AppProject now references managedEnvironment A")
 			appProject := &appv1alpha1.AppProject{
@@ -912,7 +912,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			}
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(appProject, "2m", "1s").Should(
 				SatisfyAll(
@@ -942,7 +942,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			}
 
 			err = k8s.Create(&managedEnvB, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitOpsDeploymentResource1 := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl-2",
 				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
@@ -951,7 +951,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			gitOpsDeploymentResource1.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
 			err = k8s.Create(&gitOpsDeploymentResource1, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring GitOpsDeployment should have expected health and status ")
 
@@ -967,10 +967,10 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 				DBRelationType:  db.APICRToDatabaseMapping_DBRelationType_ManagedEnvironment,
 			}
 			err = dbQueries.GetDatabaseMappingForAPICR(context.Background(), mapping1)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(appProject, "2m", "1s").Should(
 				SatisfyAll(
@@ -991,14 +991,14 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			By("Delete managedenv A and the gitopsdeployment that references it")
 			err = k8s.Delete(&managedEnvA, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Delete(&gitOpsDeploymentResource, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Ensure AppProject now references managedEnvironment B")
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(appProject, "2m", "1s").Should(
 				SatisfyAll(
@@ -1015,10 +1015,10 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			By("Delete managedenv B and the gitopsdeployment that references it")
 			err = k8s.Delete(&managedEnvB, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Delete(&gitOpsDeploymentResource1, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Ensure the AppProject doesn't exist.")
 			Eventually(func() bool {

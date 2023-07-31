@@ -22,7 +22,7 @@ import (
 func HasStatus(status corev1.ConditionStatus) matcher.GomegaMatcher {
 	return WithTransform(func(spacerequest codereadytoolchainv1alpha1.SpaceRequest) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -48,7 +48,7 @@ func HasStatus(status corev1.ConditionStatus) matcher.GomegaMatcher {
 func HasANumberOfMatchingDTs(num int) matcher.GomegaMatcher {
 	return WithTransform(func(spacerequest codereadytoolchainv1alpha1.SpaceRequest) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -97,7 +97,7 @@ func UpdateStatusWithFunction(spaceRequest *codereadytoolchainv1alpha1.SpaceRequ
 
 	GinkgoWriter.Printf("Updating SpaceRequest for '%v'\n", spaceRequest.ObjectMeta)
 	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	k8sClient, err := fixture.GetKubeClient(config)
 	if err != nil {

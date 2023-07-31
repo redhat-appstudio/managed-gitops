@@ -61,7 +61,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 				},
 			}
 			err := k8s.Create(dtclass, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Step 1 - Create a DeploymentTargetClaim that references the class")
 			dtc := appstudiosharedv1.DeploymentTargetClaim{
@@ -74,7 +74,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 				},
 			}
 			err = k8s.Create(&dtc, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Step 2- Create an Environment that references the DTC")
 			env := &appstudiosharedv1.Environment{
@@ -96,7 +96,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 				},
 			}
 			err = k8s.Create(env, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Step 3 - ensure the DTC has a phase .status.phase of Pending, and has the correct target provisioner annotation")
 			Eventually(dtc, "60s", "1s").Should(dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Pending))
@@ -153,7 +153,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 				},
 			}
 			err = k8s.Create(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = spacerequest.UpdateStatusWithFunction(&expectedSpaceRequest, func(spaceRequestParam *codereadytoolchainv1alpha1.SpaceRequestStatus) {
 
@@ -173,7 +173,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 					},
 				}
 			})
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Step 6 - Ensure there exists a DeploymentTarget based on the DTC")
 
@@ -183,7 +183,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 
 				deploymentTargetList := appstudiosharedv1.DeploymentTargetList{}
 				err = k8s.List(&deploymentTargetList, dtc.Namespace, k8sClient)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				for _, dt := range deploymentTargetList.Items {
 					if strings.HasPrefix(dt.Name, dtc.Name+"-dt-") {
@@ -227,7 +227,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 
 				var managedEnvironmentList managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentList
 				err = k8s.List(&managedEnvironmentList, dtc.Namespace, k8sClient)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				for _, item := range managedEnvironmentList.Items {
 					matchFound := false
@@ -264,7 +264,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 
 			By("Deletion step 1 - Delete the DeploymentTargetClaim")
 			err := k8sClient.Delete(context.Background(), &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Deletion step 2 - Ensure the matching DT is also starting to delete")
 			Eventually(&matchingDT, "60s", "1s").Should(k8s.HasNonNilDeletionTimestamp(k8sClient))
@@ -284,7 +284,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 					},
 				}
 			})
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Consistently(&expectedSpaceRequest, "10s", "1s").Should(k8s.ExistByName(k8sClient),
 				"the space request should not be deleted while it is terminating")
@@ -293,7 +293,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 			By("removing the finalizer from the SpaceRequest, which should cause it to be deleted.")
 			expectedSpaceRequest.Finalizers = []string{}
 			err = k8s.Update(&expectedSpaceRequest, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(&expectedSpaceRequest, "10s", "1s").ShouldNot(k8s.ExistByName(k8sClient))
 
@@ -311,7 +311,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 
 			By("Deletion step 1 - Delete the DeploymentTargetClaim")
 			err := k8sClient.Delete(context.Background(), &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(&dtc, "30s", "1s").ShouldNot(k8s.ExistByName(k8sClient))
 
@@ -327,7 +327,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 
 			By("Ensure the claimRef is unset from the DT")
 			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&matchingDT), &matchingDT)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(matchingDT.Spec.ClaimRef).Should(BeEmpty())
 		})
 
@@ -336,7 +336,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 
 			By("Deletion step 1 - Delete the DeploymentTargetClaim")
 			err := k8sClient.Delete(context.Background(), &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Deletion step 2 - Ensure the matching DT is also starting to delete")
 			Eventually(&matchingDT, "60s", "1s").Should(k8s.HasNonNilDeletionTimestamp(k8sClient))
@@ -356,7 +356,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 					},
 				}
 			})
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Consistently(&expectedSpaceRequest, "10s", "1s").Should(k8s.ExistByName(k8sClient),
 				"the space request should not be deleted while it is terminating")
@@ -372,7 +372,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 					},
 				}
 			})
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(matchingDT, "3m", "1s").Should(dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Failed))
 
@@ -381,7 +381,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 			By("removing the finalizer from the SpaceRequest, which should cause it to be deleted.")
 			expectedSpaceRequest.Finalizers = []string{}
 			err = k8s.Update(&expectedSpaceRequest, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(&expectedSpaceRequest, "10s", "1s").ShouldNot(k8s.ExistByName(k8sClient))
 

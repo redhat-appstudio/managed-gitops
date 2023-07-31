@@ -37,49 +37,49 @@ func deleteTestResources(ctx context.Context, dbQueries db.AllDatabaseQueries, r
 	// Delete kubernetesToDBResourceMapping
 	if resourcesToBeDeleted.kubernetesToDBResourceMapping.KubernetesResourceUID != "" {
 		rowsAffected, err = dbQueries.DeleteKubernetesResourceToDBResourceMapping(ctx, &resourcesToBeDeleted.kubernetesToDBResourceMapping)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).To(Equal(1))
 	}
 
 	// Delete DeploymentToApplicationMapping
 	if resourcesToBeDeleted.Deploymenttoapplicationmapping_uid_id != "" {
 		rowsAffected, err := dbQueries.DeleteDeploymentToApplicationMappingByDeplId(ctx, resourcesToBeDeleted.Deploymenttoapplicationmapping_uid_id)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).To(Equal(1))
 	}
 
 	// Delete Application
 	if resourcesToBeDeleted.Application_id != "" {
 		rowsAffected, err = dbQueries.DeleteApplicationById(ctx, resourcesToBeDeleted.Application_id)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).To(Equal(1))
 	}
 
 	// Delete GitopsEngineInstance
 	if resourcesToBeDeleted.Gitopsengineinstance_id != "" {
 		rowsAffected, err = dbQueries.DeleteGitopsEngineInstanceById(ctx, resourcesToBeDeleted.Gitopsengineinstance_id)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).To(Equal(1))
 	}
 
 	// Delete GitopsEngineCluster
 	if resourcesToBeDeleted.Gitopsenginecluster_id != "" {
 		rowsAffected, err = dbQueries.DeleteGitopsEngineClusterById(ctx, resourcesToBeDeleted.Gitopsenginecluster_id)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).To(Equal(1))
 	}
 
 	// Delete ManagedEnvironment
 	if resourcesToBeDeleted.Managedenvironment_id != "" {
 		rowsAffected, err = dbQueries.DeleteManagedEnvironmentById(ctx, resourcesToBeDeleted.Managedenvironment_id)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).To(Equal(1))
 	}
 
 	// Delete ClusterCredentials
 	if resourcesToBeDeleted.Clustercredentials_cred_id != "" {
 		rowsAffected, err = dbQueries.DeleteClusterCredentialsById(ctx, resourcesToBeDeleted.Clustercredentials_cred_id)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).To(Equal(1))
 	}
 }
@@ -131,7 +131,7 @@ var _ = Describe("Test utility functions.", func() {
 
 		It("Should create new managedEnvironment and other resources, if called second time then it should return existing resources.", func() {
 			ctx, dbQueries, log, workSpaceUid, err := initialSetUp()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			defer dbQueries.CloseDatabase()
 
@@ -149,7 +149,7 @@ var _ = Describe("Test utility functions.", func() {
 			// ----------------------------------------------------------------------------
 
 			managedEnvironment, isNew, err := GetOrCreateManagedEnvironmentByNamespaceUID(ctx, workspace, dbQueries, log)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(isNew).To(BeTrue())
 
 			// ----------------------------------------------------------------------------
@@ -164,21 +164,21 @@ var _ = Describe("Test utility functions.", func() {
 			}
 
 			err = dbQueries.GetDBResourceMappingForKubernetesResource(ctx, &kubernetesToDBResourceMapping)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Check ClusterCredentials resource
 			clusterCredentials := db.ClusterCredentials{
 				Clustercredentials_cred_id: managedEnvironment.Clustercredentials_id,
 			}
 			err = dbQueries.GetClusterCredentialsById(ctx, &clusterCredentials)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ----------------------------------------------------------------------------
 			By("If called 2nd time, it should return existing ManagedEnvironment, instead of creating new and flag should be False.")
 			// ----------------------------------------------------------------------------
 
 			retrieveManagedEnvironment, isNew, err := GetOrCreateManagedEnvironmentByNamespaceUID(ctx, workspace, dbQueries, log)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(isNew).To(BeFalse())
 			Expect(retrieveManagedEnvironment.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 			retrieveManagedEnvironment.Created_on = managedEnvironment.Created_on
@@ -199,7 +199,7 @@ var _ = Describe("Test utility functions.", func() {
 
 		It("Should fail as NameSpace is invalid.", func() {
 			ctx, dbQueries, log, _, err := initialSetUp()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			workspace := v1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
@@ -212,7 +212,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			managedEnvironment, isNew, err := GetOrCreateManagedEnvironmentByNamespaceUID(ctx, workspace, dbQueries, log)
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(isNew).To(BeFalse())
 			Expect(managedEnvironment).To(BeNil())
 		})
@@ -233,7 +233,7 @@ var _ = Describe("Test utility functions.", func() {
 
 		BeforeEach(func() {
 			ctx, dbQueries, log, _, err = initialSetUp()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ----------------------------------------------------------------------------
 			By("First create resources required by DeploymentToApplicationMapping resource.")
@@ -248,7 +248,7 @@ var _ = Describe("Test utility functions.", func() {
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 			err = dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ---------------------------------------------------------------------------
 			// Create ManagedEnvironment
@@ -258,7 +258,7 @@ var _ = Describe("Test utility functions.", func() {
 				Name:                  "my-managed-environment",
 			}
 			err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironment)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ---------------------------------------------------------------------------
 			// Create GitopsEngineCluster
@@ -267,7 +267,7 @@ var _ = Describe("Test utility functions.", func() {
 				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
 			}
 			err = dbQueries.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ---------------------------------------------------------------------------
 			// Create GitopsEngineInstance
@@ -278,7 +278,7 @@ var _ = Describe("Test utility functions.", func() {
 				EngineCluster_id: gitopsEngineCluster.Gitopsenginecluster_id,
 			}
 			err = dbQueries.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ---------------------------------------------------------------------------
 			// Create Application
@@ -290,7 +290,7 @@ var _ = Describe("Test utility functions.", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 			err = dbQueries.CreateApplication(ctx, &application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ---------------------------------------------------------------------------
 			// Create deploymentToApplicationMapping request data
@@ -329,7 +329,7 @@ var _ = Describe("Test utility functions.", func() {
 			By("Create new DeploymentToApplicationMapping resource.")
 			// ----------------------------------------------------------------------------
 			isNew, err := GetOrCreateDeploymentToApplicationMapping(ctx, deploymentToApplicationMapping, dbQueries, log)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(isNew).To(BeTrue())
 
 			// ----------------------------------------------------------------------------
@@ -339,14 +339,14 @@ var _ = Describe("Test utility functions.", func() {
 			err = dbQueries.GetDeploymentToApplicationMappingByDeplId(ctx, &db.DeploymentToApplicationMapping{
 				Deploymenttoapplicationmapping_uid_id: deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id,
 			})
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ----------------------------------------------------------------------------
 			By("Try to create same DeploymentToApplicationMapping, it should return existing resource instead of creating new.")
 			// ----------------------------------------------------------------------------
 
 			isNew, err = GetOrCreateDeploymentToApplicationMapping(ctx, deploymentToApplicationMapping, dbQueries, log)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(isNew).To(BeFalse())
 		})
 
@@ -357,7 +357,7 @@ var _ = Describe("Test utility functions.", func() {
 			// ----------------------------------------------------------------------------
 
 			isNew, err := GetOrCreateDeploymentToApplicationMapping(ctx, deploymentToApplicationMapping, dbQueries, log)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(isNew).To(BeTrue())
 
 			// ----------------------------------------------------------------------------
@@ -373,7 +373,7 @@ var _ = Describe("Test utility functions.", func() {
 			}
 
 			isNew, err = GetOrCreateDeploymentToApplicationMapping(ctx, deploymentToApplicationMappingSecond, dbQueries, log)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(isNew).To(BeTrue())
 
 			// ----------------------------------------------------------------------------
@@ -383,7 +383,7 @@ var _ = Describe("Test utility functions.", func() {
 			err = dbQueries.GetDeploymentToApplicationMappingByDeplId(ctx, &db.DeploymentToApplicationMapping{
 				Deploymenttoapplicationmapping_uid_id: deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id,
 			})
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 			// ----------------------------------------------------------------------------
@@ -393,7 +393,7 @@ var _ = Describe("Test utility functions.", func() {
 			err = dbQueries.GetDeploymentToApplicationMappingByDeplId(ctx, &db.DeploymentToApplicationMapping{
 				Deploymenttoapplicationmapping_uid_id: deploymentToApplicationMappingSecond.Deploymenttoapplicationmapping_uid_id,
 			})
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// send second resource object to get deleted in AfterEach
 			deploymentToApplicationMapping = deploymentToApplicationMappingSecond
@@ -433,7 +433,7 @@ var _ = Describe("Test utility functions.", func() {
 
 		It("Should create new GitopsEngineCluster and KubernetesToDBResourceMapping.", func() {
 			ctx, dbQueries, log, workSpaceUid, err = initialSetUp()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ----------------------------------------------------------------------------
 			By("It should create new KubernetesToDBResourceMapping and GitopsEngineCluster.")
@@ -441,7 +441,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			gitopsEngineCluster, isNew, err = GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(workSpaceUid), dbQueries, log)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(isNew).To(BeTrue())
 
 			// ----------------------------------------------------------------------------
@@ -455,22 +455,22 @@ var _ = Describe("Test utility functions.", func() {
 
 			err = dbQueries.GetGitopsEngineClusterById(ctx, &retrieveGitopsEngineCluster)
 
-			Expect(err).To(BeNil())
-			Expect(db.GitopsEngineCluster{} == retrieveGitopsEngineCluster).To(BeFalse())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(db.GitopsEngineCluster{}).ToNot(Equal(retrieveGitopsEngineCluster))
 
 			//----------------------------------------------------------
 			// Check KubernetesToDBResourceMapping is created.
 			var foundMapping bool
 			kubernetesToDBResourceMapping, foundMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineCluster.Gitopsenginecluster_id, db.K8sToDBMapping_GitopsEngineCluster)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(foundMapping).To(BeTrue())
 		})
 
 		It("Should delete old KubernetesToDBResourceMapping, if corresponding GitopsEngineCluster doesnt exists and then create new GitopsEngineCluster and KubernetesToDBResourceMapping .", func() {
 
 			ctx, dbQueries, log, workSpaceUid, err = initialSetUp()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			kubernetesToDBResourceMappingFirst := db.KubernetesToDBResourceMapping{
 				KubernetesResourceType: db.K8sToDBMapping_Namespace,
@@ -480,7 +480,7 @@ var _ = Describe("Test utility functions.", func() {
 			}
 
 			err = dbQueries.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMappingFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ----------------------------------------------------------------------------
 			By("It should delete old KubernetesToDBResourceMapping and create new KubernetesToDBResourceMapping and GitopsEngineCluster.")
@@ -488,7 +488,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			gitopsEngineCluster, isNew, err = GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(workSpaceUid), dbQueries, log)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(isNew).To(BeTrue())
 
 			// ----------------------------------------------------------------------------
@@ -498,18 +498,18 @@ var _ = Describe("Test utility functions.", func() {
 			var foundOldMapping, foundNewMapping bool
 
 			_, foundOldMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, kubernetesToDBResourceMappingFirst.DBRelationKey, kubernetesToDBResourceMappingFirst.DBRelationType)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(foundOldMapping).To(BeFalse())
 
 			kubernetesToDBResourceMapping, foundNewMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineCluster.Gitopsenginecluster_id, db.K8sToDBMapping_GitopsEngineCluster)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(foundNewMapping).To(BeTrue())
 		})
 
 		It("Should return existing GitopsEngineCluster and KubernetesToDBResourceMapping, instead of creating new.", func() {
 
 			ctx, dbQueries, log, workSpaceUid, err = initialSetUp()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ----------------------------------------------------------------------------
 			By("First create new KubernetesToDBResourceMapping and GitopsEngineCluster.")
@@ -517,7 +517,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			gitopsEngineCluster, isNew, err = GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(workSpaceUid), dbQueries, log)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(isNew).To(BeTrue())
 
 			// ----------------------------------------------------------------------------
@@ -527,7 +527,7 @@ var _ = Describe("Test utility functions.", func() {
 			// Fetch KubernetesToDBResourceMapping to be used later.
 			var foundMapping bool
 			kubernetesToDBResourceMapping, foundMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineCluster.Gitopsenginecluster_id, db.K8sToDBMapping_GitopsEngineCluster)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(foundMapping).To(BeTrue())
 
 			// ----------------------------------------------------------------------------
@@ -536,7 +536,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			retrieveGitopsEngineCluster, retrieveIsNewSecond, err := GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(workSpaceUid), dbQueries, log)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(retrieveIsNewSecond).To(BeFalse())
 
 			// ----------------------------------------------------------------------------
@@ -546,13 +546,13 @@ var _ = Describe("Test utility functions.", func() {
 			Expect(gitopsEngineCluster).To(Equal(retrieveGitopsEngineCluster))
 
 			kubernetesToDBResourceMappingSecond, _, err := findKubernetesToDBResourceMappingInTable(ctx, dbQueries, retrieveGitopsEngineCluster.Gitopsenginecluster_id, db.K8sToDBMapping_GitopsEngineCluster)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(kubernetesToDBResourceMappingSecond).To(Equal(kubernetesToDBResourceMapping))
 		})
 
 		It("Should return error as kubesystemNamespaceUID is empty.", func() {
 			ctx, dbQueries, log, workSpaceUid, err = initialSetUp()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// To erase value of local variable set by previous test, otherwise condition to check not-nil in AfterEach will satisfy
 			// and it would try to delete entry which is already been deleted in previous test and fail in check for number of rows affected.
@@ -560,7 +560,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			gitopsEngineCluster, isNew, err = GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, "", dbQueries, log)
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(strings.Contains(err.Error(), "field should not be empty string")).To(BeTrue())
 			Expect(isNew).To(BeFalse())
 		})
@@ -597,7 +597,7 @@ var _ = Describe("Test utility functions.", func() {
 
 		It("Should return nil, if KubernetesToDBResourceMapping and GitopsEngineCluster don't exist", func() {
 			ctx, dbQueries, log, workSpaceUid, err = initialSetUp()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ----------------------------------------------------------------------------
 			By("No GitopsEngineCluster instance should be returned.")
@@ -605,13 +605,13 @@ var _ = Describe("Test utility functions.", func() {
 
 			gitopsEngineCluster, err = GetGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(workSpaceUid), dbQueries, log)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(gitopsEngineCluster).To(BeNil())
 		})
 
 		It("Should return nil, if KubernetesToDBResourceMapping exists, but GitopsEngineCluster doesn't.", func() {
 			ctx, dbQueries, log, workSpaceUid, err = initialSetUp()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ----------------------------------------------------------------------------
 			By("Create DeploymentToApplicationMapping.")
@@ -625,7 +625,7 @@ var _ = Describe("Test utility functions.", func() {
 			}
 
 			err = dbQueries.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMapping)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ----------------------------------------------------------------------------
 			By("No GitopsEngineCluster instance should be returned.")
@@ -633,14 +633,14 @@ var _ = Describe("Test utility functions.", func() {
 
 			gitopsEngineCluster, err = GetGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(workSpaceUid), dbQueries, log)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(gitopsEngineCluster).To(BeNil())
 		})
 
 		It("Should return GitopsEngineCluster, if KubernetesToDBResourceMapping and GitopsEngineCluster exist in DB.", func() {
 
 			ctx, dbQueries, log, workSpaceUid, err = initialSetUp()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ----------------------------------------------------------------------------
 			By("First create new DeploymentToApplicationMapping and GitopsEngineCluster to be used later.")
@@ -648,7 +648,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			gitopsEngineCluster, _, err = GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(workSpaceUid), dbQueries, log)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ----------------------------------------------------------------------------
 			By("Existing GitopsEngineCluster instance should be returned.")
@@ -656,7 +656,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			retrieveGitopsEngineCluster, err := GetGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(workSpaceUid), dbQueries, log)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(gitopsEngineCluster).To(Equal(retrieveGitopsEngineCluster))
 
 			// ----------------------------------------------------------------------------
@@ -665,7 +665,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			// Fetch KubernetesToDBResourceMapping to be cleaned in AfterEach.
 			kubernetesToDBResourceMapping, _, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineCluster.Gitopsenginecluster_id, db.K8sToDBMapping_GitopsEngineCluster)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 
@@ -684,7 +684,7 @@ var _ = Describe("Test utility functions.", func() {
 
 		BeforeEach(func() {
 			ctx, dbQueries, log, workSpaceUid, err = initialSetUp()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			workspace = v1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
@@ -735,7 +735,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			gitopsEngineInstance, isNew, gitopsEngineCluster, err = GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, workspace, string(workSpaceUid), dbQueries, log)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(isNew).To(BeTrue())
 
 			// ----------------------------------------------------------------------------
@@ -747,18 +747,18 @@ var _ = Describe("Test utility functions.", func() {
 				Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
 			}
 			err = dbQueries.GetGitopsEngineInstanceById(ctx, &retrieveGitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(&retrieveGitopsEngineInstance).To(Equal(gitopsEngineInstance))
 
 			// Check KubernetesToDBResourceMapping is created for GitopsEngineInstance and GitopsEngineCluster
 			var foundGitopsEngineInstanceMapping, foundGitopsEngineClusterMapping bool
 
 			kubernetesToDBResourceMappingForEngineInstance, foundGitopsEngineInstanceMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineInstance.Gitopsengineinstance_id, db.K8sToDBMapping_GitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(foundGitopsEngineInstanceMapping).To(BeTrue())
 
 			kubernetesToDBResourceMappingForEngineCluster, foundGitopsEngineClusterMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineCluster.Gitopsenginecluster_id, db.K8sToDBMapping_GitopsEngineCluster)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(foundGitopsEngineClusterMapping).To(BeTrue())
 		})
 
@@ -776,7 +776,7 @@ var _ = Describe("Test utility functions.", func() {
 			}
 
 			err = dbQueries.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMappingFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ----------------------------------------------------------------------------
 			By("It should delete existing KubernetesToDBResourceMapping and return new gitopsEngineInstance and KubernetesToDBResourceMapping.")
@@ -784,7 +784,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			gitopsEngineInstance, isNew, gitopsEngineCluster, err = GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, workspace, string(workSpaceUid), dbQueries, log)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(isNew).To(BeTrue())
 
 			// ----------------------------------------------------------------------------
@@ -796,24 +796,24 @@ var _ = Describe("Test utility functions.", func() {
 				Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
 			}
 			err = dbQueries.GetGitopsEngineInstanceById(ctx, &retrieveGitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(&retrieveGitopsEngineInstance).To(Equal(gitopsEngineInstance))
 
 			var foundOldGitopsEngineInstanceMapping, foundNewGitopsEngineInstanceMapping, foundGitopsEngineClusterMapping bool
 
 			// Check existing mapping for GitOpsEngineInstance is deleted.
 			_, foundOldGitopsEngineInstanceMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, kubernetesToDBResourceMappingFirst.DBRelationKey, kubernetesToDBResourceMappingFirst.DBRelationType)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(foundOldGitopsEngineInstanceMapping).To(BeFalse())
 
 			// Check new mapping for GitOpsEngineInstance is created.
 			kubernetesToDBResourceMappingForEngineInstance, foundNewGitopsEngineInstanceMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineInstance.Gitopsengineinstance_id, db.K8sToDBMapping_GitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(foundNewGitopsEngineInstanceMapping).To(BeTrue())
 
 			// Check mapping for GitOpsEngineCluster is present.
 			kubernetesToDBResourceMappingForEngineCluster, foundGitopsEngineClusterMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineCluster.Gitopsenginecluster_id, db.K8sToDBMapping_GitopsEngineCluster)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(foundGitopsEngineClusterMapping).To(BeTrue())
 		})
 
@@ -825,7 +825,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			gitopsEngineInstanceFirst, isNew, gitopsEngineClusterFirst, err := GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, workspace, string(workSpaceUid), dbQueries, log)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(isNew).To(BeTrue())
 
 			// ----------------------------------------------------------------------------
@@ -834,7 +834,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			gitopsEngineInstance, isNew, gitopsEngineCluster, err = GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, workspace, string(workSpaceUid), dbQueries, log)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(isNew).To(BeFalse())
 
 			Expect(gitopsEngineInstance).To(Equal(gitopsEngineInstanceFirst))
@@ -849,7 +849,7 @@ var _ = Describe("Test utility functions.", func() {
 				Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
 			}
 			err = dbQueries.GetGitopsEngineInstanceById(ctx, &retrieveGitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(&retrieveGitopsEngineInstance).To(Equal(gitopsEngineInstance))
 
 			// Check KubernetesToDBResourceMapping is created for GitopsEngineInstance and GitopsEngineCluster
@@ -857,12 +857,12 @@ var _ = Describe("Test utility functions.", func() {
 
 			// Check mapping for GitOpsEngineInstance is present.
 			kubernetesToDBResourceMappingForEngineInstance, foundGitopsEngineInstanceMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineInstance.Gitopsengineinstance_id, db.K8sToDBMapping_GitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(foundGitopsEngineInstanceMapping).To(BeTrue())
 
 			// Check mapping for GitOpsEngineCluster is present.
 			kubernetesToDBResourceMappingForEngineCluster, foundGitopsEngineClusterMapping, err = findKubernetesToDBResourceMappingInTable(ctx, dbQueries, gitopsEngineCluster.Gitopsenginecluster_id, db.K8sToDBMapping_GitopsEngineCluster)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(foundGitopsEngineClusterMapping).To(BeTrue())
 
 		})
@@ -873,7 +873,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			gitopsEngineInstance, isNew, gitopsEngineCluster, err = GetOrCreateGitopsEngineInstanceByInstanceNamespaceUID(ctx, workspace, "", dbQueries, log)
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(isNew).To(BeFalse())
 		})
 	})

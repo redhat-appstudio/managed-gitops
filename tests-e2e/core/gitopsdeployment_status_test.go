@@ -100,7 +100,7 @@ var _ = Describe("GitOpsDeployment Status Tests", func() {
 				},
 			}
 			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(app), app)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(gitopsDeplFixture.HaveOperationStateFunc(app.Status.OperationState, gitOpsDeploymentResource)).To(BeTrue())
 

@@ -118,11 +118,11 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 
 			waitingTaskContainer.waitingTasksByName["test-task"] = waitingTaskEntry{}
 
-			Expect(len(waitingTaskContainer.waitingTasksByName)).To(Equal(1))
+			Expect(waitingTaskContainer.waitingTasksByName).To(HaveLen(1))
 
 			startNewTask(taskToStart, &waitingTaskContainer, activeTaskMap, workComplete, log)
 
-			Expect(len(waitingTaskContainer.waitingTasksByName)).To(Equal(0))
+			Expect(waitingTaskContainer.waitingTasksByName).To(BeEmpty())
 		})
 	})
 
@@ -144,7 +144,7 @@ var _ = Describe("Task Retry Loop Unit Tests", func() {
 
 			Expect(receivedMsg.msgType).To(Equal(taskRetryLoop_workCompleted))
 			Expect(workCompletedMsg.shouldRetry).Should(BeFalse())
-			Expect(workCompletedMsg.resultErr).To(BeNil())
+			Expect(workCompletedMsg.resultErr).ToNot(HaveOccurred())
 		})
 
 		It("ensures that when the task returns _an error_, it is communicated to the channel in a 'taskRetryLoopMessage'", func() {

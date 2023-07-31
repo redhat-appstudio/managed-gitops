@@ -21,18 +21,18 @@ var _ = Describe("Verify compress and decompress functions", func() {
 			}
 
 			compressedBytes, err := CompressObject(obj)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(compressedBytes).ToNot(BeNil())
 
 			By("decompress the sample object and verify the data")
 
 			decompressedBytes, err := DecompressObject(compressedBytes)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(decompressedBytes).ToNot(BeNil())
 
 			decompressedObj := &sampleObject{}
 			err = yaml.Unmarshal(decompressedBytes, decompressedObj)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(decompressedObj.Name).To(Equal(obj.Name))
 			Expect(decompressedObj.Namespace).To(Equal(obj.Namespace))
@@ -40,11 +40,11 @@ var _ = Describe("Verify compress and decompress functions", func() {
 
 		It("should not panic when nil is passed", func() {
 			compressedBytes, err := CompressObject(nil)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(compressedBytes).To(BeNil())
 
 			decompressedBytes, err := DecompressObject(nil)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(decompressedBytes).To(BeNil())
 		})
 	})

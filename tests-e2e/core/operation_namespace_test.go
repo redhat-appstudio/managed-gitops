@@ -45,25 +45,25 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 		BeforeEach(func() {
 
 			config, err = fixture.GetSystemKubeConfig()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			k8sClient, err = fixture.GetKubeClient(config)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 		})
 		AfterEach(func() {
 			log := log.FromContext(ctx)
 			err = operations.CleanupOperation(ctx, *operationDB, *operationCR, dbQueries, k8sClient, true, log)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = fixture.DeleteNamespace(operationNamespace, config)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = fixture.DeleteNamespace(testNamespace, config)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 		})
 
@@ -86,14 +86,14 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			dummyApplicationSpec, dummyApplicationSpecString, err := createDummyApplicationData()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubeSystemNamespace.UID), dbQueries, log)
 			Expect(gitopsEngineCluster).ToNot(BeNil())
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			namespaceToTarget = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: operationNamespace}}
 			err = k8s.Get(namespaceToTarget, k8sClient)
@@ -107,7 +107,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 			}
 			err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create Application in Database")
 			applicationDB := &db.Application{
@@ -119,7 +119,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			}
 
 			err = dbQueries.CreateApplication(ctx, applicationDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			operationDB = &db.Operation{
 				Operation_id:            operationName,
 				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
@@ -130,7 +130,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			}
 
 			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			operationCR = &managedgitopsv1alpha1.Operation{
 				ObjectMeta: metav1.ObjectMeta{
@@ -142,7 +142,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, operationCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Verifying whether Application CR is created")
 			applicationCR := appv1.Application{
@@ -159,7 +159,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			}, "1m", "5s").Should(BeTrue())
 
 			err = k8sClient.Get(ctx, types.NamespacedName{Namespace: applicationCR.Namespace, Name: applicationCR.Name}, &applicationCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(dummyApplicationSpec.Spec).To(Equal(applicationCR.Spec))
 
 		})
@@ -182,14 +182,14 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			dummyApplicationSpec, dummyApplicationSpecString, err := createDummyApplicationData()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubeSystemNamespace.UID), dbQueries, log)
 			Expect(gitopsEngineCluster).ToNot(BeNil())
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			namespaceToTarget = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: operationNamespace}}
 			err = k8s.Get(namespaceToTarget, k8sClient)
@@ -203,7 +203,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 			}
 			err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create Application in Database")
 			applicationDB := &db.Application{
@@ -215,7 +215,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			}
 
 			err = dbQueries.CreateApplication(ctx, applicationDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			operationDB = &db.Operation{
 				Operation_id:            "test-operation",
 				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
@@ -226,7 +226,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			}
 
 			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			operationCR = &managedgitopsv1alpha1.Operation{
 				ObjectMeta: metav1.ObjectMeta{
@@ -238,7 +238,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, operationCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Verifying whether Application CR is created")
 			applicationCR := appv1.Application{
@@ -255,7 +255,7 @@ var _ = Describe("Operation CR namespace E2E tests", func() {
 			}, "1m", "5s").Should(BeFalse())
 
 			err = k8sClient.Get(ctx, types.NamespacedName{Namespace: applicationCR.Namespace, Name: applicationCR.Name}, &applicationCR)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(dummyApplicationSpec.Spec).ToNot(Equal(applicationCR.Spec))
 
 		})

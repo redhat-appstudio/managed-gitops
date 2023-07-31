@@ -20,7 +20,7 @@ func HaveStatusComplete(expectedPromotionRunStatus appstudiosharedv1.PromotionRu
 	return WithTransform(func(promotionRun appstudiosharedv1.PromotionRun) bool {
 
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -61,7 +61,7 @@ func HaveStatusConditions(expectedPromotionRunStatusConditions appstudiosharedv1
 	return WithTransform(func(promotionRun appstudiosharedv1.PromotionRun) bool {
 
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {

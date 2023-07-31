@@ -14,7 +14,7 @@ var _ = Describe("application_info_cache Test", func() {
 
 		It("Test to Create, Update and Delete an ApplicationState", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx := context.Background()
 			aic := NewApplicationInfoCache()
@@ -22,11 +22,11 @@ var _ = Describe("application_info_cache Test", func() {
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			application := &db.Application{
 				Application_id:          "test-my-application",
@@ -38,7 +38,7 @@ var _ = Describe("application_info_cache Test", func() {
 
 			// An entry for the application should be there in order to create an entry for applicationState
 			err = dbq.CreateApplication(ctx, application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			testAppState := db.ApplicationState{
 				Applicationstate_application_id: application.Application_id,
@@ -46,25 +46,25 @@ var _ = Describe("application_info_cache Test", func() {
 				Sync_Status:                     "Synced",
 			}
 			errCreate := aic.CreateApplicationState(ctx, testAppState)
-			Expect(errCreate).To(BeNil())
+			Expect(errCreate).ToNot(HaveOccurred())
 
 			dbAppStateObj := db.ApplicationState{
 				Applicationstate_application_id: testAppState.Applicationstate_application_id,
 			}
 			errGet := dbq.GetApplicationStateById(ctx, &dbAppStateObj)
-			Expect(errGet).To(BeNil())
+			Expect(errGet).ToNot(HaveOccurred())
 			Expect(testAppState).To(Equal(dbAppStateObj))
 
 			_, fromCache, err := aic.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(fromCache).To(BeTrue())
 
 			testAppState.Health = "Unhealthy"
 			errUpdate := aic.UpdateApplicationState(ctx, testAppState)
-			Expect(errUpdate).To(BeNil())
+			Expect(errUpdate).ToNot(HaveOccurred())
 
 			appState, isFromCache, errGet := aic.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
-			Expect(errGet).To(BeNil())
+			Expect(errGet).ToNot(HaveOccurred())
 			Expect(isFromCache).To(BeTrue())
 			Expect(testAppState).To(Equal(appState))
 
@@ -73,7 +73,7 @@ var _ = Describe("application_info_cache Test", func() {
 			}
 
 			rowsAffected, errDelete := aic.DeleteApplicationStateById(ctx, testDeleteAppState.Applicationstate_application_id)
-			Expect(errDelete).To(BeNil())
+			Expect(errDelete).ToNot(HaveOccurred())
 			Expect(rowsAffected).Should(Equal(1))
 
 			// check for entry in db, which should report an error
@@ -83,7 +83,7 @@ var _ = Describe("application_info_cache Test", func() {
 		})
 		It("Tests GetApplicationStateById", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx := context.Background()
 			aic := NewApplicationInfoCache()
@@ -91,7 +91,7 @@ var _ = Describe("application_info_cache Test", func() {
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 
 			// check if the application state entry is in the cache?
@@ -99,13 +99,13 @@ var _ = Describe("application_info_cache Test", func() {
 
 			//testId doesn't exist, the test should report an error
 			appState, isFromCache, errGet := aic.GetApplicationStateById(ctx, testId)
-			Expect(errGet).ToNot(BeNil())
+			Expect(errGet).To(HaveOccurred())
 			// since no entry in the valuefromcache should be false, appState should be empty
 			Expect(isFromCache).To(BeFalse())
 			Expect(appState).To(Equal(db.ApplicationState{}))
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			application := &db.Application{
 				Application_id:          testId,
@@ -117,7 +117,7 @@ var _ = Describe("application_info_cache Test", func() {
 
 			// An entry for the application should be there in order to create an entry for applicationState
 			err = dbq.CreateApplication(ctx, application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// create an applicationstate then try to get it
 			testAppState := db.ApplicationState{
@@ -126,29 +126,29 @@ var _ = Describe("application_info_cache Test", func() {
 				Sync_Status:                     "Synced",
 			}
 			err = dbq.CreateApplicationState(ctx, &testAppState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			getAppState, isFromCache, errGet := aic.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
 			// ideally the appState should now report an ApplicationState obj
 			// isFromCache should be false since initially the value will be coming from db
-			Expect(errGet).To(BeNil())
+			Expect(errGet).ToNot(HaveOccurred())
 			Expect(isFromCache).To(BeFalse())
 			Expect(testAppState).To(Equal(getAppState))
 
 			//calling the same GetApplicationStateById again should come from cache, hence isFromCache should be True
 			_, isFromCache, errGet = aic.GetApplicationStateById(ctx, testAppState.Applicationstate_application_id)
-			Expect(errGet).To(BeNil())
+			Expect(errGet).ToNot(HaveOccurred())
 			Expect(isFromCache).To(BeTrue())
 
 			// checking if the entry for the above exists in the database
 			errGet = dbq.GetApplicationStateById(ctx, &testAppState)
-			Expect(errGet).To(BeNil())
+			Expect(errGet).ToNot(HaveOccurred())
 			Expect(testAppState).To(Equal(getAppState))
 		})
 
 		It("Tests GetApplicationById", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx := context.Background()
 			aic := NewApplicationInfoCache()
@@ -156,7 +156,7 @@ var _ = Describe("application_info_cache Test", func() {
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 
 			// check if the application state entry is in the cache?
@@ -164,13 +164,13 @@ var _ = Describe("application_info_cache Test", func() {
 
 			//testId doesn't exist, the test should report an error
 			app, valuefromCache, errGet := aic.GetApplicationById(ctx, testId)
-			Expect(errGet).ToNot(BeNil())
+			Expect(errGet).To(HaveOccurred())
 			// since no entry in the valuefromcache should be false, appState should be empty
 			Expect(valuefromCache).To(BeFalse())
 			Expect(app).To(Equal(db.Application{}))
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			testapplication := db.Application{
 				Application_id:          testId,
@@ -181,22 +181,22 @@ var _ = Describe("application_info_cache Test", func() {
 			}
 
 			err = dbq.CreateApplication(ctx, &testapplication)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			getApp, isFromCache, errGet := aic.GetApplicationById(ctx, testapplication.Application_id)
 			// ideally the appState should now report an Application obj
-			Expect(errGet).To(BeNil())
+			Expect(errGet).ToNot(HaveOccurred())
 			Expect(isFromCache).To(BeFalse())
 			Expect(getApp).To(Equal(testapplication))
 
 			//calling the same GetApplicationById again should come from cache, hence ifFromCache should be True
 			_, isFromCache, errGet = aic.GetApplicationById(ctx, testapplication.Application_id)
-			Expect(errGet).To(BeNil())
+			Expect(errGet).ToNot(HaveOccurred())
 			Expect(isFromCache).To(BeTrue())
 
 			// checking if the entry for the above exists in the database
 			errGet = dbq.GetApplicationById(ctx, &testapplication)
-			Expect(errGet).To(BeNil())
+			Expect(errGet).ToNot(HaveOccurred())
 			Expect(getApp).To(Equal(testapplication))
 		})
 

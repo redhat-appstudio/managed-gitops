@@ -18,12 +18,12 @@ func createAppAndDtamEntry(ctx context.Context, dbq db.AllDatabaseQueries, appli
 	application.Application_id = "test-app-" + generateUuid()
 	application.Name = "test-app-" + generateUuid()
 	err := dbq.CreateApplication(ctx, application)
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id = "test-" + generateUuid()
 	deploymentToApplicationMapping.Application_id = application.Application_id
 	err = dbq.CreateDeploymentToApplicationMapping(ctx, deploymentToApplicationMapping)
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 }
 
 var _ = Describe("DeploymentToApplicationMapping Tests", func() {
@@ -35,14 +35,14 @@ var _ = Describe("DeploymentToApplicationMapping Tests", func() {
 
 		BeforeEach(func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			application = &db.Application{
 				Spec_field:              "{}",
@@ -65,11 +65,11 @@ var _ = Describe("DeploymentToApplicationMapping Tests", func() {
 				Deploymenttoapplicationmapping_uid_id: deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id,
 			}
 			err := dbq.GetDeploymentToApplicationMappingByDeplId(ctx, fetchRow)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(fetchRow).To(Equal(deploymentToApplicationMapping))
 
 			rowsAffected, err := dbq.DeleteDeploymentToApplicationMappingByDeplId(ctx, deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsAffected).To(Equal(1))
 			fetchRow = &db.DeploymentToApplicationMapping{
 				Deploymenttoapplicationmapping_uid_id: deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id,
@@ -86,23 +86,23 @@ var _ = Describe("DeploymentToApplicationMapping Tests", func() {
 			}
 
 			err := dbq.ListDeploymentToApplicationMappingByNamespaceUID(ctx, "demo-namespace", &dbResults)
-			Expect(err).To(BeNil())
-			Expect(len(dbResults)).Should(Equal(1))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(dbResults).Should(HaveLen(1))
 			Expect(dbResults[0]).Should(Equal(*deploymentToApplicationMapping))
 
 			err = dbq.ListDeploymentToApplicationMappingByNamespaceAndName(ctx, deploymentToApplicationMapping.DeploymentName, deploymentToApplicationMapping.DeploymentNamespace, deploymentToApplicationMapping.NamespaceUID, &dbResults)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(dbResults[0]).Should(Equal(*deploymentToApplicationMapping))
 
 			err = dbq.GetDeploymentToApplicationMappingByDeplId(ctx, dbResult)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(dbResult).Should(Equal(deploymentToApplicationMapping))
 			err = dbq.GetDeploymentToApplicationMappingByApplicationId(ctx, dbResult)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(dbResult).Should(Equal(deploymentToApplicationMapping))
 
 			rowsAffected, err := dbq.DeleteDeploymentToApplicationMappingByDeplId(ctx, deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsAffected).Should(Equal(1))
 			fetchRow := &db.DeploymentToApplicationMapping{
 				Deploymenttoapplicationmapping_uid_id: deploymentToApplicationMapping.Deploymenttoapplicationmapping_uid_id,
@@ -121,12 +121,12 @@ var _ = Describe("DeploymentToApplicationMapping Tests", func() {
 			// Fetch entries in batches
 			var listOfDeploymentToApplicationMappingFromDB []db.DeploymentToApplicationMapping
 			err := dbq.GetDeploymentToApplicationMappingBatch(ctx, &listOfDeploymentToApplicationMappingFromDB, 2, 0)
-			Expect(err).To(BeNil())
-			Expect(len(listOfDeploymentToApplicationMappingFromDB)).To(Equal(2))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(listOfDeploymentToApplicationMappingFromDB).To(HaveLen(2))
 
 			err = dbq.GetDeploymentToApplicationMappingBatch(ctx, &listOfDeploymentToApplicationMappingFromDB, 3, 1)
-			Expect(err).To(BeNil())
-			Expect(len(listOfDeploymentToApplicationMappingFromDB)).To(Equal(3))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(listOfDeploymentToApplicationMappingFromDB).To(HaveLen(3))
 		})
 	})
 })

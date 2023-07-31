@@ -47,7 +47,7 @@ var _ = Describe("Secret Controller Test", func() {
 
 		BeforeEach(func() {
 			scheme, argocdNamespace, kubesystemNamespace, _, err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(argocdNamespace, kubesystemNamespace).Build()
 
@@ -60,7 +60,7 @@ var _ = Describe("Secret Controller Test", func() {
 			}
 
 			err = k8sClient.Create(context.Background(), namespace)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			mockProcessor = mockPreprocessEventLoopProcessor{}
 			reconciler = SecretReconciler{
@@ -81,8 +81,8 @@ var _ = Describe("Secret Controller Test", func() {
 					Name:      secret.Name,
 				},
 			})
-			Expect(err).To(BeNil())
-			Expect(len(mockProcessor.requestsReceived)).Should(Equal(0))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(mockProcessor.requestsReceived).Should(BeEmpty())
 
 		})
 
@@ -95,8 +95,8 @@ var _ = Describe("Secret Controller Test", func() {
 					Name:      secret.Name,
 				},
 			})
-			Expect(err).To(BeNil())
-			Expect(len(mockProcessor.requestsReceived)).Should(Equal(0))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(mockProcessor.requestsReceived).Should(BeEmpty())
 		})
 
 		It("reconciles on a managed-env secret, but with 1 managed env CRs referring to the secret", func() {
@@ -110,8 +110,8 @@ var _ = Describe("Secret Controller Test", func() {
 					Name:      secret.Name,
 				},
 			})
-			Expect(err).To(BeNil())
-			Expect(len(mockProcessor.requestsReceived)).Should(Equal(1))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(mockProcessor.requestsReceived).Should(HaveLen(1))
 
 		})
 
@@ -127,8 +127,8 @@ var _ = Describe("Secret Controller Test", func() {
 					Name:      secret.Name,
 				},
 			})
-			Expect(err).To(BeNil())
-			Expect(len(mockProcessor.requestsReceived)).Should(Equal(2))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(mockProcessor.requestsReceived).Should(HaveLen(2))
 
 		})
 
@@ -197,7 +197,7 @@ func createSecretForManagedEnv(name string, validSecret bool, namespace corev1.N
 	}
 
 	err := k8sClient.Create(context.Background(), &secret)
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 	return secret
 }
 
@@ -212,7 +212,7 @@ func createManagedEnvTargetingSecret(name string, secret corev1.Secret, namespac
 		},
 	}
 	err := k8sClient.Create(context.Background(), &managedEnv)
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 	return managedEnv
 
 }

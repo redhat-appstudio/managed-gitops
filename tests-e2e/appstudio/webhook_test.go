@@ -66,7 +66,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8sClient.Update(ctx, &snapshot)
 
 			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("application cannot be updated to %s", snapshot.Spec.Application)))
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("application cannot be updated to %s", snapshot.Spec.Application))).To(BeTrue())
 			snapshot.Spec.Application = temp // Revert value for next test
 
 			By("Validate Spec.Components.Name field Webhook.")
@@ -76,7 +76,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8sClient.Update(ctx, &snapshot)
 
 			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("components cannot be updated to %v", snapshot.Spec.Components)))
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("components cannot be updated to %v", snapshot.Spec.Components))).To(BeTrue())
 			snapshot.Spec.Components[0].Name = temp // Revert value for next test
 
 			By("Validate Spec.Components.ContainerImage field Webhook.")
@@ -85,7 +85,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8sClient.Update(ctx, &snapshot)
 
 			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("components cannot be updated to %v", snapshot.Spec.Components)))
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("components cannot be updated to %v", snapshot.Spec.Components))).To(BeTrue())
 
 		})
 
@@ -114,7 +114,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8sClient.Update(ctx, &binding)
 
 			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("application cannot be updated to %s", binding.Spec.Application)))
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("application cannot be updated to %s", binding.Spec.Application))).To(BeTrue())
 			binding.Spec.Application = temp // Revert value for next test
 
 			By("Validate Spec.Environment field Webhook.")
@@ -124,7 +124,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8sClient.Update(ctx, &binding)
 
 			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("environment cannot be updated to %s", binding.Spec.Environment)))
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("environment cannot be updated to %s", binding.Spec.Environment))).To(BeTrue())
 			binding.Spec.Environment = temp // Revert value for next test
 		})
 
@@ -153,7 +153,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8sClient.Update(ctx, &promotionRun)
 
 			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("spec cannot be updated to %s", promotionRun.Spec)))
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("spec cannot be updated to %s", promotionRun.Spec))).To(BeTrue())
 			promotionRun.Spec.Application = temp // Revert value for next test
 
 			By("Validate Spec.Snapshot field Webhook.")
@@ -163,7 +163,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8sClient.Update(ctx, &promotionRun)
 
 			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("spec cannot be updated to %s", promotionRun.Spec)))
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("spec cannot be updated to %s", promotionRun.Spec))).To(BeTrue())
 			promotionRun.Spec.Snapshot = temp // Revert value for next test
 
 			By("Validate Spec.ManualPromotion field Webhook.")
@@ -173,7 +173,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8sClient.Update(ctx, &promotionRun)
 
 			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("spec cannot be updated to %s", promotionRun.Spec)))
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("spec cannot be updated to %s", promotionRun.Spec))).To(BeTrue())
 			promotionRun.Spec.ManualPromotion.TargetEnvironment = temp // Revert value for next test
 
 			By("Validate Spec.AutomatedPromotion field Webhook.")
@@ -182,7 +182,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8sClient.Update(ctx, &promotionRun)
 
 			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("spec cannot be updated to %s", promotionRun.Spec)))
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("spec cannot be updated to %s", promotionRun.Spec))).To(BeTrue())
 		})
 
 		It("Should validate Environment CR Webhooks.", func() {
@@ -200,14 +200,14 @@ var _ = Describe("Webhook E2E tests", func() {
 			environment := buildEnvironment(strings.Repeat("abcde", 13), "my-environment")
 			err = k8s.Create(&environment, k8sClient)
 			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("invalid environment name: %s", environment.Name)))
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("invalid environment name: %s", environment.Name))).To(BeTrue())
 
 			By("Validate that Environment name starting with capital letter is not allowed.")
 
 			environment.Name = "Staging"
 			err = k8s.Create(&environment, k8sClient)
 			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("Invalid value: %s", environment.Name)))
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("Invalid value: %s", environment.Name))).To(BeTrue())
 
 			By("Validate that Environment name having small letters is allowed.")
 
@@ -343,7 +343,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -368,10 +368,10 @@ var _ = Describe("Webhook E2E tests", func() {
 			}
 
 			err = k8s.Create(secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Create(managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
 				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
@@ -537,7 +537,7 @@ var _ = Describe("Webhook E2E tests", func() {
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual)
 
 			err = k8sClient.Create(ctx, &gitOpsDeploymentResource)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitOpsDeploymentSyncRun := syncRunFixture.BuildGitOpsDeploymentSyncRunResource("zyxwvutsrqponmlkjihgfedcba-abcdefghijklmnoqrstuvwxyz", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
 
@@ -554,7 +554,7 @@ func isWebhookInstalled(resourceName string, k8sClient client.Client) bool {
 
 	var webhookList admissionv1.ValidatingWebhookConfigurationList
 	err := k8sClient.List(context.Background(), &webhookList)
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	// Iterate through the struct, looking for a match in .spec.webhooks.rules.resources
 	for _, validating := range webhookList.Items {

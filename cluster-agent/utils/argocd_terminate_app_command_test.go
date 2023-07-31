@@ -47,7 +47,7 @@ var _ = Describe("Terminate Operation on Argo CD Application", func() {
 			}
 
 			k8sClient, err := generateFakeK8sClient(application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			mockAppServiceClient := &mocks.ApplicationServiceClient{}
 			mockAppClient := &mocks.Client{}
@@ -113,7 +113,7 @@ var _ = Describe("Terminate Operation on Argo CD Application", func() {
 						}
 
 						k8sClient, err := generateFakeK8sClient(application)
-						Expect(err).To(BeNil())
+						Expect(err).ToNot(HaveOccurred())
 
 						By("Application exists and has a running operation then application doesn't exist confirm no error")
 						mockAppServiceClient := &mocks.ApplicationServiceClient{}
@@ -127,13 +127,13 @@ var _ = Describe("Terminate Operation on Argo CD Application", func() {
 							application.Status.OperationState.Phase = testCase.finalPhase
 
 							err := k8sClient.Status().Update(context.Background(), application)
-							Expect(err).To(BeNil())
+							Expect(err).ToNot(HaveOccurred())
 						}()
 
 						startTime := time.Now()
 
 						err = terminateOperation(context.Background(), application.Name, argoCDNamespace, mockAppClient, k8sClient, time.Duration(5*time.Second), log.FromContext(context.Background()))
-						Expect(err).To(BeNil())
+						Expect(err).ToNot(HaveOccurred())
 
 						elapsedTime := time.Since(startTime)
 
@@ -171,7 +171,7 @@ var _ = Describe("Terminate Operation on Argo CD Application", func() {
 
 			By("Application exists and has a running operation then application doesn't exist confirm no error")
 			k8sClient, err := generateFakeK8sClient(application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			mockAppServiceClient := &mocks.ApplicationServiceClient{}
 			mockAppClient := &mocks.Client{}
@@ -183,14 +183,14 @@ var _ = Describe("Terminate Operation on Argo CD Application", func() {
 			go func() {
 				time.Sleep(time.Second * 2)
 				err := k8sClient.Delete(context.Background(), application)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			}()
 
 			startTime := time.Now()
 
 			err = terminateOperation(context.Background(), application.Name, argoCDNamespace, mockAppClient, k8sClient,
 				time.Duration(5*time.Second), log.FromContext(context.Background()))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			elapsedTime := time.Since(startTime)
 

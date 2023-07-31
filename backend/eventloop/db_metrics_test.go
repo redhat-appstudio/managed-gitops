@@ -33,7 +33,7 @@ var _ = Describe("Metrics DB Reconciler Test", func() {
 				kubesystemNamespace,
 				apiNamespace,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create fake client
 			k8sClient = fake.NewClientBuilder().
@@ -42,15 +42,15 @@ var _ = Describe("Metrics DB Reconciler Test", func() {
 				Build()
 
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 			log = logger.FromContext(ctx)
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, _, _, gitopsEngineInstance, clusterAccess, err = db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 		})
 
@@ -78,7 +78,7 @@ var _ = Describe("Metrics DB Reconciler Test", func() {
 				Last_state_update:       time.Now(),
 			}
 			err := dbq.CreateOperation(ctx, &OperationDB1, OperationDB1.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			OperationDB2 := db.Operation{
 				Operation_id:            "test-operation-2",
@@ -90,11 +90,11 @@ var _ = Describe("Metrics DB Reconciler Test", func() {
 				Last_state_update:       time.Now(),
 			}
 			err = dbq.CreateOperation(ctx, &OperationDB2, OperationDB2.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			OperationDB2.State = db.OperationState_In_Progress
 			err = dbq.UpdateOperation(ctx, &OperationDB2)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			OperationDB3 := db.Operation{
 				Operation_id:            "test-operation-3",
@@ -106,14 +106,14 @@ var _ = Describe("Metrics DB Reconciler Test", func() {
 				Last_state_update:       time.Now(),
 			}
 			err = dbq.CreateOperation(ctx, &OperationDB3, OperationDB3.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetOperationById(ctx, &OperationDB3)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			OperationDB3.State = db.OperationState_Completed
 			err = dbq.UpdateOperation(ctx, &OperationDB3)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			OperationDB4 := db.Operation{
 				Operation_id:            "test-operation-4",
@@ -125,14 +125,14 @@ var _ = Describe("Metrics DB Reconciler Test", func() {
 				Last_state_update:       time.Now(),
 			}
 			err = dbq.CreateOperation(ctx, &OperationDB4, OperationDB4.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetOperationById(ctx, &OperationDB3)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			OperationDB4.State = db.OperationState_Failed
 			err = dbq.UpdateOperation(ctx, &OperationDB4)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			operationDbReconcile(ctx, dbq, k8sClient, log)
 
@@ -146,7 +146,7 @@ var _ = Describe("Metrics DB Reconciler Test", func() {
 
 			var operations, waiting, inProgress, completed, failed []db.Operation
 			err = dbq.UnsafeListAllOperations(ctx, &operations)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			for _, op := range operations {
 				switch op.State {

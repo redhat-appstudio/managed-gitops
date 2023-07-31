@@ -34,7 +34,7 @@ var _ = Describe("Service Account Tests", func() {
 				Skip("Skipping service account creation tests, because a K8s config could not be found.")
 				return
 			}
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			k8sClient, err = client.New(config, client.Options{Scheme: scheme.Scheme})
 			if err != nil {
@@ -43,7 +43,7 @@ var _ = Describe("Service Account Tests", func() {
 					return
 				}
 			}
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			namespace := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
@@ -56,12 +56,12 @@ var _ = Describe("Service Account Tests", func() {
 					return
 				}
 				fmt.Println("error occurred on client construction", err)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			}
 
 			list := corev1.ServiceAccountList{}
 			err = k8sClient.List(ctx, &list, &client.ListOptions{Namespace: "kube-system"})
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			for idx := range list.Items {
 				sa := list.Items[idx]
@@ -71,7 +71,7 @@ var _ = Describe("Service Account Tests", func() {
 				}
 
 				err = k8sClient.Delete(ctx, &sa)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			}
 
 		})
@@ -84,7 +84,7 @@ var _ = Describe("Service Account Tests", func() {
 				serviceAccountNamespace := "kube-system"
 
 				sa, err := getOrCreateServiceAccount(ctx, k8sClient, serviceAccountName, serviceAccountNamespace, log)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(sa).ToNot(BeNil())
 				Expect(sa.Name).ToNot(BeEmpty())
 
@@ -95,25 +95,25 @@ var _ = Describe("Service Account Tests", func() {
 					},
 				}
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(serviceAccount), serviceAccount)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(serviceAccount).ToNot(BeNil())
 
 				err = k8sClient.Delete(ctx, serviceAccount)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			})
 		})
 
 		When("Invalid name", func() {
 			It("Should return an error if the service account name is empty", func() {
 				_, err := getOrCreateServiceAccount(ctx, k8sClient, "", "kube-system", log)
-				Expect(err).ToNot(BeNil())
+				Expect(err).To(HaveOccurred())
 			})
 		})
 
 		When("Invalid namespace", func() {
 			It("Should return an error if the service account namespace is invalid", func() {
 				_, err := getOrCreateServiceAccount(ctx, k8sClient, "argocd-manager", "invalid", log)
-				Expect(err).ToNot(BeNil())
+				Expect(err).To(HaveOccurred())
 			})
 		})
 
@@ -123,16 +123,16 @@ var _ = Describe("Service Account Tests", func() {
 				// namespaces := []string{}
 				uuid := "my-uuid"
 				token, sa, err := InstallServiceAccount(ctx, k8sClient, uuid, "kube-system" /*namespaces,*/, log)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(token).ToNot(BeEmpty())
 				Expect(sa).ToNot(BeNil())
 
 				clientObj, err := generateClientFromClusterServiceAccount(ctrl.GetConfigOrDie(), token)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(clientObj).ToNot(BeNil())
 
 				err = clientObj.Delete(ctx, sa)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			})
 		})
 
@@ -145,36 +145,36 @@ var _ = Describe("Service Account Tests", func() {
 					serviceAccountNS   = "kube-system"
 				)
 				sa, err := getOrCreateServiceAccount(ctx, k8sClient, serviceAccountName, serviceAccountNS, log)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				secret, err := getServiceAccountTokenSecret(ctx, k8sClient, sa)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("check if a new token secret is created")
 				if secret == nil {
 					token, sa, err := InstallServiceAccount(ctx, k8sClient, uuid, serviceAccountNS, log)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 					Expect(token).ToNot(BeEmpty())
 					Expect(sa).ToNot(BeNil())
 
 					clientObj, err := generateClientFromClusterServiceAccount(ctrl.GetConfigOrDie(), token)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 					Expect(clientObj).ToNot(BeNil())
 
 					sa, err = getOrCreateServiceAccount(ctx, k8sClient, sa.Name, sa.Namespace, log)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					secret, err := getServiceAccountTokenSecret(ctx, k8sClient, sa)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 					Expect(secret).ToNot(BeNil())
 					Expect(secret.Type).To(Equal(corev1.SecretTypeServiceAccountToken))
 
 					err = clientObj.Delete(ctx, secret)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 
 				err = k8sClient.Delete(ctx, sa)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			})
 		})
 	})

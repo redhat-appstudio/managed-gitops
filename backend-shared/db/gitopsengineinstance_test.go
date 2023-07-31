@@ -13,11 +13,11 @@ import (
 var _ = Describe("Gitopsengineinstance Test", func() {
 	It("Should Create, Get and Delete a GitopsEngineInstance", func() {
 		err := db.SetupForTestingDBGinkgo()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		ctx := context.Background()
 		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		defer dbq.CloseDatabase()
 
 		clusterCredentials := db.ClusterCredentials{
@@ -41,24 +41,24 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 			EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 		}
 		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstanceput)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		gitopsEngineInstanceget := db.GitopsEngineInstance{
 			Gitopsengineinstance_id: gitopsEngineInstanceput.Gitopsengineinstance_id,
 		}
 
 		err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstanceget)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(gitopsEngineInstanceput).Should(Equal(gitopsEngineInstanceget))
 
 		rowsAffected, err := dbq.DeleteGitopsEngineInstanceById(ctx, gitopsEngineInstanceput.Gitopsengineinstance_id)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).Should(Equal(1))
 
 		err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstanceget)
@@ -78,11 +78,11 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 
 	It("Should list GitopsEngineInstances for a GitOpsEngineCluster", func() {
 		err := db.SetupForTestingDBGinkgo()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		ctx := context.Background()
 		dbq, err := db.NewUnsafePostgresDBQueries(false, true)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		defer dbq.CloseDatabase()
 
 		clusterCredentials := db.ClusterCredentials{
@@ -94,7 +94,7 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 			Serviceaccount_ns:           "Serviceaccount_ns",
 		}
 		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		By("creating a GitOpsEngineInstance/Cluster that should NOT be returned by the List function")
 		var instanceDbCluster2_shouldNotMatch db.GitopsEngineInstance
@@ -104,7 +104,7 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 				Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
 			}
 			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster2)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			instanceDbCluster2_shouldNotMatch = db.GitopsEngineInstance{
 				Gitopsengineinstance_id: "test-ins-id-" + string(uuid.NewUUID()),
@@ -113,7 +113,7 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 				EngineCluster_id:        gitopsEngineCluster2.Gitopsenginecluster_id,
 			}
 			err = dbq.CreateGitopsEngineInstance(ctx, &instanceDbCluster2_shouldNotMatch)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		}
 
 		By("creating a new GitOpsEngineCluster with 2 Instances, each in different Namespace")
@@ -122,7 +122,7 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 			Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
 		}
 		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		instanceDb := db.GitopsEngineInstance{
 			Gitopsengineinstance_id: "test-ins-id-" + string(uuid.NewUUID()),
@@ -131,7 +131,7 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 			EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 		}
 		err = dbq.CreateGitopsEngineInstance(ctx, &instanceDb)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		instanceDb2 := db.GitopsEngineInstance{
 			Gitopsengineinstance_id: "test-ins-id-" + string(uuid.NewUUID()),
@@ -140,11 +140,11 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 			EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 		}
 		err = dbq.CreateGitopsEngineInstance(ctx, &instanceDb2)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		listResults := &[]db.GitopsEngineInstance{}
 		err = dbq.ListGitopsEngineInstancesForCluster(ctx, gitopsEngineCluster, listResults)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		for _, listResult := range *listResults {
 			Expect(listResult.Gitopsengineinstance_id).ToNot(Equal(instanceDbCluster2_shouldNotMatch.Gitopsengineinstance_id),

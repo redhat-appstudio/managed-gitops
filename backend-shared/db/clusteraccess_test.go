@@ -14,10 +14,10 @@ var _ = Describe("ClusterAccess Tests", func() {
 	Context("It should execute all DB functions for ClusterAccess", func() {
 		It("Should execute all ClusterAccess Functions", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 
 			ctx := context.Background()
@@ -27,7 +27,7 @@ var _ = Describe("ClusterAccess Tests", func() {
 				User_name:      "test-user-application",
 			}
 			err = dbq.CreateClusterUser(ctx, clusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			clusterCredentials := db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-cluster-creds-test-5",
@@ -63,33 +63,33 @@ var _ = Describe("ClusterAccess Tests", func() {
 			}
 
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateClusterAccess(ctx, &clusterAccess)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			fetchRow := db.ClusterAccess{Clusteraccess_user_id: clusterAccess.Clusteraccess_user_id,
 				Clusteraccess_managed_environment_id:    clusterAccess.Clusteraccess_managed_environment_id,
 				Clusteraccess_gitops_engine_instance_id: clusterAccess.Clusteraccess_gitops_engine_instance_id}
 			err = dbq.GetClusterAccessByPrimaryKey(ctx, &fetchRow)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(fetchRow.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 			Expect(fetchRow).Should(Equal(clusterAccess))
 
 			affectedRows, err := dbq.DeleteClusterAccessById(ctx, fetchRow.Clusteraccess_user_id, fetchRow.Clusteraccess_managed_environment_id, fetchRow.Clusteraccess_gitops_engine_instance_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(affectedRows).To(Equal(1))
 
 			err = dbq.GetClusterAccessByPrimaryKey(ctx, &fetchRow)
-			Expect(db.IsResultNotFoundError(err)).To(Equal(true))
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 			clusterAccess.Clusteraccess_user_id = strings.Repeat("abc", 100)
 			err = dbq.CreateClusterAccess(ctx, &clusterAccess)

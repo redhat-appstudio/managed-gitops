@@ -18,7 +18,7 @@ import (
 func HasStatusPhase(phase appstudiosharedv1.DeploymentTargetClaimPhase) matcher.GomegaMatcher {
 	return WithTransform(func(dtc appstudiosharedv1.DeploymentTargetClaim) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -45,7 +45,7 @@ func HasStatusPhase(phase appstudiosharedv1.DeploymentTargetClaimPhase) matcher.
 func HasAnnotation(key, value string) matcher.GomegaMatcher {
 	return WithTransform(func(dtc appstudiosharedv1.DeploymentTargetClaim) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -84,7 +84,7 @@ func HasAnnotation(key, value string) matcher.GomegaMatcher {
 func HasANumberOfMatchingSpaceRequests(num int) matcher.GomegaMatcher {
 	return WithTransform(func(dtc appstudiosharedv1.DeploymentTargetClaim) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {

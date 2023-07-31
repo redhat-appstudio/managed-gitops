@@ -30,21 +30,21 @@ var _ = Describe("Test for ensuring that hotfix can perform the expected update"
 			}
 
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbq, err = db.NewUnsafePostgresDBQueries(false, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Clean up previous test runs
 			var results []db.KubernetesToDBResourceMapping
 			err = dbq.UnsafeListAllKubernetesResourceToDBResourceMapping(context.Background(), &results)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			for idx := range results {
 				result := results[idx]
 
 				if result.DBRelationKey == targetKDB.DBRelationKey {
 					results, err := dbq.DeleteKubernetesResourceToDBResourceMapping(context.Background(), &result)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 					Expect(results).To(Equal(1))
 				}
 			}
@@ -54,10 +54,10 @@ var _ = Describe("Test for ensuring that hotfix can perform the expected update"
 
 			By("Creating the target value, and calling hotfix on it")
 			err := dbq.CreateKubernetesResourceToDBResourceMapping(context.Background(), &targetKDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = HotfixK8sResourceUIDOfKubernetesResourceToDBResourceMapping(context.Background(), targetKDB, oldK8sResourceUID, newK8sResourceUID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verifying the K8sToDBResourceMapping was updated")
 			newTargetKDB := db.KubernetesToDBResourceMapping{
@@ -67,7 +67,7 @@ var _ = Describe("Test for ensuring that hotfix can perform the expected update"
 			}
 
 			err = dbq.GetKubernetesResourceMappingForDatabaseResource(context.Background(), &newTargetKDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(newTargetKDB).To(Equal(db.KubernetesToDBResourceMapping{
 				KubernetesResourceType: targetKDB.KubernetesResourceType,
@@ -90,18 +90,18 @@ var _ = Describe("Test for ensuring that hotfix can perform the expected update"
 			}
 
 			err := dbq.CreateKubernetesResourceToDBResourceMapping(context.Background(), &shouldNotBeTouched)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("by calling hotfix on a different value from the 'shouldNotBeTouched' value")
 			err = HotfixK8sResourceUIDOfKubernetesResourceToDBResourceMapping(context.Background(), targetKDB, oldK8sResourceUID, newK8sResourceUID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("retrieving the original value, and ensuring it has not been modified")
 			getKDB := shouldNotBeTouched
 			getKDB.KubernetesResourceUID = ""
 
 			err = dbq.GetKubernetesResourceMappingForDatabaseResource(context.Background(), &getKDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(getKDB).To(Equal(db.KubernetesToDBResourceMapping{
 				KubernetesResourceType: shouldNotBeTouched.KubernetesResourceType,

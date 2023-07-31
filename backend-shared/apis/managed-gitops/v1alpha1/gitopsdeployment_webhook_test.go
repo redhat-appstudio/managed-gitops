@@ -42,7 +42,7 @@ var _ = Describe("GitOpsDeployment validation webhook", func() {
 		It("Should fail with error saying spec type must be manual or automated", func() {
 
 			err := k8sClient.Create(ctx, namespace)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDepl.Spec.Type = "invalid-type"
 
@@ -77,7 +77,7 @@ var _ = Describe("GitOpsDeployment validation webhook", func() {
 			Expect(err).Should(Succeed())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsDepl), gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDepl.Spec.Type = "invalid-type"
 			err = k8sClient.Update(ctx, gitopsDepl)
@@ -85,7 +85,7 @@ var _ = Describe("GitOpsDeployment validation webhook", func() {
 			Expect(err.Error()).Should(ContainSubstring(error_invalid_spec_type))
 
 			err = k8sClient.Delete(context.Background(), gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 
@@ -101,7 +101,7 @@ var _ = Describe("GitOpsDeployment validation webhook", func() {
 			Expect(err).Should(Succeed())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsDepl), gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDepl.Spec.SyncPolicy.SyncOptions = SyncOptions{
 				"CreateNamespace=foo",
@@ -111,7 +111,7 @@ var _ = Describe("GitOpsDeployment validation webhook", func() {
 			Expect(err.Error()).Should(ContainSubstring(error_invalid_sync_option))
 
 			err = k8sClient.Delete(context.Background(), gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 		})
 	})
@@ -137,7 +137,7 @@ var _ = Describe("GitOpsDeployment validation webhook", func() {
 			Expect(err).Should(Succeed())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsDepl), gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDepl.Spec.Destination.Environment = ""
 			gitopsDepl.Spec.Destination.Namespace = "test-namespace"
@@ -146,7 +146,7 @@ var _ = Describe("GitOpsDeployment validation webhook", func() {
 			Expect(err.Error()).Should(ContainSubstring(error_nonempty_namespace_empty_environment))
 
 			err = k8sClient.Delete(context.Background(), gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 })

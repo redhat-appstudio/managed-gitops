@@ -13,22 +13,22 @@ var _ = Describe("AppProjectManagedEnvironment Test", func() {
 	var seq = 101
 	It("Should Create, Get, Update and Delete an AppProjectManagedEnvironment", func() {
 		err := db.SetupForTestingDBGinkgo()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		ctx := context.Background()
 		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		defer dbq.CloseDatabase()
 
 		_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbq)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		var clusterUser = &db.ClusterUser{
 			Clusteruser_id: "test-user-application",
 			User_name:      "test-user-application",
 		}
 		err = dbq.CreateClusterUser(ctx, clusterUser)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		By("Verify whether AppProjectManagedEnvironment is created")
 		appProjectManagedEnv := db.AppProjectManagedEnvironment{
@@ -39,7 +39,7 @@ var _ = Describe("AppProjectManagedEnvironment Test", func() {
 		}
 
 		err = dbq.CreateAppProjectManagedEnvironment(ctx, &appProjectManagedEnv)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		By("Verify whether AppProjectManagedEnvironment is retrieved")
 		appProjectManagedEnvget := db.AppProjectManagedEnvironment{
@@ -47,12 +47,12 @@ var _ = Describe("AppProjectManagedEnvironment Test", func() {
 		}
 
 		err = dbq.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnvget)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(appProjectManagedEnv).Should(Equal(appProjectManagedEnvget))
 
 		By("Verify whether AppProjectManagedEnvironment is deleted")
 		rowsAffected, err := dbq.DeleteAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnv)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).Should(Equal(1))
 
 		err = dbq.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnv)

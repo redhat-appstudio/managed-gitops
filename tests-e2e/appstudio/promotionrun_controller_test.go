@@ -37,9 +37,9 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 
 			By("creating another namespace for one of the environments")
 			clientconfig, err := fixture.GetSystemKubeConfig()
-			Expect(err).Should(BeNil())
+			Expect(err).ShouldNot(HaveOccurred())
 			err = fixture.EnsureDestinationNamespaceExists(secondNamespace, dbutil.GetGitOpsEngineSingleInstanceNamespace(), clientconfig)
-			Expect(err).Should(BeNil())
+			Expect(err).ShouldNot(HaveOccurred())
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
@@ -56,15 +56,15 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 
 			// Now create the cluster role and cluster role binding
 			err = k8s.CreateOrUpdateClusterRoleAndRoleBinding(context.Background(), "123", k8sClient, serviceAccountName, serviceAccount.Namespace, k8s.ArgoCDManagerNamespacePolicyRules)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create the bearer token for the service account
 			tokenSecret, err := k8s.CreateServiceAccountBearerToken(context.Background(), k8sClient, serviceAccount.Name, serviceAccount.Namespace)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(tokenSecret).NotTo(BeNil())
 
 			_, apiServerURL, err := fixture.ExtractKubeConfigValues()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// We actually need a managed environment secret containing a kubeconfig that has the bearer token
 			kubeConfigContents := k8s.GenerateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, tokenSecret)
@@ -77,7 +77,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 				StringData: map[string]string{"kubeconfig": kubeConfigContents},
 			}
 			err = k8s.Create(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create Staging Environment.")
 			environmentStage := buildEnvironmentResource("staging", "Staging Environment", "staging", appstudiosharedv1.EnvironmentType_POC)

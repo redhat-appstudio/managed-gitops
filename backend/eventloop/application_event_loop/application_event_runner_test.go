@@ -54,7 +54,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			ctx := context.Background()
 
 			scheme, argocdNamespace, kubesystemNamespace, workspace, err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -92,7 +92,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			}
 
 			dbQueries, err := db.NewUnsafePostgresDBQueries(true, false)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			opts := zap.Options{
 				Development: true,
@@ -131,14 +131,14 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				testOnlySkipCreateOperation: true,
 			}
 			err = a.applicationEventRunner_handleSyncRunModified(ctx, dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Ensure the sync run handler fails when an invalid new sync run resource is passed.", func() {
 			ctx := context.Background()
 
 			scheme, argocdNamespace, kubesystemNamespace, workspace, err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -172,7 +172,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			}
 
 			dbQueries, err := db.NewUnsafePostgresDBQueries(true, false)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			opts := zap.Options{
 				Development: true,
@@ -210,7 +210,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				},
 			}
 			err = a.applicationEventRunner_handleSyncRunModified(ctx, dbQueries)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 
 		})
 	})
@@ -234,12 +234,12 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				workspace,
 				err = tests.GenericTestSetup()
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			workspaceID = string(workspace.UID)
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should update correct status of deployment after calling DeploymentStatusTick handler.", func() {
@@ -291,9 +291,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				var appMappings []db.DeploymentToApplicationMapping
 
 				err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
-				Expect(len(appMappings)).To(Equal(1))
+				Expect(appMappings).To(HaveLen(1))
 
 				deplToAppMapping = appMappings[0]
 			}
@@ -306,7 +306,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			resources = append(resources, resourceStatus)
 
 			compressedResources, err := sharedutil.CompressObject(&resources)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(compressedResources).ToNot(BeNil())
 
 			By("add sample OperationState field to the ApplicationState")
@@ -334,10 +334,10 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			}
 
 			reconciledStateString, reconciledobj, err := dummyApplicationComparedToField()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			compressedOpState, err := sharedutil.CompressObject(operationState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(compressedOpState).ToNot(BeNil())
 
 			applicationState := &db.ApplicationState{
@@ -353,7 +353,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			}
 
 			err = dbQueries.CreateApplicationState(ctx, applicationState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ----------------------------------------------------------------------------
 			By("Retrieve latest version of GitOpsDeployment and check Health/Sync before calling applicationEventRunner_handleUpdateDeploymentStatusTick function.")
@@ -363,7 +363,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			gitopsDeploymentKey := client.ObjectKey{Namespace: gitopsDepl.Namespace, Name: gitopsDepl.Name}
 			clientErr := a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
 
-			Expect(clientErr).To(BeNil())
+			Expect(clientErr).ToNot(HaveOccurred())
 
 			Expect(gitopsDeployment.Status.Health.Status).To(BeEmpty())
 			Expect(gitopsDeployment.Status.Sync.Status).To(BeEmpty())
@@ -380,7 +380,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			updated, err := a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
 			Expect(updated).To(BeTrue())
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ----------------------------------------------------------------------------
 			By("Retrieve latest version of GitOpsDeployment and check Health/Sync after calling applicationEventRunner_handleUpdateDeploymentStatusTick function.")
@@ -388,7 +388,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
 
-			Expect(clientErr).To(BeNil())
+			Expect(clientErr).ToNot(HaveOccurred())
 
 			Expect(gitopsDeployment.Status.Health.Status).To(Equal(managedgitopsv1alpha1.HeathStatusCodeHealthy))
 			Expect(gitopsDeployment.Status.Sync.Status).To(Equal(managedgitopsv1alpha1.SyncStatusCodeSynced))
@@ -424,17 +424,17 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			}
 
 			err = dbQueries.UpdateApplicationState(ctx, applicationState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Verify whether status condition of syncError is true")
 			Expect(gitopsDeployment.Status.Conditions[0].Status).To(Equal(managedgitopsv1alpha1.GitOpsConditionStatusTrue))
 
 			updated, err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(updated).To(BeTrue())
 
 			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
-			Expect(clientErr).To(BeNil())
+			Expect(clientErr).ToNot(HaveOccurred())
 
 			By("Verify status condition of syncError is false as applicationState.SyncError is empty and gitopsDeployment syncError condition is true and updated from true to false after calling deploymentStatusTick")
 			matchingCondition, _ = conditions.NewConditionManager().FindCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionSyncError)
@@ -443,14 +443,14 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			By("attempting to update the deployment status tick, even though nothing has changed.")
 			updated, err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(updated).To(BeFalse(), "since nothing has changed, the GitOpsDeployment should not have been updated")
 
 			// ----------------------------------------------------------------------------
 			By("Delete GitOpsDepl to clean resources.")
 			// ----------------------------------------------------------------------------
 			err = k8sClient.Delete(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, _, _, _, userDevErr = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
@@ -499,33 +499,33 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			By("Update the path to correct value, and verify error is now nil")
 			clientErr := a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDepl)
-			Expect(clientErr).To(BeNil())
+			Expect(clientErr).ToNot(HaveOccurred())
 
 			gitopsDepl.Spec.Source.Path = "resources/test-data/sample-gitops-repository/environments/overlays/dev"
 			err = k8sClient.Update(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, _, _, _, userDevErr = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
 
 			By("Update the path to '/' and verify that error condition is set")
 			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDepl)
-			Expect(clientErr).To(BeNil())
+			Expect(clientErr).ToNot(HaveOccurred())
 
 			gitopsDepl.Spec.Source.Path = "/"
 			err = k8sClient.Update(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, _, _, _, userDevErr = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(userDevErr.UserError()).To(Equal(managedgitopsv1alpha1.GitOpsDeploymentUserError_InvalidPathSlash))
 
 			By("Update the path to correct value, and verify error is nil again")
 			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDepl)
-			Expect(clientErr).To(BeNil())
+			Expect(clientErr).ToNot(HaveOccurred())
 
 			gitopsDepl.Spec.Source.Path = "resources/test-data/sample-gitops-repository/environments/overlays/dev"
 			err = k8sClient.Update(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, _, _, _, userDevErr = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
@@ -537,7 +537,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			defer testTeardown()
 
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -579,7 +579,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &managedEnvCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ----------------------------------------------------------------------------
 			By("Create ManagedEnvironment Secret")
@@ -596,11 +596,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &managedEnvSecret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDepl.Spec.Destination.Environment = managedEnvCR.Name
 			err = k8sClient.Update(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			clusterCredentials := db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-cluster-creds-test",
@@ -612,7 +612,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			}
 
 			err = dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			managedEnvironment := db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env",
@@ -620,7 +620,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
 			}
 			err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironment)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ----------------------------------------------------------------------------
 			By("Create apiCRToDBMapping in database")
@@ -635,7 +635,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				DBRelationKey:        managedEnvironment.Managedenvironment_id,
 			}
 			err = dbQueries.CreateAPICRToDatabaseMapping(ctx, &apiCRToDBMapping)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnvCR.UID), k8sClient)
 
@@ -665,9 +665,9 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				var appMappings []db.DeploymentToApplicationMapping
 
 				err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
-				Expect(len(appMappings)).To(Equal(1))
+				Expect(appMappings).To(HaveLen(1))
 
 				deplToAppMapping = appMappings[0]
 			}
@@ -680,7 +680,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			resources = append(resources, resourceStatus)
 
 			compressedResources, err := sharedutil.CompressObject(resources)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(compressedResources).ToNot(BeNil())
 
 			// Create ReconciledState
@@ -697,7 +697,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			}
 
 			fauxcomparedToBytes, err := json.Marshal(fauxcomparedTo)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationState := &db.ApplicationState{
 				Applicationstate_application_id: deplToAppMapping.Application_id,
@@ -710,7 +710,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			}
 
 			err = dbQueries.CreateApplicationState(ctx, applicationState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ----------------------------------------------------------------------------
 			By("Retrieve latest version of GitOpsDeployment and check Health/Sync before calling applicationEventRunner_handleUpdateDeploymentStatusTick function.")
@@ -719,7 +719,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			gitopsDeployment := &managedgitopsv1alpha1.GitOpsDeployment{}
 			gitopsDeploymentKey := client.ObjectKey{Namespace: gitopsDepl.Namespace, Name: gitopsDepl.Name}
 			clientErr := a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
-			Expect(clientErr).To(BeNil())
+			Expect(clientErr).ToNot(HaveOccurred())
 
 			Expect(gitopsDeployment.Status.Health.Status).To(BeEmpty())
 			Expect(gitopsDeployment.Status.Sync.Status).To(BeEmpty())
@@ -738,17 +738,17 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			updated, err := a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDeployment.Name, gitopsDeployment.Namespace, dbQueries)
 			Expect(updated).To(BeTrue())
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ----------------------------------------------------------------------------
 			By("Retrieve latest version of GitOpsDeployment and check Health/Sync  and reconciledState after calling applicationEventRunner_handleUpdateDeploymentStatusTick function.")
 			// ----------------------------------------------------------------------------
 
 			clientErr = a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
-			Expect(clientErr).To(BeNil())
+			Expect(clientErr).ToNot(HaveOccurred())
 
 			err = dbQueries.GetApplicationStateById(ctx, applicationState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(gitopsDeployment.Status.Health.Status).To(Equal(managedgitopsv1alpha1.HeathStatusCodeHealthy))
 			Expect(gitopsDeployment.Status.Sync.Status).To(Equal(managedgitopsv1alpha1.SyncStatusCodeSynced))
@@ -764,13 +764,13 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			By("Delete GitOpsDepl to clean resources.")
 			// ----------------------------------------------------------------------------
 			err = k8sClient.Delete(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8sClient.Delete(ctx, &managedEnvSecret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8sClient.Delete(ctx, &managedEnvCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, _, _, _, userDevErr = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
@@ -805,7 +805,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 		// 	By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status of a deployment which doesn't exist.")
 		// 	// ----------------------------------------------------------------------------
 		// 	err = a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, "dummy-deployment", dbQueries)
-		// 	Expect(err).To(BeNil())
+		// 	Expect(err).ToNot(HaveOccurred())
 		// })
 
 		It("Should not return an error, if the GitOpsDeployment resource with name/namespace doesn't exist", func() {
@@ -832,7 +832,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			// ----------------------------------------------------------------------------
 
 			updated, err := a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, a.eventResourceName, a.eventResourceNamespace, dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(updated).To(BeFalse())
 		})
 
@@ -884,13 +884,13 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			By("Delete deployment, but we don't want to delete other DB entries, hence not calling applicationEventRunner_handleDeploymentModified after deleting deployment.")
 			// ----------------------------------------------------------------------------
 			err = k8sClient.Delete(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ----------------------------------------------------------------------------
 			By("Call applicationEventRunner_handleUpdateDeploymentStatusTick function to update Health/Sync status for a deployment which doesn'r exist in given namespace.")
 			// ----------------------------------------------------------------------------
 			updated, err := a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(updated).To(BeFalse())
 
 			// ----------------------------------------------------------------------------
@@ -949,7 +949,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			// ----------------------------------------------------------------------------
 
 			updated, err := a.applicationEventRunner_handleUpdateDeploymentStatusTick(ctx, gitopsDepl.Name, gitopsDepl.Namespace, dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(updated).To(BeFalse())
 
 			// ----------------------------------------------------------------------------
@@ -960,7 +960,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			gitopsDeploymentKey := client.ObjectKey{Namespace: gitopsDepl.Namespace, Name: gitopsDepl.Name}
 			clientErr := a.workspaceClient.Get(ctx, gitopsDeploymentKey, gitopsDeployment)
 
-			Expect(clientErr).To(BeNil())
+			Expect(clientErr).ToNot(HaveOccurred())
 
 			Expect(gitopsDeployment.Status.Health.Status).To(BeEmpty())
 			Expect(gitopsDeployment.Status.Sync.Status).To(BeEmpty())
@@ -972,7 +972,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			// ----------------------------------------------------------------------------
 
 			err = k8sClient.Delete(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, _, _, _, userDevErr = a.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
@@ -1006,7 +1006,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			By("Compress sample data to be passed as input for decompressResourceData function.")
 			// ----------------------------------------------------------------------------
 			compressedResources, err := sharedutil.CompressObject(resourcesIn)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(compressedResources).ToNot(BeNil())
 
 			// ----------------------------------------------------------------------------
@@ -1017,7 +1017,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			resourcesOut, err = decompressResourceData(compressedResources)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(resourcesOut).NotTo(BeNil())
 			Expect(resourcesOut).NotTo(BeEmpty())
@@ -1045,7 +1045,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			By("Compress sample data to be passed as input for decompressResourceData function.")
 			// ----------------------------------------------------------------------------
 			compressedResources, err := sharedutil.CompressObject(resourcesIn)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(compressedResources).ToNot(BeNil())
 
 			// ----------------------------------------------------------------------------
@@ -1056,13 +1056,13 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			resourcesOut, err = decompressResourceData(compressedResources)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(resourcesOut).NotTo(BeNil())
 			Expect(resourcesOut).NotTo(BeEmpty())
 
 			Expect(resourcesOut[0]).NotTo(BeNil())
-			Expect(managedgitopsv1alpha1.ResourceStatus{} == resourcesOut[0]).To(BeTrue())
+			Expect(managedgitopsv1alpha1.ResourceStatus{}).To(Equal(resourcesOut[0]))
 		})
 
 		It("Should decompress empty resource data and return empty Array of ResourceStatus objects.", func() {
@@ -1076,7 +1076,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			By("Compress sample data to be passed as input for decompressResourceData function.")
 			// ----------------------------------------------------------------------------
 			compressedResources, err := sharedutil.CompressObject(resourcesIn)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(compressedResources).ToNot(BeNil())
 
 			// ----------------------------------------------------------------------------
@@ -1087,7 +1087,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			resourcesOut, err = decompressResourceData(compressedResources)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(resourcesOut).NotTo(BeNil())
 			Expect(resourcesOut).To(BeEmpty())
@@ -1127,7 +1127,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			By("Compress sample data to be passed as input for decompressOperationState function.")
 			// ----------------------------------------------------------------------------
 			compressedOpState, err := sharedutil.CompressObject(operationState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(compressedOpState).ToNot(BeNil())
 
 			// ----------------------------------------------------------------------------
@@ -1136,7 +1136,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			opStateOut, err := decompressOperationState(compressedOpState)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(opStateOut).NotTo(BeNil())
 
@@ -1155,7 +1155,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 		It("Shouldn't decompress if an empty operationState byte array is provided", func() {
 			operationState, err := decompressOperationState([]byte{})
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(operationState).To(BeNil())
 		})
@@ -1173,7 +1173,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 		BeforeEach(func() {
 			ctx = context.Background()
 			scheme, _, _, workspace, err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDepl = &managedgitopsv1alpha1.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1206,10 +1206,10 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			testFinalizer := "managed.gitops.test/test"
 			gitopsDepl.Finalizers = append(gitopsDepl.Finalizers, testFinalizer)
 			err := k8sClient.Update(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = removeFinalizerIfExist(ctx, k8sClient, gitopsDepl, testFinalizer)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDeplUpdated := false
 			for _, event := range informer.Events {
@@ -1222,7 +1222,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 		It("should not update if the finalizer is not found", func() {
 			err := removeFinalizerIfExist(ctx, k8sClient, gitopsDepl, managedgitopsv1alpha1.DeletionFinalizer)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDeplUpdated := false
 			for _, event := range informer.Events {
@@ -1235,11 +1235,11 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 		It("should not update if the GitOpsDeployment is already deleted", func() {
 			err := k8sClient.Delete(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDepl.Finalizers = append(gitopsDepl.Finalizers, managedgitopsv1alpha1.DeletionFinalizer)
 			err = removeFinalizerIfExist(ctx, k8sClient, gitopsDepl, managedgitopsv1alpha1.DeletionFinalizer)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDeplUpdated := false
 			for _, event := range informer.Events {
@@ -1255,17 +1255,17 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			gitopsDeplClone := gitopsDepl.DeepCopy()
 			gitopsDeplClone.Finalizers = append(gitopsDeplClone.Finalizers, managedgitopsv1alpha1.DeletionFinalizer)
 			err := k8sClient.Update(ctx, gitopsDeplClone)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("check if there will be a conflict on update")
 			gitopsDepl.Spec.Source.Path = "/sample"
 			err = k8sClient.Update(ctx, gitopsDepl)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(errors.IsConflict(err)).To(BeTrue())
 
 			By("verify if the conflict will be handled by retrying")
 			err = removeFinalizerIfExist(ctx, k8sClient, gitopsDepl, managedgitopsv1alpha1.DeletionFinalizer)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDeplUpdated := false
 			for _, event := range informer.Events {
@@ -1315,7 +1315,7 @@ var _ = Describe("GitOpsDeployment Conditions", func() {
 			})
 			It("It returns nil ", func() {
 				errTemp := adapter.setGitOpsDeploymentCondition(conditionType, reason, nil)
-				Expect(errTemp).To(BeNil())
+				Expect(errTemp).ToNot(HaveOccurred())
 			})
 		})
 		Context("when the err comes from reconcileHandler", func() {
@@ -1400,7 +1400,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &managedEnvCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			kubeConfigContents := generateFakeKubeConfig()
 			managedEnvSecret := corev1.Secret{
@@ -1414,7 +1414,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &managedEnvSecret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			return managedEnvCR, managedEnvSecret
 		}
@@ -1439,7 +1439,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			return gitopsDepl
 		}
@@ -1451,7 +1451,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 				string(namespace.UID), &dtam); err != nil {
 				return db.ManagedEnvironment{}, db.Application{}, err
 			}
-			Expect(len(dtam)).To(Equal(1))
+			Expect(dtam).To(HaveLen(1))
 
 			application := db.Application{
 				Application_id: dtam[0].Application_id,
@@ -1511,18 +1511,18 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 				kubesystemNamespace,
 				namespace,
 				err = tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(false, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			k8sClient.InnerClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(namespace, argocdNamespace, kubesystemNamespace).Build()
 
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, _, _, _, _, err = db.CreateSampleData(dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 		})
 
@@ -1534,7 +1534,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 			gitopsDepl := createGitOpsDepl()
 			gitopsDepl.Spec.Destination.Environment = managedEnvCR.Name
 			err = k8sClient.Update(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnvCR.UID), k8sClient)
 
@@ -1562,11 +1562,11 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 
 			By("locating the ManagedEnvironment row that is associated with the ManagedEnvironment CR")
 			managedEnvRowFromAPICRToDBMapping, err := findManagedEnvironmentRowFromCR(managedEnvCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring the Application row of the GitOpsDeployment matches the Managed Environment row of the ManagedEnv CR")
 			managedEnvRow, application, err := getManagedEnvironmentForGitOpsDeployment(*gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(managedEnvRow.Managedenvironment_id).To(Equal(managedEnvRowFromAPICRToDBMapping),
 				"the managed env from the GitOpsDeployment CR should match the one from the ManagedEnvironment CR")
 			Expect(application.Application_id).To(Equal(appFromCall.Application_id),
@@ -1574,9 +1574,9 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 
 			By("ensuring an Operation was created for the Application")
 			applicationOperations, err := listOperationRowsForResource(application.Application_id, "Application")
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
-			Expect(len(applicationOperations)).To(Equal(1))
+			Expect(applicationOperations).To(HaveLen(1))
 
 			applicationOperationFound := false
 
@@ -1588,10 +1588,10 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 			Expect(applicationOperationFound).To(BeTrue())
 
 			err = k8sClient.Delete(ctx, &managedEnvCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8sClient.Delete(ctx, &secretManagedEnv)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("calling handleDeploymentModified again, after deleting the managed environent and secret")
 			canShutdown, appFromSecondCall, engineInstanceFromCall, _, userDevErr := appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
@@ -1634,8 +1634,8 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 
 			By("ensuring an Operation was created for the Application")
 			applicationOperations, err := listOperationRowsForResource(originalAppFromCall.Application_id, "Application")
-			Expect(err).To(BeNil())
-			Expect(len(applicationOperations)).To(Equal(1))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(applicationOperations).To(HaveLen(1))
 
 			{
 				By("Modifying the GitOpsDeployment to target a GitOpsDeploymentManagedEnvironment CR, instead of targeting the API Namespace")
@@ -1644,7 +1644,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 
 				gitopsDepl.Spec.Destination.Environment = managedEnvCR.Name
 				err = k8sClient.Update(ctx, gitopsDepl)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("calling handleDeploymentModified with the changed GitOpsDeployment")
 				eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnvCR.UID), k8sClient)
@@ -1660,19 +1660,19 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 
 				By("locating the ManagedEnvironment row that is associated with the ManagedEnvironment CR")
 				managedEnvRowFromAPICRToDBMapping, err := findManagedEnvironmentRowFromCR(managedEnvCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("ensuring the Application row of the GitOpsDeployment matches the Managed Environment row of the ManagedEnv CR")
 				managedEnvRow, application, err := getManagedEnvironmentForGitOpsDeployment(*gitopsDepl)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(managedEnvRow.Managedenvironment_id).To(Equal(managedEnvRowFromAPICRToDBMapping),
 					"the managed env from the GitOpsDeployment CR should match the one from the ManagedEnvironment CR")
 				Expect(application.Application_id).To(Equal(appFromCall.Application_id),
 					"the application object returned from the function call should match the GitOpsDeployment CR we created")
 
 				applicationOperations, err := listOperationRowsForResource(appFromCall.Application_id, "Application")
-				Expect(err).To(BeNil())
-				Expect(len(applicationOperations)).To(Equal(2), "a new operation targeting the Application should have been created for the Application")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(applicationOperations).To(HaveLen(2), "a new operation targeting the Application should have been created for the Application")
 			}
 
 		})
@@ -1685,7 +1685,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 			gitopsDepl := createGitOpsDepl()
 			gitopsDepl.Spec.Destination.Environment = managedEnvCR.Name
 			err = k8sClient.Update(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnvCR.UID), k8sClient)
 
@@ -1712,13 +1712,13 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 			Expect(engineInstanceFromCall).ToNot(BeNil())
 			Expect(userDevErr).To(BeNil())
 			applicationOperations, err := listOperationRowsForResource(originalAppFromCall.Application_id, "Application")
-			Expect(err).To(BeNil())
-			Expect(len(applicationOperations)).To(Equal(1))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(applicationOperations).To(HaveLen(1))
 
 			By("modifying the GitOpsDeployment CR to target the local namespace, rather than a ManagedEnvironment CR")
 			gitopsDepl.Spec.Destination.Environment = ""
 			err = k8sClient.Update(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("calling handleDeploymentModified again, now that we have updated the GitOpsDeployment")
 
@@ -1734,8 +1734,8 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 
 			By("ensuring an Operation was created for the Application")
 			applicationOperations, err = listOperationRowsForResource(appFromCall.Application_id, "Application")
-			Expect(err).To(BeNil())
-			Expect(len(applicationOperations)).To(Equal(2),
+			Expect(err).ToNot(HaveOccurred())
+			Expect(applicationOperations).To(HaveLen(2),
 				"a second Operation should have been created, since the Application should have changed")
 
 		})
@@ -1748,7 +1748,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 			gitopsDepl := createGitOpsDepl()
 			gitopsDepl.Spec.Destination.Environment = managedEnvCR.Name
 			err = k8sClient.Update(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnvCR.UID), k8sClient)
 
@@ -1773,8 +1773,8 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 			Expect(engineInstanceFromCall).ToNot(BeNil())
 			Expect(userDevErr).To(BeNil())
 			applicationOperations, err := listOperationRowsForResource(originalAppFromCall.Application_id, "Application")
-			Expect(err).To(BeNil())
-			Expect(len(applicationOperations)).To(Equal(1))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(applicationOperations).To(HaveLen(1))
 
 			By("creating a second GitOpsDeploymentManagedEnvironment")
 			var managedEnvCR2 managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment
@@ -1791,7 +1791,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 					},
 				}
 				err = k8sClient.Create(ctx, &managedEnvSecret2)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				managedEnvCR2 = managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1806,7 +1806,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 					},
 				}
 				err = k8sClient.Create(ctx, &managedEnvCR2)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnvCR2.UID), k8sClient)
 
@@ -1815,7 +1815,7 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 			By("updating the GitOpsDeployment to point to the new ManagedEnvironment")
 			gitopsDepl.Spec.Destination.Environment = managedEnvCR2.Name
 			err = k8sClient.Update(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("calling handleDeploymentModified again, now that we have updated the GitOpsDeployment")
 			canShutdown, appFromCall, engineInstanceFromCall, _, userDevErr := appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
@@ -1828,19 +1828,19 @@ var _ = Describe("application_event_runner_deployments.go Tests", func() {
 
 			By("locating the ManagedEnvironment row that is associated with the new ManagedEnvironment CR")
 			managedEnvRowFromAPICRToDBMapping2, err := findManagedEnvironmentRowFromCR(managedEnvCR2)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring the Application row of the GitOpsDeployment matches the Managed Environment row of the new ManagedEnv CR")
 			managedEnvRow2, application, err := getManagedEnvironmentForGitOpsDeployment(*gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(managedEnvRow2.Managedenvironment_id).To(Equal(managedEnvRowFromAPICRToDBMapping2),
 				"the managed env from the GitOpsDeployment CR should match the one from the new ManagedEnvironment CR")
 			Expect(application.Application_id).To(Equal(appFromCall.Application_id),
 				"the application object returned from the function call should match the GitOpsDeployment CR we created")
 
 			applicationOperations, err = listOperationRowsForResource(appFromCall.Application_id, "Application")
-			Expect(err).To(BeNil())
-			Expect(len(applicationOperations)).To(Equal(2),
+			Expect(err).ToNot(HaveOccurred())
+			Expect(applicationOperations).To(HaveLen(2),
 				"a new operation targeting the Application should have been created for the Application")
 
 		})
@@ -1897,7 +1897,7 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &managedEnvCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			managedEnvironment := db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env",
@@ -1905,7 +1905,7 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
 			}
 			err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironment)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			apiCRToDBMapping := db.APICRToDatabaseMapping{
 				APIResourceType:      db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentManagedEnvironment,
@@ -1917,7 +1917,7 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 				DBRelationKey:        managedEnvironment.Managedenvironment_id,
 			}
 			err = dbQueries.CreateAPICRToDatabaseMapping(ctx, &apiCRToDBMapping)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			return managedEnvironment, managedEnvCR, apiCRToDBMapping
 		}
@@ -1942,7 +1942,7 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			return gitopsDepl
 		}
@@ -1954,18 +1954,18 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 				kubesystemNamespace,
 				namespace,
 				err = tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(false, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(namespace, argocdNamespace, kubesystemNamespace).Build()
 
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			clusterCredentials, _, _, engineInstance, _, err = db.CreateSampleData(dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 		})
 
@@ -1989,7 +1989,7 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 
 			By("calling the function with a ManagedEnvironment event")
 			informGitOpsDepl, err := handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx, *gitopsDepl, &newEvent, dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(informGitOpsDepl).To(BeFalse(), "GitOpsDepl runner should not be informed if the ManagedEnvironment CR doesn't reference the GitOpsDeployment CR")
 
 			By("updating the environment field of GitOpsDeployment, which should change the test result")
@@ -1998,7 +1998,7 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 				Namespace:   gitopsDepl.Spec.Destination.Namespace,
 			}
 			informGitOpsDepl, err = handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx, *gitopsDepl, &newEvent, dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(informGitOpsDepl).To(BeTrue(), "GitOpsDepl runner SHOULD be informed if the ManagedEnvironment CR references the GitOpsDeployment CR")
 
 		})
@@ -2018,7 +2018,7 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 			err = dbQueries.CreateApplication(ctx, &application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("connecting the Application row to the GitOpsDeployment CR")
 			dtam := db.DeploymentToApplicationMapping{
@@ -2029,7 +2029,7 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 				Application_id:                        application.Application_id,
 			}
 			err = dbQueries.CreateDeploymentToApplicationMapping(ctx, &dtam)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("calling the function with a ManagedEnvironment event")
 			newEvent := eventlooptypes.EventLoopEvent{
@@ -2043,17 +2043,17 @@ var _ = Describe("Miscellaneous application_event_runner.go tests", func() {
 			}
 
 			informGitOpsDepl, err := handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx, *gitopsDepl, &newEvent, dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(informGitOpsDepl).To(BeTrue(), "when the Application DB row references the corresponding ManagedEnv row, it should return true")
 
 			By("deleting the connection from the ManagedEnv CR to the ManagedEnv row")
 			rowsDeleted, err := dbQueries.DeleteAPICRToDatabaseMapping(ctx, &apiCRToDBMapping)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsDeleted).To(Equal(1))
 
 			By("calling the function with a ManagedEnvironment event, but this time we expect a different result")
 			informGitOpsDepl, err = handleManagedEnvironmentModified_shouldInformGitOpsDeployment(ctx, *gitopsDepl, &newEvent, dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(informGitOpsDepl).To(BeFalse(), "when function can't locate the ManagedEnvironment row from the CR, it should return false")
 
 		})
@@ -2122,5 +2122,5 @@ func dummyApplicationComparedToField() (string, fauxargocd.FauxComparedTo, error
 
 func testTeardown() {
 	err := db.SetupForTestingDBGinkgo()
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 }

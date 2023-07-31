@@ -52,7 +52,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 				apiNamespace,
 				err = tests.GenericTestSetup()
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			tAELF = &testApplicationEventLoopFactory{}
 
@@ -81,7 +81,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 			}
 
 			err := k8sClient.Create(context.Background(), gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Simulate a GitOpsDeployment modified event
 			msg := eventlooptypes.EventLoopMessage{
@@ -183,11 +183,11 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 
 			By("deleting the old GitOpsDeployment from the previous test")
 			err := k8sClient.Delete(context.Background(), gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("creating a new GitOpsDeployment with the same name as the previous one, but a different UID")
 			err = k8sClient.Create(context.Background(), gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("simulating a GitOpsDeployment modified event")
 			msg := eventlooptypes.EventLoopMessage{
@@ -240,7 +240,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 
 			By("creating a new orphaned GitOpsDeploymentSync")
 			err = k8sClient.Create(context.Background(), gitopsDeplSyncRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("simulating a GitOpsDeploymentSyncRun event")
 			msg := eventlooptypes.EventLoopMessage{
@@ -297,7 +297,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 
 			By("creating a new GitOpsDeployment, to unorphan the GitOpsDeploymentSync")
 			err = k8sClient.Create(context.Background(), gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("simulating a GitOpsDeployment modified event")
 			msg := eventlooptypes.EventLoopMessage{
@@ -377,7 +377,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 				apiNamespace,
 				err = tests.GenericTestSetup()
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		simulateGitOpsDeployments := func(numberToSimulate int, tAELF *managedEnvironmentTestApplicationEventLoopFactory,
@@ -468,7 +468,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 
 			Consistently(func() bool {
 				return tAELF.numberOfEventLoopsCreated == 0
-			}, "1s", "10ms").Should(Equal(true), "an event loop should never be created, because the managedenv was never forwarded")
+			}, "1s", "10ms").Should(BeTrue(), "an event loop should never be created, because the managedenv was never forwarded")
 
 		})
 
@@ -556,10 +556,10 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 			for _, existingGitOpsDeployment := range gitopsDeployments {
 
 				received := messagesReceived[string(existingGitOpsDeployment.UID)]
-				Expect(len(received)).To(Equal(1), "all the gitopsdeployment should receive the managed env event")
+				Expect(received).To(HaveLen(1), "all the gitopsdeployment should receive the managed env event")
 
 				msg := received[0]
-				Expect(msg.Message.Event.EventType == eventlooptypes.ManagedEnvironmentModified)
+				Expect(msg.Message.Event.EventType).To(Equal(eventlooptypes.ManagedEnvironmentModified))
 			}
 
 		},

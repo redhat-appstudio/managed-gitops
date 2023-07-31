@@ -37,12 +37,12 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 				_,
 				_,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = appstudiosharedv1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = codereadytoolchainv1alpha1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			testNS := corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
@@ -68,22 +68,22 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 						dtc.Spec.ReclaimPolicy = appstudiosharedv1.ReclaimPolicy_Delete
 					})
 					err := k8sClient.Create(ctx, &dtcls)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					By("creating a default DeploymentTarget")
 					dt := generateReclaimDeploymentTarget()
 					err = k8sClient.Create(ctx, &dt)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					By("reconcile with a DeploymentTarget")
 					request := newRequest(dt.Namespace, dt.Name)
 					res, err := reconciler.Reconcile(ctx, request)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 					Expect(res).To(Equal(ctrl.Result{}))
 
 					By("check if the DT has set the finalizer")
 					err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 					finalizerFound := false
 					for _, f := range dt.GetFinalizers() {
 						if f == FinalizerDT {
@@ -106,12 +106,12 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 					dtc.Spec.ReclaimPolicy = appstudiosharedv1.ReclaimPolicy_Delete
 				})
 				err := k8sClient.Create(ctx, &dtcls)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("creating a default DeploymentTarget")
 				dt := generateReclaimDeploymentTarget()
 				err = k8sClient.Create(ctx, &dt)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("creating a SpaceRequest")
 				sr := generateReclaimSpaceRequest(func(sr *codereadytoolchainv1alpha1.SpaceRequest) {
@@ -119,17 +119,17 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 					sr.Status.Conditions[0].Status = corev1.ConditionFalse
 				})
 				err = k8sClient.Create(ctx, &sr)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("reconcile with a DeploymentTarget")
 				request := newRequest(dt.Namespace, dt.Name)
 				res, err := reconciler.Reconcile(ctx, request)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(res).To(Equal(ctrl.Result{}))
 
 				By("check if the DT has set the finalizer")
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				finalizerFound := false
 				for _, f := range dt.GetFinalizers() {
 					if f == FinalizerDT {
@@ -141,29 +141,29 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 
 				By("deleting the DT")
 				err = k8sClient.Delete(ctx, &dt)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				res, err = reconciler.Reconcile(ctx, request)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(res).To(Equal(ctrl.Result{Requeue: true}), "should requeue after deleting the SpaceRequest")
 
 				res, err = reconciler.Reconcile(ctx, request)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(res).To(Equal(ctrl.Result{RequeueAfter: 30 * time.Second}),
 					"should requeue because the SpaceRequest hasn't been cleaned up yet")
 
 				err = k8sClient.Delete(ctx, &sr)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Use a mock clock and forward the time by two minutes.
 				reconciler.Clock = sharedutil.NewMockClock(time.Now().Add(2 * time.Minute))
 
 				res, err = reconciler.Reconcile(ctx, request)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(res).To(Equal(ctrl.Result{}))
 
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(dt.Status.Phase).To(Equal(appstudiosharedv1.DeploymentTargetPhase_Failed))
 
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&sr), &sr)
@@ -176,22 +176,22 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 					dtc.Spec.ReclaimPolicy = appstudiosharedv1.ReclaimPolicy_Retain
 				})
 				err := k8sClient.Create(ctx, &dtcls)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("creating a default DeploymentTarget pointing to a non-existing DTC")
 				dt := generateReclaimDeploymentTarget()
 				err = k8sClient.Create(ctx, &dt)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(dt.Spec.ClaimRef).To(Equal("test-dtc"))
 
 				By("reconcile and verify if the claimRef field is unset")
 				request := newRequest(dt.Namespace, dt.Name)
 				res, err := reconciler.Reconcile(ctx, request)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(res).To(Equal(ctrl.Result{}))
 
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(dt.Spec.ClaimRef).To(Equal(""))
 			})
 
@@ -204,7 +204,7 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 						dtc.Spec.ReclaimPolicy = appstudiosharedv1.ReclaimPolicy_Delete
 					})
 					err := k8sClient.Create(ctx, &dtcls)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					By("creating a default DeploymentTarget pointing to a non-existing DTC")
 					dt := generateReclaimDeploymentTarget()
@@ -212,7 +212,7 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 					now := metav1.Now()
 					dt.DeletionTimestamp = &now
 					err = k8sClient.Create(ctx, &dt)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					By("creating a DTClaim that matches the DeploymentTarget")
 					dtc := &appstudiosharedv1.DeploymentTargetClaim{
@@ -229,7 +229,7 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 
 					request := newRequest(dt.Namespace, dt.Name)
 					res, err := reconciler.Reconcile(ctx, request)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 					Expect(res).To(Equal(ctrl.Result{}))
 
 					err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
@@ -246,7 +246,7 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 						dtc.Spec.ReclaimPolicy = appstudiosharedv1.ReclaimPolicy_Retain
 					})
 					err := k8sClient.Create(ctx, &dtcls)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					By("creating a default DeploymentTarget pointing to a non-existing DTC")
 					dt := generateReclaimDeploymentTarget()
@@ -254,7 +254,7 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 					now := metav1.Now()
 					dt.DeletionTimestamp = &now
 					err = k8sClient.Create(ctx, &dt)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					By("creating a DeploymentTargetClaim that is referenced by the DT")
 					dtc := &appstudiosharedv1.DeploymentTargetClaim{
@@ -281,7 +281,7 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 
 					request := newRequest(dt.Namespace, dt.Name)
 					res, err := reconciler.Reconcile(ctx, request)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 					Expect(res).To(Equal(ctrl.Result{}))
 
 					err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)

@@ -16,7 +16,7 @@ import (
 func HasStatusPhase(phase appstudiosharedv1.DeploymentTargetPhase) matcher.GomegaMatcher {
 	return WithTransform(func(dt appstudiosharedv1.DeploymentTarget) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {

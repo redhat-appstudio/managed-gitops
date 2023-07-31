@@ -28,7 +28,7 @@ func expectedCondition(f func(_ managedgitopsv1alpha1.GitOpsDeployment) bool) ma
 	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
 
 		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -53,7 +53,7 @@ func HaveLabel(key, value string) matcher.GomegaMatcher {
 
 	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -98,7 +98,7 @@ func HaveHealthStatusCode(status managedgitopsv1alpha1.HealthStatusCode) matcher
 // For the vast majority of tests, you should not (need to) use this function.
 func HaveHealthStatusCodeFunc(status managedgitopsv1alpha1.HealthStatusCode, gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
 	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	k8sClient, err := fixture.GetKubeClient(config)
 	if err != nil {
@@ -135,7 +135,7 @@ func HaveSyncStatusCode(status managedgitopsv1alpha1.SyncStatusCode) matcher.Gom
 // For the vast majority of tests, you should not (need to) use this function.
 func HaveSyncStatusCodeFunc(status managedgitopsv1alpha1.SyncStatusCode, gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
 	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	k8sClient, err := fixture.GetKubeClient(config)
 	if err != nil {
@@ -169,7 +169,7 @@ func HaveResources(resourceStatusList []managedgitopsv1alpha1.ResourceStatus) ma
 // For the vast majority of tests, you should not (need to) use this function.
 func HaveResourcesFunc(resourceStatusList []managedgitopsv1alpha1.ResourceStatus, gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment) bool {
 	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	k8sClient, err := fixture.GetKubeClient(config)
 	if err != nil {
@@ -222,7 +222,7 @@ func HaveOperationState(operationState *appv1.OperationState) matcher.GomegaMatc
 // HaveOperationStateFunc can be called for non-Gomega-based comparisons.
 func HaveOperationStateFunc(operationState *appv1.OperationState, gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment) bool {
 	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	k8sClient, err := fixture.GetKubeClient(config)
 	if err != nil {
@@ -274,7 +274,7 @@ func HaveSpecSource(source managedgitopsv1alpha1.ApplicationSource) matcher.Gome
 	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
 
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -317,7 +317,7 @@ func HaveConditions(conditions []managedgitopsv1alpha1.GitOpsDeploymentCondition
 	return WithTransform(func(gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment) bool {
 
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -363,7 +363,7 @@ func HaveReconciledState(reconciledState managedgitopsv1alpha1.ReconciledState) 
 
 	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -403,7 +403,7 @@ func UpdateDeploymentWithFunction(gitopsDeployment *managedgitopsv1alpha1.GitOps
 
 	GinkgoWriter.Printf("Updating GitOpsDeployment for '%v'\n", gitopsDeployment.ObjectMeta)
 	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	k8sClient, err := fixture.GetKubeClient(config)
 	if err != nil {
@@ -438,7 +438,7 @@ func UpdateDeploymentStatusWithFunction(gitopsDeployment *managedgitopsv1alpha1.
 
 	GinkgoWriter.Printf("Updating GitOpsDeployment status for '%v'\n", gitopsDeployment.ObjectMeta)
 	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	k8sClient, err := fixture.GetKubeClient(config)
 	if err != nil {

@@ -102,21 +102,21 @@ var _ = Describe("Application Event Runner Deployments", func() {
 		It("Input spec is converted to an argocd Application", func() {
 			input := getFakeArgoCDSpecInput(false, false)
 			application, err := createSpecField(input)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(application).To(Equal(getValidApplication(false)))
 		})
 
 		It("Sanitize illegal characters from input", func() {
 			input := getFakeArgoCDSpecInput(false, true)
 			application, err := createSpecField(input)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(application).To(Equal(getValidApplication(false)))
 		})
 
 		It("Input spec with automated enabled should set automated sync policy", func() {
 			input := getFakeArgoCDSpecInput(true, false)
 			application, err := createSpecField(input)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(application).To(Equal(getValidApplication(true)))
 		})
 	})
@@ -144,7 +144,7 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 				kubesystemNamespace,
 				workspace,
 				err = tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			workspaceID = string(workspace.UID)
 
@@ -176,7 +176,7 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 				Build()
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(false, false)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			appEventLoopRunnerAction = applicationEventLoopRunner_Action{
 				eventResourceName:           gitopsDepl.Name,
@@ -207,16 +207,16 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			var appMappingsFirst []db.DeploymentToApplicationMapping
 			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappingsFirst)
 
-			Expect(err).To(BeNil())
-			Expect(len(appMappingsFirst)).To(Equal(1))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(appMappingsFirst).To(HaveLen(1))
 
 			deplToAppMappingFirst := appMappingsFirst[0]
 			applicationFirst := db.Application{Application_id: deplToAppMappingFirst.Application_id}
 			err = dbQueries.GetApplicationById(context.Background(), &applicationFirst)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
-			Expect(strings.Contains(applicationFirst.Spec_field, string(managedgitopsv1alpha1.SyncOptions_CreateNamespace_true))).To(Equal(true))
+			Expect(strings.Contains(applicationFirst.Spec_field, string(managedgitopsv1alpha1.SyncOptions_CreateNamespace_true))).To(BeTrue())
 			//############################################################################
 
 			By("Update existing deployment so that the SyncOption is set to nil/empty")
@@ -224,7 +224,7 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			gitopsDepl.Spec.SyncPolicy.SyncOptions = emptySyncOption
 
 			err = k8sClient.Update(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("This should update the existing application.")
 
@@ -237,17 +237,17 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			var appMappingsSecond []db.DeploymentToApplicationMapping
 			err := dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappingsSecond)
 
-			Expect(err).To(BeNil())
-			Expect(len(appMappingsSecond)).To(Equal(1))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(appMappingsSecond).To(HaveLen(1))
 
 			deplToAppMappingSecond := appMappingsSecond[0]
 			applicationSecond := db.Application{Application_id: deplToAppMappingSecond.Application_id}
 			err = dbQueries.GetApplicationById(context.Background(), &applicationSecond)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(applicationFirst.SeqID).To(Equal(applicationSecond.SeqID))
 			Expect(applicationFirst.Spec_field).NotTo(Equal(applicationSecond.Spec_field))
-			Expect(strings.Contains(applicationSecond.Spec_field, string(managedgitopsv1alpha1.SyncOptions_CreateNamespace_true))).To(Equal(false))
+			Expect(strings.Contains(applicationSecond.Spec_field, string(managedgitopsv1alpha1.SyncOptions_CreateNamespace_true))).To(BeFalse())
 
 			//############################################################################
 			By("Update existing deployment to a SyncOption that is not empty and is set to CreateNamespace=true")
@@ -257,7 +257,7 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			}
 
 			err = k8sClient.Update(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("This should update the existing application.")
 
@@ -270,17 +270,17 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 			var appMappingsThird []db.DeploymentToApplicationMapping
 			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappingsThird)
 
-			Expect(err).To(BeNil())
-			Expect(len(appMappingsThird)).To(Equal(1))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(appMappingsThird).To(HaveLen(1))
 
 			deplToAppMappingThird := appMappingsThird[0]
 			applicationThird := db.Application{Application_id: deplToAppMappingThird.Application_id}
 			err = dbQueries.GetApplicationById(context.Background(), &applicationThird)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(applicationThird.SeqID).To(Equal(applicationSecond.SeqID))
 			Expect(applicationThird.Spec_field).NotTo(Equal(applicationSecond.Spec_field))
-			Expect(strings.Contains(applicationThird.Spec_field, string(managedgitopsv1alpha1.SyncOptions_CreateNamespace_true))).To(Equal(true))
+			Expect(strings.Contains(applicationThird.Spec_field, string(managedgitopsv1alpha1.SyncOptions_CreateNamespace_true))).To(BeTrue())
 
 			//############################################################################
 			By("Update existing deployment to a SyncOption that is not empty and is set to a false syncOption CreateNamespace=foo ")
@@ -289,7 +289,7 @@ var _ = Describe("Application Event Runner Deployments to check SyncPolicy.SyncO
 				"CreateNamespace=foo",
 			}
 			err = k8sClient.Update(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("This should update the existing application.")
 
@@ -308,7 +308,7 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 
 		var appArgo fauxargocd.FauxApplication
 		err := yaml.Unmarshal([]byte(applicationFirst.Spec_field), &appArgo)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		Expect(managedgitopsv1alpha1.ApplicationSource{
 			RepoURL:        appArgo.Spec.Source.RepoURL,
@@ -350,7 +350,7 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 				kubesystemNamespace,
 				workspace,
 				err = tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			workspaceID = string(workspace.UID)
 
@@ -383,7 +383,7 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			}
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(false, false)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			appEventLoopRunnerAction = applicationEventLoopRunner_Action{
 				eventResourceName:           gitopsDepl.Name,
@@ -417,13 +417,13 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			var appMappingsFirst []db.DeploymentToApplicationMapping
 			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappingsFirst)
 
-			Expect(err).To(BeNil())
-			Expect(len(appMappingsFirst)).To(Equal(1))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(appMappingsFirst).To(HaveLen(1))
 
 			deplToAppMappingFirst := appMappingsFirst[0]
 			applicationFirst := db.Application{Application_id: deplToAppMappingFirst.Application_id}
 			err = dbQueries.GetApplicationById(context.Background(), &applicationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			expectFauxArgoCDAppToMatchGitOpsDeployment(applicationFirst, *gitopsDepl)
 
@@ -477,28 +477,28 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			var appMappingsSecond []db.DeploymentToApplicationMapping
 			err := dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappingsSecond)
 
-			Expect(err).To(BeNil())
-			Expect(len(appMappingsSecond)).To(Equal(1))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(appMappingsSecond).To(HaveLen(1))
 
 			deplToAppMappingSecond := appMappingsSecond[0]
 			applicationSecond := db.Application{Application_id: deplToAppMappingSecond.Application_id}
 			err = dbQueries.GetApplicationById(context.Background(), &applicationSecond)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(applicationFirst.SeqID).To(Equal(applicationSecond.SeqID))
 			Expect(applicationFirst.Spec_field).NotTo(Equal(applicationSecond.Spec_field))
 
 			clusterUser := db.ClusterUser{User_name: string(workspace.UID)}
 			err = dbQueries.GetClusterUserByUsername(context.Background(), &clusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsEngineInstance := db.GitopsEngineInstance{Gitopsengineinstance_id: applicationSecond.Engine_instance_inst_id}
 			err = dbQueries.GetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			managedEnvironment := db.ManagedEnvironment{Managedenvironment_id: applicationSecond.Managed_environment_id}
 			err = dbQueries.GetManagedEnvironmentById(ctx, &managedEnvironment)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			expectFauxArgoCDAppToMatchGitOpsDeployment(applicationSecond, *gitopsDepl)
 
@@ -510,14 +510,14 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 
 			gitopsDepl.Finalizers = append(gitopsDepl.Finalizers, managedgitopsv1alpha1.DeletionFinalizer)
 			err = k8sClient.Update(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8sClient.Delete(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// verify that the GitOpsDeployment is not deleted due to the presence of finalizer
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsDepl), gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(gitopsDepl.DeletionTimestamp).NotTo(BeNil())
 
 			_, _, _, message, userDevErr = appEventLoopRunnerActionSecond.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
@@ -526,18 +526,18 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 
 			// Application should no longer exist
 			err = dbQueries.GetApplicationById(ctx, &applicationSecond)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 			// DeploymentToApplicationMapping should be removed, too
 			var appMappings []db.DeploymentToApplicationMapping
 			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
-			Expect(err).To(BeNil())
-			Expect(len(appMappings)).To(Equal(0))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(appMappings).To(BeEmpty())
 
 			// GitopsEngine instance should still be reachable
 			err = dbQueries.GetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			operationCreated := false
 			operationDeleted := false
@@ -586,7 +586,7 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 
 			gitopsDepl.Finalizers = append(gitopsDepl.Finalizers, managedgitopsv1alpha1.DeletionFinalizer)
 			err = k8sClient.Update(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ----------------------------------------------------------------------------
 			By("Verify that database entries are created.")
@@ -595,44 +595,44 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			var appMappingsFirst []db.DeploymentToApplicationMapping
 			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappingsFirst)
 
-			Expect(err).To(BeNil())
-			Expect(len(appMappingsFirst)).To(Equal(1))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(appMappingsFirst).To(HaveLen(1))
 
 			deplToAppMappingFirst := appMappingsFirst[0]
 			applicationFirst := db.Application{Application_id: deplToAppMappingFirst.Application_id}
 			err = dbQueries.GetApplicationById(context.Background(), &applicationFirst)
 			expectFauxArgoCDAppToMatchGitOpsDeployment(applicationFirst, *gitopsDepl)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// ----------------------------------------------------------------------------
 			By("Delete the GitOpsDeployment and its associated DB resources")
 			// ----------------------------------------------------------------------------
 			// Here we assume that only DB resources are being deleted in this reconciliation.
 			rows, err := dbQueries.DeleteDeploymentToApplicationMappingByDeplId(ctx, deplToAppMappingFirst.Deploymenttoapplicationmapping_uid_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rows).To(Equal(1))
 
 			clusterUser := db.ClusterUser{
 				User_name: string(workspace.UID),
 			}
 			err = dbQueries.GetClusterUserByUsername(context.Background(), &clusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			rows, err = dbQueries.DeleteApplicationOwner(ctx, deplToAppMappingFirst.Application_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rows).To(Equal(1))
 
 			rows, err = dbQueries.DeleteApplicationById(ctx, deplToAppMappingFirst.Application_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rows).To(Equal(1))
 
 			err = k8sClient.Delete(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// verify that the GitOpsDeployment is not deleted due to the presence of finalizer
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsDepl), gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(gitopsDepl.DeletionTimestamp).NotTo(BeNil())
 
 			// ----------------------------------------------------------------------------
@@ -671,8 +671,8 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			var appMappings []db.DeploymentToApplicationMapping
 			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
 
-			Expect(err).To(BeNil())
-			Expect(len(appMappings)).To(Equal(0))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(appMappings).To(BeEmpty())
 		})
 
 		It("Should not update existing deployment, if no changes were done in fields.", func() {
@@ -690,13 +690,13 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			var appMappingsFirst []db.DeploymentToApplicationMapping
 			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappingsFirst)
 
-			Expect(err).To(BeNil())
-			Expect(len(appMappingsFirst)).To(Equal(1))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(appMappingsFirst).To(HaveLen(1))
 
 			deplToAppMappingFirst := appMappingsFirst[0]
 			applicationFirst := db.Application{Application_id: deplToAppMappingFirst.Application_id}
 			err = dbQueries.GetApplicationById(context.Background(), &applicationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			expectFauxArgoCDAppToMatchGitOpsDeployment(applicationFirst, *gitopsDepl)
 
 			//--------------------------------------------------------------------------------------
@@ -737,7 +737,7 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			// ----------------------------------------------------------------------------
 
 			err = k8sClient.Delete(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, _, _, message, userDevErr = appEventLoopRunnerActionSecond.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
@@ -745,22 +745,22 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 
 			// Application should no longer exist
 			err = dbQueries.GetApplicationById(ctx, &applicationFirst)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 			// DeploymentToApplicationMapping should be removed, too
 			var appMappings []db.DeploymentToApplicationMapping
 			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
-			Expect(err).To(BeNil())
-			Expect(len(appMappings)).To(Equal(0))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(appMappings).To(BeEmpty())
 
 			// GitopsEngine instance should still be reachable
 			gitopsEngineInstance := db.GitopsEngineInstance{Gitopsengineinstance_id: applicationFirst.Engine_instance_inst_id}
 			err = dbQueries.GetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbQueries.GetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			operationCreated := false
 			operationDeleted := false
@@ -788,9 +788,9 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 				var appMappings []db.DeploymentToApplicationMapping
 
 				err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
-				Expect(len(appMappings)).To(Equal(1))
+				Expect(appMappings).To(HaveLen(1))
 
 				deplToAppMapping = appMappings[0]
 			}
@@ -799,14 +799,14 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 				User_name: string(workspace.UID),
 			}
 			err = dbQueries.GetClusterUserByUsername(context.Background(), &clusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			application := db.Application{
 				Application_id: deplToAppMapping.Application_id,
 			}
 
 			err = dbQueries.GetApplicationById(context.Background(), &application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			expectFauxArgoCDAppToMatchGitOpsDeployment(application, *gitopsDepl)
 
 			gitopsEngineInstance := db.GitopsEngineInstance{
@@ -814,36 +814,36 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			}
 
 			err = dbQueries.GetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			managedEnvironment := db.ManagedEnvironment{
 				Managedenvironment_id: application.Managed_environment_id,
 			}
 			err = dbQueries.GetManagedEnvironmentById(ctx, &managedEnvironment)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Delete the GitOpsDepl and verify that the corresponding DB entries are removed -------------
 
 			err = k8sClient.Delete(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, _, _, _, userDevErr = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
 
 			// Application should no longer exist
 			err = dbQueries.GetApplicationById(ctx, &application)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 			// DeploymentToApplicationMapping should be removed, too
 			var appMappings []db.DeploymentToApplicationMapping
 			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
-			Expect(err).To(BeNil())
-			Expect(len(appMappings)).To(Equal(0))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(appMappings).To(BeEmpty())
 
 			// GitopsEngine instance should still be reachable
 			err = dbQueries.GetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			operatorCreated := false
 			operatorDeleted := false
@@ -869,7 +869,7 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			ctx := context.Background()
 
 			scheme, argocdNamespace, kubesystemNamespace, workspace, err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -892,7 +892,7 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			workspaceID := string(workspace.UID)
 
 			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			a := applicationEventLoopRunner_Action{
 				eventResourceName:           gitopsDepl.Name,
@@ -929,7 +929,7 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			By("updating the Application name field, simulating the case where a different name was set in the Create logic of handleDeploymentModified")
 			applicationDBRow.Name = "a-different-name-than-the-one-set-by-create"
 			err := dbQueries.UpdateApplication(ctx, applicationDBRow)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("calling handleDeploymentModified again, and expected an error")
 			_, _, _, result, userDevErr = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
@@ -944,7 +944,7 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			workspace.DeletionTimestamp = &metav1.Time{Time: time.Now()}
 			workspace.Finalizers = []string{"my-finalizer"}
 			err := k8sClient.Update(ctx, workspace)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			appEventLoopRunnerAction = applicationEventLoopRunner_Action{
 				eventResourceName:           gitopsDepl.Name,
@@ -977,19 +977,19 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			var appMappings []db.DeploymentToApplicationMapping
 			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
 
-			Expect(err).To(BeNil())
-			Expect(len(appMappings)).To(Equal(1))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(appMappings).To(HaveLen(1))
 
 			deplToAppMappingFirst := appMappings[0]
 			application := db.Application{Application_id: deplToAppMappingFirst.Application_id}
 			err = dbQueries.GetApplicationById(context.Background(), &application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			clusterUser := db.ClusterUser{
 				User_name: string(workspace.UID),
 			}
 			err = dbQueries.GetClusterUserByUsername(context.Background(), &clusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Verify whether ApplicationOwner has been created in database")
 			applicationOwner := db.ApplicationOwner{
@@ -997,33 +997,33 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			}
 
 			err = dbQueries.GetApplicationOwnerByApplicationID(context.Background(), &applicationOwner)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Verify whether ApplicationOwner exists when Application row is updated")
 			err = dbQueries.GetApplicationById(context.Background(), &application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			application.Spec_field = "test-update-application"
 			err := dbQueries.UpdateApplication(ctx, &application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, _, _, result, userDevErr := appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
 			Expect(result).To(Equal(deploymentModifiedResult_Updated))
 
 			err = dbQueries.GetApplicationOwnerByApplicationID(context.Background(), &applicationOwner)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Verify whether ApplicationOwner has been deleted")
 			err = k8sClient.Delete(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, _, _, message, userDevErr = appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
 			Expect(message).To(Equal(deploymentModifiedResult_Deleted))
 
 			err = dbQueries.GetApplicationOwnerByApplicationID(context.Background(), &applicationOwner)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 		})
@@ -1038,19 +1038,19 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			var appMappings []db.DeploymentToApplicationMapping
 			err = dbQueries.ListDeploymentToApplicationMappingByNamespaceAndName(context.Background(), gitopsDepl.Name, gitopsDepl.Namespace, workspaceID, &appMappings)
 
-			Expect(err).To(BeNil())
-			Expect(len(appMappings)).To(Equal(1))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(appMappings).To(HaveLen(1))
 
 			deplToAppMappingFirst := appMappings[0]
 			application := db.Application{Application_id: deplToAppMappingFirst.Application_id}
 			err = dbQueries.GetApplicationById(context.Background(), &application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			clusterUser := db.ClusterUser{
 				User_name: string(workspace.UID),
 			}
 			err = dbQueries.GetClusterUserByUsername(context.Background(), &clusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Verify whether ApplicationOwner has been created in database")
 			applicationOwner := db.ApplicationOwner{
@@ -1058,20 +1058,20 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 			}
 
 			err = dbQueries.GetApplicationOwnerByApplicationID(context.Background(), &applicationOwner)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Verify whether ApplicationOwner exists when Application row is updated")
 			err = dbQueries.GetApplicationById(context.Background(), &application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			application.Spec_field = "test-update-application"
 			err := dbQueries.UpdateApplication(ctx, &application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Delete ApplicationOwner")
 			rowsAffected, err := dbQueries.DeleteApplicationOwner(ctx, applicationOwner.ApplicationOwnerApplicationID)
 			Expect(rowsAffected).To(Equal(1))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, _, _, result, userDevErr := appEventLoopRunnerAction.applicationEventRunner_handleDeploymentModified(ctx, dbQueries)
 			Expect(userDevErr).To(BeNil())
@@ -1079,7 +1079,7 @@ var _ = Describe("ApplicationEventLoop Handle deployment modified Test", func() 
 
 			By("Verify whether ApplicationOwner is recreated while updating application")
 			err = dbQueries.GetApplicationOwnerByApplicationID(context.Background(), &applicationOwner)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 })

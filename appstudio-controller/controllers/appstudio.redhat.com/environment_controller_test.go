@@ -498,13 +498,8 @@ var _ = Describe("Environment controller tests", func() {
 			By("Checking status field after calling Reconciler")
 			env = appstudioshared.Environment{}
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
-<<<<<<< HEAD
 			Expect(err).To(BeNil())
 			expectEnvironmentStatusConditionError("Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set", EnvironmentReasonInvalid, env)
-=======
-			Expect(err).ToNot(HaveOccurred())
-			expectEnvironmentConditionErrorOccured("Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set", env)
->>>>>>> 3b67ab3c (Add ginkgolinter and fix failing tests)
 
 		})
 
@@ -995,13 +990,8 @@ var _ = Describe("Environment controller tests", func() {
 			By("Checking status field after calling Reconciler")
 			env = appstudioshared.Environment{}
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
-<<<<<<< HEAD
 			Expect(err).To(BeNil())
 			expectEnvironmentStatusConditionError("DeploymentTargetClaim references a DeploymentTarget that does not exist", EnvironmentReasonDeploymentTargetNotFound, env)
-=======
-			Expect(err).ToNot(HaveOccurred())
-			expectEnvironmentConditionErrorOccured("DeploymentTargetClaim references a DeploymentTarget that does not exist", env)
->>>>>>> 3b67ab3c (Add ginkgolinter and fix failing tests)
 		})
 
 		It("shouldn't process the Environment if neither credentials nor DTC is provided", func() {
@@ -1573,11 +1563,7 @@ var _ = Describe("Environment controller tests", func() {
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
 				Expect(err).ToNot(HaveOccurred())
 
-<<<<<<< HEAD
 				Expect(len(env.Status.Conditions)).To(BeNumerically("==", 2))
-=======
-				Expect(env.Status.Conditions).To(HaveLen(1))
->>>>>>> 3b67ab3c (Add ginkgolinter and fix failing tests)
 
 				expectedCondition := expectedResult[0]
 				actualCondition := env.Status.Conditions[0]
@@ -1801,12 +1787,8 @@ func expectEnvironmentStatusConditionError(envMessage, envReason string, env app
 
 	// WithOffset tells Gingko to ignore this function when reporting the failing line in the test
 
-<<<<<<< HEAD
 	ExpectWithOffset(1, len(env.Status.Conditions)).To(Equal(2), "two conditions should exist")
 
-=======
-	ExpectWithOffset(1, env.Status.Conditions).To(HaveLen(1), "a single condition should exist")
->>>>>>> 3b67ab3c (Add ginkgolinter and fix failing tests)
 	ExpectWithOffset(1, env.Status.Conditions[0].Type).To(Equal(EnvironmentConditionErrorOccurred), "type should be EnvironmentConditionErrorOccurred")
 	ExpectWithOffset(1, env.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue), "should be true")
 	ExpectWithOffset(1, env.Status.Conditions[0].Reason).To(Equal(EnvironmentReasonErrorOccurred), "reason should be EnvironmentConditionErrorOccurred")

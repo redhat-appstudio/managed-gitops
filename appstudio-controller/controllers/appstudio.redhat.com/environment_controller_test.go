@@ -339,7 +339,7 @@ var _ = Describe("Environment controller tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			expectEnvironmentStatusConditionError("the secret secret-that-doesnt-exist referenced by the Environment resource was not found", EnvironmentReasonSecretNotFound, env)
 
 		})
@@ -368,7 +368,7 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err := k8sClient.Create(ctx, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("reconciling the Environment")
 			req := ctrl.Request{
@@ -378,10 +378,10 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			_, err = reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			expectEnvironmentStatusConditionError("the secret secret-that-doesnt-exist referenced by the Environment resource was not found", EnvironmentReasonSecretNotFound, env)
 
 			By("fixing the error")
@@ -396,17 +396,17 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &secret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			env.Spec.UnstableConfigurationFields.ClusterCredentialsSecret = secret.Name
 			Expect(k8sClient.Update(ctx, &env)).To(Succeed())
 
 			By("reconciling again")
 			_, err = reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(env.Status.Conditions[0].Type).To(Equal(EnvironmentConditionErrorOccurred))
 			Expect(env.Status.Conditions[0].Status).To(Equal(metav1.ConditionFalse))
 			Expect(env.Status.Conditions[0].Reason).To(Equal(EnvironmentReasonErrorOccurred + "Resolved"))
@@ -418,10 +418,10 @@ var _ = Describe("Environment controller tests", func() {
 
 			By("ensuring that another reconcile has no effect on the condition")
 			_, err = reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(env.Status.Conditions[0].Type).To(Equal(EnvironmentConditionErrorOccurred))
 			Expect(env.Status.Conditions[0].Status).To(Equal(metav1.ConditionFalse))
 			Expect(env.Status.Conditions[0].Reason).To(Equal(EnvironmentReasonErrorOccurred + "Resolved"))
@@ -498,7 +498,7 @@ var _ = Describe("Environment controller tests", func() {
 			By("Checking status field after calling Reconciler")
 			env = appstudioshared.Environment{}
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			expectEnvironmentStatusConditionError("Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set", EnvironmentReasonInvalid, env)
 
 		})
@@ -990,7 +990,7 @@ var _ = Describe("Environment controller tests", func() {
 			By("Checking status field after calling Reconciler")
 			env = appstudioshared.Environment{}
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			expectEnvironmentStatusConditionError("DeploymentTargetClaim references a DeploymentTarget that does not exist", EnvironmentReasonDeploymentTargetNotFound, env)
 		})
 
@@ -1563,7 +1563,7 @@ var _ = Describe("Environment controller tests", func() {
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
 				Expect(err).ToNot(HaveOccurred())
 
-				Expect(len(env.Status.Conditions)).To(BeNumerically("==", 2))
+				Expect(env.Status.Conditions).To(HaveLen(2))
 
 				expectedCondition := expectedResult[0]
 				actualCondition := env.Status.Conditions[0]
@@ -1787,7 +1787,7 @@ func expectEnvironmentStatusConditionError(envMessage, envReason string, env app
 
 	// WithOffset tells Gingko to ignore this function when reporting the failing line in the test
 
-	ExpectWithOffset(1, len(env.Status.Conditions)).To(Equal(2), "two conditions should exist")
+	ExpectWithOffset(1, env.Status.Conditions).To(HaveLen(2), "two conditions should exist")
 
 	ExpectWithOffset(1, env.Status.Conditions[0].Type).To(Equal(EnvironmentConditionErrorOccurred), "type should be EnvironmentConditionErrorOccurred")
 	ExpectWithOffset(1, env.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue), "should be true")

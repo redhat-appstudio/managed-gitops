@@ -1204,7 +1204,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				},
 			}
 			dummyApplicationSpecBytes, err := yaml.Marshal(dummyApplicationSpec)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationNew := db.Application{
 				Application_id:          "test-app-" + string(uuid.NewUUID()),
@@ -1214,7 +1214,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 			err = dbq.CreateApplication(ctx, &applicationNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationState := db.ApplicationState{
 				Applicationstate_application_id: applicationNew.Application_id,
@@ -1223,28 +1223,28 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				ReconciledState:                 "Healthy",
 			}
 			err = dbq.CreateApplicationState(ctx, &applicationState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Change "Created_on" field using UpdateApplication function since CreateApplication does not allow to insert custom "Created_on" field.
 			err = dbq.GetApplicationById(ctx, &applicationNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Set "Created_on" field more than waitTimeforRowDelete
 			applicationNew.Created_on = time.Now().Add(time.Duration(-(waitTimeforRowDelete + 1)))
 			err = dbq.UpdateApplication(ctx, &applicationNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 			cleanOrphanedEntriesfromTable_Application(ctx, dbq, k8sClient, true, log)
 
 			By("Verify that application row entry is deleted from DB.")
 			err = dbq.GetApplicationById(ctx, &applicationNew)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 			By("Verify that applicationState row entry is deleted from DB.")
 			err = dbq.GetApplicationStateById(ctx, &applicationState)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 		})
 	})

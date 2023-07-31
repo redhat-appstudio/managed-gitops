@@ -701,7 +701,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 			Expect(db.SetupForTestingDBGinkgo()).To(Succeed())
 
 			scheme, argocdNamespace, kubesystemNamespace, apiNamespace, err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			k8sClient := fake.NewClientBuilder().
 				WithScheme(scheme).
@@ -729,10 +729,10 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 				{
 
 					dbQueries, err := db.NewUnsafePostgresDBQueries(false, true)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					_, managedEnv, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					application := db.Application{
 						Application_id:          "test-application",
@@ -776,7 +776,9 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 						DBRelationType:       db.APICRToDatabaseMapping_DBRelationType_SyncOperation,
 						DBRelationKey:        syncOperationRow.SyncOperation_id,
 					}
-					Expect(dbQueries.CreateAPICRToDatabaseMapping(ctx, &apiCRToDBMapping))
+
+					err = dbQueries.CreateAPICRToDatabaseMapping(ctx, &apiCRToDBMapping)
+					Expect(err).ToNot(HaveOccurred())
 
 				}
 

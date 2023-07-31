@@ -51,6 +51,16 @@ import (
 )
 
 const (
+	SnapshotEnvironmentBindingConditionReconciled = "Reconciled"
+
+	SnapshotEnvironmentBindingReasonGitOpsRepoNotReady              = "GitOpsRepoNotReady"
+	SnapshotEnvironmentBindingReasonReconciled                      = "Reconciled"
+	SnapshotEnvironmentBindingReasonWaitingForComponentStatus       = "WaitingForComponentStatus"
+	SnapshotEnvironmentBindingReasonDuplicateComponents             = "DuplicateComponents"
+	SnapshotEnvironmentBindingReasonErrorGeneratingGitOpsDeployment = "ErrorGeneratingGitOpsDeployment"
+)
+
+const (
 	// If the 'appstudioLabelKey' string is present in a label of the SnapshotEnvironmentBinding, that label is copied to child GitOpsDeployments of the SnapshotEnvironmentBinding
 	appstudioLabelKey = "appstudio.openshift.io"
 
@@ -134,9 +144,9 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 			log.V(logutil.LogLevel_Debug).Info("Can not Reconcile Binding '" + binding.Name + "', since GitOps Repo Conditions status is false.")
 
 			// Update .status.bindingConditions field EnvironmentBinding with the error
-			if err := updateBindingConditionOfSEB(ctx, rClient,
+			if err := updateSEBReconciledStatusCondition(ctx, rClient,
 				"Can not Reconcile Binding '"+binding.Name+"', since GitOps Repo Conditions status is false.", binding,
-				SnapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionTrue, SnapshotEnvironmentBindingReasonErrorOccurred, log); err != nil {
+				metav1.ConditionFalse, SnapshotEnvironmentBindingReasonGitOpsRepoNotReady, log); err != nil {
 
 				log.Error(err, "unable to update snapshotEnvironmentBinding status condition.")
 				return ctrl.Result{}, fmt.Errorf("unable to update snapshotEnvironmentBinding status condition. %v", err)
@@ -146,10 +156,10 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 		} else if binding.Status.GitOpsRepoConditions[len(binding.Status.GitOpsRepoConditions)-1].Status == metav1.ConditionTrue {
 
 			// if the SnapshotEventBinding GitOps Repo Conditions status is true update the
-			// binding condition status to false
-			if err := updateBindingConditionOfSEB(ctx, rClient,
+			// binding condition status to true
+			if err := updateSEBReconciledStatusCondition(ctx, rClient,
 				"", binding,
-				SnapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionFalse, SnapshotEnvironmentBindingReasonErrorOccurred, log); err != nil {
+				metav1.ConditionTrue, SnapshotEnvironmentBindingReasonReconciled, log); err != nil {
 
 				log.Error(err, "unable to update snapshotEnvironmentBinding status condition.")
 				return ctrl.Result{}, fmt.Errorf("unable to update snapshotEnvironmentBinding status condition. %v", err)
@@ -162,9 +172,9 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 			"generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding")
 
 		// Update Status.Conditions field of environmentBinding.
-		if err := updateBindingConditionOfSEB(ctx, rClient, "SnapshotEventBinding Component status is required to "+
+		if err := updateSEBReconciledStatusCondition(ctx, rClient, "SnapshotEventBinding Component status is required to "+
 			"generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding '"+binding.Name+"'",
-			binding, SnapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionTrue, SnapshotEnvironmentBindingReasonErrorOccurred, log); err != nil {
+			binding, metav1.ConditionFalse, SnapshotEnvironmentBindingReasonWaitingForComponentStatus, log); err != nil {
 
 			log.Error(err, "unable to update snapshotEnvironmentBinding status condition.")
 			return ctrl.Result{}, fmt.Errorf("unable to update snapshotEnvironmentBinding status condition. %v", err)
@@ -190,7 +200,7 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 		if _, exists := expectedDeployments[component.Name]; exists {
 
 			// Update Status.Conditions field of environmentBinding.
-			if err := updateBindingConditionOfSEB(ctx, rClient, errDuplicateKeysFound+" in "+component.Name, binding, SnapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionTrue, SnapshotEnvironmentBindingReasonErrorOccurred, log); err != nil {
+			if err := updateSEBReconciledStatusCondition(ctx, rClient, errDuplicateKeysFound+" in "+component.Name, binding, metav1.ConditionFalse, SnapshotEnvironmentBindingReasonDuplicateComponents, log); err != nil {
 				log.Error(err, "unable to update snapshotEnvironmentBinding status condition.")
 				return ctrl.Result{}, fmt.Errorf("unable to update snapshotEnvironmentBinding status condition. %v", err)
 			}
@@ -205,8 +215,8 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 		// If an error occurred while generating the GitOpsDeployment, report the error back to the user
 		if userDevErr != nil {
 
-			if err := updateBindingConditionOfSEB(ctx, rClient, userDevErr.UserError(),
-				binding, SnapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionTrue, SnapshotEnvironmentBindingReasonErrorOccurred, log); err != nil {
+			if err := updateSEBReconciledStatusCondition(ctx, rClient, userDevErr.UserError(),
+				binding, metav1.ConditionFalse, SnapshotEnvironmentBindingReasonErrorGeneratingGitOpsDeployment, log); err != nil {
 
 				log.Error(err, "unable to update snapshotEnvironmentBinding status condition.")
 				return ctrl.Result{}, fmt.Errorf("unable to update snapshotEnvironmentBinding status condition. %v", err)
@@ -879,20 +889,37 @@ func isRequestNamespaceBeingDeleted(ctx context.Context, namespaceName string, k
 }
 
 // Update .status.bindingConditions field of SnapshotEnvironmentBinding
-func updateBindingConditionOfSEB(ctx context.Context, client client.Client, message string,
-	binding *appstudioshared.SnapshotEnvironmentBinding, conditionType string,
+func updateSEBReconciledStatusCondition(ctx context.Context, client client.Client, message string,
+	binding *appstudioshared.SnapshotEnvironmentBinding,
 	status metav1.ConditionStatus, reason string, log logr.Logger) error {
 
-	newCondition := metav1.Condition{
-		Type:    conditionType,
+	// The code to set the SnapshotEnvironmentBindingConditionErrorOccurred condition should be removed once all
+	// have moved to using the new SnapshotEnvironmentBindingConditionReconciled condition
+	newCondition1 := metav1.Condition{
+		Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+		Message: message,
+		Status:  status,
+		Reason:  SnapshotEnvironmentBindingReasonErrorOccurred,
+	}
+	if status == metav1.ConditionTrue {
+		newCondition1.Status = metav1.ConditionFalse
+	} else if status == metav1.ConditionFalse {
+		newCondition1.Status = metav1.ConditionTrue
+	} else {
+		newCondition1.Status = status
+	}
+
+	newCondition2 := metav1.Condition{
+		Type:    SnapshotEnvironmentBindingConditionReconciled,
 		Message: message,
 		Status:  status,
 		Reason:  reason,
 	}
 
-	changed, newConditions := insertOrUpdateConditionsInSlice(newCondition, binding.Status.BindingConditions)
+	changed1, newConditions := insertOrUpdateConditionsInSlice(newCondition1, binding.Status.BindingConditions)
+	changed2, newConditions := insertOrUpdateConditionsInSlice(newCondition2, newConditions)
 
-	if changed {
+	if changed1 || changed2 {
 		binding.Status.BindingConditions = newConditions
 
 		if err := client.Status().Update(ctx, binding); err != nil {

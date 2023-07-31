@@ -466,7 +466,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).ToNot(HaveOccurred())
 
-			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "SnapshotEventBinding Component status is required to generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding 'appa-staging-binding'", metav1.ConditionTrue)
+			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "SnapshotEventBinding Component status is required to generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding 'appa-staging-binding'", metav1.ConditionFalse, SnapshotEnvironmentBindingReasonWaitingForComponentStatus)
 
 		})
 
@@ -485,7 +485,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).ToNot(HaveOccurred())
 
-			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "Can not Reconcile Binding 'appa-staging-binding', since GitOps Repo Conditions status is false.", metav1.ConditionTrue)
+			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "Can not Reconcile Binding 'appa-staging-binding', since GitOps Repo Conditions status is false.", metav1.ConditionFalse, SnapshotEnvironmentBindingReasonGitOpsRepoNotReady)
 		})
 
 		It("should update the previous binding condition status if there is no longer a repo condition error", func() {
@@ -504,7 +504,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).ToNot(HaveOccurred())
 
-			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "Can not Reconcile Binding 'appa-staging-binding', since GitOps Repo Conditions status is false.", metav1.ConditionTrue)
+			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "Can not Reconcile Binding 'appa-staging-binding', since GitOps Repo Conditions status is false.", metav1.ConditionFalse, SnapshotEnvironmentBindingReasonGitOpsRepoNotReady)
 
 			By("update the repo condition and verify if the binding condition is updated")
 			binding.Status.GitOpsRepoConditions = []metav1.Condition{
@@ -521,7 +521,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 			err = bindingReconciler.Get(ctx, client.ObjectKeyFromObject(binding), binding)
 			Expect(err).ToNot(HaveOccurred())
-			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "", metav1.ConditionFalse)
+			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "", metav1.ConditionTrue, SnapshotEnvironmentBindingReasonReconciled)
 		})
 
 		It("should not return an error if there are duplicate components in binding.Status.Components", func() {
@@ -557,7 +557,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			_, err = bindingReconciler.Reconcile(ctx, request)
 			Expect(err).ToNot(HaveOccurred())
 
-			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "duplicate component keys found in status field in componentA", metav1.ConditionTrue)
+			checkStatusConditionOfEnvironmentBinding(ctx, bindingReconciler.Client, binding, "duplicate component keys found in status field in componentA", metav1.ConditionFalse, SnapshotEnvironmentBindingReasonDuplicateComponents)
 
 		})
 
@@ -1976,7 +1976,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				eventReceiver.Events = []sharedutil.ProxyClientEvent{}
 
 				By("calling the binding condition update function")
-				err = updateBindingConditionOfSEB(ctx, &k8sClient, newCondition.Message, &env, EnvironmentConditionErrorOccurred,
+				err = updateSEBReconciledStatusCondition(ctx, &k8sClient, newCondition.Message, &env,
 					newCondition.Status, newCondition.Reason, log)
 				Expect(err).ToNot(HaveOccurred())
 
@@ -1985,12 +1985,17 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
 				Expect(err).ToNot(HaveOccurred())
 
-				Expect(env.Status.BindingConditions).To(HaveLen(1))
+				Expect(env.Status.BindingConditions).To(HaveLen(2))
 
 				expectedCondition := expectedResult[0]
-
 				actualCondition := env.Status.BindingConditions[0]
+				Expect(actualCondition.Message).To(Equal(expectedCondition.Message))
+				Expect(actualCondition.Type).To(Equal(expectedCondition.Type))
+				Expect(actualCondition.Reason).To(Equal(expectedCondition.Reason))
+				Expect(actualCondition.Status).To(Equal(expectedCondition.Status))
 
+				expectedCondition = expectedResult[1]
+				actualCondition = env.Status.BindingConditions[1]
 				Expect(actualCondition.Message).To(Equal(expectedCondition.Message))
 				Expect(actualCondition.Type).To(Equal(expectedCondition.Type))
 				Expect(actualCondition.Reason).To(Equal(expectedCondition.Reason))
@@ -2014,90 +2019,172 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				}
 
 			},
-			Entry("add a new condition", []metav1.Condition{}, metav1.Condition{
-				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
-				Status:  metav1.ConditionTrue,
-				Reason:  "my-reason",
-				Message: "my-message",
-			}, []metav1.Condition{
-				{
-					Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+			Entry("add a new condition",
+				[]metav1.Condition{},
+				metav1.Condition{
+					Status:  metav1.ConditionFalse,
+					Reason:  "my-reason",
+					Message: "my-message",
+				},
+				[]metav1.Condition{
+					{
+						Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+						Status:  metav1.ConditionTrue,
+						Reason:  SnapshotEnvironmentBindingReasonErrorOccurred,
+						Message: "my-message",
+					},
+					{
+						Type:    SnapshotEnvironmentBindingConditionReconciled,
+						Status:  metav1.ConditionFalse,
+						Reason:  "my-reason",
+						Message: "my-message",
+					},
+				},
+				true,
+			),
+			Entry("replace an existing condition with mismatched reason",
+				[]metav1.Condition{
+					{
+						Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+						Status:  metav1.ConditionTrue,
+						Reason:  SnapshotEnvironmentBindingReasonErrorOccurred,
+						Message: "my-message",
+					},
+					{
+						Type:    SnapshotEnvironmentBindingConditionReconciled,
+						Status:  metav1.ConditionFalse,
+						Reason:  "my-reason",
+						Message: "my-message",
+					},
+				},
+				metav1.Condition{
+					Status:  metav1.ConditionFalse,
+					Reason:  "my-reason2",
+					Message: "my-message",
+				},
+				[]metav1.Condition{
+					{
+						Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+						Status:  metav1.ConditionTrue,
+						Reason:  SnapshotEnvironmentBindingReasonErrorOccurred,
+						Message: "my-message",
+					},
+					{
+						Type:    SnapshotEnvironmentBindingConditionReconciled,
+						Status:  metav1.ConditionFalse,
+						Reason:  "my-reason2",
+						Message: "my-message",
+					},
+				},
+				true,
+			),
+			Entry("replace an existing condition with mismatched message",
+				[]metav1.Condition{
+					{
+						Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+						Status:  metav1.ConditionTrue,
+						Reason:  SnapshotEnvironmentBindingReasonErrorOccurred,
+						Message: "my-message",
+					},
+					{
+						Type:    SnapshotEnvironmentBindingConditionReconciled,
+						Status:  metav1.ConditionFalse,
+						Reason:  "my-reason",
+						Message: "my-message",
+					},
+				}, metav1.Condition{
+					Status:  metav1.ConditionFalse,
+					Reason:  "my-reason",
+					Message: "my-message2",
+				},
+				[]metav1.Condition{
+					{
+						Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+						Status:  metav1.ConditionTrue,
+						Reason:  SnapshotEnvironmentBindingReasonErrorOccurred,
+						Message: "my-message2",
+					},
+					{
+						Type:    SnapshotEnvironmentBindingConditionReconciled,
+						Status:  metav1.ConditionFalse,
+						Reason:  "my-reason",
+						Message: "my-message2",
+					},
+				},
+				true,
+			),
+			Entry("replace an existing condition with mismatched status",
+				[]metav1.Condition{
+					{
+						Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+						Status:  metav1.ConditionTrue,
+						Reason:  SnapshotEnvironmentBindingReasonErrorOccurred,
+						Message: "my-message",
+					},
+					{
+						Type:    SnapshotEnvironmentBindingConditionReconciled,
+						Status:  metav1.ConditionFalse,
+						Reason:  "my-reason",
+						Message: "my-message",
+					},
+				}, metav1.Condition{
 					Status:  metav1.ConditionTrue,
 					Reason:  "my-reason",
 					Message: "my-message",
 				},
-			}, true),
-			Entry("replace an existing condition with mismatched reason", []metav1.Condition{{
-				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
-				Status:  metav1.ConditionTrue,
-				Reason:  "my-reason",
-				Message: "my-message",
-			}}, metav1.Condition{
-				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
-				Status:  metav1.ConditionTrue,
-				Reason:  "my-reason2",
-				Message: "my-message",
-			}, []metav1.Condition{{
-				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
-				Status:  metav1.ConditionTrue,
-				Reason:  "my-reason2",
-				Message: "my-message",
-			}}, true),
-
-			Entry("replace an existing condition with mismatched message", []metav1.Condition{{
-				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
-				Status:  metav1.ConditionTrue,
-				Reason:  "my-reason",
-				Message: "my-message",
-			}}, metav1.Condition{
-				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
-				Status:  metav1.ConditionTrue,
-				Reason:  "my-reason",
-				Message: "my-message2",
-			}, []metav1.Condition{{
-				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
-				Status:  metav1.ConditionTrue,
-				Reason:  "my-reason",
-				Message: "my-message2",
-			}}, true),
-
-			Entry("replace an existing condition with mismatched status", []metav1.Condition{{
-				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
-				Status:  metav1.ConditionTrue,
-				Reason:  "my-reason",
-				Message: "my-message",
-			}}, metav1.Condition{
-				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
-				Status:  metav1.ConditionFalse,
-				Reason:  "my-reason",
-				Message: "my-message",
-			}, []metav1.Condition{{
-				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
-				Status:  metav1.ConditionFalse,
-				Reason:  "my-reason",
-				Message: "my-message",
-			}}, true),
-
-			Entry("if nothing has changed, update should not be called", []metav1.Condition{{
-				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
-				Status:  metav1.ConditionTrue,
-				Reason:  "my-reason",
-				Message: "my-message",
-			}}, metav1.Condition{
-				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
-				Status:  metav1.ConditionTrue,
-				Reason:  "my-reason",
-				Message: "my-message",
-			}, []metav1.Condition{{
-				Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
-				Status:  metav1.ConditionTrue,
-				Reason:  "my-reason",
-				Message: "my-message",
-			}}, false),
+				[]metav1.Condition{
+					{
+						Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+						Status:  metav1.ConditionFalse,
+						Reason:  SnapshotEnvironmentBindingReasonErrorOccurred,
+						Message: "my-message",
+					},
+					{
+						Type:    SnapshotEnvironmentBindingConditionReconciled,
+						Status:  metav1.ConditionTrue,
+						Reason:  "my-reason",
+						Message: "my-message",
+					},
+				},
+				true,
+			),
+			Entry("if nothing has changed, update should not be called",
+				[]metav1.Condition{
+					{
+						Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+						Status:  metav1.ConditionTrue,
+						Reason:  SnapshotEnvironmentBindingReasonErrorOccurred,
+						Message: "my-message",
+					},
+					{
+						Type:    SnapshotEnvironmentBindingConditionReconciled,
+						Status:  metav1.ConditionFalse,
+						Reason:  "my-reason",
+						Message: "my-message",
+					},
+				}, metav1.Condition{
+					Status:  metav1.ConditionFalse,
+					Reason:  "my-reason",
+					Message: "my-message",
+				},
+				[]metav1.Condition{
+					{
+						Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+						Status:  metav1.ConditionTrue,
+						Reason:  SnapshotEnvironmentBindingReasonErrorOccurred,
+						Message: "my-message",
+					},
+					{
+						Type:    SnapshotEnvironmentBindingConditionReconciled,
+						Status:  metav1.ConditionFalse,
+						Reason:  "my-reason",
+						Message: "my-message",
+					},
+				},
+				false,
+			),
 		)
-
 	})
-
 })
 
 // newRequest contains the information necessary to reconcile a Kubernetes object.
@@ -2110,17 +2197,35 @@ func newRequest(namespace, name string) reconcile.Request {
 	}
 }
 
-func checkStatusConditionOfEnvironmentBinding(ctx context.Context, rClient client.Client, binding *appstudiosharedv1.SnapshotEnvironmentBinding, message string, status metav1.ConditionStatus) {
+func checkStatusConditionOfEnvironmentBinding(ctx context.Context, rClient client.Client, binding *appstudiosharedv1.SnapshotEnvironmentBinding, message string, status metav1.ConditionStatus, reason string) {
 	err := rClient.Get(ctx, client.ObjectKeyFromObject(binding), binding)
 	Expect(err).ToNot(HaveOccurred())
-	Expect(binding.Status.BindingConditions).ShouldNot(BeEmpty())
+	Expect(len(binding.Status.BindingConditions) >= 2)
+
+	found1 := false
+	found2 := false
 
 	for _, condition := range binding.Status.BindingConditions {
 		if condition.Type == SnapshotEnvironmentBindingConditionErrorOccurred {
-			Expect(condition.Type).To(Equal(SnapshotEnvironmentBindingConditionErrorOccurred))
-			Expect(condition.Message).To(Equal(message))
-			Expect(condition.Status).To(Equal(status))
-			Expect(condition.Reason).To(Equal(SnapshotEnvironmentBindingReasonErrorOccurred))
+			ExpectWithOffset(1, found1).To(BeFalse(), "found more than one SnapshotEnvironmentBindingConditionErrorOccurred condition")
+			ExpectWithOffset(1, condition.Message).To(Equal(message), "mismatched SnapshotEnvironmentBindingConditionErrorOccurred message")
+			if status == metav1.ConditionTrue {
+				ExpectWithOffset(1, condition.Status).To(Equal(metav1.ConditionFalse), "mismatched SnapshotEnvironmentBindingConditionErrorOccurred status")
+			} else if status == metav1.ConditionFalse {
+				ExpectWithOffset(1, condition.Status).To(Equal(metav1.ConditionTrue), "mismatched SnapshotEnvironmentBindingConditionErrorOccurred status")
+			} else {
+				ExpectWithOffset(1, condition.Status).To(Equal(metav1.ConditionUnknown), "mismatched SnapshotEnvironmentBindingConditionErrorOccurred status")
+			}
+			ExpectWithOffset(1, condition.Reason).To(Equal(SnapshotEnvironmentBindingReasonErrorOccurred), "mismatched SnapshotEnvironmentBindingConditionErrorOccurred reason")
+			found1 = true
+		} else if condition.Type == SnapshotEnvironmentBindingConditionReconciled {
+			ExpectWithOffset(1, found2).To(BeFalse(), "found more than one SnapshotEnvironmentBindingConditionReconciled condition")
+			ExpectWithOffset(1, condition.Message).To(Equal(message), "mismatched SnapshotEnvironmentBindingConditionReconciled message")
+			ExpectWithOffset(1, condition.Status).To(Equal(status), "mismatched SnapshotEnvironmentBindingConditionReconciled status")
+			ExpectWithOffset(1, condition.Reason).To(Equal(reason), "mismatched SnapshotEnvironmentBindingConditionReconciled reason")
+			found2 = true
 		}
 	}
+	ExpectWithOffset(1, found1).To(BeTrue(), "missing SnapshotEnvironmentBindingConditionErrorOccurred condition")
+	ExpectWithOffset(1, found2).To(BeTrue(), "missing SnapshotEnvironmentBindingConditionReconciled condition")
 }

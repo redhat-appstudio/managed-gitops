@@ -26,7 +26,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 )
 
-var _ = FDescribe("ClusterReconciler tests", func() {
+var _ = Describe("ClusterReconciler tests", func() {
 	Context("Test getAllAPIResources", func() {
 
 		It("should return all namespaced scoped API resourcs in the cluster", func() {

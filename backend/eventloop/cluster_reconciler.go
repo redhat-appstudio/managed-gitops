@@ -37,6 +37,15 @@ func NewClusterReconciler(client client.Client, discoveryClient discovery.Discov
 	}
 }
 
+//+kubebuilder:rbac:groups="",resources=persistentvolumeclaims;persistentvolumes;secrets;configmaps;pods;endpoints;services;serviceaccounts,verbs=get;list;delete
+//+kubebuilder:rbac:groups="apps",resources=replicasets;statefulsets;daemonsets;deployments,verbs=get;list;delete
+//+kubebuilder:rbac:groups="discovery.k8s.io",resources=endpointslices,verbs=get;list;delete
+//+kubebuilder:rbac:groups="networking.k8s.io",resources=ingresses;ingressclasses,verbs=get;list;delete
+//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=rolebindings;roles,verbs=get;list;delete
+//+kubebuilder:rbac:groups="route.openshift.io",resources=routes,verbs=get;list;delete
+//+kubebuilder:rbac:groups="triggers.tekton.dev",resources=eventlisteners;triggertemplates,verbs=get;list;delete
+//+kubebuilder:rbac:groups="pipelinesascode.tekton.dev",resources=repositories,verbs=get;list;delete
+
 func (c *ClusterReconciler) Start() {
 	go func() {
 		<-time.NewTimer(orphanedResourcesCleanUpInterval).C

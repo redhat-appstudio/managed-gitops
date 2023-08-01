@@ -104,7 +104,6 @@ var _ = Describe("ClusterReconciler tests", func() {
 			}
 
 			By("delete all namespace scoped resources and verify if it returns an empty list")
-
 			for _, obj := range namespacedResources {
 				err = k8sClient.Delete(ctx, obj)
 				Expect(err).To(BeNil())
@@ -114,6 +113,20 @@ var _ = Describe("ClusterReconciler tests", func() {
 			Expect(err).To(BeNil())
 			Expect(len(objs)).To(Equal(0))
 
+			By("ensure that a resource without the required verbs is not returned")
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "sample-pod",
+					Namespace: apiNamespace.Name,
+				},
+			}
+
+			err = k8sClient.Create(ctx, pod)
+			Expect(err).To(BeNil())
+
+			objs, err = cr.getAllNamespacedAPIResources(ctx, logger)
+			Expect(err).To(BeNil())
+			Expect(len(objs)).To(Equal(0))
 		})
 	})
 
@@ -247,6 +260,7 @@ var _ = Describe("ClusterReconciler tests", func() {
 })
 
 func createFakeCluster() *httptest.Server {
+	verbs := []string{"get", "list", "delete"}
 	fakeServer := func(w http.ResponseWriter, req *http.Request) {
 		var list interface{}
 		switch req.URL.Path {
@@ -255,7 +269,7 @@ func createFakeCluster() *httptest.Server {
 				GroupVersion: "v1",
 				APIResources: []metav1.APIResource{
 					{Name: "pods", Namespaced: true, Kind: "Pod"},
-					{Name: "services", Namespaced: true, Kind: "Service"},
+					{Name: "services", Namespaced: true, Kind: "Service", Verbs: verbs},
 					{Name: "namespaces", Namespaced: false, Kind: "Namespace"},
 				},
 			}
@@ -263,7 +277,7 @@ func createFakeCluster() *httptest.Server {
 			list = &metav1.APIResourceList{
 				GroupVersion: "rbac.authorization.k8s.io/v1",
 				APIResources: []metav1.APIResource{
-					{Name: "rolebindings", Namespaced: true, Kind: "RoleBinding"},
+					{Name: "rolebindings", Namespaced: true, Kind: "RoleBinding", Verbs: verbs},
 					{Name: "clusterroles", Namespaced: false, Kind: "ClusterRole"},
 				},
 			}

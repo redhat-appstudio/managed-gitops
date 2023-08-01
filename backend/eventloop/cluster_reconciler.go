@@ -3,6 +3,7 @@ package eventloop
 import (
 	"context"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -10,6 +11,7 @@ import (
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
@@ -68,7 +70,7 @@ func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr
 
 	for _, obj := range apiObjects {
 		appName := getArgoCDApplicationName(&obj)
-		if appName != "" && obj.GetDeletionTimestamp() != nil {
+		if appName != "" && obj.GetDeletionTimestamp() != nil && !strings.HasPrefix(obj.GetNamespace(), "openshift") {
 			// Check if a GitOpsDeployment exists with the UID specified in the Application name.
 			gitopsDeplList := &managedgitopsv1alpha1.GitOpsDeploymentList{}
 			err = c.client.List(ctx, gitopsDeplList, &client.ListOptions{
@@ -89,7 +91,7 @@ func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr
 			}
 
 			// The resource has both deletiontimestamp and label "app.kubernetes.io/instance"
-			// But it doesn't have a corresponding GitOpsDeployment so it can deleted.
+			// But it doesn't have a corresponding GitOpsDeployment so it can be deleted.
 			if !found {
 				if err := c.client.Delete(ctx, &obj); err != nil {
 					log.Error(err, "failed to delete object in the orphaned reconciler", "name", obj.GetName(), "namespace", obj.GetNamespace(), "gvk", obj.GroupVersionKind())
@@ -111,6 +113,9 @@ func (c *ClusterReconciler) getAllNamespacedAPIResources(ctx context.Context, lo
 
 	expectedVerbs := []string{"list", "get", "delete"}
 	resources := []unstructured.Unstructured{}
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
 	for _, apiResources := range apiResourceList {
 		for _, apiResource := range apiResources.APIResources {
 			// Ignore resources that are either cluster scoped or do not support the required verbs
@@ -118,21 +123,30 @@ func (c *ClusterReconciler) getAllNamespacedAPIResources(ctx context.Context, lo
 				continue
 			}
 
-			objList := &unstructured.UnstructuredList{}
-			objList.SetAPIVersion(apiResources.GroupVersion)
-			objList.SetKind(apiResource.Kind)
+			// Since we want to list resources across all namespaces in a cluster, we can
+			// run the List API for each resource in a separate goroutine and aggregate the result.
+			wg.Add(1)
+			go func(apiResources *metav1.APIResourceList, apiResource metav1.APIResource) {
+				defer wg.Done()
 
-			err := c.client.List(ctx, objList)
-			if err != nil {
-				log.V(logutil.LogLevel_Debug).Error(err, "failed to list resources", "resource", apiResource.Kind)
-				continue
-			}
+				objList := &unstructured.UnstructuredList{}
+				objList.SetAPIVersion(apiResources.GroupVersion)
+				objList.SetKind(apiResource.Kind)
 
-			if len(objList.Items) != 0 {
+				err := c.client.List(ctx, objList)
+				if err != nil {
+					log.V(logutil.LogLevel_Debug).Error(err, "failed to list resources", "resource", apiResource.Kind)
+					return
+				}
+
+				mu.Lock()
 				resources = append(resources, objList.Items...)
-			}
+				mu.Unlock()
+			}(apiResources, apiResource)
 		}
 	}
+
+	wg.Wait()
 
 	return resources, nil
 }

@@ -77,8 +77,8 @@ func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr
 		return
 	}
 
-	for _, obj := range apiObjects {
-		appName := getArgoCDApplicationName(&obj)
+	for i, obj := range apiObjects {
+		appName := getArgoCDApplicationName(obj.GetLabels())
 		if appName != "" && obj.GetDeletionTimestamp() != nil && !strings.HasPrefix(obj.GetNamespace(), "openshift") {
 			// Check if a GitOpsDeployment exists with the UID specified in the Application name.
 			gitopsDeplList := &managedgitopsv1alpha1.GitOpsDeploymentList{}
@@ -102,7 +102,7 @@ func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr
 			// The resource has both deletiontimestamp and label "app.kubernetes.io/instance"
 			// But it doesn't have a corresponding GitOpsDeployment so it can be deleted.
 			if !found {
-				if err := c.client.Delete(ctx, &obj); err != nil {
+				if err := c.client.Delete(ctx, &apiObjects[i]); err != nil {
 					log.Error(err, "failed to delete object in the orphaned reconciler", "name", obj.GetName(), "namespace", obj.GetNamespace(), "gvk", obj.GroupVersionKind())
 					continue
 				}
@@ -174,10 +174,10 @@ func isResourceAllowed(expectedVerbs []string, verbs []string) bool {
 	return true
 }
 
-func getArgoCDApplicationName(obj client.Object) string {
-	labelKey := "app.kubernetes.io/instance"
+func getArgoCDApplicationName(labels map[string]string) string {
+	key := "app.kubernetes.io/instance"
 
-	if value, found := obj.GetLabels()[labelKey]; found {
+	if value, found := labels[key]; found {
 		if strings.HasPrefix(value, "gitopsdepl-") {
 			return value
 		}

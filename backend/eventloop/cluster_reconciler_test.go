@@ -26,7 +26,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 )
 
-var _ = Describe("ClusterReconciler tests", func() {
+var _ = FDescribe("ClusterReconciler tests", func() {
 	Context("Test getAllAPIResources", func() {
 
 		It("should return all namespaced scoped API resourcs in the cluster", func() {
@@ -300,7 +300,8 @@ func createFakeCluster() *httptest.Server {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write(output)
+		_, err = w.Write(output)
+		Expect(err).To(BeNil())
 	}
 
 	return httptest.NewServer(http.HandlerFunc(fakeServer))

@@ -81,9 +81,10 @@ var _ = Describe("ClusterReconciler tests", func() {
 
 			cr := NewClusterReconciler(k8sClient, discoveryClient)
 			ctx := context.Background()
+			logger := log.FromContext(ctx)
 
 			By("verify if only namespaced resources are returned")
-			objs, err := cr.getAllNamespacedAPIResources(ctx)
+			objs, err := cr.getAllNamespacedAPIResources(ctx, logger)
 			Expect(err).To(BeNil())
 			Expect(len(objs)).To(Equal(len(namespacedResources)))
 
@@ -109,7 +110,7 @@ var _ = Describe("ClusterReconciler tests", func() {
 				Expect(err).To(BeNil())
 			}
 
-			objs, err = cr.getAllNamespacedAPIResources(ctx)
+			objs, err = cr.getAllNamespacedAPIResources(ctx, logger)
 			Expect(err).To(BeNil())
 			Expect(len(objs)).To(Equal(0))
 

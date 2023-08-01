@@ -36,7 +36,7 @@ func NewClusterReconciler(client client.Client, discoveryClient discovery.Discov
 }
 
 func (c *ClusterReconciler) Start() {
-	func() {
+	go func() {
 		<-time.NewTimer(orphanedResourcesCleanUpInterval).C
 
 		ctx := context.Background()
@@ -55,84 +55,12 @@ func (c *ClusterReconciler) Start() {
 	}()
 }
 
-// func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr.Logger) {
-// 	log.Info("Cleaning orphaned resources")
-// 	apiResourceList, err := c.discoveryClient.ServerPreferredNamespacedResources()
-// 	if err != nil {
-// 		log.Error(err, "failed to fetch API resource list")
-// 		return
-// 	}
-
-// 	log.Info("Number of APIResources", "number", len(apiResourceList))
-
-// 	for _, apiResources := range apiResourceList {
-
-// 		log.Info("RESOURCE", "String", apiResources.String())
-
-// 		for _, apiResource := range apiResources.APIResources {
-// 			if !apiResource.Namespaced {
-// 				continue
-// 			}
-
-// 			objList := &unstructured.UnstructuredList{}
-
-// 			objList.SetAPIVersion(apiResources.GroupVersion)
-// 			objList.SetKind(apiResource.Kind)
-
-// 			err := c.client.List(ctx, objList)
-// 			if err != nil {
-// 				log.Error(err, "failed to list objects in the orphaned reconciler", "gvk", apiResources.GroupVersion)
-// 				continue
-// 			}
-
-// 			for _, obj := range objList.Items {
-
-// 				log.Info("--------------------------Object", "Name", obj.GetName(), "Namespace", obj.GetNamespace(), "KIND", obj.GroupVersionKind())
-
-// 				appName := getArgoCDApplicationName(&obj)
-// 				if appName != "" && obj.GetDeletionTimestamp() != nil {
-// 					// Check if a GitOpsDeployment exists with the UID specified in the Application name.
-// 					gitopsDeplList := &managedgitopsv1alpha1.GitOpsDeploymentList{}
-
-// 					err = c.client.List(ctx, gitopsDeplList, &client.ListOptions{
-// 						Namespace: obj.GetNamespace(),
-// 					})
-// 					if err != nil {
-// 						log.Error(err, "failed to list GitOpsDeployments", "namespace", obj.GetNamespace())
-// 						continue
-// 					}
-
-// 					expectedUID := extractUIDFromApplicationName(appName)
-// 					found := false
-// 					for _, gitopsDepl := range gitopsDeplList.Items {
-// 						if gitopsDepl.UID == types.UID(expectedUID) {
-// 							found = true
-// 							break
-// 						}
-// 					}
-
-// 					if !found {
-// 						if err := c.client.Delete(ctx, &obj); err != nil {
-// 							log.Error(err, "failed to delete object in the orphaned reconciler", "name", obj.GetName(), "namespace", obj.GetNamespace(), "gvk", obj.GroupVersionKind())
-// 							continue
-// 						}
-
-// 						log.Info("Deleted an orphaned resoure that is not managed by Argo CD anymore", "Name", obj.GetName(), "Namespace", obj.GetNamespace())
-// 					}
-// 				}
-// 			}
-
-// 		}
-
-// 	}
-// }
-
 // A k8s resource is considered to be orphaned when:
 // 1. It was previously managed by Argo CD i.e has label "app.kubernetes.io/instance".
 // 2. It has a deletiontimestamp set.
 // 3. It doesn't have a corresponding GitOpsDeployment resource.
 func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr.Logger) {
-	apiObjects, err := c.getAllNamespacedAPIResources(ctx)
+	apiObjects, err := c.getAllNamespacedAPIResources(ctx, log)
 	if err != nil {
 		log.Error(err, "failed to get namespaced API resources from the cluster")
 		return
@@ -175,16 +103,18 @@ func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr
 }
 
 // getAllNamespacedAPIResources returns all namespace scoped resources from a Kubernetes cluster.
-func (c *ClusterReconciler) getAllNamespacedAPIResources(ctx context.Context) ([]unstructured.Unstructured, error) {
+func (c *ClusterReconciler) getAllNamespacedAPIResources(ctx context.Context, log logr.Logger) ([]unstructured.Unstructured, error) {
 	apiResourceList, err := c.discoveryClient.ServerPreferredNamespacedResources()
 	if err != nil {
 		return nil, err
 	}
 
+	expectedVerbs := []string{"list", "get", "delete"}
 	resources := []unstructured.Unstructured{}
 	for _, apiResources := range apiResourceList {
 		for _, apiResource := range apiResources.APIResources {
-			if !apiResource.Namespaced {
+			// Ignore resources that are either cluster scoped or do not support the required verbs
+			if !apiResource.Namespaced || !isResourceAllowed(expectedVerbs, apiResource.Verbs) {
 				continue
 			}
 
@@ -194,14 +124,31 @@ func (c *ClusterReconciler) getAllNamespacedAPIResources(ctx context.Context) ([
 
 			err := c.client.List(ctx, objList)
 			if err != nil {
-				return nil, err
+				log.V(logutil.LogLevel_Debug).Error(err, "failed to list resources", "resource", apiResource.Kind)
+				continue
 			}
 
-			resources = append(resources, objList.Items...)
+			if len(objList.Items) != 0 {
+				resources = append(resources, objList.Items...)
+			}
 		}
 	}
 
 	return resources, nil
+}
+
+func isResourceAllowed(expectedVerbs []string, verbs []string) bool {
+	verbMap := map[string]bool{}
+	for _, verb := range verbs {
+		verbMap[verb] = true
+	}
+
+	for _, expectedVerb := range expectedVerbs {
+		if _, found := verbMap[expectedVerb]; !found {
+			return false
+		}
+	}
+	return true
 }
 
 func getArgoCDApplicationName(obj client.Object) string {

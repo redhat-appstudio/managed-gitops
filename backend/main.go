@@ -25,6 +25,7 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	"k8s.io/client-go/discovery"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/redhat-appstudio/managed-gitops/utilities/db-migration/migrate"
@@ -198,6 +199,9 @@ func main() {
 	startDBReconciler(mgr)
 	startRepoCredReconciler(mgr)
 	startDBMetricsReconciler(mgr)
+
+	startClusterReconciler(mgr)
+
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
 		os.Exit(1)
@@ -270,6 +274,17 @@ func startDBMetricsReconciler(mgr ctrl.Manager) {
 
 	// Start goroutine for database metrics reconciler
 	databaseReconciler.StartDBMetricsReconcilerForMetrics()
+}
+
+func startClusterReconciler(mgr ctrl.Manager) {
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig())
+	if err != nil {
+		setupLog.Error(err, "failed to create discovery client")
+		os.Exit(1)
+	}
+	reconciler := eventloop.NewClusterReconciler(mgr.GetClient(), discoveryClient)
+
+	reconciler.Start()
 }
 
 // nolint:unused

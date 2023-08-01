@@ -2,6 +2,7 @@ package appstudioredhatcom
 
 import (
 	"context"
+
 	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -31,12 +32,12 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 				_,
 				_,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = appstudiosharedv1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = codereadytoolchainv1alpha1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			testNS := corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
@@ -60,7 +61,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 				})
 
 			err := k8sClient.Create(ctx, &dtcls)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dtc := getDeploymentTargetClaim(
 				func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
@@ -73,17 +74,17 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 				})
 
 			err = k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("reconcile with a pending DTC and a matching DTCLS")
 			request := newRequest(dtc.Namespace, dtc.Name)
 			res, err := reconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(res).To(Equal(ctrl.Result{}))
 
 			By("find a newly created matching SpaceRequest for the DTC")
 			spaceRequest, err := findMatchingSpaceRequestForDTC(ctx, k8sClient, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(spaceRequest).To(BeNil())
 		})
 
@@ -101,7 +102,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 				})
 
 			err := k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("reconcile with a pending DTC and a missing DTCLS")
 
@@ -110,7 +111,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 
 			missingDTCLSErr := missingDTCLSErrWrap(dtc.Name, missingDTCLSName)
 			expectedErr := missingDTCLSErr("the resource could not be found on the cluster")
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(Equal(expectedErr.Error()))
 			Expect(res).To(Equal(ctrl.Result{}))
 		})
@@ -122,7 +123,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 				})
 
 			err := k8sClient.Create(ctx, &dtcls)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dtc := getDeploymentTargetClaim(
 				func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
@@ -135,17 +136,17 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 				})
 
 			err = k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("reconcile with a pending DTC and a matching DTCLS")
 			request := newRequest(dtc.Namespace, dtc.Name)
 			res, err := reconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(res).To(Equal(ctrl.Result{}))
 
 			By("find a newly created matching SpaceRequest for the DTC")
 			spaceRequest, err := findMatchingSpaceRequestForDTC(ctx, k8sClient, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(spaceRequest).ToNot(BeNil())
 			Expect(spaceRequest.Labels[deploymentTargetClaimLabel]).To(Equal(dtc.Name))
 			Expect(spaceRequest.Spec.TierName).To(Equal(environmentTierName))
@@ -158,7 +159,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 				})
 
 			err := k8sClient.Create(ctx, &dtcls)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dtc := getDeploymentTargetClaim(
 				func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
@@ -171,7 +172,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 				})
 
 			err = k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			expected := getSandboxSpaceRequest(func(spaceRequest *codereadytoolchainv1alpha1.SpaceRequest) {
 				spaceRequest.Labels = map[string]string{
@@ -179,17 +180,17 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 				}
 			})
 			err = k8sClient.Create(ctx, &expected)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("reconcile with a pending DTC and a matching DTCLS")
 			request := newRequest(dtc.Namespace, dtc.Name)
 			res, err := reconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(res).To(Equal(ctrl.Result{}))
 
 			By("find the already existing matching SpaceRequest for the DTC")
 			spaceRequest, err := findMatchingSpaceRequestForDTC(ctx, k8sClient, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(spaceRequest).ToNot(BeNil())
 			Expect(spaceRequest.Labels[deploymentTargetClaimLabel]).To(Equal(dtc.Name))
 			Expect(client.ObjectKeyFromObject(spaceRequest)).To(Equal(client.ObjectKeyFromObject(&expected)))
@@ -200,7 +201,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 				expected := getSandboxDeploymentTargetClass(func(dt *appstudiosharedv1.DeploymentTargetClass) {
 				})
 				err := k8sClient.Create(ctx, &expected)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				dtc := getSandboxDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
 					dtc.Annotations = map[string]string{
@@ -209,10 +210,10 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 					dtc.Spec.DeploymentTargetClassName = appstudiosharedv1.DeploymentTargetClassName(expected.Name)
 				})
 				err = k8sClient.Create(ctx, &dtc)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				dt, err := findMatchingDTClassForDTC(ctx, k8sClient, dtc)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(client.ObjectKeyFromObject(dt)).To(Equal(client.ObjectKeyFromObject(&expected)))
 			})
 		})
@@ -225,7 +226,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 					}
 				})
 				err := k8sClient.Create(ctx, &dtc)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				expected := getSandboxSpaceRequest(func(spaceRequest *codereadytoolchainv1alpha1.SpaceRequest) {
 					spaceRequest.Labels = map[string]string{
@@ -233,10 +234,10 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 					}
 				})
 				err = k8sClient.Create(ctx, &expected)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				spaceRequest, err := findMatchingSpaceRequestForDTC(ctx, k8sClient, &dtc)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(client.ObjectKeyFromObject(spaceRequest)).To(Equal(client.ObjectKeyFromObject(&expected)))
 			})
 		})

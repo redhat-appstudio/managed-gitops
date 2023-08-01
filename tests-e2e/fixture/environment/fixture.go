@@ -21,7 +21,7 @@ func expectedCondition(f func(env appstudiosharedv1.Environment) bool) matcher.G
 	return WithTransform(func(env appstudiosharedv1.Environment) bool {
 
 		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {

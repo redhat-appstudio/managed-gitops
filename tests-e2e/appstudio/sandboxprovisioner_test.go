@@ -59,11 +59,11 @@ var _ = Describe("Sandbox Provisioner controller tests", func() {
 		It("should create a SpaceRequest for a DTC with dynamic provisioning", func() {
 			By("create a DTCLS with a sandbox provisioner")
 			err := k8sClient.Create(ctx, &dtcls)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create a DTC with a sandbox provisioned DTCLS")
 			err = k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("check if the provisioner annotation is added")
 			Eventually(dtc, "2m", "1s").Should(
@@ -78,7 +78,7 @@ var _ = Describe("Sandbox Provisioner controller tests", func() {
 		It("should not create an extra SpaceRequest for a DTC when one already exists", func() {
 			By("create a DTCLS with a sandbox provisioner")
 			err := k8sClient.Create(ctx, &dtcls)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create the matching SpaceRequest for the DTC")
 			spaceRequest := codereadytoolchainv1alpha1.SpaceRequest{
@@ -98,12 +98,12 @@ var _ = Describe("Sandbox Provisioner controller tests", func() {
 			}
 
 			err = k8sClient.Create(ctx, &spaceRequest)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create a DTC with a sandbox provisioned DTCLS")
 			dtc.Name = "new-sandbox-dtc"
 			err = k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("check there is still just one matching SpaceRequest")
 			Eventually(dtc, "2m", "1s").Should(dtcfixture.HasANumberOfMatchingSpaceRequests(1))
@@ -113,12 +113,12 @@ var _ = Describe("Sandbox Provisioner controller tests", func() {
 			By("create a DTCLS with a non-sandbox provisioner")
 			dtcls.Spec.Provisioner = "non-sandbox"
 			err := k8sClient.Create(ctx, &dtcls)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create a DTC with a non-sandbox provisioned DTCLS")
 			dtc.Name = "new-non-sandbox-dtc"
 			err = k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("check if the provisioner annotation is added")
 			Eventually(dtc, "2m", "1s").Should(

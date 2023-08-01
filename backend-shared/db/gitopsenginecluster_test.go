@@ -13,11 +13,11 @@ import (
 var _ = Describe("Gitopsenginecluster Test", func() {
 	It("Should Create, Get and Delete a GitopsEngineCluster", func() {
 		err := db.SetupForTestingDBGinkgo()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		ctx := context.Background()
 		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		defer dbq.CloseDatabase()
 
 		clusterCredentials := db.ClusterCredentials{
@@ -35,21 +35,21 @@ var _ = Describe("Gitopsenginecluster Test", func() {
 		}
 
 		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClusterput)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		gitopsEngineClusterget := db.GitopsEngineCluster{
 			Gitopsenginecluster_id: gitopsEngineClusterput.Gitopsenginecluster_id,
 		}
 
 		err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineClusterget)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(gitopsEngineClusterput).Should(Equal(gitopsEngineClusterget))
 
 		rowsAffected, err := dbq.DeleteGitopsEngineClusterById(ctx, gitopsEngineClusterput.Gitopsenginecluster_id)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).Should(Equal(1))
 
 		err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineClusterget)

@@ -79,7 +79,7 @@ var _ = Describe("ArgoCD AppSync Command", func() {
 				}
 
 				k8sClient, err = generateFakeK8sClient(namespace, loginSecret, route, app)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			}
 
 			mockAppClient := &mocks.Client{}
@@ -125,7 +125,7 @@ var _ = Describe("ArgoCD AppSync Command", func() {
 
 			cs := NewCredentialService(&clientGenerator, true)
 			err = AppSync(context.Background(), appName, "master", "openshift-gitops", k8sClient, cs, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 })

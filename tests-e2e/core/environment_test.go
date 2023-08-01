@@ -40,7 +40,7 @@ var _ = Describe("Environment Status.Conditions tests", func() {
 			Expect(err).To(Succeed())
 
 			kubeConfigContents, _, err = fixture.ExtractKubeConfigValues()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("creating managed environment Secret")
 			secret = &corev1.Secret{
@@ -53,7 +53,7 @@ var _ = Describe("Environment Status.Conditions tests", func() {
 			}
 
 			err = k8s.Create(secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("ensures that errors are set properly in Environment .Status.Conditions field if DeploymentTargetClaim is not found", func() {
@@ -169,7 +169,7 @@ var _ = Describe("Environment E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			kubeConfigContents, apiServerURL, err = fixture.ExtractKubeConfigValues()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("creating managed environment Secret")
 			secret = &corev1.Secret{
@@ -182,7 +182,7 @@ var _ = Describe("Environment E2E tests", func() {
 			}
 
 			err = k8s.Create(secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("should ensure that AllowInsecureSkipTLSVerify field of Environment API is equal to AllowInsecureSkipTLSVerify field of GitOpsDeploymentManagedEnvironment", func() {
@@ -232,7 +232,7 @@ var _ = Describe("Environment E2E tests", func() {
 			)
 
 			err = k8s.Get(&environment, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("update AllowInsecureSkipTLSVerify field of Environment to false and verify whether it updates the AllowInsecureSkipTLSVerify field of GitOpsDeploymentManagedEnvironment")
 			environment.Spec.UnstableConfigurationFields = &appstudioshared.UnstableEnvironmentConfiguration{
@@ -245,7 +245,7 @@ var _ = Describe("Environment E2E tests", func() {
 			}
 
 			err = k8s.Update(&environment, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify that Environment's status condition is nil, indicating no errors")
 			Consistently(environment, 20*time.Second, 1*time.Second).Should(environmentFixture.HaveEmptyEnvironmentConditions())
@@ -308,7 +308,7 @@ var _ = Describe("Environment E2E tests", func() {
 			)
 
 			err = k8s.Get(&environment, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("update the namespaces and clusterResources fields of Environment and verify that it updates the corresponding fields of GitOpsDeploymentManagedEnvironment")
 			environment.Spec.UnstableConfigurationFields = &appstudioshared.UnstableEnvironmentConfiguration{
@@ -327,7 +327,7 @@ var _ = Describe("Environment E2E tests", func() {
 			}
 
 			err = k8s.Update(&environment, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(managedEnvCR, "2m", "1s").Should(
 				SatisfyAll(
@@ -349,7 +349,7 @@ var _ = Describe("Environment E2E tests", func() {
 			}
 
 			err = k8s.Update(&environment, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(managedEnvCR, "2m", "1s").Should(
 				SatisfyAll(
@@ -379,7 +379,7 @@ var _ = Describe("Environment E2E tests", func() {
 				},
 			}
 			err := k8s.Create(&dt, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create a DeploymentTargetClaim that can bind to the above Environment")
 			dtc := appstudioshared.DeploymentTargetClaim{
@@ -393,7 +393,7 @@ var _ = Describe("Environment E2E tests", func() {
 				},
 			}
 			err = k8s.Create(&dtc, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the DT and DTC are bound together")
 			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
@@ -468,7 +468,7 @@ var _ = Describe("Environment E2E tests", func() {
 			clusterSecret.Data = secret.Data
 
 			err := k8s.Create(&clusterSecret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create a new DeploymentTarget with the above credential secret")
 			dt := appstudioshared.DeploymentTarget{
@@ -487,7 +487,7 @@ var _ = Describe("Environment E2E tests", func() {
 				},
 			}
 			err = k8s.Create(&dt, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create a DeploymentTargetClaim that can bind to the above Environment")
 			dtc := appstudioshared.DeploymentTargetClaim{
@@ -501,7 +501,7 @@ var _ = Describe("Environment E2E tests", func() {
 				},
 			}
 			err = k8s.Create(&dtc, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the DT and DTC are bound together")
 			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
@@ -562,14 +562,14 @@ var _ = Describe("Environment E2E tests", func() {
 			}
 
 			err = k8s.Get(&managedEnvSecret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(reflect.DeepEqual(clusterSecret.Data, managedEnvSecret.Data)).To(BeTrue())
 
 			By("update the original secret and verify if the ManagedEnvironment secret is updated")
 			clusterSecret.Data["test-key"] = []byte("test-key")
 
 			err = k8s.Update(&clusterSecret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(func() bool {
 				if err := k8s.Get(&managedEnvSecret, k8sClient); err != nil {
@@ -582,7 +582,7 @@ var _ = Describe("Environment E2E tests", func() {
 
 			By("delete the original secret and verify if the ManagedEnvironment secret is deleted")
 			err = k8s.Delete(&clusterSecret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(&managedEnvSecret, "2m", "1s").Should(k8s.NotExist(k8sClient))
 		})
@@ -604,7 +604,7 @@ var _ = Describe("Environment E2E tests", func() {
 				},
 			}
 			err := k8s.Create(&dt, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create a DeploymentTargetClaim that can bind to the above Environment")
 			dtc := appstudioshared.DeploymentTargetClaim{
@@ -618,7 +618,7 @@ var _ = Describe("Environment E2E tests", func() {
 				},
 			}
 			err = k8s.Create(&dtc, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the DT and DTC are bound together")
 			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
@@ -678,16 +678,16 @@ var _ = Describe("Environment E2E tests", func() {
 				Type: sharedutil.ManagedEnvironmentSecretType,
 			}
 			err = k8s.Create(&newSecret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Get(&dt, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dt.Spec.KubernetesClusterCredentials.APIURL = "https://new-url"
 			dt.Spec.KubernetesClusterCredentials.ClusterCredentialsSecret = newSecret.Name
 
 			err = k8s.Update(&dt, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the managed environment CR is updated with the new details")
 			expectedEnvSpec := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
@@ -702,7 +702,7 @@ var _ = Describe("Environment E2E tests", func() {
 			By("creates a GitOpsDeploymentManagedEnvironment with an ownerref to an Environment that doesn't exist")
 
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			managedEnv, _ := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 
@@ -722,7 +722,7 @@ var _ = Describe("Environment E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			err = k8s.Create(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(&managedEnv, "60s", "1s").ShouldNot(k8s.ExistByName(k8sClient))
 

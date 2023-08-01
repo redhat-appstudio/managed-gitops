@@ -55,7 +55,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				kubesystemNamespace,
 				namespaceTemp, err := tests.GenericTestSetup()
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			namespace = namespaceTemp
 
@@ -79,7 +79,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			// After each test delete the resources created by it.
 			DeferCleanup(func() {
 				dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				defer dbq.CloseDatabase()
 
@@ -87,14 +87,14 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				if resourcesToBeDeleted.RepositoryCredential_id != "" {
 					rowsAffected, err := dbq.DeleteRepositoryCredentialsByID(ctx, resourcesToBeDeleted.RepositoryCredential_id)
 					Expect(rowsAffected).To(Equal(1))
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 
 				// Delete Operation
 				if resourcesToBeDeleted.OperationID != "" {
 					rowsAffected, err := dbq.DeleteOperationById(ctx, resourcesToBeDeleted.OperationID)
 					Expect(rowsAffected).To(Equal(1))
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 
 				// Delete clusterAccess
@@ -105,35 +105,35 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 						resourcesToBeDeleted.clusterAccess.Clusteraccess_gitops_engine_instance_id)
 
 					Expect(rowsAffected).To(Equal(1))
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 
 				// Delete clusterUser
 				if resourcesToBeDeleted.Clusteruser_id != "" {
 					rowsAffected, err := dbq.DeleteClusterUserById(ctx, resourcesToBeDeleted.Clusteruser_id)
 					Expect(rowsAffected).To(Equal(1))
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 
 				// Delete managedEnv
 				if resourcesToBeDeleted.Managedenvironment_id != "" {
 					rowsAffected, err := dbq.DeleteManagedEnvironmentById(ctx, resourcesToBeDeleted.Managedenvironment_id)
 					Expect(rowsAffected).To(Equal(1))
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 
 				// Delete engineInstance
 				if resourcesToBeDeleted.Gitopsengineinstance_id != "" {
 					rowsAffected, err := dbq.DeleteGitopsEngineInstanceById(ctx, resourcesToBeDeleted.Gitopsengineinstance_id)
 					Expect(rowsAffected).To(Equal(1))
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 
 				// Delete engineCluster
 				if resourcesToBeDeleted.EngineCluster_id != "" {
 					rowsAffected, err := dbq.DeleteGitopsEngineClusterById(ctx, resourcesToBeDeleted.EngineCluster_id)
 					Expect(rowsAffected).To(Equal(1))
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 
 				// Delete clusterCredentials
@@ -141,7 +141,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 					for _, clustercredentials_id := range resourcesToBeDeleted.Clustercredentials_id {
 						rowsAffected, err := dbq.DeleteClusterCredentialsById(ctx, clustercredentials_id)
 						Expect(rowsAffected).To(Equal(1))
-						Expect(err).To(BeNil())
+						Expect(err).ToNot(HaveOccurred())
 					}
 				}
 
@@ -149,7 +149,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				if resourcesToBeDeleted.AppProjectRepository != nil {
 					rowsAffected, err := dbq.DeleteAppProjectRepositoryByClusterUserAndRepoURL(ctx, resourcesToBeDeleted.AppProjectRepository)
 					Expect(rowsAffected).To(Equal(1))
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 
 			})
@@ -166,7 +166,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				isNewUser,
 				err := sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, k8sClient, *namespace, l)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(usrOld).NotTo(BeNil())
 			Expect(isNewUser).To(BeTrue())
 
@@ -175,7 +175,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				isNewUser,
 				err := sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, k8sClient, *namespace, l)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(usrNew).NotTo(BeNil())
 			Expect(isNewUser).To(BeFalse())
 
@@ -198,7 +198,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			sharedResourceOld, err := sharedResourceEventLoop.ReconcileSharedManagedEnv(ctx, k8sClient, *namespace, "", "",
 				true, MockSRLK8sClientFactory{fakeClient: k8sClient}, l)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(sharedResourceOld.ClusterUser).NotTo(BeNil())
 			Expect(sharedResourceOld.ManagedEnv).NotTo(BeNil())
 			Expect(sharedResourceOld.GitopsEngineInstance).NotTo(BeNil())
@@ -213,7 +213,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			sharedResourceNew, err := sharedResourceEventLoop.ReconcileSharedManagedEnv(ctx, k8sClient, *namespace, "", "",
 				true, MockSRLK8sClientFactory{fakeClient: k8sClient}, l)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(sharedResourceNew.ClusterUser).NotTo(BeNil())
 			Expect(sharedResourceNew.ManagedEnv).NotTo(BeNil())
 			Expect(sharedResourceNew.GitopsEngineInstance).NotTo(BeNil())
@@ -253,12 +253,12 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			// Negative test, engineInstance is not present, it should return error
 			engineInstanceOld, err := sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx, "", k8sClient, *namespace, l)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(engineInstanceOld.EngineCluster_id).To(BeEmpty())
 
 			// Create new engine instance which will be used by "GetGitopsEngineInstanceById" fucntion
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			defer dbq.CloseDatabase()
 
@@ -279,19 +279,19 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			}
 
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Fetch the same engineInstance by ID
 			engineInstanceNew, err := sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx,
 				gitopsEngineInstance.Gitopsengineinstance_id, k8sClient, *namespace, l)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(engineInstanceNew.EngineCluster_id).NotTo(BeNil())
 
 			// To be used by AfterEach to clean up the resources created by test
@@ -311,7 +311,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			// Create new engine instance which will be used by "GetGitopsEngineInstanceById" fucntion
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			defer dbq.CloseDatabase()
 
@@ -332,19 +332,19 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			}
 
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Fetch the same engineInstance by ID
 			engineInstanceNew, err := sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx,
 				gitopsEngineInstance.Gitopsengineinstance_id, k8sClient, *namespace, l)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(engineInstanceNew.EngineCluster_id).NotTo(BeNil())
 
 			// At first assuming there are no existing users, hence creating new.
@@ -352,7 +352,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				isNewUser,
 				err := sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, k8sClient, *namespace, l)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(usrOld).NotTo(BeNil())
 			Expect(isNewUser).To(BeTrue())
 
@@ -361,7 +361,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				isNewUser,
 				err := sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, k8sClient, *namespace, l)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(usrNew).NotTo(BeNil())
 			Expect(isNewUser).To(BeFalse())
 			Expect(usrNew.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
@@ -390,12 +390,12 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				}}
 
 			err = k8sClient.Create(ctx, cr)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Fetch the GitOpsDeploymentRepositoryCredential created
 			cred := &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{}
 			err = k8sClient.Get(ctx, types.NamespacedName{Name: cr.Name, Namespace: cr.Namespace}, cred)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			var repositoryCredentialCRNamespace v1.Namespace
 			repositoryCredentialCRNamespace.Name = gitopsEngineInstance.Namespace_name
@@ -406,7 +406,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			dbRepoCred, err := internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, false, l)
 
 			// Negative test (there is no Secret)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(dbRepoCred).To(BeNil())
 
 			// Create new Secret
@@ -421,12 +421,12 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, secret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create again the CR
 			// Expected: Since there's no DB entry for the CR, it will create an operation
 			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, false, l)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(dbRepoCred).NotTo(BeNil())
 
 			By("verify whether appProject is created or not")
@@ -436,7 +436,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			}
 
 			err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, appProjectRepositoryDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(appProjectRepositoryDB).NotTo(BeNil())
 
 			var operationDB db.Operation
@@ -445,15 +445,15 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			// Verify there is one Operation CR created and find its matching DB Entry
 			operationList := &managedgitopsv1alpha1.OperationList{}
 			err = k8sClient.List(ctx, operationList)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			primaryKey := dbRepoCred.RepositoryCredentialsID
 			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, primaryKey, db.OperationResourceType_RepositoryCredentials, &operations, usrNew.Clusteruser_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Verify the Operation CR and DB Entry are the same
-			Expect(len(operations)).To(Equal(1))
-			Expect(len(operationList.Items)).To(Equal(1))
+			Expect(operations).To(HaveLen(1))
+			Expect(operationList.Items).To(HaveLen(1))
 			operationDB = operations[0]
 			operationCR := operationList.Items[0]
 			Expect(operationDB.Operation_id).To(Equal(operationCR.Spec.OperationID))
@@ -466,7 +466,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			// and verify that this db row is the same with the output of the internalProcessMessage_ReconcileRepositoryCredential()
 			fmt.Println("Get the RepositoryCredential DB row using the operationDB.Resource_id", "operation Resource ID", operationDB.Resource_id)
 			fetch, err := dbq.GetRepositoryCredentialsByID(ctx, operationDB.Resource_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(fetch.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 			fetch.Created_on = dbRepoCred.Created_on
 			Expect(fetch).Should(Equal(*dbRepoCred))
@@ -474,50 +474,50 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			// Delete the Operation using the CleanRepoCredOperation function
 			fmt.Println("TEST: Delete the Operation using the CleanRepoCredOperation function")
 			err = CleanRepoCredOperation(ctx, *dbRepoCred, usrNew, cr.Namespace, dbq, k8sClient, operationDB.Operation_id, l)
-			Expect(err).To(BeNil()) // No error expected because the Operation is in Waiting state (so it's not deleted, and we don't consider this as an error)
+			Expect(err).ToNot(HaveOccurred()) // No error expected because the Operation is in Waiting state (so it's not deleted, and we don't consider this as an error)
 
 			// Set the Operation DB state to Completed (so it will be deleted the next time)
 			operationDB.State = db.OperationState_Completed
 			err = dbq.UpdateOperation(ctx, &operationDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Call the CleanRepoCredOperation function again
 			fmt.Println("TEST: Call the CleanRepoCredOperation function again")
 			err = CleanRepoCredOperation(ctx, *dbRepoCred, usrNew, cr.Namespace, dbq, k8sClient, operationDB.Operation_id, l)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Verify the Operation CR and DB Entry are deleted
 			operationList = &managedgitopsv1alpha1.OperationList{}
 			err = k8sClient.List(ctx, operationList)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			operations = []db.Operation{}
 			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, primaryKey, db.OperationResourceType_RepositoryCredentials, &operations, usrNew.Clusteruser_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// There should be no Operation DB entry
-			Expect(len(operations)).To(Equal(0))
+			Expect(operations).To(BeEmpty())
 
 			// There should be no Operation CR
-			Expect(len(operationList.Items)).To(Equal(0))
+			Expect(operationList.Items).To(BeEmpty())
 
 			// Re-running should not error
 			fmt.Println("Re-running the internalProcessMessage_ReconcileRepositoryCredential()")
 			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, false, l)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(dbRepoCred).NotTo(BeNil())
 
 			By("verify whether appProject is created or not")
 			err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, appProjectRepositoryDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(appProjectRepositoryDB).NotTo(BeNil())
 
 			// Check if there are any new operations, if they are deleted (previously) there should be none
 			primaryKey = dbRepoCred.RepositoryCredentialsID
 			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, primaryKey, db.OperationResourceType_RepositoryCredentials, &operations, usrNew.Clusteruser_id)
-			Expect(err).To(BeNil())
-			Expect(len(operations)).To(Equal(0))
-			Expect(len(operationList.Items)).To(Equal(0))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(operations).To(BeEmpty())
+			Expect(operationList.Items).To(BeEmpty())
 
 			// Modify the repository credential database, pointing to a wrong secret
 			// Expected: The diff should be detected and roll-back to what the GitOpsDeploymentRepositoryCredential CR has (source of truth)
@@ -525,30 +525,30 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			fmt.Println("Modify the repository credential database, pointing to a wrong secret")
 			dbRepoCred.SecretObj = "test-secret-2"
 			err = dbq.UpdateRepositoryCredentials(ctx, dbRepoCred)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, false, l)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(dbRepoCred).ToNot(BeNil())
 
 			By("verify whether appProject is present or not when repoCred is updated")
 			err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, appProjectRepositoryDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(appProjectRepositoryDB).NotTo(BeNil())
 
 			// Check if there are any operations
 			operationList = &managedgitopsv1alpha1.OperationList{}
 			err = k8sClient.List(ctx, operationList)
-			Expect(err).To(BeNil())
-			Expect(len(operationList.Items)).Should(Equal(1))
-			Expect(len(operationList.Items)).To(Equal(1))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(operationList.Items).Should(HaveLen(1))
+			Expect(operationList.Items).To(HaveLen(1))
 
 			// Fetch the operation db
 			operationDB.Operation_id = operationList.Items[0].Spec.OperationID
 			err = dbq.GetOperationById(ctx, &operationDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, primaryKey, db.OperationResourceType_RepositoryCredentials, &operations, usrNew.Clusteruser_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			operationDB = operations[0]
 			operationCR = operationList.Items[0]
 			Expect(operationDB.Operation_id).To(Equal(operationCR.Spec.OperationID))
@@ -556,9 +556,9 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			// Delete the operation db and operation cr
 			_, err = dbq.DeleteOperationById(ctx, operationDB.Operation_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = k8sClient.Delete(ctx, &operationList.Items[0])
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Set the status to Completed and reconcile
 			// Expected: The status should be updated to Completed
@@ -566,68 +566,68 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			operationDB.State = db.OperationState_Completed
 			err = dbq.UpdateOperation(ctx, &operationDB)
 			// err should not be nil
-			Expect(err).ToNot(BeNil()) // err unexpected number of rows affected:
-			// Expect(err).To(BeNil())
+			Expect(err).To(HaveOccurred()) // err unexpected number of rows affected:
+			// Expect(err).ToNot(HaveOccurred())
 
 			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, false, l)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(dbRepoCred).ToNot(BeNil())
 
 			// Verify the Operation CR and DB Entry are deleted
 			operationList = &managedgitopsv1alpha1.OperationList{}
 			err = k8sClient.List(ctx, operationList)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			operations = []db.Operation{}
 			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, primaryKey, db.OperationResourceType_RepositoryCredentials, &operations, usrNew.Clusteruser_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// There should be no Operation DB entry
-			Expect(len(operations)).To(Equal(0))
+			Expect(operations).To(BeEmpty())
 
 			// There should be no Operation CR
-			Expect(len(operationList.Items)).To(Equal(0))
+			Expect(operationList.Items).To(BeEmpty())
 
 			// Delete the Secret
 			err = k8sClient.Delete(ctx, secret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Delete the GitOpsDeploymentRepositoryCredential CR and reconcile again
 			// Expected: Since there is no GitOpsDeploymentRepositoryCredential CR, it will delete the DB entry
 			err = k8sClient.Delete(ctx, cr)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, false, l)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(dbRepoCred).To(BeNil())
 
 			// Negative test: Get the RepositoryCredential from the DB
 			// Expected: It should not exist
 			_, err = dbq.GetRepositoryCredentialsByID(ctx, cr.Name)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 
 			// A new Operation should be created
 			// Check if there are any operations left (should be 1)
 			operationList = &managedgitopsv1alpha1.OperationList{}
 			err = k8sClient.List(ctx, operationList)
-			Expect(err).To(BeNil())
-			Expect(len(operationList.Items)).Should(Equal(1))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(operationList.Items).Should(HaveLen(1))
 			// Fetch the operation db
 			operationDB.Operation_id = operationList.Items[0].Spec.OperationID
 			err = dbq.GetOperationById(ctx, &operationDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(operationDB.State).Should(Equal(db.OperationState_Waiting))
 
 			// Negative test: Try again to reconcile the RepositoryCredential
 			// Expected: It should not error (both db row and CR should be deleted). Nothing we can do.
 			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, false, l)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(dbRepoCred).To(BeNil())
 
 		})
 
 		It("Should add display_name to existing clusterUser if display_name is empty", func() {
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			defer dbq.CloseDatabase()
 
@@ -637,7 +637,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				User_name:      string(namespace.UID),
 			}
 			err = dbq.CreateClusterUser(ctx, clusterUserDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			sharedResourceEventLoop := &SharedResourceEventLoop{inputChannel: make(chan sharedResourceLoopMessage)}
 
@@ -647,7 +647,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				isNewUser,
 				err := sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, k8sClient, *namespace, l)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(user).NotTo(BeNil())
 			Expect(isNewUser).To(BeFalse())
 			Expect(user.Display_name).ToNot(BeEmpty())
@@ -660,7 +660,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 		It("Should verify AppProjectRepository is updated to point to the repoCred row in database.", func() {
 
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create GitopsDeployment")
 			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
@@ -678,10 +678,10 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			}
 
 			err = k8sClient.Create(context.Background(), gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			defer dbq.CloseDatabase()
 
@@ -702,13 +702,13 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			}
 
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			var repositoryCredentialCRNamespace v1.Namespace
 			repositoryCredentialCRNamespace.Name = gitopsEngineInstance.Namespace_name
@@ -720,7 +720,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				User_name:      string(repositoryCredentialCRNamespace.UID),
 			}
 			err = dbq.CreateClusterUser(ctx, clusterUserDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("creating a AppProjectRepository that is based on the contents of the GitOpsDeployment")
 			appProjectRepoDB := &db.AppProjectRepository{
@@ -731,7 +731,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			}
 
 			err = dbq.CreateAppProjectRepository(ctx, appProjectRepoDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create new GitOpsDeploymentRepositoryCredential")
 			cr := &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
@@ -746,7 +746,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				}}
 
 			err = k8sClient.Create(ctx, cr)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			var k8sClientFactory SRLK8sClientFactory
 
@@ -762,14 +762,14 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, secret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbRepoCred, err := internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, false, l)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(dbRepoCred).NotTo(BeNil())
 
 			err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, appProjectRepoDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(appProjectRepoDB).NotTo(BeNil())
 
 			By("Verify whether AppProjectRepoCred is updated to point to the repoCred row in the database.")
@@ -790,7 +790,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 		It("Should verify AppProjectRepository is updated/created when RepoCred CR is updated", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			sharedResourceEventLoop := &SharedResourceEventLoop{inputChannel: make(chan sharedResourceLoopMessage)}
 
@@ -798,7 +798,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 			By("Create new engine instance which will be used by `GetGitopsEngineInstanceById` fucntion")
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			defer dbq.CloseDatabase()
 
@@ -819,19 +819,19 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			}
 
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Fetch the same engineInstance by ID")
 			engineInstanceNew, err := sharedResourceEventLoop.GetGitopsEngineInstanceById(ctx,
 				gitopsEngineInstance.Gitopsengineinstance_id, k8sClient, *namespace, l)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(engineInstanceNew.EngineCluster_id).NotTo(BeNil())
 
 			By("At first assuming there are no existing users, hence creating new.")
@@ -839,7 +839,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				isNewUser,
 				err := sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, k8sClient, *namespace, l)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(usrOld).NotTo(BeNil())
 			Expect(isNewUser).To(BeTrue())
 
@@ -848,7 +848,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				isNewUser,
 				err := sharedResourceEventLoop.GetOrCreateClusterUserByNamespaceUID(ctx, k8sClient, *namespace, l)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(usrNew).NotTo(BeNil())
 			Expect(isNewUser).To(BeFalse())
 			Expect(usrNew.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
@@ -876,12 +876,12 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				}}
 
 			err = k8sClient.Create(ctx, cr)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Fetch the GitOpsDeploymentRepositoryCredential created")
 			cred := &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{}
 			err = k8sClient.Get(ctx, types.NamespacedName{Name: cr.Name, Namespace: cr.Namespace}, cred)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			var repositoryCredentialCRNamespace v1.Namespace
 			repositoryCredentialCRNamespace.Name = gitopsEngineInstance.Namespace_name
@@ -901,10 +901,10 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, secret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbRepoCred, err := internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, false, l)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(dbRepoCred).NotTo(BeNil())
 
 			By("verify whether appProject is created or not")
@@ -914,25 +914,25 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			}
 
 			err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, appProjectRepositoryDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(appProjectRepositoryDB).NotTo(BeNil())
 
 			By("Fetch the GitOpsDeploymentRepositoryCredential CR")
 			err = k8sClient.Get(ctx, types.NamespacedName{Name: cr.Name, Namespace: cr.Namespace}, cr)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Update GitopsRepositoryCredential CR  to verify whether it updates RepoCred URL")
 			cr.Spec.Repository = "http://github.com/jgwest/my-repo"
 
 			err = k8sClient.Update(ctx, cr)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, appProjectRepositoryDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(appProjectRepositoryDB).NotTo(BeNil())
 
 			dbRepoCred, err = internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, k8sClientFactory, dbq, false, l)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(dbRepoCred).NotTo(BeNil())
 			Expect(dbRepoCred.PrivateURL).To(Equal("http://github.com/jgwest/my-repo"))
 
@@ -943,7 +943,7 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			}
 
 			err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, getappProjectRepositoryDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(getappProjectRepositoryDB).NotTo(BeNil())
 			Expect(getappProjectRepositoryDB.RepoURL).To(Equal("http://github.com/jgwest/my-repo"))
 

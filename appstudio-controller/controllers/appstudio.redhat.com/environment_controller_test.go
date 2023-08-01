@@ -39,10 +39,10 @@ var _ = Describe("Environment controller tests", func() {
 				kubesystemNamespace,
 				namespace,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = appstudioshared.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			apiNamespace = *namespace
 
@@ -73,7 +73,7 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &secret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			env := appstudioshared.Environment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -99,7 +99,7 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			req := ctrl.Request{
 				NamespacedName: types.NamespacedName{
@@ -108,7 +108,7 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			_, err = reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify that error condition is not set")
 			Expect(env.Status.Conditions).To(BeNil())
@@ -116,7 +116,7 @@ var _ = Describe("Environment controller tests", func() {
 			managedEnvCR := generateEmptyManagedEnvironment(env.Name, req.Namespace)
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
-			Expect(err).To(BeNil(), "the ManagedEnvironment object should have been created by the reconciler")
+			Expect(err).ToNot(HaveOccurred(), "the ManagedEnvironment object should have been created by the reconciler")
 
 			Expect(managedEnvCR.Spec.APIURL).To(Equal(env.Spec.UnstableConfigurationFields.APIURL),
 				"ManagedEnvironment should match the Environment")
@@ -160,7 +160,7 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &secret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("creating second managed environment Secret")
 			secret2 := corev1.Secret{
@@ -174,7 +174,7 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &secret2)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("creating an Environment pointing to the first secret")
 			env := appstudioshared.Environment{
@@ -201,7 +201,7 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("creating a managed environment containing outdated values, versus what's in the environment")
 
@@ -214,7 +214,7 @@ var _ = Describe("Environment controller tests", func() {
 				Namespaces:                 updatedNamespaces,
 			}
 			err = k8sClient.Create(ctx, &previouslyReconciledManagedEnv)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("reconciling the ManagedEnvironment")
 			req := ctrl.Request{
@@ -224,7 +224,7 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			_, err = reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify that error condition is not set")
 			Expect(env.Status.Conditions).To(BeNil())
@@ -232,7 +232,7 @@ var _ = Describe("Environment controller tests", func() {
 			By("retrieving the update ManagedEnvironment")
 			newManagedEnv := generateEmptyManagedEnvironment(env.Name, env.Namespace)
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&newManagedEnv), &newManagedEnv)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(newManagedEnv.Spec.APIURL).To(Equal(env.Spec.UnstableConfigurationFields.APIURL),
 				"ManagedEnvironment should match the new Environment spec, not the old value of the managed env")
@@ -247,12 +247,12 @@ var _ = Describe("Environment controller tests", func() {
 
 			By("reconciling again, and confirming that nothing changed")
 			_, err = reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("retrieving the update ManagedEnvironment")
 			newManagedEnv = generateEmptyManagedEnvironment(env.Name, env.Namespace)
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&newManagedEnv), &newManagedEnv)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify that error condition is not set")
 			Expect(env.Status.Conditions).To(BeNil())
@@ -298,7 +298,7 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			_, err := reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 		})
 
@@ -326,7 +326,7 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err := k8sClient.Create(ctx, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("reconciling the Environment")
 			req := ctrl.Request{
@@ -336,10 +336,10 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			_, err = reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			expectEnvironmentStatusConditionError("the secret secret-that-doesnt-exist referenced by the Environment resource was not found", EnvironmentReasonSecretNotFound, env)
 
 		})
@@ -368,7 +368,7 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err := k8sClient.Create(ctx, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("reconciling the Environment")
 			req := ctrl.Request{
@@ -378,10 +378,10 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			_, err = reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			expectEnvironmentStatusConditionError("the secret secret-that-doesnt-exist referenced by the Environment resource was not found", EnvironmentReasonSecretNotFound, env)
 
 			By("fixing the error")
@@ -396,17 +396,17 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &secret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			env.Spec.UnstableConfigurationFields.ClusterCredentialsSecret = secret.Name
 			Expect(k8sClient.Update(ctx, &env)).To(Succeed())
 
 			By("reconciling again")
 			_, err = reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(env.Status.Conditions[0].Type).To(Equal(EnvironmentConditionErrorOccurred))
 			Expect(env.Status.Conditions[0].Status).To(Equal(metav1.ConditionFalse))
 			Expect(env.Status.Conditions[0].Reason).To(Equal(EnvironmentReasonErrorOccurred + "Resolved"))
@@ -418,10 +418,10 @@ var _ = Describe("Environment controller tests", func() {
 
 			By("ensuring that another reconcile has no effect on the condition")
 			_, err = reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(env.Status.Conditions[0].Type).To(Equal(EnvironmentConditionErrorOccurred))
 			Expect(env.Status.Conditions[0].Status).To(Equal(metav1.ConditionFalse))
 			Expect(env.Status.Conditions[0].Reason).To(Equal(EnvironmentReasonErrorOccurred + "Resolved"))
@@ -449,7 +449,7 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err := k8sClient.Create(ctx, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("reconciling the ManagedEnvironment")
 			req := ctrl.Request{
@@ -459,7 +459,7 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			_, err = reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("should return an error if both cluster credentials and DeploymentTargetClaim are provided", func() {
@@ -487,18 +487,18 @@ var _ = Describe("Environment controller tests", func() {
 			}
 
 			err := k8sClient.Create(ctx, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("check if an error is returned after reconciling")
 			req := newRequest(env.Namespace, env.Name)
 			res, err := reconciler.Reconcile(ctx, req)
 			Expect(res).To(Equal(reconcile.Result{}))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Checking status field after calling Reconciler")
 			env = appstudioshared.Environment{}
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			expectEnvironmentStatusConditionError("Environment is invalid since it cannot have both DeploymentTargetClaim and credentials configuration set", EnvironmentReasonInvalid, env)
 
 		})
@@ -514,7 +514,7 @@ var _ = Describe("Environment controller tests", func() {
 			}
 
 			err := k8sClient.Create(ctx, &clusterSecret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dt := appstudioshared.DeploymentTarget{
 				ObjectMeta: metav1.ObjectMeta{
@@ -539,7 +539,7 @@ var _ = Describe("Environment controller tests", func() {
 			}
 
 			err = k8sClient.Create(ctx, &dt)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dtc := appstudioshared.DeploymentTargetClaim{
 				ObjectMeta: metav1.ObjectMeta{
@@ -555,7 +555,7 @@ var _ = Describe("Environment controller tests", func() {
 			}
 
 			err = k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create an Environment that refers to the above DTC")
 			env := appstudioshared.Environment{
@@ -574,12 +574,12 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("reconcile and verify if a ManagedEnvironment is created with the right credentials")
 			req := newRequest(env.Namespace, env.Name)
 			res, err := reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			By("verify if a new managed-environment secret is created")
@@ -590,7 +590,7 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(string(managedEnvSecret.Type)).To(Equal(sharedutil.ManagedEnvironmentSecretType))
 			Expect(reflect.DeepEqual(managedEnvSecret.Data, clusterSecret.Data)).To(BeTrue())
@@ -605,7 +605,7 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the environment credentials match with the DT")
 			Expect(managedEnvCR.Spec.APIURL).To(Equal(dt.Spec.KubernetesClusterCredentials.APIURL))
@@ -621,42 +621,42 @@ var _ = Describe("Environment controller tests", func() {
 				"kubeconfig": []byte("updated"),
 			}
 			err = k8sClient.Update(ctx, &clusterSecret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			res, err = reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(reflect.DeepEqual(managedEnvSecret.Data, clusterSecret.Data)).To(BeTrue())
 
 			By("delete the credential secret and verify if the managed-environment secret is deleted")
 			err = k8sClient.Delete(ctx, &clusterSecret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			res, err = reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env); err != nil {
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			}
 			expectEnvironmentStatusConditionError("the secret test-secret referenced by the Environment resource was not found", EnvironmentReasonSecretNotFound, env)
 			Expect(res).To(Equal(reconcile.Result{}))
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(apierr.IsNotFound(err)).To(BeTrue())
 
 			By("delete environment resource")
 			err = k8sClient.Delete(ctx, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			res, err = reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			By("verify whether the GitOpsDeploymentManagedEnvironment has been deleted when the Environment resource is deleted.")
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(apierr.IsNotFound(err)).To(BeTrue())
 
 		},
@@ -673,7 +673,7 @@ var _ = Describe("Environment controller tests", func() {
 			}
 
 			err := k8sClient.Create(ctx, &clusterSecret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dt := appstudioshared.DeploymentTarget{
 				ObjectMeta: metav1.ObjectMeta{
@@ -693,7 +693,7 @@ var _ = Describe("Environment controller tests", func() {
 			}
 
 			err = k8sClient.Create(ctx, &dt)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dtc := appstudioshared.DeploymentTargetClaim{
 				ObjectMeta: metav1.ObjectMeta{
@@ -709,7 +709,7 @@ var _ = Describe("Environment controller tests", func() {
 			}
 
 			err = k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create an Environment that refer the above DTC")
 			env := appstudioshared.Environment{
@@ -728,12 +728,12 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("reconcile and verify if a ManagedEnvironment is created with the right credentials")
 			req := newRequest(env.Namespace, env.Name)
 			res, err := reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			By("verify if a new managed-environment secret is created")
@@ -744,7 +744,7 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(string(managedEnvSecret.Type)).To(Equal(sharedutil.ManagedEnvironmentSecretType))
 			Expect(reflect.DeepEqual(managedEnvSecret.Data, clusterSecret.Data)).To(BeTrue())
@@ -754,7 +754,7 @@ var _ = Describe("Environment controller tests", func() {
 
 			managedEnvCR := generateEmptyManagedEnvironment(env.Name, req.Namespace)
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the environment credentials match with the DT")
 			Expect(managedEnvCR.Spec.APIURL).To(Equal(dt.Spec.KubernetesClusterCredentials.APIURL))
@@ -766,44 +766,44 @@ var _ = Describe("Environment controller tests", func() {
 				"kubeconfig": []byte("updated"),
 			}
 			err = k8sClient.Update(ctx, &clusterSecret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			res, err = reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(reflect.DeepEqual(managedEnvSecret.Data, clusterSecret.Data)).To(BeTrue())
 
 			By("delete the credential secret and verify if the managed-environment secret is deleted")
 			err = k8sClient.Delete(ctx, &clusterSecret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			res, err = reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env); err != nil {
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			}
 			expectEnvironmentStatusConditionError("the secret test-secret referenced by the Environment resource was not found", EnvironmentReasonSecretNotFound, env)
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvSecret), &managedEnvSecret)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(apierr.IsNotFound(err)).To(BeTrue())
 
 			By("delete environment resource")
 			err = k8sClient.Delete(ctx, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			res, err = reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			By("verify whether the GitOpsDeploymentManagedEnvironment has been deleted when the Environment resource is deleted.")
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(apierr.IsNotFound(err)).To(BeTrue())
 		})
 
@@ -816,7 +816,7 @@ var _ = Describe("Environment controller tests", func() {
 			}
 
 			err := k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create an Environment that refer the above DTC")
 			env := appstudioshared.Environment{
@@ -835,17 +835,17 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("reconcile and verify that a ManagedEnvironment is not created")
 			req := newRequest(env.Namespace, env.Name)
 			res, err := reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			managedEnvCR := generateEmptyManagedEnvironment(env.Name, req.Namespace)
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(apierr.IsNotFound(err)).To(BeTrue())
 		})
 
@@ -868,18 +868,18 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err := k8sClient.Create(ctx, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("reconcile and verify if an error is returned")
 			req := newRequest(env.Namespace, env.Name)
 			res, err := reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			By("Checking status field after calling Reconciler")
 			env = appstudioshared.Environment{}
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			expectEnvironmentStatusConditionError("DeploymentTargetClaim not found while generating the desired Environment resource", EnvironmentReasonDeploymentTargetClaimNotFound, env)
 
@@ -896,7 +896,7 @@ var _ = Describe("Environment controller tests", func() {
 			}
 
 			err := k8sClient.Create(ctx, &unusedDT)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dtc := appstudioshared.DeploymentTargetClaim{
 				ObjectMeta: metav1.ObjectMeta{
@@ -909,7 +909,7 @@ var _ = Describe("Environment controller tests", func() {
 			}
 
 			err = k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create and Environment that refer the above DTC")
 			env := appstudioshared.Environment{
@@ -928,18 +928,18 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("reconcile and verify if an error is returned")
 			req := newRequest(env.Namespace, env.Name)
 			res, err := reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			By("Checking status field after calling Reconciler")
 			env = appstudioshared.Environment{}
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			expectEnvironmentStatusConditionError("DeploymentTarget not found for DeploymentTargetClaim", EnvironmentReasonDeploymentTargetNotFound, env)
 		})
@@ -960,7 +960,7 @@ var _ = Describe("Environment controller tests", func() {
 			}
 
 			err := k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create and Environment that refer the above DTC")
 			env := appstudioshared.Environment{
@@ -979,18 +979,18 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("reconcile and verify if an error is returned")
 			req := newRequest(env.Namespace, env.Name)
 			res, err := reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			By("Checking status field after calling Reconciler")
 			env = appstudioshared.Environment{}
 			err = reconciler.Get(ctx, req.NamespacedName, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			expectEnvironmentStatusConditionError("DeploymentTargetClaim references a DeploymentTarget that does not exist", EnvironmentReasonDeploymentTargetNotFound, env)
 		})
 
@@ -1003,17 +1003,17 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err := k8sClient.Create(ctx, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("reconcile and verify that a ManagedEnvironment is not created")
 			req := newRequest(env.Namespace, env.Name)
 			res, err := reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			managedEnvCR := generateEmptyManagedEnvironment(env.Name, req.Namespace)
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(apierr.IsNotFound(err)).To(BeTrue())
 		})
 
@@ -1028,7 +1028,7 @@ var _ = Describe("Environment controller tests", func() {
 			}
 
 			err := k8sClient.Create(ctx, &clusterSecret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dt := appstudioshared.DeploymentTarget{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1048,7 +1048,7 @@ var _ = Describe("Environment controller tests", func() {
 			}
 
 			err = k8sClient.Create(ctx, &dt)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dtc := appstudioshared.DeploymentTargetClaim{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1064,7 +1064,7 @@ var _ = Describe("Environment controller tests", func() {
 			}
 
 			err = k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create an Environment that refer the above DTC")
 			env := appstudioshared.Environment{
@@ -1083,12 +1083,12 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("reconcile and verify if a ManagedEnvironment is created")
 			req := newRequest(env.Namespace, env.Name)
 			res, err := reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(res).To(Equal(reconcile.Result{}))
 
 			By("verify if a new managed-environment secret is not created")
@@ -1105,7 +1105,7 @@ var _ = Describe("Environment controller tests", func() {
 
 			managedEnvCR := generateEmptyManagedEnvironment(env.Name, req.Namespace)
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the environment credentials match with the DT")
 			Expect(managedEnvCR.Spec.APIURL).To(Equal(dt.Spec.KubernetesClusterCredentials.APIURL))
@@ -1127,7 +1127,7 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &secret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			env := appstudioshared.Environment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1151,7 +1151,7 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &env)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			req := ctrl.Request{
 				NamespacedName: types.NamespacedName{
@@ -1160,11 +1160,11 @@ var _ = Describe("Environment controller tests", func() {
 				},
 			}
 			_, err = reconciler.Reconcile(ctx, req)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			managedEnvCR := generateEmptyManagedEnvironment(env.Name, req.Namespace)
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvCR), &managedEnvCR)
-			Expect(err).To(BeNil(), "the ManagedEnvironment object should have been created by the reconciler")
+			Expect(err).ToNot(HaveOccurred(), "the ManagedEnvironment object should have been created by the reconciler")
 
 			Expect(managedEnvCR.Spec.Namespaces).To(BeEmpty())
 			Expect(managedEnvCR.Spec.ClusterResources).To(BeFalse())
@@ -1196,7 +1196,7 @@ var _ = Describe("Environment controller tests", func() {
 					},
 				}
 				err := k8sClient.Create(ctx, &env1)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				env2 := appstudioshared.Environment{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1207,7 +1207,7 @@ var _ = Describe("Environment controller tests", func() {
 				env2.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName = dtc.Name
 				env2.ResourceVersion = ""
 				err = k8sClient.Create(ctx, &env2)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("check if the requests are mapped to the correct environments")
 				expectedReqs := map[string]int{
@@ -1215,7 +1215,7 @@ var _ = Describe("Environment controller tests", func() {
 					env2.Name: 1,
 				}
 				reqs := reconciler.findObjectsForDeploymentTargetClaim(&dtc)
-				Expect(len(reqs)).To(Equal(len(expectedReqs)))
+				Expect(reqs).To(HaveLen(len(expectedReqs)))
 				for _, r := range reqs {
 					Expect(expectedReqs[r.Name]).To(Equal(1))
 					expectedReqs[r.Name]--
@@ -1270,7 +1270,7 @@ var _ = Describe("Environment controller tests", func() {
 				}
 
 				err := k8sClient.Create(ctx, &dtc)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("create Environments that refer the above DTC")
 				env1 := appstudioshared.Environment{
@@ -1289,7 +1289,7 @@ var _ = Describe("Environment controller tests", func() {
 					},
 				}
 				err = k8sClient.Create(ctx, &env1)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				env2 := appstudioshared.Environment{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1300,7 +1300,7 @@ var _ = Describe("Environment controller tests", func() {
 				env2.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName = dtc.Name
 				env2.ResourceVersion = ""
 				err = k8sClient.Create(ctx, &env2)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("check if the requests are mapped to the correct environments")
 				expectedReqs := map[string]int{
@@ -1308,7 +1308,7 @@ var _ = Describe("Environment controller tests", func() {
 					env2.Name: 1,
 				}
 				reqs := reconciler.findObjectsForDeploymentTarget(&dt)
-				Expect(len(reqs)).To(Equal(len(expectedReqs)))
+				Expect(reqs).To(HaveLen(len(expectedReqs)))
 				for _, r := range reqs {
 					Expect(expectedReqs[r.Name]).To(Equal(1))
 					expectedReqs[r.Name]--
@@ -1354,7 +1354,7 @@ var _ = Describe("Environment controller tests", func() {
 				}
 
 				err := k8sClient.Create(ctx, &secret)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("create a DT and DTC that target each other")
 				dt := appstudioshared.DeploymentTarget{
@@ -1370,7 +1370,7 @@ var _ = Describe("Environment controller tests", func() {
 				}
 
 				err = k8sClient.Create(ctx, &dt)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				dtc := appstudioshared.DeploymentTargetClaim{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1383,7 +1383,7 @@ var _ = Describe("Environment controller tests", func() {
 				}
 
 				err = k8sClient.Create(ctx, &dtc)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("create Environments that refer the above DTC")
 				env1 := appstudioshared.Environment{
@@ -1402,7 +1402,7 @@ var _ = Describe("Environment controller tests", func() {
 					},
 				}
 				err = k8sClient.Create(ctx, &env1)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				env2 := appstudioshared.Environment{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1412,7 +1412,7 @@ var _ = Describe("Environment controller tests", func() {
 				}
 				env2.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName = dtc.Name
 				err = k8sClient.Create(ctx, &env2)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("check if the requests are mapped to the correct environments")
 				expectedReqs := map[string]int{
@@ -1420,7 +1420,7 @@ var _ = Describe("Environment controller tests", func() {
 					env2.Name: 1,
 				}
 				reqs := reconciler.findObjectsForSecret(&secret)
-				Expect(len(reqs)).To(Equal(len(expectedReqs)))
+				Expect(reqs).To(HaveLen(len(expectedReqs)))
 				for _, r := range reqs {
 					Expect(expectedReqs[r.Name]).To(Equal(1))
 					expectedReqs[r.Name]--
@@ -1486,7 +1486,7 @@ var _ = Describe("Environment controller tests", func() {
 				}
 
 				err := k8sClient.Create(ctx, &secret)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				secretAuth := corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1497,7 +1497,7 @@ var _ = Describe("Environment controller tests", func() {
 				}
 
 				err = k8sClient.Create(ctx, &secretAuth)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				reqs := reconciler.findObjectsForSecret(&secret)
 				Expect(reqs).To(Equal([]reconcile.Request{}))
@@ -1518,10 +1518,10 @@ var _ = Describe("Environment controller tests", func() {
 				kubesystemNamespace,
 				namespace,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = appstudioshared.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			apiNamespace = *namespace
 
@@ -1550,20 +1550,20 @@ var _ = Describe("Environment controller tests", func() {
 					},
 				}
 				err := k8sClient.Create(ctx, &env)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				env.Status.Conditions = preCondition
 				err = k8sClient.Update(ctx, &env)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				err = updateEnvironmentReconciledStatusCondition(ctx, k8sClient, newCondition.Message, &env,
 					newCondition.Status, newCondition.Reason, log)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&env), &env)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
-				Expect(len(env.Status.Conditions)).To(BeNumerically("==", 2))
+				Expect(env.Status.Conditions).To(HaveLen(2))
 
 				expectedCondition := expectedResult[0]
 				actualCondition := env.Status.Conditions[0]
@@ -1718,10 +1718,10 @@ var _ = Describe("Environment controller tests", func() {
 				kubesystemNamespace,
 				namespace,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = appstudioshared.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			apiNamespace = *namespace
 
@@ -1787,7 +1787,7 @@ func expectEnvironmentStatusConditionError(envMessage, envReason string, env app
 
 	// WithOffset tells Gingko to ignore this function when reporting the failing line in the test
 
-	ExpectWithOffset(1, len(env.Status.Conditions)).To(Equal(2), "two conditions should exist")
+	ExpectWithOffset(1, env.Status.Conditions).To(HaveLen(2), "two conditions should exist")
 
 	ExpectWithOffset(1, env.Status.Conditions[0].Type).To(Equal(EnvironmentConditionErrorOccurred), "type should be EnvironmentConditionErrorOccurred")
 	ExpectWithOffset(1, env.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue), "should be true")

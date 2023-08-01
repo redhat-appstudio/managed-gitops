@@ -39,7 +39,7 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 				panic(err)
 			}
 			err = fixture.DeleteNamespace(argocdNamespace, config)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 		})
 
@@ -50,14 +50,14 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 			log := log.FromContext(ctx)
 
 			config, err := fixture.GetSystemKubeConfig()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			apiHost := config.Host
 
 			k8sClient, err := fixture.GetKubeClient(config)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = argocdv1.ReconcileNamespaceScopedArgoCD(ctx, argocdCRName, argocdNamespace, k8sClient, log)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring ArgoCD service resource exists")
 			argocdInstance := &apps.Deployment{
@@ -65,11 +65,11 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 			}
 
 			Eventually(argocdInstance, "60s", "5s").Should(k8s.ExistByName(k8sClient))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring ArgoCD resource exists in kube-system namespace")
 			err = argocdv1.SetupArgoCD(ctx, apiHost, argocdNamespace, k8sClient, log)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			destinationNamespace := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
@@ -84,7 +84,7 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 			}
 
 			err = k8sClient.Create(ctx, destinationNamespace)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("creating ArgoCD application")
 			app := appv1.Application{
@@ -106,7 +106,7 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 			}
 
 			err = k8s.Create(&app, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			cs := argocdv1.NewCredentialService(nil, true)
 			Expect(cs).ToNot(BeNil())

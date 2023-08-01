@@ -98,11 +98,11 @@ var _ = Describe("Devsandbox deployment controller tests", func() {
 		It("should create a DeploymentTarget for a SpaceRequest with dtc Label", func() {
 			By("create a DTC ")
 			err := k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create a SpaceRequest")
 			err = k8sClient.Create(ctx, &spacerequest)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			patch := client.MergeFrom(spacerequest.DeepCopy())
 
@@ -121,7 +121,7 @@ var _ = Describe("Devsandbox deployment controller tests", func() {
 			spacerequest.Status.NamespaceAccess = append(spacerequest.Status.NamespaceAccess, namespaceaccess)
 
 			err = k8sClient.Status().Patch(ctx, &spacerequest, patch)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(spacerequest, "3m", "1s").Should(spfixture.HasStatus(corev1.ConditionTrue))
 			ready := condition.IsTrue(spacerequest.Status.Conditions, codereadytoolchainv1alpha1.ConditionReady)
@@ -133,15 +133,15 @@ var _ = Describe("Devsandbox deployment controller tests", func() {
 		It("should not create an extra DeploymentTarget for a SpaceRequest with an existing DT ", func() {
 			By("create a DTC ")
 			err := k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create a DT")
 			err = k8sClient.Create(ctx, &dt)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create a SpaceRequest")
 			err = k8sClient.Create(ctx, &spacerequest)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			patch := client.MergeFrom(spacerequest.DeepCopy())
 
@@ -160,7 +160,7 @@ var _ = Describe("Devsandbox deployment controller tests", func() {
 			spacerequest.Status.NamespaceAccess = append(spacerequest.Status.NamespaceAccess, namespaceaccess)
 
 			err = k8sClient.Status().Patch(ctx, &spacerequest, patch)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(spacerequest, "3m", "1s").Should(spfixture.HasStatus(corev1.ConditionTrue))
 			ready := condition.IsTrue(spacerequest.Status.Conditions, codereadytoolchainv1alpha1.ConditionReady)
@@ -173,12 +173,12 @@ var _ = Describe("Devsandbox deployment controller tests", func() {
 		It("shouldn't create a DeploymentTarget for a SpaceRequest with wrong value for dtc Label", func() {
 			By("create a DTC ")
 			err := k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			spacerequest.Labels["appstudio.openshift.io/dtc"] = "wrongvalue"
 			By("create a SpaceRequest")
 			err = k8sClient.Create(ctx, &spacerequest)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("check if a matching DeploymentTarget hasn't been created")
 			Eventually(spacerequest, "2m", "1s").Should(spfixture.HasANumberOfMatchingDTs(0))

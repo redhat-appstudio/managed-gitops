@@ -19,7 +19,7 @@ func HaveConditions(conditions []managedgitopsv1alpha1.GitOpsDeploymentSyncRunCo
 	return WithTransform(func(syncRun managedgitopsv1alpha1.GitOpsDeploymentSyncRun) bool {
 
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {

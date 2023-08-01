@@ -84,23 +84,23 @@ var _ = Describe("Query-scoped GitOpsDeployment tests", func() {
 		// Clean up all the resources that this test creates
 		cleanupTestResources := func() {
 			config, err := fixture.GetSystemKubeConfig()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			var secretList corev1.SecretList
 			err = k8sClient.List(context.Background(), &secretList, &client.ListOptions{Namespace: argoCDNamespace})
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			for index := range secretList.Items {
 				secret := secretList.Items[index]
 				if strings.HasPrefix(secret.Name, "test-") {
 					err = k8s.Delete(&secret, k8sClient)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 			}
 
 			for _, userName := range users {
 				err = fixture.DeleteNamespace(userName, config)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			}
 
 			By("cleaning up old ClusterRole/ClusterRoleBinding")
@@ -108,12 +108,12 @@ var _ = Describe("Query-scoped GitOpsDeployment tests", func() {
 				clusterRole, clusterRoleBinding := k8s.GenerateReadOnlyClusterRoleandBinding(userName)
 				err = k8sClient.Delete(context.Background(), &clusterRole)
 				if err != nil && !apierr.IsNotFound(err) {
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 
 				err = k8sClient.Delete(context.Background(), &clusterRoleBinding)
 				if err != nil && !apierr.IsNotFound(err) {
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 			}
 
@@ -134,7 +134,7 @@ var _ = Describe("Query-scoped GitOpsDeployment tests", func() {
 
 			for _, userName := range users {
 				userToken, err := k8s.CreateNamespaceScopedUserAccount(context.Background(), userName, clusterScopedSecrets, k8sClient, klog)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				userServiceAccountTokens[userName] = userToken
 			}
 
@@ -145,7 +145,7 @@ var _ = Describe("Query-scoped GitOpsDeployment tests", func() {
 				for userName, userToken := range userServiceAccountTokens {
 
 					_, apiServerURL, err := fixture.ExtractKubeConfigValues()
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					// We actually need a managed environment secret containing a kubeconfig that has the bearer token
 					kubeConfigContents := k8s.GenerateKubeConfig(apiServerURL, userName, userToken)
@@ -158,7 +158,7 @@ var _ = Describe("Query-scoped GitOpsDeployment tests", func() {
 						StringData: map[string]string{"kubeconfig": kubeConfigContents},
 					}
 					err = k8s.Create(&secret, k8sClient)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					managedEnv := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
 						ObjectMeta: metav1.ObjectMeta{
@@ -178,7 +178,7 @@ var _ = Describe("Query-scoped GitOpsDeployment tests", func() {
 					}
 
 					err = k8s.Create(&managedEnv, k8sClient)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 				}
 
@@ -187,10 +187,10 @@ var _ = Describe("Query-scoped GitOpsDeployment tests", func() {
 
 		BeforeEach(func() {
 			kubeConfig, err := fixture.GetSystemKubeConfig()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			k8sClient, err = fixture.GetKubeClient(kubeConfig)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			cleanupTestResources()
 		})
@@ -231,7 +231,7 @@ var _ = Describe("Query-scoped GitOpsDeployment tests", func() {
 					}
 
 					err := k8sClient.Create(context.Background(), &gitopsDeployment)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					By("ensuring GitOpsDeployment should have expected health and status")
 
@@ -254,8 +254,8 @@ var _ = Describe("Query-scoped GitOpsDeployment tests", func() {
 					By("finding the Argo CD Application that corresponds to the GitOpsDeployment")
 					var argoCDApplicationList appv1alpha1.ApplicationList
 					err = k8sClient.List(context.Background(), &argoCDApplicationList)
-					Expect(err).To(BeNil())
-					Expect(len(argoCDApplicationList.Items)).To(Equal(1))
+					Expect(err).ToNot(HaveOccurred())
+					Expect(argoCDApplicationList.Items).To(HaveLen(1))
 
 					item := argoCDApplicationList.Items[0]
 
@@ -267,13 +267,13 @@ var _ = Describe("Query-scoped GitOpsDeployment tests", func() {
 					}
 					By("ensuring the Secret that is pointed to by the Argo CD Application has the expected query parameter")
 					err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&clusterSecret), &clusterSecret)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 					Expect(clusterSecret.Data["server"]).To(ContainSubstring("?managedEnvironment="))
 
 					By("deleting the GitOpsDeployment")
 
 					err = k8sClient.Delete(context.Background(), &gitopsDeployment)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					By("ensuring the resources of the GitOps repo are successfully deleted")
 
@@ -291,7 +291,7 @@ var _ = Describe("Query-scoped GitOpsDeployment tests", func() {
 
 			createServiceAccountsAndSecretsForTest(clusterScoped)
 
-			Expect(len(users)).To(Equal(2))
+			Expect(users).To(HaveLen(2))
 
 			for idx, userName := range users {
 
@@ -320,7 +320,7 @@ var _ = Describe("Query-scoped GitOpsDeployment tests", func() {
 				}
 
 				err := k8sClient.Create(context.Background(), &gitopsDeployment)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("ensuring GitOpDeployment should have expected health and status")
 
@@ -344,7 +344,7 @@ var _ = Describe("Query-scoped GitOpsDeployment tests", func() {
 				By("ensuring the expected failure message is present")
 
 				err = k8s.Get(&gitopsDeployment, k8sClient)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("finding the Argo CD Application that corresponds to the GitOpsDeployment")
 
@@ -352,7 +352,7 @@ var _ = Describe("Query-scoped GitOpsDeployment tests", func() {
 
 				var argoCDApplicationList appv1alpha1.ApplicationList
 				err = k8sClient.List(context.Background(), &argoCDApplicationList)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				argoCDApplication := argoCDApplicationList.Items[0]
 
@@ -385,7 +385,7 @@ var _ = Describe("Query-scoped GitOpsDeployment tests", func() {
 				By("deleting the GitOpsDeployment")
 
 				err = k8sClient.Delete(context.Background(), &gitopsDeployment)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				eventuallyThereShouldBeXArgoCDApplications(0, false, true)
 

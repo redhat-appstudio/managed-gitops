@@ -39,10 +39,10 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				kubesystemNamespace,
 				apiNamespace,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = appstudiosharedv1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create fake client.")
 			k8sClient := fake.NewClientBuilder().
@@ -65,7 +65,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &environment)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create placeholder components")
 			component1 = appstudiosharedv1.Component{
@@ -79,7 +79,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &component1)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			component2 = appstudiosharedv1.Component{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "comp2",
@@ -91,7 +91,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &component2)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			component3 = appstudiosharedv1.Component{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "comp3",
@@ -103,7 +103,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &component3)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			promotionRunReconciler = PromotionRunReconciler{Client: k8sClient, Scheme: scheme}
 
@@ -127,7 +127,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 		It("Should do nothing as PromotionRun CR is not created.", func() {
 			By("Trigger Reconciler.")
 			_, err := promotionRunReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should do nothing as status is complete.", func() {
@@ -136,17 +136,17 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				State: appstudiosharedv1.PromotionRunState_Complete,
 			}
 			err := promotionRunReconciler.Create(ctx, promotionRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Trigger Reconciler.")
 			_, err = promotionRunReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 		})
 
 		It("Should fetch other PromotionRun CRs and ignore completed CRs.", func() {
 			err := promotionRunReconciler.Create(ctx, promotionRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create another PromotionRun CR.")
 			promotionRunTemp := &appstudiosharedv1.PromotionRun{
@@ -167,16 +167,16 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 
 			err = promotionRunReconciler.Create(ctx, promotionRunTemp)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Trigger Reconciler.")
 			_, err = promotionRunReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should fetch other PromotionRun CRs and ignore if Spec.Application is different.", func() {
 			err := promotionRunReconciler.Create(ctx, promotionRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create another PromotionRun CR.")
 			promotionRunTemp := &appstudiosharedv1.PromotionRun{
@@ -194,17 +194,17 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 
 			err = promotionRunReconciler.Create(ctx, promotionRunTemp)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Trigger Reconciler.")
 			_, err = promotionRunReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should return error if another PromotionRun CR is available pointing to same Application.", func() {
 			promotionRun.CreationTimestamp = metav1.NewTime(time.Now().Add(-time.Minute * 5))
 			err := promotionRunReconciler.Create(ctx, promotionRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create another PromotionRun CR.")
 			promotionRunTemp := &appstudiosharedv1.PromotionRun{
@@ -223,66 +223,66 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 
 			err = promotionRunReconciler.Create(ctx, promotionRunTemp)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Trigger Reconciler.")
 			_, err = promotionRunReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			checkStatusCondition(ctx, promotionRunReconciler.Client, promotionRun, "Error occurred while checking for existing active promotions.")
 		})
 
 		It("Should not support auto Promotion and Status.Condition should be updated if it already exists.", func() {
 			promotionRun.Spec.AutomatedPromotion.InitialEnvironment = "abc"
 			err := promotionRunReconciler.Create(ctx, promotionRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Trigger Reconciler.")
 			_, err = promotionRunReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = promotionRunReconciler.Client.Get(ctx, client.ObjectKeyFromObject(promotionRun), promotionRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			conditionsLen := len(promotionRun.Status.Conditions)
-			Expect(conditionsLen > 0)
+			Expect(conditionsLen).Should(BeNumerically(">", 0))
 			checkStatusCondition(ctx, promotionRunReconciler.Client, promotionRun, "Automated promotion are not yet supported.")
 
 			By("Trigger Reconciler again.")
 			_, err = promotionRunReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Check existing condition is updated instead of creating new.")
 			err = promotionRunReconciler.Client.Get(ctx, client.ObjectKeyFromObject(promotionRun), promotionRun)
-			Expect(err).To(BeNil())
-			Expect(conditionsLen > 0)
-			Expect(len(promotionRun.Status.Conditions) == conditionsLen)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(conditionsLen).Should(BeNumerically(">", 0))
+			Expect(promotionRun.Status.Conditions).To(HaveLen(conditionsLen))
 		})
 
 		It("Should not support invalid value for Target Environment", func() {
 			By("Set invalid Target Env.")
 			promotionRun.Spec.ManualPromotion.TargetEnvironment = ""
 			err := promotionRunReconciler.Create(ctx, promotionRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Trigger Reconciler.")
 			_, err = promotionRunReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			checkStatusCondition(ctx, promotionRunReconciler.Client, promotionRun, ErrMessageTargetEnvironmentHasInvalidValue)
 		})
 
 		It("Should create the binding for the application if it is not present.", func() {
 			err := promotionRunReconciler.Create(ctx, promotionRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Trigger Reconciler.")
 			_, err = promotionRunReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{}
 			err = promotionRunReconciler.Get(ctx, types.NamespacedName{
 				Name:      createBindingName(promotionRun),
 				Namespace: promotionRun.Namespace,
 			}, binding)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(binding.Labels).To(Equal(map[string]string{
 				"appstudio.application": promotionRun.Spec.Application,
@@ -291,7 +291,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(binding.Spec.Application).To(Equal(promotionRun.Spec.Application))
 			Expect(binding.Spec.Environment).To(Equal(promotionRun.Spec.ManualPromotion.TargetEnvironment))
 			Expect(binding.Spec.Snapshot).To(Equal(promotionRun.Spec.Snapshot))
-			Expect(len(binding.Spec.Components)).To(Equal(2))
+			Expect(binding.Spec.Components).To(HaveLen(2))
 			Expect(binding.Spec.Components[0].Name).To(Equal(component1.Spec.ComponentName))
 			Expect(binding.Spec.Components[1].Name).To(Equal(component2.Spec.ComponentName))
 		})
@@ -304,32 +304,32 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			By("Testing createBindingName explicitly")
 
 			createdBindingName := createBindingName(promotionRun)
-			Expect(len(createdBindingName) <= 250).To(BeTrue())
+			Expect(len(createdBindingName)).To(BeNumerically("<=", 250))
 			Expect(createdBindingName).To(Equal(expectedBindingName))
 
 			By("Then testing the binding is actually created with the given name")
 
 			component1.Spec.Application = promotionRun.Spec.Application
 			err := promotionRunReconciler.Update(ctx, &component1)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			component2.Spec.Application = promotionRun.Spec.Application
 			err = promotionRunReconciler.Update(ctx, &component2)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = promotionRunReconciler.Create(ctx, promotionRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Trigger Reconciler.")
 			_, err = promotionRunReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{}
 			err = promotionRunReconciler.Get(ctx, types.NamespacedName{
 				Name:      expectedBindingName,
 				Namespace: promotionRun.Namespace,
 			}, binding)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(binding.Labels).To(Equal(map[string]string{
 				"appstudio.application": promotionRun.Spec.Application,
@@ -338,14 +338,14 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			Expect(binding.Spec.Application).To(Equal(promotionRun.Spec.Application))
 			Expect(binding.Spec.Environment).To(Equal(promotionRun.Spec.ManualPromotion.TargetEnvironment))
 			Expect(binding.Spec.Snapshot).To(Equal(promotionRun.Spec.Snapshot))
-			Expect(len(binding.Spec.Components)).To(Equal(2))
+			Expect(binding.Spec.Components).To(HaveLen(2))
 			Expect(binding.Spec.Components[0].Name).To(Equal(component1.Spec.ComponentName))
 			Expect(binding.Spec.Components[1].Name).To(Equal(component2.Spec.ComponentName))
 		})
 
 		It("Should not create the binding for the application if one is already present that targets the application and the environment.", func() {
 			err := promotionRunReconciler.Create(ctx, promotionRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create binding (with non-default name).")
 			existingBinding := appstudiosharedv1.SnapshotEnvironmentBinding{
@@ -364,24 +364,24 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				},
 			}
 			err = promotionRunReconciler.Create(ctx, &existingBinding)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Trigger Reconciler.")
 			_, err = promotionRunReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{}
 			err = promotionRunReconciler.Get(ctx, types.NamespacedName{
 				Name:      createBindingName(promotionRun),
 				Namespace: promotionRun.Namespace,
 			}, binding)
-			Expect(err).To(Not(BeNil()))
+			Expect(err).To(HaveOccurred())
 			Expect(errors.IsNotFound(err)).To(BeTrue())
 		})
 
 		It("Should create the binding for the application even if there exists a binding that targets the application but NOT the environment.", func() {
 			err := promotionRunReconciler.Create(ctx, promotionRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			existingBinding := appstudiosharedv1.SnapshotEnvironmentBinding{
 				ObjectMeta: metav1.ObjectMeta{
@@ -399,18 +399,18 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				},
 			}
 			err = promotionRunReconciler.Create(ctx, &existingBinding)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Trigger Reconciler.")
 			_, err = promotionRunReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{}
 			err = promotionRunReconciler.Get(ctx, types.NamespacedName{
 				Name:      createBindingName(promotionRun),
 				Namespace: promotionRun.Namespace,
 			}, binding)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(binding.Labels).To(Equal(map[string]string{
 				"appstudio.application": promotionRun.Spec.Application,
@@ -425,7 +425,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 		It("Should create the binding for the application even if there exists a binding that targets the environment but NOT the application.", func() {
 			err := promotionRunReconciler.Create(ctx, promotionRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			existingBinding := appstudiosharedv1.SnapshotEnvironmentBinding{
 				ObjectMeta: metav1.ObjectMeta{
@@ -443,18 +443,18 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 				},
 			}
 			err = promotionRunReconciler.Create(ctx, &existingBinding)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Trigger Reconciler.")
 			_, err = promotionRunReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{}
 			err = promotionRunReconciler.Get(ctx, types.NamespacedName{
 				Name:      createBindingName(promotionRun),
 				Namespace: promotionRun.Namespace,
 			}, binding)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(binding.Labels).To(Equal(map[string]string{
 				"appstudio.application": promotionRun.Spec.Application,
@@ -481,7 +481,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 
 			err := promotionRunReconciler.Create(ctx, &snapshot)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create SnapshotEnvironmentBinding CR.")
 			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{
@@ -508,19 +508,19 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 
 			err = promotionRunReconciler.Create(ctx, binding)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = promotionRunReconciler.Create(ctx, promotionRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Trigger Reconciler.")
 			_, err = promotionRunReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = promotionRunReconciler.Client.Get(ctx, client.ObjectKeyFromObject(promotionRun), promotionRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(promotionRun.Status.State).To(Equal(appstudiosharedv1.PromotionRunState_Active))
-			Expect(len(promotionRun.Status.ActiveBindings)).To(Equal(1))
+			Expect(promotionRun.Status.ActiveBindings).To(HaveLen(1))
 			Expect(promotionRun.Status.ActiveBindings[0]).To(Equal(binding.Name))
 		})
 
@@ -538,7 +538,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 
 			err := promotionRunReconciler.Create(ctx, &snapshot)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create SnapshotEnvironmentBinding CR.")
 			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{
@@ -565,17 +565,17 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 
 			err = promotionRunReconciler.Create(ctx, binding)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Set the ActiveBinding for Promotion CR.")
 			promotionRun.Status.ActiveBindings = []string{"binding1"}
 
 			err = promotionRunReconciler.Create(ctx, promotionRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Trigger Reconciler.")
 			_, err = promotionRunReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			checkStatusCondition(ctx, promotionRunReconciler.Client, promotionRun, "The binding changed after the PromotionRun first start. The .spec fields of the PromotionRun are immutable, and should not be changed after being created. old-binding: binding1, new-binding: appa-staging-binding")
 		})
 
@@ -605,14 +605,14 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 
 			err := promotionRunReconciler.Create(ctx, binding)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = promotionRunReconciler.Create(ctx, promotionRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Trigger Reconciler.")
 			_, err = promotionRunReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			checkStatusCondition(ctx, promotionRunReconciler.Client, promotionRun, "Snapshot: "+promotionRun.Spec.Snapshot+" referred in Binding: "+binding.Name+" does not exist.")
 		})
@@ -631,7 +631,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 
 			err := promotionRunReconciler.Create(ctx, &snapshot)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create SnapshotEnvironmentBinding CR.")
 			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{
@@ -658,20 +658,20 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 
 			err = promotionRunReconciler.Create(ctx, binding)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Set Active Binding for Promotion CR.")
 			promotionRun.Status.ActiveBindings = []string{binding.Name}
 			err = promotionRunReconciler.Create(ctx, promotionRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Trigger Reconciler.")
 			_, err = promotionRunReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = promotionRunReconciler.Client.Get(ctx, client.ObjectKeyFromObject(promotionRun), promotionRun)
-			Expect(err).To(BeNil())
-			Expect(len(promotionRun.Status.EnvironmentStatus) > 0).To(BeTrue())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(promotionRun.Status.EnvironmentStatus).ToNot(BeEmpty())
 			Expect(promotionRun.Status.EnvironmentStatus[0].Step).To(Equal(1))
 			Expect(promotionRun.Status.EnvironmentStatus[0].DisplayStatus).To(Equal("Waiting for the environment binding to create all of the expected GitOpsDeployments."))
 			Expect(promotionRun.Status.EnvironmentStatus[0].Status).To(Equal(appstudiosharedv1.PromotionRunEnvironmentStatus_InProgress))
@@ -692,7 +692,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 
 			err := promotionRunReconciler.Create(ctx, &snapshot)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create SnapshotEnvironmentBinding CR.")
 			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{
@@ -727,7 +727,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 
 			err = promotionRunReconciler.Create(ctx, binding)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create GitOpsDeployment CR.")
 			gitOpsDeployment := &apibackend.GitOpsDeployment{
@@ -760,20 +760,20 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 
 			err = promotionRunReconciler.Create(ctx, gitOpsDeployment)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Set Active Binding for Promotion.")
 			promotionRun.Status.ActiveBindings = []string{binding.Name}
 			err = promotionRunReconciler.Create(ctx, promotionRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Trigger Reconciler.")
 			_, err = promotionRunReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = promotionRunReconciler.Client.Get(ctx, client.ObjectKeyFromObject(promotionRun), promotionRun)
-			Expect(err).To(BeNil())
-			Expect(len(promotionRun.Status.EnvironmentStatus) > 0).To(BeTrue())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(promotionRun.Status.EnvironmentStatus).ToNot(BeEmpty())
 			Expect(promotionRun.Status.EnvironmentStatus[0].Step).To(Equal(1))
 			Expect(promotionRun.Status.EnvironmentStatus[0].DisplayStatus).To(Equal("Waiting for following GitOpsDeployments to be Synced/Healthy: " + gitOpsDeployment.Name))
 			Expect(promotionRun.Status.EnvironmentStatus[0].Status).To(Equal(appstudiosharedv1.PromotionRunEnvironmentStatus_InProgress))
@@ -794,7 +794,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 
 			err := promotionRunReconciler.Create(ctx, &snapshot)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create SnapshotEnvironmentBinding CR.")
 			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{
@@ -829,7 +829,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 
 			err = promotionRunReconciler.Create(ctx, binding)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create GitOpsDeployment CR.")
 			gitOpsDeployment := &apibackend.GitOpsDeployment{
@@ -857,20 +857,20 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 
 			err = promotionRunReconciler.Create(ctx, gitOpsDeployment)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Set the Active Bindings for Promotion.")
 			promotionRun.Status.ActiveBindings = []string{binding.Name}
 			err = promotionRunReconciler.Create(ctx, promotionRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Trigger Reconciler.")
 			_, err = promotionRunReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = promotionRunReconciler.Client.Get(ctx, client.ObjectKeyFromObject(promotionRun), promotionRun)
-			Expect(err).To(BeNil())
-			Expect(len(promotionRun.Status.EnvironmentStatus) > 0).To(BeTrue())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(promotionRun.Status.EnvironmentStatus).ToNot(BeEmpty())
 			Expect(promotionRun.Status.EnvironmentStatus[0].Step).To(Equal(1))
 			Expect(promotionRun.Status.EnvironmentStatus[0].DisplayStatus).To(Equal(StatusMessageAllGitOpsDeploymentsAreSyncedHealthy))
 			Expect(promotionRun.Status.EnvironmentStatus[0].Status).To(Equal(appstudiosharedv1.PromotionRunEnvironmentStatus_Success))
@@ -891,7 +891,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 
 			err := promotionRunReconciler.Create(ctx, &snapshot)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create SnapshotEnvironmentBinding CR.")
 			binding := &appstudiosharedv1.SnapshotEnvironmentBinding{
@@ -926,7 +926,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 
 			err = promotionRunReconciler.Create(ctx, binding)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create GitOpsDeployment CR.")
 			gitOpsDeployment := &apibackend.GitOpsDeployment{
@@ -954,7 +954,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			}
 
 			err = promotionRunReconciler.Create(ctx, gitOpsDeployment)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Set the Active Bindings for Promotion.")
 			promotionRun.Status.ActiveBindings = []string{binding.Name}
@@ -964,11 +964,11 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 			promotionRun.Status.PromotionStartTime = metav1.NewTime(oldTime)
 
 			err = promotionRunReconciler.Create(ctx, promotionRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Trigger Reconciler.")
 			_, err = promotionRunReconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			checkStatusCondition(ctx, promotionRunReconciler.Client, promotionRun, fmt.Sprintf("Promotion Failed. Could not be completed in %d Minutes.", PromotionRunTimeOutLimit))
 		})
@@ -977,8 +977,9 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 func checkStatusCondition(ctx context.Context, rClient client.Client, promotionRun *appstudiosharedv1.PromotionRun, message string) {
 	err := rClient.Get(ctx, client.ObjectKeyFromObject(promotionRun), promotionRun)
-	Expect(err).To(BeNil())
-	Expect(len(promotionRun.Status.Conditions) > 0)
+	Expect(err).ToNot(HaveOccurred())
+	conditionsLen := len(promotionRun.Status.Conditions)
+	Expect(conditionsLen).Should(BeNumerically(">", 0))
 
 	for _, condition := range promotionRun.Status.Conditions {
 		if condition.Type == appstudiosharedv1.PromotionRunConditionErrorOccurred {

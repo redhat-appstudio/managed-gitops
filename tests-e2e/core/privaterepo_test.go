@@ -130,7 +130,7 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 			By("3. Create the GitOpsDeploymentRepositoryCredential CR for HTTPS")
 			CR := gitopsDeploymentRepositoryCredentialCRForTokenTest()
 			Expect(k8s.Create(CR, k8sClient)).To(Succeed())
-			Expect(len(CR.Status.Conditions)).To(Equal(3))
+			Expect(CR.Status.Conditions).To(HaveLen(3))
 
 			By("4. Create the GitOpsDeployment CR")
 			gitOpsDeployment := gitopsDeplFixture.BuildGitOpsDeploymentResource(deploymentCRToken, privateRepoURL, privateRepoPath,
@@ -186,7 +186,7 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 			By("3. Create the GitOpsDeploymentRepositoryCredential CR for SSH")
 			CR := gitopsDeploymentRepositoryCredentialCRForSSHTest()
 			Expect(k8s.Create(CR, k8sClient)).To(Succeed())
-			Expect(len(CR.Status.Conditions)).To(Equal(3))
+			Expect(CR.Status.Conditions).To(HaveLen(3))
 
 			By("4. Create the GitOpsDeployment CR")
 			gitOpsDeployment := gitopsDeplFixture.BuildGitOpsDeploymentResource(deploymentCRSSH, privateRepoSSH, privateRepoPath,
@@ -259,7 +259,7 @@ var _ = Describe("GitOpsRepositoryCredentials E2E tests", func() {
 			By("3. Create the GitOpsDeploymentRepositoryCredential CR for HTTPS")
 			CR := gitopsDeploymentRepositoryCredentialCRForTokenTest()
 			Expect(k8s.Create(CR, k8sClient)).To(Succeed())
-			Expect(len(CR.Status.Conditions)).To(Equal(3))
+			Expect(CR.Status.Conditions).To(HaveLen(3))
 			Eventually(CR, "12m", "1s").Should(
 				SatisfyAll(
 					gitopsDeplRepoCredFixture.HaveConditions(expectedRepositoryCredentialStatusConditions)),

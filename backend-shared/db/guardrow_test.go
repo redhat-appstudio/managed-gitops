@@ -13,11 +13,11 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 
 		It("Should test guard row against delete for ApiCRtoDBmapping", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx := context.Background()
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 
 			ApicrtodatabasemappingFirst := db.APICRToDatabaseMapping{
@@ -31,7 +31,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.CreateAPICRToDatabaseMapping(ctx, &ApicrtodatabasemappingFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ApicrtodatabasemappingSecond := db.APICRToDatabaseMapping{
 				APIResourceType:      "test-GitOpsDeployment",
@@ -43,14 +43,14 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				DBRelationKey:        "test-key-second",
 			}
 			err = dbq.CreateAPICRToDatabaseMapping(ctx, &ApicrtodatabasemappingSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			rowsAffected, err := dbq.DeleteAPICRToDatabaseMapping(ctx, &ApicrtodatabasemappingSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsAffected).To(Equal((1)))
 
 			err = dbq.GetDatabaseMappingForAPICR(ctx, &ApicrtodatabasemappingFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetDatabaseMappingForAPICR(ctx, &ApicrtodatabasemappingSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
@@ -59,15 +59,15 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 
 		It("Should test guard row against update and delete on application", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx := context.Background()
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationFirst := db.Application{
 				Application_id:          "test-my-application-1",
@@ -78,7 +78,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.CreateApplication(ctx, &applicationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationSecond := db.Application{
 				Application_id:          "test-my-application-2",
@@ -88,7 +88,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 			err = dbq.CreateApplication(ctx, &applicationSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationSecond = db.Application{
 				Application_id:          applicationSecond.Application_id,
@@ -101,20 +101,20 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.UpdateApplication(ctx, &applicationSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = dbq.GetApplicationById(ctx, &applicationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = dbq.GetApplicationById(ctx, &applicationSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(applicationSecond.Name).Should(Equal("test-application-update"))
 			Expect(applicationFirst.Name).ShouldNot(Equal(applicationSecond.Name))
 
 			rowsAffected, err := dbq.DeleteApplicationById(ctx, applicationSecond.Application_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsAffected).Should(Equal(1))
 
 			err = dbq.GetApplicationById(ctx, &applicationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetApplicationById(ctx, &applicationSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
@@ -123,15 +123,15 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 
 		It("Should test guard row against update and delete for applicationstates", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx := context.Background()
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationFirst := db.Application{
 				Application_id:          "test-my-application-1",
@@ -142,7 +142,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.CreateApplication(ctx, &applicationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationStateFirst := &db.ApplicationState{
 				Applicationstate_application_id: applicationFirst.Application_id,
@@ -154,7 +154,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.CreateApplicationState(ctx, applicationStateFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationSecond := db.Application{
 				Application_id:          "test-my-application-2",
@@ -164,7 +164,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 			err = dbq.CreateApplication(ctx, &applicationSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationStateSecond := &db.ApplicationState{
 				Applicationstate_application_id: applicationSecond.Application_id,
@@ -176,7 +176,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.CreateApplicationState(ctx, applicationStateSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			applicationStateSecond = &db.ApplicationState{
 				Applicationstate_application_id: applicationSecond.Application_id,
 				Health:                          "Progressing",
@@ -187,21 +187,21 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.UpdateApplicationState(ctx, applicationStateSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = dbq.GetApplicationStateById(ctx, applicationStateFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = dbq.GetApplicationStateById(ctx, applicationStateSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(applicationStateSecond.Sync_Status).Should(Equal("Sync"))
 			Expect(applicationStateFirst.Sync_Status).ShouldNot(Equal(applicationStateSecond.Sync_Status))
 
 			rowsAffected, err := dbq.DeleteApplicationStateById(ctx, applicationStateSecond.Applicationstate_application_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsAffected).Should(Equal(1))
 
 			err = dbq.GetApplicationStateById(ctx, applicationStateFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetApplicationStateById(ctx, applicationStateSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
@@ -210,11 +210,11 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 
 		It("Should test guard row against delete for clusteraccess", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx := context.Background()
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 
 			var clusterUser = &db.ClusterUser{
@@ -222,7 +222,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				User_name:      "test-user-1",
 			}
 			err = dbq.CreateClusterUser(ctx, clusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			clusterCredentialsFirst := db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-cluster-creds-test-1",
@@ -258,26 +258,26 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClusterFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstanceFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateClusterAccess(ctx, &clusterAccessFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			clusterUser = &db.ClusterUser{
 				Clusteruser_id: "test-user-2",
 				User_name:      "test-user-2",
 			}
 			err = dbq.CreateClusterUser(ctx, clusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			clusterCredentialsSecond := db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-cluster-creds-test-2",
@@ -313,26 +313,26 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClusterSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstanceSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateClusterAccess(ctx, &clusterAccessSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			affectedRows, err := dbq.DeleteClusterAccessById(ctx, clusterAccessSecond.Clusteraccess_user_id, clusterAccessSecond.Clusteraccess_managed_environment_id, clusterAccessSecond.Clusteraccess_gitops_engine_instance_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(affectedRows).To(Equal(1))
 
 			err = dbq.GetClusterAccessByPrimaryKey(ctx, &clusterAccessFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetClusterAccessByPrimaryKey(ctx, &clusterAccessSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
@@ -341,11 +341,11 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 
 		It("Should test guard row against delete for clustercredentials", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx := context.Background()
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 
 			clusterCredFirst := db.ClusterCredentials{
@@ -356,7 +356,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Serviceaccount_ns:           "test-serviceaccount_ns",
 			}
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			clusterCredSecond := db.ClusterCredentials{
 				Host:                        "test-host",
@@ -366,14 +366,14 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Serviceaccount_ns:           "test-serviceaccount_ns",
 			}
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			rowsAffected, err := dbq.DeleteClusterCredentialsById(ctx, clusterCredSecond.Clustercredentials_cred_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsAffected).Should(Equal(1))
 
 			err = dbq.GetClusterCredentialsById(ctx, &clusterCredFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetClusterCredentialsById(ctx, &clusterCredSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
@@ -382,11 +382,11 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 
 		It("Should test guard row against delete for clusteruser", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx := context.Background()
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 
 			userfirst := &db.ClusterUser{
@@ -394,21 +394,21 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				User_name:      "test-user-1",
 			}
 			err = dbq.CreateClusterUser(ctx, userfirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			usersecond := &db.ClusterUser{
 				Clusteruser_id: "test-user-id-2",
 				User_name:      "test-user-2",
 			}
 			err = dbq.CreateClusterUser(ctx, usersecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			rowsAffected, err := dbq.DeleteClusterUserById(ctx, usersecond.Clusteruser_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsAffected).Should(Equal(1))
 
 			err = dbq.GetClusterUserById(ctx, userfirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetClusterUserById(ctx, usersecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
@@ -417,15 +417,15 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 
 		It("Should test guard row against delete for deploymenttoapplicationmapping", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx := context.Background()
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationFirst := db.Application{
 				Application_id:          "test-my-application-1",
@@ -436,7 +436,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.CreateApplication(ctx, &applicationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			deploymentToApplicationMappingfirst := &db.DeploymentToApplicationMapping{
 				Deploymenttoapplicationmapping_uid_id: "test-" + generateUuid(),
@@ -447,7 +447,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.CreateDeploymentToApplicationMapping(ctx, deploymentToApplicationMappingfirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationSecond := db.Application{
 				Application_id:          "test-my-application-2",
@@ -457,7 +457,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 			err = dbq.CreateApplication(ctx, &applicationSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			deploymentToApplicationMappingsecond := &db.DeploymentToApplicationMapping{
 				Deploymenttoapplicationmapping_uid_id: "test-" + generateUuid(),
@@ -468,14 +468,14 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.CreateDeploymentToApplicationMapping(ctx, deploymentToApplicationMappingsecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			rowsAffected, err := dbq.DeleteDeploymentToApplicationMappingByDeplId(ctx, deploymentToApplicationMappingsecond.Deploymenttoapplicationmapping_uid_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsAffected).Should(Equal(1))
 
 			err = dbq.GetDeploymentToApplicationMappingByDeplId(ctx, deploymentToApplicationMappingfirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetDeploymentToApplicationMappingByDeplId(ctx, deploymentToApplicationMappingsecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
@@ -484,11 +484,11 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 
 		It("Should test guard row against delete for gitopsenginecluster", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx := context.Background()
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 
 			clusterCredentialsFirst := db.ClusterCredentials{
@@ -506,10 +506,10 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClusterFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			clusterCredentialsSecond := db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-cluster-creds-test-2",
@@ -526,17 +526,17 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClusterSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			rowsAffected, err := dbq.DeleteGitopsEngineClusterById(ctx, gitopsEngineClusterSecond.Gitopsenginecluster_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsAffected).Should(Equal(1))
 
 			err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineClusterFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineClusterSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
@@ -544,11 +544,11 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 
 		It("Should test guard row against delete for gitopsengineinstance", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx := context.Background()
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 
 			clusterCredentialsFirst := db.ClusterCredentials{
@@ -572,13 +572,13 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				EngineCluster_id:        gitopsEngineClusterFirst.Gitopsenginecluster_id,
 			}
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClusterFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstanceFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			clusterCredentialsSecond := db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-cluster-creds-test-2",
@@ -601,20 +601,20 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				EngineCluster_id:        gitopsEngineClusterSecond.Gitopsenginecluster_id,
 			}
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClusterSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstanceSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			rowsAffected, err := dbq.DeleteGitopsEngineInstanceById(ctx, gitopsEngineInstanceSecond.Gitopsengineinstance_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsAffected).Should(Equal(1))
 
 			err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstanceFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstanceSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
@@ -622,11 +622,11 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 
 		It("Should test guard row against delete on k8stodbmapping", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx := context.Background()
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 
 			kubernetesToDBResourceMappingFirst := db.KubernetesToDBResourceMapping{
@@ -636,7 +636,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				DBRelationKey:          "test-relation_key",
 			}
 			err = dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMappingFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			kubernetesToDBResourceMappingSecond := db.KubernetesToDBResourceMapping{
 				KubernetesResourceType: "test-resource_2",
@@ -645,14 +645,14 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				DBRelationKey:          "test-relation_key",
 			}
 			err = dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMappingSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			rowsAffected, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMappingSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsAffected).Should(Equal(1))
 
 			err = dbq.GetDBResourceMappingForKubernetesResource(ctx, &kubernetesToDBResourceMappingFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetDBResourceMappingForKubernetesResource(ctx, &kubernetesToDBResourceMappingSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
@@ -661,11 +661,11 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 
 		It("Should test guard row against update and delete on managedenvironment", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx := context.Background()
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 
 			clusterCredentialsFirst := db.ClusterCredentials{
@@ -684,10 +684,10 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			clusterCredentialsSecond := db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-cluster-creds-test-2",
@@ -705,10 +705,10 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			managedEnvironmentSecond = db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env-2",
@@ -719,21 +719,21 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.UpdateManagedEnvironment(ctx, &managedEnvironmentSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(managedEnvironmentSecond.Name).Should(Equal("my-env101-update"))
 			Expect(managedEnvironmentFirst.Name).ShouldNot(Equal(managedEnvironmentSecond.Name))
 
 			rowsAffected, err := dbq.DeleteManagedEnvironmentById(ctx, managedEnvironmentSecond.Managedenvironment_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsAffected).Should(Equal(1))
 
 			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
@@ -742,15 +742,15 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 
 		It("Should test guard row against update and delete for operation", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx := context.Background()
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 
 			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			var testClusterUser = &db.ClusterUser{
 				Clusteruser_id: "test-user-1",
 				User_name:      "test-user-1",
@@ -764,10 +764,10 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Operation_owner_user_id: testClusterUser.Clusteruser_id,
 			}
 			err = dbq.CreateClusterUser(ctx, testClusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateOperation(ctx, &operationFirst, operationFirst.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			testClusterUser = &db.ClusterUser{
 				Clusteruser_id: "test-user-2",
@@ -782,10 +782,10 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				Operation_owner_user_id: testClusterUser.Clusteruser_id,
 			}
 			err = dbq.CreateClusterUser(ctx, testClusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.CreateOperation(ctx, &operationSecond, operationSecond.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			operationSecond = db.Operation{
 				Operation_id:            "test-operation-2",
@@ -800,21 +800,21 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.UpdateOperation(ctx, &operationSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = dbq.GetOperationById(ctx, &operationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = dbq.GetOperationById(ctx, &operationSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(operationSecond.Resource_id).Should(Equal("test-fake-resource-id-update"))
 			Expect(operationFirst.Resource_id).ShouldNot(Equal(operationSecond.Resource_id))
 
 			rowsAffected, err := dbq.DeleteOperationById(ctx, operationSecond.Operation_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsAffected).Should(Equal(1))
 
 			err = dbq.GetOperationById(ctx, &operationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetOperationById(ctx, &operationSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
@@ -823,22 +823,22 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 
 		It("Should test guard row against delete for syncoperation", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx := context.Background()
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			var testClusterUser = &db.ClusterUser{
 				Clusteruser_id: "test-user-1",
 				User_name:      "test-user-1",
 			}
 			err = dbq.CreateClusterUser(ctx, testClusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			applicationFirst := db.Application{
 				Application_id:          "test-my-application-1",
 				Name:                    "my-application",
@@ -848,7 +848,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.CreateApplication(ctx, &applicationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			operationFirst := &db.Operation{
 				Operation_id:            "test-operation-1",
@@ -860,7 +860,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.CreateOperation(ctx, operationFirst, operationFirst.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			syncoperationFirst := db.SyncOperation{
 				SyncOperation_id:    "test-sync-1",
@@ -871,14 +871,14 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.CreateSyncOperation(ctx, &syncoperationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			testClusterUser = &db.ClusterUser{
 				Clusteruser_id: "test-user-2",
 				User_name:      "test-user-2",
 			}
 			err = dbq.CreateClusterUser(ctx, testClusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationSecond := db.Application{
 				Application_id:          "test-my-application-2",
@@ -889,7 +889,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.CreateApplication(ctx, &applicationSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			operationSecond := &db.Operation{
 				Operation_id:            "test-operation-2",
@@ -901,7 +901,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.CreateOperation(ctx, operationSecond, operationSecond.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			syncoperationSecond := db.SyncOperation{
 				SyncOperation_id:    "test-sync-2",
@@ -912,14 +912,14 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			}
 
 			err = dbq.CreateSyncOperation(ctx, &syncoperationSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			rowsAffected, err := dbq.DeleteSyncOperationById(ctx, syncoperationSecond.SyncOperation_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsAffected).Should(Equal(1))
 
 			err = dbq.GetSyncOperationById(ctx, &syncoperationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetSyncOperationById(ctx, &syncoperationSecond)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
@@ -928,22 +928,22 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 
 		It("Should test guard row against update and delete for repo creds", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx := context.Background()
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 
 			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			var testClusterUser = &db.ClusterUser{
 				Clusteruser_id: "test-user-1",
 				User_name:      "test-user-1",
 			}
 			err = dbq.CreateClusterUser(ctx, testClusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsRepositoryCredentialsFirst := db.RepositoryCredentials{
 				RepositoryCredentialsID: "test-repo-cred-id",
@@ -956,14 +956,14 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				EngineClusterID:         gitopsEngineInstance.Gitopsengineinstance_id, // constrain 'fk_gitopsengineinstance_id'
 			}
 			err = dbq.CreateRepositoryCredentials(ctx, &gitopsRepositoryCredentialsFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			testClusterUser = &db.ClusterUser{
 				Clusteruser_id: "test-user-2",
 				User_name:      "test-user-2",
 			}
 			err = dbq.CreateClusterUser(ctx, testClusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsRepositoryCredentialsSecond := db.RepositoryCredentials{
 				RepositoryCredentialsID: "test-repo-cred-id-2",
@@ -976,31 +976,31 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 				EngineClusterID:         gitopsEngineInstance.Gitopsengineinstance_id, // constrain 'fk_gitopsengineinstance_id'
 			}
 			err = dbq.CreateRepositoryCredentials(ctx, &gitopsRepositoryCredentialsSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			fetch, err := dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsSecond.RepositoryCredentialsID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsRepositoryCredentialsSecond = fetch
 			gitopsRepositoryCredentialsSecond.AuthUsername = "updated-auth-username"
 
 			err = dbq.UpdateRepositoryCredentials(ctx, &gitopsRepositoryCredentialsSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsRepositoryCredentialsFirst, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsFirst.RepositoryCredentialsID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			gitopsRepositoryCredentialsSecond, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsSecond.RepositoryCredentialsID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(gitopsRepositoryCredentialsSecond.AuthUsername).Should(Equal("updated-auth-username"))
 			Expect(gitopsRepositoryCredentialsFirst.AuthUsername).ShouldNot(Equal(gitopsRepositoryCredentialsSecond.AuthUsername))
 
 			rowsAffected, err := dbq.DeleteRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsSecond.RepositoryCredentialsID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsAffected).Should(Equal(1))
 
 			_, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsFirst.RepositoryCredentialsID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsSecond.RepositoryCredentialsID)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))

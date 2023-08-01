@@ -14,11 +14,11 @@ import (
 var _ = Describe("Managedenvironment Test", func() {
 	It("Should Create, Get and Delete a ManagedEnvironment", func() {
 		err := db.SetupForTestingDBGinkgo()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		ctx := context.Background()
 		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		defer dbq.CloseDatabase()
 
 		clusterCredentials := db.ClusterCredentials{
@@ -37,10 +37,10 @@ var _ = Describe("Managedenvironment Test", func() {
 		}
 
 		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		getmanagedEnvironment := db.ManagedEnvironment{
 			Managedenvironment_id: managedEnvironment.Managedenvironment_id,
@@ -49,13 +49,13 @@ var _ = Describe("Managedenvironment Test", func() {
 			Clustercredentials_id: managedEnvironment.Clustercredentials_id,
 		}
 		err = dbq.GetManagedEnvironmentById(ctx, &getmanagedEnvironment)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(managedEnvironment.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 		managedEnvironment.Created_on = getmanagedEnvironment.Created_on
 		Expect(managedEnvironment).Should(Equal(getmanagedEnvironment))
 
 		rowsAffected, err := dbq.DeleteManagedEnvironmentById(ctx, getmanagedEnvironment.Managedenvironment_id)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).Should(Equal(1))
 
 		err = dbq.GetManagedEnvironmentById(ctx, &getmanagedEnvironment)
@@ -78,15 +78,15 @@ var _ = Describe("Managedenvironment Test", func() {
 	It("Should List all the ManagedEnvironment entries", func() {
 
 		err := db.SetupForTestingDBGinkgo()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		ctx := context.Background()
 		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		defer dbq.CloseDatabase()
 
 		clusterCredentials, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		var testClusterUser = &db.ClusterUser{
 			Clusteruser_id: "test-user-1",
@@ -103,21 +103,21 @@ var _ = Describe("Managedenvironment Test", func() {
 			Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
 		}
 		err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentput)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		err = dbq.CreateClusterUser(ctx, testClusterUser)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		err = dbq.CreateClusterAccess(ctx, &clusterAccessput)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		var managedEnvironmentget []db.ManagedEnvironment
 
 		err = dbq.ListManagedEnvironmentForClusterCredentialsAndOwnerId(ctx, clusterCredentials.Clustercredentials_cred_id, clusterAccessput.Clusteraccess_user_id, &managedEnvironmentget)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		Expect(managedEnvironmentget[0].Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 		managedEnvironmentget[0].Created_on = managedEnvironmentput.Created_on
 		Expect(managedEnvironmentget[0]).Should(Equal(managedEnvironmentput))
-		Expect(len(managedEnvironmentget)).Should(Equal(1))
+		Expect(managedEnvironmentget).Should(HaveLen(1))
 
 	})
 

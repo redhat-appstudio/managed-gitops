@@ -12,15 +12,15 @@ var _ = Describe("ApplicationStates Tests", func() {
 	Context("It should execute all DB functions for ApplicationStates", func() {
 		It("Should execute all ApplicationStates Functions", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx := context.Background()
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			application := &db.Application{
 				Application_id:          "test-my-application",
@@ -31,7 +31,7 @@ var _ = Describe("ApplicationStates Tests", func() {
 			}
 
 			err = dbq.CreateApplication(ctx, application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationState := &db.ApplicationState{
 				Applicationstate_application_id: application.Application_id,
@@ -43,35 +43,35 @@ var _ = Describe("ApplicationStates Tests", func() {
 			}
 
 			err = dbq.CreateApplicationState(ctx, applicationState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			fetchObj := &db.ApplicationState{
 				Applicationstate_application_id: application.Application_id,
 			}
 			err = dbq.GetApplicationStateById(ctx, fetchObj)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(fetchObj).Should(Equal(applicationState))
 
 			applicationState.Health = "Healthy"
 			applicationState.Sync_Status = "Synced"
 			err = dbq.UpdateApplicationState(ctx, applicationState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetApplicationStateById(ctx, fetchObj)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(fetchObj).Should(Equal(applicationState))
 
 			rowsAffected, err := dbq.DeleteApplicationStateById(ctx, fetchObj.Applicationstate_application_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsAffected).To(Equal(1))
 			err = dbq.GetApplicationStateById(ctx, fetchObj)
-			Expect(db.IsResultNotFoundError(err)).To(Equal(true))
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 			// Set the invalid value
 			applicationState.Resources = make([]byte, 262145)
 
 			err = dbq.CreateApplicationState(ctx, applicationState)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 		})
 	})
 })

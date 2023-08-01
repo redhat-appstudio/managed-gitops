@@ -32,10 +32,10 @@ var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", fun
 		It("ensures that a standalone ArgoCD gets created successfully when an operation CR of resource-type GitOpsEngineInstance is created", func() {
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
@@ -55,10 +55,10 @@ var _ = Describe("ArgoCD instance via GitOpsEngineInstance Operations Test", fun
 				},
 			}
 			err = k8sClient.Create(ctx, newArgoCDNamespace)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = util.CreateNewArgoCDInstance(ctx, newArgoCDNamespace, *testClusterUser, k8sClient, log, dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring ArgoCD service resource exists")
 			argocdInstance := &apps.Deployment{

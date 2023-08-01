@@ -46,7 +46,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				kubesystemNamespace,
 				apiNamespace,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create fake client
 			k8sClient = fake.NewClientBuilder().
@@ -55,15 +55,15 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Build()
 
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 			log = logger.FromContext(ctx)
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err = db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create Application entry
 			application = db.Application{
@@ -74,7 +74,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 			err = dbq.CreateApplication(ctx, &application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create ApplicationState entry
 			applicationState = db.ApplicationState{
@@ -84,7 +84,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				ReconciledState:                 "Healthy",
 			}
 			err = dbq.CreateApplicationState(ctx, &applicationState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDepl = managedgitopsv1alpha1.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -107,11 +107,11 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				NamespaceUID:                          "demo-namespace",
 			}
 			err = dbq.CreateDeploymentToApplicationMapping(ctx, &deploymentToApplicationMapping)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create GitOpsDeployment CR in cluster
 			err = k8sClient.Create(context.Background(), &gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create SyncOperation entry
 			syncOperation = db.SyncOperation{
@@ -122,7 +122,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				DesiredState:        "Synced",
 			}
 			err = dbq.CreateSyncOperation(ctx, &syncOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should not delete any of the database entries as long as the GitOpsDeployment CR is present in cluster, and the UID matches the DTAM value", func() {
@@ -133,17 +133,17 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 			By("Verify that no entry is deleted from DB.")
 			err := dbq.GetApplicationStateById(ctx, &applicationState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetSyncOperationById(ctx, &syncOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(syncOperation.Application_id).NotTo(BeEmpty())
 
 			err = dbq.GetDeploymentToApplicationMappingByApplicationId(ctx, &deploymentToApplicationMapping)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetApplicationById(ctx, &application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should delete related database entries from DB, if the GitOpsDeployment CRs of the DTAM is not present on cluster.", func() {
@@ -154,7 +154,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			applicationOne.Application_id = "test-my-application-1"
 			applicationOne.Name = "my-application-1"
 			err := dbq.CreateApplication(ctx, &applicationOne)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create another DeploymentToApplicationMapping entry
 			deploymentToApplicationMappingOne := deploymentToApplicationMapping
@@ -162,13 +162,13 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			deploymentToApplicationMappingOne.Application_id = applicationOne.Application_id
 			deploymentToApplicationMappingOne.DeploymentName = "test-deployment-1"
 			err = dbq.CreateDeploymentToApplicationMapping(ctx, &deploymentToApplicationMappingOne)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create another ApplicationState entry
 			applicationStateOne := applicationState
 			applicationStateOne.Applicationstate_application_id = applicationOne.Application_id
 			err = dbq.CreateApplicationState(ctx, &applicationStateOne)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create another SyncOperation entry
 			syncOperationOne := syncOperation
@@ -176,7 +176,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			syncOperationOne.Application_id = applicationOne.Application_id
 			syncOperationOne.DeploymentNameField = deploymentToApplicationMappingOne.DeploymentName
 			err = dbq.CreateSyncOperation(ctx, &syncOperationOne)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call cleanOrphanedEntriesfromTable_DTAM function to check/delete DB entries if GitOpsDeployment CR is not present.")
 			cleanOrphanedEntriesfromTable_DTAM(ctx, dbq, k8sClient, true, log)
@@ -184,17 +184,17 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that entries for the GitOpsDeployment which is available in cluster, are not deleted from DB.")
 
 			err = dbq.GetApplicationStateById(ctx, &applicationState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetSyncOperationById(ctx, &syncOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(syncOperation.Application_id).To(Equal(application.Application_id))
 
 			err = dbq.GetDeploymentToApplicationMappingByApplicationId(ctx, &deploymentToApplicationMapping)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetApplicationById(ctx, &application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Verify that entries for the GitOpsDeployment which is not available in cluster, are deleted from DB.")
 
@@ -202,7 +202,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 			err = dbq.GetSyncOperationById(ctx, &syncOperationOne)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(syncOperationOne.Application_id).To(BeEmpty())
 
 			err = dbq.GetDeploymentToApplicationMappingByApplicationId(ctx, &deploymentToApplicationMappingOne)
@@ -219,10 +219,10 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			newUID := "test-" + uuid.NewUUID()
 			gitopsDepl.UID = newUID
 			err := k8sClient.Update(ctx, &gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&gitopsDepl), &gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(gitopsDepl.UID).To(Equal(newUID))
 
 			By("calling cleanOrphanedEntriesfromTable_DTAM function to check delete DB entries if GitOpsDeployment CR is not present.")
@@ -234,7 +234,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 			err = dbq.GetSyncOperationById(ctx, &syncOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(syncOperation.Application_id).To(BeEmpty())
 
 			err = dbq.GetDeploymentToApplicationMappingByApplicationId(ctx, &deploymentToApplicationMapping)
@@ -263,7 +263,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 					kubesystemNamespace,
 					apiNamespace,
 					err := tests.GenericTestSetup()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create fake client
 				k8sClient = fake.NewClientBuilder().
@@ -272,12 +272,12 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 					Build()
 
 				err = db.SetupForTestingDBGinkgo()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				ctx = context.Background()
 				log = logger.FromContext(ctx)
 				dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Create required CRs in Cluster.")
 
@@ -291,7 +291,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 					StringData: map[string]string{shared_resource_loop.KubeconfigKey: "abc"},
 				}
 				err = k8sClient.Create(context.Background(), secretCr)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create GitOpsDeploymentManagedEnvironment CR in cluster
 				managedEnvCr = &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
@@ -307,7 +307,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 					},
 				}
 				err = k8sClient.Create(context.Background(), managedEnvCr)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Create required DB entries.")
 
@@ -321,7 +321,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 					Serviceaccount_ns:           "Serviceaccount_ns",
 				}
 				err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create DB entry for ManagedEnvironment
 				managedEnvironmentDb = db.ManagedEnvironment{
@@ -330,7 +330,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 					Name:                  managedEnvCr.Name,
 				}
 				err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create DB entry for APICRToDatabaseMapping
 				apiCRToDatabaseMappingDb = db.APICRToDatabaseMapping{
@@ -348,29 +348,29 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				defer dbq.CloseDatabase()
 
 				err := dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
 				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, true, log)
 
 				By("Verify that no entry is deleted from DB.")
 				err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				err = dbq.GetAPICRForDatabaseUID(ctx, &apiCRToDatabaseMappingDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			})
 
 			It("Should delete related database entries from DB, if the Managed Environment CR of the APICRToDatabaseMapping is not present on cluster.", func() {
 				defer dbq.CloseDatabase()
 
 				err := dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create DB entry for ClusterCredentials
 				clusterCredentialsDb.Clustercredentials_cred_id = "test-" + string(uuid.NewUUID())
 				err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create another ManagedEnvironment entry
 				managedEnvironmentDbTemp := managedEnvironmentDb
@@ -378,7 +378,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				managedEnvironmentDb.Managedenvironment_id = "test-" + string(uuid.NewUUID())
 				managedEnvironmentDb.Clustercredentials_id = clusterCredentialsDb.Clustercredentials_cred_id
 				err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create another APICRToDatabaseMapping entry
 				apiCRToDatabaseMappingDbTemp := apiCRToDatabaseMappingDb
@@ -386,7 +386,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				apiCRToDatabaseMappingDb.APIResourceUID = "test-" + string(uuid.NewUUID())
 				apiCRToDatabaseMappingDb.APIResourceName = managedEnvironmentDb.Name
 				err = dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
 				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, true, log)
@@ -402,10 +402,10 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				By("Verify that entries for the ManagedEnvironment which is available in cluster, are not deleted from DB.")
 
 				err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentDbTemp)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				err = dbq.GetAPICRForDatabaseUID(ctx, &apiCRToDatabaseMappingDbTemp)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			})
 
 			It("Should delete related database entries from DB, if the Managed Environment CR is present in cluster, but the UID doesn't match what is in the APICRToDatabaseMapping", func() {
@@ -414,7 +414,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				// Create another ACTDB entry
 				apiCRToDatabaseMappingDb.APIResourceUID = "test-" + string(uuid.NewUUID())
 				err := dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
 				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, true, log)
@@ -432,12 +432,12 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				defer dbq.CloseDatabase()
 
 				err := dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create DB entry for ClusterCredentials
 				clusterCredentialsDb.Clustercredentials_cred_id = "test-" + string(uuid.NewUUID())
 				err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create another ManagedEnvironment entry
 				managedEnvironmentDbTemp := managedEnvironmentDb
@@ -445,7 +445,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				managedEnvironmentDb.Managedenvironment_id = "test-" + string(uuid.NewUUID())
 				managedEnvironmentDb.Clustercredentials_id = clusterCredentialsDb.Clustercredentials_cred_id
 				err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create another APICRToDatabaseMapping entry
 				apiCRToDatabaseMappingDbTemp := apiCRToDatabaseMappingDb
@@ -453,10 +453,10 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				apiCRToDatabaseMappingDb.APIResourceUID = "test-" + string(uuid.NewUUID())
 				apiCRToDatabaseMappingDb.APIResourceName = managedEnvironmentDb.Name
 				err = dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				_, _, engineCluster, _, _, err := db.CreateSampleData(dbq)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				gitopsEngineInstance := &db.GitopsEngineInstance{
 					Gitopsengineinstance_id: "test-fake-instance-id",
 					Namespace_name:          "gitops-service-argocd",
@@ -464,7 +464,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 					EngineCluster_id:        engineCluster.Gitopsenginecluster_id,
 				}
 				err = dbq.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create DB entry for Application
 				applicationDb := &db.Application{
@@ -475,7 +475,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 					Managed_environment_id:  managedEnvironmentDb.Managedenvironment_id,
 				}
 				err = dbq.CreateApplication(ctx, applicationDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
 				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, MockSRLK8sClientFactory{fakeClient: k8sClient}, true, log)
@@ -491,17 +491,17 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				By("Verify that entries for the ManagedEnvironment which is available in cluster, are not deleted from DB.")
 
 				err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentDbTemp)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				err = dbq.GetAPICRForDatabaseUID(ctx, &apiCRToDatabaseMappingDbTemp)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Verify that Operation for the ManagedEnvironment is created.")
 
 				var operationlist []db.Operation
 				err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, managedEnvironmentDb.Managedenvironment_id, db.OperationResourceType_ManagedEnvironment, &operationlist, "cluster-agent-application-sync-user")
-				Expect(err).To(BeNil())
-				Expect(len(operationlist)).ShouldNot(Equal(0))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(operationlist).ShouldNot(BeEmpty())
 				Expect(operationlist[0].Resource_id).To(Equal(managedEnvironmentDb.Managedenvironment_id))
 			})
 		})
@@ -522,7 +522,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 					kubesystemNamespace,
 					apiNamespace,
 					err := tests.GenericTestSetup()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create fake client
 				k8sClient = fake.NewClientBuilder().
@@ -531,12 +531,12 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 					Build()
 
 				err = db.SetupForTestingDBGinkgo()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				ctx = context.Background()
 				log = logger.FromContext(ctx)
 				dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Create required CRs in Cluster.")
 
@@ -553,7 +553,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 					},
 				}
 				err = k8sClient.Create(context.Background(), secretCr)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create GitOpsDeploymentRepositoryCredential in Cluster
 				repoCredentialCr = managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
@@ -568,12 +568,12 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 					},
 				}
 				err = k8sClient.Create(context.Background(), &repoCredentialCr)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Create required DB entries.")
 
 				_, _, engineCluster, _, _, err := db.CreateSampleData(dbq)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				gitopsEngineInstance := &db.GitopsEngineInstance{
 					Gitopsengineinstance_id: "test-fake-instance-id",
 					Namespace_name:          "test-k8s-namespace",
@@ -581,14 +581,14 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 					EngineCluster_id:        engineCluster.Gitopsenginecluster_id,
 				}
 				err = dbq.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				// Create DB entry for ClusterUser
 				clusterUserDb = &db.ClusterUser{
 					Clusteruser_id: "test-repocred-user-id",
 					User_name:      "test-repocred-user",
 				}
 				err = dbq.CreateClusterUser(ctx, clusterUserDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create DB entry for RepositoryCredentials
 				gitopsRepositoryCredentialsDb = db.RepositoryCredentials{
@@ -602,7 +602,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 					EngineClusterID:         gitopsEngineInstance.Gitopsengineinstance_id,
 				}
 				err = dbq.CreateRepositoryCredentials(ctx, &gitopsRepositoryCredentialsDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create DB entry for APICRToDatabaseMapping
 				apiCRToDatabaseMappingDb = db.APICRToDatabaseMapping{
@@ -620,30 +620,30 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				defer dbq.CloseDatabase()
 
 				err := dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
 				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, true, log)
 
 				By("Verify that no entry is deleted from DB.")
 				_, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsDb.RepositoryCredentialsID)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				err = dbq.GetAPICRForDatabaseUID(ctx, &apiCRToDatabaseMappingDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			})
 
 			It("Should delete related database entries from DB, if the RepositoryCredentials CR of the APICRToDatabaseMapping is not present on cluster.", func() {
 				defer dbq.CloseDatabase()
 
 				err := dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create another GitopsRepositoryCredentials entry in Db
 				gitopsRepositoryCredentialsDbTemp := gitopsRepositoryCredentialsDb
 				gitopsRepositoryCredentialsDb.RepositoryCredentialsID = "test-repo-" + string(uuid.NewUUID())
 				err = dbq.CreateRepositoryCredentials(ctx, &gitopsRepositoryCredentialsDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create another APICRToDatabaseMapping entry in Db
 				apiCRToDatabaseMappingTemp := apiCRToDatabaseMappingDb
@@ -651,7 +651,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				apiCRToDatabaseMappingDb.APIResourceUID = "test-" + string(uuid.NewUUID())
 				apiCRToDatabaseMappingDb.APIResourceName = "test-" + string(uuid.NewUUID())
 				err = dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
 				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, true, log)
@@ -667,21 +667,21 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				By("Verify that entries for the RepositoryCredentials which is available in cluster, are not deleted from DB.")
 
 				_, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsDbTemp.RepositoryCredentialsID)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				err = dbq.GetAPICRForDatabaseUID(ctx, &apiCRToDatabaseMappingTemp)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Verify that Operation for the RepositoryCredentials is created in cluster and DB.")
 
 				var specialClusterUser db.ClusterUser
 				err = dbq.GetOrCreateSpecialClusterUser(context.Background(), &specialClusterUser)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				var operationlist []db.Operation
 				err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, gitopsRepositoryCredentialsDb.RepositoryCredentialsID, db.OperationResourceType_RepositoryCredentials, &operationlist, specialClusterUser.Clusteruser_id)
-				Expect(err).To(BeNil())
-				Expect(len(operationlist)).ShouldNot(Equal(0))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(operationlist).ShouldNot(BeEmpty())
 
 				objectMeta := metav1.ObjectMeta{
 					Name:      sharedoperations.GenerateOperationCRName(operationlist[0]),
@@ -690,25 +690,25 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				k8sOperation := managedgitopsv1alpha1.Operation{ObjectMeta: objectMeta}
 
 				err = k8sClient.Get(context.Background(), types.NamespacedName{Namespace: objectMeta.Namespace, Name: objectMeta.Name}, &k8sOperation)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			})
 
 			It("should delete related database entries from DB, if the RepositoryCredentials CR is present in cluster, but the UID doesn't match what is in the APICRToDatabaseMapping", func() {
 				defer dbq.CloseDatabase()
 
 				err := dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create another RepositoryCredentials entry in Db
 				gitopsRepositoryCredentialsDb.RepositoryCredentialsID = "test-repo-" + string(uuid.NewUUID())
 				err = dbq.CreateRepositoryCredentials(ctx, &gitopsRepositoryCredentialsDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create another APICRToDatabaseMapping entry in Db
 				apiCRToDatabaseMappingDb.DBRelationKey = gitopsRepositoryCredentialsDb.RepositoryCredentialsID
 				apiCRToDatabaseMappingDb.APIResourceUID = "test-" + string(uuid.NewUUID())
 				err = dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
 				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, true, log)
@@ -738,7 +738,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 					kubesystemNamespace,
 					apiNamespace,
 					err := tests.GenericTestSetup()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create fake client
 				k8sClient = fake.NewClientBuilder().
@@ -747,12 +747,12 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 					Build()
 
 				err = db.SetupForTestingDBGinkgo()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				ctx = context.Background()
 				log = logger.FromContext(ctx)
 				dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Create required CRs in Cluster.")
 
@@ -770,12 +770,12 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				}
 
 				err = k8sClient.Create(context.Background(), &gitopsDeplSyncRunCr)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Create required DB entries.")
 
 				_, managedEnvironment, engineCluster, _, _, err := db.CreateSampleData(dbq)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				gitopsEngineInstance := &db.GitopsEngineInstance{
 					Gitopsengineinstance_id: "test-fake-instance-id",
@@ -784,7 +784,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 					EngineCluster_id:        engineCluster.Gitopsenginecluster_id,
 				}
 				err = dbq.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create DB entry for Application
 				applicationDb := &db.Application{
@@ -795,7 +795,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 				}
 				err = dbq.CreateApplication(ctx, applicationDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create DB entry for SyncOperation
 				syncOperationDb = db.SyncOperation{
@@ -806,7 +806,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 					DesiredState:        "Terminated",
 				}
 				err = dbq.CreateSyncOperation(ctx, &syncOperationDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create DB entry for APICRToDatabaseMappingapiCRToDatabaseMapping
 				apiCRToDatabaseMappingDb = db.APICRToDatabaseMapping{
@@ -824,30 +824,30 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				defer dbq.CloseDatabase()
 
 				err := dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
 				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, true, log)
 
 				By("Verify that no entry is deleted from DB.")
 				err = dbq.GetSyncOperationById(ctx, &syncOperationDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				err = dbq.GetAPICRForDatabaseUID(ctx, &apiCRToDatabaseMappingDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			})
 
 			It("Should delete related database entries from DB, if the GitOpsDeploymentSyncRun CR of the APICRToDatabaseMapping is not present on cluster.", func() {
 				defer dbq.CloseDatabase()
 
 				err := dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create another entry for SyncOperation
 				syncOperationDbTemp := syncOperationDb
 				syncOperationDb.SyncOperation_id = "test-sync-" + string(uuid.NewUUID())
 				err = dbq.CreateSyncOperation(ctx, &syncOperationDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create another entry for APICRToDatabaseMapping
 				apiCRToDatabaseMappingDbTemp := apiCRToDatabaseMappingDb
@@ -855,7 +855,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				apiCRToDatabaseMappingDb.APIResourceUID = "test-" + string(uuid.NewUUID())
 				apiCRToDatabaseMappingDb.APIResourceName = "test-" + string(uuid.NewUUID())
 				err = dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
 				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, MockSRLK8sClientFactory{fakeClient: k8sClient}, true, log)
@@ -863,31 +863,31 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				By("Verify that entries for the GitOpsDeploymentSyncRun which is not available in cluster, are deleted from DB.")
 
 				err = dbq.GetSyncOperationById(ctx, &syncOperationDb)
-				Expect(err).ToNot(BeNil())
+				Expect(err).To(HaveOccurred())
 				Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 				err = dbq.GetAPICRForDatabaseUID(ctx, &apiCRToDatabaseMappingDb)
-				Expect(err).ToNot(BeNil())
+				Expect(err).To(HaveOccurred())
 				Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 				By("Verify that entries for the GitOpsDeploymentSyncRun which is available in cluster, are not deleted from DB.")
 
 				err = dbq.GetSyncOperationById(ctx, &syncOperationDbTemp)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				err = dbq.GetAPICRForDatabaseUID(ctx, &apiCRToDatabaseMappingDbTemp)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Verify that Operation for the GitOpsDeploymentSyncRun is created in cluster and DB.")
 
 				var specialClusterUser db.ClusterUser
 				err = dbq.GetOrCreateSpecialClusterUser(context.Background(), &specialClusterUser)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				var operationlist []db.Operation
 				err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, syncOperationDb.SyncOperation_id, db.OperationResourceType_SyncOperation, &operationlist, specialClusterUser.Clusteruser_id)
-				Expect(err).To(BeNil())
-				Expect(len(operationlist)).ShouldNot(Equal(0))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(operationlist).ShouldNot(BeEmpty())
 
 				objectMeta := metav1.ObjectMeta{
 					Name:      sharedoperations.GenerateOperationCRName(operationlist[0]),
@@ -896,25 +896,25 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				k8sOperation := managedgitopsv1alpha1.Operation{ObjectMeta: objectMeta}
 
 				err = k8sClient.Get(context.Background(), types.NamespacedName{Namespace: objectMeta.Namespace, Name: objectMeta.Name}, &k8sOperation)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			})
 
 			It("should delete related database entries from DB, if the GitOpsDeploymentSyncRun CR is present in cluster, but the UID doesn't match what is in the APICRToDatabaseMapping", func() {
 				defer dbq.CloseDatabase()
 
 				err := dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create another SyncOperation DB entry
 				syncOperationDb.SyncOperation_id = "test-sync-" + string(uuid.NewUUID())
 				err = dbq.CreateSyncOperation(ctx, &syncOperationDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// Create another APICRToDatabaseMapping DB entry
 				apiCRToDatabaseMappingDb.DBRelationKey = syncOperationDb.SyncOperation_id
 				apiCRToDatabaseMappingDb.APIResourceUID = "test-" + string(uuid.NewUUID())
 				err = dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
 				cleanOrphanedEntriesfromTable_ACTDM(ctx, dbq, k8sClient, nil, true, log)
@@ -933,15 +933,15 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 				apiCRToDatabaseMappingDb.APIResourceName = "fake-resource"
 				err := dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("remove the Application_ID foreign key")
 				rows, err := dbq.UpdateSyncOperationRemoveApplicationField(ctx, syncOperationDb.Application_id)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(rows).To(Equal(1))
 
 				err = dbq.GetSyncOperationById(ctx, &syncOperationDb)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(syncOperationDb.Application_id).To(BeEmpty())
 
 				By("Call cleanOrphanedEntriesfromTable_ACTDM function.")
@@ -950,7 +950,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				By("Verify that entries for the GitOpsDeploymentSyncRun which is not available in cluster, are deleted from DB.")
 
 				err = dbq.GetSyncOperationById(ctx, &syncOperationDb)
-				Expect(err).ToNot(BeNil())
+				Expect(err).To(HaveOccurred())
 				Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 				err = dbq.GetAPICRForDatabaseUID(ctx, &apiCRToDatabaseMappingDb)
@@ -960,12 +960,12 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 				var specialClusterUser db.ClusterUser
 				err = dbq.GetOrCreateSpecialClusterUser(context.Background(), &specialClusterUser)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				operationList := managedgitopsv1alpha1.OperationList{}
 				err = k8sClient.List(ctx, &operationList)
-				Expect(err).To(BeNil())
-				Expect(len(operationList.Items)).To(Equal(0))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(operationList.Items).To(BeEmpty())
 			})
 		})
 	})
@@ -987,7 +987,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				kubesystemNamespace,
 				apiNamespace,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create fake client
 			k8sClient = fake.NewClientBuilder().
@@ -996,15 +996,15 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Build()
 
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 			log = logger.FromContext(ctx)
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err = db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create Application entry
 			application = db.Application{
@@ -1015,7 +1015,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 			err = dbq.CreateApplication(ctx, &application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create DeploymentToApplicationMapping entry
 			deploymentToApplicationMapping = db.DeploymentToApplicationMapping{
@@ -1026,7 +1026,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				NamespaceUID:                          string(uuid.NewUUID()),
 			}
 			err = dbq.CreateDeploymentToApplicationMapping(ctx, &deploymentToApplicationMapping)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should not delete application entry if its DTAM entry is available.", func() {
@@ -1039,7 +1039,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that no entry is deleted from DB.")
 
 			err := dbq.GetApplicationById(ctx, &application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should delete application entry if its DTAM entry is not available.", func() {
@@ -1054,7 +1054,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				},
 			}
 			dummyApplicationSpecBytes, err := yaml.Marshal(dummyApplicationSpec)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationNew := db.Application{
 				Application_id:          "test-app-" + string(uuid.NewUUID()),
@@ -1064,16 +1064,16 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 			err = dbq.CreateApplication(ctx, &applicationNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Change "Created_on" field using UpdateApplication function since CreateApplication does not allow to insert custom "Created_on" field.
 			err = dbq.GetApplicationById(ctx, &applicationNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Set "Created_on" field more than waitTimeforRowDelete
 			applicationNew.Created_on = time.Now().Add(time.Duration(-(waitTimeforRowDelete + 1)))
 			err = dbq.UpdateApplication(ctx, &applicationNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -1082,13 +1082,13 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that application row without DTAM entry is deleted from DB.")
 
 			err = dbq.GetApplicationById(ctx, &applicationNew)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 			By("Verify that application row having DTAM entry is not deleted from DB.")
 
 			err = dbq.GetApplicationById(ctx, &application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should not delete application entry if its DTAM entry is not available, but created time is less than wait time for deletion.", func() {
@@ -1104,16 +1104,16 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 			err := dbq.CreateApplication(ctx, &applicationNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Change "Created_on" field using UpdateApplication function since CreateApplication does not allow to insert custom "Created_on" field.
 			err = dbq.GetApplicationById(ctx, &applicationNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Set "Created_on" field less than waitTimeforRowDelete
 			applicationNew.Created_on = time.Now().Add(time.Duration(-30) * time.Minute)
 			err = dbq.UpdateApplication(ctx, &applicationNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -1122,10 +1122,10 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that no application rows are deleted from DB.")
 
 			err = dbq.GetApplicationById(ctx, &applicationNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetApplicationById(ctx, &application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should verify when an orphaned Application is deleted, ApplicationOwner is deleted as well", func() {
@@ -1140,7 +1140,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				},
 			}
 			dummyApplicationSpecBytes, err := yaml.Marshal(dummyApplicationSpec)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationNew := db.Application{
 				Application_id:          "test-app-" + string(uuid.NewUUID()),
@@ -1150,7 +1150,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 			err = dbq.CreateApplication(ctx, &applicationNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create DB entry for ClusterUser
 			clusterUserDb := &db.ClusterUser{
@@ -1158,7 +1158,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				User_name:      "test-repocred-user",
 			}
 			err = dbq.CreateClusterUser(ctx, clusterUserDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationOwner := db.ApplicationOwner{
 				ApplicationOwnerApplicationID: applicationNew.Application_id,
@@ -1166,28 +1166,28 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			}
 
 			err = dbq.CreateApplicationOwner(ctx, &applicationOwner)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Change "Created_on" field using UpdateApplication function since CreateApplication does not allow to insert custom "Created_on" field.
 			err = dbq.GetApplicationById(ctx, &applicationNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Set "Created_on" field more than waitTimeforRowDelete
 			applicationNew.Created_on = time.Now().Add(time.Duration(-(waitTimeforRowDelete + 1)))
 			err = dbq.UpdateApplication(ctx, &applicationNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 			cleanOrphanedEntriesfromTable_Application(ctx, dbq, k8sClient, true, log)
 
 			By("Verify that application row is deleted from DB.")
 			err = dbq.GetApplicationById(ctx, &applicationNew)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 			By("Verify that applicationOwner row is deleted from DB.")
 			err = dbq.GetApplicationOwnerByApplicationID(ctx, &applicationOwner)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 		})
@@ -1204,7 +1204,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				},
 			}
 			dummyApplicationSpecBytes, err := yaml.Marshal(dummyApplicationSpec)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationNew := db.Application{
 				Application_id:          "test-app-" + string(uuid.NewUUID()),
@@ -1214,7 +1214,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 			err = dbq.CreateApplication(ctx, &applicationNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationState := db.ApplicationState{
 				Applicationstate_application_id: applicationNew.Application_id,
@@ -1223,28 +1223,28 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				ReconciledState:                 "Healthy",
 			}
 			err = dbq.CreateApplicationState(ctx, &applicationState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Change "Created_on" field using UpdateApplication function since CreateApplication does not allow to insert custom "Created_on" field.
 			err = dbq.GetApplicationById(ctx, &applicationNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Set "Created_on" field more than waitTimeforRowDelete
 			applicationNew.Created_on = time.Now().Add(time.Duration(-(waitTimeforRowDelete + 1)))
 			err = dbq.UpdateApplication(ctx, &applicationNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 			cleanOrphanedEntriesfromTable_Application(ctx, dbq, k8sClient, true, log)
 
 			By("Verify that application row entry is deleted from DB.")
 			err = dbq.GetApplicationById(ctx, &applicationNew)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 			By("Verify that applicationState row entry is deleted from DB.")
 			err = dbq.GetApplicationStateById(ctx, &applicationState)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 		})
 	})
@@ -1266,7 +1266,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				kubesystemNamespace,
 				apiNamespace,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create fake client
 			k8sClient = fake.NewClientBuilder().
@@ -1275,17 +1275,17 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Build()
 
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 			log = logger.FromContext(ctx)
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create required DB entries.")
 
 			_, _, _, gitopsEngineInstance, _, err = db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create DB entry for ClusterUser
 			clusterUserDb = &db.ClusterUser{
@@ -1293,7 +1293,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				User_name:      "test-repocred-user",
 			}
 			err = dbq.CreateClusterUser(ctx, clusterUserDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create DB entry for RepositoryCredentials
 			gitopsRepositoryCredentialsDb = db.RepositoryCredentials{
@@ -1307,7 +1307,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				EngineClusterID:         gitopsEngineInstance.Gitopsengineinstance_id,
 			}
 			err = dbq.CreateRepositoryCredentials(ctx, &gitopsRepositoryCredentialsDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create DB entry for APICRToDatabaseMapping
 			apiCRToDatabaseMappingDb = db.APICRToDatabaseMapping{
@@ -1321,7 +1321,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			}
 
 			err = dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should not delete RepositoryCredentials entry if its ACTDM entry is available.", func() {
@@ -1335,7 +1335,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that no entry is deleted from DB.")
 
 			_, err := dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsDb.RepositoryCredentialsID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should delete RepositoryCredentials entry if its ACTDM entry is not available.", func() {
@@ -1355,16 +1355,16 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				EngineClusterID:         gitopsEngineInstance.Gitopsengineinstance_id,
 			}
 			err := dbq.CreateRepositoryCredentials(ctx, &gitopsRepositoryCredentialsDbNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Change "Created_on" field using UpdateRepositoryCredentials function since CreateRepositoryCredentials does not allow to insert custom "Created_on" field.
 			gitopsRepositoryCredentialsDbNew, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsDbNew.RepositoryCredentialsID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Set "Created_on" field more than waitTimeforRowDelete
 			gitopsRepositoryCredentialsDbNew.Created_on = time.Now().Add(time.Duration(-(waitTimeforRowDelete + 1)))
 			err = dbq.UpdateRepositoryCredentials(ctx, &gitopsRepositoryCredentialsDbNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -1373,13 +1373,13 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that repository credentials row without DTAM entry is deleted from DB.")
 
 			_, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsDbNew.RepositoryCredentialsID)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 			By("Verify that repository credentials row having DTAM entry is not deleted from DB.")
 
 			_, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsDb.RepositoryCredentialsID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should not delete RepositoryCredentials entry if its ACTDM entry is not available, but created time is less than wait time for deletion.", func() {
@@ -1398,16 +1398,16 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				EngineClusterID:         gitopsEngineInstance.Gitopsengineinstance_id,
 			}
 			err := dbq.CreateRepositoryCredentials(ctx, &gitopsRepositoryCredentialsDbNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Change "Created_on" field using UpdateApplication function since CreateApplication does not allow to insert custom "Created_on" field.
 			gitopsRepositoryCredentialsDbNew, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsDbNew.RepositoryCredentialsID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Set "Created_on" field less than waitTimeforRowDelete
 			gitopsRepositoryCredentialsDbNew.Created_on = time.Now().Add(time.Duration(-30) * time.Minute)
 			err = dbq.UpdateRepositoryCredentials(ctx, &gitopsRepositoryCredentialsDbNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -1416,10 +1416,10 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that no application rows are deleted from DB.")
 
 			_, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsDbNew.RepositoryCredentialsID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentialsDb.RepositoryCredentialsID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 
@@ -1439,7 +1439,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				kubesystemNamespace,
 				apiNamespace,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create fake client
 			k8sClient = fake.NewClientBuilder().
@@ -1448,17 +1448,17 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Build()
 
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 			log = logger.FromContext(ctx)
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create required DB entries.")
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create dummy Application Spec to be saved in DB
 			dummyApplicationSpec := fauxargocd.FauxApplication{
@@ -1467,7 +1467,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				},
 			}
 			dummyApplicationSpecBytes, err := yaml.Marshal(dummyApplicationSpec)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create DB entry for Application
 			applicationDb = &db.Application{
@@ -1478,7 +1478,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 			err = dbq.CreateApplication(ctx, applicationDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create DB entry for SyncOperation
 			syncOperationDb = db.SyncOperation{
@@ -1489,7 +1489,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				DesiredState:        "Terminated",
 			}
 			err = dbq.CreateSyncOperation(ctx, &syncOperationDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create DB entry for APICRToDatabaseMappingapiCRToDatabaseMapping
 			apiCRToDatabaseMappingDb = db.APICRToDatabaseMapping{
@@ -1503,7 +1503,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			}
 
 			err = dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should not delete syncOperation entry if its ACTDM entry is available.", func() {
@@ -1517,7 +1517,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that no entry is deleted from DB.")
 
 			err := dbq.GetSyncOperationById(ctx, &syncOperationDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should delete syncOperation entry if its ACTDM entry is not available.", func() {
@@ -1534,16 +1534,16 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				DesiredState:        "Terminated",
 			}
 			err := dbq.CreateSyncOperation(ctx, &syncOperationDbNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Change "Created_on" field using UpdateSyncOperation function since CreateSyncOperation does not allow to insert custom "Created_on" field.
 			err = dbq.GetSyncOperationById(ctx, &syncOperationDbNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Set "Created_on" field more than waitTimeforRowDelete
 			syncOperationDbNew.Created_on = time.Now().Add(time.Duration(-(waitTimeforRowDelete + 1)))
 			err = dbq.UpdateSyncOperation(ctx, &syncOperationDbNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -1552,13 +1552,13 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that SyncOperation row without DTAM entry is deleted from DB.")
 
 			err = dbq.GetSyncOperationById(ctx, &syncOperationDbNew)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 			By("Verify that SyncOperation row having DTAM entry is not deleted from DB.")
 
 			err = dbq.GetSyncOperationById(ctx, &syncOperationDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should not delete syncOperation entry if its ACTDM entry is not available, but created time is less than wait time for deletion.", func() {
@@ -1575,16 +1575,16 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				DesiredState:        "Terminated",
 			}
 			err := dbq.CreateSyncOperation(ctx, &syncOperationDbNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Change "Created_on" field using UpdateSyncOperation function since CreateSyncOperation does not allow to insert custom "Created_on" field.
 			err = dbq.GetSyncOperationById(ctx, &syncOperationDbNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Set "Created_on" field less than waitTimeforRowDelete
 			syncOperationDbNew.Created_on = time.Now().Add(time.Duration(-30) * time.Minute)
 			err = dbq.UpdateSyncOperation(ctx, &syncOperationDbNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -1593,10 +1593,10 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that no application rows are deleted from DB.")
 
 			err = dbq.GetSyncOperationById(ctx, &syncOperationDbNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetSyncOperationById(ctx, &syncOperationDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 	})
@@ -1617,7 +1617,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				kubesystemNamespace,
 				apiNamespace,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create fake client
 			k8sClient = fake.NewClientBuilder().
@@ -1626,12 +1626,12 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Build()
 
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 			log = logger.FromContext(ctx)
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create required DB entries.")
 
@@ -1645,7 +1645,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentialsDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create DB entry for ManagedEnvironment
 			managedEnvironmentDb = db.ManagedEnvironment{
@@ -1654,7 +1654,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Name:                  "test-" + string(uuid.NewUUID()),
 			}
 			err = dbq.CreateManagedEnvironment(ctx, &managedEnvironmentDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create DB entry for APICRToDatabaseMapping
 			apiCRToDatabaseMappingDb = db.APICRToDatabaseMapping{
@@ -1668,7 +1668,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			}
 
 			err = dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should not delete ManagedEnvironment entry if its ACTDM entry is available.", func() {
@@ -1682,7 +1682,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that no entry is deleted from DB.")
 
 			err := dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should delete ManagedEnvironment entry if its ACTDM entry is not available", func() {
@@ -1697,17 +1697,17 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Name:                  "test-" + string(uuid.NewUUID()),
 			}
 			err := dbq.CreateManagedEnvironment(ctx, &managedEnvironmentDbNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Change "Created_on" field using UpdateManagedEnvironment function since CreateManagedEnvironment does not allow to insert custom "Created_on" field.
 			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentDbNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Set "Created_on" field more than waitTimeforRowDelete
 			managedEnvironmentDbNew.Created_on = time.Now().Add(time.Duration(-(waitTimeforRowDelete + 1)))
 
 			err = dbq.UpdateManagedEnvironment(ctx, &managedEnvironmentDbNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -1716,13 +1716,13 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that SyncOperation row without DTAM entry is deleted from DB.")
 
 			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentDbNew)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 			By("Verify that SyncOperation row having DTAM entry is not deleted from DB.")
 
 			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should not delete ManagedEnvironment entry if its ACTDM entry is not available, but created time is less than wait time for deletion.", func() {
@@ -1737,16 +1737,16 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Name:                  "test-" + string(uuid.NewUUID()),
 			}
 			err := dbq.CreateManagedEnvironment(ctx, &managedEnvironmentDbNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Change "Created_on" field using UpdateManagedEnvironment function since CreateManagedEnvironment does not allow to insert custom "Created_on" field.
 			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentDbNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Set "Created_on" field less than waitTimeforRowDelete
 			managedEnvironmentDbNew.Created_on = time.Now().Add(time.Duration(-30) * time.Minute)
 			err = dbq.UpdateManagedEnvironment(ctx, &managedEnvironmentDbNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -1755,10 +1755,10 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that no application rows are deleted from DB.")
 
 			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentDbNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should not delete ManagedEnvironment entry if there exists an entry in the KubernetesToDBResourceMapping table that points to that ME", func() {
@@ -1773,14 +1773,14 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Name:                  "test-" + string(uuid.NewUUID()),
 			}
 			err := dbq.CreateManagedEnvironment(ctx, &managedEnvironmentDbNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("updating created_on, so it does not block the ManagedEnvironment from being deleted")
 
 			// Set "Created_on" field to > waitTimeForRowDelete
 			managedEnvironmentDbNew.Created_on = time.Now().Add(-1 * (waitTimeforRowDelete + 1*time.Second))
 			err = dbq.UpdateManagedEnvironment(ctx, &managedEnvironmentDbNew)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("creating a KubernetesDBToResourceMapping table referencing the ManagedEnvironment")
 			kubernetesDBToResourceMapping := db.KubernetesToDBResourceMapping{
@@ -1790,24 +1790,24 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				DBRelationKey:          managedEnvironmentDbNew.Managedenvironment_id,
 			}
 			err = dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesDBToResourceMapping)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("calling the function under test")
 			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, nil, true, log)
 
 			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentDbNew)
-			Expect(err).To(BeNil(), "the ManagedEnvironment should exist: it should not be deleted")
+			Expect(err).ToNot(HaveOccurred(), "the ManagedEnvironment should exist: it should not be deleted")
 
 			By("deleting the KubernetesToDBResourceMapping")
 			rowsDeleted, err := dbq.DeleteKubernetesResourceToDBResourceMapping(ctx, &kubernetesDBToResourceMapping)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsDeleted).To(Equal(1))
 
 			By("calling the function under test")
 			cleanOrphanedEntriesfromTable(ctx, dbq, k8sClient, nil, true, log)
 
 			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironmentDbNew)
-			Expect(err).ToNot(BeNil(), "the ManagedEnvironment should no longer exist, after the KubernetesToDBResourceMapping was deleted")
+			Expect(err).To(HaveOccurred(), "the ManagedEnvironment should no longer exist, after the KubernetesToDBResourceMapping was deleted")
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue(), "the ManagedEnvironment should no longer exist, after the KubernetesToDBResourceMapping was deleted")
 
 		})
@@ -1829,7 +1829,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				kubesystemNamespace,
 				apiNamespace,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create fake client
 			k8sClient = fake.NewClientBuilder().
@@ -1838,15 +1838,15 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Build()
 
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 			log = logger.FromContext(ctx)
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, _, _, gitopsEngineInstance, clusterAccess, err = db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 		})
 
@@ -1865,11 +1865,11 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Last_state_update:       time.Now(),
 			}
 			err := dbq.CreateOperation(ctx, &operationDb, operationDb.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Change "State" and "Created_on" fields using UpdateOperation function since CreateOperation does not allow to insert custom "Created_on" and "State" field.
 			err = dbq.GetOperationById(ctx, &operationDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Set "State" field to "Completed"
 			operationDb.State = db.OperationState_Completed
@@ -1878,7 +1878,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			operationDb.Created_on = time.Now().Add(time.Duration(-23) * time.Hour)
 
 			err = dbq.UpdateOperation(ctx, &operationDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -1887,7 +1887,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that no entry is deleted from DB.")
 
 			err = dbq.GetOperationById(ctx, &operationDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should not delete operation entry, if Operation state is In-Progress, but its creation time is more than 24 hours.", func() {
@@ -1905,11 +1905,11 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Last_state_update:       time.Now(),
 			}
 			err := dbq.CreateOperation(ctx, &operationDb, operationDb.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Change "State" and "Created_on" fields using UpdateOperation function since CreateOperation does not allow to insert custom "Created_on" and "State" field.
 			err = dbq.GetOperationById(ctx, &operationDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Set "State" field to "In_Progress"
 			operationDb.State = db.OperationState_In_Progress
@@ -1918,7 +1918,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			operationDb.Created_on = time.Now().Add(time.Duration(-25) * time.Hour)
 
 			err = dbq.UpdateOperation(ctx, &operationDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -1927,7 +1927,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that no entry is deleted from DB.")
 
 			err = dbq.GetOperationById(ctx, &operationDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should not delete operation entry, if Operation state is Waiting and its creation time is more than 24 hours.", func() {
@@ -1945,17 +1945,17 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Last_state_update:       time.Now(),
 			}
 			err := dbq.CreateOperation(ctx, &operationDb, operationDb.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Change "Created_on" fields using UpdateOperation function since CreateOperation does not allow to insert custom "Created_on" field.
 			err = dbq.GetOperationById(ctx, &operationDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Set "Created_on" field to more than 23 Hours
 			operationDb.Created_on = time.Now().Add(time.Duration(-25) * time.Hour)
 
 			err = dbq.UpdateOperation(ctx, &operationDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -1964,7 +1964,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that no entry is deleted from DB.")
 
 			err = dbq.GetOperationById(ctx, &operationDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should delete operation entry, if Operation state is Completed and its creation time is more than 24 Hours.", func() {
@@ -1982,11 +1982,11 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Last_state_update:       time.Now(),
 			}
 			err := dbq.CreateOperation(ctx, &operationDb, operationDb.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Change "Created_on" and "State" fields using UpdateApplication function since CreateApplication does not allow to insert custom "Created_on" and "State" field.
 			err = dbq.GetOperationById(ctx, &operationDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Set "State" field to "Completed"
 			operationDb.State = db.OperationState_Completed
@@ -1995,7 +1995,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			operationDb.Created_on = time.Now().Add(time.Duration(-25) * time.Hour)
 
 			err = dbq.UpdateOperation(ctx, &operationDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -2022,17 +2022,17 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Last_state_update:       time.Now(),
 			}
 			err := dbq.CreateOperation(ctx, &operationDb, operationDb.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Change "Created_on" fields using UpdateApplication function since CreateApplication does not allow to insert custom "Created_on" field.
 			err = dbq.GetOperationById(ctx, &operationDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Set "Created_on" field to more than 1 Hours
 			operationDb.Created_on = time.Now().Add(time.Duration(-1) * time.Hour)
 
 			err = dbq.UpdateOperation(ctx, &operationDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -2041,7 +2041,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that no entry is deleted from DB.")
 
 			err = dbq.GetOperationById(ctx, &operationDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Verify that Operation CR is created in Cluster.")
 
@@ -2053,7 +2053,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			}
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(operationCR), operationCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 
@@ -2071,7 +2071,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				kubesystemNamespace,
 				apiNamespace,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create fake client
 			k8sClient = fake.NewClientBuilder().
@@ -2080,12 +2080,12 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Build()
 
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 			log = logger.FromContext(ctx)
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			user = db.ClusterUser{
 				Clusteruser_id: "test-id-" + string(uuid.NewUUID()),
@@ -2104,7 +2104,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Create Cluster user.")
 
 			err := dbq.CreateClusterUser(ctx, &user)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -2113,7 +2113,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that ClusterUser entry is deleted from DB.")
 
 			err = dbq.GetClusterUserByUsername(ctx, &user)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 		})
 
@@ -2124,7 +2124,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Create Cluster user.")
 
 			err := dbq.CreateClusterUser(ctx, &user)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -2133,7 +2133,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that ClusterUser entry is not deleted from DB.")
 
 			err = dbq.GetClusterUserByUsername(ctx, &user)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should not delete ClusterUser, if it is used in ClusterAccess entry even it's created time is more than 'waitTimeforRowDelete'.", func() {
@@ -2146,12 +2146,12 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Create Cluster user.")
 
 			err := dbq.CreateClusterUser(ctx, &user)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create required DB entries.")
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			clusterAccess := db.ClusterAccess{
 				Clusteraccess_user_id:                   user.Clusteruser_id,
@@ -2160,7 +2160,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			}
 
 			err = dbq.CreateClusterAccess(ctx, &clusterAccess)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -2169,7 +2169,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that ClusterUser entry is not deleted from DB.")
 
 			err = dbq.GetClusterUserByUsername(ctx, &user)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should not delete ClusterUser, if it is used in RepositoryCredentials entry, it's created time is more than 'waitTimeforRowDelete'.", func() {
@@ -2182,12 +2182,12 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Create Cluster user.")
 
 			err := dbq.CreateClusterUser(ctx, &user)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create required DB entries.")
 
 			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			repositoryCredentials := db.RepositoryCredentials{
 				RepositoryCredentialsID: "test-repo-cred-id",
@@ -2201,7 +2201,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			}
 
 			err = dbq.CreateRepositoryCredentials(ctx, &repositoryCredentials)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -2210,7 +2210,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that ClusterUser entry is not deleted from DB.")
 
 			err = dbq.GetClusterUserByUsername(ctx, &user)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should not delete ClusterUser, if it is used in Operation entry, even it's created time is more than 'waitTimeforRowDelete'.", func() {
@@ -2223,12 +2223,12 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Create Cluster user.")
 
 			err := dbq.CreateClusterUser(ctx, &user)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create required DB entries.")
 
 			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			operation := db.Operation{
 				Operation_id:            "test-operation-1",
@@ -2240,7 +2240,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			}
 
 			err = dbq.CreateOperation(ctx, &operation, operation.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -2249,7 +2249,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that ClusterUser entry is not deleted from DB.")
 
 			err = dbq.GetClusterUserByUsername(ctx, &user)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should not delete 'Special User', even if it is not used in any other table and it's created time is more than 'waitTimeforRowDelete'.", func() {
@@ -2258,7 +2258,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 			// Delete 'Special User' if it is already present, since 'SetupForTestingDBGinkgo' can not delete it
 			_, err := dbq.DeleteClusterUserById(ctx, db.SpecialClusterUserName)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Set "Created_on" field to > waitTimeForRowDelete
 			user.Created_on = time.Now().Add(-1 * (waitTimeforRowDelete + 1*time.Second))
@@ -2269,7 +2269,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Create Cluster user.")
 
 			err = dbq.CreateClusterUser(ctx, &user)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -2278,7 +2278,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that ClusterUser entry is deleted from DB.")
 
 			err = dbq.GetClusterUserByUsername(ctx, &user)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 		})
 	})
@@ -2297,7 +2297,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				kubesystemNamespace,
 				apiNamespace,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create fake client
 			k8sClient = fake.NewClientBuilder().
@@ -2306,12 +2306,12 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 				Build()
 
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 			log = logger.FromContext(ctx)
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			clusterCreds = db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-" + string(uuid.NewUUID()),
@@ -2333,7 +2333,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Create Cluster Credential.")
 
 			err := dbq.CreateClusterCredentials(ctx, &clusterCreds)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -2342,7 +2342,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that Cluster Credential entry is deleted from DB.")
 
 			err = dbq.GetClusterCredentialsById(ctx, &clusterCreds)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 		})
 
@@ -2353,7 +2353,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Create Cluster Credential.")
 
 			err := dbq.CreateClusterCredentials(ctx, &clusterCreds)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -2362,7 +2362,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that Cluster Credential entry is not deleted from DB.")
 
 			err = dbq.GetClusterCredentialsById(ctx, &clusterCreds)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should not delete ClusterCredentials if it is used in ManagedEnvironment entry, even it's created time is more than 'waitTimeforRowDelete'.", func() {
@@ -2375,7 +2375,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Create ClusterCredentials.")
 
 			err := dbq.CreateClusterCredentials(ctx, &clusterCreds)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create ManagedEnvironment.")
 
@@ -2386,7 +2386,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			}
 
 			err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -2395,7 +2395,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that Cluster Credential entry is not deleted from DB.")
 
 			err = dbq.GetClusterCredentialsById(ctx, &clusterCreds)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should not delete ClusterCredentials if it is used in RepositoryCredentials entry, even it's created time is more than 'waitTimeforRowDelete'.", func() {
@@ -2408,7 +2408,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Create ClusterCredentials.")
 
 			err := dbq.CreateClusterCredentials(ctx, &clusterCreds)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create GitopsEngineCluster.")
 
@@ -2418,7 +2418,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			}
 
 			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call clean-up function.")
 
@@ -2427,7 +2427,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that Cluster Credential entry is not deleted from DB.")
 
 			err = dbq.GetClusterCredentialsById(ctx, &clusterCreds)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 })

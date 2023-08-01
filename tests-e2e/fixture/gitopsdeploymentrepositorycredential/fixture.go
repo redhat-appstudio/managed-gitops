@@ -38,7 +38,7 @@ func HaveConditions(conditions []metav1.Condition) matcher.GomegaMatcher {
 	return WithTransform(func(gitopsDeploymentRepositoryCredentialCR managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential) bool {
 
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {

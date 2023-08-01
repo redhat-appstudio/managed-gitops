@@ -874,10 +874,10 @@ func IsRunningInStonesoupEnvironment() bool {
 	}
 
 	config, err := GetE2ETestUserWorkspaceKubeConfig()
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	k8sClient, err := GetKubeClient(config)
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	err = k8s.Get(&appOfApps, k8sClient)
 	if err != nil && apierr.IsNotFound(err) {

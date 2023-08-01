@@ -56,16 +56,16 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 		BeforeEach(func() {
 			var err error
 			config, err = fixture.GetSystemKubeConfig()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			k8sClient, err = fixture.GetKubeClient(config)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		AfterEach(func() {
 			// At end of a test, output the state of Argo CD Application, for post-mortem debuggign
 			err := fixture.ReportRemainingArgoCDApplications(k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		// Generate expected resources for "https://github.com/redhat-appstudio/managed-gitops"
@@ -192,7 +192,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			By("verify whether appProjectRepository row pointing to GitopsDeployment has been created in database ")
 
 			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			namespace := corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
@@ -201,14 +201,14 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			}
 
 			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&namespace), &namespace)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			clusterUser := db.ClusterUser{
 				User_name: string(namespace.UID),
 			}
 
 			err = dbQueries.GetClusterUserByUsername(ctx, &clusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			appProjectRepositoryDB := db.AppProjectRepository{
 				Clusteruser_id: clusterUser.Clusteruser_id,
@@ -216,7 +216,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			}
 
 			err = dbQueries.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepositoryDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Ensure AppProject is resource has been created")
 			appProject := &appv1.AppProject{
@@ -227,7 +227,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			}
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			app := &appv1.Application{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      argocd.GenerateArgoCDApplicationName(string(gitOpsDeploymentResource.UID)),
@@ -235,7 +235,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				},
 			}
 			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(app), app)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			if util.AppProjectIsolationEnabled() {
 				By("verifying whether Argo CD Application CR references AppProject via the .spec.project")
 				Expect(app.Spec.Project).To(Equal(appProject.Name))
@@ -285,7 +285,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&gitOpsDeploymentResource), &gitOpsDeploymentResource)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(gitOpsDeploymentResource.Spec.Source.RepoURL).To(Equal(repoURL))
 			Expect(gitOpsDeploymentResource.Spec.Source.Path).To(Equal("resources/test-data/sample-gitops-repository/environments/overlays/dev"))
 
@@ -346,7 +346,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&gitOpsDeploymentResource), &gitOpsDeploymentResource)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(gitOpsDeploymentResource.Spec.Source.Path).To(Equal("resources/test-data/sample-gitops-repository/environments/overlays/staging"))
 
 			Eventually(gitOpsDeploymentResource, ArgoCDReconcileWaitTime, "1s").Should(
@@ -735,7 +735,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.UpdateWithoutConflict(cm, k8sClient, func(o client.Object) {
 				o.SetFinalizers([]string{testFinalizer})
 			})
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("delete the GitOpsDeployment resource")
 
@@ -744,7 +744,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			By("verify if the finalizer has prevented the GitOpsDeployment from deletion")
 			err = k8s.Get(&gitOpsDeploymentResource, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(&gitOpsDeploymentResource, "60s", "1s").Should(k8s.HasNonNilDeletionTimestamp(k8sClient))
 
@@ -755,7 +755,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.UpdateWithoutConflict(cm, k8sClient, func(o client.Object) {
 				o.SetFinalizers([]string{})
 			})
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			expectAllResourcesToBeDeleted(expectedResourceStatusList)
 
@@ -874,19 +874,19 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			By("get the Application name created by the GitOpsDeployment resource")
 			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			appMapping := &db.DeploymentToApplicationMapping{
 				Deploymenttoapplicationmapping_uid_id: string(gitOpsDeploymentResource.UID),
 			}
 			err = dbQueries.GetDeploymentToApplicationMappingByDeplId(context.Background(), appMapping)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbApplication := &db.Application{
 				Application_id: appMapping.Application_id,
 			}
 			err = dbQueries.GetApplicationById(context.Background(), dbApplication)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify that the Argo CD Application has been created")
 			app := &appv1.Application{
@@ -897,7 +897,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			}
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("get namespace to fetch cluster user id")
 			namespace := corev1.Namespace{
@@ -907,14 +907,14 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			}
 
 			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&namespace), &namespace)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			clusterUser := db.ClusterUser{
 				User_name: string(namespace.UID),
 			}
 
 			err = dbQueries.GetClusterUserByUsername(ctx, &clusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify that AppProject has been created")
 			appProject := &appv1.AppProject{
@@ -925,7 +925,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			}
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify whether AppProject is pointing to non-default project value")
 			if util.AppProjectIsolationEnabled() {
@@ -1025,7 +1025,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			)
 
 			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Retrieve namespace to get cluster user id")
 			namespace := corev1.Namespace{
@@ -1035,14 +1035,14 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			}
 
 			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&namespace), &namespace)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			clusterUser := db.ClusterUser{
 				User_name: string(namespace.UID),
 			}
 
 			err = dbQueries.GetClusterUserByUsername(ctx, &clusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Verify whether AppProject includes the git repository referenced in the repo A")
 			appProject := &appv1.AppProject{
@@ -1053,7 +1053,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			}
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(appProject, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
@@ -1087,7 +1087,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			)
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(appProject, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
@@ -1108,7 +1108,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			By("Ensure the AppProject now only contains repo B")
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(appProject, ArgoCDReconcileWaitTime, "1s").Should(
 				SatisfyAll(
@@ -1148,10 +1148,10 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			var err error
 			config, err = fixture.GetSystemKubeConfig()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			k8sClient, err = fixture.GetKubeClient(config)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Ensure that all user-* namespaces are deleted at start of tests
 			for i := 1; i <= numberToSimulate; i++ {
@@ -1180,11 +1180,11 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 		AfterEach(func() {
 			// At end of a test, output the state of Argo CD Application, for post-mortem debuggign
 			err := fixture.ReportRemainingArgoCDApplications(k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		config, err := fixture.GetSystemKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		// testPrintln outputs a log statement along with the particular test #
 		testPrintln := func(str string, i int) {
@@ -1365,7 +1365,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			for j := 1; j <= numberToSimulate; j++ {
 				res := <-resultChan
 				fmt.Println("read from channel ", res)
-				Expect(res).To(BeNil())
+				Expect(res).ToNot(HaveOccurred())
 			}
 
 			fmt.Println("Done!")

@@ -22,7 +22,7 @@ func HaveAppProjectSourceRepos(appProjectSpec appv1alpha1.AppProjectSpec) matche
 
 	return WithTransform(func(appProject *appv1alpha1.AppProject) bool {
 		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -48,7 +48,7 @@ func HaveAppProjectSourceRepos(appProjectSpec appv1alpha1.AppProjectSpec) matche
 func HaveAppProjectDestinations(appProjectDestinations []appv1alpha1.ApplicationDestination) matcher.GomegaMatcher {
 	return WithTransform(func(appProject *appv1alpha1.AppProject) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {

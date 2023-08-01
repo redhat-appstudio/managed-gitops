@@ -19,15 +19,15 @@ var _ = Describe("SyncOperation Tests", func() {
 			}
 
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx := context.Background()
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			application := &db.Application{
 				Application_id:          "test-my-application",
@@ -39,7 +39,7 @@ var _ = Describe("SyncOperation Tests", func() {
 
 			err = dbq.CreateApplication(ctx, application)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			operation := &db.Operation{
 				Operation_id:            "test-operation",
@@ -52,7 +52,7 @@ var _ = Describe("SyncOperation Tests", func() {
 
 			err = dbq.CreateOperation(ctx, operation, operation.Operation_owner_user_id)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			insertRow := db.SyncOperation{
 				SyncOperation_id:    "test-sync",
@@ -64,12 +64,12 @@ var _ = Describe("SyncOperation Tests", func() {
 
 			err = dbq.CreateSyncOperation(ctx, &insertRow)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			fetchRow := db.SyncOperation{
 				SyncOperation_id: "test-sync",
 			}
 			err = dbq.GetSyncOperationById(ctx, &fetchRow)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(fetchRow.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 			fetchRow.Created_on = insertRow.Created_on
 			Expect(fetchRow).Should(Equal(insertRow))
@@ -78,14 +78,14 @@ var _ = Describe("SyncOperation Tests", func() {
 			updatedSyncOperation.DesiredState = "Running"
 
 			err = dbq.UpdateSyncOperation(ctx, &updatedSyncOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetSyncOperationById(ctx, &fetchRow)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(fetchRow.DesiredState).Should(Equal(updatedSyncOperation.DesiredState))
 
 			rowCount, err := dbq.DeleteSyncOperationById(ctx, insertRow.SyncOperation_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowCount).Should(Equal(1))
 			fetchRow = db.SyncOperation{
 				SyncOperation_id: "test-sync",
@@ -97,7 +97,7 @@ var _ = Describe("SyncOperation Tests", func() {
 			// Set the invalid value
 			insertRow.DeploymentNameField = strings.Repeat("abc", 100)
 			err = dbq.CreateSyncOperation(ctx, &insertRow)
-			Expect(db.IsMaxLengthError(err)).To(Equal(true))
+			Expect(db.IsMaxLengthError(err)).To(BeTrue())
 
 		})
 	})

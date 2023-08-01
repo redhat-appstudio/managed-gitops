@@ -40,10 +40,10 @@ var _ = Describe("Argo CD Metrics", func() {
 
 		BeforeEach(func() {
 			scheme, argocdNamespace, kubesystemNamespace, _, err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = appv1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			testNamespaceNames = []string{"argocd", "argocd-01"}
 			namespaces := createNamespaces(testNamespaceNames...)
@@ -85,7 +85,7 @@ var _ = Describe("Argo CD Metrics", func() {
 				},
 			}
 			err = updater.client.Create(ctx, app)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Calling the method to update the metric")
 			Expect(testutil.ToFloat64(ReconciledArgoAppsPercent)).To(Equal(0.0))
@@ -107,7 +107,7 @@ var _ = Describe("Argo CD Metrics", func() {
 				},
 			}
 			err = updater.client.Create(ctx, app)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Calling the method to update the metric")
 			Expect(testutil.ToFloat64(ReconciledArgoAppsPercent)).To(Equal(0.0))
@@ -129,7 +129,7 @@ var _ = Describe("Argo CD Metrics", func() {
 				},
 			}
 			err = updater.client.Create(ctx, app)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Calling the method to update the metric")
 			Expect(testutil.ToFloat64(ReconciledArgoAppsPercent)).To(Equal(0.0))
@@ -151,7 +151,7 @@ var _ = Describe("Argo CD Metrics", func() {
 				},
 			}
 			err = updater.client.Create(ctx, app)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Calling the method to update the metric")
 			Expect(testutil.ToFloat64(ReconciledArgoAppsPercent)).To(Equal(0.0))
@@ -173,7 +173,7 @@ var _ = Describe("Argo CD Metrics", func() {
 				},
 			}
 			err = updater.client.Create(ctx, app)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Creating an ArgoCD application reconciled more than three minutes ago")
 			app = &appv1.Application{
@@ -188,7 +188,7 @@ var _ = Describe("Argo CD Metrics", func() {
 				},
 			}
 			err = updater.client.Create(ctx, app)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Calling the method to update the metric")
 			Expect(testutil.ToFloat64(ReconciledArgoAppsPercent)).To(Equal(0.0))
@@ -210,7 +210,7 @@ var _ = Describe("Argo CD Metrics", func() {
 				},
 			}
 			err = updater.client.Create(ctx, app)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Creating a second ArgoCD application reconciled within the last three minutes")
 			app = &appv1.Application{
@@ -225,7 +225,7 @@ var _ = Describe("Argo CD Metrics", func() {
 				},
 			}
 			err = updater.client.Create(ctx, app)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Calling the method to update the metric")
 			Expect(testutil.ToFloat64(ReconciledArgoAppsPercent)).To(Equal(0.0))

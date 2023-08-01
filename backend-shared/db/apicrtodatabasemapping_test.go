@@ -13,7 +13,7 @@ var _ = Describe("Apicrtodatabasemapping Tests", func() {
 	Context("Tests all the DB functions for Apicrtodatabasemapping", func() {
 		It("Should execute all Apicrtodatabasemapping Functions", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			item := db.APICRToDatabaseMapping{
 				APIResourceType:      db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
@@ -26,10 +26,10 @@ var _ = Describe("Apicrtodatabasemapping Tests", func() {
 			}
 			ctx := context.Background()
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 			err = dbq.CreateAPICRToDatabaseMapping(ctx, &item)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			fetchRow := db.APICRToDatabaseMapping{
 				APIResourceType: item.APIResourceType,
@@ -39,17 +39,17 @@ var _ = Describe("Apicrtodatabasemapping Tests", func() {
 			}
 
 			err = dbq.GetDatabaseMappingForAPICR(ctx, &fetchRow)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(fetchRow).Should(Equal(item))
 
 			var items []db.APICRToDatabaseMapping
 
 			err = dbq.ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx, item.APIResourceType, item.APIResourceName, item.APIResourceNamespace, item.NamespaceUID, item.DBRelationType, &items)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(items[0]).Should(Equal(item))
 
 			rowsAffected, err := dbq.DeleteAPICRToDatabaseMapping(ctx, &fetchRow)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsAffected).To(Equal((1)))
 			fetchRow = db.APICRToDatabaseMapping{
 				APIResourceType: item.APIResourceType,
@@ -58,12 +58,12 @@ var _ = Describe("Apicrtodatabasemapping Tests", func() {
 				DBRelationType:  item.DBRelationType,
 			}
 			err = dbq.GetDatabaseMappingForAPICR(ctx, &fetchRow)
-			Expect(db.IsResultNotFoundError(err)).To(Equal(true))
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 			// Set the invalid value
 			item.APIResourceName = strings.Repeat("abc", 100)
 			err = dbq.CreateAPICRToDatabaseMapping(ctx, &item)
-			Expect(db.IsMaxLengthError(err)).To(Equal(true))
+			Expect(db.IsMaxLengthError(err)).To(BeTrue())
 
 		})
 	})

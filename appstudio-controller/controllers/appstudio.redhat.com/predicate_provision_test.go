@@ -25,10 +25,10 @@ var _ = Describe("Test Predicates", func() {
 				_,
 				_,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = appstudiosharedv1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			spacerequest = &codereadytoolchainv1alpha1.SpaceRequest{
 				ObjectMeta: metav1.ObjectMeta{

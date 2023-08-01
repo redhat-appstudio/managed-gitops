@@ -26,15 +26,15 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			err = k8s.Create(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Create(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring the managed environment has a connection status condition of Failed")
 			Eventually(managedEnv, "2m", "1s").Should(managedenvironment.HaveStatusCondition(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			err = k8s.Get(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
 			condition := managedEnv.Status.Conditions[0]
 			Expect(condition.Status).To(Equal(metav1.ConditionFalse))
@@ -48,7 +48,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			By("creating the GitOpsDeploymentManagedEnvironment with a secret that is missing the kubeconfig data")
 
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 			delete(secret.StringData, "kubeconfig")
 
@@ -56,15 +56,15 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			err = k8s.Create(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Create(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring the managed environment connection status condition has a reason of MissingKubeConfigField")
 			Eventually(managedEnv, "2m", "1s").Should(managedenvironment.HaveStatusCondition(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			err = k8s.Get(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
 			condition := managedEnv.Status.Conditions[0]
 			Expect(condition.Status).To(Equal(metav1.ConditionFalse))
@@ -78,7 +78,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			By("creating the GitOpsDeploymentManagedEnvironment with a secret that has bad kubeconfig data")
 
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 			secret.StringData["kubeconfig"] = "badbadbad"
 
@@ -86,15 +86,15 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			err = k8s.Create(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Create(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring the managed environment connection status condition has a reason of UnableToParseKubeconfigData")
 			Eventually(managedEnv, "2m", "1s").Should(managedenvironment.HaveStatusCondition(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			err = k8s.Get(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
 			condition := managedEnv.Status.Conditions[0]
 			Expect(condition.Status).To(Equal(metav1.ConditionFalse))
@@ -108,7 +108,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			By("creating the GitOpsDeploymentManagedEnvironment with a secret that lacks a kubeconfig context")
 
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 			secret.StringData["kubeconfig"] = "apiVersion: v1\nkind: Config\n"
 
@@ -116,15 +116,15 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			err = k8s.Create(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Create(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring the managed environment connection status condition has a reason of UnableToLocateContext")
 			Eventually(managedEnv, "2m", "1s").Should(managedenvironment.HaveStatusCondition(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			err = k8s.Get(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
 			condition := managedEnv.Status.Conditions[0]
 			Expect(condition.Status).To(Equal(metav1.ConditionFalse))
@@ -138,7 +138,7 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			By("creating the GitOpsDeploymentManagedEnvironment")
 
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 
@@ -146,15 +146,15 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			err = k8s.Create(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Create(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring the managed environment has a connection status condition of True")
 			Eventually(managedEnv, "2m", "1s").Should(managedenvironment.HaveStatusCondition(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			err = k8s.Get(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
 			condition := managedEnv.Status.Conditions[0]
 			Expect(condition.Status).To(Equal(metav1.ConditionTrue))

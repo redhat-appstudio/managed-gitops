@@ -52,7 +52,7 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 				kubesystemNamespace,
 				workspace,
 				err = tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			workspaceID = string(workspace.UID)
 
@@ -86,7 +86,7 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 			}
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(false, false)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			appEventLoopRunnerAction = applicationEventLoopRunner_Action{
 				eventResourceName:           gitopsDepl.Name,
@@ -120,7 +120,7 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 			shutdownSignalled, err := handleDeploymentModified(ctx, &eventLoopEvent, appEventLoopRunnerAction, dbQueries, log.FromContext(context.Background()))
 			Expect(shutdownSignalled).To(BeFalse())
 
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 			newTotalNumberOfGitOpsDeploymentMetrics := testutil.ToFloat64(metrics.Gitopsdepl)
 			newNumberOfGitOpsDeploymentsInErrorState := testutil.ToFloat64(metrics.GitopsdeplFailures)
 			Expect(newTotalNumberOfGitOpsDeploymentMetrics).To(Equal(totalNumberOfGitOpsDeploymentMetrics + 1))
@@ -129,10 +129,10 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 			By("deleting the invalid GitOpsDeployment and calling deploymentModified again")
 
 			err = k8sClient.Delete(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			shutdownSignalled, err = handleDeploymentModified(ctx, &eventLoopEvent, appEventLoopRunnerAction, dbQueries, log.FromContext(context.Background()))
 			Expect(shutdownSignalled).To(BeFalse())
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			newNumberOfGitOpsDeploymentsInErrorState = testutil.ToFloat64(metrics.GitopsdeplFailures)
 			newTotalNumberOfGitOpsDeploymentMetrics = testutil.ToFloat64(metrics.Gitopsdepl)
@@ -152,7 +152,7 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 				kubesystemNamespace,
 				workspace,
 				err = tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			workspaceID = string(workspace.UID)
 
@@ -185,7 +185,7 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 			}
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(false, false)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			appEventLoopRunnerAction = applicationEventLoopRunner_Action{
 				eventResourceName:           gitopsDepl.Name,
@@ -219,7 +219,7 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 			shutdownSignalled, err := handleDeploymentModified(ctx, &eventLoopEvent, appEventLoopRunnerAction, dbQueries, log.FromContext(context.Background()))
 			Expect(shutdownSignalled).To(BeFalse())
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			newTotalNumberOfGitOpsDeploymentMetrics := testutil.ToFloat64(metrics.Gitopsdepl)
 			newNumberOfGitOpsDeploymentsInErrorState := testutil.ToFloat64(metrics.GitopsdeplFailures)
 			Expect(newTotalNumberOfGitOpsDeploymentMetrics).To(Equal(totalNumberOfGitOpsDeploymentMetrics + 1))
@@ -228,10 +228,10 @@ var _ = Describe("Test for Gitopsdeployment metrics counter", func() {
 			By("deleting the GitOpsDeployment and calling deploymentModified again")
 
 			err = k8sClient.Delete(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			shutdownSignalled, err = handleDeploymentModified(ctx, &eventLoopEvent, appEventLoopRunnerAction, dbQueries, log.FromContext(context.Background()))
 			Expect(shutdownSignalled).To(BeFalse())
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			newTotalNumberOfGitOpsDeploymentMetrics = testutil.ToFloat64(metrics.Gitopsdepl)
 			newNumberOfGitOpsDeploymentsInErrorState = testutil.ToFloat64(metrics.GitopsdeplFailures)

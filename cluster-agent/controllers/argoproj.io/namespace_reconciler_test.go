@@ -36,10 +36,10 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			log := logger.FromContext(ctx)
 
 			scheme, _, _, _, err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = appv1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Fake kube client.
 			k8sClient := fake.NewClientBuilder().WithScheme(scheme).Build()
@@ -57,7 +57,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			deletedArgoApplications := cleanOrphanedCRsfromCluster_Applications(argoApplications, processedApplicationIds, ctx, reconciler.Client, log)
 
-			Expect(len(deletedArgoApplications)).To(Equal(3))
+			Expect(deletedArgoApplications).To(HaveLen(3))
 
 			deletedApplicationIds := map[string]string{"test-my-application-1": "", "test-my-application-2": "", "test-my-application-4": ""}
 			for _, app := range deletedArgoApplications {
@@ -80,19 +80,19 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			ctx = context.Background()
 
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			scheme, argocdNamespace, kubesystemNamespace, workspace, err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, dummyApplicationSpec, argoCdApp, err = createDummyApplicationData()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationput = db.Application{
 				Application_id:          "test-my-application",
@@ -103,10 +103,10 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			}
 
 			err = dbQueries.CreateApplication(ctx, &applicationput)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = appv1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -126,18 +126,18 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			}
 
 			err = reconciler.Create(ctx, &argoCdApp)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			var speCialClusterUser db.ClusterUser
 			err = dbQueries.GetOrCreateSpecialClusterUser(context.Background(), &speCialClusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		AfterEach(func() {
 			for _, operation := range operationList {
 				rowsAffected, err := dbQueries.CheckedDeleteOperationById(ctx, operation.Operation_id, operation.Operation_owner_user_id)
 				Expect(rowsAffected).Should((Equal(1)))
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			}
 			// Empty Operation List
 			operationList = []db.Operation{}
@@ -156,19 +156,19 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			_, dbOperation, err := operations.CreateOperation(ctx, false, dbOperationInput,
 				db.SpecialClusterUserName, "argocd", reconciler.DB, reconciler.Client, log)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbOperation.State = "Completed"
 			err = dbQueries.UpdateOperation(ctx, dbOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			operationList = append(operationList, *dbOperation)
 
 			// Get list of Operations before cleanup.
 			listOfK8sOperationFirst := managedgitopsv1alpha1.OperationList{}
 			err = reconciler.List(ctx, &listOfK8sOperationFirst)
-			Expect(err).To(BeNil())
-			Expect(len(listOfK8sOperationFirst.Items)).NotTo(Equal(0))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(listOfK8sOperationFirst.Items).NotTo(BeEmpty())
 
 			// Clean Operations
 			syncCRsWithDB_Applications_Delete_Operations(ctx, dbQueries, reconciler.Client, log)
@@ -176,8 +176,8 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			// Get list of Operations after cleanup.
 			listOfK8sOperationSecond := managedgitopsv1alpha1.OperationList{}
 			err = reconciler.List(ctx, &listOfK8sOperationSecond)
-			Expect(err).To(BeNil())
-			Expect(len(listOfK8sOperationSecond.Items)).To(Equal(0))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(listOfK8sOperationSecond.Items).To(BeEmpty())
 		})
 
 		It("Should not delete Operations from cluster and if operation is not completed.", func() {
@@ -193,15 +193,15 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			_, dbOperation, err := operations.CreateOperation(ctx, false, dbOperationInput,
 				db.SpecialClusterUserName, "argocd", reconciler.DB, reconciler.Client, log)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			operationList = append(operationList, *dbOperation)
 
 			// Get list of Operations before cleanup.
 			listOfK8sOperationFirst := managedgitopsv1alpha1.OperationList{}
 			err = reconciler.List(ctx, &listOfK8sOperationFirst)
-			Expect(err).To(BeNil())
-			Expect(len(listOfK8sOperationFirst.Items)).NotTo(Equal(0))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(listOfK8sOperationFirst.Items).NotTo(BeEmpty())
 
 			// Clean Operations
 			syncCRsWithDB_Applications_Delete_Operations(ctx, dbQueries, reconciler.Client, log)
@@ -209,8 +209,8 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			// Get list of Operations after cleanup.
 			listOfK8sOperationSecond := managedgitopsv1alpha1.OperationList{}
 			err = reconciler.List(ctx, &listOfK8sOperationSecond)
-			Expect(err).To(BeNil())
-			Expect(len(listOfK8sOperationSecond.Items)).NotTo(Equal(0))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(listOfK8sOperationSecond.Items).NotTo(BeEmpty())
 		})
 	})
 
@@ -225,18 +225,18 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 		BeforeEach(func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 			log = logger.FromContext(ctx)
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			scheme, _, _, _, err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = appv1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Fake kube client.
 			k8sClient = fake.NewClientBuilder().WithScheme(scheme).Build()
@@ -248,10 +248,10 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, &kubeSystemNamepace)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsEngineCluster, created, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubeSystemNamepace.UID), dbq, log)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(gitopsEngineCluster).ToNot(BeNil())
 			Expect(created).To(BeTrue())
 
@@ -265,7 +265,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 			err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsEngineInstance = db.GitopsEngineInstance{
 				Gitopsengineinstance_id: "test-fake-engine-instance-id",
@@ -274,7 +274,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 			}
 			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create Secret CR.")
 			secret = corev1.Secret{
@@ -294,7 +294,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 				User_name:      "test-repocred-user",
 			}
 			err := dbq.CreateClusterUser(ctx, clusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create a RepositoryCredentials DB entry.")
 
@@ -309,7 +309,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 				EngineClusterID:         gitopsEngineInstance.Gitopsengineinstance_id,
 			}
 			err = dbq.CreateRepositoryCredentials(ctx, &repoCredentials)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create secret in cluster with label pointing to DB entry that exists.")
 
@@ -319,7 +319,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			}
 
 			err = k8sClient.Create(ctx, &secret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call cleanOrphanedCRsfromCluster_Secret function.")
 
@@ -328,7 +328,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			By("Verify RepositoryCredentials DB entry still exists.")
 
 			_, err = dbq.GetRepositoryCredentialsByID(ctx, repoCredentials.RepositoryCredentialsID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should delete repository secret from cluster, if entry pointed by secret is not present in RepositoryCredentials table.", func() {
@@ -343,7 +343,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			}
 
 			err := k8sClient.Create(ctx, &secret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call cleanOrphanedCRsfromCluster_Secret function.")
 
@@ -352,7 +352,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			By("Verify repository secret from cluster is deleted.")
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&secret), &secret)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(apierr.IsNotFound(err)).To(BeTrue())
 		})
 
@@ -369,7 +369,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			}
 
 			err := dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create secret in cluster with label pointing to DB entry that exists.")
 
@@ -379,7 +379,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			}
 
 			err = k8sClient.Create(ctx, &secret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call cleanOrphanedCRsfromCluster_Secret function.")
 
@@ -388,7 +388,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			By("Verify ManagedEnvironment DB entry still exists.")
 
 			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironment)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should delete cluster secret from cluster, if entry pointed by secret is not present in ManagedEnvironment table.", func() {
@@ -403,7 +403,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			}
 
 			err := k8sClient.Create(ctx, &secret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call cleanOrphanedCRsfromCluster_Secret function.")
 
@@ -412,7 +412,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			By("Verify cluster secret from cluster is deleted.")
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&secret), &secret)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(apierr.IsNotFound(err)).To(BeTrue())
 		})
 
@@ -423,7 +423,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			By("Create secret in cluster with one label.")
 
 			err := k8sClient.Create(ctx, &secret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call cleanOrphanedCRsfromCluster_Secret function.")
 
@@ -432,7 +432,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			By("Verify cluster secret from cluster is deleted.")
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&secret), &secret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should not delete cluster secret from cluster, if it does have secret-type label.", func() {
@@ -444,7 +444,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			secret.Labels = map[string]string{SecretDbIdentifierKey: "test-env-id" + string(uuid.NewUUID())}
 
 			err := k8sClient.Create(ctx, &secret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call cleanOrphanedCRsfromCluster_Secret function.")
 
@@ -453,7 +453,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			By("Verify cluster secret from cluster is deleted.")
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&secret), &secret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should not delete cluster secret from cluster, if it does have databaseID label.", func() {
@@ -465,7 +465,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			secret.Labels = map[string]string{sharedutil.ArgoCDSecretTypeIdentifierKey: sharedutil.ArgoCDSecretClusterTypeValue}
 
 			err := k8sClient.Create(ctx, &secret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call cleanOrphanedCRsfromCluster_Secret function.")
 
@@ -474,7 +474,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			By("Verify cluster secret from cluster is deleted.")
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&secret), &secret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 
@@ -488,24 +488,24 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 		BeforeEach(func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 			log = logger.FromContext(ctx)
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			scheme, _, _, _, err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = appv1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Fake kube client.
 			k8sClient = fake.NewClientBuilder().WithScheme(scheme).Build()
 
 			_, _, _, gitopsEngineInstance, _, err = db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create Secret CR.")
 
@@ -526,13 +526,13 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			// Create 1st CR in cluster
 			err := k8sClient.Create(ctx, &k8sOperationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create 2nd CR in cluster
 			k8sOperationSecond.Name = "test-op-" + string(uuid.NewUUID())
 			k8sOperationSecond.Spec.OperationID = "test-id-" + string(uuid.NewUUID())
 			err = k8sClient.Create(ctx, &k8sOperationSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Calling cleanOrphanedCRsfromCluster_Operation function to delete orphaned Operation CR, if corresponding DB entry is not present.")
 
@@ -552,13 +552,13 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			// Create 1st CR in cluster
 			err := k8sClient.Create(ctx, &k8sOperationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create 2nd CR in cluster
 			k8sOperationSecond.Name = "test-op-" + string(uuid.NewUUID())
 			k8sOperationSecond.Spec.OperationID = "test-id-" + string(uuid.NewUUID())
 			err = k8sClient.Create(ctx, &k8sOperationSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create DB entry for 1st CR.
 			dbOperation := db.Operation{
@@ -570,14 +570,14 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 				Operation_owner_user_id: testClusterUser.Clusteruser_id,
 			}
 			err = dbq.CreateOperation(ctx, &dbOperation, dbOperation.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create DB entry for 2nd CR.
 			operationSecond := dbOperation
 			operationSecond.Operation_id = k8sOperationSecond.Spec.OperationID
 			operationSecond.Resource_id = "test-" + string(uuid.NewUUID())
 			err = dbq.CreateOperation(ctx, &operationSecond, operationSecond.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Calling cleanOrphanedCRsfromCluster_Operation function to delete orphaned Operation CR, if corresponding DB entry is not present.")
 
@@ -586,10 +586,10 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			By("Verify that Operation CRs with a valid DB entry are not deleted.")
 
 			err = k8sClient.Get(ctx, types.NamespacedName{Name: k8sOperationFirst.Name, Namespace: k8sOperationFirst.Namespace}, &k8sOperationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8sClient.Get(ctx, types.NamespacedName{Name: k8sOperationSecond.Name, Namespace: k8sOperationSecond.Namespace}, &k8sOperationSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should delete only those Operation which don't point to a valid DB entry.", func() {
@@ -597,13 +597,13 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			// Create 1st CR in cluster
 			err := k8sClient.Create(ctx, &k8sOperationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create 2nd CR in cluster
 			k8sOperationSecond.Name = "test-op-" + string(uuid.NewUUID())
 			k8sOperationSecond.Spec.OperationID = "test-id-" + string(uuid.NewUUID())
 			err = k8sClient.Create(ctx, &k8sOperationSecond)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create DB entry for 1st CR
 			dbOperation := db.Operation{
@@ -615,7 +615,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 				Operation_owner_user_id: testClusterUser.Clusteruser_id,
 			}
 			err = dbq.CreateOperation(ctx, &dbOperation, dbOperation.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Calling cleanOrphanedCRsfromCluster_Operation function to delete orphaned Operation CR, if corresponding DB entry is not present.")
 
@@ -624,7 +624,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			By("Verify that Operation CR with valid DB entry is not deleted.")
 
 			err = k8sClient.Get(ctx, types.NamespacedName{Name: k8sOperationFirst.Name, Namespace: k8sOperationFirst.Namespace}, &k8sOperationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Verify that Operation CR without valid DB entry is deleted.")
 
@@ -634,13 +634,13 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			By("Verify that DB entry for Operation CR is not deleted.")
 
 			err = dbq.GetOperationById(ctx, &dbOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should delete an Operation if it points to a valid DB entry, but 'created_on' is more than waitTimeForK8sResourceDelete and 'State' is set to 'Completed'.", func() {
 			// Create CR in cluster
 			err := k8sClient.Create(ctx, &k8sOperationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create DB entry for CR
 			dbOperation := db.Operation{
@@ -652,10 +652,10 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 				Operation_owner_user_id: testClusterUser.Clusteruser_id,
 			}
 			err = dbq.CreateOperation(ctx, &dbOperation, dbOperation.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetOperationById(ctx, &dbOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Change "Created_on" & "State" field using UpdateOperation function since CreateOperation does not allow to insert custom "Created_on" and "State" field.
 
@@ -666,7 +666,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			dbOperation.Created_on = time.Now().Add(-1 * (waitTimeForK8sResourceDelete + 1*time.Second))
 
 			err = dbq.UpdateOperation(ctx, &dbOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Calling cleanOrphanedCRsfromCluster_Operation function to delete orphaned Operation CR, if corresponding DB entry is not present.")
 
@@ -680,7 +680,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 		It("Should not delete an Operation if it points to a valid DB entry, but 'created_on' is more than waitTimeForK8sResourceDelete and 'State' is not set to 'Completed'.", func() {
 			err := k8sClient.Create(ctx, &k8sOperationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbOperation := db.Operation{
 				Operation_id:            k8sOperationFirst.Spec.OperationID,
@@ -691,17 +691,17 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 				Operation_owner_user_id: testClusterUser.Clusteruser_id,
 			}
 			err = dbq.CreateOperation(ctx, &dbOperation, dbOperation.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Change "Created_on" field using UpdateOperation function since CreateOperation does not allow to insert custom "Created_on" field.
 
 			err = dbq.GetOperationById(ctx, &dbOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Set "Created_on" field to > waitTimeForK8sResourceDelete
 			dbOperation.Created_on = time.Now().Add(-1 * (waitTimeForK8sResourceDelete + 1*time.Second))
 			err = dbq.UpdateOperation(ctx, &dbOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Calling cleanOrphanedCRsfromCluster_Operation function to delete orphaned Operation CR, if corresponding DB entry is not present.")
 
@@ -710,12 +710,12 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			By("Verify that Operation CRs is not deleted.")
 
 			err = k8sClient.Get(ctx, types.NamespacedName{Name: k8sOperationFirst.Name, Namespace: k8sOperationFirst.Namespace}, &k8sOperationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("Should not delete an Operation if it points to a valid DB entry, but 'created_on' is less than waitTimeForK8sResourceDelete and 'State' is set to 'Completed'.", func() {
 			err := k8sClient.Create(ctx, &k8sOperationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbOperation := db.Operation{
 				Operation_id:            k8sOperationFirst.Spec.OperationID,
@@ -726,17 +726,17 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 				Operation_owner_user_id: testClusterUser.Clusteruser_id,
 			}
 			err = dbq.CreateOperation(ctx, &dbOperation, dbOperation.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Change "State" field using UpdateOperation function since CreateOperation does not allow to insert custom "State" field.
 
 			err = dbq.GetOperationById(ctx, &dbOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Set "State" to "Completed"
 			dbOperation.State = db.OperationState_Completed
 			err = dbq.UpdateOperation(ctx, &dbOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Calling cleanOrphanedCRsfromCluster_Operation function to delete orphaned Operation CR, if corresponding DB entry is not present.")
 
@@ -745,7 +745,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			By("Verify that Operation CRs is not deleted.")
 
 			err = k8sClient.Get(ctx, types.NamespacedName{Name: k8sOperationFirst.Name, Namespace: k8sOperationFirst.Namespace}, &k8sOperationFirst)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 })

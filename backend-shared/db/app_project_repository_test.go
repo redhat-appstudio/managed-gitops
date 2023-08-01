@@ -13,22 +13,22 @@ var _ = Describe("AppProjectRepository Test", func() {
 	var seq = 101
 	It("Should Create, Get, Update and Delete an AppProjectRepository", func() {
 		err := db.SetupForTestingDBGinkgo()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		ctx := context.Background()
 		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		defer dbq.CloseDatabase()
 
 		_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		var clusterUser = &db.ClusterUser{
 			Clusteruser_id: "test-user-application",
 			User_name:      "test-user-application",
 		}
 		err = dbq.CreateClusterUser(ctx, clusterUser)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		repoCred := db.RepositoryCredentials{
 			RepositoryCredentialsID: "test-repo-cred-id",
@@ -43,7 +43,7 @@ var _ = Describe("AppProjectRepository Test", func() {
 
 		By("Inserting the RepositoryCredentials object to the database")
 		err = dbq.CreateRepositoryCredentials(ctx, &repoCred)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		By("Verify whether AppProjectRepository is created")
 		appProjectRepository := db.AppProjectRepository{
@@ -55,7 +55,7 @@ var _ = Describe("AppProjectRepository Test", func() {
 		}
 
 		err = dbq.CreateAppProjectRepository(ctx, &appProjectRepository)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		By("Verify whether AppProjectRepository is retrieved")
 		appProjectRepositoryget := db.AppProjectRepository{
@@ -64,17 +64,17 @@ var _ = Describe("AppProjectRepository Test", func() {
 		}
 
 		err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepositoryget)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(appProjectRepository).Should(Equal(appProjectRepositoryget))
 
 		By("Verify CountAppProjectRepositoryByClusterUserID")
 		appProjectRepositoryCount, err := dbq.CountAppProjectRepositoryByClusterUserID(ctx, &appProjectRepositoryget)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(appProjectRepositoryCount).To(Equal(1))
 
 		By("Verify whether AppProjectRepository is deleted")
 		rowsAffected, err := dbq.DeleteAppProjectRepositoryByRepoCredId(ctx, &appProjectRepository)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).Should(Equal(1))
 
 		err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepository)
@@ -96,14 +96,14 @@ var _ = Describe("AppProjectRepository Test", func() {
 		}
 
 		err = dbq.CreateAppProjectRepository(ctx, &appProjectRepository1)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		err = dbq.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepository1)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		By("Verify whether AppProjectRepository is deleted based on clusteruser_is")
 		rowsAffected, err = dbq.DeleteAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepository1)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).Should(Equal(1))
 
 	})

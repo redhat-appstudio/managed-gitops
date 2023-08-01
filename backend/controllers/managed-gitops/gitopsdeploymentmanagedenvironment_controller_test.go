@@ -43,7 +43,7 @@ var _ = Describe("GitOpsDeploymentManagedEnvironment Controller Test", func() {
 
 		BeforeEach(func() {
 			scheme, argocdNamespace, kubesystemNamespace, _, err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(argocdNamespace, kubesystemNamespace).Build()
 
@@ -56,7 +56,7 @@ var _ = Describe("GitOpsDeploymentManagedEnvironment Controller Test", func() {
 			}
 
 			err = k8sClient.Create(context.Background(), namespace)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			mockProcessor = mockPreprocessEventLoopProcessor{}
 			reconciler = GitOpsDeploymentManagedEnvironmentReconciler{
@@ -78,8 +78,8 @@ var _ = Describe("GitOpsDeploymentManagedEnvironment Controller Test", func() {
 					Name:      managedEnv.Name,
 				},
 			})
-			Expect(err).To(BeNil())
-			Expect(len(mockProcessor.requestsReceived)).Should(Equal(1))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(mockProcessor.requestsReceived).Should(HaveLen(1))
 
 		})
 

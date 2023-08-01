@@ -17,7 +17,7 @@ import (
 func HaveStatusCondition(conditionType string) matcher.GomegaMatcher {
 	return WithTransform(func(menv managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -44,7 +44,7 @@ func HaveStatusCondition(conditionType string) matcher.GomegaMatcher {
 func HaveAllowInsecureSkipTLSVerify(allowInsecureSkipTLSVerify bool) matcher.GomegaMatcher {
 	return WithTransform(func(menv managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -71,7 +71,7 @@ func HaveAllowInsecureSkipTLSVerify(allowInsecureSkipTLSVerify bool) matcher.Gom
 func HaveCredentials(expectedEnvSpec managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec) matcher.GomegaMatcher {
 	return WithTransform(func(env managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -96,7 +96,7 @@ func HaveCredentials(expectedEnvSpec managedgitopsv1alpha1.GitOpsDeploymentManag
 func HaveClusterResources(clusterResources bool) matcher.GomegaMatcher {
 	return WithTransform(func(menv managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -123,7 +123,7 @@ func HaveClusterResources(clusterResources bool) matcher.GomegaMatcher {
 func HaveNamespaces(namespaces []string) matcher.GomegaMatcher {
 	return WithTransform(func(menv managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {

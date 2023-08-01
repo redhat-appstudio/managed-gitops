@@ -12,10 +12,10 @@ var _ = Describe("ApplicationOwner Tests", func() {
 	Context("It should execute all DB functions for ApplicationOwner", func() {
 		It("Should execute all ApplicationOwner Functions", func() {
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			defer dbq.CloseDatabase()
 
 			ctx := context.Background()
@@ -25,10 +25,10 @@ var _ = Describe("ApplicationOwner Tests", func() {
 				User_name:      "test-user-application",
 			}
 			err = dbq.CreateClusterUser(ctx, clusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			application := db.Application{
 				Application_id:          "test-my-application",
@@ -39,7 +39,7 @@ var _ = Describe("ApplicationOwner Tests", func() {
 			}
 
 			err = dbq.CreateApplication(ctx, &application)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationOwner := db.ApplicationOwner{
 				ApplicationOwnerApplicationID: application.Application_id,
@@ -47,17 +47,17 @@ var _ = Describe("ApplicationOwner Tests", func() {
 			}
 
 			err = dbq.CreateApplicationOwner(ctx, &applicationOwner)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetApplicationOwnerByApplicationID(ctx, &applicationOwner)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			rowsAffected, err := dbq.DeleteApplicationOwner(ctx, applicationOwner.ApplicationOwnerApplicationID)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsAffected).To(Equal(1))
 
 			err = dbq.GetApplicationOwnerByApplicationID(ctx, &applicationOwner)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 		})

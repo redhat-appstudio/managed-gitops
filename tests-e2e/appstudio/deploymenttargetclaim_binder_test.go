@@ -59,7 +59,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			}
 
 			err = k8sClient.Create(ctx, &dtcls)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dt = appstudiosharedv1.DeploymentTarget{
 				ObjectMeta: metav1.ObjectMeta{
@@ -81,7 +81,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 		It("should handle a DTC with dynamic provisioning", func() {
 			By("create a DTC without any target")
 			err := k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("check if the provisioner annotation is added")
 			Eventually(dtc, "2m", "1s").Should(
@@ -93,7 +93,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			dt.Spec.ClaimRef = dtc.Name
 
 			err = k8sClient.Create(ctx, &dt)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the DT and DTC are bound together")
 			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
@@ -112,7 +112,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			dtc.Spec.TargetName = dt.Name
 
 			err := k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("check if the DTC is in Pending phase")
 			Eventually(dtc, "2m", "1s").Should(
@@ -121,7 +121,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 
 			By("create a DT that matches the above DTC")
 			err = k8sClient.Create(ctx, &dt)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the DT and DTC are bounded")
 			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
@@ -138,7 +138,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 		It("should bind with a best match DT in the absence of provisioner/user created DT", func() {
 			By("create a DT")
 			err := k8sClient.Create(ctx, &dt)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create a fake DT that matches a random DTC")
 			fakedt := appstudiosharedv1.DeploymentTarget{
@@ -158,11 +158,11 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			}
 
 			err = k8sClient.Create(ctx, &fakedt)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create a DTC without any target")
 			err = k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the DTC is binded with a matching DT")
 			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
@@ -171,7 +171,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			))
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(dtc.Spec.TargetName).Should(Equal(dt.Name))
 
 			Eventually(dt, "2m", "1s").Should(
@@ -181,7 +181,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 		It("should handle deletion of DTC and release binded DT", func() {
 			By("create a DT")
 			err := k8sClient.Create(ctx, &dt)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create a DTC without any target")
 			dtc := appstudiosharedv1.DeploymentTargetClaim{
@@ -195,7 +195,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			}
 
 			err = k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the DTC is binded with a matching DT")
 			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
@@ -204,7 +204,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			))
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(dtc.Spec.TargetName).Should(Equal(dt.Name))
 
 			Eventually(dt, "2m", "1s").Should(
@@ -212,7 +212,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 
 			By("delete the DTC and verify if the binded DT is released")
 			err = k8sClient.Delete(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(&dtc, "2m", "1s").Should(k8s.NotExist(k8sClient))
 
@@ -224,11 +224,11 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 		It("should mark the DTC as Lost if its binded DT is not found", func() {
 			By("create a DT")
 			err := k8sClient.Create(ctx, &dt)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create a DTC without any target")
 			err = k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the DTC is binded with a matching DT")
 			Eventually(dtc, "2m", "1s").Should(SatisfyAll(
@@ -237,7 +237,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			))
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(dtc.Spec.TargetName).Should(Equal(dt.Name))
 
 			Eventually(dt, "2m", "1s").Should(
@@ -245,7 +245,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 
 			By("delete the DT and verify if the DTC is marked as Lost")
 			err = k8sClient.Delete(ctx, &dt)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(dtc, "2m", "1s").Should(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Lost))

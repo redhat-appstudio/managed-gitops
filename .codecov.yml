@@ -26,4 +26,9 @@ github_checks:
 
 coverage:
   status:
+    project:
+      default:
+        target: auto
+        threshold: 0.2%
+        removed_code_behavior: adjust_base
     patch: off

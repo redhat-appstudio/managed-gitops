@@ -30,7 +30,7 @@ const (
 )
 
 func LogAPIResourceChangeEvent(resourceNamespace string, resourceName string, resource any, resourceChangeType ResourceChangeType, log logr.Logger) {
-	log = log.WithValues("audit", "true")
+	log = log.WithValues("audit", "true").WithCallDepth(1)
 
 	if resource == nil {
 		log.Error(nil, "resource passed to LogAPIResourceChangeEvent was nil")

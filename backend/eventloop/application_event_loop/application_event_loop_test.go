@@ -78,7 +78,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 
 		BeforeEach(OncePerOrdered, func() {
 			scheme, argocdNamespace, kubesystemNamespace, workspace, err := tests.GenericTestSetup()
-			Expect(err).To(HaveOccurred())
+			Expect(err).ToNot(HaveOccurred())
 
 			workspaceUID = string(workspace.UID)
 

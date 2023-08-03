@@ -866,6 +866,8 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 	// Ignore the self-signed certificate
 	if managedEnvironment.Spec.AllowInsecureSkipTLSVerify {
 		restConfig.Insecure = true
+		restConfig.TLSClientConfig.CAFile = ""
+		restConfig.TLSClientConfig.CAData = nil
 	}
 
 	k8sClient, err := k8sClientFactory.BuildK8sClient(restConfig)
@@ -1183,6 +1185,8 @@ func verifyClusterCredentialsWithNamespaceList(ctx context.Context, clusterCreds
 	// Ignore the self-signed certificate
 	if managedEnvCR.Spec.AllowInsecureSkipTLSVerify {
 		configParam.Insecure = true
+		configParam.TLSClientConfig.CAFile = ""
+		configParam.TLSClientConfig.CAData = nil
 	}
 
 	clientObj, err := k8sClientFactory.BuildK8sClient(configParam)

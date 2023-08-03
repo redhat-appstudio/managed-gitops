@@ -15,7 +15,6 @@ import (
 	promotionRunFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/promotionrun"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("Application Promotion Run E2E Tests.", func() {
@@ -24,8 +23,6 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 		var bindingStage appstudiosharedv1.SnapshotEnvironmentBinding
 		var bindingProd appstudiosharedv1.SnapshotEnvironmentBinding
 		var promotionRun appstudiosharedv1.PromotionRun
-		var k8sClient client.Client
-		var err error
 
 		BeforeEach(func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
@@ -44,7 +41,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			err = fixture.EnsureDestinationNamespaceExists(secondNamespace, dbutil.GetGitOpsEngineSingleInstanceNamespace(), clientconfig)
 			Expect(err).ShouldNot(HaveOccurred())
 
-			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
 			By("creating a ServiceAccount and a Secret")
@@ -118,7 +115,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			gitOpsDeploymentNameStage := appstudiocontroller.GenerateBindingGitOpsDeploymentName(bindingStage, bindingStage.Spec.Components[0].Name)
 			// don't care about the deployment status
 			err = buildAndUpdateBindingStatus(bindingStage.Spec.Components,
-				fixture.RepoURL, "main", "fdhyqtw",
+				"https://github.com/redhat-appstudio/managed-gitops", "main", "fdhyqtw",
 				[]string{"resources/test-data/component-based-gitops-repository-no-route/components/componentA/overlays/staging", "resources/test-data/component-based-gitops-repository-no-route/components/componentB/overlays/staging"}, &bindingStage)
 			Expect(err).To(Succeed())
 
@@ -132,7 +129,7 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 			gitOpsDeploymentNameProd := appstudiocontroller.GenerateBindingGitOpsDeploymentName(bindingProd, bindingProd.Spec.Components[0].Name)
 			// don't care about the deployment status
 			err = buildAndUpdateBindingStatus(bindingProd.Spec.Components,
-				fixture.RepoURL, "main", "fdhyqtw",
+				"https://github.com/redhat-appstudio/managed-gitops", "main", "fdhyqtw",
 				[]string{"resources/test-data/component-based-gitops-repository-no-route/components/componentA/overlays/staging", "resources/test-data/component-based-gitops-repository-no-route/components/componentB/overlays/staging"}, &bindingProd)
 			Expect(err).To(Succeed())
 
@@ -184,6 +181,9 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 		It("Should create GitOpsDeployments and it should be Synced/Healthy.", func() {
 			// ToDo: https://issues.redhat.com/browse/GITOPSRVCE-234
 
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
 			By("Create PromotionRun CR.")
 			err = k8s.Create(&promotionRun, k8sClient)
 			Expect(err).To(Succeed())
@@ -224,6 +224,9 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 				InitialEnvironment: "staging",
 			}
 
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
 			err = k8s.Create(&promotionRun, k8sClient)
 			Expect(err).To(Succeed())
 
@@ -245,6 +248,9 @@ var _ = Describe("Application Promotion Run E2E Tests.", func() {
 
 			By("Create PromotionRun CR.")
 			promotionRun.Spec.ManualPromotion.TargetEnvironment = ""
+
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
 
 			err = k8s.Create(&promotionRun, k8sClient)
 			Expect(err).To(Succeed())
@@ -272,7 +278,6 @@ func buildEnvironmentResource(name, displayName, parentEnvironment string, envTy
 			Namespace: fixture.GitOpsServiceE2ENamespace,
 		},
 		Spec: appstudiosharedv1.EnvironmentSpec{
-			Type:               envType,
 			DisplayName:        displayName,
 			DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
 			ParentEnvironment:  parentEnvironment,

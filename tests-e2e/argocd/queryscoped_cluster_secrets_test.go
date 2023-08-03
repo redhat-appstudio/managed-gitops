@@ -141,11 +141,10 @@ var _ = Describe("Argo CD Application tests", func() {
 				createServiceAccountsAndSecretsForTest(clusterScoped)
 
 				for _, userName := range users {
-
 					By("creating an Argo CD application to deploy to the user's namespace")
 
-					argoCDApplication := application.BuildArgoCDApplication("test-"+userName, argoCDNamespace, "https://github.com/redhat-appstudio/managed-gitops/", fixture.GitopsDeploymentPath, "", "", "", "test-"+userName, userName, []string{"resources-finalizer.argocd.argoproj.io"}, &appv1alpha1.SyncPolicyAutomated{Prune: true, SelfHeal: true})
-
+					argoCDApplication := application.BuildArgoCDApplication("test-"+userName, argoCDNamespace, "https://github.com/redhat-appstudio/managed-gitops/", fixture.GitopsDeploymentPath, "", "", "", "test-"+userName, userName, &appv1alpha1.SyncPolicyAutomated{Prune: true, SelfHeal: true})
+					argoCDApplication.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
 					err := k8sClient.Create(context.Background(), &argoCDApplication)
 					Expect(err).ToNot(HaveOccurred())
 
@@ -178,7 +177,6 @@ var _ = Describe("Argo CD Application tests", func() {
 					Eventually(componentBDepl, "60s", "1s").ShouldNot(k8s.ExistByName(k8sClient))
 
 				}
-
 			},
 			Entry("user should be able to deploy to their namespace, when using cluster-scoped argo cd cluster secrets", true),
 			Entry("user should be able to deploy to their namespace, when using namespace-scoped argo cd cluster secrets", false),
@@ -198,7 +196,8 @@ var _ = Describe("Argo CD Application tests", func() {
 				By("creating an Argo CD application to deploy to the user's namespace")
 
 				// Attempt to deploy into a Namespace we don't have access to
-				argoCDApplication := application.BuildArgoCDApplication("test-"+userName, argoCDNamespace, "https://github.com/redhat-appstudio/managed-gitops/", fixture.GitopsDeploymentPath, "", "", "", "test-"+userName, otherUser, []string{"resources-finalizer.argocd.argoproj.io"}, &appv1alpha1.SyncPolicyAutomated{Prune: true, SelfHeal: true})
+				argoCDApplication := application.BuildArgoCDApplication("test-"+userName, argoCDNamespace, "https://github.com/redhat-appstudio/managed-gitops/", fixture.GitopsDeploymentPath, "", "", "", "test-"+userName, otherUser, &appv1alpha1.SyncPolicyAutomated{Prune: true, SelfHeal: true})
+				argoCDApplication.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
 				err := k8sClient.Create(context.Background(), &argoCDApplication)
 				Expect(err).ToNot(HaveOccurred())
 

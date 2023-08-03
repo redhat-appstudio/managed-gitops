@@ -37,7 +37,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("creating the 'staging' Environment")
-			environment := buildEnvironmentResource("staging", "my-environment", "", "")
+			environment = buildEnvironmentResource("staging", "my-environment", "", "")
 			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 

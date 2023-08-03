@@ -294,7 +294,7 @@ func HaveApplicationSyncError(syncError appv1alpha1.ApplicationStatus) matcher.G
 }
 
 // BuildArgoCDApplication creates an instance of ArgoCD Application CR
-func BuildArgoCDApplication(name, namespace, repoURL, path, target, appProjectName, server, destName, destNamespace string, finalizers []string, syncPolicyAutomated *appv1alpha1.SyncPolicyAutomated) appv1alpha1.Application {
+func BuildArgoCDApplication(name, namespace, repoURL, path, target, appProjectName, server, destName, destNamespace string, syncPolicyAutomated *appv1alpha1.SyncPolicyAutomated) appv1alpha1.Application {
 	application := appv1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,

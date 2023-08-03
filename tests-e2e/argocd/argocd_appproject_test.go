@@ -70,7 +70,7 @@ var _ = Describe("ArgoCD AppProject E2E tests", func() {
 				},
 			}
 
-			app = appFixture.BuildArgoCDApplication("argo-app-01", dbutil.GetGitOpsEngineSingleInstanceNamespace(), "", fixture.GitopsDeploymentPath, "HEAD", appProject.Name, "https://kubernetes.default.svc", "", fixture.GitOpsServiceE2ENamespace, nil, &appv1.SyncPolicyAutomated{})
+			app = appFixture.BuildArgoCDApplication("argo-app-01", dbutil.GetGitOpsEngineSingleInstanceNamespace(), "", fixture.GitopsDeploymentPath, "HEAD", appProject.Name, "https://kubernetes.default.svc", "", fixture.GitOpsServiceE2ENamespace, &appv1.SyncPolicyAutomated{})
 
 			secret = corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{

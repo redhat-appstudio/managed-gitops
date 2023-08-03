@@ -1069,7 +1069,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 
 	// Go through the existing conditions and check if they are present in the list of new conditions. If they are absent then it can marked as resolved.
 	for _, c := range gitopsDeployment.Status.Conditions {
-		reason := c.Type + "resolved"
+		reason := c.Type + "Resolved"
 		if !conditionManager.HasCondition(&newGitopsDeplConditions, c.Type) && c.Reason != managedgitopsv1alpha1.GitOpsDeploymentReasonType(reason) {
 			conditionManager.SetCondition(&gitopsDeployment.Status.Conditions, c.Type, managedgitopsv1alpha1.GitOpsConditionStatusFalse, managedgitopsv1alpha1.GitOpsDeploymentReasonType(reason), "")
 		}

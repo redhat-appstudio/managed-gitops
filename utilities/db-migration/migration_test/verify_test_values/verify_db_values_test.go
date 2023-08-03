@@ -110,6 +110,7 @@ var _ = Describe("Test to verify that the data added to database is still presen
 			err = dbq.GetApplicationStateById(ctx, &applicationState)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(addtestvalues.AddTest_PreApplicationState).To(Equal(applicationState))
+			Expect(addtestvalues.AddTest_PreApplicationState.Conditions).To(Equal(applicationState.Conditions))
 
 			By("Get a deployment to application mapping to the application")
 			dtam := db.DeploymentToApplicationMapping{

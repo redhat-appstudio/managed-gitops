@@ -729,8 +729,8 @@ var _ = Describe("Application Controller", func() {
 			By("Verifying that the ApplicationState DB row has been updated to match the Application conditions")
 			resultConditions := []appv1.ApplicationCondition{}
 			err = yaml.Unmarshal(applicationStateDB.Conditions, &resultConditions)
-			Expect(err).To(BeNil())
-			Expect(len(resultConditions)).To(Equal(len(guestbookApp.Status.Conditions)))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resultConditions).To(HaveLen(len(guestbookApp.Status.Conditions)))
 		})
 
 		It("Test to verify if the conditions is empty if there are no Application conditions", func() {
@@ -853,7 +853,7 @@ var _ = Describe("Application Controller", func() {
 			}
 
 			conditionBytes, err := yaml.Marshal(&appConditions)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// applicationState which already exists in database
 			applicationState := &db.ApplicationState{
@@ -890,10 +890,10 @@ var _ = Describe("Application Controller", func() {
 
 			outputConditions := []appv1.ApplicationCondition{}
 			err = yaml.Unmarshal(applicationStateget.Conditions, &outputConditions)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			compareConditions := func(cond1, cond2 []appv1.ApplicationCondition) {
-				Expect(len(cond1)).To(Equal(len(cond2)))
+				Expect(cond1).To(HaveLen(len(cond2)))
 
 				for i, cond := range cond1 {
 					other := cond2[i]
@@ -914,21 +914,21 @@ var _ = Describe("Application Controller", func() {
 			}
 
 			conditionBytes, err = yaml.Marshal(&newConditions)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationState.Conditions = conditionBytes
 			err = reconciler.DB.UpdateApplicationState(ctx, applicationState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call reconcile function")
 			result, err = reconciler.Reconcile(ctx, newRequest(namespace, name))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(result).ToNot(BeNil())
 
 			By("Verifying that the ApplicationState DB row has been updated to match the Application Conditions")
 
 			err = yaml.Unmarshal(applicationState.Conditions, &outputConditions)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			compareConditions(outputConditions, newConditions)
 		})

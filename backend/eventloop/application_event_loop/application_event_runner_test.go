@@ -353,7 +353,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			}
 
 			conditionBytes, err := yaml.Marshal(appConditions)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationState := &db.ApplicationState{
 				Applicationstate_application_id: deplToAppMapping.Application_id,

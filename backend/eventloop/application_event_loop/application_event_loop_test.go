@@ -78,7 +78,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 
 		BeforeEach(OncePerOrdered, func() {
 			scheme, argocdNamespace, kubesystemNamespace, workspace, err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			workspaceUID = string(workspace.UID)
 
@@ -129,7 +129,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 
 					event := <-state.syncOperationEventRunner
 					Expect(event).To(Equal(newEvent.Message.Event))
-					Expect(state.waitingSyncOperationEvents).To(HaveLen(0))
+					Expect(state.waitingSyncOperationEvents).To(BeEmpty())
 					Expect(state.activeSyncOperationEvent.Message).To(Equal(newEvent.Message))
 				})
 
@@ -192,7 +192,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 
 					event := <-state.syncOperationEventRunner
 					Expect(event).To(Equal(newEvent.Message.Event))
-					Expect(state.waitingSyncOperationEvents).To(HaveLen(0))
+					Expect(state.waitingSyncOperationEvents).To(BeEmpty())
 					Expect(state.activeSyncOperationEvent.Message).To(Equal(newEvent.Message))
 
 				})
@@ -208,7 +208,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 					shouldTerminate := processApplicationEventQueueLoopMessage(ctx, workComplete, &state, input, k8sClient, klog)
 					Expect(shouldTerminate).To(BeFalse())
 					Expect(state.syncOperationEventRunnerShutdown).To(BeTrue())
-					Expect(state.waitingSyncOperationEvents).To(HaveLen(0))
+					Expect(state.waitingSyncOperationEvents).To(BeEmpty())
 					Expect(state.activeSyncOperationEvent).To(BeNil())
 				})
 			})
@@ -237,7 +237,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 
 					event := <-state.deploymentEventRunner
 					Expect(event).To(Equal(newEvent.Message.Event))
-					Expect(state.waitingDeploymentEvents).To(HaveLen(0))
+					Expect(state.waitingDeploymentEvents).To(BeEmpty())
 					Expect(state.activeDeploymentEvent.Message).To(Equal(newEvent.Message))
 				})
 
@@ -300,7 +300,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 
 					event := <-state.deploymentEventRunner
 					Expect(event).To(Equal(newEvent.Message.Event))
-					Expect(state.waitingDeploymentEvents).To(HaveLen(0))
+					Expect(state.waitingDeploymentEvents).To(BeEmpty())
 					Expect(state.activeDeploymentEvent.Message).To(Equal(newEvent.Message))
 
 				})
@@ -316,7 +316,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 					shouldTerminate := processApplicationEventQueueLoopMessage(ctx, workComplete, &state, input, k8sClient, klog)
 					Expect(shouldTerminate).To(BeFalse())
 					Expect(state.deploymentEventRunnerShutdown).To(BeTrue())
-					Expect(state.waitingDeploymentEvents).To(HaveLen(0))
+					Expect(state.waitingDeploymentEvents).To(BeEmpty())
 					Expect(state.activeDeploymentEvent).To(BeNil())
 				})
 			})
@@ -347,7 +347,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 
 					event := <-state.deploymentEventRunner
 					Expect(event).To(Equal(newEvent.Message.Event))
-					Expect(state.waitingDeploymentEvents).To(HaveLen(0))
+					Expect(state.waitingDeploymentEvents).To(BeEmpty())
 					Expect(state.activeDeploymentEvent.Message).To(Equal(newEvent.Message))
 
 				})
@@ -365,7 +365,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 					shouldTerminate := processApplicationEventQueueLoopMessage(ctx, workComplete, &state, input, k8sClient, klog)
 					Expect(shouldTerminate).To(BeFalse())
 					Expect(state.deploymentEventRunnerShutdown).To(BeTrue())
-					Expect(state.waitingDeploymentEvents).To(HaveLen(0))
+					Expect(state.waitingDeploymentEvents).To(BeEmpty())
 					Expect(state.activeDeploymentEvent).To(BeNil())
 				})
 			})
@@ -394,7 +394,7 @@ var _ = Describe("ApplicationEventLoop Tests", func() {
 
 					event := <-state.deploymentEventRunner
 					Expect(event).To(Equal(newEvent.Message.Event))
-					Expect(state.waitingDeploymentEvents).To(HaveLen(0))
+					Expect(state.waitingDeploymentEvents).To(BeEmpty())
 					Expect(state.activeDeploymentEvent.Message).To(Equal(newEvent.Message))
 
 				})

@@ -87,7 +87,7 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("creating ArgoCD application")
-			app := appFixture.BuildArgoCDApplication("argo-app-01", argocdNamespace, fixture.RepoURL, fixture.GitopsDeploymentPath, "HEAD", "", "", argocdv1.ClusterSecretName, destinationNamespace.Name, nil, &appv1.SyncPolicyAutomated{})
+			app := appFixture.BuildArgoCDApplication("argo-app-01", argocdNamespace, fixture.RepoURL, fixture.GitopsDeploymentPath, "HEAD", "", "", argocdv1.ClusterSecretName, destinationNamespace.Name, &appv1.SyncPolicyAutomated{})
 
 			err = k8s.Create(&app, k8sClient)
 			Expect(err).ToNot(HaveOccurred())

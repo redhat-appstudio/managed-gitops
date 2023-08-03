@@ -269,7 +269,7 @@ func createDummyApplicationData() (appv1.Application, string, error) {
 
 func createCustomizedDummyApplicationData(repoPath string) (appv1.Application, string, error) {
 	// Create dummy Application Spec to be saved in DB
-	dummyApplicationSpec := appFixture.BuildArgoCDApplication("test-application", "test-argocd-namespace", "https://github.com/argoproj/argocd-example-apps.git", "guestbook", "HEAD", "default", "https://kubernetes.default.svc", "", "guestbook", nil, &appv1.SyncPolicyAutomated{})
+	dummyApplicationSpec := appFixture.BuildArgoCDApplication("test-application", "test-argocd-namespace", "https://github.com/argoproj/argocd-example-apps.git", "guestbook", "HEAD", "default", "https://kubernetes.default.svc", "", "guestbook", &appv1.SyncPolicyAutomated{})
 	dummyApplicationSpec.Status = appv1.ApplicationStatus{
 		Sync: appv1.SyncStatus{
 			ComparedTo: appv1.ComparedTo{

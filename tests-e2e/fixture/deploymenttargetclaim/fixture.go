@@ -11,6 +11,7 @@ import (
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	k8sFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -119,4 +120,36 @@ func HasANumberOfMatchingSpaceRequests(num int) matcher.GomegaMatcher {
 
 		return true
 	}, BeTrue())
+}
+
+// BuildDeploymentTargetAndDeploymentTargetClaim creates an instance of DeploymentTarget and DeploymentTargetClaim
+func BuildDeploymentTargetAndDeploymentTargetClaim(kubeConfigContents, apiServerURL, secretName, secretNamespace, defaultNamespace, dtName, dtcName, dtcClassName string, allowInsecureSkipTLSVerify bool) (appstudiosharedv1.DeploymentTarget, appstudiosharedv1.DeploymentTargetClaim) {
+
+	dt := appstudiosharedv1.DeploymentTarget{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      dtName,
+			Namespace: secretNamespace,
+		},
+		Spec: appstudiosharedv1.DeploymentTargetSpec{
+			DeploymentTargetClassName: "test-class",
+			KubernetesClusterCredentials: appstudiosharedv1.DeploymentTargetKubernetesClusterCredentials{
+				APIURL:                     apiServerURL,
+				ClusterCredentialsSecret:   secretName,
+				DefaultNamespace:           defaultNamespace,
+				AllowInsecureSkipTLSVerify: allowInsecureSkipTLSVerify,
+			},
+		},
+	}
+
+	dtc := appstudiosharedv1.DeploymentTargetClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      dtcName,
+			Namespace: dt.Namespace,
+		},
+		Spec: appstudiosharedv1.DeploymentTargetClaimSpec{
+			TargetName:                dt.Name,
+			DeploymentTargetClassName: dt.Spec.DeploymentTargetClassName,
+		},
+	}
+	return dt, dtc
 }

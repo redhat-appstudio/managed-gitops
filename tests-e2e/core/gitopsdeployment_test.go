@@ -31,7 +31,6 @@ import (
 )
 
 const (
-	repoURL = "https://github.com/redhat-appstudio/managed-gitops"
 
 	// ArgoCDReconcileWaitTime is the length of time to watch for Argo CD/GitOps Service to deploy the resources
 	// of an Application (e.g. to reconcile the Application resource)
@@ -41,11 +40,6 @@ const (
 )
 
 var _ = Describe("GitOpsDeployment E2E tests", func() {
-
-	const (
-		name = "my-gitops-depl"
-	)
-
 	Context("Create, Update and Delete a GitOpsDeployment ", func() {
 
 		var config *rest.Config
@@ -68,7 +62,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 		})
 
-		// Generate expected resources for "https://github.com/redhat-appstudio/managed-gitops"
+		// Generate expected resources for fixture.RepoURL
 		getResourceStatusList_GitOpsRepositoryTemplateRepo := func(name string) []managedgitopsv1alpha1.ResourceStatus {
 			return []managedgitopsv1alpha1.ResourceStatus{
 				{
@@ -139,8 +133,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 		It("Should ensure succesful creation of GitOpsDeployment, by creating the GitOpsDeployment and ensure that appProjectRepository row has been created referencing to gitopsDeployment", func() {
 
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
-			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
-				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -260,8 +254,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 		It("Should ensure synchronicity of create and update of GitOpsDeployment, by ensurng no updates are done in existing deployment, if CR is submitted again without any changes", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
-			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
-				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -278,16 +272,16 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&gitOpsDeploymentResource), &gitOpsDeploymentResource)
 			Expect(err).To(Succeed())
 
-			gitOpsDeploymentResource.Spec.Source.RepoURL = repoURL
-			gitOpsDeploymentResource.Spec.Source.Path = "resources/test-data/sample-gitops-repository/environments/overlays/dev"
+			gitOpsDeploymentResource.Spec.Source.RepoURL = fixture.RepoURL
+			gitOpsDeploymentResource.Spec.Source.Path = fixture.GitopsDeploymentPath
 
 			err = k8s.Update(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&gitOpsDeploymentResource), &gitOpsDeploymentResource)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(gitOpsDeploymentResource.Spec.Source.RepoURL).To(Equal(repoURL))
-			Expect(gitOpsDeploymentResource.Spec.Source.Path).To(Equal("resources/test-data/sample-gitops-repository/environments/overlays/dev"))
+			Expect(gitOpsDeploymentResource.Spec.Source.RepoURL).To(Equal(fixture.RepoURL))
+			Expect(gitOpsDeploymentResource.Spec.Source.Path).To(Equal(fixture.GitopsDeploymentPath))
 
 			expectedReconciledStateField := managedgitopsv1alpha1.ReconciledState{
 				Source: managedgitopsv1alpha1.GitOpsDeploymentSource{
@@ -321,8 +315,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 		It("Should ensure synchronicity of create and update of GitOpsDeployment, by ensuring GitOpsDeployment should update successfully on changing value(s) within Spec", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
-			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
-				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -582,7 +576,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			By("creating a new GitOpsDeployment resource")
 			gitOpsDeploymentResource := gitopsDeplFixture.BuildTargetRevisionGitOpsDeploymentResource("gitops-depl-test-status",
-				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev", "xyz",
+				fixture.RepoURL, fixture.GitopsDeploymentPath, "xyz",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -639,7 +633,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			By("creating a new GitOpsDeployment resource")
 			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("gitops-depl-test-status",
-				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -686,7 +680,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			By("creating a new GitOpsDeployment resource with the deletion finalizer")
 			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("gitops-depl-test-status",
-				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			gitOpsDeploymentResource.Finalizers = append(gitOpsDeploymentResource.Finalizers, managedgitopsv1alpha1.DeletionFinalizer)
@@ -803,8 +797,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			for count := 0; count < 3; count++ {
 
 				Expect(fixture.EnsureCleanSlate()).To(Succeed())
-				gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
-					repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+					fixture.RepoURL, fixture.GitopsDeploymentPath,
 					managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 				k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -856,8 +850,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("create a new GitOpsDeployment CR")
-			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
-				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()

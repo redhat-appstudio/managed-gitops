@@ -16,7 +16,9 @@ import (
 )
 
 var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
+
 	Context("Testing DeploymentTargetClaim binding controller", func() {
+		const dtClassName = "sandbox-provisioner"
 		var (
 			k8sClient client.Client
 			ctx       context.Context
@@ -24,12 +26,12 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			dtc       appstudiosharedv1.DeploymentTargetClaim
 			dtcls     appstudiosharedv1.DeploymentTargetClass
 			dt        appstudiosharedv1.DeploymentTarget
+			err       error
 		)
 
 		BeforeEach(func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
-			var err error
 			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
@@ -38,17 +40,17 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 
 			dtc = appstudiosharedv1.DeploymentTargetClaim{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-dtc",
+					Name:      fixture.DTCName,
 					Namespace: namespace,
 				},
 				Spec: appstudiosharedv1.DeploymentTargetClaimSpec{
-					DeploymentTargetClassName: "sandbox-provisioner",
+					DeploymentTargetClassName: dtClassName,
 				},
 			}
 
 			dtcls = appstudiosharedv1.DeploymentTargetClass{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:        "sandbox-provisioner",
+					Name:        dtClassName,
 					Namespace:   namespace,
 					Annotations: map[string]string{},
 				},
@@ -63,11 +65,11 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 
 			dt = appstudiosharedv1.DeploymentTarget{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-dt",
+					Name:      fixture.DTName,
 					Namespace: namespace,
 				},
 				Spec: appstudiosharedv1.DeploymentTargetSpec{
-					DeploymentTargetClassName: "sandbox-provisioner",
+					DeploymentTargetClassName: dtClassName,
 					KubernetesClusterCredentials: appstudiosharedv1.DeploymentTargetKubernetesClusterCredentials{
 						APIURL:                   "http://api-url",
 						ClusterCredentialsSecret: "sample",
@@ -148,7 +150,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 				},
 				Spec: appstudiosharedv1.DeploymentTargetSpec{
 					ClaimRef:                  "random-dtc",
-					DeploymentTargetClassName: "sandbox-provisioner",
+					DeploymentTargetClassName: dtClassName,
 					KubernetesClusterCredentials: appstudiosharedv1.DeploymentTargetKubernetesClusterCredentials{
 						APIURL:                   "http://api-url",
 						ClusterCredentialsSecret: "sample",
@@ -186,11 +188,11 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 			By("create a DTC without any target")
 			dtc := appstudiosharedv1.DeploymentTargetClaim{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-dtc",
+					Name:      fixture.DTCName,
 					Namespace: namespace,
 				},
 				Spec: appstudiosharedv1.DeploymentTargetClaimSpec{
-					DeploymentTargetClassName: "sandbox-provisioner",
+					DeploymentTargetClassName: dtClassName,
 				},
 			}
 

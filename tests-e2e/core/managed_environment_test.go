@@ -26,6 +26,7 @@ import (
 	appFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/application"
 	appProjectFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/appproject"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
+	managedEnvFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/managedenvironment"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -38,9 +39,14 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 	Context("Create a new GitOpsDeployment targeting a ManagedEnvironment", func() {
 
 		ctx := context.Background()
+		var k8sClient client.Client
 
 		BeforeEach(func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+			var err error
+			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
 		})
 
 		It("should be healthy and have synced status, and resources should be deployed, when deployed with a ManagedEnv", func() {
@@ -50,10 +56,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
 			Expect(err).ToNot(HaveOccurred())
 
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
-
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
+			managedEnv, secret := managedEnvFixture.BuildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 
 			err = k8s.Create(&secret, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
@@ -61,8 +64,8 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8s.Create(&managedEnv, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
 
-			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl",
-				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
 			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
@@ -159,9 +162,6 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			serviceAccountName := "gitops-managed-environment-test-service-account"
 
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			By("creating a ServiceAccount which we will deploy with, using the GitOpsDeploymentManagedEnvironment")
 			serviceAccount := corev1.ServiceAccount{
 				ObjectMeta: metav1.ObjectMeta{
@@ -169,7 +169,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
 			}
-			err = k8sClient.Create(context.Background(), &serviceAccount)
+			err := k8sClient.Create(context.Background(), &serviceAccount)
 			Expect(err).To(Succeed())
 
 			// Now create the cluster role and cluster role binding
@@ -188,7 +188,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			kubeConfigContents := k8s.GenerateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, tokenSecret)
 
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, false)
+			managedEnv, secret := managedEnvFixture.BuildManagedEnvironment(apiServerURL, kubeConfigContents, false)
 
 			err = k8s.Create(&secret, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
@@ -198,9 +198,9 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			By("by creating a GitOpsDeployment pointing to the ManagedEnvironment")
 
-			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl",
-				"https://github.com/redhat-appstudio/managed-gitops",
-				"resources/test-data/sample-gitops-repository/environments/overlays/dev",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+				fixture.RepoURL,
+				fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
@@ -299,16 +299,13 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			serviceAccountName := "gitops-managed-environment-test-service-account"
 
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			serviceAccount := corev1.ServiceAccount{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      serviceAccountName,
 					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
 			}
-			err = k8sClient.Create(context.Background(), &serviceAccount)
+			err := k8sClient.Create(context.Background(), &serviceAccount)
 			Expect(err).To(Succeed())
 
 			// Now create the cluster role and cluster role binding
@@ -328,7 +325,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			// Set the tokenSecret to be "" to intentionally fail
 			kubeConfigContents := k8s.GenerateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, "")
 
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, false)
+			managedEnv, secret := managedEnvFixture.BuildManagedEnvironment(apiServerURL, kubeConfigContents, false)
 
 			err = k8s.Create(&secret, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
@@ -336,9 +333,9 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8s.Create(&managedEnv, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
 
-			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl",
-				"https://github.com/redhat-appstudio/managed-gitops",
-				"resources/test-data/sample-gitops-repository/environments/overlays/dev",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+				fixture.RepoURL,
+				fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
@@ -383,16 +380,13 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			serviceAccountName := "gitops-managed-environment-test-service-account"
 
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			serviceAccount := corev1.ServiceAccount{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      serviceAccountName,
 					Namespace: fixture.GitOpsServiceE2ENamespace,
 				},
 			}
-			err = k8sClient.Create(context.Background(), &serviceAccount)
+			err := k8sClient.Create(context.Background(), &serviceAccount)
 			Expect(err).To(Succeed())
 
 			insufficientPermissions := []rbacv1.PolicyRule{
@@ -418,7 +412,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 			kubeConfigContents := k8s.GenerateKubeConfig(apiServerURL, fixture.GitOpsServiceE2ENamespace, tokenSecret)
 
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, false)
+			managedEnv, secret := managedEnvFixture.BuildManagedEnvironment(apiServerURL, kubeConfigContents, false)
 
 			err = k8s.Create(&secret, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
@@ -426,9 +420,9 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8s.Create(&managedEnv, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
 
-			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl",
-				"https://github.com/redhat-appstudio/managed-gitops",
-				"resources/test-data/sample-gitops-repository/environments/overlays/dev",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+				fixture.RepoURL,
+				fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
@@ -471,9 +465,6 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 
 		It("verifies that we can deploy to a namespace-scoped ManagedEnvironment", func() {
 
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			By("creating a new namespace to deploy to, and a role/rolebinding/SA with permissions to deploy to it")
 			newNamespace := corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
@@ -483,7 +474,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 					},
 				},
 			}
-			err = k8sClient.Create(ctx, &newNamespace)
+			err := k8sClient.Create(ctx, &newNamespace)
 			Expect(err).To(Succeed())
 
 			serviceAccount := corev1.ServiceAccount{
@@ -537,42 +528,23 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			kubeConfigContents := k8s.GenerateKubeConfig(apiServerURL, newNamespace.Name, tokenSecret)
+			managedEnv, secret := managedEnvFixture.BuildManagedEnvironment(apiServerURL, kubeConfigContents, false)
+			managedEnv.Spec.Namespaces = []string{newNamespace.Name}
 
-			secret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "my-managed-env-secret",
-					Namespace: fixture.GitOpsServiceE2ENamespace,
-				},
-				Type:       "managed-gitops.redhat.com/managed-environment",
-				StringData: map[string]string{"kubeconfig": kubeConfigContents},
-			}
-			err = k8s.Create(secret, k8sClient)
+			err = k8s.Create(&secret, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
 
-			managedEnv := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "my-managed-env",
-					Namespace: fixture.GitOpsServiceE2ENamespace,
-				},
-				Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
-					APIURL:                     apiServerURL,
-					ClusterCredentialsSecret:   secret.Name,
-					AllowInsecureSkipTLSVerify: true,
-					CreateNewServiceAccount:    false,
-					Namespaces:                 []string{newNamespace.Name},
-				},
-			}
-
-			err = k8s.Create(managedEnv, k8sClient)
+			err = k8s.Create(&managedEnv, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
 
-			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl",
-				"https://github.com/redhat-appstudio/managed-gitops",
-				"resources/test-data/sample-gitops-repository/environments/overlays/dev",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+				fixture.RepoURL,
+				fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
 			gitOpsDeploymentResource.Spec.Destination.Namespace = newNamespace.Name
+
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -600,8 +572,8 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			By("creating a second GitOpsDeployment, targeting a different namespace without a role and rolebinding on the serviceaccount of the managedenvironment, which should fail")
 
 			gitOpsDeploymentResource2 := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl2",
-				"https://github.com/redhat-appstudio/managed-gitops",
-				"resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				fixture.RepoURL,
+				fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			gitOpsDeploymentResource2.Spec.Destination.Environment = managedEnv.Name
@@ -666,17 +638,17 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("updating the managedenvironment, adding the second namespace to the list of managed namespaces")
-			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(managedEnv), managedEnv)
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnv), &managedEnv)
 			Expect(err).ToNot(HaveOccurred())
 			managedEnv.Spec.Namespaces = []string{newNamespace.Name, newNamespace2.Name}
 
-			err = k8sClient.Update(ctx, managedEnv)
+			err = k8sClient.Update(ctx, &managedEnv)
 			Expect(err).ToNot(HaveOccurred())
 
 			By("create a new GitOpsDeployment that attempts to deploy to the new namespace, using the exist managedenvironment, which should work")
 			gitOpsDeploymentResource3 := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl3",
-				"https://github.com/redhat-appstudio/managed-gitops",
-				"resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				fixture.RepoURL,
+				fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			gitOpsDeploymentResource3.Spec.Destination.Environment = managedEnv.Name
@@ -715,10 +687,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
 			Expect(err).ToNot(HaveOccurred())
 
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
-
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
+			managedEnv, secret := managedEnvFixture.BuildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 
 			err = k8s.Create(&secret, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
@@ -726,8 +695,8 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			err = k8s.Create(&managedEnv, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
 
-			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl",
-				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
 			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
@@ -836,30 +805,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
 			Expect(err).ToNot(HaveOccurred())
 
-			secret := corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "my-managed-env-secret",
-					Namespace: fixture.GitOpsServiceE2ENamespace,
-				},
-				Type:       "managed-gitops.redhat.com/managed-environment",
-				StringData: map[string]string{"kubeconfig": kubeConfigContents},
-			}
-
-			managedEnvA := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "my-managed-env-a",
-					Namespace: fixture.GitOpsServiceE2ENamespace,
-				},
-				Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
-					APIURL:                     apiServerURL,
-					ClusterCredentialsSecret:   secret.Name,
-					AllowInsecureSkipTLSVerify: true,
-					CreateNewServiceAccount:    true,
-				},
-			}
-
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
+			managedEnvA, secret := managedEnvFixture.BuildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 
 			err = k8s.Create(&secret, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
@@ -868,7 +814,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl-1",
-				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnvA.Name
 			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
@@ -945,7 +891,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			gitOpsDeploymentResource1 := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl-2",
-				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			gitOpsDeploymentResource1.Spec.Destination.Environment = managedEnvB.Name
 			gitOpsDeploymentResource1.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
@@ -1087,30 +1033,4 @@ func extractKubeConfigValues() (string, string, error) {
 	}
 
 	return string(kubeConfigContents), cluster.Server, nil
-}
-
-func buildManagedEnvironment(apiServerURL string, kubeConfigContents string, createNewServiceAccount bool) (managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, corev1.Secret) {
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-managed-env-secret",
-			Namespace: fixture.GitOpsServiceE2ENamespace,
-		},
-		Type:       "managed-gitops.redhat.com/managed-environment",
-		StringData: map[string]string{"kubeconfig": kubeConfigContents},
-	}
-
-	managedEnv := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-managed-env",
-			Namespace: fixture.GitOpsServiceE2ENamespace,
-		},
-		Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
-			APIURL:                     apiServerURL,
-			ClusterCredentialsSecret:   secret.Name,
-			AllowInsecureSkipTLSVerify: true,
-			CreateNewServiceAccount:    createNewServiceAccount,
-		},
-	}
-
-	return *managedEnv, *secret
 }

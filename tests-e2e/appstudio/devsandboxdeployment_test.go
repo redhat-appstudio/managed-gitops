@@ -42,7 +42,7 @@ var _ = Describe("Devsandbox deployment controller tests", func() {
 					Name:      "test-spacerequest",
 					Namespace: namespace,
 					Labels: map[string]string{
-						"appstudio.openshift.io/dtc": "test-dtc",
+						"appstudio.openshift.io/dtc": fixture.DTCName,
 					},
 					Annotations: map[string]string{},
 				},
@@ -69,7 +69,7 @@ var _ = Describe("Devsandbox deployment controller tests", func() {
 
 			dtc = appstudiosharedv1.DeploymentTargetClaim{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-dtc",
+					Name:      fixture.DTCName,
 					Namespace: namespace,
 				},
 				Spec: appstudiosharedv1.DeploymentTargetClaimSpec{
@@ -79,7 +79,7 @@ var _ = Describe("Devsandbox deployment controller tests", func() {
 
 			dt = appstudiosharedv1.DeploymentTarget{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:        "test-dt",
+					Name:        fixture.DTName,
 					Namespace:   namespace,
 					Annotations: map[string]string{},
 				},
@@ -90,7 +90,7 @@ var _ = Describe("Devsandbox deployment controller tests", func() {
 						APIURL:                   "https://api-url/test-api",
 						ClusterCredentialsSecret: "test-secret",
 					},
-					ClaimRef: "test-dtc",
+					ClaimRef: fixture.DTCName,
 				},
 			}
 		})
@@ -106,7 +106,7 @@ var _ = Describe("Devsandbox deployment controller tests", func() {
 
 			patch := client.MergeFrom(spacerequest.DeepCopy())
 
-			spacerequest.Labels["appstudio.openshift.io/dtc"] = "test-dtc"
+			spacerequest.Labels["appstudio.openshift.io/dtc"] = fixture.DTCName
 			cond := codereadytoolchainv1alpha1.Condition{
 				Type:   codereadytoolchainv1alpha1.ConditionReady,
 				Status: corev1.ConditionTrue,
@@ -145,7 +145,7 @@ var _ = Describe("Devsandbox deployment controller tests", func() {
 
 			patch := client.MergeFrom(spacerequest.DeepCopy())
 
-			spacerequest.Labels["appstudio.openshift.io/dtc"] = "test-dtc"
+			spacerequest.Labels["appstudio.openshift.io/dtc"] = fixture.DTCName
 			cond := codereadytoolchainv1alpha1.Condition{
 				Type:   codereadytoolchainv1alpha1.ConditionReady,
 				Status: corev1.ConditionTrue,

@@ -220,7 +220,7 @@ var _ = Describe("Query-scoped GitOpsDeployment tests", func() {
 						Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
 							Source: managedgitopsv1alpha1.ApplicationSource{
 								RepoURL: "https://github.com/redhat-appstudio/managed-gitops/",
-								Path:    "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+								Path:    fixture.GitopsDeploymentPath,
 							},
 							Destination: managedgitopsv1alpha1.ApplicationDestination{
 								Environment: "managed-env-deploys-to-" + userName,
@@ -309,7 +309,7 @@ var _ = Describe("Query-scoped GitOpsDeployment tests", func() {
 					Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
 						Source: managedgitopsv1alpha1.ApplicationSource{
 							RepoURL: "https://github.com/redhat-appstudio/managed-gitops/",
-							Path:    "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+							Path:    fixture.GitopsDeploymentPath,
 						},
 						Destination: managedgitopsv1alpha1.ApplicationDestination{
 							Environment: "managed-env-deploys-to-" + userName,

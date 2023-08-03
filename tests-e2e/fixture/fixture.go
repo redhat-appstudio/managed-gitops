@@ -43,6 +43,17 @@ const (
 
 	// NewArgoCDInstanceDestNamespace is the destinaton Argo CD Application namespace tests should use if they wish to deploy from a new Argo CD instance
 	NewArgoCDInstanceDestNamespace = "argocd-instance-dest-namespace"
+
+	// RepoURL is the URL to the git repository
+	RepoURL = "https://github.com/redhat-appstudio/managed-gitops"
+
+	GitopsDeploymentName = "my-gitops-depl"
+
+	DTCName = "test-dtc"
+
+	DTName = "test-dt"
+
+	GitopsDeploymentPath = "resources/test-data/sample-gitops-repository/environments/overlays/dev"
 )
 
 const (

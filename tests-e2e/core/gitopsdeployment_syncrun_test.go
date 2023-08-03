@@ -22,12 +22,6 @@ import (
 )
 
 var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
-
-	const (
-		name    = "my-gitops-depl"
-		repoURL = "https://github.com/redhat-appstudio/managed-gitops"
-	)
-
 	Context("Create, update and delete GitOpsDeploymentSyncRun", func() {
 
 		var (
@@ -54,8 +48,8 @@ var _ = Describe("GitOpsDeploymentSyncRun E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			By("create a GitOpsDeployment with 'Manual' sync policy")
-			gitOpsDeploymentResource = gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
-				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+			gitOpsDeploymentResource = gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual)
 
 			err = k8sClient.Create(ctx, &gitOpsDeploymentResource)

@@ -100,9 +100,6 @@ var _ = Describe("Environment Status.Conditions tests", func() {
 
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			By("create an environment with both cluster credentials and DTC specified")
 			environment := appstudioshared.Environment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -127,7 +124,7 @@ var _ = Describe("Environment Status.Conditions tests", func() {
 				},
 			}
 
-			err = k8s.Create(&environment, k8sClient)
+			err := k8s.Create(&environment, k8sClient)
 			Expect(err).To(Succeed())
 
 			By("checking the status component environment condition is correct")
@@ -362,36 +359,11 @@ var _ = Describe("Environment E2E tests", func() {
 
 		DescribeTable("create an Environment with DeploymentTargetClaim and verify if a valid ManagedEnvironment is created", func(defaultNamespaceFieldVal string) {
 
-			By("create a new DeploymentTarget with the secret credentials")
-			dt := appstudioshared.DeploymentTarget{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-dt",
-					Namespace: secret.Namespace,
-				},
-				Spec: appstudioshared.DeploymentTargetSpec{
-					DeploymentTargetClassName: "test-class",
-					KubernetesClusterCredentials: appstudioshared.DeploymentTargetKubernetesClusterCredentials{
-						APIURL:                     apiServerURL,
-						ClusterCredentialsSecret:   secret.Name,
-						DefaultNamespace:           defaultNamespaceFieldVal,
-						AllowInsecureSkipTLSVerify: true,
-					},
-				},
-			}
+			By("create a new DeploymentTarget and DeploymentTargetClaim with the secret credentials")
+			dt, dtc := dtcfixture.BuildDeploymentTargetAndDeploymentTargetClaim(kubeConfigContents, apiServerURL, secret.Name, secret.Namespace, defaultNamespaceFieldVal, fixture.DTName, fixture.DTCName, "test-class", true)
 			err := k8s.Create(&dt, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
 
-			By("create a DeploymentTargetClaim that can bind to the above Environment")
-			dtc := appstudioshared.DeploymentTargetClaim{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-dtc",
-					Namespace: dt.Namespace,
-				},
-				Spec: appstudioshared.DeploymentTargetClaimSpec{
-					TargetName:                dt.Name,
-					DeploymentTargetClassName: dt.Spec.DeploymentTargetClassName,
-				},
-			}
 			err = k8s.Create(&dtc, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -470,36 +442,12 @@ var _ = Describe("Environment E2E tests", func() {
 			err := k8s.Create(&clusterSecret, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
 
-			By("create a new DeploymentTarget with the above credential secret")
-			dt := appstudioshared.DeploymentTarget{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-dt",
-					Namespace: secret.Namespace,
-				},
-				Spec: appstudioshared.DeploymentTargetSpec{
-					DeploymentTargetClassName: "test-class",
-					KubernetesClusterCredentials: appstudioshared.DeploymentTargetKubernetesClusterCredentials{
-						APIURL:                     apiServerURL,
-						ClusterCredentialsSecret:   clusterSecret.Name,
-						DefaultNamespace:           fixture.GitOpsServiceE2ENamespace,
-						AllowInsecureSkipTLSVerify: true,
-					},
-				},
-			}
+			By("create a new DeploymentTarget and DeploymentTargetClaim with the above credential secret")
+			dt, dtc := dtcfixture.BuildDeploymentTargetAndDeploymentTargetClaim(kubeConfigContents, apiServerURL, clusterSecret.Name, clusterSecret.Namespace, fixture.GitOpsServiceE2ENamespace, fixture.DTName, fixture.DTCName, "test-class", true)
+
 			err = k8s.Create(&dt, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
 
-			By("create a DeploymentTargetClaim that can bind to the above Environment")
-			dtc := appstudioshared.DeploymentTargetClaim{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-dtc",
-					Namespace: dt.Namespace,
-				},
-				Spec: appstudioshared.DeploymentTargetClaimSpec{
-					TargetName:                dt.Name,
-					DeploymentTargetClassName: dt.Spec.DeploymentTargetClassName,
-				},
-			}
 			err = k8s.Create(&dtc, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -588,35 +536,12 @@ var _ = Describe("Environment E2E tests", func() {
 		})
 
 		It("should update the Managed Environment if the DeploymentTarget credential is modified", func() {
-			By("create a new DeploymentTarget with the secret credentials")
-			dt := appstudioshared.DeploymentTarget{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-dt",
-					Namespace: secret.Namespace,
-				},
-				Spec: appstudioshared.DeploymentTargetSpec{
-					DeploymentTargetClassName: "test-class",
-					KubernetesClusterCredentials: appstudioshared.DeploymentTargetKubernetesClusterCredentials{
-						APIURL:                   apiServerURL,
-						ClusterCredentialsSecret: secret.Name,
-						DefaultNamespace:         fixture.GitOpsServiceE2ENamespace,
-					},
-				},
-			}
+			By("create a new DeploymentTarget with the secret credentials and create a DeploymentTargetClaim that can bind to the above Environment")
+			dt, dtc := dtcfixture.BuildDeploymentTargetAndDeploymentTargetClaim(kubeConfigContents, apiServerURL, secret.Name, secret.Namespace, fixture.GitOpsServiceE2ENamespace, fixture.DTName, fixture.DTCName, "test-class", false)
+
 			err := k8s.Create(&dt, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
 
-			By("create a DeploymentTargetClaim that can bind to the above Environment")
-			dtc := appstudioshared.DeploymentTargetClaim{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-dtc",
-					Namespace: dt.Namespace,
-				},
-				Spec: appstudioshared.DeploymentTargetClaimSpec{
-					TargetName:                dt.Name,
-					DeploymentTargetClassName: dt.Spec.DeploymentTargetClassName,
-				},
-			}
 			err = k8s.Create(&dtc, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -704,7 +629,7 @@ var _ = Describe("Environment E2E tests", func() {
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
 			Expect(err).ToNot(HaveOccurred())
 
-			managedEnv, _ := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
+			managedEnv, _ := managedenvironment.BuildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 
 			fakeEnvName := "name"
 

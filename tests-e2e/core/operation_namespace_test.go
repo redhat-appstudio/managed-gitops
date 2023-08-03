@@ -12,6 +12,7 @@ import (
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
+	appFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/application"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
@@ -268,43 +269,19 @@ func createDummyApplicationData() (appv1.Application, string, error) {
 
 func createCustomizedDummyApplicationData(repoPath string) (appv1.Application, string, error) {
 	// Create dummy Application Spec to be saved in DB
-	dummyApplicationSpec := appv1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-application",
-			Namespace: "test-argocd-namespace",
-		},
-		Spec: appv1.ApplicationSpec{
-			Source: appv1.ApplicationSource{
-				Path:           "guestbook",
-				TargetRevision: "HEAD",
-				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-			},
-			Destination: appv1.ApplicationDestination{
-				Namespace: "guestbook",
-				Server:    "https://kubernetes.default.svc",
-			},
-			Project: "default",
-			SyncPolicy: &appv1.SyncPolicy{
-				Automated: &appv1.SyncPolicyAutomated{},
-			},
-		},
-		Status: appv1.ApplicationStatus{
-			Sync: appv1.SyncStatus{
-				ComparedTo: appv1.ComparedTo{
-					Source: appv1.ApplicationSource{
-						Path:           "guestbook",
-						TargetRevision: "HEAD",
-						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-					},
-					Destination: appv1.ApplicationDestination{
-						Server:    "https://kubernetes.default.svc",
-						Namespace: "in-cluster",
-						Name:      "in-cluster",
-					},
+	dummyApplicationSpec := appFixture.BuildArgoCDApplication("test-application", "test-argocd-namespace", "https://github.com/argoproj/argocd-example-apps.git", "guestbook", "HEAD", "default", "https://kubernetes.default.svc", "", "guestbook", nil, &appv1.SyncPolicyAutomated{})
+	dummyApplicationSpec.Status = appv1.ApplicationStatus{
+		Sync: appv1.SyncStatus{
+			ComparedTo: appv1.ComparedTo{
+				Source: appv1.ApplicationSource{
+					Path:           "guestbook",
+					TargetRevision: "HEAD",
+					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				},
+				Destination: appv1.ApplicationDestination{
+					Server:    "https://kubernetes.default.svc",
+					Namespace: "in-cluster",
+					Name:      "in-cluster",
 				},
 			},
 		},

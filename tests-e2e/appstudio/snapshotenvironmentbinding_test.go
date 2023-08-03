@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
+	dtcfixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/deploymenttargetclaim"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -29,12 +30,15 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 	Context("Testing SnapshotEnvironmentBinding Reconciler.", func() {
 
 		var environment appstudiosharedv1.Environment
+		var k8sClient client.Client
+		var err error
+
 		BeforeEach(func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("creating the 'staging' Environment")
-			environment = buildEnvironment("staging", "my-environment")
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			environment := buildEnvironmentResource("staging", "my-environment", "", "")
+			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
 			err = k8s.Create(&environment, k8sClient)
@@ -42,12 +46,12 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			if fixture.IsRunningInStonesoupEnvironment() {
 				// Create an application
-				application := buildApplication("new-demo-app", fixture.GitOpsServiceE2ENamespace, "https://github.com/redhat-appstudio/managed-gitops")
+				application := buildApplication("new-demo-app", fixture.GitOpsServiceE2ENamespace, fixture.RepoURL)
 				err = k8s.Create(&application, k8sClient)
 				Expect(err).To(Succeed())
 
 				// Create a snapshot for the application
-				snapshot := buildSnapshot("my-snapshot", fixture.GitOpsServiceE2ENamespace, "new-demo-app")
+				snapshot := buildSnapshotResource("my-snapshot", "new-demo-app", "", "", "", "")
 				err = k8s.Create(&snapshot, k8sClient)
 				Expect(err).To(Succeed())
 			}
@@ -60,9 +64,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
 
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a", "component-b"})
 
 			err = k8s.Create(&binding, k8sClient)
@@ -70,7 +71,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			// Update Status field
 			err = buildAndUpdateBindingStatus(binding.Spec.Components,
-				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
+				fixture.RepoURL, "main", "adcda66",
 				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/dev", "resources/test-data/component-based-gitops-repository/components/componentB/overlays/dev"}, &binding)
 			Expect(err).To(Succeed())
 
@@ -140,16 +141,13 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			}
 			By("creating binding cr and update the status field, because it is not updated when creating the object.")
 
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a", "component-b"})
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
 			// Update Status field
 			err = buildAndUpdateBindingStatus(binding.Spec.Components,
-				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
+				fixture.RepoURL, "main", "adcda66",
 				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging", "resources/test-data/sample-gitops-repository/components/componentB/overlays/staging"}, &binding)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -165,7 +163,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			By("updating the bindings status field to force an out-of-sync component")
 			// Update Status field
 			err = buildAndUpdateBindingStatus(binding.Spec.Components,
-				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
+				fixture.RepoURL, "main", "adcda66",
 				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging", "resources/test-data/sample-gitops-repository/components/componentC/overlays/staging"}, &binding)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -188,7 +186,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			By("updating the bindings status field to fix the out-of-sync component")
 			// Update Status field
 			err = buildAndUpdateBindingStatus(binding.Spec.Components,
-				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
+				fixture.RepoURL, "main", "adcda66",
 				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging", "resources/test-data/sample-gitops-repository/components/componentB/overlays/staging"}, &binding)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -208,16 +206,13 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
 
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
 			// Update Status field
 			err = buildAndUpdateBindingStatus(binding.Spec.Components,
-				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
+				fixture.RepoURL, "main", "adcda66",
 				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/dev"}, &binding)
 			Expect(err).To(Succeed())
 
@@ -279,17 +274,13 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 		It("Should revert GitOpsDeployment, if modification are done directly for it, without updating Binding CR.", func() {
 
 			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
-
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
 			// Update the Status field
 			err = buildAndUpdateBindingStatus(binding.Spec.Components,
-				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
+				fixture.RepoURL, "main", "adcda66",
 				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/dev"}, &binding)
 			Expect(err).To(Succeed())
 
@@ -343,17 +334,13 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 		// Now user deletes GitOpsDeployment from Cluster but Binding is still present in Cluster. In this case GitOps-Service should recreate GitOpsDeployment CR as given in Binding.
 		It("Should recreate GitOpsDeployment, if Binding still exists but GitOpsDeployment is deleted.", func() {
 			By("Create Binding CR in Cluster and it requires to update the Status field of Binding, because it is not updated while creating object.")
-
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
 			// Update the Status field
 			err = buildAndUpdateBindingStatus(binding.Spec.Components,
-				"https://github.com/redhat-appstudio/managed-gitops",
+				fixture.RepoURL,
 				"main", "adcda66", []string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
 
@@ -400,15 +387,12 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 		})
 
 		It("Should delete the corresponding GitOps Deployment when a component is removed", func() {
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			By("Creating a Binding")
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a", "component-b"})
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 			err = buildAndUpdateBindingStatus(binding.Spec.Components,
-				"https://github.com/redhat-appstudio/managed-gitops",
+				fixture.RepoURL,
 				"main", "adcda66", []string{
 					"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging",
 					"resources/test-data/sample-gitops-repository/components/componentB/overlays/staging",
@@ -426,7 +410,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			By("Removing the first component")
 			err = buildAndUpdateBindingStatus(binding.Spec.Components[1:],
-				"https://github.com/redhat-appstudio/managed-gitops",
+				fixture.RepoURL,
 				"main", "adcda66", []string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
 
@@ -456,9 +440,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 		// In this test GitOps-Service should use short naming convention instead of default one.
 		It("Should use short name for GitOpsDeployment, if Name field length is more than max length.", func() {
 			By("Creating an Environment with a long name")
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-			environment = buildEnvironment(strings.Repeat("e", 63), "my-environment")
+			environment := buildEnvironmentResource(strings.Repeat("e", 63), "my-environment", "", "")
 			err = k8s.Create(&environment, k8sClient)
 			Expect(err).To(Succeed())
 
@@ -471,7 +453,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			// Update the status field
 			err = buildAndUpdateBindingStatus(binding.Spec.Components,
-				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
+				fixture.RepoURL, "main", "adcda66",
 				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
 
@@ -510,9 +492,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			compName := strings.Repeat("wxyz", 5)
 			binding.Spec.Components[0].Name = compName
 
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
@@ -523,7 +502,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			// Update the status field
 			err = buildAndUpdateBindingStatus(binding.Spec.Components,
-				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
+				fixture.RepoURL, "main", "adcda66",
 				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
 
@@ -560,9 +539,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 		})
 
 		It("ensures that GitOpsDeployments .spec.destination.namespace field always matching the expected Environment value", func() {
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			By("creating a new Environment targetting a fake remote cluster")
 			environment := appstudiosharedv1.Environment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -600,7 +576,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			By("mocking the ApplicationService updating the Environment status")
 			// Update the status field
 			err = buildAndUpdateBindingStatus(seb.Spec.Components,
-				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
+				fixture.RepoURL, "main", "adcda66",
 				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &seb)
 			Expect(err).To(Succeed())
 
@@ -650,37 +626,12 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			err = k8s.Create(&clusterSecret, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
 
-			By("create a new DeploymentTarget pointing to fake secret credentials")
-			dt := appstudiosharedv1.DeploymentTarget{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-dt",
-					Namespace: seb.Namespace,
-				},
-				Spec: appstudiosharedv1.DeploymentTargetSpec{
-					DeploymentTargetClassName: "test-class",
-					// Likewise, for this test we don't need real values
-					KubernetesClusterCredentials: appstudiosharedv1.DeploymentTargetKubernetesClusterCredentials{
-						APIURL:                     "https://fake-url.redhat.com",
-						ClusterCredentialsSecret:   clusterSecret.Name,
-						DefaultNamespace:           "some-other-dtc-namespace",
-						AllowInsecureSkipTLSVerify: true,
-					},
-				},
-			}
+			By("create a new DeploymentTarget and DeploymentTargetClaim pointing to fake secret credentials")
+			dt, dtc := dtcfixture.BuildDeploymentTargetAndDeploymentTargetClaim(k8s.GenerateFakeKubeConfig(), "https://fake-url.redhat.com", clusterSecret.Name, clusterSecret.Namespace, "some-other-dtc-namespace", fixture.DTName, fixture.DTCName, "test-class", true)
+
 			err = k8s.Create(&dt, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
 
-			By("create a DeploymentTargetClaim that can bind to the above DeploymentTarget")
-			dtc := appstudiosharedv1.DeploymentTargetClaim{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-dtc",
-					Namespace: dt.Namespace,
-				},
-				Spec: appstudiosharedv1.DeploymentTargetClaimSpec{
-					TargetName:                dt.Name,
-					DeploymentTargetClassName: dt.Spec.DeploymentTargetClassName,
-				},
-			}
 			err = k8s.Create(&dtc, k8sClient)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -745,10 +696,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 		})
 
 		It("should create a GitOpsDeployment that references cluster credentials specified in Environment", func() {
-
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			By("creating second managed environment Secret")
 			secret := corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -785,7 +732,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 			// Update the status field
 			err = buildAndUpdateBindingStatus(binding.Spec.Components,
-				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
+				fixture.RepoURL, "main", "adcda66",
 				[]string{"resources/test-data/sample-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
 
@@ -813,10 +760,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 		It("Should ensure the associated GitOpsDeployment has labels identifying the application, component and environment", func() {
 			By("Create SnapshotEnvironmentBindingResource")
-
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
@@ -824,7 +767,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			By("Update Status field of SnapshotEnvironmentBindingResource")
 			// Update the status field
 			err = buildAndUpdateBindingStatus(binding.Spec.Components,
-				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
+				fixture.RepoURL, "main", "adcda66",
 				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
 
@@ -858,10 +801,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 		It("Should ensure the associated GitOpsDeployment adds back the labels identifying the application, component and environment if they are removed", func() {
 			By("Create SnapshotEnvironmentBindingResource")
-
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
@@ -869,7 +808,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			By("Update Status field of SnapshotEnvironmentBindingResource")
 			// Update the status field
 			err = buildAndUpdateBindingStatus(binding.Spec.Components,
-				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
+				fixture.RepoURL, "main", "adcda66",
 				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
 
@@ -924,10 +863,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 		It("Should append ASEB labels with key `appstudio.openshift.io` to GitopsDeployment label", func() {
 			By("Create SnapshotEnvironmentBindingResource")
-
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			binding.ObjectMeta.Labels["appstudio.openshift.io"] = "testing"
 			err = k8s.Create(&binding, k8sClient)
@@ -936,7 +871,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			By("Update Status field of SnapshotEnvironmentBindingResource")
 			// Update the status field
 			err = buildAndUpdateBindingStatus(binding.Spec.Components,
-				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
+				fixture.RepoURL, "main", "adcda66",
 				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
 
@@ -968,10 +903,6 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 
 		It("Should not append ASEB label without appstudio.openshift.io label into the GitopsDeployment Label", func() {
 			By("Create SnapshotEnvironmentBindingResource")
-
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
@@ -979,7 +910,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			By("Update Status field of SnapshotEnvironmentBindingResource")
 			// Update the status field
 			err = buildAndUpdateBindingStatus(binding.Spec.Components,
-				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
+				fixture.RepoURL, "main", "adcda66",
 				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
 
@@ -1013,16 +944,13 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			By("Create SnapshotEnvironmentBindingResource")
 			binding := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			binding.ObjectMeta.Labels["appstudio.openshift.io"] = "testing"
 			err = k8s.Create(&binding, k8sClient)
 			Expect(err).To(Succeed())
 
 			// Update the status field
 			err = buildAndUpdateBindingStatus(binding.Spec.Components,
-				"https://github.com/redhat-appstudio/managed-gitops", "main", "adcda66",
+				fixture.RepoURL, "main", "adcda66",
 				[]string{"resources/test-data/component-based-gitops-repository/components/componentA/overlays/staging"}, &binding)
 			Expect(err).To(Succeed())
 
@@ -1150,41 +1078,6 @@ func buildSnapshotEnvironmentBindingStatus(components []appstudiosharedv1.Bindin
 
 	status.Components = componentStatus
 	return status
-}
-
-// buildEnvironment creates an instance of Environment CR
-func buildEnvironment(name, displayName string) appstudiosharedv1.Environment {
-	environment := appstudiosharedv1.Environment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: fixture.GitOpsServiceE2ENamespace,
-		},
-		Spec: appstudiosharedv1.EnvironmentSpec{
-			DisplayName:        displayName,
-			DeploymentStrategy: appstudiosharedv1.DeploymentStrategy_AppStudioAutomated,
-			ParentEnvironment:  "",
-			Tags:               []string{},
-			Configuration: appstudiosharedv1.EnvironmentConfiguration{
-				Env: []appstudiosharedv1.EnvVarPair{},
-			},
-		},
-	}
-	return environment
-}
-
-// buildSnapshot creates an instance of Snapshot CR
-func buildSnapshot(name, namespace, appName string) appstudiosharedv1.Snapshot {
-	snapshot := appstudiosharedv1.Snapshot{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: appstudiosharedv1.SnapshotSpec{
-			Application: appName,
-			DisplayName: name,
-		},
-	}
-	return snapshot
 }
 
 // buildApplication creates an instance of Application CR

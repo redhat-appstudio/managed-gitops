@@ -29,7 +29,7 @@ var _ = Describe("Argo CD Application", func() {
 			By("create a new GitOpsDeployment CR")
 
 			gitOpsDeployment := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl-automated",
-				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			gitOpsDeployment.Spec.SyncPolicy = &managedgitopsv1alpha1.SyncPolicy{

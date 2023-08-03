@@ -23,7 +23,7 @@ var _ = Describe("GitOpsDeployment Status Tests", func() {
 
 			By("create a new GitOpsDeployment resource")
 			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("gitops-depl-test-status",
-				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -120,19 +120,9 @@ var _ = Describe("GitOpsDeployment Status.Conditions tests", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("create an invalid GitOpsDeployment application")
-			gitOpsDeploymentResource := managedgitopsv1alpha1.GitOpsDeployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "managed-environment-gitops-depl",
-					Namespace: fixture.GitOpsServiceE2ENamespace,
-				},
-				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
-					Source: managedgitopsv1alpha1.ApplicationSource{
-						RepoURL: "https://github.com/redhat-appstudio/managed-gitops",
-						Path:    "",
-					},
-					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated,
-				},
-			}
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("managed-environment-gitops-depl",
+				fixture.RepoURL, "",
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
@@ -161,19 +151,9 @@ var _ = Describe("GitOpsDeployment Status.Conditions tests", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("create an invalid GitOpsDeployment application")
-			gitOpsDeploymentResource := managedgitopsv1alpha1.GitOpsDeployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "managed-environment-gitops-depl",
-					Namespace: fixture.GitOpsServiceE2ENamespace,
-				},
-				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
-					Source: managedgitopsv1alpha1.ApplicationSource{
-						RepoURL: "https://github.com/redhat-appstudio/managed-gitops",
-						Path:    "/",
-					},
-					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated,
-				},
-			}
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("managed-environment-gitops-depl",
+				fixture.RepoURL, "/",
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())

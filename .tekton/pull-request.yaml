@@ -5,7 +5,7 @@ metadata:
   annotations:
     pipelinesascode.tekton.dev/on-event: "[pull_request]"
     pipelinesascode.tekton.dev/on-target-branch: "[main]"
-    pipelinesascode.tekton.dev/max-keep-runs: "2"
+    pipelinesascode.tekton.dev/max-keep-runs: "5"
 spec:
   params:
     - name: git-url
@@ -15,8 +15,15 @@ spec:
     - name: output-image
       value: 'quay.io/redhat-appstudio/pull-request-builds:mgiops-{{revision}}'
   pipelineRef:
-    name: docker-build
-    bundle: quay.io/redhat-appstudio-tekton-catalog/pipeline-core-services-docker-build:latest
+    params:
+      - name: bundle
+        value: >-
+          quay.io/redhat-appstudio-tekton-catalog/pipeline-core-services-docker-build:latest
+      - name: name
+        value: docker-build
+      - name: kind
+        value: Pipeline
+    resolver: bundles
   workspaces:
     - name: workspace
       volumeClaimTemplate:

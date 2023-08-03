@@ -21,8 +21,15 @@ spec:
         sed -i -E 's/[0-9a-f]{40}/$(params.revision)/g' components/gitops/production/base/kustomization.yaml
         sed -i -E 's/[0-9a-f]{40}/$(params.revision)/g' components/gitops/development/kustomization.yaml
   pipelineRef:
-    name: docker-build
-    bundle: quay.io/redhat-appstudio-tekton-catalog/pipeline-core-services-docker-build:latest
+    params:
+      - name: bundle
+        value: >-
+          quay.io/redhat-appstudio-tekton-catalog/pipeline-core-services-docker-build:latest
+      - name: name
+        value: docker-build
+      - name: kind
+        value: Pipeline
+    resolver: bundles
   workspaces:
     - name: workspace
       volumeClaimTemplate:

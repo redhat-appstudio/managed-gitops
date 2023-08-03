@@ -253,7 +253,7 @@ func processWorkspaceEventLoopMessage(ctx context.Context, event eventlooptypes.
 func handleWorkspaceEventLoopMessage(ctx context.Context, event eventlooptypes.EventLoopMessage, wrapperEvent workspaceEventLoopMessage,
 	state workspaceEventLoopInternalState) {
 
-	log := state.log
+	log := state.log.WithValues("namespace", event.Event.Request.Namespace)
 
 	// First, sanity check the event
 	if event.MessageType == eventlooptypes.ApplicationEventLoopMessageType_WorkComplete {
@@ -368,11 +368,13 @@ func handleWorkspaceEventLoopMessage(ctx context.Context, event eventlooptypes.E
 // the applictions event loops about the event.
 func handleManagedEnvProcessedMessage(event eventlooptypes.EventLoopMessage, state workspaceEventLoopInternalState) {
 
-	state.log.V(logutil.LogLevel_Debug).Info(fmt.Sprintf("received ManagedEnvironment event, passed event to %d applications",
+	log := state.log.WithValues("namespace", event.Event.Request.Namespace)
+
+	log.V(logutil.LogLevel_Debug).Info(fmt.Sprintf("received ManagedEnvironment event, passed event to %d applications",
 		len(state.applicationMap)))
 
 	if event.Event == nil { // Sanity check the event
-		state.log.Error(nil, "SEVERE: event was nil in handleManagedEnvProcessedMessage")
+		log.Error(nil, "SEVERE: event was nil in handleManagedEnvProcessedMessage")
 	}
 
 	// Send a message about this ManagedEnvironment to all of the goroutines currently processing GitOpsDeployment/SyncRuns

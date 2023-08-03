@@ -78,7 +78,7 @@ func controllerEventLoopRouter(input chan eventlooptypes.EventLoopEvent, workspa
 
 		event := <-input
 
-		eventLoopRouterLog.V(logutil.LogLevel_Debug).Info("eventLoop received event",
+		eventLoopRouterLog.V(logutil.LogLevel_Debug).WithValues("namespace", event.Request.Namespace).Info("eventLoop received event",
 			"event", eventlooptypes.StringEventLoopEvent(&event), "workspace", event.WorkspaceID)
 
 		workspaceEntryVal, ok := workspaceEntries[event.WorkspaceID]

@@ -42,6 +42,8 @@ func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, works
 	dbQueries db.DatabaseQueries,
 	log logr.Logger) (SharedResourceManagedEnvContainer, error) {
 
+	log = log.WithValues("namespace", managedEnvironmentCRNamespace)
+
 	container, condition, err := internalProcessMessage_internalReconcileSharedManagedEnv(ctx, workspaceClient, managedEnvironmentCRName,
 		managedEnvironmentCRNamespace, isWorkspaceTarget, workspaceNamespace, k8sClientFactory, dbQueries, log)
 
@@ -1103,7 +1105,9 @@ func convertConditionErrorToConnInitCondition(conditionError gitopserrors.Condit
 		reason = managedgitopsv1alpha1.ManagedEnvironmentConditionReason(conditionError.ConditionReason())
 	} else {
 		// This shouldn't happen under any circumstances, so sanity test and log as severe
-		controllerLog.FromContext(context.Background()).Error(nil, "SEVERE: nil error passed to convertConditionErrorToConnInitCondition")
+		controllerLog.FromContext(context.Background()).
+			WithValues("namespace", managedEnvironmentCR.Namespace).
+			Error(nil, "SEVERE: nil error passed to convertConditionErrorToConnInitCondition")
 	}
 
 	return connectionInitializedCondition{

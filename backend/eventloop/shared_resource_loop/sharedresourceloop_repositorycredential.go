@@ -38,7 +38,9 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 	repositoryCredentialCRName string,
 	repositoryCredentialCRNamespace corev1.Namespace,
 	apiNamespaceClient client.Client,
-	dbQueries db.DatabaseQueries, shouldWait bool, l logr.Logger) (*db.RepositoryCredentials, error) {
+	dbQueries db.DatabaseQueries, shouldWait bool, log logr.Logger) (*db.RepositoryCredentials, error) {
+
+	l := log.WithValues("namespace", repositoryCredentialCRNamespace)
 
 	resourceNS := repositoryCredentialCRNamespace.Name
 

@@ -28,6 +28,8 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/redhat-appstudio/managed-gitops/utilities/db-migration/migrate"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -72,7 +74,10 @@ func main() {
 	flag.StringVar(&profilerAddr, "profiler-address", ":6060", "The address for serving pprof profiles")
 
 	opts := crzap.Options{
-		Development: true,
+		TimeEncoder: zapcore.ISO8601TimeEncoder,
+		ZapOpts: []zap.Option{
+			zap.WithCaller(true),
+		},
 	}
 
 	opts.BindFlags(flag.CommandLine)

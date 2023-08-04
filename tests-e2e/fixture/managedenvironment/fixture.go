@@ -43,7 +43,7 @@ func HaveStatusCondition(conditionType string) matcher.GomegaMatcher {
 func HaveStatusConditionReason(reason string) matcher.GomegaMatcher {
 	return WithTransform(func(menv managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {

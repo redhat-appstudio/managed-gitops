@@ -43,7 +43,7 @@ var _ = Describe("GitOpsDeployment Managed Environment E2E tests", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 		})
 
-		FIt("should be healthy and have synced status, and resources should be deployed, when deployed with a ManagedEnv", func() {
+		It("should be healthy and have synced status, and resources should be deployed, when deployed with a ManagedEnv", func() {
 
 			By("creating the GitOpsDeploymentManagedEnvironment")
 

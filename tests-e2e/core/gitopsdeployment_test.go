@@ -130,7 +130,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			}
 		}
 
-		It("Should ensure succesful creation of GitOpsDeployment, by creating the GitOpsDeployment and ensure that appProjectRepository row has been created referencing to gitopsDeployment", func() {
+		It("Should ensure successful creation of GitOpsDeployment, by creating the GitOpsDeployment and ensure that appProjectRepository row has been created referencing to gitopsDeployment", func() {
 
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
@@ -212,7 +212,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = dbQueries.GetAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepositoryDB)
 			Expect(err).ToNot(HaveOccurred())
 
-			By("Ensure AppProject is resource has been created")
+			By("Ensure AppProject resource has been created")
 			appProject := &appv1.AppProject{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "app-project-" + appProjectRepositoryDB.Clusteruser_id,
@@ -248,6 +248,77 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(appProject), appProject)
 				return apierr.IsNotFound(err)
 			}, time.Minute, time.Second*5).Should(BeTrue())
+
+		})
+
+		It("should ensure that when 2 GitOpsDeployments are created and point to the same repo url, and one is deleted, the AppProjectRepository for the other still exists", func() {
+
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+			gitOpsDeploymentResource1 := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
+				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			err = k8s.Create(&gitOpsDeploymentResource1, k8sClient)
+			Expect(err).To(Succeed())
+
+			gitOpsDeploymentResource2 := gitopsDeplFixture.BuildGitOpsDeploymentResource(name+"2",
+				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+
+			err = k8s.Create(&gitOpsDeploymentResource2, k8sClient)
+			Expect(err).To(Succeed())
+
+			By("verify whether appProjectRepository row pointing to GitopsDeployment has been created in database ")
+
+			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
+			Expect(err).ToNot(HaveOccurred())
+
+			namespace := corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: gitOpsDeploymentResource1.Namespace,
+				},
+			}
+
+			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&namespace), &namespace)
+			Expect(err).ToNot(HaveOccurred())
+
+			clusterUser := db.ClusterUser{
+				User_name: string(namespace.UID),
+			}
+
+			err = dbQueries.GetClusterUserByUsername(ctx, &clusterUser)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("ensuring AppProject resource has been created")
+			appProject := &appv1.AppProject{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "app-project-" + clusterUser.Clusteruser_id,
+					Namespace: "gitops-service-argocd",
+				},
+			}
+
+			Eventually(appProject, "60s", "1s").Should(k8s.ExistByName(k8sClient))
+
+			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)).Error().ToNot(HaveOccurred())
+
+			Expect(appProject.Spec.SourceRepos).Should(ContainElement(repoURL))
+
+			By("deleting the second GitOpsDeployment targeting the git repository")
+			Expect(k8sClient.Delete(ctx, &gitOpsDeploymentResource2)).Error().ToNot(HaveOccurred())
+
+			Consistently(appProject, "20s", "1s").Should(k8s.ExistByName(k8sClient), "the AppProject should not be deleted, because there still exists a GitOpsDeployment that is using it")
+
+			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)).Error().ToNot(HaveOccurred())
+
+			Expect(appProject.Spec.SourceRepos).Should(ContainElement(repoURL), "it should still reference the repoURL from the GitOpsDeployment")
+
+			By("deleting the first GitOpsDeployment targeting the git repository")
+			Expect(k8sClient.Delete(ctx, &gitOpsDeploymentResource1)).Error().ToNot(HaveOccurred())
+
+			Eventually(appProject, "20s", "1s").ShouldNot(k8s.ExistByName(k8sClient), "the AppProject should be deleted now that the final reference has been removed")
 
 		})
 

@@ -68,8 +68,7 @@ func (c *ClusterReconciler) Start() {
 
 // A k8s resource is considered to be orphaned when:
 // 1. It was previously managed by Argo CD i.e has label "app.kubernetes.io/instance".
-// 2. It has a deletiontimestamp set.
-// 3. It doesn't have a corresponding GitOpsDeployment resource.
+// 2. It doesn't have a corresponding GitOpsDeployment resource.
 func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr.Logger) {
 	apiObjects, err := c.getAllNamespacedAPIResources(ctx, log)
 	if err != nil {
@@ -79,7 +78,7 @@ func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr
 
 	for i, obj := range apiObjects {
 		appName := getArgoCDApplicationName(obj.GetLabels())
-		if appName != "" && obj.GetDeletionTimestamp() != nil && !strings.HasPrefix(obj.GetNamespace(), "openshift") {
+		if appName != "" && obj.GetDeletionTimestamp() == nil && !strings.HasPrefix(obj.GetNamespace(), "openshift") {
 			// Check if a GitOpsDeployment exists with the UID specified in the Application name.
 			gitopsDeplList := &managedgitopsv1alpha1.GitOpsDeploymentList{}
 			err = c.client.List(ctx, gitopsDeplList, &client.ListOptions{
@@ -99,7 +98,7 @@ func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr
 				}
 			}
 
-			// The resource has both deletiontimestamp and label "app.kubernetes.io/instance"
+			// The resource was managed by Argo CD i.e. it has label "app.kubernetes.io/instance"
 			// But it doesn't have a corresponding GitOpsDeployment so it can be deleted.
 			if !found {
 				if err := c.client.Delete(ctx, &apiObjects[i]); err != nil {

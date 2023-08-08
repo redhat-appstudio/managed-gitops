@@ -78,7 +78,6 @@ const (
 	RepositoryCredentialsRepoCredEngineIDLength                             = 48
 	AppProjectRepositoryAppprojectRepositoryIDLength                        = 48
 	AppProjectRepositoryClusteruserIDLength                                 = 48
-	AppProjectRepositoryRepositorycredentialsIDLength                       = 48
 	AppProjectRepositoryRepoURLLength                                       = 256
 	AppProjectManagedEnvironmentAppprojectManagedenvIDLength                = 48
 	AppProjectManagedEnvironmentManagedEnvironmentIDLength                  = 48
@@ -203,7 +202,6 @@ var DbFieldMap = map[string]int{
 	"RepositoryCredentialsRepoCredEngineIDLength":                             RepositoryCredentialsRepoCredEngineIDLength,
 	"AppProjectRepositoryAppprojectRepositoryIDLength":                        AppProjectRepositoryAppprojectRepositoryIDLength,
 	"AppProjectRepositoryClusteruserIDLength":                                 AppProjectRepositoryClusteruserIDLength,
-	"AppProjectRepositoryRepositorycredentialsIDLength":                       AppProjectRepositoryRepositorycredentialsIDLength,
 	"AppProjectRepositoryRepoURLLength":                                       AppProjectRepositoryRepoURLLength,
 	"AppProjectManagedEnvironmentAppprojectManagedenvIDLength":                AppProjectManagedEnvironmentAppprojectManagedenvIDLength,
 	"AppProjectManagedEnvironmentManagedEnvironmentIDLength":                  AppProjectManagedEnvironmentManagedEnvironmentIDLength,

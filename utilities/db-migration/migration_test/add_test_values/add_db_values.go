@@ -136,10 +136,9 @@ var (
 	}
 
 	AddTest_PreAppProjectRepository = db.AppProjectRepository{
-		AppprojectRepositoryID:  "test-app-project-repo",
-		RepositorycredentialsID: AddTest_PreRepositoryCredentials.RepositoryCredentialsID,
-		Clusteruser_id:          AddTest_PreClusterUser.Clusteruser_id,
-		RepoURL:                 AddTest_PreRepositoryCredentials.PrivateURL,
+		AppprojectRepositoryID: "test-app-project-repo",
+		Clusteruser_id:         AddTest_PreClusterUser.Clusteruser_id,
+		RepoURL:                AddTest_PreRepositoryCredentials.PrivateURL,
 	}
 
 	AddTest_PreAppProjectManagedEnv = db.AppProjectManagedEnvironment{

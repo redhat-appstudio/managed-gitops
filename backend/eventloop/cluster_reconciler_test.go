@@ -35,7 +35,7 @@ var _ = Describe("ClusterReconciler tests", func() {
 				kubesystemNamespace,
 				apiNamespace,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			clusterResources := []client.Object{
 				&rbacv1.ClusterRole{
@@ -85,8 +85,8 @@ var _ = Describe("ClusterReconciler tests", func() {
 
 			By("verify if only namespaced resources are returned")
 			objs, err := cr.getAllNamespacedAPIResources(ctx, logger)
-			Expect(err).To(BeNil())
-			Expect(len(objs)).To(Equal(len(namespacedResources)))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(objs).To(HaveLen(len(namespacedResources)))
 
 			for _, expectedObj := range namespacedResources {
 				found := false
@@ -106,12 +106,12 @@ var _ = Describe("ClusterReconciler tests", func() {
 			By("delete all namespace scoped resources and verify if it returns an empty list")
 			for _, obj := range namespacedResources {
 				err = k8sClient.Delete(ctx, obj)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			}
 
 			objs, err = cr.getAllNamespacedAPIResources(ctx, logger)
-			Expect(err).To(BeNil())
-			Expect(len(objs)).To(Equal(0))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(objs).To(BeEmpty())
 
 			By("ensure that a resource without the required verbs is not returned")
 			pod := &corev1.Pod{
@@ -122,11 +122,11 @@ var _ = Describe("ClusterReconciler tests", func() {
 			}
 
 			err = k8sClient.Create(ctx, pod)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			objs, err = cr.getAllNamespacedAPIResources(ctx, logger)
-			Expect(err).To(BeNil())
-			Expect(len(objs)).To(Equal(0))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(objs).To(BeEmpty())
 		})
 	})
 
@@ -147,7 +147,7 @@ var _ = Describe("ClusterReconciler tests", func() {
 				kubesystemNamespace,
 				apiNamespace,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			namespace = argocdNamespace
 
@@ -186,7 +186,7 @@ var _ = Describe("ClusterReconciler tests", func() {
 			}
 
 			err := k8sClient.Create(ctx, namespacedObj)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			reconciler.cleanOrphanedResources(ctx, logger)
 
@@ -203,7 +203,7 @@ var _ = Describe("ClusterReconciler tests", func() {
 			}
 
 			err := k8sClient.Create(ctx, gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			namespacedObj := &rbacv1.RoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
@@ -217,7 +217,7 @@ var _ = Describe("ClusterReconciler tests", func() {
 			reconciler.cleanOrphanedResources(ctx, logger)
 
 			err = k8sClient.Create(ctx, namespacedObj)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 		})
 
@@ -230,12 +230,12 @@ var _ = Describe("ClusterReconciler tests", func() {
 			}
 
 			err := k8sClient.Create(ctx, namespacedObj)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			reconciler.cleanOrphanedResources(ctx, logger)
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(namespacedObj), namespacedObj)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("should not delete cluster scoped resources", func() {
@@ -246,12 +246,12 @@ var _ = Describe("ClusterReconciler tests", func() {
 			}
 
 			err := k8sClient.Create(ctx, clusterObj)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			reconciler.cleanOrphanedResources(ctx, logger)
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(clusterObj), clusterObj)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("should not delete a resource that has a finalizer", func() {
@@ -342,7 +342,7 @@ func createFakeCluster() *httptest.Server {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, err = w.Write(output)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 	}
 
 	return httptest.NewServer(http.HandlerFunc(fakeServer))

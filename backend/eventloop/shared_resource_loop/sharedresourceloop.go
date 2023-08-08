@@ -597,7 +597,9 @@ func reconcileAppProjectRepositories(ctx context.Context, gitRepoURLUnnormalized
 
 	// For each existing entry in the database, find the corresponding expected entry, and reconcile any differences
 
-	for _, appProjectRepoInNamepace := range appProjectReposInNamepace {
+	for idx := range appProjectReposInNamepace {
+
+		appProjectRepoInNamepace := appProjectReposInNamepace[idx]
 
 		gitURLOfDatabaseRow := NormalizeGitURL(appProjectRepoInNamepace.RepoURL)
 

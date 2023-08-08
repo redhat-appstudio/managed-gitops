@@ -13,6 +13,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -22,6 +23,9 @@ import (
 const (
 	// Interval in Minutes to reconcile ClusterReconciler.
 	orphanedResourcesCleanUpInterval = 30 * time.Minute
+
+	// Label added to the resources managed by Argo CD.
+	argocdResourceLabel = "app.kubernetes.io/instance"
 )
 
 type ClusterReconciler struct {
@@ -70,7 +74,18 @@ func (c *ClusterReconciler) Start() {
 // 1. It was previously managed by Argo CD i.e has label "app.kubernetes.io/instance".
 // 2. It doesn't have a corresponding GitOpsDeployment resource.
 func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr.Logger) {
-	apiObjects, err := c.getAllNamespacedAPIResources(ctx, log)
+	// Use a label selector to filter resources managed by Argo CD
+	labelSelector, err := labels.Parse(argocdResourceLabel)
+	if err != nil {
+		log.Error(err, "failed to create a label selector for listing resources managed by Argo CD")
+		return
+	}
+
+	listOpts := &client.ListOptions{
+		LabelSelector: labelSelector,
+	}
+
+	apiObjects, err := c.getAllNamespacedAPIResources(ctx, log, listOpts)
 	if err != nil {
 		log.Error(err, "failed to get namespaced API resources from the cluster")
 		return
@@ -113,7 +128,7 @@ func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr
 }
 
 // getAllNamespacedAPIResources returns all namespace scoped resources from a Kubernetes cluster.
-func (c *ClusterReconciler) getAllNamespacedAPIResources(ctx context.Context, log logr.Logger) ([]unstructured.Unstructured, error) {
+func (c *ClusterReconciler) getAllNamespacedAPIResources(ctx context.Context, log logr.Logger, opts ...client.ListOption) ([]unstructured.Unstructured, error) {
 	apiResourceList, err := c.discoveryClient.ServerPreferredNamespacedResources()
 	if err != nil {
 		return nil, err
@@ -141,8 +156,7 @@ func (c *ClusterReconciler) getAllNamespacedAPIResources(ctx context.Context, lo
 				objList.SetAPIVersion(apiResources.GroupVersion)
 				objList.SetKind(apiResource.Kind)
 
-				err := c.client.List(ctx, objList)
-				if err != nil {
+				if err := c.client.List(ctx, objList, opts...); err != nil {
 					log.V(logutil.LogLevel_Debug).Error(err, "failed to list resources", "resource", apiResource.Kind)
 					return
 				}
@@ -174,9 +188,7 @@ func isResourceAllowed(expectedVerbs []string, verbs []string) bool {
 }
 
 func getArgoCDApplicationName(labels map[string]string) string {
-	key := "app.kubernetes.io/instance"
-
-	if value, found := labels[key]; found {
+	if value, found := labels[argocdResourceLabel]; found {
 		if strings.HasPrefix(value, "gitopsdepl-") {
 			return value
 		}

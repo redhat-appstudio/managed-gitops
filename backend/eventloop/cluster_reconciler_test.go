@@ -182,7 +182,6 @@ var _ = Describe("ClusterReconciler tests", func() {
 					Labels: map[string]string{
 						"app.kubernetes.io/instance": "gitopsdepl-08745631-43fe-41c3-9bd8-a2cf347a04c2",
 					},
-					DeletionTimestamp: &metav1.Time{Time: time.Now()},
 				},
 			}
 
@@ -212,7 +211,6 @@ var _ = Describe("ClusterReconciler tests", func() {
 					Labels: map[string]string{
 						"app.kubernetes.io/instance": fmt.Sprintf("gitopsdepl-%s", gitopsDepl.UID),
 					},
-					DeletionTimestamp: &metav1.Time{Time: time.Now()},
 				},
 			}
 
@@ -254,6 +252,49 @@ var _ = Describe("ClusterReconciler tests", func() {
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(clusterObj), clusterObj)
 			Expect(err).To(BeNil())
+		})
+
+		It("should not delete a resource that has a finalizer", func() {
+			namespacedObj := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-1",
+					Namespace: namespace.Name,
+					Labels: map[string]string{
+						"app.kubernetes.io/instance": "gitopsdepl-08745631-43fe-41c3-9bd8-a2cf347a04c2",
+					},
+					Finalizers: []string{"sample.finalizer"},
+				},
+			}
+
+			err := k8sClient.Create(ctx, namespacedObj)
+			Expect(err).ToNot(HaveOccurred())
+
+			reconciler.cleanOrphanedResources(ctx, logger)
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(namespacedObj), namespacedObj)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(namespacedObj.DeletionTimestamp).ToNot(BeNil())
+		})
+
+		It("should not delete a resource that already has a deletion timestamp", func() {
+			namespacedObj := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-1",
+					Namespace: namespace.Name,
+					Labels: map[string]string{
+						"app.kubernetes.io/instance": "gitopsdepl-08745631-43fe-41c3-9bd8-a2cf347a04c2",
+					},
+					DeletionTimestamp: &metav1.Time{Time: time.Now()},
+				},
+			}
+
+			err := k8sClient.Create(ctx, namespacedObj)
+			Expect(err).ToNot(HaveOccurred())
+
+			reconciler.cleanOrphanedResources(ctx, logger)
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(namespacedObj), namespacedObj)
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 	})

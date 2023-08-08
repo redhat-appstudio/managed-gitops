@@ -117,7 +117,7 @@ func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr
 					continue
 				}
 
-				log.Info("Deleted an orphaned resource that is not managed by Argo CD anymore", "Name", obj.GetName(), "Namespace", obj.GetNamespace())
+				log.Info("Deleted an orphaned resource that is not managed by Argo CD anymore", "Name", obj.GetName(), "Namespace", obj.GetNamespace(), "gvk", obj.GroupVersionKind())
 			}
 		}
 	}

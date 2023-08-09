@@ -143,7 +143,26 @@ var _ = Describe("Argo CD Application tests", func() {
 				for _, userName := range users {
 					By("creating an Argo CD application to deploy to the user's namespace")
 
-					argoCDApplication := application.BuildArgoCDApplication("test-"+userName, argoCDNamespace, "https://github.com/redhat-appstudio/managed-gitops/", fixture.GitopsDeploymentPath, "", "", "", "test-"+userName, userName, &appv1alpha1.SyncPolicyAutomated{Prune: true, SelfHeal: true})
+					argoCDApplication := appv1alpha1.Application{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:       "test-" + userName,
+							Namespace:  argoCDNamespace,
+							Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+						},
+						Spec: appv1alpha1.ApplicationSpec{
+							Source: appv1alpha1.ApplicationSource{
+								RepoURL: "https://github.com/redhat-appstudio/managed-gitops/",
+								Path:    "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+							},
+							Destination: appv1alpha1.ApplicationDestination{
+								Name:      "test-" + userName,
+								Namespace: userName,
+							},
+							SyncPolicy: &appv1alpha1.SyncPolicy{
+								Automated: &appv1alpha1.SyncPolicyAutomated{Prune: true, SelfHeal: true},
+							},
+						},
+					}
 					argoCDApplication.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
 					err := k8sClient.Create(context.Background(), &argoCDApplication)
 					Expect(err).ToNot(HaveOccurred())
@@ -196,7 +215,26 @@ var _ = Describe("Argo CD Application tests", func() {
 				By("creating an Argo CD application to deploy to the user's namespace")
 
 				// Attempt to deploy into a Namespace we don't have access to
-				argoCDApplication := application.BuildArgoCDApplication("test-"+userName, argoCDNamespace, "https://github.com/redhat-appstudio/managed-gitops/", fixture.GitopsDeploymentPath, "", "", "", "test-"+userName, otherUser, &appv1alpha1.SyncPolicyAutomated{Prune: true, SelfHeal: true})
+				argoCDApplication := appv1alpha1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:       "test-" + userName,
+						Namespace:  argoCDNamespace,
+						Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+					},
+					Spec: appv1alpha1.ApplicationSpec{
+						Source: appv1alpha1.ApplicationSource{
+							RepoURL: "https://github.com/redhat-appstudio/managed-gitops/",
+							Path:    "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+						},
+						Destination: appv1alpha1.ApplicationDestination{
+							Name:      "test-" + userName,
+							Namespace: otherUser, // Attempt to deploy into a Namespace we don't have access to
+						},
+						SyncPolicy: &appv1alpha1.SyncPolicy{
+							Automated: &appv1alpha1.SyncPolicyAutomated{Prune: true, SelfHeal: true},
+						},
+					},
+				}
 				argoCDApplication.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
 				err := k8sClient.Create(context.Background(), &argoCDApplication)
 				Expect(err).ToNot(HaveOccurred())

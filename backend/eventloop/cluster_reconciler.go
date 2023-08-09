@@ -3,15 +3,14 @@ package eventloop
 import (
 	"context"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	argocdutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -21,11 +20,8 @@ import (
 )
 
 const (
-	// Interval in Minutes to reconcile ClusterReconciler.
-	orphanedResourcesCleanUpInterval = 30 * time.Minute
-
-	// Label added to the resources managed by Argo CD.
-	argocdResourceLabel = "app.kubernetes.io/instance"
+	// Interval in Hours to reconcile ClusterReconciler.
+	orphanedResourcesCleanUpInterval = 2 * time.Hour
 )
 
 type ClusterReconciler struct {
@@ -75,7 +71,7 @@ func (c *ClusterReconciler) Start() {
 // 2. It doesn't have a corresponding GitOpsDeployment resource.
 func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr.Logger) {
 	// Use a label selector to filter resources managed by Argo CD
-	labelSelector, err := labels.Parse(argocdResourceLabel)
+	labelSelector, err := labels.Parse(argocdutil.ArgocdResourceLabel)
 	if err != nil {
 		log.Error(err, "failed to create a label selector for listing resources managed by Argo CD")
 		return
@@ -92,7 +88,7 @@ func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr
 	}
 
 	for i, obj := range apiObjects {
-		appName := getArgoCDApplicationName(obj.GetLabels())
+		appName := argocdutil.GetArgoCDApplicationName(obj.GetLabels())
 		if appName != "" && obj.GetDeletionTimestamp() == nil && !strings.HasPrefix(obj.GetNamespace(), "openshift") {
 			// Check if a GitOpsDeployment exists with the UID specified in the Application name.
 			gitopsDeplList := &managedgitopsv1alpha1.GitOpsDeploymentList{}
@@ -104,7 +100,7 @@ func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr
 				continue
 			}
 
-			expectedUID := extractUIDFromApplicationName(appName)
+			expectedUID := argocdutil.ExtractUIDFromApplicationName(appName)
 			found := false
 			for _, gitopsDepl := range gitopsDeplList.Items {
 				if gitopsDepl.UID == types.UID(expectedUID) {
@@ -121,7 +117,7 @@ func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr
 					continue
 				}
 
-				log.Info("Deleted an orphaned resoure that is not managed by Argo CD anymore", "Name", obj.GetName(), "Namespace", obj.GetNamespace())
+				log.Info("Deleted an orphaned resource that is not managed by Argo CD anymore", "Name", obj.GetName(), "Namespace", obj.GetNamespace())
 			}
 		}
 	}
@@ -136,8 +132,6 @@ func (c *ClusterReconciler) getAllNamespacedAPIResources(ctx context.Context, lo
 
 	expectedVerbs := []string{"list", "get", "delete"}
 	resources := []unstructured.Unstructured{}
-	var mu sync.Mutex
-	var wg sync.WaitGroup
 
 	for _, apiResources := range apiResourceList {
 		for _, apiResource := range apiResources.APIResources {
@@ -146,29 +140,19 @@ func (c *ClusterReconciler) getAllNamespacedAPIResources(ctx context.Context, lo
 				continue
 			}
 
-			// Since we want to list resources across all namespaces in a cluster, we can
-			// run the List API for each resource in a separate goroutine and aggregate the result.
-			wg.Add(1)
-			go func(apiResources *metav1.APIResourceList, apiResource metav1.APIResource) {
-				defer wg.Done()
+			objList := &unstructured.UnstructuredList{}
+			objList.SetAPIVersion(apiResources.GroupVersion)
+			objList.SetKind(apiResource.Kind)
 
-				objList := &unstructured.UnstructuredList{}
-				objList.SetAPIVersion(apiResources.GroupVersion)
-				objList.SetKind(apiResource.Kind)
+			if err := c.client.List(ctx, objList, opts...); err != nil {
+				log.V(logutil.LogLevel_Debug).Error(err, "failed to list resources", "resource", apiResource.Kind)
+				continue
+			}
 
-				if err := c.client.List(ctx, objList, opts...); err != nil {
-					log.V(logutil.LogLevel_Debug).Error(err, "failed to list resources", "resource", apiResource.Kind)
-					return
-				}
+			resources = append(resources, objList.Items...)
 
-				mu.Lock()
-				resources = append(resources, objList.Items...)
-				mu.Unlock()
-			}(apiResources, apiResource)
 		}
 	}
-
-	wg.Wait()
 
 	return resources, nil
 }
@@ -185,22 +169,4 @@ func isResourceAllowed(expectedVerbs []string, verbs []string) bool {
 		}
 	}
 	return true
-}
-
-func getArgoCDApplicationName(labels map[string]string) string {
-	if value, found := labels[argocdResourceLabel]; found {
-		if strings.HasPrefix(value, "gitopsdepl-") {
-			return value
-		}
-	}
-
-	return ""
-}
-
-func extractUIDFromApplicationName(name string) string {
-	content := strings.Split(name, "-")
-	if len(content) == 2 {
-		return content[1]
-	}
-	return ""
 }

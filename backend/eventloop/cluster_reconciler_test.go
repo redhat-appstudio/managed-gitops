@@ -29,7 +29,7 @@ import (
 var _ = Describe("ClusterReconciler tests", func() {
 	Context("Test getAllAPIResources", func() {
 
-		It("should return all namespaced scoped API resourcs in the cluster", func() {
+		It("should return all namespaced scoped API resources in the cluster", func() {
 			scheme,
 				argocdNamespace,
 				kubesystemNamespace,

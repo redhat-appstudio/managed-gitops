@@ -27,37 +27,38 @@ func createAppAndDtamEntry(ctx context.Context, dbq db.AllDatabaseQueries, appli
 }
 
 var _ = Describe("DeploymentToApplicationMapping Tests", func() {
+	var ctx context.Context
+	var dbq db.AllDatabaseQueries
+	var application *db.Application
+	var deploymentToApplicationMapping *db.DeploymentToApplicationMapping
+
+	BeforeEach(func() {
+		err := db.SetupForTestingDBGinkgo()
+		Expect(err).ToNot(HaveOccurred())
+
+		ctx = context.Background()
+		dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+		Expect(err).ToNot(HaveOccurred())
+
+		_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
+		Expect(err).ToNot(HaveOccurred())
+
+		application = &db.Application{
+			Spec_field:              "{}",
+			Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+			Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+		}
+
+		deploymentToApplicationMapping = &db.DeploymentToApplicationMapping{
+			DeploymentName:      "test-deployment",
+			DeploymentNamespace: "test-namespace",
+			NamespaceUID:        "demo-namespace",
+		}
+
+		createAppAndDtamEntry(ctx, dbq, application, deploymentToApplicationMapping)
+	})
+
 	Context("It should execute all DeploymentToApplicationMapping Functions", func() {
-		var ctx context.Context
-		var dbq db.AllDatabaseQueries
-		var application *db.Application
-		var deploymentToApplicationMapping *db.DeploymentToApplicationMapping
-
-		BeforeEach(func() {
-			err := db.SetupForTestingDBGinkgo()
-			Expect(err).ToNot(HaveOccurred())
-
-			ctx = context.Background()
-			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).ToNot(HaveOccurred())
-
-			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-			Expect(err).ToNot(HaveOccurred())
-
-			application = &db.Application{
-				Spec_field:              "{}",
-				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
-			}
-
-			deploymentToApplicationMapping = &db.DeploymentToApplicationMapping{
-				DeploymentName:      "test-deployment",
-				DeploymentNamespace: "test-namespace",
-				NamespaceUID:        "demo-namespace",
-			}
-
-			createAppAndDtamEntry(ctx, dbq, application, deploymentToApplicationMapping)
-		})
 
 		It("Should execute all DeploymentToApplicationMapping Functions", func() {
 			defer dbq.CloseDatabase()
@@ -127,6 +128,28 @@ var _ = Describe("DeploymentToApplicationMapping Tests", func() {
 			err = dbq.GetDeploymentToApplicationMappingBatch(ctx, &listOfDeploymentToApplicationMappingFromDB, 3, 1)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(listOfDeploymentToApplicationMappingFromDB).To(HaveLen(3))
+		})
+	})
+
+	Context("Test Dispose function for DeploymentToApplicationMapping", func() {
+		It("Should test Dispose function with missing database interface", func() {
+
+			var dbq db.AllDatabaseQueries
+
+			err := deploymentToApplicationMapping.Dispose(ctx, dbq)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("missing database interface in DeploymentToApplicationMapping dispose"))
+
+		})
+
+		It("Should test Dispose function for DeploymentToApplicationMapping", func() {
+
+			err := deploymentToApplicationMapping.Dispose(context.Background(), dbq)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.GetDeploymentToApplicationMappingByDeplId(ctx, deploymentToApplicationMapping)
+			Expect(err).To(HaveOccurred())
+
 		})
 	})
 })

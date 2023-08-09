@@ -166,4 +166,68 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			updatedCR.EngineClusterID = gitopsEngineInstance.Gitopsengineinstance_id // reset the EngineClusterID to the original value
 		})
 	})
+
+	Context("Test Dispose function for RepositoryCredentials", func() {
+		var gitopsRepositoryCredentials db.RepositoryCredentials
+		BeforeEach(func() {
+			By("Connecting to the database")
+			err = db.SetupForTestingDBGinkgo()
+			Expect(err).ToNot(HaveOccurred())
+
+			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).ToNot(HaveOccurred())
+
+			ctx = context.Background()
+
+			_, _, _, gitopsEngineInstance, _, err = db.CreateSampleData(dbq)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Satisfying the foreign key constraint 'fk_clusteruser_id'")
+			// aka: ClusterUser.Clusteruser_id) required for 'repo_cred_user_id'
+			clusterUser = &db.ClusterUser{
+				Clusteruser_id: "test-repocred-user-id",
+				User_name:      "test-repocred-user",
+			}
+			err = dbq.CreateClusterUser(ctx, clusterUser)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Creating a RepositoryCredentials object")
+			gitopsRepositoryCredentials = db.RepositoryCredentials{
+				RepositoryCredentialsID: "test-repo-cred-id",
+				UserID:                  clusterUser.Clusteruser_id, // constrain 'fk_clusteruser_id'
+				PrivateURL:              "https://test-private-url",
+				AuthUsername:            "test-auth-username",
+				AuthPassword:            "test-auth-password",
+				AuthSSHKey:              "test-auth-ssh-key",
+				SecretObj:               "test-secret-obj",
+				EngineClusterID:         gitopsEngineInstance.Gitopsengineinstance_id, // constrain 'fk_gitopsengineinstance_id'
+			}
+
+			By("Inserting the RepositoryCredentials object to the database")
+			err = dbq.CreateRepositoryCredentials(ctx, &gitopsRepositoryCredentials)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		AfterEach(func() {
+			defer dbq.CloseDatabase()
+		})
+
+		It("Should test Dispose function with missing database interface for RepositoryCredentials", func() {
+			var dbq db.AllDatabaseQueries
+
+			err := gitopsRepositoryCredentials.Dispose(ctx, dbq)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("missing database interface in RepositoryCredentials dispose"))
+
+		})
+
+		It("Should test Dispose function for RepositoryCredentials", func() {
+			err := gitopsRepositoryCredentials.Dispose(context.Background(), dbq)
+			Expect(err).ToNot(HaveOccurred())
+
+			_, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentials.RepositoryCredentialsID)
+			Expect(err).To(HaveOccurred())
+
+		})
+	})
 })

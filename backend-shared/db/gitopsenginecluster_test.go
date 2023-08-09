@@ -11,16 +11,19 @@ import (
 )
 
 var _ = Describe("Gitopsenginecluster Test", func() {
-	It("Should Create, Get and Delete a GitopsEngineCluster", func() {
+	var dbq db.AllDatabaseQueries
+	var ctx context.Context
+	var clusterCredentials db.ClusterCredentials
+	var gitopsEngineCluster db.GitopsEngineCluster
+	BeforeEach(func() {
 		err := db.SetupForTestingDBGinkgo()
 		Expect(err).ToNot(HaveOccurred())
 
-		ctx := context.Background()
-		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+		ctx = context.Background()
+		dbq, err = db.NewUnsafePostgresDBQueries(true, true)
 		Expect(err).ToNot(HaveOccurred())
-		defer dbq.CloseDatabase()
 
-		clusterCredentials := db.ClusterCredentials{
+		clusterCredentials = db.ClusterCredentials{
 			Clustercredentials_cred_id:  "test-cluster-creds-test-1",
 			Host:                        "host",
 			Kube_config:                 "kube-config",
@@ -29,7 +32,7 @@ var _ = Describe("Gitopsenginecluster Test", func() {
 			Serviceaccount_ns:           "Serviceaccount_ns",
 		}
 
-		gitopsEngineClusterput := db.GitopsEngineCluster{
+		gitopsEngineCluster = db.GitopsEngineCluster{
 			Gitopsenginecluster_id: "test-fake-cluster-1",
 			Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
 		}
@@ -37,18 +40,25 @@ var _ = Describe("Gitopsenginecluster Test", func() {
 		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
 		Expect(err).ToNot(HaveOccurred())
 
-		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClusterput)
+		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
 		Expect(err).ToNot(HaveOccurred())
+	})
+
+	AfterEach(func() {
+		defer dbq.CloseDatabase()
+	})
+
+	It("Should Create, Get and Delete a GitopsEngineCluster", func() {
 
 		gitopsEngineClusterget := db.GitopsEngineCluster{
-			Gitopsenginecluster_id: gitopsEngineClusterput.Gitopsenginecluster_id,
+			Gitopsenginecluster_id: gitopsEngineCluster.Gitopsenginecluster_id,
 		}
 
-		err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineClusterget)
+		err := dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineClusterget)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(gitopsEngineClusterput).Should(Equal(gitopsEngineClusterget))
+		Expect(gitopsEngineCluster).Should(Equal(gitopsEngineClusterget))
 
-		rowsAffected, err := dbq.DeleteGitopsEngineClusterById(ctx, gitopsEngineClusterput.Gitopsenginecluster_id)
+		rowsAffected, err := dbq.DeleteGitopsEngineClusterById(ctx, gitopsEngineCluster.Gitopsenginecluster_id)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).Should(Equal(1))
 
@@ -60,9 +70,31 @@ var _ = Describe("Gitopsenginecluster Test", func() {
 		err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineClusterget)
 		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
-		gitopsEngineClusterput.Clustercredentials_id = strings.Repeat("abc", 100)
-		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineClusterput)
+		gitopsEngineCluster.Clustercredentials_id = strings.Repeat("abc", 100)
+		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
 		Expect(true).To(Equal(db.IsMaxLengthError(err)))
 
+	})
+
+	Context("Test Dispose function for gitopsEngineCluster", func() {
+		It("Should test Dispose function with missing database interface for gitopsEngineCluster", func() {
+
+			var dbq db.AllDatabaseQueries
+
+			err := gitopsEngineCluster.Dispose(ctx, dbq)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("missing database interface in GitOpsEngineCluster dispose"))
+
+		})
+
+		It("Should test Dispose function for gitopsEngineCluster", func() {
+
+			err := gitopsEngineCluster.Dispose(context.Background(), dbq)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineCluster)
+			Expect(err).To(HaveOccurred())
+
+		})
 	})
 })

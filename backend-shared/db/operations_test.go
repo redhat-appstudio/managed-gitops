@@ -195,6 +195,48 @@ var _ = Describe("Operations Test", func() {
 		})
 
 	})
+
+	Context("Test Dispose function for Operation", func() {
+		var operation *db.Operation
+		var dbq db.AllDatabaseQueries
+		var err error
+		BeforeEach(func() {
+			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).ToNot(HaveOccurred())
+
+			operation = &db.Operation{
+				Operation_id:            "test-operation-1",
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "test-fake-resource-id",
+				Resource_type:           "GitopsEngineInstance",
+				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				Last_state_update:       time.Now(),
+			}
+
+			err = dbq.CreateOperation(ctx, operation, operation.Operation_owner_user_id)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		AfterEach(func() {
+			defer dbq.CloseDatabase()
+		})
+
+		It("Should test Dispose function with missing database interface", func() {
+			var dbq db.AllDatabaseQueries
+
+			err := operation.DisposeAppScoped(ctx, dbq)
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("Should test Dispose function for Operation", func() {
+			err := operation.DisposeAppScoped(context.Background(), dbq)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.GetOperationById(ctx, operation)
+			Expect(err).To(HaveOccurred())
+
+		})
+	})
 })
 
 func readyForGarbageCollection() types.GomegaMatcher {

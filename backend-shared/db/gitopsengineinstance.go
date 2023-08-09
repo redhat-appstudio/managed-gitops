@@ -226,7 +226,7 @@ func (dbq *PostgreSQLDatabaseQueries) internalDeleteGitopsEngineInstanceById(ctx
 	deleteResult, err := dbq.dbConnection.Model(result).WherePK().Context(ctx).Delete()
 	if err != nil {
 		pgErr := err.(pg.Error)
-		return 0, fmt.Errorf("error on deleting operation: %v\nPGError:%v\n", err, pgErr)
+		return 0, fmt.Errorf("error on deleting operation: %v\nPGError:%v\n ", err, pgErr)
 	}
 
 	return deleteResult.RowsAffected(), nil

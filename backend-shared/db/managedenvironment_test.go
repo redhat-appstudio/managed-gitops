@@ -12,16 +12,19 @@ import (
 )
 
 var _ = Describe("Managedenvironment Test", func() {
-	It("Should Create, Get and Delete a ManagedEnvironment", func() {
+	var ctx context.Context
+	var clusterCredentials db.ClusterCredentials
+	var managedEnvironment db.ManagedEnvironment
+	var dbq db.AllDatabaseQueries
+	BeforeEach(func() {
 		err := db.SetupForTestingDBGinkgo()
 		Expect(err).ToNot(HaveOccurred())
 
-		ctx := context.Background()
-		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+		ctx = context.Background()
+		dbq, err = db.NewUnsafePostgresDBQueries(true, true)
 		Expect(err).ToNot(HaveOccurred())
-		defer dbq.CloseDatabase()
 
-		clusterCredentials := db.ClusterCredentials{
+		clusterCredentials = db.ClusterCredentials{
 			Clustercredentials_cred_id:  "test-cluster-creds-test-3",
 			Host:                        "host",
 			Kube_config:                 "kube-config",
@@ -30,7 +33,7 @@ var _ = Describe("Managedenvironment Test", func() {
 			Serviceaccount_ns:           "Serviceaccount_ns",
 		}
 
-		managedEnvironment := db.ManagedEnvironment{
+		managedEnvironment = db.ManagedEnvironment{
 			Managedenvironment_id: "test-managed-env-3",
 			Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
 			Name:                  "my env101",
@@ -41,6 +44,11 @@ var _ = Describe("Managedenvironment Test", func() {
 
 		err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
 		Expect(err).ToNot(HaveOccurred())
+	})
+	AfterEach(func() {
+		defer dbq.CloseDatabase()
+	})
+	It("Should Create, Get and Delete a ManagedEnvironment", func() {
 
 		getmanagedEnvironment := db.ManagedEnvironment{
 			Managedenvironment_id: managedEnvironment.Managedenvironment_id,
@@ -48,7 +56,7 @@ var _ = Describe("Managedenvironment Test", func() {
 			Name:                  managedEnvironment.Name,
 			Clustercredentials_id: managedEnvironment.Clustercredentials_id,
 		}
-		err = dbq.GetManagedEnvironmentById(ctx, &getmanagedEnvironment)
+		err := dbq.GetManagedEnvironmentById(ctx, &getmanagedEnvironment)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(managedEnvironment.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 		managedEnvironment.Created_on = getmanagedEnvironment.Created_on
@@ -77,15 +85,7 @@ var _ = Describe("Managedenvironment Test", func() {
 
 	It("Should List all the ManagedEnvironment entries", func() {
 
-		err := db.SetupForTestingDBGinkgo()
-		Expect(err).ToNot(HaveOccurred())
-
-		ctx := context.Background()
-		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-		Expect(err).ToNot(HaveOccurred())
-		defer dbq.CloseDatabase()
-
-		clusterCredentials, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
+		_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
 		Expect(err).ToNot(HaveOccurred())
 
 		var testClusterUser = &db.ClusterUser{
@@ -119,6 +119,27 @@ var _ = Describe("Managedenvironment Test", func() {
 		Expect(managedEnvironmentget[0]).Should(Equal(managedEnvironmentput))
 		Expect(managedEnvironmentget).Should(HaveLen(1))
 
+	})
+
+	Context("Test Dispose function for managedEnvironment", func() {
+		It("Should test Dispose function with missing database interface", func() {
+			var dbq db.AllDatabaseQueries
+
+			err := managedEnvironment.Dispose(ctx, dbq)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("missing database interface in ManagedEnvironment dispose"))
+
+		})
+
+		It("Should test Dispose function for managedEnvironment", func() {
+
+			err := managedEnvironment.Dispose(context.Background(), dbq)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironment)
+			Expect(err).To(HaveOccurred())
+
+		})
 	})
 
 })

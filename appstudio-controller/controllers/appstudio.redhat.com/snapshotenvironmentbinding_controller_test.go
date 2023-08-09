@@ -2200,7 +2200,7 @@ func newRequest(namespace, name string) reconcile.Request {
 func checkStatusConditionOfEnvironmentBinding(ctx context.Context, rClient client.Client, binding *appstudiosharedv1.SnapshotEnvironmentBinding, message string, status metav1.ConditionStatus, reason string) {
 	err := rClient.Get(ctx, client.ObjectKeyFromObject(binding), binding)
 	Expect(err).ToNot(HaveOccurred())
-	Expect(len(binding.Status.BindingConditions) >= 2)
+	Expect(len(binding.Status.BindingConditions)).To(BeNumerically(">=", 2))
 
 	found1 := false
 	found2 := false

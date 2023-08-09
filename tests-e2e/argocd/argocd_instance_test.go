@@ -87,7 +87,23 @@ var _ = Describe("Standalone ArgoCD instance E2E tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("creating ArgoCD application")
-			app := appFixture.BuildArgoCDApplication("argo-app-01", argocdNamespace, fixture.RepoURL, fixture.GitopsDeploymentPath, "HEAD", "", "", argocdv1.ClusterSecretName, destinationNamespace.Name, &appv1.SyncPolicyAutomated{})
+			app := appv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argo-app-6",
+					Namespace: argocdNamespace,
+				},
+				Spec: appv1.ApplicationSpec{
+					Source: appv1.ApplicationSource{
+						RepoURL:        "https://github.com/redhat-appstudio/managed-gitops",
+						Path:           "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+						TargetRevision: "HEAD",
+					},
+					Destination: appv1.ApplicationDestination{
+						Name:      argocdv1.ClusterSecretName,
+						Namespace: destinationNamespace.Name,
+					},
+				},
+			}
 
 			err = k8s.Create(&app, k8sClient)
 			Expect(err).ToNot(HaveOccurred())

@@ -47,4 +47,59 @@ var _ = Describe("Test Argo CD utility functions", func() {
 			})
 		})
 	})
+
+	Context("Test GetArgoCDApplicationName", func() {
+		When("the Argo CD resource label is found and it has a gitopdepl prefix", func() {
+			It("should return the name of the Application", func() {
+				expectedName := "gitopsdepl-sample"
+				labels := map[string]string{
+					ArgocdResourceLabel: expectedName,
+				}
+				name := GetArgoCDApplicationName(labels)
+				Expect(name).To(Equal(expectedName))
+			})
+		})
+
+		When("the Argo CD resource label is found but it doesn't have a gitopdepl prefix", func() {
+			It("should return an empty string", func() {
+				labels := map[string]string{
+					ArgocdResourceLabel: "invalid-name",
+				}
+				name := GetArgoCDApplicationName(labels)
+				Expect(name).To(BeEmpty())
+			})
+		})
+
+		When("the Argo CD resource label is not found", func() {
+			It("should return an empty string", func() {
+				labels := map[string]string{}
+				name := GetArgoCDApplicationName(labels)
+				Expect(name).To(BeEmpty())
+			})
+		})
+	})
+
+	Context("Test ExtractUIDFromApplicationName", func() {
+		When("an invalid Application name is passed", func() {
+			It("should return an empty string", func() {
+				name := ExtractUIDFromApplicationName("invalidappname")
+				Expect(name).To(BeEmpty())
+			})
+		})
+
+		When("the Application name has an invalid gitopsdepl prefix", func() {
+			It("should return an empty string", func() {
+				name := ExtractUIDFromApplicationName("sample-gitopsdepl-invalidappname")
+				Expect(name).To(BeEmpty())
+			})
+		})
+
+		When("a valid Application name is passed", func() {
+			It("should return the UID from the name", func() {
+				expectedUID := "8aef123"
+				name := ExtractUIDFromApplicationName("gitopsdepl-" + expectedUID)
+				Expect(name).To(Equal(expectedUID))
+			})
+		})
+	})
 })

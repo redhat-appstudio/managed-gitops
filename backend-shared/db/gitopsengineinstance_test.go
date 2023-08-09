@@ -11,16 +11,21 @@ import (
 )
 
 var _ = Describe("Gitopsengineinstance Test", func() {
-	It("Should Create, Get and Delete a GitopsEngineInstance", func() {
+	var dbq db.AllDatabaseQueries
+	var ctx context.Context
+	var clusterCredentials db.ClusterCredentials
+	var gitopsEngineCluster db.GitopsEngineCluster
+	var gitopsEngineInstance db.GitopsEngineInstance
+
+	BeforeEach(func() {
 		err := db.SetupForTestingDBGinkgo()
 		Expect(err).ToNot(HaveOccurred())
 
-		ctx := context.Background()
-		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+		ctx = context.Background()
+		dbq, err = db.NewUnsafePostgresDBQueries(true, true)
 		Expect(err).ToNot(HaveOccurred())
-		defer dbq.CloseDatabase()
 
-		clusterCredentials := db.ClusterCredentials{
+		clusterCredentials = db.ClusterCredentials{
 			Clustercredentials_cred_id:  "test-cluster-creds-test-1",
 			Host:                        "host",
 			Kube_config:                 "kube-config",
@@ -29,12 +34,12 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 			Serviceaccount_ns:           "Serviceaccount_ns",
 		}
 
-		gitopsEngineCluster := db.GitopsEngineCluster{
+		gitopsEngineCluster = db.GitopsEngineCluster{
 			Gitopsenginecluster_id: "test-fake-cluster-1",
 			Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
 		}
 
-		gitopsEngineInstanceput := db.GitopsEngineInstance{
+		gitopsEngineInstance = db.GitopsEngineInstance{
 			Gitopsengineinstance_id: "test-fake-engine-instance-id",
 			Namespace_name:          "test-fake-namespace",
 			Namespace_uid:           "test-fake-namespace-1",
@@ -46,18 +51,24 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
 		Expect(err).ToNot(HaveOccurred())
 
-		err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstanceput)
+		err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
 		Expect(err).ToNot(HaveOccurred())
+	})
 
+	AfterEach(func() {
+		defer dbq.CloseDatabase()
+	})
+
+	It("Should Create, Get and Delete a GitopsEngineInstance", func() {
 		gitopsEngineInstanceget := db.GitopsEngineInstance{
-			Gitopsengineinstance_id: gitopsEngineInstanceput.Gitopsengineinstance_id,
+			Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
 		}
 
-		err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstanceget)
+		err := dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstanceget)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(gitopsEngineInstanceput).Should(Equal(gitopsEngineInstanceget))
+		Expect(gitopsEngineInstance).Should(Equal(gitopsEngineInstanceget))
 
-		rowsAffected, err := dbq.DeleteGitopsEngineInstanceById(ctx, gitopsEngineInstanceput.Gitopsengineinstance_id)
+		rowsAffected, err := dbq.DeleteGitopsEngineInstanceById(ctx, gitopsEngineInstance.Gitopsengineinstance_id)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).Should(Equal(1))
 
@@ -70,31 +81,13 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 		err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstanceget)
 		Expect(true).To(Equal(db.IsResultNotFoundError(err)))
 
-		gitopsEngineInstanceput.EngineCluster_id = strings.Repeat("abc", 100)
-		err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstanceput)
+		gitopsEngineInstance.EngineCluster_id = strings.Repeat("abc", 100)
+		err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
 		Expect(true).To(Equal(db.IsMaxLengthError(err)))
 
 	})
 
 	It("Should list GitopsEngineInstances for a GitOpsEngineCluster", func() {
-		err := db.SetupForTestingDBGinkgo()
-		Expect(err).ToNot(HaveOccurred())
-
-		ctx := context.Background()
-		dbq, err := db.NewUnsafePostgresDBQueries(false, true)
-		Expect(err).ToNot(HaveOccurred())
-		defer dbq.CloseDatabase()
-
-		clusterCredentials := db.ClusterCredentials{
-			Clustercredentials_cred_id:  "test-cred-" + string(uuid.NewUUID()),
-			Host:                        "host",
-			Kube_config:                 "kube-config",
-			Kube_config_context:         "kube-config-context",
-			Serviceaccount_bearer_token: "serviceaccount_bearer_token",
-			Serviceaccount_ns:           "Serviceaccount_ns",
-		}
-		err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
-		Expect(err).ToNot(HaveOccurred())
 
 		By("creating a GitOpsEngineInstance/Cluster that should NOT be returned by the List function")
 		var instanceDbCluster2_shouldNotMatch db.GitopsEngineInstance
@@ -103,7 +96,7 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 				Gitopsenginecluster_id: "test-cred-" + string(uuid.NewUUID()),
 				Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
 			}
-			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster2)
+			err := dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster2)
 			Expect(err).ToNot(HaveOccurred())
 
 			instanceDbCluster2_shouldNotMatch = db.GitopsEngineInstance{
@@ -121,7 +114,7 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 			Gitopsenginecluster_id: "test-cred-" + string(uuid.NewUUID()),
 			Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
 		}
-		err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
+		err := dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
 		Expect(err).ToNot(HaveOccurred())
 
 		instanceDb := db.GitopsEngineInstance{
@@ -167,5 +160,27 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 			Expect(matchFound).To(BeTrue(), "both instances should be found in the list results")
 		}
 
+	})
+
+	Context("Test Dispose function for Gitopsengineinstance", func() {
+		It("Should test Dispose function with missing database interface for Gitopsengineinstance", func() {
+
+			var dbq db.AllDatabaseQueries
+
+			err := gitopsEngineInstance.Dispose(ctx, dbq)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("missing database interface in GitopsEngineInstance dispose"))
+
+		})
+
+		It("Should test Dispose function for gitopsEngineCluster", func() {
+
+			err := gitopsEngineInstance.Dispose(context.Background(), dbq)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstance)
+			Expect(err).To(HaveOccurred())
+
+		})
 	})
 })

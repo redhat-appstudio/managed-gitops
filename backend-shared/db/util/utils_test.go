@@ -877,4 +877,256 @@ var _ = Describe("Test utility functions.", func() {
 			Expect(isNew).To(BeFalse())
 		})
 	})
+
+	Context("Test DisposeResources function", func() {
+		var ctx context.Context
+		var dbq db.AllDatabaseQueries
+		var err error
+		var log logr.Logger
+
+		BeforeEach(func() {
+
+			err := db.SetupForTestingDBGinkgo()
+			Expect(err).ToNot(HaveOccurred())
+
+			ctx = context.Background()
+			log = logger.FromContext(ctx)
+			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).ToNot(HaveOccurred())
+
+		})
+
+		AfterEach(func() {
+			dbq.CloseDatabase()
+		})
+
+		It("Test DisposeResources function where len of resources is zero", func() {
+
+			resources := []db.DisposableResource{}
+
+			DisposeResources(ctx, resources, dbq, log)
+
+			Expect(resources).To(BeEmpty())
+		})
+
+		It("Test DisposeResources function to check whether it deletes the resources", func() {
+			clusterUser := db.ClusterUser{
+				Clusteruser_id: "test-user-application",
+				User_name:      "test-user-application",
+			}
+
+			clusterCredentials := db.ClusterCredentials{
+				Clustercredentials_cred_id:  "test-cluster-creds-test-5",
+				Host:                        "host",
+				Kube_config:                 "kube-config",
+				Kube_config_context:         "kube-config-context",
+				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+				Serviceaccount_ns:           "Serviceaccount_ns",
+			}
+
+			managedEnvironment := db.ManagedEnvironment{
+				Managedenvironment_id: "test-managed-env-5",
+				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+				Name:                  "my env",
+			}
+
+			gitopsEngineCluster := db.GitopsEngineCluster{
+				Gitopsenginecluster_id: "test-fake-cluster-5",
+				Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+			}
+
+			gitopsEngineInstance := db.GitopsEngineInstance{
+				Gitopsengineinstance_id: "test-fake-engine-instance-id",
+				Namespace_name:          "test-fake-namespace",
+				Namespace_uid:           "test-fake-namespace-5",
+				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+			}
+
+			clusterAccess := db.ClusterAccess{
+				Clusteraccess_user_id:                   clusterUser.Clusteruser_id,
+				Clusteraccess_managed_environment_id:    managedEnvironment.Managedenvironment_id,
+				Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
+			}
+
+			By("Create resources to pass it in DisposeResources function")
+			err = dbq.CreateClusterUser(ctx, &clusterUser)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.CreateClusterAccess(ctx, &clusterAccess)
+			Expect(err).ToNot(HaveOccurred())
+
+			resources := []db.DisposableResource{
+				&clusterCredentials,
+				&gitopsEngineCluster,
+				&gitopsEngineInstance,
+				&clusterUser,
+				&managedEnvironment,
+				&clusterAccess,
+			}
+
+			err = dbq.GetClusterCredentialsById(ctx, &clusterCredentials)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.GetClusterAccessByPrimaryKey(ctx, &clusterAccess)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.GetClusterUserById(ctx, &clusterUser)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineCluster)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstance)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Call DisposeResources function")
+			DisposeResources(ctx, resources, dbq, log)
+
+			By("Check whether DisposeResources function deleted the resources")
+
+			err = dbq.GetClusterUserById(ctx, &clusterUser)
+			Expect(err).To(HaveOccurred())
+
+			err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineCluster)
+			Expect(err).To(HaveOccurred())
+
+			err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstance)
+			Expect(err).To(HaveOccurred())
+
+			err = dbq.GetClusterAccessByPrimaryKey(ctx, &clusterAccess)
+			Expect(err).To(HaveOccurred())
+
+			err = dbq.GetClusterCredentialsById(ctx, &clusterCredentials)
+			Expect(err).To(HaveOccurred())
+
+		})
+	})
+
+	Context("Test DisposeApplicationScopedResources function", func() {
+		var ctx context.Context
+		var dbq db.AllDatabaseQueries
+		var err error
+		var log logr.Logger
+
+		BeforeEach(func() {
+			err = db.SetupForTestingDBGinkgo()
+			Expect(err).ToNot(HaveOccurred())
+
+			ctx = context.Background()
+			log = logger.FromContext(ctx)
+			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).ToNot(HaveOccurred())
+
+		})
+
+		AfterEach(func() {
+			dbq.CloseDatabase()
+		})
+
+		It("Test DisposeApplicationScopedResources function where len of resources is zero", func() {
+
+			resources := []db.AppScopedDisposableResource{}
+
+			DisposeApplicationScopedResources(ctx, resources, dbq, log)
+
+			Expect(resources).To(BeEmpty())
+		})
+
+		It("Test DisposeApplicationScopedResources function to check whether it deletes the resources", func() {
+			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
+			Expect(err).ToNot(HaveOccurred())
+
+			clusterUser := db.ClusterUser{
+				Clusteruser_id: "test-user-application",
+				User_name:      "test-user-application",
+			}
+
+			item := db.APICRToDatabaseMapping{
+				APIResourceType:      db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
+				APIResourceUID:       "test-k8s-uid",
+				APIResourceName:      "test-k8s-name",
+				APIResourceNamespace: "test-k8s-namespace",
+				NamespaceUID:         "test-namespace-uid",
+				DBRelationType:       db.APICRToDatabaseMapping_DBRelationType_SyncOperation,
+				DBRelationKey:        "test-key",
+			}
+
+			application := db.Application{
+				Application_id:          "test-my-application",
+				Name:                    "my-application",
+				Spec_field:              "{}",
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+
+			applicationState := db.ApplicationState{
+				Applicationstate_application_id: application.Application_id,
+				Health:                          "Progressing",
+				Sync_Status:                     "Unknown",
+				Resources:                       make([]byte, 10),
+				ReconciledState:                 "test-reconciledState",
+				Conditions:                      []byte("sample"),
+			}
+
+			operation := &db.Operation{
+				Operation_id:            "test-operation-1",
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "test-fake-resource-id",
+				Resource_type:           "GitopsEngineInstance",
+				Operation_owner_user_id: clusterUser.Clusteruser_id,
+				Last_state_update:       time.Now(),
+			}
+
+			By("Create resources to pass it in DisposeResources function")
+			err = dbq.CreateClusterUser(ctx, &clusterUser)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.CreateAPICRToDatabaseMapping(ctx, &item)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.CreateApplication(ctx, &application)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.CreateApplicationState(ctx, &applicationState)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.CreateOperation(ctx, operation, operation.Operation_owner_user_id)
+			Expect(err).ToNot(HaveOccurred())
+
+			resources := []db.AppScopedDisposableResource{
+				operation,
+				&application,
+				&item,
+				&applicationState,
+			}
+
+			By("Call DisposeResources function")
+			DisposeApplicationScopedResources(ctx, resources, dbq, log)
+
+			By("Check whether DisposeResources function deleted the resources")
+			err = dbq.GetApplicationById(ctx, &application)
+			Expect(err).To(HaveOccurred())
+
+			err = dbq.GetApplicationStateById(ctx, &applicationState)
+			Expect(err).To(HaveOccurred())
+
+			err = dbq.GetOperationById(ctx, operation)
+			Expect(err).To(HaveOccurred())
+
+			err = dbq.GetAPICRForDatabaseUID(ctx, &item)
+			Expect(err).To(HaveOccurred())
+		})
+	})
 })

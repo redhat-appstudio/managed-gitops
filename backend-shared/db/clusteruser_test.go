@@ -11,28 +11,37 @@ import (
 )
 
 var _ = Describe("ClusterUser Tests", func() {
+	var dbq db.AllDatabaseQueries
+	var ctx context.Context
+	var user *db.ClusterUser
+
+	BeforeEach(func() {
+		err := db.SetupForTestingDBGinkgo()
+		Expect(err).ToNot(HaveOccurred())
+
+		ctx = context.Background()
+
+		dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+		Expect(err).ToNot(HaveOccurred())
+
+		user = &db.ClusterUser{
+			Clusteruser_id: "test-user-id",
+			User_name:      "test-user-name",
+		}
+		err = dbq.CreateClusterUser(ctx, user)
+		Expect(err).ToNot(HaveOccurred())
+	})
+
+	AfterEach(func() {
+		defer dbq.CloseDatabase()
+	})
 	Context("It should execute all DB functions for ClusterUser", func() {
 		It("Should execute all ClusterUser Functions", func() {
-			err := db.SetupForTestingDBGinkgo()
-			Expect(err).ToNot(HaveOccurred())
-
-			ctx := context.Background()
-
-			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
-
-			user := &db.ClusterUser{
-				Clusteruser_id: "test-user-id",
-				User_name:      "test-user-name",
-			}
-			err = dbq.CreateClusterUser(ctx, user)
-			Expect(err).ToNot(HaveOccurred())
 
 			retrieveUser := &db.ClusterUser{
 				User_name: "test-user-name",
 			}
-			err = dbq.GetClusterUserByUsername(ctx, retrieveUser)
+			err := dbq.GetClusterUserByUsername(ctx, retrieveUser)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(retrieveUser.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 			Expect(user).Should(Equal(retrieveUser))
@@ -72,6 +81,28 @@ var _ = Describe("ClusterUser Tests", func() {
 			rowsAffected, err = dbq.DeleteClusterUserById(ctx, specialClusterUser.Clusteruser_id)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsAffected).Should(Equal(1))
+		})
+	})
+
+	Context("Test Dispose function for clusterUser", func() {
+		It("Should test Dispose function with missing database interface for clusterUser", func() {
+
+			var dbq db.AllDatabaseQueries
+
+			err := user.Dispose(ctx, dbq)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("missing database interface in ClusterUser dispose"))
+
+		})
+
+		It("Should test Dispose function for clusterUser", func() {
+
+			err := user.Dispose(context.Background(), dbq)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.GetClusterUserById(ctx, user)
+			Expect(err).To(HaveOccurred())
+
 		})
 	})
 })

@@ -14,21 +14,19 @@ import (
 var _ = Describe("Kubernetesresourcetodbresourcemapping Test", func() {
 
 	var ctx context.Context
+	var dbq db.AllDatabaseQueries
+	var kubernetesToDBResourceMapping db.KubernetesToDBResourceMapping
 
 	BeforeEach(func() {
 		err := db.SetupForTestingDBGinkgo()
 		Expect(err).ToNot(HaveOccurred())
 
 		ctx = context.Background()
-	})
 
-	It("Should Create, Get, and Delete a KubernetesToDBResourceMapping", func() {
-
-		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+		dbq, err = db.NewUnsafePostgresDBQueries(true, true)
 		Expect(err).ToNot(HaveOccurred())
-		defer dbq.CloseDatabase()
 
-		kubernetesToDBResourceMapping := db.KubernetesToDBResourceMapping{
+		kubernetesToDBResourceMapping = db.KubernetesToDBResourceMapping{
 			KubernetesResourceType: "test-resource_2",
 			KubernetesResourceUID:  "test-resource_uid",
 			DBRelationType:         "test-relation_type",
@@ -36,6 +34,13 @@ var _ = Describe("Kubernetesresourcetodbresourcemapping Test", func() {
 		}
 		err = dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMapping)
 		Expect(err).ToNot(HaveOccurred())
+	})
+
+	AfterEach(func() {
+		defer dbq.CloseDatabase()
+	})
+
+	It("Should Create, Get, and Delete a KubernetesToDBResourceMapping", func() {
 
 		kubernetesToDBResourceMappingget := db.KubernetesToDBResourceMapping{
 			KubernetesResourceType: kubernetesToDBResourceMapping.KubernetesResourceType,
@@ -43,7 +48,7 @@ var _ = Describe("Kubernetesresourcetodbresourcemapping Test", func() {
 			DBRelationType:         kubernetesToDBResourceMapping.DBRelationType,
 		}
 
-		err = dbq.GetDBResourceMappingForKubernetesResource(ctx, &kubernetesToDBResourceMappingget)
+		err := dbq.GetDBResourceMappingForKubernetesResource(ctx, &kubernetesToDBResourceMappingget)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(kubernetesToDBResourceMappingget).Should(Equal(kubernetesToDBResourceMapping))
 
@@ -80,9 +85,6 @@ var _ = Describe("Kubernetesresourcetodbresourcemapping Test", func() {
 	})
 
 	It("Should not update a KubernetesResourceUID field if it doesn't exist", func() {
-		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-		Expect(err).ToNot(HaveOccurred())
-		defer dbq.CloseDatabase()
 
 		By("attempting to update a KubernetesToDBResourceMapping that doesnt exist")
 		kubernetesToDBResourceMapping := db.KubernetesToDBResourceMapping{
@@ -91,15 +93,12 @@ var _ = Describe("Kubernetesresourcetodbresourcemapping Test", func() {
 			DBRelationType:         db.K8sToDBMapping_GitopsEngineInstance,
 			DBRelationKey:          "test-relation_type",
 		}
-		err = dbq.UpdateKubernetesResourceUIDForKubernetesToDBResourceMapping(ctx, &kubernetesToDBResourceMapping)
+		err := dbq.UpdateKubernetesResourceUIDForKubernetesToDBResourceMapping(ctx, &kubernetesToDBResourceMapping)
 		Expect(err).To(HaveOccurred())
 
 	})
 
 	It("Should update the KubernetesResourceUID field of a matching KubernetesToDBResourceMapping, and not update any other values", func() {
-		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-		Expect(err).ToNot(HaveOccurred())
-		defer dbq.CloseDatabase()
 
 		By("creating two similar KubernetesToDBResourceMapping values")
 		mapping := []db.KubernetesToDBResourceMapping{}
@@ -115,7 +114,7 @@ var _ = Describe("Kubernetesresourcetodbresourcemapping Test", func() {
 			}
 			mapping = append(mapping, kubernetesToDBResourceMapping)
 
-			err = dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMapping)
+			err := dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMapping)
 			Expect(err).ToNot(HaveOccurred())
 		}
 
@@ -125,7 +124,7 @@ var _ = Describe("Kubernetesresourcetodbresourcemapping Test", func() {
 		By("By updating one of the two values")
 		toUpdate := mapping[0]
 		toUpdate.KubernetesResourceUID = "new-value"
-		err = dbq.UpdateKubernetesResourceUIDForKubernetesToDBResourceMapping(ctx, &toUpdate)
+		err := dbq.UpdateKubernetesResourceUIDForKubernetesToDBResourceMapping(ctx, &toUpdate)
 		Expect(err).ToNot(HaveOccurred())
 
 		By("retrieving the value after update, and verifying it has been updated")
@@ -147,5 +146,25 @@ var _ = Describe("Kubernetesresourcetodbresourcemapping Test", func() {
 		shouldNotChange.SeqID = shouldNotChangeNew.SeqID
 		Expect(shouldNotChangeNew).To(Equal(shouldNotChange))
 
+	})
+
+	Context("Test Dispose function for kubernetesToDBResourceMapping", func() {
+		It("Should test Dispose function with missing database interface for kubernetesToDBResourceMapping", func() {
+			var dbq db.AllDatabaseQueries
+
+			err := kubernetesToDBResourceMapping.Dispose(ctx, dbq)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("missing database interface in KubernetesToDBResourceMapping dispose"))
+
+		})
+
+		It("Should test Dispose function for kubernetesToDBResourceMapping", func() {
+			err := kubernetesToDBResourceMapping.Dispose(context.Background(), dbq)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.GetKubernetesResourceMappingForDatabaseResource(ctx, &kubernetesToDBResourceMapping)
+			Expect(err).To(HaveOccurred())
+
+		})
 	})
 })

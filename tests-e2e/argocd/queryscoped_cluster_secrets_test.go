@@ -150,7 +150,7 @@ var _ = Describe("Argo CD Application tests", func() {
 							Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 						},
 						Spec: appv1alpha1.ApplicationSpec{
-							Source: appv1alpha1.ApplicationSource{
+							Source: &appv1alpha1.ApplicationSource{
 								RepoURL: "https://github.com/redhat-appstudio/managed-gitops/",
 								Path:    "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 							},
@@ -222,7 +222,7 @@ var _ = Describe("Argo CD Application tests", func() {
 						Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 					},
 					Spec: appv1alpha1.ApplicationSpec{
-						Source: appv1alpha1.ApplicationSource{
+						Source: &appv1alpha1.ApplicationSource{
 							RepoURL: "https://github.com/redhat-appstudio/managed-gitops/",
 							Path:    "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 						},

@@ -77,7 +77,7 @@ var _ = Describe("ArgoCD AppProject E2E tests", func() {
 				},
 				Spec: appv1.ApplicationSpec{
 					Project: appProject.Name,
-					Source: appv1.ApplicationSource{
+					Source: &appv1.ApplicationSource{
 						Path:           "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 						TargetRevision: "HEAD",
 					},

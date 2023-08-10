@@ -47,7 +47,7 @@ func TestNGuestbook(t *testing.T) {
 				Namespace: "argocd",
 			},
 			Spec: appv1.ApplicationSpec{
-				Source: appv1.ApplicationSource{
+				Source: &appv1.ApplicationSource{
 					Path:           "guestbook",
 					TargetRevision: "HEAD",
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
@@ -144,7 +144,7 @@ func TestHeavyApplication(t *testing.T) {
 			Namespace: "argocd",
 		},
 		Spec: appv1.ApplicationSpec{
-			Source: appv1.ApplicationSource{
+			Source: &appv1.ApplicationSource{
 				RepoURL: "https://github.com/jgwest/argocd-example-apps.git",
 				Path:    "appset-examples/cluster-addon/prometheus-operator",
 				Helm: &appv1.ApplicationSourceHelm{
@@ -178,7 +178,7 @@ func TestHeavyApplication(t *testing.T) {
 			Namespace: "argocd",
 		},
 		Spec: appv1.ApplicationSpec{
-			Source: appv1.ApplicationSource{
+			Source: &appv1.ApplicationSource{
 				Path:    "cert-manager",
 				RepoURL: "https://github.com/samyak-jn/gitops-sample-apps.git",
 				Helm: &appv1.ApplicationSourceHelm{
@@ -212,7 +212,7 @@ func TestHeavyApplication(t *testing.T) {
 			Namespace: "argocd",
 		},
 		Spec: appv1.ApplicationSpec{
-			Source: appv1.ApplicationSource{
+			Source: &appv1.ApplicationSource{
 				Path: "external-dns",
 				Helm: &appv1.ApplicationSourceHelm{
 					Version: "v2",
@@ -318,7 +318,7 @@ func TestAllApplication(t *testing.T) {
 			Namespace: "argocd",
 		},
 		Spec: appv1.ApplicationSpec{
-			Source: appv1.ApplicationSource{
+			Source: &appv1.ApplicationSource{
 				RepoURL: "https://github.com/jgwest/argocd-example-apps.git",
 				Path:    "appset-examples/cluster-addon/prometheus-operator",
 				Helm: &appv1.ApplicationSourceHelm{
@@ -353,7 +353,7 @@ func TestAllApplication(t *testing.T) {
 				Namespace: "argocd",
 			},
 			Spec: appv1.ApplicationSpec{
-				Source: appv1.ApplicationSource{
+				Source: &appv1.ApplicationSource{
 					Path:           "guestbook",
 					TargetRevision: "HEAD",
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
@@ -468,7 +468,7 @@ func TestNResource(t *testing.T) {
 				Namespace: "argocd",
 			},
 			Spec: appv1.ApplicationSpec{
-				Source: appv1.ApplicationSource{
+				Source: &appv1.ApplicationSource{
 					Path:           "sample-app",
 					TargetRevision: "HEAD",
 					RepoURL:        "https://github.com/samyak-jn/gitops-service-sample-k8s-resources.git",

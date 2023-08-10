@@ -2969,7 +2969,7 @@ func createCustomizedDummyApplicationData(repoPath string) (appv1.Application, s
 			Namespace: "my-user",
 		},
 		Spec: appv1.ApplicationSpec{
-			Source: appv1.ApplicationSource{
+			Source: &appv1.ApplicationSource{
 				Path:           "guestbook",
 				TargetRevision: "HEAD",
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
@@ -3009,7 +3009,7 @@ func createApplicationWithSyncOption(syncOptionParam string) (appv1.Application,
 			Namespace: "my-user",
 		},
 		Spec: appv1.ApplicationSpec{
-			Source: appv1.ApplicationSource{
+			Source: &appv1.ApplicationSource{
 				Path:           "guestbook",
 				TargetRevision: "HEAD",
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",

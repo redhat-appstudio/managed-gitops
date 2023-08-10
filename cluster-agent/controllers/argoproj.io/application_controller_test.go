@@ -80,7 +80,7 @@ var _ = Describe("Application Controller", func() {
 					},
 				},
 				Spec: appv1.ApplicationSpec{
-					Source: appv1.ApplicationSource{
+					Source: &appv1.ApplicationSource{
 						Path:           "guestbook",
 						TargetRevision: "HEAD",
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
@@ -379,7 +379,7 @@ var _ = Describe("Application Controller", func() {
 					},
 				},
 				Spec: appv1.ApplicationSpec{
-					Source: appv1.ApplicationSource{
+					Source: &appv1.ApplicationSource{
 						Path:           "guestbook",
 						TargetRevision: "HEAD",
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
@@ -489,7 +489,7 @@ var _ = Describe("Application Controller", func() {
 					},
 				},
 				Spec: appv1.ApplicationSpec{
-					Source: appv1.ApplicationSource{
+					Source: &appv1.ApplicationSource{
 						Path:           "guestbook",
 						TargetRevision: "HEAD",
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
@@ -750,7 +750,7 @@ var _ = Describe("Application Controller", func() {
 					},
 				},
 				Spec: appv1.ApplicationSpec{
-					Source: appv1.ApplicationSource{
+					Source: &appv1.ApplicationSource{
 						Path:           "guestbook",
 						TargetRevision: "HEAD",
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
@@ -1318,7 +1318,7 @@ func createDummyApplicationData() (fauxargocd.FauxApplication, string, appv1.App
 			Namespace: "gitops-service-argocd",
 		},
 		Spec: appv1.ApplicationSpec{
-			Source: appv1.ApplicationSource{
+			Source: &appv1.ApplicationSource{
 				RepoURL:        "https://github.com/redhat-appstudio/managed-gitops",
 				Path:           "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				TargetRevision: "",

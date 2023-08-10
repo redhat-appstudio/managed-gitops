@@ -214,11 +214,13 @@ var _ = Describe("ClusterReconciler tests", func() {
 				},
 			}
 
-			reconciler.cleanOrphanedResources(ctx, logger)
-
 			err = k8sClient.Create(ctx, namespacedObj)
 			Expect(err).ToNot(HaveOccurred())
 
+			reconciler.cleanOrphanedResources(ctx, logger)
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(namespacedObj), namespacedObj)
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("should verify that a resource not managed by GitOpsDeployment is not deleted", func() {

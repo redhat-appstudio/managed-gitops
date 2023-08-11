@@ -29,7 +29,8 @@ import (
 )
 
 const (
-	KubeconfigKey = "kubeconfig"
+	KubeconfigKey                 = "kubeconfig"
+	UnableToCreateRestConfigError = "unable to create k8s client from restConfig from managed environment secret"
 )
 
 func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, workspaceClient client.Client,
@@ -872,7 +873,7 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 
 	k8sClient, err := k8sClientFactory.BuildK8sClient(restConfig)
 	if err != nil {
-		err := fmt.Errorf("unable to create k8s client from restConfig from managed environment secret: %w", err)
+		err := fmt.Errorf("%s: %w", UnableToCreateRestConfigError, err)
 
 		return db.ClusterCredentials{},
 			convertErrToEnvInitCondition(managedgitopsv1alpha1.ConditionReasonUnableToCreateClient, err, managedEnvironment),

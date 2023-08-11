@@ -3,6 +3,7 @@ package eventloop
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -160,6 +161,10 @@ func (wert *workspaceResourceEventTask) PerformTask(taskContext context.Context)
 
 	retry, err := internalProcessWorkspaceResourceMessage(taskContext, wert.msg, wert.sharedResourceLoop, wert.workspaceEventLoopInputChannel, wert.dbQueries, wert.log)
 
+	// If we recognize this error is a connection error due to the user providing us invalid credentials, don't bother to log it.
+	if isManagedEnvironmentConnectionUserError(err, wert.log) {
+		return retry, nil
+	}
 	return retry, err
 }
 
@@ -260,4 +265,15 @@ func internalProcessWorkspaceResourceMessage(ctx context.Context, msg workspaceR
 	}
 	return noRetry, fmt.Errorf("SEVERE: unrecognized sharedResourceLoopMessageType: %s " + string(msg.messageType))
 
+}
+
+// isManagedEnvironmentConnectionUserError returns true if the error is likely an error in the cluster credentials provided by the user
+func isManagedEnvironmentConnectionUserError(err error, log logr.Logger) bool {
+	errStr := err.Error()
+
+	if strings.Contains(errStr, shared_resource_loop.UnableToCreateRestConfigError) {
+		log.Info(errStr)
+		return true
+	}
+	return false
 }

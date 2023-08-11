@@ -1,4 +1,3 @@
-ARG BASE_IMAGE=registry.access.redhat.com/ubi8/ubi-minimal:8.7-1085
 ################################################################################################
 # Builder image
 # Initial stage which pulls and prepares any required build dependencies for the whole monorepo
@@ -28,7 +27,7 @@ RUN make build
 # GitOps Service image
 # Provides both the 'gitops-service-backend' and 'gitops-service-cluster-agent' components
 ################################################################################################
-FROM $BASE_IMAGE as gitops-service
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.7-1085 as gitops-service
 
 # Install the 'shadow-utils' which contains `adduser` and `groupadd` binaries
 RUN yum install shadow-utils \

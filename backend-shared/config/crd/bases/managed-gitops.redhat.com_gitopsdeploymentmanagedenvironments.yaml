@@ -1,11 +1,9 @@
-
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.6.1
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.12.1
   name: gitopsdeploymentmanagedenvironments.managed-gitops.redhat.com
 spec:
   group: managed-gitops.redhat.com
@@ -67,13 +65,13 @@ spec:
                   a new ServiceAccount should be created. \n Optional, default to
                   false. \n - If true, the GitOps Service will automatically create
                   a ServiceAccount/ClusterRole/ClusterRoleBinding on the target cluster,
-                  \  using the credentials provided by the user in the secret.   -
-                  Argo CD will then be configured to deploy with that new ServiceAccount.
+                  using the credentials provided by the user in the secret. - Argo
+                  CD will then be configured to deploy with that new ServiceAccount.
                   \n - Default: If false, it is assumed that the credentials provided
                   by the user in the Secret are for a ServiceAccount on the cluster,
-                  and   Argo CD will be configred to use the ServiceAccount referenced
+                  and Argo CD will be configred to use the ServiceAccount referenced
                   by the Secret of the user. No new ServiceAccount will be created.
-                  \  - This should be used, for example, when the ServiceAccount Argo
+                  - This should be used, for example, when the ServiceAccount Argo
                   CD does not have full cluster access (*/*/* at cluster scope)"
                 type: boolean
               credentialsSecret:
@@ -108,14 +106,12 @@ spec:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
                     use as an array at the field path .status.conditions.  For example,
-                    \n \ttype FooStatus struct{ \t    // Represents the observations
-                    of a foo's current state. \t    // Known .status.conditions.type
-                    are: \"Available\", \"Progressing\", and \"Degraded\" \t    //
-                    +patchMergeKey=type \t    // +patchStrategy=merge \t    // +listType=map
-                    \t    // +listMapKey=type \t    Conditions []metav1.Condition
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
                     `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
-                    protobuf:\"bytes,1,rep,name=conditions\"` \n \t    // other fields
-                    \t}"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
                   properties:
                     lastTransitionTime:
                       description: lastTransitionTime is the last time the condition
@@ -179,9 +175,3 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []

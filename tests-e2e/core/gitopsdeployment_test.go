@@ -254,8 +254,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 		It("should ensure that when 2 GitOpsDeployments are created and point to the same repo url, and one is deleted, the AppProjectRepository for the other still exists", func() {
 
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
-			gitOpsDeploymentResource1 := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
-				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+			gitOpsDeploymentResource1 := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+				fixture.RepoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -264,8 +264,8 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.Create(&gitOpsDeploymentResource1, k8sClient)
 			Expect(err).To(Succeed())
 
-			gitOpsDeploymentResource2 := gitopsDeplFixture.BuildGitOpsDeploymentResource(name+"2",
-				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+			gitOpsDeploymentResource2 := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+				fixture.RepoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			err = k8s.Create(&gitOpsDeploymentResource2, k8sClient)
@@ -304,7 +304,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)).Error().ToNot(HaveOccurred())
 
-			Expect(appProject.Spec.SourceRepos).Should(ContainElement(repoURL))
+			Expect(appProject.Spec.SourceRepos).Should(ContainElement(fixture.RepoURL))
 
 			By("deleting the second GitOpsDeployment targeting the git repository")
 			Expect(k8sClient.Delete(ctx, &gitOpsDeploymentResource2)).Error().ToNot(HaveOccurred())
@@ -313,7 +313,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)).Error().ToNot(HaveOccurred())
 
-			Expect(appProject.Spec.SourceRepos).Should(ContainElement(repoURL), "it should still reference the repoURL from the GitOpsDeployment")
+			Expect(appProject.Spec.SourceRepos).Should(ContainElement(fixture.RepoURL), "it should still reference the repoURL from the GitOpsDeployment")
 
 			By("deleting the first GitOpsDeployment targeting the git repository")
 			Expect(k8sClient.Delete(ctx, &gitOpsDeploymentResource1)).Error().ToNot(HaveOccurred())

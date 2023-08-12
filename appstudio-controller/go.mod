@@ -1,6 +1,6 @@
 module github.com/redhat-appstudio/managed-gitops/appstudio-controller
 
-go 1.18
+go 1.19
 
 require (
 	github.com/codeready-toolchain/api v0.0.0-20230417183849-f62ccbf3bd40

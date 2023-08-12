@@ -199,7 +199,7 @@ var _ = Describe("Tests for the small number of utility functions in cluster-age
 					Namespace: "gitops-service-argocd",
 				},
 				Spec: appv1.ApplicationSpec{
-					Source: appv1.ApplicationSource{
+					Source: &appv1.ApplicationSource{
 						RepoURL:        "https://github.com/redhat-appstudio/managed-gitops",
 						Path:           "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 						TargetRevision: "",

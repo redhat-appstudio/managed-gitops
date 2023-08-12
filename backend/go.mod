@@ -1,6 +1,6 @@
 module github.com/redhat-appstudio/managed-gitops/backend
 
-go 1.18
+go 1.19
 
 require (
 	github.com/emicklei/go-restful/v3 v3.9.0

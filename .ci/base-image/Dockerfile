@@ -1,4 +1,4 @@
-FROM registry.ci.openshift.org/openshift/release:golang-1.18
+FROM registry.ci.openshift.org/openshift/release:golang-1.19
 
 # make sure Go doesn't use the vendors folder, unless we want to
 ENV GOFLAGS=""

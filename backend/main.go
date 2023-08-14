@@ -161,14 +161,6 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "GitOpsDeploymentManagedEnvironment")
 		os.Exit(1)
 	}
-	if err = (&managedgitopscontrollers.SecretReconciler{
-		Client:                       mgr.GetClient(),
-		Scheme:                       mgr.GetScheme(),
-		PreprocessEventLoopProcessor: managedgitopscontrollers.NewDefaultPreProcessEventLoopProcessor(preprocessEventLoop),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "GitOpsDeploymentManagedEnvironment")
-		os.Exit(1)
-	}
 
 	// If the webhook is not disabled, start listening on the webhook URL
 	if !strings.EqualFold(os.Getenv("DISABLE_APPSTUDIO_WEBHOOK"), "true") {

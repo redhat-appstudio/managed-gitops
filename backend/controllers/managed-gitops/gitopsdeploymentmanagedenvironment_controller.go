@@ -19,6 +19,9 @@ package managedgitops
 import (
 	"context"
 	"fmt"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -101,8 +104,52 @@ func (dppelp *DefaultPreProcessEventLoopProcessor) callPreprocessEventLoopForMan
 // SetupWithManager sets up the controller with the Manager.
 func (r *GitOpsDeploymentManagedEnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{},
+		For(&managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{}).
+		Watches(
+			&source.Kind{Type: &corev1.Secret{}},
+			handler.EnqueueRequestsFromMapFunc(r.findSecretsForManagedEnvironment),
 			builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		// Watches(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
+}
+
+func (r *GitOpsDeploymentManagedEnvironmentReconciler) findSecretsForManagedEnvironment(secret client.Object) []reconcile.Request {
+	ctx := context.Background()
+	handlerLog := log.FromContext(ctx).
+		WithName(logutil.LogLogger_managed_gitops)
+
+	secretObj, ok := secret.(*corev1.Secret)
+
+	if !ok {
+		handlerLog.Error(nil, "incompatible object in the Environment mapping function, expected a Secret")
+		return []reconcile.Request{}
+	}
+
+	if secretObj.Type != sharedutil.ManagedEnvironmentSecretType {
+		return []reconcile.Request{}
+	}
+
+	managedEnvList := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentList{}
+
+	if err := r.List(ctx, &managedEnvList, &client.ListOptions{Namespace: secretObj.Namespace}); err != nil {
+		return []reconcile.Request{}
+	}
+
+	requests := []reconcile.Request{}
+
+	for idx := range managedEnvList.Items {
+		managedEnvCR := managedEnvList.Items[idx]
+
+		if managedEnvCR.Namespace != secretObj.Namespace {
+			// Sanity check that the managed environment resource is in the same namespace as the Secret
+			continue
+		}
+
+		if managedEnvCR.Spec.ClusterCredentialsSecret == secretObj.Name {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: client.ObjectKeyFromObject(&managedEnvCR),
+			})
+		}
+	}
+
+	return requests
 }

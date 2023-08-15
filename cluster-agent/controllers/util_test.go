@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"time"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/go-logr/logr"
@@ -68,7 +69,18 @@ var _ = Describe("Tests for the small number of utility functions in cluster-age
 					return false
 				}
 
-				goApplication.Finalizers = []string{}
+				// Remove only the Argo CD resource finalizer it is responsible for
+				var i = -1
+				for j := range goApplication.Finalizers {
+					if goApplication.Finalizers[j] == argoCDResourcesFinalizer {
+						i = j
+						break
+					}
+				}
+				if i >= 0 {
+					goApplication.Finalizers = append(goApplication.Finalizers[:i], goApplication.Finalizers[i+1:]...)
+				}
+
 				err = k8sClient.Update(ctx, goApplication)
 				if err != nil {
 					GinkgoWriter.Println("unable to update Application")
@@ -167,6 +179,43 @@ var _ = Describe("Tests for the small number of utility functions in cluster-age
 					},
 					Finalizers: []string{
 						argoCDResourcesFinalizer,
+					},
+				},
+			}
+			err := k8sClient.Create(ctx, &application)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("starting a Goroutine to simulate Argo CD's deletion behaviour")
+			goApplication := application.DeepCopy()
+			go func() {
+				simulateArgoCD(goApplication)
+			}()
+
+			By("calling the DeleteArgoCDApplication function")
+			err = DeleteArgoCDApplication(ctx, application, k8sClient, logger)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&application), &application)
+			Expect(err).To(HaveOccurred(), "Application should not exist: it should have been deleted")
+
+		})
+
+		It("should delete an Argo CD Application after removing any other finalizers", func() {
+
+			By("creating an Argo CD Application with additional finalizers and a expired deletion timestamp")
+			application := appv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-name",
+					Namespace: "my-namespace",
+					DeletionTimestamp: &metav1.Time{
+						Time: time.Now().Truncate(time.Hour * 3),
+					},
+					Labels: map[string]string{
+						ArgoCDApplicationDatabaseIDLabel: "test-my-database-id-label",
+					},
+					Finalizers: []string{
+						argoCDResourcesFinalizer,
+						"resources-finalizer.rhtap.gitops/test",
 					},
 				},
 			}

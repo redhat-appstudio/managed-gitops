@@ -264,7 +264,7 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			err = k8s.Create(&gitOpsDeploymentResource1, k8sClient)
 			Expect(err).To(Succeed())
 
-			gitOpsDeploymentResource2 := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+			gitOpsDeploymentResource2 := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName+"2",
 				fixture.RepoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 

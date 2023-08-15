@@ -141,6 +141,7 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 	// If the Argo CD was unable to delete the application properly, then just remove the finalizer and
 	// wait for it to go away (up to 2 minutes)
 	if !success {
+		log.Info("Argo CD was not able to delete the application. Removing any finalizers and waiting for it to go away.")
 
 		backoff.Reset()
 
@@ -171,7 +172,7 @@ func DeleteArgoCDApplication(ctx context.Context, appFromList appv1.Application,
 
 				if len(app.Finalizers) != 0 {
 					// If the application exists, and it has a finalizer, remove the finalizer and try again
-					log.Info("removing finalizer from Application")
+					log.Info("Removing finalizers from the Application")
 					app.Finalizers = []string{}
 					if err := eventClient.Update(ctx, app); err != nil {
 						log.Error(err, "unable to remove finalizer from Application")

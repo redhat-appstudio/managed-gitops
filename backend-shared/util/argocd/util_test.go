@@ -1,6 +1,7 @@
 package argocd
 
 import (
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -96,7 +97,7 @@ var _ = Describe("Test Argo CD utility functions", func() {
 
 		When("a valid Application name is passed", func() {
 			It("should return the UID from the name", func() {
-				expectedUID := "8aef123"
+				expectedUID := uuid.New().String()
 				name := ExtractUIDFromApplicationName("gitopsdepl-" + expectedUID)
 				Expect(name).To(Equal(expectedUID))
 			})

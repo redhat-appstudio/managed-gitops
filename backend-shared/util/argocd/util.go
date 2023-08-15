@@ -81,9 +81,16 @@ func GetArgoCDApplicationName(labels map[string]string) string {
 }
 
 func ExtractUIDFromApplicationName(name string) string {
-	content := strings.Split(name, "-")
-	if len(content) == 2 {
-		return content[1]
+
+	if !strings.HasPrefix(name, gitopsDeplPrefix) {
+		return ""
 	}
-	return ""
+
+	id := name[len(gitopsDeplPrefix):]
+
+	if len(id) != 36 { // length of a standard uuid
+		return ""
+	}
+
+	return id
 }

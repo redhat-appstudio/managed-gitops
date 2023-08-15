@@ -251,6 +251,16 @@ lint: ## Run lint checks for all components
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && make lint
 	cd $(MAKEFILE_ROOT)/utilities/init-container && make lint
 
+gosec: ## Run gosec checks for all components
+	cd $(MAKEFILE_ROOT)/backend-shared && make gosec
+	cd $(MAKEFILE_ROOT)/backend && make gosec
+	cd $(MAKEFILE_ROOT)/cluster-agent && make gosec
+	cd $(MAKEFILE_ROOT)/appstudio-controller && make gosec
+	cd $(MAKEFILE_ROOT)/tests-e2e && make gosec
+#	cd $(MAKEFILE_ROOT)/utilities/db-migration && make gosec
+#	cd $(MAKEFILE_ROOT)/utilities/init-container && make gossec
+
+
 generate-manifests: ## Call the 'generate' and 'manifests' targets of every project
 	cd $(MAKEFILE_ROOT)/backend-shared && make generate manifests
 	cd $(MAKEFILE_ROOT)/backend && make generate manifests

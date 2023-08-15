@@ -16,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -149,7 +150,13 @@ var _ = Describe("ClusterReconciler tests", func() {
 				err := tests.GenericTestSetup()
 			Expect(err).ToNot(HaveOccurred())
 
-			namespace = argocdNamespace
+			namespace = &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "my-user-tenant",
+					UID:  uuid.NewUUID(),
+				},
+				Spec: corev1.NamespaceSpec{},
+			}
 
 			ctx = context.Background()
 			logger = log.FromContext(ctx)
@@ -157,7 +164,7 @@ var _ = Describe("ClusterReconciler tests", func() {
 			// Create fake client
 			k8sClient = fake.NewClientBuilder().
 				WithScheme(scheme).
-				WithObjects(apiNamespace, argocdNamespace, kubesystemNamespace).
+				WithObjects(apiNamespace, argocdNamespace, kubesystemNamespace, namespace).
 				Build()
 
 			server = createFakeCluster()
@@ -199,6 +206,7 @@ var _ = Describe("ClusterReconciler tests", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "sample",
 					Namespace: namespace.Name,
+					UID:       uuid.NewUUID(),
 				},
 			}
 
@@ -211,6 +219,7 @@ var _ = Describe("ClusterReconciler tests", func() {
 					Labels: map[string]string{
 						"app.kubernetes.io/instance": fmt.Sprintf("gitopsdepl-%s", gitopsDepl.UID),
 					},
+					Namespace: namespace.Name,
 				},
 			}
 
@@ -244,6 +253,9 @@ var _ = Describe("ClusterReconciler tests", func() {
 			clusterObj := &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-3",
+					Labels: map[string]string{
+						"app.kubernetes.io/instance": "gitopsdepl-08745631-43fe-41c3-9bd8-a2cf347a04c2",
+					},
 				},
 			}
 
@@ -254,28 +266,6 @@ var _ = Describe("ClusterReconciler tests", func() {
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(clusterObj), clusterObj)
 			Expect(err).ToNot(HaveOccurred())
-		})
-
-		It("should not delete a resource that has a finalizer", func() {
-			namespacedObj := &corev1.Service{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-1",
-					Namespace: namespace.Name,
-					Labels: map[string]string{
-						"app.kubernetes.io/instance": "gitopsdepl-08745631-43fe-41c3-9bd8-a2cf347a04c2",
-					},
-					Finalizers: []string{"sample.finalizer"},
-				},
-			}
-
-			err := k8sClient.Create(ctx, namespacedObj)
-			Expect(err).ToNot(HaveOccurred())
-
-			reconciler.cleanOrphanedResources(ctx, logger)
-
-			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(namespacedObj), namespacedObj)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(namespacedObj.DeletionTimestamp).ToNot(BeNil())
 		})
 
 		It("should not delete a resource that already has a deletion timestamp", func() {
@@ -299,6 +289,76 @@ var _ = Describe("ClusterReconciler tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 		})
 
+		It("should not delete a resource that has a malformed instance label", func() {
+			namespacedObj := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-1",
+					Namespace: namespace.Name,
+					Labels: map[string]string{
+						"app.kubernetes.io/instance": "some-other-non-gitops-value",
+					},
+				},
+			}
+
+			err := k8sClient.Create(ctx, namespacedObj)
+			Expect(err).ToNot(HaveOccurred())
+
+			reconciler.cleanOrphanedResources(ctx, logger)
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(namespacedObj), namespacedObj)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("should not delete an orphaned PersisentVolumeClaim", func() {
+			namespacedObj := &corev1.PersistentVolumeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-1",
+					Namespace: namespace.Name,
+					Labels: map[string]string{
+						"app.kubernetes.io/instance": "gitopsdepl-08745631-43fe-41c3-9bd8-a2cf347a04c2",
+					},
+				},
+			}
+
+			err := k8sClient.Create(ctx, namespacedObj)
+			Expect(err).ToNot(HaveOccurred())
+
+			reconciler.cleanOrphanedResources(ctx, logger)
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(namespacedObj), namespacedObj)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		DescribeTable("should not delete a resource that is no longer managed by gitopsdeployment, if the namespace is not a tenant namespace",
+			func(namespaceName string) {
+
+				newNamespace := &corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: namespaceName,
+					},
+				}
+				Expect(k8sClient.Create(ctx, newNamespace)).Error().ToNot(HaveOccurred())
+
+				namespacedObj := &rbacv1.RoleBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-4",
+						Labels: map[string]string{
+							"app.kubernetes.io/instance": fmt.Sprintf("gitopsdepl-%s", uuid.NewUUID()),
+						},
+						Namespace: namespaceName,
+					},
+				}
+
+				Expect(k8sClient.Create(ctx, namespacedObj)).Error().ToNot(HaveOccurred())
+
+				reconciler.cleanOrphanedResources(ctx, logger)
+
+				Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(namespacedObj), namespacedObj)).Error().ToNot(HaveOccurred())
+
+			},
+			Entry("should not delete resources from 'openshift-' namespaces", "openshift-namespace"),
+			Entry("should not delete resources from namespace that do not have '-tenant' suffix", "not-a-tenant-namespace"))
+
 	})
 })
 
@@ -314,6 +374,7 @@ func createFakeCluster() *httptest.Server {
 					{Name: "pods", Namespaced: true, Kind: "Pod"},
 					{Name: "services", Namespaced: true, Kind: "Service", Verbs: verbs},
 					{Name: "namespaces", Namespaced: false, Kind: "Namespace"},
+					{Name: "persistentvolumeclaims", Namespaced: true, Kind: "PersistentVolumeClaim"},
 				},
 			}
 		case "/apis/rbac.authorization.k8s.io/v1":

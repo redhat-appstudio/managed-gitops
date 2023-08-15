@@ -13,7 +13,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -88,37 +87,62 @@ func (c *ClusterReconciler) cleanOrphanedResources(ctx context.Context, log logr
 	}
 
 	for i, obj := range apiObjects {
+
+		// Skip all openshift namespces
+		if strings.HasPrefix(obj.GetNamespace(), "openshift-") {
+			continue
+		}
+
+		// Skip all non-tenant Namespaces
+		if !strings.HasSuffix(obj.GetNamespace(), "-tenant") {
+			continue
+		}
+
 		appName := argocdutil.GetArgoCDApplicationName(obj.GetLabels())
-		if appName != "" && obj.GetDeletionTimestamp() == nil && !strings.HasPrefix(obj.GetNamespace(), "openshift") {
-			// Check if a GitOpsDeployment exists with the UID specified in the Application name.
-			gitopsDeplList := &managedgitopsv1alpha1.GitOpsDeploymentList{}
-			err = c.client.List(ctx, gitopsDeplList, &client.ListOptions{
-				Namespace: obj.GetNamespace(),
-			})
-			if err != nil {
-				log.Error(err, "failed to list GitOpsDeployments", "namespace", obj.GetNamespace())
+
+		// If the Application wasn't deployed by Argo CD and the GitOps Service, then skip it
+		if appName == "" {
+			continue
+		}
+
+		// Skip resources that are already being deleted
+		if obj.GetDeletionTimestamp() != nil {
+			continue
+		}
+
+		// Check if a GitOpsDeployment exists with the UID specified in the Application name.
+		gitopsDeplList := &managedgitopsv1alpha1.GitOpsDeploymentList{}
+
+		if err := c.client.List(ctx, gitopsDeplList, &client.ListOptions{
+			Namespace: obj.GetNamespace(),
+		}); err != nil {
+			log.Error(err, "failed to list GitOpsDeployments", "namespace", obj.GetNamespace())
+			continue
+		}
+
+		expectedUID := argocdutil.ExtractUIDFromApplicationName(appName)
+		if expectedUID == "" {
+			log.Error(nil, "unable to extract UID from application name in cleanOrphanedResources", "appName", appName)
+			continue
+		}
+
+		found := false
+		for _, gitopsDepl := range gitopsDeplList.Items {
+			if string(gitopsDepl.UID) == expectedUID {
+				found = true
+				break
+			}
+		}
+
+		// The resource was managed by Argo CD i.e. it has label "app.kubernetes.io/instance"
+		// But it doesn't have a corresponding GitOpsDeployment so it can be deleted.
+		if !found {
+			if err := c.client.Delete(ctx, &apiObjects[i]); err != nil {
+				log.Error(err, "failed to delete object in the orphaned reconciler", "name", obj.GetName(), "namespace", obj.GetNamespace(), "gvk", obj.GroupVersionKind())
 				continue
 			}
 
-			expectedUID := argocdutil.ExtractUIDFromApplicationName(appName)
-			found := false
-			for _, gitopsDepl := range gitopsDeplList.Items {
-				if gitopsDepl.UID == types.UID(expectedUID) {
-					found = true
-					break
-				}
-			}
-
-			// The resource was managed by Argo CD i.e. it has label "app.kubernetes.io/instance"
-			// But it doesn't have a corresponding GitOpsDeployment so it can be deleted.
-			if !found {
-				if err := c.client.Delete(ctx, &apiObjects[i]); err != nil {
-					log.Error(err, "failed to delete object in the orphaned reconciler", "name", obj.GetName(), "namespace", obj.GetNamespace(), "gvk", obj.GroupVersionKind())
-					continue
-				}
-
-				log.Info("Deleted an orphaned resource that is not managed by Argo CD anymore", "Name", obj.GetName(), "Namespace", obj.GetNamespace(), "gvk", obj.GroupVersionKind())
-			}
+			log.Info("Deleted an orphaned resource that is not managed by Argo CD anymore", "Name", obj.GetName(), "Namespace", obj.GetNamespace(), "gvk", obj.GroupVersionKind())
 		}
 	}
 }
@@ -135,6 +159,12 @@ func (c *ClusterReconciler) getAllNamespacedAPIResources(ctx context.Context, lo
 
 	for _, apiResources := range apiResourceList {
 		for _, apiResource := range apiResources.APIResources {
+
+			// Skip volumeclaims, which are known to be contain stateful data and thus may not be easily replaced if unexpectedly deleted
+			if apiResource.Name == "persistentvolumeclaims" {
+				continue
+			}
+
 			// Ignore resources that are either cluster scoped or do not support the required verbs
 			if !apiResource.Namespaced || !isResourceAllowed(expectedVerbs, apiResource.Verbs) {
 				continue

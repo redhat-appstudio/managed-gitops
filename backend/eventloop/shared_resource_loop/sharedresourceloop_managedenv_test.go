@@ -1193,6 +1193,7 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
 				false, *namespace, mockFactory, dbQueries, log)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(src.ManagedEnv).ToNot(BeNil())
 
 			By("updating the existing managed environment with an invalid namespace")
 			err = k8sClient.Get(ctx, types.NamespacedName{Namespace: managedEnv.Namespace, Name: managedEnv.Name}, managedEnv)

@@ -927,6 +927,435 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err.Error()).To(HaveSuffix("client-certificate is not supported at this time."))
 		})
 
+		It("should produce an error if the secret is of the wrong type", func() {
+			By("creating ManagedEnvironment/Secret, without creating a new ServiceAccount")
+			kubeConfigContents := generateFakeKubeConfig()
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env-secret",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Type: corev1.SecretType("wrong"),
+				Data: map[string][]byte{
+					KubeconfigKey: ([]byte)(kubeConfigContents),
+				},
+			}
+			managedEnv := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+					APIURL:                   "https://api.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443",
+					ClusterCredentialsSecret: secret.Name,
+					CreateNewServiceAccount:  false,
+				},
+			}
+
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, managedEnv)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = k8sClient.Create(ctx, secret)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("calling reconcileSharedManagedEnv, which should produce the error")
+
+			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(src.ManagedEnv).To(BeNil())
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("invalid secret type: wrong"))
+		})
+
+		It("should produce an error if the secret is missing the kubeconfig field", func() {
+			By("creating ManagedEnvironment/Secret, without creating a new ServiceAccount")
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env-secret",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Type: sharedutil.ManagedEnvironmentSecretType,
+				Data: map[string][]byte{},
+			}
+			managedEnv := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+					APIURL:                   "https://api.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443",
+					ClusterCredentialsSecret: secret.Name,
+					CreateNewServiceAccount:  false,
+				},
+			}
+
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, managedEnv)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = k8sClient.Create(ctx, secret)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("calling reconcileSharedManagedEnv, which should produce the error")
+
+			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(src.ManagedEnv).To(BeNil())
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("missing kubeconfig field in Secret"))
+		})
+
+		It("should produce an error if the kubeconfig field in the secret is invalid", func() {
+			By("creating ManagedEnvironment/Secret, without creating a new ServiceAccount")
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env-secret",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Type: sharedutil.ManagedEnvironmentSecretType,
+				Data: map[string][]byte{
+					KubeconfigKey: ([]byte)("BADBADBAD"),
+				},
+			}
+			managedEnv := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+					APIURL:                   "https://api.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443",
+					ClusterCredentialsSecret: secret.Name,
+					CreateNewServiceAccount:  false,
+				},
+			}
+
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, managedEnv)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = k8sClient.Create(ctx, secret)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("calling reconcileSharedManagedEnv, which should produce the error")
+
+			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(src.ManagedEnv).To(BeNil())
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("unable to parse kubeconfig data: "))
+		})
+
+		It("should produce error if it is unable to locate the appropriate context in the kubeconfig", func() {
+			By("creating ManagedEnvironment/Secret, without creating a new ServiceAccount")
+
+			kubeConfigContents := generateFakeKubeConfig()
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env-secret",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Type: sharedutil.ManagedEnvironmentSecretType,
+				Data: map[string][]byte{
+					KubeconfigKey: ([]byte)(kubeConfigContents),
+				},
+			}
+			managedEnv := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+					APIURL:                   "https://example.com:6443",
+					ClusterCredentialsSecret: secret.Name,
+					CreateNewServiceAccount:  false,
+				},
+			}
+
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, managedEnv)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = k8sClient.Create(ctx, secret)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("calling reconcileSharedManagedEnv, which should produce the error")
+
+			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(src.ManagedEnv).To(BeNil())
+			Expect(err).To(HaveOccurred())
+			// Find the root error
+			for tmp := err; tmp != nil; tmp = errors.Unwrap(tmp) {
+				err = tmp
+			}
+			Expect(err.Error()).To(HavePrefix("the kubeconfig did not have a cluster entry that matched the API URL 'https://example.com:6443"))
+		})
+
+		It("should produce an error if the kubeconfig doesn't have auth info", func() {
+			By("creating ManagedEnvironment/Secret, without creating a new ServiceAccount")
+
+			kubeConfigContents := generateFakeKubeConfigWithoutAuthInfo()
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env-secret",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Type: sharedutil.ManagedEnvironmentSecretType,
+				Data: map[string][]byte{
+					KubeconfigKey: ([]byte)(kubeConfigContents),
+				},
+			}
+			managedEnv := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+					APIURL:                   "https://api.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443",
+					ClusterCredentialsSecret: secret.Name,
+					CreateNewServiceAccount:  false,
+				},
+			}
+
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, managedEnv)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = k8sClient.Create(ctx, secret)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("calling reconcileSharedManagedEnv, which should produce the error")
+
+			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(src.ManagedEnv).To(BeNil())
+			Expect(err).To(HaveOccurred())
+			// Find the root error
+			for tmp := err; tmp != nil; tmp = errors.Unwrap(tmp) {
+				err = tmp
+			}
+			Expect(err.Error()).To(Equal("unable to extract remote cluster configuration from kubeconfig, missing auth info for default/api-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin"))
+		})
+
+		It("should produce a error if the namespaces field in the managed environment contains an invalid namespace", func() {
+			By("creating ManagedEnvironment/Secret, without creating a new ServiceAccount")
+
+			kubeConfigContents := generateFakeKubeConfig()
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env-secret",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Type: sharedutil.ManagedEnvironmentSecretType,
+				Data: map[string][]byte{
+					KubeconfigKey: ([]byte)(kubeConfigContents),
+				},
+			}
+			managedEnv := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+					APIURL:                   "https://api.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443",
+					ClusterCredentialsSecret: secret.Name,
+					CreateNewServiceAccount:  false,
+				},
+			}
+
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, managedEnv)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = k8sClient.Create(ctx, secret)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("ensuring the managed environment already exists before updating it with an invalid namespace")
+			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("updating the existing managed environment with an invalid namespace")
+			err = k8sClient.Get(ctx, types.NamespacedName{Namespace: managedEnv.Namespace, Name: managedEnv.Name}, managedEnv)
+			Expect(err).ToNot(HaveOccurred())
+			managedEnv.Spec.Namespaces = []string{"BAD"}
+			err = k8sClient.Update(ctx, managedEnv)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("calling reconcileSharedManagedEnv, which should produce the error")
+			src, err = internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(src.ManagedEnv).To(BeNil())
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("user specified an invalid namespace: ManagedEnvironment contains an invalid namespace in namespaces list: BAD"))
+		})
+
+		It("should produce a error if unable to create cluster credentials for the managed environment", func() {
+			By("creating ManagedEnvironment/Secret")
+
+			kubeConfigContents := generateFakeKubeConfig()
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env-secret",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Type: sharedutil.ManagedEnvironmentSecretType,
+				Data: map[string][]byte{
+					KubeconfigKey: ([]byte)(kubeConfigContents),
+				},
+			}
+
+			By("creating a managed environment which has enough namespaces to overflow the cluster credential namespace field length")
+			namespaces := []string{}
+			for i := 0; i < 66; i++ {
+				namespaces = append(namespaces, strings.Repeat("a", 63))
+			}
+			managedEnv := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+					APIURL:                   "https://api.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443",
+					ClusterCredentialsSecret: secret.Name,
+					CreateNewServiceAccount:  true,
+					Namespaces:               namespaces,
+				},
+			}
+
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, managedEnv)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = k8sClient.Create(ctx, secret)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("calling reconcileSharedManagedEnv, which should produce the error")
+			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(src.ManagedEnv).To(BeNil())
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("unable to create cluster credentials for host 'https://api.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443'"))
+			Expect(err.Error()).To(ContainSubstring("Namespaces value exceeds maximum size: max: 4096, actual: 4223"))
+		})
+
+		It("should produce an error if the kubeconfig doesn't have a context for the specified cluster", func() {
+			By("creating ManagedEnvironment/Secret, without creating a new ServiceAccount")
+
+			kubeConfigContents := generateFakeKubeConfigWithoutContext()
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env-secret",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Type: sharedutil.ManagedEnvironmentSecretType,
+				Data: map[string][]byte{
+					KubeconfigKey: ([]byte)(kubeConfigContents),
+				},
+			}
+			managedEnv := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+					APIURL:                   "https://api2.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443",
+					ClusterCredentialsSecret: secret.Name,
+					CreateNewServiceAccount:  false,
+				},
+			}
+
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, managedEnv)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = k8sClient.Create(ctx, secret)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("calling reconcileSharedManagedEnv, which should produce the error")
+
+			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(src.ManagedEnv).To(BeNil())
+			Expect(err).To(HaveOccurred())
+			// Find the root error
+			for tmp := err; tmp != nil; tmp = errors.Unwrap(tmp) {
+				err = tmp
+			}
+			Expect(err.Error()).To(Equal("the kubeconfig did not have a context that matched the cluster specified in the API URL of the GitOpsDeploymentManagedEnvironment. Context was expected to reference cluster 'api2-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443'"))
+		})
+
+		It("should produce an error condition if the APIURL contains forbidden characters", func() {
+			By("creating ManagedEnvironment/Secret, without creating a new ServiceAccount")
+
+			kubeConfigContents := generateFakeKubeConfig()
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env-secret",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Type: sharedutil.ManagedEnvironmentSecretType,
+				Data: map[string][]byte{
+					KubeconfigKey: ([]byte)(kubeConfigContents),
+				},
+			}
+			managedEnv := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+					APIURL:                   "https://api.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443?",
+					ClusterCredentialsSecret: secret.Name,
+					CreateNewServiceAccount:  false,
+				},
+			}
+
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, managedEnv)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = k8sClient.Create(ctx, secret)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("calling reconcileSharedManagedEnv, which should produce the error")
+
+			src, condition, err := internalProcessMessage_internalReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(src.ManagedEnv).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(condition.message).To(Equal("the API URL must not have ? or & values"))
+			Expect(condition.reason).To(Equal(managedgitopsv1alpha1.ConditionReasonUnsupportedAPIURL))
+		})
+
 		It("should test whether appProjectEnvironment is created and deleted based on managedEnv, and also verifies that a AppProjectManagedEnvironment that is owned by the same user is not deleted.", func() {
 
 			By("create ManagedEnvironment and Secret for it")
@@ -1367,4 +1796,57 @@ users:
       client-key-data: QkFSCg==
 `
 
+}
+
+func generateFakeKubeConfigWithoutAuthInfo() string {
+	// This config has been sanitized of any real credentials.
+	return `
+apiVersion: v1
+kind: Config
+clusters:
+  - cluster:
+      insecure-skip-tls-verify: true
+      server: https://api.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443
+    name: api-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+contexts:
+  - context:
+      cluster: api-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+      namespace: jgw
+      user: kube:admin/api-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+    name: default/api-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin
+current-context: default/api-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin
+preferences: {}
+`
+}
+
+func generateFakeKubeConfigWithoutContext() string {
+	// This config has been sanitized of any real credentials.
+	return `
+apiVersion: v1
+kind: Config
+clusters:
+  - cluster:
+      insecure-skip-tls-verify: true
+      server: https://api.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443
+    name: api-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+  - cluster:
+      insecure-skip-tls-verify: true
+      server: https://api2.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443
+    name: api2-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+contexts:
+  - context:
+      cluster: api-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+      namespace: jgw
+      user: kube:admin/api-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+    name: default/api-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin
+current-context: default/api-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin
+preferences: {}
+users:
+  - name: kube:admin/api-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+    user:
+      token: sha256~ABCdEF1gHiJKlMnoP-Q19qrTuv1_W9X2YZABCDefGH4
+  - name: kube:admin/api2-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+    user:
+      token: sha256~abcDef1gHIjkLmNOp-q19QRtUV1_w9x2yzabcdEFgh4
+`
 }

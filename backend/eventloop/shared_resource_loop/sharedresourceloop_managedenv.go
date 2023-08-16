@@ -1007,7 +1007,7 @@ func locateContextThatMatchesAPIURL(config *clientcmdapi.Config, apiURL string) 
 		}
 	}
 	if matchingClusterName == "" {
-		return "", clientcmdapi.Context{}, fmt.Errorf("the kubeconfig did not have a cluster entry that matched the API URL '%s", apiURL)
+		return "", clientcmdapi.Context{}, fmt.Errorf("the kubeconfig did not have a cluster entry that matched the API URL '%s'", apiURL)
 	}
 
 	// Look for the context that matches the cluster above

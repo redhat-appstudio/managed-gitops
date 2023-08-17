@@ -33,6 +33,17 @@ const operationCRNamePattern = "operation-%s"
 func CreateOperation(ctx context.Context, waitForOperation bool, dbOperationParam db.Operation, clusterUserID string,
 	operationNamespace string, dbQueries db.ApplicationScopedQueries, gitopsEngineClient client.Client,
 	l logr.Logger) (*managedgitopsv1alpha1.Operation, *db.Operation, error) {
+	return doCreateOperation(ctx, waitForOperation, dbOperationParam, clusterUserID, operationNamespace, dbQueries, gitopsEngineClient, l, "")
+}
+
+// doCreateOperation duplicates CreateOperation. It will create an Operation CR on the target GitOpsEngine cluster, and a corresponding entry in the
+// database. It will then wait for that operation to complete (if waitForOperation is true).
+//   - In order to avoid intermittent issues, the Operation will keep trying for 60 seconds.
+//   - operationIdTest is strictly for test purposes since there needs to be a way to retrieve an operation with
+//     a known Operation_id.
+func doCreateOperation(ctx context.Context, waitForOperation bool, dbOperationParam db.Operation, clusterUserID string,
+	operationNamespace string, dbQueries db.ApplicationScopedQueries, gitopsEngineClient client.Client,
+	l logr.Logger, operationIdTest string) (*managedgitopsv1alpha1.Operation, *db.Operation, error) {
 
 	backoff := sharedutil.ExponentialBackoff{Factor: 1.5, Min: time.Millisecond * 500, Max: time.Second * 5, Jitter: true}
 
@@ -52,7 +63,7 @@ outer_for:
 			break outer_for
 		}
 
-		opCR, opDB, err = createOperationInternal(ctx, waitForOperation, dbOperationParam, clusterUserID, operationNamespace, dbQueries, gitopsEngineClient, l)
+		opCR, opDB, err = createOperationInternal(ctx, waitForOperation, dbOperationParam, clusterUserID, operationNamespace, dbQueries, gitopsEngineClient, l, operationIdTest)
 
 		if err != nil {
 			// Failure: an error occurred, try again in a moment.
@@ -71,7 +82,7 @@ outer_for:
 // Operation CR/DB row.
 func createOperationInternal(ctx context.Context, waitForOperation bool, dbOperationParam db.Operation, clusterUserID string,
 	operationNamespace string, dbQueries db.ApplicationScopedQueries, gitopsEngineClient client.Client,
-	l logr.Logger) (*managedgitopsv1alpha1.Operation, *db.Operation, error) {
+	l logr.Logger, customOperationId string) (*managedgitopsv1alpha1.Operation, *db.Operation, error) {
 
 	var err error
 	l = l.WithValues("operationGitOpsEngineInstanceID", dbOperationParam.Instance_id,
@@ -151,6 +162,9 @@ func createOperationInternal(ctx context.Context, waitForOperation bool, dbOpera
 		Last_state_update:       time.Now(),
 		State:                   db.OperationState_Waiting,
 		Human_readable_state:    "",
+	}
+	if customOperationId != "" {
+		dbOperation.Operation_id = customOperationId
 	}
 
 	if err := dbQueries.CreateOperation(ctx, &dbOperation, clusterUserID); err != nil {

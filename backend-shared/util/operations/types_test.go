@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"time"
 )
 
 var _ = Describe("Testing CreateOperation function.", func() {
@@ -100,6 +101,188 @@ var _ = Describe("Testing CreateOperation function.", func() {
 			Expect(dbOperationFirst.Instance_id).To(Equal(dbOperationSecond.Instance_id))
 			Expect(dbOperationFirst.Resource_id).To(Equal(dbOperationSecond.Resource_id))
 			Expect(dbOperationFirst.SeqID).To(Equal(dbOperationSecond.SeqID))
+		})
+	})
+
+	Context("Testing waitForOperationToComplete and IsOperationComplete function.", func() {
+		var ctx context.Context
+		var dbq db.AllDatabaseQueries
+
+		delayUpdateOfState := func(operation *db.Operation, k8sClient client.Client, gitopsEngineInstance db.GitopsEngineInstance) {
+			Eventually(func() bool {
+				// Allow waitForOperationToComplete to iterate/wait
+				time.Sleep(2 * time.Second)
+
+				operationget := db.Operation{
+					Operation_id: operation.Operation_id,
+				}
+
+				err := dbq.GetOperationById(ctx, &operationget)
+				// The operation might not be created yet
+				if err != nil {
+					return false
+				}
+
+				Expect(operationget.State).To(BeIdenticalTo(db.OperationState_Waiting))
+
+				// Update the operation state to Completed
+				operationget.State = db.OperationState_Completed
+				err = dbq.UpdateOperation(ctx, &operationget)
+				Expect(err).ToNot(HaveOccurred())
+
+				// Get the operation again and check state
+				err = dbq.GetOperationById(ctx, &operationget)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(operationget.State).To(BeIdenticalTo(db.OperationState_Completed))
+
+				return true
+			}, "5s", "10ms").Should(BeTrue())
+		}
+
+		AfterEach(func() {
+			defer dbq.CloseDatabase()
+		})
+
+		It("should create a new DB Operation and test the waitForOperationToComplete function.", func() {
+			scheme,
+				argocdNamespace,
+				kubesystemNamespace,
+				workspace,
+				err := tests.GenericTestSetup()
+			Expect(err).ToNot(HaveOccurred())
+
+			err = db.SetupForTestingDBGinkgo()
+			Expect(err).ToNot(HaveOccurred())
+
+			ctx = context.Background()
+			log := log.FromContext(ctx)
+
+			k8sClientOuter := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(workspace, argocdNamespace, kubesystemNamespace).
+				Build()
+
+			k8sClient := &sharedutil.ProxyClient{
+				InnerClient: k8sClientOuter,
+			}
+
+			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).ToNot(HaveOccurred())
+
+			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("define a sample operation")
+			sampleOperation := &db.Operation{
+				Operation_id:            "test-engine-operation",
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "test-fake-resource-id",
+				Resource_type:           "GitopsEngineInstance",
+				Operation_owner_user_id: "test-user",
+			}
+
+			// Create the Operation which replaces the CreateOperation step in types' CreateOperation function
+			err = dbq.CreateOperation(ctx, sampleOperation, sampleOperation.Operation_owner_user_id)
+			Expect(err).ToNot(HaveOccurred())
+
+			go func() {
+				delayUpdateOfState(sampleOperation, k8sClient, *gitopsEngineInstance)
+			}()
+
+			// Now directly call waitForOperationToComplete which calls isOperationComplete to test these functions
+			err = waitForOperationToComplete(ctx, sampleOperation, dbq, log)
+			Expect(err).ToNot(HaveOccurred())
+
+			rowsAffected, err := dbq.DeleteOperationById(ctx, sampleOperation.Operation_id)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(rowsAffected).Should(Equal(1))
+
+		})
+
+		It("It should test CreateOperation with waitForOperation set to true to indirectly test the waitForOperationToComplete function.", func() {
+			scheme,
+				argocdNamespace,
+				kubesystemNamespace,
+				workspace,
+				err := tests.GenericTestSetup()
+			Expect(err).ToNot(HaveOccurred())
+
+			err = db.SetupForTestingDBGinkgo()
+			Expect(err).ToNot(HaveOccurred())
+
+			ctx = context.Background()
+			log := log.FromContext(ctx)
+
+			k8sClientOuter := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(workspace, argocdNamespace, kubesystemNamespace).
+				Build()
+
+			k8sClient := &sharedutil.ProxyClient{
+				InnerClient: k8sClientOuter,
+			}
+
+			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).ToNot(HaveOccurred())
+
+			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
+			Expect(err).ToNot(HaveOccurred())
+
+			applicationInput := db.Application{
+				Application_id:          "test-my-application",
+				Name:                    "my-application",
+				Spec_field:              "{}",
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+
+			err = dbq.CreateApplication(ctx, &applicationInput)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("define two sample operations to pass to CreateOperation")
+			sampleGitopsEngineTypeOperation := &db.Operation{
+				Operation_id:            "test-engine-operation",
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "test-fake-resource-id",
+				Resource_type:           "GitopsEngineInstance",
+				Operation_owner_user_id: "test-user",
+			}
+
+			sampleApplicationTypeOperation := &db.Operation{
+				Operation_id:            "test-application-operation",
+				Instance_id:             applicationInput.Engine_instance_inst_id,
+				Resource_id:             applicationInput.Application_id,
+				Resource_type:           db.OperationResourceType_Application,
+				Operation_owner_user_id: "test-user",
+			}
+
+			go func() {
+				delayUpdateOfState(sampleApplicationTypeOperation, k8sClient, *gitopsEngineInstance)
+			}()
+
+			// Directly call CreateOperation with waitForOperation set to true, to create the new Operation
+			k8sOperationFirst, dbOperationFirst, err := doCreateOperation(ctx, true, *sampleApplicationTypeOperation, "test-user", gitopsEngineInstance.Namespace_name, dbq, k8sClient, log, "test-application-operation")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(k8sOperationFirst).NotTo(BeNil())
+			Expect(dbOperationFirst).NotTo(BeNil())
+
+			go func() {
+				delayUpdateOfState(sampleGitopsEngineTypeOperation, k8sClient, *gitopsEngineInstance)
+			}()
+
+			k8sOperationSecond, dbOperationSecond, err := doCreateOperation(ctx, true, *sampleGitopsEngineTypeOperation, "test-user", gitopsEngineInstance.Namespace_name, dbq, k8sClient, log, "test-engine-operation")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(k8sOperationSecond).NotTo(BeNil())
+			Expect(dbOperationSecond).NotTo(BeNil())
+
+			rowsAffected, err := dbq.DeleteOperationById(ctx, sampleApplicationTypeOperation.Operation_id)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(rowsAffected).Should(Equal(1))
+
+			rowsAffected, err = dbq.DeleteOperationById(ctx, sampleGitopsEngineTypeOperation.Operation_id)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(rowsAffected).Should(Equal(1))
+
 		})
 	})
 })

@@ -35,7 +35,7 @@ var _ = Describe("ClusterCredentials Tests", func() {
 
 	})
 	AfterEach(func() {
-		defer dbq.CloseDatabase()
+		dbq.CloseDatabase()
 	})
 	Context("It should execute all DB functions for ClusterCredentials", func() {
 		It("Should execute all ClusterCredentials Functions", func() {
@@ -74,6 +74,7 @@ var _ = Describe("ClusterCredentials Tests", func() {
 
 			err = dbq.GetClusterCredentialsById(ctx, &clusterCreds)
 			Expect(err).To(HaveOccurred())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 		})
 	})

@@ -84,7 +84,7 @@ var _ = Describe("ClusterAccess Tests", func() {
 	})
 
 	AfterEach(func() {
-		defer dbq.CloseDatabase()
+		dbq.CloseDatabase()
 	})
 
 	Context("It should execute all DB functions for ClusterAccess", func() {
@@ -129,6 +129,7 @@ var _ = Describe("ClusterAccess Tests", func() {
 
 			err = dbq.GetClusterAccessByPrimaryKey(ctx, &clusterAccess)
 			Expect(err).To(HaveOccurred())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 		})
 	})

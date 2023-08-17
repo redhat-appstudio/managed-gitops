@@ -43,7 +43,7 @@ var _ = Describe("Operations Test", func() {
 	})
 
 	AfterEach(func() {
-		defer dbq.CloseDatabase()
+		dbq.CloseDatabase()
 	})
 
 	It("Should Create, Get, List, Update and Delete an Operation", func() {
@@ -218,7 +218,7 @@ var _ = Describe("Operations Test", func() {
 		})
 
 		AfterEach(func() {
-			defer dbq.CloseDatabase()
+			dbq.CloseDatabase()
 		})
 
 		It("Should test Dispose function with missing database interface", func() {
@@ -234,6 +234,7 @@ var _ = Describe("Operations Test", func() {
 
 			err = dbq.GetOperationById(ctx, operation)
 			Expect(err).To(HaveOccurred())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 		})
 	})

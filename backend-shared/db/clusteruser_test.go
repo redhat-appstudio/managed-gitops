@@ -33,7 +33,7 @@ var _ = Describe("ClusterUser Tests", func() {
 	})
 
 	AfterEach(func() {
-		defer dbq.CloseDatabase()
+		dbq.CloseDatabase()
 	})
 	Context("It should execute all DB functions for ClusterUser", func() {
 		It("Should execute all ClusterUser Functions", func() {
@@ -102,6 +102,7 @@ var _ = Describe("ClusterUser Tests", func() {
 
 			err = dbq.GetClusterUserById(ctx, user)
 			Expect(err).To(HaveOccurred())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 		})
 	})

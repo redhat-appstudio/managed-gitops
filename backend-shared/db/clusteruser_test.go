@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
@@ -81,6 +82,54 @@ var _ = Describe("ClusterUser Tests", func() {
 			rowsAffected, err = dbq.DeleteClusterUserById(ctx, specialClusterUser.Clusteruser_id)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsAffected).Should(Equal(1))
+		})
+
+		It("Should Get ClusterUser in batch.", func() {
+
+			err := db.SetupForTestingDBGinkgo()
+			Expect(err).ToNot(HaveOccurred())
+
+			ctx := context.Background()
+
+			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).ToNot(HaveOccurred())
+			defer dbq.CloseDatabase()
+
+			By("Create multiple ClusterUser entries.")
+
+			user := &db.ClusterUser{
+				Clusteruser_id: "test-id" + uuid.NewString(),
+				User_name:      "test-name" + uuid.NewString(),
+			}
+			err = dbq.CreateClusterUser(ctx, user)
+			Expect(err).ToNot(HaveOccurred())
+
+			user.Clusteruser_id, user.User_name = "test-id"+uuid.NewString(), "test-name"+uuid.NewString()
+			err = dbq.CreateClusterUser(ctx, user)
+			Expect(err).ToNot(HaveOccurred())
+
+			user.Clusteruser_id, user.User_name = "test-id"+uuid.NewString(), "test-name"+uuid.NewString()
+			err = dbq.CreateClusterUser(ctx, user)
+			Expect(err).ToNot(HaveOccurred())
+
+			user.Clusteruser_id, user.User_name = "test-id"+uuid.NewString(), "test-name"+uuid.NewString()
+			err = dbq.CreateClusterUser(ctx, user)
+			Expect(err).ToNot(HaveOccurred())
+
+			user.Clusteruser_id, user.User_name = "test-id"+uuid.NewString(), "test-name"+uuid.NewString()
+			err = dbq.CreateClusterUser(ctx, user)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Get data in batch.")
+
+			var listOfClusterUserFromDB []db.ClusterUser
+			err = dbq.GetClusterUserBatch(ctx, &listOfClusterUserFromDB, 2, 0)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(listOfClusterUserFromDB).To(HaveLen(2))
+
+			err = dbq.GetClusterUserBatch(ctx, &listOfClusterUserFromDB, 3, 1)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(listOfClusterUserFromDB).To(HaveLen(3))
 		})
 	})
 

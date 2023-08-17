@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -146,6 +147,52 @@ var _ = Describe("Kubernetesresourcetodbresourcemapping Test", func() {
 		shouldNotChange.SeqID = shouldNotChangeNew.SeqID
 		Expect(shouldNotChangeNew).To(Equal(shouldNotChange))
 
+	})
+
+	It("Should Get KubernetesToDBResourceMapping in batch.", func() {
+
+		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+		Expect(err).ToNot(HaveOccurred())
+
+		defer dbq.CloseDatabase()
+
+		By("Create multiple KubernetesToDBResourceMapping entries.")
+
+		kubernetesToDBResourceMapping := db.KubernetesToDBResourceMapping{
+			KubernetesResourceType: "test-" + uuid.NewString(),
+			KubernetesResourceUID:  "test-" + uuid.NewString(),
+			DBRelationType:         "test-" + uuid.NewString(),
+			DBRelationKey:          "test-" + uuid.NewString(),
+		}
+		err = dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMapping)
+		Expect(err).ToNot(HaveOccurred())
+
+		kubernetesToDBResourceMapping.KubernetesResourceUID, kubernetesToDBResourceMapping.DBRelationKey = "test-"+uuid.NewString(), "test-"+uuid.NewString()
+		err = dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMapping)
+		Expect(err).ToNot(HaveOccurred())
+
+		kubernetesToDBResourceMapping.KubernetesResourceUID, kubernetesToDBResourceMapping.DBRelationKey = "test-"+uuid.NewString(), "test-"+uuid.NewString()
+		err = dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMapping)
+		Expect(err).ToNot(HaveOccurred())
+
+		kubernetesToDBResourceMapping.KubernetesResourceUID, kubernetesToDBResourceMapping.DBRelationKey = "test-"+uuid.NewString(), "test-"+uuid.NewString()
+		err = dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMapping)
+		Expect(err).ToNot(HaveOccurred())
+
+		kubernetesToDBResourceMapping.KubernetesResourceUID, kubernetesToDBResourceMapping.DBRelationKey = "test-"+uuid.NewString(), "test-"+uuid.NewString()
+		err = dbq.CreateKubernetesResourceToDBResourceMapping(ctx, &kubernetesToDBResourceMapping)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("Get data in batch.")
+
+		var listOfKubernetesToDBResourceMappingFromDB []db.KubernetesToDBResourceMapping
+		err = dbq.GetKubernetesToDBResourceMappingBatch(ctx, &listOfKubernetesToDBResourceMappingFromDB, 2, 0)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(listOfKubernetesToDBResourceMappingFromDB).To(HaveLen(2))
+
+		err = dbq.GetKubernetesToDBResourceMappingBatch(ctx, &listOfKubernetesToDBResourceMappingFromDB, 3, 1)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(listOfKubernetesToDBResourceMappingFromDB).To(HaveLen(3))
 	})
 
 	Context("Test Dispose function for kubernetesToDBResourceMapping", func() {

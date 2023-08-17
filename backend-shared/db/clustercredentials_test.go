@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
@@ -53,6 +54,58 @@ var _ = Describe("ClusterCredentials Tests", func() {
 			Expect(count).To(Equal(1))
 			err = dbq.GetClusterCredentialsById(ctx, &fetchedCluster)
 			Expect(true).To(Equal(db.IsResultNotFoundError(err)))
+		})
+
+		It("Should Get ClusterCredentials in batch.", func() {
+
+			err := db.SetupForTestingDBGinkgo()
+			Expect(err).ToNot(HaveOccurred())
+
+			ctx := context.Background()
+			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).ToNot(HaveOccurred())
+
+			defer dbq.CloseDatabase()
+
+			By("Create multiple ClusterCredentials entries.")
+
+			clusterCreds := db.ClusterCredentials{
+				Clustercredentials_cred_id:  "test-" + uuid.NewString(),
+				Host:                        "test-host-",
+				Kube_config:                 "test-kube_config",
+				Kube_config_context:         "test-kube_config_context",
+				Serviceaccount_bearer_token: "test-serviceaccount_bearer_token",
+				Serviceaccount_ns:           "test-serviceaccount_ns",
+			}
+			err = dbq.CreateClusterCredentials(ctx, &clusterCreds)
+			Expect(err).ToNot(HaveOccurred())
+
+			clusterCreds.Clustercredentials_cred_id = "test-" + uuid.NewString()
+			err = dbq.CreateClusterCredentials(ctx, &clusterCreds)
+			Expect(err).ToNot(HaveOccurred())
+
+			clusterCreds.Clustercredentials_cred_id = "test-" + uuid.NewString()
+			err = dbq.CreateClusterCredentials(ctx, &clusterCreds)
+			Expect(err).ToNot(HaveOccurred())
+
+			clusterCreds.Clustercredentials_cred_id = "test-" + uuid.NewString()
+			err = dbq.CreateClusterCredentials(ctx, &clusterCreds)
+			Expect(err).ToNot(HaveOccurred())
+
+			clusterCreds.Clustercredentials_cred_id = "test-" + uuid.NewString()
+			err = dbq.CreateClusterCredentials(ctx, &clusterCreds)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Get data in batch.")
+
+			var listOfClusterCredFromDB []db.ClusterCredentials
+			err = dbq.GetClusterCredentialsBatch(ctx, &listOfClusterCredFromDB, 2, 0)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(listOfClusterCredFromDB).To(HaveLen(2))
+
+			err = dbq.GetClusterCredentialsBatch(ctx, &listOfClusterCredFromDB, 3, 1)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(listOfClusterCredFromDB).To(HaveLen(3))
 		})
 	})
 

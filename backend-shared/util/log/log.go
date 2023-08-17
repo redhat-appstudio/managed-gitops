@@ -29,11 +29,17 @@ const (
 	ResourceDeleted  ResourceChangeType = "Deleted"
 )
 
+const (
+	logError              = "resource passed to LogAPIResourceChangeEvent was nil"
+	logMarshalJsonError   = "SEVERE: Unable to marshal log to JSON."
+	logUnMarshalJsonError = "SEVERE: Unable to unmarshal JSON."
+)
+
 func LogAPIResourceChangeEvent(resourceNamespace string, resourceName string, resource any, resourceChangeType ResourceChangeType, log logr.Logger) {
 	log = log.WithValues("audit", "true").WithCallDepth(1)
 
 	if resource == nil {
-		log.Error(nil, "resource passed to LogAPIResourceChangeEvent was nil")
+		log.Error(nil, logError)
 		return
 	}
 	_, isSecretPointer := (resource).(*corev1.Secret)
@@ -45,13 +51,13 @@ func LogAPIResourceChangeEvent(resourceNamespace string, resourceName string, re
 
 	jsonRepresentation, err := json.Marshal(resource)
 	if err != nil {
-		log.Error(err, "SEVERE: Unable to marshal log to JSON.")
+		log.Error(err, logMarshalJsonError)
 		return
 	}
 	var resourceMap map[string]interface{}
 	errUnmarshal := json.Unmarshal(jsonRepresentation, &resourceMap)
 	if errUnmarshal != nil {
-		log.Error(errUnmarshal, "SEVERE: Unable to unmarshal JSON.")
+		log.Error(errUnmarshal, logUnMarshalJsonError)
 		return
 	}
 	mf := resourceMap["metadata"].(map[string]interface{})

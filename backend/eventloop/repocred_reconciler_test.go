@@ -9,6 +9,7 @@ import (
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -90,39 +91,123 @@ var _ = Describe("RepoCred Reconcile Function Tests", func() {
 
 			err = dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
 			Expect(err).ToNot(HaveOccurred())
+		})
 
+		It("should set an error status for RepositoryCredentials if the secret field is not set in the CR", func() {
+
+			defer dbq.CloseDatabase()
+
+			By("creating a GitOpsDeployment CR in cluster")
 			gitopsDeploymentRepositoryCredentialCR := &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      apiCRToDatabaseMappingDb.APIResourceName,
 					Namespace: apiCRToDatabaseMappingDb.APIResourceNamespace,
 				},
 			}
-			// Create GitOpsDeployment CR in cluster
-			err = k8sClient.Create(context.Background(), gitopsDeploymentRepositoryCredentialCR)
-
+			err := k8sClient.Create(context.Background(), gitopsDeploymentRepositoryCredentialCR)
 			Expect(err).ToNot(HaveOccurred())
-		})
 
-		It("should reconcile status for RepositoryCredentials if the entry is present in RepositoryCredentials DB", func() {
-
-			defer dbq.CloseDatabase()
-
-			By("Call Reconcile function.")
-
+			By("calling the Reconcile function.")
 			reconcileRepositoryCredentials(ctx, dbq, k8sClient, log)
 
-			By("Verify that status is updated for GitopsDeploymentRepositoryCredentialCR.")
+			By("verifing that status is updated for GitopsDeploymentRepositoryCredentialCR.")
 			objectMeta := metav1.ObjectMeta{
 				Name:      apiCRToDatabaseMappingDb.APIResourceName,
 				Namespace: apiCRToDatabaseMappingDb.APIResourceNamespace,
 			}
 			repoCredCR := &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{ObjectMeta: objectMeta}
-
-			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(repoCredCR), repoCredCR)
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(repoCredCR), repoCredCR)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(repoCredCR).NotTo(BeNil())
 			Expect(repoCredCR.Status.Conditions).To(HaveLen(3))
+			Expect(repoCredCR.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred))
+			Expect(repoCredCR.Status.Conditions[0].Reason).To(Equal(managedgitopsv1alpha1.RepositoryCredentialReasonSecretNotSpecified))
+			Expect(repoCredCR.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
+			Expect(repoCredCR.Status.Conditions[0].Message).To(Equal("Secret field is missing value"))
+		})
 
+		It("should set an error status for RepositoryCredentials if the secret is not found", func() {
+
+			defer dbq.CloseDatabase()
+
+			By("creating a GitOpsDeployment CR in cluster")
+			gitopsDeploymentRepositoryCredentialCR := &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      apiCRToDatabaseMappingDb.APIResourceName,
+					Namespace: apiCRToDatabaseMappingDb.APIResourceNamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialSpec{
+					Secret: "test-my-missing-secret",
+				},
+			}
+			err := k8sClient.Create(context.Background(), gitopsDeploymentRepositoryCredentialCR)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("calling the Reconcile function.")
+			reconcileRepositoryCredentials(ctx, dbq, k8sClient, log)
+
+			By("verifing that status is updated for GitopsDeploymentRepositoryCredentialCR.")
+			objectMeta := metav1.ObjectMeta{
+				Name:      apiCRToDatabaseMappingDb.APIResourceName,
+				Namespace: apiCRToDatabaseMappingDb.APIResourceNamespace,
+			}
+			repoCredCR := &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{ObjectMeta: objectMeta}
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(repoCredCR), repoCredCR)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(repoCredCR).NotTo(BeNil())
+			Expect(repoCredCR.Status.Conditions).To(HaveLen(3))
+			Expect(repoCredCR.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred))
+			Expect(repoCredCR.Status.Conditions[0].Reason).To(Equal(managedgitopsv1alpha1.RepositoryCredentialReasonSecretNotFound))
+			Expect(repoCredCR.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
+			Expect(repoCredCR.Status.Conditions[0].Message).To(Equal("Secret specified not found"))
+		})
+
+		It("should set an error status for RepositoryCredentials if the repo and secret exist but the credentials are invalid", func() {
+
+			defer dbq.CloseDatabase()
+
+			By("creating a secret in the cluster")
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-repository-credentials-secret",
+					Namespace: apiCRToDatabaseMappingDb.APIResourceNamespace,
+				},
+				Data: map[string][]byte{"username": []byte("username"), "password": []byte("password")},
+			}
+			err := k8sClient.Create(ctx, secret)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("creating a GitOpsDeployment CR in cluster")
+			gitopsDeploymentRepositoryCredentialCR := &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      apiCRToDatabaseMappingDb.APIResourceName,
+					Namespace: apiCRToDatabaseMappingDb.APIResourceNamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialSpec{
+					Repository: "https://github.com/redhat-appstudio/managed-gitops.git",
+					Secret:     secret.Name,
+				},
+			}
+			err = k8sClient.Create(context.Background(), gitopsDeploymentRepositoryCredentialCR)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("calling the Reconcile function.")
+			reconcileRepositoryCredentials(ctx, dbq, k8sClient, log)
+
+			By("verifing that status is updated for GitopsDeploymentRepositoryCredentialCR.")
+			objectMeta := metav1.ObjectMeta{
+				Name:      apiCRToDatabaseMappingDb.APIResourceName,
+				Namespace: apiCRToDatabaseMappingDb.APIResourceNamespace,
+			}
+			repoCredCR := &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{ObjectMeta: objectMeta}
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(repoCredCR), repoCredCR)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(repoCredCR).NotTo(BeNil())
+			Expect(repoCredCR.Status.Conditions).To(HaveLen(3))
+			Expect(repoCredCR.Status.Conditions[0].Type).To(Equal(managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialConditionErrorOccurred))
+			Expect(repoCredCR.Status.Conditions[0].Reason).To(Equal(managedgitopsv1alpha1.RepositoryCredentialReasonInvalidCredentials))
+			Expect(repoCredCR.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
+			Expect(repoCredCR.Status.Conditions[0].Message).To(Equal("Repository Credentials provided test-my-repository-credentials-secret for Repository https://github.com/redhat-appstudio/managed-gitops.git are invalid"))
 		})
 	})
 })

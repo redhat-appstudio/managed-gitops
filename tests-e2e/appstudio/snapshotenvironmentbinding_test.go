@@ -1050,7 +1050,7 @@ func buildSnapshotEnvironmentBindingResource(name, appName, envName, snapshotNam
 	for _, name := range componentNames {
 		components = append(components, appstudiosharedv1.BindingComponent{
 			Name:          name,
-			Configuration: appstudiosharedv1.BindingComponentConfiguration{Replicas: replica},
+			Configuration: appstudiosharedv1.BindingComponentConfiguration{Replicas: &replica},
 		})
 	}
 	binding.Spec.Components = components

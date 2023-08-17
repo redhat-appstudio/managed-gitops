@@ -21,8 +21,10 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 )
 
-var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
-	Context("Testing SnapshotEnvironmentBindingReconciler.", func() {
+var _ = Describe("PromotionRunController Reconciler Tests", func() {
+	Context("Testing PromotionRunController Reconciler", func() {
+
+		threeReplicas := 3
 
 		var ctx context.Context
 		var request reconcile.Request
@@ -500,7 +502,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 								Env: []appstudiosharedv1.EnvVarPair{
 									{Name: "My_STG_ENV", Value: "1000"},
 								},
-								Replicas: 3,
+								Replicas: &threeReplicas,
 							},
 						},
 					},
@@ -557,7 +559,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 								Env: []appstudiosharedv1.EnvVarPair{
 									{Name: "My_STG_ENV", Value: "1000"},
 								},
-								Replicas: 3,
+								Replicas: &threeReplicas,
 							},
 						},
 					},
@@ -597,7 +599,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 								Env: []appstudiosharedv1.EnvVarPair{
 									{Name: "My_STG_ENV", Value: "1000"},
 								},
-								Replicas: 3,
+								Replicas: &threeReplicas,
 							},
 						},
 					},
@@ -650,7 +652,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 								Env: []appstudiosharedv1.EnvVarPair{
 									{Name: "My_STG_ENV", Value: "1000"},
 								},
-								Replicas: 3,
+								Replicas: &threeReplicas,
 							},
 						},
 					},
@@ -711,7 +713,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 								Env: []appstudiosharedv1.EnvVarPair{
 									{Name: "My_STG_ENV", Value: "1000"},
 								},
-								Replicas: 3,
+								Replicas: &threeReplicas,
 							},
 						},
 					},
@@ -813,7 +815,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 								Env: []appstudiosharedv1.EnvVarPair{
 									{Name: "My_STG_ENV", Value: "1000"},
 								},
-								Replicas: 3,
+								Replicas: &threeReplicas,
 							},
 						},
 					},
@@ -910,7 +912,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 								Env: []appstudiosharedv1.EnvVarPair{
 									{Name: "My_STG_ENV", Value: "1000"},
 								},
-								Replicas: 3,
+								Replicas: &threeReplicas,
 							},
 						},
 					},

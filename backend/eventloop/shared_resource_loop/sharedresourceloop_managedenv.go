@@ -286,8 +286,8 @@ func getManagedEnvironmentCRs(ctx context.Context,
 
 	if managedEnvironmentCR.Spec.ClusterCredentialsSecret == "" {
 		return managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{}, corev1.Secret{}, resourceExists,
-			fmt.Errorf("secret '%s' referenced by managed environment '%s' in '%s', is invalid",
-				managedEnvironmentCR.Spec.ClusterCredentialsSecret, managedEnvironmentCR.Name, managedEnvironmentCR.Namespace)
+			fmt.Errorf("no secret specified by managed environment '%s' in '%s'",
+				managedEnvironmentCR.Name, managedEnvironmentCR.Namespace)
 	}
 
 	// Retrieve the Secret CR from the workspace

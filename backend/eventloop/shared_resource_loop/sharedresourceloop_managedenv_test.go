@@ -927,6 +927,49 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err.Error()).To(HaveSuffix("client-certificate is not supported at this time."))
 		})
 
+		It("should produce an error if the secret is missing", func() {
+			By("creating ManagedEnvironment/Secret, without creating a new ServiceAccount")
+			kubeConfigContents := generateFakeKubeConfig()
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env-secret",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Type: sharedutil.ManagedEnvironmentSecretType,
+				Data: map[string][]byte{
+					KubeconfigKey: ([]byte)(kubeConfigContents),
+				},
+			}
+			managedEnv := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+					APIURL:                  "https://api.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443",
+					CreateNewServiceAccount: false,
+				},
+			}
+
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, managedEnv)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = k8sClient.Create(ctx, secret)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("calling reconcileSharedManagedEnv, which should produce the error")
+
+			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(src.ManagedEnv).To(BeNil())
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("no secret specified by managed environment 'test-my-managed-env' in 'gitops-service-argocd'"))
+		})
+
 		It("should produce an error if the secret is of the wrong type", func() {
 			By("creating ManagedEnvironment/Secret, without creating a new ServiceAccount")
 			kubeConfigContents := generateFakeKubeConfig()

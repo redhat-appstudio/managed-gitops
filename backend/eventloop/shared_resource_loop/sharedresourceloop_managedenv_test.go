@@ -1153,7 +1153,53 @@ var _ = Describe("SharedResourceEventLoop ManagedEnvironment-related Test", func
 			Expect(err.Error()).To(Equal("unable to extract remote cluster configuration from kubeconfig, missing auth info for default/api-fake-unit-test-data-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin"))
 		})
 
-		It("should produce a error if the namespaces field in the managed environment contains an invalid namespace", func() {
+		It("should produce a error if the namespaces field in a new managed environment contains an invalid namespace", func() {
+			By("creating ManagedEnvironment/Secret, without creating a new ServiceAccount")
+
+			kubeConfigContents := generateFakeKubeConfig()
+			secret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env-secret",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Type: sharedutil.ManagedEnvironmentSecretType,
+				Data: map[string][]byte{
+					KubeconfigKey: ([]byte)(kubeConfigContents),
+				},
+			}
+			managedEnv := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-my-managed-env",
+					Namespace: dbutil.DefaultGitOpsEngineSingleInstanceNamespace,
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+					APIURL:                   "https://api.fake-unit-test-data.origin-ci-int-gce.dev.rhcloud.com:6443",
+					ClusterCredentialsSecret: secret.Name,
+					CreateNewServiceAccount:  false,
+					Namespaces:               []string{"BAD"},
+				},
+			}
+
+			managedEnv.UID = "test-" + uuid.NewUUID()
+			secret.UID = "test-" + uuid.NewUUID()
+			eventloop_test_util.StartServiceAccountListenerOnFakeClient(ctx, string(managedEnv.UID), k8sClient)
+
+			err := k8sClient.Create(ctx, managedEnv)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = k8sClient.Create(ctx, secret)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("calling reconcileSharedManagedEnv, which should produce the error")
+			src, err := internalProcessMessage_ReconcileSharedManagedEnv(ctx, k8sClient, managedEnv.Name, managedEnv.Namespace,
+				false, *namespace, mockFactory, dbQueries, log)
+			Expect(src.ManagedEnv).To(BeNil())
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(HavePrefix("unable to create managed environment for test-"))
+			Expect(err.Error()).To(ContainSubstring("user specified an invalid namespace: ManagedEnvironment contains an invalid namespace in namespaces list: BAD"))
+		})
+
+		It("should produce a error if the namespaces field in an existing managed environment is updated to contain an invalid namespace", func() {
 			By("creating ManagedEnvironment/Secret, without creating a new ServiceAccount")
 
 			kubeConfigContents := generateFakeKubeConfig()

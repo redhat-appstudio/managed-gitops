@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
@@ -109,6 +110,85 @@ var _ = Describe("SyncOperation Tests", func() {
 			err = dbq.CreateSyncOperation(ctx, &insertRow)
 			Expect(db.IsMaxLengthError(err)).To(BeTrue())
 
+		})
+
+		It("Should Get SyncOperation in batch.", func() {
+			var testClusterUser = &db.ClusterUser{
+				Clusteruser_id: "test-user",
+				User_name:      "test-user",
+			}
+
+			err := db.SetupForTestingDBGinkgo()
+			Expect(err).ToNot(HaveOccurred())
+
+			ctx := context.Background()
+			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).ToNot(HaveOccurred())
+
+			defer dbq.CloseDatabase()
+
+			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
+			Expect(err).ToNot(HaveOccurred())
+
+			application := &db.Application{
+				Application_id:          "test-my-application",
+				Name:                    "my-application",
+				Spec_field:              "{}",
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+			err = dbq.CreateApplication(ctx, application)
+			Expect(err).ToNot(HaveOccurred())
+
+			operation := &db.Operation{
+				Operation_id:            "test-operation",
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "fake resource id",
+				Resource_type:           "GitopsEngineInstance",
+				State:                   db.OperationState_Waiting,
+				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+			}
+			err = dbq.CreateOperation(ctx, operation, operation.Operation_owner_user_id)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Create multiple SyncOperation entries.")
+
+			syncOperation := db.SyncOperation{
+				SyncOperation_id:    "test-" + uuid.NewString(),
+				Application_id:      application.Application_id,
+				DeploymentNameField: "testDeployment",
+				Revision:            "testRev",
+				DesiredState:        "Terminated",
+			}
+			err = dbq.CreateSyncOperation(ctx, &syncOperation)
+			Expect(err).ToNot(HaveOccurred())
+
+			syncOperation.SyncOperation_id = "test-" + uuid.NewString()
+			err = dbq.CreateSyncOperation(ctx, &syncOperation)
+			Expect(err).ToNot(HaveOccurred())
+
+			syncOperation.SyncOperation_id = "test-" + uuid.NewString()
+			err = dbq.CreateSyncOperation(ctx, &syncOperation)
+			Expect(err).ToNot(HaveOccurred())
+
+			syncOperation.SyncOperation_id = "test-" + uuid.NewString()
+			err = dbq.CreateSyncOperation(ctx, &syncOperation)
+			Expect(err).ToNot(HaveOccurred())
+
+			syncOperation.SyncOperation_id = "test-" + uuid.NewString()
+			err = dbq.CreateSyncOperation(ctx, &syncOperation)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Get data in batch.")
+
+			var listOfSyncOperationFromDB []db.SyncOperation
+			err = dbq.GetSyncOperationsBatch(ctx, &listOfSyncOperationFromDB, 2, 0)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(listOfSyncOperationFromDB).To(HaveLen(2))
+
+			err = dbq.GetSyncOperationsBatch(ctx, &listOfSyncOperationFromDB, 3, 1)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(listOfSyncOperationFromDB).To(HaveLen(3))
 		})
 	})
 

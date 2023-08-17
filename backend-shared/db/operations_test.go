@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
@@ -119,6 +120,64 @@ var _ = Describe("Operations Test", func() {
 		err = dbq.UpdateOperation(ctx, &operationget)
 		Expect(true).To(Equal(db.IsMaxLengthError(err)))
 
+	})
+
+	It("Should Get Operation in batch.", func() {
+
+		ctx = context.Background()
+		err := db.SetupForTestingDBGinkgo()
+		Expect(err).ToNot(HaveOccurred())
+
+		dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+		Expect(err).ToNot(HaveOccurred())
+
+		_, _, _, gitopsEngineInstance, _, err = db.CreateSampleData(dbq)
+		Expect(err).ToNot(HaveOccurred())
+
+		err = dbq.CreateClusterUser(ctx, testClusterUser)
+		Expect(err).ToNot(HaveOccurred())
+
+		defer dbq.CloseDatabase()
+
+		By("Create multiple Operation entries.")
+
+		operation := db.Operation{
+			Operation_id:            "test-op-" + uuid.NewString(),
+			Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+			Resource_id:             "test-fake-resource-id",
+			Resource_type:           "GitopsEngineInstance",
+			State:                   db.OperationState_Waiting,
+			Operation_owner_user_id: testClusterUser.Clusteruser_id,
+		}
+		err = dbq.CreateOperation(ctx, &operation, operation.Operation_owner_user_id)
+		Expect(err).ToNot(HaveOccurred())
+
+		operation.Operation_id = "test-op-" + uuid.NewString()
+		err = dbq.CreateOperation(ctx, &operation, operation.Operation_owner_user_id)
+		Expect(err).ToNot(HaveOccurred())
+
+		operation.Operation_id = "test-op-" + uuid.NewString()
+		err = dbq.CreateOperation(ctx, &operation, operation.Operation_owner_user_id)
+		Expect(err).ToNot(HaveOccurred())
+
+		operation.Operation_id = "test-op-" + uuid.NewString()
+		err = dbq.CreateOperation(ctx, &operation, operation.Operation_owner_user_id)
+		Expect(err).ToNot(HaveOccurred())
+
+		operation.Operation_id = "test-op-" + uuid.NewString()
+		err = dbq.CreateOperation(ctx, &operation, operation.Operation_owner_user_id)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("Get data in batch.")
+
+		var listOfOperationFromDB []db.Operation
+		err = dbq.GetOperationBatch(ctx, &listOfOperationFromDB, 2, 0)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(listOfOperationFromDB).To(HaveLen(2))
+
+		err = dbq.GetOperationBatch(ctx, &listOfOperationFromDB, 3, 1)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(listOfOperationFromDB).To(HaveLen(3))
 	})
 
 	Context("list all operations to be garbage collected", func() {

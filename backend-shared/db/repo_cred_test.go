@@ -6,6 +6,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
@@ -164,6 +165,51 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 			expectedErr = "RepositoryCredentials.EngineClusterID is empty, but it shouldn't (notnull tag found: `repo_cred_engine_id,notnull`)"
 			Expect(err.Error()).Should(Equal(expectedErr))
 			updatedCR.EngineClusterID = gitopsEngineInstance.Gitopsengineinstance_id // reset the EngineClusterID to the original value
+		})
+
+		It("Should Get RepositoryCredentials in batch.", func() {
+
+			By("Create multiple RepositoryCredentials entries.")
+
+			gitopsRepositoryCredentials := db.RepositoryCredentials{
+				RepositoryCredentialsID: "test-" + uuid.NewString(),
+				UserID:                  clusterUser.Clusteruser_id, // constrain 'fk_clusteruser_id'
+				PrivateURL:              "https://test-private-url",
+				AuthUsername:            "test-auth-username",
+				AuthPassword:            "test-auth-password",
+				AuthSSHKey:              "test-auth-ssh-key",
+				SecretObj:               "test-secret-obj",
+				EngineClusterID:         gitopsEngineInstance.Gitopsengineinstance_id, // constrain 'fk_gitopsengineinstance_id'
+			}
+			err = dbq.CreateRepositoryCredentials(ctx, &gitopsRepositoryCredentials)
+			Expect(err).ToNot(HaveOccurred())
+
+			gitopsRepositoryCredentials.RepositoryCredentialsID = "test-" + uuid.NewString()
+			err = dbq.CreateRepositoryCredentials(ctx, &gitopsRepositoryCredentials)
+			Expect(err).ToNot(HaveOccurred())
+
+			gitopsRepositoryCredentials.RepositoryCredentialsID = "test-" + uuid.NewString()
+			err = dbq.CreateRepositoryCredentials(ctx, &gitopsRepositoryCredentials)
+			Expect(err).ToNot(HaveOccurred())
+
+			gitopsRepositoryCredentials.RepositoryCredentialsID = "test-" + uuid.NewString()
+			err = dbq.CreateRepositoryCredentials(ctx, &gitopsRepositoryCredentials)
+			Expect(err).ToNot(HaveOccurred())
+
+			gitopsRepositoryCredentials.RepositoryCredentialsID = "test-" + uuid.NewString()
+			err = dbq.CreateRepositoryCredentials(ctx, &gitopsRepositoryCredentials)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Get data in batch.")
+
+			var listOfRepositoryCredentialsFromDB []db.RepositoryCredentials
+			err = dbq.GetRepositoryCredentialsBatch(ctx, &listOfRepositoryCredentialsFromDB, 2, 0)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(listOfRepositoryCredentialsFromDB).To(HaveLen(2))
+
+			err = dbq.GetRepositoryCredentialsBatch(ctx, &listOfRepositoryCredentialsFromDB, 3, 1)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(listOfRepositoryCredentialsFromDB).To(HaveLen(3))
 		})
 	})
 

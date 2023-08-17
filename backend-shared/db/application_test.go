@@ -41,9 +41,11 @@ var _ = Describe("Application Test", func() {
 		err = dbq.CreateApplication(ctx, &applicationput)
 		Expect(err).ToNot(HaveOccurred())
 	})
+
 	AfterEach(func() {
 		dbq.CloseDatabase()
 	})
+
 	It("Should Create, Get, Update and Delete an Application", func() {
 		applicationget := db.Application{
 			Application_id: applicationput.Application_id,
@@ -97,6 +99,9 @@ var _ = Describe("Application Test", func() {
 	})
 
 	It("Should Get Application in batch.", func() {
+
+		By("Create multiple Application entries.")
+
 		applicationput.Application_id = "test-my-application-2"
 		err := dbq.CreateApplication(ctx, &applicationput)
 		Expect(err).ToNot(HaveOccurred())
@@ -112,6 +117,8 @@ var _ = Describe("Application Test", func() {
 		applicationput.Application_id = "test-my-application-5"
 		err = dbq.CreateApplication(ctx, &applicationput)
 		Expect(err).ToNot(HaveOccurred())
+
+		By("Get data in batch.")
 
 		var listOfApplicationsFromDB []db.Application
 		err = dbq.GetApplicationBatch(ctx, &listOfApplicationsFromDB, 2, 0)

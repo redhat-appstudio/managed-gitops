@@ -28,6 +28,8 @@ import (
 
 var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
+	threeReplicas := 3
+
 	Context("Testing SnapshotEnvironmentBindingReconciler.", func() {
 		var ctx context.Context
 		var request reconcile.Request
@@ -95,7 +97,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 								Env: []appstudiosharedv1.EnvVarPair{
 									{Name: "My_STG_ENV", Value: "1000"},
 								},
-								Replicas: 3,
+								Replicas: &threeReplicas,
 							},
 						},
 					},
@@ -229,7 +231,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 						Env: []appstudiosharedv1.EnvVarPair{
 							{Name: "My_STG_ENV", Value: "1000"},
 						},
-						Replicas: 3,
+						Replicas: &threeReplicas,
 					},
 				},
 				{
@@ -238,7 +240,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 						Env: []appstudiosharedv1.EnvVarPair{
 							{Name: "My_STG_ENV", Value: "1000"},
 						},
-						Replicas: 3,
+						Replicas: &threeReplicas,
 					},
 				},
 			}
@@ -1540,7 +1542,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 								Env: []appstudiosharedv1.EnvVarPair{
 									{Name: "My_STG_ENV", Value: "1000"},
 								},
-								Replicas: 3,
+								Replicas: &threeReplicas,
 							},
 						},
 						{
@@ -1549,7 +1551,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 								Env: []appstudiosharedv1.EnvVarPair{
 									{Name: "My_STG_ENV", Value: "1000"},
 								},
-								Replicas: 3,
+								Replicas: &threeReplicas,
 							},
 						},
 					},

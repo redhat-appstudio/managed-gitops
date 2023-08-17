@@ -10,16 +10,24 @@ import (
 
 var _ = Describe("Test to verify update/delete operations are not globally scoped", func() {
 	Context("It creates database unit tests which guard against missing WHERE clauses of UPDATE/DELETE operations to the database ", func() {
+		var err error
+		var dbq db.AllDatabaseQueries
+		var ctx context.Context
+
+		BeforeEach(func() {
+			err = db.SetupForTestingDBGinkgo()
+			Expect(err).ToNot(HaveOccurred())
+
+			ctx = context.Background()
+			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		AfterEach(func() {
+			dbq.CloseDatabase()
+		})
 
 		It("Should test guard row against delete for ApiCRtoDBmapping", func() {
-			err := db.SetupForTestingDBGinkgo()
-			Expect(err).ToNot(HaveOccurred())
-
-			ctx := context.Background()
-			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
-
 			ApicrtodatabasemappingFirst := db.APICRToDatabaseMapping{
 				APIResourceType:      db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
 				APIResourceUID:       "test-k8s-uid",
@@ -58,14 +66,6 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 		})
 
 		It("Should test guard row against update and delete on application", func() {
-			err := db.SetupForTestingDBGinkgo()
-			Expect(err).ToNot(HaveOccurred())
-
-			ctx := context.Background()
-			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
-
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -122,14 +122,6 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 		})
 
 		It("Should test guard row against update and delete for applicationstates", func() {
-			err := db.SetupForTestingDBGinkgo()
-			Expect(err).ToNot(HaveOccurred())
-
-			ctx := context.Background()
-			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
-
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -209,14 +201,6 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 		})
 
 		It("Should test guard row against delete for clusteraccess", func() {
-			err := db.SetupForTestingDBGinkgo()
-			Expect(err).ToNot(HaveOccurred())
-
-			ctx := context.Background()
-			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
-
 			var clusterUser = &db.ClusterUser{
 				Clusteruser_id: "test-user-1",
 				User_name:      "test-user-1",
@@ -340,14 +324,6 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 		})
 
 		It("Should test guard row against delete for clustercredentials", func() {
-			err := db.SetupForTestingDBGinkgo()
-			Expect(err).ToNot(HaveOccurred())
-
-			ctx := context.Background()
-			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
-
 			clusterCredFirst := db.ClusterCredentials{
 				Host:                        "test-host",
 				Kube_config:                 "test-kube_config",
@@ -381,14 +357,6 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 		})
 
 		It("Should test guard row against delete for clusteruser", func() {
-			err := db.SetupForTestingDBGinkgo()
-			Expect(err).ToNot(HaveOccurred())
-
-			ctx := context.Background()
-			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
-
 			userfirst := &db.ClusterUser{
 				Clusteruser_id: "test-user-id-1",
 				User_name:      "test-user-1",
@@ -416,14 +384,6 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 		})
 
 		It("Should test guard row against delete for deploymenttoapplicationmapping", func() {
-			err := db.SetupForTestingDBGinkgo()
-			Expect(err).ToNot(HaveOccurred())
-
-			ctx := context.Background()
-			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
-
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -483,14 +443,6 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 		})
 
 		It("Should test guard row against delete for gitopsenginecluster", func() {
-			err := db.SetupForTestingDBGinkgo()
-			Expect(err).ToNot(HaveOccurred())
-
-			ctx := context.Background()
-			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
-
 			clusterCredentialsFirst := db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-cluster-creds-test-1",
 				Host:                        "host",
@@ -543,14 +495,6 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 		})
 
 		It("Should test guard row against delete for gitopsengineinstance", func() {
-			err := db.SetupForTestingDBGinkgo()
-			Expect(err).ToNot(HaveOccurred())
-
-			ctx := context.Background()
-			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
-
 			clusterCredentialsFirst := db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-cluster-creds-test-1",
 				Host:                        "host",
@@ -627,7 +571,6 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			ctx := context.Background()
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
 
 			kubernetesToDBResourceMappingFirst := db.KubernetesToDBResourceMapping{
 				KubernetesResourceType: "test-resource_1",
@@ -660,14 +603,6 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 		})
 
 		It("Should test guard row against update and delete on managedenvironment", func() {
-			err := db.SetupForTestingDBGinkgo()
-			Expect(err).ToNot(HaveOccurred())
-
-			ctx := context.Background()
-			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
-
 			clusterCredentialsFirst := db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-cluster-creds-test-1",
 				Host:                        "host",
@@ -741,14 +676,6 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 		})
 
 		It("Should test guard row against update and delete for operation", func() {
-			err := db.SetupForTestingDBGinkgo()
-			Expect(err).ToNot(HaveOccurred())
-
-			ctx := context.Background()
-			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
-
 			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
 			Expect(err).ToNot(HaveOccurred())
 			var testClusterUser = &db.ClusterUser{
@@ -822,14 +749,6 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 		})
 
 		It("Should test guard row against delete for syncoperation", func() {
-			err := db.SetupForTestingDBGinkgo()
-			Expect(err).ToNot(HaveOccurred())
-
-			ctx := context.Background()
-			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
-
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -927,14 +846,6 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 		})
 
 		It("Should test guard row against update and delete for repo creds", func() {
-			err := db.SetupForTestingDBGinkgo()
-			Expect(err).ToNot(HaveOccurred())
-
-			ctx := context.Background()
-			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
-
 			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
 			Expect(err).ToNot(HaveOccurred())
 

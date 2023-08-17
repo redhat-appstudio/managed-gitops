@@ -70,7 +70,7 @@ var _ = Describe("SyncOperation Tests", func() {
 	})
 
 	AfterEach(func() {
-		defer dbq.CloseDatabase()
+		dbq.CloseDatabase()
 	})
 
 	Context("It should execute all SyncOperation Functions", func() {
@@ -128,6 +128,7 @@ var _ = Describe("SyncOperation Tests", func() {
 
 			err = dbq.GetSyncOperationById(ctx, &insertRow)
 			Expect(err).To(HaveOccurred())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 		})
 	})

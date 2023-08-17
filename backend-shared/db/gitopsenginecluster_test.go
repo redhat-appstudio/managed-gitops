@@ -45,7 +45,7 @@ var _ = Describe("Gitopsenginecluster Test", func() {
 	})
 
 	AfterEach(func() {
-		defer dbq.CloseDatabase()
+		dbq.CloseDatabase()
 	})
 
 	It("Should Create, Get and Delete a GitopsEngineCluster", func() {
@@ -94,6 +94,7 @@ var _ = Describe("Gitopsenginecluster Test", func() {
 
 			err = dbq.GetGitopsEngineClusterById(ctx, &gitopsEngineCluster)
 			Expect(err).To(HaveOccurred())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 		})
 	})

@@ -38,7 +38,7 @@ var _ = Describe("Apicrtodatabasemapping Tests", func() {
 	})
 
 	AfterEach(func() {
-		defer dbq.CloseDatabase()
+		dbq.CloseDatabase()
 	})
 	Context("Tests all the DB functions for Apicrtodatabasemapping", func() {
 		It("Should execute all Apicrtodatabasemapping Functions", func() {
@@ -97,6 +97,7 @@ var _ = Describe("Apicrtodatabasemapping Tests", func() {
 
 			err = dbq.GetAPICRForDatabaseUID(ctx, &item)
 			Expect(err).To(HaveOccurred())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 		})
 	})

@@ -37,7 +37,7 @@ var _ = Describe("Kubernetesresourcetodbresourcemapping Test", func() {
 	})
 
 	AfterEach(func() {
-		defer dbq.CloseDatabase()
+		dbq.CloseDatabase()
 	})
 
 	It("Should Create, Get, and Delete a KubernetesToDBResourceMapping", func() {
@@ -164,6 +164,7 @@ var _ = Describe("Kubernetesresourcetodbresourcemapping Test", func() {
 
 			err = dbq.GetKubernetesResourceMappingForDatabaseResource(ctx, &kubernetesToDBResourceMapping)
 			Expect(err).To(HaveOccurred())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 		})
 	})

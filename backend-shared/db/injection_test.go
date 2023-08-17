@@ -9,14 +9,23 @@ import (
 )
 
 var _ = Describe("Injection Test", func() {
-	It("Should test GitopsEngineInstanceWrongInput", func() {
-		err := db.SetupForTestingDBGinkgo()
-		Expect(err).ToNot(HaveOccurred())
-		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-		Expect(err).ToNot(HaveOccurred())
-		defer dbq.CloseDatabase()
+	var err error
+	var dbq db.AllDatabaseQueries
+	var ctx context.Context
 
-		ctx := context.Background()
+	BeforeEach(func() {
+		ctx = context.Background()
+		err = db.SetupForTestingDBGinkgo()
+		Expect(err).ToNot(HaveOccurred())
+		dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+		Expect(err).ToNot(HaveOccurred())
+	})
+
+	AfterEach(func() {
+		dbq.CloseDatabase()
+	})
+
+	It("Should test GitopsEngineInstanceWrongInput", func() {
 
 		var clusterUser = &db.ClusterUser{
 			Clusteruser_id: "test-user-wrong-application",
@@ -92,14 +101,6 @@ var _ = Describe("Injection Test", func() {
 	})
 
 	It("Should test TestClusterCredentialWrongInput", func() {
-		err := db.SetupForTestingDBGinkgo()
-		Expect(err).ToNot(HaveOccurred())
-		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-		Expect(err).ToNot(HaveOccurred())
-		defer dbq.CloseDatabase()
-
-		ctx := context.Background()
-
 		clusterCredentials := db.ClusterCredentials{
 			Clustercredentials_cred_id: "test-cluster-creds-input",
 			Host:                       "host'sInput'",
@@ -117,13 +118,6 @@ var _ = Describe("Injection Test", func() {
 	})
 
 	It("Should test TestManagedEnviromentWrongInput", func() {
-		err := db.SetupForTestingDBGinkgo()
-		Expect(err).ToNot(HaveOccurred())
-		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-		Expect(err).ToNot(HaveOccurred())
-		defer dbq.CloseDatabase()
-
-		ctx := context.Background()
 
 		clusterCredentials := db.ClusterCredentials{
 			Clustercredentials_cred_id:  "test-cluster-creds-test-1",
@@ -155,13 +149,6 @@ var _ = Describe("Injection Test", func() {
 	})
 
 	It("Should test TestClusterUserWrongInput", func() {
-		err := db.SetupForTestingDBGinkgo()
-		Expect(err).ToNot(HaveOccurred())
-		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-		Expect(err).ToNot(HaveOccurred())
-		defer dbq.CloseDatabase()
-
-		ctx := context.Background()
 
 		user := &db.ClusterUser{
 			Clusteruser_id: "test-user-id",
@@ -178,13 +165,6 @@ var _ = Describe("Injection Test", func() {
 	})
 
 	It("Should test TestApplicationWrongInput", func() {
-		err := db.SetupForTestingDBGinkgo()
-		Expect(err).ToNot(HaveOccurred())
-		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-		Expect(err).ToNot(HaveOccurred())
-		defer dbq.CloseDatabase()
-
-		ctx := context.Background()
 
 		var clusterUser = &db.ClusterUser{
 			Clusteruser_id: "test-user-wrong-application",

@@ -18,16 +18,26 @@ var _ = Describe("Types Test", func() {
 			User_name:      "test-user",
 		}
 
+		var err error
+		var ctx context.Context
+		var dbq db.AllDatabaseQueries
+
+		BeforeEach(func() {
+			err = db.SetupForTestingDBGinkgo()
+			Expect(err).ToNot(HaveOccurred())
+
+			ctx = context.Background()
+
+			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).ToNot(HaveOccurred())
+
+		})
+
+		AfterEach(func() {
+			dbq.CloseDatabase()
+		})
+
 		It("Should execute select on all the fields of the database.", func() {
-
-			err := db.SetupForTestingDBGinkgo()
-			Expect(err).ToNot(HaveOccurred())
-
-			ctx := context.Background()
-
-			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
 
 			var applicationStates []db.ApplicationState
 			err = dbq.UnsafeListAllApplicationStates(ctx, &applicationStates)
@@ -83,7 +93,6 @@ var _ = Describe("Types Test", func() {
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
 
 			_, managedEnvironment, _, gitopsEngineInstance, clusterAccess, err := db.CreateSampleData(dbq)
 			Expect(err).ToNot(HaveOccurred())
@@ -124,7 +133,6 @@ var _ = Describe("Types Test", func() {
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
 
 			mapping := db.DeploymentToApplicationMapping{}
 			err = dbq.CheckedGetDeploymentToApplicationMappingByDeplId(ctx, &mapping, "")
@@ -141,7 +149,6 @@ var _ = Describe("Types Test", func() {
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
 
 			_, _, gitopsEngineCluster, gitopsEngineInstance, clusterAccess, err := db.CreateSampleData(dbq)
 			Expect(err).ToNot(HaveOccurred())
@@ -183,7 +190,6 @@ var _ = Describe("Types Test", func() {
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
 
 			_, managedEnvironment, _, _, clusterAccess, err := db.CreateSampleData(dbq)
 			Expect(err).ToNot(HaveOccurred())
@@ -226,7 +232,6 @@ var _ = Describe("Types Test", func() {
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
 
 			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
 			Expect(err).ToNot(HaveOccurred())
@@ -269,7 +274,6 @@ var _ = Describe("Types Test", func() {
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
 
 			clusterUser := db.ClusterUser{
 				Clusteruser_id: "test-my-cluster-user-2",
@@ -307,7 +311,6 @@ var _ = Describe("Types Test", func() {
 
 			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).ToNot(HaveOccurred())
-			defer dbq.CloseDatabase()
 
 			clusterCredentials := db.ClusterCredentials{
 				Clustercredentials_cred_id:  "test-cluster-creds-test",

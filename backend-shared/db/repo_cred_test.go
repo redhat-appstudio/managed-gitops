@@ -209,7 +209,7 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 		})
 
 		AfterEach(func() {
-			defer dbq.CloseDatabase()
+			dbq.CloseDatabase()
 		})
 
 		It("Should test Dispose function with missing database interface for RepositoryCredentials", func() {
@@ -227,6 +227,7 @@ var _ = Describe("RepositoryCredentials Tests", func() {
 
 			_, err = dbq.GetRepositoryCredentialsByID(ctx, gitopsRepositoryCredentials.RepositoryCredentialsID)
 			Expect(err).To(HaveOccurred())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 		})
 	})

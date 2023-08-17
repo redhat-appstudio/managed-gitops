@@ -42,7 +42,7 @@ var _ = Describe("Application Test", func() {
 		Expect(err).ToNot(HaveOccurred())
 	})
 	AfterEach(func() {
-		defer dbq.CloseDatabase()
+		dbq.CloseDatabase()
 	})
 	It("Should Create, Get, Update and Delete an Application", func() {
 		applicationget := db.Application{
@@ -140,6 +140,7 @@ var _ = Describe("Application Test", func() {
 
 			err = dbq.GetApplicationById(ctx, &applicationput)
 			Expect(err).To(HaveOccurred())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 		})
 	})

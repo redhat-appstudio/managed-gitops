@@ -52,7 +52,7 @@ var _ = Describe("ApplicationStates Tests", func() {
 	})
 
 	AfterEach(func() {
-		defer dbq.CloseDatabase()
+		dbq.CloseDatabase()
 	})
 	Context("It should execute all DB functions for ApplicationStates", func() {
 		It("Should execute all ApplicationStates Functions", func() {
@@ -104,6 +104,7 @@ var _ = Describe("ApplicationStates Tests", func() {
 
 			err = dbq.GetApplicationStateById(ctx, applicationState)
 			Expect(err).To(HaveOccurred())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 		})
 	})

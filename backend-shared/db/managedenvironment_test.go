@@ -46,7 +46,7 @@ var _ = Describe("Managedenvironment Test", func() {
 		Expect(err).ToNot(HaveOccurred())
 	})
 	AfterEach(func() {
-		defer dbq.CloseDatabase()
+		dbq.CloseDatabase()
 	})
 	It("Should Create, Get and Delete a ManagedEnvironment", func() {
 
@@ -138,6 +138,7 @@ var _ = Describe("Managedenvironment Test", func() {
 
 			err = dbq.GetManagedEnvironmentById(ctx, &managedEnvironment)
 			Expect(err).To(HaveOccurred())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 		})
 	})

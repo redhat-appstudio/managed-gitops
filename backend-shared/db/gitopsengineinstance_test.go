@@ -56,7 +56,7 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 	})
 
 	AfterEach(func() {
-		defer dbq.CloseDatabase()
+		dbq.CloseDatabase()
 	})
 
 	It("Should Create, Get and Delete a GitopsEngineInstance", func() {
@@ -180,6 +180,7 @@ var _ = Describe("Gitopsengineinstance Test", func() {
 
 			err = dbq.GetGitopsEngineInstanceById(ctx, &gitopsEngineInstance)
 			Expect(err).To(HaveOccurred())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 		})
 	})

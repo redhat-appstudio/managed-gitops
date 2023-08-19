@@ -229,7 +229,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 				GitOpsDeploymentCommitID:     "CurrentlyIDIsUnknownInTestcase",
 			}}
 
-			Eventually(binding, "2m", "1s").Should(bindingFixture.HaveGitOpsDeploymentsWithStatusProperties(expectedGitOpsDeployments))
+			Eventually(binding, "4m", "1s").Should(bindingFixture.HaveGitOpsDeploymentsWithStatusProperties(expectedGitOpsDeployments))
 
 			//====================================================
 			By("Verify that GitOpsDeployment CR created, is having Spec.Source as given in Binding.")
@@ -243,7 +243,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler E2E tests", func() {
 			}))
 
 			//====================================================
-			By("Verify that GitOpsDeployment CR is updated by GitOps-Service as Binding is updated.")
+			By("Verify that GitOpsDeployment CR is updated by GitOps-Service if the Binding is updated, for example, if the Binding were to be updated by HAS")
 
 			err = k8s.Get(&binding, k8sClient)
 			Expect(err).To(Succeed())

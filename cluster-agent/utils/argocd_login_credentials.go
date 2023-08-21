@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/go-logr/logr"
 	"github.com/golang/protobuf/ptypes/empty"
 	routev1 "github.com/openshift/api/route/v1"
@@ -72,7 +73,11 @@ type defaultClientGenerator struct {
 }
 
 func (dcg *defaultClientGenerator) generateClientForServerAddress(server string, optionalAuthToken string, skipTLSTest bool) (argocdclient.Client, error) {
-	return generateDefaultClientForServerAddress(server, optionalAuthToken, false)
+	tlsCfg := tlsConfig{
+		skipTLSTest: false,
+		testTLS:     grpc.TestTLS,
+	}
+	return generateDefaultClientForServerAddress(server, optionalAuthToken, tlsCfg)
 }
 
 // NewCredentialService is used to create a new instance of the Credential service.

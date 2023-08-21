@@ -960,10 +960,7 @@ func (cdb *ChaosDBClient) CountTotalOperationDBRows(ctx context.Context, obj *Op
 
 }
 
-func (cdb *ChaosDBClient) CountOperationDBRowsByState(ctx context.Context, obj *Operation) ([]struct {
-	State    string
-	RowCount int
-}, error) {
+func (cdb *ChaosDBClient) CountOperationDBRowsByState(ctx context.Context, obj *Operation) ([]OperationStateCount, error) {
 	if err := shouldSimulateFailure("CountOperationDBRowsByState", obj); err != nil {
 		return nil, err
 	}

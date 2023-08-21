@@ -190,10 +190,7 @@ type DatabaseQueries interface {
 	CountTotalOperationDBRows(ctx context.Context, operation *Operation) (int, error)
 
 	// CountOperationDBRowsByState updates the number of operation DB row in different states i.e, Waiting, In_Progress, Completed or Failed
-	CountOperationDBRowsByState(ctx context.Context, operation *Operation) ([]struct {
-		State    string
-		RowCount int
-	}, error)
+	CountOperationDBRowsByState(ctx context.Context, operation *Operation) ([]OperationStateCount, error)
 
 	// Get KubernetesToDBResourceMapping in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offset'.
 	GetKubernetesToDBResourceMappingBatch(ctx context.Context, k8sToDBResourceMapping *[]KubernetesToDBResourceMapping, limit, offset int) error

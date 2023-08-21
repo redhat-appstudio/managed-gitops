@@ -2,6 +2,7 @@ package db_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -295,6 +296,87 @@ var _ = Describe("Operations Test", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
+		})
+	})
+
+	Context("Test CountTotalOperationDBRows function", func() {
+		It("should return 0 if there are no operation rows", func() {
+			operation := &db.Operation{}
+			count, err := dbq.CountTotalOperationDBRows(ctx, operation)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(count).To(BeZero())
+		})
+		It("should return the number of operation rows", func() {
+			operationCount := 4
+			operation := &db.Operation{
+				Operation_id:            "test-operation-1",
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "test-fake-resource-id",
+				Resource_type:           "GitopsEngineInstance",
+				State:                   db.OperationState_Waiting,
+				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+			}
+
+			for i := 1; i <= operationCount; i++ {
+				operation.Operation_id = fmt.Sprintf("test-operation-%d", i)
+				err := dbq.CreateOperation(ctx, operation, operation.Operation_owner_user_id)
+				Expect(err).ToNot(HaveOccurred())
+			}
+
+			count, err := dbq.CountTotalOperationDBRows(ctx, operation)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(count).To(Equal(operationCount))
+		})
+	})
+
+	Context("Test CountOperationDBRowsByState function", func() {
+		It("should return an empty slice if there are no operation rows", func() {
+			operation := &db.Operation{}
+			states, err := dbq.CountOperationDBRowsByState(ctx, operation)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(states).To(BeEmpty())
+		})
+
+		It("should return the number of operation rows with states", func() {
+			By("add Operations with different states")
+			expectedStatesMap := map[db.OperationState]int{
+				db.OperationState_Completed:   2,
+				db.OperationState_Failed:      2,
+				db.OperationState_In_Progress: 1,
+				db.OperationState_Waiting:     1,
+			}
+
+			operation := &db.Operation{
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "test-fake-resource-id",
+				Resource_type:           "GitopsEngineInstance",
+				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+			}
+
+			var count int
+			for state, rowCount := range expectedStatesMap {
+				for i := 1; i <= rowCount; i++ {
+					count++
+					operation.Operation_id = fmt.Sprintf("test-operation-%d", count)
+					err := dbq.CreateOperation(ctx, operation, operation.Operation_owner_user_id)
+					Expect(err).ToNot(HaveOccurred())
+
+					operation.State = state
+					err = dbq.UpdateOperation(ctx, operation)
+					Expect(err).To(BeNil())
+				}
+			}
+
+			By("verify if the states and their row count match")
+			states, err := dbq.CountOperationDBRowsByState(ctx, operation)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(states)).To(Equal(len(expectedStatesMap)))
+
+			for _, state := range states {
+				rowCount, found := expectedStatesMap[db.OperationState(state.State)]
+				Expect(found).To(BeTrue())
+				Expect(rowCount).To(Equal(state.RowCount))
+			}
 		})
 	})
 })

@@ -45,6 +45,8 @@ spec:
             secretKeyRef:
               key: postgresql-password
               name: gitops-postgresql-staging
+        - name: ENABLE_APPPROJECT_ISOLATION
+          value: "true"
         image: ${COMMON_IMAGE}
         livenessProbe:
           httpGet:

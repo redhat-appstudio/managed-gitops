@@ -307,27 +307,26 @@ func (dbq *PostgreSQLDatabaseQueries) CountTotalOperationDBRows(ctx context.Cont
 	return count, nil
 }
 
-func (dbq *PostgreSQLDatabaseQueries) CountOperationDBRowsByState(ctx context.Context, operation *Operation) ([]struct {
+type OperationStateCount struct {
 	State    string
 	RowCount int
-}, error) {
+}
 
-	var res []struct {
-		State    string
-		RowCount int
-	}
+func (dbq *PostgreSQLDatabaseQueries) CountOperationDBRowsByState(ctx context.Context, operation *Operation) ([]OperationStateCount, error) {
+
+	opStateCount := []OperationStateCount{}
 	err := dbq.dbConnection.Model(operation).
 		Column("state").
 		ColumnExpr("count(*) AS row_count").
 		Group("state").
 		Order("row_count DESC").
-		Select(&res)
+		Select(&opStateCount)
 
 	if err != nil {
 		return nil, fmt.Errorf("error on counting number of operation DB rows based on state: %w", err)
 	}
 
-	return res, nil
+	return opStateCount, nil
 }
 
 // Get operations in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.

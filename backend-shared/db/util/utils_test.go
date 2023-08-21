@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -9,9 +10,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 
 	"github.com/go-logr/logr"
+	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/db/util/mocks"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -883,6 +886,8 @@ var _ = Describe("Test utility functions.", func() {
 		var dbq db.AllDatabaseQueries
 		var err error
 		var log logr.Logger
+		var mockUtil *mocks.MockDisposableResource
+		var mockCtrl *gomock.Controller
 
 		BeforeEach(func() {
 
@@ -894,19 +899,23 @@ var _ = Describe("Test utility functions.", func() {
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).ToNot(HaveOccurred())
 
+			mockCtrl = gomock.NewController(GinkgoT())
+			mockUtil = mocks.NewMockDisposableResource(mockCtrl)
+
 		})
 
 		AfterEach(func() {
 			dbq.CloseDatabase()
+			mockCtrl.Finish()
 		})
 
 		It("Test DisposeResources function where len of resources is zero", func() {
 
-			resources := []db.DisposableResource{}
-
-			DisposeResources(ctx, resources, dbq, log)
-
-			Expect(resources).To(BeEmpty())
+			mockResources := []db.DisposableResource{
+				mockUtil,
+			}
+			mockUtil.EXPECT().Dispose(ctx, dbq).Return(fmt.Errorf("dispose error"))
+			DisposeResources(ctx, mockResources, dbq, log)
 		})
 
 		It("Test DisposeResources function to check whether it deletes the resources", func() {
@@ -967,7 +976,8 @@ var _ = Describe("Test utility functions.", func() {
 			err = dbq.CreateClusterAccess(ctx, &clusterAccess)
 			Expect(err).ToNot(HaveOccurred())
 
-			resources := []db.DisposableResource{
+			mockResources := []db.DisposableResource{
+				mockUtil,
 				&clusterCredentials,
 				&gitopsEngineCluster,
 				&gitopsEngineInstance,
@@ -992,7 +1002,8 @@ var _ = Describe("Test utility functions.", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("Call DisposeResources function")
-			DisposeResources(ctx, resources, dbq, log)
+			mockUtil.EXPECT().Dispose(ctx, dbq).Return(nil)
+			DisposeResources(ctx, mockResources, dbq, log)
 
 			By("Check whether DisposeResources function deleted the resources")
 
@@ -1019,6 +1030,8 @@ var _ = Describe("Test utility functions.", func() {
 		var dbq db.AllDatabaseQueries
 		var err error
 		var log logr.Logger
+		var mockUtil *mocks.MockAppScopedDisposableResource
+		var mockCtrl *gomock.Controller
 
 		BeforeEach(func() {
 			err = db.SetupForTestingDBGinkgo()
@@ -1029,19 +1042,23 @@ var _ = Describe("Test utility functions.", func() {
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).ToNot(HaveOccurred())
 
+			mockCtrl = gomock.NewController(GinkgoT())
+			mockUtil = mocks.NewMockAppScopedDisposableResource(mockCtrl)
+
 		})
 
 		AfterEach(func() {
 			dbq.CloseDatabase()
+			mockCtrl.Finish()
 		})
 
 		It("Test DisposeApplicationScopedResources function where len of resources is zero", func() {
 
-			resources := []db.AppScopedDisposableResource{}
-
-			DisposeApplicationScopedResources(ctx, resources, dbq, log)
-
-			Expect(resources).To(BeEmpty())
+			mockResources := []db.AppScopedDisposableResource{
+				mockUtil,
+			}
+			mockUtil.EXPECT().DisposeAppScoped(ctx, dbq).Return(fmt.Errorf("disposeAppScoped error"))
+			DisposeApplicationScopedResources(ctx, mockResources, dbq, log)
 		})
 
 		It("Test DisposeApplicationScopedResources function to check whether it deletes the resources", func() {
@@ -1089,7 +1106,7 @@ var _ = Describe("Test utility functions.", func() {
 				Last_state_update:       time.Now(),
 			}
 
-			By("Create resources to pass it in DisposeResources function")
+			By("Create resources to pass it in DisposeApplicationScopedResources function")
 			err = dbq.CreateClusterUser(ctx, &clusterUser)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -1105,17 +1122,19 @@ var _ = Describe("Test utility functions.", func() {
 			err = dbq.CreateOperation(ctx, operation, operation.Operation_owner_user_id)
 			Expect(err).ToNot(HaveOccurred())
 
-			resources := []db.AppScopedDisposableResource{
+			mockResources := []db.AppScopedDisposableResource{
+				mockUtil,
 				operation,
 				&application,
 				&item,
 				&applicationState,
 			}
 
-			By("Call DisposeResources function")
-			DisposeApplicationScopedResources(ctx, resources, dbq, log)
+			By("Call DisposeApplicationScopedResources function")
+			mockUtil.EXPECT().DisposeAppScoped(ctx, dbq).Return(nil)
+			DisposeApplicationScopedResources(ctx, mockResources, dbq, log)
 
-			By("Check whether DisposeResources function deleted the resources")
+			By("Check whether DisposeApplicationScopedResources function deleted the resources")
 			err = dbq.GetApplicationById(ctx, &application)
 			Expect(err).To(HaveOccurred())
 

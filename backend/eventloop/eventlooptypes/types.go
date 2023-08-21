@@ -52,7 +52,7 @@ type EventLoopMessage struct {
 	MessageType EventLoopMessageType
 	Event       *EventLoopEvent
 
-	// ShutdownSignalled is included as part of workComplete message, to indicate that the goroutine has succesfully shut down.
+	// ShutdownSignalled is included as part of workComplete message, to indicate that the goroutine has successfully shut down.
 	ShutdownSignalled bool
 }
 

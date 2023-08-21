@@ -1081,7 +1081,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 		When("the function is passed a valid chain of DT to DTC to Environment to SEB", func() {
 
-			It("should succesfully return the namespaced name of the SEB ", func() {
+			It("should successfully return the namespaced name of the SEB ", func() {
 
 				By("create a new DeploymentTarget")
 				dt := appstudiosharedv1.DeploymentTarget{
@@ -1220,7 +1220,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 		When("the function is passed a valid chain of DTC to Environment to SEB", func() {
 
-			It("should succesfully return the namespaced name of the SEB ", func() {
+			It("should successfully return the namespaced name of the SEB ", func() {
 
 				By("create a DeploymentTargetClaim that can bind to the above DeploymentTarget")
 				dtc := appstudiosharedv1.DeploymentTargetClaim{
@@ -1285,7 +1285,7 @@ var _ = Describe("SnapshotEnvironmentBinding Reconciler Tests", func() {
 
 		When("the function is passed a DTC that points to Environment, but the Environment does not link to the SEB", func() {
 
-			It("should succesfully return empty set", func() {
+			It("should successfully return empty set", func() {
 
 				By("create a DeploymentTargetClaim that can bind to the above DeploymentTarget")
 				dtc := appstudiosharedv1.DeploymentTargetClaim{

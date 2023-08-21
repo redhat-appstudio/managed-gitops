@@ -1063,7 +1063,7 @@ func deleteArgoCDApplicationOfDeletedApplicationRow(ctx context.Context, dbAppli
 				log.Error(err, "Unable to delete AppProject resource")
 				return shouldRetryTrue, err
 			}
-			log.Info("Succesfully deleted AppProject resource", "appProject", appProject.Name)
+			log.Info("Successfully deleted AppProject resource", "appProject", appProject.Name)
 		}
 	} else {
 		shouldRetry, err := createOrUpdateAppProjectWithValidation(ctx, dbOperation, opConfig, log)

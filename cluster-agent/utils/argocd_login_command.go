@@ -14,7 +14,12 @@ import (
 
 // This file is loosely based on the 'argocd login' CLI command (https://github.com/argoproj/argo-cd/blob/0a46d37fc6af9fe0aa963bdd845e3d799aa0320d/cmd/argocd/commands/login.go#L60)
 
-func generateDefaultClientForServerAddress(server string, optionalAuthToken string, skipTLSTest bool) (argocdclient.Client, error) {
+type tlsConfig struct {
+	skipTLSTest bool
+	testTLS     func(addr string, dialtime time.Duration) (*grpc_util.TLSTestResult, error)
+}
+
+func generateDefaultClientForServerAddress(server string, optionalAuthToken string, tlsCfg tlsConfig) (argocdclient.Client, error) {
 
 	globalClientOpts := argocdclient.ClientOptions{
 		ConfigPath:           "",
@@ -34,11 +39,11 @@ func generateDefaultClientForServerAddress(server string, optionalAuthToken stri
 		server = "port-forward"
 	} else if globalClientOpts.Core {
 		server = "kubernetes"
-	} else if skipTLSTest {
+	} else if tlsCfg.skipTLSTest {
 		// skip test
 	} else {
 		dialTime := 30 * time.Second
-		tlsTestResult, err := grpc_util.TestTLS(server, dialTime)
+		tlsTestResult, err := tlsCfg.testTLS(server, dialTime)
 		if err != nil {
 			return nil, err
 		}

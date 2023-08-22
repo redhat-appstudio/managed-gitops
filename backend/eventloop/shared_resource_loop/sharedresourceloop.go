@@ -46,7 +46,7 @@ type SharedResourceEventLoop struct {
 	inputChannel chan sharedResourceLoopMessage
 }
 
-// ReconcileAppProjectRepositories ensures that the necessary AppProjectRepository database rows exists in the database, and that that they are consistent with the GitOpsDeployment/GitOpsDeploymentRepositoryCredentials defined in the given Namespace.
+// ReconcileAppProjectRepositories ensures that the necessary AppProjectRepository database rows exists in the database, and that they are consistent with the GitOpsDeployment/GitOpsDeploymentRepositoryCredentials defined in the given Namespace.
 //
 // parameters:
 // - gitRepoURLUnnormalizedOfRequest is the repository URL defined in the GitOpDeployment or GitOpsDeploymentRepositoryCredential for which
@@ -524,7 +524,7 @@ func internalProcessMessage_reconcileAppProjectRepositories(ctx context.Context,
 	return reconcileAppProjectRepositories(ctx, payload.repoURLUnnormalizedFromRequest, namespace, workspaceClient, dbQueries, l)
 }
 
-// reconcileAppProjectRepositories ensures that the necessary AppProjectRepository database rows exists in the database, and that that they are consistent with the GitOpsDeployment/GitOpsDeploymentRepositoryCredentials defined in the Namespace.
+// reconcileAppProjectRepositories ensures that the necessary AppProjectRepository database rows exists in the database, and that they are consistent with the GitOpsDeployment/GitOpsDeploymentRepositoryCredentials defined in the Namespace.
 //
 // parameters:
 // - gitRepoURLUnnormalizedOfRequest is the repository URL defined in the GitOpDeployment or GitOpsDeploymentRepositoryCredential for which

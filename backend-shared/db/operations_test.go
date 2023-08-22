@@ -363,14 +363,14 @@ var _ = Describe("Operations Test", func() {
 
 					operation.State = state
 					err = dbq.UpdateOperation(ctx, operation)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 			}
 
 			By("verify if the states and their row count match")
 			states, err := dbq.CountOperationDBRowsByState(ctx, operation)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(len(states)).To(Equal(len(expectedStatesMap)))
+			Expect(states).To(HaveLen(len(expectedStatesMap)))
 
 			for _, state := range states {
 				rowCount, found := expectedStatesMap[db.OperationState(state.State)]

@@ -169,7 +169,7 @@ var _ = Describe("AppProjectRepository Test", func() {
 			appProjectRepositories := []db.AppProjectRepository{}
 			err = dbq.ListAppProjectRepositoryByClusterUserId(ctx, clusterUser.Clusteruser_id, &appProjectRepositories)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(len(appProjectRepositories)).To(Equal(expectedRows))
+			Expect(appProjectRepositories).To(HaveLen(expectedRows))
 
 			for _, appRepo := range appProjectRepositories {
 				expectedAppRepo, found := appProjectRepoMap[appRepo.AppprojectRepositoryID]

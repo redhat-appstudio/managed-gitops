@@ -80,7 +80,7 @@ var _ = Describe("AppProjectManagedEnvironment Test", func() {
 		It("should return 0 if there are no clusterusers", func() {
 			appProjEnv := &db.AppProjectManagedEnvironment{}
 			rows, err := dbq.CountAppProjectManagedEnvironmentByClusterUserID(ctx, appProjEnv)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rows).To(BeZero())
 		})
 
@@ -139,9 +139,16 @@ var _ = Describe("AppProjectManagedEnvironment Test", func() {
 			appProjectManagedEnvs := []db.AppProjectManagedEnvironment{}
 			err = dbq.ListAppProjectManagedEnvironmentByClusterUserId(ctx, clusterUser.Clusteruser_id, &appProjectManagedEnvs)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(len(appProjectManagedEnvs)).To(Equal(1))
+			Expect(appProjectManagedEnvs).To(HaveLen(1))
 			Expect(appProjectManagedEnvs[0]).To(Equal(appProjectManagedEnv))
 
+		})
+
+		It("should return an error if an empty clusterID is passed", func() {
+			appProjectManagedEnvs := []db.AppProjectManagedEnvironment{}
+			err := dbq.ListAppProjectManagedEnvironmentByClusterUserId(ctx, "", &appProjectManagedEnvs)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("primary key is empty"))
 		})
 
 		It("should return an empty slice if there are no AppProjectManagedEnvironment with the given clusterUserID", func() {

@@ -253,7 +253,7 @@ var _ = Describe("ClusterAccess Tests", func() {
 			clusterAccessList := []db.ClusterAccess{}
 			err = dbq.ListClusterAccessesByManagedEnvironmentID(ctx, managedEnvironment.Managedenvironment_id, &clusterAccessList)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(len(clusterAccessList)).To(Equal(1))
+			Expect(clusterAccessList).To(HaveLen(1))
 
 			Expect(clusterAccessList[0]).To(Equal(*clusterAccess))
 		})

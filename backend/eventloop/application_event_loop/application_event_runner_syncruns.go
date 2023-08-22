@@ -532,8 +532,10 @@ func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSyncRunEvent(ctx 
 	if err := dbQueries.CreateAPICRToDatabaseMapping(ctx, &newApiCRToDBMapping); err != nil {
 		log.Error(err, "unable to create api to db mapping in database")
 
-		// If we were unable to retrieve the client, delete the resources we created in the previous steps
-		dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log)
+		// If we were unable to create the operation, delete the resources we created in the previous steps
+		if disposeErr := dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log); disposeErr != nil {
+			log.Error(disposeErr, "unable to dispose of old resources on sync run create")
+		}
 
 		return gitopserrors.NewDevOnlyError(err)
 	}
@@ -545,7 +547,9 @@ func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSyncRunEvent(ctx 
 		log.Error(err, "unable to retrieve gitopsengine instance from handleSyncRunModified")
 
 		// If we were unable to retrieve the client, delete the resources we created in the previous steps
-		dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log)
+		if disposeErr := dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log); disposeErr != nil {
+			log.Error(disposeErr, "unable to dispose of old resources on sync run create")
+		}
 
 		// Return the original error
 		return gitopserrors.NewDevOnlyError(err)
@@ -563,7 +567,9 @@ func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSyncRunEvent(ctx 
 		log.Error(err, "could not create operation", "namespace", gitopsEngineInstance.Namespace_name)
 
 		// If we were unable to create the operation, delete the resources we created in the previous steps
-		dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log)
+		if disposeErr := dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log); disposeErr != nil {
+			log.Error(disposeErr, "unable to dispose of old resources on sync run create")
+		}
 
 		return gitopserrors.NewDevOnlyError(err)
 	}

@@ -10,11 +10,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 
 	"github.com/go-logr/logr"
-	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/db/util/mocks"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -886,8 +884,6 @@ var _ = Describe("Test utility functions.", func() {
 		var dbq db.AllDatabaseQueries
 		var err error
 		var log logr.Logger
-		var mockUtil *mocks.MockDisposableResource
-		var mockCtrl *gomock.Controller
 
 		BeforeEach(func() {
 
@@ -899,23 +895,19 @@ var _ = Describe("Test utility functions.", func() {
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).ToNot(HaveOccurred())
 
-			mockCtrl = gomock.NewController(GinkgoT())
-			mockUtil = mocks.NewMockDisposableResource(mockCtrl)
-
 		})
 
 		AfterEach(func() {
 			dbq.CloseDatabase()
-			mockCtrl.Finish()
 		})
 
 		It("Test DisposeResources function where len of resources is zero", func() {
 
-			mockResources := []db.DisposableResource{
-				mockUtil,
-			}
-			mockUtil.EXPECT().Dispose(ctx, dbq).Return(fmt.Errorf("dispose error"))
-			DisposeResources(ctx, mockResources, dbq, log)
+			resources := []db.DisposableResource{}
+
+			Expect(DisposeResources(ctx, resources, dbq, log)).ToNot(HaveOccurred())
+
+			Expect(resources).To(BeEmpty())
 		})
 
 		It("Test DisposeResources function to check whether it deletes the resources", func() {
@@ -976,8 +968,7 @@ var _ = Describe("Test utility functions.", func() {
 			err = dbq.CreateClusterAccess(ctx, &clusterAccess)
 			Expect(err).ToNot(HaveOccurred())
 
-			mockResources := []db.DisposableResource{
-				mockUtil,
+			resources := []db.DisposableResource{
 				&clusterCredentials,
 				&gitopsEngineCluster,
 				&gitopsEngineInstance,
@@ -1002,8 +993,7 @@ var _ = Describe("Test utility functions.", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("Call DisposeResources function")
-			mockUtil.EXPECT().Dispose(ctx, dbq).Return(nil)
-			DisposeResources(ctx, mockResources, dbq, log)
+			Expect(DisposeResources(ctx, resources, dbq, log)).ToNot(HaveOccurred())
 
 			By("Check whether DisposeResources function deleted the resources")
 
@@ -1023,6 +1013,22 @@ var _ = Describe("Test utility functions.", func() {
 			Expect(err).To(HaveOccurred())
 
 		})
+
+		It("should return an error when the resource could not be disposed", func() {
+
+			fakeDisposeObj := &mockSimulateErrorResourceDisposer{}
+
+			fakeResourceList := []db.DisposableResource{
+				nil, // it should ignore a nil resource
+				fakeDisposeObj,
+				fakeDisposeObj,
+			}
+
+			Expect(DisposeResources(context.Background(), fakeResourceList, dbq, log)).To(HaveOccurred())
+
+			Expect(fakeDisposeObj.functionCalled).To(BeTrue())
+		})
+
 	})
 
 	Context("Test DisposeApplicationScopedResources function", func() {
@@ -1030,8 +1036,6 @@ var _ = Describe("Test utility functions.", func() {
 		var dbq db.AllDatabaseQueries
 		var err error
 		var log logr.Logger
-		var mockUtil *mocks.MockAppScopedDisposableResource
-		var mockCtrl *gomock.Controller
 
 		BeforeEach(func() {
 			err = db.SetupForTestingDBGinkgo()
@@ -1042,23 +1046,19 @@ var _ = Describe("Test utility functions.", func() {
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).ToNot(HaveOccurred())
 
-			mockCtrl = gomock.NewController(GinkgoT())
-			mockUtil = mocks.NewMockAppScopedDisposableResource(mockCtrl)
-
 		})
 
 		AfterEach(func() {
 			dbq.CloseDatabase()
-			mockCtrl.Finish()
 		})
 
 		It("Test DisposeApplicationScopedResources function where len of resources is zero", func() {
 
-			mockResources := []db.AppScopedDisposableResource{
-				mockUtil,
-			}
-			mockUtil.EXPECT().DisposeAppScoped(ctx, dbq).Return(fmt.Errorf("disposeAppScoped error"))
-			DisposeApplicationScopedResources(ctx, mockResources, dbq, log)
+			resources := []db.AppScopedDisposableResource{}
+
+			Expect(DisposeApplicationScopedResources(ctx, resources, dbq, log)).ToNot(HaveOccurred())
+
+			Expect(resources).To(BeEmpty())
 		})
 
 		It("Test DisposeApplicationScopedResources function to check whether it deletes the resources", func() {
@@ -1106,7 +1106,7 @@ var _ = Describe("Test utility functions.", func() {
 				Last_state_update:       time.Now(),
 			}
 
-			By("Create resources to pass it in DisposeApplicationScopedResources function")
+			By("Create resources to pass it in DisposeResources function")
 			err = dbq.CreateClusterUser(ctx, &clusterUser)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -1122,19 +1122,17 @@ var _ = Describe("Test utility functions.", func() {
 			err = dbq.CreateOperation(ctx, operation, operation.Operation_owner_user_id)
 			Expect(err).ToNot(HaveOccurred())
 
-			mockResources := []db.AppScopedDisposableResource{
-				mockUtil,
+			resources := []db.AppScopedDisposableResource{
 				operation,
 				&application,
 				&item,
 				&applicationState,
 			}
 
-			By("Call DisposeApplicationScopedResources function")
-			mockUtil.EXPECT().DisposeAppScoped(ctx, dbq).Return(nil)
-			DisposeApplicationScopedResources(ctx, mockResources, dbq, log)
+			By("Call DisposeResources function")
+			Expect(DisposeApplicationScopedResources(ctx, resources, dbq, log)).ToNot(HaveOccurred())
 
-			By("Check whether DisposeApplicationScopedResources function deleted the resources")
+			By("Check whether DisposeResources function deleted the resources")
 			err = dbq.GetApplicationById(ctx, &application)
 			Expect(err).To(HaveOccurred())
 
@@ -1147,5 +1145,34 @@ var _ = Describe("Test utility functions.", func() {
 			err = dbq.GetAPICRForDatabaseUID(ctx, &item)
 			Expect(err).To(HaveOccurred())
 		})
+
+		It("should return an error when the resource could not be disposed", func() {
+
+			fakeDisposeObj := &mockSimulateErrorResourceDisposer{}
+
+			fakeResourceList := []db.AppScopedDisposableResource{
+				nil, // ignore a nil resource
+				fakeDisposeObj,
+				fakeDisposeObj,
+			}
+
+			Expect(DisposeApplicationScopedResources(context.Background(), fakeResourceList, dbq, log)).To(HaveOccurred())
+
+			Expect(fakeDisposeObj.functionCalled).To(BeTrue())
+		})
 	})
 })
+
+type mockSimulateErrorResourceDisposer struct {
+	functionCalled bool
+}
+
+func (obj *mockSimulateErrorResourceDisposer) DisposeAppScoped(ctx context.Context, dbq db.ApplicationScopedQueries) error {
+	obj.functionCalled = true
+	return fmt.Errorf("simulated error")
+}
+
+func (obj *mockSimulateErrorResourceDisposer) Dispose(ctx context.Context, dbq db.DatabaseQueries) error {
+	obj.functionCalled = true
+	return fmt.Errorf("simulated error")
+}

@@ -2,6 +2,7 @@ package db_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -152,4 +153,43 @@ var _ = Describe("Application Test", func() {
 		})
 	})
 
+	Context("Test ListApplicationsForManagedEnvironment function", func() {
+		It("should list Applications for a given ManagedEnvironment", func() {
+			app := &db.Application{
+				Application_id:          "test-my-application",
+				Name:                    "my-application",
+				Spec_field:              "{}",
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+
+			expectedRows := 4
+			for i := 1; i <= expectedRows; i++ {
+				app.Application_id = fmt.Sprintf("test-app-%d", i)
+				err := dbq.CreateApplication(ctx, app)
+				Expect(err).ToNot(HaveOccurred())
+			}
+
+			apps := []db.Application{}
+			count, err := dbq.ListApplicationsForManagedEnvironment(ctx, managedEnvironment.Managedenvironment_id, &apps)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(count).To(Equal(expectedRows))
+		})
+
+		It("should return an error if the ManagedEnvironment ID is empty", func() {
+			apps := []db.Application{}
+			count, err := dbq.ListApplicationsForManagedEnvironment(ctx, "", &apps)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("primary key is empty"))
+			Expect(count).To(BeZero())
+		})
+
+		It("should return an empty slice if there are no Applications for a given Environment", func() {
+			apps := []db.Application{}
+			count, err := dbq.ListApplicationsForManagedEnvironment(ctx, "invalid-id", &apps)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(count).To(BeZero())
+			Expect(apps).To(BeEmpty())
+		})
+	})
 })

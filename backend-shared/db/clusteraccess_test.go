@@ -244,4 +244,32 @@ var _ = Describe("ClusterAccess Tests", func() {
 
 		})
 	})
+
+	Context("Test ListClusterAccessesByManagedEnvironmentID function", func() {
+		It("should return a list of ClusterAccess for a given managed environment", func() {
+			_, managedEnvironment, _, _, clusterAccess, err := db.CreateSampleData(dbq)
+			Expect(err).ToNot(HaveOccurred())
+
+			clusterAccessList := []db.ClusterAccess{}
+			err = dbq.ListClusterAccessesByManagedEnvironmentID(ctx, managedEnvironment.Managedenvironment_id, &clusterAccessList)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(clusterAccessList)).To(Equal(1))
+
+			Expect(clusterAccessList[0]).To(Equal(*clusterAccess))
+		})
+
+		It("should return an error if ClusterAccess query parameter is nil", func() {
+			err := dbq.ListClusterAccessesByManagedEnvironmentID(ctx, "sample-ID", nil)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("clusterAccesses query parameter is nil"))
+		})
+
+		It("should return an error if an empty managedEnviroment ID is passed", func() {
+			clusterAccessList := []db.ClusterAccess{}
+			err := dbq.ListClusterAccessesByManagedEnvironmentID(ctx, "", &clusterAccessList)
+			Expect(err).To(HaveOccurred())
+			expectedErrMsg := "managedEnvironmentID field should not be empty string, in ListClusterAccessByManagedEnvironmentID"
+			Expect(err.Error()).To(Equal(expectedErrMsg))
+		})
+	})
 })

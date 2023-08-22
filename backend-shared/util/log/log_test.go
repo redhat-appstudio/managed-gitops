@@ -56,8 +56,8 @@ var _ = Describe("LogAPIResourceChangeEvent test", func() {
 		})
 	})
 
-	Context("when resource is not a Secret", func() {
-		It("should log the general resource change", func() {
+	Context("when the resource can't be marshalled", func() {
+		It("should log a marshalling error", func() {
 			resource := make(chan int)
 			expectedErr := &json.UnsupportedTypeError{
 				Type: reflect.TypeOf(resource),

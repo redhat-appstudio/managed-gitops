@@ -845,15 +845,6 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(usrNew.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 			Expect(usrOld).To(Equal(usrNew))
 
-			// To be used by AfterEach to clean up the resources created by test
-			resourcesToBeDeleted = testResources{
-				Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
-				EngineCluster_id:        gitopsEngineInstance.EngineCluster_id,
-				Clustercredentials_id: []string{
-					clusterCredentials.Clustercredentials_cred_id,
-				},
-			}
-
 			By("Create new GitOpsDeploymentRepositoryCredential")
 			cr := &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
 				ObjectMeta: metav1.ObjectMeta{
@@ -936,9 +927,113 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			Expect(getappProjectRepositoryDB).NotTo(BeNil())
 			Expect(getappProjectRepositoryDB.RepoURL).To(Equal("http://github.com/jgwest/my-repo"))
 
+			// To be used by AfterEach to clean up the resources created by test
 			resourcesToBeDeleted = testResources{
-				AppProjectRepository: getappProjectRepositoryDB,
+				Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				AppProjectRepository:    getappProjectRepositoryDB,
+
+				Clustercredentials_id: []string{
+					clusterCredentials.Clustercredentials_cred_id,
+				},
+				EngineCluster_id: gitopsEngineInstance.EngineCluster_id,
 			}
+		})
+
+		It("Should test ReconcileRepositoryCredential when RepositoryCredential CR is not nil", func() {
+			sharedResourceEventLoop := &SharedResourceEventLoop{inputChannel: make(chan sharedResourceLoopMessage)}
+
+			go internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
+
+			// Create new engine instance which will be used by "GetGitopsEngineInstanceById" fucntion
+			dbq, err := db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).ToNot(HaveOccurred())
+
+			clusterCredentials := db.ClusterCredentials{
+				Clustercredentials_cred_id: string(uuid.NewUUID()),
+			}
+
+			gitopsEngineCluster := db.GitopsEngineCluster{
+				Gitopsenginecluster_id: string(uuid.NewUUID()),
+				Clustercredentials_id:  clusterCredentials.Clustercredentials_cred_id,
+			}
+
+			gitopsEngineInstance := db.GitopsEngineInstance{
+				Gitopsengineinstance_id: string(uuid.NewUUID()),
+				Namespace_name:          "gitops-service-argocd",
+				Namespace_uid:           string(namespace.UID),
+				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+			}
+
+			err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
+			Expect(err).ToNot(HaveOccurred())
+
+			cr := &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-gitopsdeploymenrepositorycredential",
+					Namespace: gitopsEngineInstance.Namespace_name,
+					UID:       uuid.NewUUID(),
+				},
+				Spec: managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialSpec{
+					Repository: "https://fakegithub.com/test/test-repository",
+					Secret:     "test-secret",
+				}}
+
+			err = k8sClient.Create(ctx, cr)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Create new Secret
+			secret := &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-secret",
+					Namespace: gitopsEngineInstance.Namespace_name,
+				},
+				Data: map[string][]byte{
+					"username": []byte("test-username"),
+					"password": []byte("test-password"),
+				},
+			}
+			err = k8sClient.Create(ctx, secret)
+			Expect(err).ToNot(HaveOccurred())
+
+			defer dbq.CloseDatabase()
+			var repositoryCredentialCRNamespace v1.Namespace
+			repositoryCredentialCRNamespace.Name = gitopsEngineInstance.Namespace_name
+			repositoryCredentialCRNamespace.UID = types.UID(gitopsEngineInstance.Namespace_uid)
+
+			dbRepoCred, err := internalProcessMessage_ReconcileRepositoryCredential(ctx, cr.Name, repositoryCredentialCRNamespace, k8sClient, dbq, false, l)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(dbRepoCred).ToNot(BeNil())
+
+			sharedResourceEventLoopRepoCred, err := sharedResourceEventLoop.ReconcileRepositoryCredential(ctx, k8sClient, repositoryCredentialCRNamespace, cr.Name, MockSRLK8sClientFactory{fakeClient: k8sClient})
+			Expect(sharedResourceEventLoopRepoCred.RepositoryCredentialsID).To(Equal(dbRepoCred.RepositoryCredentialsID))
+			Expect(err).ToNot(HaveOccurred())
+			// To be used by AfterEach to clean up the resources created by test
+			resourcesToBeDeleted = testResources{
+				Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				EngineCluster_id:        gitopsEngineInstance.EngineCluster_id,
+				Clustercredentials_id: []string{
+					clusterCredentials.Clustercredentials_cred_id,
+				},
+			}
+
+		})
+
+		It("Should test ReconcileRepositoryCredential when RepositoryCredential CR is nil", func() {
+			sharedResourceEventLoop := &SharedResourceEventLoop{inputChannel: make(chan sharedResourceLoopMessage)}
+
+			go internalSharedResourceEventLoop(sharedResourceEventLoop.inputChannel)
+
+			sharedResourceLoop, err := sharedResourceEventLoop.ReconcileRepositoryCredential(ctx, k8sClient, *namespace, "test-name", MockSRLK8sClientFactory{fakeClient: k8sClient})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(sharedResourceLoop).To(BeNil())
+
+			resourcesToBeDeleted = testResources{}
 		})
 
 	})

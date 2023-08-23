@@ -34,6 +34,7 @@ var _ = Describe("Tests for the small number of utility functions in cluster-age
 		var err error
 
 		simulateArgoCD := func(goApplication *appv1.Application) {
+			defer GinkgoRecover()
 			Eventually(func() bool {
 
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(goApplication), goApplication)

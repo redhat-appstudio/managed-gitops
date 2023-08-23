@@ -13,9 +13,12 @@ import (
 
 var _ = Describe("ClusterAccess Tests", func() {
 
-	var ctx context.Context
-	var clusterAccess db.ClusterAccess
-	var dbq db.AllDatabaseQueries
+	var (
+		ctx                context.Context
+		clusterAccess      db.ClusterAccess
+		dbq                db.AllDatabaseQueries
+		managedEnvironment db.ManagedEnvironment
+	)
 
 	BeforeEach(func() {
 
@@ -43,7 +46,7 @@ var _ = Describe("ClusterAccess Tests", func() {
 			Serviceaccount_ns:           "Serviceaccount_ns",
 		}
 
-		managedEnvironment := db.ManagedEnvironment{
+		managedEnvironment = db.ManagedEnvironment{
 			Managedenvironment_id: "test-managed-env-5",
 			Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
 			Name:                  "my env",
@@ -247,15 +250,12 @@ var _ = Describe("ClusterAccess Tests", func() {
 
 	Context("Test ListClusterAccessesByManagedEnvironmentID function", func() {
 		It("should return a list of ClusterAccess for a given managed environment", func() {
-			_, managedEnvironment, _, _, clusterAccess, err := db.CreateSampleData(dbq)
-			Expect(err).ToNot(HaveOccurred())
-
 			clusterAccessList := []db.ClusterAccess{}
-			err = dbq.ListClusterAccessesByManagedEnvironmentID(ctx, managedEnvironment.Managedenvironment_id, &clusterAccessList)
+			err := dbq.ListClusterAccessesByManagedEnvironmentID(ctx, managedEnvironment.Managedenvironment_id, &clusterAccessList)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(clusterAccessList).To(HaveLen(1))
 
-			Expect(clusterAccessList[0]).To(Equal(*clusterAccess))
+			Expect(clusterAccessList[0]).To(Equal(clusterAccess))
 		})
 
 		It("should return an error if ClusterAccess query parameter is nil", func() {

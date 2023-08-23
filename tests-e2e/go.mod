@@ -9,7 +9,7 @@ require (
 	github.com/codeready-toolchain/api v0.0.0-20230417183849-f62ccbf3bd40
 	github.com/codeready-toolchain/toolchain-common v0.0.0-20230417235430-8258a3281250
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
-	github.com/redhat-appstudio/application-api v0.0.0-20230817134221-c09067ca4584
+	github.com/redhat-appstudio/application-api v0.0.0-20230823105056-c172d75de35a
 	github.com/redhat-appstudio/managed-gitops/appstudio-controller v0.0.0
 	github.com/redhat-appstudio/managed-gitops/backend v0.0.0-00010101000000-000000000000
 	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0

@@ -158,12 +158,7 @@ func SetupForTestingDBGinkgo() error {
 		Expect(err).ToNot(HaveOccurred())
 
 		for _, gitopsEngineInstance := range engineInstances {
-
-			if strings.HasPrefix(gitopsEngineInstance.Gitopsengineinstance_id, "test-") ||
-				strings.HasPrefix(gitopsEngineInstance.Namespace_name, "test-") {
-
-				gitopsEngineInstanceUIDsToDelete[gitopsEngineInstance.Gitopsengineinstance_id] = ""
-			}
+			gitopsEngineInstanceUIDsToDelete[gitopsEngineInstance.Gitopsengineinstance_id] = ""
 		}
 	}
 

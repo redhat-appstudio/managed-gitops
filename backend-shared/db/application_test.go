@@ -30,7 +30,13 @@ var _ = Describe("Application Test", func() {
 
 		_, managedEnvironment, _, gitopsEngineInstance, _, err = db.CreateSampleData(dbq)
 		Expect(err).ToNot(HaveOccurred())
+	})
 
+	AfterEach(func() {
+		dbq.CloseDatabase()
+	})
+
+	It("Should Create, Get, Update and Delete an Application", func() {
 		applicationput = db.Application{
 			Application_id:          "test-my-application",
 			Name:                    "my-application",
@@ -39,20 +45,13 @@ var _ = Describe("Application Test", func() {
 			Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 		}
 
-		err = dbq.CreateApplication(ctx, &applicationput)
+		err := dbq.CreateApplication(ctx, &applicationput)
 		Expect(err).ToNot(HaveOccurred())
-	})
-
-	AfterEach(func() {
-		dbq.CloseDatabase()
-	})
-
-	It("Should Create, Get, Update and Delete an Application", func() {
 		applicationget := db.Application{
 			Application_id: applicationput.Application_id,
 		}
 
-		err := dbq.GetApplicationById(ctx, &applicationget)
+		err = dbq.GetApplicationById(ctx, &applicationget)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(applicationput.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 		applicationput.Created_on = applicationget.Created_on
@@ -100,11 +99,18 @@ var _ = Describe("Application Test", func() {
 	})
 
 	It("Should Get Application in batch.", func() {
-
-		By("Create multiple Application entries.")
+		applicationput = db.Application{
+			Application_id:          "test-my-application",
+			Name:                    "my-application",
+			Spec_field:              "{}",
+			Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+			Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+		}
+		err := dbq.CreateApplication(ctx, &applicationput)
+		Expect(err).ToNot(HaveOccurred())
 
 		applicationput.Application_id = "test-my-application-2"
-		err := dbq.CreateApplication(ctx, &applicationput)
+		err = dbq.CreateApplication(ctx, &applicationput)
 		Expect(err).ToNot(HaveOccurred())
 
 		applicationput.Application_id = "test-my-application-3"

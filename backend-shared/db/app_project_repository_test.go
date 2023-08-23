@@ -158,7 +158,6 @@ var _ = Describe("AppProjectRepository Test", func() {
 
 				appProjectRepository.AppprojectRepositoryID = fmt.Sprintf("test-app-project-repository-%d", i)
 				appProjectRepository.RepoURL = repoCred.PrivateURL + strconv.Itoa(i)
-				appProjectRepository.RepositorycredentialsID = repoCred.RepositoryCredentialsID
 				err = dbq.CreateAppProjectRepository(ctx, &appProjectRepository)
 				Expect(err).ToNot(HaveOccurred())
 

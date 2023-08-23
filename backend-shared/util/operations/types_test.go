@@ -107,6 +107,8 @@ var _ = Describe("Testing CreateOperation function.", func() {
 	Context("Testing waitForOperationToComplete and IsOperationComplete function.", func() {
 		var ctx context.Context
 		var dbq db.AllDatabaseQueries
+		var k8sClient *sharedutil.ProxyClient
+		var logger logr.Logger
 
 		delayUpdateOfState := func(operation *db.Operation, k8sClient client.Client, gitopsEngineInstance db.GitopsEngineInstance) {
 			Eventually(func() bool {
@@ -139,11 +141,7 @@ var _ = Describe("Testing CreateOperation function.", func() {
 			}, "5s", "10ms").Should(BeTrue())
 		}
 
-		AfterEach(func() {
-			defer dbq.CloseDatabase()
-		})
-
-		It("should create a new DB Operation and test the waitForOperationToComplete function.", func() {
+		BeforeEach(func() {
 			scheme,
 				argocdNamespace,
 				kubesystemNamespace,
@@ -155,20 +153,26 @@ var _ = Describe("Testing CreateOperation function.", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
-			log := log.FromContext(ctx)
+			logger = log.FromContext(ctx)
 
 			k8sClientOuter := fake.NewClientBuilder().
 				WithScheme(scheme).
 				WithObjects(workspace, argocdNamespace, kubesystemNamespace).
 				Build()
 
-			k8sClient := &sharedutil.ProxyClient{
+			k8sClient = &sharedutil.ProxyClient{
 				InnerClient: k8sClientOuter,
 			}
 
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).ToNot(HaveOccurred())
+		})
 
+		AfterEach(func() {
+			dbq.CloseDatabase()
+		})
+
+		It("should create a new DB Operation and test the waitForOperationToComplete function.", func() {
 			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -190,7 +194,7 @@ var _ = Describe("Testing CreateOperation function.", func() {
 			}()
 
 			// Now directly call waitForOperationToComplete which calls isOperationComplete to test these functions
-			err = waitForOperationToComplete(ctx, sampleOperation, dbq, log)
+			err = waitForOperationToComplete(ctx, sampleOperation, dbq, logger)
 			Expect(err).ToNot(HaveOccurred())
 
 			rowsAffected, err := dbq.DeleteOperationById(ctx, sampleOperation.Operation_id)
@@ -200,31 +204,6 @@ var _ = Describe("Testing CreateOperation function.", func() {
 		})
 
 		It("It should test CreateOperation with waitForOperation set to true to indirectly test the waitForOperationToComplete function.", func() {
-			scheme,
-				argocdNamespace,
-				kubesystemNamespace,
-				workspace,
-				err := tests.GenericTestSetup()
-			Expect(err).ToNot(HaveOccurred())
-
-			err = db.SetupForTestingDBGinkgo()
-			Expect(err).ToNot(HaveOccurred())
-
-			ctx = context.Background()
-			log := log.FromContext(ctx)
-
-			k8sClientOuter := fake.NewClientBuilder().
-				WithScheme(scheme).
-				WithObjects(workspace, argocdNamespace, kubesystemNamespace).
-				Build()
-
-			k8sClient := &sharedutil.ProxyClient{
-				InnerClient: k8sClientOuter,
-			}
-
-			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).ToNot(HaveOccurred())
-
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -261,7 +240,7 @@ var _ = Describe("Testing CreateOperation function.", func() {
 			}()
 
 			// Directly call CreateOperation with waitForOperation set to true, to create the new Operation
-			k8sOperationFirst, dbOperationFirst, err := doCreateOperation(ctx, true, *sampleApplicationTypeOperation, "test-user", gitopsEngineInstance.Namespace_name, dbq, k8sClient, log, "test-application-operation")
+			k8sOperationFirst, dbOperationFirst, err := doCreateOperation(ctx, true, *sampleApplicationTypeOperation, "test-user", gitopsEngineInstance.Namespace_name, dbq, k8sClient, logger, "test-application-operation")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(k8sOperationFirst).NotTo(BeNil())
 			Expect(dbOperationFirst).NotTo(BeNil())
@@ -270,7 +249,7 @@ var _ = Describe("Testing CreateOperation function.", func() {
 				delayUpdateOfState(sampleGitopsEngineTypeOperation, k8sClient, *gitopsEngineInstance)
 			}()
 
-			k8sOperationSecond, dbOperationSecond, err := doCreateOperation(ctx, true, *sampleGitopsEngineTypeOperation, "test-user", gitopsEngineInstance.Namespace_name, dbq, k8sClient, log, "test-engine-operation")
+			k8sOperationSecond, dbOperationSecond, err := doCreateOperation(ctx, true, *sampleGitopsEngineTypeOperation, "test-user", gitopsEngineInstance.Namespace_name, dbq, k8sClient, logger, "test-engine-operation")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(k8sOperationSecond).NotTo(BeNil())
 			Expect(dbOperationSecond).NotTo(BeNil())

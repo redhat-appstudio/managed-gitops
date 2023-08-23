@@ -470,10 +470,11 @@ func locateOrCreateTargetManualBinding(ctx context.Context, promotionRun appstud
 			Components:  components,
 		},
 	}
-	err := k8sClient.Create(ctx, &binding)
-	if err != nil {
+
+	if err := k8sClient.Create(ctx, &binding); err != nil {
 		return appstudioshared.SnapshotEnvironmentBinding{}, err
 	}
+
 	logutil.LogAPIResourceChangeEvent(binding.Namespace, binding.Name, &binding, logutil.ResourceCreated, logger)
 	logger.Info("Created SnapshotEnvironmentBinding",
 		"application", promotionRun.Spec.Application,

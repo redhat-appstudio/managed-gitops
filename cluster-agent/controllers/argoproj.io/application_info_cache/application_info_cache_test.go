@@ -2,6 +2,7 @@ package application_info_cache
 
 import (
 	"context"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -44,6 +45,7 @@ var _ = Describe("application_info_cache Test", func() {
 				Applicationstate_application_id: application.Application_id,
 				Health:                          "Healthy",
 				Sync_Status:                     "Synced",
+				ReconciledState:                 "32",
 			}
 			errCreate := aic.CreateApplicationState(ctx, testAppState)
 			Expect(errCreate).ToNot(HaveOccurred())
@@ -124,6 +126,7 @@ var _ = Describe("application_info_cache Test", func() {
 				Applicationstate_application_id: testId,
 				Health:                          "Healthy",
 				Sync_Status:                     "Synced",
+				ReconciledState:                 "32",
 			}
 			err = dbq.CreateApplicationState(ctx, &testAppState)
 			Expect(err).ToNot(HaveOccurred())
@@ -187,6 +190,12 @@ var _ = Describe("application_info_cache Test", func() {
 			// ideally the appState should now report an Application obj
 			Expect(errGet).ToNot(HaveOccurred())
 			Expect(isFromCache).To(BeFalse())
+			// Different date format workaround
+			// Ensure created on times are the same
+			Expect(testapplication.Created_on.Round(1 * time.Minute).UTC()).Should(Equal(getApp.Created_on.Round(1 * time.Minute).UTC()))
+			// Then set them to be equal
+			testapplication.Created_on = getApp.Created_on
+			// And then compare
 			Expect(getApp).To(Equal(testapplication))
 
 			//calling the same GetApplicationById again should come from cache, hence ifFromCache should be True

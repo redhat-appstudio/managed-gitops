@@ -605,6 +605,85 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 
 		})
 
+		It("status ticker events should be forwarded", func() {
+			By("create a goroutine that rejects the request")
+			inactiveChan := make(chan application_event_loop.RequestMessage)
+			go func() {
+				req := <-inactiveChan
+				req.ResponseChan <- application_event_loop.ResponseMessage{
+					RequestAccepted: false,
+				}
+
+			}()
+
+			By("create an event for the status ticker")
+			event := eventlooptypes.EventLoopMessage{
+				MessageType: eventlooptypes.ApplicationEventLoopMessageType_StatusCheck,
+				Event: &eventlooptypes.EventLoopEvent{
+					ReqResource: eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName,
+				},
+			}
+			wrapperEvent := workspaceEventLoopMessage{
+				messageType: workspaceEventLoopMessageType_statusTicker,
+				payload:     event,
+			}
+
+			state := workspaceEventLoopInternalState{
+				applicationMap: map[string]workspaceEventLoop_applicationEventLoopEntry{
+					"inactive": {input: inactiveChan},
+				},
+			}
+
+			By("verify if the request is rejected")
+			processWorkspaceEventLoopMessage(ctx, event, wrapperEvent, state, state.log)
+			Eventually(func() bool {
+				_, exists := state.applicationMap["inactive"]
+				return exists
+			}).Should(BeFalse(), "the inactive application should have rejected the request, and thus should have been removed from the map")
+		})
+
+		DescribeTable("shouldn't forward the event if it is completed/nil/unknown", func(event eventlooptypes.EventLoopMessage, msgType workspaceEventLoopMessageType) {
+			wrapperEvent := workspaceEventLoopMessage{
+				messageType: msgType,
+				payload:     event,
+			}
+
+			responseChannel := make(chan workspaceResourceLoopMessage, 5)
+
+			state := workspaceEventLoopInternalState{
+				log: log.FromContext(ctx),
+				workspaceResourceLoop: &workspaceResourceEventLoop{
+					inputChannel: responseChannel,
+				},
+			}
+
+			By("verify that the event is not forwarded")
+			processWorkspaceEventLoopMessage(ctx, event, wrapperEvent, state, state.log)
+			Consistently(func() bool {
+				select {
+				case <-responseChannel:
+					return false
+				default:
+					return true
+				}
+			}, "3s", "50ms").Should(BeTrue())
+
+		}, Entry("reject the event if it is nil", eventlooptypes.EventLoopMessage{
+			MessageType: eventlooptypes.ApplicationEventLoopMessageType_StatusCheck,
+		}, workspaceEventLoopMessageType_Event),
+			Entry("reject the event if it is already completed", eventlooptypes.EventLoopMessage{
+				MessageType: eventlooptypes.ApplicationEventLoopMessageType_WorkComplete,
+				Event: &eventlooptypes.EventLoopEvent{
+					ReqResource: eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName,
+				},
+			}, workspaceEventLoopMessageType_Event),
+			Entry("reject the event if it is of unknown type", eventlooptypes.EventLoopMessage{
+				MessageType: eventlooptypes.ApplicationEventLoopMessageType_WorkComplete,
+				Event: &eventlooptypes.EventLoopEvent{
+					ReqResource: eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName,
+				},
+			}, workspaceEventLoopMessageType("unknown")))
+
 		It("managed env events should be forwarded", func() {
 
 			By("creating a simple event referencing a ManagedEnvironment resource")
@@ -852,6 +931,64 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 			Entry("GitOpsDeployment CR exists but SyncOperationRow does not", true, false),
 			Entry("GitOpsDeployment CR does not exist but SyncOperationRow does", false, true))
 
+	})
+
+	Context("Test getDBSyncOperationFromAPIMapping", func() {
+		var (
+			k8sClient client.Client
+			ctx       context.Context
+			dbQueries db.AllDatabaseQueries
+			ns        *v1.Namespace
+		)
+
+		BeforeAll(func() {
+			scheme,
+				argocdNamespace,
+				kubesystemNamespace,
+				apiNamespace,
+				err := tests.GenericTestSetup()
+
+			Expect(err).ToNot(HaveOccurred())
+			ns = apiNamespace
+			k8sClient = fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(apiNamespace, argocdNamespace, kubesystemNamespace).
+				Build()
+
+			ctx = context.Background()
+			dbQueries, err = db.NewUnsafePostgresDBQueries(false, true)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("should return an error if the namespace of the SyncRun CR is not found", func() {
+			syncRun := &managedgitopsv1alpha1.GitOpsDeploymentSyncRun{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-syncrun",
+					Namespace: "unknown",
+				},
+			}
+
+			syncOperation, err := getDBSyncOperationFromAPIMapping(ctx, dbQueries, k8sClient, syncRun)
+			Expect(err).To(HaveOccurred())
+			expectedMsg := `failed to get namespace unknown: namespaces "unknown" not found`
+			Expect(err.Error()).To(Equal(expectedMsg))
+			Expect(syncOperation).To(Equal(db.SyncOperation{}))
+		})
+
+		It("should return an error if there are no APICRToDatabaseMapping", func() {
+			syncRun := &managedgitopsv1alpha1.GitOpsDeploymentSyncRun{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-syncrun",
+					Namespace: ns.Name,
+				},
+			}
+
+			syncOperation, err := getDBSyncOperationFromAPIMapping(ctx, dbQueries, k8sClient, syncRun)
+			Expect(err).To(HaveOccurred())
+			expectedMsg := "SEVERE: unexpected number of APICRToDBMappings for GitOpsDeploymentSyncRun test-syncrun: 0"
+			Expect(err.Error()).To(Equal(expectedMsg))
+			Expect(syncOperation).To(Equal(db.SyncOperation{}))
+		})
 	})
 
 	Context("handleStatusTickerMessage tests", func() {

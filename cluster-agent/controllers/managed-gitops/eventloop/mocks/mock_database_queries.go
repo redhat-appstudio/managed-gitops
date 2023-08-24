@@ -604,6 +604,21 @@ func (mr *MockDatabaseQueriesMockRecorder) DeleteAppProjectManagedEnvironmentByM
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAppProjectManagedEnvironmentByManagedEnvId", reflect.TypeOf((*MockDatabaseQueries)(nil).DeleteAppProjectManagedEnvironmentByManagedEnvId), arg0, arg1)
 }
 
+// DeleteAppProjectRepositoryByAppProjectRepositoryID mocks base method.
+func (m *MockDatabaseQueries) DeleteAppProjectRepositoryByAppProjectRepositoryID(arg0 context.Context, arg1 *db.AppProjectRepository) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteAppProjectRepositoryByAppProjectRepositoryID", arg0, arg1)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteAppProjectRepositoryByAppProjectRepositoryID indicates an expected call of DeleteAppProjectRepositoryByAppProjectRepositoryID.
+func (mr *MockDatabaseQueriesMockRecorder) DeleteAppProjectRepositoryByAppProjectRepositoryID(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAppProjectRepositoryByAppProjectRepositoryID", reflect.TypeOf((*MockDatabaseQueries)(nil).DeleteAppProjectRepositoryByAppProjectRepositoryID), arg0, arg1)
+}
+
 // DeleteAppProjectRepositoryByClusterUserAndRepoURL mocks base method.
 func (m *MockDatabaseQueries) DeleteAppProjectRepositoryByClusterUserAndRepoURL(arg0 context.Context, arg1 *db.AppProjectRepository) (int, error) {
 	m.ctrl.T.Helper()
@@ -617,21 +632,6 @@ func (m *MockDatabaseQueries) DeleteAppProjectRepositoryByClusterUserAndRepoURL(
 func (mr *MockDatabaseQueriesMockRecorder) DeleteAppProjectRepositoryByClusterUserAndRepoURL(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAppProjectRepositoryByClusterUserAndRepoURL", reflect.TypeOf((*MockDatabaseQueries)(nil).DeleteAppProjectRepositoryByClusterUserAndRepoURL), arg0, arg1)
-}
-
-// DeleteAppProjectRepositoryByRepoCredId mocks base method.
-func (m *MockDatabaseQueries) DeleteAppProjectRepositoryByRepoCredId(arg0 context.Context, arg1 *db.AppProjectRepository) (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteAppProjectRepositoryByRepoCredId", arg0, arg1)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// DeleteAppProjectRepositoryByRepoCredId indicates an expected call of DeleteAppProjectRepositoryByRepoCredId.
-func (mr *MockDatabaseQueriesMockRecorder) DeleteAppProjectRepositoryByRepoCredId(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAppProjectRepositoryByRepoCredId", reflect.TypeOf((*MockDatabaseQueries)(nil).DeleteAppProjectRepositoryByRepoCredId), arg0, arg1)
 }
 
 // DeleteApplicationById mocks base method.

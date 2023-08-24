@@ -35,7 +35,6 @@ import (
 )
 
 var _ = Describe("GitOpsDeploymentManagedEnvironment Controller Test", func() {
-	//ctx := context.Background()
 
 	Context("Generic tests", func() {
 
@@ -112,6 +111,22 @@ var _ = Describe("GitOpsDeploymentManagedEnvironment Controller Test", func() {
 
 				It("should return a managed environment", func() {
 					By("create a NON-managed environment secret type")
+					secret := createSecretForManagedEnv(secretName, true, *namespace, k8sClient)
+
+					By("create a managed environment that references the secret")
+
+					managedEnv := createManagedEnvTargetingSecret("testManagedEnv", secret, *namespace, k8sClient)
+
+					// Now pass the managedEnv (anything other than a secret) and there should be no managed environments returned
+					By("check that a non-secret is passed and the code handles it properly")
+					Expect(reconciler.findSecretsForManagedEnvironment(&managedEnv)).To(BeEmpty())
+				})
+			})
+
+			When("GitOpsDeploymentManagedEnvironment references a secret of a different type. Expect no Managed Environment to be reconciled", func() {
+
+				It("should return a managed environment", func() {
+					By("create a NON-managed environment secret type")
 					secret := createSecretForManagedEnv(secretName, false, *namespace, k8sClient)
 
 					By("create a managed environment that references the secret")
@@ -124,7 +139,7 @@ var _ = Describe("GitOpsDeploymentManagedEnvironment Controller Test", func() {
 
 			When("Five GitOpsDeploymentManagedEnvironment reference a secret in the same namespace", func() {
 
-				It("should return two managed environments", func() {
+				It("should return five managed environments", func() {
 					By("create a managed environment secret type")
 					secret := createSecretForManagedEnv(secretName, true, *namespace, k8sClient)
 

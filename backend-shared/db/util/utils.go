@@ -458,7 +458,9 @@ func GetOrCreateDeploymentToApplicationMapping(ctx context.Context, createDeplTo
 		log.Error(err, "Unable to delete old DeploymentToApplicationMapping, by Namespace and Name")
 		return false, err
 	} else {
-		log.Info("Deleted old DeploymentToApplicationMapping, by Namespace and Name", "resultsDeleted", resultsDeleted)
+		if resultsDeleted > 0 {
+			log.Info("Deleted old DeploymentToApplicationMapping, by Namespace and Name", "resultsDeleted", resultsDeleted)
+		}
 	}
 
 	if err := dbq.CreateDeploymentToApplicationMapping(ctx, createDeplToAppMapping); err != nil {

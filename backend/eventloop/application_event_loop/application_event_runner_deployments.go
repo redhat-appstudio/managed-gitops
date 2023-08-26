@@ -244,10 +244,10 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 	isWorkspaceTarget := gitopsDeployment.Spec.Destination.Environment == ""
 	managedEnv, engineInstance, destinationName, err := a.reconcileManagedEnvironmentOfGitOpsDeployment(ctx, gitopsDeployment,
 		gitopsDeplNamespace, isWorkspaceTarget)
-	if err != nil {
+	if err != nil || managedEnv == nil {
 
 		userError := "Unable to reconcile the ManagedEnvironment. Verify that the ManagedEnvironment and Secret are correctly defined, and have valid credentials"
-		devError := fmt.Errorf("unable to get or create managed environment, isworkspacetarget:%v: %v", isWorkspaceTarget, err)
+		devError := fmt.Errorf("unable to get or create managed environment, isworkspacetarget:%v: %w", isWorkspaceTarget, err)
 
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, devError)
 

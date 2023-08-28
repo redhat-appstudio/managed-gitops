@@ -122,6 +122,30 @@ var _ = Describe("Webhook E2E tests", func() {
 			binding.Spec.Environment = temp // Revert value for next test
 		})
 
+		It("Should validate SnapshotEnvironmentBinding CR Webhooks for duplicate combination of Application and Environment", func() {
+			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			if !isWebhookInstalled("snapshots", k8sClient) {
+				Skip("skipping as snapshots webhook is not installed")
+			}
+
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			ctx = context.Background()
+
+			By("Create SnapshotEnvironmentBindingResource.")
+			binding = buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
+			err = k8s.Create(&binding, k8sClient)
+			Expect(err).To(Succeed())
+
+			By("Create SnapshotEnvironmentBindingResource with same Application and Environment as above.")
+			binding2 := buildSnapshotEnvironmentBindingResource("appa-staging-binding-1", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
+			err = k8s.Create(&binding2, k8sClient)
+			Expect(err).ToNot(Succeed())
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("duplicate combination of Application (%s) and Environment (%s). Duplicated by: %s", binding2.Spec.Application, binding2.Spec.Environment, binding.Name))).To(BeTrue())
+		})
+
 		It("Should validate PromotionRun CR Webhooks.", func() {
 
 			if !isWebhookInstalled("promotionruns", k8sClient) {

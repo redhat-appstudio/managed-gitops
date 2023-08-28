@@ -1105,7 +1105,9 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				Expect(k8sClient.Create(ctx, &gitopsDepl)).Error().ToNot(HaveOccurred())
 
 				By("calling the function being tested")
-				Expect(reconcileAppProjectRepositories(ctx, gitRepoURL, namespace, k8sClient, dbq, l)).Error().ToNot(HaveOccurred())
+				dbUpdated, err := reconcileAppProjectRepositories(ctx, namespace, k8sClient, dbq, l)
+				Expect(dbUpdated).To(BeTrue())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("verifying the AppProjectRepository new exists in the database")
 				res := []db.AppProjectRepository{}
@@ -1116,6 +1118,11 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				appProjectRepo := res[0]
 				Expect(appProjectRepo.RepoURL).To(Equal(gitRepoURL))
 				Expect(appProjectRepo.Clusteruser_id).To(Equal(clusterUser.Clusteruser_id))
+
+				By("calling the function being tested again, but this time with nothing changes")
+				dbUpdated, err = reconcileAppProjectRepositories(ctx, namespace, k8sClient, dbq, l)
+				Expect(dbUpdated).To(BeFalse(), "since nothing changed, the function should report that the database was not updated")
+				Expect(err).ToNot(HaveOccurred())
 
 			})
 		})
@@ -1135,7 +1142,9 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 				Expect(k8sClient.Create(ctx, &gitopsRepoCred)).Error().ToNot(HaveOccurred())
 
 				By("calling the function being tested")
-				Expect(reconcileAppProjectRepositories(ctx, gitRepoURL, namespace, k8sClient, dbq, l)).Error().ToNot(HaveOccurred())
+				dbUpdated, err := reconcileAppProjectRepositories(ctx, namespace, k8sClient, dbq, l)
+				Expect(dbUpdated).To(BeTrue())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("verifying the AppProjectRepository new exists in the database")
 				res := []db.AppProjectRepository{}
@@ -1164,8 +1173,10 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 
 				Expect(dbq.CreateAppProjectRepository(ctx, &orphanedDBEntry)).Error().ToNot(HaveOccurred())
 
-				By("calling the function under test")
-				Expect(reconcileAppProjectRepositories(ctx, gitRepoURL, namespace, k8sClient, dbq, l)).Error().ToNot(HaveOccurred())
+				By("calling the function being tested")
+				dbUpdated, err := reconcileAppProjectRepositories(ctx, namespace, k8sClient, dbq, l)
+				Expect(dbUpdated).To(BeTrue())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("verifying the AppProjectRepository no longer exists in the database")
 				res := []db.AppProjectRepository{}
@@ -1176,34 +1187,57 @@ var _ = Describe("SharedResourceEventLoop Test", func() {
 			})
 		})
 
-		When("AppProject would normally be deleted from database, but the gitRepoURL parameter of reconcileAppProjectRepositories does not match", func() {
+		When("the repo URL of a GitOpsDeployment was changed from one value to another", func() {
 
-			It("should not delete the AppProjectRepository database entry", func() {
+			It("should update the AppProject rows from the first url to the second URL", func() {
+				By("creating a GitOpsDeployment referencing a git repo")
 
-				gitRepoURL := "http://github.com/test-my-fake-org/my-fake-repo"
-
-				By("creating an AppProjectRepository without a corresponding GitOpsDeployment")
-
-				orphanedDBEntry := db.AppProjectRepository{
-					AppprojectRepositoryID: "test-app-project-repo",
-					Clusteruser_id:         clusterUser.Clusteruser_id,
-					RepoURL:                gitRepoURL,
+				gitopsDepl := managedgitopsv1alpha1.GitOpsDeployment{
+					ObjectMeta: metav1.ObjectMeta{Name: "my-gitops-depl", Namespace: namespace.Name},
+					Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
+						Source: managedgitopsv1alpha1.ApplicationSource{
+							RepoURL: gitRepoURL,
+						},
+					},
 				}
+				Expect(k8sClient.Create(ctx, &gitopsDepl)).Error().ToNot(HaveOccurred())
 
-				Expect(dbq.CreateAppProjectRepository(ctx, &orphanedDBEntry)).Error().ToNot(HaveOccurred())
+				By("calling the function being tested")
+				dbUpdated, err := reconcileAppProjectRepositories(ctx, namespace, k8sClient, dbq, l)
+				Expect(dbUpdated).To(BeTrue())
+				Expect(err).ToNot(HaveOccurred())
 
-				someOtherGitRepoURL := "http://github.com/a-different-fake-org-from-above/my-fake-repo"
-
-				By("calling the function under test with a different git repo than the one in the AppProjectRepository")
-				Expect(reconcileAppProjectRepositories(ctx, someOtherGitRepoURL, namespace, k8sClient, dbq, l)).Error().ToNot(HaveOccurred())
-
-				By("verifying the AppProjectRepository still exists in the database")
+				By("verifying the AppProjectRepository new exists in the database")
 				res := []db.AppProjectRepository{}
 				Expect(dbq.ListAppProjectRepositoryByClusterUserId(ctx, clusterUser.Clusteruser_id, &res)).Error().ToNot(HaveOccurred())
 
 				Expect(res).To(HaveLen(1))
+				appProjectRepo := res[0]
+				Expect(appProjectRepo.RepoURL).To(Equal(gitRepoURL))
+				Expect(appProjectRepo.Clusteruser_id).To(Equal(clusterUser.Clusteruser_id))
+
+				newURL := "https://github.com/redhat-appstudio/some-fake-url"
+
+				By("updating the GitOpsDeployment to point to a new URL")
+				gitopsDepl.Spec.Source.RepoURL = newURL
+				Expect(k8sClient.Update(ctx, &gitopsDepl)).To(Succeed())
+
+				By("calling the function being tested")
+				dbUpdated, err = reconcileAppProjectRepositories(ctx, namespace, k8sClient, dbq, l)
+				Expect(dbUpdated).To(BeTrue())
+				Expect(err).ToNot(HaveOccurred())
+
+				By("verifying the new URL exists in the AppProjectRepository in the database")
+				res = []db.AppProjectRepository{}
+				Expect(dbq.ListAppProjectRepositoryByClusterUserId(ctx, clusterUser.Clusteruser_id, &res)).Error().ToNot(HaveOccurred())
+
+				Expect(res).To(HaveLen(1))
+				appProjectRepo = res[0]
+				Expect(appProjectRepo.RepoURL).To(Equal(newURL))
+				Expect(appProjectRepo.Clusteruser_id).To(Equal(clusterUser.Clusteruser_id))
 
 			})
+
 		})
 	})
 

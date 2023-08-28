@@ -272,7 +272,7 @@ func (a applicationEventLoopRunner_Action) handleNewGitOpsDeplEvent(ctx context.
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, devError)
 	}
 
-	if err := a.sharedResourceEventLoop.ReconcileAppProjectRepositories(ctx, gitopsDeployment.Spec.Source.RepoURL, a.workspaceClient, gitopsDeplNamespace, a.log); err != nil {
+	if _, err := a.sharedResourceEventLoop.ReconcileAppProjectRepositories(ctx, a.workspaceClient, gitopsDeplNamespace, a.log); err != nil {
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(fmt.Errorf("unexpected error on reconciling appproject repos: %w", err))
 	}
 
@@ -638,7 +638,9 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, devError)
 	}
 
-	if err := a.sharedResourceEventLoop.ReconcileAppProjectRepositories(ctx, gitopsDeployment.Spec.Source.RepoURL, a.workspaceClient, apiNamespace, a.log); err != nil {
+	appProjectDBRowsUpdated, err := a.sharedResourceEventLoop.ReconcileAppProjectRepositories(ctx, a.workspaceClient, apiNamespace, a.log)
+
+	if err != nil {
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewDevOnlyError(fmt.Errorf("unexpected error on reconciling appproject repos: %w", err))
 	}
 
@@ -667,7 +669,12 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 
 		specFieldInput.syncOptions = managedgitopsv1alpha1.SyncOptionToStringSlice(gitopsDeployment.Spec.SyncPolicy.SyncOptions)
 	}
+
 	shouldUpdateApplication := false
+
+	if appProjectDBRowsUpdated {
+		shouldUpdateApplication = true
+	}
 
 	// If the spec field changed from what is in the database, we should update the application
 	{
@@ -875,7 +882,7 @@ func (a applicationEventLoopRunner_Action) cleanOldGitOpsDeploymentEntry(ctx con
 	}
 
 	// Ensure the the AppProjectRepository database entries accurately reflect the current state of the GitOpsDeployments/RepositoryCredentials in the Namespace
-	if err := a.sharedResourceEventLoop.ReconcileAppProjectRepositories(ctx, "", a.workspaceClient, apiNamespace, a.log); err != nil {
+	if _, err := a.sharedResourceEventLoop.ReconcileAppProjectRepositories(ctx, a.workspaceClient, apiNamespace, a.log); err != nil {
 		log.Error(err, "unable to reconcile app project repositories")
 		return signalledShutdown_false, err
 	}

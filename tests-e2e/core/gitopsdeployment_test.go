@@ -1000,18 +1000,11 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 			}
 
 			By("Verify whether AppProject includes the git repository referenced in the repo")
-			match := false
-			var appProjectRepoURL string
-			for _, value := range appProject.Spec.SourceRepos {
-				if value == gitOpsDeploymentResource.Spec.Source.RepoURL {
-					match = true
-					appProjectRepoURL = value
-					break
-				}
-			}
 
-			Expect(match).To(BeTrue())
-			Expect(appProjectRepoURL).To(Equal(gitOpsDeploymentResource.Spec.Source.RepoURL))
+			Eventually(appProject, "30s", "1s").Should(
+				appProjectFixture.HaveAppProjectSourceRepos(appv1.AppProjectSpec{
+					SourceRepos: []string{gitOpsDeploymentResource.Spec.Source.RepoURL},
+				}), "the repo URL of the AppProject should update to the value specified in the GitOpsDeployment")
 
 			By("Create GitOpsDeploymentRepositoryCredential referencing to the the above repo")
 			gitopsRepoCred := managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
@@ -1205,6 +1198,82 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				return apierr.IsNotFound(err)
 			}, time.Minute, time.Second*5).Should(BeTrue())
 		})
+
+		It("Verify that updating the Git repo URL of a GitOpsDeployment causes the corresponding AppProject to be updated", func() {
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			By("creating a new GitOpsDeployment CR")
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+
+			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
+			Expect(err).To(Succeed())
+
+			By("ensuring GitOpsDeployment should have expected health and status")
+			Eventually(gitOpsDeploymentResource, "4m", "1s").Should(
+				SatisfyAll(
+					gitopsDeplFixture.HaveSyncStatusCode(managedgitopsv1alpha1.SyncStatusCodeSynced),
+					gitopsDeplFixture.HaveHealthStatusCode(managedgitopsv1alpha1.HeathStatusCodeHealthy)))
+
+			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("retrieving namespace to fetch cluster user id")
+			namespace := corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: gitOpsDeploymentResource.Namespace,
+				},
+			}
+
+			err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&namespace), &namespace)
+			Expect(err).ToNot(HaveOccurred())
+
+			clusterUser := db.ClusterUser{
+				User_name: string(namespace.UID),
+			}
+
+			err = dbQueries.GetClusterUserByUsername(ctx, &clusterUser)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("verifying that AppProject has been created")
+			appProject := &appv1.AppProject{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "app-project-" + clusterUser.Clusteruser_id,
+					Namespace: "gitops-service-argocd",
+				},
+			}
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("verifying whether AppProject includes the git repository referenced in the repo")
+
+			Eventually(appProject, "30s", "1s").Should(
+				appProjectFixture.HaveAppProjectSourceRepos(appv1.AppProjectSpec{
+					SourceRepos: []string{gitOpsDeploymentResource.Spec.Source.RepoURL},
+				}), "the repo URL of the AppProject should update to the value specified in the GitOpsDeployment")
+
+			By("updating the GitOpsDeployment to point to a new URL")
+
+			newRepoURL := "https://github.com/redhat-appstudio/a-different-url" // it doesn't need to be a real git repo for this test to pass
+
+			Expect(gitopsDeplFixture.UpdateDeploymentWithFunction(&gitOpsDeploymentResource, func(gitopsDepl *managedgitopsv1alpha1.GitOpsDeployment) {
+
+				gitopsDepl.Spec.Source.RepoURL = newRepoURL
+
+			})).Error().To(Succeed())
+
+			Eventually(appProject, "30s", "1s").Should(
+				appProjectFixture.HaveAppProjectSourceRepos(appv1.AppProjectSpec{
+					SourceRepos: []string{newRepoURL},
+				}), "the repo URL of the AppProject should update to the NEW value specified in the GitOpsDeployment, and it should not contain the old value")
+
+		})
+
 	})
 
 	Context("Simulates simple interactions of X active users interacting with the service", func() {

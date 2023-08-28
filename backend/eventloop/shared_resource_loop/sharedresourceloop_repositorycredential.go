@@ -242,7 +242,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 		l.Info("Created RepositoryCredential in the DB", "repositoryCredential", dbRepoCred.RepositoryCredentialsID)
 
 		// Create or Update AppProjectRepository
-		if err := processAppProjectRepository(ctx, privateURL, repositoryCredentialCRNamespace, apiNamespaceClient, dbQueries, l); err != nil {
+		if _, err := processAppProjectRepository(ctx, repositoryCredentialCRNamespace, apiNamespaceClient, dbQueries, l); err != nil {
 			l.Error(err, "Failed to call processAppProjectRepository function")
 			return nil, fmt.Errorf("unable to call processAppProjectRepository function: %v", err)
 		}
@@ -317,8 +317,19 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 		return nil, err
 
 	} else {
+		// Create or Update AppProjectRepository
+
+		appProjectDBRowsUpdated, err := processAppProjectRepository(ctx, repositoryCredentialCRNamespace, apiNamespaceClient, dbQueries, l)
+		if err != nil {
+			l.Error(err, "Failed to call processAppProjectRepository function")
+			return nil, fmt.Errorf("unable to call processAppProjectRepository function: %v", err)
+		}
+
 		// If the CR exists in the cluster and in the DB, then check if the data is the same and (if not) create an Operation
-		isUpdateNeeded := compareAndModifyClusterResourceWithDatabaseRow(*gitopsDeploymentRepositoryCredentialCR, &dbRepoCred, secret, l)
+		// - Or, if the AppProjectRepository row was updated, we likewise need to create a new Operation
+		isUpdateNeeded := compareAndModifyClusterResourceWithDatabaseRow(*gitopsDeploymentRepositoryCredentialCR,
+			&dbRepoCred, secret, l) || appProjectDBRowsUpdated
+
 		if isUpdateNeeded {
 			var operationDBID string
 			l.Info("Syncing data between the RepositoryCredential CR and its related DB row",
@@ -327,12 +338,6 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 			if err := dbQueries.UpdateRepositoryCredentials(ctx, &dbRepoCred); err != nil {
 				l.Error(err, errUpdateDBRepoCred)
 				return nil, err
-			}
-
-			// Create or Update AppProjectRepository
-			if err := processAppProjectRepository(ctx, privateURL, repositoryCredentialCRNamespace, apiNamespaceClient, dbQueries, l); err != nil {
-				l.Error(err, "Failed to call processAppProjectRepository function")
-				return nil, fmt.Errorf("unable to call processAppProjectRepository function: %v", err)
 			}
 
 			if operationDBID, err = createRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, shouldWait, l); err != nil {
@@ -662,7 +667,7 @@ func isSSHURL(url string) (bool, string) {
 	return false, ""
 }
 
-func processAppProjectRepository(ctx context.Context, repoURL string, resourceNS corev1.Namespace, apiNamespaceClient client.Client, dbQueries db.DatabaseQueries, l logr.Logger) error {
+func processAppProjectRepository(ctx context.Context, resourceNS corev1.Namespace, apiNamespaceClient client.Client, dbQueries db.DatabaseQueries, l logr.Logger) (bool, error) {
 
-	return reconcileAppProjectRepositories(ctx, repoURL, resourceNS, apiNamespaceClient, dbQueries, l)
+	return reconcileAppProjectRepositories(ctx, resourceNS, apiNamespaceClient, dbQueries, l)
 }

@@ -53,8 +53,12 @@ type SharedResourceEventLoop struct {
 // this function was invoked.
 //   - this function will only process DB rows, or K8s resources that reference this specific Git repository URL (ignoring all others)
 //   - If 'gitRepoURLUnnormalizedOfRequest' is empty (""), then all resources will be processed.
-func (srEventLoop *SharedResourceEventLoop) ReconcileAppProjectRepositories(ctx context.Context, repoURLUnnormalized string, workspaceClient client.Client,
-	workspaceNamespace corev1.Namespace, l logr.Logger) error {
+//
+// return value:
+// - bool: true if one or more 'AppProject*' rows in the DB were updated, false otherwise. (If yes, ensure an Operation on the Application caused the AppProject CR to be regenerated)
+// - error
+func (srEventLoop *SharedResourceEventLoop) ReconcileAppProjectRepositories(ctx context.Context, workspaceClient client.Client,
+	workspaceNamespace corev1.Namespace, l logr.Logger) (bool, error) {
 
 	responseChannel := make(chan any)
 
@@ -65,9 +69,7 @@ func (srEventLoop *SharedResourceEventLoop) ReconcileAppProjectRepositories(ctx 
 		messageType:        sharedResourceLoopMessage_reconcileAppProjectRepositories,
 		responseChannel:    responseChannel,
 		ctx:                ctx,
-		payload: sharedResourceLoopMessage_reconcileAppProjectRepositoriesRequest{
-			repoURLUnnormalizedFromRequest: repoURLUnnormalized,
-		},
+		payload:            sharedResourceLoopMessage_reconcileAppProjectRepositoriesRequest{},
 	}
 
 	srEventLoop.inputChannel <- msg
@@ -77,15 +79,15 @@ func (srEventLoop *SharedResourceEventLoop) ReconcileAppProjectRepositories(ctx 
 	select {
 	case rawResponse = <-responseChannel:
 	case <-ctx.Done():
-		return fmt.Errorf("context cancelled in ReconcileAppProjectRepositories")
+		return false, fmt.Errorf("context cancelled in ReconcileAppProjectRepositories")
 	}
 
 	response, ok := rawResponse.(sharedResourceLoopMessage_reconcileAppProjectRepositoryResponse)
 	if !ok {
-		return fmt.Errorf("SEVERE: unexpected response type")
+		return false, fmt.Errorf("SEVERE: unexpected response type")
 	}
 
-	return response.err
+	return response.appProjectDBRowsUpdated, response.err
 
 }
 
@@ -320,7 +322,6 @@ type sharedResourceLoopMessage_reconcileRepositoryCredentialResponse struct {
 }
 
 type sharedResourceLoopMessage_reconcileAppProjectRepositoriesRequest struct {
-	repoURLUnnormalizedFromRequest string
 }
 
 func newSharedResourceManagedEnvContainer() SharedResourceManagedEnvContainer {
@@ -362,6 +363,12 @@ type sharedResourceLoopMessage_getOrCreateClusterUserByNamespaceUIDResponse stru
 }
 
 type sharedResourceLoopMessage_reconcileAppProjectRepositoryResponse struct {
+
+	// appProjectDBRowsUpdated is true if the AppProject* DB rows were updated by this call
+	// - If this value is true, then the calling code should ensure an Operation is creating on the corresponding Application row.
+	// - The Operation on the Application row will cause cluster-agent to update the Argo CD AppProject CR
+	appProjectDBRowsUpdated bool
+
 	err error
 }
 
@@ -505,10 +512,11 @@ func processSharedResourceMessage(ctx context.Context, msg sharedResourceLoopMes
 			return
 		}
 
-		err := internalProcessMessage_reconcileAppProjectRepositories(ctx, payload, msg.workspaceNamespace, msg.workspaceClient, dbQueries, log)
+		databaseUpdated, err := internalProcessMessage_reconcileAppProjectRepositories(ctx, payload, msg.workspaceNamespace, msg.workspaceClient, dbQueries, log)
 
 		response := sharedResourceLoopMessage_reconcileAppProjectRepositoryResponse{
-			err: err,
+			err:                     err,
+			appProjectDBRowsUpdated: databaseUpdated,
 		}
 
 		// Reply on a separate goroutine so cancelled callers don't block the event loop
@@ -522,58 +530,44 @@ func processSharedResourceMessage(ctx context.Context, msg sharedResourceLoopMes
 
 }
 
-func internalProcessMessage_reconcileAppProjectRepositories(ctx context.Context, payload sharedResourceLoopMessage_reconcileAppProjectRepositoriesRequest, namespace corev1.Namespace, workspaceClient client.Client, dbQueries db.DatabaseQueries, l logr.Logger) error {
+func internalProcessMessage_reconcileAppProjectRepositories(ctx context.Context, payload sharedResourceLoopMessage_reconcileAppProjectRepositoriesRequest, namespace corev1.Namespace, workspaceClient client.Client, dbQueries db.DatabaseQueries, l logr.Logger) (bool, error) {
 
-	return reconcileAppProjectRepositories(ctx, payload.repoURLUnnormalizedFromRequest, namespace, workspaceClient, dbQueries, l)
+	return reconcileAppProjectRepositories(ctx, namespace, workspaceClient, dbQueries, l)
 }
 
 // reconcileAppProjectRepositories ensures that the necessary AppProjectRepository database rows exists in the database, and that they are consistent with the GitOpsDeployment/GitOpsDeploymentRepositoryCredentials defined in the Namespace.
-//
-// parameters:
-// - gitRepoURLUnnormalizedOfRequest is the repository URL defined in the GitOpDeployment or GitOpsDeploymentRepositoryCredential for which
-// this function was invoked.
-//   - this function will only process DB rows, or K8s resources that reference this specific Git repository URL (ignoring all others)
-//   - If 'gitRepoURLUnnormalizedOfRequest' is empty (""), then all resources will be processed.
-func reconcileAppProjectRepositories(ctx context.Context, gitRepoURLUnnormalizedOfRequest string, namespace corev1.Namespace, workspaceClient client.Client, dbQueries db.DatabaseQueries, l logr.Logger) error {
-
-	normalizedGitURLOfRequest := NormalizeGitURL(gitRepoURLUnnormalizedOfRequest)
+func reconcileAppProjectRepositories(ctx context.Context, namespace corev1.Namespace, workspaceClient client.Client, dbQueries db.DatabaseQueries, l logr.Logger) (bool, error) {
 
 	clusterUser, _, err := internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx, namespace, dbQueries, l)
 	if err != nil || clusterUser == nil {
-		return fmt.Errorf("unable to retrieve cluster user in reconcileAppProjectRepositories, from namespace '%s': %w", namespace.Name, err)
+		return false, fmt.Errorf("unable to retrieve cluster user in reconcileAppProjectRepositories, from namespace '%s': %w", namespace.Name, err)
 	}
 
 	// Retrieve all the AppProjectRepository for this namespace
-	var appProjectReposInNamepace []db.AppProjectRepository
+	var appProjectReposForThisNamespaceInDB []db.AppProjectRepository
 
-	if err := dbQueries.ListAppProjectRepositoryByClusterUserId(ctx, clusterUser.Clusteruser_id, &appProjectReposInNamepace); err != nil {
-		return fmt.Errorf("unable to list app project repositories from DB when reconciling AppProjectRepo: %w", err)
+	if err := dbQueries.ListAppProjectRepositoryByClusterUserId(ctx, clusterUser.Clusteruser_id, &appProjectReposForThisNamespaceInDB); err != nil {
+		return false, fmt.Errorf("unable to list app project repositories from DB when reconciling AppProjectRepo: %w", err)
 	}
 
 	// Retrieve all the GitOpsDeployments/RepositoryCredentials for this Namespace
-
 	var gitopsDeployments managedgitopsv1alpha1.GitOpsDeploymentList
 	if err := workspaceClient.List(ctx, &gitopsDeployments, &client.ListOptions{Namespace: namespace.Name}); err != nil {
-		return fmt.Errorf("unable to list GitOpsDeployments when reconciling AppProjectRepo in Namespace '%s': %w", namespace.Name, err)
+		return false, fmt.Errorf("unable to list GitOpsDeployments when reconciling AppProjectRepo in Namespace '%s': %w", namespace.Name, err)
 	}
 
 	var repoCreds managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialList
 	if err := workspaceClient.List(ctx, &repoCreds, &client.ListOptions{Namespace: namespace.Name}); err != nil {
-		return fmt.Errorf("unable to list GitOpsDeploymentRepositoryCredentials when reconciling AppProjectRepo in Namespace '%s': %w", namespace.Name, err)
+		return false, fmt.Errorf("unable to list GitOpsDeploymentRepositoryCredentials when reconciling AppProjectRepo in Namespace '%s': %w", namespace.Name, err)
 	}
 
 	// For each GitOpsDeployment/RepositoryCredential, generate the corresponding expected AppProjectRepository
 
+	// map: normalized git url -> expected db entry
 	expectedDBEntries := map[string]db.AppProjectRepository{}
 
 	for _, repoCred := range repoCreds.Items {
 		gitURLOfRepoCred := NormalizeGitURL(repoCred.Spec.Repository)
-
-		// Skip processing this resource if it's for another repository URL
-		// - But don't skip if the request URL is empty
-		if normalizedGitURLOfRequest != "" && gitURLOfRepoCred != normalizedGitURLOfRequest {
-			continue
-		}
 
 		expectedEntry := db.AppProjectRepository{
 			Clusteruser_id: clusterUser.Clusteruser_id,
@@ -585,12 +579,6 @@ func reconcileAppProjectRepositories(ctx context.Context, gitRepoURLUnnormalized
 	for _, gitopsDepl := range gitopsDeployments.Items {
 		gitURLOfGitOpsDepl := NormalizeGitURL(gitopsDepl.Spec.Source.RepoURL)
 
-		// Skip processing this resource if it's for another repository URL
-		// - But don't skip if the request URL is empty
-		if normalizedGitURLOfRequest != "" && gitURLOfGitOpsDepl != normalizedGitURLOfRequest {
-			continue
-		}
-
 		expectedEntry := db.AppProjectRepository{
 			Clusteruser_id: clusterUser.Clusteruser_id,
 			RepoURL:        gitURLOfGitOpsDepl,
@@ -598,32 +586,29 @@ func reconcileAppProjectRepositories(ctx context.Context, gitRepoURLUnnormalized
 		expectedDBEntries[gitURLOfGitOpsDepl] = expectedEntry
 	}
 
+	resDatabaseUpdated := false // Whether or not the database was updated by this call
+
 	// For each existing entry in the database, find the corresponding expected entry, and reconcile any differences
 
-	for idx := range appProjectReposInNamepace {
+	for idx := range appProjectReposForThisNamespaceInDB {
 
-		appProjectRepoInNamepace := appProjectReposInNamepace[idx]
+		appProjectRepoInNamepaceFromDB := appProjectReposForThisNamespaceInDB[idx]
 
-		gitURLOfDatabaseRow := NormalizeGitURL(appProjectRepoInNamepace.RepoURL)
-
-		// Skip processing this resource if it's for another repository URL
-		// - But don't skip if the request URL is empty
-		if normalizedGitURLOfRequest != "" && gitURLOfDatabaseRow != normalizedGitURLOfRequest {
-			continue
-		}
+		gitURLOfDatabaseRow := NormalizeGitURL(appProjectRepoInNamepaceFromDB.RepoURL)
 
 		if _, exists := expectedDBEntries[gitURLOfDatabaseRow]; !exists {
 
 			// A) The database entry for this repo URL exists, but there is no corresponding CR in the namespace.
 			// - thus we should delete the DB entry
 
-			if numDeleted, err := dbQueries.DeleteAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepoInNamepace); err != nil {
-				return fmt.Errorf("unable to delete AppProjectRepository which was identified as no longer being required: %w. cluster-user: '%s' repo-url '%s'", err, appProjectRepoInNamepace.Clusteruser_id, appProjectRepoInNamepace.RepoURL)
+			if numDeleted, err := dbQueries.DeleteAppProjectRepositoryByClusterUserAndRepoURL(ctx, &appProjectRepoInNamepaceFromDB); err != nil {
+				return false, fmt.Errorf("unable to delete AppProjectRepository which was identified as no longer being required: %w. cluster-user: '%s' repo-url '%s'", err, appProjectRepoInNamepaceFromDB.Clusteruser_id, appProjectRepoInNamepaceFromDB.RepoURL)
 
 			} else if numDeleted == 0 {
-				l.V(logutil.LogLevel_Warn).Info("unexpected number of results when deleting AppProjectRepository which was identified as no longer being required", "cluster-user", appProjectRepoInNamepace.Clusteruser_id, "repo-url", appProjectRepoInNamepace.RepoURL)
+				l.V(logutil.LogLevel_Warn).Info("unexpected number of results when deleting AppProjectRepository which was identified as no longer being required", "cluster-user", appProjectRepoInNamepaceFromDB.Clusteruser_id, "repo-url", appProjectRepoInNamepaceFromDB.RepoURL)
 			} else {
-				l.Info("deleted AppProjectRepository which was identified as no longer in use", "cluster-user", appProjectRepoInNamepace.Clusteruser_id, "repo-url", appProjectRepoInNamepace.RepoURL)
+				l.Info("deleted AppProjectRepository which was identified as no longer in use", "cluster-user", appProjectRepoInNamepaceFromDB.Clusteruser_id, "repo-url", appProjectRepoInNamepaceFromDB.RepoURL)
+				resDatabaseUpdated = true
 			}
 
 		} else {
@@ -637,24 +622,19 @@ func reconcileAppProjectRepositories(ctx context.Context, gitRepoURLUnnormalized
 
 		gitURLOfMissingAppProjectRepoRow := NormalizeGitURL(expectedToExist.RepoURL)
 
-		// Skip processing this resource if it's for another repository URL
-		// - But don't skip if the request URL is empty
-		if normalizedGitURLOfRequest != "" && gitURLOfMissingAppProjectRepoRow != normalizedGitURLOfRequest {
-			continue
-		}
-
 		newAppProjectRepo := db.AppProjectRepository{
 			Clusteruser_id: clusterUser.Clusteruser_id,
 			RepoURL:        gitURLOfMissingAppProjectRepoRow,
 		}
 		if err := dbQueries.CreateAppProjectRepository(ctx, &newAppProjectRepo); err != nil {
-			return fmt.Errorf("unable to create AppProjectRepository: %w . repository: %v", err, newAppProjectRepo)
+			return false, fmt.Errorf("unable to create AppProjectRepository: %w . repository: %v", err, newAppProjectRepo)
 		}
 
 		l.Info("created new AppProjectRepository", "cluster-user", newAppProjectRepo.Clusteruser_id, "repo-url", newAppProjectRepo.RepoURL)
+		resDatabaseUpdated = true
 	}
 
-	return nil
+	return resDatabaseUpdated, nil
 }
 
 func deleteRepoCredFromDB(ctx context.Context, repoCredRow db.RepositoryCredentials, repositoryCredentialCRNamespace corev1.Namespace, apiNamespaceClient client.Client, dbQueries db.DatabaseQueries, l logr.Logger) (bool, error) {
@@ -662,7 +642,7 @@ func deleteRepoCredFromDB(ctx context.Context, repoCredRow db.RepositoryCredenti
 
 	l = l.WithValues("RepositoryCredential ID", repoCredRow.RepositoryCredentialsID)
 
-	if err := reconcileAppProjectRepositories(ctx, repoCredRow.PrivateURL, repositoryCredentialCRNamespace, apiNamespaceClient, dbQueries, l); err != nil {
+	if _, err := reconcileAppProjectRepositories(ctx, repositoryCredentialCRNamespace, apiNamespaceClient, dbQueries, l); err != nil {
 		// Log the error and retry
 		l.Error(err, "Error deleting app appProjectRepository from database: ")
 		return retry, err

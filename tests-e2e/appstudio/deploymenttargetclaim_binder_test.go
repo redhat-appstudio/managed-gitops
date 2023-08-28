@@ -170,7 +170,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 				},
 			}
 
-			err = k8sClient.Create(ctx, &fakeDTC)
+			err = k8sClient.Create(ctx, &fakeDT)
 			Expect(err).ToNot(HaveOccurred())
 
 			By("verify if the above DTC is binded with a matching DT")

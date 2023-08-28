@@ -40,9 +40,10 @@ import (
 
 var _ = Describe("Operation Controller", func() {
 	const (
-		name      = "operation"
-		dbID      = "databaseID"
-		namespace = "argocd"
+		name                     = "operation"
+		dbID                     = "databaseID"
+		namespace                = "argocd"
+		argoCDResourcesFinalizer = "resources-finalizer.argocd.argoproj.io/background"
 	)
 
 	Context("Managed Environment Unit Tests", func() {
@@ -2988,6 +2989,254 @@ var _ = Describe("Operation Controller", func() {
 
 	})
 
+	Context("deleteArgoCDApplicationOfDeletedApplicationRow Function Test", func() {
+
+		var logger logr.Logger
+		var ctx context.Context
+		var app *appv1.Application
+		var operation db.Operation
+		var opConfig operationConfig
+		var k8sClient client.WithWatch
+		var appProject *appv1.AppProject
+		var dbQueries db.AllDatabaseQueries
+
+		simulateArgoCD := func(goApplication *appv1.Application) {
+			Eventually(func() bool {
+
+				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(goApplication), goApplication)
+				if err != nil {
+					GinkgoWriter.Println("error from client on Get", err)
+					return false
+				}
+
+				// Wait for the finalizer to be added by 'DeleteArgoCDApplication'
+				finalizerFound := false
+				for _, finalizer := range goApplication.Finalizers {
+					if finalizer == argoCDResourcesFinalizer {
+						finalizerFound = true
+					}
+				}
+				if !finalizerFound {
+					GinkgoWriter.Println("finalizer not yet set on Application")
+					return false
+				}
+
+				// Wait for DeleteArgoCDApplication to delete the Application
+				if goApplication.DeletionTimestamp == nil {
+					GinkgoWriter.Println("DeletionTimestamp is not yet set")
+					return false
+				}
+
+				// The remaining steps simulate Argo CD deleting the Application
+
+				// Remove the finalizer
+				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(goApplication), goApplication)
+				if err != nil {
+					GinkgoWriter.Println("error from client on second Get", err)
+					return false
+				}
+
+				// Remove only the Argo CD resource finalizer it is responsible for
+				var i = -1
+				for j := range goApplication.Finalizers {
+					if goApplication.Finalizers[j] == argoCDResourcesFinalizer {
+						i = j
+						break
+					}
+				}
+				if i >= 0 {
+					goApplication.Finalizers = append(goApplication.Finalizers[:i], goApplication.Finalizers[i+1:]...)
+				}
+
+				err = k8sClient.Update(ctx, goApplication)
+				if err != nil {
+					GinkgoWriter.Println("unable to update Application")
+					return false
+				}
+
+				err = k8sClient.Delete(ctx, goApplication)
+				if err != nil {
+					GinkgoWriter.Println("error from client on Delete", err)
+					return false
+				}
+
+				GinkgoWriter.Println("The Application was successfully deleted.")
+
+				return true
+			}, "5s", "10ms").Should(BeTrue())
+		}
+
+		BeforeEach(func() {
+			err := db.SetupForTestingDBGinkgo()
+			Expect(err).ToNot(HaveOccurred())
+
+			scheme, _, _, _, err := tests.GenericTestSetup()
+			Expect(err).ToNot(HaveOccurred())
+
+			err = appv1.AddToScheme(scheme)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Fake kube client.
+			k8sClient = fake.NewClientBuilder().WithScheme(scheme).Build()
+
+			dbQueries, err = db.NewUnsafePostgresDBQueries(false, true)
+			Expect(err).ToNot(HaveOccurred())
+
+			ctx = context.Background()
+			logger = log.FromContext(ctx)
+
+			By("Create required resources.")
+
+			opConfig = operationConfig{
+				eventClient: k8sClient,
+				dbQueries:   dbQueries,
+				argoCDNamespace: corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: namespace,
+					},
+				},
+			}
+
+			app = &appv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-1",
+					Namespace: namespace,
+					Labels: map[string]string{
+						dbID: "test-operation-1",
+					},
+				},
+			}
+
+			operation = db.Operation{
+				Operation_owner_user_id: "test-user",
+			}
+
+			appProject = &appv1.AppProject{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appProjectPrefix + operation.Operation_owner_user_id,
+					Namespace: opConfig.argoCDNamespace.Name,
+				},
+			}
+
+			err = k8sClient.Create(ctx, appProject)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("Should delete AppProject and Argo CD Application that is referenced in entry of Application table.", func() {
+
+			By("Create Argo CD application.")
+
+			err := k8sClient.Create(ctx, app)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("starting a Goroutine to simulate Argo CD's deletion behaviour")
+
+			goApplication := app.DeepCopy()
+			go func() {
+				simulateArgoCD(goApplication)
+			}()
+
+			By("Call function to delete Argo CD app.")
+
+			shouldRetry, err := deleteArgoCDApplicationOfDeletedApplicationRow(ctx, "test-operation-1", operation, opConfig, logger)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(shouldRetry).To(BeFalse())
+
+			By("Verify that Argo CD application is deleted.")
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
+			Expect(apierr.IsNotFound(err)).To(BeTrue())
+
+			By("Verify that AppProject is deleted.")
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
+			Expect(apierr.IsNotFound(err)).To(BeTrue())
+		})
+
+		It("Should not delete Argo CD Application that is not referenced in entry of Application table, but should delete AppProject if user has no entry for it in DB.", func() {
+
+			// Change the app label
+			app.Labels = map[string]string{
+				dbID: "test-operation-2",
+			}
+
+			By("Create Argo CD application.")
+
+			err := k8sClient.Create(ctx, app)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("starting a Goroutine to simulate Argo CD's deletion behaviour")
+			goApplication := app.DeepCopy()
+			go func() {
+				simulateArgoCD(goApplication)
+			}()
+
+			By("Call function to delete Argo CD app.")
+
+			shouldRetry, err := deleteArgoCDApplicationOfDeletedApplicationRow(ctx, "test-operation-1", operation, opConfig, logger)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(shouldRetry).To(BeFalse())
+
+			By("Verify that Argo CD application is not deleted.")
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Verify that AppProject is deleted.")
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
+			Expect(apierr.IsNotFound(err)).To(BeTrue())
+		})
+
+		It("Should not delete Argo CD Application that is not referenced in entry of Application table and it should not delete AppProject if user has an entry for it in DB.", func() {
+
+			appProjectRepository := db.AppProjectRepository{
+				AppprojectRepositoryID: "test-app-project-repository",
+				Clusteruser_id:         "test-user",
+				RepoURL:                "some URL",
+			}
+
+			err := dbQueries.CreateAppProjectRepository(ctx, &appProjectRepository)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Change the app label
+			app.Labels = map[string]string{
+				dbID: "test-operation-2",
+			}
+
+			By("Create Argo CD application.")
+
+			err = k8sClient.Create(ctx, app)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("starting a Goroutine to simulate Argo CD's deletion behaviour")
+			goApplication := app.DeepCopy()
+			go func() {
+				simulateArgoCD(goApplication)
+			}()
+
+			By("Call function to delete Argo CD app.")
+
+			shouldRetry, err := deleteArgoCDApplicationOfDeletedApplicationRow(ctx, "test-operation-1", operation, opConfig, logger)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(shouldRetry).To(BeFalse())
+
+			By("Verify that Argo CD application is not deleted.")
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Verify that AppProject is not deleted.")
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Verify that AppProject is not deleted.")
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)
+			Expect(err).ToNot(HaveOccurred())
+		})
+	})
 })
 
 func testTeardown() {

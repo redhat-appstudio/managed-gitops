@@ -35,5 +35,13 @@ var _ = Describe("isManagedEnvironmentConnectionUserError function Test", func()
 			result := isManagedEnvironmentConnectionUserError(err, log)
 			Expect(result).To(BeFalse())
 		})
+
+		It("should return False if error is nil", func() {
+			ctx := context.Background()
+			log := log.FromContext(ctx)
+
+			result := isManagedEnvironmentConnectionUserError(nil, log)
+			Expect(result).To(BeFalse())
+		})
 	})
 })

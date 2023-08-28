@@ -269,6 +269,11 @@ func internalProcessWorkspaceResourceMessage(ctx context.Context, msg workspaceR
 
 // isManagedEnvironmentConnectionUserError returns true if the error is likely an error in the cluster credentials provided by the user
 func isManagedEnvironmentConnectionUserError(err error, log logr.Logger) bool {
+
+	if err == nil {
+		return false
+	}
+
 	errStr := err.Error()
 
 	if strings.Contains(errStr, shared_resource_loop.UnableToCreateRestConfigError) {

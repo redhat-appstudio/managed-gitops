@@ -408,16 +408,22 @@ func cleanUpOldDeploymentTargetClassAPIs(ns string, k8sClient client.Client) err
 		dtcls := dtclsList.Items[i]
 
 		if err := k8sClient.Delete(context.Background(), &dtcls); err != nil {
-			return err
+			if !apierr.IsNotFound(err) { // ignore not found
+				return err
+			}
 		}
 
 		// Make sure that all finalizers are removed before deletion.
 		if err := removeAllFinalizers(k8sClient, &dtcls); err != nil {
-			return err
+			if !apierr.IsNotFound(err) { // ignore not found
+				return err
+			}
 		}
 
 		if err := k8sClient.Delete(context.Background(), &dtcls); err != nil {
-			return err
+			if !apierr.IsNotFound(err) { // ignore not found
+				return err
+			}
 		}
 	}
 

@@ -138,18 +138,29 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 		})
 
 		It("should bind with a best match DT in the absence of provisioner/user created DT", func() {
-			By("create a DT")
-			err := k8sClient.Create(ctx, &dt)
+			By("create a fake DTC")
+			// If the DTC doesn't exist, the DeploymentTargetReclaimer controller will
+			// unset the claimRef of a DT
+			fakeDTC := appstudiosharedv1.DeploymentTargetClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-dtc-fake",
+					Namespace: namespace,
+				},
+				Spec: appstudiosharedv1.DeploymentTargetClaimSpec{
+					DeploymentTargetClassName: dtClassName,
+				},
+			}
+			err = k8sClient.Create(ctx, &fakeDTC)
 			Expect(err).ToNot(HaveOccurred())
 
-			By("create a fake DT that matches a random DTC")
-			fakedt := appstudiosharedv1.DeploymentTarget{
+			By("create a fake DT that matches the above DTC")
+			fakeDT := appstudiosharedv1.DeploymentTarget{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-dt-fake",
 					Namespace: namespace,
 				},
 				Spec: appstudiosharedv1.DeploymentTargetSpec{
-					ClaimRef:                  "random-dtc",
+					ClaimRef:                  fakeDTC.Name,
 					DeploymentTargetClassName: dtClassName,
 					KubernetesClusterCredentials: appstudiosharedv1.DeploymentTargetKubernetesClusterCredentials{
 						APIURL:                   "http://api-url",
@@ -159,7 +170,20 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 				},
 			}
 
-			err = k8sClient.Create(ctx, &fakedt)
+			err = k8sClient.Create(ctx, &fakeDTC)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("verify if the above DTC is binded with a matching DT")
+			Eventually(fakeDTC, "2m", "1s").Should(SatisfyAll(
+				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Bound),
+				dtcfixture.HasAnnotation(appstudiosharedv1.AnnBindCompleted, appstudiosharedv1.AnnBinderValueTrue),
+			))
+
+			Eventually(fakeDT, "2m", "1s").Should(
+				dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Bound))
+
+			By("create a new DT to verify if it will be binded")
+			err := k8sClient.Create(ctx, &dt)
 			Expect(err).ToNot(HaveOccurred())
 
 			By("create a DTC without any target")

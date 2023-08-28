@@ -262,7 +262,7 @@ func findMatchingDTClassForDT(ctx context.Context, dt applicationv1alpha1.Deploy
 		},
 	}
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtClass), &dtClass); err != nil {
-		return applicationv1alpha1.DeploymentTargetClass{}, fmt.Errorf("unable to retrieve DeploymentTargetClass '%s' referenced by DeploymentTarget", dtClass.Name)
+		return applicationv1alpha1.DeploymentTargetClass{}, fmt.Errorf("unable to retrieve DeploymentTargetClass '%s' referenced by DeploymentTarget: %w", dtClass.Name, err)
 	}
 
 	return dtClass, nil

@@ -2,6 +2,7 @@ package eventloop
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -175,7 +176,7 @@ func (c *ClusterReconciler) getAllNamespacedAPIResources(ctx context.Context, lo
 			objList.SetKind(apiResource.Kind)
 
 			if err := c.client.List(ctx, objList, opts...); err != nil {
-				log.V(logutil.LogLevel_Debug).Error(err, "failed to list resources", "resource", apiResource.Kind)
+				log.V(logutil.LogLevel_Debug).Info("failed to list resources", "resource", apiResource.Kind, "error", fmt.Sprintf("%v", err))
 				continue
 			}
 

@@ -291,7 +291,7 @@ func (r *DeploymentTargetReconciler) findDeploymentTargetsForSpaceRequests(sr cl
 		return []reconcile.Request{}
 	}
 
-	dt, err := findMatchingDTForSpaceRequest(context.Background(), r.Client, srObj)
+	dt, err := findMatchingDTForSpaceRequest(context.Background(), r.Client, *srObj)
 	if err != nil {
 		ctrl.Log.Error(err, "unable to find matching DT for space request", "spacerequest", srObj.Name, "namespace", srObj.Namespace)
 		return []reconcile.Request{}

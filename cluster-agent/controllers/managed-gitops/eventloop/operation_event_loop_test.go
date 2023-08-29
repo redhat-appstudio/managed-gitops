@@ -16,7 +16,6 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -2873,47 +2872,76 @@ var _ = Describe("Operation Controller", func() {
 				mockCtrl.Finish()
 			})
 			It("should successfully get a DB operation", func() {
-				objectKey := types.NamespacedName{Name: operationName, Namespace: operationNamespace}
+				clusterCreds := db.ClusterCredentials{
+					Host:                        "host",
+					Kube_config:                 "kube_config",
+					Kube_config_context:         "kube_config_context",
+					Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+					Serviceaccount_ns:           "serviceaccount_ns",
+				}
 
-				mockClient.EXPECT().Get(ctx, objectKey, gomock.Any()).DoAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-					return nil
-				})
-				mockDB.EXPECT().GetOperationById(ctx, gomock.Any()).DoAndReturn(func(ctx context.Context, dbOp *db.Operation) error {
-					// Set the necessary fields in 'dbOp' to simulate the fetched DB operation
-					dbOp.Instance_id = "test-instance-id"
-					dbOp.Resource_id = "test-resource-id"
-					dbOp.Resource_type = ""
-					return nil
-				})
+				Expect(dbQueries.CreateClusterCredentials(ctx, &clusterCreds)).To(Succeed())
+
+				gitopsEngineCluster := db.GitopsEngineCluster{
+					Gitopsenginecluster_id: "test-fake-cluster-1",
+					Clustercredentials_id:  clusterCreds.Clustercredentials_cred_id,
+				}
+
+				Expect(dbQueries.CreateGitopsEngineCluster(ctx, &gitopsEngineCluster)).To(Succeed())
+
+				gitopsEngineInstance := &db.GitopsEngineInstance{
+					Gitopsengineinstance_id: "test-fake-engine-instance",
+					Namespace_name:          namespace,
+					Namespace_uid:           string(workspace.UID),
+					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+				}
+				Expect(dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)).To(Succeed())
+
+				operationDB := db.Operation{
+					Operation_owner_user_id: "test-user",
+					Operation_id:            "test-operation-id",
+					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+					Resource_id:             "test-resource-id",
+					Resource_type:           "Application",
+				}
+				Expect(dbQueries.CreateOperation(ctx, &operationDB, "test-operation-id")).To(Succeed())
+
+				operationCR := &managedgitopsv1alpha1.Operation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: namespace,
+					},
+					Spec: managedgitopsv1alpha1.OperationSpec{
+						OperationID: operationDB.Operation_id,
+					},
+				}
+				Expect(task.event.client.Create(ctx, operationCR)).To(Succeed())
 
 				newEvent := operationEventLoopEvent{
-					request: newRequest(operationNamespace, operationName),
-					client:  mockClient,
+					request: newRequest(operationCR.Namespace, operationCR.Name),
+					client:  k8sClient,
 				}
-				result, err := getDBOperationForEvent(ctx, newEvent, mockDB, logger)
+				result, err := getDBOperationForEvent(ctx, newEvent, dbQueries, logger)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(result).ToNot(BeNil())
+				Expect(result.Operation_id).To(Equal(operationDB.Operation_id))
+				Expect(result.Instance_id).To(Equal(operationDB.Instance_id))
+				Expect(result.Resource_id).To(Equal(operationDB.Resource_id))
+				Expect(result.Resource_type).To(Equal(operationDB.Resource_type))
 			})
 
 			It("should handle error when fetching CR", func() {
-				objectKey := client.ObjectKey{Name: operationName, Namespace: operationNamespace}
-				notFoundError := apierr.NewNotFound(schema.GroupResource{}, operationName)
-
-				// Set up the expectation for the Get call to return an error
-				mockClient.EXPECT().Get(gomock.Any(), objectKey, gomock.Any()).Return(notFoundError)
-
 				// Set up expectations for the logger calls
 				mockLogger.EXPECT().Enabled(gomock.Any()).Return(true)
 				mockLogger.EXPECT().Info(gomock.Any(), "Skipping a request for an operation DB entry that doesn't exist: "+operationNamespace+"/"+operationName)
 
 				newEvent := operationEventLoopEvent{
 					request: newRequest(operationNamespace, operationName),
-					client:  mockClient,
+					client:  k8sClient,
 				}
-				result, err := getDBOperationForEvent(ctx, newEvent, mockDB, logger)
+				result, err := getDBOperationForEvent(ctx, newEvent, dbQueries, logger)
 				Expect(result).To(BeNil())
 				Expect(err).ToNot(HaveOccurred())
-
 			})
 
 			It("should handle error when fetching DB", func() {
@@ -2925,8 +2953,6 @@ var _ = Describe("Operation Controller", func() {
 				})
 				mockDB.EXPECT().GetOperationById(ctx, gomock.Any()).Return(notFoundError)
 
-				// Set up expectations for the logger calls
-
 				newEvent := operationEventLoopEvent{
 					request: newRequest(operationNamespace, operationName),
 					client:  mockClient,
@@ -2934,7 +2960,6 @@ var _ = Describe("Operation Controller", func() {
 				result, err := getDBOperationForEvent(ctx, newEvent, mockDB, logger)
 				Expect(result).To(BeNil())
 				Expect(err).ToNot(HaveOccurred())
-
 			})
 
 			It("should handle error when db values are empty", func() {

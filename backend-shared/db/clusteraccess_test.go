@@ -258,10 +258,19 @@ var _ = Describe("ClusterAccess Tests", func() {
 			Expect(clusterAccessList[0]).To(Equal(clusterAccess))
 		})
 
-		It("should return an error if ClusterAccess query parameter is nil", func() {
-			err := dbq.ListClusterAccessesByManagedEnvironmentID(ctx, "sample-ID", nil)
+		It("should return an error if the DB query fails", func() {
+			var clusterAccessList []db.ClusterAccess
+			err := dbq.ListClusterAccessesByManagedEnvironmentID(getExpiredContext(), managedEnvironment.Managedenvironment_id, &clusterAccessList)
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(Equal("clusterAccesses query parameter is nil"))
+			Expect(clusterAccessList).To(BeEmpty())
+		})
+
+		It("should return an error if dbConnection is nil", func() {
+			emptyDB := &db.PostgreSQLDatabaseQueries{}
+			var clusterAccessList []db.ClusterAccess
+			err := emptyDB.ListClusterAccessesByManagedEnvironmentID(ctx, "sample-ID", &clusterAccessList)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("database connection is nil"))
 		})
 
 		It("should return an error if an empty managedEnviroment ID is passed", func() {

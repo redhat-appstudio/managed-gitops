@@ -299,7 +299,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListOperationsToBeGarbageCollected(ctx con
 
 func (dbq *PostgreSQLDatabaseQueries) CountTotalOperationDBRows(ctx context.Context, operation *Operation) (int, error) {
 
-	count, err := dbq.dbConnection.Model(operation).Count()
+	count, err := dbq.dbConnection.Model(operation).Context(ctx).Count()
 	if err != nil {
 		return 0, fmt.Errorf("error on counting total number of operation: %w", err)
 	}
@@ -316,6 +316,7 @@ func (dbq *PostgreSQLDatabaseQueries) CountOperationDBRowsByState(ctx context.Co
 
 	opStateCount := []OperationStateCount{}
 	err := dbq.dbConnection.Model(operation).
+		Context(ctx).
 		Column("state").
 		ColumnExpr("count(*) AS row_count").
 		Group("state").

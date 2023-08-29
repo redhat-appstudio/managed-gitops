@@ -177,6 +177,13 @@ var _ = Describe("AppProjectRepository Test", func() {
 			}
 		})
 
+		It("should return an error if the DB query fails", func() {
+			var appProjectRepositories []db.AppProjectRepository
+			err := dbq.ListAppProjectRepositoryByClusterUserId(getExpiredContext(), "sample-id", &appProjectRepositories)
+			Expect(err).To(HaveOccurred())
+			Expect(appProjectRepositories).To(BeEmpty())
+		})
+
 		It("should return an error if the clusterUser ID is empty", func() {
 			appProjectRepositories := []db.AppProjectRepository{}
 			err := dbq.ListAppProjectRepositoryByClusterUserId(ctx, "", &appProjectRepositories)

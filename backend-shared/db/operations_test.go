@@ -306,6 +306,14 @@ var _ = Describe("Operations Test", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(count).To(BeZero())
 		})
+
+		It("should return an error if the DB query fails", func() {
+			var operation db.Operation
+			count, err := dbq.CountTotalOperationDBRows(getExpiredContext(), &operation)
+			Expect(err).To(HaveOccurred())
+			Expect(count).To(BeZero())
+		})
+
 		It("should return the number of operation rows", func() {
 			operationCount := 4
 			operation := &db.Operation{
@@ -334,6 +342,13 @@ var _ = Describe("Operations Test", func() {
 			operation := &db.Operation{}
 			states, err := dbq.CountOperationDBRowsByState(ctx, operation)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(states).To(BeEmpty())
+		})
+
+		It("should return an error if the DB query fails", func() {
+			var operation db.Operation
+			states, err := dbq.CountOperationDBRowsByState(getExpiredContext(), &operation)
+			Expect(err).To(HaveOccurred())
 			Expect(states).To(BeEmpty())
 		})
 

@@ -120,7 +120,7 @@ var _ = Describe("ArgoCD Login Command", func() {
 			Expect(client).To(BeNil())
 		})
 
-		It("should not return an error when insecure is true and the server certificate had errors", func() {
+		It("should not return an error when insecure field is true and the server certificate had errors", func() {
 			skipTLS := false
 			mockTestTLS := func(addr string, dialtime time.Duration) (*grpc.TLSTestResult, error) {
 				return &grpc.TLSTestResult{

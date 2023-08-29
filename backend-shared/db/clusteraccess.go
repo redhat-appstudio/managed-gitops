@@ -117,8 +117,8 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteClusterAccessById(ctx context.Contex
 
 func (dbq *PostgreSQLDatabaseQueries) ListClusterAccessesByManagedEnvironmentID(ctx context.Context, managedEnvironmentID string, clusterAccesses *[]ClusterAccess) error {
 
-	if clusterAccesses == nil {
-		return fmt.Errorf("clusterAccesses query parameter is nil")
+	if err := validateQueryParamsEntity(clusterAccesses, dbq); err != nil {
+		return err
 	}
 
 	if err := isEmptyValues("ListClusterAccessByManagedEnvironmentID",

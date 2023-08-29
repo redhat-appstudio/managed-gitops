@@ -182,8 +182,16 @@ var _ = Describe("Application Test", func() {
 			Expect(count).To(Equal(expectedRows))
 		})
 
+		It("should return an error if the DB query fails", func() {
+			var apps []db.Application
+			count, err := dbq.ListApplicationsForManagedEnvironment(getExpiredContext(), "sample-id", &apps)
+			Expect(err).To(HaveOccurred())
+			Expect(count).To(BeZero())
+			Expect(apps).To(BeEmpty())
+		})
+
 		It("should return an error if the ManagedEnvironment ID is empty", func() {
-			apps := []db.Application{}
+			var apps []db.Application
 			count, err := dbq.ListApplicationsForManagedEnvironment(ctx, "", &apps)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(Equal("primary key is empty"))
@@ -191,7 +199,7 @@ var _ = Describe("Application Test", func() {
 		})
 
 		It("should return an empty slice if there are no Applications for a given Environment", func() {
-			apps := []db.Application{}
+			var apps []db.Application
 			count, err := dbq.ListApplicationsForManagedEnvironment(ctx, "invalid-id", &apps)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(count).To(BeZero())

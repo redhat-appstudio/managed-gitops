@@ -130,7 +130,7 @@ func (dbq *PostgreSQLDatabaseQueries) DeleteAppProjectManagedEnvironmentByManage
 
 func (dbq *PostgreSQLDatabaseQueries) CountAppProjectManagedEnvironmentByClusterUserID(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error) {
 
-	count, err := dbq.dbConnection.Model(obj).Where("clusteruser_id = ?", obj.Clusteruser_id).Count()
+	count, err := dbq.dbConnection.Model(obj).Context(ctx).Where("clusteruser_id = ?", obj.Clusteruser_id).Count()
 	if err != nil {
 		return 0, fmt.Errorf("error on counting total number of AppProjectManagedEnvironment exists for the user: %w", err)
 	}

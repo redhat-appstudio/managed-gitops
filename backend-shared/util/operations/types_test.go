@@ -2,6 +2,7 @@ package operations
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
@@ -14,7 +15,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"time"
 )
 
 var _ = Describe("Testing CreateOperation function.", func() {
@@ -107,13 +107,16 @@ var _ = Describe("Testing CreateOperation function.", func() {
 	Context("Testing waitForOperationToComplete and IsOperationComplete function.", func() {
 		var ctx context.Context
 		var dbq db.AllDatabaseQueries
-		var k8sClient *sharedutil.ProxyClient
+		var k8sClient client.Client
 		var logger logr.Logger
 
 		delayUpdateOfState := func(operation *db.Operation, k8sClient client.Client, gitopsEngineInstance db.GitopsEngineInstance) {
+			defer GinkgoRecover()
 			Eventually(func() bool {
-				// Allow waitForOperationToComplete to iterate/wait
-				time.Sleep(2 * time.Second)
+				// Allow waitForOperationToComplete to iterate/wait a few times
+				currentTime := time.Now()
+				for time.Now().Before(currentTime.Add(2 * time.Second)) {
+				}
 
 				operationget := db.Operation{
 					Operation_id: operation.Operation_id,
@@ -155,14 +158,10 @@ var _ = Describe("Testing CreateOperation function.", func() {
 			ctx = context.Background()
 			logger = log.FromContext(ctx)
 
-			k8sClientOuter := fake.NewClientBuilder().
+			k8sClient = fake.NewClientBuilder().
 				WithScheme(scheme).
 				WithObjects(workspace, argocdNamespace, kubesystemNamespace).
 				Build()
-
-			k8sClient = &sharedutil.ProxyClient{
-				InnerClient: k8sClientOuter,
-			}
 
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
 			Expect(err).ToNot(HaveOccurred())
@@ -203,7 +202,7 @@ var _ = Describe("Testing CreateOperation function.", func() {
 
 		})
 
-		It("It should test CreateOperation with waitForOperation set to true to indirectly test the waitForOperationToComplete function.", func() {
+		It("should test CreateOperation with waitForOperation set to true to indirectly test the waitForOperationToComplete function.", func() {
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
 			Expect(err).ToNot(HaveOccurred())
 

@@ -202,6 +202,26 @@ var _ = Describe("Testing CreateOperation function.", func() {
 
 		})
 
+		It("should pass a non-existent DB Operation to isOperationComplete, to test error handling.", func() {
+			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("define a sample operation")
+			sampleOperation := &db.Operation{
+				Operation_id:            "test-engine-operation",
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "test-fake-resource-id",
+				Resource_type:           "GitopsEngineInstance",
+				Operation_owner_user_id: "test-user",
+			}
+
+			// Now directly call isOperationComplete to test the error handling
+			isComplete, err := IsOperationComplete(ctx, sampleOperation, dbq)
+			Expect(isComplete).To(BeFalse())
+			Expect(err).To(HaveOccurred())
+
+		})
+
 		It("should test CreateOperation with waitForOperation set to true to indirectly test the waitForOperationToComplete function.", func() {
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
 			Expect(err).ToNot(HaveOccurred())

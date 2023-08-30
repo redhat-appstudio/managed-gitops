@@ -29,28 +29,48 @@ const (
 	ResourceDeleted  ResourceChangeType = "Deleted"
 )
 
+const (
+	logError              = "resource passed to LogAPIResourceChangeEvent was nil"
+	logMarshalJsonError   = "SEVERE: Unable to marshal log to JSON."
+	logUnMarshalJsonError = "SEVERE: Unable to unmarshal JSON."
+)
+
 func LogAPIResourceChangeEvent(resourceNamespace string, resourceName string, resource any, resourceChangeType ResourceChangeType, log logr.Logger) {
-	log = log.WithValues("audit", "true")
+	log = log.WithValues("audit", "true").WithCallDepth(1)
 
 	if resource == nil {
-		log.Error(nil, "resource passed to LogAPIResourceChangeEvent was nil")
+		log.Error(nil, logError)
 		return
 	}
-	secret, isSecret := (resource).(*corev1.Secret)
-	if isSecret {
-		// Make a copy of the resource, before we modify it
-		secret = secret.DeepCopy()
-		// Remove the data field, as this contains data that should not be logged.
-		secret.Data = map[string][]byte{}
-		resource = secret
+	_, isSecretPointer := (resource).(*corev1.Secret)
+	_, isSecretObj := (resource).(corev1.Secret)
+	if isSecretPointer || isSecretObj {
+		log.Info(fmt.Sprintf("API Resource changed for secret resource: %s, name: %s, namespace: %s", string(resourceChangeType), resourceName, resourceNamespace))
+		return
 	}
-	jsonRepresentation, err := json.Marshal(resource)
 
+	jsonRepresentation, err := json.Marshal(resource)
 	if err != nil {
-		log.Error(err, "SEVERE: Unable to marshal log to JSON.")
+		log.Error(err, logMarshalJsonError)
 		return
+	}
+	var resourceMap map[string]interface{}
+	errUnmarshal := json.Unmarshal(jsonRepresentation, &resourceMap)
+	if errUnmarshal != nil {
+		log.Error(errUnmarshal, logUnMarshalJsonError)
+		return
+	}
+	mf := resourceMap["metadata"].(map[string]interface{})
+	if mf != nil && mf["managedFields"] != nil {
+		mf["managedFields"] = nil
+		modifiedJsonRep, err := json.Marshal(resourceMap)
+		if err != nil {
+			log.Error(err, "SEVERE: Unable to marshal resource to JSON.")
+		}
+		jsonRepresentation = modifiedJsonRep
 	}
 
 	log.Info(fmt.Sprintf("API Resource changed: %s", string(resourceChangeType)), "namespace",
 		resourceNamespace, "name", resourceName, "object", string(jsonRepresentation))
+
 }

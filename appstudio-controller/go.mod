@@ -1,13 +1,13 @@
 module github.com/redhat-appstudio/managed-gitops/appstudio-controller
 
-go 1.18
+go 1.19
 
 require (
 	github.com/codeready-toolchain/api v0.0.0-20230417183849-f62ccbf3bd40
 	github.com/codeready-toolchain/toolchain-common v0.0.0-20230417235430-8258a3281250
 	github.com/onsi/ginkgo/v2 v2.6.0
 	github.com/onsi/gomega v1.24.1
-	github.com/redhat-appstudio/application-api v0.0.0-20230421113855-f25d47ce7499
+	github.com/redhat-appstudio/application-api v0.0.0-20230823105056-c172d75de35a
 	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0
 	k8s.io/apimachinery v0.25.0
 	k8s.io/client-go v0.25.0
@@ -46,7 +46,7 @@ require (
 	github.com/vmihailenco/tagparser v0.1.2 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
-	mellium.im/sasl v0.2.1 // indirect
+	mellium.im/sasl v0.3.1 // indirect
 )
 
 require (

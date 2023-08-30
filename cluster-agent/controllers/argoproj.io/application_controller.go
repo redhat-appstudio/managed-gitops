@@ -17,8 +17,6 @@ limitations under the License.
 package argoprojio
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -27,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/yaml.v2"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -38,7 +37,6 @@ import (
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/argoproj.io/application_info_cache"
-	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -139,10 +137,19 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 			// Get the list of resources created by deployment and convert it into a compressed YAML string.
 			var err error
-			applicationState.Resources, err = compressResourceData(app.Status.Resources)
+			applicationState.Resources, err = sharedutil.CompressObject(app.Status.Resources)
 			if err != nil {
 				log.Error(err, "unable to compress resource data into byte array.")
 				return ctrl.Result{}, err
+			}
+
+			if app.Status.OperationState != nil {
+				// Compress the Application OperationState and copy it.
+				applicationState.OperationState, err = sharedutil.CompressObject(app.Status.OperationState)
+				if err != nil {
+					log.Error(err, "unable to compress operationState data into byte array.")
+					return ctrl.Result{}, err
+				}
 			}
 
 			// storeInComparedToFieldInApplicationState will read 'comparedTo' field of an Argo CD Application, and write the
@@ -155,15 +162,10 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 			applicationState.ReconciledState = reconciledState
 
-			// Look for SyncError condition in the Argo CD Application status field, and if found, update the database row
-			syncErrorMessageFromArgoApplication := ""
-			for _, argoAppCondition := range app.Status.Conditions {
-				if argoAppCondition.Type == appv1.ApplicationConditionSyncError {
-					// Update syncError field of appliactionState only if type is SyncError
-					syncErrorMessageFromArgoApplication = db.TruncateVarchar(argoAppCondition.Message, db.ApplicationStateSyncErrorLength)
-				}
+			if err := setApplicationConditions(applicationState, app.Status.Conditions); err != nil {
+				log.Error(err, "failed to set Application conditions in ApplicationState DB")
+				return ctrl.Result{}, err
 			}
-			applicationState.SyncError = syncErrorMessageFromArgoApplication
 
 			if errCreate := r.Cache.CreateApplicationState(ctx, *applicationState); errCreate != nil {
 				log.Error(errCreate, "unexpected error on writing new application state")
@@ -187,10 +189,18 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// Get the list of resources created by deployment and convert it into a compressed YAML string.
 	var err error
-	applicationState.Resources, err = compressResourceData(app.Status.Resources)
+	applicationState.Resources, err = sharedutil.CompressObject(app.Status.Resources)
 	if err != nil {
 		log.Error(err, "unable to compress resource data into byte array.")
 		return ctrl.Result{}, err
+	}
+
+	if app.Status.OperationState != nil {
+		applicationState.OperationState, err = sharedutil.CompressObject(app.Status.OperationState)
+		if err != nil {
+			log.Error(err, "unable to compress operationState into byte array.")
+			return ctrl.Result{}, err
+		}
 	}
 
 	// storeInComparedToFieldInApplicationState will read 'comparedTo' field of an Argo CD Application, and write the
@@ -203,15 +213,10 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	applicationState.ReconciledState = reconciledState
 
-	// Look for SyncError condition in the Argo CD Application status field, and if found, update the database row
-	syncErrorMessageFromArgoApplication := ""
-	for _, argoAppCondition := range app.Status.Conditions {
-		if argoAppCondition.Type == appv1.ApplicationConditionSyncError {
-			// Update syncError field of appliactionState only if type is SyncError
-			syncErrorMessageFromArgoApplication = db.TruncateVarchar(argoAppCondition.Message, db.ApplicationStateSyncErrorLength)
-		}
+	if err := setApplicationConditions(applicationState, app.Status.Conditions); err != nil {
+		log.Error(err, "failed to set Application conditions in ApplicationState DB")
+		return ctrl.Result{}, err
 	}
-	applicationState.SyncError = syncErrorMessageFromArgoApplication
 
 	if err := r.Cache.UpdateApplicationState(ctx, *applicationState); err != nil {
 
@@ -265,36 +270,6 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// Convert ResourceStatus Array into String and then compress it into Byte Array​
-func compressResourceData(resources []appv1.ResourceStatus) ([]byte, error) {
-	var byteArr []byte
-	var buffer bytes.Buffer
-
-	// Convert ResourceStatus object into String.
-	resourceStr, err := yaml.Marshal(&resources)
-	if err != nil {
-		return byteArr, fmt.Errorf("unable to Marshal resource data. %v", err)
-	}
-
-	// Compress string data
-	gzipWriter, err := gzip.NewWriterLevel(&buffer, gzip.BestSpeed)
-	if err != nil {
-		return byteArr, fmt.Errorf("unable to create Buffer writer. %v", err)
-	}
-
-	_, err = gzipWriter.Write([]byte(string(resourceStr)))
-
-	if err != nil {
-		return byteArr, fmt.Errorf("unable to compress resource string. %v", err)
-	}
-
-	if err := gzipWriter.Close(); err != nil {
-		return byteArr, fmt.Errorf("unable to close gzip writer connection. %v", err)
-	}
-
-	return buffer.Bytes(), nil
-}
-
 // storeInComparedToFieldInApplicationState will read 'comparedTo' field of an Argo CD Application, and write the
 // correct value into 'applicationState'.
 func storeInComparedToFieldInApplicationState(argoCDAppParam appv1.Application, applicationState db.ApplicationState) (string, error) {
@@ -346,4 +321,21 @@ func storeInComparedToFieldInApplicationState(argoCDAppParam appv1.Application, 
 	applicationState.ReconciledState = (string)(comparedToBytes)
 
 	return applicationState.ReconciledState, nil
+}
+
+func setApplicationConditions(appState *db.ApplicationState, conditions []appv1.ApplicationCondition) error {
+	if len(conditions) == 0 {
+		return nil
+	}
+
+	for _, c := range conditions {
+		c.Message = db.TruncateVarchar(c.Message, db.ApplicationStateMessageLength)
+	}
+
+	conditionBytes, err := yaml.Marshal(conditions)
+	if err != nil {
+		return err
+	}
+	appState.Conditions = conditionBytes
+	return nil
 }

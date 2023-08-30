@@ -249,7 +249,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListOperationsByResourceIdAndTypeAndOwnerI
 
 	var dbResults []Operation
 
-	// TODO: GITOPSRVCE-68 - PERF - Add index for this
+	// Index Name is idx_operation_1
 
 	if err := dbq.dbConnection.Model(&dbResults).
 		Where("op.resource_id = ?", resourceID).
@@ -328,4 +328,16 @@ func (dbq *PostgreSQLDatabaseQueries) CountOperationDBRowsByState(ctx context.Co
 	}
 
 	return res, nil
+}
+
+// Get operations in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+// For example if you want operations starting from 51-150 then set the limit to 100 and offset to 50.
+func (dbq *PostgreSQLDatabaseQueries) GetOperationBatch(ctx context.Context, operations *[]Operation, limit, offSet int) error {
+	return dbq.dbConnection.
+		Model(operations).
+		Order("seq_id ASC").
+		Limit(limit).   // Batch size
+		Offset(offSet). // offset+1 is starting point of batch
+		Context(ctx).
+		Select()
 }

@@ -70,6 +70,8 @@ CREATE TABLE GitopsEngineCluster (
 
 );
 
+CREATE INDEX idx_gitopsenginecluster_clustercredentials ON GitopsEngineCluster(clustercredentials_id);
+
 -- GitopsEngineInstance
 -- Represents an Argo CD instance on a cluster; the specific cluster is pointed to by the enginecluster field, and the
 -- namespace of the Argo CD install is listed here.
@@ -133,9 +135,13 @@ CREATE TABLE ClusterUser (
 	seq_id serial,
 
 	 -- When ClusterUser was created, which allow us to tell how old the resources are
-	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+	-- We can use display_name to store the name of user's namespace
+	display_name VARCHAR (128)
 );
 
+CREATE INDEX idx_clusteruser_user_name ON ClusterUser(user_name);
 
 
 -- ClusterAccess
@@ -172,6 +178,7 @@ CREATE TABLE ClusterAccess (
 -- Add an index on user_id+managed_cluster, and userid+gitops_manager_instance_Id
 CREATE INDEX idx_userid_cluster ON ClusterAccess(clusteraccess_user_id, clusteraccess_managed_environment_id);
 CREATE INDEX idx_userid_instance ON ClusterAccess(clusteraccess_user_id, clusteraccess_gitops_engine_instance_id);
+CREATE INDEX idx_managed_environment_id ON ClusterAccess(clusteraccess_managed_environment_id);
 
 
 
@@ -235,6 +242,9 @@ CREATE TABLE Operation (
 
 );
 
+CREATE INDEX idx_operation_1 ON Operation(resource_id, resource_type, operation_owner_user_id);
+
+
 -- Application represents an Argo CD Application CR within an Argo CD namespace.
 CREATE TABLE Application (
 	application_id VARCHAR ( 48 ) NOT NULL UNIQUE PRIMARY KEY,
@@ -260,7 +270,7 @@ CREATE TABLE Application (
 	CONSTRAINT fk_managedenvironment_id FOREIGN KEY (managed_environment_id) REFERENCES ManagedEnvironment(managedenvironment_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 	
 	seq_id serial,
-    
+
 	-- When Application was created, which allow us to tell how old the resources are
 	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 
@@ -286,7 +296,7 @@ CREATE TABLE ApplicationState (
 	-- message field comes directly from Argo CD Application CR's .status.healthStatus.Message
 	message VARCHAR (1024),
 
-    -- revision field comes directly from Argo CD Application CR's .status.SyncStatus.Revision field
+	-- revision field comes directly from Argo CD Application CR's .status.SyncStatus.Revision field
 	revision VARCHAR (1024),
 
 	-- sync_status field comes directly from Argo CD Application CR's .status.SyncStatus field
@@ -304,8 +314,11 @@ CREATE TABLE ApplicationState (
 	-- of the Argo CD cluster secret.
 	reconciled_state VARCHAR (4096),
 
-	-- sync_error is a string, which contains the Argo CD Application's .status.conditions.message which is of type SyncError
-	sync_error VARCHAR (4096)
+	-- operation_state comes directly from Argo CD Application CR's .status.operationState field 
+	operation_state bytea,
+
+	-- conditions field comes directly from Argo CD Application CR's .status.conditions field
+	conditions bytea
 );
 
 -- Represents the relationship from GitOpsDeployment CR in the API namespace, to an Application table row.
@@ -337,6 +350,11 @@ CREATE TABLE DeploymentToApplicationMapping (
 	seq_id serial
 
 );
+
+CREATE INDEX idx_deploymenttoapplicationmapping_1 ON DeploymentToApplicationMapping(namespace_uid);
+CREATE INDEX idx_deploymenttoapplicationmapping_2 ON DeploymentToApplicationMapping(name, namespace, namespace_uid);
+CREATE INDEX idx_deploymenttoapplicationmapping_3 ON DeploymentToApplicationMapping(application_id);
+
 
 -- Represents a generic relationship between: Kubernetes CR <->  Database table
 -- The Kubernetes CR can be either in the API namespace, or in/on a GitOpsEngine cluster namespace.
@@ -438,7 +456,10 @@ CREATE TABLE APICRToDatabaseMapping  (
 	PRIMARY KEY(api_resource_type, api_resource_uid, db_relation_type, db_relation_key)
 
 );
--- TODO: GITOPSRVCE-68 - PERF - Add index to APICRToDatabaseMapping to correspond to the access patterns we are using.
+
+CREATE INDEX idx_APICRToDatabaseMapping1 ON APICRToDatabaseMapping(api_resource_type, api_resource_uid, db_relation_type);
+CREATE INDEX idx_APICRToDatabaseMapping2 ON APICRToDatabaseMapping(api_resource_type, db_relation_type, db_relation_key, api_resource_namespace_uid, db_relation_type);
+CREATE INDEX idx_APICRToDatabaseMapping3 ON APICRToDatabaseMapping(api_resource_type, db_relation_type, db_relation_key);
 
 -- Sync Operation tracks a sync request from the API. This will correspond to a sync operation on an Argo CD Application, which 
 -- will cause Argo CD to deploy the K8s resources from Git, to the target environment. This is also known as manual sync.
@@ -464,7 +485,7 @@ CREATE TABLE SyncOperation (
 
 	seq_id serial,
 
-    -- When SyncOperation was created, which allow us to tell how old the resources are
+	-- When SyncOperation was created, which allow us to tell how old the resources are
 	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 
 );
@@ -473,40 +494,106 @@ CREATE TABLE SyncOperation (
 -- This database table will then correspond to an Argo CD repository secret in the namespace of the target Argo CD instance.
 CREATE TABLE RepositoryCredentials (
 
-    -- Primary Key, that is an auto-generated UID
-    repositorycredentials_id VARCHAR ( 48 ) NOT NULL UNIQUE PRIMARY KEY,
+	-- Primary Key, that is an auto-generated UID
+	repositorycredentials_id VARCHAR ( 48 ) NOT NULL UNIQUE PRIMARY KEY,
 
-    -- User of GitOps service that wants to use a private repository
-    -- Foreign key to: ClusterUser.Clusteruser_id
-    repo_cred_user_id VARCHAR (48) NOT NULL,
-    CONSTRAINT fk_clusteruser_id FOREIGN KEY (repo_cred_user_id) REFERENCES ClusterUser(clusteruser_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
+	-- User of GitOps service that wants to use a private repository
+	-- Foreign key to: ClusterUser.Clusteruser_id
+	repo_cred_user_id VARCHAR (48) NOT NULL,
+	CONSTRAINT fk_clusteruser_id FOREIGN KEY (repo_cred_user_id) REFERENCES ClusterUser(clusteruser_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 
-    -- URL of the Git repository (example: https://github.com/my-org/my-repo)
-    repo_cred_url VARCHAR (512) NOT NULL,
+	-- URL of the Git repository (example: https://github.com/my-org/my-repo)
+	repo_cred_url VARCHAR (512) NOT NULL,
 
-    -- Authorized username login for accessing the private Git repo
-    repo_cred_user VARCHAR (256),
+	-- Authorized username login for accessing the private Git repo
+	repo_cred_user VARCHAR (256),
 
-    -- Authorized password login for accessing the private Git repo
-    repo_cred_pass VARCHAR (1024),
+	-- Authorized password login for accessing the private Git repo
+	repo_cred_pass VARCHAR (1024),
 
-    -- Alternative authentication method using an authorized private SSH key
-    repo_cred_ssh VARCHAR (1024),
+	-- Alternative authentication method using an authorized private SSH key
+	repo_cred_ssh VARCHAR (1024),
 
-    -- The name of the Secret resource in the Argo CD Repository, in the GitOps Engine instance
-    repo_cred_secret VARCHAR(48) NOT NULL,
+	-- The name of the Secret resource in the Argo CD Repository, in the GitOps Engine instance
+	repo_cred_secret VARCHAR(48) NOT NULL,
 
-    -- The internal RedHat Managed cluster where the GitOps Engine (e.g. ArgoCD) is running
-    -- NOTE: It is expected the 'repo_cred_secret' to be stored there as well.
-    -- Foreign key to: GitopsEngineInstance.Gitopsengineinstance_id
-    repo_cred_engine_id VARCHAR(48) NOT NULL,
-    CONSTRAINT fk_gitopsengineinstance_id FOREIGN KEY (repo_cred_engine_id) REFERENCES GitopsEngineInstance(gitopsengineinstance_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
+	-- The internal RedHat Managed cluster where the GitOps Engine (e.g. ArgoCD) is running
+	-- NOTE: It is expected the 'repo_cred_secret' to be stored there as well.
+	-- Foreign key to: GitopsEngineInstance.Gitopsengineinstance_id
+	repo_cred_engine_id VARCHAR(48) NOT NULL,
+	CONSTRAINT fk_gitopsengineinstance_id FOREIGN KEY (repo_cred_engine_id) REFERENCES GitopsEngineInstance(gitopsengineinstance_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 
-    seq_id serial,
+	seq_id serial,
 
-    -- When RepositoryCredentials was created, which allow us to tell how old the resources are
+	-- When RepositoryCredentials was created, which allow us to tell how old the resources are
 	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 
+);
+
+-- AppProjectRepository is used by ArgoCD AppProject
+CREATE TABLE AppProjectRepository (
+
+	-- Primary Key, that is an auto-generated UID
+	appproject_repository_id VARCHAR(48) NOT NULL PRIMARY KEY,
+
+	-- Describes whose cluster this is (UID)
+	-- Foreign key to: ClusterUser.clusteruser_id
+	clusteruser_id VARCHAR (48) NOT NULL,
+	CONSTRAINT fk_clusteruser_id FOREIGN KEY (clusteruser_id) REFERENCES ClusterUser(clusteruser_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
+	
+	-- Normalized Repo URL
+	repo_url VARCHAR (256) NOT NULL,
+
+	UNIQUE (clusteruser_id, repo_url),
+
+	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+	seq_id serial
+);
+-- Add an index on clusteruser_id
+CREATE INDEX idx_userid_cluster_rc ON AppProjectRepository(clusteruser_id);
+
+-- AppProjectManagedEnvironment is used by ArgoCD AppProject
+CREATE TABLE AppProjectManagedEnvironment (
+
+	-- Primary Key, that is an auto-generated UID
+	appproject_managedenv_id VARCHAR(48) NOT NULL PRIMARY KEY,
+
+	-- Describes whose cluster this is (UID)
+	-- Foreign key to: ClusterUser.clusteruser_id
+	clusteruser_id VARCHAR (48) NOT NULL,
+	CONSTRAINT fk_clusteruser_id FOREIGN KEY (clusteruser_id) REFERENCES ClusterUser(clusteruser_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
+
+	-- Describes which managedenvironment the user has access to (UID)
+	-- Foreign key to: ManagedEnvironment.managed_environment_id
+	managed_environment_id VARCHAR (48) NOT NULL,
+	CONSTRAINT fk_managedenvironment_id FOREIGN KEY (managed_environment_id) REFERENCES ManagedEnvironment(managedenvironment_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
+	
+	created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	
+	seq_id serial
+);
+-- Add an index on clusteruser_id
+CREATE INDEX idx_userid_cluster_me ON AppProjectManagedEnvironment(clusteruser_id);
+
+-- ApplicationOwner indicates which Applications are owned by which user(s)
+CREATE TABLE ApplicationOwner (
+
+    -- Foreign key to Application.application_id
+    application_owner_application_id VARCHAR(48) NOT NULL,
+    CONSTRAINT fk_app_id FOREIGN KEY (application_owner_application_id) REFERENCES Application(application_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
+    
+    -- Describes whose cluster this is (UID)
+    -- Foreign key to: ClusterUser.clusteruser_id
+    application_owner_user_id VARCHAR(48) NOT NULL,
+    CONSTRAINT fk_clusteruser_id FOREIGN KEY (application_owner_user_id) REFERENCES ClusterUser(clusteruser_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
+    
+    seq_id SERIAL,
+    
+    -- When ClusterUser was created, which allows us to tell how old the resources are
+    created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    
+    PRIMARY KEY (application_owner_application_id, application_owner_user_id)
 );
 
 /*
@@ -568,6 +655,10 @@ GitopsEngineInstance -> GitopsEngineCluster
 GitopsEngineCluster -> ClusterCredentials
 ManagedEnvironment -> ClusterCredentials
 
+AppProjectRepository -> ClusterUser
+AppProjectRepository -> RepositoryCredentials
+
+AppProjectManagedEnvironment -> ManagedEnviroment
 
 ClusterCredentials -> .
 

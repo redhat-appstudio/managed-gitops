@@ -8,7 +8,7 @@ APPLICATION_API_COMMIT ?= f25d47ce749967013a7f13dcb9e65ede36b96f18
 
 # Default values match the their respective deployments in staging/production environment for GitOps Service, otherwise the E2E will fail.
 ARGO_CD_NAMESPACE ?= gitops-service-argocd
-ARGO_CD_VERSION ?= v2.5.1
+ARGO_CD_VERSION ?= v2.7.11
 
 # Tool to build the container image. It can be either docker or podman
 DOCKER ?= docker
@@ -33,28 +33,40 @@ help: ## Display this help menu
 
 # Deploy only the bare minimum to K8s: CRDs
 
-deploy-local-dev-env: kustomize ## Only deploy CRDs to K8s
+pre-deploy-crds: kustomize
+	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/base/crd/overlays/local-dev  | kubectl apply -f -
+
+pre-undeploy-crds: kustomize
+	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/local-dev-env | kubectl delete -f - 
+
+
+deploy-local-dev-env: pre-deploy-crds  ## Only deploy CRDs to K8s
 	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/local-dev-env | kubectl apply -f - 
 
-undeploy-local-dev-env: kustomize ## Remove CRDs from K8s
+undeploy-local-dev-env: pre-undeploy-crds ## Remove CRDs from K8s
 	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/local-dev-env | kubectl delete -f - 
 
 # Deploy bare minimum + postgres: CRDs, and postgresql, but not controllers
 
-deploy-local-dev-env-with-k8s-db: kustomize postgresql-secret-on-k8s ## Only deploy CRDs, postgres workload/secret, to K8s
+deploy-local-dev-env-with-k8s-db: pre-deploy-crds postgresql-secret-on-k8s ## Only deploy CRDs, postgres workload/secret, to K8s
 	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/local-dev-env-with-k8s-db | kubectl apply -f - 
 
-undeploy-local-dev-env-with-k8s-db: kustomize ## Remove CRDs, postgres workload/secret  from K8s
+undeploy-local-dev-env-with-k8s-db: pre-undeploy-crds ## Remove CRDs, postgres workload/secret  from K8s
 	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/local-dev-env-with-k8s-db | kubectl delete -f - 
 
 # Deploy everything to K8s, including the controllers and postgres workloads
 
-deploy-k8s-env: kustomize postgresql-secret-on-k8s ## Deploy all controller/DB workloads to K8s, use e.g. IMG=quay.io/pgeorgia/gitops-service:latest to specify a specific image
+deploy-k8s-env: pre-deploy-crds postgresql-secret-on-k8s ## Deploy all controller/DB workloads to K8s, use e.g. IMG=quay.io/pgeorgia/gitops-service:latest to specify a specific image
 	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/k8s-env |  COMMON_IMAGE=${IMG} envsubst | kubectl apply -f - 
 
-undeploy-k8s-env: kustomize ## Remove all controller/DB workloads from K8s.
+undeploy-k8s-env: pre-undeploy-crds ## Remove all controller/DB workloads from K8s.
 	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/k8s-env | kubectl delete -f - 
 
+deploy-k8s-env-e2e: pre-deploy-crds postgresql-secret-on-k8s ## Deploy all controller/DB workloads to K8s for e2e tests, use e.g. IMG=quay.io/pgeorgia/gitops-service:latest to specify a specific image
+	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/k8s-env-e2e | COMMON_IMAGE=${IMG} envsubst | kubectl apply -f -
+
+undeploy-k8s-env-e2e: pre-undeploy-crds ## Remove all controller/DB e2e test workloads from K8s.
+	$(KUSTOMIZE) build $(MAKEFILE_ROOT)/manifests/overlays/k8s-env-e2e | kubectl delete -f -
 
 
 ### --- P o s t g r e s --- ###
@@ -144,6 +156,8 @@ devenv-k8s-e2e: deploy-local-dev-env-with-k8s-db port-forward-postgres-auto ## S
 
 install-all-k8s: deploy-k8s-env port-forward-postgres-manual ## Installs e.g. make install-all-k8s IMG=quay.io/pgeorgia/gitops-service:latest
 
+install-all-k8s-e2e: deploy-k8s-env-e2e port-forward-postgres-manual ## Installs for e2e tests e.g. make install-all-k8s-e2e IMG=quay.io/pgeorgia/gitops-service:latest
+
 uninstall-all-k8s: undeploy-k8s-env
 	kubectl delete namespace gitops
 
@@ -185,7 +199,8 @@ setup-e2e-openshift: install-argocd-openshift devenv-k8s-e2e ## Setup steps for 
 
 setup-e2e-local: install-argocd-openshift devenv-docker reset-db ## Setup steps for E2E tests to run with Local Openshift Cluster
 
-start-e2e: start ## Start the managed gitops processes for E2E tests. At the moment this is just a wrapper over 'start' target
+start-e2e: ## Start the managed gitops processes for E2E tests.
+	$(GOBIN)/goreman -f Procfile.no-self-heal start
 
 test-e2e: ## Kick off the E2E tests. Ensure that 'start-e2e' and 'setup-e2e-openshift' have run.
 	cd $(MAKEFILE_ROOT)/tests-e2e && make test
@@ -216,7 +231,8 @@ tidy: ## Tidy all components
 	cd $(MAKEFILE_ROOT)/appstudio-controller && go mod tidy
 	cd $(MAKEFILE_ROOT)/tests-e2e && go mod tidy
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && go mod tidy
-	cd $(MAKEFILE_ROOT)/utilities/init-container && go mod vendor
+	cd $(MAKEFILE_ROOT)/utilities/init-container && go mod tidy
+	cd $(MAKEFILE_ROOT)/utilities/load-test && go mod tidy
 	 
 fmt: ## Run 'go fmt' on all components
 	cd $(MAKEFILE_ROOT)/backend-shared && make fmt
@@ -234,6 +250,16 @@ lint: ## Run lint checks for all components
 	cd $(MAKEFILE_ROOT)/tests-e2e && make lint
 	cd $(MAKEFILE_ROOT)/utilities/db-migration && make lint
 	cd $(MAKEFILE_ROOT)/utilities/init-container && make lint
+
+gosec: ## Run gosec checks for all components
+	cd $(MAKEFILE_ROOT)/backend-shared && make gosec
+	cd $(MAKEFILE_ROOT)/backend && make gosec
+	cd $(MAKEFILE_ROOT)/cluster-agent && make gosec
+	cd $(MAKEFILE_ROOT)/appstudio-controller && make gosec
+	cd $(MAKEFILE_ROOT)/tests-e2e && make gosec
+#	cd $(MAKEFILE_ROOT)/utilities/db-migration && make gosec
+#	cd $(MAKEFILE_ROOT)/utilities/init-container && make gossec
+
 
 generate-manifests: ## Call the 'generate' and 'manifests' targets of every project
 	cd $(MAKEFILE_ROOT)/backend-shared && make generate manifests
@@ -273,7 +299,7 @@ ensure-gitops-ns-exists:
 	kubectl create namespace gitops 2> /dev/null || true
 
 ensure-workload-gitops-ns-exists:
-	KUBECONFIG=${WORKLOAD_KUBECONFIG} kubectl create namespace gitops 2> /dev/null || true
+	kubectl create namespace gitops 2> /dev/null || true
 
 
 

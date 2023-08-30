@@ -83,8 +83,6 @@ func (dbq *PostgreSQLDatabaseQueries) CreateClusterUser(ctx context.Context, obj
 
 func (dbq *PostgreSQLDatabaseQueries) GetClusterUserByUsername(ctx context.Context, clusterUser *ClusterUser) error {
 
-	// TODO: GITOPSRVCE-68 - PERF - Add an index for this, if anything actually calls it
-
 	if err := validateQueryParamsEntity(clusterUser, dbq); err != nil {
 		return err
 	}
@@ -95,6 +93,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetClusterUserByUsername(ctx context.Conte
 
 	var dbResults []ClusterUser
 
+	// Index Name is idx_clusteruser_user_name
 	if err := dbq.dbConnection.Model(&dbResults).
 		Where("cu.user_name = ?", clusterUser.User_name).
 		Context(ctx).
@@ -175,6 +174,7 @@ func (dbq *PostgreSQLDatabaseQueries) GetOrCreateSpecialClusterUser(ctx context.
 	if len(dbResults) == 0 {
 		clusterUser.Clusteruser_id = SpecialClusterUserName
 		clusterUser.User_name = SpecialClusterUserName
+		clusterUser.Display_name = SpecialClusterUserName
 
 		if _, err := dbq.dbConnection.Model(clusterUser).Context(ctx).Insert(); err != nil {
 			return fmt.Errorf("error on inserting SpecialClusterUser: %v", err)
@@ -183,6 +183,47 @@ func (dbq *PostgreSQLDatabaseQueries) GetOrCreateSpecialClusterUser(ctx context.
 		*clusterUser = dbResults[0]
 	}
 	return nil
+}
+
+// Get ClusterUser in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+// For example if you want ClusterUser starting from 51-150 then set the limit to 100 and offset to 50.
+func (dbq *PostgreSQLDatabaseQueries) GetClusterUserBatch(ctx context.Context, clusterUser *[]ClusterUser, limit, offSet int) error {
+	return dbq.dbConnection.
+		Model(clusterUser).
+		Order("seq_id ASC").
+		Limit(limit).   // Batch size
+		Offset(offSet). // offset+1 is starting point of batch
+		Context(ctx).
+		Select()
+}
+
+func (dbq *PostgreSQLDatabaseQueries) UpdateClusterUser(ctx context.Context, obj *ClusterUser) error {
+	if err := validateQueryParamsEntity(obj, dbq); err != nil {
+		return err
+	}
+
+	if err := isEmptyValues("UpdateClusterUser",
+		"clusteruser_id", obj.Clusteruser_id,
+		"user_name", obj.User_name,
+		"display_name", obj.Display_name); err != nil {
+		return err
+	}
+
+	if err := validateFieldLength(obj); err != nil {
+		return err
+	}
+
+	result, err := dbq.dbConnection.Model(obj).WherePK().Context(ctx).Update()
+	if err != nil {
+		return fmt.Errorf("error on updating clusterUser %v", err)
+	}
+
+	if result.RowsAffected() != 1 {
+		return fmt.Errorf("unexpected number of rows affected: %d", result.RowsAffected())
+	}
+
+	return nil
+
 }
 
 var _ DisposableResource = &ClusterUser{}

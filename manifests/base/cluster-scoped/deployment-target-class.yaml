@@ -1,0 +1,8 @@
+apiVersion: appstudio.redhat.com/v1alpha1
+kind: DeploymentTargetClass
+metadata:
+  name: isolation-level-namespace
+spec:
+  parameters: {}
+  provisioner: appstudio.redhat.com/devsandbox
+  reclaimPolicy: Delete

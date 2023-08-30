@@ -7,7 +7,6 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var _ = Describe("GitOpsDeployment Condition Tests", func() {
@@ -19,22 +18,12 @@ var _ = Describe("GitOpsDeployment Condition Tests", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
 			By("create an invalid GitOpsDeployment application")
-			gitOpsDeploymentResource := managedgitopsv1alpha1.GitOpsDeployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "managed-environment-gitops-depl",
-					Namespace: fixture.GitOpsServiceE2ENamespace,
-				},
-				Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{
-					Source: managedgitopsv1alpha1.ApplicationSource{
-						RepoURL: "https://github.com/redhat-appstudio/managed-gitops",
-						Path:    "resources/test-data/sample-gitops-repository/environments/overlays/dev",
-					},
-					Destination: managedgitopsv1alpha1.ApplicationDestination{
-						Environment: "does-not-exist", // This is the invalid value, which should return a condition error
-						Namespace:   "",
-					},
-					Type: managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated,
-				},
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource("managed-environment-gitops-depl",
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+			gitOpsDeploymentResource.Spec.Destination = managedgitopsv1alpha1.ApplicationDestination{
+				Environment: "does-not-exist", // This is the invalid value, which should return a condition error
+				Namespace:   "",
 			}
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()

@@ -24,10 +24,10 @@ var _ = Describe("Test Predicates", func() {
 				_,
 				_,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = appstudiosharedv1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			testNS := corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
@@ -53,7 +53,7 @@ var _ = Describe("Test Predicates", func() {
 
 		})
 		Context("Test DTCPendingDynamicProvisioningBySandbox predicate", func() {
-			instance := DTCPendingDynamicProvisioningBySandbox()
+			instance := dtcPendingDynamicProvisioningBySandbox()
 
 			It("should ignore creating events", func() {
 				contextEvent := event.CreateEvent{

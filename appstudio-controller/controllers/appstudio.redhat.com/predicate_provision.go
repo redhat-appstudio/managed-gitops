@@ -10,9 +10,9 @@ import (
 	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 )
 
-// SpaceRequestReadyPredicate returns a predicate which filters out
+// spaceRequestReadyPredicate returns a predicate which filters out
 // only SpaceRequests whose Ready Status are set to true
-func SpaceRequestReadyPredicate() predicate.Predicate {
+func spaceRequestReadyPredicate() predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(createEvent event.CreateEvent) bool {
 			return false
@@ -24,21 +24,21 @@ func SpaceRequestReadyPredicate() predicate.Predicate {
 			return false
 		},
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			return hasSpaceRequestChangedToReady(e.ObjectOld, e.ObjectNew)
+			return predicateIsReadySpaceRequest(e.ObjectOld, e.ObjectNew)
 		},
 	}
 }
 
-// IsSpaceRequestReady checks if SpaceRequest condition is in Ready status.
-func IsSpaceRequestReady(spacerequest *codereadytoolchainv1alpha1.SpaceRequest) bool {
+// doesSpaceRequestHaveReadyTrue checks if SpaceRequest condition is in Ready status.
+func doesSpaceRequestHaveReadyTrue(spacerequest *codereadytoolchainv1alpha1.SpaceRequest) bool {
 	return condition.IsTrue(spacerequest.Status.Conditions, codereadytoolchainv1alpha1.ConditionReady)
 }
 
-// hasSpaceRequestChangedToReady returns a boolean indicating whether the SpaceRequest becomes Ready.
+// predicateIsReadySpaceRequest returns a boolean indicating whether the SpaceRequest becomes Ready.
 // If the objects passed to this function are not SpaceRequest, the function will return false.
-func hasSpaceRequestChangedToReady(objectOld, objectNew client.Object) bool {
+func predicateIsReadySpaceRequest(objectOld, objectNew client.Object) bool {
 	if newSpaceRequest, ok := objectNew.(*codereadytoolchainv1alpha1.SpaceRequest); ok {
-		return IsSpaceRequestReady(newSpaceRequest) && (len(newSpaceRequest.Status.NamespaceAccess) >= 1)
+		return doesSpaceRequestHaveReadyTrue(newSpaceRequest) && (len(newSpaceRequest.Status.NamespaceAccess) >= 1)
 	}
 	return false
 }

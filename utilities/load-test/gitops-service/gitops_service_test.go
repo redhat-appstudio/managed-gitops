@@ -26,10 +26,10 @@ var _ = Describe("Simulate GitOps Service on RHTAP production environment", func
 		)
 		BeforeEach(func() {
 			config, err := fixture.GetSystemKubeConfig()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			k8sClient, err = fixture.GetKubeClient(config)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 		})
@@ -49,7 +49,7 @@ var _ = Describe("Simulate GitOps Service on RHTAP production environment", func
 
 				err := k8sClient.Create(ctx, &ns)
 				if !apierr.IsAlreadyExists(err) {
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 
 				By("create two GitOpsDeployments in the user namespace")
@@ -71,7 +71,7 @@ var _ = Describe("Simulate GitOps Service on RHTAP production environment", func
 
 				err = k8sClient.Create(ctx, &depl1)
 				if !apierr.IsAlreadyExists(err) {
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 
 				depl2 := &managedgitopsv1alpha1.GitOpsDeployment{
@@ -91,7 +91,7 @@ var _ = Describe("Simulate GitOps Service on RHTAP production environment", func
 
 				err = k8sClient.Create(ctx, depl2)
 				if !apierr.IsAlreadyExists(err) {
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 
 				By("create secrets in the user namespace")
@@ -108,7 +108,7 @@ var _ = Describe("Simulate GitOps Service on RHTAP production environment", func
 
 					err := k8sClient.Create(context.Background(), &secret)
 					if !apierr.IsAlreadyExists(err) {
-						Expect(err).To(BeNil())
+						Expect(err).ToNot(HaveOccurred())
 					}
 				}
 			}

@@ -3,12 +3,10 @@ package argocd
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
@@ -19,7 +17,6 @@ import (
 	k8s "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,39 +35,39 @@ var _ = Describe("Argo CD Application tests", func() {
 		// Clean up all the resources that this test creates
 		cleanupTestResources := func() {
 			config, err := fixture.GetSystemKubeConfig()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			var secretList corev1.SecretList
 			err = k8sClient.List(context.Background(), &secretList, &client.ListOptions{Namespace: argoCDNamespace})
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			for index := range secretList.Items {
 				secret := secretList.Items[index]
 				if strings.HasPrefix(secret.Name, "test-") {
 					err = k8s.Delete(&secret, k8sClient)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 			}
 
 			for _, userName := range users {
 				err = application.DeleteArgoCDApplication("test-"+userName, argoCDNamespace)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				err = fixture.DeleteNamespace(userName, config)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			}
 
 			By("cleaning up old ClusterRole/ClusterRoleBinding")
 			for _, userName := range users {
-				clusterRole, clusterRoleBinding := generateReadOnlyClusterRoleandBinding(userName)
+				clusterRole, clusterRoleBinding := k8s.GenerateReadOnlyClusterRoleandBinding(userName)
 				err = k8sClient.Delete(context.Background(), &clusterRole)
 				if err != nil && !apierr.IsNotFound(err) {
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 
 				err = k8sClient.Delete(context.Background(), &clusterRoleBinding)
 				if err != nil && !apierr.IsNotFound(err) {
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 			}
 
@@ -87,8 +84,8 @@ var _ = Describe("Argo CD Application tests", func() {
 			userServiceAccountTokens := map[string]string{}
 
 			for _, userName := range users {
-				userToken, err := createNamespaceScopedUserAccount(context.Background(), userName, clusterScopedSecrets, k8sClient, klog)
-				Expect(err).To(BeNil())
+				userToken, err := k8s.CreateNamespaceScopedUserAccount(context.Background(), userName, clusterScopedSecrets, k8sClient, klog)
+				Expect(err).ToNot(HaveOccurred())
 				userServiceAccountTokens[userName] = userToken
 			}
 
@@ -96,10 +93,10 @@ var _ = Describe("Argo CD Application tests", func() {
 			for userName, userToken := range userServiceAccountTokens {
 
 				jsonString, err := generateClusterSecretJSON(userToken)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				_, apiURL, err := fixture.ExtractKubeConfigValues()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				clusterResourcesField := ""
 				namespacesField := ""
@@ -115,17 +112,17 @@ var _ = Describe("Argo CD Application tests", func() {
 				Expect(secret.Data["server"]).To(ContainSubstring("?"), "the api url must contain a query parameter character, for these tests to be valid")
 
 				err = k8sClient.Create(context.Background(), &secret)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 			}
 		}
 
 		BeforeEach(func() {
 			kubeConfig, err := fixture.GetSystemKubeConfig()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			k8sClient, err = fixture.GetKubeClient(kubeConfig)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			cleanupTestResources()
 		})
@@ -144,7 +141,6 @@ var _ = Describe("Argo CD Application tests", func() {
 				createServiceAccountsAndSecretsForTest(clusterScoped)
 
 				for _, userName := range users {
-
 					By("creating an Argo CD application to deploy to the user's namespace")
 
 					argoCDApplication := appv1alpha1.Application{
@@ -154,7 +150,7 @@ var _ = Describe("Argo CD Application tests", func() {
 							Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 						},
 						Spec: appv1alpha1.ApplicationSpec{
-							Source: appv1alpha1.ApplicationSource{
+							Source: &appv1alpha1.ApplicationSource{
 								RepoURL: "https://github.com/redhat-appstudio/managed-gitops/",
 								Path:    "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 							},
@@ -167,8 +163,9 @@ var _ = Describe("Argo CD Application tests", func() {
 							},
 						},
 					}
+					argoCDApplication.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
 					err := k8sClient.Create(context.Background(), &argoCDApplication)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					By("ensuring GitOpsDeployment should have expected health and status")
 
@@ -191,7 +188,7 @@ var _ = Describe("Argo CD Application tests", func() {
 					By("deleting the Argo CD Application")
 
 					err = k8sClient.Delete(context.Background(), &argoCDApplication)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					By("ensuring the resources of the GitOps repo are successfully deleted")
 
@@ -199,7 +196,6 @@ var _ = Describe("Argo CD Application tests", func() {
 					Eventually(componentBDepl, "60s", "1s").ShouldNot(k8s.ExistByName(k8sClient))
 
 				}
-
 			},
 			Entry("user should be able to deploy to their namespace, when using cluster-scoped argo cd cluster secrets", true),
 			Entry("user should be able to deploy to their namespace, when using namespace-scoped argo cd cluster secrets", false),
@@ -209,7 +205,7 @@ var _ = Describe("Argo CD Application tests", func() {
 
 			createServiceAccountsAndSecretsForTest(clusterScoped)
 
-			Expect(len(users)).To(Equal(2))
+			Expect(users).To(HaveLen(2))
 
 			for idx, userName := range users {
 
@@ -218,6 +214,7 @@ var _ = Describe("Argo CD Application tests", func() {
 
 				By("creating an Argo CD application to deploy to the user's namespace")
 
+				// Attempt to deploy into a Namespace we don't have access to
 				argoCDApplication := appv1alpha1.Application{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:       "test-" + userName,
@@ -225,7 +222,7 @@ var _ = Describe("Argo CD Application tests", func() {
 						Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 					},
 					Spec: appv1alpha1.ApplicationSpec{
-						Source: appv1alpha1.ApplicationSource{
+						Source: &appv1alpha1.ApplicationSource{
 							RepoURL: "https://github.com/redhat-appstudio/managed-gitops/",
 							Path:    "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 						},
@@ -238,8 +235,9 @@ var _ = Describe("Argo CD Application tests", func() {
 						},
 					},
 				}
+				argoCDApplication.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
 				err := k8sClient.Create(context.Background(), &argoCDApplication)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("ensuring Argo CD Application should have expected health and status")
 
@@ -263,7 +261,7 @@ var _ = Describe("Argo CD Application tests", func() {
 				By("ensuring the expected failure message is present")
 
 				err = k8s.Get(&argoCDApplication, k8sClient)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				if clusterScoped {
 					// If Argo CD cluster secret is cluster scoped, we should expect this message:
@@ -339,141 +337,4 @@ func generateClusterSecretJSON(bearerToken string) (string, error) {
 	jsonString, err := json.Marshal(clusterSecretConfigJSON)
 	return string(jsonString), err
 
-}
-
-func generateReadOnlyClusterRoleandBinding(user string) (rbacv1.ClusterRole, rbacv1.ClusterRoleBinding) {
-
-	clusterRole := rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "read-all-" + user,
-		},
-		Rules: []rbacv1.PolicyRule{{
-			Verbs:     []string{"get", "list", "watch"},
-			Resources: []string{"*"},
-			APIGroups: []string{"*"},
-		}},
-	}
-
-	clusterRoleBinding := rbacv1.ClusterRoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "read-all-" + user,
-		},
-		Subjects: []rbacv1.Subject{{
-			Kind:      rbacv1.ServiceAccountKind,
-			Namespace: user,
-			Name:      user + "-sa",
-		}},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
-			Name:     clusterRole.Name,
-		},
-	}
-
-	return clusterRole, clusterRoleBinding
-}
-
-func createNamespaceScopedUserAccount(ctx context.Context, user string, createReadOnlyClusterRoleBinding bool,
-	k8sClient client.Client, log logr.Logger) (string, error) {
-
-	ns := corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: user,
-		},
-	}
-	if err := k8sClient.Create(ctx, &ns); err != nil {
-		return "", fmt.Errorf("error on creating namespace: %v", err)
-	}
-
-	saName := user + "-sa"
-
-	sa, err := getOrCreateServiceAccount(ctx, k8sClient, saName, ns.Name, log)
-	if err != nil {
-		return "", fmt.Errorf("error on get/create service account: %v", err)
-	}
-
-	role := rbacv1.Role{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "allow-all",
-			Namespace: ns.Name,
-		},
-		Rules: []rbacv1.PolicyRule{{
-			Verbs:     []string{"*"},
-			Resources: []string{"*"},
-			APIGroups: []string{"*"},
-		}},
-	}
-	if err := k8sClient.Create(ctx, &role); err != nil {
-		return "", fmt.Errorf("error on creating role: %v", err)
-	}
-
-	roleBinding := rbacv1.RoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "allow-all-binding",
-			Namespace: ns.Name,
-		},
-		Subjects: []rbacv1.Subject{{
-			Kind:      rbacv1.ServiceAccountKind,
-			Name:      sa.Name,
-			Namespace: sa.Namespace,
-		}},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "Role",
-			Name:     role.Name,
-		},
-	}
-	if err := k8sClient.Create(ctx, &roleBinding); err != nil {
-		return "", fmt.Errorf("error on creating rolebinding: %v", err)
-	}
-
-	if createReadOnlyClusterRoleBinding {
-		clusterRole, clusterRoleBinding := generateReadOnlyClusterRoleandBinding(user)
-
-		if err := k8sClient.Create(ctx, &clusterRole); err != nil {
-			return "", fmt.Errorf("error on creating role: %v", err)
-		}
-
-		if err := k8sClient.Create(ctx, &clusterRoleBinding); err != nil {
-			return "", fmt.Errorf("error on creating role: %v", err)
-		}
-	}
-
-	token, err := k8s.CreateServiceAccountBearerToken(ctx, k8sClient, sa.Name, ns.Name)
-	if err != nil {
-		return "", fmt.Errorf("error on getting bearer token: %v", err)
-	}
-
-	return token, nil
-}
-
-func getOrCreateServiceAccount(ctx context.Context, k8sClient client.Client, serviceAccountName string, serviceAccountNS string,
-	log logr.Logger) (*corev1.ServiceAccount, error) {
-
-	serviceAccount := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      serviceAccountName,
-			Namespace: serviceAccountNS,
-		},
-	}
-
-	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(serviceAccount), serviceAccount); err != nil {
-		if !apierr.IsNotFound(err) {
-			return nil, fmt.Errorf("unable to retrieve service account '%s': %w", serviceAccount.Name, err)
-		}
-	} else {
-		// Found it, so just return it
-		return serviceAccount, nil
-	}
-
-	log = log.WithValues("serviceAccount", serviceAccountName, "namespace", serviceAccountNS)
-
-	if err := k8sClient.Create(ctx, serviceAccount); err != nil {
-		log.Error(err, "Unable to create ServiceAccount")
-		return nil, fmt.Errorf("unable to create service account '%s': %w", serviceAccount.Name, err)
-	}
-
-	log.Info(fmt.Sprintf("ServiceAccount %s created in namespace %s", serviceAccountName, serviceAccountNS))
-
-	return serviceAccount, nil
 }

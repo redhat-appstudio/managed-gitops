@@ -9,6 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
@@ -44,10 +45,10 @@ var _ = Describe("Application Controller", func() {
 
 		BeforeEach(func() {
 			scheme, argocdNamespace, kubesystemNamespace, workspace, err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = appv1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -62,19 +63,15 @@ var _ = Describe("Application Controller", func() {
 
 			// Database Connection.
 			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err = createSampleData(dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			guestbookApp = &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
 					Namespace: namespace,
@@ -83,7 +80,7 @@ var _ = Describe("Application Controller", func() {
 					},
 				},
 				Spec: appv1.ApplicationSpec{
-					Source: appv1.ApplicationSource{
+					Source: &appv1.ApplicationSource{
 						Path:           "guestbook",
 						TargetRevision: "HEAD",
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
@@ -159,25 +156,127 @@ var _ = Describe("Application Controller", func() {
 
 			By("Create a new ArgoCD Application")
 			err = reconciler.Create(ctx, guestbookApp)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create Application in Database")
 			err = reconciler.DB.CreateApplication(ctx, applicationDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call reconcile function")
 			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(result).ToNot(BeNil())
 
 			By("Verify Application State is created in database")
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Verify that Health and Status of ArgoCD Application is equal to the Health and Status of Application in database")
 			Expect(applicationState.Health).To(Equal(string(guestbookApp.Status.Health.Status)))
 			Expect(applicationState.Sync_Status).To(Equal(string(guestbookApp.Status.Sync.Status)))
 
+			By("verify that the OperationState is not populated since the Application's OperationState doesn't exist")
+			Expect(applicationState.OperationState).To(BeNil())
+		})
+
+		It("Verify if the OperationState DB field is populated with Application CR's .status.OperationState", func() {
+			By("Close database connection")
+			defer dbQueries.CloseDatabase()
+			defer testTeardown()
+
+			ctx = context.Background()
+
+			By("add a sample operation state")
+			guestbookApp.Status.OperationState = &appv1.OperationState{
+				Message:    "sample message",
+				RetryCount: 10,
+			}
+
+			By("Add databaseID label to applicationID")
+			databaseID := guestbookApp.Labels[dbID]
+			applicationDB := &db.Application{
+				Application_id:          databaseID,
+				Name:                    name,
+				Spec_field:              "{}",
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+
+			applicationState := &db.ApplicationState{
+				Applicationstate_application_id: applicationDB.Application_id,
+			}
+
+			By("Create a new ArgoCD Application")
+			err = reconciler.Create(ctx, guestbookApp)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Create Application in Database")
+			err = reconciler.DB.CreateApplication(ctx, applicationDB)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Call reconcile function")
+			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).ToNot(BeNil())
+
+			By("Verify Application State is created in database")
+			err = reconciler.DB.GetApplicationStateById(ctx, applicationState)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Verify that Health and Status of ArgoCD Application is equal to the Health and Status of Application in database")
+			Expect(applicationState.Health).To(Equal(string(guestbookApp.Status.Health.Status)))
+			Expect(applicationState.Sync_Status).To(Equal(string(guestbookApp.Status.Sync.Status)))
+
+			By("verify that the OperationState is populated in the ApplicationState")
+			Expect(applicationState.OperationState).ToNot(BeNil())
+
+			compareOpState := func(appState *db.ApplicationState, app *appv1.Application) {
+				opStateBytes, err := sharedutil.DecompressObject(applicationState.OperationState)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(opStateBytes).ToNot(BeNil())
+
+				opState := &managedgitopsv1alpha1.OperationState{}
+				err = yaml.Unmarshal(opStateBytes, opState)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(opState.Message).To(Equal(guestbookApp.Status.OperationState.Message))
+				Expect(opState.RetryCount).To(Equal(guestbookApp.Status.OperationState.RetryCount))
+			}
+
+			compareOpState(applicationState, guestbookApp)
+
+			By("remove .status.OperationState and verify if the ApplicationState is updated")
+			guestbookApp.Status.OperationState = nil
+			err = reconciler.Update(ctx, guestbookApp)
+			Expect(err).ToNot(HaveOccurred())
+
+			result, err = reconciler.Reconcile(ctx, newRequest(namespace, name))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).ToNot(BeNil())
+
+			By("verify that the OperationState is updated in the ApplicationState")
+			err = reconciler.DB.GetApplicationStateById(ctx, applicationState)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(applicationState.OperationState).To(BeNil())
+
+			By("add .status.OperationState and verify if the ApplicationState is updated")
+			guestbookApp.Status.OperationState = &appv1.OperationState{
+				Message:    "sample message",
+				RetryCount: 10,
+			}
+			err = reconciler.Update(ctx, guestbookApp)
+			Expect(err).ToNot(HaveOccurred())
+
+			result, err = reconciler.Reconcile(ctx, newRequest(namespace, name))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).ToNot(BeNil())
+
+			By("verify that the OperationState is updated in the ApplicationState")
+			err = reconciler.DB.GetApplicationStateById(ctx, applicationState)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(applicationState.OperationState).ToNot(BeNil())
+
+			compareOpState(applicationState, guestbookApp)
 		})
 
 		It("Update an existing Application table in the database, call Reconcile on the Argo CD Application, and verify an existing ApplicationState DB entry is updated", func() {
@@ -198,36 +297,36 @@ var _ = Describe("Application Controller", func() {
 			}
 
 			reconciledStateString, _, err := dummyApplicationComparedToField()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationState := &db.ApplicationState{
 				Applicationstate_application_id: applicationDB.Application_id,
 				Health:                          "Progressing",
 				Sync_Status:                     "OutOfSync",
 				ReconciledState:                 reconciledStateString,
-				SyncError:                       "test-sync-error",
+				Conditions:                      []byte("sample-condition"),
 			}
 
 			By("Create Application in Database")
 			err = reconciler.DB.CreateApplication(ctx, applicationDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create ApplicationState in Database")
 			err = reconciler.DB.CreateApplicationState(ctx, applicationState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create a new ArgoCD Application")
 			err = reconciler.Create(ctx, guestbookApp)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call reconcile function")
 			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(result).ToNot(BeNil())
 
 			By("Verify Application State is created in database")
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Verify that Health and Status of ArgoCD Application is equal to the Health and Status of Application in database")
 			Expect(applicationState.Health).To(Equal(string(guestbookApp.Status.Health.Status)))
@@ -254,11 +353,11 @@ var _ = Describe("Application Controller", func() {
 
 			By("Create Application in Database")
 			err = reconciler.DB.CreateApplication(ctx, applicationDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call reconcile function")
 			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(result).ToNot(BeNil())
 
 		})
@@ -267,15 +366,11 @@ var _ = Describe("Application Controller", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 
 			guestbookApp = &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
 					Namespace: namespace,
@@ -284,7 +379,7 @@ var _ = Describe("Application Controller", func() {
 					},
 				},
 				Spec: appv1.ApplicationSpec{
-					Source: appv1.ApplicationSource{
+					Source: &appv1.ApplicationSource{
 						Path:           "guestbook",
 						TargetRevision: "HEAD",
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
@@ -317,15 +412,15 @@ var _ = Describe("Application Controller", func() {
 
 			By("Verify Application is not present in database")
 			err = reconciler.DB.GetApplicationById(ctx, applicationDB)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 
 			By("Create a new ArgoCD Application")
 			err = reconciler.Create(ctx, guestbookApp)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call reconcile function")
 			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(result).ToNot(BeNil())
 
 		})
@@ -353,28 +448,28 @@ var _ = Describe("Application Controller", func() {
 
 			By("Create a new ArgoCD Application")
 			err = reconciler.Create(ctx, guestbookApp)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create Application in Database")
 			err = reconciler.DB.CreateApplication(ctx, applicationDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call reconcile function")
 			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(result).ToNot(BeNil())
 
 			By("Verify Application State is created in database")
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Delete ArgoCD Application")
 			err = reconciler.Delete(ctx, guestbookApp)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call reconcile function")
 			_, err = reconciler.Reconcile(ctx, newRequest(namespace, name))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 		})
 
@@ -386,10 +481,6 @@ var _ = Describe("Application Controller", func() {
 			ctx = context.Background()
 
 			guestbookApp = &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
 					Namespace: namespace,
@@ -398,7 +489,7 @@ var _ = Describe("Application Controller", func() {
 					},
 				},
 				Spec: appv1.ApplicationSpec{
-					Source: appv1.ApplicationSource{
+					Source: &appv1.ApplicationSource{
 						Path:           "guestbook",
 						TargetRevision: "HEAD",
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
@@ -438,15 +529,15 @@ var _ = Describe("Application Controller", func() {
 
 			By("Create a new ArgoCD Application")
 			err = reconciler.Create(ctx, guestbookApp)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create Application in Database")
 			err = reconciler.DB.CreateApplication(ctx, applicationDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call reconcile function")
 			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(result).ToNot(BeNil())
 
 		})
@@ -455,7 +546,7 @@ var _ = Describe("Application Controller", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 
@@ -475,34 +566,34 @@ var _ = Describe("Application Controller", func() {
 
 			By("Create Application in Database")
 			err = reconciler.DB.CreateApplication(ctx, applicationDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Verify ApplicationState is not present in database")
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateDB)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 			By("Create a new ArgoCD Application")
 			err = reconciler.Create(ctx, guestbookApp)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call reconcile function")
 			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(result).ToNot(BeNil())
 
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateDB)
 			Expect(applicationStateDB.ReconciledState).ToNot(BeNil())
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Verify ReconciledState is stored in db")
 			comparedTo := fauxargocd.FauxComparedTo{}
 
 			err = json.Unmarshal([]byte(applicationStateDB.ReconciledState), &comparedTo)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			reconciledStateObj, err := convertReconciledStateStringToObject(applicationStateDB.ReconciledState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Checking for new values in database object
 			Expect(reconciledStateObj.Source.Path).To(Equal(guestbookApp.Status.Sync.ComparedTo.Source.Path))
@@ -531,7 +622,7 @@ var _ = Describe("Application Controller", func() {
 
 			reconciledStateString, reconciledObj, err := dummyApplicationComparedToField()
 			Expect(reconciledObj.Destination.Namespace).ToNot(Equal(guestbookApp.Status.Sync.ComparedTo.Destination.Namespace))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// applicationState which already exists in database
 			applicationState := &db.ApplicationState{
@@ -543,19 +634,19 @@ var _ = Describe("Application Controller", func() {
 
 			By("Create a new ArgoCD Application")
 			err = reconciler.Create(ctx, guestbookApp)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create Application in Database")
 			err = reconciler.DB.CreateApplication(ctx, applicationDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create ApplicationState in Database")
 			err = reconciler.DB.CreateApplicationState(ctx, applicationState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call reconcile function")
 			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(result).ToNot(BeNil())
 
 			applicationStateget := &db.ApplicationState{
@@ -564,10 +655,10 @@ var _ = Describe("Application Controller", func() {
 
 			By("Verify ReconcidedState in ApplicationState is updated in database")
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateget)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			reconciledStateObj, err := convertReconciledStateStringToObject(applicationStateget.ReconciledState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Checking for new values in database object
 			Expect(reconciledStateObj.Source.Path).To(Equal(guestbookApp.Status.Sync.ComparedTo.Source.Path))
@@ -576,20 +667,27 @@ var _ = Describe("Application Controller", func() {
 			Expect(reconciledStateObj.Destination.Namespace).To(Equal(guestbookApp.Status.Sync.ComparedTo.Destination.Namespace))
 		})
 
-		It("Test to check whether syncError field is stored in database", func() {
+		It("Test to check whether conditions field is stored in database", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 
-			app := appv1.ApplicationCondition{
-				Type:               "SyncError",
-				Message:            "Failed to sync",
-				LastTransitionTime: &metav1.Time{Time: time.Now()},
+			appConditions := []appv1.ApplicationCondition{
+				{
+					Type:               appv1.ApplicationConditionSyncError,
+					Message:            "Failed to sync",
+					LastTransitionTime: &metav1.Time{Time: time.Now()},
+				},
+				{
+					Type:               appv1.ApplicationConditionOrphanedResourceWarning,
+					Message:            "orphaned resource warning",
+					LastTransitionTime: &metav1.Time{Time: time.Now()},
+				},
 			}
-			guestbookApp.Status.Conditions = append(guestbookApp.Status.Conditions, app)
+			guestbookApp.Status.Conditions = append(guestbookApp.Status.Conditions, appConditions...)
 
 			By("Add databaseID label to applicationID")
 			databaseID := guestbookApp.Labels[dbID]
@@ -607,44 +705,43 @@ var _ = Describe("Application Controller", func() {
 
 			By("Create Application in Database")
 			err = reconciler.DB.CreateApplication(ctx, applicationDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("GetApplicationStateById to verify SyncError field is empty in database")
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateDB)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
-			Expect(applicationStateDB.SyncError).To(BeEmpty())
+			Expect(applicationStateDB.Conditions).To(BeNil())
 
 			By("Create a new ArgoCD Application")
 			err = reconciler.Create(ctx, guestbookApp)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call reconcile function")
 			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(result).ToNot(BeNil())
 
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateDB)
 			Expect(applicationStateDB.ReconciledState).ToNot(BeNil())
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
-			By("Verifying that the ApplicationState DB row has been updated to match the Application SyncError")
-			Expect(applicationStateDB.SyncError).To(Equal("Failed to sync"))
+			By("Verifying that the ApplicationState DB row has been updated to match the Application conditions")
+			resultConditions := []appv1.ApplicationCondition{}
+			err = yaml.Unmarshal(applicationStateDB.Conditions, &resultConditions)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resultConditions).To(HaveLen(len(guestbookApp.Status.Conditions)))
 		})
 
-		It("Test to verify the conditions.Type is not equal to 'SyncError' then db field should be empty", func() {
+		It("Test to verify if the conditions is empty if there are no Application conditions", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 
 			guestbookApp := &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
 					Namespace: namespace,
@@ -653,7 +750,7 @@ var _ = Describe("Application Controller", func() {
 					},
 				},
 				Spec: appv1.ApplicationSpec{
-					Source: appv1.ApplicationSource{
+					Source: &appv1.ApplicationSource{
 						Path:           "guestbook",
 						TargetRevision: "HEAD",
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
@@ -682,13 +779,6 @@ var _ = Describe("Application Controller", func() {
 							},
 						},
 					},
-					Conditions: []appv1.ApplicationCondition{
-						{
-							Type:               appv1.ApplicationConditionUnknownError,
-							Message:            "testing error",
-							LastTransitionTime: &metav1.Time{Time: time.Now()},
-						},
-					},
 				},
 			}
 
@@ -708,32 +798,32 @@ var _ = Describe("Application Controller", func() {
 
 			By("Create Application in Database")
 			err = reconciler.DB.CreateApplication(ctx, applicationDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("GetApplicationStateById to verify SyncError field is empty in database")
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateDB)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
-			Expect(applicationStateDB.SyncError).To(BeEmpty())
+			Expect(applicationStateDB.Conditions).To(BeEmpty())
 
 			By("Create a new ArgoCD Application")
 			err = reconciler.Create(ctx, guestbookApp)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call reconcile function")
 			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(result).ToNot(BeNil())
 
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateDB)
 			Expect(applicationStateDB.ReconciledState).ToNot(BeNil())
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
-			By("Verifying that the ApplicationState DB row has been updated to match the Application SyncError")
-			Expect(applicationStateDB.SyncError).To(BeEmpty())
+			By("Verifying that the ApplicationState DB row has been updated to match the Application conditions")
+			Expect(applicationStateDB.Conditions).To(BeEmpty())
 		})
 
-		It("Test to check whether existing value in syncError field is updated to new value when conditions.Message of ArgoCD Application changes", func() {
+		It("Test to check whether existing condition value is updated to new value when conditions.Message of ArgoCD Application changes", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
@@ -752,7 +842,18 @@ var _ = Describe("Application Controller", func() {
 
 			reconciledStateString, reconciledObj, err := dummyApplicationComparedToField()
 			Expect(reconciledObj.Destination.Namespace).ToNot(Equal(guestbookApp.Status.Sync.ComparedTo.Destination.Namespace))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
+
+			appConditions := []appv1.ApplicationCondition{
+				{
+					Type:               appv1.ApplicationConditionSyncError,
+					Message:            "Failed to sync",
+					LastTransitionTime: &metav1.Time{Time: time.Now()},
+				},
+			}
+
+			conditionBytes, err := yaml.Marshal(&appConditions)
+			Expect(err).ToNot(HaveOccurred())
 
 			// applicationState which already exists in database
 			applicationState := &db.ApplicationState{
@@ -760,40 +861,80 @@ var _ = Describe("Application Controller", func() {
 				Health:                          "Healthy",
 				Sync_Status:                     "Synced",
 				ReconciledState:                 reconciledStateString,
-				SyncError:                       "test-sync-error",
+				Conditions:                      conditionBytes,
 			}
 
 			By("Create a new ArgoCD Application")
 			err = reconciler.Create(ctx, guestbookApp)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create Application in Database")
 			err = reconciler.DB.CreateApplication(ctx, applicationDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create ApplicationState in Database")
 			err = reconciler.DB.CreateApplicationState(ctx, applicationState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Call reconcile function")
 			result, err := reconciler.Reconcile(ctx, newRequest(namespace, name))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(result).ToNot(BeNil())
 
 			applicationStateget := &db.ApplicationState{
 				Applicationstate_application_id: applicationDB.Application_id,
 			}
 
-			By("Verify ReconcidedState in ApplicationState is updated in database")
 			err = reconciler.DB.GetApplicationStateById(ctx, applicationStateget)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
-			By("Verifying that the ApplicationState DB row has been updated to match the Application SyncError")
-			Expect(applicationStateget.SyncError).To(Equal("Failed to sync"))
+			outputConditions := []appv1.ApplicationCondition{}
+			err = yaml.Unmarshal(applicationStateget.Conditions, &outputConditions)
+			Expect(err).ToNot(HaveOccurred())
+
+			compareConditions := func(cond1, cond2 []appv1.ApplicationCondition) {
+				Expect(cond1).To(HaveLen(len(cond2)))
+
+				for i, cond := range cond1 {
+					other := cond2[i]
+					Expect(cond.Type).To(Equal(other.Type))
+					Expect(cond.Message).To(Equal(other.Message))
+				}
+			}
+
+			compareConditions(appConditions, outputConditions)
+
+			By("update ApplicationState conditions")
+			newConditions := []appv1.ApplicationCondition{
+				{
+					Type:               appv1.ApplicationConditionComparisonError,
+					Message:            "Failed to compare",
+					LastTransitionTime: &metav1.Time{Time: time.Now()},
+				},
+			}
+
+			conditionBytes, err = yaml.Marshal(&newConditions)
+			Expect(err).ToNot(HaveOccurred())
+
+			applicationState.Conditions = conditionBytes
+			err = reconciler.DB.UpdateApplicationState(ctx, applicationState)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Call reconcile function")
+			result, err = reconciler.Reconcile(ctx, newRequest(namespace, name))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result).ToNot(BeNil())
+
+			By("Verifying that the ApplicationState DB row has been updated to match the Application Conditions")
+
+			err = yaml.Unmarshal(applicationState.Conditions, &outputConditions)
+			Expect(err).ToNot(HaveOccurred())
+
+			compareConditions(outputConditions, newConditions)
 		})
 	})
 
-	Context("Test compressResourceData function", func() {
+	Context("Test compressObject function", func() {
 		It("Should compress resource data into byte array", func() {
 			resourceStatus := appv1.ResourceStatus{
 				Group:     "apps",
@@ -811,9 +952,39 @@ var _ = Describe("Application Controller", func() {
 			var resources []appv1.ResourceStatus
 			resources = append(resources, resourceStatus)
 
-			byteArr, err := compressResourceData(resources)
+			byteArr, err := sharedutil.CompressObject(resources)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(byteArr).NotTo(BeEmpty())
+		})
+
+		It("Should compress operationState data into byte array", func() {
+			operationState := appv1.OperationState{
+				Operation: appv1.Operation{
+					InitiatedBy: appv1.OperationInitiator{
+						Automated: true,
+					},
+					Retry: appv1.RetryStrategy{
+						Limit: -1,
+					},
+				},
+				SyncResult: &appv1.SyncOperationResult{
+					Resources: appv1.ResourceResults{
+						&appv1.ResourceResult{
+							Group:     "",
+							HookPhase: common.OperationRunning,
+							Namespace: "jane",
+							Status:    common.ResultCodeSynced,
+						},
+					},
+				},
+				StartedAt:  metav1.Time{Time: time.Now()},
+				FinishedAt: &metav1.Time{Time: time.Now()},
+			}
+
+			byteArr, err := sharedutil.CompressObject(operationState)
+
+			Expect(err).ToNot(HaveOccurred())
 			Expect(byteArr).NotTo(BeEmpty())
 		})
 
@@ -822,18 +993,18 @@ var _ = Describe("Application Controller", func() {
 			var resources []appv1.ResourceStatus
 			resources = append(resources, resourceStatus)
 
-			byteArr, err := compressResourceData(resources)
+			byteArr, err := sharedutil.CompressObject(resources)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(byteArr).NotTo(BeEmpty())
 		})
 
 		It("Should work for empty Resource Array", func() {
 			var resources []appv1.ResourceStatus
 
-			byteArr, err := compressResourceData(resources)
+			byteArr, err := sharedutil.CompressObject(resources)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(byteArr).NotTo(BeEmpty())
 		})
 	})
@@ -854,19 +1025,19 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			ctx = context.Background()
 
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(false, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			scheme, argocdNamespace, kubesystemNamespace, workspace, err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, dummyApplicationSpec, argoCdApp, err = createDummyApplicationData()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationput = db.Application{
 				Application_id:          "test-my-application",
@@ -877,10 +1048,10 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			}
 
 			err = dbQueries.CreateApplication(ctx, &applicationput)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = appv1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -900,27 +1071,27 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			}
 
 			err = reconciler.Create(ctx, &argoCdApp)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			var specialClusterUser db.ClusterUser
 			err = dbQueries.GetOrCreateSpecialClusterUser(context.Background(), &specialClusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		AfterEach(func() {
 			listOfK8sOperation := managedgitopsv1alpha1.OperationList{}
 			err = reconciler.List(ctx, &listOfK8sOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			for _, k8sOperation := range listOfK8sOperation.Items {
 				// Look for Operation created by Namespace Reconciler.
 				if k8sOperation.Annotations[operations.IdentifierKey] == operations.IdentifierValue {
 					rowsAffected, err := dbQueries.DeleteOperationById(ctx, k8sOperation.Spec.OperationID)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 					Expect(rowsAffected).Should((Equal(1)))
 
 					err = reconciler.Delete(ctx, &k8sOperation)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 			}
 		})
@@ -930,7 +1101,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			log := log.FromContext(ctx)
 
 			// Call function for workSpace/Namespace reconciler
-			runNamespaceReconcile(ctx, reconciler.DB, reconciler.Client, log)
+			syncCRsWithDB_Applications(ctx, reconciler.DB, reconciler.Client, log)
 
 			// We are using a fake k8s client and because of that we can not check if ArgoCD application has been created/updated.
 			// We will just check if k8s Operation created or not.
@@ -940,7 +1111,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			listOfK8sOperation := managedgitopsv1alpha1.OperationList{}
 
 			err = reconciler.List(ctx, &listOfK8sOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			count := 0
 			for _, k8sOperation := range listOfK8sOperation.Items {
@@ -951,7 +1122,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 						Operation_id: k8sOperation.Spec.OperationID,
 					}
 					err = dbQueries.GetOperationById(ctx, &dbOperation)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 					if dbOperation.Resource_id == applicationput.Application_id {
 						count += 1
 					}
@@ -966,13 +1137,13 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			argoCdApp.Spec.Source.RepoURL = "https://github.com/test/gitops-repository-template"
 
 			err = reconciler.Update(ctx, &argoCdApp)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx := context.Background()
 			log := log.FromContext(ctx)
 
 			// Call function for workSpace/Namespace reconciler
-			runNamespaceReconcile(ctx, reconciler.DB, reconciler.Client, log)
+			syncCRsWithDB_Applications(ctx, reconciler.DB, reconciler.Client, log)
 
 			// We are using a fake k8s client and because of that we can not check if ArgoCD application has been created/updated.
 			// We will just check if k8s Operation and DB entries are created and assume that in actual environment ArgoCD will pick up this Operation and update/create the application.
@@ -982,8 +1153,8 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			listOfK8sOperation := managedgitopsv1alpha1.OperationList{}
 
 			err = reconciler.List(ctx, &listOfK8sOperation)
-			Expect(err).To(BeNil())
-			Expect(len(listOfK8sOperation.Items)).NotTo(Equal(0))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(listOfK8sOperation.Items).NotTo(BeEmpty())
 
 			for _, k8sOperation := range listOfK8sOperation.Items {
 				// Look for Operation created by Namespace Reconciler.
@@ -993,7 +1164,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 						Operation_id: k8sOperation.Spec.OperationID,
 					}
 					err = dbQueries.GetOperationById(ctx, &dbOperation)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 					if dbOperation.Resource_id == applicationput.Application_id {
 						Expect(dbOperation.Resource_id).To(Equal(applicationput.Application_id))
 						Expect(dbOperation.Instance_id).To(Equal(applicationput.Engine_instance_inst_id))
@@ -1006,13 +1177,13 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			// Delete the application from ArgoCD, but keep all DB entries.
 			err = reconciler.Delete(ctx, &argoCdApp)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx := context.Background()
 			log := log.FromContext(ctx)
 
 			// Call function for workSpace/Namespace reconciler
-			runNamespaceReconcile(ctx, reconciler.DB, reconciler.Client, log)
+			syncCRsWithDB_Applications(ctx, reconciler.DB, reconciler.Client, log)
 
 			// We are using a fake k8s client and because of that we can not check if ArgoCD application has been created/updated.
 			// We will just check if k8s Operation and DB entries are created and assume that in actual environment ArgoCD will pick up this Operation and update/create the application.
@@ -1022,8 +1193,8 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 			listOfK8sOperation := managedgitopsv1alpha1.OperationList{}
 
 			err = reconciler.List(ctx, &listOfK8sOperation)
-			Expect(err).To(BeNil())
-			Expect(len(listOfK8sOperation.Items)).NotTo(Equal(0))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(listOfK8sOperation.Items).NotTo(BeEmpty())
 
 			for _, k8sOperation := range listOfK8sOperation.Items {
 				// Look for Operation created by Namespace Reconciler.
@@ -1033,7 +1204,7 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 						Operation_id: k8sOperation.Spec.OperationID,
 					}
 					err = dbQueries.GetOperationById(ctx, &dbOperation)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 					if dbOperation.Resource_id == applicationput.Application_id {
 						Expect(dbOperation.Resource_id).To(Equal(applicationput.Application_id))
 						Expect(dbOperation.Instance_id).To(Equal(applicationput.Engine_instance_inst_id))
@@ -1132,7 +1303,7 @@ func generateSampleData() (db.ClusterCredentials, db.ManagedEnvironment, db.Gito
 
 func testTeardown() {
 	err := db.SetupForTestingDBGinkgo()
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 }
 
 func createDummyApplicationData() (fauxargocd.FauxApplication, string, appv1.Application, error) {
@@ -1147,7 +1318,7 @@ func createDummyApplicationData() (fauxargocd.FauxApplication, string, appv1.App
 			Namespace: "gitops-service-argocd",
 		},
 		Spec: appv1.ApplicationSpec{
-			Source: appv1.ApplicationSource{
+			Source: &appv1.ApplicationSource{
 				RepoURL:        "https://github.com/redhat-appstudio/managed-gitops",
 				Path:           "resources/test-data/sample-gitops-repository/environments/overlays/dev",
 				TargetRevision: "",

@@ -68,7 +68,7 @@ gosec: go_sec ## Run the gosec tool
 # Remove the vendor and bin folders
 .PHONY: clean
 clean: ## Remove the vendor and bin folders
-	rm -rf vendor/ bin/
+	rm -rf vendor/ bin/ coverage.out
 
 #required for test execution from OpenShift CI
 test-backward-compatibility:

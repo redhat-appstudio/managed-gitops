@@ -157,7 +157,6 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun state: %v", err)
 		}
 
-		logutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, logutil.ResourceModified, log)
 		log.V(logutil.LogLevel_Debug).Info("updated PromotionRun state" + promotionRun.Name)
 	}
 
@@ -233,7 +232,8 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, fmt.Errorf("unable to update Binding '%s' snapshot: %v", binding.Name, err)
 		}
 
-		logutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, logutil.ResourceModified, log)
+		logutil.LogAPIResourceChangeEvent(binding.Namespace, binding.Name, binding, logutil.ResourceModified, log)
+
 		log.Info("Updating Binding: " + binding.Name + " to target the Snapshot: " + promotionRun.Spec.Snapshot)
 
 		// Set the time when of first reconcilation on a particular PromotionRun if not set already. This will be used later to check for time out of Promotion.
@@ -254,7 +254,6 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 			return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun active binding: %v", err)
 		}
-		logutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, logutil.ResourceModified, log)
 	}
 
 	// 3) Wait for the environment binding to create all of the expected GitOpsDeployments
@@ -330,7 +329,6 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if !promotionRun.Status.PromotionStartTime.IsZero() && (metav1.Now().Sub(promotionRun.Status.PromotionStartTime.Time).Minutes() > PromotionRunTimeOutLimit) {
-
 		promotionRun.Status.CompletionResult = appstudioshared.PromotionRunCompleteResult_Failure
 		promotionRun.Status.State = appstudioshared.PromotionRunState_Complete
 
@@ -340,6 +338,14 @@ func (r *PromotionRunReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			log.Error(err, "unable to update PromotionRun environment status: "+promotionRun.Name)
 			return ctrl.Result{}, fmt.Errorf("unable to update promotionRun %v", err)
 		}
+
+		// Update status conditions
+		if err = updateStatusConditions(ctx, rClient, fmt.Sprintf("Promotion Failed. Could not be completed in %d Minutes.", PromotionRunTimeOutLimit), promotionRun, appstudioshared.PromotionRunConditionErrorOccurred,
+			appstudioshared.PromotionRunConditionStatusTrue, appstudioshared.PromotionRunReasonErrorOccurred); err != nil {
+			log.Error(err, "unable to update PromotionRun status conditions.")
+			return ctrl.Result{}, fmt.Errorf("unable to update PromotionRun status conditions %v", err)
+		}
+
 		return ctrl.Result{}, nil
 	}
 
@@ -464,10 +470,11 @@ func locateOrCreateTargetManualBinding(ctx context.Context, promotionRun appstud
 			Components:  components,
 		},
 	}
-	err := k8sClient.Create(ctx, &binding)
-	if err != nil {
+
+	if err := k8sClient.Create(ctx, &binding); err != nil {
 		return appstudioshared.SnapshotEnvironmentBinding{}, err
 	}
+
 	logutil.LogAPIResourceChangeEvent(binding.Namespace, binding.Name, &binding, logutil.ResourceCreated, logger)
 	logger.Info("Created SnapshotEnvironmentBinding",
 		"application", promotionRun.Spec.Application,
@@ -536,7 +543,6 @@ func updateStatusEnvironmentStatus(ctx context.Context, client client.Client, di
 	if err := client.Status().Update(ctx, promotionRun); err != nil {
 		return err
 	}
-	logutil.LogAPIResourceChangeEvent(promotionRun.Namespace, promotionRun.Name, promotionRun, logutil.ResourceModified, log)
 
 	return nil
 }

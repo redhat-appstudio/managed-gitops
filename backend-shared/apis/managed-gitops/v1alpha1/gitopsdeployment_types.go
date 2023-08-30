@@ -146,7 +146,214 @@ type GitOpsDeploymentStatus struct {
 
 	// ReconciledState contains the last version of the GitOpsDeployment resource that the ArgoCD Controller reconciled
 	ReconciledState ReconciledState `json:"reconciledState"`
+
+	// OperationState contains information about any ongoing operations, such as a sync
+	OperationState *OperationState `json:"operationState,omitempty"`
 }
+
+// OperationState contains information about state of a running operation
+type OperationState struct {
+	// Operation is the original requested operation
+	Operation ApplicationOperation `json:"operation" protobuf:"bytes,1,opt,name=operation"`
+	// Phase is the current phase of the operation
+	Phase OperationPhase `json:"phase" protobuf:"bytes,2,opt,name=phase"`
+	// Message holds any pertinent messages when attempting to perform operation (typically errors).
+	Message string `json:"message,omitempty" protobuf:"bytes,3,opt,name=message"`
+	// SyncResult is the result of a Sync operation
+	SyncResult *SyncOperationResult `json:"syncResult,omitempty" protobuf:"bytes,4,opt,name=syncResult"`
+	// StartedAt contains time of operation start
+	StartedAt metav1.Time `json:"startedAt" protobuf:"bytes,6,opt,name=startedAt"`
+	// FinishedAt contains time of operation completion
+	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,7,opt,name=finishedAt"`
+	// RetryCount contains time of operation retries
+	RetryCount int64 `json:"retryCount,omitempty" protobuf:"bytes,8,opt,name=retryCount"`
+}
+
+// Operation contains information about a requested or running operation
+type ApplicationOperation struct {
+	// Sync contains parameters for the operation
+	Sync *SyncOperation `json:"sync,omitempty" protobuf:"bytes,1,opt,name=sync"`
+	// InitiatedBy contains information about who initiated the operations
+	InitiatedBy OperationInitiator `json:"initiatedBy,omitempty" protobuf:"bytes,2,opt,name=initiatedBy"`
+	// Info is a list of informational items for this operation
+	Info []*Info `json:"info,omitempty" protobuf:"bytes,3,name=info"`
+	// Retry controls the strategy to apply if a sync fails
+	Retry RetryStrategy `json:"retry,omitempty" protobuf:"bytes,4,opt,name=retry"`
+}
+
+type Info struct {
+	Name  string `json:"name" protobuf:"bytes,1,name=name"`
+	Value string `json:"value" protobuf:"bytes,2,name=value"`
+}
+
+// RetryStrategy contains information about the strategy to apply when a sync failed
+type RetryStrategy struct {
+	// Limit is the maximum number of attempts for retrying a failed sync. If set to 0, no retries will be performed.
+	Limit int64 `json:"limit,omitempty" protobuf:"bytes,1,opt,name=limit"`
+	// Backoff controls how to backoff on subsequent retries of failed syncs
+	Backoff *Backoff `json:"backoff,omitempty" protobuf:"bytes,2,opt,name=backoff,casttype=Backoff"`
+}
+
+// Backoff is the backoff strategy to use on subsequent retries for failing syncs
+type Backoff struct {
+	// Duration is the amount to back off. Default unit is seconds, but could also be a duration (e.g. "2m", "1h")
+	Duration string `json:"duration,omitempty" protobuf:"bytes,1,opt,name=duration"`
+	// Factor is a factor to multiply the base duration after each failed retry
+	Factor *int64 `json:"factor,omitempty" protobuf:"bytes,2,name=factor"`
+	// MaxDuration is the maximum amount of time allowed for the backoff strategy
+	MaxDuration string `json:"maxDuration,omitempty" protobuf:"bytes,3,opt,name=maxDuration"`
+}
+
+// OperationInitiator contains information about the initiator of an operation
+type OperationInitiator struct {
+	// Username contains the name of a user who started operation
+	Username string `json:"username,omitempty" protobuf:"bytes,1,opt,name=username"`
+	// Automated is set to true if operation was initiated automatically by the application controller.
+	Automated bool `json:"automated,omitempty" protobuf:"bytes,2,opt,name=automated"`
+}
+
+// SyncOperation contains details about a sync operation.
+type SyncOperation struct {
+	// Revision is the revision (Git) or chart version (Helm) which to sync the application to
+	// If omitted, will use the revision specified in app spec.
+	Revision string `json:"revision,omitempty" protobuf:"bytes,1,opt,name=revision"`
+	// Prune specifies to delete resources from the cluster that are no longer tracked in git
+	Prune bool `json:"prune,omitempty" protobuf:"bytes,2,opt,name=prune"`
+	// DryRun specifies to perform a `kubectl apply --dry-run` without actually performing the sync
+	DryRun bool `json:"dryRun,omitempty" protobuf:"bytes,3,opt,name=dryRun"`
+	// SyncStrategy describes how to perform the sync
+	SyncStrategy *SyncStrategy `json:"syncStrategy,omitempty" protobuf:"bytes,4,opt,name=syncStrategy"`
+	// Resources describes which resources shall be part of the sync
+	Resources []SyncOperationResource `json:"resources,omitempty" protobuf:"bytes,6,opt,name=resources"`
+	// Source overrides the source definition set in the application.
+	// This is typically set in a Rollback operation and is nil during a Sync operation
+	Source *ApplicationSource `json:"source,omitempty" protobuf:"bytes,7,opt,name=source"`
+	// Manifests is an optional field that overrides sync source with a local directory for development
+	Manifests []string `json:"manifests,omitempty" protobuf:"bytes,8,opt,name=manifests"`
+	// SyncOptions provide per-sync sync-options, e.g. Validate=false
+	SyncOptions SyncOptions `json:"syncOptions,omitempty" protobuf:"bytes,9,opt,name=syncOptions"`
+	// Sources overrides the source definition set in the application.
+	// This is typically set in a Rollback operation and is nil during a Sync operation
+	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,10,opt,name=sources"`
+	// Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
+	// If omitted, will use the revision specified in app spec.
+	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,11,opt,name=revisions"`
+}
+
+// SyncStrategy controls the manner in which a sync is performed
+type SyncStrategy struct {
+	// Apply will perform a `kubectl apply` to perform the sync.
+	Apply *SyncStrategyApply `json:"apply,omitempty" protobuf:"bytes,1,opt,name=apply"`
+	// Hook will submit any referenced resources to perform the sync. This is the default strategy
+	Hook *SyncStrategyHook `json:"hook,omitempty" protobuf:"bytes,2,opt,name=hook"`
+}
+
+// SyncStrategyHook will perform a sync using hooks annotations.
+// If no hook annotation is specified falls back to `kubectl apply`.
+type SyncStrategyHook struct {
+	// Embed SyncStrategyApply type to inherit any `apply` options
+	// +optional
+	SyncStrategyApply `json:",inline" protobuf:"bytes,1,opt,name=syncStrategyApply"`
+}
+
+// SyncStrategyApply uses `kubectl apply` to perform the apply
+type SyncStrategyApply struct {
+	// Force indicates whether or not to supply the --force flag to `kubectl apply`.
+	// The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
+	// retried for 5 times.
+	Force bool `json:"force,omitempty" protobuf:"bytes,1,opt,name=force"`
+}
+
+// SyncOperationResource contains resources to sync.
+type SyncOperationResource struct {
+	Group     string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Kind      string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
+	Name      string `json:"name" protobuf:"bytes,3,opt,name=name"`
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+	// nolint:govet
+	Exclude bool `json:"-"`
+}
+
+// SyncOperationResult represent result of sync operation
+type SyncOperationResult struct {
+	// Resources contains a list of sync result items for each individual resource in a sync operation
+	Resources ResourceResults `json:"resources,omitempty" protobuf:"bytes,1,opt,name=resources"`
+	// Revision holds the revision this sync operation was performed to
+	Revision string `json:"revision" protobuf:"bytes,2,opt,name=revision"`
+	// Source records the application source information of the sync, used for comparing auto-sync
+	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,3,opt,name=source"`
+	// Source records the application source information of the sync, used for comparing auto-sync
+	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,4,opt,name=sources"`
+	// Revisions holds the revision this sync operation was performed for respective indexed source in sources field
+	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,5,opt,name=revisions"`
+	// ManagedNamespaceMetadata contains the current sync state of managed namespace metadata
+	ManagedNamespaceMetadata *ManagedNamespaceMetadata `json:"managedNamespaceMetadata,omitempty" protobuf:"bytes,6,opt,name=managedNamespaceMetadata"`
+}
+
+type ManagedNamespaceMetadata struct {
+	Labels      map[string]string `json:"labels,omitempty" protobuf:"bytes,1,opt,name=labels"`
+	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,2,opt,name=annotations"`
+}
+
+// ApplicationSources contains list of required information about the sources of an application
+type ApplicationSources []ApplicationSource
+
+// ResourceResults defines a list of resource results for a given operation
+type ResourceResults []*ResourceResult
+
+// ResourceResult holds the operation result details of a specific resource
+type ResourceResult struct {
+	// Group specifies the API group of the resource
+	Group string `json:"group" protobuf:"bytes,1,opt,name=group"`
+	// Version specifies the API version of the resource
+	Version string `json:"version" protobuf:"bytes,2,opt,name=version"`
+	// Kind specifies the API kind of the resource
+	Kind string `json:"kind" protobuf:"bytes,3,opt,name=kind"`
+	// Namespace specifies the target namespace of the resource
+	Namespace string `json:"namespace" protobuf:"bytes,4,opt,name=namespace"`
+	// Name specifies the name of the resource
+	Name string `json:"name" protobuf:"bytes,5,opt,name=name"`
+	// Status holds the final result of the sync. Will be empty if the resources is yet to be applied/pruned and is always zero-value for hooks
+	Status ResultCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
+	// Message contains an informational or error message for the last sync OR operation
+	Message string `json:"message,omitempty" protobuf:"bytes,7,opt,name=message"`
+	// HookType specifies the type of the hook. Empty for non-hook resources
+	HookType HookType `json:"hookType,omitempty" protobuf:"bytes,8,opt,name=hookType"`
+	// HookPhase contains the state of any operation associated with this resource OR hook
+	// This can also contain values for non-hook resources.
+	HookPhase OperationPhase `json:"hookPhase,omitempty" protobuf:"bytes,9,opt,name=hookPhase"`
+	// SyncPhase indicates the particular phase of the sync that this result was acquired in
+	SyncPhase SyncPhase `json:"syncPhase,omitempty" protobuf:"bytes,10,opt,name=syncPhase"`
+}
+
+type OperationPhase string
+
+const (
+	OperationRunning     OperationPhase = "Running"
+	OperationTerminating OperationPhase = "Terminating"
+	OperationFailed      OperationPhase = "Failed"
+	OperationError       OperationPhase = "Error"
+	OperationSucceeded   OperationPhase = "Succeeded"
+)
+
+type SyncPhase string
+
+const (
+	SyncPhasePreSync  = "PreSync"
+	SyncPhaseSync     = "Sync"
+	SyncPhasePostSync = "PostSync"
+	SyncPhaseSyncFail = "SyncFail"
+)
+
+type HookType string
+
+const (
+	HookTypePreSync  HookType = "PreSync"
+	HookTypeSync     HookType = "Sync"
+	HookTypePostSync HookType = "PostSync"
+	HookTypeSkip     HookType = "Skip"
+	HookTypeSyncFail HookType = "SyncFail"
+)
 
 // HealthStatus contains information about the currently observed health state of an application or resource
 type HealthStatus struct {
@@ -165,6 +372,15 @@ const (
 	HeathStatusCodeSuspended   HealthStatusCode = "Suspended"
 	HeathStatusCodeMissing     HealthStatusCode = "Missing"
 	HeathStatusCodeUnknown     HealthStatusCode = "Unknown"
+)
+
+type ResultCode string
+
+const (
+	ResultCodeSynced       ResultCode = "Synced"
+	ResultCodeSyncFailed   ResultCode = "SyncFailed"
+	ResultCodePruned       ResultCode = "Pruned"
+	ResultCodePruneSkipped ResultCode = "PruneSkipped"
 )
 
 // SyncStatus contains information about the currently observed live and desired states of an application
@@ -232,6 +448,42 @@ const (
 	GitOpsConditionStatusFalse GitOpsConditionStatus = "False"
 	// GitOpsConditionStatusUnknown indicates that the condition status could not be reliably determined
 	GitOpsConditionStatusUnknown GitOpsConditionStatus = "Unknown"
+)
+
+// ApplicationCondition indicates the condition reported by the Argo CD Application CR.
+type ApplicationCondition struct {
+	// Type is an application condition type
+	Type ApplicationConditionType `json:"type"`
+
+	// Message contains human-readable message indicating details about condition
+	Message string `json:"message"`
+}
+
+// ApplicationConditionType represents type of application condition. Type name has following convention:
+// prefix "Error" means error condition
+// prefix "Warning" means warning condition
+// prefix "Info" means informational condition
+type ApplicationConditionType string
+
+const (
+	// ApplicationConditionDeletionError indicates that controller failed to delete application
+	ApplicationConditionDeletionError = "DeletionError"
+	// ApplicationConditionInvalidSpecError indicates that application source is invalid
+	ApplicationConditionInvalidSpecError = "InvalidSpecError"
+	// ApplicationConditionComparisonError indicates controller failed to compare application state
+	ApplicationConditionComparisonError = "ComparisonError"
+	// ApplicationConditionSyncError indicates controller failed to automatically sync the application
+	ApplicationConditionSyncError = "SyncError"
+	// ApplicationConditionUnknownError indicates an unknown controller error
+	ApplicationConditionUnknownError = "UnknownError"
+	// ApplicationConditionSharedResourceWarning indicates that controller detected resources which belongs to more than one application
+	ApplicationConditionSharedResourceWarning = "SharedResourceWarning"
+	// ApplicationConditionRepeatedResourceWarning indicates that application source has resource with same Group, Kind, Name, Namespace multiple times
+	ApplicationConditionRepeatedResourceWarning = "RepeatedResourceWarning"
+	// ApplicationConditionExcludedResourceWarning indicates that application has resource which is configured to be excluded
+	ApplicationConditionExcludedResourceWarning = "ExcludedResourceWarning"
+	// ApplicationConditionOrphanedResourceWarning indicates that application has orphaned resources
+	ApplicationConditionOrphanedResourceWarning = "OrphanedResourceWarning"
 )
 
 type GitOpsDeploymentReasonType string

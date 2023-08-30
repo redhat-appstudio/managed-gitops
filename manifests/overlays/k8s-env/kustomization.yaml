@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
 - ../../base/crd/overlays/local-dev
 - ../../base/gitops-namespace
+- ../../base/cluster-scoped
 - ../../../appstudio-controller/config/default
 - ../../../backend/config/default
 - ../../../cluster-agent/config/default

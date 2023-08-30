@@ -1,11 +1,35 @@
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
   name: manager-role
 rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - endpoints
+  - persistentvolumeclaims
+  - persistentvolumes
+  - pods
+  - secrets
+  - serviceaccounts
+  - services
+  verbs:
+  - delete
+  - get
+  - list
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  - deployments
+  - replicasets
+  - statefulsets
+  verbs:
+  - delete
+  - get
+  - list
 - apiGroups:
   - ""
   resources:
@@ -22,6 +46,14 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - discovery.k8s.io
+  resources:
+  - endpointslices
+  verbs:
+  - delete
+  - get
+  - list
 - apiGroups:
   - managed-gitops.redhat.com
   resources:
@@ -138,3 +170,46 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingressclasses
+  - ingresses
+  verbs:
+  - delete
+  - get
+  - list
+- apiGroups:
+  - pipelinesascode.tekton.dev
+  resources:
+  - repositories
+  verbs:
+  - delete
+  - get
+  - list
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  - roles
+  verbs:
+  - delete
+  - get
+  - list
+- apiGroups:
+  - route.openshift.io
+  resources:
+  - routes
+  verbs:
+  - delete
+  - get
+  - list
+- apiGroups:
+  - triggers.tekton.dev
+  resources:
+  - eventlisteners
+  - triggertemplates
+  verbs:
+  - delete
+  - get
+  - list

@@ -13,19 +13,24 @@ import (
 
 var _ = Describe("Application Test", func() {
 	var seq = 101
-	It("Should Create, Get, Update and Delete an Application", func() {
+	var ctx context.Context
+	var dbq db.AllDatabaseQueries
+	var applicationput db.Application
+	var managedEnvironment *db.ManagedEnvironment
+	var gitopsEngineInstance *db.GitopsEngineInstance
+
+	BeforeEach(func() {
 		err := db.SetupForTestingDBGinkgo()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
-		ctx := context.Background()
-		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-		Expect(err).To(BeNil())
-		defer dbq.CloseDatabase()
+		ctx = context.Background()
+		dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+		Expect(err).ToNot(HaveOccurred())
 
-		_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-		Expect(err).To(BeNil())
+		_, managedEnvironment, _, gitopsEngineInstance, _, err = db.CreateSampleData(dbq)
+		Expect(err).ToNot(HaveOccurred())
 
-		applicationput := db.Application{
+		applicationput = db.Application{
 			Application_id:          "test-my-application",
 			Name:                    "my-application",
 			Spec_field:              "{}",
@@ -34,14 +39,20 @@ var _ = Describe("Application Test", func() {
 		}
 
 		err = dbq.CreateApplication(ctx, &applicationput)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
+	})
 
+	AfterEach(func() {
+		dbq.CloseDatabase()
+	})
+
+	It("Should Create, Get, Update and Delete an Application", func() {
 		applicationget := db.Application{
 			Application_id: applicationput.Application_id,
 		}
 
-		err = dbq.GetApplicationById(ctx, &applicationget)
-		Expect(err).To(BeNil())
+		err := dbq.GetApplicationById(ctx, &applicationget)
+		Expect(err).ToNot(HaveOccurred())
 		Expect(applicationput.Created_on.After(time.Now().Add(time.Minute*-5))).To(BeTrue(), "Created on should be within the last 5 minutes")
 		applicationput.Created_on = applicationget.Created_on
 		Expect(applicationput).Should(Equal(applicationget))
@@ -58,14 +69,14 @@ var _ = Describe("Application Test", func() {
 		}
 
 		err = dbq.UpdateApplication(ctx, &applicationupdate)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		err = dbq.GetApplicationById(ctx, &applicationupdate)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(applicationupdate).ShouldNot(Equal(applicationget))
 
 		rowsAffected, err := dbq.DeleteApplicationById(ctx, applicationput.Application_id)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).Should(Equal(1))
 
 		err = dbq.GetApplicationById(ctx, &applicationput)
@@ -88,52 +99,57 @@ var _ = Describe("Application Test", func() {
 	})
 
 	It("Should Get Application in batch.", func() {
-		err := db.SetupForTestingDBGinkgo()
-		Expect(err).To(BeNil())
 
-		ctx := context.Background()
-		dbq, err := db.NewUnsafePostgresDBQueries(true, true)
-		Expect(err).To(BeNil())
-		defer dbq.CloseDatabase()
-
-		_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-		Expect(err).To(BeNil())
-
-		// Create multiple application entries.
-		applicationput := db.Application{
-			Application_id:          "test-my-application-1",
-			Name:                    "my-application",
-			Spec_field:              "{}",
-			Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
-			Managed_environment_id:  managedEnvironment.Managedenvironment_id,
-		}
-
-		err = dbq.CreateApplication(ctx, &applicationput)
-		Expect(err).To(BeNil())
+		By("Create multiple Application entries.")
 
 		applicationput.Application_id = "test-my-application-2"
-		err = dbq.CreateApplication(ctx, &applicationput)
-		Expect(err).To(BeNil())
+		err := dbq.CreateApplication(ctx, &applicationput)
+		Expect(err).ToNot(HaveOccurred())
 
 		applicationput.Application_id = "test-my-application-3"
 		err = dbq.CreateApplication(ctx, &applicationput)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		applicationput.Application_id = "test-my-application-4"
 		err = dbq.CreateApplication(ctx, &applicationput)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		applicationput.Application_id = "test-my-application-5"
 		err = dbq.CreateApplication(ctx, &applicationput)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
+
+		By("Get data in batch.")
 
 		var listOfApplicationsFromDB []db.Application
 		err = dbq.GetApplicationBatch(ctx, &listOfApplicationsFromDB, 2, 0)
-		Expect(err).To(BeNil())
-		Expect(len(listOfApplicationsFromDB)).To(Equal(2))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(listOfApplicationsFromDB).To(HaveLen(2))
 
 		err = dbq.GetApplicationBatch(ctx, &listOfApplicationsFromDB, 3, 1)
-		Expect(err).To(BeNil())
-		Expect(len(listOfApplicationsFromDB)).To(Equal(3))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(listOfApplicationsFromDB).To(HaveLen(3))
 	})
+
+	Context("Test DisposeAppScoped function for Application", func() {
+		It("Should test DisposeAppScoped function with missing database interface for Application", func() {
+
+			var dbq db.AllDatabaseQueries
+
+			err := applicationput.DisposeAppScoped(ctx, dbq)
+			Expect(err).To(HaveOccurred())
+
+		})
+
+		It("Should test DisposeAppScoped function for Application", func() {
+
+			err := applicationput.DisposeAppScoped(ctx, dbq)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.GetApplicationById(ctx, &applicationput)
+			Expect(err).To(HaveOccurred())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+
+		})
+	})
+
 })

@@ -206,7 +206,7 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleSyncRun
 		if err := dbQueries.ListAPICRToDatabaseMappingByAPINamespaceAndName(ctx, db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
 			a.eventResourceName, a.eventResourceNamespace, eventlooptypes.GetWorkspaceIDFromNamespaceID(namespace),
 			db.APICRToDatabaseMapping_DBRelationType_SyncOperation, &apiCRToDBList); err != nil {
-			userError := "unable to retrive data related to previous GitOpsDeploymentSyncRun in the namespace, due to an unknown error"
+			userError := "unable to retrieve data related to previous GitOpsDeploymentSyncRun in the namespace, due to an unknown error"
 			log.Error(err, "unable to find API CR to DB Mapping, by API name/namespace/uid",
 				"name", a.eventResourceName, "namespace", a.eventResourceNamespace, "UID", string(namespace.UID))
 			return gitopserrors.NewUserDevError(userError, err)
@@ -358,6 +358,42 @@ func (a *applicationEventLoopRunner_Action) handleDeletedGitOpsDeplSyncRunEvent(
 	log := a.log
 	log.Info("Received GitOpsDeploymentSyncRun event for a GitOpsDeploymentSyncRun resource that no longer exists")
 
+	if syncOperation.Application_id == "" {
+		log.Info("Application row not found for SyncOperation. This is normally because the Application has already been deleted.", "syncOperationID", syncOperation.SyncOperation_id, "applicationID", syncOperation.Application_id)
+
+		// Since there is no Application, remove the DB resources without creating an Operation.
+
+		if len(apiCRToDBList) != 1 {
+			err := fmt.Errorf("SEVERE - More than one APICRToDB entry found while deleting SyncOperation: %s", syncOperation.SyncOperation_id)
+			log.Error(err, err.Error())
+			return gitopserrors.NewDevOnlyError(err)
+		}
+
+		apiCRToDB := apiCRToDBList[0]
+		rowsDeleted, err := dbQueries.DeleteSyncOperationById(ctx, apiCRToDB.DBRelationKey)
+		if err != nil {
+			log.Error(err, "unable to delete sync operation db entry on sync operation delete", "key", apiCRToDB.DBRelationKey)
+			return gitopserrors.NewDevOnlyError(err)
+		} else if rowsDeleted == 0 {
+			log.V(logutil.LogLevel_Warn).Error(err, "unexpected number of rows deleted on sync db entry delete", "key", apiCRToDB.DBRelationKey)
+		} else {
+			log.Info("Sync Operation deleted with ID: " + apiCRToDB.DBRelationKey)
+		}
+
+		rowsDeleted, err = dbQueries.DeleteAPICRToDatabaseMapping(ctx, &apiCRToDB)
+		if err != nil {
+			log.Error(err, "unable to delete apiCRToDBmapping", "mapping", apiCRToDB.APIResourceUID)
+			return gitopserrors.NewDevOnlyError(err)
+
+		} else if rowsDeleted == 0 {
+			log.V(logutil.LogLevel_Warn).Error(err, "unexpected number of rows deleted of apiCRToDBmapping", "mapping", apiCRToDB.APIResourceUID)
+		} else {
+			log.Info("Deleted APICRToDatabaseMapping")
+		}
+
+		return nil
+	}
+
 	// 1) Update the state of the SyncOperation DB table to say that we want to terminate it, if it is runing
 	syncOperation.DesiredState = db.SyncOperation_DesiredState_Terminated
 	if err := dbQueries.UpdateSyncOperation(ctx, &syncOperation); err != nil {
@@ -378,6 +414,16 @@ func (a *applicationEventLoopRunner_Action) handleDeletedGitOpsDeplSyncRunEvent(
 		log.Error(err, "unable to retrieve gitopsengineinstance, on sync run modified", "instanceId", string(application.Engine_instance_inst_id))
 		return gitopserrors.NewDevOnlyError(err)
 	}
+	if gitopsEngineInstance == nil {
+		err = fmt.Errorf("gitopsengineinstance is nil, expected non-nil:  %v", gitopsEngineInstance)
+		log.Error(err, "unexpected nil value of required objects")
+		return gitopserrors.NewDevOnlyError(err)
+	}
+
+	if gitopsEngineInstance.Namespace_name == "" {
+		err = fmt.Errorf("gitopsengineinstance namespace is empty")
+		return gitopserrors.NewDevOnlyError(err)
+	}
 
 	dbOperationInput := db.Operation{
 		Instance_id:   gitopsEngineInstance.Gitopsengineinstance_id,
@@ -394,15 +440,15 @@ func (a *applicationEventLoopRunner_Action) handleDeletedGitOpsDeplSyncRunEvent(
 
 	waitForOperation := !a.testOnlySkipCreateOperation // if it's for a unit test, we don't wait for the operation
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, waitForOperation, dbOperationInput, clusterUser.Clusteruser_id,
-		dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log)
+		gitopsEngineInstance.Namespace_name, dbQueries, operationClient, log)
 	if err != nil {
-		log.Error(err, "could not create operation, when resource was deleted", "namespace", dbutil.GetGitOpsEngineSingleInstanceNamespace())
+		log.Error(err, "could not create operation, when resource was deleted", "namespace", gitopsEngineInstance.Namespace_name)
 
 		return gitopserrors.NewDevOnlyError(err)
 	}
 
 	// 3) Clean up the operation and database table entries
-	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, !a.testOnlySkipCreateOperation, log); err != nil {
+	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbQueries, operationClient, !a.testOnlySkipCreateOperation, log); err != nil {
 		return gitopserrors.NewDevOnlyError(err)
 	}
 
@@ -449,6 +495,10 @@ func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSyncRunEvent(ctx 
 		log.Error(err, "unexpected nil value of required objects")
 		return gitopserrors.NewDevOnlyError(err)
 	}
+	if gitopsEngineInstance.Namespace_name == "" {
+		err := fmt.Errorf("gitopsengineinstance namespace is empty")
+		return gitopserrors.NewDevOnlyError(err)
+	}
 
 	// createdResources is a list of database entries created in this function; if an error occurs, we delete them
 	// in reverse order.
@@ -482,8 +532,10 @@ func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSyncRunEvent(ctx 
 	if err := dbQueries.CreateAPICRToDatabaseMapping(ctx, &newApiCRToDBMapping); err != nil {
 		log.Error(err, "unable to create api to db mapping in database")
 
-		// If we were unable to retrieve the client, delete the resources we created in the previous steps
-		dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log)
+		// If we were unable to create the operation, delete the resources we created in the previous steps
+		if disposeErr := dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log); disposeErr != nil {
+			log.Error(disposeErr, "unable to dispose of old resources on sync run create")
+		}
 
 		return gitopserrors.NewDevOnlyError(err)
 	}
@@ -495,7 +547,9 @@ func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSyncRunEvent(ctx 
 		log.Error(err, "unable to retrieve gitopsengine instance from handleSyncRunModified")
 
 		// If we were unable to retrieve the client, delete the resources we created in the previous steps
-		dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log)
+		if disposeErr := dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log); disposeErr != nil {
+			log.Error(disposeErr, "unable to dispose of old resources on sync run create")
+		}
 
 		// Return the original error
 		return gitopserrors.NewDevOnlyError(err)
@@ -508,12 +562,14 @@ func (a *applicationEventLoopRunner_Action) handleNewGitOpsDeplSyncRunEvent(ctx 
 	}
 
 	k8sOperation, dbOperation, err := operations.CreateOperation(ctx, false, dbOperationInput, clusterUser.Clusteruser_id,
-		dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, log)
+		gitopsEngineInstance.Namespace_name, dbQueries, operationClient, log)
 	if err != nil {
-		log.Error(err, "could not create operation", "namespace", dbutil.GetGitOpsEngineSingleInstanceNamespace())
+		log.Error(err, "could not create operation", "namespace", gitopsEngineInstance.Namespace_name)
 
 		// If we were unable to create the operation, delete the resources we created in the previous steps
-		dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log)
+		if disposeErr := dbutil.DisposeApplicationScopedResources(ctx, createdResources, dbQueries, log); disposeErr != nil {
+			log.Error(disposeErr, "unable to dispose of old resources on sync run create")
+		}
 
 		return gitopserrors.NewDevOnlyError(err)
 	}
@@ -564,7 +620,7 @@ outer_for:
 
 	}
 
-	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, operationClient, !a.testOnlySkipCreateOperation, log); err != nil {
+	if err := operations.CleanupOperation(ctx, *dbOperation, *k8sOperation, dbQueries, operationClient, !a.testOnlySkipCreateOperation, log); err != nil {
 		return gitopserrors.NewDevOnlyError(err)
 	}
 

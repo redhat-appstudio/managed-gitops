@@ -227,6 +227,7 @@ type processOperationEventTask struct {
 }
 
 // PerformTask takes as input an Operation resource event, and processes it based on the contents of that event.
+// - For example, an Operation points to an Application row, the contents of that row will be compared with the corresponding Argo CD Application CR
 //
 // Returns bool (true if the task should be retried, for example because it failed, false otherwise),
 // and error (an error to log on failure).
@@ -331,13 +332,15 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 		}
 	}
 
+	// 3) Find the Argo CD instance that is targeted by this operation.
 	dbGitopsEngineInstance := &db.GitopsEngineInstance{
 		Gitopsengineinstance_id: dbOperation.Instance_id,
 	}
 	if err := dbQueries.GetGitopsEngineInstanceById(taskContext, dbGitopsEngineInstance); err != nil {
 
 		if db.IsResultNotFoundError(err) {
-			return nil, shouldRetryFalse, err
+			log.Error(err, "Received operation on gitops engine instance that doesn't exist")
+			return nil, shouldRetryFalse, nil
 		} else {
 			// some other generic error
 			log.Error(err, "Unable to retrieve gitopsEngineInstance due to generic error: "+dbGitopsEngineInstance.Gitopsengineinstance_id)
@@ -370,24 +373,7 @@ func (task *processOperationEventTask) internalPerformTask(taskContext context.C
 
 	}
 
-	// 3) Find the Argo CD instance that is targeted by this operation.
-	dbGitopsEngineInstance = &db.GitopsEngineInstance{
-		Gitopsengineinstance_id: dbOperation.Instance_id,
-	}
-	if err := dbQueries.GetGitopsEngineInstanceById(taskContext, dbGitopsEngineInstance); err != nil {
-
-		if db.IsResultNotFoundError(err) {
-			// log as warning
-			log.Error(err, "Receive operation on gitops engine instance that doesn't exist")
-
-			// no corresponding db operation, so no work to do
-			return &dbOperation, shouldRetryFalse, nil
-		} else {
-			// some other generic error
-			log.Error(err, "Unexpected error on retrieving GitOpsEngineInstance in internalPerformTask")
-			return &dbOperation, shouldRetryTrue, err
-		}
-	}
+	log.Info("Operation state", "state", dbOperation.State)
 
 	// Sanity test: find the gitops engine cluster, by kube-system, and ensure that the
 	// gitopsengineinstance matches the gitops engine cluster we are running on.
@@ -829,12 +815,12 @@ const (
 	// ArgoCDDefaultDestinationInCluster is 'in-cluster' which is the spec destination value that Argo CD recognizes
 	// as indicating that Argo CD should deploy to the local cluster (the cluster that Argo CD is installed on).
 	ArgoCDDefaultDestinationInCluster = "in-cluster"
+	appProjectPrefix                  = "app-project-"
 )
 
 // processOperation_Application handles an Operation that targets an Application.
 // Returns true if the task should be retried (eg due to failure), false otherwise.
 func processOperation_Application(ctx context.Context, dbOperation db.Operation, crOperation operation.Operation, opConfig operationConfig) (bool, error) {
-
 	// Sanity check
 	if dbOperation.Resource_id == "" {
 		return shouldRetryTrue, fmt.Errorf("resource id was nil while processing operation: " + crOperation.Name)
@@ -850,12 +836,17 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 
 		if db.IsResultNotFoundError(err) {
 			// The application db entry no longer exists, so delete the corresponding Application CR
-			return deleteArgoCDApplicationOfDeletedApplicationRow(ctx, dbApplication.Application_id, opConfig, log)
+			return deleteArgoCDApplicationOfDeletedApplicationRow(ctx, dbApplication.Application_id, dbOperation, opConfig, log)
 
 		} else {
 			log.Error(err, "Unable to retrieve database Application row from database")
 			return shouldRetryTrue, err
 		}
+	}
+
+	if shouldRetry, err := createOrUpdateAppProjectWithValidation(ctx, dbOperation, opConfig, log); err != nil {
+		log.Error(err, "failed to call createOrUpdateAppProjectWithValidation function")
+		return shouldRetry, err
 	}
 
 	log = log.WithValues("argoCDApplicationName", dbApplication.Name)
@@ -873,7 +864,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 		if apierr.IsNotFound(err) {
 			// The Application CR doesn't exist, so we need to create it
 
-			// However, we should not create the Argo CD Appliction if the Application row does not have a valid ManagedEnvironment foreign key
+			// However, we should not create the Argo CD Application if the Application row does not have a valid ManagedEnvironment foreign key
 			if dbApplication.Managed_environment_id == "" {
 				return shouldRetryFalse, nil
 			}
@@ -896,6 +887,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 					return shouldRetryTrue, err
 				}
 			}
+
 			if err := opConfig.eventClient.Create(ctx, app, &client.CreateOptions{}); err != nil {
 				log.Error(err, "Unable to create Argo CD Application CR")
 				// This may or may not be salvageable depending on the error; ultimately we should figure out which
@@ -966,8 +958,7 @@ func processOperation_Application(ctx context.Context, dbOperation db.Operation,
 }
 
 // Delete all Argo CD Applications that reference a specific Application row
-func deleteArgoCDApplicationOfDeletedApplicationRow(ctx context.Context, dbApplicationID string, opConfig operationConfig, log logr.Logger) (bool, error) {
-
+func deleteArgoCDApplicationOfDeletedApplicationRow(ctx context.Context, dbApplicationID string, dbOperation db.Operation, opConfig operationConfig, log logr.Logger) (bool, error) {
 	// Find the Application that has the corresponding databaseID label
 	list := appv1.ApplicationList{}
 	labelSelector := labels.NewSelector()
@@ -1012,7 +1003,111 @@ func deleteArgoCDApplicationOfDeletedApplicationRow(ctx context.Context, dbAppli
 		log.Error(firstDeletionErr, "Deletion of at least one Argo CD application failed.", "firstError", firstDeletionErr)
 		return shouldRetryTrue, firstDeletionErr
 	}
+
+	// If the application is deleted, remove the corresponding AppProjectRepository row from the database.
+	appProjectRepository := db.AppProjectRepository{
+		Clusteruser_id: dbOperation.Operation_owner_user_id,
+	}
+
+	// Retrieve the total count of rows in the AppProjectRepository table from the database based on the operation user ID.
+	appProjectRepositoryCount, err := opConfig.dbQueries.CountAppProjectRepositoryByClusterUserID(ctx, &appProjectRepository)
+	if err != nil {
+		log.Error(err, "Unable to count AppProjectRepository by cluster user id ", "cluster_user_id", dbOperation.Operation_owner_user_id)
+		return shouldRetryTrue, err
+	}
+
+	// Retrieve the total count of rows in the AppProjectManagedEnvironment table from the database based on the operation user ID.
+	appProjectManagedEnv := db.AppProjectManagedEnvironment{
+		Clusteruser_id: dbOperation.Operation_owner_user_id,
+	}
+
+	appProjectManagedEnvCount, err := opConfig.dbQueries.CountAppProjectManagedEnvironmentByClusterUserID(ctx, &appProjectManagedEnv)
+	if err != nil {
+		log.Error(err, "Unable to count AppProjectManagedEnvironment by cluster user id ", "cluster_user_id", dbOperation.Operation_owner_user_id)
+		return shouldRetryTrue, err
+	}
+
+	// Delete the AppProject resource if the combined count of appProjectRepositoryCount and appProjectManagedEnvCount equals zero.
+	if appProjectRepositoryCount+appProjectManagedEnvCount == 0 {
+
+		// Retrieve the AppProject: if we find that it exists, then delete it.
+		appProject := appv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      appProjectPrefix + dbOperation.Operation_owner_user_id,
+				Namespace: opConfig.argoCDNamespace.Name,
+			},
+		}
+		if err := opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(&appProject), &appProject); err != nil {
+
+			if apierr.IsNotFound(err) {
+				// If the AppProject no longer exists, our work is done.
+				return shouldRetryFalse, nil
+			}
+
+			log.Error(err, "Unable to retrieve AppProject resource")
+			return shouldRetryTrue, err
+		} else {
+			if err := opConfig.eventClient.Delete(ctx, &appProject); err != nil {
+				log.Error(err, "Unable to delete AppProject resource")
+				return shouldRetryTrue, err
+			}
+			log.Info("Succesfully deleted AppProject resource", "appProject", appProject.Name)
+		}
+	} else {
+		shouldRetry, err := createOrUpdateAppProjectWithValidation(ctx, dbOperation, opConfig, log)
+		if err != nil {
+			log.Error(err, "failed to call createOrUpdateAppProjectWithValidation function")
+		}
+
+		return shouldRetry, err
+	}
+
 	// success
+	return shouldRetryFalse, nil
+}
+
+// This function generates or updates an AppProject based on specified parameters, ensuring consistency with the existing AppProject if it already exists.
+func createOrUpdateAppProjectWithValidation(ctx context.Context, dbOperation db.Operation, opConfig operationConfig, log logr.Logger) (bool, error) {
+	// Generate an AppProject before creating or updating the ArgoCD Application CR.
+	appProject, err := buildAppProject(ctx, dbOperation, opConfig, log)
+	if err != nil {
+		log.Error(err, "Call to buildAppProject function failed")
+		return shouldRetryTrue, err
+	}
+
+	// Verify if the AppProject CR exists and is consistent with the generated value, from above.
+	existingAppProject := &appv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      appProjectPrefix + dbOperation.Operation_owner_user_id,
+			Namespace: opConfig.argoCDNamespace.Name,
+		},
+	}
+
+	if err := opConfig.eventClient.Get(ctx, client.ObjectKeyFromObject(existingAppProject), existingAppProject); err != nil {
+		if apierr.IsNotFound(err) {
+			// If appProject doesn't exist, create it.
+			if err := opConfig.eventClient.Create(ctx, appProject, &client.CreateOptions{}); err != nil {
+				log.Error(err, "Unable to create AppProject CR")
+				return shouldRetryTrue, err
+			}
+			logutil.LogAPIResourceChangeEvent(appProject.Namespace, appProject.Name, appProject, logutil.ResourceCreated, log)
+		} else {
+			log.Error(err, "unable to retrieve existing AppProject from namespace")
+			return shouldRetryTrue, err
+		}
+		// If the generated AppProject doesn't match the existing appProject, update it.
+	} else if !appProjectEqual(existingAppProject, appProject) {
+		// Update existingAppProject with generated appProject
+		existingAppProject.Spec = appProject.Spec
+		if err := opConfig.eventClient.Update(ctx, existingAppProject, &client.UpdateOptions{}); err != nil {
+			log.Error(err, "Unable to update AppProject CR")
+			return shouldRetryTrue, err
+		}
+
+		logutil.LogAPIResourceChangeEvent(existingAppProject.Namespace, existingAppProject.Name, existingAppProject, logutil.ResourceCreated, log)
+
+	}
+
 	return shouldRetryFalse, nil
 }
 
@@ -1094,34 +1189,6 @@ func ensureManagedEnvironmentExists(ctx context.Context, application db.Applicat
 	// If the secret is otherwise empty, no work is required
 	if expectedSecret.Name == "" {
 		return nil
-	}
-
-	managedEnv := &db.ManagedEnvironment{
-		Managedenvironment_id: application.Managed_environment_id,
-	}
-
-	if err := opConfig.dbQueries.GetManagedEnvironmentById(ctx, managedEnv); err != nil {
-		if db.IsResultNotFoundError(err) {
-			// Application refers to a managed environment that doesn't exist: no more work to do.
-			// Return true to indicate that the managed environment cluster secret should be deleted.
-			return nil
-		} else {
-			log.Error(err, "unable to retrieve managed environment in operation event loop", "managedEnvironmentID", managedEnv.Managedenvironment_id)
-			return fmt.Errorf("unable to get managed environment '%s': %v", managedEnv.Managedenvironment_id, err)
-		}
-	}
-	clusterCredentials := &db.ClusterCredentials{
-		Clustercredentials_cred_id: managedEnv.Clustercredentials_id,
-	}
-	if err := opConfig.dbQueries.GetClusterCredentialsById(ctx, clusterCredentials); err != nil {
-		if db.IsResultNotFoundError(err) {
-			// Managed environment refers to cluster credentials which no longer exist: no more work to do.
-			// Return true to indicate that the managed environment cluster secret should be deleted.
-			return nil
-		} else {
-			log.Error(err, "unable to retrieve cluster credentials in operation event loop", "clusterCredentialsID", clusterCredentials.Clustercredentials_cred_id)
-			return fmt.Errorf("unable to get cluster credentials '%s': %v", clusterCredentials.Clustercredentials_cred_id, err)
-		}
 	}
 
 	existingSecret := &corev1.Secret{
@@ -1264,4 +1331,123 @@ func generateExpectedClusterSecret(ctx context.Context, application db.Applicati
 
 	return managedEnvironmentSecret, deleteSecret_false, nil
 
+}
+
+func buildAppProject(ctx context.Context, dbOperation db.Operation, opConfig operationConfig, log logr.Logger) (*appv1.AppProject, error) {
+
+	// Create AppProject resource before creating Argo CD Application CR
+
+	var appProjectRepositories []db.AppProjectRepository
+	if err := opConfig.dbQueries.ListAppProjectRepositoryByClusterUserId(ctx, dbOperation.Operation_owner_user_id, &appProjectRepositories); err != nil {
+		log.Error(err, "unable to list AppProjectRepositories based on cluster user id")
+		return nil, err
+	}
+
+	repoURLs := []string{} // Create a new slice to store RepoURLs
+	// Iterate over the appProjectRepositories and append RepoURLs to the repoURLs slice
+	for _, repo := range appProjectRepositories {
+		repoURLs = append(repoURLs, repo.RepoURL)
+	}
+
+	var clusterSecretNames []string
+
+	var appProjectManagedEnvs []db.AppProjectManagedEnvironment
+	if err := opConfig.dbQueries.ListAppProjectManagedEnvironmentByClusterUserId(ctx, dbOperation.Operation_owner_user_id, &appProjectManagedEnvs); err != nil {
+		log.Error(err, "unable to list appProjectManagedEnvs by cluster user id")
+		return nil, err
+	}
+
+	for _, appProjectManagedEnv := range appProjectManagedEnvs {
+
+		managedEnv := db.ManagedEnvironment{
+			Managedenvironment_id: appProjectManagedEnv.Managed_environment_id,
+		}
+
+		if err := opConfig.dbQueries.GetManagedEnvironmentById(ctx, &managedEnv); err != nil {
+			log.Error(err, "unable to retrieve managedEnv by id")
+			return nil, err
+		}
+
+		clusterSecretNames = append(clusterSecretNames, argosharedutil.GenerateArgoCDClusterSecretName(managedEnv))
+	}
+
+	var destinations []appv1.ApplicationDestination
+	for _, clusterSecretName := range clusterSecretNames {
+		destinations = append(destinations, appv1.ApplicationDestination{
+			Name:      clusterSecretName,
+			Namespace: "*",
+		})
+	}
+
+	// Make sure we also add the local cluster
+	destinations = append(destinations, appv1.ApplicationDestination{
+		Name:      ArgoCDDefaultDestinationInCluster,
+		Namespace: "*",
+	})
+
+	appProject := &appv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: appProjectPrefix + dbOperation.Operation_owner_user_id,
+			Annotations: map[string]string{
+				"username": dbOperation.Operation_owner_user_id,
+			},
+			Namespace: opConfig.argoCDNamespace.Name,
+		},
+		Spec: appv1.AppProjectSpec{
+			SourceRepos:  repoURLs,
+			Destinations: destinations,
+		},
+	}
+
+	return appProject, nil
+
+}
+
+func appProjectEqual(existingAppProject, generatedAppProject *appv1.AppProject) bool {
+
+	if existingAppProject == nil || generatedAppProject == nil {
+		return false
+	}
+
+	// Check if length of existingAppProject.Spec.SourceRepos is equal to generatedAppProject.Spec.SourceRepos
+	if len(existingAppProject.Spec.SourceRepos) != len(generatedAppProject.Spec.SourceRepos) {
+		return false
+	}
+
+	// Create a map to store the presence of each repository in existingAppProject.Spec.SourceRepos
+	existingRepoMap := make(map[string]bool)
+
+	// Populate the map with the repositories from existingAppProject.Spec.SourceRepos
+	for _, repo := range existingAppProject.Spec.SourceRepos {
+		existingRepoMap[repo] = true
+	}
+
+	// Check if each repository in generatedAppProject.Spec.SourceRepos is present in the map
+	for _, repo := range generatedAppProject.Spec.SourceRepos {
+		if _, ok := existingRepoMap[repo]; !ok {
+			return false
+		}
+	}
+
+	// Check if length of existingAppProject.Spec.Destinations is equal to generatedAppProject.Spec.Destinations
+	if len(existingAppProject.Spec.Destinations) != len(generatedAppProject.Spec.Destinations) {
+		return false
+	}
+
+	// Create a map to store the presence of each destination in existingAppProject.Spec.Destinations
+	existingDestMap := make(map[appv1.ApplicationDestination]bool)
+
+	// Populate the map with the destination from existingAppProject.Spec.Destinations
+	for _, repo := range existingAppProject.Spec.Destinations {
+		existingDestMap[repo] = true
+	}
+
+	// Check if each repository in  generatedAppProject.Spec.Destinations is present in the map
+	for _, repo := range generatedAppProject.Spec.Destinations {
+		if _, ok := existingDestMap[repo]; !ok {
+			return false
+		}
+	}
+
+	return true
 }

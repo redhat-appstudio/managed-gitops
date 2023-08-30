@@ -11,13 +11,15 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func HaveStatusCondition(conditionType string) matcher.GomegaMatcher {
 	return WithTransform(func(menv managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -40,11 +42,37 @@ func HaveStatusCondition(conditionType string) matcher.GomegaMatcher {
 	}, BeTrue())
 }
 
+func HaveStatusConditionReason(reason string) matcher.GomegaMatcher {
+	return WithTransform(func(menv managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment) bool {
+		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+		Expect(err).ToNot(HaveOccurred())
+
+		k8sClient, err := fixture.GetKubeClient(config)
+		if err != nil {
+			fmt.Println(k8s.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&menv), &menv)
+		if err != nil {
+			fmt.Println(k8s.K8sClientError, err)
+			return false
+		}
+
+		for _, condition := range menv.Status.Conditions {
+			if condition.Reason == reason {
+				return true
+			}
+		}
+		return false
+	}, BeTrue())
+}
+
 // HaveAllowInsecureSkipTLSVerify checks if AllowInsecureSkipTLSVerify field of Environment is equal to ManagedEnvironment.
 func HaveAllowInsecureSkipTLSVerify(allowInsecureSkipTLSVerify bool) matcher.GomegaMatcher {
 	return WithTransform(func(menv managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -71,7 +99,7 @@ func HaveAllowInsecureSkipTLSVerify(allowInsecureSkipTLSVerify bool) matcher.Gom
 func HaveCredentials(expectedEnvSpec managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec) matcher.GomegaMatcher {
 	return WithTransform(func(env managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -96,7 +124,7 @@ func HaveCredentials(expectedEnvSpec managedgitopsv1alpha1.GitOpsDeploymentManag
 func HaveClusterResources(clusterResources bool) matcher.GomegaMatcher {
 	return WithTransform(func(menv managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -123,7 +151,7 @@ func HaveClusterResources(clusterResources bool) matcher.GomegaMatcher {
 func HaveNamespaces(namespaces []string) matcher.GomegaMatcher {
 	return WithTransform(func(menv managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -144,4 +172,30 @@ func HaveNamespaces(namespaces []string) matcher.GomegaMatcher {
 		return res
 
 	}, BeTrue())
+}
+
+func BuildManagedEnvironment(apiServerURL string, kubeConfigContents string, createNewServiceAccount bool) (managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment, corev1.Secret) {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-managed-env-secret",
+			Namespace: fixture.GitOpsServiceE2ENamespace,
+		},
+		Type:       "managed-gitops.redhat.com/managed-environment",
+		StringData: map[string]string{"kubeconfig": kubeConfigContents},
+	}
+
+	managedEnv := &managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-managed-env",
+			Namespace: fixture.GitOpsServiceE2ENamespace,
+		},
+		Spec: managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentSpec{
+			APIURL:                     apiServerURL,
+			ClusterCredentialsSecret:   secret.Name,
+			AllowInsecureSkipTLSVerify: true,
+			CreateNewServiceAccount:    createNewServiceAccount,
+		},
+	}
+
+	return *managedEnv, *secret
 }

@@ -128,8 +128,7 @@ func (dbq *PostgreSQLDatabaseQueries) ListClusterAccessesByManagedEnvironmentID(
 
 	var dbResults []ClusterAccess
 
-	// TODO: GITOPSRVCE-68 - PERF - Add index for this
-
+	// Index Name is idx_managed_environment_id
 	if err := dbq.dbConnection.Model(&dbResults).
 		Where("clusteraccess_managed_environment_id = ?", managedEnvironmentID).
 		Context(ctx).
@@ -141,6 +140,18 @@ func (dbq *PostgreSQLDatabaseQueries) ListClusterAccessesByManagedEnvironmentID(
 	*clusterAccesses = dbResults
 
 	return nil
+}
+
+// Get ClusterAccess in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+// For example if you want ClusterAccess starting from 51-150 then set the limit to 100 and offset to 50.
+func (dbq *PostgreSQLDatabaseQueries) GetClusterAccessBatch(ctx context.Context, clusterAccess *[]ClusterAccess, limit, offSet int) error {
+	return dbq.dbConnection.
+		Model(clusterAccess).
+		Order("seq_id ASC").
+		Limit(limit).   // Batch size
+		Offset(offSet). // offset+1 is starting point of batch
+		Context(ctx).
+		Select()
 }
 
 func (obj *ClusterAccess) Dispose(ctx context.Context, dbq DatabaseQueries) error {

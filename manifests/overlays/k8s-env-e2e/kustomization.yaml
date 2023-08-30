@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ../k8s-env
+
+patchesStrategicMerge:
+- backend-deployment-patch.yaml
+- cluster-agent-deployment-patch.yaml
+
+# Uncomment to use a custom image:
+
+# images:
+#   - name: \${COMMON_IMAGE}
+#     newName: quay.io/(your user name)/gitops-service
+#     newTag: latest

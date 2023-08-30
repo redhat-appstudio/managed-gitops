@@ -20,8 +20,11 @@ package appstudioredhatcom
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 
 	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
+	"github.com/go-logr/logr"
 	applicationv1alpha1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -78,7 +81,13 @@ func (r *DevsandboxDeploymentReconciler) Reconcile(ctx context.Context, req ctrl
 		return ctrl.Result{}, err
 	}
 
-	if !IsSpaceRequestReady(&spacerequest) {
+	if len(spacerequest.Status.NamespaceAccess) > 1 {
+		// TODO: GITOPSRVCE-578: once we support more than one namespace, remove this check.
+		log.Error(nil, "Sandbox provisioner does not currently support SpaceRequests with more than 1 namespace")
+		return ctrl.Result{}, nil
+	}
+
+	if !doesSpaceRequestHaveReadyTrue(&spacerequest) {
 		return ctrl.Result{}, nil
 	}
 	if dt, err = findMatchingDTForSpaceRequest(ctx, r.Client, &spacerequest); err != nil {
@@ -87,13 +96,14 @@ func (r *DevsandboxDeploymentReconciler) Reconcile(ctx context.Context, req ctrl
 	}
 
 	if dt == nil {
-		dt, err = CreateDeploymentTargetForSpaceRequest(ctx, r.Client, &spacerequest)
+		dt, err = createDeploymentTargetForSpaceRequest(ctx, r.Client, &spacerequest, log)
 		if err != nil {
 			log.Error(err, "failed to create the DeploymentTarget for a SpaceRequest")
 			return ctrl.Result{}, err
 		}
 
 		log.Info("DeploymentTarget has been created for SpaceRequest", "SpaceRequest.Name", spacerequest.Name, "SpaceRequest.Namespace", spacerequest.Namespace)
+		logutil.LogAPIResourceChangeEvent(dt.Namespace, dt.Name, dt, logutil.ResourceCreated, log)
 	}
 
 	log.Info("A DeploymentTarget for the SpaceRequest exists", "DeploymentTarget.Name", dt.Name, "Namespace", dt.Namespace)
@@ -150,8 +160,8 @@ func findMatchingDTCForSpaceRequest(ctx context.Context, k8sClient client.Client
 	return dtc, nil
 }
 
-// NewDeploymentTarget creates a new DeploymentTarget using the provided info.
-func NewDeploymentTarget(deploymentTargetClassName applicationv1alpha1.DeploymentTargetClassName, dtcNamespace string, namespace string, clusterAPIURL string, secretRef string, dtcName string) *applicationv1alpha1.DeploymentTarget {
+// newDeploymentTarget creates a new DeploymentTarget using the provided info.
+func newDeploymentTarget(deploymentTargetClassName applicationv1alpha1.DeploymentTargetClassName, dtcNamespace string, namespace string, clusterAPIURL string, secretRef string, dtcName string) *applicationv1alpha1.DeploymentTarget {
 	dtName := dtcName + "-dt"
 	deploymentTarget := &applicationv1alpha1.DeploymentTarget{
 		ObjectMeta: metav1.ObjectMeta{
@@ -169,19 +179,24 @@ func NewDeploymentTarget(deploymentTargetClassName applicationv1alpha1.Deploymen
 		},
 	}
 
+	// Set AllowInsecureSkipTLSVerify field of DT to True ,if it is a dev cluster.
+	if strings.EqualFold(os.Getenv("DEV_ONLY_IGNORE_SELFSIGNED_CERT_IN_DEPLOYMENT_TARGET"), "true") {
+		deploymentTarget.Spec.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify = true
+	}
+
 	return deploymentTarget
 }
 
-// CreateDeploymentTargetForSpaceRequest creates and returns a new DeploymentTarget
+// createDeploymentTargetForSpaceRequest creates and returns a new DeploymentTarget
 // If it's not possible to create it and set the SpaceRequest as the owner, an error will be returned
-func CreateDeploymentTargetForSpaceRequest(ctx context.Context, client client.Client, spacerequest *codereadytoolchainv1alpha1.SpaceRequest) (*applicationv1alpha1.DeploymentTarget, error) {
+func createDeploymentTargetForSpaceRequest(ctx context.Context, client client.Client, spacerequest *codereadytoolchainv1alpha1.SpaceRequest, log logr.Logger) (*applicationv1alpha1.DeploymentTarget, error) {
 
 	dtc, err := findMatchingDTCForSpaceRequest(ctx, client, spacerequest)
 	if err != nil {
 		return nil, err
 	}
 
-	deploymentTarget := NewDeploymentTarget(
+	deploymentTarget := newDeploymentTarget(
 		dtc.Spec.DeploymentTargetClassName,
 		dtc.Namespace,
 		spacerequest.Status.NamespaceAccess[0].Name,
@@ -195,15 +210,17 @@ func CreateDeploymentTargetForSpaceRequest(ctx context.Context, client client.Cl
 		deploymentTarget.Labels[applicationv1alpha1.AnnTargetProvisioner] = dtc.Annotations[applicationv1alpha1.AnnTargetProvisioner]
 	}
 
-	err = ctrl.SetControllerReference(spacerequest, deploymentTarget, client.Scheme())
-	if err != nil {
-		return nil, err
+	if deploymentTarget.Annotations == nil {
+		deploymentTarget.Annotations = make(map[string]string)
 	}
+	deploymentTarget.Annotations[applicationv1alpha1.AnnDynamicallyProvisioned] = string(applicationv1alpha1.Provisioner_Devsandbox)
 
 	err = client.Create(ctx, deploymentTarget)
 	if err != nil {
 		return nil, err
 	}
+
+	logutil.LogAPIResourceChangeEvent(deploymentTarget.Namespace, deploymentTarget.Name, deploymentTarget, logutil.ResourceCreated, log)
 
 	deploymentTarget.Status.Phase = applicationv1alpha1.DeploymentTargetPhase_Available // set phrase to "Available"
 	if err := client.Update(ctx, deploymentTarget); err != nil {
@@ -218,6 +235,6 @@ func (r *DevsandboxDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) erro
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&codereadytoolchainv1alpha1.SpaceRequest{}).
 		WithEventFilter(predicate.Or(
-			SpaceRequestReadyPredicate())).
+			spaceRequestReadyPredicate())).
 		Complete(r)
 }

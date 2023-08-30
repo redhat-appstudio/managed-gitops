@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/go-logr/logr"
 	. "github.com/onsi/gomega"
 
 	matcher "github.com/onsi/gomega/types"
@@ -291,6 +292,44 @@ func CreateOrUpdateClusterRoleAndRoleBinding(ctx context.Context, uuid string, k
 	return nil
 }
 
+// Generate generic fake kube config
+func GenerateFakeKubeConfig() string {
+	// This config has been sanitized of any real credentials.
+	return `
+apiVersion: v1
+kind: Config
+clusters:
+  - cluster:
+      insecure-skip-tls-verify: true
+      server: https://api.fake-e2e-test-data.origin-ci-int-gce.dev.rhcloud.com:6443
+    name: api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+  - cluster:
+      insecure-skip-tls-verify: true
+      server: https://api2.fake-e2e-test-data.origin-ci-int-gce.dev.rhcloud.com:6443
+    name: api2-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+contexts:
+  - context:
+      cluster: api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+      namespace: jgw
+      user: kube:admin/api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+    name: default/api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin
+  - context:
+      cluster: api2-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+      namespace: jgw
+      user: kube:admin/api2-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+    name: default/api2-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin
+current-context: default/api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin
+preferences: {}
+users:
+  - name: kube:admin/api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+    user:
+      token: sha256~ABCdEF1gHiJKlMnoP-Q19qrTuv1_W9X2YZABCDefGH4
+  - name: kube:admin/api2-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
+    user:
+      token: sha256~abcDef1gHIjkLmNOp-q19QRtUV1_w9x2yzabcdEFgh4
+`
+}
+
 func GenerateKubeConfig(serverURL string, currentNamespace string, token string) string {
 
 	return `
@@ -314,5 +353,216 @@ users:
     user:
       token: ` + token + `
 `
+}
 
+// HasFinalizers matches on whether or not a K8s object has the given finalizer(s)s
+func HasFinalizers(expectedFinalizers []string, k8sClient client.Client) matcher.GomegaMatcher {
+	return WithTransform(func(k8sObj client.Object) bool {
+
+		if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(k8sObj), k8sObj); err != nil {
+			fmt.Println(K8sClientError, err)
+			return false
+		}
+
+		for _, expectedFinalizer := range expectedFinalizers {
+
+			match := true
+
+			for _, finalizer := range k8sObj.GetFinalizers() {
+
+				if finalizer == expectedFinalizer {
+					match = true
+					break
+				}
+			}
+
+			if !match {
+				fmt.Println("Finalizer", expectedFinalizers, "not found on", k8sObj.GetName())
+				return false
+			}
+		}
+
+		return true
+	}, BeTrue())
+}
+
+func HasAnnotation(key, value string, k8sClient client.Client) matcher.GomegaMatcher {
+	return WithTransform(func(k8sObj client.Object) bool {
+
+		err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(k8sObj), k8sObj)
+		if err != nil {
+			fmt.Println(K8sClientError, err)
+			return false
+		}
+
+		annotations := k8sObj.GetAnnotations()
+		if annotations == nil {
+			fmt.Printf("Annotation %s not found in %s\n", key, k8sObj.GetName())
+			return false
+		}
+
+		v, found := annotations[key]
+		if !found {
+			fmt.Printf("Annotation %s not found in %s\n", key, k8sObj.GetName())
+			return false
+		}
+
+		if v != value {
+			fmt.Printf("Annotation value mismatch for %s: Expected: %s Actual %s\n", k8sObj.GetName(), value, v)
+			return false
+		}
+
+		return true
+	}, BeTrue())
+}
+
+// HasNonNilDeletionTimestamp checks whether the Kubernetes object has a non-nil deletion timestamp.
+func HasNonNilDeletionTimestamp(k8sClient client.Client) matcher.GomegaMatcher {
+	return WithTransform(func(k8sObj client.Object) bool {
+
+		err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(k8sObj), k8sObj)
+		if err != nil {
+			fmt.Println("HasNonNilDeletionTimestamp:", K8sClientError, err)
+			return false
+		}
+
+		return k8sObj.GetDeletionTimestamp() != nil
+	}, BeTrue())
+}
+
+func GenerateReadOnlyClusterRoleandBinding(user string) (rbacv1.ClusterRole, rbacv1.ClusterRoleBinding) {
+
+	clusterRole := rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "read-all-" + user,
+		},
+		Rules: []rbacv1.PolicyRule{{
+			Verbs:     []string{"get", "list", "watch"},
+			Resources: []string{"*"},
+			APIGroups: []string{"*"},
+		}},
+	}
+
+	clusterRoleBinding := rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "read-all-" + user,
+		},
+		Subjects: []rbacv1.Subject{{
+			Kind:      rbacv1.ServiceAccountKind,
+			Namespace: user,
+			Name:      user + "-sa",
+		}},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     clusterRole.Name,
+		},
+	}
+
+	return clusterRole, clusterRoleBinding
+}
+
+func CreateNamespaceScopedUserAccount(ctx context.Context, user string, createReadOnlyClusterRoleBinding bool,
+	k8sClient client.Client, log logr.Logger) (string, error) {
+
+	ns := corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: user,
+		},
+	}
+	if err := k8sClient.Create(ctx, &ns); err != nil {
+		return "", fmt.Errorf("error on creating namespace: %v", err)
+	}
+
+	saName := user + "-sa"
+
+	sa, err := GetOrCreateServiceAccount(ctx, k8sClient, saName, ns.Name, log)
+	if err != nil {
+		return "", fmt.Errorf("error on get/create service account: %v", err)
+	}
+
+	role := rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "allow-all",
+			Namespace: ns.Name,
+		},
+		Rules: []rbacv1.PolicyRule{{
+			Verbs:     []string{"*"},
+			Resources: []string{"*"},
+			APIGroups: []string{"*"},
+		}},
+	}
+	if err := k8sClient.Create(ctx, &role); err != nil {
+		return "", fmt.Errorf("error on creating role: %v", err)
+	}
+
+	roleBinding := rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "allow-all-binding",
+			Namespace: ns.Name,
+		},
+		Subjects: []rbacv1.Subject{{
+			Kind:      rbacv1.ServiceAccountKind,
+			Name:      sa.Name,
+			Namespace: sa.Namespace,
+		}},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     role.Name,
+		},
+	}
+	if err := k8sClient.Create(ctx, &roleBinding); err != nil {
+		return "", fmt.Errorf("error on creating rolebinding: %v", err)
+	}
+
+	if createReadOnlyClusterRoleBinding {
+		clusterRole, clusterRoleBinding := GenerateReadOnlyClusterRoleandBinding(user)
+
+		if err := k8sClient.Create(ctx, &clusterRole); err != nil {
+			return "", fmt.Errorf("error on creating role: %v", err)
+		}
+
+		if err := k8sClient.Create(ctx, &clusterRoleBinding); err != nil {
+			return "", fmt.Errorf("error on creating role: %v", err)
+		}
+	}
+
+	token, err := CreateServiceAccountBearerToken(ctx, k8sClient, sa.Name, ns.Name)
+	if err != nil {
+		return "", fmt.Errorf("error on getting bearer token: %v", err)
+	}
+
+	return token, nil
+}
+
+func GetOrCreateServiceAccount(ctx context.Context, k8sClient client.Client, serviceAccountName string, serviceAccountNS string,
+	log logr.Logger) (*corev1.ServiceAccount, error) {
+
+	serviceAccount := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceAccountName,
+			Namespace: serviceAccountNS,
+		},
+	}
+
+	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(serviceAccount), serviceAccount); err != nil {
+		if !apierr.IsNotFound(err) {
+			return nil, fmt.Errorf("unable to retrieve service account '%s': %w", serviceAccount.Name, err)
+		}
+	} else {
+		// Found it, so just return it
+		return serviceAccount, nil
+	}
+
+	log = log.WithValues("serviceAccount", serviceAccountName, "namespace", serviceAccountNS)
+
+	if err := k8sClient.Create(ctx, serviceAccount); err != nil {
+		log.Error(err, "Unable to create ServiceAccount")
+		return nil, fmt.Errorf("unable to create service account '%s': %w", serviceAccount.Name, err)
+	}
+
+	log.Info(fmt.Sprintf("ServiceAccount %s created in namespace %s", serviceAccountName, serviceAccountNS))
+
+	return serviceAccount, nil
 }

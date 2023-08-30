@@ -53,19 +53,19 @@ var _ = Describe("Garbage Collect Operations", func() {
 			log = logger.FromContext(ctx)
 
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			scheme, _, _, _, err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			k8sClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 
 			gc = NewGarbageCollector(dbq, k8sClient)
 
 			_, _, _, gitopsEngineInstance, clusterAccess, err = db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("operations with expired gc interval should be removed", func() {
@@ -81,7 +81,7 @@ var _ = Describe("Garbage Collect Operations", func() {
 				Last_state_update:       time.Now(),
 			}
 			err = dbq.CreateOperation(ctx, &validOperation, validOperation.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("wait until we exceed the expiration time")
 			time.Sleep(2 * time.Second)
@@ -116,16 +116,16 @@ var _ = Describe("Garbage Collect Operations", func() {
 				Last_state_update:       time.Now(),
 			}
 			err = dbq.CreateOperation(ctx, &invalidOperation, invalidOperation.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gc.garbageCollectOperations(ctx, []db.Operation{invalidOperation}, log)
 
 			By("operation should not be removed from DB")
 			err = dbq.GetOperationById(ctx, &invalidOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, err = dbq.DeleteOperationById(ctx, invalidOperation.Operation_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 })

@@ -27,21 +27,22 @@ import (
 )
 
 const (
-	errGenericCR        = "unable to retrieve CR from the cluster"
-	errUpdateDBRepoCred = "unable to update repository credential in the database"
-	errCreateDBRepoCred = "unable to create repository credential in the database"
+	errGenericCR                    = "unable to retrieve CR from the cluster"
+	errUpdateDBRepoCred             = "unable to update repository credential in the database"
+	errCreateDBRepoCred             = "unable to create repository credential in the database"
+	errCreateDBAppProjectRepository = "unable to create appProject repository in the database"
+	errUpdateDBAppProjectRepository = "unable to update appProject repository in the database"
 )
 
 func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 	repositoryCredentialCRName string,
 	repositoryCredentialCRNamespace corev1.Namespace,
 	apiNamespaceClient client.Client,
-	k8sClientFactory SRLK8sClientFactory,
 	dbQueries db.DatabaseQueries, shouldWait bool, l logr.Logger) (*db.RepositoryCredentials, error) {
 
 	resourceNS := repositoryCredentialCRNamespace.Name
 
-	clusterUser, _, err := internalGetOrCreateClusterUserByNamespaceUID(ctx, string(repositoryCredentialCRNamespace.UID), dbQueries, l)
+	clusterUser, _, err := internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx, repositoryCredentialCRNamespace, dbQueries, l)
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve cluster user while processing GitOpsRepositoryCredentials: '%s' in namespace: '%s': %v",
 			repositoryCredentialCRName, string(repositoryCredentialCRNamespace.UID), err)
@@ -130,7 +131,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 				}
 
 			} else {
-				if _, err := deleteRepoCredFromDB(ctx, dbQueries, repositoryCredentialPrimaryKey, l); err != nil {
+				if _, err := deleteRepoCredFromDB(ctx, dbRepoCred, repositoryCredentialCRNamespace, apiNamespaceClient, dbQueries, l); err != nil {
 					l.Error(err, "unable to delete repo cred from DB")
 					return nil, err
 				}
@@ -138,7 +139,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 
 				// We need to fire-up an Operation as well
 				l.Info("Creating an Operation for the deleted RepositoryCredential DB row", "RepositoryCredential ID", repositoryCredentialPrimaryKey)
-				if err, operationDBID = createRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries,
+				if operationDBID, err = createRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries,
 					apiNamespaceClient, shouldWait, l); err != nil {
 
 					l.Error(err, "Error creating an Operation for the deleted RepositoryCredential DB row", "RepositoryCredential ID", repositoryCredentialPrimaryKey)
@@ -232,12 +233,17 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 			EngineClusterID: gitopsEngineInstance.Gitopsengineinstance_id, // comply with the constraint 'fk_gitopsengineinstance_id',
 		}
 
-		err = dbQueries.CreateRepositoryCredentials(ctx, &dbRepoCred)
-		if err != nil {
+		if err := dbQueries.CreateRepositoryCredentials(ctx, &dbRepoCred); err != nil {
 			l.Error(err, "Error creating RepositoryCredential row in DB", "DebugErr", errCreateDBRepoCred, "CR Name", repositoryCredentialCRName, "Namespace", resourceNS)
 			return nil, fmt.Errorf("unable to create repository credential in the database: %v", err)
 		}
 		l.Info("Created RepositoryCredential in the DB", "repositoryCredential", dbRepoCred.RepositoryCredentialsID)
+
+		// Create or Update AppProjectRepository
+		if err := processAppProjectRepository(ctx, privateURL, repositoryCredentialCRNamespace, apiNamespaceClient, dbQueries, l); err != nil {
+			l.Error(err, "Failed to call processAppProjectRepository function")
+			return nil, fmt.Errorf("unable to call processAppProjectRepository function: %v", err)
+		}
 
 		// Create the mapping
 		newApiCRToDBMapping := db.APICRToDatabaseMapping{
@@ -267,7 +273,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 
 		l.Info(fmt.Sprintf("Created a ApiCRToDBMapping: (APIResourceType: %s, APIResourceUID: %s, DBRelationType: %s)", newApiCRToDBMapping.APIResourceType, newApiCRToDBMapping.APIResourceUID, newApiCRToDBMapping.DBRelationType))
 
-		err, operationDBID := createRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, shouldWait, l)
+		operationDBID, err := createRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, shouldWait, l)
 		if err != nil {
 			return nil, err
 		}
@@ -309,8 +315,7 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 		return nil, err
 
 	} else {
-
-		// If the CR exists in the cluster and in the DB, then check if the data is the same and create an Operation
+		// If the CR exists in the cluster and in the DB, then check if the data is the same and (if not) create an Operation
 		isUpdateNeeded := compareAndModifyClusterResourceWithDatabaseRow(*gitopsDeploymentRepositoryCredentialCR, &dbRepoCred, secret, l)
 		if isUpdateNeeded {
 			var operationDBID string
@@ -322,19 +327,22 @@ func internalProcessMessage_ReconcileRepositoryCredential(ctx context.Context,
 				return nil, err
 			}
 
-			if err, operationDBID = createRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, shouldWait, l); err != nil {
+			// Create or Update AppProjectRepository
+			if err := processAppProjectRepository(ctx, privateURL, repositoryCredentialCRNamespace, apiNamespaceClient, dbQueries, l); err != nil {
+				l.Error(err, "Failed to call processAppProjectRepository function")
+				return nil, fmt.Errorf("unable to call processAppProjectRepository function: %v", err)
+			}
+
+			if operationDBID, err = createRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, shouldWait, l); err != nil {
 				return nil, err
 			}
 
 			if err := CleanRepoCredOperation(ctx, dbRepoCred, clusterUser, resourceNS, dbQueries, apiNamespaceClient, operationDBID, l); err != nil {
 				return nil, err
 			}
-
-			return &dbRepoCred, nil
-
-		} else {
-			return &dbRepoCred, nil
 		}
+
+		return &dbRepoCred, nil
 	}
 }
 
@@ -385,7 +393,7 @@ func CleanRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCredent
 		l.Info("Deleting Operation CR: " + string(k8sOperation.Name) + " and the related Operation DB entry: " + dbOperation.Operation_id + " ID")
 
 		// Delete the Operation CR and the related DB entry.
-		if err := operations.CleanupOperation(ctx, dbOperation, k8sOperation, ns, dbQueries, client, true, l); err != nil {
+		if err := operations.CleanupOperation(ctx, dbOperation, k8sOperation, dbQueries, client, true, l); err != nil {
 			l.Error(err, "unable to delete Operations for RepositoryCredential.", "Operation CR Name", k8sOperation.Name,
 				"Operation DB ID", dbOperation.Operation_id, "RepositoryCredential ID", dbRepoCred.RepositoryCredentialsID)
 			return err
@@ -399,7 +407,7 @@ func CleanRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCredent
 }
 
 func createRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCredentials, clusterUser *db.ClusterUser, ns string,
-	dbQueries db.DatabaseQueries, apiNamespaceClient client.Client, shouldWait bool, l logr.Logger) (error, string) {
+	dbQueries db.DatabaseQueries, apiNamespaceClient client.Client, shouldWait bool, l logr.Logger) (string, error) {
 
 	dbOperationInput := db.Operation{
 		Instance_id:             dbRepoCred.EngineClusterID,
@@ -413,12 +421,12 @@ func createRepoCredOperation(ctx context.Context, dbRepoCred db.RepositoryCreden
 		apiNamespaceClient, l)
 	if err != nil {
 		errV := fmt.Errorf("unable to create operation: %v", err)
-		return errV, ""
+		return "", errV
 	}
 
 	l.Info("operation has been created", "CR", operationCR, "DB", operationDB)
 
-	return nil, operationDB.Operation_id
+	return operationDB.Operation_id, nil
 }
 
 // Updates the given repository credential CR's status condition to match the given condition and additional checks.
@@ -572,7 +580,7 @@ func generateValidRepositoryCredentialsConditions(repositoryCredential *managedg
 
 func validateRepositoryCredentials(rawRepoURL string, secret *corev1.Secret) error {
 
-	normalizedRepoUrl := normalizeGitURL(rawRepoURL)
+	normalizedRepoUrl := NormalizeGitURL(rawRepoURL)
 	rem := git.NewRemote(memory.NewStorage(), &config.RemoteConfig{
 		Name: "origin",
 		URLs: []string{normalizedRepoUrl},
@@ -622,9 +630,9 @@ var (
 	sshURLRegex = regexp.MustCompile("^(ssh://)?([^/:]*?)@[^@]+$")
 )
 
-// normalizeGitURL normalizes a git URL for purposes of comparison, as well as preventing redundant
+// NormalizeGitURL normalizes a git URL for purposes of comparison, as well as preventing redundant
 // local clones (by normalizing various forms of a URL to a consistent location).
-func normalizeGitURL(repo string) string {
+func NormalizeGitURL(repo string) string {
 	repo = strings.ToLower(strings.TrimSpace(repo))
 	if yes, _ := isSSHURL(repo); yes {
 		if !strings.HasPrefix(repo, "ssh://") {
@@ -650,4 +658,9 @@ func isSSHURL(url string) (bool, string) {
 		return true, matches[2]
 	}
 	return false, ""
+}
+
+func processAppProjectRepository(ctx context.Context, repoURL string, resourceNS corev1.Namespace, apiNamespaceClient client.Client, dbQueries db.DatabaseQueries, l logr.Logger) error {
+
+	return reconcileAppProjectRepositories(ctx, repoURL, resourceNS, apiNamespaceClient, dbQueries, l)
 }

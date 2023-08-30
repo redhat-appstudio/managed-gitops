@@ -1,10 +1,42 @@
 ignore:
-- "**/*_test.go"
-- "vendor/.*"
+  - "**/*_test.go"
+  - "vendor/.*"
+
+  # mock file for testing: these are not included/executed as part of the product code.
+  - "backend/condition/mocks/conditions.go"
+  - "backend/util/createHook.go"
+  - "backend/util/proxyclient.go"
+  - "backend/util/server.go"
+
+  - "backend-shared/main.go" # placeholder: not executed
+  - "backend-shared/apis/managed-gitops/v1alpha1/zz_generated.deepcopy.go" # generated file, does not need to be included in the coverage
+  - "backend-shared/apis/managed-gitops/v1alpha1/mocks/cr-client.go"
+  - "backend-shared/apis/managed-gitops/v1alpha1/mocks/generate.go"
+  - "backend-shared/apis/managed-gitops/v1alpha1/mocks/status-writer.go"
+  - "backend-shared/apis/managed-gitops/v1alpha1/mocks/structs/builders.go"
+  - "backend-shared/apis/managed-gitops/v1alpha1/mocks/structs/gitopsdeployment.go"
+  - "backend-shared/db/unreliable_db_client.go"
+  - "backend-shared/db/test_utils.go"
+  - "backend-shared/util/profiling.go"
+  - "backend-shared/util/proxyclient.go"
+  - "backend-shared/util/chaosclient.go"
+  - "backend-shared/hack/db-schema-sync-check/main.go"
+
+  - "cluster-agent/utils/mocks/ApplicationServiceClient.go"
+  - "cluster-agent/utils/mocks/Client.go"
+  - "cluster-agent/utils/mocks/SessionServiceClient.go"
+  - "cluster-agent/utils/mocks/SettingsServiceClient.go"
+  - "cluster-agent/utils/mocks/VersionServiceClient.go"
+
 
 github_checks:
   annotations: false
 
 coverage:
   status:
+    project:
+      default:
+        target: auto
+        threshold: 0.2%
+        removed_code_behavior: adjust_base
     patch: off

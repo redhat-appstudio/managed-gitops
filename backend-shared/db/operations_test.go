@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
@@ -30,20 +31,20 @@ var _ = Describe("Operations Test", func() {
 	BeforeEach(func() {
 		ctx = context.Background()
 		err := db.SetupForTestingDBGinkgo()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		_, _, _, gitopsEngineInstance, _, err = db.CreateSampleData(dbq)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		err = dbq.CreateClusterUser(ctx, testClusterUser)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 	})
 
 	AfterEach(func() {
-		defer dbq.CloseDatabase()
+		dbq.CloseDatabase()
 	})
 
 	It("Should Create, Get, List, Update and Delete an Operation", func() {
@@ -57,14 +58,14 @@ var _ = Describe("Operations Test", func() {
 		}
 
 		err := dbq.CreateOperation(ctx, &operation, operation.Operation_owner_user_id)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		operationget := db.Operation{
 			Operation_id: operation.Operation_id,
 		}
 
 		err = dbq.GetOperationById(ctx, &operationget)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(operationget.Last_state_update).To(BeAssignableToTypeOf(timestamp))
 		Expect(operationget.Created_on).To(BeAssignableToTypeOf(timestamp))
 		operationget.Created_on = operation.Created_on
@@ -74,14 +75,14 @@ var _ = Describe("Operations Test", func() {
 		var operationlist []db.Operation
 
 		err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, operation.Resource_id, operation.Resource_type, &operationlist, operation.Operation_owner_user_id)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(operationlist[0].Last_state_update).To(BeAssignableToTypeOf(timestamp))
 		Expect(operationlist[0].Created_on).To(BeAssignableToTypeOf(timestamp))
 		operationlist[0].Created_on = operation.Created_on
 		operationlist[0].Last_state_update = operation.Last_state_update
 
 		Expect(operationlist[0]).Should(Equal(operation))
-		Expect(len(operationlist)).Should(Equal(1))
+		Expect(operationlist).Should(HaveLen(1))
 
 		operationupdate := db.Operation{
 			Operation_id:            "test-operation-1",
@@ -95,13 +96,13 @@ var _ = Describe("Operations Test", func() {
 		operationupdate.Created_on = operation.Created_on
 		operationupdate.Last_state_update = operation.Last_state_update
 		err = dbq.UpdateOperation(ctx, &operationupdate)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		err = dbq.GetOperationById(ctx, &operationupdate)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(operationupdate).ShouldNot(Equal(operation))
 
 		rowsAffected, err := dbq.DeleteOperationById(ctx, operationget.Operation_id)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).Should(Equal(1))
 
 		err = dbq.GetOperationById(ctx, &operationget)
@@ -121,6 +122,64 @@ var _ = Describe("Operations Test", func() {
 
 	})
 
+	It("Should Get Operation in batch.", func() {
+
+		ctx = context.Background()
+		err := db.SetupForTestingDBGinkgo()
+		Expect(err).ToNot(HaveOccurred())
+
+		dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+		Expect(err).ToNot(HaveOccurred())
+
+		_, _, _, gitopsEngineInstance, _, err = db.CreateSampleData(dbq)
+		Expect(err).ToNot(HaveOccurred())
+
+		err = dbq.CreateClusterUser(ctx, testClusterUser)
+		Expect(err).ToNot(HaveOccurred())
+
+		defer dbq.CloseDatabase()
+
+		By("Create multiple Operation entries.")
+
+		operation := db.Operation{
+			Operation_id:            "test-op-" + uuid.NewString(),
+			Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+			Resource_id:             "test-fake-resource-id",
+			Resource_type:           "GitopsEngineInstance",
+			State:                   db.OperationState_Waiting,
+			Operation_owner_user_id: testClusterUser.Clusteruser_id,
+		}
+		err = dbq.CreateOperation(ctx, &operation, operation.Operation_owner_user_id)
+		Expect(err).ToNot(HaveOccurred())
+
+		operation.Operation_id = "test-op-" + uuid.NewString()
+		err = dbq.CreateOperation(ctx, &operation, operation.Operation_owner_user_id)
+		Expect(err).ToNot(HaveOccurred())
+
+		operation.Operation_id = "test-op-" + uuid.NewString()
+		err = dbq.CreateOperation(ctx, &operation, operation.Operation_owner_user_id)
+		Expect(err).ToNot(HaveOccurred())
+
+		operation.Operation_id = "test-op-" + uuid.NewString()
+		err = dbq.CreateOperation(ctx, &operation, operation.Operation_owner_user_id)
+		Expect(err).ToNot(HaveOccurred())
+
+		operation.Operation_id = "test-op-" + uuid.NewString()
+		err = dbq.CreateOperation(ctx, &operation, operation.Operation_owner_user_id)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("Get data in batch.")
+
+		var listOfOperationFromDB []db.Operation
+		err = dbq.GetOperationBatch(ctx, &listOfOperationFromDB, 2, 0)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(listOfOperationFromDB).To(HaveLen(2))
+
+		err = dbq.GetOperationBatch(ctx, &listOfOperationFromDB, 3, 1)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(listOfOperationFromDB).To(HaveLen(3))
+	})
+
 	Context("list all operations to be garbage collected", func() {
 		var sampleOperation *db.Operation
 		var validOperations []db.Operation
@@ -137,63 +196,106 @@ var _ = Describe("Operations Test", func() {
 			}
 
 			err := dbq.CreateOperation(ctx, sampleOperation, sampleOperation.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("operation in waiting state shouldn't be returned", func() {
 			Expect(sampleOperation.State).Should(Equal(db.OperationState_Waiting))
 			err := dbq.ListOperationsToBeGarbageCollected(ctx, &validOperations)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
-			Expect(len(validOperations)).Should(Equal(0))
+			Expect(validOperations).Should(BeEmpty())
 		})
 
 		It("operation without gc time shouldn't be returned", func() {
 			err := dbq.GetOperationById(ctx, sampleOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			sampleOperation.State = db.OperationState_Completed
 			err = dbq.UpdateOperation(ctx, sampleOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.ListOperationsToBeGarbageCollected(ctx, &validOperations)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
-			Expect(len(validOperations)).Should(Equal(0))
+			Expect(validOperations).Should(BeEmpty())
 		})
 
 		It("operation in completed state and non-zero gc time should be returned", func() {
 			err := dbq.GetOperationById(ctx, sampleOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			sampleOperation.State = db.OperationState_Completed
 			sampleOperation.GC_expiration_time = 100
 			err = dbq.UpdateOperation(ctx, sampleOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.ListOperationsToBeGarbageCollected(ctx, &validOperations)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
-			Expect(len(validOperations)).Should(Equal(1))
+			Expect(validOperations).Should(HaveLen(1))
 			Expect(sampleOperation).Should(readyForGarbageCollection())
 		})
 
 		It("operation in failed state and non-zero gc time should be returned", func() {
 			err := dbq.GetOperationById(ctx, sampleOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			sampleOperation.State = db.OperationState_Failed
 			sampleOperation.GC_expiration_time = 100
 			err = dbq.UpdateOperation(ctx, sampleOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.ListOperationsToBeGarbageCollected(ctx, &validOperations)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
-			Expect(len(validOperations)).Should(Equal(1))
+			Expect(validOperations).Should(HaveLen(1))
 			Expect(sampleOperation).Should(readyForGarbageCollection())
 		})
 
+	})
+
+	Context("Test Dispose function for Operation", func() {
+		var operation *db.Operation
+		var dbq db.AllDatabaseQueries
+		var err error
+		BeforeEach(func() {
+			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).ToNot(HaveOccurred())
+
+			operation = &db.Operation{
+				Operation_id:            "test-operation-1",
+				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+				Resource_id:             "test-fake-resource-id",
+				Resource_type:           "GitopsEngineInstance",
+				Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				Last_state_update:       time.Now(),
+			}
+
+			err = dbq.CreateOperation(ctx, operation, operation.Operation_owner_user_id)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		AfterEach(func() {
+			dbq.CloseDatabase()
+		})
+
+		It("Should test Dispose function with missing database interface", func() {
+			var dbq db.AllDatabaseQueries
+
+			err := operation.DisposeAppScoped(ctx, dbq)
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("Should test Dispose function for Operation", func() {
+			err := operation.DisposeAppScoped(context.Background(), dbq)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = dbq.GetOperationById(ctx, operation)
+			Expect(err).To(HaveOccurred())
+			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
+
+		})
 	})
 })
 

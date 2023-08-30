@@ -27,7 +27,7 @@ var _ = Describe("Argo CD Application", func() {
 
 			By("create a new GitOpsDeployment CR")
 			gitOpsDeployment := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl-automated",
-				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
@@ -44,19 +44,19 @@ var _ = Describe("Argo CD Application", func() {
 
 			By("get the Application name created by the GitOpsDeployment resource")
 			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			appMapping := &db.DeploymentToApplicationMapping{
 				Deploymenttoapplicationmapping_uid_id: string(gitOpsDeployment.UID),
 			}
 			err = dbQueries.GetDeploymentToApplicationMappingByDeplId(context.Background(), appMapping)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbApplication := &db.Application{
 				Application_id: appMapping.Application_id,
 			}
 			err = dbQueries.GetApplicationById(context.Background(), dbApplication)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify that the Argo CD Application has prune, allowEmpty and selfHeal enabled")
 			app := appv1alpha1.Application{
@@ -66,7 +66,12 @@ var _ = Describe("Argo CD Application", func() {
 				},
 			}
 			Eventually(app, "60s", "1s").Should(appFixture.HaveAutomatedSyncPolicy(appv1alpha1.SyncPolicyAutomated{Prune: true, SelfHeal: true, AllowEmpty: true}))
+			Eventually(app, "60s", "1s").Should(appFixture.HaveRetryOption(&appv1alpha1.RetryStrategy{Limit: -1, Backoff: &appv1alpha1.Backoff{Duration: "5s", Factor: getInt64Pointer(2), MaxDuration: "3m"}}))
 		})
-
 	})
 })
+
+func getInt64Pointer(i int) *int64 {
+	i64 := int64(i)
+	return &i64
+}

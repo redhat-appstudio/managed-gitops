@@ -29,7 +29,7 @@ var _ = Describe("Testing CreateOperation function.", func() {
 			defer dbq.CloseDatabase()
 
 			rowsAffected, err := dbq.DeleteOperationById(ctx, dbOperationFirst.Operation_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(rowsAffected).Should(Equal(1))
 		})
 
@@ -39,10 +39,10 @@ var _ = Describe("Testing CreateOperation function.", func() {
 				kubesystemNamespace,
 				workspace,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 			log := log.FromContext(ctx)
@@ -57,10 +57,10 @@ var _ = Describe("Testing CreateOperation function.", func() {
 			}
 
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationput := db.Application{
 				Application_id:          "test-my-application",
@@ -71,7 +71,7 @@ var _ = Describe("Testing CreateOperation function.", func() {
 			}
 
 			err = dbq.CreateApplication(ctx, &applicationput)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbOperationInput := db.Operation{
 				Instance_id:   applicationput.Engine_instance_inst_id,
@@ -81,13 +81,13 @@ var _ = Describe("Testing CreateOperation function.", func() {
 
 			// Create new Operation
 			k8sOperationFirst, dbOperationFirst, err = CreateOperation(ctx, false, dbOperationInput, "test-user", gitopsEngineInstance.Namespace_name, dbq, k8sClient, log)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(k8sOperationFirst).NotTo(BeNil())
 			Expect(dbOperationFirst).NotTo(BeNil())
 
 			// Try to recreate same Operation it should return existing one.
 			k8sOperationSecond, dbOperationSecond, err = CreateOperation(ctx, false, dbOperationInput, "test-user", gitopsEngineInstance.Namespace_name, dbq, k8sClient, log)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(k8sOperationSecond).NotTo(BeNil())
 			Expect(dbOperationSecond).NotTo(BeNil())
 
@@ -158,10 +158,10 @@ var _ = Describe("Testing CleanupOperation function", func() {
 				kubesystemNamespace,
 				workspace,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 			logr = log.FromContext(ctx)
@@ -172,10 +172,10 @@ var _ = Describe("Testing CleanupOperation function", func() {
 				Build()
 
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, managedEnvironment, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			app := db.Application{
 				Application_id:          "test-my-application",
@@ -186,7 +186,7 @@ var _ = Describe("Testing CleanupOperation function", func() {
 			}
 
 			err = dbq.CreateApplication(ctx, &app)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbOperationInput := db.Operation{
 				Instance_id:   app.Engine_instance_inst_id,
@@ -196,14 +196,14 @@ var _ = Describe("Testing CleanupOperation function", func() {
 
 			// Create new Operation
 			k8sOperation, dbOperation, err = CreateOperation(ctx, false, dbOperationInput, "test-user", gitopsEngineInstance.Namespace_name, dbq, k8sClient, logr)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(k8sOperation).NotTo(BeNil())
 			Expect(dbOperation).NotTo(BeNil())
 		})
 
 		It("should remove CR and DB entry", func() {
-			err := CleanupOperation(ctx, *dbOperation, *k8sOperation, k8sOperation.Namespace, dbq, k8sClient, true, logr)
-			Expect(err).To(BeNil())
+			err := CleanupOperation(ctx, *dbOperation, *k8sOperation, dbq, k8sClient, true, logr)
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetOperationById(ctx, dbOperation)
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
@@ -213,11 +213,11 @@ var _ = Describe("Testing CleanupOperation function", func() {
 		})
 
 		It("shouldn't remove DB entry when deleteDBOperation is disabled", func() {
-			err := CleanupOperation(ctx, *dbOperation, *k8sOperation, k8sOperation.Namespace, dbq, k8sClient, false, logr)
-			Expect(err).To(BeNil())
+			err := CleanupOperation(ctx, *dbOperation, *k8sOperation, dbq, k8sClient, false, logr)
+			Expect(err).ToNot(HaveOccurred())
 
 			err = dbq.GetOperationById(ctx, dbOperation)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(k8sOperation), k8sOperation)
 			Expect(errors.IsNotFound(err)).To(BeTrue())

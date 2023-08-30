@@ -7,12 +7,20 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/managedenvironment"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var _ = Describe("Managed Environment Status E2E tests", func() {
 
 	Context("Create a ManagedEnvironment", func() {
+		var k8sClient client.Client
+		BeforeEach(func() {
+			var err error
+			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+		})
 
 		It("should have a connection status condition of False when the host for the targeted cluster does not exist", func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
@@ -20,21 +28,18 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			By("creating the GitOpsDeploymentManagedEnvironment with a target cluster that does not exist")
 
 			apiServerURL := "https://api2.fake-e2e-test-data.origin-ci-int-gce.dev.rhcloud.com:6443"
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, generateFakeKubeConfig(), true)
+			managedEnv, secret := managedenvironment.BuildManagedEnvironment(apiServerURL, k8s.GenerateFakeKubeConfig(), true)
 
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
-			err = k8s.Create(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			err := k8s.Create(&secret, k8sClient)
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Create(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring the managed environment has a connection status condition of Failed")
 			Eventually(managedEnv, "2m", "1s").Should(managedenvironment.HaveStatusCondition(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			err = k8s.Get(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
 			condition := managedEnv.Status.Conditions[0]
 			Expect(condition.Status).To(Equal(metav1.ConditionFalse))
@@ -48,23 +53,20 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			By("creating the GitOpsDeploymentManagedEnvironment with a secret that is missing the kubeconfig data")
 
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
-			Expect(err).To(BeNil())
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
+			Expect(err).ToNot(HaveOccurred())
+			managedEnv, secret := managedenvironment.BuildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 			delete(secret.StringData, "kubeconfig")
 
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			err = k8s.Create(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Create(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring the managed environment connection status condition has a reason of MissingKubeConfigField")
 			Eventually(managedEnv, "2m", "1s").Should(managedenvironment.HaveStatusCondition(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			err = k8s.Get(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
 			condition := managedEnv.Status.Conditions[0]
 			Expect(condition.Status).To(Equal(metav1.ConditionFalse))
@@ -78,23 +80,20 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			By("creating the GitOpsDeploymentManagedEnvironment with a secret that has bad kubeconfig data")
 
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
-			Expect(err).To(BeNil())
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
+			Expect(err).ToNot(HaveOccurred())
+			managedEnv, secret := managedenvironment.BuildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 			secret.StringData["kubeconfig"] = "badbadbad"
 
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			err = k8s.Create(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Create(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring the managed environment connection status condition has a reason of UnableToParseKubeconfigData")
 			Eventually(managedEnv, "2m", "1s").Should(managedenvironment.HaveStatusCondition(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			err = k8s.Get(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
 			condition := managedEnv.Status.Conditions[0]
 			Expect(condition.Status).To(Equal(metav1.ConditionFalse))
@@ -108,23 +107,20 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			By("creating the GitOpsDeploymentManagedEnvironment with a secret that lacks a kubeconfig context")
 
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
-			Expect(err).To(BeNil())
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
+			Expect(err).ToNot(HaveOccurred())
+			managedEnv, secret := managedenvironment.BuildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 			secret.StringData["kubeconfig"] = "apiVersion: v1\nkind: Config\n"
 
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			err = k8s.Create(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Create(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring the managed environment connection status condition has a reason of UnableToLocateContext")
 			Eventually(managedEnv, "2m", "1s").Should(managedenvironment.HaveStatusCondition(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			err = k8s.Get(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
 			condition := managedEnv.Status.Conditions[0]
 			Expect(condition.Status).To(Equal(metav1.ConditionFalse))
@@ -138,23 +134,20 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 			By("creating the GitOpsDeploymentManagedEnvironment")
 
 			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
-			managedEnv, secret := buildManagedEnvironment(apiServerURL, kubeConfigContents, true)
-
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
+			managedEnv, secret := managedenvironment.BuildManagedEnvironment(apiServerURL, kubeConfigContents, true)
 
 			err = k8s.Create(&secret, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8s.Create(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("ensuring the managed environment has a connection status condition of True")
 			Eventually(managedEnv, "2m", "1s").Should(managedenvironment.HaveStatusCondition(managedgitopsv1alpha1.ManagedEnvironmentStatusConnectionInitializationSucceeded))
 			err = k8s.Get(&managedEnv, k8sClient)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(managedEnv.Status.Conditions).To(HaveLen(1))
 			condition := managedEnv.Status.Conditions[0]
 			Expect(condition.Status).To(Equal(metav1.ConditionTrue))
@@ -163,40 +156,3 @@ var _ = Describe("Managed Environment Status E2E tests", func() {
 		})
 	})
 })
-
-func generateFakeKubeConfig() string {
-	// This config has been sanitized of any real credentials.
-	return `
-apiVersion: v1
-kind: Config
-clusters:
-  - cluster:
-      insecure-skip-tls-verify: true
-      server: https://api.fake-e2e-test-data.origin-ci-int-gce.dev.rhcloud.com:6443
-    name: api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
-  - cluster:
-      insecure-skip-tls-verify: true
-      server: https://api2.fake-e2e-test-data.origin-ci-int-gce.dev.rhcloud.com:6443
-    name: api2-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
-contexts:
-  - context:
-      cluster: api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
-      namespace: jgw
-      user: kube:admin/api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
-    name: default/api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin
-  - context:
-      cluster: api2-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
-      namespace: jgw
-      user: kube:admin/api2-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
-    name: default/api2-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin
-current-context: default/api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443/kube:admin
-preferences: {}
-users:
-  - name: kube:admin/api-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
-    user:
-      token: sha256~ABCdEF1gHiJKlMnoP-Q19qrTuv1_W9X2YZABCDefGH4
-  - name: kube:admin/api2-fake-e2e-test-data-origin-ci-int-gce-dev-rhcloud-com:6443
-    user:
-      token: sha256~abcDef1gHIjkLmNOp-q19QRtUV1_w9x2yzabcdEFgh4
-`
-}

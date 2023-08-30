@@ -25,6 +25,7 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	"k8s.io/client-go/discovery"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/redhat-appstudio/managed-gitops/utilities/db-migration/migrate"
@@ -65,9 +66,7 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
-	var apiExportName string
 	var profilerAddr string
-	flag.StringVar(&apiExportName, "api-export-name", "gitopsrvc-backend-shared", "The name of the APIExport.")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":18080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":18081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -107,7 +106,6 @@ func main() {
 		setupLog.Error(err, "Fatal Error: Unsuccessful Migration")
 		os.Exit(1)
 	}
-	go initializeRoutes()
 
 	restConfig, err := sharedutil.GetRESTConfig()
 	if err != nil {
@@ -116,23 +114,20 @@ func main() {
 		return
 	}
 
-	options := ctrl.Options{
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "5a3f596c.redhat.com",
-		LeaderElectionConfig:   restConfig,
-	}
-
-	mgr, err := sharedutil.GetControllerManager(ctx, restConfig, &setupLog, apiExportName, options)
+	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
-	preprocessEventLoop := preprocess_event_loop.NewPreprocessEventLoop(apiExportName)
+	preprocessEventLoop := preprocess_event_loop.NewPreprocessEventLoop()
 
 	if err = (&managedgitopscontrollers.GitOpsDeploymentReconciler{
 		PreprocessEventLoop: preprocessEventLoop,
@@ -159,14 +154,6 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&managedgitopscontrollers.GitOpsDeploymentManagedEnvironmentReconciler{
-		Client:                       mgr.GetClient(),
-		Scheme:                       mgr.GetScheme(),
-		PreprocessEventLoopProcessor: managedgitopscontrollers.NewDefaultPreProcessEventLoopProcessor(preprocessEventLoop),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "GitOpsDeploymentManagedEnvironment")
-		os.Exit(1)
-	}
-	if err = (&managedgitopscontrollers.SecretReconciler{
 		Client:                       mgr.GetClient(),
 		Scheme:                       mgr.GetScheme(),
 		PreprocessEventLoopProcessor: managedgitopscontrollers.NewDefaultPreProcessEventLoopProcessor(preprocessEventLoop),
@@ -204,6 +191,9 @@ func main() {
 	startDBReconciler(mgr)
 	startRepoCredReconciler(mgr)
 	startDBMetricsReconciler(mgr)
+
+	startClusterReconciler(mgr)
+
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
 		os.Exit(1)
@@ -278,6 +268,18 @@ func startDBMetricsReconciler(mgr ctrl.Manager) {
 	databaseReconciler.StartDBMetricsReconcilerForMetrics()
 }
 
+func startClusterReconciler(mgr ctrl.Manager) {
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig())
+	if err != nil {
+		setupLog.Error(err, "failed to create discovery client")
+		os.Exit(1)
+	}
+	reconciler := eventloop.NewClusterReconciler(mgr.GetClient(), discoveryClient)
+
+	reconciler.Start()
+}
+
+// nolint:unused
 func initializeRoutes() {
 
 	// Intializing the server for routing endpoints

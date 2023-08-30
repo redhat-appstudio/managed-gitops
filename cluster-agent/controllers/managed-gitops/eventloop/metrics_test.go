@@ -56,16 +56,16 @@ var _ = Describe("OperationDB Metrics Controller", func() {
 			}
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(false, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			scheme, argocdNamespace, kubesystemNamespace, workspace, err = tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = appv1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = argocdoperatorv1alph1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -84,14 +84,14 @@ var _ = Describe("OperationDB Metrics Controller", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, namespaceToCreate)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
 			Expect(gitopsEngineCluster).ToNot(BeNil())
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("creating a gitops engine instance")
 			gitopsEngineInstance = &db.GitopsEngineInstance{
@@ -102,7 +102,7 @@ var _ = Describe("OperationDB Metrics Controller", func() {
 			}
 
 			err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Creating new operation row in database")
 			operationDB = &db.Operation{
@@ -115,7 +115,7 @@ var _ = Describe("OperationDB Metrics Controller", func() {
 			}
 
 			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			metrics.TestOnly_resetAllMetricsCount()
 
@@ -131,6 +131,19 @@ var _ = Describe("OperationDB Metrics Controller", func() {
 		It("should count total number of operation DB rows in completed state", func() {
 			defer dbQueries.CloseDatabase()
 
+			appProject := &appv1.AppProject{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appProjectPrefix + testClusterUser.Clusteruser_id,
+					Namespace: namespace,
+				},
+				Spec: appv1.AppProjectSpec{
+					SourceRepos: []string{"test-url"},
+				},
+			}
+
+			err = task.event.client.Create(ctx, appProject)
+			Expect(err).ToNot(HaveOccurred())
+
 			By("creating Operation CR")
 			operationCR := &managedgitopsv1alpha1.Operation{
 				ObjectMeta: metav1.ObjectMeta{
@@ -143,10 +156,10 @@ var _ = Describe("OperationDB Metrics Controller", func() {
 			}
 
 			err = task.event.client.Create(ctx, operationCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			retry, err := task.PerformTask(ctx)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(retry).To(BeFalse())
 
 			metrics.TestOnly_runCollectOperationMetrics()
@@ -160,12 +173,12 @@ var _ = Describe("OperationDB Metrics Controller", func() {
 
 			By("fetch operation DB by ID to update the operation DB row as required by test")
 			err = dbQueries.GetOperationById(ctx, operationDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("updating operation row to Resource_type SyncOperation in the database")
 			operationDB.Resource_type = db.OperationResourceType_SyncOperation
 			err = dbQueries.UpdateOperation(ctx, operationDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("creating Operation CR")
 			operationCR := &managedgitopsv1alpha1.Operation{
@@ -179,11 +192,11 @@ var _ = Describe("OperationDB Metrics Controller", func() {
 			}
 
 			err = task.event.client.Create(ctx, operationCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("error is not nil because syncOperation is not created")
 			retry, err := task.PerformTask(ctx)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(retry).To(BeFalse())
 
 			metrics.TestOnly_runCollectOperationMetrics()

@@ -13,6 +13,7 @@ import (
 	gitopsDeplFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeployment"
 	syncRunFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/gitopsdeploymentsyncrun"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
+	managedEnvFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/managedenvironment"
 	promotionRunFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/promotionrun"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,12 +21,6 @@ import (
 )
 
 var _ = Describe("Webhook E2E tests", func() {
-
-	const (
-		name    = "my-gitops-depl"
-		repoURL = "https://github.com/redhat-appstudio/managed-gitops"
-	)
-
 	// Run tests in order as next CR depends in previous CR.
 	Context("validate CR Webhooks", Ordered, func() {
 		var err error
@@ -65,7 +60,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8sClient.Update(ctx, &snapshot)
 
 			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("application cannot be updated to %s", snapshot.Spec.Application)))
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("application field cannot be updated to %s", snapshot.Spec.Application))).To(BeTrue())
 			snapshot.Spec.Application = temp // Revert value for next test
 
 			By("Validate Spec.Components.Name field Webhook.")
@@ -75,7 +70,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8sClient.Update(ctx, &snapshot)
 
 			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("components cannot be updated to %v", snapshot.Spec.Components)))
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("components cannot be updated to %+v", snapshot.Spec.Components))).To(BeTrue())
 			snapshot.Spec.Components[0].Name = temp // Revert value for next test
 
 			By("Validate Spec.Components.ContainerImage field Webhook.")
@@ -84,7 +79,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8sClient.Update(ctx, &snapshot)
 
 			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("components cannot be updated to %v", snapshot.Spec.Components)))
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("components cannot be updated to %+v", snapshot.Spec.Components))).To(BeTrue())
 
 		})
 
@@ -113,7 +108,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8sClient.Update(ctx, &binding)
 
 			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("application cannot be updated to %s", binding.Spec.Application)))
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("application field cannot be updated to %s", binding.Spec.Application))).To(BeTrue())
 			binding.Spec.Application = temp // Revert value for next test
 
 			By("Validate Spec.Environment field Webhook.")
@@ -123,7 +118,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8sClient.Update(ctx, &binding)
 
 			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("environment cannot be updated to %s", binding.Spec.Environment)))
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("environment field cannot be updated to %s", binding.Spec.Environment))).To(BeTrue())
 			binding.Spec.Environment = temp // Revert value for next test
 		})
 
@@ -152,7 +147,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8sClient.Update(ctx, &promotionRun)
 
 			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("spec cannot be updated to %s", promotionRun.Spec)))
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("spec cannot be updated to %+v", promotionRun.Spec))).To(BeTrue())
 			promotionRun.Spec.Application = temp // Revert value for next test
 
 			By("Validate Spec.Snapshot field Webhook.")
@@ -162,7 +157,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8sClient.Update(ctx, &promotionRun)
 
 			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("spec cannot be updated to %s", promotionRun.Spec)))
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("spec cannot be updated to %+v", promotionRun.Spec))).To(BeTrue())
 			promotionRun.Spec.Snapshot = temp // Revert value for next test
 
 			By("Validate Spec.ManualPromotion field Webhook.")
@@ -172,7 +167,7 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8sClient.Update(ctx, &promotionRun)
 
 			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("spec cannot be updated to %s", promotionRun.Spec)))
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("spec cannot be updated to %+v", promotionRun.Spec))).To(BeTrue())
 			promotionRun.Spec.ManualPromotion.TargetEnvironment = temp // Revert value for next test
 
 			By("Validate Spec.AutomatedPromotion field Webhook.")
@@ -181,7 +176,38 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8sClient.Update(ctx, &promotionRun)
 
 			Expect(err).NotTo(Succeed())
-			Expect(strings.Contains(err.Error(), fmt.Sprintf("spec cannot be updated to %s", promotionRun.Spec)))
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("spec cannot be updated to %+v", promotionRun.Spec))).To(BeTrue())
+		})
+
+		It("Should validate Environment CR Webhooks.", func() {
+			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			if !isWebhookInstalled("environments", k8sClient) {
+				Skip("skipping as environments webhook is not installed")
+			}
+
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			By("Validate that Environment name longer than 63 char is not allowed.")
+
+			environment := buildEnvironmentResource(strings.Repeat("abcde", 13), "my-environment", "", "")
+			err = k8s.Create(&environment, k8sClient)
+			Expect(err).NotTo(Succeed())
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("invalid environment name: %s", environment.Name))).To(BeTrue())
+
+			By("Validate that Environment name starting with capital letter is not allowed.")
+
+			environment.Name = "Staging"
+			err = k8s.Create(&environment, k8sClient)
+			Expect(err).NotTo(Succeed())
+			Expect(strings.Contains(err.Error(), fmt.Sprintf("Invalid value: %s", environment.Name))).To(BeTrue())
+
+			By("Validate that Environment name having small letters is allowed.")
+
+			environment.Name = "staging"
+			err = k8s.Create(&environment, k8sClient)
+			Expect(err).To(Succeed())
 		})
 
 		It("Should validate create GitOpsDeployment CR Webhooks for invalid .spec.Type field.", func() {
@@ -197,8 +223,8 @@ var _ = Describe("Webhook E2E tests", func() {
 			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
-			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
-				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
 				"unknown")
 			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
@@ -219,8 +245,8 @@ var _ = Describe("Webhook E2E tests", func() {
 			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
-			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
-				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			gitOpsDeploymentResource.Spec.SyncPolicy = &managedgitopsv1alpha1.SyncPolicy{
 				SyncOptions: managedgitopsv1alpha1.SyncOptions{
@@ -234,7 +260,30 @@ var _ = Describe("Webhook E2E tests", func() {
 			Expect(err.Error()).Should(ContainSubstring("the specified sync option in .spec.syncPolicy.syncOptions is either mispelled or is not supported by GitOpsDeployment"))
 		})
 
-		It("Should validate update GitOpsDeployment CR Webhooks for invalid for invalid syncOptions.", func() {
+		It("Should validate create GitOpsDeployment CR Webhooks for empty Environment field with non-empty namespace", func() {
+			if !isWebhookInstalled("gitopsdeployments", k8sClient) {
+				Skip("skipping as gitopsdeployments webhook is not installed")
+			}
+
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			ctx = context.Background()
+
+			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+			gitOpsDeploymentResource.Spec.Destination.Environment = ""
+			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
+
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
+			Expect(err).NotTo(Succeed())
+			Expect(err.Error()).Should(ContainSubstring("the environment field should not be empty when the namespace is non-empty"))
+		})
+
+		It("Should validate update GitOpsDeployment CR Webhooks for invalid syncOptions.", func() {
 
 			if !isWebhookInstalled("gitopsdeployments", k8sClient) {
 				Skip("skipping as gitopsdeployments webhook is not installed")
@@ -247,15 +296,14 @@ var _ = Describe("Webhook E2E tests", func() {
 			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
-			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
-				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 			gitOpsDeploymentResource.Spec.SyncPolicy = &managedgitopsv1alpha1.SyncPolicy{
 				SyncOptions: managedgitopsv1alpha1.SyncOptions{
 					managedgitopsv1alpha1.SyncOptions_CreateNamespace_true,
 				},
 			}
-			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
 			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).To(Succeed())
@@ -272,6 +320,50 @@ var _ = Describe("Webhook E2E tests", func() {
 			err = k8s.Update(&gitOpsDeploymentResource, k8sClient)
 			Expect(err).NotTo(Succeed())
 			Expect(err.Error()).Should(ContainSubstring("the specified sync option in .spec.syncPolicy.syncOptions is either mispelled or is not supported by GitOpsDeployment"))
+
+		})
+
+		It("Should validate update GitOpsDeployment CR Webhooks for empty Environment field with non-empty namespace.", func() {
+
+			if !isWebhookInstalled("gitopsdeployments", k8sClient) {
+				Skip("skipping as gitopsdeployments webhook is not installed")
+			}
+
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			ctx = context.Background()
+
+			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			kubeConfigContents, apiServerURL, err := fixture.ExtractKubeConfigValues()
+			Expect(err).ToNot(HaveOccurred())
+
+			managedEnv, secret := managedEnvFixture.BuildManagedEnvironment(apiServerURL, kubeConfigContents, true)
+
+			err = k8s.Create(&secret, k8sClient)
+			Expect(err).ToNot(HaveOccurred())
+
+			err = k8s.Create(&managedEnv, k8sClient)
+			Expect(err).ToNot(HaveOccurred())
+
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
+				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
+			gitOpsDeploymentResource.Spec.Destination.Environment = managedEnv.Name
+			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
+
+			err = k8s.Create(&gitOpsDeploymentResource, k8sClient)
+			Expect(err).To(Succeed())
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&gitOpsDeploymentResource), &gitOpsDeploymentResource)
+			Expect(err).To(Succeed())
+
+			gitOpsDeploymentResource.Spec.Destination.Environment = ""
+
+			err = k8s.Update(&gitOpsDeploymentResource, k8sClient)
+			Expect(err).NotTo(Succeed())
+			Expect(err.Error()).Should(ContainSubstring("the environment field should not be empty when the namespace is non-empty"))
 
 		})
 
@@ -414,14 +506,12 @@ var _ = Describe("Webhook E2E tests", func() {
 			Expect(err).To(Succeed())
 
 			By("create a GitOpsDeployment with 'Manual' sync policy")
-			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(name,
-				repoURL, "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+			gitOpsDeploymentResource := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Manual)
-			gitOpsDeploymentResource.Spec.Destination.Environment = ""
-			gitOpsDeploymentResource.Spec.Destination.Namespace = fixture.GitOpsServiceE2ENamespace
 
 			err = k8sClient.Create(ctx, &gitOpsDeploymentResource)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitOpsDeploymentSyncRun := syncRunFixture.BuildGitOpsDeploymentSyncRunResource("zyxwvutsrqponmlkjihgfedcba-abcdefghijklmnoqrstuvwxyz", fixture.GitOpsServiceE2ENamespace, gitOpsDeploymentResource.Name, "main")
 
@@ -438,7 +528,7 @@ func isWebhookInstalled(resourceName string, k8sClient client.Client) bool {
 
 	var webhookList admissionv1.ValidatingWebhookConfigurationList
 	err := k8sClient.List(context.Background(), &webhookList)
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	// Iterate through the struct, looking for a match in .spec.webhooks.rules.resources
 	for _, validating := range webhookList.Items {

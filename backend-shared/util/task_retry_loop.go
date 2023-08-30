@@ -93,16 +93,6 @@ func (loop *TaskRetryLoop) AddTaskIfNotPresent(name string, task RetryableTask, 
 	}
 }
 
-// func (loop *taskRetryLoop) removeTask(name string) {
-
-// 	loop.inputChan <- taskRetryLoopMessage{
-// 		msgType: taskRetryLoop_removeTask,
-// 		payload: taskRetryMessage_removeTask{
-// 			name: name,
-// 		},
-// 	}
-// }
-
 type taskRetryMessageType string
 
 const (

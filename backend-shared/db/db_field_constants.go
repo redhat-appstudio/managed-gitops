@@ -25,6 +25,7 @@ const (
 	ManagedEnvironmentClustercredentialsIDLength                            = 48
 	ClusterUserClusteruserIDLength                                          = 48
 	ClusterUserUserNameLength                                               = 256
+	ClusterUserDisplayNameLength                                            = 128
 	ClusterAccessClusteraccessUserIDLength                                  = 48
 	ClusterAccessClusteraccessManagedEnvironmentIDLength                    = 48
 	ClusterAccessClusteraccessGitopsEngineInstanceIDLength                  = 48
@@ -46,7 +47,6 @@ const (
 	ApplicationStateRevisionLength                                          = 1024
 	ApplicationStateSyncStatusLength                                        = 30
 	ApplicationStateReconciledStateLength                                   = 4096
-	ApplicationStateSyncErrorLength                                         = 4096
 	DeploymentToApplicationMappingDeploymenttoapplicationmappingUIDIDLength = 48
 	DeploymentToApplicationMappingNameLength                                = 256
 	DeploymentToApplicationMappingNamespaceLength                           = 96
@@ -76,6 +76,14 @@ const (
 	RepositoryCredentialsRepoCredSshLength                                  = 1024
 	RepositoryCredentialsRepoCredSecretLength                               = 48
 	RepositoryCredentialsRepoCredEngineIDLength                             = 48
+	AppProjectRepositoryAppprojectRepositoryIDLength                        = 48
+	AppProjectRepositoryClusteruserIDLength                                 = 48
+	AppProjectRepositoryRepoURLLength                                       = 256
+	AppProjectManagedEnvironmentAppprojectManagedenvIDLength                = 48
+	AppProjectManagedEnvironmentManagedEnvironmentIDLength                  = 48
+	AppProjectManagedEnvironmentClusteruserIDLength                         = 48
+	ApplicationOwnerApplicationOwnerApplicationIDLength                     = 48
+	ApplicationOwnerApplicationOwnerUserIDLength                            = 48
 )
 
 // TruncateVarchar converts string to "str..." if chars is > maxLength
@@ -127,6 +135,7 @@ var DbFieldMap = map[string]int{
 	"ManagedEnvironmentClustercredentialsIDLength":                            ManagedEnvironmentClustercredentialsIDLength,
 	"ClusterUserClusteruserIDLength":                                          ClusterUserClusteruserIDLength,
 	"ClusterUserUserNameLength":                                               ClusterUserUserNameLength,
+	"ClusterUserDisplayNameLength":                                            ClusterUserDisplayNameLength,
 	"ClusterAccessClusteraccessUserIDLength":                                  ClusterAccessClusteraccessUserIDLength,
 	"ClusterAccessClusteraccessManagedEnvironmentIDLength":                    ClusterAccessClusteraccessManagedEnvironmentIDLength,
 	"ClusterAccessClusteraccessGitopsEngineInstanceIDLength":                  ClusterAccessClusteraccessGitopsEngineInstanceIDLength,
@@ -149,7 +158,6 @@ var DbFieldMap = map[string]int{
 	"ApplicationStateSyncStatusLength":                                        ApplicationStateSyncStatusLength,
 	"ApplicationStateResourcesLength":                                         262144, /*Size is defined here because table doesn't have byte Array limit.*/
 	"ApplicationStateReconciledStateLength":                                   ApplicationStateReconciledStateLength,
-	"ApplicationStateSyncErrorLength":                                         ApplicationStateSyncErrorLength,
 	"DeploymentToApplicationMappingDeploymenttoapplicationmappingUIDIDLength": DeploymentToApplicationMappingDeploymenttoapplicationmappingUIDIDLength,
 	"DeploymentToApplicationMappingNameLength":                                DeploymentToApplicationMappingNameLength,
 	"DeploymentToApplicationMappingDeploymentNameLength":                      DeploymentToApplicationMappingNameLength,
@@ -192,6 +200,14 @@ var DbFieldMap = map[string]int{
 	"RepositoryCredentialsRepoCredSshLength":                                  RepositoryCredentialsRepoCredSshLength,
 	"RepositoryCredentialsRepoCredSecretLength":                               RepositoryCredentialsRepoCredSecretLength,
 	"RepositoryCredentialsRepoCredEngineIDLength":                             RepositoryCredentialsRepoCredEngineIDLength,
+	"AppProjectRepositoryAppprojectRepositoryIDLength":                        AppProjectRepositoryAppprojectRepositoryIDLength,
+	"AppProjectRepositoryClusteruserIDLength":                                 AppProjectRepositoryClusteruserIDLength,
+	"AppProjectRepositoryRepoURLLength":                                       AppProjectRepositoryRepoURLLength,
+	"AppProjectManagedEnvironmentAppprojectManagedenvIDLength":                AppProjectManagedEnvironmentAppprojectManagedenvIDLength,
+	"AppProjectManagedEnvironmentManagedEnvironmentIDLength":                  AppProjectManagedEnvironmentManagedEnvironmentIDLength,
+	"AppProjectManagedEnvironmentClusteruserIDLength":                         AppProjectManagedEnvironmentClusteruserIDLength,
+	"ApplicationOwnerApplicationOwnerApplicationIDLength":                     ApplicationOwnerApplicationOwnerApplicationIDLength,
+	"ApplicationOwnerApplicationOwnerUserIDLength":                            ApplicationOwnerApplicationOwnerUserIDLength,
 }
 
 // Get value of constants based on constant variable name given as String.

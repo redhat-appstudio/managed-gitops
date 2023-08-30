@@ -22,7 +22,7 @@ var _ = Describe("ConditionManager", func() {
 		It("should update the condition list", func() {
 			conditionManager.SetCondition(&sut, errorOccured, status, reason, message)
 
-			Expect(len(sut)).To(Equal(1))
+			Expect(sut).To(HaveLen(1))
 			obj := getFirst(sut)
 			Expect(obj.Status).To(Equal(status))
 			Expect(obj.Message).To(Equal(message))
@@ -40,7 +40,7 @@ var _ = Describe("ConditionManager", func() {
 			conditionManager.SetCondition(&sut, errorOccured, status, reason, message)
 			obj = getFirst(sut)
 
-			Expect(len(sut)).To(Equal(1))
+			Expect((sut)).To(HaveLen(1))
 			Expect(obj.LastProbeTime).NotTo(Equal(probe))
 			Expect(obj.LastTransitionTime).To(Equal(transition))
 			Expect(obj.Message).To(Equal(message))

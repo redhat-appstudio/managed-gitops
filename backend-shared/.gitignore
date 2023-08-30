@@ -1,5 +1,6 @@
 bin/
 dist/
+cover.out
 coverage.out
 vendor/
 .idea/

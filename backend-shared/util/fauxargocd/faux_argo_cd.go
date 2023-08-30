@@ -8,8 +8,8 @@ package fauxargocd
 
 // Application is a definition of Application resource.
 type FauxApplication struct {
-	FauxTypeMeta   `json:",inline"`
-	FauxObjectMeta `json:"metadata"`
+	FauxTypeMeta   `json:"fauxtypemeta"`
+	FauxObjectMeta `json:"fauxobjectmeta"`
 	Spec           FauxApplicationSpec `json:"spec"`
 }
 

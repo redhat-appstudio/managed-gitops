@@ -17,15 +17,43 @@ import (
 	k8sFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 )
+
+// This is intentionally NOT exported, for now. Create another function in this file/package that calls this function, and export that.
+func expectedCondition(f func(_ managedgitopsv1alpha1.GitOpsDeployment) bool) matcher.GomegaMatcher {
+
+	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
+
+		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
+		Expect(err).ToNot(HaveOccurred())
+
+		k8sClient, err := fixture.GetKubeClient(config)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitopsDepl), &gitopsDepl)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		return f(gitopsDepl)
+
+	}, BeTrue())
+
+}
 
 // HaveLabel will succeed if the GitOpsDeployment contains the specified label, and fail otherwise.
 func HaveLabel(key, value string) matcher.GomegaMatcher {
 
 	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -70,7 +98,7 @@ func HaveHealthStatusCode(status managedgitopsv1alpha1.HealthStatusCode) matcher
 // For the vast majority of tests, you should not (need to) use this function.
 func HaveHealthStatusCodeFunc(status managedgitopsv1alpha1.HealthStatusCode, gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
 	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	k8sClient, err := fixture.GetKubeClient(config)
 	if err != nil {
@@ -107,7 +135,7 @@ func HaveSyncStatusCode(status managedgitopsv1alpha1.SyncStatusCode) matcher.Gom
 // For the vast majority of tests, you should not (need to) use this function.
 func HaveSyncStatusCodeFunc(status managedgitopsv1alpha1.SyncStatusCode, gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
 	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	k8sClient, err := fixture.GetKubeClient(config)
 	if err != nil {
@@ -141,7 +169,7 @@ func HaveResources(resourceStatusList []managedgitopsv1alpha1.ResourceStatus) ma
 // For the vast majority of tests, you should not (need to) use this function.
 func HaveResourcesFunc(resourceStatusList []managedgitopsv1alpha1.ResourceStatus, gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment) bool {
 	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	k8sClient, err := fixture.GetKubeClient(config)
 	if err != nil {
@@ -182,12 +210,71 @@ func HaveResourcesFunc(resourceStatusList []managedgitopsv1alpha1.ResourceStatus
 
 }
 
+// HaveOperationState checks if the .status.operationState field of GitOpsDeployment have the required status.
+func HaveOperationState(operationState *appv1.OperationState) matcher.GomegaMatcher {
+	return WithTransform(func(gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment) bool {
+
+		return HaveOperationStateFunc(operationState, gitopsDeployment)
+
+	}, BeTrue())
+}
+
+// HaveOperationStateFunc can be called for non-Gomega-based comparisons.
+func HaveOperationStateFunc(operationState *appv1.OperationState, gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment) bool {
+	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
+	Expect(err).ToNot(HaveOccurred())
+
+	k8sClient, err := fixture.GetKubeClient(config)
+	if err != nil {
+		fmt.Println(k8sFixture.K8sClientError, err)
+		return false
+	}
+
+	err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitopsDeployment), &gitopsDeployment)
+	if err != nil {
+		fmt.Println(k8sFixture.K8sClientError, err)
+		return false
+	}
+
+	opStateMatches := string(operationState.Phase) == string(gitopsDeployment.Status.OperationState.Phase)
+	if !opStateMatches {
+		fmt.Println("HaveOperationState:", opStateMatches, "/ Expected Phase:", operationState.Phase, "/ Actual Phase:", gitopsDeployment.Status.OperationState.Phase)
+		return false
+	}
+
+	opStateMatches = operationState.Message == gitopsDeployment.Status.OperationState.Message
+	if !opStateMatches {
+		fmt.Println("HaveOperationState:", opStateMatches, "/ Expected Message:", operationState.Message, "/ Actual Message:", gitopsDeployment.Status.OperationState.Message)
+		return false
+	}
+
+	opStateMatches = len(operationState.SyncResult.Resources) == len(gitopsDeployment.Status.OperationState.SyncResult.Resources)
+	if !opStateMatches {
+		fmt.Println("HaveOperationState:", opStateMatches, "/ Expected Resources:", len(operationState.SyncResult.Resources), "/ Actual Resources:", len(gitopsDeployment.Status.OperationState.SyncResult.Resources))
+		return false
+	}
+
+	opStateMatches = operationState.StartedAt.Equal(&gitopsDeployment.Status.OperationState.StartedAt)
+	if !opStateMatches {
+		fmt.Println("HaveOperationState:", opStateMatches, "/ Expected StartedAt:", operationState.StartedAt, "/ Actual StartedAt:", gitopsDeployment.Status.OperationState.StartedAt)
+		return false
+	}
+
+	opStateMatches = operationState.FinishedAt.Equal(gitopsDeployment.Status.OperationState.FinishedAt)
+	if !opStateMatches {
+		fmt.Println("HaveOperationState:", opStateMatches, "/ Expected FinishedAt:", operationState.FinishedAt, "/ Actual FinishedAt:", gitopsDeployment.Status.OperationState.FinishedAt)
+		return false
+	}
+
+	return true
+}
+
 func HaveSpecSource(source managedgitopsv1alpha1.ApplicationSource) matcher.GomegaMatcher {
 
 	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
 
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -230,7 +317,7 @@ func HaveConditions(conditions []managedgitopsv1alpha1.GitOpsDeploymentCondition
 	return WithTransform(func(gitopsDeployment managedgitopsv1alpha1.GitOpsDeployment) bool {
 
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -276,7 +363,7 @@ func HaveReconciledState(reconciledState managedgitopsv1alpha1.ReconciledState) 
 
 	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -297,26 +384,13 @@ func HaveReconciledState(reconciledState managedgitopsv1alpha1.ReconciledState) 
 	}, BeTrue())
 }
 
-// HasNonNilDeletionTimestamp checks whether the GitOpsDeployment has a non-nil deletion timestamp.
-func HasNonNilDeletionTimestamp() matcher.GomegaMatcher {
-	return WithTransform(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
-		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+func HaveTargetNamespace(targetNamespace string) matcher.GomegaMatcher {
 
-		k8sClient, err := fixture.GetKubeClient(config)
-		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
-			return false
-		}
+	return expectedCondition(func(gitopsDepl managedgitopsv1alpha1.GitOpsDeployment) bool {
+		fmt.Println("Waiting for gitopsDepl.Spec.Destination.Namespace. expected:", targetNamespace, ", actual:", gitopsDepl.Spec.Destination.Namespace)
+		return gitopsDepl.Spec.Destination.Namespace == targetNamespace
+	})
 
-		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&gitopsDepl), &gitopsDepl)
-		if err != nil {
-			fmt.Println(k8sFixture.K8sClientError, err)
-			return false
-		}
-
-		return gitopsDepl.DeletionTimestamp != nil
-	}, BeTrue())
 }
 
 // UpdateDeploymentWithFunction will update the GitOpsDeployment by:
@@ -329,7 +403,7 @@ func UpdateDeploymentWithFunction(gitopsDeployment *managedgitopsv1alpha1.GitOps
 
 	GinkgoWriter.Printf("Updating GitOpsDeployment for '%v'\n", gitopsDeployment.ObjectMeta)
 	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	k8sClient, err := fixture.GetKubeClient(config)
 	if err != nil {
@@ -364,7 +438,7 @@ func UpdateDeploymentStatusWithFunction(gitopsDeployment *managedgitopsv1alpha1.
 
 	GinkgoWriter.Printf("Updating GitOpsDeployment status for '%v'\n", gitopsDeployment.ObjectMeta)
 	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	k8sClient, err := fixture.GetKubeClient(config)
 	if err != nil {

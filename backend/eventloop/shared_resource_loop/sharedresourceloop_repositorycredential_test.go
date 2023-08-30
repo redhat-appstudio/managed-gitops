@@ -43,7 +43,7 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 
 		DescribeTable("Test scenarios for normalizeGitURL", func(repoUrl, normalizedRepoUrl string) {
 
-			Expect(normalizeGitURL(repoUrl)).To(Equal(normalizedRepoUrl))
+			Expect(NormalizeGitURL(repoUrl)).To(Equal(normalizedRepoUrl))
 		},
 			Entry("Https Url", "https://github.com/redhat-appstudio/test.git", "https://github.com/redhat-appstudio/test"),
 			Entry("Git Url", "git@github.com:redhat-appstudio/managed-gitops.git", "git@github.com/redhat-appstudio/managed-gitops"),
@@ -61,7 +61,7 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 
 		BeforeEach(func() {
 			scheme, _, _, workspace, err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 
@@ -150,7 +150,7 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 			}
 
 			gitopsDeploymentRepositoryCredentialCR.Status = repoCredStatus
-			Expect(k8sClient.Status().Update(ctx, gitopsDeploymentRepositoryCredentialCR)).To(BeNil())
+			Expect(k8sClient.Status().Update(ctx, gitopsDeploymentRepositoryCredentialCR)).To(Succeed())
 
 			expectedRepoCredStatus := managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredentialStatus{
 				Conditions: []metav1.Condition{
@@ -174,7 +174,7 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 			}
 
 			err := UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, gitopsDeploymentRepositoryCredentialCR, k8sClient, &corev1.Secret{}, log.FromContext(ctx))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(gitopsDeploymentRepositoryCredentialCR).Should(SatisfyAll(haveErrOccurredConditionSet(expectedRepoCredStatus, false)))
 		})
@@ -209,10 +209,10 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 			}
 
 			gitopsDeploymentRepositoryCredentialCR.Status = expectedRepoCredStatus
-			Expect(k8sClient.Status().Update(ctx, gitopsDeploymentRepositoryCredentialCR)).To(BeNil())
+			Expect(k8sClient.Status().Update(ctx, gitopsDeploymentRepositoryCredentialCR)).To(Succeed())
 
 			err := UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, gitopsDeploymentRepositoryCredentialCR, k8sClient, &corev1.Secret{}, log.FromContext(ctx))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(gitopsDeploymentRepositoryCredentialCR).Should(SatisfyAll(haveErrOccurredConditionSet(expectedRepoCredStatus, true)))
 		})
@@ -241,7 +241,7 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 			}
 
 			err := UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, gitopsDeploymentRepositoryCredentialCR, k8sClient, nil, log.FromContext(ctx))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(gitopsDeploymentRepositoryCredentialCR).Should(SatisfyAll(haveErrOccurredConditionSet(expectedRepoCredStatus, false)))
 		})
@@ -271,7 +271,7 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 			}
 
 			err := UpdateGitopsDeploymentRepositoryCredentialStatus(ctx, gitopsDeploymentRepositoryCredentialCR, k8sClient, nil, log.FromContext(ctx))
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(gitopsDeploymentRepositoryCredentialCR).Should(SatisfyAll(haveErrOccurredConditionSet(expectedRepoCredStatus, false)))
 		})
@@ -283,7 +283,7 @@ var _ = Describe("SharedResourceEventLoop Repository Credential Tests", func() {
 
 			err := validateRepositoryCredentials(repoUrl, secret)
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(strings.Contains(err.Error(), expectedString)).To(BeTrue())
 
 		},

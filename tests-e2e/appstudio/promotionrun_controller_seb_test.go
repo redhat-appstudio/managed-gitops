@@ -10,17 +10,20 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	promotionRunFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/promotionrun"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests.", func() {
 	Context("Testing Promotion Run Creation of SnapshotEnvironmentBinding.", func() {
 		var environmentProd appstudiosharedv1.Environment
 		var promotionRun appstudiosharedv1.PromotionRun
+		var k8sClient client.Client
+		var err error
 
 		BeforeEach(func() {
 			Expect(fixture.EnsureCleanSlate()).To(Succeed())
 
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
+			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
 			Expect(err).To(Succeed())
 
 			By("Create Staging Environment.")
@@ -48,9 +51,6 @@ var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests
 		})
 
 		It("Creates a SnapshotEnvironmentBinding if one doesn't exist that targets the application/environment.", func() {
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			By("Create PromotionRun CR.")
 			err = k8s.Create(&promotionRun, k8sClient)
 			Expect(err).To(Succeed())
@@ -67,9 +67,6 @@ var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests
 		})
 
 		It("Creates a SnapshotEnvironmentBinding if one exists that targets the application, but NOT the environment.", func() {
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			By("Create binding targeting the application but not the environment.")
 			bindingStage := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "staging", "my-snapshot", 3, []string{"component-a"})
 			err = k8s.Create(&bindingStage, k8sClient)
@@ -91,9 +88,6 @@ var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests
 		})
 
 		It("Creates a SnapshotEnvironmentBinding if one exists that targets the environment, but NOT the application.", func() {
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			By("Create binding targeting the environment but not the application.")
 			bindingApp := buildSnapshotEnvironmentBindingResource("appx-prod-binding", "app-x", "prod", "my-snapshot", 3, []string{"component-a"})
 			err = k8s.Create(&bindingApp, k8sClient)
@@ -115,9 +109,6 @@ var _ = Describe("Promotion Run Creation of SnapshotEnvironmentBinding E2E Tests
 		})
 
 		It("Does not create a SnapshotEnvironmentBinding if one exists that targets the environment and the application.", func() {
-			k8sClient, err := fixture.GetE2ETestUserWorkspaceKubeClient()
-			Expect(err).To(Succeed())
-
 			By("Create binding targeting the environment but not the application.")
 			bindingProd := buildSnapshotEnvironmentBindingResource("appa-staging-binding", "new-demo-app", "prod", "my-snapshot", 3, []string{"component-a"})
 			err = k8s.Create(&bindingProd, k8sClient)
@@ -156,7 +147,7 @@ func buildComponentResource(name, componentName, appName string) appstudioshared
 			Source: appstudiosharedv1.ComponentSource{
 				ComponentSourceUnion: appstudiosharedv1.ComponentSourceUnion{
 					GitSource: &appstudiosharedv1.GitSource{
-						URL: "https://github.com/redhat-appstudio/managed-gitops",
+						URL: fixture.RepoURL,
 					},
 				},
 			},

@@ -38,22 +38,22 @@ var _ = Describe("GitOpsDeployment validation webhook", func() {
 		}
 	})
 
-	Context("Create  GitOpsDeployment CR with invalid spec.Type field", func() {
+	Context("Create GitOpsDeployment CR with invalid spec.Type field", func() {
 		It("Should fail with error saying spec type must be manual or automated", func() {
 
 			err := k8sClient.Create(ctx, namespace)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDepl.Spec.Type = "invalid-type"
 
 			err = k8sClient.Create(ctx, gitopsDepl)
 			Expect(err).Should(Not(Succeed()))
-			Expect(err.Error()).Should(ContainSubstring("spec type must be manual or automated"))
+			Expect(err.Error()).Should(ContainSubstring(error_invalid_spec_type))
 
 		})
 
 	})
-	Context("Create  GitOpsDeployment CR with invalid .spec.syncPolicy.syncOptions field", func() {
+	Context("Create GitOpsDeployment CR with invalid .spec.syncPolicy.syncOptions field", func() {
 		It("Should fail with error saying the specified sync option in .spec.syncPolicy.syncOptions is either mispelled or is not supported by GitOpsDeployment", func() {
 			gitopsDepl.Spec.Type = GitOpsDeploymentSpecType_Automated
 			gitopsDepl.Spec.SyncPolicy = &SyncPolicy{
@@ -64,32 +64,32 @@ var _ = Describe("GitOpsDeployment validation webhook", func() {
 
 			err := k8sClient.Create(ctx, gitopsDepl)
 			Expect(err).Should(Not(Succeed()))
-			Expect(err.Error()).Should(ContainSubstring("the specified sync option in .spec.syncPolicy.syncOptions is either mispelled or is not supported by GitOpsDeployment"))
+			Expect(err.Error()).Should(ContainSubstring(error_invalid_sync_option))
 
 		})
 
 	})
 
-	Context("Update  GitOpsDeployment CR with invalid .spec.Type field", func() {
+	Context("Update GitOpsDeployment CR with invalid .spec.Type field", func() {
 		It("Should fail with error saying spec type must be manual or automated", func() {
 			gitopsDepl.Spec.Type = GitOpsDeploymentSpecType_Automated
 			err := k8sClient.Create(ctx, gitopsDepl)
 			Expect(err).Should(Succeed())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsDepl), gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDepl.Spec.Type = "invalid-type"
 			err = k8sClient.Update(ctx, gitopsDepl)
 			Expect(err).Should(HaveOccurred())
-			Expect(err.Error()).Should(ContainSubstring("spec type must be manual or automated"))
+			Expect(err.Error()).Should(ContainSubstring(error_invalid_spec_type))
 
 			err = k8sClient.Delete(context.Background(), gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 
-	Context("Update  GitOpsDeployment CR with invalid .spec.syncPolicy.syncOptions field", func() {
+	Context("Update GitOpsDeployment CR with invalid .spec.syncPolicy.syncOptions field", func() {
 		It("Should fail with error saying the specified sync option in .spec.syncPolicy.syncOptions is either mispelled or is not supported by GitOpsDeployment", func() {
 			gitopsDepl.Spec.Type = GitOpsDeploymentSpecType_Automated
 			gitopsDepl.Spec.SyncPolicy = &SyncPolicy{
@@ -101,18 +101,52 @@ var _ = Describe("GitOpsDeployment validation webhook", func() {
 			Expect(err).Should(Succeed())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsDepl), gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDepl.Spec.SyncPolicy.SyncOptions = SyncOptions{
 				"CreateNamespace=foo",
 			}
 			err = k8sClient.Update(ctx, gitopsDepl)
 			Expect(err).Should(HaveOccurred())
-			Expect(err.Error()).Should(ContainSubstring("the specified sync option in .spec.syncPolicy.syncOptions is either mispelled or is not supported by GitOpsDeployment"))
+			Expect(err.Error()).Should(ContainSubstring(error_invalid_sync_option))
 
 			err = k8sClient.Delete(context.Background(), gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
+		})
+	})
+
+	Context("Create GitOpsDeployment CR with empty Environment field and non-empty namespace", func() {
+		It("Should fail with error saying the environment field should not be empty when the namespace is non-empty", func() {
+			gitopsDepl.Spec.Type = GitOpsDeploymentSpecType_Automated
+			gitopsDepl.Spec.Destination.Environment = ""
+			gitopsDepl.Spec.Destination.Namespace = "test-namespace"
+
+			err := k8sClient.Create(ctx, gitopsDepl)
+			Expect(err).Should(Not(Succeed()))
+			Expect(err.Error()).Should(ContainSubstring(error_nonempty_namespace_empty_environment))
+
+		})
+
+	})
+
+	Context("Update GitOpsDeployment CR with empty Environment field and non-empty namespace", func() {
+		It("Should fail with error saying the environment field should not be empty when the namespace is non-empty", func() {
+			gitopsDepl.Spec.Type = GitOpsDeploymentSpecType_Automated
+			err := k8sClient.Create(ctx, gitopsDepl)
+			Expect(err).Should(Succeed())
+
+			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsDepl), gitopsDepl)
+			Expect(err).ToNot(HaveOccurred())
+
+			gitopsDepl.Spec.Destination.Environment = ""
+			gitopsDepl.Spec.Destination.Namespace = "test-namespace"
+			err = k8sClient.Update(ctx, gitopsDepl)
+			Expect(err).Should(HaveOccurred())
+			Expect(err.Error()).Should(ContainSubstring(error_nonempty_namespace_empty_environment))
+
+			err = k8sClient.Delete(context.Background(), gitopsDepl)
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 })

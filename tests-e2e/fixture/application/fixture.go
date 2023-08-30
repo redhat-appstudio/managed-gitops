@@ -26,7 +26,7 @@ func expectedCondition(f func(app appv1alpha1.Application) bool) matcher.GomegaM
 	return WithTransform(func(app appv1alpha1.Application) bool {
 
 		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -50,7 +50,7 @@ func expectedCondition(f func(app appv1alpha1.Application) bool) matcher.GomegaM
 func DeleteArgoCDApplication(argocdAppName string, argoCDNamespace string) error {
 
 	config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	k8sClient, err := fixture.GetKubeClient(config)
 	if err != nil {
@@ -76,7 +76,7 @@ func DeleteArgoCDApplication(argocdAppName string, argoCDNamespace string) error
 	if len(argoCDApplication.Finalizers) > 0 {
 		argoCDApplication.Finalizers = []string{}
 		err := k8sClient.Update(context.Background(), &argoCDApplication)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 	}
 
 	if err := k8sClient.Delete(context.Background(), &argoCDApplication); err != nil {
@@ -87,6 +87,17 @@ func DeleteArgoCDApplication(argocdAppName string, argoCDNamespace string) error
 	}
 
 	return nil
+}
+
+func HaveStatusConditionMessage(expectedMessage string) matcher.GomegaMatcher {
+	return expectedCondition(func(app appv1alpha1.Application) bool {
+		for i := range app.Status.Conditions {
+			if app.Status.Conditions[i].Message == expectedMessage {
+				return true
+			}
+		}
+		return false
+	})
 }
 
 func HasDestinationField(expectedDestination appv1alpha1.ApplicationDestination) matcher.GomegaMatcher {
@@ -105,7 +116,7 @@ func HaveAutomatedSyncPolicy(syncPolicy appv1alpha1.SyncPolicyAutomated) matcher
 	return WithTransform(func(app appv1alpha1.Application) bool {
 
 		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -135,7 +146,7 @@ func HaveSyncOption(expectedSyncOption string) matcher.GomegaMatcher {
 	return WithTransform(func(app appv1alpha1.Application) bool {
 
 		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -157,6 +168,36 @@ func HaveSyncOption(expectedSyncOption string) matcher.GomegaMatcher {
 		fmt.Println("HaveSyncOption:", expectedSyncOption, "/ Expected:", expectedSyncOption, "/ Actual:", isSyncOption)
 
 		return isSyncOption
+	}, BeTrue())
+}
+
+func HaveRetryOption(expectedRetryOption *appv1alpha1.RetryStrategy) matcher.GomegaMatcher {
+
+	return WithTransform(func(app appv1alpha1.Application) bool {
+
+		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
+		Expect(err).ToNot(HaveOccurred())
+
+		k8sClient, err := fixture.GetKubeClient(config)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&app), &app)
+		if err != nil {
+			fmt.Println(k8sFixture.K8sClientError, err)
+			return false
+		}
+
+		res := false
+		if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Retry != nil {
+			res = reflect.DeepEqual(expectedRetryOption, app.Spec.SyncPolicy.Retry)
+		}
+
+		fmt.Println("HaveRetry:", app.Spec.SyncPolicy.Retry, "/ Expected:", expectedRetryOption, "/ Actual:", res)
+
+		return res
 	}, BeTrue())
 }
 
@@ -190,7 +231,7 @@ func HaveOperationState(opState appv1alpha1.OperationState) matcher.GomegaMatche
 
 	return WithTransform(func(app appv1alpha1.Application) bool {
 		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -220,7 +261,7 @@ func HaveApplicationSyncError(syncError appv1alpha1.ApplicationStatus) matcher.G
 
 	return WithTransform(func(app appv1alpha1.Application) bool {
 		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {

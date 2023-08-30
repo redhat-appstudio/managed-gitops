@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -16,6 +19,8 @@ import (
 const (
 	// ArgoCDDefaultDestinationInCluster is 'in-cluster' which is the spec destination value that Argo CD recognizes
 	ArgoCDDefaultDestinationInCluster = "in-cluster"
+
+	SelfHealIntervalEnVar = "SELF_HEAL_INTERVAL" // Interval in minutes between self-healing runs
 )
 
 // #nosec G101
@@ -25,6 +30,10 @@ const (
 	ArgoCDSecretRepoTypeValue     = "repository"                     // Secret type for Repository Secret
 
 	ManagedEnvironmentSecretType = "managed-gitops.redhat.com/managed-environment"
+
+	JobKey      = "job"                    // Clean up job key
+	JobKeyValue = "managed-gitops-cleanup" // Clean up job value
+	JobTypeKey  = "jobType"                // Key to identify clean up job type
 )
 
 // ExponentialBackoff: the more times in a row something fails, the longer we wait.
@@ -155,4 +164,27 @@ func GetRESTConfig() (*rest.Config, error) {
 	res.QPS = 100
 	res.Burst = 250
 	return res, nil
+}
+
+func SelfHealInterval(defaultValue time.Duration, logger logr.Logger) time.Duration {
+	interval := os.Getenv(SelfHealIntervalEnVar)
+	if interval == "" {
+		return defaultValue
+	}
+	value, err := strconv.Atoi(interval)
+	if err != nil {
+		msg := fmt.Sprintf("value of env var %s can't be converted to int", SelfHealIntervalEnVar)
+		logger.Error(err, msg)
+		return defaultValue
+	}
+	return time.Duration(value) * time.Minute
+}
+
+// AppProjectIsolationEnabled is a feature flag for AppProject-based isolation. To enable it, set the environment variable on the controllers.
+func AppProjectIsolationEnabled() bool {
+
+	// If the environment variable exists, and equals (case insensitive) "true", then enable AppProject-based isolation
+	// otherwise, don't.
+
+	return strings.EqualFold(os.Getenv("ENABLE_APPPROJECT_ISOLATION"), "true")
 }

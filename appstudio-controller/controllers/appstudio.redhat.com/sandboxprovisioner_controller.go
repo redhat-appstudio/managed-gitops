@@ -120,6 +120,7 @@ func (r *SandboxProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.R
 			log.Error(err, "failed to create a new SpaceRequest for the DeploymentTargetClaim")
 			return ctrl.Result{}, err
 		}
+		logutil.LogAPIResourceChangeEvent(spaceRequest.Namespace, spaceRequest.Name, spaceRequest, logutil.ResourceCreated, log)
 	}
 
 	log.Info("A SpaceRequest for the DeploymentTargetClaim exists", "SpaceRequest.Name", spaceRequest.Name, "Namespace", spaceRequest.Namespace)
@@ -190,7 +191,7 @@ func createSpaceRequestForDTC(ctx context.Context, k8sClient client.Client, dtc 
 			TargetClusterRoles: []string{}, // To be updated in the future once cluster roles become defined
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: dtc.Name,
+			GenerateName: dtc.Name + "-",
 			Namespace:    dtc.Namespace,
 			Labels: map[string]string{
 				deploymentTargetClaimLabel: dtc.Name,
@@ -198,12 +199,7 @@ func createSpaceRequestForDTC(ctx context.Context, k8sClient client.Client, dtc 
 		},
 	}
 
-	err := ctrl.SetControllerReference(dtc, &newSpaceRequest, k8sClient.Scheme())
-	if err != nil {
-		return nil, err
-	}
-
-	err = k8sClient.Create(ctx, &newSpaceRequest)
+	err := k8sClient.Create(ctx, &newSpaceRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -215,6 +211,6 @@ func createSpaceRequestForDTC(ctx context.Context, k8sClient client.Client, dtc 
 func (r *SandboxProvisionerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&applicationv1alpha1.DeploymentTargetClaim{}).
-		WithEventFilter(DTCPendingDynamicProvisioningBySandbox()).
+		WithEventFilter(dtcPendingDynamicProvisioningBySandbox()).
 		Complete(r)
 }

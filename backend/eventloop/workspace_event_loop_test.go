@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
+	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/application_event_loop"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
@@ -19,8 +20,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fake "sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -49,7 +52,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 				apiNamespace,
 				err = tests.GenericTestSetup()
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			tAELF = &testApplicationEventLoopFactory{}
 
@@ -78,7 +81,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 			}
 
 			err := k8sClient.Create(context.Background(), gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Simulate a GitOpsDeployment modified event
 			msg := eventlooptypes.EventLoopMessage{
@@ -180,11 +183,11 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 
 			By("deleting the old GitOpsDeployment from the previous test")
 			err := k8sClient.Delete(context.Background(), gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("creating a new GitOpsDeployment with the same name as the previous one, but a different UID")
 			err = k8sClient.Create(context.Background(), gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("simulating a GitOpsDeployment modified event")
 			msg := eventlooptypes.EventLoopMessage{
@@ -237,7 +240,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 
 			By("creating a new orphaned GitOpsDeploymentSync")
 			err = k8sClient.Create(context.Background(), gitopsDeplSyncRun)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("simulating a GitOpsDeploymentSyncRun event")
 			msg := eventlooptypes.EventLoopMessage{
@@ -294,7 +297,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 
 			By("creating a new GitOpsDeployment, to unorphan the GitOpsDeploymentSync")
 			err = k8sClient.Create(context.Background(), gitopsDepl)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("simulating a GitOpsDeployment modified event")
 			msg := eventlooptypes.EventLoopMessage{
@@ -374,7 +377,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 				apiNamespace,
 				err = tests.GenericTestSetup()
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		simulateGitOpsDeployments := func(numberToSimulate int, tAELF *managedEnvironmentTestApplicationEventLoopFactory,
@@ -465,7 +468,7 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 
 			Consistently(func() bool {
 				return tAELF.numberOfEventLoopsCreated == 0
-			}, "1s", "10ms").Should(Equal(true), "an event loop should never be created, because the managedenv was never forwarded")
+			}, "1s", "10ms").Should(BeTrue(), "an event loop should never be created, because the managedenv was never forwarded")
 
 		})
 
@@ -553,10 +556,10 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 			for _, existingGitOpsDeployment := range gitopsDeployments {
 
 				received := messagesReceived[string(existingGitOpsDeployment.UID)]
-				Expect(len(received)).To(Equal(1), "all the gitopsdeployment should receive the managed env event")
+				Expect(received).To(HaveLen(1), "all the gitopsdeployment should receive the managed env event")
 
 				msg := received[0]
-				Expect(msg.Message.Event.EventType == eventlooptypes.ManagedEnvironmentModified)
+				Expect(msg.Message.Event.EventType).To(Equal(eventlooptypes.ManagedEnvironmentModified))
 			}
 
 		},
@@ -564,6 +567,338 @@ var _ = Describe("Workspace Event Loop Test", Ordered, func() {
 			Entry("Simulate 2 existing, active GitOpsDeployment", 2),
 			Entry("Simulate 3 existing, active GitOpsDeployment", 3),
 		)
+
+	})
+
+	Context("processWorkspaceEventLoopMessage tests", func() {
+		ctx := context.Background()
+
+		It("repository credentials events should be forwarded", func() {
+
+			By("creating a simple event referencing a RepositroyCredential resource")
+			event := eventlooptypes.EventLoopMessage{
+				MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
+				Event: &eventlooptypes.EventLoopEvent{
+					ReqResource: eventlooptypes.GitOpsDeploymentRepositoryCredentialTypeName,
+				},
+			}
+
+			wrapperEvent := workspaceEventLoopMessage{
+				messageType: workspaceEventLoopMessageType_Event,
+				payload:     event,
+			}
+
+			responseChannel := make(chan workspaceResourceLoopMessage, 5)
+
+			state := workspaceEventLoopInternalState{
+				log: log.FromContext(ctx),
+				workspaceResourceLoop: &workspaceResourceEventLoop{
+					inputChannel: responseChannel,
+				},
+			}
+
+			By("calling the function to process the event")
+			handleWorkspaceEventLoopMessage(ctx, event, wrapperEvent, state)
+
+			forwardedEvent := <-responseChannel
+			Expect(forwardedEvent.messageType).To(Equal(workspaceResourceLoopMessageType_processRepositoryCredential), "event should have been forwarded")
+
+		})
+
+		It("managed env events should be forwarded", func() {
+
+			By("creating a simple event referencing a ManagedEnvironment resource")
+			event := eventlooptypes.EventLoopMessage{
+				MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
+				Event: &eventlooptypes.EventLoopEvent{
+					ReqResource: eventlooptypes.GitOpsDeploymentManagedEnvironmentTypeName,
+				},
+			}
+			wrapperEvent := workspaceEventLoopMessage{
+				messageType: workspaceEventLoopMessageType_Event,
+				payload:     event,
+			}
+
+			responseChannel := make(chan workspaceResourceLoopMessage, 5)
+
+			state := workspaceEventLoopInternalState{
+				log: log.FromContext(ctx),
+				workspaceResourceLoop: &workspaceResourceEventLoop{
+					inputChannel: responseChannel,
+				},
+			}
+
+			By("calling the function to process the event")
+			handleWorkspaceEventLoopMessage(ctx, event, wrapperEvent, state)
+
+			forwardedEvent := <-responseChannel
+			Expect(forwardedEvent.messageType).To(Equal(workspaceResourceLoopMessageType_processManagedEnvironment), "event should have been forwarded")
+
+		})
+
+		DescribeTable("should verify applicationMap is updated correctly based on whether application event loop accepts or rejects the request",
+			func(acceptRequest bool) {
+
+				By("simulating a GitOpsDeployment event")
+
+				request := ctrl.Request{
+					NamespacedName: types.NamespacedName{
+						Namespace: "some-namespace",
+						Name:      "some-name",
+					},
+				}
+
+				event := eventlooptypes.EventLoopMessage{
+					MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
+					Event: &eventlooptypes.EventLoopEvent{
+						Request:     request,
+						ReqResource: eventlooptypes.GitOpsDeploymentTypeName,
+					},
+				}
+
+				wrapperEvent := workspaceEventLoopMessage{
+					messageType: workspaceEventLoopMessageType_Event,
+					payload:     event,
+				}
+
+				responseChannel := make(chan workspaceResourceLoopMessage, 5)
+
+				tAELF := &managedEnvironmentTestApplicationEventLoopFactory{
+					outputChannelMap: map[string]chan application_event_loop.RequestMessage{},
+				}
+
+				By("simulating a newly initialized workspace event loop")
+				state := workspaceEventLoopInternalState{
+					namespaceID: "namespace-id",
+					log:         log.FromContext(ctx),
+					workspaceResourceLoop: &workspaceResourceEventLoop{
+						inputChannel: responseChannel,
+					},
+					applicationMap:       map[string]workspaceEventLoop_applicationEventLoopEntry{},
+					applEventLoopFactory: tAELF,
+				}
+
+				By("mocking the application event loop: when it is started, we send a fake reply back via this goroutine")
+				go func() {
+					for {
+						tAELF.waitForFirstInvocation(request.Name)
+
+						fromOutputChan := <-tAELF.outputChannelMap[request.Name]
+						By("testing both accept and rejected requests in this test")
+						fromOutputChan.ResponseChan <- application_event_loop.ResponseMessage{RequestAccepted: acceptRequest}
+					}
+				}()
+
+				By("call the function being test")
+				handleWorkspaceEventLoopMessage(ctx, event, wrapperEvent, state)
+
+				_, exists := state.applicationMap[state.namespaceID+"-"+request.Namespace+"-"+request.Name]
+				Expect(exists).To(Equal(acceptRequest), "when the request is accepted, the entry should be in the map, but, the request is rejected it should be removed from the map")
+
+			}, Entry("application event loop accepts the request", true), Entry("application event loop rejects the request", false))
+
+		DescribeTable("it should handle orphaned sync run resources", func(gitOpsDeplCRExists bool, syncOperationRowExists bool) {
+			Expect(db.SetupForTestingDBGinkgo()).To(Succeed())
+
+			scheme, argocdNamespace, kubesystemNamespace, apiNamespace, err := tests.GenericTestSetup()
+			Expect(err).ToNot(HaveOccurred())
+
+			k8sClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(apiNamespace, argocdNamespace, kubesystemNamespace).
+				Build()
+
+			// createTestObjects creates:
+			// - GitOpsDeploymentSyncRun and row
+			// - GitOpsDeployment (and row)
+			// - APICRToDBMapping linking them
+			// However, depending on which parameters are used, some of these create steps may be skipped, to allow us to test different parts of the code (to ensure they function as expected)
+			createTestObjects := func(createGitOpsDeplCR bool, createSyncOperationRow bool) (managedgitopsv1alpha1.GitOpsDeploymentSyncRun, managedgitopsv1alpha1.GitOpsDeployment) {
+				syncRunCR := managedgitopsv1alpha1.GitOpsDeploymentSyncRun{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "some-name",
+						Namespace: apiNamespace.Name,
+						UID:       uuid.NewUUID(),
+					},
+					Spec: managedgitopsv1alpha1.GitOpsDeploymentSyncRunSpec{
+						GitopsDeploymentName: "gitopsdepl-name",
+					},
+				}
+
+				var gitopsDeplCR managedgitopsv1alpha1.GitOpsDeployment
+				{
+
+					dbQueries, err := db.NewUnsafePostgresDBQueries(false, true)
+					Expect(err).ToNot(HaveOccurred())
+
+					_, managedEnv, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
+					Expect(err).ToNot(HaveOccurred())
+
+					application := db.Application{
+						Application_id:          "test-application",
+						Name:                    "hi",
+						Spec_field:              "{}",
+						Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+						Managed_environment_id:  managedEnv.Managedenvironment_id,
+						Created_on:              time.Now(),
+					}
+					Expect(dbQueries.CreateApplication(ctx, &application)).To(Succeed())
+
+					syncOperationRow := db.SyncOperation{
+						SyncOperation_id:    "test-sync-operation",
+						Application_id:      application.Application_id,
+						DeploymentNameField: "gitopsdepl-name",
+						DesiredState:        db.SyncOperation_DesiredState_Running,
+						Created_on:          time.Now(),
+						Revision:            "revision",
+					}
+					if createSyncOperationRow {
+						Expect(dbQueries.CreateSyncOperation(ctx, &syncOperationRow)).To(Succeed())
+					}
+
+					gitopsDeplCR = managedgitopsv1alpha1.GitOpsDeployment{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "gitopsdepl-name",
+							Namespace: apiNamespace.Name,
+						},
+						Spec: managedgitopsv1alpha1.GitOpsDeploymentSpec{},
+					}
+					if createGitOpsDeplCR {
+						Expect(k8sClient.Create(ctx, &gitopsDeplCR)).To(Succeed())
+					}
+
+					apiCRToDBMapping := db.APICRToDatabaseMapping{
+						APIResourceType:      db.APICRToDatabaseMapping_ResourceType_GitOpsDeploymentSyncRun,
+						APIResourceUID:       string(syncRunCR.UID),
+						APIResourceName:      syncRunCR.Name,
+						APIResourceNamespace: apiNamespace.Name,
+						NamespaceUID:         string(apiNamespace.UID),
+						DBRelationType:       db.APICRToDatabaseMapping_DBRelationType_SyncOperation,
+						DBRelationKey:        syncOperationRow.SyncOperation_id,
+					}
+
+					err = dbQueries.CreateAPICRToDatabaseMapping(ctx, &apiCRToDBMapping)
+					Expect(err).ToNot(HaveOccurred())
+
+				}
+
+				return syncRunCR, gitopsDeplCR
+			}
+
+			syncRunCR, gitopsDeplCR := createTestObjects(gitOpsDeplCRExists, syncOperationRowExists)
+
+			By("creating a GitOpsDeploymentSyncRun event, which we will pass to the function for processing")
+			event := eventlooptypes.EventLoopMessage{
+				MessageType: eventlooptypes.ApplicationEventLoopMessageType_Event,
+				Event: &eventlooptypes.EventLoopEvent{
+					Client:      k8sClient,
+					ReqResource: eventlooptypes.GitOpsDeploymentSyncRunTypeName,
+					Request:     ctrl.Request{NamespacedName: client.ObjectKeyFromObject(&syncRunCR)},
+				},
+			}
+			wrapperEvent := workspaceEventLoopMessage{
+				messageType: workspaceEventLoopMessageType_Event,
+				payload:     event,
+			}
+
+			By("starting a goroutine which mocks the start of the application event loop, and automatically accepts all requests from workspace event loop")
+			responseChannel := make(chan workspaceResourceLoopMessage, 5)
+
+			tAELF := &managedEnvironmentTestApplicationEventLoopFactory{
+				outputChannelMap: map[string]chan application_event_loop.RequestMessage{},
+			}
+			go func() {
+				defer GinkgoRecover()
+				for {
+					tAELF.waitForFirstInvocation(gitopsDeplCR.Name)
+
+					fromOutputChan := <-tAELF.outputChannelMap[gitopsDeplCR.Name]
+					fromOutputChan.ResponseChan <- application_event_loop.ResponseMessage{RequestAccepted: true}
+				}
+			}()
+
+			state := workspaceEventLoopInternalState{
+				log: log.FromContext(ctx),
+				workspaceResourceLoop: &workspaceResourceEventLoop{
+					inputChannel: responseChannel,
+				},
+				applEventLoopFactory: tAELF,
+				applicationMap:       map[string]workspaceEventLoop_applicationEventLoopEntry{},
+				namespaceID:          "namespace-id",
+			}
+
+			By("calling the function beign tested")
+			handleWorkspaceEventLoopMessage(ctx, event, wrapperEvent, state)
+
+			By("checking whether the application map of the state has been updated: the expected behaviour depends on which resources exist when the function is called.")
+
+			_, exists := state.applicationMap[state.namespaceID+"-"+apiNamespace.Name+"-"+gitopsDeplCR.Name]
+
+			if gitOpsDeplCRExists && syncOperationRowExists {
+				// If SyncOperation exists, and points to a valid GitOpsDeployment, then the application event loop should have started, and thus the map entry should be set.
+				Expect(exists).To(BeTrue())
+			} else if gitOpsDeplCRExists && !syncOperationRowExists {
+				// If the SyncOperation row doesn't exist in the database, then there is not a resource to unorphan, so the application event loop should not have started.
+				Expect(exists).To(BeFalse())
+			} else if !gitOpsDeplCRExists && syncOperationRowExists {
+				// If SyncOperation exists, then the application event loop should have started, and thus the map entry should be set.
+				Expect(exists).To(BeTrue())
+			} else {
+				Fail("unexpected permutation")
+			}
+
+		},
+			Entry("GitOpsDeployment CR and SyncOperationRow exist", true, true),
+			Entry("GitOpsDeployment CR exists but SyncOperationRow does not", true, false),
+			Entry("GitOpsDeployment CR does not exist but SyncOperationRow does", false, true))
+
+	})
+
+	Context("handleStatusTickerMessage tests", func() {
+
+		It("should remove any applications in the applicationMap which rejects the status check message", func() {
+
+			readChanAndReturnResponse := func(channel chan application_event_loop.RequestMessage, acceptMessage bool) {
+				go func() {
+					req := <-channel
+					req.ResponseChan <- application_event_loop.ResponseMessage{
+						RequestAccepted: acceptMessage,
+					}
+
+				}()
+
+			}
+
+			By("creating a channel which will send a 'accept' reply")
+			activeChan := make(chan application_event_loop.RequestMessage)
+
+			By("creating a channel which will send a 'reject' reply")
+			inactiveChan := make(chan application_event_loop.RequestMessage)
+
+			By("associating each function with the corresponding channel type")
+			readChanAndReturnResponse(activeChan, true)
+			readChanAndReturnResponse(inactiveChan, false)
+
+			state := workspaceEventLoopInternalState{
+				applicationMap: map[string]workspaceEventLoop_applicationEventLoopEntry{
+					"active":   {input: activeChan},
+					"inactive": {input: inactiveChan},
+				},
+			}
+
+			handleStatusTickerMessage(state)
+
+			Consistently(func() bool {
+				_, exists := state.applicationMap["active"]
+				return exists
+			}).Should(BeTrue(), "the active application should have accepted the request, and thus should still be present")
+
+			Eventually(func() bool {
+				_, exists := state.applicationMap["inactive"]
+				return exists
+			}).Should(BeFalse(), "the inactive application should have rejected the request, and thus should have been removed from the map")
+
+		})
 
 	})
 })
@@ -638,6 +973,6 @@ func (ta *managedEnvironmentTestApplicationEventLoopFactory) waitForFirstInvocat
 
 		return ta.outputChannelMap[gitopsDeploymentName] != nil
 
-	}).Should(BeTrue())
+	}, "5m").Should(BeTrue())
 
 }

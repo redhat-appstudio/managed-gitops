@@ -11,7 +11,6 @@ import (
 
 	managedgitopsv1alpha1 "github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
-	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/gitopserrors"
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
@@ -30,7 +29,8 @@ import (
 )
 
 const (
-	KubeconfigKey = "kubeconfig"
+	KubeconfigKey                 = "kubeconfig"
+	UnableToCreateRestConfigError = "unable to create k8s client from restConfig from managed environment secret"
 )
 
 func internalProcessMessage_ReconcileSharedManagedEnv(ctx context.Context, workspaceClient client.Client,
@@ -76,7 +76,7 @@ func internalProcessMessage_internalReconcileSharedManagedEnv(ctx context.Contex
 		return internalProcessMessage_GetOrCreateSharedResources(ctx, gitopsEngineClient, workspaceNamespace, dbQueries, log)
 	}
 
-	clusterUser, isNewUser, err := internalGetOrCreateClusterUserByNamespaceUID(ctx, string(workspaceNamespace.UID), dbQueries, log)
+	clusterUser, isNewUser, err := internalProcessMessage_GetOrCreateClusterUserByNamespaceUID(ctx, workspaceNamespace, dbQueries, log)
 	if err != nil || clusterUser == nil {
 		return newSharedResourceManagedEnvContainer(), createUnknownErrorEnvInitCondition(),
 			fmt.Errorf("unable to retrieve cluster user in processMessage, '%s': %v", string(workspaceNamespace.UID), err)
@@ -286,8 +286,8 @@ func getManagedEnvironmentCRs(ctx context.Context,
 
 	if managedEnvironmentCR.Spec.ClusterCredentialsSecret == "" {
 		return managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironment{}, corev1.Secret{}, resourceExists,
-			fmt.Errorf("secret '%s' referenced by managed environment '%s' in '%s', is invalid",
-				managedEnvironmentCR.Spec.ClusterCredentialsSecret, managedEnvironmentCR.Name, managedEnvironmentCR.Namespace)
+			fmt.Errorf("no secret specified by managed environment '%s' in '%s'",
+				managedEnvironmentCR.Name, managedEnvironmentCR.Namespace)
 	}
 
 	// Retrieve the Secret CR from the workspace
@@ -353,6 +353,7 @@ func deleteManagedEnvironmentDBByAPINameAndNamespace(ctx context.Context, worksp
 			}
 			// If the managed environment can't be found, there is no other work to do, so just continue.
 		} else {
+			// Delete AppProjectManagedEnvironment before deleting ManagedEnvironment, as it contains a foreign key managedenv id.
 			// 2b) Whether or not the managed environment DB row exists, clean up all related database entries
 			if err := DeleteManagedEnvironmentResources(ctx, managedEnv.Managedenvironment_id, managedEnv, user, k8sClientFactory, dbQueries, log); err != nil {
 				return fmt.Errorf("unable to delete managed environment row '%s': %v", managedEnv.Managedenvironment_id, err)
@@ -405,7 +406,38 @@ func replaceExistingManagedEnv(ctx context.Context,
 	}
 	log.Info("Updated ManagedEnvironment with new cluster credentials ID", managedEnvironmentDB.GetAsLogKeyValues()...)
 
-	// 3) Delete the old credentials
+	appProjectManagedEnv := db.AppProjectManagedEnvironment{
+		Managed_environment_id: managedEnvironmentDB.Managedenvironment_id,
+	}
+
+	// Whenever a ManagedEnvironment is updated, check whether the corresponding AppProjectManagedEnvironment has been created. If it has not been created, create it.
+	if err := dbQueries.GetAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnv); err != nil {
+		log.Error(err, "Unable to retrieve appProjectManagedEnv", appProjectManagedEnv.GetAsLogKeyValues()...)
+
+		// If AppProjectManagedEnvironment is not present in DB, create it.
+		if db.IsResultNotFoundError(err) {
+			appProjectManagedEnv := db.AppProjectManagedEnvironment{
+				Clusteruser_id:         clusterUser.Clusteruser_id,
+				Managed_environment_id: managedEnvironmentDB.Managedenvironment_id,
+			}
+
+			if err := dbQueries.CreateAppProjectManagedEnvironment(ctx, &appProjectManagedEnv); err != nil {
+				log.Error(err, "Unable to create appProjectManagedEnv", appProjectManagedEnv.GetAsLogKeyValues()...)
+
+				return SharedResourceManagedEnvContainer{},
+					createGenericDatabaseErrorEnvInitCondition(managedEnvironmentCR),
+					fmt.Errorf("unable to call CreateAppProjectManagedEnvironment: %w", err)
+			}
+
+			log.Info("Created new AppProjectManagedEnvironment in DB : "+appProjectManagedEnv.Managed_environment_id, appProjectManagedEnv.GetAsLogKeyValues()...)
+		} else {
+
+			return SharedResourceManagedEnvContainer{}, connInitCondition,
+				fmt.Errorf("unable to call GetAppProjectManagedEnvironmentById: %v", err)
+		}
+	}
+
+	// 4) Delete the old credentials
 	rowsDeleted, err := dbQueries.DeleteClusterCredentialsById(ctx, oldClusterCredentialsPrimaryKey)
 	if err != nil {
 		log.Error(err, "Unable to delete old ClusterCredentials row which is no longer used by ManagedEnv", "clusterCredentials", oldClusterCredentialsPrimaryKey)
@@ -421,7 +453,7 @@ func replaceExistingManagedEnv(ctx context.Context,
 	}
 	log.Info("Deleted old ClusterCredentials row which is no longer used by ManagedEnv", "clusterCredentials", oldClusterCredentialsPrimaryKey)
 
-	// 4) Retrieve/create the other env vars for the managed env, and return
+	// 5) Retrieve/create the other env vars for the managed env, and return
 	engineInstance, isNewEngineInstance, clusterAccess,
 		isNewClusterAccess, engineCluster, uerr := wrapManagedEnv(ctx,
 		managedEnvironmentDB, workspaceNamespace, clusterUser, gitopsEngineClient, dbQueries, log)
@@ -466,6 +498,20 @@ func constructNewManagedEnv(ctx context.Context,
 		return newSharedResourceManagedEnvContainer(), connInitErr,
 			fmt.Errorf("unable to create managed environment for %s: %w", managedEnvironment.UID, err)
 	}
+
+	// Whenever a ManagedEnvironment is created, the corresponding AppProjectManagedEnvironment should also be created
+	appProjectManagedEnvDB := db.AppProjectManagedEnvironment{
+		Clusteruser_id:         clusterUser.Clusteruser_id,
+		Managed_environment_id: managedEnvDB.Managedenvironment_id,
+	}
+
+	if err := dbQueries.CreateAppProjectManagedEnvironment(ctx, &appProjectManagedEnvDB); err != nil {
+		log.Error(err, "Unable to create new AppProjectManagedEnvironment")
+		return newSharedResourceManagedEnvContainer(), connInitErr,
+			fmt.Errorf("unable to create AppProjectManagedEnvironment for %s: %w", appProjectManagedEnvDB.Clusteruser_id, err)
+	}
+
+	log.Info("Created new AppProjectManagedEnvironment")
 
 	engineInstance, isNewEngineInstance, clusterAccess,
 		isNewClusterAccess, engineCluster, uerr := wrapManagedEnv(ctx,
@@ -512,7 +558,7 @@ func wrapManagedEnv(ctx context.Context, managedEnv db.ManagedEnvironment, works
 		Clusteraccess_gitops_engine_instance_id: engineInstance.Gitopsengineinstance_id,
 	}
 
-	err1, isNewClusterAccess := internalGetOrCreateClusterAccess(ctx, &ca, dbQueries, log)
+	isNewClusterAccess, err1 := internalGetOrCreateClusterAccess(ctx, &ca, dbQueries, log)
 	if err1 != nil {
 		log.Error(err1, "unable to create cluster access")
 		msg := gitopserrors.UnknownError
@@ -620,7 +666,7 @@ func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 
 		// Don't wait for the Operation to complete, just create it and continue with the next.
 		_, _, err = operations.CreateOperation(ctx, false, operation, user.Clusteruser_id,
-			dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, client, log)
+			gitopsEngineInstance.Namespace_name, dbQueries, client, log)
 		// TODO: GITOPSRVCE-174 - Add garbage collection of this operation once 174 is finished.
 		if err != nil {
 			return fmt.Errorf("unable to create operation for applicaton '%s': %v", app.Application_id, err)
@@ -650,7 +696,33 @@ func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 
 	}
 
-	// 4) Delete the ManagedEnvironment entry
+	// 4) Delete all appProjectManagedEnvs that reference this managed env
+	appProjectManagedEnvs := []db.AppProjectManagedEnvironment{}
+	if err := dbQueries.ListAppProjectManagedEnvironmentByClusterUserId(ctx, user.Clusteruser_id, &appProjectManagedEnvs); err != nil {
+		// We exit here, because if this doesn't succeed, we won't be able to do any of the other next steps, due to database foreign keys
+		return fmt.Errorf("unable to list appProjectManagedEnvs by cluster user id '%s': %v", managedEnvID, err)
+	}
+
+	for idx, a := range appProjectManagedEnvs {
+		if a.Managed_environment_id == managedEnvID {
+			appProjectManagedEnv := appProjectManagedEnvs[idx]
+
+			rowsDeleted, err := dbQueries.DeleteAppProjectManagedEnvironmentByManagedEnvId(ctx, &appProjectManagedEnv)
+			if err != nil {
+				log.Error(err, "Unable to delete appProjectManagedEnv row that referenced to ManagedEnvironment", "managedEnvID", appProjectManagedEnv.Managed_environment_id)
+				return fmt.Errorf("unable to delete appProjectManagedEnv row that referenced to ManagedEnvironment '%s': %v", appProjectManagedEnv.Managed_environment_id, err)
+			}
+			if rowsDeleted != 1 {
+				log.V(logutil.LogLevel_Warn).Info("Unexpected number of appProjectManagedEnvs rows deleted, when deleting managed env.",
+					"rowsDeleted", rowsDeleted, "appProject-ManagedEnv", appProjectManagedEnv)
+			} else {
+				log.Info("Deleted appProjectManagedEnv row that referenced to ManagedEnvironment", "userID", appProjectManagedEnv.Managed_environment_id)
+			}
+			break
+		}
+	}
+
+	// 5) Delete the ManagedEnvironment entry
 	rowsDeleted, err := dbQueries.DeleteManagedEnvironmentById(ctx, managedEnvID)
 	if err != nil || rowsDeleted != 1 {
 		log.Error(err, "Unable to delete ManagedEnvironment row")
@@ -658,7 +730,7 @@ func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 	}
 	log.Info("Deleted ManagedEnvironment row")
 
-	// 5) Delete the cluster credentials row of the managed environment
+	// 6) Delete the cluster credentials row of the managed environment
 	if managedEnvCR != nil {
 		log := log.WithValues("clusterCredentialsId", managedEnvCR.Clustercredentials_id)
 
@@ -670,7 +742,7 @@ func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 		log.Info("Deleted ClusterCredentials of the managed environment")
 	}
 
-	// 6) For each Argo CD instances that was involved, create a new Operation to delete the managed environment
+	// 7) For each Argo CD instances that was involved, create a new Operation to delete the managed environment
 	//    (the Argo CD Cluster Secret) of that Argo CD instance.
 	for idx := range gitopsEngineInstances {
 
@@ -694,7 +766,7 @@ func DeleteManagedEnvironmentResources(ctx context.Context, managedEnvID string,
 
 		// TODO: GITOPSRVCE-174 - Add garbage collection of this operation once 174 is finished.
 		_, _, err = operations.CreateOperation(ctx, false, operation, user.Clusteruser_id,
-			dbutil.GetGitOpsEngineSingleInstanceNamespace(), dbQueries, client, log)
+			gitopsEngineInstance.Namespace_name, dbQueries, client, log)
 		if err != nil {
 			return fmt.Errorf("unable to create operation for deleted managed environment: %v", err)
 		}
@@ -785,16 +857,23 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 
 	restConfig, err := clientConfig.ClientConfig()
 	if err != nil {
-		err := fmt.Errorf("unable to retrive restConfig from managed environment secret: %w", err)
+		err := fmt.Errorf("unable to retrieve restConfig from managed environment secret: %w", err)
 
 		return db.ClusterCredentials{},
 			convertErrToEnvInitCondition(managedgitopsv1alpha1.ConditionReasonUnableToRetrieveRestConfig, err, managedEnvironment),
 			err
 	}
 
+	// Ignore the self-signed certificate
+	if managedEnvironment.Spec.AllowInsecureSkipTLSVerify {
+		restConfig.Insecure = true
+		restConfig.TLSClientConfig.CAFile = ""
+		restConfig.TLSClientConfig.CAData = nil
+	}
+
 	k8sClient, err := k8sClientFactory.BuildK8sClient(restConfig)
 	if err != nil {
-		err := fmt.Errorf("unable to create k8s client from restConfig from managed environment secret: %w", err)
+		err := fmt.Errorf("%s: %w", UnableToCreateRestConfigError, err)
 
 		return db.ClusterCredentials{},
 			convertErrToEnvInitCondition(managedgitopsv1alpha1.ConditionReasonUnableToCreateClient, err, managedEnvironment),
@@ -883,6 +962,8 @@ func createNewClusterCredentials(ctx context.Context, managedEnvironment managed
 			message := "Unable to validate the credentials provided in the ManagedEnvironment Secret. Verify the API URL, and service account token are correct."
 			if apierr.IsForbidden(err) {
 				message = "Provided service account does not have permission to access resources in the cluster. Verify that the service account has the correct Role and RoleBinding."
+			} else if isCertificateSignedByUnknownAuthority(err) {
+				message = "Certificate signed by unknown authority. Note that the '.spec.allowInsecureSkipTLSVerify' field can be used to ignore this error."
 			}
 			return db.ClusterCredentials{}, connectionInitializedCondition{
 				managedEnvCR: managedEnvironment,
@@ -927,7 +1008,7 @@ func locateContextThatMatchesAPIURL(config *clientcmdapi.Config, apiURL string) 
 		}
 	}
 	if matchingClusterName == "" {
-		return "", clientcmdapi.Context{}, fmt.Errorf("the kubeconfig did not have a cluster entry that matched the API URL '%s", apiURL)
+		return "", clientcmdapi.Context{}, fmt.Errorf("the kubeconfig did not have a cluster entry that matched the API URL '%s'", apiURL)
 	}
 
 	// Look for the context that matches the cluster above
@@ -947,6 +1028,18 @@ func locateContextThatMatchesAPIURL(config *clientcmdapi.Config, apiURL string) 
 	}
 
 	return matchingContextName, *matchingContext, nil
+}
+
+func isCertificateSignedByUnknownAuthority(err error) bool {
+	if err == nil {
+		return false
+	}
+	var cause error
+	for err != nil {
+		cause = err
+		err = errors.Unwrap(err)
+	}
+	return strings.HasSuffix(cause.Error(), "x509: certificate signed by unknown authority")
 }
 
 // sanityTestCredentials returns true if we were able to successfully connect with the credentials, false otherwise.
@@ -1088,6 +1181,13 @@ func verifyClusterCredentialsWithNamespaceList(ctx context.Context, clusterCreds
 	configParam, _, err := sanityTestCredentials(clusterCreds)
 	if err != nil {
 		return false, err
+	}
+
+	// Ignore the self-signed certificate
+	if managedEnvCR.Spec.AllowInsecureSkipTLSVerify {
+		configParam.Insecure = true
+		configParam.TLSClientConfig.CAFile = ""
+		configParam.TLSClientConfig.CAData = nil
 	}
 
 	clientObj, err := k8sClientFactory.BuildK8sClient(configParam)

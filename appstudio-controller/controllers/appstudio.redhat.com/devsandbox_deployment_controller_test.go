@@ -2,6 +2,7 @@ package appstudioredhatcom
 
 import (
 	"context"
+	"os"
 
 	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -32,12 +33,12 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 				_,
 				_,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = appstudiosharedv1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			err = codereadytoolchainv1alpha1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			testNS := corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
@@ -61,7 +62,7 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 				dtc.Spec.DeploymentTargetClassName = appstudiosharedv1.DeploymentTargetClassName("test-sandbox-class")
 			})
 			err := k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			spacerequest := getDevsandboxSpaceRequest(func(spacerequest *codereadytoolchainv1alpha1.SpaceRequest) {
 				spacerequest.Labels = map[string]string{
@@ -72,18 +73,21 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 			})
 
 			err = k8sClient.Create(ctx, &spacerequest)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("reconcile with a SpaceRequest with Ready condition set to True")
 			request := newRequest(spacerequest.Namespace, spacerequest.Name)
 			res, err := reconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(res).To(Equal(ctrl.Result{}))
 
 			By("find a newly created matching DT for the SpaceRequest")
 			dt, err := findMatchingDTForSpaceRequest(ctx, k8sClient, &spacerequest)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(dt).NotTo(BeNil())
+			Expect(dt.Annotations).ToNot(BeNil())
+			Expect(dt.Annotations[appstudiosharedv1.AnnDynamicallyProvisioned]).To(Equal(string(appstudiosharedv1.Provisioner_Devsandbox)))
+			Expect(dt.Spec.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify).To(BeFalse())
 		})
 
 		It("should return an error when handling a SpaceRequest that doesn't have a matching DTC", func() {
@@ -96,12 +100,12 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 			})
 
 			err := k8sClient.Create(ctx, &spacerequest)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("reconcile with a SpaceRequest with invalid data for dtc label")
 			request := newRequest(spacerequest.Namespace, spacerequest.Name)
 			res, err := reconciler.Reconcile(ctx, request)
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(res).To(Equal(ctrl.Result{}))
 		})
 
@@ -114,14 +118,14 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 			})
 
 			err := k8sClient.Create(ctx, &spacerequestnolabel)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(HasLabel(&spacerequestnolabel, deploymentTargetClaimLabel)).NotTo(BeTrue())
 
 			By("reconcile with a SpaceRequest with invalid data for dtc label")
 			requestnolabel := newRequest(spacerequestnolabel.Namespace, spacerequestnolabel.Name)
 			res, err := reconciler.Reconcile(ctx, requestnolabel)
 
-			Expect(err).NotTo(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(res).To(Equal(ctrl.Result{}))
 		})
 
@@ -133,7 +137,7 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 				dtc.Spec.DeploymentTargetClassName = appstudiosharedv1.DeploymentTargetClassName("test-sandbox-class")
 			})
 			err := k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			spacerequest := getDevsandboxSpaceRequest(func(spacerequest *codereadytoolchainv1alpha1.SpaceRequest) {
 				spacerequest.Labels = map[string]string{
@@ -141,11 +145,11 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 				}
 			})
 			err = k8sClient.Create(ctx, &spacerequest)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			found, err := findMatchingDTCForSpaceRequest(ctx, k8sClient, &spacerequest)
-			Expect(err).To(BeNil())
-			Expect(found.Name == dtc.Name).To(BeTrue())
+			Expect(err).ToNot(HaveOccurred())
+			Expect(found.Name).To(Equal(dtc.Name))
 		})
 
 		It("should not create an extra DT if there is an existiong one for a SpaceRequest", func() {
@@ -156,7 +160,7 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 				dtc.Spec.DeploymentTargetClassName = appstudiosharedv1.DeploymentTargetClassName("test-sandbox-class")
 			})
 			err := k8sClient.Create(ctx, &dtc)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			spacerequest := getDevsandboxSpaceRequest(func(spacerequest *codereadytoolchainv1alpha1.SpaceRequest) {
 				spacerequest.Labels = map[string]string{
@@ -164,7 +168,7 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 				}
 			})
 			err = k8sClient.Create(ctx, &spacerequest)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create a DeploymentTarget matching the SpaceRequest")
 			expected := getDevsandboxDeploymentTarget(func(dt *appstudiosharedv1.DeploymentTarget) {
@@ -173,19 +177,61 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 				dt.Status.Phase = appstudiosharedv1.DeploymentTargetPhase_Available
 			})
 			err = k8sClient.Create(ctx, &expected)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("reconcile with a SpaceRequest with matching deployment target")
 			request := newRequest(spacerequest.Namespace, spacerequest.Name)
 			res, err := reconciler.Reconcile(ctx, request)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(res).To(Equal(ctrl.Result{}))
 			dt, err := findMatchingDTForSpaceRequest(ctx, k8sClient, &spacerequest)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(client.ObjectKeyFromObject(dt)).To(Equal(client.ObjectKeyFromObject(&expected)))
 		})
 
+		It("should set Spec.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify field of DT to True, if it is a Dev environment.", func() {
+			dtc := getDevsandboxDeploymentTargetClaim(func(dtc *appstudiosharedv1.DeploymentTargetClaim) {
+				dtc.Annotations = map[string]string{
+					appstudiosharedv1.AnnTargetProvisioner: "sandbox",
+				}
+				dtc.Spec.DeploymentTargetClassName = appstudiosharedv1.DeploymentTargetClassName("test-sandbox-class")
+			})
+			err := k8sClient.Create(ctx, &dtc)
+			Expect(err).ToNot(HaveOccurred())
+
+			spacerequest := getDevsandboxSpaceRequest(func(spacerequest *codereadytoolchainv1alpha1.SpaceRequest) {
+				spacerequest.Labels = map[string]string{
+					deploymentTargetClaimLabel: dtc.Name,
+				}
+				spacerequest.Status.Conditions[0].Status = corev1.ConditionTrue
+
+			})
+
+			err = k8sClient.Create(ctx, &spacerequest)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("reconcile with a SpaceRequest with Ready condition set to True")
+			request := newRequest(spacerequest.Namespace, spacerequest.Name)
+
+			By("set env variable to indicate it is a dev cluster.")
+
+			os.Setenv("DEV_ONLY_IGNORE_SELFSIGNED_CERT_IN_DEPLOYMENT_TARGET", "true")
+
+			// Reset env variable after test is finished
+			defer os.Setenv("DEV_ONLY_IGNORE_SELFSIGNED_CERT_IN_DEPLOYMENT_TARGET", "false")
+
+			res, err := reconciler.Reconcile(ctx, request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(res).To(Equal(ctrl.Result{}))
+
+			By("find a newly created matching DT for the SpaceRequest")
+			dt, err := findMatchingDTForSpaceRequest(ctx, k8sClient, &spacerequest)
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(dt).NotTo(BeNil())
+			Expect(dt.Spec.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify).To(BeTrue())
+		})
 	})
 })
 

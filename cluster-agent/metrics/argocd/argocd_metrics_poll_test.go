@@ -24,10 +24,10 @@ var _ = Describe("Argo CD Metrics Polling", func() {
 
 		BeforeEach(func() {
 			scheme, argocdNamespace, kubesystemNamespace, _, err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = appv1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			testNamespaceNames = []string{"argocd"}
 			namespaces := createNamespaces(testNamespaceNames...)
@@ -59,10 +59,6 @@ var _ = Describe("Argo CD Metrics Polling", func() {
 
 			By("Creating an argocd application")
 			app := &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "application-01",
 					Namespace: testNamespaceNames[0],
@@ -74,7 +70,7 @@ var _ = Describe("Argo CD Metrics Polling", func() {
 				},
 			}
 			err = updater.Client.Create(ctx, app)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Checking the metric is still zero at this point")
 			Expect(testutil.ToFloat64(ReconciledArgoAppsPercent)).To(Equal(0.0))

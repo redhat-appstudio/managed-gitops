@@ -21,7 +21,7 @@ func expectedCondition(f func(env appstudiosharedv1.Environment) bool) matcher.G
 	return WithTransform(func(env appstudiosharedv1.Environment) bool {
 
 		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -68,16 +68,17 @@ func HaveEnvironmentCondition(expected metav1.Condition) matcher.GomegaMatcher {
 			return false
 		}
 
-		if len(env.Status.Conditions) > 1 {
-			GinkgoWriter.Println("HaveEnviromentCondition does not support more than 1 element in the .status.conditions slice")
-			return false
+		for i := range env.Status.Conditions {
+			actual := sanitizeCondition(env.Status.Conditions[i])
+			if actual.Type == expected.Type &&
+				actual.Status == expected.Status &&
+				actual.Reason == expected.Reason &&
+				actual.Message == expected.Message {
+				return true
+			}
 		}
 
-		actual := sanitizeCondition(env.Status.Conditions[0])
-		GinkgoWriter.Println("HaveEnvironmentCondition:", "expected: ", expected, "actual: ", actual)
-		return actual.Type == expected.Type &&
-			actual.Status == expected.Status &&
-			actual.Reason == expected.Reason &&
-			actual.Message == expected.Message
+		GinkgoWriter.Println("HaveEnvironmentCondition:", "expected to find: ", expected, "in slice: ", env.Status.Conditions)
+		return false
 	})
 }

@@ -61,19 +61,19 @@ var _ = Describe("Operation Controller", func() {
 			ctx = context.Background()
 			logger = log.FromContext(ctx)
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(false, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			scheme, argoCDNamespace, kubesystemNamespace, workspace, err = tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			k8sClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(workspace, kubesystemNamespace).Build()
 
 			gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
 			Expect(gitopsEngineCluster).ToNot(BeNil())
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 			gitopsEngineInstance = &db.GitopsEngineInstance{
@@ -83,7 +83,7 @@ var _ = Describe("Operation Controller", func() {
 				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 			}
 			err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			opConfigVal = operationConfig{
 				dbQueries:         dbQueries,
@@ -107,7 +107,7 @@ var _ = Describe("Operation Controller", func() {
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 			err := dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			managedEnvironment := db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env",
@@ -115,7 +115,7 @@ var _ = Describe("Operation Controller", func() {
 				Name:                  "my env",
 			}
 			err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironment)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create Application in Database")
 			applicationDB := &db.Application{
@@ -127,10 +127,10 @@ var _ = Describe("Operation Controller", func() {
 			}
 
 			err = dbQueries.CreateApplication(ctx, applicationDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			secret, shouldDelete, err := generateExpectedClusterSecret(ctx, *applicationDB, opConfigVal)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(shouldDelete).To(BeFalse())
 
 			Expect(string(secret.Data["name"])).To(Equal(argosharedutil.GenerateArgoCDClusterSecretName(managedEnvironment)))
@@ -153,7 +153,7 @@ var _ = Describe("Operation Controller", func() {
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 			err := dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			managedEnvironment := db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env",
@@ -161,7 +161,7 @@ var _ = Describe("Operation Controller", func() {
 				Name:                  "my env",
 			}
 			err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironment)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("create Application in Database")
 			applicationDB := &db.Application{
@@ -173,11 +173,11 @@ var _ = Describe("Operation Controller", func() {
 			}
 
 			err = dbQueries.CreateApplication(ctx, applicationDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("calling function to test")
 			_, shouldDelete, err := generateExpectedClusterSecret(ctx, *applicationDB, opConfigVal)
-			Expect(err).To(Not(BeNil()), "should return an error due to unsupported query parameter characters in the URL")
+			Expect(err).To(HaveOccurred(), "should return an error due to unsupported query parameter characters in the URL")
 			Expect(err.Error()).To(ContainSubstring("the Kubernetes API URL contained unsupported characters"))
 			Expect(shouldDelete).To(BeFalse())
 		})
@@ -194,7 +194,7 @@ var _ = Describe("Operation Controller", func() {
 
 			By("calling function to test")
 			_, shouldDelete, err := generateExpectedClusterSecret(ctx, *applicationDB, opConfigVal)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(shouldDelete).To(BeTrue())
 
 		})
@@ -210,7 +210,7 @@ var _ = Describe("Operation Controller", func() {
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 			err := dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			managedEnvironment := db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env",
@@ -218,7 +218,7 @@ var _ = Describe("Operation Controller", func() {
 				Name:                  "my env",
 			}
 			err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironment)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationDB := &db.Application{
 				Application_id:          "test-my-application",
@@ -228,11 +228,11 @@ var _ = Describe("Operation Controller", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 			err = dbQueries.CreateApplication(ctx, applicationDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("calling function to test")
 			err = ensureManagedEnvironmentExists(ctx, *applicationDB, opConfigVal)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			secretName := argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: applicationDB.Managed_environment_id})
 			Expect(secretName).ToNot(BeEmpty())
@@ -247,7 +247,7 @@ var _ = Describe("Operation Controller", func() {
 			}
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvironmentSecret), &managedEnvironmentSecret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 		})
 
@@ -262,7 +262,7 @@ var _ = Describe("Operation Controller", func() {
 				Serviceaccount_ns:           "Serviceaccount_ns",
 			}
 			err := dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			managedEnvironment := db.ManagedEnvironment{
 				Managedenvironment_id: "test-managed-env",
@@ -270,7 +270,7 @@ var _ = Describe("Operation Controller", func() {
 				Name:                  "my env",
 			}
 			err = dbQueries.CreateManagedEnvironment(ctx, &managedEnvironment)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			applicationDB := &db.Application{
 				Application_id:          "test-my-application",
@@ -280,7 +280,7 @@ var _ = Describe("Operation Controller", func() {
 				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
 			}
 			err = dbQueries.CreateApplication(ctx, applicationDB)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			secretName := argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: applicationDB.Managed_environment_id})
 			Expect(secretName).ToNot(BeEmpty())
@@ -299,11 +299,11 @@ var _ = Describe("Operation Controller", func() {
 			}
 
 			err = k8sClient.Create(ctx, &existingSecret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("calling function to test")
 			err = ensureManagedEnvironmentExists(ctx, *applicationDB, opConfigVal)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			managedEnvironmentSecret := corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -315,7 +315,7 @@ var _ = Describe("Operation Controller", func() {
 			}
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvironmentSecret), &managedEnvironmentSecret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(string(managedEnvironmentSecret.Data["name"])).To(Equal(argosharedutil.GenerateArgoCDClusterSecretName(managedEnvironment)))
 			Expect(string(managedEnvironmentSecret.Data["server"])).To(ContainSubstring(ManagedEnvironmentQueryParameter))
@@ -347,13 +347,13 @@ var _ = Describe("Operation Controller", func() {
 				Data: map[string][]byte{},
 			}
 			err := k8sClient.Create(ctx, &managedEnvironmentSecret)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = ensureManagedEnvironmentExists(ctx, *applicationDB, opConfigVal)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&managedEnvironmentSecret), &managedEnvironmentSecret)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(apierr.IsNotFound(err)).To(BeTrue())
 
 		})
@@ -376,7 +376,7 @@ var _ = Describe("Operation Controller", func() {
 			ctx = context.Background()
 			logger = log.FromContext(ctx)
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			testClusterUser = &db.ClusterUser{
 				Clusteruser_id: "test-user",
@@ -384,16 +384,16 @@ var _ = Describe("Operation Controller", func() {
 			}
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(false, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			scheme, _, kubesystemNamespace, workspace, err = tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = appv1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = argocdoperatorv1alph1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDepl := &managedgitopsv1alpha1.GitOpsDeployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -426,7 +426,7 @@ var _ = Describe("Operation Controller", func() {
 				},
 			}
 			err = task.event.client.Create(ctx, namespaceToCreate)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 		})
 		It("Ensure that calling perform task on an operation CR for Application that doesn't exist, it doesn't return an error, and retry is false", func() {
@@ -434,7 +434,7 @@ var _ = Describe("Operation Controller", func() {
 			defer testTeardown()
 
 			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("creating Operation row in database")
 			operationDB := &db.Operation{
@@ -447,10 +447,10 @@ var _ = Describe("Operation Controller", func() {
 			}
 
 			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			retry, err := task.PerformTask(ctx)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(retry).To(BeFalse())
 
 		})
@@ -461,7 +461,7 @@ var _ = Describe("Operation Controller", func() {
 			defer testTeardown()
 
 			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			operationDB := &db.Operation{
 				Operation_id:            "test-operation",
@@ -473,7 +473,7 @@ var _ = Describe("Operation Controller", func() {
 			}
 
 			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Operation row insertion")
 			operationCR := &managedgitopsv1alpha1.Operation{
@@ -487,10 +487,10 @@ var _ = Describe("Operation Controller", func() {
 			}
 
 			err = task.event.client.Create(ctx, operationCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			retry, err := task.PerformTask(ctx)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(retry).To(BeFalse())
 
 		})
@@ -502,7 +502,7 @@ var _ = Describe("Operation Controller", func() {
 
 			gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
 			Expect(gitopsEngineCluster).ToNot(BeNil())
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			newArgoCDNamespace := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
@@ -511,7 +511,9 @@ var _ = Describe("Operation Controller", func() {
 				},
 			}
 			err = k8sClient.Create(context.Background(), newArgoCDNamespace)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
+
+			task.event.request.Namespace = newArgoCDNamespace.Name
 
 			gitopsEngineInstance := db.GitopsEngineInstance{
 				Gitopsengineinstance_id: "test-fake-engine-instance-id-1",
@@ -521,7 +523,7 @@ var _ = Describe("Operation Controller", func() {
 			}
 
 			err = dbQueries.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			operationDB := &db.Operation{
 				Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
@@ -532,7 +534,7 @@ var _ = Describe("Operation Controller", func() {
 			}
 
 			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Operation CR creation")
 			operationCR := &managedgitopsv1alpha1.Operation{
@@ -545,7 +547,7 @@ var _ = Describe("Operation Controller", func() {
 				},
 			}
 			err = task.event.client.Create(ctx, operationCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Wait for cluster agent to create the ArgoCD operand. Since Argo CD is not actually running,
 			// we simulate Argo CD creating the 'default' AppProject
@@ -558,7 +560,7 @@ var _ = Describe("Operation Controller", func() {
 					var argoCDList argocdoperatorv1alph1.ArgoCDList
 
 					err := k8sClient.List(context.Background(), &argoCDList)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					for _, argoCDItem := range argoCDList.Items {
 
@@ -572,7 +574,7 @@ var _ = Describe("Operation Controller", func() {
 						}
 
 						err := k8sClient.Create(context.Background(), &appProject)
-						Expect(err).To(BeNil())
+						Expect(err).ToNot(HaveOccurred())
 
 						break outer_for
 
@@ -584,19 +586,23 @@ var _ = Describe("Operation Controller", func() {
 			}()
 
 			retry, err := task.PerformTask(ctx)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(retry).To(BeFalse())
 
+			By("check if the Operation state is updated to InProgress")
+			err = dbQueries.GetOperationById(ctx, operationDB)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(operationDB.State).To(Equal(db.OperationState_In_Progress))
 		})
 
-		It("ensures that if the kube-system namespace does not having a matching namespace uid, an error is not returned, but retry it true", func() {
+		It("ensures that if the kube-system namespace does not having a matching namespace uid, an error is not returned, but retry is true", func() {
 			By("Close database connection")
 			defer dbQueries.CloseDatabase()
 			defer testTeardown()
 
 			By("'kube-system' namespace has a UID that is not found in a corresponding row in GitOpsEngineCluster database")
 			_, _, _, gitopsEngineInstance, _, err := db.CreateSampleData(dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(kubesystemNamespace.UID).ToNot(Equal(gitopsEngineInstance.Namespace_uid))
 
 			By("creating Operation row in database")
@@ -610,7 +616,7 @@ var _ = Describe("Operation Controller", func() {
 			}
 
 			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Operation CR exists")
 			operationCR := &managedgitopsv1alpha1.Operation{
@@ -624,10 +630,10 @@ var _ = Describe("Operation Controller", func() {
 			}
 
 			err = task.event.client.Create(ctx, operationCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			retry, err := task.PerformTask(ctx)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(retry).To(BeTrue())
 
 		})
@@ -639,7 +645,7 @@ var _ = Describe("Operation Controller", func() {
 
 			gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
 			Expect(gitopsEngineCluster).ToNot(BeNil())
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 			gitopsEngineInstance := &db.GitopsEngineInstance{
@@ -649,7 +655,7 @@ var _ = Describe("Operation Controller", func() {
 				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 			}
 			err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("creating Operation row in database")
 			operationDB := &db.Operation{
@@ -662,7 +668,7 @@ var _ = Describe("Operation Controller", func() {
 			}
 
 			err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("creating Operation CR")
 			operationCR := &managedgitopsv1alpha1.Operation{
@@ -677,10 +683,10 @@ var _ = Describe("Operation Controller", func() {
 
 			By("creating Operation CR")
 			err = task.event.client.Create(ctx, operationCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			retry, err := task.PerformTask(ctx)
-			Expect(err).ToNot(BeNil())
+			Expect(err).To(HaveOccurred())
 			Expect(retry).To(BeFalse())
 
 			kubernetesToDBResourceMapping := db.KubernetesToDBResourceMapping{
@@ -705,17 +711,26 @@ var _ = Describe("Operation Controller", func() {
 
 		Context("Process Application Operation Test", func() {
 
-			It("Verify that When an Operation row points to an Application row that doesn't exist, any Argo Application CR that relates to that Application row should be removed.", func() {
+			It("Verify that When an Operation row points to an Application row that doesn't exist, any Argo Application CR and AppProject CR that relates to that Application row should be removed.", func() {
 				By("Close database connection")
 				err = db.SetupForTestingDBGinkgo()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				defer dbQueries.CloseDatabase()
 
-				applicationCR := &appv1.Application{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "Application",
-						APIVersion: "argoproj.io/v1alpha1",
+				appProject := &appv1.AppProject{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      appProjectPrefix + testClusterUser.Clusteruser_id,
+						Namespace: namespace,
 					},
+					Spec: appv1.AppProjectSpec{
+						SourceRepos: []string{"test-url"},
+					},
+				}
+
+				err = task.event.client.Create(ctx, appProject)
+				Expect(err).ToNot(HaveOccurred())
+
+				applicationCR := &appv1.Application{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      name,
 						Namespace: namespace,
@@ -729,7 +744,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = task.event.client.Create(ctx, applicationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// The Argo CD Applications used by GitOps Service use finalizers, so the Applicaitonwill not be deleted until the finalizer is removed.
 				// Normally it us Argo CD's job to do this, but since this is a unit test, there is no Argo CD. Instead we wait for the deletiontimestamp
@@ -738,12 +753,12 @@ var _ = Describe("Operation Controller", func() {
 					err = wait.PollImmediate(1*time.Second, 1*time.Minute, func() (bool, error) {
 						if applicationCR.DeletionTimestamp != nil {
 							err = k8sClient.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
-							Expect(err).To(BeNil())
+							Expect(err).ToNot(HaveOccurred())
 
 							applicationCR.Finalizers = nil
 
 							err = k8sClient.Update(ctx, applicationCR)
-							Expect(err).To(BeNil())
+							Expect(err).ToNot(HaveOccurred())
 
 							err = task.event.client.Delete(ctx, applicationCR)
 							return true, nil
@@ -754,7 +769,7 @@ var _ = Describe("Operation Controller", func() {
 
 				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
 				Expect(gitopsEngineCluster).ToNot(BeNil())
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 				gitopsEngineInstance := &db.GitopsEngineInstance{
@@ -765,7 +780,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Creating Operation row in database")
 				operationDB := &db.Operation{
@@ -778,7 +793,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Creating Operation CR")
 				operationCR := &managedgitopsv1alpha1.Operation{
@@ -792,22 +807,24 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = task.event.client.Create(ctx, operationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				retry, err := task.PerformTask(ctx)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(retry).To(BeFalse())
 
 				By("If no error was returned, and retry is false, then verify that the 'state' field of the Operation row is Completed")
 				err = dbQueries.GetOperationById(ctx, operationDB)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(operationDB.State).To(Equal(db.OperationState_Completed))
 
 				By("Verifying whether Application CR is deleted")
-				Eventually(func() bool {
-					err := k8sClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, applicationCR)
-					return apierr.IsNotFound(err)
-				}).Should(BeTrue())
+				err = k8sClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, applicationCR)
+				Expect(apierr.IsNotFound(err)).To(BeTrue())
+
+				By("Verifying whether AppProject CR is deleted")
+				err = k8sClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, appProject)
+				Expect(apierr.IsNotFound(err)).To(BeTrue())
 
 				kubernetesToDBResourceMapping := db.KubernetesToDBResourceMapping{
 					KubernetesResourceType: "Namespace",
@@ -835,14 +852,14 @@ var _ = Describe("Operation Controller", func() {
 				defer testTeardown()
 
 				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				dummyApplicationSpec, dummyApplicationSpecString, err := createDummyApplicationData()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
 				Expect(gitopsEngineCluster).ToNot(BeNil())
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 				gitopsEngineInstance := &db.GitopsEngineInstance{
@@ -852,7 +869,7 @@ var _ = Describe("Operation Controller", func() {
 					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 				}
 				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Create Application in Database")
 				applicationDB := &db.Application{
@@ -864,7 +881,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = dbQueries.CreateApplication(ctx, applicationDB)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Creating Operation row in database")
 				operationDB := &db.Operation{
@@ -877,7 +894,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Creating Operation CR")
 				operationCR := &managedgitopsv1alpha1.Operation{
@@ -891,14 +908,14 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = task.event.client.Create(ctx, operationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				retry, err := task.PerformTask(ctx)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("If no error was returned, and retry is false, then verify that the 'state' field of the Operation row is Completed")
 				err = dbQueries.GetOperationById(ctx, operationDB)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(operationDB.State).To(Equal(db.OperationState_Completed))
 
 				Expect(retry).To(BeFalse())
@@ -911,7 +928,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = task.event.client.Get(ctx, types.NamespacedName{Namespace: applicationCR.Namespace, Name: name}, &applicationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(dummyApplicationSpec.Spec).To(Equal(applicationCR.Spec))
 
 				kubernetesToDBResourceMapping := db.KubernetesToDBResourceMapping{
@@ -941,14 +958,14 @@ var _ = Describe("Operation Controller", func() {
 				defer testTeardown()
 
 				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				_, dummyApplicationSpecString, err := createDummyApplicationData()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
 				Expect(gitopsEngineCluster).ToNot(BeNil())
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 				gitopsEngineInstance := &db.GitopsEngineInstance{
@@ -958,7 +975,7 @@ var _ = Describe("Operation Controller", func() {
 					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 				}
 				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				applicationDB := &db.Application{
 					Application_id:          "test-my-application",
@@ -970,7 +987,7 @@ var _ = Describe("Operation Controller", func() {
 
 				By("Create Application in Database")
 				err = dbQueries.CreateApplication(ctx, applicationDB)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Creating new operation row in database")
 				operationDB := &db.Operation{
@@ -983,7 +1000,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Creating Operation CR")
 				operationCR := &managedgitopsv1alpha1.Operation{
@@ -997,20 +1014,20 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = task.event.client.Create(ctx, operationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				retry, err := task.PerformTask(ctx)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(retry).To(BeFalse())
 
 				By("If no error was returned, and retry is false, then verify that the 'state' field of the Operation row is Completed")
 				err = dbQueries.GetOperationById(ctx, operationDB)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(operationDB.State).To(Equal(db.OperationState_Completed))
 
 				By("creating a new spec and putting it into the Application in the database, so that operation wlil update it")
 				newSpecApp, newSpecString, err := createCustomizedDummyApplicationData("different-path")
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Update Application in Database")
 				applicationUpdate := &db.Application{
@@ -1024,7 +1041,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = dbQueries.UpdateApplication(ctx, applicationUpdate)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Creating new operation row in database")
 				operationDB2 := &db.Operation{
@@ -1037,7 +1054,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = dbQueries.CreateOperation(ctx, operationDB2, operationDB2.Operation_owner_user_id)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Create new operation CR")
 				operationCR = &managedgitopsv1alpha1.Operation{
@@ -1055,7 +1072,7 @@ var _ = Describe("Operation Controller", func() {
 				task.event.request.Namespace = operationCR.Namespace
 
 				err = task.event.client.Create(ctx, operationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Verifying whether Application CR is created")
 				applicationCR := &appv1.Application{
@@ -1066,11 +1083,11 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Call Perform task again and verify that update works: the Application CR should now have the updated spec from the database.")
 				retry, err = task.PerformTask(ctx)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(retry).To(BeFalse())
 				Expect(newSpecApp.Spec).To(Equal(applicationCR.Spec), "PerformTask should have updated the Application CR to be consistent with the new spec in the database")
 
@@ -1102,14 +1119,14 @@ var _ = Describe("Operation Controller", func() {
 				defer testTeardown()
 
 				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				dummyApplication, dummyApplicationSpecString, err := createApplicationWithSyncOption("CreateNamespace=true")
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
 				Expect(gitopsEngineCluster).ToNot(BeNil())
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 				gitopsEngineInstance := &db.GitopsEngineInstance{
@@ -1119,7 +1136,7 @@ var _ = Describe("Operation Controller", func() {
 					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 				}
 				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				applicationDB := &db.Application{
 					Application_id:          "test-my-application",
@@ -1131,7 +1148,7 @@ var _ = Describe("Operation Controller", func() {
 
 				By("Create Application in Database")
 				err = dbQueries.CreateApplication(ctx, applicationDB)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Creating new operation row in database")
 				operationDB := &db.Operation{
@@ -1144,7 +1161,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Creating Operation CR")
 				operationCR := &managedgitopsv1alpha1.Operation{
@@ -1158,10 +1175,10 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = task.event.client.Create(ctx, operationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				retry, err := task.PerformTask(ctx)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(retry).To(BeFalse())
 
 				By("Verifying whether Application CR is created")
@@ -1173,20 +1190,20 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Verify that the SyncOption in the Application has Option - CreateNamespace=true")
 				err = dbQueries.GetOperationById(ctx, operationDB)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(operationDB.State).To(Equal(db.OperationState_Completed))
 				Expect(dummyApplication.Spec.SyncPolicy.SyncOptions).To(Equal(applicationCR.Spec.SyncPolicy.SyncOptions))
-				Expect(applicationCR.Spec.SyncPolicy.SyncOptions.HasOption("CreateNamespace=true")).To(Equal(true))
+				Expect(applicationCR.Spec.SyncPolicy.SyncOptions.HasOption("CreateNamespace=true")).To(BeTrue())
 
 				//############################################################################
 
 				By("Update the SyncOption to not have option CreateNamespace=true")
 				newSpecApp, newSpecString, err := createApplicationWithSyncOption("")
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Update Application in Database")
 				applicationUpdate := &db.Application{
@@ -1200,7 +1217,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = dbQueries.UpdateApplication(ctx, applicationUpdate)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Creating new operation row in database")
 				operationDB2 := &db.Operation{
@@ -1213,7 +1230,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = dbQueries.CreateOperation(ctx, operationDB2, operationDB2.Operation_owner_user_id)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Create new operation CR")
 				operationCR = &managedgitopsv1alpha1.Operation{
@@ -1231,7 +1248,7 @@ var _ = Describe("Operation Controller", func() {
 				task.event.request.Namespace = operationCR.Namespace
 
 				err = task.event.client.Create(ctx, operationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Verifying whether Application CR is created")
 				applicationCR = &appv1.Application{
@@ -1242,28 +1259,28 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Call Perform task again and verify that update works: the Application CR should now have the updated spec from the database.")
 				retry, err = task.PerformTask(ctx)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(retry).To(BeFalse())
 
 				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(newSpecApp.Spec.SyncPolicy.SyncOptions).To(Equal(applicationCR.Spec.SyncPolicy.SyncOptions), "PerformTask should have updated the Application CR to be consistent with the new spec(SyncOption) in the database")
-				Expect(applicationCR.Spec.SyncPolicy.SyncOptions.HasOption("CreateNamespace=true")).To(Equal(false))
+				Expect(applicationCR.Spec.SyncPolicy.SyncOptions.HasOption("CreateNamespace=true")).To(BeFalse())
 
 				By("Verify that the SyncOption in the Application has Option - CreateNamespace=true and the operation is completed")
 				err = dbQueries.GetOperationById(ctx, operationDB)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(operationDB.State).To(Equal(db.OperationState_Completed))
 
 				//############################################################################
 
 				By("Update the SyncOption to have option CreateNamespace=true")
 				newSpecApp2, newSpecString2, err := createApplicationWithSyncOption("CreateNamespace=true")
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Update Application in Database")
 				applicationUpdate2 := &db.Application{
@@ -1277,7 +1294,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = dbQueries.UpdateApplication(ctx, applicationUpdate2)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Creating new operation row in database")
 				operationDBUpdate2 := &db.Operation{
@@ -1290,7 +1307,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = dbQueries.CreateOperation(ctx, operationDBUpdate2, operationDBUpdate2.Operation_owner_user_id)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Create new operation CR")
 				operationCR = &managedgitopsv1alpha1.Operation{
@@ -1308,7 +1325,7 @@ var _ = Describe("Operation Controller", func() {
 				task.event.request.Namespace = operationCR.Namespace
 
 				err = task.event.client.Create(ctx, operationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Verifying whether Application CR is created")
 				applicationCR2 := &appv1.Application{
@@ -1319,17 +1336,201 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(applicationCR2), applicationCR2)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Call Perform task again and verify that update works: the Application CR should now have the updated spec from the database.")
 				retry, err = task.PerformTask(ctx)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(retry).To(BeFalse())
 
 				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(applicationCR2), applicationCR2)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(newSpecApp2.Spec.SyncPolicy.SyncOptions).To(Equal(applicationCR2.Spec.SyncPolicy.SyncOptions), "PerformTask should have updated the Application CR to be consistent with the new spec(SyncOption) in the database")
-				Expect(applicationCR2.Spec.SyncPolicy.SyncOptions.HasOption("CreateNamespace=true")).To(Equal(true))
+				Expect(applicationCR2.Spec.SyncPolicy.SyncOptions.HasOption("CreateNamespace=true")).To(BeTrue())
+
+				By("Verify whether AppProject has been created")
+				appProject := &appv1.AppProject{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      appProjectPrefix + operationDB.Operation_owner_user_id,
+						Namespace: namespace,
+					},
+				}
+
+				var appProjectRepositories []db.AppProjectRepository
+				err = dbQueries.UnsafeListAllAppProjectRepositories(ctx, &appProjectRepositories)
+				Expect(err).ToNot(HaveOccurred())
+
+				var repoURLs []string
+				for _, v := range appProjectRepositories {
+					if v.Clusteruser_id == operationDB.Operation_owner_user_id {
+						repoURLs = append(repoURLs, v.RepoURL)
+					}
+				}
+
+				err = task.event.client.Get(ctx, types.NamespacedName{Namespace: appProject.Namespace, Name: appProject.Name}, appProject)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(appProject).ToNot(BeNil())
+				Expect(appProject.Name).To(Equal(appProjectPrefix + operationDB.Operation_owner_user_id))
+				Expect(appProject.Namespace).To(Equal(namespace))
+				Expect(appProject.Spec.SourceRepos).To(Equal(repoURLs))
+				Expect(appProject.Spec.Destinations).To(Equal([]appv1.ApplicationDestination{{
+					Namespace: "*",
+					Name:      "in-cluster",
+				}}))
+
+				By("Verify whether Project field of Application CR is pointing to AppProject")
+				Expect(applicationCR2.Spec.Project).To(Equal(appProject.Name))
+
+			})
+
+			It("Verify whether the existing app project is updated when the generated app project differs from the existing app project.", func() {
+				By("Close database connection")
+				defer dbQueries.CloseDatabase()
+				defer testTeardown()
+
+				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
+				Expect(err).ToNot(HaveOccurred())
+
+				_, dummyApplicationSpecString, err := createDummyApplicationData()
+				Expect(err).ToNot(HaveOccurred())
+
+				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
+				Expect(gitopsEngineCluster).ToNot(BeNil())
+				Expect(err).ToNot(HaveOccurred())
+
+				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
+				gitopsEngineInstance := &db.GitopsEngineInstance{
+					Gitopsengineinstance_id: "test-fake-engine-instance",
+					Namespace_name:          namespace,
+					Namespace_uid:           string(workspace.UID),
+					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+				}
+				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
+				Expect(err).ToNot(HaveOccurred())
+
+				applicationDB := &db.Application{
+					Application_id:          "test-my-application",
+					Name:                    name,
+					Spec_field:              dummyApplicationSpecString,
+					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				}
+
+				By("Create Application in Database")
+				err = dbQueries.CreateApplication(ctx, applicationDB)
+				Expect(err).ToNot(HaveOccurred())
+
+				By("Creating new operation row in database")
+				operationDB := &db.Operation{
+					Operation_id:            "test-operation",
+					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+					Resource_id:             applicationDB.Application_id,
+					Resource_type:           "Application",
+					State:                   db.OperationState_Waiting,
+					Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				}
+
+				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+				Expect(err).ToNot(HaveOccurred())
+
+				By("Creating Operation CR")
+				operationCR := &managedgitopsv1alpha1.Operation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: namespace,
+					},
+					Spec: managedgitopsv1alpha1.OperationSpec{
+						OperationID: operationDB.Operation_id,
+					},
+				}
+
+				err = task.event.client.Create(ctx, operationCR)
+				Expect(err).ToNot(HaveOccurred())
+
+				By("Create a RepositoryCredentials DB entry.")
+
+				repoCredentials := db.RepositoryCredentials{
+					RepositoryCredentialsID: "test-cred-id" + string(uuid.NewUUID()),
+					UserID:                  testClusterUser.Clusteruser_id,
+					PrivateURL:              "https://test-private-url",
+					AuthUsername:            "test-auth-username",
+					AuthPassword:            "test-auth-password",
+					AuthSSHKey:              "test-auth-ssh-key",
+					SecretObj:               "test-secret-obj",
+					EngineClusterID:         gitopsEngineInstance.Gitopsengineinstance_id,
+				}
+				err = dbQueries.CreateRepositoryCredentials(ctx, &repoCredentials)
+				Expect(err).ToNot(HaveOccurred())
+
+				dbAppProjectRepo := &db.AppProjectRepository{
+					AppprojectRepositoryID: "test-appProject-repo-id",
+					Clusteruser_id:         testClusterUser.Clusteruser_id,
+					RepoURL:                "test-url",
+				}
+
+				err = dbQueries.CreateAppProjectRepository(ctx, dbAppProjectRepo)
+				Expect(err).ToNot(HaveOccurred())
+
+				By("Creating existingAppProject to verify the consistency of AppProject")
+				existingAppProject := &appv1.AppProject{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: appProjectPrefix + operationDB.Operation_owner_user_id,
+						Annotations: map[string]string{
+							"username": "test",
+						},
+						Namespace: namespace,
+					},
+					Spec: appv1.AppProjectSpec{
+						SourceRepos: []string{"test-url"},
+						Destinations: []appv1.ApplicationDestination{
+							{
+								Namespace: "test",
+								Server:    argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: applicationDB.Managed_environment_id}),
+							},
+						},
+					},
+				}
+
+				err = task.event.client.Create(ctx, existingAppProject)
+				Expect(err).ToNot(HaveOccurred())
+
+				retry, err := task.PerformTask(ctx)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(retry).To(BeFalse())
+
+				By("Verify whether the generated AppProject is equal to the existing AppProject.")
+				appProject := &appv1.AppProject{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      appProjectPrefix + operationDB.Operation_owner_user_id,
+						Namespace: namespace,
+					},
+				}
+
+				err = task.event.client.Get(ctx, types.NamespacedName{Namespace: appProject.Namespace, Name: appProject.Name}, appProject)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(appProject).ToNot(BeNil())
+				Expect(existingAppProject).ToNot(Equal(appProject))
+
+				By("checking whether existingAppProject is updated")
+				err = task.event.client.Get(ctx, types.NamespacedName{Namespace: existingAppProject.Namespace, Name: existingAppProject.Name}, existingAppProject)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(appProject).ToNot(BeNil())
+				Expect(existingAppProject).ToNot(BeNil())
+				Expect(existingAppProject).To(Equal(appProject))
+
+				By("deleting resources and cleaning up db entries created by test.")
+
+				resourcesToBeDeleted := testResources{
+					Application_id:          applicationDB.Application_id,
+					Operation_id:            []string{operationDB.Operation_id},
+					Gitopsenginecluster_id:  gitopsEngineCluster.Gitopsenginecluster_id,
+					Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
+					ClusterCredentials_id:   gitopsEngineCluster.Clustercredentials_id,
+					RepositoryCredentialsID: repoCredentials.RepositoryCredentialsID,
+					AppProjectRepositoryID:  dbAppProjectRepo.AppprojectRepositoryID,
+				}
+
+				deleteTestResources(ctx, dbQueries, resourcesToBeDeleted)
 
 			})
 
@@ -1340,7 +1541,7 @@ var _ = Describe("Operation Controller", func() {
 
 				By("creating a new managed env")
 				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("creating new cluster credentials for that managed env, containing non-default namespaces/clusterresource fields")
 				clusterCredentials := db.ClusterCredentials{
@@ -1355,18 +1556,18 @@ var _ = Describe("Operation Controller", func() {
 					ClusterResources:            true,
 				}
 				err = dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				managedEnvironment.Clustercredentials_id = clusterCredentials.Clustercredentials_cred_id
 				err = dbQueries.UpdateManagedEnvironment(ctx, managedEnvironment)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				dummyApplicationSpec, dummyApplicationSpecString, err := createDummyApplicationData()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
 				Expect(gitopsEngineCluster).ToNot(BeNil())
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 				gitopsEngineInstance := &db.GitopsEngineInstance{
@@ -1376,7 +1577,7 @@ var _ = Describe("Operation Controller", func() {
 					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 				}
 				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("creating an Application row, pointing to the ManagedEnvironment")
 				applicationDB := &db.Application{
@@ -1388,7 +1589,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = dbQueries.CreateApplication(ctx, applicationDB)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Creating Operation row in database, pointing to the Application")
 				operationDB := &db.Operation{
@@ -1401,7 +1602,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Creating Operation CR")
 				operationCR := &managedgitopsv1alpha1.Operation{
@@ -1415,14 +1616,14 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = task.event.client.Create(ctx, operationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				retry, err := task.PerformTask(ctx)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("If no error was returned, and retry is false, then verify that the 'state' field of the Operation row is Completed")
 				err = dbQueries.GetOperationById(ctx, operationDB)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(operationDB.State).To(Equal(db.OperationState_Completed))
 
 				Expect(retry).To(BeFalse())
@@ -1436,7 +1637,7 @@ var _ = Describe("Operation Controller", func() {
 
 				By("verifying the argo cd cluster secret was created, and has expected values")
 				err = task.event.client.Get(ctx, types.NamespacedName{Namespace: applicationCR.Namespace, Name: name}, &applicationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(dummyApplicationSpec.Spec).To(Equal(applicationCR.Spec))
 
 				secret := corev1.Secret{
@@ -1446,7 +1647,7 @@ var _ = Describe("Operation Controller", func() {
 					},
 				}
 				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(&secret), &secret)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				Expect(string(secret.Data["clusterResources"])).To(Equal("true"),
 					"cluster resources should match the value from clustercredentials db row")
@@ -1455,7 +1656,7 @@ var _ = Describe("Operation Controller", func() {
 
 				secretJSON := argosharedutil.ClusterSecretConfigJSON{}
 				err = json.Unmarshal(secret.Data["config"], &secretJSON)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				Expect(secretJSON.BearerToken).To(Equal(clusterCredentials.Serviceaccount_bearer_token))
 				Expect(secretJSON.TLSClientConfig.Insecure).To(Equal(clusterCredentials.AllowInsecureSkipTLSVerify))
@@ -1473,20 +1674,20 @@ var _ = Describe("Operation Controller", func() {
 					ClusterResources:            false,
 				}
 				err = dbQueries.CreateClusterCredentials(ctx, &clusterCredentials)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				managedEnvironment.Clustercredentials_id = clusterCredentials.Clustercredentials_cred_id
 				err = dbQueries.UpdateManagedEnvironment(ctx, managedEnvironment)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("reusing the operation we created previously: re-using operations isn't normally supported, but it saves us some extra lines in the unit test")
 				operationDB.State = db.OperationState_In_Progress
 				err = dbQueries.UpdateOperation(ctx, operationDB)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("calling PerformTask to process the operation, pointing to the updated managed environment")
 				retry, err = task.PerformTask(ctx)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(retry).To(BeFalse())
 
 				By("verifying the argo cd cluster secret was updated, and has expected values")
@@ -1497,7 +1698,7 @@ var _ = Describe("Operation Controller", func() {
 					},
 				}
 				err = task.event.client.Get(ctx, client.ObjectKeyFromObject(&secret), &secret)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				Expect(string(secret.Data["clusterResources"])).To(Equal(""),
 					"cluster resources should match the value from clustercredentials db row")
@@ -1506,7 +1707,7 @@ var _ = Describe("Operation Controller", func() {
 
 				secretJSON = argosharedutil.ClusterSecretConfigJSON{}
 				err = json.Unmarshal(secret.Data["config"], &secretJSON)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				Expect(secretJSON.TLSClientConfig.Insecure).To(Equal(clusterCredentials.AllowInsecureSkipTLSVerify))
 
@@ -1519,11 +1720,11 @@ var _ = Describe("Operation Controller", func() {
 					defer testTeardown()
 
 					_, dummyApplicationSpecString, err := createDummyApplicationData()
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
 					Expect(gitopsEngineCluster).ToNot(BeNil())
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					By("creating a cluster credential with tls-cert-verification set to true")
 
@@ -1550,11 +1751,11 @@ var _ = Describe("Operation Controller", func() {
 					}
 
 					err = dbQueries.CreateClusterCredentials(ctx, clusterCredentials)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 					err = dbQueries.CreateManagedEnvironment(ctx, managedEnvironment)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 					err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					applicationDB := &db.Application{
 						Application_id:          "test-my-application-new-1",
@@ -1566,7 +1767,7 @@ var _ = Describe("Operation Controller", func() {
 
 					By("Create Application in Database")
 					err = dbQueries.CreateApplication(ctx, applicationDB)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					By("Creating new operation row in database")
 					operationDB := &db.Operation{
@@ -1579,7 +1780,7 @@ var _ = Describe("Operation Controller", func() {
 					}
 
 					err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					By("Creating Operation CR")
 					operationCR := &managedgitopsv1alpha1.Operation{
@@ -1593,7 +1794,7 @@ var _ = Describe("Operation Controller", func() {
 					}
 
 					err = task.event.client.Create(ctx, operationCR)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					By("Verifying whether Cluster secret is created and unmarshalling the tls-config byte value")
 					secretName := argosharedutil.GenerateArgoCDClusterSecretName(db.ManagedEnvironment{Managedenvironment_id: applicationDB.Managed_environment_id})
@@ -1606,24 +1807,24 @@ var _ = Describe("Operation Controller", func() {
 					}
 
 					retry, err := task.PerformTask(ctx)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 					Expect(retry).To(BeFalse())
 
 					err = task.event.client.Get(ctx, client.ObjectKeyFromObject(clusterSecret), clusterSecret)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					getClusterSecretData := clusterSecret.Data
 					tlsconfigbyte := getClusterSecretData["config"]
 					var tlsunmarshalled argosharedutil.ClusterSecretConfigJSON
 					err = json.Unmarshal(tlsconfigbyte, &tlsunmarshalled)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					By("The tlsConfig value from cluster-secret should be equal to the tlsVerify value from the database")
 					Expect(tlsunmarshalled.TLSClientConfig.Insecure).To(Equal(clusterCredentials.AllowInsecureSkipTLSVerify))
 
 					By("If no error was returned, and retry is false, then verify that the 'state' field of the Operation row is Completed")
 					err = dbQueries.GetOperationById(ctx, operationDB)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 					Expect(operationDB.State).To(Equal(db.OperationState_Completed))
 
 					By("deleting resources and cleaning up db entries created by test.")
@@ -1641,6 +1842,319 @@ var _ = Describe("Operation Controller", func() {
 				Entry("TLS status set TRUE", bool(managedgitopsv1alpha1.TLSVerifyStatusTrue)),
 				Entry("TLS status set FALSE", bool(managedgitopsv1alpha1.TLSVerifyStatusFalse)),
 			)
+
+			It("Verify whether AppProject has been created or not when processing operation application", func() {
+				By("Close database connection")
+				defer dbQueries.CloseDatabase()
+				defer testTeardown()
+
+				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
+				Expect(err).ToNot(HaveOccurred())
+
+				_, dummyApplicationSpecString, err := createDummyApplicationData()
+				Expect(err).ToNot(HaveOccurred())
+
+				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
+				Expect(gitopsEngineCluster).ToNot(BeNil())
+				Expect(err).ToNot(HaveOccurred())
+
+				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
+				gitopsEngineInstance := &db.GitopsEngineInstance{
+					Gitopsengineinstance_id: "test-fake-engine-instance",
+					Namespace_name:          namespace,
+					Namespace_uid:           string(workspace.UID),
+					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+				}
+				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
+				Expect(err).ToNot(HaveOccurred())
+
+				applicationDB := &db.Application{
+					Application_id:          "test-my-application",
+					Name:                    name,
+					Spec_field:              dummyApplicationSpecString,
+					Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+					Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+				}
+
+				By("Create Application in Database")
+				err = dbQueries.CreateApplication(ctx, applicationDB)
+				Expect(err).ToNot(HaveOccurred())
+
+				By("Creating new operation row in database")
+				operationDB := &db.Operation{
+					Operation_id:            "test-operation",
+					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+					Resource_id:             applicationDB.Application_id,
+					Resource_type:           "Application",
+					State:                   db.OperationState_Waiting,
+					Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				}
+
+				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+				Expect(err).ToNot(HaveOccurred())
+
+				By("Creating Operation CR")
+				operationCR := &managedgitopsv1alpha1.Operation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: namespace,
+					},
+					Spec: managedgitopsv1alpha1.OperationSpec{
+						OperationID: operationDB.Operation_id,
+					},
+				}
+
+				err = task.event.client.Create(ctx, operationCR)
+				Expect(err).ToNot(HaveOccurred())
+
+				By("Create a RepositoryCredentials DB entry.")
+
+				repoCredentials := db.RepositoryCredentials{
+					RepositoryCredentialsID: "test-cred-id" + string(uuid.NewUUID()),
+					UserID:                  testClusterUser.Clusteruser_id,
+					PrivateURL:              "https://test-private-url",
+					AuthUsername:            "test-auth-username",
+					AuthPassword:            "test-auth-password",
+					AuthSSHKey:              "test-auth-ssh-key",
+					SecretObj:               "test-secret-obj",
+					EngineClusterID:         gitopsEngineInstance.Gitopsengineinstance_id,
+				}
+				err = dbQueries.CreateRepositoryCredentials(ctx, &repoCredentials)
+				Expect(err).ToNot(HaveOccurred())
+
+				dbAppProjectRepo := &db.AppProjectRepository{
+					AppprojectRepositoryID: "test-appProject-repo-id",
+					Clusteruser_id:         testClusterUser.Clusteruser_id,
+					RepoURL:                "test-url",
+				}
+
+				err = dbQueries.CreateAppProjectRepository(ctx, dbAppProjectRepo)
+				Expect(err).ToNot(HaveOccurred())
+
+				retry, err := task.PerformTask(ctx)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(retry).To(BeFalse())
+
+				By("Verify whether AppProject has been created")
+				appProject := &appv1.AppProject{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      appProjectPrefix + operationDB.Operation_owner_user_id,
+						Namespace: namespace,
+					},
+				}
+
+				var appProjectRepositories []db.AppProjectRepository
+				err = dbQueries.UnsafeListAllAppProjectRepositories(ctx, &appProjectRepositories)
+				Expect(err).ToNot(HaveOccurred())
+
+				var repoURLs []string
+				for _, v := range appProjectRepositories {
+					if v.Clusteruser_id == operationDB.Operation_owner_user_id {
+						repoURLs = append(repoURLs, v.RepoURL)
+					}
+				}
+
+				err = task.event.client.Get(ctx, types.NamespacedName{Namespace: appProject.Namespace, Name: appProject.Name}, appProject)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(appProject).ToNot(BeNil())
+				Expect(appProject.Name).To(Equal(appProjectPrefix + operationDB.Operation_owner_user_id))
+				Expect(appProject.Namespace).To(Equal(namespace))
+				Expect(appProject.Spec.SourceRepos).To(Equal(repoURLs))
+				Expect(appProject.Spec.Destinations).To(Equal([]appv1.ApplicationDestination{{
+					Namespace: "*",
+					Name:      "in-cluster",
+				}}))
+				Expect(appProject.Annotations["username"]).To(Equal(testClusterUser.Clusteruser_id))
+
+				By("deleting resources and cleaning up db entries created by test.")
+
+				resourcesToBeDeleted := testResources{
+					Application_id:          applicationDB.Application_id,
+					Operation_id:            []string{operationDB.Operation_id},
+					Gitopsenginecluster_id:  gitopsEngineCluster.Gitopsenginecluster_id,
+					Gitopsengineinstance_id: gitopsEngineInstance.Gitopsengineinstance_id,
+					ClusterCredentials_id:   gitopsEngineCluster.Clustercredentials_id,
+					RepositoryCredentialsID: repoCredentials.RepositoryCredentialsID,
+					AppProjectRepositoryID:  dbAppProjectRepo.AppprojectRepositoryID,
+				}
+
+				deleteTestResources(ctx, dbQueries, resourcesToBeDeleted)
+
+			})
+
+			It("Verify whether appProject CR is not deleted if appProjectManagedEnv/appProjectRepo row still exists", func() {
+				applicationCR := &appv1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: namespace,
+						Labels: map[string]string{
+							dbID: "doesnt-exist",
+						},
+						DeletionTimestamp: &metav1.Time{
+							Time: time.Now(),
+						},
+					},
+				}
+
+				err = task.event.client.Create(ctx, applicationCR)
+				Expect(err).ToNot(HaveOccurred())
+
+				// The Argo CD Applications used by GitOps Service use finalizers, so the Applicaitonwill not be deleted until the finalizer is removed.
+				// Normally it us Argo CD's job to do this, but since this is a unit test, there is no Argo CD. Instead we wait for the deletiontimestamp
+				// to be set (by the delete call of PerformTask, and then just remove the finalize and update, simulating what Argo CD does)
+				go func() {
+					err = wait.PollImmediate(1*time.Second, 1*time.Minute, func() (bool, error) {
+						if applicationCR.DeletionTimestamp != nil {
+							err = k8sClient.Get(ctx, client.ObjectKeyFromObject(applicationCR), applicationCR)
+							Expect(err).ToNot(HaveOccurred())
+
+							applicationCR.Finalizers = nil
+
+							err = k8sClient.Update(ctx, applicationCR)
+							Expect(err).ToNot(HaveOccurred())
+
+							err = task.event.client.Delete(ctx, applicationCR)
+							return true, nil
+						}
+						return false, nil
+					})
+				}()
+
+				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
+				Expect(gitopsEngineCluster).ToNot(BeNil())
+				Expect(err).ToNot(HaveOccurred())
+
+				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
+				gitopsEngineInstance := &db.GitopsEngineInstance{
+					Gitopsengineinstance_id: "test-fake-engine-instance",
+					Namespace_name:          namespace,
+					Namespace_uid:           string(workspace.UID),
+					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+				}
+				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
+				Expect(err).ToNot(HaveOccurred())
+				By("Creating Operation row in database")
+				operationDB := &db.Operation{
+					Operation_id:            "test-operation",
+					Instance_id:             gitopsEngineInstance.Gitopsengineinstance_id,
+					Resource_id:             "doesnt-exist",
+					Resource_type:           "Application",
+					State:                   db.OperationState_Waiting,
+					Operation_owner_user_id: testClusterUser.Clusteruser_id,
+				}
+
+				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
+				Expect(err).ToNot(HaveOccurred())
+
+				By("Creating Operation CR")
+				operationCR := &managedgitopsv1alpha1.Operation{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      name,
+						Namespace: namespace,
+					},
+					Spec: managedgitopsv1alpha1.OperationSpec{
+						OperationID: operationDB.Operation_id,
+					},
+				}
+
+				err = task.event.client.Create(ctx, operationCR)
+				Expect(err).ToNot(HaveOccurred())
+
+				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
+				Expect(err).ToNot(HaveOccurred())
+
+				By("Creating AppProjectManagedEnvironment")
+				appProjectManagedEnv := db.AppProjectManagedEnvironment{
+					AppprojectManagedenvID: "test-app-managedenv-id-1",
+					Managed_environment_id: managedEnvironment.Managedenvironment_id,
+					Clusteruser_id:         operationDB.Operation_owner_user_id,
+				}
+				err = dbQueries.CreateAppProjectManagedEnvironment(ctx, &appProjectManagedEnv)
+				Expect(err).ToNot(HaveOccurred())
+
+				retry, err := task.PerformTask(ctx)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(retry).To(BeFalse())
+
+				appProject := &appv1.AppProject{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      appProjectPrefix + operationDB.Operation_owner_user_id,
+						Namespace: namespace,
+					},
+				}
+
+				err = task.event.client.Get(ctx, types.NamespacedName{Namespace: appProject.Namespace, Name: appProject.Name}, appProject)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(appProject).ToNot(BeNil())
+
+			})
+
+			It("Verify appProjectEqual function works as expected", func() {
+				var isAppProjectEqual bool
+
+				By("verify whether existingAppProject and generatedAppProject are nil and it should return false")
+				var existingAppProject *appv1.AppProject
+				var generatedAppProject *appv1.AppProject
+
+				existingAppProject = nil
+				generatedAppProject = nil
+
+				isAppProjectEqual = appProjectEqual(existingAppProject, generatedAppProject)
+				Expect(isAppProjectEqual).To(BeFalse())
+
+				By("verify whether existingAppProject and generatedAppProject have different lengths of SourceRepos and it should return false")
+				existingAppProject = &appv1.AppProject{}
+				generatedAppProject = &appv1.AppProject{}
+
+				existingAppProject.Spec.SourceRepos = []string{"repo1", "repo2"}
+				generatedAppProject.Spec.SourceRepos = []string{"repo1"}
+
+				isAppProjectEqual = appProjectEqual(existingAppProject, generatedAppProject)
+				Expect(isAppProjectEqual).To(BeFalse())
+
+				By("verify whether existingAppProject and generatedAppProject have different repositories in SourceRepos and it should return false")
+				existingAppProject = &appv1.AppProject{}
+				generatedAppProject = &appv1.AppProject{}
+
+				existingAppProject.Spec.SourceRepos = []string{"repo1", "repo2"}
+				generatedAppProject.Spec.SourceRepos = []string{"repo1", "repo3"}
+
+				isAppProjectEqual = appProjectEqual(existingAppProject, generatedAppProject)
+				Expect(isAppProjectEqual).To(BeFalse())
+
+				By("verify whether existingAppProject and generatedAppProject have different lengths of Destinations and it should return false")
+				existingAppProject = &appv1.AppProject{}
+				generatedAppProject = &appv1.AppProject{}
+
+				existingAppProject.Spec.Destinations = []appv1.ApplicationDestination{{Name: "dest1"}, {Name: "dest2"}}
+				generatedAppProject.Spec.Destinations = []appv1.ApplicationDestination{{Name: "dest1"}}
+
+				isAppProjectEqual = appProjectEqual(existingAppProject, generatedAppProject)
+				Expect(isAppProjectEqual).To(BeFalse())
+
+				By("verify whether existingAppProject and generatedAppProject have different Destinations and it should return false")
+				existingAppProject = &appv1.AppProject{}
+				generatedAppProject = &appv1.AppProject{}
+
+				existingAppProject.Spec.Destinations = []appv1.ApplicationDestination{{Name: "dest1"}, {Name: "dest2"}}
+				generatedAppProject.Spec.Destinations = []appv1.ApplicationDestination{{Name: "dest1"}, {Name: "dest3"}}
+
+				isAppProjectEqual = appProjectEqual(existingAppProject, generatedAppProject)
+				Expect(isAppProjectEqual).To(BeFalse())
+
+				By("verify whether existingAppProject and generatedAppProject have the same SourceRepos and Destinations and it should return true")
+				existingAppProject = &appv1.AppProject{}
+				generatedAppProject = &appv1.AppProject{}
+
+				existingAppProject.Spec.SourceRepos = []string{"repo1", "repo2"}
+				generatedAppProject.Spec.SourceRepos = []string{"repo1", "repo2"}
+				existingAppProject.Spec.Destinations = []appv1.ApplicationDestination{{Name: "dest1"}, {Name: "dest2"}}
+				generatedAppProject.Spec.Destinations = []appv1.ApplicationDestination{{Name: "dest1"}, {Name: "dest2"}}
+
+				isAppProjectEqual = appProjectEqual(existingAppProject, generatedAppProject)
+				Expect(isAppProjectEqual).To(BeTrue())
+
+			})
 
 		})
 
@@ -1666,7 +2180,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("creating Operation CR")
 				operationCR := &managedgitopsv1alpha1.Operation{
@@ -1680,7 +2194,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = task.event.client.Create(ctx, operationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			}
 
 			updateApplicationOperationState := func(applicationCR *appv1.Application) {
@@ -1696,7 +2210,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = k8sClient.Update(ctx, applicationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 			}
 
 			// refreshHandler mocks the refresh handling behaviour of the Argo CD Application Controller.
@@ -1734,21 +2248,21 @@ var _ = Describe("Operation Controller", func() {
 					if found {
 						refreshAnnotationFound <- struct{}{}
 					}
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 				}
 			}
 
 			BeforeEach(func() {
 
 				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				_, dummyApplicationSpecString, err := createDummyApplicationData()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
 				Expect(gitopsEngineCluster).ToNot(BeNil())
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 				gitopsEngineInstance := &db.GitopsEngineInstance{
@@ -1758,7 +2272,7 @@ var _ = Describe("Operation Controller", func() {
 					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 				}
 				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				gitopsEngineInstanceID = gitopsEngineInstance.Gitopsengineinstance_id
 
@@ -1772,7 +2286,7 @@ var _ = Describe("Operation Controller", func() {
 
 				By("create Application in Database")
 				err = dbQueries.CreateApplication(ctx, applicationDB)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("create Application CR")
 				applicationCR = &appv1.Application{
@@ -1782,7 +2296,7 @@ var _ = Describe("Operation Controller", func() {
 					},
 				}
 				err = k8sClient.Create(ctx, applicationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				closeRefreshHandler = make(chan struct{})
 				refreshAnnotationFound = make(chan struct{})
@@ -1806,7 +2320,7 @@ var _ = Describe("Operation Controller", func() {
 					DesiredState:        db.SyncOperation_DesiredState_Running,
 				}
 				err = dbQueries.CreateSyncOperation(ctx, &syncOperation)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("create Operation DB row and CR for the SyncOperation")
 				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
@@ -1820,7 +2334,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				retry, err := task.PerformTask(ctx)
-				Expect(err).Should(BeNil())
+				Expect(err).ShouldNot(HaveOccurred())
 				Expect(retry).To(BeFalse())
 
 				By("verify if the refresh annotation was added")
@@ -1838,7 +2352,7 @@ var _ = Describe("Operation Controller", func() {
 					DesiredState:        db.SyncOperation_DesiredState_Running,
 				}
 				err = dbQueries.CreateSyncOperation(ctx, &syncOperation)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("create Operation DB row and CR for the SyncOperation")
 				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
@@ -1870,7 +2384,7 @@ var _ = Describe("Operation Controller", func() {
 					DesiredState:        db.SyncOperation_DesiredState_Running,
 				}
 				err = dbQueries.CreateSyncOperation(ctx, &syncOperation)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("create Operation DB row and CR for the SyncOperation")
 				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
@@ -1898,7 +2412,7 @@ var _ = Describe("Operation Controller", func() {
 					DesiredState:        db.SyncOperation_DesiredState_Running,
 				}
 				err = dbQueries.CreateSyncOperation(ctx, &syncOperation)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("create Operation DB row and CR for the SyncOperation")
 				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
@@ -1911,7 +2425,7 @@ var _ = Describe("Operation Controller", func() {
 					"key-2": "value-2",
 				}
 				err = k8sClient.Update(ctx, appCRClone)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				// verify if a conflict has been introduced.
 				applicationCR.Annotations = make(map[string]string)
@@ -1928,7 +2442,7 @@ var _ = Describe("Operation Controller", func() {
 
 				// verify if the Application was refreshed by overcoming the conflict introduced in the previous step.
 				retry, err := task.PerformTask(ctx)
-				Expect(err).Should(BeNil())
+				Expect(err).ShouldNot(HaveOccurred())
 				Expect(retry).To(BeFalse())
 
 				By("verify if the refresh annotation was added")
@@ -1964,7 +2478,7 @@ var _ = Describe("Operation Controller", func() {
 					DesiredState:        "uknown",
 				}
 				err = dbQueries.CreateSyncOperation(ctx, &syncOperation)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("create Operation DB row and CR for the SyncOperation")
 				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
@@ -1976,7 +2490,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				retry, err := task.PerformTask(ctx)
-				Expect(err).Should(BeNil())
+				Expect(err).ShouldNot(HaveOccurred())
 				Expect(retry).To(BeFalse())
 			})
 
@@ -1993,7 +2507,7 @@ var _ = Describe("Operation Controller", func() {
 					DesiredState:        db.SyncOperation_DesiredState_Terminated,
 				}
 				err = dbQueries.CreateSyncOperation(ctx, &syncOperation)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("create Operation DB row and CR for the SyncOperation")
 				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
@@ -2006,7 +2520,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				retry, err := task.PerformTask(ctx)
-				Expect(err).Should(BeNil())
+				Expect(err).ShouldNot(HaveOccurred())
 				Expect(retry).To(BeFalse())
 			})
 
@@ -2023,7 +2537,7 @@ var _ = Describe("Operation Controller", func() {
 					DesiredState:        db.SyncOperation_DesiredState_Terminated,
 				}
 				err = dbQueries.CreateSyncOperation(ctx, &syncOperation)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("create Operation DB row and CR for the SyncOperation")
 				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
@@ -2051,7 +2565,7 @@ var _ = Describe("Operation Controller", func() {
 					DesiredState:        db.SyncOperation_DesiredState_Terminated,
 				}
 				err = dbQueries.CreateSyncOperation(ctx, &syncOperation)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("create Operation DB row and CR for the SyncOperation")
 				createOperationDBAndCR(syncOperation.SyncOperation_id, gitopsEngineInstanceID)
@@ -2064,7 +2578,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				retry, err := task.PerformTask(ctx)
-				Expect(err).Should(BeNil())
+				Expect(err).ShouldNot(HaveOccurred())
 				Expect(retry).To(BeFalse())
 			})
 
@@ -2100,10 +2614,10 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = k8sClient.Create(ctx, applicationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				isRunning, err := isOperationRunning(ctx, k8sClient, applicationCR.Name, applicationCR.Namespace)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(isRunning).To(BeFalse())
 
 			})
@@ -2118,10 +2632,10 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = k8sClient.Create(ctx, applicationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				isRunning, err := isOperationRunning(ctx, k8sClient, applicationCR.Name, applicationCR.Namespace)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(isRunning).To(BeFalse())
 
 			})
@@ -2136,17 +2650,17 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = k8sClient.Create(ctx, applicationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				isRunning, err := isOperationRunning(ctx, k8sClient, applicationCR.Name, applicationCR.Namespace)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(isRunning).To(BeTrue())
 
 			})
 
 			It("should return a missing error if the Application is not found", func() {
 				isRunning, err := isOperationRunning(ctx, k8sClient, applicationCR.Name, applicationCR.Namespace)
-				Expect(err).ToNot(BeNil())
+				Expect(err).To(HaveOccurred())
 				Expect(apierr.IsNotFound(err)).Should(BeTrue())
 				Expect(isRunning).To(BeFalse())
 			})
@@ -2156,19 +2670,19 @@ var _ = Describe("Operation Controller", func() {
 
 			It("ensures that Operation should be processed if created in a GitopsEngineInstance namespace", func() {
 				err = db.SetupForTestingDBGinkgo()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				defer dbQueries.CloseDatabase()
 				defer testTeardown()
 
 				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				dummyApplicationSpec, dummyApplicationSpecString, err := createDummyApplicationData()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
 				Expect(gitopsEngineCluster).ToNot(BeNil())
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 				gitopsEngineInstance := &db.GitopsEngineInstance{
@@ -2178,7 +2692,7 @@ var _ = Describe("Operation Controller", func() {
 					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 				}
 				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Create Application in Database")
 				applicationDB := &db.Application{
@@ -2190,7 +2704,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = dbQueries.CreateApplication(ctx, applicationDB)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Creating Operation row in database")
 				operationDB := &db.Operation{
@@ -2203,7 +2717,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Creating Operation CR")
 				operationCR := &managedgitopsv1alpha1.Operation{
@@ -2217,14 +2731,14 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = task.event.client.Create(ctx, operationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				retry, err := task.PerformTask(ctx)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("If no error was returned, and retry is false, then verify that the 'state' field of the Operation row is Completed")
 				err = dbQueries.GetOperationById(ctx, operationDB)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(operationDB.State).To(Equal(db.OperationState_Completed))
 
 				Expect(retry).To(BeFalse())
@@ -2237,7 +2751,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = task.event.client.Get(ctx, types.NamespacedName{Namespace: applicationCR.Namespace, Name: name}, &applicationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				Expect(dummyApplicationSpec.Spec).To(Equal(applicationCR.Spec))
 
 			})
@@ -2245,19 +2759,19 @@ var _ = Describe("Operation Controller", func() {
 			It("ensures that Operation should not be processed if created outside a GitopsEngineInstance namespace, and error should be returned", func() {
 				By("Close database connection")
 				err = db.SetupForTestingDBGinkgo()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				defer dbQueries.CloseDatabase()
 				defer testTeardown()
 
 				_, managedEnvironment, _, _, _, err := db.CreateSampleData(dbQueries)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				dummyApplicationSpec, dummyApplicationSpecString, err := createDummyApplicationData()
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				gitopsEngineCluster, _, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, logger)
 				Expect(gitopsEngineCluster).ToNot(BeNil())
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("creating a gitops engine instance with a namespace name/uid that don't exist in fakeclient")
 				gitopsEngineInstance := &db.GitopsEngineInstance{
@@ -2267,7 +2781,7 @@ var _ = Describe("Operation Controller", func() {
 					EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
 				}
 				err = dbQueries.CreateGitopsEngineInstance(ctx, gitopsEngineInstance)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Create Application in Database")
 				applicationDB := &db.Application{
@@ -2279,7 +2793,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = dbQueries.CreateApplication(ctx, applicationDB)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Creating Operation row in database")
 				operationDB := &db.Operation{
@@ -2292,7 +2806,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = dbQueries.CreateOperation(ctx, operationDB, operationDB.Operation_owner_user_id)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Creating Operation CR")
 				operationCR := &managedgitopsv1alpha1.Operation{
@@ -2306,10 +2820,10 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = task.event.client.Create(ctx, operationCR)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				retry, err := task.PerformTask(ctx)
-				Expect(err).ToNot(BeNil())
+				Expect(err).To(HaveOccurred())
 				Expect(retry).To(BeFalse())
 				errString := err.Error()
 				mismatchedNamespaceErr := "OperationNS: " + operationCR.Namespace + " " + "GitopsEngineInstanceNS: " + gitopsEngineInstance.Namespace_name
@@ -2324,7 +2838,7 @@ var _ = Describe("Operation Controller", func() {
 				}
 
 				err = task.event.client.Get(ctx, types.NamespacedName{Namespace: applicationCR.Namespace, Name: name}, &applicationCR)
-				Expect(err).ToNot(BeNil())
+				Expect(err).To(HaveOccurred())
 				Expect(dummyApplicationSpec.Spec).ToNot(Equal(applicationCR.Spec))
 			})
 		})
@@ -2334,7 +2848,7 @@ var _ = Describe("Operation Controller", func() {
 
 func testTeardown() {
 	err := db.SetupForTestingDBGinkgo()
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 }
 
 func newRequest(namespace, name string) reconcile.Request {
@@ -2356,6 +2870,8 @@ type testResources struct {
 	Managedenvironment_id         string
 	kubernetesToDBResourceMapping db.KubernetesToDBResourceMapping
 	SyncOperation_id              string
+	RepositoryCredentialsID       string
+	AppProjectRepositoryID        string
 }
 
 // Delete resources from table
@@ -2366,35 +2882,50 @@ func deleteTestResources(ctx context.Context, dbQueries db.AllDatabaseQueries, r
 	// Delete SyncOperation
 	if resourcesToBeDeleted.SyncOperation_id != "" {
 		rowsAffected, err = dbQueries.DeleteSyncOperationById(ctx, resourcesToBeDeleted.SyncOperation_id)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).To(Equal(1))
 	}
 
 	// Delete Application
 	if resourcesToBeDeleted.Application_id != "" {
 		rowsAffected, err = dbQueries.DeleteApplicationById(ctx, resourcesToBeDeleted.Application_id)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
+		Expect(rowsAffected).To(Equal(1))
+	}
+
+	// Delete AppProjectRepository
+	if resourcesToBeDeleted.AppProjectRepositoryID != "" {
+
+		rowsAffected, err = dbQueries.DeleteAppProjectRepositoryByAppProjectRepositoryID(ctx, &db.AppProjectRepository{AppprojectRepositoryID: resourcesToBeDeleted.AppProjectRepositoryID})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(rowsAffected).To(Equal(1))
+	}
+
+	// Delete RepositoryCredentials
+	if resourcesToBeDeleted.RepositoryCredentialsID != "" {
+		rowsAffected, err = dbQueries.DeleteRepositoryCredentialsByID(ctx, resourcesToBeDeleted.RepositoryCredentialsID)
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).To(Equal(1))
 	}
 
 	// Delete kubernetesToDBResourceMapping
 	if resourcesToBeDeleted.kubernetesToDBResourceMapping.KubernetesResourceUID != "" {
 		rowsAffected, err = dbQueries.DeleteKubernetesResourceToDBResourceMapping(ctx, &resourcesToBeDeleted.kubernetesToDBResourceMapping)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).To(Equal(1))
 	}
 
 	// Delete ManagedEnvironment
 	if resourcesToBeDeleted.Managedenvironment_id != "" {
 		rowsAffected, err = dbQueries.DeleteManagedEnvironmentById(ctx, resourcesToBeDeleted.Managedenvironment_id)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).To(Equal(1))
 	}
 
 	// Delete Operation
 	for _, operationToDelete := range resourcesToBeDeleted.Operation_id {
 		rowsAffected, err = dbQueries.DeleteOperationById(ctx, operationToDelete)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).To(Equal(1))
 
 	}
@@ -2402,21 +2933,21 @@ func deleteTestResources(ctx context.Context, dbQueries db.AllDatabaseQueries, r
 	// Delete GitopsEngineInstance
 	if resourcesToBeDeleted.Gitopsengineinstance_id != "" {
 		rowsAffected, err = dbQueries.DeleteGitopsEngineInstanceById(ctx, resourcesToBeDeleted.Gitopsengineinstance_id)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).To(Equal(1))
 	}
 
 	// Delete GitopsEngineCluster
 	if resourcesToBeDeleted.Gitopsenginecluster_id != "" {
 		rowsAffected, err = dbQueries.DeleteGitopsEngineClusterById(ctx, resourcesToBeDeleted.Gitopsenginecluster_id)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).To(Equal(1))
 	}
 
 	// Delete ClusterCredentials
 	if resourcesToBeDeleted.ClusterCredentials_id != "" {
 		rowsAffected, err = dbQueries.DeleteClusterCredentialsById(ctx, resourcesToBeDeleted.ClusterCredentials_id)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(rowsAffected).To(Equal(1))
 	}
 
@@ -2429,16 +2960,12 @@ func createDummyApplicationData() (appv1.Application, string, error) {
 func createCustomizedDummyApplicationData(repoPath string) (appv1.Application, string, error) {
 	// Create dummy Application Spec to be saved in DB
 	dummyApplicationSpec := appv1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "operation",
 			Namespace: "my-user",
 		},
 		Spec: appv1.ApplicationSpec{
-			Source: appv1.ApplicationSource{
+			Source: &appv1.ApplicationSource{
 				Path:           "guestbook",
 				TargetRevision: "HEAD",
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
@@ -2473,16 +3000,12 @@ func createApplicationWithSyncOption(syncOptionParam string) (appv1.Application,
 
 	// Create dummy Application Spec to be saved in DB
 	dummyApplicationSpec := appv1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "operation",
 			Namespace: "my-user",
 		},
 		Spec: appv1.ApplicationSpec{
-			Source: appv1.ApplicationSource{
+			Source: &appv1.ApplicationSource{
 				Path:           "guestbook",
 				TargetRevision: "HEAD",
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
@@ -2491,7 +3014,7 @@ func createApplicationWithSyncOption(syncOptionParam string) (appv1.Application,
 				Namespace: "guestbook",
 				Server:    "https://kubernetes.default.svc",
 			},
-			Project: "default",
+			Project: "app-project-test-user",
 			SyncPolicy: &appv1.SyncPolicy{
 				SyncOptions: syncOptions,
 			},

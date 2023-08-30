@@ -68,7 +68,8 @@ var (
 		Health:                          "Healthy",
 		Sync_Status:                     "Synced",
 		ReconciledState:                 "test-reconcile",
-		SyncError:                       "test-sync-error",
+		OperationState:                  []byte("operation_state"),
+		Conditions:                      []byte("conditions"),
 	}
 
 	AddTest_PreDTAM = db.DeploymentToApplicationMapping{
@@ -132,5 +133,22 @@ var (
 		NamespaceUID:         "test-namespace-uid",
 		DBRelationType:       db.APICRToDatabaseMapping_DBRelationType_SyncOperation,
 		DBRelationKey:        "test-key",
+	}
+
+	AddTest_PreAppProjectRepository = db.AppProjectRepository{
+		AppprojectRepositoryID: "test-app-project-repo",
+		Clusteruser_id:         AddTest_PreClusterUser.Clusteruser_id,
+		RepoURL:                AddTest_PreRepositoryCredentials.PrivateURL,
+	}
+
+	AddTest_PreAppProjectManagedEnv = db.AppProjectManagedEnvironment{
+		AppprojectManagedenvID: "test-app-project-managedenv",
+		Managed_environment_id: AddTest_PreManagedEnvironment.Managedenvironment_id,
+		Clusteruser_id:         AddTest_PreClusterUser.Clusteruser_id,
+	}
+
+	AddTest_PreApplicationOwner = db.ApplicationOwner{
+		ApplicationOwnerApplicationID: AddTest_PreApplicationDB.Application_id,
+		ApplicationOwnerUserID:        AddTest_PreClusterUser.Clusteruser_id,
 	}
 )

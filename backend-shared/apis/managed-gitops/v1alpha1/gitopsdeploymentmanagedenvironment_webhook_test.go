@@ -46,13 +46,13 @@ var _ = Describe("GitOpsDeploymentManagedEnvironment validation webhook", func()
 		It("Should fail with error saying cluster api url must start with https://", func() {
 
 			err := k8sClient.Create(ctx, namespace)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			managedEnv.Spec.APIURL = "smtp://api-url"
 			err = k8sClient.Create(ctx, managedEnv)
 
 			Expect(err).Should(Not(Succeed()))
-			Expect(err.Error()).Should(ContainSubstring("cluster api url must start with https://"))
+			Expect(err.Error()).Should(ContainSubstring(error_invalid_cluster_api_url))
 		})
 	})
 
@@ -70,10 +70,10 @@ var _ = Describe("GitOpsDeploymentManagedEnvironment validation webhook", func()
 			managedEnv.Spec.APIURL = "smtp://api-url"
 			err = k8sClient.Update(ctx, managedEnv)
 			Expect(err).Should(HaveOccurred())
-			Expect(err.Error()).Should(ContainSubstring("cluster api url must start with https://"))
+			Expect(err.Error()).Should(ContainSubstring(error_invalid_cluster_api_url))
 
 			err = k8sClient.Delete(context.Background(), managedEnv)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 		})
 	})

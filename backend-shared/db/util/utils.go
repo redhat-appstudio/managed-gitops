@@ -471,10 +471,10 @@ func GetOrCreateDeploymentToApplicationMapping(ctx context.Context, createDeplTo
 }
 
 // DisposeResources deletes of a 'resources' list of database entries in reverse order, by calling Dispose() on the object.
-func DisposeResources(ctx context.Context, resources []db.DisposableResource, dbq db.DatabaseQueries, log logr.Logger) {
+func DisposeResources(ctx context.Context, resources []db.DisposableResource, dbq db.DatabaseQueries, log logr.Logger) error {
 
 	if len(resources) == 0 {
-		return
+		return nil
 	}
 
 	var err error
@@ -502,13 +502,15 @@ func DisposeResources(ctx context.Context, resources []db.DisposableResource, db
 	if err != nil {
 		log.Error(err, "unable to delete old resources after operation")
 	}
+
+	return err
 }
 
 // DisposeApplicationScopedResources of a 'resources' list of database entries in reverse order, by calling Dispose() on the object.
-func DisposeApplicationScopedResources(ctx context.Context, resources []db.AppScopedDisposableResource, dbq db.ApplicationScopedQueries, log logr.Logger) {
+func DisposeApplicationScopedResources(ctx context.Context, resources []db.AppScopedDisposableResource, dbq db.ApplicationScopedQueries, log logr.Logger) error {
 
 	if len(resources) == 0 {
-		return
+		return nil
 	}
 
 	var err error
@@ -536,4 +538,6 @@ func DisposeApplicationScopedResources(ctx context.Context, resources []db.AppSc
 	if err != nil {
 		log.Error(err, "unable to delete old resources after operation")
 	}
+
+	return err
 }

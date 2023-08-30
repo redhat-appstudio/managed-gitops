@@ -54,17 +54,17 @@ var _ = Describe("Database Query interface tests", func() {
 
 			By("verifying that verbose and non-verbose parameters return different pools")
 			firstNonVerbose, err := NewSharedProductionPostgresDBQueries(false)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			firstVerbose, err := NewSharedProductionPostgresDBQueries(true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(firstNonVerbose).ToNot(Equal(firstVerbose))
 
 			By("verifying that each subsequent call returns the existing connection object, which confirms the connections are shared in the pool.")
 			for count := 0; count < 10; count++ {
 				nextVerbose, err := NewSharedProductionPostgresDBQueries(true)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 				nextNonVerbose, err := NewSharedProductionPostgresDBQueries(false)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				Expect(nextVerbose).To(Equal(firstVerbose))
 				Expect(nextNonVerbose).To(Equal(firstNonVerbose))
@@ -78,19 +78,19 @@ var _ = Describe("Database Query interface tests", func() {
 				User_name: sharedConnectionPoolUserName,
 			}
 			err = conn.CreateClusterUser(context.Background(), &createdClusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			retrievedClusterUser := ClusterUser{
 				Clusteruser_id: createdClusterUser.Clusteruser_id,
 			}
 			err = conn.GetClusterUserById(context.Background(), &retrievedClusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		}
 
 		It("Should verify the non-verbose shared connection pools can be connected to", func() {
 
 			conn, err := NewSharedProductionPostgresDBQueries(false)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			verifyValidConnection(conn)
 		})
@@ -98,7 +98,7 @@ var _ = Describe("Database Query interface tests", func() {
 		It("Should verify the verbose shared connection pools can be connected to", func() {
 
 			conn, err := NewSharedProductionPostgresDBQueries(true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			verifyValidConnection(conn)
 		})

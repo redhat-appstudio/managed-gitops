@@ -34,7 +34,7 @@ var _ = Describe("RepoCred Reconcile Function Tests", func() {
 				kubesystemNamespace,
 				apiNamespace,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create fake client
 			k8sClient = fake.NewClientBuilder().
@@ -43,17 +43,17 @@ var _ = Describe("RepoCred Reconcile Function Tests", func() {
 				Build()
 
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 			log = logger.FromContext(ctx)
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Create required DB entries.")
 
 			_, _, _, gitopsEngineInstance, _, err = db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create DB entry for ClusterUser
 			clusterUserDb = &db.ClusterUser{
@@ -61,7 +61,7 @@ var _ = Describe("RepoCred Reconcile Function Tests", func() {
 				User_name:      "test-repocred-user",
 			}
 			err = dbq.CreateClusterUser(ctx, clusterUserDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create DB entry for RepositoryCredentials
 			gitopsRepositoryCredentialsDb = db.RepositoryCredentials{
@@ -75,7 +75,7 @@ var _ = Describe("RepoCred Reconcile Function Tests", func() {
 				EngineClusterID:         gitopsEngineInstance.Gitopsengineinstance_id,
 			}
 			err = dbq.CreateRepositoryCredentials(ctx, &gitopsRepositoryCredentialsDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			// Create DB entry for APICRToDatabaseMapping
 			apiCRToDatabaseMappingDb = db.APICRToDatabaseMapping{
@@ -89,7 +89,7 @@ var _ = Describe("RepoCred Reconcile Function Tests", func() {
 			}
 
 			err = dbq.CreateAPICRToDatabaseMapping(ctx, &apiCRToDatabaseMappingDb)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			gitopsDeploymentRepositoryCredentialCR := &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{
 				ObjectMeta: metav1.ObjectMeta{
@@ -100,7 +100,7 @@ var _ = Describe("RepoCred Reconcile Function Tests", func() {
 			// Create GitOpsDeployment CR in cluster
 			err = k8sClient.Create(context.Background(), gitopsDeploymentRepositoryCredentialCR)
 
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("should reconcile status for RepositoryCredentials if the entry is present in RepositoryCredentials DB", func() {
@@ -119,9 +119,9 @@ var _ = Describe("RepoCred Reconcile Function Tests", func() {
 			repoCredCR := &managedgitopsv1alpha1.GitOpsDeploymentRepositoryCredential{ObjectMeta: objectMeta}
 
 			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(repoCredCR), repoCredCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(repoCredCR).NotTo(BeNil())
-			Expect(len(repoCredCR.Status.Conditions)).To(Equal(3))
+			Expect(repoCredCR.Status.Conditions).To(HaveLen(3))
 
 		})
 	})

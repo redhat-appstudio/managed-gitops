@@ -1,11 +1,9 @@
-
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.6.1
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.12.1
   name: gitopsdeployments.managed-gitops.redhat.com
 spec:
   group: managed-gitops.redhat.com
@@ -154,6 +152,369 @@ spec:
                       resource
                     type: string
                 type: object
+              operationState:
+                description: OperationState contains information about any ongoing
+                  operations, such as a sync
+                properties:
+                  finishedAt:
+                    description: FinishedAt contains time of operation completion
+                    format: date-time
+                    type: string
+                  message:
+                    description: Message holds any pertinent messages when attempting
+                      to perform operation (typically errors).
+                    type: string
+                  operation:
+                    description: Operation is the original requested operation
+                    properties:
+                      info:
+                        description: Info is a list of informational items for this
+                          operation
+                        items:
+                          properties:
+                            name:
+                              type: string
+                            value:
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
+                      initiatedBy:
+                        description: InitiatedBy contains information about who initiated
+                          the operations
+                        properties:
+                          automated:
+                            description: Automated is set to true if operation was
+                              initiated automatically by the application controller.
+                            type: boolean
+                          username:
+                            description: Username contains the name of a user who
+                              started operation
+                            type: string
+                        type: object
+                      retry:
+                        description: Retry controls the strategy to apply if a sync
+                          fails
+                        properties:
+                          backoff:
+                            description: Backoff controls how to backoff on subsequent
+                              retries of failed syncs
+                            properties:
+                              duration:
+                                description: Duration is the amount to back off. Default
+                                  unit is seconds, but could also be a duration (e.g.
+                                  "2m", "1h")
+                                type: string
+                              factor:
+                                description: Factor is a factor to multiply the base
+                                  duration after each failed retry
+                                format: int64
+                                type: integer
+                              maxDuration:
+                                description: MaxDuration is the maximum amount of
+                                  time allowed for the backoff strategy
+                                type: string
+                            type: object
+                          limit:
+                            description: Limit is the maximum number of attempts for
+                              retrying a failed sync. If set to 0, no retries will
+                              be performed.
+                            format: int64
+                            type: integer
+                        type: object
+                      sync:
+                        description: Sync contains parameters for the operation
+                        properties:
+                          dryRun:
+                            description: DryRun specifies to perform a `kubectl apply
+                              --dry-run` without actually performing the sync
+                            type: boolean
+                          manifests:
+                            description: Manifests is an optional field that overrides
+                              sync source with a local directory for development
+                            items:
+                              type: string
+                            type: array
+                          prune:
+                            description: Prune specifies to delete resources from
+                              the cluster that are no longer tracked in git
+                            type: boolean
+                          resources:
+                            description: Resources describes which resources shall
+                              be part of the sync
+                            items:
+                              description: SyncOperationResource contains resources
+                                to sync.
+                              properties:
+                                group:
+                                  type: string
+                                kind:
+                                  type: string
+                                name:
+                                  type: string
+                                namespace:
+                                  type: string
+                              required:
+                              - kind
+                              - name
+                              type: object
+                            type: array
+                          revision:
+                            description: Revision is the revision (Git) or chart version
+                              (Helm) which to sync the application to If omitted,
+                              will use the revision specified in app spec.
+                            type: string
+                          revisions:
+                            description: Revisions is the list of revision (Git) or
+                              chart version (Helm) which to sync each source in sources
+                              field for the application to If omitted, will use the
+                              revision specified in app spec.
+                            items:
+                              type: string
+                            type: array
+                          source:
+                            description: Source overrides the source definition set
+                              in the application. This is typically set in a Rollback
+                              operation and is nil during a Sync operation
+                            properties:
+                              path:
+                                description: Path is a directory path within the Git
+                                  repository, and is only valid for applications sourced
+                                  from Git.
+                                type: string
+                              repoURL:
+                                description: RepoURL is the URL to the repository
+                                  (Git or Helm) that contains the application manifests
+                                type: string
+                              targetRevision:
+                                description: TargetRevision defines the revision of
+                                  the source to sync the application to. In case of
+                                  Git, this can be commit, tag, or branch. If omitted,
+                                  will equal to HEAD. In case of Helm, this is a semver
+                                  tag for the Chart's version.
+                                type: string
+                            required:
+                            - path
+                            - repoURL
+                            type: object
+                          sources:
+                            description: Sources overrides the source definition set
+                              in the application. This is typically set in a Rollback
+                              operation and is nil during a Sync operation
+                            items:
+                              description: ApplicationSource contains all required
+                                information about the source of an application
+                              properties:
+                                path:
+                                  description: Path is a directory path within the
+                                    Git repository, and is only valid for applications
+                                    sourced from Git.
+                                  type: string
+                                repoURL:
+                                  description: RepoURL is the URL to the repository
+                                    (Git or Helm) that contains the application manifests
+                                  type: string
+                                targetRevision:
+                                  description: TargetRevision defines the revision
+                                    of the source to sync the application to. In case
+                                    of Git, this can be commit, tag, or branch. If
+                                    omitted, will equal to HEAD. In case of Helm,
+                                    this is a semver tag for the Chart's version.
+                                  type: string
+                              required:
+                              - path
+                              - repoURL
+                              type: object
+                            type: array
+                          syncOptions:
+                            description: SyncOptions provide per-sync sync-options,
+                              e.g. Validate=false
+                            items:
+                              type: string
+                            type: array
+                          syncStrategy:
+                            description: SyncStrategy describes how to perform the
+                              sync
+                            properties:
+                              apply:
+                                description: Apply will perform a `kubectl apply`
+                                  to perform the sync.
+                                properties:
+                                  force:
+                                    description: Force indicates whether or not to
+                                      supply the --force flag to `kubectl apply`.
+                                      The --force flag deletes and re-create the resource,
+                                      when PATCH encounters conflict and has retried
+                                      for 5 times.
+                                    type: boolean
+                                type: object
+                              hook:
+                                description: Hook will submit any referenced resources
+                                  to perform the sync. This is the default strategy
+                                properties:
+                                  force:
+                                    description: Force indicates whether or not to
+                                      supply the --force flag to `kubectl apply`.
+                                      The --force flag deletes and re-create the resource,
+                                      when PATCH encounters conflict and has retried
+                                      for 5 times.
+                                    type: boolean
+                                type: object
+                            type: object
+                        type: object
+                    type: object
+                  phase:
+                    description: Phase is the current phase of the operation
+                    type: string
+                  retryCount:
+                    description: RetryCount contains time of operation retries
+                    format: int64
+                    type: integer
+                  startedAt:
+                    description: StartedAt contains time of operation start
+                    format: date-time
+                    type: string
+                  syncResult:
+                    description: SyncResult is the result of a Sync operation
+                    properties:
+                      managedNamespaceMetadata:
+                        description: ManagedNamespaceMetadata contains the current
+                          sync state of managed namespace metadata
+                        properties:
+                          annotations:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          labels:
+                            additionalProperties:
+                              type: string
+                            type: object
+                        type: object
+                      resources:
+                        description: Resources contains a list of sync result items
+                          for each individual resource in a sync operation
+                        items:
+                          description: ResourceResult holds the operation result details
+                            of a specific resource
+                          properties:
+                            group:
+                              description: Group specifies the API group of the resource
+                              type: string
+                            hookPhase:
+                              description: HookPhase contains the state of any operation
+                                associated with this resource OR hook This can also
+                                contain values for non-hook resources.
+                              type: string
+                            hookType:
+                              description: HookType specifies the type of the hook.
+                                Empty for non-hook resources
+                              type: string
+                            kind:
+                              description: Kind specifies the API kind of the resource
+                              type: string
+                            message:
+                              description: Message contains an informational or error
+                                message for the last sync OR operation
+                              type: string
+                            name:
+                              description: Name specifies the name of the resource
+                              type: string
+                            namespace:
+                              description: Namespace specifies the target namespace
+                                of the resource
+                              type: string
+                            status:
+                              description: Status holds the final result of the sync.
+                                Will be empty if the resources is yet to be applied/pruned
+                                and is always zero-value for hooks
+                              type: string
+                            syncPhase:
+                              description: SyncPhase indicates the particular phase
+                                of the sync that this result was acquired in
+                              type: string
+                            version:
+                              description: Version specifies the API version of the
+                                resource
+                              type: string
+                          required:
+                          - group
+                          - kind
+                          - name
+                          - namespace
+                          - version
+                          type: object
+                        type: array
+                      revision:
+                        description: Revision holds the revision this sync operation
+                          was performed to
+                        type: string
+                      revisions:
+                        description: Revisions holds the revision this sync operation
+                          was performed for respective indexed source in sources field
+                        items:
+                          type: string
+                        type: array
+                      source:
+                        description: Source records the application source information
+                          of the sync, used for comparing auto-sync
+                        properties:
+                          path:
+                            description: Path is a directory path within the Git repository,
+                              and is only valid for applications sourced from Git.
+                            type: string
+                          repoURL:
+                            description: RepoURL is the URL to the repository (Git
+                              or Helm) that contains the application manifests
+                            type: string
+                          targetRevision:
+                            description: TargetRevision defines the revision of the
+                              source to sync the application to. In case of Git, this
+                              can be commit, tag, or branch. If omitted, will equal
+                              to HEAD. In case of Helm, this is a semver tag for the
+                              Chart's version.
+                            type: string
+                        required:
+                        - path
+                        - repoURL
+                        type: object
+                      sources:
+                        description: Source records the application source information
+                          of the sync, used for comparing auto-sync
+                        items:
+                          description: ApplicationSource contains all required information
+                            about the source of an application
+                          properties:
+                            path:
+                              description: Path is a directory path within the Git
+                                repository, and is only valid for applications sourced
+                                from Git.
+                              type: string
+                            repoURL:
+                              description: RepoURL is the URL to the repository (Git
+                                or Helm) that contains the application manifests
+                              type: string
+                            targetRevision:
+                              description: TargetRevision defines the revision of
+                                the source to sync the application to. In case of
+                                Git, this can be commit, tag, or branch. If omitted,
+                                will equal to HEAD. In case of Helm, this is a semver
+                                tag for the Chart's version.
+                              type: string
+                          required:
+                          - path
+                          - repoURL
+                          type: object
+                        type: array
+                    required:
+                    - revision
+                    type: object
+                required:
+                - operation
+                - phase
+                - startedAt
+                type: object
               reconciledState:
                 description: ReconciledState contains the last version of the GitOpsDeployment
                   resource that the ArgoCD Controller reconciled
@@ -248,9 +609,3 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []

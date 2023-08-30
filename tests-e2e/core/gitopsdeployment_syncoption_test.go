@@ -29,7 +29,7 @@ var _ = Describe("Argo CD Application", func() {
 			By("create a new GitOpsDeployment CR")
 
 			gitOpsDeployment := gitopsDeplFixture.BuildGitOpsDeploymentResource("my-gitops-depl-automated",
-				"https://github.com/redhat-appstudio/managed-gitops", "resources/test-data/sample-gitops-repository/environments/overlays/dev",
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			gitOpsDeployment.Spec.SyncPolicy = &managedgitopsv1alpha1.SyncPolicy{
@@ -51,19 +51,19 @@ var _ = Describe("Argo CD Application", func() {
 
 			By("get the Application name created by the GitOpsDeployment resource")
 			dbQueries, err := db.NewUnsafePostgresDBQueries(false, false)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			appMapping := &db.DeploymentToApplicationMapping{
 				Deploymenttoapplicationmapping_uid_id: string(gitOpsDeployment.UID),
 			}
 			err = dbQueries.GetDeploymentToApplicationMappingByDeplId(context.Background(), appMapping)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dbApplication := &db.Application{
 				Application_id: appMapping.Application_id,
 			}
 			err = dbQueries.GetApplicationById(context.Background(), dbApplication)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("verify that the Argo CD Application has syncOption - CreateNamespace=true")
 			app := appv1alpha1.Application{

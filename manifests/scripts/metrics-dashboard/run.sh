@@ -133,6 +133,24 @@ kubectl apply -f postgresql/grafana-postgresql-dashboard-cm.yaml
 kubectl apply -f postgresql/grafana-postgresql-dashboard.yaml
 echo "* Finished creating GitOps Service PostgreSQL datasource and dashboard"
 
+echo "* Install Prometheus Postgres Exporter using community Helm chart"
+# Install the postgres exporter using helm and set the relevant parameters to connect to the postgres db
+# Once it is up and running, go to the pod's log and ensure there is a message that says there is a message "Established new database connection"
+# Alternatively, can use a values file, but it is all contained here:
+helm install prometheus-community/prometheus-postgres-exporter \
+--set config.datasource.host=$POSTGRESQL_CLUSTERIP,config.datasource.user=postgres,config.datasource.passwordSecret.name=gitops-postgresql-staging,config.datasource.passwordSecret.key=postgresql-password,config.datasource.port=5432,serviceMonitor.enabled=true,serviceMonitor.namespace=gitops,serviceMonitor.interval=10s,serviceMonitor.telemetryPath=/metrics,networkPolicy.enabled=true \
+--set service.annotations."prometheus\.io/path"=/metrics --set-string service.annotations."prometheus\.io/scrape"=true -n gitops --generate-name
+
+echo "* Waiting for Prometheus Postgres Exporter pod to be up and running"
+while : ; do
+  kubectl get pods -n gitops | grep "prometheus-postgres-exporter" | grep '1/1' | grep 'Running' &> /dev/null 2>&1 && break
+  sleep 1
+done
+echo "* Finished waiting for Prometheus Postgres Exporter pod to be up and running"
+
+kubectl apply -f postgresql/grafana-postgresql-exporter-dashboard-cm.yaml
+kubectl apply -f postgresql/grafana-postgresql-exporter-dashboard.yaml
+
 # -----------------
 
 

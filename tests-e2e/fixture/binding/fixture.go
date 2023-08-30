@@ -22,7 +22,7 @@ func expectedCondition(f func(binding appstudiosharedv1.SnapshotEnvironmentBindi
 	return WithTransform(func(binding appstudiosharedv1.SnapshotEnvironmentBinding) bool {
 
 		config, err := fixture.GetServiceProviderWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -51,7 +51,7 @@ func UpdateStatusWithFunction(binding *appstudiosharedv1.SnapshotEnvironmentBind
 
 	GinkgoWriter.Printf("Updating SnapshotEnvironmentBindingStatus for '%v'\n", binding.ObjectMeta)
 	config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-	Expect(err).To(BeNil())
+	Expect(err).ToNot(HaveOccurred())
 
 	k8sClient, err := fixture.GetKubeClient(config)
 	if err != nil {
@@ -166,7 +166,7 @@ func HaveGitOpsDeploymentsWithStatusProperties(gitOpsDeployments []appstudioshar
 	return WithTransform(func(binding appstudiosharedv1.SnapshotEnvironmentBinding) bool {
 
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
@@ -215,7 +215,7 @@ func HaveComponentDeploymentCondition(expected metav1.Condition) matcher.GomegaM
 	return WithTransform(func(binding appstudiosharedv1.SnapshotEnvironmentBinding) bool {
 
 		config, err := fixture.GetE2ETestUserWorkspaceKubeConfig()
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {

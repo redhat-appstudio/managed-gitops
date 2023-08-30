@@ -35,7 +35,7 @@ var _ = Describe("Test for Operation metrics counter", func() {
 				kubesystemNamespace,
 				apiNamespace,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			testClusterUser = &db.ClusterUser{
 				Clusteruser_id: "test-user",
@@ -49,15 +49,15 @@ var _ = Describe("Test for Operation metrics counter", func() {
 				Build()
 
 			err = db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 			log = logger.FromContext(ctx)
 			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, managedEnvronment, _, gitopsEngineInstance, _, err = db.CreateSampleData(dbq)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 		})
 
@@ -79,7 +79,7 @@ var _ = Describe("Test for Operation metrics counter", func() {
 			}
 
 			err := dbq.CreateOperation(ctx, firstOperationDB, firstOperationDB.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("creating Operation CR pointing to first Operation row")
 			firstOperationCR := &operation.Operation{
@@ -92,7 +92,7 @@ var _ = Describe("Test for Operation metrics counter", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, firstOperationCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("creating second Operation row")
 			secondOperationDB := &db.Operation{
@@ -105,7 +105,7 @@ var _ = Describe("Test for Operation metrics counter", func() {
 			}
 
 			err = dbq.CreateOperation(ctx, secondOperationDB, secondOperationDB.Operation_owner_user_id)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("creating Operation CR pointing to second Operation row")
 			secondOperationCR := &operation.Operation{
@@ -118,7 +118,7 @@ var _ = Describe("Test for Operation metrics counter", func() {
 				},
 			}
 			err = k8sClient.Create(ctx, secondOperationCR)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			updateOperationCRMetrics(ctx, k8sClient, log)
 

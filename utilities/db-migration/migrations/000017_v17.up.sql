@@ -1,0 +1,10 @@
+CREATE INDEX idx_APICRToDatabaseMapping1 ON APICRToDatabaseMapping(api_resource_type, api_resource_uid, db_relation_type);
+CREATE INDEX idx_APICRToDatabaseMapping2 ON APICRToDatabaseMapping(api_resource_type, db_relation_type, db_relation_key, api_resource_namespace_uid, db_relation_type);
+CREATE INDEX idx_APICRToDatabaseMapping3 ON APICRToDatabaseMapping(api_resource_type, db_relation_type, db_relation_key);
+CREATE INDEX idx_gitopsenginecluster_clustercredentials ON GitopsEngineCluster(clustercredentials_id);
+CREATE INDEX idx_clusteruser_user_name ON ClusterUser(user_name);
+CREATE INDEX idx_managed_environment_id ON ClusterAccess(clusteraccess_managed_environment_id);
+CREATE INDEX idx_operation_1 ON Operation(resource_id, resource_type, operation_owner_user_id);
+CREATE INDEX idx_deploymenttoapplicationmapping_1 ON DeploymentToApplicationMapping(namespace_uid);
+CREATE INDEX idx_deploymenttoapplicationmapping_2 ON DeploymentToApplicationMapping(name, namespace, namespace_uid);
+CREATE INDEX idx_deploymenttoapplicationmapping_3 ON DeploymentToApplicationMapping(application_id);

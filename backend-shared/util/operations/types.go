@@ -200,10 +200,10 @@ func createOperationInternal(ctx context.Context, waitForOperation bool, dbOpera
 }
 
 // cleanupOperation cleans up the operation CR and (optionally) the database entry, once an operation has concluded.
-func CleanupOperation(ctx context.Context, dbOperation db.Operation, k8sOperation managedgitopsv1alpha1.Operation, operationNamespace string,
+func CleanupOperation(ctx context.Context, dbOperation db.Operation, k8sOperation managedgitopsv1alpha1.Operation,
 	dbQueries db.ApplicationScopedQueries, gitopsEngineClient client.Client, deleteDBOperation bool, log logr.Logger) error {
 
-	log = log.WithValues("operation", dbOperation.Operation_id, "namespace", operationNamespace)
+	log = log.WithValues("operation", dbOperation.Operation_id, "namespace", k8sOperation.Namespace)
 
 	if deleteDBOperation {
 		// Delete the database entry

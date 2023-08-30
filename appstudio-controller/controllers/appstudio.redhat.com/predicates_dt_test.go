@@ -25,10 +25,10 @@ var _ = Describe("Test Predicates", func() {
 				_,
 				_,
 				err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = applicationv1alpha1.AddToScheme(scheme)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			dt = &applicationv1alpha1.DeploymentTarget{
 				ObjectMeta: metav1.ObjectMeta{

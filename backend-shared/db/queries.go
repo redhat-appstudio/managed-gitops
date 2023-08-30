@@ -57,6 +57,9 @@ type UnsafeDatabaseQueries interface {
 	UnsafeListAllKubernetesResourceToDBResourceMapping(ctx context.Context, kubernetesToDBResourceMapping *[]KubernetesToDBResourceMapping) error
 	UnsafeListAllAPICRToDatabaseMappings(ctx context.Context, mappings *[]APICRToDatabaseMapping) error
 	UnsafeListAllRepositoryCredentials(ctx context.Context, repositoryCredentials *[]RepositoryCredentials) error
+	UnsafeListAllAppProjectRepositories(ctx context.Context, appRepositories *[]AppProjectRepository) error
+	UnsafeListAllAppProjectManagedEnvironments(ctx context.Context, appProjectManagedEnv *[]AppProjectManagedEnvironment) error
+	UnsafeListAllApplicationOwners(ctx context.Context, obj *[]ApplicationOwner) error
 }
 
 type AllDatabaseQueries interface {
@@ -101,6 +104,9 @@ type DatabaseQueries interface {
 	GetClusterAccessByPrimaryKey(ctx context.Context, obj *ClusterAccess) error
 	GetDBResourceMappingForKubernetesResource(ctx context.Context, obj *KubernetesToDBResourceMapping) error
 
+	// UpdateClusterUser updates the ClusterUser in database.
+	UpdateClusterUser(ctx context.Context, obj *ClusterUser) error
+
 	// Given a KubernetesResourceType, DBRelationType, and DBRelationKey, look for a KubernetesToDBResourceMapping that match those
 	// and return the corresponding KubernetesResourceUID in the 'obj'
 	GetKubernetesResourceMappingForDatabaseResource(ctx context.Context, obj *KubernetesToDBResourceMapping) error
@@ -117,6 +123,21 @@ type DatabaseQueries interface {
 
 	// Get ManagedEnvironment in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
 	GetManagedEnvironmentBatch(ctx context.Context, managedEnvironments *[]ManagedEnvironment, limit, offSet int) error
+
+	// Get ClusterAccess in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+	GetClusterAccessBatch(ctx context.Context, clusterAccess *[]ClusterAccess, limit, offSet int) error
+
+	// Get ClusterUser in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+	GetClusterUserBatch(ctx context.Context, clusterUser *[]ClusterUser, limit, offSet int) error
+
+	// Get GitopsEngineCluster in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+	GetGitopsEngineClusterBatch(ctx context.Context, gitopsEngineCluster *[]GitopsEngineCluster, limit, offSet int) error
+
+	// Get ClusterCredentials in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+	GetClusterCredentialsBatch(ctx context.Context, clusterCredentials *[]ClusterCredentials, limit, offSet int) error
+
+	// Get Operation in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offSet'.
+	GetOperationBatch(ctx context.Context, operations *[]Operation, limit, offSet int) error
 
 	DeleteKubernetesResourceToDBResourceMapping(ctx context.Context, obj *KubernetesToDBResourceMapping) (int, error)
 	DeleteClusterCredentialsById(ctx context.Context, id string) (int, error)
@@ -176,6 +197,46 @@ type DatabaseQueries interface {
 
 	// Get KubernetesToDBResourceMapping in a batch. Batch size defined by 'limit' and starting point of batch is defined by 'offset'.
 	GetKubernetesToDBResourceMappingBatch(ctx context.Context, k8sToDBResourceMapping *[]KubernetesToDBResourceMapping, limit, offset int) error
+
+	// CreateAppProjectRepository creates AppProjectRepository in database
+	CreateAppProjectRepository(ctx context.Context, obj *AppProjectRepository) error
+
+	// GetAppProjectRepositoryByClusterUserAndRepoURL retrieves AppProjectRepository by cluster user id and repoURL
+	GetAppProjectRepositoryByClusterUserAndRepoURL(ctx context.Context, obj *AppProjectRepository) error
+
+	// ListAppProjectRepositoryByClusterUserId retrieves the list of appProjectRepositories
+	ListAppProjectRepositoryByClusterUserId(ctx context.Context,
+		clusteruser_id string, appProjectRepositories *[]AppProjectRepository) error
+
+	// UpdateAppProjectRepository updates AppProjectRepository
+	UpdateAppProjectRepository(ctx context.Context, obj *AppProjectRepository) error
+
+	// DeleteAppProjectRepositoryByRepoCredId deletes appProjectRepository by repo id
+	// DeleteAppProjectRepositoryByRepoCredId(ctx context.Context, obj *AppProjectRepository) (int, error)
+
+	DeleteAppProjectRepositoryByAppProjectRepositoryID(ctx context.Context, obj *AppProjectRepository) (int, error)
+
+	// DeleteAppProjectRepositoryByClusterUserAndRepoURL deletes appProjectRepository by clusteruser_id and repo_url
+	DeleteAppProjectRepositoryByClusterUserAndRepoURL(ctx context.Context, obj *AppProjectRepository) (int, error)
+
+	// CountAppProjectRepositoryByClusterUserID number of appProjectRepository by clusteruser_id
+	CountAppProjectRepositoryByClusterUserID(ctx context.Context, obj *AppProjectRepository) (int, error)
+
+	// CreateAppProjectManagedEnvironment creates appProjectManagedEnv in database
+	CreateAppProjectManagedEnvironment(ctx context.Context, obj *AppProjectManagedEnvironment) error
+
+	// GetAppProjectManagedEnvironmentByManagedEnvId retrieves appProjectManagedEnv by managedEnvID
+	GetAppProjectManagedEnvironmentByManagedEnvId(ctx context.Context, obj *AppProjectManagedEnvironment) error
+
+	// ListAppProjectManagedEnvironmentByClusterUserId returns a list of all appProjectManagedEnv that reference the specified clusteruser_id row.
+	ListAppProjectManagedEnvironmentByClusterUserId(ctx context.Context,
+		clusteruser_id string, appProjectManagedEnvs *[]AppProjectManagedEnvironment) error
+
+	// DeleteAppProjectManagedEnvironmentByManagedEnvId deletes appProjectManagedEnv by managedEnvID
+	DeleteAppProjectManagedEnvironmentByManagedEnvId(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error)
+
+	// CountAppProjectManagedEnvironmentByClusterUserID number of appProjectManagedEnv by clusteruser_id
+	CountAppProjectManagedEnvironmentByClusterUserID(ctx context.Context, obj *AppProjectManagedEnvironment) (int, error)
 }
 
 // ApplicationScopedQueries are the set of database queries that act on application DB resources:
@@ -269,6 +330,10 @@ type ApplicationScopedQueries interface {
 	// GetAPICRForDatabaseUID retrieves the name/namespace/uid of an API Resources (such as GitOpsDeploymentManagedEnvironment)
 	// based on the primary key of the corresponding database row (for example, ManagedEnvironment)
 	GetAPICRForDatabaseUID(ctx context.Context, apiCRToDatabaseMapping *APICRToDatabaseMapping) error
+
+	CreateApplicationOwner(ctx context.Context, obj *ApplicationOwner) error
+	DeleteApplicationOwner(ctx context.Context, applicationowner_application_id string) (int, error)
+	GetApplicationOwnerByApplicationID(ctx context.Context, obj *ApplicationOwner) error
 }
 
 type CloseableQueries interface {

@@ -32,18 +32,41 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/gitopserrors"
+
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
+)
+
+const (
+	SnapshotEnvironmentBindingConditionReconciled = "Reconciled"
+
+	SnapshotEnvironmentBindingReasonGitOpsRepoNotReady              = "GitOpsRepoNotReady"
+	SnapshotEnvironmentBindingReasonReconciled                      = "Reconciled"
+	SnapshotEnvironmentBindingReasonWaitingForComponentStatus       = "WaitingForComponentStatus"
+	SnapshotEnvironmentBindingReasonDuplicateComponents             = "DuplicateComponents"
+	SnapshotEnvironmentBindingReasonErrorGeneratingGitOpsDeployment = "ErrorGeneratingGitOpsDeployment"
 )
 
 const (
 	// If the 'appstudioLabelKey' string is present in a label of the SnapshotEnvironmentBinding, that label is copied to child GitOpsDeployments of the SnapshotEnvironmentBinding
 	appstudioLabelKey = "appstudio.openshift.io"
+
+	applicationLabelKey = appstudioLabelKey + "/application"
+	componentLabelKey   = appstudioLabelKey + "/component"
+	environmentLabelKey = appstudioLabelKey + "/environment"
 )
 
 // SnapshotEnvironmentBindingReconciler reconciles a SnapshotEnvironmentBinding object
@@ -120,10 +143,10 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 			// since there was an unexpected issue with refreshing/syncing the GitOps repository
 			log.V(logutil.LogLevel_Debug).Info("Can not Reconcile Binding '" + binding.Name + "', since GitOps Repo Conditions status is false.")
 
-			// Update Status.Conditions field environmentBinding.
-			if err := updateStatusConditionOfEnvironmentBinding(ctx, rClient,
+			// Update .status.bindingConditions field EnvironmentBinding with the error
+			if err := updateSEBReconciledStatusCondition(ctx, rClient,
 				"Can not Reconcile Binding '"+binding.Name+"', since GitOps Repo Conditions status is false.", binding,
-				SnapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionTrue, SnapshotEnvironmentBindingReasonErrorOccurred); err != nil {
+				metav1.ConditionFalse, SnapshotEnvironmentBindingReasonGitOpsRepoNotReady, log); err != nil {
 
 				log.Error(err, "unable to update snapshotEnvironmentBinding status condition.")
 				return ctrl.Result{}, fmt.Errorf("unable to update snapshotEnvironmentBinding status condition. %v", err)
@@ -131,11 +154,12 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 
 			return ctrl.Result{}, nil
 		} else if binding.Status.GitOpsRepoConditions[len(binding.Status.GitOpsRepoConditions)-1].Status == metav1.ConditionTrue {
+
 			// if the SnapshotEventBinding GitOps Repo Conditions status is true update the
-			// binding condition status
-			if err := updateStatusConditionOfEnvironmentBinding(ctx, rClient,
+			// binding condition status to true
+			if err := updateSEBReconciledStatusCondition(ctx, rClient,
 				"", binding,
-				SnapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionFalse, SnapshotEnvironmentBindingReasonErrorOccurred); err != nil {
+				metav1.ConditionTrue, SnapshotEnvironmentBindingReasonReconciled, log); err != nil {
 
 				log.Error(err, "unable to update snapshotEnvironmentBinding status condition.")
 				return ctrl.Result{}, fmt.Errorf("unable to update snapshotEnvironmentBinding status condition. %v", err)
@@ -148,12 +172,18 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 			"generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding")
 
 		// Update Status.Conditions field of environmentBinding.
-		if err := updateStatusConditionOfEnvironmentBinding(ctx, rClient, "SnapshotEventBinding Component status is required to "+
+		if err := updateSEBReconciledStatusCondition(ctx, rClient, "SnapshotEventBinding Component status is required to "+
 			"generate GitOps deployment, waiting for the Application Service controller to finish reconciling binding '"+binding.Name+"'",
-			binding, SnapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionTrue, SnapshotEnvironmentBindingReasonErrorOccurred); err != nil {
+			binding, metav1.ConditionFalse, SnapshotEnvironmentBindingReasonWaitingForComponentStatus, log); err != nil {
 
 			log.Error(err, "unable to update snapshotEnvironmentBinding status condition.")
 			return ctrl.Result{}, fmt.Errorf("unable to update snapshotEnvironmentBinding status condition. %v", err)
+		}
+
+		// Delete all existing deployments associated with this binding
+		err := deleteUnmatchedDeployments(ctx, *binding, nil, rClient, log)
+		if err != nil {
+			return ctrl.Result{}, err
 		}
 
 		// if length of the Binding component status is 0 and there is no issue with the GitOps Repo Conditions;
@@ -170,7 +200,7 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 		if _, exists := expectedDeployments[component.Name]; exists {
 
 			// Update Status.Conditions field of environmentBinding.
-			if err := updateStatusConditionOfEnvironmentBinding(ctx, rClient, errDuplicateKeysFound+" in "+component.Name, binding, SnapshotEnvironmentBindingConditionErrorOccurred, metav1.ConditionTrue, SnapshotEnvironmentBindingReasonErrorOccurred); err != nil {
+			if err := updateSEBReconciledStatusCondition(ctx, rClient, errDuplicateKeysFound+" in "+component.Name, binding, metav1.ConditionFalse, SnapshotEnvironmentBindingReasonDuplicateComponents, log); err != nil {
 				log.Error(err, "unable to update snapshotEnvironmentBinding status condition.")
 				return ctrl.Result{}, fmt.Errorf("unable to update snapshotEnvironmentBinding status condition. %v", err)
 			}
@@ -179,11 +209,27 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 			return ctrl.Result{}, nil
 		}
 
-		var err error
-		expectedDeployments[component.Name], err = generateExpectedGitOpsDeployment(component, *binding, environment, log)
-		if err != nil {
-			return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("invalid target namespace: %v", err)
+		var userDevErr gitopserrors.UserError
+		expectedDeployments[component.Name], userDevErr = generateExpectedGitOpsDeployment(ctx, component, *binding, environment, rClient, log)
+
+		// If an error occurred while generating the GitOpsDeployment, report the error back to the user
+		if userDevErr != nil {
+
+			if err := updateSEBReconciledStatusCondition(ctx, rClient, userDevErr.UserError(),
+				binding, metav1.ConditionFalse, SnapshotEnvironmentBindingReasonErrorGeneratingGitOpsDeployment, log); err != nil {
+
+				log.Error(err, "unable to update snapshotEnvironmentBinding status condition.")
+				return ctrl.Result{}, fmt.Errorf("unable to update snapshotEnvironmentBinding status condition. %v", err)
+			}
+
+			return ctrl.Result{RequeueAfter: time.Second * 10}, userDevErr.DevError()
 		}
+	}
+
+	// Delete any existing deployments which don't have a matching component
+	err := deleteUnmatchedDeployments(ctx, *binding, expectedDeployments, rClient, log)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	var statusField []appstudioshared.BindingStatusGitOpsDeployment
@@ -225,6 +271,10 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 		}
 	}
 
+	if allErrors != nil {
+		return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("unable to process expected GitOpsDeployment: %w", allErrors)
+	}
+
 	// Update the status field with statusField vars (even if an error occurred)
 	binding.Status.GitOpsDeployments = statusField
 	if err := addComponentDeploymentCondition(ctx, binding, rClient, log); err != nil {
@@ -238,6 +288,7 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 		return ctrl.Result{}, nil
 	}
 
+	log.Info("Updating SnapshotEnvironmentBinding status")
 	if err := rClient.Status().Update(ctx, binding); err != nil {
 		if apierr.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -247,11 +298,71 @@ func (r *SnapshotEnvironmentBindingReconciler) Reconcile(ctx context.Context, re
 		return ctrl.Result{}, fmt.Errorf("unable to update SnapshotEnvironmentBinding status. Error: %w", err)
 	}
 
-	if allErrors != nil {
-		return ctrl.Result{RequeueAfter: time.Second * 10}, fmt.Errorf("unable to process expected GitOpsDeployment: %w", allErrors)
+	return ctrl.Result{}, nil
+}
+
+// Delete all Deployments which are associated with the given binding but are not contained in the
+// given expectedDeployments map
+func deleteUnmatchedDeployments(ctx context.Context, binding appstudioshared.SnapshotEnvironmentBinding, expectedDeployments map[string]apibackend.GitOpsDeployment, k8sClient client.Client, logger logr.Logger) error {
+
+	// Find all deployments in the binding's namespace that are labeled with the
+	// binding's application and environment
+	appRequirement, err := labels.NewRequirement(applicationLabelKey, selection.Equals, []string{binding.Spec.Application})
+	if err != nil || appRequirement == nil {
+		logger.Error(err, "error creating label selector requirement", "application", binding.Spec.Application)
+		return err
+	}
+	envRequirement, err := labels.NewRequirement(environmentLabelKey, selection.Equals, []string{binding.Spec.Environment})
+	if err != nil || envRequirement == nil {
+		logger.Error(err, "error creating label selector requirement", "environment", binding.Spec.Environment)
+		return err
+	}
+	selector := labels.NewSelector().Add(*appRequirement, *envRequirement)
+	deployments := apibackend.GitOpsDeploymentList{}
+	options := client.ListOptions{
+		Namespace:     binding.Namespace,
+		LabelSelector: selector,
+	}
+	if err := k8sClient.List(ctx, &deployments, &options); err != nil {
+		logger.Error(err, "error retrieving list of existing deployments", "application", binding.Spec.Application, "environment", binding.Spec.Environment)
+		return err
 	}
 
-	return ctrl.Result{}, nil
+	// Delete all the deployments which aren't in the expectedDeployments map
+	for i := range deployments.Items {
+		deployment := deployments.Items[i]
+		component := deployment.Labels[componentLabelKey]
+
+		// Sanity check: we should only delete a GitOpsDeployment if it is owned by the corresponding SnapshotEnvironmentBinding via ownerref
+		if len(deployment.OwnerReferences) == 0 {
+			continue
+		}
+		ownerRefMatch := false
+		for _, ownerRef := range deployment.OwnerReferences {
+			if ownerRef.UID == binding.UID {
+				ownerRefMatch = true
+				break
+			}
+		}
+		if !ownerRefMatch {
+			continue
+		}
+
+		// We should only delete a GitOpsDeployment that is not in our expected component list
+		_, exists := expectedDeployments[component]
+		if !exists {
+
+			if err := k8sClient.Delete(ctx, &deployment); err != nil {
+				logger.Error(err, "error deleting deployment", "name", deployment.Name)
+				return err
+			}
+			logger.Info("Deleted deployment which was no longer referenced by the SnapshotEnvironmentBinding", "deploymentName", deployment.Name)
+
+			logutil.LogAPIResourceChangeEvent(deployment.Namespace, deployment.Name, deployment, logutil.ResourceDeleted, logger)
+
+		}
+	}
+	return nil
 }
 
 func addComponentDeploymentCondition(ctx context.Context, binding *appstudioshared.SnapshotEnvironmentBinding, c client.Client, log logr.Logger) error {
@@ -356,6 +467,7 @@ func GenerateBindingGitOpsDeploymentName(binding appstudioshared.SnapshotEnviron
 
 	expectedName := binding.Name + "-" + binding.Spec.Application + "-" + binding.Spec.Environment + "-" + componentName
 
+	// The application name, environment name and component name are each limited to be at most 63 characters.
 	// If the length of the GitOpsDeployment exceeds the K8s maximum, shorten it to just binding+component
 	if len(expectedName) > 250 {
 		expectedShortName := binding.Name + "-" + componentName
@@ -373,10 +485,10 @@ func GenerateBindingGitOpsDeploymentName(binding appstudioshared.SnapshotEnviron
 
 }
 
-func generateExpectedGitOpsDeployment(component appstudioshared.BindingComponentStatus,
+func generateExpectedGitOpsDeployment(ctx context.Context, component appstudioshared.BindingComponentStatus,
 	binding appstudioshared.SnapshotEnvironmentBinding,
 	environment appstudioshared.Environment,
-	logger logr.Logger) (apibackend.GitOpsDeployment, error) {
+	k8sClient client.Client, logger logr.Logger) (apibackend.GitOpsDeployment, gitopserrors.UserError) {
 
 	res := apibackend.GitOpsDeployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -404,20 +516,60 @@ func generateExpectedGitOpsDeployment(component appstudioshared.BindingComponent
 		},
 	}
 
-	// If the environment has a target cluster field defined, then set the destination to that managed environment
-	if environment.Spec.UnstableConfigurationFields != nil {
+	// If the Environment references a DeploymentTargetClaim...
+	if environment.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName != "" {
 
+		// Retrieve the DTC
+		dtc := appstudioshared.DeploymentTargetClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      environment.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName,
+				Namespace: environment.Namespace,
+			},
+		}
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc); err != nil {
+
+			devErr := fmt.Errorf("error on retrieving DeploymentTargetClaim '%s': %v", dtc.Name, err)
+
+			if apierr.IsNotFound(err) {
+				return apibackend.GitOpsDeployment{}, gitopserrors.NewUserDevError("DeploymentTargetClaim referenced by Environment does not exist.", devErr)
+			} else {
+				return apibackend.GitOpsDeployment{}, gitopserrors.NewDevOnlyError(devErr)
+			}
+		}
+
+		// Locate the corresponding DT, so we can pull the credentials from the DT
+		dt, err := getDTBoundByDTC(ctx, k8sClient, dtc)
+		if dt == nil || err != nil {
+			devErr := fmt.Errorf("unable to locate DeploymentTarget of DeploymentTargetClaim '%s'. %v", dtc.Name, err)
+
+			return apibackend.GitOpsDeployment{}, gitopserrors.NewUserDevError("unable to locate DeploymentTarget the references DeploymentTargetClaim", devErr)
+		}
+
+		// Update the .spec.destination field of the GitOpsDeployment to point to the managed environment and Namespace from the DT
 		managedEnvironmentName := generateEmptyManagedEnvironment(environment.Name, environment.Namespace).Name
 
-		if environment.Spec.UnstableConfigurationFields.TargetNamespace == "" {
-			return apibackend.GitOpsDeployment{}, fmt.Errorf("%s: '%s'", errMissingTargetNamespace, environment.Name)
+		res.Spec.Destination = apibackend.ApplicationDestination{
+			Environment: managedEnvironmentName,
+			Namespace:   dt.Spec.KubernetesClusterCredentials.DefaultNamespace, // Note: this might be empty
 		}
+
+	} else if environment.Spec.UnstableConfigurationFields != nil {
+		// If the environment has a target cluster field defined, then set the destination to that managed environment
+
+		if environment.Spec.UnstableConfigurationFields.TargetNamespace == "" {
+			devErr := fmt.Errorf("invalid target namespace: %s: '%s'", errMissingTargetNamespace, environment.Name)
+			return apibackend.GitOpsDeployment{}, gitopserrors.NewUserDevError("Environment is missing a TargetNamespace field", devErr)
+		}
+
+		managedEnvironmentName := generateEmptyManagedEnvironment(environment.Name, environment.Namespace).Name
 
 		res.Spec.Destination = apibackend.ApplicationDestination{
 			Environment: managedEnvironmentName,
 			Namespace:   environment.Spec.UnstableConfigurationFields.TargetNamespace,
 		}
 	}
+	// Else if neither of the above is true, it's necessarily just an Environment with no credentials specified,
+	// which means we should just deploy to the same Namespace as the Environment CR itself.
 
 	res.ObjectMeta.Labels = make(map[string]string)
 
@@ -430,11 +582,17 @@ func generateExpectedGitOpsDeployment(component appstudioshared.BindingComponent
 
 	// Append labels to identify the Application, Component and Environment associated with this GitOpsDeployment.
 	// Label values are limited to a maximum of 63 characters, while resource names by default can be up to 253.
-	// StoneSoup artificially limits these names to 63 characters, but to be safe we truncate the values if they
-	// are too long
-	res.ObjectMeta.Labels[appstudioLabelKey+"/application"] = limitLength(binding.Spec.Application, logger)
-	res.ObjectMeta.Labels[appstudioLabelKey+"/component"] = limitLength(component.Name, logger)
-	res.ObjectMeta.Labels[appstudioLabelKey+"/environment"] = limitLength(binding.Spec.Environment, logger)
+	// AppStudio has webhooks to artificially limits these names to 63 characters, but to be safe we
+	// error out if they are too long.
+	if err := setLabel(&res, applicationLabelKey, binding.Spec.Application); err != nil {
+		return apibackend.GitOpsDeployment{}, gitopserrors.NewDevOnlyError(err)
+	}
+	if err := setLabel(&res, componentLabelKey, component.Name); err != nil {
+		return apibackend.GitOpsDeployment{}, gitopserrors.NewDevOnlyError(err)
+	}
+	if err := setLabel(&res, environmentLabelKey, binding.Spec.Environment); err != nil {
+		return apibackend.GitOpsDeployment{}, gitopserrors.NewDevOnlyError(err)
+	}
 
 	// Ensures that this method only adds 'appstudio.openshift.io' labels
 	// - Note: If you remove this line, you need to search for other uses of 'removeNonAppStudioLabelsFromMap' in the
@@ -446,21 +604,192 @@ func generateExpectedGitOpsDeployment(component appstudioshared.BindingComponent
 	return res, nil
 }
 
-func limitLength(str string, logger logr.Logger) string {
-	if len(str) <= 63 {
-		return str
+// Sets the given label on the given GitopsDeployment.  Returns an error if the length of the label value
+// is greater than the limit of 63 characters, else returns nil
+func setLabel(deployment *apibackend.GitOpsDeployment, key, value string) error {
+	if len(value) > 63 {
+		err := fmt.Errorf("unable to set label %s on deployment %s: value '%s' for label is longer than 63 characters", key, deployment.Name, value)
+		return err
 	}
-	logger.Error(nil, "SEVERE: label value in SnapshotEnvironmentBinding should be at most 63 characters", "value", str)
-	return str[:63]
+	deployment.ObjectMeta.Labels[key] = value
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *SnapshotEnvironmentBindingReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		// Uncomment the following line adding a pointer to an instance of the controlled resource as an argument
 		For(&appstudioshared.SnapshotEnvironmentBinding{}).
 		Owns(&apibackend.GitOpsDeployment{}).
-		Complete(r)
+		Watches(
+			&source.Kind{Type: &appstudioshared.Environment{}},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForEnvironment),
+			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
+		).
+		Watches(
+			&source.Kind{Type: &appstudioshared.DeploymentTarget{}},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForDeploymentTarget),
+			// When/if we start using DT's .status field, switch this ResourceVersionChangedPredicate:
+			builder.WithPredicates(predicate.GenerationChangedPredicate{}),
+		).
+		Watches(
+			&source.Kind{Type: &appstudioshared.DeploymentTargetClaim{}},
+			handler.EnqueueRequestsFromMapFunc(r.findObjectsForDeploymentTargetClaim),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).Complete(r)
+}
+
+// findObjectsForDeploymentTarget maps an incoming DT event to the corresponding Environment request.
+// We should reconcile Environments if the DT credentials get updated.
+func (r *SnapshotEnvironmentBindingReconciler) findObjectsForDeploymentTargetClaim(dtc client.Object) []reconcile.Request {
+	ctx := context.Background()
+	handlerLog := log.FromContext(ctx).
+		WithName(logutil.LogLogger_managed_gitops)
+
+	dtcObj, ok := dtc.(*appstudioshared.DeploymentTargetClaim)
+	if !ok {
+		handlerLog.Error(nil, "incompatible object in the SEB DeploymentTargetClaim mapping function, expected a DeploymentTargetClaim")
+		return []reconcile.Request{}
+	}
+
+	// 1. Find all Environments that are associated with this DeploymentTargetClaim.
+	envList := &appstudioshared.EnvironmentList{}
+	if err := r.Client.List(context.Background(), envList, &client.ListOptions{Namespace: dtcObj.GetNamespace()}); err != nil {
+		handlerLog.Error(err, "failed to list Environments in the SEB DeploymentTargetClaim mapping function")
+		return []reconcile.Request{}
+	}
+
+	environmentByName := map[string]bool{} // The keys of this map contain Environments that are referenced by the DTC (which references the DTC)
+	for _, env := range envList.Items {
+
+		// If the DTCs match the Environment's claim name, it's a match
+		if env.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName == dtcObj.Name {
+			environmentByName[env.Name] = true
+		}
+	}
+
+	// 2. Find SnapshotEnvironmentBindings in the namespace that match one of the Enviroments inside the 'environmentByName' map
+	snapshotEnvList := &appstudioshared.SnapshotEnvironmentBindingList{}
+	if err := r.Client.List(context.Background(), snapshotEnvList, &client.ListOptions{Namespace: dtcObj.GetNamespace()}); err != nil {
+		handlerLog.Error(err, "failed to list SnapshotEnvironmentBindings in the SEB DeploymentTargetClaim mapping function")
+		return []reconcile.Request{}
+	}
+	snapshotRequests := []reconcile.Request{}
+	for index := range snapshotEnvList.Items {
+		snapshotEnvBinding := snapshotEnvList.Items[index]
+
+		if _, exists := environmentByName[snapshotEnvBinding.Spec.Environment]; exists {
+			snapshotRequests = append(snapshotRequests, reconcile.Request{
+				NamespacedName: client.ObjectKeyFromObject(&snapshotEnvBinding),
+			})
+		}
+	}
+
+	return snapshotRequests
+}
+
+// findObjectsForDeploymentTarget maps an incoming DT event to the corresponding Environment request.
+// We should reconcile Environments if the DT credentials get updated.
+func (r *SnapshotEnvironmentBindingReconciler) findObjectsForDeploymentTarget(dt client.Object) []reconcile.Request {
+	ctx := context.Background()
+	handlerLog := log.FromContext(ctx).
+		WithName(logutil.LogLogger_managed_gitops)
+
+	dtObj, ok := dt.(*appstudioshared.DeploymentTarget)
+	if !ok {
+		handlerLog.Error(nil, "incompatible object in the SEB DeploymentTarget mapping function, expected a DeploymentTarget")
+		return []reconcile.Request{}
+	}
+
+	// 1. Find all DeploymentTargetClaims that are associated with this DeploymentTarget.
+	dtcList := appstudioshared.DeploymentTargetClaimList{}
+	if err := r.List(ctx, &dtcList, &client.ListOptions{Namespace: dt.GetNamespace()}); err != nil {
+		handlerLog.Error(err, "failed to list DeploymentTargetClaims in the SEB DT mapping function")
+		return []reconcile.Request{}
+	}
+	dtcs := []appstudioshared.DeploymentTargetClaim{}
+	for _, d := range dtcList.Items {
+		dtc := d
+		// We only want to reconcile for DTs that have a corresponding DTC.
+		if dtc.Spec.TargetName == dt.GetName() || dtObj.Spec.ClaimRef == dtc.Name {
+			dtcs = append(dtcs, dtc)
+		}
+	}
+
+	// 2. Find all Environments that are associated with this DeploymentTargetClaim.
+	envList := &appstudioshared.EnvironmentList{}
+	if err := r.Client.List(context.Background(), envList, &client.ListOptions{Namespace: dt.GetNamespace()}); err != nil {
+		handlerLog.Error(err, "failed to list Environments in the SEB DeploymentTarget mapping function")
+		return []reconcile.Request{}
+	}
+	environmentByName := map[string]bool{} // The keys of this map contain Environments that are referenced by the DTC (which references the DTC)
+	for _, env := range envList.Items {
+
+		matchFound := false
+		for _, dtc := range dtcs {
+			// If at least one of the DTCs match the Environment's claim name, it's a match
+			if env.Spec.Configuration.Target.DeploymentTargetClaim.ClaimName == dtc.Name {
+				matchFound = true
+				break
+			}
+		}
+
+		if matchFound { // at least one match: the Environment is bound to the DTC
+			environmentByName[env.Name] = true
+		}
+	}
+
+	// 3. Find SnapshotEnvironmentBindings in the namespace that match one of the Enviroments inside the 'environmentByName' map
+	snapshotEnvList := &appstudioshared.SnapshotEnvironmentBindingList{}
+	if err := r.Client.List(context.Background(), snapshotEnvList, &client.ListOptions{Namespace: dt.GetNamespace()}); err != nil {
+		handlerLog.Error(err, "failed to list SnapshotEnvironmentBindings in the SEB DeploymentTarget mapping function")
+		return []reconcile.Request{}
+	}
+	snapshotRequests := []reconcile.Request{}
+	for index := range snapshotEnvList.Items {
+		snapshotEnvBinding := snapshotEnvList.Items[index]
+
+		if _, exists := environmentByName[snapshotEnvBinding.Spec.Environment]; exists {
+			snapshotRequests = append(snapshotRequests, reconcile.Request{
+				NamespacedName: client.ObjectKeyFromObject(&snapshotEnvBinding),
+			})
+		}
+	}
+
+	return snapshotRequests
+}
+
+// findObjectsForManagedEnvironment will reconcile on any ManagedEnvironments that are (indirectly) referenced by SEBs
+func (r *SnapshotEnvironmentBindingReconciler) findObjectsForEnvironment(envParam client.Object) []reconcile.Request {
+	ctx := context.Background()
+	handlerLog := log.FromContext(ctx).
+		WithName(logutil.LogLogger_managed_gitops)
+
+	// 1) Cast the Environment obj
+	envObj, ok := envParam.(*appstudioshared.Environment)
+	if !ok {
+		handlerLog.Error(nil, "incompatible object in the Environment mapping function, expected a Secret")
+		return []reconcile.Request{}
+	}
+
+	// 2) Retrieve all the SEBs in the same Namespace as the Environment
+	var snapshotEnvBindings appstudioshared.SnapshotEnvironmentBindingList
+	if err := r.Client.List(context.Background(), &snapshotEnvBindings, &client.ListOptions{Namespace: envObj.Namespace}); err != nil {
+		handlerLog.Error(err, "failed to get SnapshotEnvironmentBindings list in the Environment mapping function")
+		return []reconcile.Request{}
+	}
+
+	// 3) Reconcile any SEBs that reference this Environment
+	var res []reconcile.Request
+	for idx := range snapshotEnvBindings.Items {
+		seb := snapshotEnvBindings.Items[idx]
+		if seb.Spec.Environment == envObj.Name {
+			res = append(res, reconcile.Request{
+				NamespacedName: client.ObjectKeyFromObject(&seb),
+			})
+		}
+	}
+
+	return res
 }
 
 // updateMapWithExpectedAppStudioLabels ensures that the appstudio labels in the generated GitOpsDeployment are the same as defined in
@@ -556,5 +885,85 @@ func isRequestNamespaceBeingDeleted(ctx context.Context, namespaceName string, k
 	}
 
 	return false, nil
+
+}
+
+// Update .status.bindingConditions field of SnapshotEnvironmentBinding
+func updateSEBReconciledStatusCondition(ctx context.Context, client client.Client, message string,
+	binding *appstudioshared.SnapshotEnvironmentBinding,
+	status metav1.ConditionStatus, reason string, log logr.Logger) error {
+
+	// The code to set the SnapshotEnvironmentBindingConditionErrorOccurred condition should be removed once all
+	// have moved to using the new SnapshotEnvironmentBindingConditionReconciled condition
+	newCondition1 := metav1.Condition{
+		Type:    SnapshotEnvironmentBindingConditionErrorOccurred,
+		Message: message,
+		Status:  status,
+		Reason:  SnapshotEnvironmentBindingReasonErrorOccurred,
+	}
+	if status == metav1.ConditionTrue {
+		newCondition1.Status = metav1.ConditionFalse
+	} else if status == metav1.ConditionFalse {
+		newCondition1.Status = metav1.ConditionTrue
+	} else {
+		newCondition1.Status = status
+	}
+
+	newCondition2 := metav1.Condition{
+		Type:    SnapshotEnvironmentBindingConditionReconciled,
+		Message: message,
+		Status:  status,
+		Reason:  reason,
+	}
+
+	changed1, newConditions := insertOrUpdateConditionsInSlice(newCondition1, binding.Status.BindingConditions)
+	changed2, newConditions := insertOrUpdateConditionsInSlice(newCondition2, newConditions)
+
+	if changed1 || changed2 {
+		binding.Status.BindingConditions = newConditions
+
+		if err := client.Status().Update(ctx, binding); err != nil {
+			log.Error(err, "unable to update .status.bindingCondition of SEB")
+			return err
+		}
+		log.Info("updated .status.bindingCondition of SnapshotEnvironmentBinding")
+	}
+
+	return nil
+}
+
+// insertOrUpdateConditionsInSlice is a generic function for inserting/updating metav1.Condition into a slice of []metav1.Condition
+func insertOrUpdateConditionsInSlice(newCondition metav1.Condition, existingConditions []metav1.Condition) (bool, []metav1.Condition) {
+
+	// Check if condition with same type is already set, if Yes then check if content is same,
+	// If content is not same update LastTransitionTime
+
+	index := -1
+	for i, Condition := range existingConditions {
+		if Condition.Type == newCondition.Type {
+			index = i
+			break
+		}
+	}
+
+	now := metav1.Now()
+
+	changed := false
+
+	if index == -1 {
+		newCondition.LastTransitionTime = now
+		existingConditions = append(existingConditions, newCondition)
+		changed = true
+
+	} else if existingConditions[index].Message != newCondition.Message ||
+		existingConditions[index].Reason != newCondition.Reason ||
+		existingConditions[index].Status != newCondition.Status {
+
+		newCondition.LastTransitionTime = now
+		existingConditions[index] = newCondition
+		changed = true
+	}
+
+	return changed, existingConditions
 
 }

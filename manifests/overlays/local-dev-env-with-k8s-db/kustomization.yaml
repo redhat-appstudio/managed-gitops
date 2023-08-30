@@ -5,6 +5,7 @@ resources:
 - ../../base/crd/overlays/local-dev
 - ../../base/gitops-namespace
 - ../../base/postgresql-staging
+- ../../base/cluster-scoped
 # - ../../base/gitops-service-argocd
 
 # Uncomment to use a custom image:

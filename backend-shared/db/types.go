@@ -139,6 +139,8 @@ type ClusterUser struct {
 
 	// -- Created_on field will tell us how old resources are
 	Created_on time.Time `pg:"created_on"`
+
+	Display_name string `pg:"display_name"`
 }
 
 type ClusterAccess struct {
@@ -301,12 +303,15 @@ type ApplicationState struct {
 
 	Resources []byte `pg:"resources"`
 
+	OperationState []byte `pg:"operation_state"`
+
 	// -- human_readable_health ( 512 ) NOT NULL,
 	// -- human_readable_sync ( 512 ) NOT NULL,
 	// -- human_readable_state ( 512 ) NOT NULL,
 
 	ReconciledState string `pg:"reconciled_state"`
-	SyncError       string `pg:"sync_error"`
+
+	Conditions []byte `pg:"conditions"`
 }
 
 // DeploymentToApplicationMapping represents relationship from GitOpsDeployment CR in the namespace, to an Application table row
@@ -495,6 +500,63 @@ type RepositoryCredentials struct {
 	SeqID int64 `pg:"seq_id"`
 
 	// -- Created_on field will tell us how old resources are
+	Created_on time.Time `pg:"created_on"`
+}
+
+// AppProjectRepository is created by referring to the RepositoryCredentials
+type AppProjectRepository struct {
+
+	//lint:ignore U1000 used by go-pg
+	tableName struct{} `pg:"appprojectrepository"` //nolint
+
+	AppprojectRepositoryID string `pg:"appproject_repository_id,pk,notnull"`
+
+	// -- Foreign key to: ClusterUser.clusteruser_id
+	Clusteruser_id string `pg:"clusteruser_id"`
+
+	SeqID int64 `pg:"seq_id"`
+
+	RepoURL string `pg:"repo_url,notnull"`
+
+	// -- Created_on field will tell us how old resources are
+	Created_on time.Time `pg:"created_on"`
+}
+
+// AppProjectManagedEnvironment is created by referring to the ManagedEnvironment
+type AppProjectManagedEnvironment struct {
+
+	//lint:ignore U1000 used by go-pg
+	tableName struct{} `pg:"appprojectmanagedenvironment"` //nolint
+
+	AppprojectManagedenvID string `pg:"appproject_managedenv_id,pk,notnull"`
+
+	// -- Foreign key to: ClusterUser.clusteruser_id
+	Clusteruser_id string `pg:"clusteruser_id"`
+
+	// -- Foreign key to: ManagedEnvironment.managed_environment_id
+	Managed_environment_id string `pg:"managed_environment_id"`
+
+	SeqID int64 `pg:"seq_id"`
+
+	// -- Created_on field will tell us how old resources are
+	Created_on time.Time `pg:"created_on"`
+}
+
+// ApplicationOwner indicates which Applications are owned by which user(s)
+type ApplicationOwner struct {
+
+	//lint:ignore U1000 used by go-pg
+	tableName struct{} `pg:"applicationowner"` //nolint
+
+	// -- Foreign key to Application.application_id
+	ApplicationOwnerApplicationID string `pg:"application_owner_application_id,pk,notnull"`
+
+	// -- Foreign key to: ClusterUser.clusteruser_id
+	ApplicationOwnerUserID string `pg:"application_owner_user_id,pk,notnull"`
+
+	SeqID int64 `pg:"seq_id"`
+
+	// -- When ClusterUser was created, which allows us to tell how old the resources are
 	Created_on time.Time `pg:"created_on"`
 }
 

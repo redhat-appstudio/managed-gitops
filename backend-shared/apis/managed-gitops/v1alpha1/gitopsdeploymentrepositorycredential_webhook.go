@@ -27,6 +27,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
+const error_invalid_repository = "repository must begin with ssh:// or https://"
+
 // log is for logging in this package.
 var gitopsdeploymentrepositorycredentiallog = logf.Log.WithName(logutil.LogLogger_managed_gitops)
 
@@ -87,7 +89,7 @@ func (r *GitOpsDeploymentRepositoryCredential) ValidateGitOpsDeploymentRepoCred(
 		}
 
 		if !(apiURL.Scheme == "https" || apiURL.Scheme == "ssh") {
-			return fmt.Errorf("repository must begin with ssh:// or https://")
+			return fmt.Errorf(error_invalid_repository)
 		}
 	}
 

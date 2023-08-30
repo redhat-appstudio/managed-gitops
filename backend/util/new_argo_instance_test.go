@@ -31,7 +31,7 @@ var _ = Describe("Test for creating opeartion with resource-type as Gitopsengine
 		BeforeEach(func() {
 
 			err := db.SetupForTestingDBGinkgo()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			ctx = context.Background()
 			log = logf.FromContext(ctx)
@@ -41,7 +41,7 @@ var _ = Describe("Test for creating opeartion with resource-type as Gitopsengine
 				argocdNamespace,
 				kubesystemNamespace,
 				namespace, err := tests.GenericTestSetup()
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			k8sClient = fake.NewClientBuilder().
 				WithScheme(scheme).
@@ -49,10 +49,10 @@ var _ = Describe("Test for creating opeartion with resource-type as Gitopsengine
 				Build()
 
 			dbQueries, err = db.NewUnsafePostgresDBQueries(true, true)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, _, _, _, clusterAccess, err := db.CreateSampleData(dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			clusterUserID = clusterAccess.Clusteraccess_user_id
 
@@ -72,18 +72,18 @@ var _ = Describe("Test for creating opeartion with resource-type as Gitopsengine
 			}
 
 			err := k8sClient.Create(context.Background(), ns)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			clusterUser := db.ClusterUser{Clusteruser_id: clusterUserID}
 			err = dbQueries.GetClusterUserById(ctx, &clusterUser)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			err = CreateNewArgoCDInstance(ctx, ns, clusterUser, k8sClient, log, dbQueries)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			operationList := managedgitopsv1alpha1.OperationList{}
 			err = k8sClient.List(context.Background(), &operationList)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			By("looking for an Operation that points to the new GitOpsEngineInstance we created")
 			matchFound := false
@@ -95,7 +95,7 @@ var _ = Describe("Test for creating opeartion with resource-type as Gitopsengine
 				}
 
 				err = dbQueries.GetOperationById(context.Background(), operationDB)
-				Expect(err).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
 
 				if operationDB.Resource_type == db.OperationResourceType_GitOpsEngineInstance {
 
@@ -104,7 +104,7 @@ var _ = Describe("Test for creating opeartion with resource-type as Gitopsengine
 					}
 
 					err := dbQueries.GetGitopsEngineInstanceById(context.Background(), &gitopsEngineInstanceDB)
-					Expect(err).To(BeNil())
+					Expect(err).ToNot(HaveOccurred())
 
 					if gitopsEngineInstanceDB.Namespace_name == ns.Name {
 						matchFound = true

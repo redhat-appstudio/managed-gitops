@@ -185,7 +185,7 @@ var _ = Describe("Test DeploymentTargetClaimBinderController", func() {
 				Expect(res).To(Equal(ctrl.Result{}))
 
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc)
-				Expect(apierr.IsNotFound(err)).To(BeFalse())
+				Expect(apierr.IsNotFound(err)).To(BeTrue())
 
 				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&dt), &dt)
 				Expect(apierr.IsNotFound(err)).To(BeFalse())

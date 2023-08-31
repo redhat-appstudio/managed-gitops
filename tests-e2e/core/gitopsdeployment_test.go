@@ -1128,17 +1128,26 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				),
 			)
 
-			By("Creating a second gitopsdeployment targetting repo B")
-			gitOpsDeploymentResource2 := gitopsDeplFixture.BuildTargetRevisionGitOpsDeploymentResource("gitops-depl-test-1",
-				"https://github.com/managed-gitops-test-data/deployment-permutations-b", "pathC", "branchB",
+			By("Creating a second gitopsdeployment targetting a different repo")
+			gitOpsDeploymentResource2 := gitopsDeplFixture.BuildGitOpsDeploymentResource(fixture.GitopsDeploymentName,
+				fixture.RepoURL, fixture.GitopsDeploymentPath,
 				managedgitopsv1alpha1.GitOpsDeploymentSpecType_Automated)
 
 			err = k8s.Create(&gitOpsDeploymentResource2, k8sClient)
 			Expect(err).To(Succeed())
 
-			expectedResourceStatusList := createResourceStatusListFunction_deploymentPermutations()
-			expectedResourceStatusList = append(expectedResourceStatusList,
-				getResourceStatusList_deploymentPermutations("deployment-permutations-b-branchb-pathc")...)
+			expectedResourceStatusList := []managedgitopsv1alpha1.ResourceStatus{
+				{
+					Group:     "",
+					Version:   "v1",
+					Kind:      "ConfigMap",
+					Namespace: fixture.GitOpsServiceE2ENamespace,
+					Name:      "environment-config-map",
+					Status:    managedgitopsv1alpha1.SyncStatusCodeSynced,
+				},
+			}
+			expectedResourceStatusList = append(expectedResourceStatusList, getResourceStatusList_GitOpsRepositoryTemplateRepo("component-a")...)
+			expectedResourceStatusList = append(expectedResourceStatusList, getResourceStatusList_GitOpsRepositoryTemplateRepo("component-b")...)
 
 			err = k8s.Get(&gitOpsDeploymentResource2, k8sClient)
 			Expect(err).To(Succeed())
@@ -1195,7 +1204,6 @@ var _ = Describe("GitOpsDeployment E2E tests", func() {
 				err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(appProject), appProject)
 				return apierr.IsNotFound(err)
 			}, time.Minute, time.Second*5).Should(BeTrue())
-
 		})
 	})
 

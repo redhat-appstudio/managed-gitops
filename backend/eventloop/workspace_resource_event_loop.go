@@ -3,7 +3,6 @@ package eventloop
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -11,6 +10,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/application_event_loop"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	corev1 "k8s.io/api/core/v1"
@@ -162,7 +162,7 @@ func (wert *workspaceResourceEventTask) PerformTask(taskContext context.Context)
 	retry, err := internalProcessWorkspaceResourceMessage(taskContext, wert.msg, wert.sharedResourceLoop, wert.workspaceEventLoopInputChannel, wert.dbQueries, wert.log)
 
 	// If we recognize this error is a connection error due to the user providing us invalid credentials, don't bother to log it.
-	if isManagedEnvironmentConnectionUserError(err, wert.log) {
+	if application_event_loop.IsManagedEnvironmentConnectionUserError(err, wert.log) {
 		return retry, nil
 	}
 	return retry, err
@@ -265,20 +265,4 @@ func internalProcessWorkspaceResourceMessage(ctx context.Context, msg workspaceR
 	}
 	return noRetry, fmt.Errorf("SEVERE: unrecognized sharedResourceLoopMessageType: %s " + string(msg.messageType))
 
-}
-
-// isManagedEnvironmentConnectionUserError returns true if the error is likely an error in the cluster credentials provided by the user
-func isManagedEnvironmentConnectionUserError(err error, log logr.Logger) bool {
-
-	if err == nil {
-		return false
-	}
-
-	errStr := err.Error()
-
-	if strings.Contains(errStr, shared_resource_loop.UnableToCreateRestConfigError) {
-		log.Info(errStr)
-		return true
-	}
-	return false
 }

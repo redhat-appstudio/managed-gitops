@@ -389,9 +389,12 @@ func handleDeploymentModified(ctx context.Context, newEvent *eventlooptypes.Even
 	if err == nil {
 		return signalledShutdown, nil
 	} else {
+		// If we recognize this error is a connection error due to the user providing us invalid credentials, don't bother to log it.
+		if IsManagedEnvironmentConnectionUserError(err.DevError(), log) {
+			return signalledShutdown, nil
+		}
 		return signalledShutdown, err.DevError()
 	}
-
 }
 
 // applicationEventLoopRunner_Action is a short-lived struct containing data required to perform an action

@@ -22,6 +22,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/backend/condition"
 	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/eventlooptypes"
+	"github.com/redhat-appstudio/managed-gitops/backend/eventloop/shared_resource_loop"
 	"github.com/redhat-appstudio/managed-gitops/backend/metrics"
 	goyaml "gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
@@ -601,6 +602,12 @@ func (a applicationEventLoopRunner_Action) handleUpdatedGitOpsDeplEvent(ctx cont
 	if err != nil {
 		userError := "unable to reconcile the ManagedEnvironment resource. Ensure that the ManagedEnvironment exists, it references a Secret, and the Secret is valid"
 		devError := fmt.Errorf("unable to get or create managed environment: %v", err)
+
+		// If we recognize this error is a connection error due to the user providing us invalid credentials, don't bother to log it.
+		if IsManagedEnvironmentConnectionUserError(err, a.log) {
+			return nil, nil, deploymentModifiedResult_Failed, nil
+		}
+
 		return nil, nil, deploymentModifiedResult_Failed, gitopserrors.NewUserDevError(userError, devError)
 	}
 
@@ -1382,4 +1389,20 @@ func retrieveComparedToFieldInApplicationState(reconciledState string) (fauxargo
 func getInt64Pointer(i int) *int64 {
 	i64 := int64(i)
 	return &i64
+}
+
+// isManagedEnvironmentConnectionUserError returns true if the error is likely an error in the cluster credentials provided by the user
+func IsManagedEnvironmentConnectionUserError(err error, log logr.Logger) bool {
+
+	if err == nil {
+		return false
+	}
+
+	errStr := err.Error()
+
+	if strings.Contains(errStr, shared_resource_loop.UnableToCreateRestConfigError) {
+		log.Info(errStr)
+		return true
+	}
+	return false
 }

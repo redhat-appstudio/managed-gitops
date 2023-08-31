@@ -85,8 +85,8 @@ func (r *DevsandboxDeploymentReconciler) Reconcile(ctx context.Context, req ctrl
 		return ctrl.Result{}, nil
 	}
 
-	if dtcLabel, exists := spacerequest.Labels[deploymentTargetClaimLabel]; !exists {
-		log.Info("SpaceRequest is missing an 'appstudio.openshift.io/dtc' label, so skipping.")
+	if dtcLabel, exists := spacerequest.Labels[DeploymentTargetClaimLabel]; !exists {
+		log.Info("SpaceRequest is missing an '" + DeploymentTargetClaimLabel + "' label, so skipping.")
 		return ctrl.Result{}, nil
 
 	} else {
@@ -215,7 +215,23 @@ func doesSpaceRequestHaveReadyTrue(spacerequest codereadytoolchainv1alpha1.Space
 // findMatchingDTForSpaceRequest tries to find a DT that matches the given SpaceRequest in a namespace.
 func findMatchingDTForSpaceRequest(ctx context.Context, k8sClient client.Client, spacerequest codereadytoolchainv1alpha1.SpaceRequest) (*applicationv1alpha1.DeploymentTarget, error) {
 
-	// 1) Find the DTC using the DTC label on the SpaceRequet
+	if HasLabel(&spacerequest, DeploymentTargetLabel) {
+
+		dt := &applicationv1alpha1.DeploymentTarget{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: spacerequest.Namespace,
+				Name:      spacerequest.Labels[DeploymentTargetLabel],
+			},
+		}
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dt), dt); err != nil {
+			return nil, fmt.Errorf("unable to locate DT with name '%s' in Namespace '%s', from DeploymentTargetLabel of SpaceRequest '%s': %w", dt.Name, dt.Namespace, spacerequest.Name, err)
+		}
+
+		return dt, nil
+	}
+
+	// If it doesn't have a label, instead attempt to find it via the DTC label
+
 	dtc, err := findMatchingDTCForSpaceRequest(ctx, k8sClient, spacerequest)
 
 	if err != nil {
@@ -260,13 +276,13 @@ func HasLabel(object client.Object, label string) bool {
 
 // findMatchingDTCForSpaceRequest tries to find the DTC that matches a given SpaceRequest.
 func findMatchingDTCForSpaceRequest(ctx context.Context, k8sClient client.Client, spacerequest codereadytoolchainv1alpha1.SpaceRequest) (*applicationv1alpha1.DeploymentTargetClaim, error) {
-	if !HasLabel(&spacerequest, deploymentTargetClaimLabel) {
-		return nil, fmt.Errorf("no 'appstudio.openshift.io/dtc' label is set for spacerequest '%s' '%s'", spacerequest.Name, spacerequest.Namespace)
+	if !HasLabel(&spacerequest, DeploymentTargetClaimLabel) {
+		return nil, fmt.Errorf("no '%s' label is set for spacerequest '%s' '%s'", DeploymentTargetClaimLabel, spacerequest.Name, spacerequest.Namespace)
 	}
 	dtc := &applicationv1alpha1.DeploymentTargetClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: spacerequest.Namespace,
-			Name:      spacerequest.Labels[deploymentTargetClaimLabel],
+			Name:      spacerequest.Labels[DeploymentTargetClaimLabel],
 		},
 	}
 	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dtc), dtc); err != nil {
@@ -275,22 +291,28 @@ func findMatchingDTCForSpaceRequest(ctx context.Context, k8sClient client.Client
 	return dtc, nil
 }
 
-// newDeploymentTarget creates a new DeploymentTarget using the provided info.
-func newDeploymentTarget(deploymentTargetClassName applicationv1alpha1.DeploymentTargetClassName, dtcNamespace string, namespace string, clusterAPIURL string, secretRef string, dtcName string) *applicationv1alpha1.DeploymentTarget {
-	dtName := dtcName + "-dt"
+// createDeploymentTargetForSpaceRequest creates and returns a new DeploymentTarget
+// If it's not possible to create it and set the SpaceRequest as the owner, an error will be returned
+func createDeploymentTargetForSpaceRequest(ctx context.Context, k8sClient client.Client, spacerequest codereadytoolchainv1alpha1.SpaceRequest, log logr.Logger) (*applicationv1alpha1.DeploymentTarget, error) {
+
+	dtc, err := findMatchingDTCForSpaceRequest(ctx, k8sClient, spacerequest)
+	if err != nil {
+		return nil, fmt.Errorf("unable to locate matching DTC for SpaceRequest: %w", err)
+	}
+
 	deploymentTarget := &applicationv1alpha1.DeploymentTarget{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: dtName + "-",
-			Namespace:    dtcNamespace,
+			Name:      dtc.Name + "-dt",
+			Namespace: dtc.Namespace,
 		},
 		Spec: applicationv1alpha1.DeploymentTargetSpec{
-			DeploymentTargetClassName: deploymentTargetClassName,
+			DeploymentTargetClassName: dtc.Spec.DeploymentTargetClassName,
 			KubernetesClusterCredentials: applicationv1alpha1.DeploymentTargetKubernetesClusterCredentials{
-				DefaultNamespace:         namespace,
-				APIURL:                   clusterAPIURL,
-				ClusterCredentialsSecret: secretRef,
+				DefaultNamespace:         spacerequest.Status.NamespaceAccess[0].Name,
+				APIURL:                   spacerequest.Status.TargetClusterURL,
+				ClusterCredentialsSecret: spacerequest.Status.NamespaceAccess[0].SecretRef,
 			},
-			ClaimRef: dtcName,
+			ClaimRef: dtc.Name,
 		},
 	}
 
@@ -298,25 +320,6 @@ func newDeploymentTarget(deploymentTargetClassName applicationv1alpha1.Deploymen
 	if strings.EqualFold(os.Getenv("DEV_ONLY_IGNORE_SELFSIGNED_CERT_IN_DEPLOYMENT_TARGET"), "true") {
 		deploymentTarget.Spec.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify = true
 	}
-
-	return deploymentTarget
-}
-
-// createDeploymentTargetForSpaceRequest creates and returns a new DeploymentTarget
-// If it's not possible to create it and set the SpaceRequest as the owner, an error will be returned
-func createDeploymentTargetForSpaceRequest(ctx context.Context, client client.Client, spacerequest codereadytoolchainv1alpha1.SpaceRequest, log logr.Logger) (*applicationv1alpha1.DeploymentTarget, error) {
-
-	dtc, err := findMatchingDTCForSpaceRequest(ctx, client, spacerequest)
-	if err != nil {
-		return nil, fmt.Errorf("unable to locate matching DTC for SpaceRequest: %w", err)
-	}
-
-	deploymentTarget := newDeploymentTarget(
-		dtc.Spec.DeploymentTargetClassName,
-		dtc.Namespace,
-		spacerequest.Status.NamespaceAccess[0].Name,
-		spacerequest.Status.TargetClusterURL,
-		spacerequest.Status.NamespaceAccess[0].SecretRef, dtc.Name)
 
 	if HasAnnotation(dtc, applicationv1alpha1.AnnTargetProvisioner) {
 		if deploymentTarget.Labels == nil {
@@ -330,15 +333,24 @@ func createDeploymentTargetForSpaceRequest(ctx context.Context, client client.Cl
 	}
 	deploymentTarget.Annotations[applicationv1alpha1.AnnDynamicallyProvisioned] = string(applicationv1alpha1.Provisioner_Devsandbox)
 
-	err = client.Create(ctx, deploymentTarget)
-	if err != nil {
+	// Before we create the DT, update the SpaceRequest label
+	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&spacerequest), &spacerequest); err != nil {
 		return nil, err
 	}
 
+	spacerequest.Labels[DeploymentTargetLabel] = deploymentTarget.Name
+
+	if err := k8sClient.Update(ctx, &spacerequest); err != nil {
+		return nil, err
+	}
+	// Create the DeploymentTarget
+	if err := k8sClient.Create(ctx, deploymentTarget); err != nil {
+		return nil, err
+	}
 	logutil.LogAPIResourceChangeEvent(deploymentTarget.Namespace, deploymentTarget.Name, deploymentTarget, logutil.ResourceCreated, log)
 
 	deploymentTarget.Status.Phase = applicationv1alpha1.DeploymentTargetPhase_Available // set phrase to "Available"
-	if err := client.Update(ctx, deploymentTarget); err != nil {
+	if err := k8sClient.Status().Update(ctx, deploymentTarget); err != nil {
 		return deploymentTarget, fmt.Errorf("failed to update DeploymentTarget %s in namespace %s to Available status", deploymentTarget.Name, deploymentTarget.Namespace)
 	}
 

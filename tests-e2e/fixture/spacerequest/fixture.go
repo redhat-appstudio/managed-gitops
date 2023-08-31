@@ -10,8 +10,9 @@ import (
 	. "github.com/onsi/gomega"
 	matcher "github.com/onsi/gomega/types"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	appstudiocontrollers "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
-	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
+
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -26,13 +27,13 @@ func HasStatus(status corev1.ConditionStatus) matcher.GomegaMatcher {
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
-			fmt.Println(k8s.K8sClientError, err)
+			fmt.Println(k8sFixture.K8sClientError, err)
 			return false
 		}
 
 		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&spacerequest), &spacerequest)
 		if err != nil {
-			fmt.Println(k8s.K8sClientError, err)
+			fmt.Println(k8sFixture.K8sClientError, err)
 			return false
 		}
 		if !condition.IsTrue(spacerequest.Status.Conditions, codereadytoolchainv1alpha1.ConditionReady) {
@@ -52,13 +53,13 @@ func HasANumberOfMatchingDTs(num int) matcher.GomegaMatcher {
 
 		k8sClient, err := fixture.GetKubeClient(config)
 		if err != nil {
-			fmt.Println(k8s.K8sClientError, err)
+			fmt.Println(k8sFixture.K8sClientError, err)
 			return false
 		}
 
 		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(&spacerequest), &spacerequest)
 		if err != nil {
-			fmt.Println(k8s.K8sClientError, err)
+			fmt.Println(k8sFixture.K8sClientError, err)
 			return false
 		}
 
@@ -69,7 +70,7 @@ func HasANumberOfMatchingDTs(num int) matcher.GomegaMatcher {
 
 		err = k8sClient.List(context.Background(), &dtList, opts...)
 		if err != nil {
-			fmt.Println(k8s.K8sClientError, err)
+			fmt.Println(k8sFixture.K8sClientError, err)
 			return false
 		}
 
@@ -77,7 +78,7 @@ func HasANumberOfMatchingDTs(num int) matcher.GomegaMatcher {
 		count = 0
 		if len(dtList.Items) > 0 {
 			for _, d := range dtList.Items {
-				if string(d.Spec.ClaimRef) == spacerequest.Labels["appstudio.openshift.io/dtc"] {
+				if string(d.Spec.ClaimRef) == spacerequest.Labels[appstudiocontrollers.DeploymentTargetClaimLabel] {
 					count = count + 1
 				}
 			}

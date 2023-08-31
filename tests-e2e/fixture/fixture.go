@@ -245,11 +245,11 @@ func cleanUpOldKubeSystemResources(clientConfig *rest.Config) error {
 }
 
 // cleanUpOldGitOpsServiceAPIs deletes old GitOpsDeployment* APIs
-func cleanUpOldGitOpsServiceAPIs(namespace string, k8sClient client.Client) error {
+func cleanUpOldGitOpsServiceAPIs(namespace string, k8sClient client.Client) (bool, error) {
 
 	gitopsDeploymentList := managedgitopsv1alpha1.GitOpsDeploymentList{}
 	if err := k8sClient.List(context.Background(), &gitopsDeploymentList, &client.ListOptions{Namespace: namespace}); err != nil {
-		return fmt.Errorf("unable to cleanup old GitOpsDeployments: %v", err)
+		return false, fmt.Errorf("unable to cleanup old GitOpsDeployments: %v", err)
 	}
 
 	for idx := range gitopsDeploymentList.Items {
@@ -259,201 +259,177 @@ func cleanUpOldGitOpsServiceAPIs(namespace string, k8sClient client.Client) erro
 		if len(gitopsDeployment.Finalizers) > 0 {
 			gitopsDeployment.Finalizers = []string{}
 			if err := k8sClient.Update(context.Background(), &gitopsDeployment); err != nil {
-				return fmt.Errorf("unable to remove finalizer from GitOpsDeployment: %v", err)
+				return false, fmt.Errorf("unable to remove finalizer from GitOpsDeployment: %v", err)
 			}
 		}
 
 		if err := k8sClient.Delete(context.Background(), &gitopsDeployment); err != nil {
-			return err
+			return false, err
 		}
 	}
 
 	gitopsManagedEnvironments := managedgitopsv1alpha1.GitOpsDeploymentManagedEnvironmentList{}
 	if err := k8sClient.List(context.Background(), &gitopsManagedEnvironments, &client.ListOptions{Namespace: namespace}); err != nil {
-		return fmt.Errorf("unable to cleanup old GitOpsDeployments: %v", err)
+		return false, fmt.Errorf("unable to cleanup old GitOpsDeployments: %v", err)
 	}
 
 	for idx := range gitopsManagedEnvironments.Items {
 		gitopsManagedEnv := gitopsManagedEnvironments.Items[idx]
 		if err := k8sClient.Delete(context.Background(), &gitopsManagedEnv); err != nil {
-			return err
+			return false, err
 		}
 	}
 
-	return nil
+	return len(gitopsDeploymentList.Items) == 0 && len(gitopsManagedEnvironments.Items) == 0, nil
 
 }
 
-func cleanUpOldHASApplicationAPIs(namespace string, k8sClient client.Client) error {
+func cleanUpOldHASApplicationAPIs(namespace string, k8sClient client.Client) (bool, error) {
 	applicationList := appstudiosharedv1.ApplicationList{}
 	if err := k8sClient.List(context.Background(), &applicationList, &client.ListOptions{Namespace: namespace}); err != nil {
-		return fmt.Errorf("unable to cleanup old HAS Applications: %w", err)
+		return false, fmt.Errorf("unable to cleanup old HAS Applications: %w", err)
 	}
 
 	for i := range applicationList.Items {
 		application := applicationList.Items[i]
 		if err := k8sClient.Delete(context.Background(), &application); err != nil {
 			if !apierr.IsNotFound(err) {
-				return err
+				return false, err
 			}
 		}
 	}
 
-	return nil
+	return len(applicationList.Items) == 0, nil
 }
 
-func cleanUpOldEnvironmentAPIs(namespace string, k8sClient client.Client) error {
+func cleanUpOldEnvironmentAPIs(namespace string, k8sClient client.Client) (bool, error) {
 	environmentList := appstudiosharedv1.EnvironmentList{}
 	if err := k8sClient.List(context.Background(), &environmentList, &client.ListOptions{Namespace: namespace}); err != nil {
-		return fmt.Errorf("unable to cleanup old HAS Applications: %w", err)
+		return false, fmt.Errorf("unable to cleanup old AppStudio Environments: %w", err)
 	}
 
 	for i := range environmentList.Items {
 		environment := environmentList.Items[i]
 		if err := k8sClient.Delete(context.Background(), &environment); err != nil {
-			return err
+			return false, err
 		}
 	}
 
-	return nil
+	return len(environmentList.Items) == 0, nil
 }
 
-func cleanUpOldSnapshotEnvironmentBindingAPIs(namespace string, k8sClient client.Client) error {
+func cleanUpOldSnapshotEnvironmentBindingAPIs(namespace string, k8sClient client.Client) (bool, error) {
 	bindingList := appstudiosharedv1.SnapshotEnvironmentBindingList{}
 	if err := k8sClient.List(context.Background(), &bindingList, &client.ListOptions{Namespace: namespace}); err != nil {
-		return fmt.Errorf("unable to cleanup old HAS Applications: %w", err)
+		return false, fmt.Errorf("unable to cleanup old SnapshotEnvironmentBindings: %w", err)
 	}
 
 	for i := range bindingList.Items {
 		binding := bindingList.Items[i]
 		if err := k8sClient.Delete(context.Background(), &binding); err != nil {
-			return err
+			return false, err
 		}
 	}
 
-	return nil
+	return len(bindingList.Items) == 0, nil
+
 }
 
-func cleanUpOldDeploymentTargetClaimAPIs(ns string, k8sClient client.Client) error {
+func cleanUpOldDeploymentTargetClaimAPIs(ns string, k8sClient client.Client) (bool, error) {
 	dtcList := appstudiosharedv1.DeploymentTargetClaimList{}
+
 	if err := k8sClient.List(context.Background(), &dtcList, &client.ListOptions{Namespace: ns}); err != nil {
 		if !apierr.IsNotFound(err) {
-			return err
+			return false, err
 		} else { // ignore not found
-			return nil
+			return true, nil
 		}
 	}
 
 	for i := range dtcList.Items {
 		dtc := dtcList.Items[i]
 
-		if err := k8sClient.Delete(context.Background(), &dtc); err != nil {
-			if !apierr.IsNotFound(err) { // ignore not found
-				return err
-			}
-		}
-
-		// Make sure that all finalizers are removed before deletion.
-		if err := removeAllFinalizers(k8sClient, &dtc); err != nil {
-			return err
-		}
-
-		if err := k8sClient.Delete(context.Background(), &dtc); err != nil {
-			if !apierr.IsNotFound(err) { // ignore not found
-				return err
-			}
+		if err := removeFinalizersAndDeleteK8sObject(&dtc, k8sClient); err != nil {
+			return false, err
 		}
 	}
 
-	return nil
+	return len(dtcList.Items) == 0, nil
+
 }
 
-func cleanUpOldDeploymentTargetAPIs(ns string, k8sClient client.Client) error {
+func cleanUpOldDeploymentTargetAPIs(ns string, k8sClient client.Client) (bool, error) {
 	dtList := appstudiosharedv1.DeploymentTargetList{}
 	if err := k8sClient.List(context.Background(), &dtList, &client.ListOptions{Namespace: ns}); err != nil {
-		return err
+		return false, err
 	}
 
 	for i := range dtList.Items {
 		dt := dtList.Items[i]
 
-		if err := k8sClient.Delete(context.Background(), &dt); err != nil {
-			if !apierr.IsNotFound(err) { // ignore not found
-				return err
-			}
+		if err := removeFinalizersAndDeleteK8sObject(&dt, k8sClient); err != nil {
+			return false, err
 		}
 
-		// Make sure that all finalizers are removed before deletion.
-		if err := removeAllFinalizers(k8sClient, &dt); err != nil {
-			return err
-		}
-
-		if err := k8sClient.Delete(context.Background(), &dt); err != nil {
-			if !apierr.IsNotFound(err) { // ignore not found
-				return err
-			}
-		}
 	}
 
-	return nil
+	return len(dtList.Items) == 0, nil
+
 }
 
-func cleanUpOldDeploymentTargetClassAPIs(ns string, k8sClient client.Client) error {
+func cleanUpOldDeploymentTargetClassAPIs(ns string, k8sClient client.Client) (bool, error) {
 	dtclsList := appstudiosharedv1.DeploymentTargetClassList{}
-	if err := k8sClient.List(context.Background(), &dtclsList, &client.ListOptions{Namespace: ns}); err != nil {
-		return err
+	if err := k8sClient.List(context.Background(), &dtclsList); err != nil {
+		return false, err
 	}
 
 	for i := range dtclsList.Items {
 		dtcls := dtclsList.Items[i]
 
-		if err := k8sClient.Delete(context.Background(), &dtcls); err != nil {
-			if !apierr.IsNotFound(err) { // ignore not found
-				return err
-			}
-		}
-
-		// Make sure that all finalizers are removed before deletion.
-		if err := removeAllFinalizers(k8sClient, &dtcls); err != nil {
-			if !apierr.IsNotFound(err) { // ignore not found
-				return err
-			}
-		}
-
-		if err := k8sClient.Delete(context.Background(), &dtcls); err != nil {
-			if !apierr.IsNotFound(err) { // ignore not found
-				return err
-			}
+		if err := removeFinalizersAndDeleteK8sObject(&dtcls, k8sClient); err != nil {
+			return false, err
 		}
 	}
 
-	return nil
+	return len(dtclsList.Items) == 0, nil
+
 }
 
-func cleanUpOldSpaceRequestAPIs(ns string, k8sClient client.Client) error {
+func cleanUpOldSpaceRequestAPIs(ns string, k8sClient client.Client) (bool, error) {
 	spaceRequestList := codereadytoolchainv1alpha1.SpaceRequestList{}
 	if err := k8sClient.List(context.Background(), &spaceRequestList, &client.ListOptions{Namespace: ns}); err != nil {
-		return err
+		return false, err
 	}
 
 	for i := range spaceRequestList.Items {
 		spaceRequest := spaceRequestList.Items[i]
 
-		if err := k8sClient.Delete(context.Background(), &spaceRequest); err != nil {
+		if err := removeFinalizersAndDeleteK8sObject(&spaceRequest, k8sClient); err != nil {
+			return false, err
+		}
+	}
+
+	return len(spaceRequestList.Items) == 0, nil
+
+}
+
+func removeFinalizersAndDeleteK8sObject(spaceRequest client.Object, k8sClient client.Client) error {
+
+	// Make sure that all finalizers are removed before deletion.
+	if err := removeAllFinalizers(k8sClient, spaceRequest); err != nil {
+		if !apierr.IsNotFound(err) { // ignore not found
 			return err
 		}
+	}
 
-		// Make sure that all finalizers are removed before deletion.
-		if err := removeAllFinalizers(k8sClient, &spaceRequest); err != nil {
-			return err
-		}
-
-		if err := k8sClient.Delete(context.Background(), &spaceRequest); err != nil {
+	if err := k8sClient.Delete(context.Background(), spaceRequest); err != nil {
+		if !apierr.IsNotFound(err) { // ignore not found
 			return err
 		}
 	}
 
 	return nil
+
 }
 
 func removeAllFinalizers(k8sClient client.Client, obj client.Object) error {
@@ -474,7 +450,9 @@ func removeAllFinalizers(k8sClient client.Client, obj client.Object) error {
 	obj.SetFinalizers([]string{})
 
 	if err := k8sClient.Update(context.Background(), obj); err != nil {
-		return err
+		if !apierr.IsNotFound(err) {
+			return err
+		}
 	}
 
 	return nil
@@ -601,50 +579,66 @@ func DeleteNamespace(namespaceParam string, clientConfig *rest.Config) error {
 	if err := wait.PollImmediate(time.Second*5, time.Minute*6, func() (done bool, err error) {
 
 		// Deletes old HAS Application APIs in this namespace
-		if err := cleanUpOldHASApplicationAPIs(namespaceParam, k8sClient); err != nil {
+		if emptyList, err := cleanUpOldHASApplicationAPIs(namespaceParam, k8sClient); err != nil {
 			GinkgoWriter.Printf("unable to delete old HAS Application APIs in '%s': %v\n", namespaceParam, err)
+			return false, nil
+		} else if !emptyList {
 			return false, nil
 		}
 
 		// Deletes old appstudio Environment APIs in this namespace
-		if err := cleanUpOldEnvironmentAPIs(namespaceParam, k8sClient); err != nil {
+		if emptyList, err := cleanUpOldEnvironmentAPIs(namespaceParam, k8sClient); err != nil {
 			GinkgoWriter.Printf("unable to delete old Environment APIs in '%s': %v\n", namespaceParam, err)
+			return false, nil
+		} else if !emptyList {
 			return false, nil
 		}
 
 		// Deletes old SnapshotEnvironmentBinding APIs in this namespace
-		if err := cleanUpOldSnapshotEnvironmentBindingAPIs(namespaceParam, k8sClient); err != nil {
+		if emptyList, err := cleanUpOldSnapshotEnvironmentBindingAPIs(namespaceParam, k8sClient); err != nil {
 			GinkgoWriter.Printf("unable to delete old Environment APIs in '%s': %v\n", namespaceParam, err)
+			return false, nil
+		} else if !emptyList {
 			return false, nil
 		}
 
 		// Deletes old DeploymentTargetClaim APIs in this namespace
-		if err := cleanUpOldDeploymentTargetClaimAPIs(namespaceParam, k8sClient); err != nil {
+		if emptyList, err := cleanUpOldDeploymentTargetClaimAPIs(namespaceParam, k8sClient); err != nil {
 			GinkgoWriter.Printf("unable to delete old DeploymentTargetClaim APIs in '%s': %v\n", namespaceParam, err)
+			return false, nil
+		} else if !emptyList {
 			return false, nil
 		}
 
 		// Deletes old DeploymentTarget APIs in this namespace
-		if err := cleanUpOldDeploymentTargetAPIs(namespaceParam, k8sClient); err != nil {
+		if emptyList, err := cleanUpOldDeploymentTargetAPIs(namespaceParam, k8sClient); err != nil {
 			GinkgoWriter.Printf("unable to delete old DeploymentTarget APIs in '%s': %v\n", namespaceParam, err)
+			return false, nil
+		} else if !emptyList {
 			return false, nil
 		}
 
 		// Deletes old DeploymentTargetClass APIs in this namespace
-		if err := cleanUpOldDeploymentTargetClassAPIs(namespaceParam, k8sClient); err != nil {
+		if emptyList, err := cleanUpOldDeploymentTargetClassAPIs(namespaceParam, k8sClient); err != nil {
 			GinkgoWriter.Printf("unable to delete old DeploymentTargetClass APIs in '%s': %v\n", namespaceParam, err)
+			return false, nil
+		} else if !emptyList {
 			return false, nil
 		}
 
 		// Deletes old SpaceRequest APIs in this namespace
-		if err := cleanUpOldSpaceRequestAPIs(namespaceParam, k8sClient); err != nil {
+		if emptyList, err := cleanUpOldSpaceRequestAPIs(namespaceParam, k8sClient); err != nil {
 			GinkgoWriter.Printf("unable to delete old SpaceRequest APIs in '%s': %v\n", namespaceParam, err)
+			return false, nil
+		} else if !emptyList {
 			return false, nil
 		}
 
 		// Deletes old GitOpsDeployment* APIs in this namespace
-		if err := cleanUpOldGitOpsServiceAPIs(namespaceParam, k8sClient); err != nil {
+		if emptyList, err := cleanUpOldGitOpsServiceAPIs(namespaceParam, k8sClient); err != nil {
 			GinkgoWriter.Printf("unable to delete old GitOps Service APIs in '%s': %v\n", namespaceParam, err)
+			return false, nil
+		} else if !emptyList {
 			return false, nil
 		}
 

@@ -416,6 +416,36 @@ func HasAnnotation(key, value string, k8sClient client.Client) matcher.GomegaMat
 	}, BeTrue())
 }
 
+func HasLabel(key, value string, k8sClient client.Client) matcher.GomegaMatcher {
+	return WithTransform(func(k8sObj client.Object) bool {
+
+		err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(k8sObj), k8sObj)
+		if err != nil {
+			fmt.Println(K8sClientError, err)
+			return false
+		}
+
+		labels := k8sObj.GetLabels()
+		if labels == nil {
+			fmt.Printf("Label %s not found in %s\n", key, k8sObj.GetName())
+			return false
+		}
+
+		v, found := labels[key]
+		if !found {
+			fmt.Printf("Label %s not found in %s\n", key, k8sObj.GetName())
+			return false
+		}
+
+		if v != value {
+			fmt.Printf("Label value mismatch for %s: Expected: %s Actual %s\n", k8sObj.GetName(), value, v)
+			return false
+		}
+
+		return true
+	}, BeTrue())
+}
+
 // HasNonNilDeletionTimestamp checks whether the Kubernetes object has a non-nil deletion timestamp.
 func HasNonNilDeletionTimestamp(k8sClient client.Client) matcher.GomegaMatcher {
 	return WithTransform(func(k8sObj client.Object) bool {

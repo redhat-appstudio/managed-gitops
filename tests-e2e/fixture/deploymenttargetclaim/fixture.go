@@ -9,6 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 	matcher "github.com/onsi/gomega/types"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	appstudiocontrollers "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	k8sFixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/k8s"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -103,7 +104,7 @@ func HasANumberOfMatchingSpaceRequests(num int) matcher.GomegaMatcher {
 		opts := []client.ListOption{
 			client.InNamespace(dtc.Namespace),
 			client.MatchingLabels{
-				"appstudio.openshift.io/dtc": dtc.Name,
+				appstudiocontrollers.DeploymentTargetClaimLabel: dtc.Name,
 			},
 		}
 

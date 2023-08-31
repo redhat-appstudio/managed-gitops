@@ -147,7 +147,7 @@ func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 	// Handle deletion if the DT has a deletion timestamp set.
 	var sr *codereadytoolchainv1alpha1.SpaceRequest
-	if sr, err = findMatchingSpaceRequestForDT(ctx, r.Client, &dt); err != nil {
+	if sr, err = findMatchingSpaceRequestForDT(ctx, r.Client, dt); err != nil {
 		if !apierr.IsNotFound(err) {
 			return ctrl.Result{}, err
 		}
@@ -227,14 +227,39 @@ func (r *DeploymentTargetReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 // findMatchingSpaceRequestForDT tries to find a SpaceRequest that matches the given DT in a namespace.
 // The function will return only the SpaceRequest that matches the expected environment Tier name
-func findMatchingSpaceRequestForDT(ctx context.Context, k8sClient client.Client, dt *applicationv1alpha1.DeploymentTarget) (*codereadytoolchainv1alpha1.SpaceRequest, error) {
+func findMatchingSpaceRequestForDT(ctx context.Context, k8sClient client.Client, dt applicationv1alpha1.DeploymentTarget) (*codereadytoolchainv1alpha1.SpaceRequest, error) {
 
 	spaceRequestList := codereadytoolchainv1alpha1.SpaceRequestList{}
 
+	// First look for the DeploymentTargetLabel that matches the DT
 	opts := []client.ListOption{
 		client.InNamespace(dt.Namespace),
 		client.MatchingLabels{
-			deploymentTargetClaimLabel: dt.Spec.ClaimRef,
+			DeploymentTargetLabel: dt.Name,
+		},
+	}
+
+	if err := k8sClient.List(ctx, &spaceRequestList, opts...); err != nil {
+		return nil, err
+	}
+
+	if len(spaceRequestList.Items) > 0 {
+		var spaceRequest *codereadytoolchainv1alpha1.SpaceRequest
+		for i, s := range spaceRequestList.Items {
+			if s.Spec.TierName == environmentTierName {
+				spaceRequest = &spaceRequestList.Items[i]
+				break
+			}
+		}
+		return spaceRequest, nil
+	}
+
+	// Next, look for the DeploymentTargetClaimLabel, and work backwards to find the DT
+
+	opts = []client.ListOption{
+		client.InNamespace(dt.Namespace),
+		client.MatchingLabels{
+			DeploymentTargetClaimLabel: dt.Spec.ClaimRef,
 		},
 	}
 

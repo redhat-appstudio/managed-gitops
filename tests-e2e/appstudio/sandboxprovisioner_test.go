@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
+	appstudiocontrollers "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 	dtcfixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/deploymenttargetclaim"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,7 +42,7 @@ var _ = Describe("Sandbox Provisioner controller tests", func() {
 				},
 				Spec: appstudiosharedv1.DeploymentTargetClassSpec{
 					Provisioner:   appstudiosharedv1.Provisioner_Devsandbox,
-					ReclaimPolicy: "Retain",
+					ReclaimPolicy: appstudiosharedv1.ReclaimPolicy_Retain,
 				},
 			}
 
@@ -94,7 +95,7 @@ var _ = Describe("Sandbox Provisioner controller tests", func() {
 			}
 
 			spaceRequest.Labels = map[string]string{
-				"appstudio.openshift.io/dtc": dtc.Name,
+				appstudiocontrollers.DeploymentTargetClaimLabel: dtc.Name,
 			}
 
 			err = k8sClient.Create(ctx, &spaceRequest)

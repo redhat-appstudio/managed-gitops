@@ -10,6 +10,8 @@ import (
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
 	"github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture"
 
+	appstudiocontrollers "github.com/redhat-appstudio/managed-gitops/appstudio-controller/controllers/appstudio.redhat.com"
+
 	spfixture "github.com/redhat-appstudio/managed-gitops/tests-e2e/fixture/spacerequest"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,7 +44,7 @@ var _ = Describe("Devsandbox deployment controller tests", func() {
 					Name:      "test-spacerequest",
 					Namespace: namespace,
 					Labels: map[string]string{
-						"appstudio.openshift.io/dtc": fixture.DTCName,
+						appstudiocontrollers.DeploymentTargetClaimLabel: fixture.DTCName,
 					},
 					Annotations: map[string]string{},
 				},
@@ -106,7 +108,7 @@ var _ = Describe("Devsandbox deployment controller tests", func() {
 
 			patch := client.MergeFrom(spacerequest.DeepCopy())
 
-			spacerequest.Labels["appstudio.openshift.io/dtc"] = fixture.DTCName
+			spacerequest.Labels[appstudiocontrollers.DeploymentTargetClaimLabel] = fixture.DTCName
 			cond := codereadytoolchainv1alpha1.Condition{
 				Type:   codereadytoolchainv1alpha1.ConditionReady,
 				Status: corev1.ConditionTrue,
@@ -145,7 +147,7 @@ var _ = Describe("Devsandbox deployment controller tests", func() {
 
 			patch := client.MergeFrom(spacerequest.DeepCopy())
 
-			spacerequest.Labels["appstudio.openshift.io/dtc"] = fixture.DTCName
+			spacerequest.Labels[appstudiocontrollers.DeploymentTargetClaimLabel] = fixture.DTCName
 			cond := codereadytoolchainv1alpha1.Condition{
 				Type:   codereadytoolchainv1alpha1.ConditionReady,
 				Status: corev1.ConditionTrue,
@@ -175,7 +177,7 @@ var _ = Describe("Devsandbox deployment controller tests", func() {
 			err := k8sClient.Create(ctx, &dtc)
 			Expect(err).ToNot(HaveOccurred())
 
-			spacerequest.Labels["appstudio.openshift.io/dtc"] = "wrongvalue"
+			spacerequest.Labels[appstudiocontrollers.DeploymentTargetClaimLabel] = "wrongvalue"
 			By("create a SpaceRequest")
 			err = k8sClient.Create(ctx, &spacerequest)
 			Expect(err).ToNot(HaveOccurred())

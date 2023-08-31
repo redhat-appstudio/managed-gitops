@@ -148,7 +148,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 			spaceRequest, err := findMatchingSpaceRequestForDTC(ctx, k8sClient, &dtc)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(spaceRequest).ToNot(BeNil())
-			Expect(spaceRequest.Labels[deploymentTargetClaimLabel]).To(Equal(dtc.Name))
+			Expect(spaceRequest.Labels[DeploymentTargetClaimLabel]).To(Equal(dtc.Name))
 			Expect(spaceRequest.Spec.TierName).To(Equal(environmentTierName))
 		})
 
@@ -176,7 +176,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 
 			expected := getSandboxSpaceRequest(func(spaceRequest *codereadytoolchainv1alpha1.SpaceRequest) {
 				spaceRequest.Labels = map[string]string{
-					deploymentTargetClaimLabel: dtc.Name,
+					DeploymentTargetClaimLabel: dtc.Name,
 				}
 			})
 			err = k8sClient.Create(ctx, &expected)
@@ -192,7 +192,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 			spaceRequest, err := findMatchingSpaceRequestForDTC(ctx, k8sClient, &dtc)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(spaceRequest).ToNot(BeNil())
-			Expect(spaceRequest.Labels[deploymentTargetClaimLabel]).To(Equal(dtc.Name))
+			Expect(spaceRequest.Labels[DeploymentTargetClaimLabel]).To(Equal(dtc.Name))
 			Expect(client.ObjectKeyFromObject(spaceRequest)).To(Equal(client.ObjectKeyFromObject(&expected)))
 		})
 
@@ -230,7 +230,7 @@ var _ = Describe("Test SandboxProvisionerController", func() {
 
 				expected := getSandboxSpaceRequest(func(spaceRequest *codereadytoolchainv1alpha1.SpaceRequest) {
 					spaceRequest.Labels = map[string]string{
-						deploymentTargetClaimLabel: dtc.Name,
+						DeploymentTargetClaimLabel: dtc.Name,
 					}
 				})
 				err = k8sClient.Create(ctx, &expected)

@@ -271,7 +271,7 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 							Name:      "my-sr",
 							Namespace: dtc.Namespace,
 							Labels: map[string]string{
-								deploymentTargetClaimLabel: dtc.Name,
+								DeploymentTargetClaimLabel: dtc.Name,
 							},
 						},
 					}
@@ -337,7 +337,7 @@ var _ = Describe("Test DeploymentTargetReclaimController", func() {
 							Name:      "my-sr",
 							Namespace: dtc.Namespace,
 							Labels: map[string]string{
-								deploymentTargetClaimLabel: dtc.Name,
+								DeploymentTargetClaimLabel: dtc.Name,
 							},
 						},
 					}
@@ -372,7 +372,7 @@ func generateReclaimSpaceRequest(ops ...func(spacerequest *codereadytoolchainv1a
 			Name:      "test-spacerequest",
 			Namespace: "test-deployment",
 			Labels: map[string]string{
-				"appstudio.openshift.io/dtc": "test-dtc",
+				DeploymentTargetClaimLabel: "test-dtc",
 			},
 		},
 		Spec: codereadytoolchainv1alpha1.SpaceRequestSpec{

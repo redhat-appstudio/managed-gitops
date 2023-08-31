@@ -35,8 +35,12 @@ import (
 const (
 	// environmentTierName is the tier that will be used for sandbox namespace-backed environments
 	environmentTierName = "appstudio-env"
-	// deploymentTargetClaimLabel is the label indicating the DeploymentTargetClaim that's associated with the object
-	deploymentTargetClaimLabel = "appstudio.openshift.io/dtc"
+
+	// DeploymentTargetClaimLabel is the label indicating the DeploymentTargetClaim that's associated with the SpaceRequest
+	DeploymentTargetClaimLabel = "appstudio.openshift.io/dtc"
+
+	// DeploymentTargetClaimLabel is the label indicating the DeploymentTarget that's associated with the SpaceRequest
+	DeploymentTargetLabel = "appstudio.openshift.io/dt"
 )
 
 // SandboxProvisionerReconciler reconciles a DeploymentTargetClaim object in order to provision a Sandbox for it
@@ -165,7 +169,7 @@ func findMatchingSpaceRequestForDTC(ctx context.Context, k8sClient client.Client
 	opts := []client.ListOption{
 		client.InNamespace(dtc.Namespace),
 		client.MatchingLabels{
-			deploymentTargetClaimLabel: dtc.Name,
+			DeploymentTargetClaimLabel: dtc.Name,
 		},
 	}
 
@@ -199,7 +203,7 @@ func createSpaceRequestForDTC(ctx context.Context, k8sClient client.Client, dtc 
 			GenerateName: dtc.Name + "-",
 			Namespace:    dtc.Namespace,
 			Labels: map[string]string{
-				deploymentTargetClaimLabel: dtc.Name,
+				DeploymentTargetClaimLabel: dtc.Name,
 			},
 		},
 	}

@@ -86,7 +86,7 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 
 			spacerequest := generateDevsandboxSpaceRequest(func(spacerequest *codereadytoolchainv1alpha1.SpaceRequest) {
 				spacerequest.Labels = map[string]string{
-					deploymentTargetClaimLabel: dtc.Name,
+					DeploymentTargetClaimLabel: dtc.Name,
 				}
 				spacerequest.Status.Conditions[0].Status = corev1.ConditionTrue
 
@@ -114,7 +114,7 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 			By("create a SpaceRequest with invalid data for appstudio.openshift.io/dtc label")
 			spacerequest := generateDevsandboxSpaceRequest(func(spacerequest *codereadytoolchainv1alpha1.SpaceRequest) {
 				spacerequest.Labels = map[string]string{
-					deploymentTargetClaimLabel: "no-dtc-Name",
+					DeploymentTargetClaimLabel: "no-dtc-Name",
 				}
 				spacerequest.Status.Conditions[0].Status = corev1.ConditionTrue
 			})
@@ -141,7 +141,7 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 
 			err := k8sClient.Create(ctx, &spacerequestnolabel)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(HasLabel(&spacerequestnolabel, deploymentTargetClaimLabel)).NotTo(BeTrue())
+			Expect(HasLabel(&spacerequestnolabel, DeploymentTargetClaimLabel)).NotTo(BeTrue())
 
 			By("reconcile with a SpaceRequest with invalid data for dtc label")
 			requestnolabel := newRequest(spacerequestnolabel.Namespace, spacerequestnolabel.Name)
@@ -164,7 +164,7 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 
 			spacerequest := generateDevsandboxSpaceRequest(func(spacerequest *codereadytoolchainv1alpha1.SpaceRequest) {
 				spacerequest.Labels = map[string]string{
-					deploymentTargetClaimLabel: dtc.Name,
+					DeploymentTargetClaimLabel: dtc.Name,
 				}
 			})
 			err = k8sClient.Create(ctx, &spacerequest)
@@ -187,7 +187,7 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 
 			spacerequest := generateDevsandboxSpaceRequest(func(spacerequest *codereadytoolchainv1alpha1.SpaceRequest) {
 				spacerequest.Labels = map[string]string{
-					deploymentTargetClaimLabel: "test-dtc",
+					DeploymentTargetClaimLabel: "test-dtc",
 				}
 			})
 			err = k8sClient.Create(ctx, &spacerequest)
@@ -225,7 +225,7 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 
 			spacerequest := generateDevsandboxSpaceRequest(func(spacerequest *codereadytoolchainv1alpha1.SpaceRequest) {
 				spacerequest.Labels = map[string]string{
-					deploymentTargetClaimLabel: dtc.Name,
+					DeploymentTargetClaimLabel: dtc.Name,
 				}
 				spacerequest.Status.Conditions[0].Status = corev1.ConditionTrue
 
@@ -267,7 +267,7 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 
 			spacerequest := generateDevsandboxSpaceRequest(func(spacerequest *codereadytoolchainv1alpha1.SpaceRequest) {
 				spacerequest.Labels = map[string]string{
-					deploymentTargetClaimLabel: "does-not-exist",
+					DeploymentTargetClaimLabel: "does-not-exist",
 				}
 				spacerequest.Status.Conditions[0].Status = corev1.ConditionTrue
 

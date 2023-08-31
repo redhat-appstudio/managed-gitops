@@ -94,12 +94,14 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 		if isDTCBound(dtc) {
 			dt, err := getDTBoundByDTC(ctx, r.Client, dtc)
 			if err != nil && !apierr.IsNotFound(err) {
+				log.Error(err, "unable to get DT bound by DTC")
 				return ctrl.Result{}, err
 			}
 
 			if dt != nil {
 				var dtcls applicationv1alpha1.DeploymentTargetClass
 				if dtcls, err = findMatchingDTClassForDT(ctx, *dt, r.Client); err != nil {
+					log.Error(err, "unable to locate matching DTClass for DT", "expectedDTClass", dt.Spec.DeploymentTargetClassName)
 					return ctrl.Result{}, err
 				}
 
@@ -113,8 +115,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 
 				if dtcls.Spec.ReclaimPolicy == applicationv1alpha1.ReclaimPolicy_Delete {
 					log.Info("ReclaimPolicy is ReclaimPolicy_Delete")
-					err = r.Client.Delete(ctx, dt)
-					if err != nil {
+					if err := r.Client.Delete(ctx, dt); err != nil {
 						return ctrl.Result{}, err
 					}
 					log.Info("DeploymentTarget is marked to Deleted", "DeploymentTarget", dt.Name)
@@ -123,32 +124,29 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 
 				} else if dtcls.Spec.ReclaimPolicy == applicationv1alpha1.ReclaimPolicy_Retain {
 					log.Info("ReclaimPolicy is ReclaimPolicy_Retain")
-					if removeFinalizer(&dtc, applicationv1alpha1.FinalizerBinder) {
-						if err := r.Client.Update(ctx, &dtc); err != nil {
-							return ctrl.Result{}, fmt.Errorf("failed to remove finalizer %s from DeploymentTargetClaim %s in namespace %s: %v", applicationv1alpha1.FinalizerBinder, dtc.Name, dtc.Namespace, err)
-						}
-						log.Info("Removed finalizer from DeploymentTargetClaim", "finalizer", applicationv1alpha1.FinalizerBinder)
-					}
 
-					dt.Spec.ClaimRef = ""
-					if err := r.Client.Update(ctx, dt); err != nil {
-						return ctrl.Result{}, fmt.Errorf("failed to update the claimRef: %v", err)
-					}
-
-					log.Info("ClaimRef of DeploymentTarget is unset since its corresponding DeploymentTargetClaim is already deleted", "DeploymentTarget", dt.Name)
-
-					logutil.LogAPIResourceChangeEvent(dt.Namespace, dt.Name, dt, logutil.ResourceModified, log)
-
-					err := updateDTStatusPhase(ctx, r.Client, dt, applicationv1alpha1.DeploymentTargetPhase_Released, log)
-					if err != nil {
-						return ctrl.Result{}, fmt.Errorf("failed to update DeploymentTarget %s in namespace %s to Released status", dt.Name, dt.Namespace)
-					}
 				} else {
 					log.Error(nil, "the ReclaimPolicy is neither Delete nor Retain")
 				}
-				return ctrl.Result{}, nil
+
+				dt.Spec.ClaimRef = ""
+				if err := r.Client.Update(ctx, dt); err != nil {
+					return ctrl.Result{}, fmt.Errorf("failed to update the claimRef: %v", err)
+				}
+
+				log.Info("ClaimRef of DeploymentTarget is unset since its corresponding DeploymentTargetClaim is already deleted", "DeploymentTarget", dt.Name)
+
+				logutil.LogAPIResourceChangeEvent(dt.Namespace, dt.Name, dt, logutil.ResourceModified, log)
+
+				if err := updateDTStatusPhase(ctx, r.Client, dt, applicationv1alpha1.DeploymentTargetPhase_Released, log); err != nil {
+					return ctrl.Result{}, fmt.Errorf("failed to update DeploymentTarget %s in namespace %s to Released status", dt.Name, dt.Namespace)
+				}
+
+				// Finally, we remove the DTC finalizer, below
+
 			}
 		}
+
 		if removeFinalizer(&dtc, applicationv1alpha1.FinalizerBinder) {
 			if err := r.Client.Update(ctx, &dtc); err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer %s from DeploymentTargetClaim %s in namespace %s: %v", applicationv1alpha1.FinalizerBinder, dtc.Name, dtc.Namespace, err)
@@ -156,6 +154,8 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 			log.Info("Removed finalizer from DeploymentTargetClaim", "finalizer", applicationv1alpha1.FinalizerBinder)
 			return ctrl.Result{}, nil
 		}
+
+		return ctrl.Result{}, nil
 	}
 
 	// If the binding is already done, we need to check if the DTC is still bound to a DT
@@ -180,8 +180,8 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 		// If a best match DT is available bind it to the current DTC.
 		if dt != nil {
 			log.Info("Found a matching DeploymentTarget for DeploymentTargetClaim", "DeploymentTarget", dt.Name)
-			err = bindDeploymentTargetClaimToTarget(ctx, r.Client, &dtc, dt, true, log)
-			if err != nil {
+
+			if err := bindDeploymentTargetClaimToTarget(ctx, r.Client, &dtc, dt, true, log); err != nil {
 				log.Error(err, "failed to bind DeploymentTargetClaim to the DeploymentTarget", "DeploymentTargetName", dt.Name, "Namespace", dt.Name)
 				return ctrl.Result{}, err
 			}

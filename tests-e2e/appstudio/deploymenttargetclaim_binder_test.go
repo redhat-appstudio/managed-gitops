@@ -2,7 +2,9 @@ package appstudio
 
 import (
 	"context"
+	"fmt"
 
+	codereadytoolchainv1alpha1 "github.com/codeready-toolchain/api/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appstudiosharedv1 "github.com/redhat-appstudio/application-api/api/v1alpha1"
@@ -17,7 +19,7 @@ import (
 
 var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 
-	Context("Testing DeploymentTargetClaim binding controller", func() {
+	Context("Testing DeploymentTargetClaim binding controller with DeploymentTargetClass with Retain policy", func() {
 		const dtClassName = "sandbox-provisioner"
 		var (
 			k8sClient client.Client
@@ -56,7 +58,7 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 				},
 				Spec: appstudiosharedv1.DeploymentTargetClassSpec{
 					Provisioner:   appstudiosharedv1.Provisioner_Devsandbox,
-					ReclaimPolicy: "Retain",
+					ReclaimPolicy: appstudiosharedv1.ReclaimPolicy_Retain,
 				},
 			}
 
@@ -275,6 +277,159 @@ var _ = Describe("DeploymentTargetClaim Binding controller tests", func() {
 
 			Eventually(dtc, "2m", "1s").Should(
 				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Lost))
+		})
+	})
+
+	Context("Testing DeploymentTargetClaim binding controller with DeploymentTargetClass with Delete policy", func() {
+		const dtClassName = "sandbox-provisioner"
+		var (
+			k8sClient client.Client
+			ctx       context.Context
+			namespace string
+			dtc       appstudiosharedv1.DeploymentTargetClaim
+			dtcls     appstudiosharedv1.DeploymentTargetClass
+			err       error
+		)
+
+		BeforeEach(func() {
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			ctx = context.Background()
+			namespace = fixture.GitOpsServiceE2ENamespace
+
+			dtc = appstudiosharedv1.DeploymentTargetClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fixture.DTCName,
+					Namespace: namespace,
+				},
+				Spec: appstudiosharedv1.DeploymentTargetClaimSpec{
+					DeploymentTargetClassName: dtClassName,
+				},
+			}
+
+			dtcls = appstudiosharedv1.DeploymentTargetClass{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        dtClassName,
+					Namespace:   namespace,
+					Annotations: map[string]string{},
+				},
+				Spec: appstudiosharedv1.DeploymentTargetClassSpec{
+					Provisioner:   appstudiosharedv1.Provisioner_Devsandbox,
+					ReclaimPolicy: appstudiosharedv1.ReclaimPolicy_Delete,
+				},
+			}
+
+			err = k8sClient.Create(ctx, &dtcls)
+			Expect(err).ToNot(HaveOccurred())
+
+		})
+
+		It("should handle a DTC with dynamic provisioning", func() {
+			By("create a DTC without any target")
+			err := k8sClient.Create(ctx, &dtc)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("check if the provisioner annotation is added")
+			Eventually(dtc, "2m", "1s").Should(
+				dtcfixture.HasAnnotation(appstudiosharedv1.AnnTargetProvisioner,
+					string(dtc.Spec.DeploymentTargetClassName)),
+			)
+
+			By("verifying a SpaceRequest was created that points to the DT")
+
+			var spaceRequest *codereadytoolchainv1alpha1.SpaceRequest
+
+			// A SpaceRequest should exist that references the DT and DTC
+			Eventually(func() bool {
+				var spaceRequestList codereadytoolchainv1alpha1.SpaceRequestList
+				Expect(k8sClient.List(ctx, &spaceRequestList)).To(Succeed())
+
+				for i, sr := range spaceRequestList.Items {
+
+					if sr.Labels[appstudiocontrollers.DeploymentTargetClaimLabel] == dtc.Name {
+						spaceRequest = &spaceRequestList.Items[i]
+
+						return true
+					}
+
+				}
+
+				return false
+
+			}, "20s", "1s").Should(BeTrue())
+
+			Expect(spaceRequest).ToNot(BeNil())
+
+			By("simulating the SpaceRequest becoming ready")
+			spaceRequest.Status.NamespaceAccess = []codereadytoolchainv1alpha1.NamespaceAccess{{Name: "namespace", SecretRef: "secret"}}
+			spaceRequest.Status.TargetClusterURL = "https://fake-cluster-url"
+			spaceRequest.Status.Conditions = []codereadytoolchainv1alpha1.Condition{{
+				Type:   codereadytoolchainv1alpha1.ConditionReady,
+				Status: "True",
+			}}
+			Expect(k8sClient.Status().Update(ctx, spaceRequest)).To(Succeed())
+
+			var dt *appstudiosharedv1.DeploymentTarget
+			Eventually(func() bool {
+
+				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&dtc), &dtc); err != nil {
+					fmt.Println(err)
+					return false
+				}
+
+				if dtc.Spec.TargetName == "" {
+					return false
+				}
+
+				dt = &appstudiosharedv1.DeploymentTarget{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      dtc.Spec.TargetName,
+						Namespace: dtc.Namespace,
+					},
+				}
+				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dt), dt); err != nil {
+					fmt.Println(err)
+					return false
+				}
+
+				return true
+
+			}, "30s", "1s").Should(BeTrue())
+
+			By("verify if the DT and DTC are bound together")
+			Eventually(dtc, "30s", "1s").Should(SatisfyAll(
+				dtcfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetClaimPhase_Bound),
+				dtcfixture.HasAnnotation(appstudiosharedv1.AnnBindCompleted, appstudiosharedv1.AnnBinderValueTrue),
+			))
+
+			Eventually(dt, "30s", "1s").Should(k8s.HasFinalizers([]string{appstudiocontrollers.FinalizerDT}, k8sClient))
+
+			Eventually(*dt, "30s", "1s").Should(
+				dtfixture.HasStatusPhase(appstudiosharedv1.DeploymentTargetPhase_Bound))
+
+			Eventually(spaceRequest, "20s", "1s").Should(k8s.HasLabel(appstudiocontrollers.DeploymentTargetLabel, dt.Name, k8sClient))
+
+			By("deleting the DTC, which should trigger the deletion of DT/SR")
+			Expect(k8sClient.Delete(ctx, &dtc)).To(Succeed())
+
+			Eventually(&dtc, "30s", "1s").ShouldNot(k8s.ExistByName(k8sClient))
+			Eventually(dt, "30s", "1s").Should(k8s.HasNonNilDeletionTimestamp(k8sClient))
+			Eventually(spaceRequest, "30s", "1s").Should(k8s.HasNonNilDeletionTimestamp(k8sClient))
+
+			By("removing the finalizer from SpaceRequest, which should cause it to be deleted")
+
+			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(spaceRequest), spaceRequest)).Should(Succeed())
+			spaceRequest.Finalizers = []string{}
+			Expect(k8sClient.Update(ctx, spaceRequest)).To(Succeed())
+
+			By("this should trigger both the DT and SpaceRequest to be deleted")
+
+			Eventually(dt, "30s", "1s").ShouldNot(k8s.ExistByName(k8sClient))
+			Eventually(spaceRequest, "30s", "1s").ShouldNot(k8s.ExistByName(k8sClient))
+
 		})
 	})
 })

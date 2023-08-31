@@ -129,17 +129,33 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 					log.Error(nil, "the ReclaimPolicy is neither Delete nor Retain")
 				}
 
-				dt.Spec.ClaimRef = ""
-				if err := r.Client.Update(ctx, dt); err != nil {
-					return ctrl.Result{}, fmt.Errorf("failed to update the claimRef: %v", err)
+				if err := r.Client.Get(ctx, client.ObjectKeyFromObject(dt), dt); err != nil {
+
+					if apierr.IsNotFound(err) {
+						return ctrl.Result{Requeue: true}, nil // DT is deleted, so requeue again to remove the finalizers from DTC
+					}
+
+					return ctrl.Result{}, fmt.Errorf("failed to retrieve an updated copy of the DT: %v", err)
 				}
 
+				dt.Spec.ClaimRef = ""
+				if err := r.Client.Update(ctx, dt); err != nil {
+					if apierr.IsNotFound(err) {
+						return ctrl.Result{Requeue: true}, nil // DT is deleted, so requeue again to remove the finalizers from DTC
+					}
+
+					return ctrl.Result{}, fmt.Errorf("failed to update the claimRef: %v", err)
+				}
 				log.Info("ClaimRef of DeploymentTarget is unset since its corresponding DeploymentTargetClaim is already deleted", "DeploymentTarget", dt.Name)
 
 				logutil.LogAPIResourceChangeEvent(dt.Namespace, dt.Name, dt, logutil.ResourceModified, log)
 
 				if err := updateDTStatusPhase(ctx, r.Client, dt, applicationv1alpha1.DeploymentTargetPhase_Released, log); err != nil {
-					return ctrl.Result{}, fmt.Errorf("failed to update DeploymentTarget %s in namespace %s to Released status", dt.Name, dt.Namespace)
+					if apierr.IsNotFound(err) {
+						return ctrl.Result{Requeue: true}, nil // DT is deleted, so requeue again to remove the finalizers from DTC
+					} else {
+						return ctrl.Result{}, fmt.Errorf("failed to update DeploymentTarget %s in namespace %s to Released status", dt.Name, dt.Namespace)
+					}
 				}
 
 				// Finally, we remove the DTC finalizer, below

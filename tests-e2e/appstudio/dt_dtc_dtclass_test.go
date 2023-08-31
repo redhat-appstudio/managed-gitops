@@ -186,7 +186,7 @@ var _ = Describe("DeploymentTarget DeploymentTargetClaim and Class tests", func(
 				Expect(err).ToNot(HaveOccurred())
 
 				for _, dt := range deploymentTargetList.Items {
-					if strings.HasPrefix(dt.Name, dtc.Name+"-dt-") {
+					if strings.HasPrefix(dt.Name, dtc.Name+"-dt") {
 						matchingDT = *dt.DeepCopy()
 					} else {
 						fmt.Println("- DeploymentTarget name does not match:", dt.Name)

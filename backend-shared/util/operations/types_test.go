@@ -112,12 +112,11 @@ var _ = Describe("Testing CreateOperation function.", func() {
 
 		delayUpdateOfState := func(operation *db.Operation, k8sClient client.Client, gitopsEngineInstance db.GitopsEngineInstance) {
 			defer GinkgoRecover()
+			// Allow waitForOperationToComplete to iterate/wait a few times before we set the operation state to Completed
+			currentTime := time.Now()
+			for time.Now().Before(currentTime.Add(2 * time.Second)) {
+			}
 			Eventually(func() bool {
-				// Allow waitForOperationToComplete to iterate/wait a few times
-				currentTime := time.Now()
-				for time.Now().Before(currentTime.Add(2 * time.Second)) {
-				}
-
 				operationget := db.Operation{
 					Operation_id: operation.Operation_id,
 				}
@@ -128,17 +127,25 @@ var _ = Describe("Testing CreateOperation function.", func() {
 					return false
 				}
 
-				Expect(operationget.State).To(BeIdenticalTo(db.OperationState_Waiting))
+				if operationget.State != db.OperationState_Waiting {
+					return false
+				}
 
 				// Update the operation state to Completed
 				operationget.State = db.OperationState_Completed
 				err = dbq.UpdateOperation(ctx, &operationget)
-				Expect(err).ToNot(HaveOccurred())
+				if err != nil {
+					return false
+				}
 
 				// Get the operation again and check state
 				err = dbq.GetOperationById(ctx, &operationget)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(operationget.State).To(BeIdenticalTo(db.OperationState_Completed))
+				if err != nil {
+					return false
+				}
+				if operationget.State != db.OperationState_Completed {
+					return false
+				}
 
 				return true
 			}, "5s", "10ms").Should(BeTrue())

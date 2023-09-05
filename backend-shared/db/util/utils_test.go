@@ -1090,11 +1090,7 @@ var _ = Describe("Test utility functions.", func() {
 
 			applicationState := db.ApplicationState{
 				Applicationstate_application_id: application.Application_id,
-				Health:                          "Progressing",
-				Sync_Status:                     "Unknown",
-				Resources:                       make([]byte, 10),
-				ReconciledState:                 "test-reconciledState",
-				Conditions:                      []byte("sample"),
+				ArgoCD_Application_Status:       []byte("sample"),
 			}
 
 			operation := &db.Operation{

@@ -49,9 +49,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateApplicationState(ctx context.Context
 
 	if err := isEmptyValues("CreateApplicationState",
 		"Applicationstate_application_id", obj.Applicationstate_application_id,
-		"Health", obj.Health,
-		"Sync_Status", obj.Sync_Status,
-		"ReconciledState", obj.ReconciledState); err != nil {
+		"ArgoCD_Application_Status", obj.ArgoCD_Application_Status); err != nil {
 		return err
 	}
 
@@ -63,7 +61,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateApplicationState(ctx context.Context
 	// validateFieldLength function is not modified as that is written for Strings
 	// and after adding check for byte array it would get messy. As of now This is the only place byte array has to be checked,
 	// if multiple places need this it new function can be created in utils.
-	noOfBytesInObj := binary.Size(obj.Resources)
+	noOfBytesInObj := binary.Size(obj.ArgoCD_Application_Status)
 	maxSize := DbFieldMap["ApplicationStateResourcesLength"]
 	if noOfBytesInObj > maxSize {
 		return fmt.Errorf("resources value exceeds maximum size: max: %d, actual: %d", maxSize, noOfBytesInObj)
@@ -89,9 +87,7 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateApplicationState(ctx context.Context
 
 	if err := isEmptyValues("UpdateApplicationState",
 		"Applicationstate_application_id", obj.Applicationstate_application_id,
-		"Health", obj.Health,
-		"Sync_Status", obj.Sync_Status,
-		"ReconciledState", obj.ReconciledState); err != nil {
+		"ArgoCD_Application_Status", obj.ArgoCD_Application_Status); err != nil {
 		return err
 	}
 
@@ -103,7 +99,7 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateApplicationState(ctx context.Context
 	// validateFieldLength function is not modified as that is written for Strings
 	// and after adding check for byte array it would get messy. As of now This is the only place byte array has to be checked,
 	// if multiple places need this it new function can be created in utils.
-	noOfBytesInObj := binary.Size(obj.Resources)
+	noOfBytesInObj := binary.Size(obj.ArgoCD_Application_Status)
 	maxSize := DbFieldMap["ApplicationStateResourcesLength"]
 	if noOfBytesInObj > maxSize {
 		return fmt.Errorf("resources value exceeds maximum size: max: %d, actual: %d", maxSize, noOfBytesInObj)

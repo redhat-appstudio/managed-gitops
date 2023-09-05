@@ -6,6 +6,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	db "github.com/redhat-appstudio/managed-gitops/backend-shared/db"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
 )
 
 var _ = Describe("ApplicationStates Tests", func() {
@@ -15,6 +17,7 @@ var _ = Describe("ApplicationStates Tests", func() {
 	var gitopsEngineInstance *db.GitopsEngineInstance
 	var application *db.Application
 	var applicationState *db.ApplicationState
+	var appStatus *fauxargocd.FauxApplicationStatus
 	BeforeEach(func() {
 		err := db.SetupForTestingDBGinkgo()
 		Expect(err).ToNot(HaveOccurred())
@@ -38,13 +41,28 @@ var _ = Describe("ApplicationStates Tests", func() {
 		err = dbq.CreateApplication(ctx, application)
 		Expect(err).ToNot(HaveOccurred())
 
+		appStatus = &fauxargocd.FauxApplicationStatus{
+			Health: fauxargocd.HealthStatus{
+				Status: fauxargocd.HealthStatusProgressing,
+			},
+			Sync: fauxargocd.SyncStatus{
+				Status: fauxargocd.SyncStatusCodeUnknown,
+			},
+			Resources: make([]fauxargocd.ResourceStatus, 10),
+			Conditions: []fauxargocd.ApplicationCondition{
+				{
+					Type: fauxargocd.ApplicationConditionComparisonError,
+				},
+			},
+		}
+
+		appStatusBytes, err := util.CompressObject(appStatus)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(appStatusBytes).ToNot(BeNil())
+
 		applicationState = &db.ApplicationState{
 			Applicationstate_application_id: application.Application_id,
-			Health:                          "Progressing",
-			Sync_Status:                     "Unknown",
-			Resources:                       make([]byte, 10),
-			ReconciledState:                 "test-reconciledState",
-			Conditions:                      []byte("sample"),
+			ArgoCD_Application_Status:       appStatusBytes,
 		}
 
 		err = dbq.CreateApplicationState(ctx, applicationState)
@@ -64,8 +82,13 @@ var _ = Describe("ApplicationStates Tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(fetchObj).Should(Equal(applicationState))
 
-			applicationState.Health = "Healthy"
-			applicationState.Sync_Status = "Synced"
+			appStatus.Health.Status = fauxargocd.HealthStatusHealthy
+			appStatus.Sync.Status = fauxargocd.SyncStatusCodeSynced
+			appStatusBytes, err := util.CompressObject(appStatus)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(appStatusBytes).ToNot(BeNil())
+			applicationState.ArgoCD_Application_Status = appStatusBytes
+
 			err = dbq.UpdateApplicationState(ctx, applicationState)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -80,7 +103,7 @@ var _ = Describe("ApplicationStates Tests", func() {
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 			// Set the invalid value
-			applicationState.Resources = make([]byte, 262145)
+			applicationState.ArgoCD_Application_Status = make([]byte, 262145)
 
 			err = dbq.CreateApplicationState(ctx, applicationState)
 			Expect(err).To(HaveOccurred())

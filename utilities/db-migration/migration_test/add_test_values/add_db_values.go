@@ -65,11 +65,7 @@ var (
 
 	AddTest_PreApplicationState = db.ApplicationState{
 		Applicationstate_application_id: AddTest_PreApplicationDB.Application_id,
-		Health:                          "Healthy",
-		Sync_Status:                     "Synced",
-		ReconciledState:                 "test-reconcile",
-		OperationState:                  []byte("operation_state"),
-		Conditions:                      []byte("conditions"),
+		ArgoCD_Application_Status:       []byte("sample-status"),
 	}
 
 	AddTest_PreDTAM = db.DeploymentToApplicationMapping{

@@ -283,42 +283,8 @@ CREATE TABLE ApplicationState (
 	applicationstate_application_id  VARCHAR ( 48 ) PRIMARY KEY,
 	CONSTRAINT fk_app_id FOREIGN KEY (applicationstate_application_id) REFERENCES Application(application_id) ON DELETE NO ACTION ON UPDATE NO ACTION,
 
-	-- health field comes directly from Argo CD Application CR's .status.health field
-	-- Possible values:
-	-- * Healthy
-	-- * Progressing
-	-- * Degraded
-	-- * Suspended
-	-- * Missing
-	-- * Unknown (this is returned by Argo CD, but is also used when Argo CD's health field is "")
-	health VARCHAR (30) NOT NULL,
-
-	-- message field comes directly from Argo CD Application CR's .status.healthStatus.Message
-	message VARCHAR (1024),
-
-	-- revision field comes directly from Argo CD Application CR's .status.SyncStatus.Revision field
-	revision VARCHAR (1024),
-
-	-- sync_status field comes directly from Argo CD Application CR's .status.SyncStatus field
-	-- Possible values:
-	-- * Synced
-	-- * OutOfSync
-	-- * Unknown (this is used when Argo CD's status field is "")
-	sync_status VARCHAR (30) NOT NULL,
-
-	-- resources field comes directly from Argo CD Application CR's .Status.Resources field
-	resources bytea,
-
-	-- reconciled_state is a JSON string, which contains the contents of the Argo CD Application's .status.sync.comparedTo, but
-	-- with the 'destination' field adjusted to refer to the database's ManagedEnvironment primary key, rather than to the name 
-	-- of the Argo CD cluster secret.
-	reconciled_state VARCHAR (4096),
-
-	-- operation_state comes directly from Argo CD Application CR's .status.operationState field 
-	operation_state bytea,
-
-	-- conditions field comes directly from Argo CD Application CR's .status.conditions field
-	conditions bytea
+	-- argocd_application_status field contains the entire status of the Argo CD Application
+	argocd_application_status bytea 
 );
 
 -- Represents the relationship from GitOpsDeployment CR in the API namespace, to an Application table row.

@@ -138,11 +138,7 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 
 			applicationStateFirst := &db.ApplicationState{
 				Applicationstate_application_id: applicationFirst.Application_id,
-				Health:                          "Progressing",
-				Sync_Status:                     "Unknown",
-				Resources:                       make([]byte, 10),
-				ReconciledState:                 "test-reconciledState",
-				Conditions:                      []byte("sample"),
+				ArgoCD_Application_Status:       []byte("sample-status"),
 			}
 
 			err = dbq.CreateApplicationState(ctx, applicationStateFirst)
@@ -160,22 +156,14 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 
 			applicationStateSecond := &db.ApplicationState{
 				Applicationstate_application_id: applicationSecond.Application_id,
-				Health:                          "Progressing",
-				Sync_Status:                     "Unknown",
-				Resources:                       make([]byte, 10),
-				Conditions:                      []byte("sample"),
-				ReconciledState:                 "sample",
+				ArgoCD_Application_Status:       []byte("sample-status"),
 			}
 
 			err = dbq.CreateApplicationState(ctx, applicationStateSecond)
 			Expect(err).ToNot(HaveOccurred())
 			applicationStateSecond = &db.ApplicationState{
 				Applicationstate_application_id: applicationSecond.Application_id,
-				Health:                          "Progressing",
-				Sync_Status:                     "Sync",
-				Resources:                       make([]byte, 10),
-				Conditions:                      []byte("sample"),
-				ReconciledState:                 "sample",
+				ArgoCD_Application_Status:       []byte("sample-status"),
 			}
 
 			err = dbq.UpdateApplicationState(ctx, applicationStateSecond)
@@ -185,8 +173,8 @@ var _ = Describe("Test to verify update/delete operations are not globally scope
 			err = dbq.GetApplicationStateById(ctx, applicationStateSecond)
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(applicationStateSecond.Sync_Status).Should(Equal("Sync"))
-			Expect(applicationStateFirst.Sync_Status).ShouldNot(Equal(applicationStateSecond.Sync_Status))
+			Expect(applicationStateFirst.ArgoCD_Application_Status).Should(Equal([]byte("sample-status")))
+			Expect(applicationStateFirst.ArgoCD_Application_Status).Should(Equal(applicationStateSecond.ArgoCD_Application_Status))
 
 			rowsAffected, err := dbq.DeleteApplicationStateById(ctx, applicationStateSecond.Applicationstate_application_id)
 			Expect(err).ToNot(HaveOccurred())

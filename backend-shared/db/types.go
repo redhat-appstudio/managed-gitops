@@ -282,36 +282,7 @@ type ApplicationState struct {
 	// -- Foreign key to Application.application_id
 	Applicationstate_application_id string `pg:"applicationstate_application_id,pk"`
 
-	// -- Possible values:
-	// -- * Healthy
-	// -- * Progressing
-	// -- * Degraded
-	// -- * Suspended
-	// -- * Missing
-	// -- * Unknown
-	Health string `pg:"health"`
-
-	// -- Possible values:
-	// -- * Synced
-	// -- * OutOfSync
-	// -- * Unknown
-	Sync_Status string `pg:"sync_status"`
-
-	Message string `pg:"message"`
-
-	Revision string `pg:"revision"`
-
-	Resources []byte `pg:"resources"`
-
-	OperationState []byte `pg:"operation_state"`
-
-	// -- human_readable_health ( 512 ) NOT NULL,
-	// -- human_readable_sync ( 512 ) NOT NULL,
-	// -- human_readable_state ( 512 ) NOT NULL,
-
-	ReconciledState string `pg:"reconciled_state"`
-
-	Conditions []byte `pg:"conditions"`
+	ArgoCD_Application_Status []byte `pg:"argocd_application_status"`
 }
 
 // DeploymentToApplicationMapping represents relationship from GitOpsDeployment CR in the namespace, to an Application table row

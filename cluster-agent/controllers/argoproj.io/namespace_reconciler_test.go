@@ -12,6 +12,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/argoproj.io/application_info_cache"
@@ -746,6 +747,208 @@ var _ = Describe("Namespace Reconciler Tests.", func() {
 
 			err = k8sClient.Get(ctx, types.NamespacedName{Name: k8sOperationFirst.Name, Namespace: k8sOperationFirst.Namespace}, &k8sOperationFirst)
 			Expect(err).ToNot(HaveOccurred())
+		})
+	})
+
+	Context("Testing for recreateClusterSecrets function.", func() {
+
+		var log logr.Logger
+		var ctx context.Context
+		var secret corev1.Secret
+		var application db.Application
+		var dbq db.AllDatabaseQueries
+		var k8sClient client.WithWatch
+		var kubeSystemNamepace corev1.Namespace
+		var managedEnvironment db.ManagedEnvironment
+
+		BeforeEach(func() {
+			err := db.SetupForTestingDBGinkgo()
+			Expect(err).ToNot(HaveOccurred())
+
+			ctx = context.Background()
+			log = logger.FromContext(ctx)
+
+			dbq, err = db.NewUnsafePostgresDBQueries(true, true)
+			Expect(err).ToNot(HaveOccurred())
+
+			scheme, _, _, _, err := tests.GenericTestSetup()
+			Expect(err).ToNot(HaveOccurred())
+
+			err = appv1.AddToScheme(scheme)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Create fake kube client.")
+
+			k8sClient = fake.NewClientBuilder().WithScheme(scheme).Build()
+
+			By("Create kube-system namespace.")
+
+			kubeSystemNamepace = corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kube-system",
+					UID:  "test-" + uuid.NewUUID(),
+				},
+			}
+			err = k8sClient.Create(ctx, &kubeSystemNamepace)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Create GitopsEngineCluster.")
+
+			gitopsEngineCluster, created, err := dbutil.GetOrCreateGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubeSystemNamepace.UID), dbq, log)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(gitopsEngineCluster).ToNot(BeNil())
+			Expect(created).To(BeTrue())
+
+			By("Create ClusterCredentials entry in DB.")
+
+			clusterCredentials := db.ClusterCredentials{
+				Clustercredentials_cred_id:  "test-creds-" + string(uuid.NewUUID()),
+				Host:                        "host",
+				Kube_config:                 "kube-config",
+				Kube_config_context:         "kube-config-context",
+				Serviceaccount_bearer_token: "serviceaccount_bearer_token",
+				Serviceaccount_ns:           "Serviceaccount_ns",
+			}
+			err = dbq.CreateClusterCredentials(ctx, &clusterCredentials)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Create ManagedEnvironment entry in DB.")
+
+			managedEnvironment = db.ManagedEnvironment{
+				Managedenvironment_id: "test-env-" + string(uuid.NewUUID()),
+				Clustercredentials_id: clusterCredentials.Clustercredentials_cred_id,
+				Name:                  "my env",
+			}
+			err = dbq.CreateManagedEnvironment(ctx, &managedEnvironment)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Create GitopsEngineInstance entry in DB.")
+
+			gitopsEngineInstance := db.GitopsEngineInstance{
+				Gitopsengineinstance_id: "test-id" + string(uuid.NewUUID()),
+				Namespace_name:          "test-ns-" + string(uuid.NewUUID()),
+				Namespace_uid:           "test-ns-" + string(uuid.NewUUID()),
+				EngineCluster_id:        gitopsEngineCluster.Gitopsenginecluster_id,
+			}
+			err = dbq.CreateGitopsEngineInstance(ctx, &gitopsEngineInstance)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Create Application entry in DB.")
+
+			application = db.Application{
+				Application_id:          "test-id" + string(uuid.NewUUID()),
+				Name:                    "test-name" + string(uuid.NewUUID()),
+				Spec_field:              "{}",
+				Engine_instance_inst_id: gitopsEngineInstance.Gitopsengineinstance_id,
+				Managed_environment_id:  managedEnvironment.Managedenvironment_id,
+			}
+			err = dbq.CreateApplication(ctx, &application)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Create ClusterAccess entry in DB.")
+
+			clusterAccess := db.ClusterAccess{
+				Clusteraccess_user_id:                   "test-user",
+				Clusteraccess_managed_environment_id:    managedEnvironment.Managedenvironment_id,
+				Clusteraccess_gitops_engine_instance_id: gitopsEngineInstance.Gitopsengineinstance_id,
+			}
+			err = dbq.CreateClusterAccess(ctx, &clusterAccess)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Create Secret CR definition.")
+
+			secret = corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      argosharedutil.GenerateArgoCDClusterSecretName(managedEnvironment),
+					Namespace: gitopsEngineInstance.Namespace_name,
+				},
+			}
+		})
+
+		It("Should not create Operation for Secret, even if it is missing in Cluster, since ManagedEnvironment is created recently.", func() {
+
+			defer dbq.CloseDatabase()
+
+			By("Get list of Operations before calling function.")
+
+			var operation []db.Operation
+
+			err := dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, application.Application_id, db.OperationResourceType_Application, &operation, db.SpecialClusterUserName)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(operation).To(BeEmpty())
+
+			By("Call function to recreate Secret if missing from cluster.")
+
+			recreateClusterSecrets(ctx, dbq, k8sClient, log)
+
+			By("Get list of Operations after calling function.")
+
+			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, application.Application_id, db.OperationResourceType_Application, &operation, db.SpecialClusterUserName)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(operation).To(BeEmpty())
+		})
+
+		It("Should not create Operation for Secret, since it is already present in Cluster.", func() {
+
+			defer dbq.CloseDatabase()
+
+			By("Set 'Created_on' field more than 30 Minutes.")
+
+			managedEnvironment.Created_on = time.Now().Add(time.Duration(-(31 * time.Minute)))
+			err := dbq.UpdateManagedEnvironment(ctx, &managedEnvironment)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Create Secret CR in cluster.")
+
+			err = k8sClient.Create(ctx, &secret)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Get list of Operations before calling function.")
+
+			var operation []db.Operation
+
+			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, application.Application_id, db.OperationResourceType_Application, &operation, db.SpecialClusterUserName)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(operation).To(BeEmpty())
+
+			By("Call function to recreate Secret if missing from cluster.")
+
+			recreateClusterSecrets(ctx, dbq, k8sClient, log)
+
+			By("Get list of Operations after calling function.")
+
+			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, application.Application_id, db.OperationResourceType_Application, &operation, db.SpecialClusterUserName)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(operation).To(BeEmpty())
+		})
+
+		It("Should create Operation to recreate Secret, since it is not present in Cluster.", func() {
+
+			defer dbq.CloseDatabase()
+
+			By("Set 'Created_on' field more than 30 Minutes.")
+
+			managedEnvironment.Created_on = time.Now().Add(time.Duration(-(31 * time.Minute)))
+			err := dbq.UpdateManagedEnvironment(ctx, &managedEnvironment)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Get list of Operations before calling function.")
+
+			var operation []db.Operation
+
+			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, application.Application_id, db.OperationResourceType_Application, &operation, db.SpecialClusterUserName)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(operation).To(BeEmpty())
+
+			By("Call function to recreate Secret if missing from cluster.")
+
+			recreateClusterSecrets(ctx, dbq, k8sClient, log)
+
+			By("Get list of Operations after calling function.")
+
+			err = dbq.ListOperationsByResourceIdAndTypeAndOwnerId(ctx, application.Application_id, db.OperationResourceType_Application, &operation, db.SpecialClusterUserName)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(operation).To(HaveLen(1))
 		})
 	})
 })

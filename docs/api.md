@@ -625,15 +625,15 @@ spec:
   
   configuration:
 
-	# Target is used to reference a DeploymentTargetClaim for a target Environment.
-	# The Environment controller uses the referenced DeploymentTargetClaim to access its bounded
+  # Target is used to reference a DeploymentTargetClaim for a target Environment.
+  # The Environment controller uses the referenced DeploymentTargetClaim to access its bounded
     # DeploymentTarget with cluster credential secret.
     target:
       deploymentTargetClaim:
         claimName: staging-dtc # refers to a name of DTClaim in the Namespace
 ```
 
-The `DeploymentTargetClaim` API resource is similar to Kubernetes' PersistentVolumeClaim resource. DeploymentTarget is Namespace-scoped:
+The `DeploymentTargetClaim` API resource is similar to Kubernetes' PersistentVolumeClaim resource. DeploymentTargetClaim is Namespace-scoped:
 ```yaml
 apiVersion: appstudio.redhat.com/v1alpha1
 kind: DeploymentTargetClaim

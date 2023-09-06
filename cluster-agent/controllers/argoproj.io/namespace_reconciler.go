@@ -16,6 +16,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	dbutil "github.com/redhat-appstudio/managed-gitops/backend-shared/db/util"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
+	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/operations"
@@ -69,6 +70,10 @@ func (r *ApplicationReconciler) startTimerForNextCycle(ctx context.Context, name
 
 			// Clean orphaned and purposeless Operation CRs from Cluster.
 			cleanOrphanedCRsfromCluster_Operation(ctx, r.DB, r.Client, log)
+
+			// Recreate Secrets that are required by Applications, but missing from cluster.
+			recreateClusterSecrets(ctx, r.DB, r.Client, log)
+
 			log.Info(fmt.Sprintf("Namespace Reconciler finished an iteration at %s. "+
 				"Next iteration will be triggered after %v Minutes", time.Now().String(), namespaceReconcilerInterval))
 
@@ -492,4 +497,220 @@ func cleanOrphanedCRsfromCluster_Operation(ctx context.Context, dbQueries db.Dat
 			log.Info("Managed-gitops clean up job for CR successfully deleted Operation: " + k8sOperation.Name + " CR from Cluster.")
 		}
 	}
+}
+
+// recreateClusterSecrets goes through list of ManagedEnvironments created in cluster and recreates Secrets that are missing from cluster.
+func recreateClusterSecrets(ctx context.Context, dbQueries db.DatabaseQueries, k8sClient client.Client, logger logr.Logger) {
+
+	log := logger.WithValues(sharedutil.Log_JobKey, sharedutil.Log_JobKeyValue).
+		WithValues(sharedutil.Log_JobTypeKey, "CR_Secret_recreate")
+
+	// First get list of ClusterAccess and Application entries from DB.
+	listOfClusterAccessFromDB := getListOfClusterAccessFromTable(ctx, dbQueries, false, log)
+	listOfApplicationFromDB := getListOfApplicationsFromTable(ctx, dbQueries, false, log)
+
+	// Now get list of GitopsEngineInstances from DB for the cluster service is running on.
+	listOfGitopsEngineInstanceFromCluster, err := getListOfGitopsEngineInstancesForCurrentCluster(ctx, dbQueries, k8sClient, log)
+	if err != nil {
+		log.Error(err, "Error occurred in recreateClusterSecrets while fetching GitopsEngineInstances for cluster.")
+		return
+	}
+
+	// map: whether we have processed this namespace already.
+	// key is namespace UID, value is not used.
+	// - we should only ever process a namespace once per iteration.
+	namespacesProcessed := map[string]interface{}{}
+
+	for instanceIndex := range listOfGitopsEngineInstanceFromCluster {
+
+		// For each GitOpsEngineinstance, read the namespace and check all the Argo CD secrets in that namespace
+		instance := listOfGitopsEngineInstanceFromCluster[instanceIndex] // To avoid "Implicit memory aliasing in for loop." error.
+
+		// Sanity check: have we processed this Namespace already
+		if _, exists := namespacesProcessed[instance.Namespace_uid]; exists {
+			// Log it an skip. There really should never be any GitOpsEngineInstances with matching namespace UID
+			log.V(logutil.LogLevel_Warn).Error(nil, "there appears to exist multiple GitOpsEngineInstances targeting the same namespace", "namespaceUID", instance.Namespace_uid)
+			continue
+		}
+		namespacesProcessed[instance.Namespace_uid] = nil
+
+		// Iterate through list of ClusterAccess entries from DB and find entry using current GitOpsEngineInstance.
+		for clusterAccessIndex := range listOfClusterAccessFromDB {
+
+			clusterAccess := listOfClusterAccessFromDB[clusterAccessIndex] // To avoid "Implicit memory aliasing in for loop." error.
+
+			if clusterAccess.Clusteraccess_gitops_engine_instance_id == instance.Gitopsengineinstance_id {
+
+				// This ClusterAccess is using current GitOpsEngineInstance,
+				// now find the ManagedEnvironment using this ClusterAccess.
+				managedEnvironment := db.ManagedEnvironment{
+					Managedenvironment_id: clusterAccess.Clusteraccess_managed_environment_id,
+				}
+
+				if err := dbQueries.GetManagedEnvironmentById(ctx, &managedEnvironment); err != nil {
+					log.Error(err, "Error occurred in recreateClusterSecrets while fetching ManagedEnvironment from DB.:"+managedEnvironment.Managedenvironment_id)
+					continue
+				}
+
+				// Skip if ManagedEnvironment is created recently
+				if time.Since(managedEnvironment.Created_on) < 30*time.Minute {
+					continue
+				}
+
+				// Check if Secret used for this ManagedEnvironment is present in GitOpsEngineInstance namespace.
+				secretName := argosharedutil.GenerateArgoCDClusterSecretName(managedEnvironment)
+
+				argoSecret := corev1.Secret{}
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: secretName, Namespace: instance.Namespace_name}, &argoSecret); err != nil {
+
+					// If Secret is not present, then create Operation to recreate the Secret.
+					if apierr.IsNotFound(err) {
+
+						log.Info("Secret: " + secretName + " not found in Namespace:" + instance.Namespace_name + ", recreating it.")
+
+						// Get Special user from DB because we need ClusterUser for creating Operation and we don't have one.
+						// Hence created a dummy Cluster User for internal purpose.
+						var specialClusterUser db.ClusterUser
+						if err := dbQueries.GetOrCreateSpecialClusterUser(ctx, &specialClusterUser); err != nil {
+							log.Error(err, "Error occurred in recreateClusterSecrets while fetching clusterUser.")
+							return
+						}
+
+						// We need to create an Operation to recreate the Secret, which requires Application details running in current ManagedEnvironment
+						// hence we iterate through list of Application entries from DB to find that Application.
+						if ok, application := getApplicationRunningInManagedEnvironment(listOfApplicationFromDB, managedEnvironment.Managedenvironment_id); ok {
+
+							// We need to recreate Secret, to do that create Operation to inform Argo CD about it.
+							dbOperationInput := db.Operation{
+								Instance_id:   application.Engine_instance_inst_id,
+								Resource_id:   application.Application_id,
+								Resource_type: db.OperationResourceType_Application,
+							}
+
+							if _, _, err := operations.CreateOperation(ctx, false, dbOperationInput, specialClusterUser.Clusteruser_id, instance.Namespace_name, dbQueries, k8sClient, log); err != nil {
+								log.Error(err, "Error occurred in recreateClusterSecrets while creating Operation.")
+								continue
+							}
+
+							log.Info("Operation " + dbOperationInput.Operation_id + " is created to create Secret: managed-env-" + managedEnvironment.Managedenvironment_id)
+						}
+					} else {
+						log.Error(err, "Error occurred in recreateClusterSecrets while fetching Secret:"+secretName+" from Namespace: "+instance.Namespace_name)
+					}
+				}
+			}
+		}
+	}
+}
+
+// getListOfClusterAccessFromTable loops through ClusterAccess in database and returns list of user IDs.
+func getListOfClusterAccessFromTable(ctx context.Context, dbQueries db.DatabaseQueries, skipDelay bool, log logr.Logger) []db.ClusterAccess {
+
+	offSet := 0
+	var listOfClusterAccessFromDB []db.ClusterAccess
+
+	// Continuously iterate and fetch batches until all entries of table processed.
+	for {
+		if offSet != 0 && !skipDelay {
+			time.Sleep(sleepIntervalsOfBatches)
+		}
+
+		var tempList []db.ClusterAccess
+
+		// Fetch ClusterAccess table entries in batch size as configured above.​
+		if err := dbQueries.GetClusterAccessBatch(ctx, &tempList, appRowBatchSize, offSet); err != nil {
+			log.Error(err, fmt.Sprintf("Error occurred in cleanOrphanedEntriesfromTable_ClusterUser while fetching batch from Offset: %d to %d: ",
+				offSet, offSet+appRowBatchSize))
+			break
+		}
+
+		// Break the loop if no entries are left in table to be processed.
+		if len(tempList) == 0 {
+			break
+		}
+
+		listOfClusterAccessFromDB = append(listOfClusterAccessFromDB, tempList...)
+
+		// Skip processed entries in next iteration
+		offSet += appRowBatchSize
+	}
+
+	return listOfClusterAccessFromDB
+}
+
+// getListOfApplicationsFromTable loops through ClusterAccess in database and returns list of user IDs.
+func getListOfApplicationsFromTable(ctx context.Context, dbQueries db.DatabaseQueries, skipDelay bool, log logr.Logger) []db.Application {
+
+	offSet := 0
+	var listOfApplicationsFromDB []db.Application
+
+	// Continuously iterate and fetch batches until all entries of table processed.
+	for {
+		if offSet != 0 && !skipDelay {
+			time.Sleep(sleepIntervalsOfBatches)
+		}
+
+		var tempList []db.Application
+
+		// Fetch ClusterAccess table entries in batch size as configured above.​
+		if err := dbQueries.GetApplicationBatch(ctx, &tempList, appRowBatchSize, offSet); err != nil {
+			log.Error(err, fmt.Sprintf("Error occurred in cleanOrphanedEntriesfromTable_ClusterUser while fetching batch from Offset: %d to %d: ",
+				offSet, offSet+appRowBatchSize))
+			break
+		}
+
+		// Break the loop if no entries are left in table to be processed.
+		if len(tempList) == 0 {
+			break
+		}
+
+		listOfApplicationsFromDB = append(listOfApplicationsFromDB, tempList...)
+
+		// Skip processed entries in next iteration
+		offSet += appRowBatchSize
+	}
+
+	return listOfApplicationsFromDB
+}
+
+// getListOfGitopsEngineInstancesForCurrentCluster finds GitopsEngineInstance for the cluster, where service is running.
+func getListOfGitopsEngineInstancesForCurrentCluster(ctx context.Context, dbQueries db.DatabaseQueries, k8sClient client.Client, log logr.Logger) ([]db.GitopsEngineInstance, error) {
+
+	var gitopsEngineInstance []db.GitopsEngineInstance
+
+	// get Kube System Namespace.
+	kubesystemNamespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "kube-system"}}
+	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(kubesystemNamespace), kubesystemNamespace); err != nil {
+		return nil, fmt.Errorf("Error occurred in retrieving kube-system namespace, while running secret cleanup: %v", err)
+	}
+
+	// get GitopsEngineCluster.
+	var err error
+	var gitopsEngineCluster *db.GitopsEngineCluster
+
+	if gitopsEngineCluster, err = dbutil.GetGitopsEngineClusterByKubeSystemNamespaceUID(ctx, string(kubesystemNamespace.UID), dbQueries, log); err != nil {
+		return gitopsEngineInstance, fmt.Errorf("Unable to retrieve GitopsEngineClusterFromDatabase, while running secret cleanup: %v", err)
+	} else if gitopsEngineCluster == nil {
+		log.Info("Skipping secret cleanup, as the GitOpsEngineCluster does not yet exist for this cluster.")
+		return gitopsEngineInstance, nil
+	}
+
+	// Get list of GitopsEngineInstance for given cluster from DB.
+	if err := dbQueries.ListGitopsEngineInstancesForCluster(ctx, *gitopsEngineCluster, &gitopsEngineInstance); err != nil {
+		return nil, fmt.Errorf("Error occurred in Secret Clean-up while fetching list of GitopsEngineInstances.:%v", err)
+	}
+
+	return gitopsEngineInstance, nil
+}
+
+// getApplicationRunningInManagedEnvironment loops through Applications to find Application runing in given ManagedEnvironment.
+func getApplicationRunningInManagedEnvironment(applicationList []db.Application, managedEnvId string) (bool, db.Application) {
+
+	for _, application := range applicationList {
+		if application.Managed_environment_id == managedEnvId {
+			return true, application
+		}
+	}
+
+	return false, db.Application{}
 }

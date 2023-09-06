@@ -256,7 +256,7 @@ var _ = Describe("Test DevsandboxDeploymentController", func() {
 			Expect(dt.Spec.KubernetesClusterCredentials.AllowInsecureSkipTLSVerify).To(BeTrue())
 		})
 
-		DescribeTable("SpaceRequest is deleted with DTC does not exist and space request provisioner is delete type", func(classSpec appstudiosharedv1.DeploymentTargetClassSpec, shouldExist bool, expectErrorOccurred bool) {
+		DescribeTable("SpaceRequest is deleted when the DTC does not exist and when space request provisioner is delete type", func(classSpec appstudiosharedv1.DeploymentTargetClassSpec, shouldExist bool, expectErrorOccurred bool) {
 			dtClass := appstudiosharedv1.DeploymentTargetClass{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "isolation-namespace",

@@ -18,7 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -106,7 +106,7 @@ func appSync(ctx context.Context, acdClient argocdclient.Client, appName string,
 			Backoff: &argoappv1.Backoff{
 				Duration:    retryBackoffDuration.String(),
 				MaxDuration: retryBackoffMaxDuration.String(),
-				Factor:      pointer.Int64Ptr(retryBackoffFactor),
+				Factor:      ptr.To(retryBackoffFactor),
 			},
 		}
 	}

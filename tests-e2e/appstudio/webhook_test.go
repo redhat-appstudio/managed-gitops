@@ -234,6 +234,34 @@ var _ = Describe("Webhook E2E tests", func() {
 			Expect(err).To(Succeed())
 		})
 
+		It("Should validate Environment CR Webhooks for invalid KubernetesClusterCredentials API URL.", func() {
+			k8sClient, err = fixture.GetE2ETestUserWorkspaceKubeClient()
+			Expect(err).To(Succeed())
+
+			if !isWebhookInstalled("environments", k8sClient) {
+				Skip("skipping as environments webhook is not installed")
+			}
+
+			Expect(fixture.EnsureCleanSlate()).To(Succeed())
+
+			By("Validate Environment KubernetesClusterCredentials API URL while creating")
+			environment := buildEnvironmentResource("staging", "Staging Environment", "staging", appstudiosharedv1.EnvironmentType_POC)
+			environment.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.APIURL = "api.test-url.com:6443"
+			err = k8s.Create(&environment, k8sClient)
+			Expect(err).ToNot(Succeed())
+			Expect(strings.Contains(err.Error(), fmt.Sprintf(err.Error()+": API URL must be an absolute URL starting with an 'https' scheme "))).To(BeTrue())
+
+			environment.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.APIURL = "https://api-url.com"
+			err = k8s.Update(&environment, k8sClient)
+			Expect(err).To(Succeed())
+
+			By("Validate Environment KubernetesClusterCredentials API URL while updating")
+			environment.Spec.UnstableConfigurationFields.KubernetesClusterCredentials.APIURL = "api.test-url.com:6443"
+			err = k8s.Update(&environment, k8sClient)
+			Expect(err).ToNot(Succeed())
+			Expect(strings.Contains(err.Error(), fmt.Sprintf(err.Error()+": API URL must be an absolute URL starting with an 'https' scheme "))).To(BeTrue())
+		})
+
 		It("Should validate create GitOpsDeployment CR Webhooks for invalid .spec.Type field.", func() {
 
 			if !isWebhookInstalled("gitopsdeployments", k8sClient) {

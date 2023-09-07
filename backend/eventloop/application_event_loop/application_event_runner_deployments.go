@@ -1000,20 +1000,29 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 		}
 	}
 
+	appStatus, err := decompressApplicationStatus(applicationState.ArgoCD_Application_Status)
+	if err != nil {
+		a.log.Error(err, "unable to decompress resources byte array received from table.")
+		return crUpdated_false, err
+	}
+
 	// 4) Update the health and status field of the GitOpsDepl CR
 
 	// Update the gitopsDeployment instance with health and status values (fetched from the database)
-	gitopsDeployment.Status.Health.Status = managedgitopsv1alpha1.HealthStatusCode(applicationState.Health)
-	gitopsDeployment.Status.Health.Message = applicationState.Message
-	gitopsDeployment.Status.Sync.Status = managedgitopsv1alpha1.SyncStatusCode(applicationState.Sync_Status)
-	gitopsDeployment.Status.Sync.Revision = applicationState.Revision
+	gitopsDeployment.Status.Health.Status = managedgitopsv1alpha1.HealthStatusCode(appStatus.Health.Status)
+	gitopsDeployment.Status.Health.Message = appStatus.Health.Message
+	gitopsDeployment.Status.Sync.Status = managedgitopsv1alpha1.SyncStatusCode(appStatus.Sync.Status)
+	gitopsDeployment.Status.Sync.Revision = appStatus.Sync.Revision
 
 	// We update the GitopsDeployment .status.conditions with the conditions from the Argo CD Application, if the conditions column of ApplicationState row is non empty.
 	newGitopsDeplConditions := []managedgitopsv1alpha1.GitOpsDeploymentCondition{}
-	if len(applicationState.Conditions) != 0 {
-		if err := yaml.Unmarshal(applicationState.Conditions, &newGitopsDeplConditions); err != nil {
-			a.log.Error(err, "failed to unmarshal ApplicationState conditions")
-			return crUpdated_false, err
+	if len(appStatus.Conditions) != 0 {
+		for _, cond := range appStatus.Conditions {
+			newGitopsDeplConditions = append(newGitopsDeplConditions, managedgitopsv1alpha1.GitOpsDeploymentCondition{
+				Type:    managedgitopsv1alpha1.GitOpsDeploymentConditionType(cond.Type),
+				Message: cond.Message,
+				Reason:  managedgitopsv1alpha1.GitOpsDeploymentReasonType(cond.Type),
+			})
 		}
 	}
 
@@ -1031,26 +1040,15 @@ func (a *applicationEventLoopRunner_Action) applicationEventRunner_handleUpdateD
 		}
 	}
 
-	// Fetch the list of resources created by deployment from table and update local gitopsDeployment instance.
-	var err error
-	gitopsDeployment.Status.Resources, err = decompressResourceData(applicationState.Resources)
+	gitopsDeployment.Status.Resources = extractResourceStatus(appStatus.Resources)
+
+	gitopsDeployment.Status.OperationState, err = extractOperationState(appStatus.OperationState)
 	if err != nil {
-		a.log.Error(err, "unable to decompress resources byte array received from table.")
+		a.log.Error(err, "unable to extract operationState from ApplicationState table.")
 		return crUpdated_false, err
 	}
 
-	gitopsDeployment.Status.OperationState, err = decompressOperationState(applicationState.OperationState)
-	if err != nil {
-		a.log.Error(err, "unable to decompress operationState byte array received from table.")
-		return crUpdated_false, err
-	}
-
-	var comparedTo fauxargocd.FauxComparedTo
-	comparedTo, err = retrieveComparedToFieldInApplicationState(applicationState.ReconciledState)
-	if err != nil {
-		a.log.Error(err, "SEVERE: unable to retrieve comparedTo field in ApplicationState")
-		return crUpdated_false, err
-	}
+	comparedTo := appStatus.Sync.ComparedTo
 
 	// If the `comparedTo` value from Argo CD has a non-empty destination name field, then retrieve the corresponding `GitOpsDeploymentManagedEnvironment` resource that has that name,
 	// and include the name of that resource in what we return in this API.
@@ -1328,54 +1326,58 @@ func createSpecField(fieldsParam argoCDSpecInput) (string, error) {
 	return string(resBytes), nil
 }
 
-// Decompress byte array received from table to get String and then convert it into ResourceStatus Array.
-func decompressResourceData(resourceData []byte) ([]managedgitopsv1alpha1.ResourceStatus, error) {
-	var resourceList []managedgitopsv1alpha1.ResourceStatus
-
-	objBytes, err := sharedutil.DecompressObject(resourceData)
+// Decompress byte array received from ApplicationState table and convert it into Application status.
+func decompressApplicationStatus(statusBytes []byte) (*fauxargocd.FauxApplicationStatus, error) {
+	appStatus := &fauxargocd.FauxApplicationStatus{}
+	applStatusBytes, err := sharedutil.DecompressObject(statusBytes)
 	if err != nil {
-		return resourceList, fmt.Errorf("failed to decompress resource data: %v", err)
+		return nil, fmt.Errorf("failed to decompress Application status: %v", err)
 	}
 
-	// Convert resource string into ResourceStatus Array
-	err = goyaml.Unmarshal(objBytes, &resourceList)
+	err = goyaml.Unmarshal(applStatusBytes, appStatus)
 	if err != nil {
-		return resourceList, fmt.Errorf("unable to Unmarshal resource data: %v", err)
+		return nil, fmt.Errorf("unable to Unmarshal Application status: %v", err)
 	}
 
-	return resourceList, nil
+	return appStatus, nil
 }
 
-// Decompress byte array received from table and then convert it into OperationState.
-func decompressOperationState(operationStateBytes []byte) (*managedgitopsv1alpha1.OperationState, error) {
-	if len(operationStateBytes) == 0 {
-		return nil, nil
+func extractResourceStatus(resources []fauxargocd.ResourceStatus) []managedgitopsv1alpha1.ResourceStatus {
+	resourceStatus := make([]managedgitopsv1alpha1.ResourceStatus, len(resources))
+
+	for index, resource := range resources {
+		resourceStatus[index] = managedgitopsv1alpha1.ResourceStatus{
+			Group:     resource.Group,
+			Version:   resource.Version,
+			Kind:      resource.Kind,
+			Namespace: resource.Namespace,
+			Name:      resource.Name,
+			Status:    managedgitopsv1alpha1.SyncStatusCode(resource.Status),
+		}
+		if resource.Health != nil {
+			resourceStatus[index].Health = &managedgitopsv1alpha1.HealthStatus{
+				Status:  managedgitopsv1alpha1.HealthStatusCode(resource.Health.Status),
+				Message: resource.Health.Message,
+			}
+		}
 	}
 
-	operationState := &managedgitopsv1alpha1.OperationState{}
-
-	objBytes, err := sharedutil.DecompressObject(operationStateBytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decompress operationState data: %v", err)
-	}
-
-	// Convert byte array to OperationState object
-	err = goyaml.Unmarshal(objBytes, operationState)
-	if err != nil {
-		return nil, fmt.Errorf("unable to Unmarshal operationState data: %v", err)
-	}
-
-	return operationState, nil
+	return resourceStatus
 }
 
-func retrieveComparedToFieldInApplicationState(reconciledState string) (fauxargocd.FauxComparedTo, error) {
-	comparedTo := fauxargocd.FauxComparedTo{}
-
-	if err := json.Unmarshal([]byte(reconciledState), &comparedTo); err != nil {
-		return comparedTo, fmt.Errorf("unable to Unmarshal comparedTo field: %v", err)
+func extractOperationState(fauxOpState *fauxargocd.OperationState) (*managedgitopsv1alpha1.OperationState, error) {
+	opStateBytes, err := json.Marshal(fauxOpState)
+	if err != nil {
+		return nil, err
 	}
 
-	return comparedTo, nil
+	opState := &managedgitopsv1alpha1.OperationState{}
+	err = json.Unmarshal(opStateBytes, opState)
+	if err != nil {
+		return nil, err
+	}
+
+	return opState, nil
 }
 
 func getInt64Pointer(i int) *int64 {

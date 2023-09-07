@@ -310,22 +310,28 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 			Namespace: KubeSystemNamespace,
 		},
 	}
+	actualServiceAccount := &corev1.ServiceAccount{}
 
-	if err := k8sClient.Create(ctx, serviceAccount, &client.CreateOptions{}); err != nil {
-		// If it already exists, then we update it
-		if apierr.IsAlreadyExists(err) {
-			if err := k8sClient.Update(ctx, serviceAccount); err != nil {
-				return fmt.Errorf("error on Update %v", err)
-			}
-			logutil.LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, logutil.ResourceModified, log)
-
-		} else {
-			return fmt.Errorf("error on Create %v", err)
+	err := k8sClient.Get(ctx, client.ObjectKeyFromObject(serviceAccount), actualServiceAccount)
+	if err == nil {
+		// It already exists, so we update it
+		actualServiceAccount.Secrets = serviceAccount.Secrets
+		actualServiceAccount.ImagePullSecrets = serviceAccount.ImagePullSecrets
+		actualServiceAccount.AutomountServiceAccountToken = serviceAccount.AutomountServiceAccountToken
+		if err := k8sClient.Update(ctx, actualServiceAccount); err != nil {
+			return fmt.Errorf("error on Update service account: %w", err)
 		}
+		logutil.LogAPIResourceChangeEvent(actualServiceAccount.Namespace, actualServiceAccount.Name, actualServiceAccount, logutil.ResourceModified, log)
+	} else if apierr.IsNotFound(err) {
+		// It doesn't exist, so we create it
+		if err := k8sClient.Create(ctx, serviceAccount); err != nil {
+			return fmt.Errorf("error on Create service account: %w", err)
+		}
+		logutil.LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, logutil.ResourceCreated, log)
+	} else {
+		// Some other error occured
+		return fmt.Errorf("error on Get service account: %w", err)
 	}
-	logutil.LogAPIResourceChangeEvent(serviceAccount.Namespace, serviceAccount.Name, serviceAccount, logutil.ResourceCreated, log)
-
-	log.Info(fmt.Sprintf("serviceAccount %q created in namespace %q", serviceAccount.Name, serviceAccount.Namespace))
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -337,20 +343,31 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 		},
 		Type: "kubernetes.io/service-account-token",
 	}
+	actualSecret := &corev1.Secret{}
 
-	if err := k8sClient.Create(ctx, secret); err != nil {
-		if apierr.IsAlreadyExists(err) {
-			if err := k8sClient.Update(ctx, secret); err != nil {
-				return fmt.Errorf("error on Update %v", err)
-			}
-			logutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, logutil.ResourceModified, log)
-
-		} else {
-			return fmt.Errorf("error on Create %v", err)
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(secret), actualSecret)
+	if err == nil {
+		// It already exists, so we update it.
+		// Don't update the Data field since that is set by Kubernetes
+		actualSecret.Immutable = nil
+		actualSecret.Annotations = map[string]string{
+			"kubernetes.io/service-account.name": serviceAccount.Name,
 		}
+		actualSecret.Type = "kubernetes.io/service-account-token"
+		if err := k8sClient.Update(ctx, actualSecret); err != nil {
+			return fmt.Errorf("error on Update secret: %w", err)
+		}
+		logutil.LogAPIResourceChangeEvent(actualSecret.Namespace, actualSecret.Name, actualSecret, logutil.ResourceModified, log)
+	} else if apierr.IsNotFound(err) {
+		// It doesn't exist, so we create it
+		if err := k8sClient.Create(ctx, secret); err != nil {
+			return fmt.Errorf("error on Create secret: %w", err)
+		}
+		logutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, logutil.ResourceCreated, log)
+	} else {
+		// Some other error occured
+		return fmt.Errorf("error on Get secret: %w", err)
 	}
-	logutil.LogAPIResourceChangeEvent(secret.Namespace, secret.Name, secret, logutil.ResourceCreated, log)
-	log.Info(fmt.Sprintf("secret %q created in namespace %q", secret.Name, secret.Namespace))
 
 	clusterRole := rbac.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
@@ -366,20 +383,27 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 			},
 		},
 	}
+	actualClusterRole := rbac.ClusterRole{}
 
-	if err := k8sClient.Create(ctx, &clusterRole); err != nil {
-		if apierr.IsAlreadyExists(err) {
-			if err := k8sClient.Update(ctx, &clusterRole); err != nil {
-				return fmt.Errorf("error on Update %v", err)
-			}
-			logutil.LogAPIResourceChangeEvent(clusterRole.Namespace, clusterRole.Name, clusterRole, logutil.ResourceModified, log)
-
-		} else {
-			return fmt.Errorf("error on Create %v", err)
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&clusterRole), &actualClusterRole)
+	if err == nil {
+		// It already exists, so we update it.
+		actualClusterRole.Rules = clusterRole.Rules
+		actualClusterRole.AggregationRule = clusterRole.AggregationRule
+		if err := k8sClient.Update(ctx, &actualClusterRole); err != nil {
+			return fmt.Errorf("error on Update cluster role: %w", err)
 		}
+		logutil.LogAPIResourceChangeEvent(actualClusterRole.Namespace, actualClusterRole.Name, actualClusterRole, logutil.ResourceModified, log)
+	} else if apierr.IsNotFound(err) {
+		// It doesn't exist, so we create it
+		if err := k8sClient.Create(ctx, &clusterRole); err != nil {
+			return fmt.Errorf("error on Create cluster role: %w", err)
+		}
+		logutil.LogAPIResourceChangeEvent(clusterRole.Namespace, clusterRole.Name, clusterRole, logutil.ResourceCreated, log)
+	} else {
+		// Some other error occured
+		return fmt.Errorf("error on Get cluster role: %w", err)
 	}
-	logutil.LogAPIResourceChangeEvent(clusterRole.Namespace, clusterRole.Name, clusterRole, logutil.ResourceCreated, log)
-	log.Info(fmt.Sprintf("clusterRole %q created in namespace %q", clusterRole.Name, clusterRole.Namespace))
 
 	clusterRoleBinding := rbac.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
@@ -399,23 +423,30 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 			},
 		},
 	}
+	actualClusterRoleBinding := rbac.ClusterRoleBinding{}
 
-	if err := k8sClient.Create(ctx, &clusterRoleBinding); err != nil {
-		if apierr.IsAlreadyExists(err) {
-			if err := k8sClient.Update(ctx, &clusterRoleBinding); err != nil {
-				return fmt.Errorf("error on Update %v", err)
-			}
-			logutil.LogAPIResourceChangeEvent(clusterRoleBinding.Namespace, clusterRoleBinding.Name, clusterRoleBinding, logutil.ResourceModified, log)
-
-		} else {
-			return fmt.Errorf("error on Create %v", err)
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(&clusterRoleBinding), &actualClusterRoleBinding)
+	if err == nil {
+		// It already exists, so we update it.
+		actualClusterRoleBinding.RoleRef = clusterRoleBinding.RoleRef
+		actualClusterRoleBinding.Subjects = clusterRoleBinding.Subjects
+		if err := k8sClient.Update(ctx, &actualClusterRoleBinding); err != nil {
+			return fmt.Errorf("error on Update cluster role binding: %v", err)
 		}
+		logutil.LogAPIResourceChangeEvent(actualClusterRoleBinding.Namespace, actualClusterRoleBinding.Name, actualClusterRoleBinding, logutil.ResourceModified, log)
+	} else if apierr.IsNotFound(err) {
+		// It doesn't exist, so we create it
+		if err := k8sClient.Create(ctx, &clusterRoleBinding); err != nil {
+			return fmt.Errorf("error on Create cluster role binding: %w", err)
+		}
+		logutil.LogAPIResourceChangeEvent(clusterRoleBinding.Namespace, clusterRoleBinding.Name, clusterRoleBinding, logutil.ResourceCreated, log)
+	} else {
+		// Some other error occured
+		return fmt.Errorf("error on Get cluster role binding: %w", err)
 	}
-	logutil.LogAPIResourceChangeEvent(clusterRoleBinding.Namespace, clusterRoleBinding.Name, clusterRoleBinding, logutil.ResourceCreated, log)
-	log.Info(fmt.Sprintf("clusterRoleBinding %q created in namespace %q", clusterRoleBinding.Name, clusterRoleBinding.Namespace))
 
 	// Wait for Secret to contain a bearer token
-	err := wait.PollImmediate(1*time.Second, 3*time.Minute, func() (bool, error) {
+	err = wait.PollImmediate(1*time.Second, 3*time.Minute, func() (bool, error) {
 		secret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      ArgoCDManagerSecretName,
@@ -480,21 +511,30 @@ func SetupArgoCD(ctx context.Context, apiHost string, argoCDNamespace string, k8
 		},
 		Type: corev1.SecretType("Opaque"),
 	}
+	actualClusterSecret := &corev1.Secret{}
 
 	// Create, or update cluster secret if it already exists
-	if err := k8sClient.Create(context.Background(), clusterSecret); err != nil {
-		if apierr.IsAlreadyExists(err) {
-			if err := k8sClient.Update(ctx, clusterSecret); err != nil {
-				return fmt.Errorf("error on Update %v", err)
-			}
-			logutil.LogAPIResourceChangeEvent(clusterSecret.Namespace, clusterSecret.Name, clusterSecret, logutil.ResourceCreated, log)
-
-		} else {
-			return fmt.Errorf("error on Create %v", err)
+	err = k8sClient.Get(ctx, client.ObjectKeyFromObject(clusterSecret), actualClusterSecret)
+	if err == nil {
+		// It already exists, so we update it.
+		actualClusterSecret.Labels = clusterSecret.Labels
+		actualClusterSecret.Immutable = clusterSecret.Immutable
+		actualClusterSecret.StringData = clusterSecret.StringData
+		actualClusterSecret.Type = clusterSecret.Type
+		if err := k8sClient.Update(ctx, actualClusterSecret); err != nil {
+			return fmt.Errorf("error on Update cluster secret: %w", err)
 		}
+		logutil.LogAPIResourceChangeEvent(actualClusterSecret.Namespace, actualClusterSecret.Name, actualClusterSecret, logutil.ResourceCreated, log)
+	} else if apierr.IsNotFound(err) {
+		// It doesn't exist, so we create it
+		if err := k8sClient.Create(context.Background(), clusterSecret); err != nil {
+			return fmt.Errorf("error on Create cluster secret: %w", err)
+		}
+		logutil.LogAPIResourceChangeEvent(clusterSecret.Namespace, clusterSecret.Name, clusterSecret, logutil.ResourceCreated, log)
+	} else {
+		// Some other error occured
+		return fmt.Errorf("error on Get cluster secret:: %w", err)
 	}
-	logutil.LogAPIResourceChangeEvent(clusterSecret.Namespace, clusterSecret.Name, clusterSecret, logutil.ResourceCreated, log)
 
-	log.Info(fmt.Sprintf("cluster secret %q created ", clusterSecret.Name))
 	return nil
 }

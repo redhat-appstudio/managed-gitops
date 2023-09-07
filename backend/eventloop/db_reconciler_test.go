@@ -79,9 +79,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			// Create ApplicationState entry
 			applicationState = db.ApplicationState{
 				Applicationstate_application_id: application.Application_id,
-				Health:                          "Healthy",
-				Sync_Status:                     "Synced",
-				ReconciledState:                 "Healthy",
+				ArgoCD_Application_Status:       []byte("sample-status"),
 			}
 			err = dbq.CreateApplicationState(ctx, &applicationState)
 			Expect(err).ToNot(HaveOccurred())
@@ -199,6 +197,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 			By("Verify that entries for the GitOpsDeployment which is not available in cluster, are deleted from DB.")
 
 			err = dbq.GetApplicationStateById(ctx, &applicationStateOne)
+			Expect(err).To(HaveOccurred())
 			Expect(db.IsResultNotFoundError(err)).To(BeTrue())
 
 			err = dbq.GetSyncOperationById(ctx, &syncOperationOne)
@@ -1218,9 +1217,7 @@ var _ = Describe("DB Clean-up Function Tests", func() {
 
 			applicationState := db.ApplicationState{
 				Applicationstate_application_id: applicationNew.Application_id,
-				Health:                          "Healthy",
-				Sync_Status:                     "Synced",
-				ReconciledState:                 "Healthy",
+				ArgoCD_Application_Status:       []byte("sample-status"),
 			}
 			err = dbq.CreateApplicationState(ctx, &applicationState)
 			Expect(err).ToNot(HaveOccurred())

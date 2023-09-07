@@ -4,13 +4,10 @@ import (
 	"context"
 	"encoding/json"
 
-	"time"
-
 	"fmt"
 	"strings"
 
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/gitopserrors"
-	"gopkg.in/yaml.v2"
 
 	"github.com/golang/mock/gomock"
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/apis/managed-gitops/v1alpha1/mocks"
@@ -310,61 +307,67 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(compressedResources).ToNot(BeNil())
 
-			By("add sample OperationState field to the ApplicationState")
-			operationState := &managedgitopsv1alpha1.OperationState{
-				Message: "Sample message",
-				Operation: managedgitopsv1alpha1.ApplicationOperation{
-					InitiatedBy: managedgitopsv1alpha1.OperationInitiator{
-						Automated: true,
-					},
-					Retry: managedgitopsv1alpha1.RetryStrategy{
-						Limit: -1,
-					},
-				},
-				SyncResult: &managedgitopsv1alpha1.SyncOperationResult{
-					Resources: managedgitopsv1alpha1.ResourceResults{
-						{
-							Group:     "",
-							HookPhase: managedgitopsv1alpha1.OperationRunning,
-							Namespace: "jane",
-							Status:    managedgitopsv1alpha1.ResultCodeSynced,
+			_, reconciledobj, err := dummyApplicationComparedToField()
+			Expect(err).ToNot(HaveOccurred())
+
+			resourceBytes, err := json.Marshal(resources)
+			Expect(err).ToNot(HaveOccurred())
+
+			fauxResources := []fauxargocd.ResourceStatus{}
+			err = json.Unmarshal(resourceBytes, &fauxResources)
+			Expect(err).ToNot(HaveOccurred())
+
+			appStatus := &fauxargocd.FauxApplicationStatus{
+				Resources: fauxResources,
+				OperationState: &fauxargocd.OperationState{
+					Message: "Sample message",
+					Operation: fauxargocd.Operation{
+						InitiatedBy: fauxargocd.OperationInitiator{
+							Automated: true,
+						},
+						Retry: fauxargocd.RetryStrategy{
+							Limit: -1,
 						},
 					},
+					SyncResult: &fauxargocd.SyncOperationResult{
+						Resources: fauxargocd.ResourceResults{
+							{
+								Group:     "",
+								HookPhase: fauxargocd.OperationRunning,
+								Namespace: "jane",
+								Status:    fauxargocd.ResultCodeSynced,
+							},
+						},
+					},
+					RetryCount: 1,
 				},
-				RetryCount: 1,
+				Health: fauxargocd.HealthStatus{
+					Status:  fauxargocd.HealthStatusHealthy,
+					Message: "success",
+				},
+				Sync: fauxargocd.SyncStatus{
+					Status:     fauxargocd.SyncStatusCodeSynced,
+					Revision:   "abcdefg",
+					ComparedTo: reconciledobj,
+				},
+				Conditions: []fauxargocd.ApplicationCondition{
+					{
+						Type:    managedgitopsv1alpha1.ApplicationConditionComparisonError,
+						Message: "comparision error",
+					},
+					{
+						Type:    managedgitopsv1alpha1.ApplicationConditionSharedResourceWarning,
+						Message: "shared resource warning",
+					},
+				},
 			}
 
-			reconciledStateString, reconciledobj, err := dummyApplicationComparedToField()
-			Expect(err).ToNot(HaveOccurred())
-
-			compressedOpState, err := sharedutil.CompressObject(operationState)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(compressedOpState).ToNot(BeNil())
-
-			appConditions := []managedgitopsv1alpha1.ApplicationCondition{
-				{
-					Type:    managedgitopsv1alpha1.ApplicationConditionComparisonError,
-					Message: "comparision error",
-				},
-				{
-					Type:    managedgitopsv1alpha1.ApplicationConditionSharedResourceWarning,
-					Message: "shared resource warning",
-				},
-			}
-
-			conditionBytes, err := yaml.Marshal(appConditions)
+			appStatusBytes, err := sharedutil.CompressObject(appStatus)
 			Expect(err).ToNot(HaveOccurred())
 
 			applicationState := &db.ApplicationState{
 				Applicationstate_application_id: deplToAppMapping.Application_id,
-				Health:                          string(managedgitopsv1alpha1.HeathStatusCodeHealthy),
-				Sync_Status:                     string(managedgitopsv1alpha1.SyncStatusCodeSynced),
-				Revision:                        "abcdefg",
-				Message:                         "Success",
-				Resources:                       compressedResources,
-				ReconciledState:                 reconciledStateString,
-				OperationState:                  compressedOpState,
-				Conditions:                      conditionBytes,
+				ArgoCD_Application_Status:       appStatusBytes,
 			}
 
 			err = dbQueries.CreateApplicationState(ctx, applicationState)
@@ -407,21 +410,28 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 			Expect(gitopsDeployment.Status.Health.Status).To(Equal(managedgitopsv1alpha1.HeathStatusCodeHealthy))
 			Expect(gitopsDeployment.Status.Sync.Status).To(Equal(managedgitopsv1alpha1.SyncStatusCodeSynced))
-			Expect(gitopsDeployment.Status.Sync.Revision).To(Equal("abcdefg"))
-			Expect(gitopsDeployment.Status.Health.Message).To(Equal("Success"))
+			Expect(gitopsDeployment.Status.Sync.Revision).To(Equal(appStatus.Sync.Revision))
+			Expect(gitopsDeployment.Status.Health.Message).To(Equal(appStatus.Health.Message))
 			Expect(gitopsDeployment.Status.ReconciledState.Source.Path).To(Equal(reconciledobj.Source.Path))
 			Expect(gitopsDeployment.Status.ReconciledState.Source.RepoURL).To(Equal(reconciledobj.Source.RepoURL))
 			Expect(gitopsDeployment.Status.ReconciledState.Source.Branch).To(Equal(reconciledobj.Source.TargetRevision))
 			Expect(gitopsDeployment.Status.ReconciledState.Destination.Namespace).To(Equal(reconciledobj.Destination.Namespace))
 
 			Expect(gitopsDeployment.Status.OperationState).ToNot(BeNil())
+			opStateBytes, err := json.Marshal(appStatus.OperationState)
+			Expect(err).ToNot(HaveOccurred())
+
+			operationState := &managedgitopsv1alpha1.OperationState{}
+			err = json.Unmarshal(opStateBytes, operationState)
+			Expect(err).ToNot(HaveOccurred())
+
 			Expect(gitopsDeployment.Status.OperationState.Message).To(Equal(operationState.Message))
 			Expect(gitopsDeployment.Status.OperationState.RetryCount).To(Equal(operationState.RetryCount))
 			Expect(gitopsDeployment.Status.OperationState.Operation).To(Equal(operationState.Operation))
 			Expect(gitopsDeployment.Status.OperationState.SyncResult).To(Equal(operationState.SyncResult))
 
 			By("verify if conditions from both ApplicationState and GitOpsDeployment match")
-			for _, c := range appConditions {
+			for _, c := range appStatus.Conditions {
 				matchingCondition, _ := conditions.NewConditionManager().FindCondition(&gitopsDeployment.Status.Conditions, managedgitopsv1alpha1.GitOpsDeploymentConditionType(c.Type))
 
 				Expect(matchingCondition).ToNot(BeNil())
@@ -431,14 +441,13 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			}
 
 			By("Update conditions in ApplicationState to be empty")
+			appStatus.Conditions = []fauxargocd.ApplicationCondition{}
+			appStatusBytes, err = sharedutil.CompressObject(appStatus)
+			Expect(err).ToNot(HaveOccurred())
+
 			applicationState = &db.ApplicationState{
 				Applicationstate_application_id: deplToAppMapping.Application_id,
-				Health:                          string(managedgitopsv1alpha1.HeathStatusCodeHealthy),
-				Sync_Status:                     string(managedgitopsv1alpha1.SyncStatusCodeSynced),
-				Revision:                        "abcdefg",
-				Message:                         "Success",
-				Resources:                       compressedResources,
-				ReconciledState:                 reconciledStateString,
+				ArgoCD_Application_Status:       appStatusBytes,
 			}
 
 			err = dbQueries.UpdateApplicationState(ctx, applicationState)
@@ -696,10 +705,6 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			var resources []managedgitopsv1alpha1.ResourceStatus
 			resources = append(resources, resourceStatus)
 
-			compressedResources, err := sharedutil.CompressObject(resources)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(compressedResources).ToNot(BeNil())
-
 			// Create ReconciledState
 			fauxcomparedTo := fauxargocd.FauxComparedTo{
 				Source: fauxargocd.ApplicationSource{
@@ -713,17 +718,32 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 				},
 			}
 
-			fauxcomparedToBytes, err := json.Marshal(fauxcomparedTo)
+			resourceBytes, err := json.Marshal(resources)
+			Expect(err).ToNot(HaveOccurred())
+
+			fauxResources := []fauxargocd.ResourceStatus{}
+			err = json.Unmarshal(resourceBytes, &fauxResources)
+			Expect(err).ToNot(HaveOccurred())
+
+			appStatus := &fauxargocd.FauxApplicationStatus{
+				Health: fauxargocd.HealthStatus{
+					Status:  fauxargocd.HealthStatusHealthy,
+					Message: "Success",
+				},
+				Resources: fauxResources,
+				Sync: fauxargocd.SyncStatus{
+					Status:     fauxargocd.SyncStatusCodeSynced,
+					Revision:   "abcdefg",
+					ComparedTo: fauxcomparedTo,
+				},
+			}
+
+			appStatusBytes, err := sharedutil.CompressObject(appStatus)
 			Expect(err).ToNot(HaveOccurred())
 
 			applicationState := &db.ApplicationState{
 				Applicationstate_application_id: deplToAppMapping.Application_id,
-				Health:                          string(managedgitopsv1alpha1.HeathStatusCodeHealthy),
-				Sync_Status:                     string(managedgitopsv1alpha1.SyncStatusCodeSynced),
-				Revision:                        "abcdefg",
-				Message:                         "Success",
-				Resources:                       compressedResources,
-				ReconciledState:                 string(fauxcomparedToBytes),
+				ArgoCD_Application_Status:       appStatusBytes,
 			}
 
 			err = dbQueries.CreateApplicationState(ctx, applicationState)
@@ -997,184 +1017,96 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 
 	})
 
-	Context("Check decompressResourceData function.", func() {
-		It("Should decompress resource data and return actual Array of ResourceStatus objects.", func() {
-			// ----------------------------------------------------------------------------
-			By("Creating sample resource data.")
-			// ----------------------------------------------------------------------------
-
-			resourceStatus := managedgitopsv1alpha1.ResourceStatus{
-				Group:     "apps",
+	Context("Test extractResourceStatus function", func() {
+		var (
+			inputResource = fauxargocd.ResourceStatus{
+				Kind:      "sample-kind",
+				Group:     "sample-resource",
 				Version:   "v1",
-				Kind:      "Deployment",
-				Namespace: "argoCD",
-				Name:      "component-a",
-				Status:    "Synced",
-				Health: &managedgitopsv1alpha1.HealthStatus{
-					Status:  "Healthy",
-					Message: "success",
+				Namespace: "sample-ns",
+				Name:      "sample-name",
+				Status:    fauxargocd.SyncStatusCodeSynced,
+				Health: &fauxargocd.HealthStatus{
+					Status: fauxargocd.HealthStatusHealthy,
 				},
 			}
 
-			var resourcesIn []managedgitopsv1alpha1.ResourceStatus
-			resourcesIn = append(resourcesIn, resourceStatus)
-
-			// ----------------------------------------------------------------------------
-			By("Compress sample data to be passed as input for decompressResourceData function.")
-			// ----------------------------------------------------------------------------
-			compressedResources, err := sharedutil.CompressObject(resourcesIn)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(compressedResources).ToNot(BeNil())
-
-			// ----------------------------------------------------------------------------
-			By("Decompress data and convert it to String, then convert String into ResourceStatus Array.")
-			// ----------------------------------------------------------------------------
-
-			var resourcesOut []managedgitopsv1alpha1.ResourceStatus
-
-			resourcesOut, err = decompressResourceData(compressedResources)
-
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(resourcesOut).NotTo(BeNil())
-			Expect(resourcesOut).NotTo(BeEmpty())
-
-			Expect(resourcesOut[0]).NotTo(BeNil())
-			Expect(resourcesOut[0].Group).To(Equal("apps"))
-			Expect(resourcesOut[0].Version).To(Equal("v1"))
-			Expect(resourcesOut[0].Kind).To(Equal("Deployment"))
-			Expect(resourcesOut[0].Namespace).To(Equal("argoCD"))
-			Expect(resourcesOut[0].Status).To(Equal(managedgitopsv1alpha1.SyncStatusCodeSynced))
-			Expect(resourcesOut[0].Health.Status).To(Equal(managedgitopsv1alpha1.HeathStatusCodeHealthy))
-			Expect(resourcesOut[0].Health.Message).To(Equal("success"))
+			expectedResource = managedgitopsv1alpha1.ResourceStatus{
+				Kind:      inputResource.Kind,
+				Group:     inputResource.Group,
+				Version:   inputResource.Version,
+				Namespace: inputResource.Namespace,
+				Name:      inputResource.Name,
+				Status:    managedgitopsv1alpha1.SyncStatusCode(inputResource.Status),
+				Health: &managedgitopsv1alpha1.HealthStatus{
+					Status: managedgitopsv1alpha1.HealthStatusCode(inputResource.Health.Status),
+				},
+			}
+		)
+		It("should return an empty resourceStatus if the input slice is empty", func() {
+			resourcesStatus := extractResourceStatus([]fauxargocd.ResourceStatus{})
+			Expect(resourcesStatus).To(HaveLen(0))
 		})
 
-		It("Should decompress empty resource data and return actual Array of ResourceStatus objects.", func() {
-			// ----------------------------------------------------------------------------
-			By("Creating sample resource data.")
-			// ----------------------------------------------------------------------------
-			resourceStatus := managedgitopsv1alpha1.ResourceStatus{}
-
-			var resourcesIn []managedgitopsv1alpha1.ResourceStatus
-			resourcesIn = append(resourcesIn, resourceStatus)
-
-			// ----------------------------------------------------------------------------
-			By("Compress sample data to be passed as input for decompressResourceData function.")
-			// ----------------------------------------------------------------------------
-			compressedResources, err := sharedutil.CompressObject(resourcesIn)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(compressedResources).ToNot(BeNil())
-
-			// ----------------------------------------------------------------------------
-			By("Decompress data and convert it to String, then convert String into ResourceStatus Array.")
-			// ----------------------------------------------------------------------------
-
-			var resourcesOut []managedgitopsv1alpha1.ResourceStatus
-
-			resourcesOut, err = decompressResourceData(compressedResources)
-
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(resourcesOut).NotTo(BeNil())
-			Expect(resourcesOut).NotTo(BeEmpty())
-
-			Expect(resourcesOut[0]).NotTo(BeNil())
-			Expect(managedgitopsv1alpha1.ResourceStatus{}).To(Equal(resourcesOut[0]))
+		It("should convert the input faux ResourceStatus to GitOpsDeployment ResourceStatus", func() {
+			resourceStatus := extractResourceStatus([]fauxargocd.ResourceStatus{inputResource})
+			Expect(resourceStatus).To(HaveLen(1))
+			Expect(resourceStatus).To(Equal([]managedgitopsv1alpha1.ResourceStatus{expectedResource}))
 		})
 
-		It("Should decompress empty resource data and return empty Array of ResourceStatus objects.", func() {
-			// ----------------------------------------------------------------------------
-			By("Creating sample resource data.")
-			// ----------------------------------------------------------------------------
-
-			var resourcesIn []managedgitopsv1alpha1.ResourceStatus
-
-			// ----------------------------------------------------------------------------
-			By("Compress sample data to be passed as input for decompressResourceData function.")
-			// ----------------------------------------------------------------------------
-			compressedResources, err := sharedutil.CompressObject(resourcesIn)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(compressedResources).ToNot(BeNil())
-
-			// ----------------------------------------------------------------------------
-			By("Decompress data and convert it to String, then convert String into ResourceStatus Array.")
-			// ----------------------------------------------------------------------------
-
-			var resourcesOut []managedgitopsv1alpha1.ResourceStatus
-
-			resourcesOut, err = decompressResourceData(compressedResources)
-
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(resourcesOut).NotTo(BeNil())
-			Expect(resourcesOut).To(BeEmpty())
+		It("should not update health status if the input resource health status is nil", func() {
+			inputResource.Health = nil
+			expectedResource.Health = nil
+			resourceStatus := extractResourceStatus([]fauxargocd.ResourceStatus{inputResource})
+			Expect(resourceStatus).To(HaveLen(1))
+			Expect(resourceStatus[0].Health).To(BeNil())
+			Expect(resourceStatus).To(Equal([]managedgitopsv1alpha1.ResourceStatus{expectedResource}))
 		})
 	})
 
-	Context("Check decompressOperationState function.", func() {
-		It("Should decompress operationState data and return actual operationState object.", func() {
-			// ----------------------------------------------------------------------------
-			By("Creating sample operationState data.")
-			// ----------------------------------------------------------------------------
-
-			operationState := managedgitopsv1alpha1.OperationState{
-				Operation: managedgitopsv1alpha1.ApplicationOperation{
-					InitiatedBy: managedgitopsv1alpha1.OperationInitiator{
-						Automated: true,
-					},
-					Retry: managedgitopsv1alpha1.RetryStrategy{
-						Limit: -1,
+	Context("Test extractOperationState function", func() {
+		It("should convert the faux OperationState to GitOpsDeployment OperationState", func() {
+			inputState := fauxargocd.OperationState{
+				RetryCount: 1,
+				Message:    "sample",
+				Operation: fauxargocd.Operation{
+					Sync: &fauxargocd.SyncOperation{
+						Revision: "abc",
 					},
 				},
-				SyncResult: &managedgitopsv1alpha1.SyncOperationResult{
-					Resources: managedgitopsv1alpha1.ResourceResults{
+				Phase: fauxargocd.OperationRunning,
+				SyncResult: &fauxargocd.SyncOperationResult{
+					Resources: fauxargocd.ResourceResults{
 						{
-							Group:     "",
-							HookPhase: managedgitopsv1alpha1.OperationRunning,
-							Namespace: "jane",
-							Status:    managedgitopsv1alpha1.ResultCodeSynced,
+							Namespace: "sample-ns",
+							Kind:      "sample-kind",
 						},
 					},
 				},
-				StartedAt:  metav1.Time{Time: time.Now()},
-				FinishedAt: &metav1.Time{Time: time.Now()},
 			}
 
-			// ----------------------------------------------------------------------------
-			By("Compress sample data to be passed as input for decompressOperationState function.")
-			// ----------------------------------------------------------------------------
-			compressedOpState, err := sharedutil.CompressObject(operationState)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(compressedOpState).ToNot(BeNil())
+			expectedState := managedgitopsv1alpha1.OperationState{
+				RetryCount: 1,
+				Message:    "sample",
+				Operation: managedgitopsv1alpha1.ApplicationOperation{
+					Sync: &managedgitopsv1alpha1.SyncOperation{
+						Revision: "abc",
+					},
+				},
+				Phase: managedgitopsv1alpha1.OperationRunning,
+				SyncResult: &managedgitopsv1alpha1.SyncOperationResult{
+					Resources: managedgitopsv1alpha1.ResourceResults{
+						{
+							Namespace: "sample-ns",
+							Kind:      "sample-kind",
+						},
+					},
+				},
+			}
 
-			// ----------------------------------------------------------------------------
-			By("Decompress data and verify the OperationState")
-			// ----------------------------------------------------------------------------
-
-			opStateOut, err := decompressOperationState(compressedOpState)
-
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(opStateOut).NotTo(BeNil())
-
-			Expect(opStateOut).NotTo(BeNil())
-			Expect(opStateOut.Operation.InitiatedBy.Automated).To(BeTrue())
-			Expect(opStateOut.Operation.Retry.Limit).To(Equal(int64(-1)))
-			Expect(opStateOut.SyncResult.Resources[0].Group).To(Equal(""))
-			Expect(opStateOut.SyncResult.Resources[0].HookPhase).To(Equal(managedgitopsv1alpha1.OperationRunning))
-			Expect(opStateOut.SyncResult.Resources[0].Namespace).To(Equal("jane"))
-			Expect(opStateOut.SyncResult.Resources[0].Status).To(Equal(managedgitopsv1alpha1.ResultCodeSynced))
-			Expect(opStateOut.StartedAt.Equal(&operationState.StartedAt)).To(BeTrue())
-			Expect(opStateOut.FinishedAt.Equal(operationState.FinishedAt)).To(BeTrue())
-
-		})
-
-		It("Shouldn't decompress if an empty operationState byte array is provided", func() {
-			operationState, err := decompressOperationState([]byte{})
-
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(operationState).To(BeNil())
+			opState, err := extractOperationState(&inputState)
+			Expect(err).To(BeNil())
+			Expect(*opState).To(Equal(expectedState))
 		})
 	})
 

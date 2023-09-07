@@ -18,14 +18,12 @@ package argoprojio
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-
 	"reflect"
+
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v2"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -33,7 +31,6 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/db"
 	sharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util"
 	argosharedutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/argocd"
-	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/fauxargocd"
 	logutil "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/argoproj.io/application_info_cache"
@@ -124,6 +121,13 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	log = log.WithValues(logutil.Log_ApplicationID, applicationDB.Application_id)
 
+	var err error
+	app.Status.Sync.ComparedTo, err = convertComparedTo(app)
+	if err != nil {
+		log.Error(err, "Failed to process comparedTo field of Application")
+		return ctrl.Result{}, err
+	}
+
 	// 3) Does there exist an ApplicationState for this Application, already?
 	applicationState := &db.ApplicationState{
 		Applicationstate_application_id: applicationDB.Application_id,
@@ -133,45 +137,13 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		if db.IsResultNotFoundError(errGet) {
 
 			// 3a) ApplicationState doesn't exist: so create it
-
-			applicationState.Health = db.TruncateVarchar(string(app.Status.Health.Status), db.ApplicationStateHealthLength)
-			applicationState.Message = db.TruncateVarchar(app.Status.Health.Message, db.ApplicationStateMessageLength)
-			applicationState.Sync_Status = db.TruncateVarchar(string(app.Status.Sync.Status), db.ApplicationStateSyncStatusLength)
-			applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationStateRevisionLength)
-			sanitizeHealthAndStatus(applicationState)
-
-			// Get the list of resources created by deployment and convert it into a compressed YAML string.
-			var err error
-			applicationState.Resources, err = sharedutil.CompressObject(app.Status.Resources)
+			appStatusBytes, err := sharedutil.CompressObject(app.Status)
 			if err != nil {
-				log.Error(err, "unable to compress resource data into byte array.")
+				log.Error(err, "Failed to compress the Argo CD Application status", "name", app.Name, "namespace", app.Namespace)
 				return ctrl.Result{}, err
 			}
 
-			if app.Status.OperationState != nil {
-				// Compress the Application OperationState and copy it.
-				applicationState.OperationState, err = sharedutil.CompressObject(app.Status.OperationState)
-				if err != nil {
-					log.Error(err, "unable to compress operationState data into byte array.")
-					return ctrl.Result{}, err
-				}
-			}
-
-			// storeInComparedToFieldInApplicationState will read 'comparedTo' field of an Argo CD Application, and write the
-			// correct value into 'applicationState'.
-			reconciledState, err := storeInComparedToFieldInApplicationState(app, *applicationState)
-			if err != nil {
-				log.Error(err, "unable to store comparedToField in ApplicationState")
-				return ctrl.Result{}, err
-			}
-
-			applicationState.ReconciledState = reconciledState
-
-			if err := setApplicationConditions(applicationState, app.Status.Conditions); err != nil {
-				log.Error(err, "failed to set Application conditions in ApplicationState DB")
-				return ctrl.Result{}, err
-			}
-
+			applicationState.ArgoCD_Application_Status = appStatusBytes
 			if errCreate := r.Cache.CreateApplicationState(ctx, *applicationState); errCreate != nil {
 				log.Error(errCreate, "unexpected error on writing new application state")
 				return ctrl.Result{}, errCreate
@@ -185,44 +157,12 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// 4) ApplicationState already exists, so just update it.
-
-	applicationState.Health = db.TruncateVarchar(string(app.Status.Health.Status), db.ApplicationStateHealthLength)
-	applicationState.Message = db.TruncateVarchar(app.Status.Health.Message, db.ApplicationStateMessageLength)
-	applicationState.Sync_Status = db.TruncateVarchar(string(app.Status.Sync.Status), db.ApplicationStateSyncStatusLength)
-	applicationState.Revision = db.TruncateVarchar(app.Status.Sync.Revision, db.ApplicationStateRevisionLength)
-	sanitizeHealthAndStatus(applicationState)
-
-	// Get the list of resources created by deployment and convert it into a compressed YAML string.
-	var err error
-	applicationState.Resources, err = sharedutil.CompressObject(app.Status.Resources)
+	appStatusBytes, err := sharedutil.CompressObject(app.Status)
 	if err != nil {
-		log.Error(err, "unable to compress resource data into byte array.")
+		log.Error(err, "Failed to compress the Argo CD Application status", "name", app.Name, "namespace", app.Namespace)
 		return ctrl.Result{}, err
 	}
-
-	if app.Status.OperationState != nil {
-		applicationState.OperationState, err = sharedutil.CompressObject(app.Status.OperationState)
-		if err != nil {
-			log.Error(err, "unable to compress operationState into byte array.")
-			return ctrl.Result{}, err
-		}
-	}
-
-	// storeInComparedToFieldInApplicationState will read 'comparedTo' field of an Argo CD Application, and write the
-	// correct value into 'applicationState'.
-	reconciledState, err := storeInComparedToFieldInApplicationState(app, *applicationState)
-	if err != nil {
-		log.Error(err, "unable to store comparedToField in ApplicationState")
-		return ctrl.Result{}, err
-	}
-
-	applicationState.ReconciledState = reconciledState
-
-	if err := setApplicationConditions(applicationState, app.Status.Conditions); err != nil {
-		log.Error(err, "failed to set Application conditions in ApplicationState DB")
-		return ctrl.Result{}, err
-	}
-
+	applicationState.ArgoCD_Application_Status = appStatusBytes
 	if err := r.Cache.UpdateApplicationState(ctx, *applicationState); err != nil {
 
 		if strings.Contains(err.Error(), db.ErrorUnexpectedNumberOfRowsAffected) {
@@ -235,18 +175,6 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	return ctrl.Result{}, nil
-
-}
-
-func sanitizeHealthAndStatus(applicationState *db.ApplicationState) {
-
-	if applicationState.Health == "" {
-		applicationState.Health = "Unknown"
-	}
-
-	if applicationState.Sync_Status == "" {
-		applicationState.Sync_Status = "Unknown"
-	}
 
 }
 
@@ -275,72 +203,33 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// storeInComparedToFieldInApplicationState will read 'comparedTo' field of an Argo CD Application, and write the
-// correct value into 'applicationState'.
-func storeInComparedToFieldInApplicationState(argoCDAppParam appv1.Application, applicationState db.ApplicationState) (string, error) {
-
+// convertComparedTo converts the comparedTo of Application status to the correct form that will
+// be used by the GitOpsDeployment
+func convertComparedTo(argoCDAppParam appv1.Application) (appv1.ComparedTo, error) {
 	comparedToParam := argoCDAppParam.Status.Sync.ComparedTo
-	// 1) Convert into a non-Argo CD version of this data, so that we can easily store it in the database as JSON
-	comparedTo := fauxargocd.FauxComparedTo{
-		Source: fauxargocd.ApplicationSource{
-			RepoURL:        comparedToParam.Source.RepoURL,
-			Path:           comparedToParam.Source.Path,
-			TargetRevision: comparedToParam.Source.TargetRevision,
-		},
-		Destination: fauxargocd.ApplicationDestination{
-			Namespace: comparedToParam.Destination.Namespace,
-			Name:      comparedToParam.Destination.Name,
-		},
+
+	if reflect.DeepEqual(comparedToParam, appv1.ComparedTo{}) {
+		return appv1.ComparedTo{}, nil
 	}
 
-	// If the comparedToParam is non-empty, then process it
-	if !reflect.DeepEqual(comparedToParam, appv1.ComparedTo{}) {
+	// 1) Read the Argo CD Cluster Secret name (which points to an Argo CD Cluster Secret in the Argo CD namespace) from the
+	// Argo CD Application, and extract the managed environment ID from it.
+	managedEnvID, isLocal, err := argosharedutil.ConvertArgoCDClusterSecretNameToManagedIdDatabaseRowId(comparedToParam.Destination.Name)
+	if err != nil {
+		return appv1.ComparedTo{}, fmt.Errorf("unable to convert secret name to managed env: %v", err)
+	}
 
-		// 2) Read the Argo CD Cluster Secret name (which points to an Argo CD Cluster Secret in the Argo CD namespace) from the
-		// Argo CD Application, and extract the managed environment ID from it.
-		managedEnvID, isLocal, err := argosharedutil.ConvertArgoCDClusterSecretNameToManagedIdDatabaseRowId(comparedTo.Destination.Name)
-		if err != nil {
-			return "", fmt.Errorf("unable to convert secret name to managed env: %v", err)
+	// 2) If the Argo CD cluster secret name is a real cluster secret that exists in the Argo CD namespace, then use
+	// the managed environment database ID that we extracted, and store it in comparedTo.
+	if !isLocal {
+		if managedEnvID == "" {
+			return appv1.ComparedTo{}, fmt.Errorf("managed environment id was empty for '%s'", argoCDAppParam.Name)
 		}
 
-		// 3) If the Argo CD cluster secret name is a real cluster secret that exists in the Argo CD namespace, then use
-		// the managed environment database ID that we extracted, and store it in comparedTo.
-		if !isLocal {
-			if managedEnvID == "" {
-				return "", fmt.Errorf("managed environment id was empty for '%s'", argoCDAppParam.Name)
-			}
-
-			// Rather than storing the name of the Argo CD cluster secret in the .Destination.Name field, we instead store
-			// the ID of the managed environment in the database.
-			comparedTo.Destination.Name = managedEnvID
-		}
+		// Rather than storing the name of the Argo CD cluster secret in the .Destination.Name field, we instead store
+		// the ID of the managed environment in the database.
+		comparedToParam.Destination.Name = managedEnvID
 	}
 
-	// 4) Convert the fauxArgoCD object into JSON
-	comparedToBytes, err := json.Marshal(comparedTo)
-	if err != nil {
-		return "", fmt.Errorf("SEVERE: unable to convert comparedTo to JSON")
-	}
-
-	// 5) Finally, store the JSON in the database.
-	applicationState.ReconciledState = (string)(comparedToBytes)
-
-	return applicationState.ReconciledState, nil
-}
-
-func setApplicationConditions(appState *db.ApplicationState, conditions []appv1.ApplicationCondition) error {
-	if len(conditions) == 0 {
-		return nil
-	}
-
-	for _, c := range conditions {
-		c.Message = db.TruncateVarchar(c.Message, db.ApplicationStateMessageLength)
-	}
-
-	conditionBytes, err := yaml.Marshal(conditions)
-	if err != nil {
-		return err
-	}
-	appState.Conditions = conditionBytes
-	return nil
+	return comparedToParam, nil
 }

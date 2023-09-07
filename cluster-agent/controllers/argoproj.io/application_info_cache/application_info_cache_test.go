@@ -43,9 +43,7 @@ var _ = Describe("application_info_cache Test", func() {
 
 			testAppState := db.ApplicationState{
 				Applicationstate_application_id: application.Application_id,
-				Health:                          "Healthy",
-				Sync_Status:                     "Synced",
-				ReconciledState:                 "32",
+				ArgoCD_Application_Status:       []byte("sample-status"),
 			}
 			errCreate := aic.CreateApplicationState(ctx, testAppState)
 			Expect(errCreate).ToNot(HaveOccurred())
@@ -61,7 +59,7 @@ var _ = Describe("application_info_cache Test", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(fromCache).To(BeTrue())
 
-			testAppState.Health = "Unhealthy"
+			testAppState.ArgoCD_Application_Status = []byte("Unhealthy")
 			errUpdate := aic.UpdateApplicationState(ctx, testAppState)
 			Expect(errUpdate).ToNot(HaveOccurred())
 
@@ -124,9 +122,7 @@ var _ = Describe("application_info_cache Test", func() {
 			// create an applicationstate then try to get it
 			testAppState := db.ApplicationState{
 				Applicationstate_application_id: testId,
-				Health:                          "Healthy",
-				Sync_Status:                     "Synced",
-				ReconciledState:                 "32",
+				ArgoCD_Application_Status:       []byte("test-status"),
 			}
 			err = dbq.CreateApplicationState(ctx, &testAppState)
 			Expect(err).ToNot(HaveOccurred())

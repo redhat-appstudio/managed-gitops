@@ -62,7 +62,7 @@ func (dbq *PostgreSQLDatabaseQueries) CreateApplicationState(ctx context.Context
 	// and after adding check for byte array it would get messy. As of now This is the only place byte array has to be checked,
 	// if multiple places need this it new function can be created in utils.
 	noOfBytesInObj := binary.Size(obj.ArgoCD_Application_Status)
-	maxSize := DbFieldMap["ApplicationStateResourcesLength"]
+	maxSize := DbFieldMap["ApplicationStateStatusLength"]
 	if noOfBytesInObj > maxSize {
 		return fmt.Errorf("resources value exceeds maximum size: max: %d, actual: %d", maxSize, noOfBytesInObj)
 	}
@@ -100,7 +100,7 @@ func (dbq *PostgreSQLDatabaseQueries) UpdateApplicationState(ctx context.Context
 	// and after adding check for byte array it would get messy. As of now This is the only place byte array has to be checked,
 	// if multiple places need this it new function can be created in utils.
 	noOfBytesInObj := binary.Size(obj.ArgoCD_Application_Status)
-	maxSize := DbFieldMap["ApplicationStateResourcesLength"]
+	maxSize := DbFieldMap["ApplicationStateStatusLength"]
 	if noOfBytesInObj > maxSize {
 		return fmt.Errorf("resources value exceeds maximum size: max: %d, actual: %d", maxSize, noOfBytesInObj)
 	}

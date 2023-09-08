@@ -42,11 +42,6 @@ const (
 	ApplicationEngineInstanceInstIDLength                                   = 48
 	ApplicationManagedEnvironmentIDLength                                   = 48
 	ApplicationStateApplicationstateApplicationIDLength                     = 48
-	ApplicationStateHealthLength                                            = 30
-	ApplicationStateMessageLength                                           = 1024
-	ApplicationStateRevisionLength                                          = 1024
-	ApplicationStateSyncStatusLength                                        = 30
-	ApplicationStateReconciledStateLength                                   = 4096
 	DeploymentToApplicationMappingDeploymenttoapplicationmappingUIDIDLength = 48
 	DeploymentToApplicationMappingNameLength                                = 256
 	DeploymentToApplicationMappingNamespaceLength                           = 96
@@ -152,13 +147,7 @@ var DbFieldMap = map[string]int{
 	"ApplicationEngineInstanceInstIDLength":                                   ApplicationEngineInstanceInstIDLength,
 	"ApplicationManagedEnvironmentIDLength":                                   ApplicationManagedEnvironmentIDLength,
 	"ApplicationStateApplicationstateApplicationIDLength":                     ApplicationStateApplicationstateApplicationIDLength,
-	"ApplicationStateHealthLength":                                            ApplicationStateHealthLength,
-	"ApplicationStateMessageLength":                                           ApplicationStateMessageLength,
-	"ApplicationStateRevisionLength":                                          ApplicationStateRevisionLength,
-	"ApplicationStateSyncStatusLength":                                        ApplicationStateSyncStatusLength,
-	"ApplicationStateResourcesLength":                                         262144, /*Size is defined here because table doesn't have byte Array limit.*/
 	"ApplicationStateStatusLength":                                            262144,
-	"ApplicationStateReconciledStateLength":                                   ApplicationStateReconciledStateLength,
 	"DeploymentToApplicationMappingDeploymenttoapplicationmappingUIDIDLength": DeploymentToApplicationMappingDeploymenttoapplicationmappingUIDIDLength,
 	"DeploymentToApplicationMappingNameLength":                                DeploymentToApplicationMappingNameLength,
 	"DeploymentToApplicationMappingDeploymentNameLength":                      DeploymentToApplicationMappingNameLength,

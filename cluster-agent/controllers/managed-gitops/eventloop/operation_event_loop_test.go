@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-appstudio/managed-gitops/cluster-agent/utils"
@@ -15,6 +16,7 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -33,6 +35,7 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 
 	argocdoperatorv1alph1 "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/managed-gitops/eventloop/mocks"
 )
 
 var _ = Describe("Operation Controller", func() {
@@ -2842,6 +2845,121 @@ var _ = Describe("Operation Controller", func() {
 				Expect(dummyApplicationSpec.Spec).ToNot(Equal(applicationCR.Spec))
 			})
 		})
+
+		Context("Test getDBOperationForEvent function", func() {
+			var (
+				mockCtrl           *gomock.Controller
+				mockDB             *mocks.MockDatabaseQueries
+				mockClient         *mocks.MockClient
+				mockLogger         *mocks.MockLogSink
+				ctx                context.Context
+				log                logr.Logger
+				operationName      string
+				operationNamespace string
+			)
+
+			BeforeEach(func() {
+				mockCtrl = gomock.NewController(GinkgoT())
+				mockDB = mocks.NewMockDatabaseQueries(mockCtrl)
+				mockClient = mocks.NewMockClient(mockCtrl)
+				mockLogger = mocks.NewMockLogSink(mockCtrl)
+				logger = log.WithSink(mockLogger)
+				ctx = context.Background()
+				operationName = "test-operation"
+				operationNamespace = "test-namespace"
+			})
+
+			AfterEach(func() {
+				mockCtrl.Finish()
+			})
+			It("should successfully get a DB operation", func() {
+				objectKey := types.NamespacedName{Name: operationName, Namespace: operationNamespace}
+
+				mockClient.EXPECT().Get(ctx, objectKey, gomock.Any()).DoAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+					return nil
+				})
+				mockDB.EXPECT().GetOperationById(ctx, gomock.Any()).DoAndReturn(func(ctx context.Context, dbOp *db.Operation) error {
+					// Set the necessary fields in 'dbOp' to simulate the fetched DB operation
+					dbOp.Instance_id = "test-instance-id"
+					dbOp.Resource_id = "test-resource-id"
+					dbOp.Resource_type = ""
+					return nil
+				})
+
+				newEvent := operationEventLoopEvent{
+					request: newRequest(operationNamespace, operationName),
+					client:  mockClient,
+				}
+				result, err := getDBOperationForEvent(ctx, newEvent, mockDB, logger)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(result).ToNot(BeNil())
+			})
+
+			It("should handle error when fetching CR", func() {
+				objectKey := client.ObjectKey{Name: operationName, Namespace: operationNamespace}
+				notFoundError := apierr.NewNotFound(schema.GroupResource{}, operationName)
+
+				// Set up the expectation for the Get call to return an error
+				mockClient.EXPECT().Get(gomock.Any(), objectKey, gomock.Any()).Return(notFoundError)
+
+				// Set up expectations for the logger calls
+				mockLogger.EXPECT().Enabled(gomock.Any()).Return(true)
+				mockLogger.EXPECT().Info(gomock.Any(), "Skipping a request for an operation DB entry that doesn't exist: "+operationNamespace+"/"+operationName)
+
+				newEvent := operationEventLoopEvent{
+					request: newRequest(operationNamespace, operationName),
+					client:  mockClient,
+				}
+				result, err := getDBOperationForEvent(ctx, newEvent, mockDB, logger)
+				Expect(result).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
+
+			})
+
+			It("should handle error when fetching DB", func() {
+				objectKey := client.ObjectKey{Name: operationName, Namespace: operationNamespace}
+				notFoundError := db.NewResultNotFoundError("not found")
+
+				mockClient.EXPECT().Get(ctx, objectKey, gomock.Any()).DoAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+					return nil
+				})
+				mockDB.EXPECT().GetOperationById(ctx, gomock.Any()).Return(notFoundError)
+
+				// Set up expectations for the logger calls
+
+				newEvent := operationEventLoopEvent{
+					request: newRequest(operationNamespace, operationName),
+					client:  mockClient,
+				}
+				result, err := getDBOperationForEvent(ctx, newEvent, mockDB, logger)
+				Expect(result).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
+
+			})
+
+			It("should handle error when db values are empty", func() {
+				objectKey := client.ObjectKey{Name: operationName, Namespace: operationNamespace}
+
+				mockClient.EXPECT().Get(ctx, objectKey, gomock.Any()).DoAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+					return nil
+				})
+				mockDB.EXPECT().GetOperationById(ctx, gomock.Any()).DoAndReturn(func(ctx context.Context, dbOp *db.Operation) error {
+					// Set the necessary fields in 'dbOp' to simulate the fetched DB operation
+					return nil
+				})
+				mockLogger.EXPECT().Error(nil, "SEVERE: at least one of the expected operation's fields was empty, so could not process in cluster agent.")
+				newEvent := operationEventLoopEvent{
+					request: newRequest(operationNamespace, operationName),
+					client:  mockClient,
+				}
+				result, err := getDBOperationForEvent(ctx, newEvent, mockDB, logger)
+				Expect(result).To(BeNil())
+				Expect(err).ToNot(HaveOccurred())
+
+			})
+
+		})
+
 	})
 
 })

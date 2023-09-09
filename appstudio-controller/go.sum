@@ -248,8 +248,8 @@ github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639/go.mod h1:
 github.com/imdario/mergo v0.3.12 h1:b6R2BslTbIEToALKP7LxUvijTsNI9TAe80pLWN2g/HU=
 github.com/imdario/mergo v0.3.12/go.mod h1:jmQim1M+e3UYxmgPu/WyfjB3N3VflVyUjjjwH0dnCYA=
 github.com/jessevdk/go-flags v1.4.0/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
-github.com/jgwest/application-api v0.0.0-20230907174250-d0549c1a6a60 h1:JbZc3PUbjslPqKlGCj9MmIGXD2x09yjsXN8fA3734x4=
-github.com/jgwest/application-api v0.0.0-20230907174250-d0549c1a6a60/go.mod h1:FO87W6cJAf++NsNf3dQgrA+V9tvg3lVZDByJBfSuxHs=
+github.com/jgwest/application-api v0.0.0-20230909123148-7c14c5ee24cf h1:HYXXYUCtwAOQrLQKQzUxdHekBVMYUr1d6FEtEgy4z8I=
+github.com/jgwest/application-api v0.0.0-20230909123148-7c14c5ee24cf/go.mod h1:FO87W6cJAf++NsNf3dQgrA+V9tvg3lVZDByJBfSuxHs=
 github.com/jinzhu/inflection v1.0.0 h1:K317FqzuhWc8YvSVlFMCCUb36O/S9MCKRDI7QkRKD/E=
 github.com/jinzhu/inflection v1.0.0/go.mod h1:h+uFLlag+Qp1Va5pdKtLDYj+kHp5pxUVkryuEj+Srlc=
 github.com/josharian/intern v1.0.0 h1:vlS4z54oSdjm0bgjRigI+G1HpF+tI+9rE5LLzOg8HmY=

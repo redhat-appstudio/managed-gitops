@@ -56,6 +56,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(applicationv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(applicationv1beta1.AddToScheme(scheme))
 	// utilruntime.Must(managedgitopsv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(gitopsdeploymentv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(applicationv1alpha1.AddToScheme(scheme))

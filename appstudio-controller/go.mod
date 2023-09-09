@@ -103,7 +103,7 @@ require (
 
 replace (
 	// github.com/redhat-appstudio/application-api => github.com/jparsai/application-api v0.0.0-20230814142155-4df46778f0b2
-	github.com/redhat-appstudio/application-api => github.com/jgwest/application-api v0.0.0-20230907162344-dbb26c023e5e
+	github.com/redhat-appstudio/application-api => github.com/jgwest/application-api v0.0.0-20230907174250-d0549c1a6a60
 
 	//	github.com/redhat-appstudio/application-api v0.0.0-20230906075853-8d1126322971 => github.com/jparsai/application-api new-env-api
 	github.com/redhat-appstudio/managed-gitops/backend => ../backend

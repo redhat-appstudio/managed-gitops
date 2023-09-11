@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/argoproj-labs/argocd-operator v0.5.0
-	github.com/argoproj/argo-cd/v2 v2.7.11
+	github.com/argoproj/argo-cd/v2 v2.7.14
 	github.com/argoproj/gitops-engine v0.7.1-0.20230526233214-ad9a694fe4bc
 	github.com/coreos/go-oidc/v3 v3.4.0
 	github.com/go-logr/logr v1.2.3

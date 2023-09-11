@@ -34,7 +34,8 @@ import (
 	"github.com/redhat-appstudio/managed-gitops/backend-shared/util/tests"
 
 	argocdoperatorv1alph1 "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
-	"github.com/redhat-appstudio/managed-gitops/cluster-agent/controllers/managed-gitops/eventloop/mocks"
+	mockLog "github.com/redhat-appstudio/managed-gitops/backend-shared/util/log/mocks"
+	mocks "github.com/redhat-appstudio/managed-gitops/backend-shared/util/mocks"
 )
 
 var _ = Describe("Operation Controller", func() {
@@ -2850,7 +2851,7 @@ var _ = Describe("Operation Controller", func() {
 				mockCtrl           *gomock.Controller
 				mockDB             *mocks.MockDatabaseQueries
 				mockClient         *mocks.MockClient
-				mockLogger         *mocks.MockLogSink
+				mockLogger         *mockLog.MockLogSink
 				ctx                context.Context
 				log                logr.Logger
 				operationName      string
@@ -2861,7 +2862,7 @@ var _ = Describe("Operation Controller", func() {
 				mockCtrl = gomock.NewController(GinkgoT())
 				mockDB = mocks.NewMockDatabaseQueries(mockCtrl)
 				mockClient = mocks.NewMockClient(mockCtrl)
-				mockLogger = mocks.NewMockLogSink(mockCtrl)
+				mockLogger = mockLog.NewMockLogSink(mockCtrl)
 				logger = log.WithSink(mockLogger)
 				ctx = context.Background()
 				operationName = "test-operation"

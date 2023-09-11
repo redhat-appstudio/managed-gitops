@@ -21,16 +21,14 @@ ignore:
   - "backend-shared/util/proxyclient.go"
   - "backend-shared/util/chaosclient.go"
   - "backend-shared/hack/db-schema-sync-check/main.go"
+  - "backend-shared/util/mocks/mock_client.go"
+  - "backend-shared/util/mocks/mock_database_queries.go"
 
   - "cluster-agent/utils/mocks/ApplicationServiceClient.go"
   - "cluster-agent/utils/mocks/Client.go"
   - "cluster-agent/utils/mocks/SessionServiceClient.go"
   - "cluster-agent/utils/mocks/SettingsServiceClient.go"
   - "cluster-agent/utils/mocks/VersionServiceClient.go"
-  - "cluster-agent/controllers/managed-gitops/eventloop/mocks/log_sink_mock.go"
-  - "cluster-agent/controllers/managed-gitops/eventloop/mocks/mock_client.go"
-  - "cluster-agent/controllers/managed-gitops/eventloop/mocks/mock_database_queries.go"
-
 
 github_checks:
   annotations: false

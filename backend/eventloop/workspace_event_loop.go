@@ -253,15 +253,16 @@ func processWorkspaceEventLoopMessage(ctx context.Context, event eventlooptypes.
 func handleWorkspaceEventLoopMessage(ctx context.Context, event eventlooptypes.EventLoopMessage, wrapperEvent workspaceEventLoopMessage,
 	state workspaceEventLoopInternalState) {
 
+	if event.Event == nil {
+		state.log.Error(nil, "SEVERE: event was nil in workspaceEventLoopRouter")
+		return
+	}
+
 	log := state.log.WithValues("namespace", event.Event.Request.Namespace)
 
 	// First, sanity check the event
 	if event.MessageType == eventlooptypes.ApplicationEventLoopMessageType_WorkComplete {
 		log.Error(nil, "SEVERE: invalid message type received in workspaceEventLoopRouter")
-		return
-	}
-	if event.Event == nil {
-		log.Error(nil, "SEVERE: event was nil in workspaceEventLoopRouter")
 		return
 	}
 

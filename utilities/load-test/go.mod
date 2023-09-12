@@ -3,7 +3,7 @@ module github.com/redhat-appstudio/managed-gitops/utilities/load-test
 go 1.19
 
 require (
-	github.com/argoproj/argo-cd/v2 v2.7.11
+	github.com/argoproj/argo-cd/v2 v2.7.14
 	github.com/onsi/ginkgo/v2 v2.7.0
 	github.com/onsi/gomega v1.25.0
 	github.com/redhat-appstudio/managed-gitops/backend-shared v0.0.0

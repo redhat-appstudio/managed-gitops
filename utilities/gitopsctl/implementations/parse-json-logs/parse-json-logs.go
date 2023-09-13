@@ -10,6 +10,7 @@ import (
 	"github.com/fatih/color"
 )
 
+// Feedback welcome if these colors look bad on other terminals/OSes
 var (
 	timestampColor           = color.New(color.FgHiWhite).Add(color.Bold).SprintFunc()
 	infoColor                = color.New(color.FgBlue).Add(color.Bold).SprintFunc()
@@ -20,7 +21,7 @@ var (
 	separatorTextColor       = color.New(color.FgMagenta).Add(color.Bold).SprintFunc()
 )
 
-func ParseJsonLogs() {
+func ParseJsonLogsFromStdin() {
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
@@ -38,25 +39,37 @@ func ParseJsonLogs() {
 
 func parseJSONLogLine(line string) {
 
+	// A) If the log line is from a Goreman log, pre-format it to make it parseable by JSON
+	isGoreman, jsonModified, line, beforeJsonLocalDevPrefix := parseGoremanLogsIfApplicable(line)
+
+	if isGoreman && !jsonModified {
+		// We weren't able to extract any JSON, so just print the line as is
+		fmt.Println(line)
+		return
+	}
+
 	fullJsonMap := map[string]any{}
 
 	if err := json.Unmarshal(([]byte)(line), &fullJsonMap); err != nil {
-		fmt.Println(err)
+		// We weren't able to extract any JSON, so just print the line as is
+		fmt.Println(line)
 		return
 	}
 
 	var structuredMap map[string]any
 
+	var output string
+
 	structuredMapVal, exists := fullJsonMap["structured"]
 	if exists {
 
-		// A) If the 'structured' field exists, then the log is from splunk
+		// B) If the 'structured' field exists, then the log is from splunk
 
 		structuredMap = (structuredMapVal).(map[string]any)
 
 		delete(fullJsonMap, "structured")
 
-		ParseMap(structuredMap, fullJsonMap)
+		output = parseJSONMapFromLine(structuredMap, fullJsonMap)
 	} else {
 
 		_, hasTimestampField := fullJsonMap["@timestamp"]
@@ -64,25 +77,89 @@ func parseJSONLogLine(line string) {
 		if hasTimestampField {
 
 			// C) If the 'structured' field doesn't exist and @timestamp DOES exist, then the log is direct splunk output
-			ParseMap(make(map[string]any), fullJsonMap)
+			output = parseJSONMapFromLine(make(map[string]any), fullJsonMap)
+
 		} else {
-			// C) If the 'structured' field doesn't exist and @timestamp doesn't exist, then the log is direct controller output (e.g. not from splunk)
-			ParseMap(fullJsonMap, make(map[string]any))
+			// D) If the 'structured' field doesn't exist and @timestamp doesn't exist, then the log is direct controller output (e.g. not from splunk)
+			output = parseJSONMapFromLine(fullJsonMap, make(map[string]any))
 		}
 
 	}
 
+	// Output the line (optionally with prefix for the Goreman case, only)
+
+	fmt.Println(beforeJsonLocalDevPrefix + output)
+	fmt.Println()
+
 }
 
-func ParseMap(structuredJsonMap map[string]any, splunkJsonMap map[string]any) {
+// The Goreman log lines need to be carefully cut up to allow us to both parse the JSON, but also preserve the Goreman color prefix.
+func parseGoremanLogsIfApplicable(line string) (bool, bool, string, string) {
+	var beforeJsonLocalDevPrefix string
 
-	// The splunk logs contain a lot of useless field, so filter them out
+	isGoremanLocalDev := false // true if the logs are from goreman, false otherwise
+
+	goremanPrefixes := []string{
+		" backend | ", " appstudio-controller | ", " cluster-agent | ",
+	}
+
+	for _, goremanPrefix := range goremanPrefixes {
+
+		if strings.Contains(line, goremanPrefix) {
+			isGoremanLocalDev = true
+			break
+		}
+	}
+
+	jsonModified := false // true if there is json on the line that we were able to extract, false otherwise. If false this implies it is not a JSON log line
+
+	if isGoremanLocalDev {
+		firstPipeIndex := strings.Index(line, "|")
+		if firstPipeIndex != -1 {
+			afterPipe := line[firstPipeIndex+1:]
+
+			firstCurlyBraceIndex := strings.Index(afterPipe, "{")
+			if firstCurlyBraceIndex != -1 {
+
+				beforeJsonLocalDevPrefix = line[0:strings.Index(line, "{")]
+
+				// Remove all double spaces from the text before the first '{' character.
+				for {
+
+					if !strings.Contains(beforeJsonLocalDevPrefix, "  ") {
+						break
+					}
+
+					beforeJsonLocalDevPrefix = strings.ReplaceAll(beforeJsonLocalDevPrefix, "  ", " ")
+				}
+
+				// Remove the time, and whitespace, from the line, leaving the color and goreman process prefix
+				{
+					upToAndIncludingFirstMChar := beforeJsonLocalDevPrefix[0 : strings.Index(beforeJsonLocalDevPrefix, "m")+1]
+					everythingAfterFirstSpace := beforeJsonLocalDevPrefix[strings.Index(beforeJsonLocalDevPrefix, " ")+1:]
+
+					beforeJsonLocalDevPrefix = upToAndIncludingFirstMChar + everythingAfterFirstSpace
+				}
+
+				line = afterPipe[firstCurlyBraceIndex:] // update line to be only the JSON string, so that it can be parsed
+				jsonModified = true
+
+			}
+		}
+	}
+
+	return isGoremanLocalDev, jsonModified, line, beforeJsonLocalDevPrefix
+
+}
+
+func parseJSONMapFromLine(structuredJsonMap map[string]any, splunkJsonMap map[string]any) string {
+
+	// The splunk logs contain a lot of useless fields, so filter them out
 	splunkJsonMap = filterByMapKey(splunkJsonMap, splunkRemoveUnnecessaryFieldsFilter{})
 
 	if len(structuredJsonMap) == 0 {
 		// If the log statement is NOT a GitOps Service controller log statement, then parse the fields as generic splunk output, and return
-		parseSplunkOnly(splunkJsonMap)
-		return
+		return parseSplunkOnly(splunkJsonMap)
 	}
 
 	// Parse the log statement as a GitOps Service controller log statment (and parse any splunk fields as well)
@@ -215,17 +292,20 @@ func ParseMap(structuredJsonMap map[string]any, splunkJsonMap map[string]any) {
 
 	res = strings.TrimSpace(res)
 
-	fmt.Println()
-	fmt.Println(res)
-
 	if stackTraceExists {
+		res += "\n"
 		if callerExists {
-			fmt.Print(indentString("- " + fieldColor("caller: ") + caller))
+			res += indentString("- " + fieldColor("caller: ") + caller)
 		}
 
-		fmt.Print(indentString("- " + fieldColor("stack-trace:")))
-		fmt.Print(indentString(stackTrace))
+		res += indentString("- " + fieldColor("stack-trace:"))
+
+		stackTraceLine := strings.TrimSuffix(indentString(stackTrace), "\n")
+
+		res += stackTraceLine
 	}
+
+	return res
 
 }
 
@@ -287,22 +367,19 @@ func generateSplunkFieldsOutput(splunkJsonMap map[string]any) string {
 			continue
 		}
 
-		{
+		if valMap, isMap := (val).(map[string]any); isMap {
 
-			if valMap, isMap := (val).(map[string]any); isMap {
+			res += fmt.Sprintf("%s:{%s}, ",
+				fieldColor(wrapStringWithSingleQuotesIfContainsWhitespace(key)), recursiveToStringOnJsonMap(valMap))
 
-				res += fmt.Sprintf("%s:{%s}, ",
-					fieldColor(wrapStringWithSingleQuotesIfContainsWhitespace(key)), recursiveToStringOnJsonMap(valMap))
+		} else {
 
-			} else {
+			valStr := fmt.Sprintf("%v", val)
 
-				valStr := fmt.Sprintf("%v", val)
+			res += fmt.Sprintf("%s%s, ",
+				fieldColor(wrapStringWithSingleQuotesIfContainsWhitespace(key)+":"),
+				wrapStringWithSingleQuotesIfContainsWhitespace(valStr))
 
-				res += fmt.Sprintf("%s%s, ",
-					fieldColor(wrapStringWithSingleQuotesIfContainsWhitespace(key)+":"),
-					wrapStringWithSingleQuotesIfContainsWhitespace(valStr))
-
-			}
 		}
 
 	}
@@ -312,7 +389,7 @@ func generateSplunkFieldsOutput(splunkJsonMap map[string]any) string {
 	return res
 }
 
-func parseSplunkOnly(splunkJsonMap map[string]any) {
+func parseSplunkOnly(splunkJsonMap map[string]any) string {
 
 	level, exists := extractAndRemoveStringField("level", &splunkJsonMap)
 	if !exists {
@@ -326,7 +403,7 @@ func parseSplunkOnly(splunkJsonMap map[string]any) {
 		ts = strings.ReplaceAll(ts, "T", " ")
 		ts = strings.ReplaceAll(ts, "Z", "")
 
-		// Pad timestamp to 29
+		// Pad timestamp to 29, the default ts size for splunk logs
 		for {
 			if len(ts) >= 29 {
 				break
@@ -357,8 +434,7 @@ func parseSplunkOnly(splunkJsonMap map[string]any) {
 
 	res += generateSplunkFieldsOutput(splunkJsonMap)
 
-	fmt.Println()
-	fmt.Println(res)
+	return res
 }
 
 // sortKeysWithFavoredAndDisfavoredFields will:
@@ -503,6 +579,7 @@ func wrapStringWithSingleQuotesIfContainsWhitespace(input string) string {
 
 }
 
+// Recursively convert a JSON map to a string, but unlike fmt.Sprintf("%v",(...)), we use our own output functions for key/value output
 func recursiveToStringOnJsonMap(obj map[string]any) string {
 
 	var res string
@@ -524,40 +601,10 @@ func recursiveToStringOnJsonMap(obj map[string]any) string {
 			res += fmt.Sprintf("%s:%s, ",
 				wrapStringWithSingleQuotesIfContainsWhitespace(k),
 				wrapStringWithSingleQuotesIfContainsWhitespace(fmt.Sprintf("%v", v)))
-
 		}
-
 	}
 
 	res = strings.TrimSuffix(res, ", ")
 
 	return res
 }
-
-// func recursiveConvertJsonStringsToMaps(obj map[string]any) map[string]any {
-
-// 	res := map[string]any{}
-
-// 	for k, v := range obj {
-
-// 		if str, isString := v.(string); isString {
-
-// 			jsonMap := map[string]any{}
-
-// 			if err := json.Unmarshal(([]byte)(str), &jsonMap); err == nil {
-
-// 				res[k] = recursiveConvertJsonStringsToMaps(jsonMap)
-
-// 			} else {
-// 				res[k] = v
-// 			}
-
-// 		} else {
-
-// 			res[k] = v
-// 		}
-
-// 	}
-
-// 	return res
-// }

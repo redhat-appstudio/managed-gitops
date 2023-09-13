@@ -1,3 +1,10 @@
 #!/bin/bash
 
-go run main.go $*
+SCRIPTPATH="$(
+  cd -- "$(dirname "$0")" >/dev/null 2>&1 || exit
+  pwd -P
+)"
+
+cd $SCRIPTPATH
+
+go run $SCRIPTPATH/main.go $*

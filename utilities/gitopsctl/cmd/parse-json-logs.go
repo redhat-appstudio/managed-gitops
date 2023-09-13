@@ -13,13 +13,34 @@ var jsonLogsCmd = &cobra.Command{
 		return nil
 	},
 	Use:   "json-logs",
-	Short: "",
-	Long:  ``,
+	Short: "Parse JSON logs into a developer friendly format, from Goreman/K8s Pods/Splunk raw",
+	Long: `
+The 'json-logs' command will parse a JSON-formatted log file/stream into a more 
+user/developer friendly format. This command is primarily specialized to 
+parsing GitOps Service controller logs.
+
+Features:
+- Support for both JSON from Pod logs, JSON from goreman, and JSON from splunk 'raw' logs
+- Colour coded fields to make it easy to find data
+- Important fields are prioritized, less-import fields are deprioritized
+- Fields that are known to be useless are removed (especially for splunk fields)
+
+Examples:
+		
+- Parse an existing log file:
+	cat (log file) | gitopsctl parse json-logs
+
+- Parse output from a running Goreman dev environment:
+	make start-e2e | utilities/gitopsctl/gitopsctl parse json-logs
+
+- Modify the log stream before parsing it, such as sorting or removing some output:
+	cat (log file) | sort | grep -v "info" | grep -v "some other message" | gitopsctl parse json-logs
+`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		fmt.Println("* Use CTRL-C to exit.")
 
-		parsejsonlogs.ParseJsonLogs()
+		parsejsonlogs.ParseJsonLogsFromStdin()
 	},
 }
 

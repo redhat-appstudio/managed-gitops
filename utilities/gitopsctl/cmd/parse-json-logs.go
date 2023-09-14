@@ -33,19 +33,27 @@ Examples:
 - Parse output from a running Goreman dev environment:
 	make start-e2e | utilities/gitopsctl/gitopsctl parse json-logs
 
-- Modify the log stream before parsing it, such as sorting or removing some output:
-	cat (log file) | sort | grep -v "info" | grep -v "some other message" | gitopsctl parse json-logs
+- Modify the log stream before parsing it, such as sorting or removing some output, then sort it via '--soft-all-after-eof':
+	cat (log file) | grep -v "info" | grep -v "some other message" | gitopsctl parse json-logs --soft-all-after-eof
 `,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		fmt.Println("* Use CTRL-C to exit.")
 
-		parsejsonlogs.ParseJsonLogsFromStdin()
+		if SortAllAfterEOF {
+			parsejsonlogs.ReadAllLinesFirstThenSortByTimestamp()
+		} else {
+			parsejsonlogs.ParseJsonLogsFromStdin()
+		}
 	},
 }
 
+var SortAllAfterEOF bool
+
 func init() {
 	parseCmd.AddCommand(jsonLogsCmd)
+
+	jsonLogsCmd.Flags().BoolVarP(&SortAllAfterEOF, "sort-all-after-eof", "s", false, "Sort the full file contents after the end of the file is reached")
 
 	// Here you will define your flags and configuration settings.
 

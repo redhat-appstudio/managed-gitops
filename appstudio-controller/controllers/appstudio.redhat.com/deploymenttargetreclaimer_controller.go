@@ -254,7 +254,11 @@ func findMatchingSpaceRequestForDT(ctx context.Context, k8sClient client.Client,
 		return spaceRequest, nil
 	}
 
-	// Next, look for the DeploymentTargetClaimLabel, and work backwards to find the DT
+	// Otherwise, look for the DeploymentTargetClaimLabel, and work backwards to find the DT
+
+	if dt.Spec.ClaimRef == "" { // Need a ClaimRef if we want to find the DTC, otherwise no point
+		return nil, nil
+	}
 
 	opts = []client.ListOption{
 		client.InNamespace(dt.Namespace),

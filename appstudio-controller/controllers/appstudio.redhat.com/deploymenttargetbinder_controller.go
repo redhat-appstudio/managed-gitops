@@ -114,7 +114,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 				}
 
 				if dtcls.Spec.ReclaimPolicy == applicationv1alpha1.ReclaimPolicy_Delete {
-					log.Info("ReclaimPolicy is ReclaimPolicy_Delete")
+					log.Info("ReclaimPolicy is ReclaimPolicy_Delete") // DTC is being deleted, so delete the DT too
 					if err := r.Client.Delete(ctx, dt); err != nil {
 						return ctrl.Result{}, err
 					}
@@ -129,6 +129,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 					log.Error(nil, "the ReclaimPolicy is neither Delete nor Retain")
 				}
 
+				// Since the DTC is in the process of being deleted, remove the ClaimRef from DT
 				if err := r.Client.Get(ctx, client.ObjectKeyFromObject(dt), dt); err != nil {
 
 					if apierr.IsNotFound(err) {
@@ -147,7 +148,6 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 					return ctrl.Result{}, fmt.Errorf("failed to update the claimRef: %v", err)
 				}
 				log.Info("ClaimRef of DeploymentTarget is unset since its corresponding DeploymentTargetClaim is already deleted", "DeploymentTarget", dt.Name)
-
 				logutil.LogAPIResourceChangeEvent(dt.Namespace, dt.Name, dt, logutil.ResourceModified, log)
 
 				if err := updateDTStatusPhase(ctx, r.Client, dt, applicationv1alpha1.DeploymentTargetPhase_Released, log); err != nil {
@@ -163,6 +163,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 			}
 		}
 
+		// Finally, once the DT is fully handled (phase updated, claim ref updated, or deleted), remove the finalizer from the DTC
 		if removeFinalizer(&dtc, applicationv1alpha1.FinalizerBinder) {
 			if err := r.Client.Update(ctx, &dtc); err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to remove finalizer %s from DeploymentTargetClaim %s in namespace %s: %v", applicationv1alpha1.FinalizerBinder, dtc.Name, dtc.Namespace, err)
@@ -207,8 +208,7 @@ func (r *DeploymentTargetClaimReconciler) Reconcile(ctx context.Context, req ctr
 			return ctrl.Result{}, nil
 		}
 
-		err = handleDynamicDTCProvisioning(ctx, r.Client, &dtc, log)
-		if err != nil {
+		if err := handleDynamicDTCProvisioning(ctx, r.Client, &dtc, log); err != nil {
 			log.Error(err, "failed to handle DeploymentTargetClaim for dynamic provisioning")
 			return ctrl.Result{}, err
 		}

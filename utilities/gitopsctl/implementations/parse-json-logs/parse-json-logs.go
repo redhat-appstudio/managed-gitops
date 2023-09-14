@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/fatih/color"
@@ -23,11 +25,15 @@ var (
 
 func ParseJsonLogsFromStdin() {
 
+	lineCount := 1
+
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		parseJSONLogLine(line)
+		parseJSONLogLine(line, lineCount)
+
+		lineCount++
 	}
 
 	if scanner.Err() != nil {
@@ -37,7 +43,34 @@ func ParseJsonLogsFromStdin() {
 	}
 }
 
-func parseJSONLogLine(line string) {
+func ReadAllLinesFirstThenSortByTimestamp() {
+
+	lines := []string{}
+
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		lines = append(lines, line)
+	}
+
+	if scanner.Err() != nil {
+		fmt.Println(scanner.Err().Error())
+		os.Exit(1)
+		return
+	}
+
+	// Extract timestamp and sort by that
+	sort.Sort(ByTS(lines))
+
+	// Parse in sorted order
+	for _, line := range lines {
+		parseJSONLogLine(line, 0)
+	}
+
+}
+
+func parseJSONLogLine(line string, lineNumber int) {
 
 	// A) If the log line is from a Goreman log, pre-format it to make it parseable by JSON
 	isGoreman, jsonModified, line, beforeJsonLocalDevPrefix := parseGoremanLogsIfApplicable(line)
@@ -69,7 +102,7 @@ func parseJSONLogLine(line string) {
 
 		delete(fullJsonMap, "structured")
 
-		output = parseJSONMapFromLine(structuredMap, fullJsonMap)
+		output = parseJSONMapFromLine(structuredMap, fullJsonMap, lineNumber)
 	} else {
 
 		_, hasTimestampField := fullJsonMap["@timestamp"]
@@ -77,11 +110,11 @@ func parseJSONLogLine(line string) {
 		if hasTimestampField {
 
 			// C) If the 'structured' field doesn't exist and @timestamp DOES exist, then the log is direct splunk output
-			output = parseJSONMapFromLine(make(map[string]any), fullJsonMap)
+			output = parseJSONMapFromLine(make(map[string]any), fullJsonMap, lineNumber)
 
 		} else {
 			// D) If the 'structured' field doesn't exist and @timestamp doesn't exist, then the log is direct controller output (e.g. not from splunk)
-			output = parseJSONMapFromLine(fullJsonMap, make(map[string]any))
+			output = parseJSONMapFromLine(fullJsonMap, make(map[string]any), lineNumber)
 		}
 
 	}
@@ -152,7 +185,17 @@ func parseGoremanLogsIfApplicable(line string) (bool, bool, string, string) {
 
 }
 
-func parseJSONMapFromLine(structuredJsonMap map[string]any, splunkJsonMap map[string]any) string {
+func parseJSONMapFromLine(structuredJsonMap map[string]any, splunkJsonMap map[string]any, lineNumber int) string {
+
+	// Add the line number of the origin log file as field, if available
+	// - this lets users easily find the original value in the original log, by searching for the line number
+	if lineNumber > 0 {
+		if len(structuredJsonMap) != 0 {
+			structuredJsonMap["logLineNumber"] = fmt.Sprintf("%v", lineNumber)
+		} else if len(splunkJsonMap) != 0 {
+			splunkJsonMap["logLineNumber"] = fmt.Sprintf("%v", lineNumber)
+		}
+	}
 
 	// The splunk logs contain a lot of useless fields, so filter them out
 	splunkJsonMap = filterByMapKey(splunkJsonMap, splunkRemoveUnnecessaryFieldsFilter{})
@@ -169,7 +212,7 @@ func parseJSONMapFromLine(structuredJsonMap map[string]any, splunkJsonMap map[st
 		fmt.Println("Warning: ts not found")
 	} else {
 		ts = strings.ReplaceAll(ts, "T", " ")
-		ts = strings.ReplaceAll(ts, "Z", "")
+		ts = strings.ReplaceAll(ts, "Z", "z")
 
 		// Pad timestamp to 29
 		for {
@@ -251,7 +294,7 @@ func parseJSONMapFromLine(structuredJsonMap map[string]any, splunkJsonMap map[st
 
 			}
 
-			keys = sortKeysWithFavoredAndDisfavoredFields(keys, []string{"controllerKind", "caller"}, []string{"object", "applicationSpecField", "Application"})
+			keys = sortKeysWithFavoredAndDisfavoredFields(keys, []string{"controllerKind", "caller"}, []string{"object", "applicationSpecField", "Application", "logLineNumber"})
 
 		}
 
@@ -607,4 +650,43 @@ func recursiveToStringOnJsonMap(obj map[string]any) string {
 	res = strings.TrimSuffix(res, ", ")
 
 	return res
+}
+
+type ByTS []string
+
+func (a ByTS) Len() int      { return len(a) }
+func (a ByTS) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a ByTS) Less(i, j int) bool {
+	return extractTimestampFromLine(a[i]) < extractTimestampFromLine(a[j])
+}
+
+func extractTimestampFromLine(line string) string {
+	fullJsonMap := map[string]any{}
+
+	var res string
+
+	if err := json.Unmarshal(([]byte)(line), &fullJsonMap); err != nil {
+		res = ""
+	} else {
+
+		structuredMapVal, exists := fullJsonMap["structured"]
+		if exists {
+
+			structuredMap := (structuredMapVal).(map[string]any)
+
+			res = extractStringField("ts", structuredMap)
+
+		} else {
+
+			res = extractStringField("@timestamp", fullJsonMap)
+		}
+
+	}
+
+	if res == "" {
+		log.Fatal("unable to extract timestamp from line: " + line)
+	}
+
+	return res
+
 }

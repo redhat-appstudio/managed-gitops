@@ -138,7 +138,20 @@ func (r *DevsandboxDeploymentReconciler) Reconcile(ctx context.Context, req ctrl
 		logutil.LogAPIResourceChangeEvent(dt.Namespace, dt.Name, dt, logutil.ResourceCreated, log)
 
 	} else {
-		log.Info("A DeploymentTarget for the SpaceRequest exists, no work needed.", "DeploymentTarget.Name", dt.Name, "Namespace", dt.Namespace)
+		log.Info("A DeploymentTarget for the SpaceRequest already exists, no work needed.", "DeploymentTarget.Name", dt.Name, "Namespace", dt.Namespace)
+	}
+
+	// If we found or created the DT, ensure the SpaceRequest references it via DeploymentTargetLabel
+	if dt != nil {
+
+		if val, exists := spacerequest.Labels[DeploymentTargetLabel]; !exists || val != dt.Name {
+
+			spacerequest.Labels[DeploymentTargetLabel] = dt.Name
+
+			if err := r.Client.Update(ctx, &spacerequest); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
 	}
 
 	return ctrl.Result{}, nil
@@ -224,10 +237,17 @@ func findMatchingDTForSpaceRequest(ctx context.Context, k8sClient client.Client,
 			},
 		}
 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dt), dt); err != nil {
-			return nil, fmt.Errorf("unable to locate DT with name '%s' in Namespace '%s', from DeploymentTargetLabel of SpaceRequest '%s': %w", dt.Name, dt.Namespace, spacerequest.Name, err)
+
+			if !apierr.IsNotFound(err) {
+				return nil, fmt.Errorf("unable to locate DT with name '%s' in Namespace '%s', from DeploymentTargetLabel of SpaceRequest '%s': %w", dt.Name, dt.Namespace, spacerequest.Name, err)
+			}
+
+			// On not found, continue to the rest of the function to attempt to find it using the DTC
+		} else {
+			// On success, return the DT
+			return dt, nil
 		}
 
-		return dt, nil
 	}
 
 	// If it doesn't have a label, instead attempt to find it via the DTC label
@@ -333,16 +353,6 @@ func createDeploymentTargetForSpaceRequest(ctx context.Context, k8sClient client
 	}
 	deploymentTarget.Annotations[applicationv1alpha1.AnnDynamicallyProvisioned] = string(applicationv1alpha1.Provisioner_Devsandbox)
 
-	// Before we create the DT, update the SpaceRequest label
-	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&spacerequest), &spacerequest); err != nil {
-		return nil, err
-	}
-
-	spacerequest.Labels[DeploymentTargetLabel] = deploymentTarget.Name
-
-	if err := k8sClient.Update(ctx, &spacerequest); err != nil {
-		return nil, err
-	}
 	// Create the DeploymentTarget
 	if err := k8sClient.Create(ctx, deploymentTarget); err != nil {
 		return nil, err

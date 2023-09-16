@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"sort"
 	"strings"
@@ -684,7 +683,7 @@ func extractTimestampFromLine(line string) string {
 	}
 
 	if res == "" {
-		log.Fatal("unable to extract timestamp from line: " + line)
+		fmt.Println("Unable to extract timestamp from line: " + line)
 	}
 
 	return res

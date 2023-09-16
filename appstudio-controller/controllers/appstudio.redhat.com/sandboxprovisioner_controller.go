@@ -39,7 +39,7 @@ const (
 	// DeploymentTargetClaimLabel is the label indicating the DeploymentTargetClaim that's associated with the SpaceRequest
 	DeploymentTargetClaimLabel = "appstudio.openshift.io/dtc"
 
-	// DeploymentTargetClaimLabel is the label indicating the DeploymentTarget that's associated with the SpaceRequest
+	// DeploymentTargetLabel is the label indicating the DeploymentTarget that's associated with the SpaceRequest
 	DeploymentTargetLabel = "appstudio.openshift.io/dt"
 )
 

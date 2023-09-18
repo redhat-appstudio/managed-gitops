@@ -1045,7 +1045,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 		)
 		It("should return an empty resourceStatus if the input slice is empty", func() {
 			resourcesStatus := extractResourceStatus([]fauxargocd.ResourceStatus{})
-			Expect(resourcesStatus).To(HaveLen(0))
+			Expect(resourcesStatus).To(BeEmpty())
 		})
 
 		It("should convert the input faux ResourceStatus to GitOpsDeployment ResourceStatus", func() {
@@ -1105,7 +1105,7 @@ var _ = Describe("ApplicationEventLoop Test", func() {
 			}
 
 			opState, err := extractOperationState(&inputState)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			Expect(*opState).To(Equal(expectedState))
 		})
 	})
